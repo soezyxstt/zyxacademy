@@ -1,4 +1,12 @@
-import { describe, expect, it, spyOn, beforeEach, afterEach } from "bun:test";
+import { describe, expect, it, spyOn, beforeAll, beforeEach, afterEach } from "bun:test";
+import { db } from "@/db";
+import { user, pengguna } from "@/db/schema";
+
+beforeAll(async () => {
+  const ids = ["usr_test_001", "usr_test_002", "usr_test_003", "usr_test_004", "usr_test_005", "usr_test_006", "usr_test_007", "usr_test_008", "usr_quota_exceeded", "usr_provenance_010", "usr_struct_001", "usr_metric_001", "usr_fallback_001"];
+  await db.insert(user).values(ids.map(id => ({ id, name: id, email: `${id}@example.invalid`, role: "student" })));
+  await db.insert(pengguna).values(ids.map(id => ({ id, status: "active" as const })));
+});
 
 process.env.MOCK_GEMINI = "true";
 import { repairJsonString } from "@/lib/ko-utils";

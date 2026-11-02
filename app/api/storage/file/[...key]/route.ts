@@ -7,16 +7,11 @@ import { auth } from "@/lib/auth";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { resolveCourseAccess } from "@/lib/student/course-access";
 import { isProtectedProductDiktatPdfKey, leafFilename, quizAttachmentPrefix } from "@/lib/storage/keys";
+import { getS3StorageConfig } from "@/lib/storage/r2";
 
-const bucket = process.env.R2_BUCKET || "zyx";
-const s3 = new S3Client({
-  region: "auto",
-  endpoint: process.env.R2_ENDPOINT,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || "",
-  },
-});
+const config = getS3StorageConfig(process.env.STORAGE_PROVIDER_MODE === "neon" ? "neon" : "r2");
+const bucket = config.bucket;
+const s3 = new S3Client(config.client);
 
 function normalizeStorageKey(value: unknown): string | null {
   if (typeof value !== "string" || !value.trim()) return null;

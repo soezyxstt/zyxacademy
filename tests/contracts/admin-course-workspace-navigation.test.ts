@@ -45,13 +45,14 @@ describe("Admin Course Workspace Navigation & Mobile Route Titles Contract", () 
     const slug = "kalkulus-1";
     const items = getAdminCourseNavItems(slug);
 
-    test("returns exactly eleven items in the prescribed order", () => {
-      expect(items).toHaveLength(11);
+    test("returns exactly twelve items in the prescribed order", () => {
+      expect(items).toHaveLength(12);
       expect(items.map((i) => i.label)).toEqual([
         "Bab",
         "Dokumen",
         "Video",
         "Kuis",
+        "Tryout",
         "Soal",
         "Flashcard",
         "Hasil",
@@ -78,6 +79,7 @@ describe("Admin Course Workspace Navigation & Mobile Route Titles Contract", () 
         `/admin/courses/${slug}/documents`,
         `/admin/courses/${slug}/videos`,
         `/admin/courses/${slug}/quizzes`,
+        `/admin/courses/${slug}/tryouts`,
         `/admin/courses/${slug}/questions`,
         `/admin/courses/${slug}/flashcards`,
         `/admin/courses/${slug}/results`,
@@ -128,8 +130,8 @@ describe("Admin Course Workspace Navigation & Mobile Route Titles Contract", () 
 
       // Settings route: only Settings is active
       const settingsPath = `/admin/courses/${slug}/settings`;
-      expect(isItemActive(items[10], settingsPath)).toBe(true);
-      expect(items.slice(0, 10).every((i) => !isItemActive(i, settingsPath))).toBe(true);
+      expect(isItemActive(items[11], settingsPath)).toBe(true);
+      expect(items.slice(0, 11).every((i) => !isItemActive(i, settingsPath))).toBe(true);
     });
   });
 

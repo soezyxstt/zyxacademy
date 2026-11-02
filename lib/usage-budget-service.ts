@@ -1,3 +1,4 @@
+import { affectedRows } from "@/lib/mutation-result";
 import { randomUUID } from "node:crypto";
 import { and, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -346,7 +347,7 @@ async function usageFor(
     .select({
       provider: sql<number>`coalesce(sum(case when ${aiAllowanceLeases.units} > 0 then ${aiAllowanceLeases.units} else 0 end), 0)`,
       total: sql<number>`coalesce(sum(${aiAllowanceLeases.interactionUnits}), 0)`,
-      premium: sql<number>`coalesce(sum(case when ${aiAllowanceLeases.premium} = 1 then ${aiAllowanceLeases.units} else 0 end), 0)`,
+      premium: sql<number>`coalesce(sum(case when ${aiAllowanceLeases.premium} = true then ${aiAllowanceLeases.units} else 0 end), 0)`,
       minute: sql<number>`coalesce(sum(${aiAllowanceLeases.interactionUnits}), 0)`,
     })
     .from(aiAllowanceLeases)
@@ -534,40 +535,27 @@ export class UsageBudgetService {
       expiresAt: aiAllowanceLeases.expiresAt,
       ...(tierColumn ? { accessTier: tierColumn } : {}),
     };
-    const existing = await db
-      .select(leaseColumns)
-      .from(aiAllowanceLeases)
-      .where(eq(aiAllowanceLeases.idempotencyKey, params.idempotencyKey))
-      .limit(1);
-    if (existing[0]) {
-      if (existing[0].userId !== params.userId) {
-        return { accepted: false, reason: "IDEMPOTENCY_CONFLICT" };
-      }
-      const lease = leaseFromRow(existing[0]);
-      // Idempotency is request-scoped, not a reusable daily token. A key
-      // replayed on another Jakarta day or for another feature must not
-      // bypass that day's allowance.
-      if (lease.appDay !== appDay || lease.feature !== params.feature || lease.accessTier !== accessTier) {
-        return { accepted: false, reason: "IDEMPOTENCY_CONFLICT" };
-      }
-      if (lease.status === "refunded") {
-        return { accepted: false, reason: "IDEMPOTENCY_CONFLICT" };
-      }
-      const usage = await usageFor(db, params.userId, appDay, new Date(now.getTime() - 60_000), accessTier);
-      return {
-        accepted: true,
-        idempotent: true,
-        lease,
-        remaining: remainingFromUsage(role, usage, accessTier),
-      };
-    }
-
     try {
       const result = await db.transaction(async (tx) => {
+        // Serialize each user's count and insert, including concurrent idempotent replays.
+        await tx.select({ id: authUser.id }).from(authUser).where(eq(authUser.id, params.userId)).for("update");
         const executor = tx as unknown as QueryExecutor;
-        await expireReservations(executor, params.userId, now);
         const currentRoles = effectiveRole(await activeRoles(executor, params.userId));
         if (!currentRoles) return { accepted: false, reason: "NO_ACTIVE_ROLE" } as const;
+
+        const [existing] = await executor.select(leaseColumns).from(aiAllowanceLeases)
+          .where(eq(aiAllowanceLeases.idempotencyKey, params.idempotencyKey)).limit(1);
+        if (existing) {
+          const lease = leaseFromRow(existing);
+          if (existing.userId !== params.userId || lease.appDay !== appDay || lease.feature !== params.feature
+            || lease.accessTier !== accessTier || lease.status === "refunded") {
+            return { accepted: false, reason: "IDEMPOTENCY_CONFLICT" } as const;
+          }
+          const usage = await usageFor(executor, params.userId, appDay, new Date(now.getTime() - 60_000), accessTier);
+          return { accepted: true, idempotent: true, lease, remaining: remainingFromUsage(currentRoles, usage, accessTier) } as const;
+        }
+
+        await expireReservations(executor, params.userId, now);
 
         const usage = await usageFor(executor, params.userId, appDay, new Date(now.getTime() - 60_000), accessTier);
         const interactionUnits = mode === "provider" ? units : 1;
@@ -686,7 +674,7 @@ export class UsageBudgetService {
       .update(aiAllowanceLeases)
       .set({ controlPlaneLeaseId })
       .where(and(eq(aiAllowanceLeases.id, leaseId), inArray(aiAllowanceLeases.status, ["reserved", "dispatched"])));
-    return result.rowsAffected > 0;
+    return affectedRows(result) > 0;
   }
 
   static async recordCacheHit(params: Omit<ReserveParams, "mode" | "units">): Promise<AllowanceReserveResult> {

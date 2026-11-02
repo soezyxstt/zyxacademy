@@ -1,16 +1,25 @@
-import { describe, expect, it, mock, beforeEach } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { describe, expect, it, mock, beforeEach, beforeAll, afterAll } from "bun:test";
+import { createPostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
 import { NextRequest } from "next/server";
 
 let mockSession: any = null;
 
-const client = createClient({ url: "file::memory:?cache=shared" });
-const testDb = drizzle(client, { schema });
+let client: Awaited<ReturnType<typeof createPostgresTestDb>>["client"];
+let testDb: Awaited<ReturnType<typeof createPostgresTestDb>>["testDb"];
+const dbProxy = new Proxy({} as typeof testDb, {
+  get(_target, key) {
+    const value = Reflect.get(testDb, key);
+    return typeof value === "function" ? value.bind(testDb) : value;
+  },
+});
+beforeAll(async () => {
+  ({ client, testDb } = await createPostgresTestDb());
+}, 60_000);
+afterAll(async () => { await client?.close(); });
 
 mock.module("@/db", () => ({
-  db: testDb,
+  db: dbProxy,
 }));
 
 mock.module("@/lib/auth", () => ({
@@ -32,251 +41,6 @@ mock.module("@/lib/notifications/send", () => ({
 import { POST, GET } from "@/app/api/quiz/templates/route";
 import { PATCH, DELETE } from "@/app/api/quiz/templates/[id]/route";
 import { GET as getQuizAttempts } from "@/app/api/admin/quiz-insights/[id]/attempts/route";
-
-async function setupTables() {
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS user (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      role TEXT DEFAULT 'student',
-      last_activity_at INTEGER
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna (
-      id TEXT PRIMARY KEY REFERENCES user(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS peran (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna_peran (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      peran_id TEXT NOT NULL REFERENCES peran(id),
-      source TEXT NOT NULL,
-      audit_actor_pengguna_id TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS courses (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT 'Matematika',
-      description TEXT
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS mata_kuliah (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'active',
-      legacy_course_id TEXT REFERENCES courses(id),
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS penugasan_tutor (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      assignment_scope TEXT NOT NULL DEFAULT 'course',
-      legacy_tutor_course_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS tutor_courses (
-      id TEXT PRIMARY KEY,
-      tutor_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS enrollments (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      enrolled_at INTEGER,
-      expires_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS quiz_templates (
-      id TEXT PRIMARY KEY,
-      course_id TEXT NOT NULL,
-      title TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT 'daily',
-      visibility TEXT NOT NULL DEFAULT 'free',
-      status TEXT NOT NULL DEFAULT 'draft',
-      time_limit_seconds INTEGER,
-      max_attempts INTEGER,
-      selection_rules TEXT NOT NULL,
-      open_at INTEGER,
-      close_at INTEGER,
-      manual_status TEXT NOT NULL DEFAULT 'open',
-      show_discussion INTEGER NOT NULL DEFAULT 1,
-      spreadsheet_id TEXT,
-      spreadsheet_url TEXT,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS blueprint_asesmen (
-      id TEXT PRIMARY KEY,
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      title TEXT NOT NULL,
-      assessment_type TEXT NOT NULL,
-      blueprint TEXT NOT NULL,
-      version INTEGER NOT NULL DEFAULT 1,
-      status TEXT NOT NULL DEFAULT 'draft',
-      generation_hash TEXT NOT NULL,
-      creator_id TEXT NOT NULL REFERENCES pengguna(id),
-      curator_id TEXT REFERENCES pengguna(id),
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS asesmen (
-      id TEXT PRIMARY KEY,
-      blueprint_asesmen_id TEXT NOT NULL REFERENCES blueprint_asesmen(id),
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      title TEXT NOT NULL,
-      assessment_type TEXT NOT NULL,
-      version INTEGER NOT NULL DEFAULT 1,
-      status TEXT NOT NULL DEFAULT 'draft',
-      generation_hash TEXT NOT NULL,
-      creator_id TEXT NOT NULL REFERENCES pengguna(id),
-      curator_id TEXT REFERENCES pengguna(id),
-      published_at INTEGER,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS bab (
-      id TEXT PRIMARY KEY,
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      code TEXT NOT NULL,
-      title TEXT NOT NULL,
-      order_index INTEGER NOT NULL,
-      legacy_chapter_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS cakupan_asesmen (
-      id TEXT PRIMARY KEY,
-      asesmen_id TEXT NOT NULL REFERENCES asesmen(id),
-      bab_id TEXT NOT NULL REFERENCES bab(id),
-      order_index INTEGER NOT NULL,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS soal (
-      id TEXT PRIMARY KEY,
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      bab_id TEXT REFERENCES bab(id),
-      prompt_markdown TEXT NOT NULL,
-      question_type TEXT NOT NULL,
-      difficulty TEXT NOT NULL,
-      options_snapshot TEXT,
-      correct_answer_payload TEXT,
-      version INTEGER NOT NULL DEFAULT 1,
-      generation_hash TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS item_asesmen (
-      id TEXT PRIMARY KEY,
-      asesmen_id TEXT NOT NULL REFERENCES asesmen(id),
-      soal_id TEXT NOT NULL REFERENCES soal(id),
-      order_index INTEGER NOT NULL,
-      rendered_question_snapshot TEXT NOT NULL,
-      option_order_snapshot TEXT NOT NULL,
-      grading_policy_snapshot TEXT NOT NULL,
-      content_version INTEGER NOT NULL DEFAULT 1,
-      generation_hash TEXT NOT NULL,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS student_quiz_attempts (
-      id TEXT PRIMARY KEY,
-      template_id TEXT NOT NULL,
-      student_id TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'completed',
-      grading_status TEXT NOT NULL DEFAULT 'not_required',
-      score REAL,
-      duration_seconds INTEGER,
-      answers_snapshot TEXT,
-      questions_snapshot TEXT,
-      started_at INTEGER,
-      submitted_at INTEGER,
-      strong_areas TEXT,
-      weak_areas TEXT,
-      recommended_next_steps TEXT,
-      mastery_before TEXT
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS audit_mutasi (
-      id TEXT PRIMARY KEY,
-      actor_id TEXT REFERENCES pengguna(id) ON DELETE SET NULL,
-      entity_type TEXT NOT NULL,
-      entity_id TEXT NOT NULL,
-      action TEXT NOT NULL,
-      before_snapshot TEXT,
-      after_snapshot TEXT,
-      correlation_id TEXT,
-      course_id TEXT,
-      outcome TEXT,
-      reason TEXT,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-}
 
 async function seedApiData() {
   const now = new Date();
@@ -393,12 +157,12 @@ async function seedApiData() {
   // Existing quiz template in mk-calc
   await testDb.insert(schema.quizTemplates).values({
     id: "tpl-calc-1",
-    courseId: "mk-calc",
+    courseId: "crs-calc",
     title: "Kuis Bab 1 Kalkulus",
     category: "chapter",
     visibility: "free",
     status: "published",
-    selectionRules: JSON.stringify({ count: 5 }),
+    selectionRules: { count: 5 },
     createdAt: now,
     updatedAt: now,
   }).onConflictDoNothing();
@@ -406,12 +170,12 @@ async function seedApiData() {
   // Existing simulation template in mk-calc
   await testDb.insert(schema.quizTemplates).values({
     id: "tpl-calc-sim",
-    courseId: "mk-calc",
+    courseId: "crs-calc",
     title: "Simulasi Ujian Kalkulus",
     category: "simulation",
     visibility: "paid",
     status: "published",
-    selectionRules: JSON.stringify({ count: 20, assessmentType: "tryout" }),
+    selectionRules: { count: 20, assessmentType: "tryout" },
     createdAt: now,
     updatedAt: now,
   }).onConflictDoNothing();
@@ -419,12 +183,12 @@ async function seedApiData() {
   // Existing quiz template in mk-physics (unassigned course)
   await testDb.insert(schema.quizTemplates).values({
     id: "tpl-physics-1",
-    courseId: "mk-physics",
+    courseId: "crs-physics",
     title: "Kuis Fisika Vektor",
     category: "chapter",
     visibility: "free",
     status: "published",
-    selectionRules: JSON.stringify({ count: 5 }),
+    selectionRules: { count: 5 },
     createdAt: now,
     updatedAt: now,
   }).onConflictDoNothing();
@@ -432,12 +196,12 @@ async function seedApiData() {
   // Draft quiz template in mk-calc (must never leak to students)
   await testDb.insert(schema.quizTemplates).values({
     id: "tpl-calc-draft",
-    courseId: "mk-calc",
+    courseId: "crs-calc",
     title: "Kuis Draft Kalkulus",
     category: "daily",
     visibility: "free",
     status: "draft",
-    selectionRules: JSON.stringify({ count: 5 }),
+    selectionRules: { count: 5 },
     createdAt: now,
     updatedAt: now,
   }).onConflictDoNothing();
@@ -459,8 +223,8 @@ async function seedApiData() {
     status: "completed",
     score: 85,
     durationSeconds: 300,
-    answersSnapshot: JSON.stringify({ "q1": 0 }),
-    questionsSnapshot: JSON.stringify([{ id: "q1", prompt: "2+2?", options: ["4", "5"], correctIndex: 0 }]),
+    answersSnapshot: { "q1": 0 },
+    questionsSnapshot: [{ id: "q1", prompt: "2+2?", options: ["4", "5"], correctIndex: 0 }],
     startedAt: now,
     submittedAt: now,
   }).onConflictDoNothing();
@@ -473,56 +237,16 @@ async function seedApiData() {
     status: "completed",
     score: 90,
     durationSeconds: 400,
-    answersSnapshot: JSON.stringify({ "q2": 1 }),
-    questionsSnapshot: JSON.stringify([{ id: "q2", prompt: "F=?", options: ["ma", "mv"], correctIndex: 0 }]),
+    answersSnapshot: { "q2": 1 },
+    questionsSnapshot: [{ id: "q2", prompt: "F=?", options: ["ma", "mv"], correctIndex: 0 }],
     startedAt: now,
     submittedAt: now,
   }).onConflictDoNothing();
 }
 
-const SHARED_PURGE_TABLES = [
-  "student_quiz_attempts",
-  "audit_mutasi",
-  "item_asesmen",
-  "cakupan_asesmen",
-  "soal",
-  "bab",
-  "asesmen",
-  "blueprint_asesmen",
-  "quiz_templates",
-  "ai_question_bank",
-  "ai_material_instance_chunks",
-  "ai_material_instance_sections",
-  "ai_material_instances",
-  "submissions",
-  "questions",
-  "exams",
-  "enrollments",
-  "penugasan_tutor",
-  "tutor_courses",
-  "mata_kuliah",
-  "courses",
-  "pengguna_peran",
-  "pengguna",
-  "peran",
-  "user",
-] as const;
-
-async function purgeSharedTables() {
-  const existing = await client.execute(
-    `SELECT name FROM sqlite_master WHERE type = 'table'`,
-  );
-  const present = new Set(existing.rows.map((row) => String(row.name)));
-  for (const table of SHARED_PURGE_TABLES) {
-    if (!present.has(table)) continue;
-    await client.execute(`DELETE FROM ${table}`);
-  }
-}
-
 describe("Tutor Quiz Template API Access Controls", () => {
   beforeEach(async () => {
-    await setupTables();
-    await purgeSharedTables();
+    await client.exec('TRUNCATE TABLE "user", peran, courses CASCADE');
     await seedApiData();
   });
 
@@ -735,24 +459,24 @@ describe("Tutor Quiz Template API Access Controls", () => {
     it("resolves canonical and legacy course IDs before checking duplicate tags", async () => {
       mockSession = { user: { id: "usr-tutor-1", role: "teacher" } };
 
-      // Existing template saved under canonical course ID 'mk-calc' with tag 'aljabar-dasar'
+      // Templates reference courses.id; requests may use the linked canonical ID.
       await testDb.insert(schema.quizTemplates).values({
         id: "tpl-calc-tag-1",
-        courseId: "mk-calc",
+        courseId: "crs-calc",
         title: "Kuis Aljabar Dasar",
         category: "chapter",
         visibility: "free",
         status: "published",
-        selectionRules: JSON.stringify({ count: 5, tags: ["aljabar-dasar"] }),
+        selectionRules: { count: 5, tags: ["aljabar-dasar"] },
         createdAt: new Date(),
         updatedAt: new Date(),
       }).onConflictDoNothing();
 
-      // Attempt to create new template with legacy course ID 'crs-calc' sharing the same tag
+      // The canonical identifier must find the existing legacy projection.
       const req = new NextRequest("http://localhost:3000/api/quiz/templates", {
         method: "POST",
         body: JSON.stringify({
-          courseId: "crs-calc",
+          courseId: "mk-calc",
           title: "Kuis Aljabar Duplikat",
           category: "chapter",
           visibility: "free",

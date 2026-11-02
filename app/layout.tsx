@@ -70,6 +70,7 @@ export default async function RootLayout({
  return (
  <html lang={locale} suppressHydrationWarning className={`${inter.variable} ${lexend.variable} overflow-x-clip`}>
  <head>
+   <link rel="manifest" href="/manifest.webmanifest" crossOrigin="use-credentials" />
  </head>
   <body className="font-sans min-h-screen flex flex-col overflow-x-clip">
     <PostHogProvider>

@@ -269,6 +269,8 @@ describe("Ops AI v2 Contracts - Tool Security Classification and Approved Vocabu
       "navigate_admin",
       "search_users",
       "propose_create_token",
+      "propose_batch_create_chapters",
+      "propose_bulk_update_materials",
       "execute_confirmed_proposal",
     ];
 

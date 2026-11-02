@@ -9,7 +9,6 @@ export function pythonReply(text: string): { explanation: string; code: string |
 
 export function pythonHistoryReply(text: string, language: "id" | "en"): string {
   const { explanation, code } = pythonReply(text);
-  if (!code && explanation) return explanation;
   if (!code) return language === "en"
     ? "A complete program is not available. Try again or use Tutor mode for an explanation."
     : "Program lengkap belum tersedia. Coba lagi atau gunakan mode Tutor untuk pembahasan.";

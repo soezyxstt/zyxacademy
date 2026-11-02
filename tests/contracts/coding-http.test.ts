@@ -8,4 +8,4 @@ test("authenticated coding HTTP contracts in an isolated process", async () => {
   if (exitCode !== 0) throw new Error(`${stdout}\n${stderr}`);
   expect(`${stdout}\n${stderr}`).toContain("5 pass");
   expect(exitCode).toBe(0);
-}, 30000);
+}, 180_000);

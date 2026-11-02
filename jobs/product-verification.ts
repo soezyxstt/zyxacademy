@@ -1,6 +1,7 @@
 import { inngest } from "./client";
 import { failProductV4VerificationJob, processProductV4VerificationJob } from "@/lib/bundle/product-v4-verification-service";
 import { z } from "zod";
+import { executeProductV4VerificationCheck } from "@/lib/compute/product-v4-verification-executor";
 
 const input = z.object({ importId: z.string().min(1), runId: z.string().min(1), planHash: z.string().regex(/^[a-f0-9]{64}$/), attemptId: z.string().uuid() }).strict();
 export const productVerificationWorker = inngest.createFunction({
@@ -19,5 +20,5 @@ export const productVerificationWorker = inngest.createFunction({
       try { await closeProductV4BrowserRunner(); }
       catch (error) { if (!failed) throw error; }
     }
-  }) as T);
+  }) as T, executeProductV4VerificationCheck);
 });

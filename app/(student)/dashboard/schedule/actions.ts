@@ -1,5 +1,7 @@
 "use server";
 
+import { affectedRows } from "@/lib/mutation-result";
+import { lockScheduleEntity } from "@/lib/schedule/transaction-lock";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
@@ -467,7 +469,7 @@ export async function collaborativeBookSlot(
           )
         );
 
-      if ((quotaClaim.rowsAffected ?? 0) === 0) {
+      if (affectedRows(quotaClaim) === 0) {
         return {
           success: false,
           error: "Kuota total sesi kelompok telah tercapai.",
@@ -727,11 +729,12 @@ export async function collaborativeMoveSlot(
         .where(
           and(
             eq(bookings.id, bookingId),
+            eq(bookings.slotId, booking.slotId),
             terminalStatusGuard()
           )
         );
 
-      if ((updateRes.rowsAffected ?? 0) === 0) {
+      if (affectedRows(updateRes) === 0) {
         return {
           success: false,
           error: "Status sesi berubah sebelum pemindahan; tidak ada perubahan yang disimpan.",
@@ -873,7 +876,7 @@ export async function collaborativeCancelSlot(bookingId: string) {
           )
         );
 
-      if ((cancelRes.rowsAffected ?? 0) === 0) {
+      if (affectedRows(cancelRes) === 0) {
         return { success: false, error: "Status sesi sudah berubah." };
       }
 
@@ -881,7 +884,7 @@ export async function collaborativeCancelSlot(bookingId: string) {
       const refundClaim = await tx
         .update(groups)
         .set({
-          usedQuotaSessions: sql`MAX(${groups.usedQuotaSessions} - 1, 0)`,
+          usedQuotaSessions: sql`GREATEST(${groups.usedQuotaSessions} - 1, 0)`,
           updatedAt: now,
         })
         .where(
@@ -891,7 +894,7 @@ export async function collaborativeCancelSlot(bookingId: string) {
           )
         );
 
-      if ((refundClaim.rowsAffected ?? 0) > 0) {
+      if (affectedRows(refundClaim) > 0) {
         await tx.insert(bookingAuditLogs).values({
           id: randomUUID(),
           bookingId,
@@ -1184,6 +1187,7 @@ export async function submitRescheduleTicket(
 
   try {
     return await db.transaction(async (tx) => {
+      await lockScheduleEntity(tx, "ticket", bookingId);
       const booking = await tx.query.bookings.findFirst({
         where: eq(bookings.id, bookingId),
         with: {
@@ -1462,7 +1466,7 @@ export async function tutorCompleteSession(
         lastModifiedAt: now,
       })
       .where(and(eq(bookings.id, bookingId), eq(bookings.slotId, booking.slotId), occupiesTutorSlot()));
-    if (!updated.rowsAffected) {
+    if (affectedRows(updated) === 0) {
       return { success: false, error: "Status atau jadwal sesi sudah berubah." };
     }
 
@@ -1586,7 +1590,7 @@ export async function completeTutorSessionAction(
           lastModifiedAt: now,
         })
         .where(and(eq(bookings.id, targetBookingId), eq(bookings.slotId, booking.slotId), occupiesTutorSlot()));
-      if (!updated.rowsAffected) return false;
+      if (affectedRows(updated) === 0) return false;
 
       await tx.insert(bookingAuditLogs).values({
         id: randomUUID(),

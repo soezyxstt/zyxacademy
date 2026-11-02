@@ -81,7 +81,7 @@ export async function acquireVerificationBrowser(account: string, token: string,
 export async function acquireConfiguredVerificationBrowser(env = process.env, ports?: Ports): Promise<VerificationBrowserSession> {
   return verificationBrowserProvider(env) === "steel"
     ? acquireSteelVerificationBrowser(env.STEEL_API_KEY ?? "", ports)
-    : acquireVerificationBrowser(env.CF_ACCOUNT_ID ?? "", env.CF_API_TOKEN ?? "", ports);
+    : acquireVerificationBrowser(env.CF_ACCOUNT_ID ?? "", env.CF_BROWSER_API_TOKEN ?? env.CF_API_TOKEN ?? "", ports);
 }
 
 function steelFailure(response: Response, body: string, phase: "ACQUIRE" | "RELEASE"): Error {

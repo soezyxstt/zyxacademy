@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { getTableConfig } from "drizzle-orm/sqlite-core";
+import { getTableConfig } from "drizzle-orm/pg-core";
 import * as schema from "@/db/schema";
 
 describe("student course access schema", () => {

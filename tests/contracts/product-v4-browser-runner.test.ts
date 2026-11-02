@@ -1,12 +1,29 @@
 import { expect, test } from "bun:test";
-import { captureProductV4WebState, exerciseProductV4WebState, inspectProductV4DisplayMath, exerciseProductV4MathScroll, validateVerificationBaseUrl, validateDeployedVerificationBaseUrl } from "@/lib/compute/product-v4-browser-runner";
+import { authenticateVerificationBrowser, captureProductV4WebState, exerciseProductV4WebState, inspectProductV4DisplayMath, exerciseProductV4MathScroll, validateVerificationBaseUrl, validateDeployedVerificationBaseUrl } from "@/lib/compute/product-v4-browser-runner";
 import type { Page } from "@playwright/test";
 import { verificationPreviewSchema } from "@/lib/materials/verification-preview";
 
 test("deployed browser target accepts only the exact authorized Zyx origins", () => {
   expect(validateDeployedVerificationBaseUrl("https://staging.zyxacademy.com")).toBe("https://staging.zyxacademy.com");
   expect(validateDeployedVerificationBaseUrl("https://www.zyxacademy.com")).toBe("https://www.zyxacademy.com");
+  expect(validateDeployedVerificationBaseUrl("https://zyx-neon-migration.vercel.app")).toBe("https://zyx-neon-migration.vercel.app");
   for (const url of ["http://staging.zyxacademy.com", "https://example.com", "https://www.zyxacademy.com/redirect", "https://www.zyxacademy.com/?url=https://example.com", "https://user:secret@www.zyxacademy.com"]) expect(() => validateDeployedVerificationBaseUrl(url)).toThrow();
+});
+
+test("protected browser access stays on its origin, bounds redirects and sanitizes failures", async () => {
+  const origin = "https://zyx-neon-migration.vercel.app";
+  for (const scenario of ["success", "wrong-origin", "external-redirect", "loop"] as const) {
+    let calls = 0, closed = false;
+    const context = {
+      request: { async get(url: string, options: { maxRedirects: number }) {
+        calls++; expect(new URL(url).origin).toBe(origin); expect(options.maxRedirects).toBe(0);
+        return { status: () => scenario === "success" ? 200 : 307, ok: () => scenario === "success", headers: () => ({ location: scenario === "external-redirect" ? "https://example.com/private-token" : "/" }) };
+      } }, async close() { closed = true; },
+    } as unknown as import("playwright-core").BrowserContext;
+    const promise = authenticateVerificationBrowser(context, scenario === "wrong-origin" ? "https://example.com/private-token" : `${origin}/?_vercel_share=test-only`, origin);
+    if (scenario === "success") { await promise; expect(calls).toBe(1); expect(closed).toBe(false); }
+    else { await expect(promise).rejects.toThrow("VERIFICATION_BROWSER_ACCESS_FAILED"); expect(closed).toBe(true); expect(calls).toBe(scenario === "wrong-origin" ? 0 : scenario === "loop" ? 6 : 1); }
+  }
 });
 
 test("trusted browser target is only a configured loopback origin", () => {

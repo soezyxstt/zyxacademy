@@ -7,6 +7,7 @@
     "jsr:@cliffy/table@1.2.1": "1.2.1",
     "jsr:@david/jsonc-morph@~0.3.4": "0.3.5",
     "jsr:@deno/deploy@*": "0.0.9904",
+    "jsr:@deno/deploy@0.0.9904": "0.0.9904",
     "jsr:@deno/framework-detect@0.3": "0.3.0",
     "jsr:@deno/sandbox@~0.13.2": "0.13.2",
     "jsr:@std/async@^1.5.0": "1.5.0",
@@ -49,6 +50,7 @@
     "npm:@types/bun@^1.3.14": "1.4.0",
     "npm:@types/node@^20.19.43": "20.19.43",
     "npm:@types/pdf-parse@^1.1.5": "1.1.5",
+    "npm:@types/pg@^8.23.1": "8.23.1",
     "npm:@types/react-dom@^19.2.3": "19.2.7_@types+react@19.2.18",
     "npm:@types/react@^19.2.17": "19.2.18",
     "npm:@types/three@~0.184.1": "0.184.1",
@@ -57,14 +59,14 @@
     "npm:@vercel/speed-insights@2": "2.0.0_next@16.3.0_react@19.2.4_@opentelemetry+api@1.9.1_@playwright+test@1.62.1_react-dom@19.2.4",
     "npm:@vidstack/react@^1.15.7": "1.15.7_@types+react@19.2.18_react@19.2.4",
     "npm:ai@^6.0.208": "6.0.276_zod@4.5.4",
-    "npm:better-auth@^1.6.19": "1.7.2_drizzle-kit@0.31.10_drizzle-orm@0.45.2_next@16.3.0_pg@8.23.0_react@19.2.4_react-dom@19.2.4_@cloudflare+workers-types@5.20260904.1_@libsql+client@0.17.4_@opentelemetry+api@1.9.1_@playwright+test@1.62.1_@types+pg@8.23.1",
+    "npm:better-auth@^1.6.19": "1.7.2_drizzle-kit@0.31.10_drizzle-orm@0.45.2__@cloudflare+workers-types@5.20260904.1__@libsql+client@0.17.4__@types+pg@8.23.1__kysely@0.29.5__pg@8.21.0_next@16.3.0_pg@8.21.0_react@19.2.4_react-dom@19.2.4_@types+pg@8.23.1",
     "npm:class-variance-authority@~0.7.1": "0.7.1",
     "npm:clsx@^2.1.1": "2.1.1",
     "npm:cmdk@^1.1.1": "1.1.1_react@19.2.4_react-dom@19.2.4_@types+react@19.2.18_@types+react-dom@19.2.7",
     "npm:culori@^4.0.2": "4.0.2",
     "npm:date-fns@^4.4.0": "4.4.0",
     "npm:drizzle-kit@~0.31.10": "0.31.10",
-    "npm:drizzle-orm@~0.45.2": "0.45.2_@cloudflare+workers-types@5.20260904.1_@libsql+client@0.17.4_@opentelemetry+api@1.9.1_@types+pg@8.23.1_kysely@0.29.5_pg@8.23.0",
+    "npm:drizzle-orm@~0.45.2": "0.45.2_@cloudflare+workers-types@5.20260904.1_@libsql+client@0.17.4_@types+pg@8.23.1_kysely@0.29.5_pg@8.21.0",
     "npm:elkjs@~0.11.1": "0.11.1",
     "npm:embla-carousel-react@^8.6.0": "8.6.0_react@19.2.4",
     "npm:eslint-config-next@16.3.0": "16.3.0_eslint@9.39.5_typescript@5.9.3",
@@ -92,6 +94,7 @@
     "npm:pdf-parse@^2.4.5": "2.4.5",
     "npm:pdfjs-dist@5.4.296": "5.4.296",
     "npm:pg-connection-string@^2.14.0": "2.14.0",
+    "npm:pg@8.21.0": "8.21.0",
     "npm:playwright-core@1.62.1": "1.62.1",
     "npm:posthog-js@^1.409.5": "1.427.0_@types+react@19.2.18_react@19.2.4",
     "npm:puppeteer@^25.1.0": "25.10.0",
@@ -734,7 +737,7 @@
         "@opentelemetry/api"
       ]
     },
-    "@better-auth/drizzle-adapter@1.7.2_@better-auth+core@1.7.2_@better-auth+utils@0.4.2_drizzle-orm@0.45.2_@better-fetch+fetch@1.3.1_@cloudflare+workers-types@5.20260904.1_@libsql+client@0.17.4_@opentelemetry+api@1.9.1_@types+pg@8.23.1_better-call@1.4.0_jose@6.2.11_kysely@0.29.5_nanostores@1.5.3_pg@8.23.0": {
+    "@better-auth/drizzle-adapter@1.7.2_@better-auth+core@1.7.2_@better-auth+utils@0.4.2_drizzle-orm@0.45.2__@cloudflare+workers-types@5.20260904.1__@libsql+client@0.17.4__@types+pg@8.23.1__kysely@0.29.5__pg@8.21.0_@types+pg@8.23.1_pg@8.21.0": {
       "integrity": "sha512-A5wE10PIv3aS5LGePecEHntQylKy6OOF17B4dqlE0DwJeqU/IOBSd7/LZhMop9cNJ3WFjKMpazVSf91yYM/NFg==",
       "dependencies": [
         "@better-auth/core",
@@ -3047,7 +3050,7 @@
         "@opentelemetry/instrumentation@0.222.0_@opentelemetry+api@1.9.1",
         "@opentelemetry/semantic-conventions",
         "@opentelemetry/sql-common",
-        "@types/pg",
+        "@types/pg@8.15.6",
         "@types/pg-pool"
       ]
     },
@@ -5468,11 +5471,19 @@
     "@types/pg-pool@2.0.7": {
       "integrity": "sha512-U4CwmGVQcbEuqpyju8/ptOKg6gEC+Tqsvj2xS9o1g71bUh8twxnC6ZL5rZKCsGN0iyH0CwgUyc9VR5owNQF9Ng==",
       "dependencies": [
-        "@types/pg"
+        "@types/pg@8.23.1"
       ]
     },
     "@types/pg@8.15.6": {
       "integrity": "sha512-NoaMtzhxOrubeL/7UZuNTrejB4MPAJ0RpxZqXQf2qXuVlTPuG6Y8p4u9dKRaue4yjmC7ZhzVO2/Yyyn25znrPQ==",
+      "dependencies": [
+        "@types/node",
+        "pg-protocol",
+        "pg-types"
+      ]
+    },
+    "@types/pg@8.23.1": {
+      "integrity": "sha512-fKVHpikPdg4GKks3JuLEhvwSyvwzF23hnabPy6DD8ljVbC7+6J5dQzdv4arV6jqq57djnMgs1HKBxX4P8aBI3A==",
       "dependencies": [
         "@types/node",
         "pg-protocol",
@@ -6174,7 +6185,7 @@
       "integrity": "sha512-uh8vpY/1/YyFkunIDFH/12p7/7VdPKA1hejMVEbdkEaWnUz0Hesvx5EbiU6XxjyHZIOju+ZMbQJkRh+es3/spQ==",
       "bin": true
     },
-    "better-auth@1.7.2_drizzle-kit@0.31.10_drizzle-orm@0.45.2_next@16.3.0_pg@8.23.0_react@19.2.4_react-dom@19.2.4_@cloudflare+workers-types@5.20260904.1_@libsql+client@0.17.4_@opentelemetry+api@1.9.1_@playwright+test@1.62.1_@types+pg@8.23.1": {
+    "better-auth@1.7.2_drizzle-kit@0.31.10_drizzle-orm@0.45.2__@cloudflare+workers-types@5.20260904.1__@libsql+client@0.17.4__@types+pg@8.23.1__kysely@0.29.5__pg@8.21.0_next@16.3.0_pg@8.21.0_react@19.2.4_react-dom@19.2.4_@types+pg@8.23.1": {
       "integrity": "sha512-gKapKBEvYIGcMxi74RjQ7EbFLiqyQt58vdoJmL1qAlWSkY1Bc2Vqshl524/3u1NxauiOU03M/Ebh762Brmac9A==",
       "dependencies": [
         "@better-auth/core",
@@ -6841,12 +6852,13 @@
       ],
       "bin": true
     },
-    "drizzle-orm@0.45.2_@cloudflare+workers-types@5.20260904.1_@libsql+client@0.17.4_@opentelemetry+api@1.9.1_@types+pg@8.23.1_kysely@0.29.5_pg@8.23.0": {
+    "drizzle-orm@0.45.2_@cloudflare+workers-types@5.20260904.1_@libsql+client@0.17.4_@types+pg@8.23.1_kysely@0.29.5_pg@8.21.0": {
       "integrity": "sha512-kY0BSaTNYWnoDMVoyY8uxmyHjpJW1geOmBMdSSicKo9CIIWkSxMIj2rkeSR51b8KAPB7m+qysjuHme5nKP+E5Q==",
       "dependencies": [
         "@cloudflare/workers-types",
         "@libsql/client",
         "@opentelemetry/api",
+        "@types/pg@8.23.1",
         "kysely",
         "pg"
       ],
@@ -6854,6 +6866,7 @@
         "@cloudflare/workers-types",
         "@libsql/client",
         "@opentelemetry/api",
+        "@types/pg@8.23.1",
         "kysely",
         "pg"
       ]
@@ -9494,7 +9507,7 @@
     "pg-int8@1.0.1": {
       "integrity": "sha512-WCtabS6t3c8SkpDBUlb1kjOs7l66xsGdKpIPZsg4wR+B3+u9UAum2odSsF9tnvxg80h4ZxLWMy4pRjOsFIqQpw=="
     },
-    "pg-pool@3.14.0_pg@8.23.0": {
+    "pg-pool@3.14.0_pg@8.21.0": {
       "integrity": "sha512-gKtPkFdQPU3DksooVLi9LsjZxrsBUZIpa+7aVx+LV5pNh0KzP4Zleud2po+ConrxbuXGBJ6Hfer6hdgpIBpBaw==",
       "dependencies": [
         "pg"
@@ -9513,8 +9526,8 @@
         "postgres-interval"
       ]
     },
-    "pg@8.23.0": {
-      "integrity": "sha512-Ip2EQCngowJLGOfCwkFhPXU7/ljlhn6Rxlmy4XYfL2Y+vyRM59+8uR2xqRWKdYmbXmxCFOAmKxBuSUCdF34qLg==",
+    "pg@8.21.0": {
+      "integrity": "sha512-AUP1EYJuHraQGsVoCQVIcM7TEJVGtDzxWtGFZd8rds9d+CCXlU5Js1rYgfLNvxy9iJrpHjGrRjoi/3BT9fRyiA==",
       "dependencies": [
         "pg-connection-string",
         "pg-pool",
@@ -11483,6 +11496,7 @@
       "npm:mathjs@15.2.0",
       "npm:pdf-parse@2.4.5",
       "npm:pdfjs-dist@5.4.296",
+      "npm:pg@8.21.0",
       "npm:playwright-core@1.62.1",
       "npm:resend@^6.14.0",
       "npm:zod@4.4.3"
@@ -11493,6 +11507,7 @@
         "npm:@aws-sdk/client-s3@^3.1071.0",
         "npm:@aws-sdk/s3-request-presigner@^3.1071.0",
         "npm:@cloudflare/workers-types@^5.20260801.1",
+        "npm:@electric-sql/pglite@0.5.14",
         "npm:@google-analytics/data@^6.1.0",
         "npm:@google/genai@^2.8.0",
         "npm:@libsql/client@~0.17.4",
@@ -11508,6 +11523,7 @@
         "npm:@types/bun@^1.3.14",
         "npm:@types/node@^20.19.43",
         "npm:@types/pdf-parse@^1.1.5",
+        "npm:@types/pg@^8.23.1",
         "npm:@types/react-dom@^19.2.3",
         "npm:@types/react@^19.2.17",
         "npm:@types/three@~0.184.1",
@@ -11542,6 +11558,7 @@
         "npm:nodemon@^3.1.14",
         "npm:pdf-parse@^2.4.5",
         "npm:pdfjs-dist@5.4.296",
+        "npm:pg@8.21.0",
         "npm:playwright-core@1.62.1",
         "npm:posthog-js@^1.409.5",
         "npm:puppeteer@^25.1.0",

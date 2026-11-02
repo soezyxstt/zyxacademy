@@ -12,12 +12,13 @@ DATABASE_URL TURSO_DATABASE_URL TURSO_CONNECTION_URL TURSO_AUTH_TOKEN
 BETTER_AUTH_SECRET GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GOOGLE_REFRESH_TOKEN
 RESEND_API_KEY WHATSAPP_ADMIN_NUMBER GEMINI_API_KEY GEMINI_API_KEY_2 GEMINI_API_KEY_3
 GEMINI_API_KEY_4 GEMINI_PROJECT_ALIAS_1 GEMINI_PROJECT_ALIAS_2 GEMINI_PROJECT_ALIAS_3
-GEMINI_PROJECT_ALIAS_4 INNGEST_EVENT_KEY INNGEST_SIGNING_KEY
+GEMINI_PROJECT_ALIAS_4 INNGEST_EVENT_KEY INNGEST_SIGNING_KEY INNGEST_ENV
 R2_ENDPOINT R2_BUCKET R2_PUBLIC_URL R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY STORAGE_PROVIDER_MODE
-CF_ACCOUNT_ID CF_API_TOKEN CF_AI_GATEWAY_URL CF_AI_GATEWAY_TOKEN CF_KV_NAMESPACE_ID
+NEON_STORAGE_BUCKET AWS_ENDPOINT_URL_S3 AWS_REGION AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+CF_ACCOUNT_ID CF_API_TOKEN CF_BROWSER_API_TOKEN CF_AI_GATEWAY_URL CF_AI_GATEWAY_TOKEN CF_KV_NAMESPACE_ID
 VECTORIZE_WORKER_URL VECTORIZE_SHARED_SECRET VECTOR_SYNC_BATCH_SIZE
 DIKTAT_RENDERER_URL DIKTAT_RENDERER_SECRET AUTHORING_VERIFICATION_RENDERER_URL
-AUTHORING_VERIFICATION_RENDERER_SECRET AUTHORING_VERIFICATION_BROWSER_PROVIDER
+AUTHORING_VERIFICATION_RENDERER_SECRET AUTHORING_VERIFICATION_ACCESS_URL AUTHORING_VERIFICATION_BROWSER_PROVIDER
 AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION STEEL_API_KEY CODING_BROWSER_PROVIDER
 PYTHON_RUNTIME_TOKEN_SECRET
 COMPUTE_SERVICE_URL COMPUTE_SERVICE_SECRET ZYRA_CONTROL_PLANE_URL ZYRA_CONTROL_PLANE_TOKEN
@@ -38,8 +39,35 @@ NEXT_PUBLIC_FIREBASE_APP_ID NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID NEXT_PUBLIC_FIRE
 ALIASES = {"R2_BUCKET": "CF_R2_BUCKET", "R2_ACCESS_KEY_ID": "CF_R2_ACCESS_KEY_ID",
            "R2_SECRET_ACCESS_KEY": "CF_R2_SECRET_ACCESS_KEY",
            "VECTORIZE_SHARED_SECRET": "VECTORIZE_WORKER_SECRET"}
-REQUIRED = ("DATABASE_URL", "TURSO_AUTH_TOKEN", "BETTER_AUTH_SECRET", "GOOGLE_CLIENT_ID",
+REQUIRED = ("DATABASE_URL", "STORAGE_PROVIDER_MODE", "NEON_STORAGE_BUCKET", "AWS_ENDPOINT_URL_S3",
+            "AWS_REGION", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "BETTER_AUTH_SECRET", "GOOGLE_CLIENT_ID",
             "GOOGLE_CLIENT_SECRET", "RESEND_API_KEY", "GEMINI_API_KEY", "INNGEST_EVENT_KEY")
+
+
+def validate_database(database, expected_host):
+    parsed = urlparse(database)
+    if (parsed.scheme not in ("postgres", "postgresql") or not expected_host
+            or not expected_host.endswith(".neon.tech") or parsed.hostname != expected_host
+            or parsed.path != "/neondb"):
+        raise ValueError("GitHub staging must provide the exact expected Neon PostgreSQL target.")
+
+
+def validate_staging_target(settings, variables):
+    validate_database(settings.get("DATABASE_URL", ""), variables.get("NEON_EXPECTED_HOST", ""))
+    endpoint = settings.get("AWS_ENDPOINT_URL_S3", "")
+    parsed = urlparse(endpoint)
+    region = settings.get("AWS_REGION", "")
+    if (settings.get("STORAGE_PROVIDER_MODE") != "neon"
+            or not variables.get("NEON_EXPECTED_STORAGE_ENDPOINT")
+            or endpoint != variables["NEON_EXPECTED_STORAGE_ENDPOINT"]
+            or not variables.get("NEON_EXPECTED_STORAGE_BUCKET")
+            or settings.get("NEON_STORAGE_BUCKET") != variables["NEON_EXPECTED_STORAGE_BUCKET"]
+            or parsed.scheme != "https" or not region
+            or not (parsed.hostname or "").endswith("." + region + ".aws.neon.tech")
+            or ".storage." not in (parsed.hostname or "")
+            or parsed.username or parsed.password or parsed.port
+            or parsed.path not in ("", "/") or parsed.query or parsed.fragment):
+        raise ValueError("GitHub staging must provide the exact expected Neon storage target.")
 
 
 def prepare_runtime(service, secrets, variables, origin):
@@ -63,16 +91,12 @@ def prepare_runtime(service, secrets, variables, origin):
             value = variables.get(ALIASES[name]) or secrets.get(ALIASES[name])
         if isinstance(value, str) and value != "":
             incoming[name] = value
-    database = next((incoming[k] for k in ("TURSO_DATABASE_URL", "TURSO_CONNECTION_URL", "DATABASE_URL")
-                     if incoming.get(k)), None)
-    if not database or urlparse(database).hostname != "zyx-staging-soezyxstt.aws-ap-south-1.turso.io":
-        raise ValueError("GitHub staging must provide the allowlisted Turso URL.")
-    # Replace every alias so a stale, higher-priority local URL cannot win.
-    incoming.update({key: database for key in ("DATABASE_URL", "TURSO_DATABASE_URL", "TURSO_CONNECTION_URL")})
+    validate_database(incoming.get("DATABASE_URL", ""), variables.get("NEON_EXPECTED_HOST", ""))
     incoming.update(NODE_ENV="production", ZYX_ENVIRONMENT="staging", ZYX_MCP_ENVIRONMENT="staging",
                     BETTER_AUTH_URL=origin.rstrip("/"), NEXT_PUBLIC_APP_URL=origin.rstrip("/"))
     incoming.setdefault("AUTHORING_VERIFICATION_BROWSER_PROVIDER", "cloudflare")
     merged = {**existing, **{key: {"name": key, "value": value} for key, value in incoming.items()}}
+    validate_staging_target({key: item.get("value", "") for key, item in merged.items()}, variables)
     merged.pop("SKIP_ENV_VALIDATION", None)
     # Never propagate CI-only secrets, including anything accidentally set manually.
     for name in ("GCP_SERVICE_ACCOUNT_KEY", "GITHUB_TOKEN", "VERCEL_TOKEN", "DENO_DEPLOY_TOKEN"):

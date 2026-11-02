@@ -13,7 +13,7 @@ describe("storage file authorization boundary", () => {
     expect(routeSource).toContain("if (diktatAuthorization.matched && !diktatAuthorization.allowed)");
     expect(routeSource).toContain("inArray(diktatMateri.fileKey, candidates)");
     expect(routeSource).toContain("inArray(diktats.fileUrl, candidates)");
-    expect(routeSource).toContain('if (diktatAuthorization.matched) {\n      headers.set("Cache-Control", "private, no-store");');
+    expect(routeSource).toMatch(/if \(diktatAuthorization\.matched \|\| quizAuthorization\.matched\) \{\s*headers\.set\("Cache-Control", "private, no-store"\)/);
     expect(routeSource).not.toContain('headers.set("Cache-Control", "public, max-age=3600")');
     expect(routeSource).not.toContain("if (isDownload && !(await resolveDiktatAuthorization");
   });

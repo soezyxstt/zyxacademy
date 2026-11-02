@@ -1,7 +1,5 @@
-import { describe, expect, it } from "bun:test";
-import { randomUUID } from "node:crypto";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { afterEach, beforeAll, describe, expect, it } from "bun:test";
+import { createPostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
 import {
   addBookingResource,
@@ -9,126 +7,18 @@ import {
   getBookingResources,
 } from "@/lib/schedule/session-resources";
 
-async function createResourceDb() {
-  const client = createClient({
-    url: `file:/tmp/zyx_resource_${randomUUID().replace(/-/g, "")}.db`,
-  });
-  const testDb = drizzle(client, { schema });
+const clients: Array<Awaited<ReturnType<typeof createPostgresTestDb>>["client"]> = [];
+beforeAll(async () => {
+  const { client } = await createPostgresTestDb();
+  await client.close();
+}, 60_000);
+afterEach(async () => {
+  await Promise.all(clients.splice(0).map((client) => client.close()));
+});
 
-  const schemaSql = `
-    CREATE TABLE user (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      role TEXT DEFAULT 'student',
-      last_activity_at INTEGER
-    );
-    CREATE TABLE pengguna (
-      id TEXT PRIMARY KEY,
-      status TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE TABLE peran (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-    CREATE TABLE pengguna_peran (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL,
-      peran_id TEXT NOT NULL,
-      source TEXT NOT NULL,
-      audit_actor_pengguna_id TEXT,
-      created_at INTEGER NOT NULL
-    );
-    CREATE TABLE groups (
-      id TEXT PRIMARY KEY,
-      name TEXT,
-      package_type TEXT,
-      package_name TEXT,
-      total_quota_sessions INTEGER,
-      used_quota_sessions INTEGER,
-      weekly_quota_sessions INTEGER,
-      academic_year TEXT,
-      semester TEXT,
-      start_date INTEGER,
-      end_date INTEGER,
-      status TEXT NOT NULL,
-      notes TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE TABLE group_members (
-      id TEXT PRIMARY KEY,
-      group_id TEXT NOT NULL,
-      user_id TEXT NOT NULL,
-      role TEXT NOT NULL,
-      joined_at INTEGER NOT NULL
-    );
-    CREATE TABLE tutor_slots (
-      id TEXT PRIMARY KEY,
-      tutor_id TEXT NOT NULL,
-      day_of_week TEXT NOT NULL,
-      start_time TEXT NOT NULL,
-      end_time TEXT NOT NULL,
-      mode TEXT NOT NULL,
-      location TEXT,
-      session_date TEXT,
-      created_at INTEGER NOT NULL
-    );
-    CREATE TABLE bookings (
-      id TEXT PRIMARY KEY,
-      slot_id TEXT NOT NULL,
-      student_id TEXT NOT NULL,
-      course_id TEXT NOT NULL,
-      group_id TEXT NOT NULL,
-      status TEXT NOT NULL,
-      session_date TEXT,
-      start_time TEXT,
-      end_time TEXT,
-      mode TEXT NOT NULL,
-      location TEXT,
-      google_meet_url TEXT,
-      google_meet_space_name TEXT,
-      last_modified_by TEXT,
-      last_modified_at INTEGER NOT NULL,
-      topic TEXT,
-      pre_session_notes TEXT,
-      pre_session_attachments TEXT,
-      post_session_notes TEXT,
-      post_session_attachments TEXT,
-      post_session_link_url TEXT,
-      post_session_link_title TEXT,
-      post_session_link_description TEXT,
-      post_session_link_image TEXT,
-      completed_at INTEGER,
-      completed_by_id TEXT,
-      booked_at INTEGER NOT NULL
-    );
-    CREATE TABLE booking_resources (
-      id TEXT PRIMARY KEY,
-      booking_id TEXT NOT NULL,
-      phase TEXT NOT NULL,
-      kind TEXT NOT NULL,
-      label TEXT NOT NULL,
-      url TEXT NOT NULL,
-      file_name TEXT,
-      mime_type TEXT,
-      size_bytes INTEGER,
-      metadata TEXT,
-      created_by_id TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `;
-  for (const statement of schemaSql.split(";").map((sql) => sql.trim()).filter(Boolean)) {
-    await client.execute(statement);
-  }
+async function createResourceDb() {
+  const { client, testDb } = await createPostgresTestDb();
+  clients.push(client);
 
   const now = new Date("2026-08-17T01:00:00.000Z");
   await testDb.insert(schema.user).values([
@@ -173,6 +63,7 @@ async function createResourceDb() {
     sessionDate: "2026-08-26",
     createdAt: now,
   });
+  await testDb.insert(schema.courses).values({ id: "course-1", title: "Course", category: "Test" });
   await testDb.insert(schema.bookings).values({
     id: "booking-1",
     slotId: "slot-1",

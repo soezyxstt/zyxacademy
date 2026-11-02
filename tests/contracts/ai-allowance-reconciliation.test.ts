@@ -1,9 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { evaluateAllowance } from "@/lib/usage-budget-service";
+import { evaluateAllowance, ZYRA_ALLOWANCE_POLICY } from "@/lib/usage-budget-service";
 
 describe("Plan 004 allowance terminal semantics", () => {
   it("keeps allowance evaluation independent from provider terminal handling", () => {
-    const decision = evaluateAllowance("murid", { provider: 19, total: 59, premium: 1, minute: 7 }, { units: 1, premium: false });
+    const policy = ZYRA_ALLOWANCE_POLICY.murid;
+    const decision = evaluateAllowance("murid", { provider: policy.providerPerDay - 1, total: policy.totalInteractions - 1, premium: 1, minute: policy.perMinute - 1 }, { units: 1, premium: false });
     expect(decision.accepted).toBe(true);
     if (decision.accepted) {
       expect(decision.remaining.providerTurns).toBe(0);

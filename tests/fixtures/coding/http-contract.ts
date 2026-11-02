@@ -1,12 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
-import { randomUUID } from "node:crypto";
-import { readFileSync, rmSync } from "node:fs";
+import { createPostgresTestDb } from "../../helpers/postgres";
 import * as schema from "@/db/schema";
 import type { CodingProblemPrivate } from "@/lib/coding/contracts";
-const file = `/tmp/zyx-coding-http-${randomUUID()}.db`, client = createClient({ url: `file:${file}` });
-const testDb = drizzle(client, { schema });
+const { client, testDb } = await createPostgresTestDb();
 let userId: string | null = "student", executions = 0, providerFailure = false, cleanupFailure = false;
 mock.module("server-only", () => ({}));
 mock.module("@/db", () => ({ db: testDb }));
@@ -22,14 +18,15 @@ const surface = { kind: "article", articleId: "article", articleVersion: 1, part
 const submission = { requestId: "request", problem: { problemId: "problem", version: 1 }, code: "print('answer')", stdin: "" };
 function request(path: string, body?: object, method = "POST") { return new Request(`http://app.test${path}`, body ? { method, headers: { "Content-Type": "application/json", Origin: "http://app.test" }, body: JSON.stringify(body) } : undefined); }
 beforeAll(async () => {
-  await client.executeMultiple("CREATE TABLE user (id TEXT PRIMARY KEY); CREATE TABLE mata_kuliah (id TEXT PRIMARY KEY); INSERT INTO user VALUES ('student'), ('other'); INSERT INTO mata_kuliah VALUES ('course'); CREATE TABLE artikel (id TEXT PRIMARY KEY, mata_kuliah_id TEXT, version INTEGER, status TEXT); CREATE TABLE blok_artikel (id TEXT PRIMARY KEY, artikel_id TEXT, version INTEGER, status TEXT, content TEXT);");
-  await client.executeMultiple(readFileSync("drizzle/0099_hard_meteorite.sql", "utf8").replaceAll("--> statement-breakpoint", ""));
+  await testDb.insert(schema.user).values(["student", "other"].map(id => ({ id, name: id, email: `${id}@example.test` })));
+  await testDb.insert(schema.pengguna).values({ id: "student" });
+  await testDb.insert(schema.mataKuliah).values({ id: "course", code: "course", title: "Course" });
   await testDb.insert(schema.codingProblems).values({ id: problem.problemId, version: 1, courseId: "course", status: "published", snapshot: problem, creatorId: "student" });
-  await client.execute("INSERT INTO artikel VALUES ('article', 'course', 1, 'published')");
+  await testDb.insert(schema.artikel).values({ id: "article", mataKuliahId: "course", slug: "article", title: "Article", contentMarkdown: "", sourceHash: "source", generationHash: "generation", creatorId: "student", version: 1, status: "published" });
   const meta = Buffer.from(JSON.stringify({ parts: [{ id: "exercise", kind: "coding_exercise", problem: submission.problem }] })).toString("base64url");
-  await client.execute({ sql: "INSERT INTO blok_artikel VALUES ('block', 'article', 1, 'published', ?)", args: [`<!--__ZYX_V4_BLOCK_PAYLOAD__:${meta}-->`] });
-});
-afterAll(() => { client.close(); rmSync(file, { force: true }); });
+  await testDb.insert(schema.blokArtikel).values({ id: "block", artikelId: "article", blockKey: "block", blockType: "text", orderIndex: 0, generationHash: "generation", version: 1, status: "published", content: `<!--__ZYX_V4_BLOCK_PAYLOAD__:${meta}-->` });
+}, 120_000);
+afterAll(async () => { await client.close(); });
 
 describe("authenticated coding HTTP integration", () => {
   it("enforces identity/course and never returns the private problem snapshot", async () => {

@@ -1,5 +1,7 @@
 "use server";
 
+import { affectedRows } from "@/lib/mutation-result";
+import { lockScheduleEntity } from "@/lib/schedule/transaction-lock";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
@@ -393,6 +395,7 @@ export async function executeAddTutorSlot(
 
   try {
     await client.transaction(async (tx) => {
+      await lockScheduleEntity(tx, "tutor", authContext.userId);
       const sameDateSlots = await tx
         .select({
           id: tutorSlots.id,
@@ -615,7 +618,8 @@ export async function executeDeleteTutorSlot(
 
   try {
     await client.transaction(async (tx) => {
-      // Re-verify under transaction write lock to prevent race condition with concurrent booking
+      // Serialize deletion with the foreign-key lock taken by a booking insert.
+      await tx.select({ id: tutorSlots.id }).from(tutorSlots).where(eq(tutorSlots.id, targetSlotId)).for("update");
       const bookingInTx = await tx
         .select({ id: bookings.id })
         .from(bookings)
@@ -664,7 +668,7 @@ export async function executeDeleteTutorSlot(
           ),
         );
 
-      if ((deleteRes.rowsAffected ?? 0) === 0) {
+      if (affectedRows(deleteRes) === 0) {
         throw new Error("SLOT_NOT_FOUND");
       }
 
@@ -847,6 +851,7 @@ export async function copyTutorAvailabilityFromPreviousWeek(
 
   try {
     return await client.transaction(async (tx) => {
+      await lockScheduleEntity(tx, "tutor", authContext.userId);
       const sourceSlots = await tx
         .select({
           id: tutorSlots.id,
@@ -1330,6 +1335,7 @@ export async function executeMoveTutorSession(
 
     try {
       await client.transaction(async (tx) => {
+        await lockScheduleEntity(tx, "ticket", targetBookingId);
         const existingPending = await tx
           .select({ id: bookingRescheduleTickets.id })
           .from(bookingRescheduleTickets)
@@ -1490,7 +1496,7 @@ export async function executeMoveTutorSession(
           ),
         );
 
-      if ((moveUpdate.rowsAffected ?? 0) === 0) {
+      if (affectedRows(moveUpdate) === 0) {
         throw new Error("BOOKING_TERMINAL_STATE");
       }
 
@@ -2121,7 +2127,7 @@ export async function executeDecideTutorRescheduleTicket(
           ),
         );
 
-      if ((ticketClaim.rowsAffected ?? 0) === 0) {
+      if (affectedRows(ticketClaim) === 0) {
         throw new Error("TICKET_ALREADY_DECIDED");
       }
 
@@ -2177,7 +2183,7 @@ export async function executeDecideTutorRescheduleTicket(
               ),
             );
 
-          if ((bookingMove.rowsAffected ?? 0) === 0) {
+          if (affectedRows(bookingMove) === 0) {
             throw new Error("BOOKING_TERMINAL_STATE");
           }
         } else if (ticket.type === "cancellation") {
@@ -2196,7 +2202,7 @@ export async function executeDecideTutorRescheduleTicket(
               ),
             );
 
-          if ((cancelUpdate.rowsAffected ?? 0) === 0) {
+          if (affectedRows(cancelUpdate) === 0) {
             throw new Error("BOOKING_TERMINAL_STATE");
           }
         }
@@ -2235,7 +2241,7 @@ export async function executeDecideTutorRescheduleTicket(
         const refundClaim = await tx
           .update(groups)
           .set({
-            usedQuotaSessions: sql`MAX(${groups.usedQuotaSessions} - 1, 0)`,
+            usedQuotaSessions: sql`GREATEST(${groups.usedQuotaSessions} - 1, 0)`,
             updatedAt: now,
           })
           .where(
@@ -2245,7 +2251,7 @@ export async function executeDecideTutorRescheduleTicket(
             ),
           );
 
-        if ((refundClaim.rowsAffected ?? 0) > 0) {
+        if (affectedRows(refundClaim) > 0) {
           await tx.insert(bookingAuditLogs).values({
             id: randomUUID(),
             bookingId: ticket.bookingId,

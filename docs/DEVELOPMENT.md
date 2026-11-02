@@ -1,6 +1,12 @@
 # Development Guide
 
+For this isolated migration branch, `DATABASE_URL` points to the guarded Neon PostgreSQL target and `bun run db:migrate` applies `drizzle-postgres/`. The legacy production push and canonical backfill are disabled here. Storage can use the private Neon S3-compatible bucket with `STORAGE_PROVIDER_MODE=neon`. Use [.env.neon.example](../.env.neon.example) and the [migration runbook](operations/neon-migration.md); do not reuse production sessions or integration credentials. Other SQLite and R2 instructions below describe the existing deployments unless noted.
+
+Staging preparation uses ignored `.env.neon-staging` for the new target and `.env.neon-staging-source` for guarded imports. Do not substitute the production rehearsal environment. Apply generated migrations with `bun --env-file=.env.neon-staging run db:migrate`; run a read-only import preflight before `node --env-file=.env.neon-staging-source --import tsx scripts/neon/import.ts --apply`. The copy tool accepts only the exact rehearsal and staging host/bucket pairs. Never upload these environment files in deployment source archives.
+
 ## Quick Start
+
+This migration branch pins Bun 1.3.14 in `package.json`, matching its Vercel build. `bun run test:ai-contracts` runs every contract file sequentially in a fresh process with placeholder credentials. PostgreSQL fixtures use PGlite with the generated migrations, native constraints and shared numeric parsers. Install Playwright Chromium and run `bun run build:authoring-skills` before the complete suite. Use the sandbox router for heavy installs, suites and typechecks; upload only reviewed source and synthetic fixtures.
 
 ```bash
 bun install
@@ -38,7 +44,7 @@ is not used.
 | `bun run test` | Run all Bun test suites |
 | `bun run test:ai-contracts` | Run deterministic AI contract tests (`tests/contracts`) |
 | `bun run db:generate` | Generate Drizzle migration from schema changes |
-| `bun run db:migrate` | Apply migrations to local SQLite |
+| `bun run db:migrate` | Apply PostgreSQL migrations to the guarded isolated Neon target on this branch |
 | `bun run db:push:prod` | Safe production migration (backup + verify) |
 | `bun run db:seed` | Seed local DB with test data |
 | `bun run structured-articles:inventory` | Dry run legacy Article structure classification |
@@ -109,7 +115,7 @@ Background dispatch imports must remain server-safe for Deno compute. Do not add
 Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (`@t3-oss/env-nextjs`).
 
 ### Required
-- `DATABASE_URL` ; local SQLite path (e.g. `file:dev.db`) or Turso URL
+- `DATABASE_URL` ; PostgreSQL connection URL on this isolated branch; existing deployments use local SQLite or Turso
 - `BETTER_AUTH_SECRET` ; 32+ char high-entropy secret (`openssl rand -base64 32`)
 - `BETTER_AUTH_URL` ; app origin for OAuth callbacks
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` ; Google OAuth
@@ -120,7 +126,7 @@ Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (
 
 ### Optional ; Storage
 - `R2_ENDPOINT`, `R2_BUCKET`, `R2_PUBLIC_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` ; Cloudflare R2
-- `STORAGE_PROVIDER_MODE` ; `r2` (default) or `uploadthing`
+- `STORAGE_PROVIDER_MODE` ; this branch supports `neon` as well as the existing `r2` and `uploadthing` modes
 
 ### Optional ; AI Gateway
 - `CF_AI_GATEWAY_URL`, `CF_AI_GATEWAY_TOKEN` ; Cloudflare AI Gateway
@@ -501,3 +507,6 @@ production provider or transport configuration.
 The local coding wrapper uses fictional public Firebase identifiers to let the
 foreground notification listener initialize without remote project bindings.
 Keep push consent denied in synthetic UI probes; do not register a remote token.
+### Isolated hosted workflow checks
+
+Use only the guarded migration environment for `scripts/neon/smoke-booking-workflow.ts` and `scripts/neon/smoke-authoring-workflow.ts`. The booking script invokes deployed server actions and removes its synthetic records. The authoring script stages a synthetic V4 bundle, checks stale-edit and publication gates, requests real worker verification, and exercises review/publication/PDF download. It retains fixture metadata while a worker job is in flight; `--resume` continues that exact import and attempt rather than enqueuing a duplicate. `--cleanup-only` verifies saved workflow proof and terminal Inngest completion before removing its exact owned records and objects. Never delete its retained fixture while Inngest is still executing. Real Google sessions are not test fixtures and must be preserved.

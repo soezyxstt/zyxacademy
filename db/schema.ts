@@ -1,64 +1,67 @@
 import { relations, sql } from "drizzle-orm";
 import {
- sqliteTable,
+ pgTable,
  text,
- integer,
- real,
+ bigint,
+ boolean,
+ timestamp,
+ jsonb,
+ doublePrecision,
  check,
  index,
  unique,
  uniqueIndex,
   primaryKey,
-} from "drizzle-orm/sqlite-core";
+} from "drizzle-orm/pg-core";
 
 // Enums
 /** Admin drive ; folder tree + file pointers to UploadThing. */
 
 /** Better Auth core model ; export name must be `user` for the Drizzle adapter. */
-export const user = sqliteTable("user", {
+export const user = pgTable("user", {
  id: text("id").primaryKey(),
  name: text("name").notNull(),
  email: text("email").notNull().unique(),
- emailVerified: integer("email_verified", { mode: "boolean" }).default(false).notNull(),
+ emailVerified: boolean("email_verified").default(false).notNull(),
  image: text("image"),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => /* @__PURE__ */ new Date())
  .notNull(),
  role: text("role").$type<"admin" | "teacher" | "student">().default("student"),
- lastActivityAt: integer("last_activity_at", { mode: "timestamp" }),
+ lastActivityAt: timestamp("last_activity_at", { withTimezone: true }),
  faculty: text("faculty"),
  major: text("major"),
- entryYear: integer("entry_year"),
+ entryYear: bigint("entry_year", { mode: "number" }),
 });
 
 /** User-controlled optional email categories. Essential transactional email bypasses this table. */
-export const emailNotificationPreferences = sqliteTable("email_notification_preferences", {
+export const emailNotificationPreferences = pgTable("email_notification_preferences", {
  userId: text("user_id")
   .primaryKey()
   .references(() => user.id, { onDelete: "cascade" }),
- emailEnabled: integer("email_enabled", { mode: "boolean" }).default(true).notNull(),
- courseUpdates: integer("course_updates", { mode: "boolean" }).default(true).notNull(),
- eventsAndSchedules: integer("events_and_schedules", { mode: "boolean" }).default(true).notNull(),
- learningReminders: integer("learning_reminders", { mode: "boolean" }).default(true).notNull(),
- newsAndOffers: integer("news_and_offers", { mode: "boolean" }).default(false).notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ emailEnabled: boolean("email_enabled").default(true).notNull(),
+ courseUpdates: boolean("course_updates").default(true).notNull(),
+ eventsAndSchedules: boolean("events_and_schedules").default(true).notNull(),
+ learningReminders: boolean("learning_reminders").default(true).notNull(),
+ newsAndOffers: boolean("news_and_offers").default(false).notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
   .defaultNow()
   .$onUpdate(() => /* @__PURE__ */ new Date())
   .notNull(),
 });
 
 /** Account presentation preference, kept separate from authorization and learning settings. */
-export const accountLocalePreferences = sqliteTable(
+export const accountLocalePreferences = pgTable(
  "account_locale_preferences",
  {
   userId: text("user_id")
    .primaryKey()
    .references(() => user.id, { onDelete: "cascade" }),
   locale: text("locale").$type<"id" | "en">().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
+  updatedAt: timestamp("updated_at", { withTimezone: true })
    .defaultNow()
    .$onUpdate(() => new Date())
    .notNull(),
@@ -69,15 +72,15 @@ export const accountLocalePreferences = sqliteTable(
 );
 
 /** Canonical domain identity for a Better Auth user. */
-export const pengguna = sqliteTable(
+export const pengguna = pgTable(
  "pengguna",
  {
   id: text("id")
    .primaryKey()
    .references(() => user.id, { onDelete: "restrict" }),
   status: text("status").$type<"active" | "suspended">().default("active").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
    .defaultNow()
    .$onUpdate(() => /* @__PURE__ */ new Date())
    .notNull(),
@@ -86,14 +89,14 @@ export const pengguna = sqliteTable(
 );
 
 /** Stable access-role catalog. IDs are seeded by lib/auth/peran.ts and never regenerated. */
-export const peran = sqliteTable("peran", {
+export const peran = pgTable("peran", {
  id: text("id").primaryKey(),
  code: text("code").$type<"admin" | "tutor" | "murid">().notNull().unique(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 /** Independent many-to-many access-role memberships for domain identities. */
-export const penggunaPeran = sqliteTable(
+export const penggunaPeran = pgTable(
  "pengguna_peran",
  {
   id: text("id").primaryKey(),
@@ -105,7 +108,7 @@ export const penggunaPeran = sqliteTable(
    .references(() => peran.id, { onDelete: "restrict" }),
   source: text("source").notNull(),
   auditActorPenggunaId: text("audit_actor_pengguna_id").references(() => pengguna.id, { onDelete: "set null" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("pengguna_peran_unique_idx").on(table.penggunaId, table.peranId),
@@ -114,14 +117,14 @@ export const penggunaPeran = sqliteTable(
  ],
 );
 
-export const session = sqliteTable(
+export const session = pgTable(
  "session",
  {
  id: text("id").primaryKey(),
- expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+ expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
  token: text("token").notNull().unique(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => /* @__PURE__ */ new Date())
  .notNull(),
@@ -134,7 +137,7 @@ export const session = sqliteTable(
  (table) => [index("session_userId_idx").on(table.userId)],
 );
 
-export const account = sqliteTable(
+export const account = pgTable(
  "account",
  {
  id: text("id").primaryKey(),
@@ -146,12 +149,12 @@ export const account = sqliteTable(
  accessToken: text("access_token"),
  refreshToken: text("refresh_token"),
  idToken: text("id_token"),
- accessTokenExpiresAt: integer("access_token_expires_at", { mode: "timestamp" }),
- refreshTokenExpiresAt: integer("refresh_token_expires_at", { mode: "timestamp" }),
+ accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+ refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
  scope: text("scope"),
  password: text("password"),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => /* @__PURE__ */ new Date())
  .notNull(),
@@ -159,15 +162,15 @@ export const account = sqliteTable(
  (table) => [index("account_userId_idx").on(table.userId)],
 );
 
-export const verification = sqliteTable(
+export const verification = pgTable(
  "verification",
  {
  id: text("id").primaryKey(),
  identifier: text("identifier").notNull(),
  value: text("value").notNull(),
- expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => /* @__PURE__ */ new Date())
  .notNull(),
@@ -199,7 +202,7 @@ export const penggunaPeranRelations = relations(penggunaPeran, ({ one }) => ({
 }));
 
 /** Append-only ledger for guarded staging migrations and reconciliation runs. */
-export const migrationRuns = sqliteTable(
+export const migrationRuns = pgTable(
  "migration_runs",
  {
   id: text("id").primaryKey(),
@@ -209,8 +212,8 @@ export const migrationRuns = sqliteTable(
   databaseFingerprint: text("database_fingerprint").notNull(),
   phase: text("phase").notNull(),
   status: text("status").notNull(),
-  startedAt: integer("started_at", { mode: "timestamp" }).defaultNow().notNull(),
-  completedAt: integer("completed_at", { mode: "timestamp" }),
+  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
   rowCountManifestHash: text("row_count_manifest_hash"),
   errorCode: text("error_code"),
  },
@@ -221,7 +224,7 @@ export const migrationRuns = sqliteTable(
 );
 
 /** Append-only checkpoints emitted by guarded staging commands. */
-export const migrationCheckpoints = sqliteTable(
+export const migrationCheckpoints = pgTable(
  "migration_checkpoints",
  {
   id: text("id").primaryKey(),
@@ -232,9 +235,9 @@ export const migrationCheckpoints = sqliteTable(
   checkpoint: text("checkpoint").notNull(),
   status: text("status").notNull(),
   manifestHash: text("manifest_hash"),
-  rowCount: integer("row_count"),
-  details: text("details", { mode: "json" }).$type<Record<string, unknown> | null>(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  rowCount: bigint("row_count", { mode: "number" }),
+  details: jsonb("details").$type<Record<string, unknown> | null>(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   index("migration_checkpoints_run_idx").on(table.runId, table.createdAt),
@@ -257,7 +260,7 @@ export const migrationCheckpointsRelations = relations(migrationCheckpoints, ({ 
  * domain without inventing data. The source row remains authoritative and the
  * preservation path keeps the compatibility read explicit.
  */
-export const legacyBackfillExceptions = sqliteTable(
+export const legacyBackfillExceptions = pgTable(
  "legacy_backfill_exceptions",
  {
   id: text("id").primaryKey(),
@@ -268,11 +271,11 @@ export const legacyBackfillExceptions = sqliteTable(
   legacyId: text("legacy_id").notNull(),
   reasonCode: text("reason_code").notNull(),
   preservationPath: text("preservation_path").notNull(),
-  details: text("details", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-  blocksCutover: integer("blocks_cutover", { mode: "boolean" }).default(false).notNull(),
+  details: jsonb("details").$type<Record<string, unknown>>().notNull(),
+  blocksCutover: boolean("blocks_cutover").default(false).notNull(),
   sourceChecksum: text("source_checksum").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
    .defaultNow()
    .$onUpdate(() => /* @__PURE__ */ new Date())
    .notNull(),
@@ -305,7 +308,7 @@ export const accountRelations = relations(account, ({ one }) => ({
  }),
 }));
 
-export const driveItem = sqliteTable(
+export const driveItem = pgTable(
  "drive_item",
  {
  id: text("id").primaryKey(),
@@ -317,12 +320,12 @@ export const driveItem = sqliteTable(
  uploadthingKey: text("uploadthing_key"),
  ufsUrl: text("ufs_url"),
  mimeType: text("mime_type"),
- sizeBytes: integer("size_bytes"),
+ sizeBytes: bigint("size_bytes", { mode: "number" }),
  createdByUserId: text("created_by_user_id")
  .notNull()
  .references(() => user.id, { onDelete: "cascade" }),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => /* @__PURE__ */ new Date())
  .notNull(),
@@ -347,7 +350,7 @@ export const driveItemRelations = relations(driveItem, ({ one, many }) => ({
 }));
 
 // Courses Table
-export const courses = sqliteTable("courses", {
+export const courses = pgTable("courses", {
  id: text("id").primaryKey(),
  title: text("title").notNull(),
  category: text("category", { enum: [
@@ -412,47 +415,47 @@ export const courses = sqliteTable("courses", {
 });
 
 // Enrollments Table
-export const enrollments = sqliteTable("enrollments", {
+export const enrollments = pgTable("enrollments", {
  id: text("id").primaryKey(),
  userId: text("user_id").references(() => user.id).notNull(),
  courseId: text("course_id").references(() => courses.id).notNull(),
- enrolledAt: integer("enrolled_at", { mode: "timestamp" }).defaultNow(),
- expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(), // Locks out students once the semester ends
+ enrolledAt: timestamp("enrolled_at", { withTimezone: true }).defaultNow(),
+ expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(), // Locks out students once the semester ends
 });
 
 // Progress (Materials) Table
-export const progress = sqliteTable("progress", {
+export const progress = pgTable("progress", {
  id: text("id").primaryKey(),
  userId: text("user_id").references(() => user.id),
  materialId: text("material_id"), // Ideally references a materials table
  status: text("status").default("completed"),
- completedAt: integer("completed_at", { mode: "timestamp" }).defaultNow(),
+ completedAt: timestamp("completed_at", { withTimezone: true }).defaultNow(),
 });
 
 // Exams (Quizzes and Tryouts) Table
-export const exams = sqliteTable("exams", {
+export const exams = pgTable("exams", {
   id: text("id").primaryKey(),
   courseId: text("course_id").references(() => courses.id).notNull(),
   title: text("title").notNull(),
   type: text("type").$type<"quiz" | "tryout">().notNull(), // Specifies if it is a quiz or tryout
   status: text("status").$type<"draft" | "published" | "ended">().default("draft").notNull(), // Can be draft, published, or ended
-  settings: text("settings", { mode: "json" }), // Stores specific limits like "only three submissions" or "one time only"
-  openAt: integer("open_at", { mode: "timestamp" }),
-  closeAt: integer("close_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow(),
+  settings: jsonb("settings"), // Stores specific limits like "only three submissions" or "one time only"
+  openAt: timestamp("open_at", { withTimezone: true }),
+  closeAt: timestamp("close_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
 // Questions Table
-export const questions = sqliteTable("questions", {
+export const questions = pgTable("questions", {
  id: text("id").primaryKey(),
  examId: text("exam_id").references(() => exams.id).notNull(),
  type: text("type").notNull(), // 'short_answer', 'multiple_choice', 'essay'
- content: text("content", { mode: "json" }).notNull(), // Hybrid approach using JSON blob for question data, options, and correct answers
- order: integer("order").notNull(),
+ content: jsonb("content").notNull(), // Hybrid approach using JSON blob for question data, options, and correct answers
+ order: bigint("order", { mode: "number" }).notNull(),
 });
 
 // Submissions Table
-export const submissions = sqliteTable(
+export const submissions = pgTable(
 	"submissions",
 	{
 		id: text("id").primaryKey(),
@@ -466,12 +469,12 @@ export const submissions = sqliteTable(
 			.$type<"completed" | "pending_review" | "graded" | "late">()
 			.default("completed")
 			.notNull(), // Uses "pending_review" for essays
-		score: integer("score"), // Stores calculated score
+		score: bigint("score", { mode: "number" }), // Stores calculated score
 		teacherNotes: text("teacher_notes"), // Allows teacher to manually input feedback/notes
-		answersSnapshot: text("answers_snapshot", { mode: "json" }),
-		questionsSnapshot: text("questions_snapshot", { mode: "json" }),
-		submittedAt: integer("submitted_at", { mode: "timestamp" }).defaultNow(),
-		attemptNumber: integer("attempt_number"),
+		answersSnapshot: jsonb("answers_snapshot"),
+		questionsSnapshot: jsonb("questions_snapshot"),
+		submittedAt: timestamp("submitted_at", { withTimezone: true }).defaultNow(),
+		attemptNumber: bigint("attempt_number", { mode: "number" }),
 	},
 	(table) => [
 		uniqueIndex("idx_submissions_user_exam_attempt").on(
@@ -483,7 +486,7 @@ export const submissions = sqliteTable(
 );
 
 // Groups Table
-export const groups = sqliteTable("groups", {
+export const groups = pgTable("groups", {
 	id: text("id").primaryKey(),
 	name: text("name").notNull(),
 	packageType: text("package_type")
@@ -491,27 +494,27 @@ export const groups = sqliteTable("groups", {
 		.default("reguler_15")
 		.notNull(),
 	packageName: text("package_name").notNull().default("Paket Reguler (15 Sesi)"),
-	totalQuotaSessions: integer("total_quota_sessions").default(15).notNull(),
-	usedQuotaSessions: integer("used_quota_sessions").default(0).notNull(),
-	weeklyQuotaSessions: integer("weekly_quota_sessions").default(2).notNull(),
+	totalQuotaSessions: bigint("total_quota_sessions", { mode: "number" }).default(15).notNull(),
+	usedQuotaSessions: bigint("used_quota_sessions", { mode: "number" }).default(0).notNull(),
+	weeklyQuotaSessions: bigint("weekly_quota_sessions", { mode: "number" }).default(2).notNull(),
 	academicYear: text("academic_year").default("2026/2027").notNull(),
 	semester: text("semester").default("Ganjil").notNull(),
-	startDate: integer("start_date", { mode: "timestamp" }),
-	endDate: integer("end_date", { mode: "timestamp" }),
+	startDate: timestamp("start_date", { withTimezone: true }),
+	endDate: timestamp("end_date", { withTimezone: true }),
 	status: text("status")
 		.$type<"active" | "completed" | "inactive" | "archived">()
 		.default("active")
 		.notNull(),
 	notes: text("notes"),
-	createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-	updatedAt: integer("updated_at", { mode: "timestamp" })
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true })
 		.defaultNow()
 		.$onUpdate(() => new Date())
 		.notNull(),
 });
 
 // Group Courses Table (Courses assigned to a study group)
-export const groupCourses = sqliteTable(
+export const groupCourses = pgTable(
 	"group_courses",
 	{
 		id: text("id").primaryKey(),
@@ -521,7 +524,7 @@ export const groupCourses = sqliteTable(
 		courseId: text("course_id")
 			.notNull()
 			.references(() => courses.id, { onDelete: "cascade" }),
-		createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 	},
 	(table) => [
 		index("group_courses_group_idx").on(table.groupId),
@@ -530,7 +533,7 @@ export const groupCourses = sqliteTable(
 );
 
 // Group Members Table (Many-to-Many between User and Groups)
-export const groupMembers = sqliteTable(
+export const groupMembers = pgTable(
 	"group_members",
 	{
 		id: text("id").primaryKey(),
@@ -541,7 +544,7 @@ export const groupMembers = sqliteTable(
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
 		role: text("role").$type<"leader" | "member">().default("member").notNull(),
-		joinedAt: integer("joined_at", { mode: "timestamp" }).defaultNow().notNull(),
+		joinedAt: timestamp("joined_at", { withTimezone: true }).defaultNow().notNull(),
 	},
 	(table) => [
 		index("group_members_group_idx").on(table.groupId),
@@ -550,19 +553,19 @@ export const groupMembers = sqliteTable(
 );
 
 // Enrollment Tokens Table
-export const enrollmentTokens = sqliteTable("enrollment_tokens", {
+export const enrollmentTokens = pgTable("enrollment_tokens", {
 	id: text("id").primaryKey(),
 	token: text("token").notNull().unique(),
 	groupId: text("group_id")
 		.notNull()
 		.references(() => groups.id, { onDelete: "cascade" }),
-	capacity: integer("capacity").default(1).notNull(), // Capacity from 1 to 5 people
-	createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-	expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+	capacity: bigint("capacity", { mode: "number" }).default(1).notNull(), // Capacity from 1 to 5 people
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 });
 
 // Enrollment Token Courses Join Table (Many-to-Many between Token and Courses)
-export const enrollmentTokenCourses = sqliteTable(
+export const enrollmentTokenCourses = pgTable(
 	"enrollment_token_courses",
 	{
 		tokenId: text("token_id")
@@ -579,19 +582,19 @@ export const enrollmentTokenCourses = sqliteTable(
 );
 
 // Discount Vouchers Table (Referral codes and discount vouchers for student plans)
-export const discountVouchers = sqliteTable(
+export const discountVouchers = pgTable(
 	"discount_vouchers",
 	{
 		id: text("id").primaryKey(),
 		code: text("code").notNull().unique(),
-		discountPercent: integer("discount_percent").notNull(),
-		maxQuota: integer("max_quota").default(1).notNull(),
-		usedQuota: integer("used_quota").default(0).notNull(),
-		expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
-		isActive: integer("is_active", { mode: "boolean" }).default(true).notNull(),
+		discountPercent: bigint("discount_percent", { mode: "number" }).notNull(),
+		maxQuota: bigint("max_quota", { mode: "number" }).default(1).notNull(),
+		usedQuota: bigint("used_quota", { mode: "number" }).default(0).notNull(),
+		expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+		isActive: boolean("is_active").default(true).notNull(),
 		description: text("description"),
-		createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-		updatedAt: integer("updated_at", { mode: "timestamp" })
+		createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+		updatedAt: timestamp("updated_at", { withTimezone: true })
 			.defaultNow()
 			.$onUpdate(() => /* @__PURE__ */ new Date())
 			.notNull(),
@@ -603,7 +606,7 @@ export const discountVouchers = sqliteTable(
 );
 
 // Tutor Courses Table (Which courses a tutor can teach)
-export const tutorCourses = sqliteTable(
+export const tutorCourses = pgTable(
  "tutor_courses",
  {
  id: text("id").primaryKey(),
@@ -613,7 +616,7 @@ export const tutorCourses = sqliteTable(
  courseId: text("course_id")
  .notNull()
  .references(() => courses.id, { onDelete: "cascade" }),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
  index("tutor_courses_tutor_idx").on(table.tutorId),
@@ -622,7 +625,7 @@ export const tutorCourses = sqliteTable(
 );
 
 // Tutor Slots Table (Dated availability slots listed by tutors)
-export const tutorSlots = sqliteTable(
+export const tutorSlots = pgTable(
   "tutor_slots",
   {
     id: text("id").primaryKey(),
@@ -636,7 +639,7 @@ export const tutorSlots = sqliteTable(
     location: text("location"), // Physical room/branch when offline
     // Nullable only for legacy rows. Canonical writes must provide YYYY-MM-DD.
     sessionDate: text("session_date"),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("tutor_slots_tutor_idx").on(table.tutorId),
@@ -651,7 +654,7 @@ export const tutorSlots = sqliteTable(
 );
 
 // Bookings Table (Appointments chosen by students)
-export const bookings = sqliteTable(
+export const bookings = pgTable(
   "bookings",
   {
     id: text("id").primaryKey(),
@@ -679,10 +682,10 @@ export const bookings = sqliteTable(
     googleMeetUrl: text("google_meet_url"),
     googleMeetSpaceName: text("google_meet_space_name"),
     lastModifiedBy: text("last_modified_by").references(() => user.id, { onDelete: "set null" }),
-    lastModifiedAt: integer("last_modified_at", { mode: "timestamp" }).defaultNow().notNull(),
+    lastModifiedAt: timestamp("last_modified_at", { withTimezone: true }).defaultNow().notNull(),
     topic: text("topic"), // Discussion topic entered by students before session
     preSessionNotes: text("pre_session_notes"),
-    preSessionAttachments: text("pre_session_attachments", { mode: "json" }).$type<
+    preSessionAttachments: jsonb("pre_session_attachments").$type<
       Array<{
         id: string;
         name: string;
@@ -695,7 +698,7 @@ export const bookings = sqliteTable(
       }>
     >(),
     postSessionNotes: text("post_session_notes"), // Summary/notes written by tutor
-    postSessionAttachments: text("post_session_attachments", { mode: "json" }).$type<
+    postSessionAttachments: jsonb("post_session_attachments").$type<
       Array<{
         id: string;
         name: string;
@@ -711,9 +714,9 @@ export const bookings = sqliteTable(
     postSessionLinkTitle: text("post_session_link_title"),
     postSessionLinkDescription: text("post_session_link_description"),
     postSessionLinkImage: text("post_session_link_image"),
-    completedAt: integer("completed_at", { mode: "timestamp" }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
     completedById: text("completed_by_id").references(() => user.id, { onDelete: "set null" }),
-    bookedAt: integer("booked_at", { mode: "timestamp" }).defaultNow().notNull(),
+    bookedAt: timestamp("booked_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex("bookings_occupied_slot_unique_idx")
@@ -728,7 +731,7 @@ export const bookings = sqliteTable(
 );
 
 // Normalized resources attached to a booked tutorial session.
-export const bookingResources = sqliteTable(
+export const bookingResources = pgTable(
   "booking_resources",
   {
     id: text("id").primaryKey(),
@@ -741,13 +744,13 @@ export const bookingResources = sqliteTable(
     url: text("url").notNull(),
     fileName: text("file_name"),
     mimeType: text("mime_type"),
-    sizeBytes: integer("size_bytes"),
-    metadata: text("metadata", { mode: "json" }).$type<Record<string, unknown>>(),
+    sizeBytes: bigint("size_bytes", { mode: "number" }),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
     createdById: text("created_by_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -763,7 +766,7 @@ export const bookingResources = sqliteTable(
 );
 
 // Audit Trail & Activity Log for Group Bookings
-export const bookingAuditLogs = sqliteTable(
+export const bookingAuditLogs = pgTable(
   "booking_audit_logs",
   {
     id: text("id").primaryKey(),
@@ -776,8 +779,8 @@ export const bookingAuditLogs = sqliteTable(
       .references(() => user.id, { onDelete: "set null" }),
     action: text("action").notNull(),
     summary: text("summary").notNull(),
-    metadata: text("metadata", { mode: "json" }),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("idx_booking_audit_booking_id").on(table.bookingId),
@@ -787,7 +790,7 @@ export const bookingAuditLogs = sqliteTable(
 );
 
 // Reschedule & Cancellation Tickets
-export const bookingRescheduleTickets = sqliteTable(
+export const bookingRescheduleTickets = pgTable(
   "booking_reschedule_tickets",
   {
     id: text("id").primaryKey(),
@@ -809,11 +812,11 @@ export const bookingRescheduleTickets = sqliteTable(
       .references(() => tutorSlots.id, { onDelete: "set null" }),
     proposedDate: text("proposed_date"),
     decisionNotes: text("decision_notes"),
-    decidedAt: integer("decided_at", { mode: "timestamp" }),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
     decidedById: text("decided_by_id")
       .references(() => user.id, { onDelete: "set null" }),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -826,7 +829,7 @@ export const bookingRescheduleTickets = sqliteTable(
 );
 
 // Discussion Thread Messages inside Reschedule Tickets
-export const bookingTicketMessages = sqliteTable(
+export const bookingTicketMessages = pgTable(
   "booking_ticket_messages",
   {
     id: text("id").primaryKey(),
@@ -837,7 +840,7 @@ export const bookingTicketMessages = sqliteTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     message: text("message").notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("idx_ticket_messages_ticket_id").on(table.ticketId),
@@ -846,7 +849,7 @@ export const bookingTicketMessages = sqliteTable(
 );
 
 // Academic Schedules Table (Ujian Resmi ITB, Tryout, Kuis)
-export const academicSchedules = sqliteTable(
+export const academicSchedules = pgTable(
   "academic_schedules",
   {
     id: text("id").primaryKey(),
@@ -855,14 +858,14 @@ export const academicSchedules = sqliteTable(
     courseId: text("course_id")
       .references(() => courses.id, { onDelete: "set null" }),
     description: text("description"),
-    startDate: integer("start_date", { mode: "timestamp" }).notNull(),
-    endDate: integer("end_date", { mode: "timestamp" }),
+    startDate: timestamp("start_date", { withTimezone: true }).notNull(),
+    endDate: timestamp("end_date", { withTimezone: true }),
     location: text("location"),
     createdById: text("created_by_id")
       .references(() => user.id, { onDelete: "set null" }),
     status: text("status").$type<"published" | "draft" | "archived">().default("published").notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -1112,7 +1115,7 @@ export const academicSchedulesRelations = relations(academicSchedules, ({ one })
 // New Enums for Zyx Content Ecosystem (Revision v4 - Frozen)
 
 // A. ai_material_instances ; top-level knowledge asset metadata
-export const aiMaterialInstances = sqliteTable(
+export const aiMaterialInstances = pgTable(
  "ai_material_instances",
  {
  id: text("id").primaryKey(),
@@ -1122,14 +1125,14 @@ export const aiMaterialInstances = sqliteTable(
  title: text("title").notNull(),
  sourceType: text("source_type").$type<"markdown" | "json" | "pdf_extraction">().notNull(),
  summary: text("summary").notNull(),
- learningObjectives: text("learning_objectives", { mode: "json" }).$defaultFn(() => []).notNull(),
- keywords: text("keywords", { mode: "json" }).$defaultFn(() => []).notNull(),
- chapterIds: text("chapter_ids", { mode: "json" }).$type<string[]>().$defaultFn(() => []),
+ learningObjectives: jsonb("learning_objectives").$defaultFn(() => []).notNull(),
+ keywords: jsonb("keywords").$defaultFn(() => []).notNull(),
+ chapterIds: jsonb("chapter_ids").$type<string[]>().$defaultFn(() => []),
  pineconeSyncStatus: text("pinecone_sync_status").default("pending").notNull(),
  lastSyncError: text("last_sync_error"),
  thumbnailUrl: text("thumbnail_url"),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => new Date())
  .notNull(),
@@ -1140,7 +1143,7 @@ export const aiMaterialInstances = sqliteTable(
 );
 
 // B. ai_material_instance_sections ; groups chunks by subtopic
-export const aiMaterialInstanceSections = sqliteTable(
+export const aiMaterialInstanceSections = pgTable(
  "ai_material_instance_sections",
  {
  id: text("id").primaryKey(),
@@ -1148,8 +1151,8 @@ export const aiMaterialInstanceSections = sqliteTable(
  .notNull()
  .references(() => aiMaterialInstances.id, { onDelete: "cascade" }),
  title: text("title"),
- orderIndex: integer("order_index").notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ orderIndex: bigint("order_index", { mode: "number" }).notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
  index("ai_sections_instance_idx").on(table.materialInstanceId, table.orderIndex),
@@ -1157,7 +1160,7 @@ export const aiMaterialInstanceSections = sqliteTable(
 );
 
 // C. ai_material_instance_chunks ; physical text segments synced with Pinecone
-export const aiMaterialInstanceChunks = sqliteTable(
+export const aiMaterialInstanceChunks = pgTable(
  "ai_material_instance_chunks",
  {
  id: text("id").primaryKey(),
@@ -1165,10 +1168,10 @@ export const aiMaterialInstanceChunks = sqliteTable(
  .notNull()
  .references(() => aiMaterialInstanceSections.id, { onDelete: "cascade" }),
  chunkText: text("chunk_text").notNull(),
- orderIndex: integer("order_index").notNull(),
+ orderIndex: bigint("order_index", { mode: "number" }).notNull(),
  pineconeVectorId: text("pinecone_vector_id").notNull(),
- isSynced: integer("is_synced", { mode: "boolean" }).default(false).notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ isSynced: boolean("is_synced").default(false).notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
  index("idx_chunks_section").on(table.sectionId, table.orderIndex),
@@ -1176,7 +1179,7 @@ export const aiMaterialInstanceChunks = sqliteTable(
 );
 
 // D. ai_generation_jobs ; tracks background Gemini generation requests
-export const aiGenerationJobs = sqliteTable(
+export const aiGenerationJobs = pgTable(
  "ai_generation_jobs",
  {
  id: text("id").primaryKey(),
@@ -1187,13 +1190,13 @@ export const aiGenerationJobs = sqliteTable(
  .notNull()
  .references(() => courses.id, { onDelete: "cascade" }),
  status: text("status").$type<"pending" | "processing" | "completed" | "failed">().default("pending").notNull(),
- promptParameters: text("prompt_parameters", { mode: "json" }).notNull(),
- targetCount: integer("target_count").notNull(),
- generatedCount: integer("generated_count").default(0).notNull(),
- tokenUsage: integer("token_usage").default(0).notNull(),
+ promptParameters: jsonb("prompt_parameters").notNull(),
+ targetCount: bigint("target_count", { mode: "number" }).notNull(),
+ generatedCount: bigint("generated_count", { mode: "number" }).default(0).notNull(),
+ tokenUsage: bigint("token_usage", { mode: "number" }).default(0).notNull(),
  errorMessage: text("error_message"),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => new Date())
  .notNull(),
@@ -1204,7 +1207,7 @@ export const aiGenerationJobs = sqliteTable(
 );
 
 // E0. question_generation_runs ; audit trail of batch question generation runs
-export const questionGenerationRuns = sqliteTable(
+export const questionGenerationRuns = pgTable(
   "question_generation_runs",
   {
     id: text("id").primaryKey(),
@@ -1214,12 +1217,12 @@ export const questionGenerationRuns = sqliteTable(
     blueprintVersion: text("blueprint_version").default("2.0").notNull(),
     promptVersion: text("prompt_version").default("2.0").notNull(),
     sourceVersion: text("source_version"),
-    shuffleSeed: integer("shuffle_seed"),
+    shuffleSeed: bigint("shuffle_seed", { mode: "number" }),
     validatorVersion: text("validator_version").default("2.0").notNull(),
-    slotCount: integer("slot_count").default(0).notNull(),
-    acceptedCount: integer("accepted_count").default(0).notNull(),
+    slotCount: bigint("slot_count", { mode: "number" }).default(0).notNull(),
+    acceptedCount: bigint("accepted_count", { mode: "number" }).default(0).notNull(),
     status: text("status").$type<"completed" | "failed" | "partial" | "processing">().default("completed").notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("idx_qgen_runs_course").on(table.courseId),
@@ -1227,7 +1230,7 @@ export const questionGenerationRuns = sqliteTable(
 );
 
 // E. ai_question_bank ; permanent, reusable question repository (modified for KO references)
-export const aiQuestionBank = sqliteTable(
+export const aiQuestionBank = pgTable(
   "ai_question_bank",
   {
     id: text("id").primaryKey(),
@@ -1246,35 +1249,35 @@ export const aiQuestionBank = sqliteTable(
       .references(() => assessmentSources.id, { onDelete: "set null" }),
     sourceQuestionNumber: text("source_question_number"),
     sourceQuestionPart: text("source_question_part"),
-    sourcePage: integer("source_page"),
+    sourcePage: bigint("source_page", { mode: "number" }),
     answerProvenance: text("answer_provenance").$type<"official" | "source_solution" | "zyx_generated" | "unavailable">(),
     solutionProvenance: text("solution_provenance").$type<"official" | "source_solution" | "zyx_generated" | "unavailable">(),
-    quizEligible: integer("quiz_eligible", { mode: "boolean" }).default(false).notNull(),
+    quizEligible: boolean("quiz_eligible").default(false).notNull(),
 
     // Final v4 adjustments
     knowledgeObjectId: text("knowledge_object_id")
       .references(() => knowledgeObjects.id, { onDelete: "set null" }),
     sourceMtdId: text("source_mtd_id")
       .references(() => masterTeachingDocuments.id, { onDelete: "set null" }),
-    sourceMtdVersion: integer("source_mtd_version"),
+    sourceMtdVersion: bigint("source_mtd_version", { mode: "number" }),
     generationHash: text("generation_hash"),
     generationRunId: text("generation_run_id")
       .references(() => questionGenerationRuns.id, { onDelete: "set null" }),
     status: text("status").default("active").notNull(),
-    isStale: integer("is_stale", { mode: "boolean" }).default(false).notNull(),
+    isStale: boolean("is_stale").default(false).notNull(),
 
     difficulty: text("difficulty").$type<"easy" | "medium" | "hard">().default("medium").notNull(),
     questionType: text("question_type").$type<"multiple_choice" | "multiple_choices" | "short_answer" | "essay">().default("multiple_choice").notNull(),
-    tags: text("tags", { mode: "json" }).$defaultFn(() => []).notNull(),
+    tags: jsonb("tags").$defaultFn(() => []).notNull(),
     prompt: text("prompt").notNull(),
-    options: text("options", { mode: "json" }).notNull(),
-    correctIndices: text("correct_indices", { mode: "json" }).notNull(),
-    acceptableAnswers: text("acceptable_answers", { mode: "json" }).$type<string[]>(),
+    options: jsonb("options").notNull(),
+    correctIndices: jsonb("correct_indices").notNull(),
+    acceptableAnswers: jsonb("acceptable_answers").$type<string[]>(),
     /**
      * EIF E1: per non-correct option, the misconception it represents.
      * One entry per wrong option. Empty/null = not tagged (legacy rows).
      */
-    distractorMap: text("distractor_map", { mode: "json" })
+    distractorMap: jsonb("distractor_map")
       .$type<Array<{
         optionIndex: number;
         kind: "misconception" | "calc_error" | "unit_error" | "vocab_swap" | "none";
@@ -1284,15 +1287,15 @@ export const aiQuestionBank = sqliteTable(
       .$defaultFn(() => []),
     explanation: text("explanation").notNull(),
     reviewStatus: text("review_status").$type<"generated" | "reviewed" | "published" | "flagged" | "retired">().default("generated").notNull(),
-    qualityScore: real("quality_score"),
-    useCount: integer("use_count").default(0).notNull(),
+    qualityScore: doublePrecision("quality_score"),
+    useCount: bigint("use_count", { mode: "number" }).default(0).notNull(),
     styledAfterAssessmentObjectId: text("styled_after_assessment_object_id")
       .references(() => assessmentObjects.id, { onDelete: "set null" }),
     pattern: text("pattern"),
     reasoningType: text("reasoning_type"),
-    applicationLevel: integer("application_level"),
-    estimatedSteps: integer("estimated_steps"),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    applicationLevel: bigint("application_level", { mode: "number" }),
+    estimatedSteps: bigint("estimated_steps", { mode: "number" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("idx_qbank_selection").on(table.courseId, table.reviewStatus, table.difficulty, table.useCount),
@@ -1305,30 +1308,30 @@ export const aiQuestionBank = sqliteTable(
 );
 
 // E0.1. distractor_provenance ; machine-readable distractor provenance and misconception mapping
-export const distractorProvenance = sqliteTable(
+export const distractorProvenance = pgTable(
   "distractor_provenance",
   {
     id: text("id").primaryKey(),
     questionId: text("question_id")
       .notNull()
       .references(() => aiQuestionBank.id, { onDelete: "cascade" }),
-    optionIndex: integer("option_index").notNull(),
+    optionIndex: bigint("option_index", { mode: "number" }).notNull(),
     stableOptionId: text("stable_option_id").notNull(),
     targetedMisconception: text("targeted_misconception").notNull(),
     misconceptionKoId: text("misconception_ko_id")
       .references(() => knowledgeObjects.id, { onDelete: "set null" }),
-    supportingSourceIds: text("supporting_source_ids", { mode: "json" }).$defaultFn(() => []).notNull(),
+    supportingSourceIds: jsonb("supporting_source_ids").$defaultFn(() => []).notNull(),
     mappingMethod: text("mapping_method")
       .$type<"exact_ko" | "heuristic_pattern" | "lexical_overlap" | "embedding_similarity" | "manual_override" | "unknown">()
       .default("unknown")
       .notNull(),
-    score: real("score").default(0).notNull(),
+    score: doublePrecision("score").default(0).notNull(),
     methodVersion: text("method_version").default("2.0").notNull(),
     uncertaintyState: text("uncertainty_state")
       .$type<"confident" | "ambiguous" | "unknown">()
       .default("unknown")
       .notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     unique("uq_distractor_prov_option").on(table.questionId, table.optionIndex),
@@ -1338,7 +1341,7 @@ export const distractorProvenance = sqliteTable(
 );
 
 // E1. question_option_stats ; aggregate per-option selection counters (distractor analytics)
-export const questionOptionStats = sqliteTable(
+export const questionOptionStats = pgTable(
  "question_option_stats",
  {
  id: text("id").primaryKey(),
@@ -1348,10 +1351,10 @@ export const questionOptionStats = sqliteTable(
  courseId: text("course_id")
  .notNull()
  .references(() => courses.id, { onDelete: "cascade" }),
- optionIndex: integer("option_index").notNull(),
- selectedCount: integer("selected_count").default(0).notNull(),
- totalAttempts: integer("total_attempts").default(0).notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().notNull(),
+ optionIndex: bigint("option_index", { mode: "number" }).notNull(),
+ selectedCount: bigint("selected_count", { mode: "number" }).default(0).notNull(),
+ totalAttempts: bigint("total_attempts", { mode: "number" }).default(0).notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
  unique("uq_qos_question_option").on(table.questionId, table.optionIndex),
@@ -1360,7 +1363,7 @@ export const questionOptionStats = sqliteTable(
 );
 
 // F. quiz_templates ; publishable quiz configurations with selection rules
-export const quizTemplates = sqliteTable(
+export const quizTemplates = pgTable(
   "quiz_templates",
   {
     id: text("id").primaryKey(),
@@ -1371,17 +1374,17 @@ export const quizTemplates = sqliteTable(
     category: text("category").$type<"daily" | "weekly" | "chapter" | "premium" | "simulation">().notNull(),
     visibility: text("visibility").$type<"free" | "paid">().default("free").notNull(),
     status: text("status").$type<"draft" | "published">().default("draft").notNull(),
-    timeLimitSeconds: integer("time_limit_seconds"),
-    maxAttempts: integer("max_attempts"),
-    selectionRules: text("selection_rules", { mode: "json" }).notNull(),
-    openAt: integer("open_at", { mode: "timestamp" }),
-    closeAt: integer("close_at", { mode: "timestamp" }),
+    timeLimitSeconds: bigint("time_limit_seconds", { mode: "number" }),
+    maxAttempts: bigint("max_attempts", { mode: "number" }),
+    selectionRules: jsonb("selection_rules").notNull(),
+    openAt: timestamp("open_at", { withTimezone: true }),
+    closeAt: timestamp("close_at", { withTimezone: true }),
     manualStatus: text("manual_status").$type<"open" | "closed" | "scheduled">().default("scheduled").notNull(),
-    showDiscussion: integer("show_discussion", { mode: "boolean" }).default(false).notNull(),
+    showDiscussion: boolean("show_discussion").default(false).notNull(),
     spreadsheetId: text("spreadsheet_id"),
     spreadsheetUrl: text("spreadsheet_url"),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -1392,7 +1395,7 @@ export const quizTemplates = sqliteTable(
 );
 
 // G. student_quiz_attempts ; user quiz session with deep question snapshots
-export const studentQuizAttempts = sqliteTable(
+export const studentQuizAttempts = pgTable(
  "student_quiz_attempts",
  {
  id: text("id").primaryKey(),
@@ -1402,19 +1405,19 @@ export const studentQuizAttempts = sqliteTable(
  templateId: text("template_id")
  .notNull()
  .references(() => quizTemplates.id, { onDelete: "cascade" }),
- score: integer("score"),
- durationSeconds: integer("duration_seconds"),
+ score: bigint("score", { mode: "number" }),
+ durationSeconds: bigint("duration_seconds", { mode: "number" }),
  status: text("status").$type<"in_progress" | "completed" | "abandoned">().default("in_progress").notNull(),
  gradingStatus: text("grading_status").$type<"not_required" | "pending" | "graded">().default("not_required").notNull(),
- questionsSnapshot: text("questions_snapshot", { mode: "json" }).notNull(),
- answersSnapshot: text("answers_snapshot", { mode: "json" }),
- startedAt: integer("started_at", { mode: "timestamp" }).defaultNow().notNull(),
- submittedAt: integer("submitted_at", { mode: "timestamp" }),
- strongAreas: text("strong_areas", { mode: "json" }),
- weakAreas: text("weak_areas", { mode: "json" }),
- recommendedNextSteps: text("recommended_next_steps", { mode: "json" }),
+ questionsSnapshot: jsonb("questions_snapshot").notNull(),
+ answersSnapshot: jsonb("answers_snapshot"),
+ startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+ submittedAt: timestamp("submitted_at", { withTimezone: true }),
+ strongAreas: jsonb("strong_areas"),
+ weakAreas: jsonb("weak_areas"),
+ recommendedNextSteps: jsonb("recommended_next_steps"),
  /** EIF E2: per-concept mastery score snapshot at attempt start, for the before/after delta. */
- masteryBefore: text("mastery_before", { mode: "json" }).$type<Record<string, number>>(),
+ masteryBefore: jsonb("mastery_before").$type<Record<string, number>>(),
  },
  (table) => [
  index("idx_attempts_student").on(table.studentId, table.status),
@@ -1452,18 +1455,18 @@ export interface QuizAiInsightData {
   actionableNextSteps: string[];
 }
 
-export const quizAiInsights = sqliteTable(
+export const quizAiInsights = pgTable(
   "quiz_ai_insights",
   {
     id: text("id").primaryKey(),
     templateId: text("template_id").references(() => quizTemplates.id, { onDelete: "cascade" }),
     examId: text("exam_id").references(() => exams.id, { onDelete: "cascade" }),
-    sampleSize: integer("sample_size").default(0).notNull(),
-    insights: text("insights", { mode: "json" }).$type<QuizAiInsightData>().notNull(),
+    sampleSize: bigint("sample_size", { mode: "number" }).default(0).notNull(),
+    insights: jsonb("insights").$type<QuizAiInsightData>().notNull(),
     summary: text("summary"),
     generatedById: text("generated_by_id").references(() => user.id, { onDelete: "set null" }),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -1475,7 +1478,7 @@ export const quizAiInsights = sqliteTable(
 );
 
 // H. student_quiz_analytics ; per-attempt detailed deterministic facts and AI pedagogical diagnosis
-export const studentQuizAnalytics = sqliteTable(
+export const studentQuizAnalytics = pgTable(
   "student_quiz_analytics",
   {
     id: text("id").primaryKey(),
@@ -1493,11 +1496,11 @@ export const studentQuizAnalytics = sqliteTable(
       .notNull()
       .references(() => courses.id, { onDelete: "cascade" }),
     status: text("status").$type<"processing" | "completed" | "failed">().default("processing").notNull(),
-    computedMetrics: text("computed_metrics", { mode: "json" }),
-    aiDiagnosis: text("ai_diagnosis", { mode: "json" }),
+    computedMetrics: jsonb("computed_metrics"),
+    aiDiagnosis: jsonb("ai_diagnosis"),
     errorMessage: text("error_message"),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -1515,7 +1518,7 @@ export const studentQuizAnalytics = sqliteTable(
 // ─────────────────────────────────────────────────────────────────────────────
 
 // 1. chapters
-export const chapters = sqliteTable(
+export const chapters = pgTable(
  "chapters",
  {
  id: text("id").primaryKey(),
@@ -1524,16 +1527,16 @@ export const chapters = sqliteTable(
  .references(() => courses.id, { onDelete: "cascade" }),
  title: text("title").notNull(),
  description: text("description"),
- orderIndex: integer("order_index").notNull(),
+ orderIndex: bigint("order_index", { mode: "number" }).notNull(),
  status: text("status").default("draft").notNull(), // 'draft', 'published'
  assetGenStatus: text("asset_gen_status").default("idle").notNull(), // 'idle', 'generating', 'completed', 'failed'
- assetGenFlashcardsTotal: integer("asset_gen_flashcards_total").default(0).notNull(),
- assetGenFlashcardsCurrent: integer("asset_gen_flashcards_current").default(0).notNull(),
- assetGenQuestionsTotal: integer("asset_gen_questions_total").default(0).notNull(),
- assetGenQuestionsCurrent: integer("asset_gen_questions_current").default(0).notNull(),
+ assetGenFlashcardsTotal: bigint("asset_gen_flashcards_total", { mode: "number" }).default(0).notNull(),
+ assetGenFlashcardsCurrent: bigint("asset_gen_flashcards_current", { mode: "number" }).default(0).notNull(),
+ assetGenQuestionsTotal: bigint("asset_gen_questions_total", { mode: "number" }).default(0).notNull(),
+ assetGenQuestionsCurrent: bigint("asset_gen_questions_current", { mode: "number" }).default(0).notNull(),
  assetGenError: text("asset_gen_error"),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => new Date())
  .notNull(),
@@ -1544,7 +1547,7 @@ export const chapters = sqliteTable(
 );
 
 // 2. student_chapter_progress
-export const studentChapterProgress = sqliteTable(
+export const studentChapterProgress = pgTable(
  "student_chapter_progress",
  {
  id: text("id").primaryKey(),
@@ -1554,10 +1557,10 @@ export const studentChapterProgress = sqliteTable(
  chapterId: text("chapter_id")
  .notNull()
  .references(() => chapters.id, { onDelete: "cascade" }),
- unlocked: integer("unlocked", { mode: "boolean" }).default(false).notNull(),
- completed: integer("completed", { mode: "boolean" }).default(false).notNull(),
- completedAt: integer("completed_at", { mode: "timestamp" }),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ unlocked: boolean("unlocked").default(false).notNull(),
+ completed: boolean("completed").default(false).notNull(),
+ completedAt: timestamp("completed_at", { withTimezone: true }),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => new Date())
  .notNull(),
@@ -1568,7 +1571,7 @@ export const studentChapterProgress = sqliteTable(
 );
 
 // 3. master_teaching_documents
-export const masterTeachingDocuments = sqliteTable(
+export const masterTeachingDocuments = pgTable(
  "master_teaching_documents",
  {
  id: text("id").primaryKey(),
@@ -1581,7 +1584,7 @@ export const masterTeachingDocuments = sqliteTable(
  markdownContent: text("markdown_content").notNull(),
  originalPdfKey: text("original_pdf_key"),
  canonicalMarkdownKey: text("canonical_markdown_key"),
- version: integer("version").default(1).notNull(),
+ version: bigint("version", { mode: "number" }).default(1).notNull(),
  status: text("status").default("draft").notNull(), // 'draft', 'active', 'archived'
  type: text("type").$type<"learning" | "assessment">().default("learning").notNull(),
  sourceHash: text("source_hash"),
@@ -1589,8 +1592,8 @@ export const masterTeachingDocuments = sqliteTable(
  createdById: text("created_by_id")
  .notNull()
  .references(() => user.id),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => new Date())
  .notNull(),
@@ -1598,21 +1601,21 @@ export const masterTeachingDocuments = sqliteTable(
 );
 
 // 3.5. concepts & concept_localizations
-export const concepts = sqliteTable(
+export const concepts = pgTable(
  "concepts",
  {
  id: text("id").primaryKey(),
  canonicalSlug: text("canonical_slug").notNull().unique(),
- isVerified: integer("is_verified", { mode: "boolean" }).default(false).notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ isVerified: boolean("is_verified").default(false).notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => new Date())
  .notNull(),
  }
 );
 
-export const conceptLocalizations = sqliteTable(
+export const conceptLocalizations = pgTable(
  "concept_localizations",
  {
  id: text("id").primaryKey(),
@@ -1621,11 +1624,11 @@ export const conceptLocalizations = sqliteTable(
  .references(() => concepts.id, { onDelete: "cascade" }),
  lang: text("lang").$type<"id" | "en">().notNull(),
  displayName: text("display_name").notNull(),
- aliases: text("aliases", { mode: "json" }).$defaultFn(() => []).notNull(),
+ aliases: jsonb("aliases").$defaultFn(() => []).notNull(),
  technicalStandardTerm: text("technical_standard_term").$type<"id" | "en">().default("id").notNull(),
- embedding: text("embedding", { mode: "json" }).$type<number[]>(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ embedding: jsonb("embedding").$type<number[]>(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => new Date())
  .notNull(),
@@ -1638,17 +1641,17 @@ export const conceptLocalizations = sqliteTable(
 
 // Plan 003 canonical source and Idea domain. Legacy course, chapter, enrollment,
 // tutor assignment, and knowledge-object tables remain unchanged during expand.
-export const mataKuliah = sqliteTable(
+export const mataKuliah = pgTable(
  "mata_kuliah",
  {
   id: text("id").primaryKey(),
   code: text("code").notNull(),
   title: text("title").notNull(),
   status: text("status").$type<"draft" | "active" | "archived">().default("active").notNull(),
-  isDemo: integer("is_demo", { mode: "boolean" }).default(false).notNull(),
+  isDemo: boolean("is_demo").default(false).notNull(),
   legacyCourseId: text("legacy_course_id").references(() => courses.id, { onDelete: "set null" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
    .defaultNow()
    .$onUpdate(() => /* @__PURE__ */ new Date())
    .notNull(),
@@ -1657,13 +1660,13 @@ export const mataKuliah = sqliteTable(
   uniqueIndex("mata_kuliah_code_idx").on(table.code),
   uniqueIndex("mata_kuliah_single_demo_idx")
     .on(table.isDemo)
-    .where(sql`${table.isDemo} = 1`),
+    .where(sql`${table.isDemo} = true`),
   index("mata_kuliah_legacy_course_idx").on(table.legacyCourseId),
   check("mata_kuliah_status_check", sql`${table.status} IN ('draft', 'active', 'archived')`),
  ],
 );
 
-export const bab = sqliteTable(
+export const bab = pgTable(
  "bab",
  {
   id: text("id").primaryKey(),
@@ -1672,11 +1675,11 @@ export const bab = sqliteTable(
    .references(() => mataKuliah.id, { onDelete: "cascade" }),
   code: text("code").notNull(),
   title: text("title").notNull(),
-  orderIndex: integer("order_index").notNull(),
+  orderIndex: bigint("order_index", { mode: "number" }).notNull(),
   status: text("status").$type<"draft" | "active" | "archived">().default("active").notNull(),
   legacyChapterId: text("legacy_chapter_id").references(() => chapters.id, { onDelete: "set null" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
    .defaultNow()
    .$onUpdate(() => /* @__PURE__ */ new Date())
    .notNull(),
@@ -1690,7 +1693,7 @@ export const bab = sqliteTable(
  ],
 );
 
-export const pendaftaranMurid = sqliteTable(
+export const pendaftaranMurid = pgTable(
  "pendaftaran_murid",
  {
   id: text("id").primaryKey(),
@@ -1704,11 +1707,11 @@ export const pendaftaranMurid = sqliteTable(
    .$type<"pending" | "active" | "completed" | "cancelled" | "expired">()
    .default("active")
    .notNull(),
-  startAt: integer("start_at", { mode: "timestamp" }),
-  endAt: integer("end_at", { mode: "timestamp" }),
+  startAt: timestamp("start_at", { withTimezone: true }),
+  endAt: timestamp("end_at", { withTimezone: true }),
   legacyEnrollmentId: text("legacy_enrollment_id").references(() => enrollments.id, { onDelete: "set null" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
    .defaultNow()
    .$onUpdate(() => /* @__PURE__ */ new Date())
    .notNull(),
@@ -1721,7 +1724,7 @@ export const pendaftaranMurid = sqliteTable(
  ],
 );
 
-export const penugasanTutor = sqliteTable(
+export const penugasanTutor = pgTable(
  "penugasan_tutor",
  {
   id: text("id").primaryKey(),
@@ -1740,8 +1743,8 @@ export const penugasanTutor = sqliteTable(
    .default("course")
    .notNull(),
   legacyTutorCourseId: text("legacy_tutor_course_id").references(() => tutorCourses.id, { onDelete: "set null" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
    .defaultNow()
    .$onUpdate(() => /* @__PURE__ */ new Date())
    .notNull(),
@@ -1756,7 +1759,7 @@ export const penugasanTutor = sqliteTable(
  ],
 );
 
-export const sumberMateri = sqliteTable(
+export const sumberMateri = pgTable(
  "sumber_materi",
  {
   id: text("id").primaryKey(),
@@ -1770,7 +1773,7 @@ export const sumberMateri = sqliteTable(
    .notNull(),
   title: text("title").notNull(),
   canonicalUriOrR2Key: text("canonical_uri_or_r2_key").notNull(),
-  version: integer("version").default(1).notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
   checksum: text("checksum").notNull(),
   status: text("status")
    .$type<"draft" | "active" | "withdrawn" | "archived">()
@@ -1779,8 +1782,8 @@ export const sumberMateri = sqliteTable(
   creatorId: text("creator_id")
    .notNull()
    .references(() => pengguna.id, { onDelete: "restrict" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
    .defaultNow()
    .$onUpdate(() => /* @__PURE__ */ new Date())
    .notNull(),
@@ -1795,23 +1798,23 @@ export const sumberMateri = sqliteTable(
  ],
 );
 
-export const potonganSumber = sqliteTable(
+export const potonganSumber = pgTable(
  "potongan_sumber",
  {
   id: text("id").primaryKey(),
   sumberMateriId: text("sumber_materi_id")
    .notNull()
    .references(() => sumberMateri.id, { onDelete: "cascade" }),
-  sourceVersion: integer("source_version").notNull(),
+  sourceVersion: bigint("source_version", { mode: "number" }).notNull(),
   content: text("content").notNull(),
-  pageNumber: integer("page_number"),
+  pageNumber: bigint("page_number", { mode: "number" }),
   sectionLocator: text("section_locator"),
-  startOffset: integer("start_offset").notNull(),
-  endOffset: integer("end_offset").notNull(),
+  startOffset: bigint("start_offset", { mode: "number" }).notNull(),
+  endOffset: bigint("end_offset", { mode: "number" }).notNull(),
   checksum: text("checksum").notNull(),
-  embeddingEligible: integer("embedding_eligible", { mode: "boolean" }).default(true).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
+  embeddingEligible: boolean("embedding_eligible").default(true).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
    .defaultNow()
    .$onUpdate(() => /* @__PURE__ */ new Date())
    .notNull(),
@@ -1825,7 +1828,7 @@ export const potonganSumber = sqliteTable(
  ],
 );
 
-export const ide = sqliteTable(
+export const ide = pgTable(
  "ide",
  {
   id: text("id").primaryKey(),
@@ -1849,11 +1852,11 @@ export const ide = sqliteTable(
    .$type<"core" | "prerequisite" | "enrichment" | "assessment_support" | "reference">()
    .default("core")
    .notNull(),
-  difficultyMetadata: text("difficulty_metadata", { mode: "json" })
+  difficultyMetadata: jsonb("difficulty_metadata")
    .$type<Record<string, unknown>>()
    .$defaultFn(() => ({}))
    .notNull(),
-  version: integer("version").default(1).notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
   status: text("status")
    .$type<"draft" | "published" | "needs_review" | "withdrawn" | "superseded">()
    .default("draft")
@@ -1869,8 +1872,8 @@ export const ide = sqliteTable(
    .notNull()
    .references(() => pengguna.id, { onDelete: "restrict" }),
   curatorId: text("curator_id").references(() => pengguna.id, { onDelete: "set null" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
    .defaultNow()
    .$onUpdate(() => /* @__PURE__ */ new Date())
    .notNull(),
@@ -1887,7 +1890,7 @@ export const ide = sqliteTable(
  ],
 );
 
-export const asalIde = sqliteTable(
+export const asalIde = pgTable(
  "asal_ide",
  {
   id: text("id").primaryKey(),
@@ -1901,11 +1904,11 @@ export const asalIde = sqliteTable(
    .$type<"core" | "supporting" | "prerequisite" | "enrichment" | "assessment_support" | "reference" | "tutor_authored">()
    .default("supporting")
    .notNull(),
-  startOffset: integer("start_offset").notNull(),
-  endOffset: integer("end_offset").notNull(),
+  startOffset: bigint("start_offset", { mode: "number" }).notNull(),
+  endOffset: bigint("end_offset", { mode: "number" }).notNull(),
   sourceChecksum: text("source_checksum").notNull(),
   note: text("note"),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("asal_ide_span_idx").on(table.ideId, table.sourceChunkId, table.startOffset, table.endOffset),
@@ -1915,7 +1918,7 @@ export const asalIde = sqliteTable(
  ],
 );
 
-export const relasiIde = sqliteTable(
+export const relasiIde = pgTable(
  "relasi_ide",
  {
   id: text("id").primaryKey(),
@@ -1929,10 +1932,10 @@ export const relasiIde = sqliteTable(
    .$type<"prerequisite" | "related" | "extends" | "example_of" | "misconception_of">()
    .notNull(),
   explanation: text("explanation"),
-  version: integer("version").default(1).notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
   status: text("status").$type<"active" | "superseded" | "withdrawn">().default("active").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
    .defaultNow()
    .$onUpdate(() => /* @__PURE__ */ new Date())
    .notNull(),
@@ -1947,7 +1950,7 @@ export const relasiIde = sqliteTable(
  ],
 );
 
-export const bagianPembelajaran = sqliteTable(
+export const bagianPembelajaran = pgTable(
  "bagian_pembelajaran",
  {
   id: text("id").primaryKey(),
@@ -1957,13 +1960,13 @@ export const bagianPembelajaran = sqliteTable(
   parentSectionId: text("parent_section_id").references((): any => bagianPembelajaran.id, { onDelete: "restrict" }),
   title: text("title").notNull(),
   slug: text("slug").notNull(),
-  orderIndex: integer("order_index").notNull(),
+  orderIndex: bigint("order_index", { mode: "number" }).notNull(),
   learningObjective: text("learning_objective").notNull(),
-  sourceChunkIds: text("source_chunk_ids", { mode: "json" }).$type<string[]>().$defaultFn(() => []).notNull(),
-  version: integer("version").default(1).notNull(),
+  sourceChunkIds: jsonb("source_chunk_ids").$type<string[]>().$defaultFn(() => []).notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
   status: text("status").$type<"published" | "superseded" | "withdrawn">().default("published").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
  },
  (table) => [
   uniqueIndex("bagian_pembelajaran_stable_key_idx").on(table.stableKey),
@@ -1976,14 +1979,14 @@ export const bagianPembelajaran = sqliteTable(
  ],
 );
 
-export const bagianPembelajaranIde = sqliteTable(
+export const bagianPembelajaranIde = pgTable(
  "bagian_pembelajaran_ide",
  {
   id: text("id").primaryKey(),
   bagianPembelajaranId: text("bagian_pembelajaran_id").notNull().references(() => bagianPembelajaran.id, { onDelete: "cascade" }),
   ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
   role: text("role").$type<"primary" | "supporting">().notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("bagian_pembelajaran_ide_unique_idx").on(table.bagianPembelajaranId, table.ideId),
@@ -1992,25 +1995,25 @@ export const bagianPembelajaranIde = sqliteTable(
  ],
 );
 
-export const ketergantunganProduk = sqliteTable(
+export const ketergantunganProduk = pgTable(
  "ketergantungan_produk",
  {
   id: text("id").primaryKey(),
   upstreamEntityType: text("upstream_entity_type").notNull(),
   upstreamEntityId: text("upstream_entity_id").notNull(),
-  upstreamVersion: integer("upstream_version").notNull(),
+  upstreamVersion: bigint("upstream_version", { mode: "number" }).notNull(),
   upstreamHash: text("upstream_hash").notNull(),
   downstreamEntityType: text("downstream_entity_type").notNull(),
   downstreamEntityId: text("downstream_entity_id").notNull(),
-  downstreamVersion: integer("downstream_version").notNull(),
+  downstreamVersion: bigint("downstream_version", { mode: "number" }).notNull(),
   downstreamHash: text("downstream_hash").notNull(),
   freshness: text("freshness")
    .$type<"UP_TO_DATE" | "NEEDS_REVIEW" | "STALE">()
    .default("UP_TO_DATE")
    .notNull(),
   reason: text("reason"),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
    .defaultNow()
    .$onUpdate(() => /* @__PURE__ */ new Date())
    .notNull(),
@@ -2026,7 +2029,7 @@ export const ketergantunganProduk = sqliteTable(
  ],
 );
 
-export const petaIdLegacy = sqliteTable(
+export const petaIdLegacy = pgTable(
  "peta_id_legacy",
  {
   id: text("id").primaryKey(),
@@ -2034,14 +2037,14 @@ export const petaIdLegacy = sqliteTable(
   legacyId: text("legacy_id").notNull(),
   targetTable: text("target_table").notNull(),
   targetId: text("target_id").notNull(),
-  mappingVersion: integer("mapping_version").notNull(),
+  mappingVersion: bigint("mapping_version", { mode: "number" }).notNull(),
   sourceChecksum: text("source_checksum").notNull(),
   targetChecksum: text("target_checksum").notNull(),
   runId: text("run_id")
    .notNull()
    .references(() => migrationRuns.id, { onDelete: "restrict" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
    .defaultNow()
    .$onUpdate(() => /* @__PURE__ */ new Date())
    .notNull(),
@@ -2056,7 +2059,7 @@ export const petaIdLegacy = sqliteTable(
 
 // Plan 004 product, assessment, learning-state, bundle, and audit domains.
 // These tables are additive; existing product and attempt tables remain intact.
-export const artikel = sqliteTable(
+export const artikel = pgTable(
  "artikel",
  {
   id: text("id").primaryKey(),
@@ -2071,15 +2074,15 @@ export const artikel = sqliteTable(
    .$type<"legacy_unreviewed" | "structured" | "needs_reauthoring">()
    .default("legacy_unreviewed")
    .notNull(),
-  version: integer("version").default(1).notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
   status: text("status").$type<"draft" | "in_review" | "published" | "withdrawn">().default("draft").notNull(),
   sourceHash: text("source_hash").notNull(),
   generationHash: text("generation_hash").notNull(),
   creatorId: text("creator_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
   curatorId: text("curator_id").references(() => pengguna.id, { onDelete: "set null" }),
-  publishedAt: integer("published_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
  },
  (table) => [
   uniqueIndex("artikel_slug_idx").on(table.slug),
@@ -2093,14 +2096,14 @@ export const artikel = sqliteTable(
  ],
 );
 
-export const artikelIde = sqliteTable(
+export const artikelIde = pgTable(
  "artikel_ide",
  {
   id: text("id").primaryKey(),
   artikelId: text("artikel_id").notNull().references(() => artikel.id, { onDelete: "cascade" }),
   ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
-  weight: real("weight").default(1).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  weight: doublePrecision("weight").default(1).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("artikel_ide_unique_idx").on(table.artikelId, table.ideId),
@@ -2109,7 +2112,7 @@ export const artikelIde = sqliteTable(
  ],
 );
 
-export const bagianArtikel = sqliteTable(
+export const bagianArtikel = pgTable(
  "bagian_artikel",
  {
   id: text("id").primaryKey(),
@@ -2121,12 +2124,12 @@ export const bagianArtikel = sqliteTable(
   slug: text("slug").notNull(),
   title: text("title").notNull(),
   learningObjective: text("learning_objective").notNull(),
-  orderIndex: integer("order_index").notNull(),
-  estimatedReadingMinutes: integer("estimated_reading_minutes").notNull(),
-  version: integer("version").default(1).notNull(),
+  orderIndex: bigint("order_index", { mode: "number" }).notNull(),
+  estimatedReadingMinutes: bigint("estimated_reading_minutes", { mode: "number" }).notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
   status: text("status").$type<"published" | "withdrawn">().default("published").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
  },
  (table) => [
   uniqueIndex("bagian_artikel_key_idx").on(table.artikelId, table.version, table.sectionKey),
@@ -2140,7 +2143,7 @@ export const bagianArtikel = sqliteTable(
  ],
 );
 
-export const blokArtikel = sqliteTable(
+export const blokArtikel = pgTable(
  "blok_artikel",
  {
   id: text("id").primaryKey(),
@@ -2149,13 +2152,13 @@ export const blokArtikel = sqliteTable(
   blockKey: text("block_key").notNull(),
   blockType: text("block_type").notNull(),
   title: text("title"),
-  orderIndex: integer("order_index").notNull(),
+  orderIndex: bigint("order_index", { mode: "number" }).notNull(),
   content: text("content").notNull(),
-  version: integer("version").default(1).notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
   generationHash: text("generation_hash").notNull(),
   status: text("status").$type<"draft" | "published" | "withdrawn">().default("draft").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
  },
  (table) => [
   uniqueIndex("blok_artikel_key_idx").on(table.artikelId, table.version, table.blockKey),
@@ -2167,13 +2170,13 @@ export const blokArtikel = sqliteTable(
  ],
 );
 
-export const blokArtikelIde = sqliteTable(
+export const blokArtikelIde = pgTable(
  "blok_artikel_ide",
  {
   id: text("id").primaryKey(),
   blokArtikelId: text("blok_artikel_id").notNull().references(() => blokArtikel.id, { onDelete: "cascade" }),
   ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("blok_artikel_ide_unique_idx").on(table.blokArtikelId, table.ideId),
@@ -2181,16 +2184,16 @@ export const blokArtikelIde = sqliteTable(
  ],
 );
 
-export const blokArtikelSumber = sqliteTable(
+export const blokArtikelSumber = pgTable(
  "blok_artikel_sumber",
  {
   id: text("id").primaryKey(),
   blokArtikelId: text("blok_artikel_id").notNull().references(() => blokArtikel.id, { onDelete: "cascade" }),
   sumberMateriId: text("sumber_materi_id").notNull().references(() => sumberMateri.id, { onDelete: "restrict" }),
-  sourceVersion: integer("source_version").notNull(),
+  sourceVersion: bigint("source_version", { mode: "number" }).notNull(),
   sourceChecksum: text("source_checksum").notNull(),
-  excerptIds: text("excerpt_ids", { mode: "json" }).$type<string[]>().$defaultFn(() => []).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  excerptIds: jsonb("excerpt_ids").$type<string[]>().$defaultFn(() => []).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("blok_artikel_sumber_unique_idx").on(table.blokArtikelId, table.sumberMateriId, table.sourceVersion),
@@ -2199,7 +2202,7 @@ export const blokArtikelSumber = sqliteTable(
  ],
 );
 
-export const diktatMateri = sqliteTable(
+export const diktatMateri = pgTable(
  "diktat_materi",
  {
   id: text("id").primaryKey(),
@@ -2208,15 +2211,15 @@ export const diktatMateri = sqliteTable(
   title: text("title").notNull(),
   contentMarkdown: text("content_markdown").notNull(),
   fileKey: text("file_key"),
-  version: integer("version").default(1).notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
   status: text("status").$type<"draft" | "in_review" | "published" | "withdrawn">().default("draft").notNull(),
   sourceHash: text("source_hash").notNull(),
   generationHash: text("generation_hash").notNull(),
   creatorId: text("creator_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
   curatorId: text("curator_id").references(() => pengguna.id, { onDelete: "set null" }),
-  publishedAt: integer("published_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
  },
  (table) => [
   index("diktat_materi_course_idx").on(table.mataKuliahId),
@@ -2227,14 +2230,14 @@ export const diktatMateri = sqliteTable(
  ],
 );
 
-export const diktatIde = sqliteTable(
+export const diktatIde = pgTable(
  "diktat_ide",
  {
   id: text("id").primaryKey(),
   diktatMateriId: text("diktat_materi_id").notNull().references(() => diktatMateri.id, { onDelete: "cascade" }),
   ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
-  weight: real("weight").default(1).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  weight: doublePrecision("weight").default(1).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("diktat_ide_unique_idx").on(table.diktatMateriId, table.ideId),
@@ -2243,7 +2246,7 @@ export const diktatIde = sqliteTable(
  ],
 );
 
-export const soal = sqliteTable(
+export const soal = pgTable(
  "soal",
  {
   id: text("id").primaryKey(),
@@ -2251,19 +2254,19 @@ export const soal = sqliteTable(
   babId: text("bab_id").references(() => bab.id, { onDelete: "set null" }),
   questionType: text("question_type").$type<"multiple_choice" | "multiple_choices" | "short_answer" | "essay">().notNull(),
   prompt: text("prompt").notNull(),
-  optionsSnapshot: text("options_snapshot", { mode: "json" }).$type<unknown[]>().$defaultFn(() => []).notNull(),
+  optionsSnapshot: jsonb("options_snapshot").$type<unknown[]>().$defaultFn(() => []).notNull(),
   origin: text("origin").$type<"zyx_original" | "historical_reference" | "itb_example">().default("zyx_original").notNull(),
   sourceEventName: text("source_event_name"),
   sourceReferenceId: text("source_reference_id"),
   assessmentSourceId: text("assessment_source_id").references(() => assessmentSources.id, { onDelete: "set null" }),
   sourceQuestionNumber: text("source_question_number"),
   sourceQuestionPart: text("source_question_part"),
-  sourcePage: integer("source_page"),
-  sourceLocator: text("source_locator", { mode: "json" }).$type<Record<string, unknown>>(),
+  sourcePage: bigint("source_page", { mode: "number" }),
+  sourceLocator: jsonb("source_locator").$type<Record<string, unknown>>(),
   answerProvenance: text("answer_provenance").$type<"official" | "source_solution" | "zyx_generated" | "unavailable">(),
   solutionProvenance: text("solution_provenance").$type<"official" | "source_solution" | "zyx_generated" | "unavailable">(),
-  quizEligible: integer("quiz_eligible", { mode: "boolean" }).default(false).notNull(),
-  version: integer("version").default(1).notNull(),
+  quizEligible: boolean("quiz_eligible").default(false).notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
   status: text("status").$type<"draft" | "in_review" | "published" | "retired">().default("draft").notNull(),
   difficulty: text("difficulty").$type<"easy" | "medium" | "hard">().notNull(),
   cognitiveLevel: text("cognitive_level").$type<"remember" | "understand" | "apply" | "analyze" | "evaluate" | "create">().notNull(),
@@ -2271,9 +2274,9 @@ export const soal = sqliteTable(
   generationHash: text("generation_hash").notNull(),
   creatorId: text("creator_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
   curatorId: text("curator_id").references(() => pengguna.id, { onDelete: "set null" }),
-  publishedAt: integer("published_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
  },
  (table) => [
   index("soal_course_idx").on(table.mataKuliahId),
@@ -2287,7 +2290,7 @@ export const soal = sqliteTable(
  ],
 );
 
-export const questionReferenceLinks = sqliteTable(
+export const questionReferenceLinks = pgTable(
  "question_reference_links",
  {
   id: text("id").primaryKey(),
@@ -2295,7 +2298,7 @@ export const questionReferenceLinks = sqliteTable(
   referenceQuestionId: text("reference_question_id").notNull().references(() => soal.id, { onDelete: "restrict" }),
   role: text("role").$type<"inspired_by" | "adapted_from" | "derived_from">().notNull(),
   notes: text("notes"),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("question_ref_links_unique_idx").on(table.questionId, table.referenceQuestionId, table.role),
@@ -2306,15 +2309,15 @@ export const questionReferenceLinks = sqliteTable(
  ],
 );
 
-export const soalIde = sqliteTable(
+export const soalIde = pgTable(
  "soal_ide",
  {
   id: text("id").primaryKey(),
   soalId: text("soal_id").notNull().references(() => soal.id, { onDelete: "cascade" }),
   ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
-  weight: real("weight").notNull(),
+  weight: doublePrecision("weight").notNull(),
   role: text("role").$type<"primary" | "supporting" | "required">().default("supporting").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("soal_ide_unique_idx").on(table.soalId, table.ideId),
@@ -2323,7 +2326,7 @@ export const soalIde = sqliteTable(
  ],
 );
 
-export const soalRelasiIde = sqliteTable(
+export const soalRelasiIde = pgTable(
  "soal_relasi_ide",
  {
   id: text("id").primaryKey(),
@@ -2332,7 +2335,7 @@ export const soalRelasiIde = sqliteTable(
   relationType: text("relation_type").$type<"required" | "prerequisite" | "related">().notNull(),
   rationale: text("rationale"),
   status: text("status").$type<"active" | "withdrawn">().default("active").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("soal_relasi_ide_unique_idx").on(table.soalId, table.ideId, table.relationType),
@@ -2341,20 +2344,20 @@ export const soalRelasiIde = sqliteTable(
  ],
 );
 
-export const pembahasanSoal = sqliteTable(
+export const pembahasanSoal = pgTable(
  "pembahasan_soal",
  {
   id: text("id").primaryKey(),
   soalId: text("soal_id").notNull().references(() => soal.id, { onDelete: "cascade" }),
-  version: integer("version").default(1).notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
   content: text("content").notNull(),
   status: text("status").$type<"draft" | "in_review" | "published" | "retired">().default("draft").notNull(),
   generationHash: text("generation_hash").notNull(),
   creatorId: text("creator_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
   curatorId: text("curator_id").references(() => pengguna.id, { onDelete: "set null" }),
-  publishedAt: integer("published_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
  },
  (table) => [
   uniqueIndex("pembahasan_soal_version_idx").on(table.soalId, table.version),
@@ -2363,21 +2366,21 @@ export const pembahasanSoal = sqliteTable(
  ],
 );
 
-export const diktatPembahasan = sqliteTable(
+export const diktatPembahasan = pgTable(
  "diktat_pembahasan",
  {
   id: text("id").primaryKey(),
   diktatMateriId: text("diktat_materi_id").notNull().references(() => diktatMateri.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   content: text("content").notNull(),
-  version: integer("version").default(1).notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
   status: text("status").$type<"draft" | "in_review" | "published" | "retired">().default("draft").notNull(),
   generationHash: text("generation_hash").notNull(),
   creatorId: text("creator_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
   curatorId: text("curator_id").references(() => pengguna.id, { onDelete: "set null" }),
-  publishedAt: integer("published_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
  },
  (table) => [
   index("diktat_pembahasan_diktat_idx").on(table.diktatMateriId),
@@ -2386,15 +2389,15 @@ export const diktatPembahasan = sqliteTable(
  ],
 );
 
-export const itemDiktatPembahasan = sqliteTable(
+export const itemDiktatPembahasan = pgTable(
  "item_diktat_pembahasan",
  {
   id: text("id").primaryKey(),
   diktatPembahasanId: text("diktat_pembahasan_id").notNull().references(() => diktatPembahasan.id, { onDelete: "cascade" }),
   soalId: text("soal_id").notNull().references(() => soal.id, { onDelete: "restrict" }),
-  orderIndex: integer("order_index").notNull(),
-  contentSnapshot: text("content_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  orderIndex: bigint("order_index", { mode: "number" }).notNull(),
+  contentSnapshot: jsonb("content_snapshot").$type<Record<string, unknown>>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("item_diktat_pembahasan_order_idx").on(table.diktatPembahasanId, table.orderIndex),
@@ -2403,17 +2406,17 @@ export const itemDiktatPembahasan = sqliteTable(
  ],
 );
 
-export const soalItbReferensi = sqliteTable(
+export const soalItbReferensi = pgTable(
  "soal_itb_referensi",
  {
   id: text("id").primaryKey(),
   soalId: text("soal_id").references(() => soal.id, { onDelete: "set null" }),
   sourceLabel: text("source_label").notNull(),
   authoringVisibility: text("authoring_visibility").$type<"allowed" | "holdout">().notNull(),
-  contentSnapshot: text("content_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  contentSnapshot: jsonb("content_snapshot").$type<Record<string, unknown>>().notNull(),
   checksum: text("checksum").notNull(),
-  version: integer("version").default(1).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("soal_itb_referensi_checksum_idx").on(table.checksum),
@@ -2423,19 +2426,19 @@ export const soalItbReferensi = sqliteTable(
  ],
 );
 
-export const benchmarkSoal = sqliteTable(
+export const benchmarkSoal = pgTable(
  "benchmark_soal",
  {
   id: text("id").primaryKey(),
   soalItbReferensiId: text("soal_itb_referensi_id").references(() => soalItbReferensi.id, { onDelete: "set null" }),
   datasetKey: text("dataset_key").notNull(),
   authoringVisibility: text("authoring_visibility").$type<"allowed" | "holdout">().notNull(),
-  questionSnapshot: text("question_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-  answerSnapshot: text("answer_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-  version: integer("version").default(1).notNull(),
+  questionSnapshot: jsonb("question_snapshot").$type<Record<string, unknown>>().notNull(),
+  answerSnapshot: jsonb("answer_snapshot").$type<Record<string, unknown>>().notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
   checksum: text("checksum").notNull(),
   status: text("status").$type<"active" | "retired">().default("active").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("benchmark_soal_checksum_idx").on(table.checksum),
@@ -2445,21 +2448,21 @@ export const benchmarkSoal = sqliteTable(
  ],
 );
 
-export const setFlashcard = sqliteTable(
+export const setFlashcard = pgTable(
  "set_flashcard",
  {
   id: text("id").primaryKey(),
   mataKuliahId: text("mata_kuliah_id").notNull().references(() => mataKuliah.id, { onDelete: "restrict" }),
   babId: text("bab_id").references(() => bab.id, { onDelete: "set null" }),
   title: text("title").notNull(),
-  version: integer("version").default(1).notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
   status: text("status").$type<"draft" | "in_review" | "published" | "retired">().default("draft").notNull(),
   generationHash: text("generation_hash").notNull(),
   creatorId: text("creator_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
   curatorId: text("curator_id").references(() => pengguna.id, { onDelete: "set null" }),
-  publishedAt: integer("published_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
  },
  (table) => [
   index("set_flashcard_course_idx").on(table.mataKuliahId),
@@ -2470,7 +2473,7 @@ export const setFlashcard = sqliteTable(
  ],
 );
 
-export const flashcard = sqliteTable(
+export const flashcard = pgTable(
  "flashcard",
  {
   id: text("id").primaryKey(),
@@ -2478,11 +2481,11 @@ export const flashcard = sqliteTable(
   front: text("front").notNull(),
   back: text("back").notNull(),
   explanation: text("explanation"),
-  version: integer("version").default(1).notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
   status: text("status").$type<"draft" | "published" | "retired">().default("draft").notNull(),
   generationHash: text("generation_hash").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
  },
  (table) => [
   index("flashcard_set_idx").on(table.setFlashcardId),
@@ -2491,14 +2494,14 @@ export const flashcard = sqliteTable(
  ],
 );
 
-export const flashcardIde = sqliteTable(
+export const flashcardIde = pgTable(
  "flashcard_ide",
  {
   id: text("id").primaryKey(),
   flashcardId: text("flashcard_id").notNull().references(() => flashcard.id, { onDelete: "cascade" }),
   ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
-  weight: real("weight").default(1).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  weight: doublePrecision("weight").default(1).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("flashcard_ide_unique_idx").on(table.flashcardId, table.ideId),
@@ -2507,21 +2510,21 @@ export const flashcardIde = sqliteTable(
  ],
 );
 
-export const kemajuanFlashcardMurid = sqliteTable(
+export const kemajuanFlashcardMurid = pgTable(
  "kemajuan_flashcard_murid",
  {
   id: text("id").primaryKey(),
   penggunaId: text("pengguna_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
   flashcardId: text("flashcard_id").notNull().references(() => flashcard.id, { onDelete: "restrict" }),
-  dueAt: integer("due_at", { mode: "timestamp" }).notNull(),
-  intervalDays: real("interval_days").default(0).notNull(),
-  easeFactor: real("ease_factor").default(2.5).notNull(),
-  repetitions: integer("repetitions").default(0).notNull(),
-  lapses: integer("lapses").default(0).notNull(),
-  lastReviewedAt: integer("last_reviewed_at", { mode: "timestamp" }),
+  dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+  intervalDays: doublePrecision("interval_days").default(0).notNull(),
+  easeFactor: doublePrecision("ease_factor").default(2.5).notNull(),
+  repetitions: bigint("repetitions", { mode: "number" }).default(0).notNull(),
+  lapses: bigint("lapses", { mode: "number" }).default(0).notNull(),
+  lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
   status: text("status").$type<"active" | "suspended" | "completed">().default("active").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
  },
  (table) => [
   uniqueIndex("kemajuan_flashcard_murid_unique_idx").on(table.penggunaId, table.flashcardId),
@@ -2531,16 +2534,16 @@ export const kemajuanFlashcardMurid = sqliteTable(
  ],
 );
 
-export const reviewFlashcard = sqliteTable(
+export const reviewFlashcard = pgTable(
  "review_flashcard",
  {
   id: text("id").primaryKey(),
   kemajuanFlashcardMuridId: text("kemajuan_flashcard_murid_id").notNull().references(() => kemajuanFlashcardMurid.id, { onDelete: "restrict" }),
-  grade: integer("grade").notNull(),
-  responseMs: integer("response_ms"),
-  previousDueAt: integer("previous_due_at", { mode: "timestamp" }).notNull(),
-  nextDueAt: integer("next_due_at", { mode: "timestamp" }).notNull(),
-  reviewedAt: integer("reviewed_at", { mode: "timestamp" }).defaultNow().notNull(),
+  grade: bigint("grade", { mode: "number" }).notNull(),
+  responseMs: bigint("response_ms", { mode: "number" }),
+  previousDueAt: timestamp("previous_due_at", { withTimezone: true }).notNull(),
+  nextDueAt: timestamp("next_due_at", { withTimezone: true }).notNull(),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   index("review_flashcard_progress_idx").on(table.kemajuanFlashcardMuridId, table.reviewedAt),
@@ -2549,21 +2552,21 @@ export const reviewFlashcard = sqliteTable(
  ],
 );
 
-export const blueprintAsesmen = sqliteTable(
+export const blueprintAsesmen = pgTable(
  "blueprint_asesmen",
  {
   id: text("id").primaryKey(),
   mataKuliahId: text("mata_kuliah_id").notNull().references(() => mataKuliah.id, { onDelete: "restrict" }),
   title: text("title").notNull(),
   assessmentType: text("assessment_type").$type<"quiz" | "tryout">().notNull(),
-  blueprint: text("blueprint", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-  version: integer("version").default(1).notNull(),
+  blueprint: jsonb("blueprint").$type<Record<string, unknown>>().notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
   status: text("status").$type<"draft" | "approved" | "retired">().default("draft").notNull(),
   generationHash: text("generation_hash").notNull(),
   creatorId: text("creator_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
   curatorId: text("curator_id").references(() => pengguna.id, { onDelete: "set null" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
  },
  (table) => [
   index("blueprint_asesmen_course_idx").on(table.mataKuliahId),
@@ -2573,7 +2576,7 @@ export const blueprintAsesmen = sqliteTable(
  ],
 );
 
-export const asesmen = sqliteTable(
+export const asesmen = pgTable(
  "asesmen",
  {
   id: text("id").primaryKey(),
@@ -2581,14 +2584,14 @@ export const asesmen = sqliteTable(
   mataKuliahId: text("mata_kuliah_id").notNull().references(() => mataKuliah.id, { onDelete: "restrict" }),
   title: text("title").notNull(),
   assessmentType: text("assessment_type").$type<"quiz" | "tryout">().notNull(),
-  version: integer("version").default(1).notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
   status: text("status").$type<"draft" | "published" | "ended" | "retired">().default("draft").notNull(),
   generationHash: text("generation_hash").notNull(),
   creatorId: text("creator_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
   curatorId: text("curator_id").references(() => pengguna.id, { onDelete: "set null" }),
-  publishedAt: integer("published_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
  },
  (table) => [
   index("asesmen_course_idx").on(table.mataKuliahId),
@@ -2598,14 +2601,14 @@ export const asesmen = sqliteTable(
  ],
 );
 
-export const cakupanAsesmen = sqliteTable(
+export const cakupanAsesmen = pgTable(
  "cakupan_asesmen",
  {
   id: text("id").primaryKey(),
   asesmenId: text("asesmen_id").notNull().references(() => asesmen.id, { onDelete: "cascade" }),
   babId: text("bab_id").notNull().references(() => bab.id, { onDelete: "restrict" }),
-  orderIndex: integer("order_index").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  orderIndex: bigint("order_index", { mode: "number" }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("cakupan_asesmen_chapter_idx").on(table.asesmenId, table.babId),
@@ -2614,19 +2617,19 @@ export const cakupanAsesmen = sqliteTable(
  ],
 );
 
-export const itemAsesmen = sqliteTable(
+export const itemAsesmen = pgTable(
  "item_asesmen",
  {
   id: text("id").primaryKey(),
   asesmenId: text("asesmen_id").notNull().references(() => asesmen.id, { onDelete: "cascade" }),
   soalId: text("soal_id").notNull().references(() => soal.id, { onDelete: "restrict" }),
-  orderIndex: integer("order_index").notNull(),
-  renderedQuestionSnapshot: text("rendered_question_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-  optionOrderSnapshot: text("option_order_snapshot", { mode: "json" }).$type<string[]>().notNull(),
-  gradingPolicySnapshot: text("grading_policy_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-  contentVersion: integer("content_version").notNull(),
+  orderIndex: bigint("order_index", { mode: "number" }).notNull(),
+  renderedQuestionSnapshot: jsonb("rendered_question_snapshot").$type<Record<string, unknown>>().notNull(),
+  optionOrderSnapshot: jsonb("option_order_snapshot").$type<string[]>().notNull(),
+  gradingPolicySnapshot: jsonb("grading_policy_snapshot").$type<Record<string, unknown>>().notNull(),
+  contentVersion: bigint("content_version", { mode: "number" }).notNull(),
   generationHash: text("generation_hash").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("item_asesmen_order_idx").on(table.asesmenId, table.orderIndex),
@@ -2636,20 +2639,20 @@ export const itemAsesmen = sqliteTable(
  ],
 );
 
-export const percobaanAsesmen = sqliteTable(
+export const percobaanAsesmen = pgTable(
  "percobaan_asesmen",
  {
   id: text("id").primaryKey(),
   asesmenId: text("asesmen_id").notNull().references(() => asesmen.id, { onDelete: "restrict" }),
   penggunaId: text("pengguna_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
   status: text("status").$type<"in_progress" | "submitted" | "graded" | "cancelled">().default("in_progress").notNull(),
-  renderedQuestionSnapshot: text("rendered_question_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-  optionOrderSnapshot: text("option_order_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-  gradingPolicySnapshot: text("grading_policy_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-  contentVersion: integer("content_version").notNull(),
-  startedAt: integer("started_at", { mode: "timestamp" }).defaultNow().notNull(),
-  submittedAt: integer("submitted_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  renderedQuestionSnapshot: jsonb("rendered_question_snapshot").$type<Record<string, unknown>>().notNull(),
+  optionOrderSnapshot: jsonb("option_order_snapshot").$type<Record<string, unknown>>().notNull(),
+  gradingPolicySnapshot: jsonb("grading_policy_snapshot").$type<Record<string, unknown>>().notNull(),
+  contentVersion: bigint("content_version", { mode: "number" }).notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   index("percobaan_asesmen_murid_idx").on(table.penggunaId, table.createdAt),
@@ -2658,24 +2661,24 @@ export const percobaanAsesmen = sqliteTable(
  ],
 );
 
-export const jawabanMurid = sqliteTable(
+export const jawabanMurid = pgTable(
  "jawaban_murid",
  {
   id: text("id").primaryKey(),
   percobaanAsesmenId: text("percobaan_asesmen_id").notNull().references(() => percobaanAsesmen.id, { onDelete: "restrict" }),
   itemAsesmenId: text("item_asesmen_id").notNull().references(() => itemAsesmen.id, { onDelete: "restrict" }),
-  renderedQuestionSnapshot: text("rendered_question_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-  optionOrderSnapshot: text("option_order_snapshot", { mode: "json" }).$type<string[]>().notNull(),
-  responseSnapshot: text("response_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-  gradingPolicySnapshot: text("grading_policy_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-  contentVersion: integer("content_version").notNull(),
-  score: real("score"),
+  renderedQuestionSnapshot: jsonb("rendered_question_snapshot").$type<Record<string, unknown>>().notNull(),
+  optionOrderSnapshot: jsonb("option_order_snapshot").$type<string[]>().notNull(),
+  responseSnapshot: jsonb("response_snapshot").$type<Record<string, unknown>>().notNull(),
+  gradingPolicySnapshot: jsonb("grading_policy_snapshot").$type<Record<string, unknown>>().notNull(),
+  contentVersion: bigint("content_version", { mode: "number" }).notNull(),
+  score: doublePrecision("score"),
   status: text("status").$type<"ungraded" | "correct" | "incorrect" | "partial" | "needs_review">().default("ungraded").notNull(),
   reviewerId: text("reviewer_id").references(() => pengguna.id, { onDelete: "set null" }),
   reviewNotes: text("review_notes"),
-  reviewedAt: integer("reviewed_at", { mode: "timestamp" }),
-  reviewRevision: integer("review_revision").default(0).notNull(),
-  answeredAt: integer("answered_at", { mode: "timestamp" }).defaultNow().notNull(),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  reviewRevision: bigint("review_revision", { mode: "number" }).default(0).notNull(),
+  answeredAt: timestamp("answered_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("jawaban_murid_attempt_item_idx").on(table.percobaanAsesmenId, table.itemAsesmenId),
@@ -2684,21 +2687,21 @@ export const jawabanMurid = sqliteTable(
  ],
 );
 
-export const buktiIdeJawaban = sqliteTable(
+export const buktiIdeJawaban = pgTable(
  "bukti_ide_jawaban",
  {
   id: text("id").primaryKey(),
   jawabanMuridId: text("jawaban_murid_id").notNull().references(() => jawabanMurid.id, { onDelete: "restrict" }),
   ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
-  scoreContribution: real("score_contribution").notNull(),
-  weight: real("weight").notNull(),
-  confidence: integer("confidence").notNull(),
+  scoreContribution: doublePrecision("score_contribution").notNull(),
+  weight: doublePrecision("weight").notNull(),
+  confidence: bigint("confidence", { mode: "number" }).notNull(),
   evidenceSource: text("evidence_source").notNull(),
   rubricVersion: text("rubric_version").notNull(),
   derivationStatus: text("derivation_status").$type<"deterministic" | "reviewed" | "ambiguous" | "rejected">().notNull(),
-  ambiguous: integer("ambiguous", { mode: "boolean" }).default(false).notNull(),
-  affectsMastery: integer("affects_mastery", { mode: "boolean" }).default(false).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  ambiguous: boolean("ambiguous").default(false).notNull(),
+  affectsMastery: boolean("affects_mastery").default(false).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("bukti_ide_jawaban_unique_idx").on(table.jawabanMuridId, table.ideId),
@@ -2709,7 +2712,7 @@ export const buktiIdeJawaban = sqliteTable(
  ],
 );
 
-export const buktiPembelajaran = sqliteTable(
+export const buktiPembelajaran = pgTable(
  "bukti_pembelajaran",
  {
   id: text("id").primaryKey(),
@@ -2717,14 +2720,14 @@ export const buktiPembelajaran = sqliteTable(
   ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
   evidenceSource: text("evidence_source").notNull(),
   sourceId: text("source_id").notNull(),
-  scoreContribution: real("score_contribution").notNull(),
-  confidence: integer("confidence").notNull(),
+  scoreContribution: doublePrecision("score_contribution").notNull(),
+  confidence: bigint("confidence", { mode: "number" }).notNull(),
   rubricVersion: text("rubric_version").notNull(),
   derivationStatus: text("derivation_status").$type<"deterministic" | "reviewed" | "ambiguous" | "rejected">().notNull(),
-  ambiguous: integer("ambiguous", { mode: "boolean" }).default(false).notNull(),
-  affectsMastery: integer("affects_mastery", { mode: "boolean" }).default(false).notNull(),
-  occurredAt: integer("occurred_at", { mode: "timestamp" }).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  ambiguous: boolean("ambiguous").default(false).notNull(),
+  affectsMastery: boolean("affects_mastery").default(false).notNull(),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   index("bukti_pembelajaran_murid_ide_idx").on(table.penggunaId, table.ideId),
@@ -2735,20 +2738,20 @@ export const buktiPembelajaran = sqliteTable(
  ],
 );
 
-export const pemahamanIde = sqliteTable(
+export const pemahamanIde = pgTable(
  "pemahaman_ide",
  {
   id: text("id").primaryKey(),
   penggunaId: text("pengguna_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
   ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
-  skor: integer("skor").notNull(),
-  keyakinan: integer("keyakinan").notNull(),
-  evidenceCount: integer("evidence_count").default(0).notNull(),
-  version: integer("version").default(1).notNull(),
+  skor: bigint("skor", { mode: "number" }).notNull(),
+  keyakinan: bigint("keyakinan", { mode: "number" }).notNull(),
+  evidenceCount: bigint("evidence_count", { mode: "number" }).default(0).notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
   algorithmVersion: text("algorithm_version").default("per-idea.v1").notNull(),
   inputWatermark: text("input_watermark").default("").notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("pemahaman_ide_murid_ide_idx").on(table.penggunaId, table.ideId),
@@ -2760,21 +2763,21 @@ export const pemahamanIde = sqliteTable(
  ],
 );
 
-export const perubahanPemahaman = sqliteTable(
+export const perubahanPemahaman = pgTable(
  "perubahan_pemahaman",
  {
   id: text("id").primaryKey(),
   pemahamanIdeId: text("pemahaman_ide_id").notNull().references(() => pemahamanIde.id, { onDelete: "restrict" }),
   evidenceId: text("evidence_id").references(() => buktiPembelajaran.id, { onDelete: "set null" }),
-  previousScore: integer("previous_score").notNull(),
-  nextScore: integer("next_score").notNull(),
-  previousConfidence: integer("previous_confidence").notNull(),
-  nextConfidence: integer("next_confidence").notNull(),
+  previousScore: bigint("previous_score", { mode: "number" }).notNull(),
+  nextScore: bigint("next_score", { mode: "number" }).notNull(),
+  previousConfidence: bigint("previous_confidence", { mode: "number" }).notNull(),
+  nextConfidence: bigint("next_confidence", { mode: "number" }).notNull(),
   reason: text("reason").notNull(),
-  evidenceIds: text("evidence_ids", { mode: "json" }).$type<string[]>().default([]).notNull(),
+  evidenceIds: jsonb("evidence_ids").$type<string[]>().default([]).notNull(),
   algorithmVersion: text("algorithm_version").default("per-idea.v1").notNull(),
   inputWatermark: text("input_watermark").default("").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   index("perubahan_pemahaman_ide_idx").on(table.pemahamanIdeId, table.createdAt),
@@ -2783,17 +2786,17 @@ export const perubahanPemahaman = sqliteTable(
  ],
 );
 
-export const rekomendasiFlashcard = sqliteTable(
+export const rekomendasiFlashcard = pgTable(
  "rekomendasi_flashcard",
  {
   id: text("id").primaryKey(),
   penggunaId: text("pengguna_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
   flashcardId: text("flashcard_id").notNull().references(() => flashcard.id, { onDelete: "restrict" }),
   ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
-  dueAt: integer("due_at", { mode: "timestamp" }).notNull(),
+  dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
   reason: text("reason").notNull(),
   status: text("status").$type<"pending" | "accepted" | "dismissed" | "completed">().default("pending").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("rekomendasi_flashcard_unique_idx").on(table.penggunaId, table.flashcardId, table.dueAt),
@@ -2801,21 +2804,22 @@ export const rekomendasiFlashcard = sqliteTable(
  ],
 );
 
-export const imporBundle = sqliteTable(
+export const imporBundle = pgTable(
  "impor_bundle",
  {
  id: text("id").primaryKey(),
+ insertionOrder: bigint("insertion_order", { mode: "number" }).generatedByDefaultAsIdentity().notNull(),
  bundleId: text("bundle_id").notNull(),
  checksum: text("checksum").notNull(),
  bundleType: text("bundle_type").$type<"source" | "idea" | "product" | "assessment" | "mixed">().notNull(),
  courseId: text("course_id").references(() => courses.id, { onDelete: "restrict" }),
  sourceUriOrKey: text("source_uri_or_key").notNull(),
- version: integer("version").default(1).notNull(),
+ version: bigint("version", { mode: "number" }).default(1).notNull(),
  status: text("status").$type<"received" | "validated" | "rejected" | "approved" | "draft" | "published" | "withdrawn" | "discarding">().default("received").notNull(),
- validationReport: text("validation_report", { mode: "json" }).$type<Record<string, unknown>>().$defaultFn(() => ({})).notNull(),
+ validationReport: jsonb("validation_report").$type<Record<string, unknown>>().$defaultFn(() => ({})).notNull(),
   requestedBy: text("requested_by").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
  },
  (table) => [
   uniqueIndex("impor_bundle_identity_idx").on(table.bundleId, table.checksum),
@@ -2824,18 +2828,18 @@ export const imporBundle = sqliteTable(
  ],
 );
 
-export const itemImporBundle = sqliteTable(
+export const itemImporBundle = pgTable(
  "item_impor_bundle",
  {
   id: text("id").primaryKey(),
   imporBundleId: text("impor_bundle_id").notNull().references(() => imporBundle.id, { onDelete: "cascade" }),
   entityType: text("entity_type").notNull(),
   entityId: text("entity_id").notNull(),
-  entityVersion: integer("entity_version").notNull(),
+  entityVersion: bigint("entity_version", { mode: "number" }).notNull(),
   entityHash: text("entity_hash").notNull(),
   status: text("status").$type<"pending" | "validated" | "rejected" | "draft" | "published" | "withdrawn">().default("pending").notNull(),
   errorMessage: text("error_message"),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("item_impor_bundle_entity_idx").on(table.imporBundleId, table.entityType, table.entityId, table.entityVersion),
@@ -2844,7 +2848,7 @@ export const itemImporBundle = sqliteTable(
  ],
 );
 
-export const reviewBundle = sqliteTable(
+export const reviewBundle = pgTable(
  "review_bundle",
  {
   id: text("id").primaryKey(),
@@ -2852,8 +2856,8 @@ export const reviewBundle = sqliteTable(
   reviewerId: text("reviewer_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
   status: text("status").$type<"pending" | "approved" | "rejected">().default("pending").notNull(),
   notes: text("notes"),
-  reviewedAt: integer("reviewed_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("review_bundle_reviewer_idx").on(table.imporBundleId, table.reviewerId),
@@ -2861,7 +2865,7 @@ export const reviewBundle = sqliteTable(
  ],
 );
 
-export const reviewItemBundle = sqliteTable(
+export const reviewItemBundle = pgTable(
  "review_item_bundle",
  {
   id: text("id").primaryKey(),
@@ -2873,8 +2877,8 @@ export const reviewItemBundle = sqliteTable(
   targetId: text("target_id"),
   status: text("status").$type<"pending" | "approved" | "changes_requested">().default("pending").notNull(),
   notes: text("notes"),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
  },
  (table) => [
   uniqueIndex("review_item_bundle_target_idx").on(table.imporBundleId, table.reviewerId, table.targetType, table.targetId),
@@ -2884,18 +2888,18 @@ export const reviewItemBundle = sqliteTable(
  ],
 );
 
-export const publikasiBundle = sqliteTable(
+export const publikasiBundle = pgTable(
  "publikasi_bundle",
  {
   id: text("id").primaryKey(),
   imporBundleId: text("impor_bundle_id").notNull().references(() => imporBundle.id, { onDelete: "restrict" }),
   approvedReviewId: text("approved_review_id").notNull().references(() => reviewBundle.id, { onDelete: "restrict" }),
-  version: integer("version").default(1).notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
   publicationHash: text("publication_hash").notNull(),
   status: text("status").$type<"pending" | "published" | "withdrawn">().default("pending").notNull(),
   publishedBy: text("published_by").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
-  publishedAt: integer("published_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   uniqueIndex("publikasi_bundle_version_idx").on(table.imporBundleId, table.version),
@@ -2904,7 +2908,7 @@ export const publikasiBundle = sqliteTable(
  ],
 );
 
-export const reviewPedagogiBundle = sqliteTable(
+export const reviewPedagogiBundle = pgTable(
   "review_pedagogi_bundle",
   {
     id: text("id").primaryKey(),
@@ -2920,15 +2924,15 @@ export const reviewPedagogiBundle = sqliteTable(
       .$type<"pending" | "approved" | "rejected" | "changes_requested">()
       .default("pending")
       .notNull(),
-    rubric: text("rubric", { mode: "json" })
+    rubric: jsonb("rubric")
       .$type<Record<string, unknown>>()
       .notNull(),
-    exceptions: text("exceptions", { mode: "json" })
+    exceptions: jsonb("exceptions")
       .$type<Array<Record<string, unknown>>>()
       .default([])
       .notNull(),
     notes: text("notes"),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex("review_pedagogi_bundle_decision_idx").on(
@@ -2959,7 +2963,7 @@ export const reviewPedagogiBundleRelations = relations(reviewPedagogiBundle, ({ 
   }),
 }));
 
-export const buktiPdfBundle = sqliteTable(
+export const buktiPdfBundle = pgTable(
   "bukti_pdf_bundle",
   {
     id: text("id").primaryKey(),
@@ -2967,20 +2971,20 @@ export const buktiPdfBundle = sqliteTable(
       .notNull()
       .references(() => imporBundle.id, { onDelete: "cascade" }),
     productId: text("product_id").notNull(),
-    articleVersion: integer("article_version").notNull(),
+    articleVersion: bigint("article_version", { mode: "number" }).notNull(),
     articleHash: text("article_hash").notNull(),
     diktatHash: text("diktat_hash").notNull(),
     rendererVersion: text("renderer_version").notNull(),
     printProfile: text("print_profile").notNull(),
     storageKey: text("storage_key"),
-    pageCount: integer("page_count"),
+    pageCount: bigint("page_count", { mode: "number" }),
     status: text("status")
       .$type<"pending" | "ready" | "failed" | "stale">()
       .default("pending")
       .notNull(),
     failureCode: text("failure_code"),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -3019,7 +3023,7 @@ export const buktiPdfBundleRelations = relations(buktiPdfBundle, ({ one }) => ({
   }),
 }));
 
-export const auditMutasi = sqliteTable(
+export const auditMutasi = pgTable(
  "audit_mutasi",
  {
   id: text("id").primaryKey(),
@@ -3027,13 +3031,13 @@ export const auditMutasi = sqliteTable(
   entityType: text("entity_type").notNull(),
   entityId: text("entity_id").notNull(),
   action: text("action").notNull(),
-  beforeSnapshot: text("before_snapshot", { mode: "json" }).$type<Record<string, unknown> | null>(),
-  afterSnapshot: text("after_snapshot", { mode: "json" }).$type<Record<string, unknown> | null>(),
+  beforeSnapshot: jsonb("before_snapshot").$type<Record<string, unknown> | null>(),
+  afterSnapshot: jsonb("after_snapshot").$type<Record<string, unknown> | null>(),
   correlationId: text("correlation_id"),
   courseId: text("course_id"),
   outcome: text("outcome").$type<"success" | "rejected" | "failed">(),
   reason: text("reason"),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
   index("audit_mutasi_entity_idx").on(table.entityType, table.entityId, table.createdAt),
@@ -3043,14 +3047,14 @@ export const auditMutasi = sqliteTable(
  ],
 );
 
-export const alurKonten = sqliteTable(
+export const alurKonten = pgTable(
  "alur_konten",
  {
   id: text("id").primaryKey(),
   entityType: text("entity_type").notNull(),
   entityId: text("entity_id").notNull(),
   courseId: text("course_id").notNull(),
-  version: integer("version").notNull(),
+  version: bigint("version", { mode: "number" }).notNull(),
   state: text("state")
    .$type<"uploaded" | "validated" | "staged" | "tutor_review" | "changes_requested" | "admin_review" | "approved" | "published" | "superseded" | "withdrawn">()
    .notNull(),
@@ -3058,8 +3062,8 @@ export const alurKonten = sqliteTable(
   assignedTutorId: text("assigned_tutor_id").references(() => pengguna.id, { onDelete: "set null" }),
   lastRequestId: text("last_request_id").notNull(),
   lastReason: text("last_reason").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
  },
  (table) => [
   uniqueIndex("alur_konten_entity_version_idx").on(table.entityType, table.entityId, table.version),
@@ -3070,7 +3074,7 @@ export const alurKonten = sqliteTable(
 );
 
 // 4. knowledge_objects
-export const knowledgeObjects = sqliteTable(
+export const knowledgeObjects = pgTable(
  "knowledge_objects",
  {
  id: text("id").primaryKey(),
@@ -3086,25 +3090,25 @@ export const knowledgeObjects = sqliteTable(
  conceptId: text("concept_id")
  .notNull()
  .references(() => concepts.id, { onDelete: "cascade" }),
- learningOrder: integer("learning_order").notNull(),
+ learningOrder: bigint("learning_order", { mode: "number" }).notNull(),
  title: text("title").notNull(),
  conceptName: text("concept_name").notNull(),
  content: text("content").notNull(), // Markdown + LaTeX
  type: text("type").$type<"definition" | "formula" | "example" | "misconception" | "exercise" | "summary" | "objective" | "concept_overview">().notNull(),
  difficulty: text("difficulty").$type<"easy" | "medium" | "hard">().default("medium").notNull(),
  bloomLevel: text("bloom_level").$type<"remember" | "understand" | "apply" | "analyze" | "evaluate" | "create">().notNull(),
- tags: text("tags", { mode: "json" }).$defaultFn(() => []).notNull(),
+ tags: jsonb("tags").$defaultFn(() => []).notNull(),
  importance: text("importance").$type<"high" | "medium" | "low">().default("medium").notNull(),
- metadata: text("metadata", { mode: "json" }).$defaultFn(() => ({})).notNull(),
+ metadata: jsonb("metadata").$defaultFn(() => ({})).notNull(),
  pineconeVectorId: text("pinecone_vector_id"), // Nullable until vector sync succeeds
  status: text("status").$type<"active" | "retired" | "superseded" | "needs_review">().default("active").notNull(),
  stableKey: text("stable_key"),
  semanticHash: text("semantic_hash"),
- version: integer("version").default(1).notNull(),
+ version: bigint("version", { mode: "number" }).default(1).notNull(),
  knowledgeKind: text("knowledge_kind").$type<"definition" | "principle" | "formula" | "procedure" | "example" | "constraint" | "misconception" | "other">().default("other").notNull(),
  instructionalRole: text("instructional_role").$type<"core" | "prerequisite" | "enrichment" | "assessment_support" | "reference">().default("core").notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => new Date())
  .notNull(),
@@ -3119,7 +3123,7 @@ export const knowledgeObjects = sqliteTable(
 );
 
 // 4b. extraction_runs
-export const extractionRuns = sqliteTable(
+export const extractionRuns = pgTable(
  "extraction_runs",
  {
  id: text("id").primaryKey(),
@@ -3131,8 +3135,8 @@ export const extractionRuns = sqliteTable(
  .references(() => chapters.id, { onDelete: "cascade" }),
  state: text("state").$type<"staged" | "accepted" | "needs_review" | "failed" | "superseded">().default("staged").notNull(),
  createdBy: text("created_by"),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => new Date())
  .notNull(),
@@ -3144,7 +3148,7 @@ export const extractionRuns = sqliteTable(
 );
 
 // 4c. knowledge_object_sources
-export const knowledgeObjectSources = sqliteTable(
+export const knowledgeObjectSources = pgTable(
  "knowledge_object_sources",
  {
  id: text("id").primaryKey(),
@@ -3154,13 +3158,13 @@ export const knowledgeObjectSources = sqliteTable(
  sourceDocumentId: text("source_document_id").notNull(),
  sourceVersion: text("source_version").default("1.0").notNull(),
  chapterId: text("chapter_id").notNull(),
- startOffset: integer("start_offset").notNull(),
- endOffset: integer("end_offset").notNull(),
+ startOffset: bigint("start_offset", { mode: "number" }).notNull(),
+ endOffset: bigint("end_offset", { mode: "number" }).notNull(),
  sourceHash: text("source_hash").notNull(),
  excerptHash: text("excerpt_hash").notNull(),
  extractionRunId: text("extraction_run_id").references(() => extractionRuns.id, { onDelete: "set null" }),
  supportRole: text("support_role").$type<"core" | "prerequisite" | "enrichment" | "assessment_support" | "reference">().default("core").notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
  index("idx_ko_sources_ko").on(table.koId),
@@ -3169,7 +3173,7 @@ export const knowledgeObjectSources = sqliteTable(
 );
 
 // 4d. learning_objectives
-export const learningObjectives = sqliteTable(
+export const learningObjectives = pgTable(
  "learning_objectives",
  {
  id: text("id").primaryKey(),
@@ -3181,11 +3185,11 @@ export const learningObjectives = sqliteTable(
  .references(() => chapters.id, { onDelete: "cascade" }),
  objectiveText: text("objective_text").notNull(),
  bloomLevel: text("bloom_level").$type<"remember" | "understand" | "apply" | "analyze" | "evaluate" | "create">().notNull(),
- evidenceSourceIds: text("evidence_source_ids", { mode: "json" }).$defaultFn(() => []).notNull(),
- relatedKoIds: text("related_ko_ids", { mode: "json" }).$defaultFn(() => []).notNull(),
+ evidenceSourceIds: jsonb("evidence_source_ids").$defaultFn(() => []).notNull(),
+ relatedKoIds: jsonb("related_ko_ids").$defaultFn(() => []).notNull(),
  status: text("status").$type<"active" | "superseded">().default("active").notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => new Date())
  .notNull(),
@@ -3196,7 +3200,7 @@ export const learningObjectives = sqliteTable(
 );
 
 // 5. website_materials (Single Material per Chapter, M:N links removed)
-export const websiteMaterials = sqliteTable(
+export const websiteMaterials = pgTable(
  "website_materials",
  {
  id: text("id").primaryKey(),
@@ -3209,23 +3213,23 @@ export const websiteMaterials = sqliteTable(
  sourceMtdId: text("source_mtd_id")
  .notNull()
  .references(() => masterTeachingDocuments.id, { onDelete: "cascade" }),
- sourceMtdVersion: integer("source_mtd_version").notNull(),
- isStale: integer("is_stale", { mode: "boolean" }).default(false).notNull(),
+ sourceMtdVersion: bigint("source_mtd_version", { mode: "number" }).notNull(),
+ isStale: boolean("is_stale").default(false).notNull(),
  generationHash: text("generation_hash").notNull(),
  title: text("title").notNull(),
  slug: text("slug").notNull(),
  canonicalMarkdown: text("canonical_markdown").notNull(), // Markdown = editable
- structuredContent: text("structured_content", { mode: "json" }).notNull(), // AST = executable
+ structuredContent: jsonb("structured_content").notNull(), // AST = executable
  /** EIF E3: normalized term -> concept index, built at publish for the interactive material popover. */
- termIndex: text("term_index", { mode: "json" })
+ termIndex: jsonb("term_index")
  .$type<Array<{ term: string; conceptId: string; conceptName: string }>>(),
- contentVersion: integer("content_version").default(1).notNull(),
+ contentVersion: bigint("content_version", { mode: "number" }).default(1).notNull(),
  status: text("status").default("draft").notNull(),
  coverageStatus: text("coverage_status")
     .$type<"not_verified" | "fully_covered" | "partially_covered" | "coverage_failed">()
     .default("not_verified")
     .notNull(),
-  coverageReport: text("coverage_report", { mode: "json" })
+  coverageReport: jsonb("coverage_report")
     .$type<{
       totalKOs: number;
       mappedKOs: number;
@@ -3244,8 +3248,8 @@ export const websiteMaterials = sqliteTable(
     }))
     .notNull(),
  thumbnailUrl: text("thumbnail_url"),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => new Date())
  .notNull(),
@@ -3257,21 +3261,21 @@ export const websiteMaterials = sqliteTable(
 );
 
 // 5b. website_material_versions
-export const websiteMaterialVersions = sqliteTable(
+export const websiteMaterialVersions = pgTable(
  "website_material_versions",
  {
  id: text("id").primaryKey(),
  materialId: text("material_id")
  .notNull()
  .references(() => websiteMaterials.id, { onDelete: "cascade" }),
- versionNumber: integer("version_number").notNull(),
+ versionNumber: bigint("version_number", { mode: "number" }).notNull(),
  canonicalMarkdown: text("canonical_markdown").notNull(),
- structuredContent: text("structured_content", { mode: "json" }).notNull(),
+ structuredContent: jsonb("structured_content").notNull(),
  authorId: text("author_id")
  .references(() => user.id, { onDelete: "set null" }),
  changeSummary: text("change_summary"),
- isAiGenerated: integer("is_ai_generated", { mode: "boolean" }).default(false).notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ isAiGenerated: boolean("is_ai_generated").default(false).notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
  index("idx_web_mat_ver_mat").on(table.materialId),
@@ -3279,7 +3283,7 @@ export const websiteMaterialVersions = sqliteTable(
 );
 
 // 6. vector_sync_queue (Transactional Outbox)
-export const vectorSyncQueue = sqliteTable(
+export const vectorSyncQueue = pgTable(
  "vector_sync_queue",
  {
  id: text("id").primaryKey(),
@@ -3290,14 +3294,14 @@ export const vectorSyncQueue = sqliteTable(
  .references(() => knowledgeObjects.id, { onDelete: "set null" }),
  action: text("action").$type<"upsert" | "delete">().notNull(),
  namespace: text("namespace").default("learning").notNull(),
- payload: text("payload", { mode: "json" }).notNull(),
+ payload: jsonb("payload").notNull(),
  status: text("status").$type<"pending" | "processing" | "completed" | "failed">().default("pending").notNull(),
- attempts: integer("attempts").default(0).notNull(),
+ attempts: bigint("attempts", { mode: "number" }).default(0).notNull(),
  lastError: text("last_error"),
  leaseId: text("lease_id"),
- leaseExpiresAt: integer("lease_expires_at", { mode: "timestamp" }),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => new Date())
  .notNull(),
@@ -3309,7 +3313,7 @@ export const vectorSyncQueue = sqliteTable(
 );
 
 // 7. flashcard_sets
-export const flashcardSets = sqliteTable(
+export const flashcardSets = pgTable(
  "flashcard_sets",
  {
  id: text("id").primaryKey(),
@@ -3322,13 +3326,13 @@ export const flashcardSets = sqliteTable(
  sourceMtdId: text("source_mtd_id")
  .notNull()
  .references(() => masterTeachingDocuments.id, { onDelete: "cascade" }),
- sourceMtdVersion: integer("source_mtd_version").notNull(),
- isStale: integer("is_stale", { mode: "boolean" }).default(false).notNull(),
+ sourceMtdVersion: bigint("source_mtd_version", { mode: "number" }).notNull(),
+ isStale: boolean("is_stale").default(false).notNull(),
  generationHash: text("generation_hash").notNull(),
  title: text("title").notNull(),
  status: text("status").default("draft").notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => new Date())
  .notNull(),
@@ -3336,7 +3340,7 @@ export const flashcardSets = sqliteTable(
 );
 
 // 8. flashcards
-export const flashcards = sqliteTable(
+export const flashcards = pgTable(
  "flashcards",
  {
  id: text("id").primaryKey(),
@@ -3349,13 +3353,13 @@ export const flashcards = sqliteTable(
  back: text("back").notNull(),
  explanation: text("explanation"),
  status: text("status").$type<"active" | "retired">().default("active").notNull(),
- metadata: text("metadata", { mode: "json" }).$defaultFn(() => ({})).notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ metadata: jsonb("metadata").$defaultFn(() => ({})).notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  }
 );
 
 // 9. student_flashcard_progress
-export const studentFlashcardProgress = sqliteTable(
+export const studentFlashcardProgress = pgTable(
  "student_flashcard_progress",
  {
  id: text("id").primaryKey(),
@@ -3365,14 +3369,14 @@ export const studentFlashcardProgress = sqliteTable(
  flashcardId: text("flashcard_id")
  .notNull()
  .references(() => flashcards.id, { onDelete: "cascade" }),
- easeFactor: real("ease_factor").default(2.5).notNull(),
- intervalDays: integer("interval_days").default(0).notNull(),
- repetitions: integer("repetitions").default(0).notNull(),
- lapses: integer("lapses").default(0).notNull(),
- dueDate: integer("due_date", { mode: "timestamp" }).defaultNow().notNull(),
- lastReviewedAt: integer("last_reviewed_at", { mode: "timestamp" }),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ easeFactor: doublePrecision("ease_factor").default(2.5).notNull(),
+ intervalDays: bigint("interval_days", { mode: "number" }).default(0).notNull(),
+ repetitions: bigint("repetitions", { mode: "number" }).default(0).notNull(),
+ lapses: bigint("lapses", { mode: "number" }).default(0).notNull(),
+ dueDate: timestamp("due_date", { withTimezone: true }).defaultNow().notNull(),
+ lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => new Date())
  .notNull(),
@@ -3384,7 +3388,7 @@ export const studentFlashcardProgress = sqliteTable(
 );
 
 // 9.5. flashcard_reviews
-export const flashcardReviews = sqliteTable(
+export const flashcardReviews = pgTable(
  "flashcard_reviews",
  {
  id: text("id").primaryKey(),
@@ -3394,9 +3398,9 @@ export const flashcardReviews = sqliteTable(
  flashcardId: text("flashcard_id")
  .notNull()
  .references(() => flashcards.id, { onDelete: "cascade" }),
- grade: integer("grade").notNull(), // 1 = Again, 2 = Hard, 3 = Good, 4 = Easy
- responseTimeMs: integer("response_time_ms").notNull(),
- reviewedAt: integer("reviewed_at", { mode: "timestamp" }).defaultNow().notNull(),
+ grade: bigint("grade", { mode: "number" }).notNull(), // 1 = Again, 2 = Hard, 3 = Good, 4 = Easy
+ responseTimeMs: bigint("response_time_ms", { mode: "number" }).notNull(),
+ reviewedAt: timestamp("reviewed_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
  index("idx_fc_reviews_student").on(table.studentId),
@@ -3405,7 +3409,7 @@ export const flashcardReviews = sqliteTable(
 );
 
 // 9.6. student_material_progress
-export const studentMaterialProgress = sqliteTable(
+export const studentMaterialProgress = pgTable(
  "student_material_progress",
  {
  id: text("id").primaryKey(),
@@ -3415,17 +3419,17 @@ export const studentMaterialProgress = sqliteTable(
  materialId: text("material_id")
  .notNull()
  .references(() => websiteMaterials.id, { onDelete: "cascade" }),
- completionPercent: integer("completion_percent").default(0).notNull(), // range 0-100
+ completionPercent: bigint("completion_percent", { mode: "number" }).default(0).notNull(), // range 0-100
  lastSectionId: text("last_section_id"), // Deprecated: use lastPosition instead
- lastPosition: text("last_position", { mode: "json" }).$type<{
+ lastPosition: jsonb("last_position").$type<{
    type: "pdf" | "article";
    page?: number;
    section?: string;
  }>(),
- timeSpentSeconds: integer("time_spent_seconds").default(0).notNull(), // accumulative
- lastOpenedAt: integer("last_opened_at", { mode: "timestamp" }).defaultNow().notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ timeSpentSeconds: bigint("time_spent_seconds", { mode: "number" }).default(0).notNull(), // accumulative
+ lastOpenedAt: timestamp("last_opened_at", { withTimezone: true }).defaultNow().notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => new Date())
  .notNull(),
@@ -3436,20 +3440,20 @@ export const studentMaterialProgress = sqliteTable(
  ]
 );
 
-export const kemajuanBacaArtikel = sqliteTable(
+export const kemajuanBacaArtikel = pgTable(
  "kemajuan_baca_artikel",
  {
   id: text("id").primaryKey(),
   penggunaId: text("pengguna_id").notNull().references(() => pengguna.id, { onDelete: "cascade" }),
   artikelId: text("artikel_id").notNull().references(() => artikel.id, { onDelete: "cascade" }),
-  artikelVersion: integer("artikel_version").notNull(),
+  artikelVersion: bigint("artikel_version", { mode: "number" }).notNull(),
   bagianArtikelId: text("bagian_artikel_id").notNull().references(() => bagianArtikel.id, { onDelete: "cascade" }),
-  maxReadPercent: integer("max_read_percent").default(0).notNull(),
-  timeSpentSeconds: integer("time_spent_seconds").default(0).notNull(),
-  completedAt: integer("completed_at", { mode: "timestamp" }),
-  lastReadAt: integer("last_read_at", { mode: "timestamp" }).defaultNow().notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  maxReadPercent: bigint("max_read_percent", { mode: "number" }).default(0).notNull(),
+  timeSpentSeconds: bigint("time_spent_seconds", { mode: "number" }).default(0).notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  lastReadAt: timestamp("last_read_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
  },
  (table) => [
   uniqueIndex("kemajuan_baca_artikel_unique_idx").on(table.penggunaId, table.artikelId, table.artikelVersion, table.bagianArtikelId),
@@ -3461,7 +3465,7 @@ export const kemajuanBacaArtikel = sqliteTable(
 );
 
 // 10. diktats
-export const diktats = sqliteTable(
+export const diktats = pgTable(
  "diktats",
  {
  id: text("id").primaryKey(),
@@ -3471,18 +3475,18 @@ export const diktats = sqliteTable(
  sourceMtdId: text("source_mtd_id")
  .notNull()
  .references(() => masterTeachingDocuments.id, { onDelete: "cascade" }),
- sourceMtdVersion: integer("source_mtd_version").notNull(),
- isStale: integer("is_stale", { mode: "boolean" }).default(false).notNull(),
+ sourceMtdVersion: bigint("source_mtd_version", { mode: "number" }).notNull(),
+ isStale: boolean("is_stale").default(false).notNull(),
  generationHash: text("generation_hash").notNull(),
  title: text("title").notNull(),
  fileUrl: text("file_url"),
- chapterIds: text("chapter_ids", { mode: "json" }).notNull(),
- settings: text("settings", { mode: "json" }).$defaultFn(() => ({})).notNull(),
+ chapterIds: jsonb("chapter_ids").notNull(),
+ settings: jsonb("settings").$defaultFn(() => ({})).notNull(),
  status: text("status").default("draft").notNull(), // 'draft', 'generating', 'ready', 'failed'
- downloadCount: integer("download_count").default(0).notNull(),
+ downloadCount: bigint("download_count", { mode: "number" }).default(0).notNull(),
  thumbnailUrl: text("thumbnail_url"),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => new Date())
  .notNull(),
@@ -3491,7 +3495,7 @@ export const diktats = sqliteTable(
 
 // 11. knowledge_relationships
 
-export const knowledgeRelationships = sqliteTable(
+export const knowledgeRelationships = pgTable(
  "knowledge_relationships",
  {
  id: text("id").primaryKey(),
@@ -3502,7 +3506,7 @@ export const knowledgeRelationships = sqliteTable(
  .notNull()
  .references(() => knowledgeObjects.id, { onDelete: "cascade" }),
  type: text("type").$type<"prerequisite" | "related" | "extends" | "example_of" | "misconception_of">().notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
  index("idx_rel_source").on(table.sourceKoId),
@@ -3512,7 +3516,7 @@ export const knowledgeRelationships = sqliteTable(
 );
 
 // 11.4. assessment_sources
-export const assessmentSources = sqliteTable("assessment_sources", {
+export const assessmentSources = pgTable("assessment_sources", {
   id: text("id").primaryKey(),
   courseId: text("course_id")
     .notNull()
@@ -3521,7 +3525,7 @@ export const assessmentSources = sqliteTable("assessment_sources", {
   origin: text("origin").$type<"uploaded" | "generated">().default("uploaded").notNull(),
   category: text("category").$type<"tutorial" | "quiz" | "uts" | "uas" | "tryout" | "homework" | "exercise" | "other">().notNull(),
   assessmentType: text("assessment_type").$type<"uts" | "uas" | "quiz" | "tutorial" | "homework" | "exercise" | "other">(),
-  year: integer("year"),
+  year: bigint("year", { mode: "number" }),
   institution: text("institution"),
   academicYearLabel: text("academic_year_label"),
   term: text("term"),
@@ -3529,28 +3533,28 @@ export const assessmentSources = sqliteTable("assessment_sources", {
   sourceDocumentId: text("source_document_id").references(() => courseMaterials.id, { onDelete: "set null" }),
   solutionDocumentId: text("solution_document_id").references(() => courseMaterials.id, { onDelete: "set null" }),
   status: text("status").$type<"draft" | "in_review" | "published" | "retired">().default("draft").notNull(),
-  semester: integer("semester"),
+  semester: bigint("semester", { mode: "number" }),
   sourceMarkdown: text("source_markdown").notNull(),
   sourceHash: text("source_hash").notNull(),
-  version: integer("version").default(1).notNull(),
+  version: bigint("version", { mode: "number" }).default(1).notNull(),
   parserVersion: text("parser_version").default("1.0.0").notNull(),
   ingestionStatus: text("ingestion_status")
     .$type<"pending" | "processing" | "completed" | "failed">()
     .default("pending")
     .notNull(),
   ingestionError: text("ingestion_error"),
-  ingestionStartedAt: integer("ingestion_started_at", { mode: "timestamp" }),
-  ingestionCompletedAt: integer("ingestion_completed_at", { mode: "timestamp" }),
+  ingestionStartedAt: timestamp("ingestion_started_at", { withTimezone: true }),
+  ingestionCompletedAt: timestamp("ingestion_completed_at", { withTimezone: true }),
   originalFilename: text("original_filename"),
   uploadthingKey: text("uploadthing_key"),
   uploadedByUserId: text("uploaded_by_user_id")
     .notNull()
     .references(() => user.id),
-  deletedAt: integer("deleted_at", { mode: "timestamp" }),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   deletedByUserId: text("deleted_by_user_id")
     .references(() => user.id),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
@@ -3560,7 +3564,7 @@ export const assessmentSources = sqliteTable("assessment_sources", {
 ]);
 
 // 11.4.5. assessment_source_chapters
-export const assessmentSourceChapters = sqliteTable(
+export const assessmentSourceChapters = pgTable(
   "assessment_source_chapters",
   {
     id: text("id").primaryKey(),
@@ -3578,37 +3582,37 @@ export const assessmentSourceChapters = sqliteTable(
 );
 
 // 11.4.8. chapter_aliases
-export const chapterAliases = sqliteTable("chapter_aliases", {
+export const chapterAliases = pgTable("chapter_aliases", {
   id: text("id").primaryKey(),
   chapterId: text("chapter_id")
     .notNull()
     .references(() => chapters.id, { onDelete: "cascade" }),
   aliasName: text("alias_name").notNull().unique(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 // 11.5. assessment_objects
-export const assessmentObjects = sqliteTable(
+export const assessmentObjects = pgTable(
   "assessment_objects",
   {
     id: text("id").primaryKey(),
     sourceId: text("source_id")
       .notNull()
       .references(() => assessmentSources.id, { onDelete: "cascade" }),
-    questionOrder: integer("question_order").notNull(),
+    questionOrder: bigint("question_order", { mode: "number" }).notNull(),
     sourceQuestionNumber: text("source_question_number"),
     questionType: text("question_type").notNull(),
-    difficulty: integer("difficulty").notNull(),
-    applicationLevel: integer("application_level").notNull(),
+    difficulty: bigint("difficulty", { mode: "number" }).notNull(),
+    applicationLevel: bigint("application_level", { mode: "number" }).notNull(),
     pattern: text("pattern").notNull(),
     reasoningType: text("reasoning_type").notNull(),
-    estimatedSteps: integer("estimated_steps").notNull(),
+    estimatedSteps: bigint("estimated_steps", { mode: "number" }).notNull(),
     questionMarkdown: text("question_markdown").default("").notNull(),
     answerMarkdown: text("answer_markdown"),
-    options: text("options", { mode: "json" }).$type<string[]>(),
+    options: jsonb("options").$type<string[]>(),
     canonicalQuestionHash: text("canonical_question_hash").notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -3616,7 +3620,7 @@ export const assessmentObjects = sqliteTable(
 );
 
 // Join table: Assessment Objects to Concepts (Concept-First Mapping)
-export const assessmentObjectConcepts = sqliteTable(
+export const assessmentObjectConcepts = pgTable(
   "assessment_object_concepts",
   {
     id: text("id").primaryKey(),
@@ -3634,7 +3638,7 @@ export const assessmentObjectConcepts = sqliteTable(
 );
 
 // Join table: Assessment Objects to specific tested KOs
-export const assessmentObjectKos = sqliteTable(
+export const assessmentObjectKos = pgTable(
   "assessment_object_kos",
   {
     id: text("id").primaryKey(),
@@ -3652,7 +3656,7 @@ export const assessmentObjectKos = sqliteTable(
 );
 
 // 11.6. assessment_profiles
-export const assessmentProfiles = sqliteTable(
+export const assessmentProfiles = pgTable(
   "assessment_profiles",
   {
     id: text("id").primaryKey(),
@@ -3660,16 +3664,16 @@ export const assessmentProfiles = sqliteTable(
       .notNull()
       .unique()
       .references(() => courses.id, { onDelete: "cascade" }),
-    applicationLevel: integer("application_level").notNull(),
-    difficultyDistribution: text("difficulty_distribution", { mode: "json" })
+    applicationLevel: bigint("application_level", { mode: "number" }).notNull(),
+    difficultyDistribution: jsonb("difficulty_distribution")
       .$type<{ easy: number; medium: number; hard: number }>()
       .notNull(),
-    commonPatterns: text("common_patterns", { mode: "json" }).$type<string[]>().notNull(),
-    topContexts: text("top_contexts", { mode: "json" })
+    commonPatterns: jsonb("common_patterns").$type<string[]>().notNull(),
+    topContexts: jsonb("top_contexts")
       .$type<{ conceptName: string; percentage: number }[]>()
       .notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -3677,7 +3681,7 @@ export const assessmentProfiles = sqliteTable(
 );
 
 // 11.7. course_policies
-export const coursePolicies = sqliteTable(
+export const coursePolicies = pgTable(
   "course_policies",
   {
     id: text("id").primaryKey(),
@@ -3685,14 +3689,14 @@ export const coursePolicies = sqliteTable(
       .notNull()
       .unique()
       .references(() => courses.id, { onDelete: "cascade" }),
-    maxApplicationLevel: integer("max_application_level").default(2).notNull(),
-    maxEstimatedSteps: integer("max_estimated_steps").default(4).notNull(),
-    maxReadingComplexity: integer("max_reading_complexity").default(2).notNull(),
-    allowEngineeringTerms: integer("allow_engineering_terms", { mode: "boolean" }).default(true).notNull(),
-    forbiddenContexts: text("forbidden_contexts", { mode: "json" }).$type<string[]>().notNull(),
-    allowedPatterns: text("allowed_patterns", { mode: "json" }).$type<string[]>().notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    maxApplicationLevel: bigint("max_application_level", { mode: "number" }).default(2).notNull(),
+    maxEstimatedSteps: bigint("max_estimated_steps", { mode: "number" }).default(4).notNull(),
+    maxReadingComplexity: bigint("max_reading_complexity", { mode: "number" }).default(2).notNull(),
+    allowEngineeringTerms: boolean("allow_engineering_terms").default(true).notNull(),
+    forbiddenContexts: jsonb("forbidden_contexts").$type<string[]>().notNull(),
+    allowedPatterns: jsonb("allowed_patterns").$type<string[]>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -3700,7 +3704,7 @@ export const coursePolicies = sqliteTable(
 );
 
 // 12. course_materials (Uploaded PDF files: Materi, Soal, & Pembahasan Soal)
-export const courseMaterials = sqliteTable(
+export const courseMaterials = pgTable(
 	"course_materials",
 	{
 		id: text("id").primaryKey(),
@@ -3723,13 +3727,13 @@ export const courseMaterials = sqliteTable(
 			| "ltm"
 			| "lainnya"
 		>(),
-		year: integer("year"),
+		year: bigint("year", { mode: "number" }),
 		fileUrl: text("file_url").notNull(),
 		checksum: text("checksum"),
-		chapterIds: text("chapter_ids", { mode: "json" }).$type<string[]>().notNull(),
+		chapterIds: jsonb("chapter_ids").$type<string[]>().notNull(),
 		thumbnailUrl: text("thumbnail_url"),
-		createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-		updatedAt: integer("updated_at", { mode: "timestamp" })
+		createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+		updatedAt: timestamp("updated_at", { withTimezone: true })
 			.defaultNow()
 			.$onUpdate(() => new Date())
 			.notNull(),
@@ -3740,7 +3744,7 @@ export const courseMaterials = sqliteTable(
 );
 
 // 12.1. course_video_playlists
-export const courseVideoPlaylists = sqliteTable(
+export const courseVideoPlaylists = pgTable(
 	"course_video_playlists",
 	{
 		id: text("id").primaryKey(),
@@ -3749,9 +3753,9 @@ export const courseVideoPlaylists = sqliteTable(
 			.references(() => courses.id, { onDelete: "cascade" }),
 		title: text("title").notNull(),
 		description: text("description"),
-		orderIndex: integer("order_index").notNull().default(0),
-		createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-		updatedAt: integer("updated_at", { mode: "timestamp" })
+		orderIndex: bigint("order_index", { mode: "number" }).notNull().default(0),
+		createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+		updatedAt: timestamp("updated_at", { withTimezone: true })
 			.defaultNow()
 			.$onUpdate(() => new Date())
 			.notNull(),
@@ -3762,7 +3766,7 @@ export const courseVideoPlaylists = sqliteTable(
 );
 
 // 12.2. course_videos
-export const courseVideos = sqliteTable(
+export const courseVideos = pgTable(
 	"course_videos",
 	{
 		id: text("id").primaryKey(),
@@ -3778,12 +3782,12 @@ export const courseVideos = sqliteTable(
 		description: text("description"),
 		videoUrl: text("video_url").notNull(),
 		thumbnailUrl: text("thumbnail_url"),
-		duration: integer("duration"),
-		fileSize: integer("file_size"),
-		orderIndex: integer("order_index").notNull().default(0),
+		duration: bigint("duration", { mode: "number" }),
+		fileSize: bigint("file_size", { mode: "number" }),
+		orderIndex: bigint("order_index", { mode: "number" }).notNull().default(0),
 		uploadedBy: text("uploaded_by").references(() => user.id, { onDelete: "set null" }),
-		createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-		updatedAt: integer("updated_at", { mode: "timestamp" })
+		createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+		updatedAt: timestamp("updated_at", { withTimezone: true })
 			.defaultNow()
 			.$onUpdate(() => new Date())
 			.notNull(),
@@ -4195,7 +4199,7 @@ export const knowledgeRelationshipsRelations = relations(knowledgeRelationships,
  }),
 }));
 
-export const aiUsageEvents = sqliteTable(
+export const aiUsageEvents = pgTable(
  "ai_usage_events",
  {
  id: text("id").primaryKey(),
@@ -4204,18 +4208,18 @@ export const aiUsageEvents = sqliteTable(
  .references(() => user.id, { onDelete: "cascade" }),
  feature: text("feature").notNull(), // 'tutor' | 'flashcards' | 'quiz' | 'diktat'
  model: text("model").notNull(), // e.g. 'gemini-3.1-flash-lite' | 'gemma-4-26b'
- tokens: integer("tokens").default(0).notNull(),
- inputTokens: integer("input_tokens").default(0).notNull(),
- outputTokens: integer("output_tokens").default(0).notNull(),
+ tokens: bigint("tokens", { mode: "number" }).default(0).notNull(),
+ inputTokens: bigint("input_tokens", { mode: "number" }).default(0).notNull(),
+ outputTokens: bigint("output_tokens", { mode: "number" }).default(0).notNull(),
  requestType: text("request_type").notNull(), // 'explain_concept' | 'analyze_mistake'
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
  index("idx_usage_user_created").on(table.userId, table.createdAt),
  ]
 );
 
-export const aiGenerationTraces = sqliteTable(
+export const aiGenerationTraces = pgTable(
   "ai_generation_traces",
   {
     id: text("id").primaryKey(),
@@ -4231,14 +4235,14 @@ export const aiGenerationTraces = sqliteTable(
     evidenceHash: text("evidence_hash"),
     model: text("model").notNull(),
     route: text("route"),
-    inputTokens: integer("input_tokens").default(0).notNull(),
-    outputTokens: integer("output_tokens").default(0).notNull(),
-    retryCount: integer("retry_count").default(0).notNull(),
+    inputTokens: bigint("input_tokens", { mode: "number" }).default(0).notNull(),
+    outputTokens: bigint("output_tokens", { mode: "number" }).default(0).notNull(),
+    retryCount: bigint("retry_count", { mode: "number" }).default(0).notNull(),
     terminalOutcome: text("terminal_outcome").notNull(),
     violationCodes: text("violation_codes"),
-    latencyMs: integer("latency_ms").default(0).notNull(),
+    latencyMs: bigint("latency_ms", { mode: "number" }).default(0).notNull(),
     cacheResult: text("cache_result").default("none").notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("idx_traces_user_created").on(table.userId, table.createdAt),
@@ -4250,7 +4254,7 @@ export const aiGenerationTraces = sqliteTable(
  * Zyra application allowance leases. This is additive and authoritative only
  * while FEATURE_ZYRA_ALLOWANCE_V2 is enabled. Legacy AI usage remains intact.
  */
-export const aiAllowanceLeases = sqliteTable(
+export const aiAllowanceLeases = pgTable(
   "ai_allowance_leases",
   {
     id: text("id").primaryKey(),
@@ -4262,22 +4266,22 @@ export const aiAllowanceLeases = sqliteTable(
     accessTier: text("access_tier").$type<"standard" | "free">().default("standard").notNull(),
     feature: text("feature").notNull(),
     appDay: text("app_day").notNull(),
-    units: integer("units").default(1).notNull(),
-    interactionUnits: integer("interaction_units").default(1).notNull(),
-    premium: integer("premium", { mode: "boolean" }).default(false).notNull(),
+    units: bigint("units", { mode: "number" }).default(1).notNull(),
+    interactionUnits: bigint("interaction_units", { mode: "number" }).default(1).notNull(),
+    premium: boolean("premium").default(false).notNull(),
     status: text("status")
       .$type<"reserved" | "dispatched" | "committed" | "refunded">()
       .notNull(),
     controlPlaneLeaseId: text("control_plane_lease_id"),
     model: text("model"),
     requestType: text("request_type").notNull(),
-    inputTokens: integer("input_tokens").default(0).notNull(),
-    outputTokens: integer("output_tokens").default(0).notNull(),
+    inputTokens: bigint("input_tokens", { mode: "number" }).default(0).notNull(),
+    outputTokens: bigint("output_tokens", { mode: "number" }).default(0).notNull(),
     runId: text("run_id"),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    dispatchedAt: integer("dispatched_at", { mode: "timestamp" }),
-    resolvedAt: integer("resolved_at", { mode: "timestamp" }),
-    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    dispatchedAt: timestamp("dispatched_at", { withTimezone: true }),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   },
   (table) => [
     uniqueIndex("ai_allowance_leases_idempotency_idx").on(table.idempotencyKey),
@@ -4307,7 +4311,7 @@ export const aiAllowanceLeases = sqliteTable(
  * One user can have multiple tokens (phone, tablet, laptop).
  * The `token` column is unique to prevent duplicates across users.
  */
-export const userPushTokens = sqliteTable(
+export const userPushTokens = pgTable(
  "user_push_tokens",
  {
  id: text("id").primaryKey(),
@@ -4318,8 +4322,8 @@ export const userPushTokens = sqliteTable(
  token: text("token").notNull().unique(),
  /** Human-readable device label (e.g. userAgent substring or "Chrome on Windows"). */
  device: text("device").notNull().default("unknown"),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => new Date())
  .notNull(),
@@ -4334,7 +4338,7 @@ export const userPushTokens = sqliteTable(
  * notifications ; In-app notification log.
  * Persists every push sent so users can view a notification history.
  */
-export const notifications = sqliteTable(
+export const notifications = pgTable(
  "notifications",
  {
  id: text("id").primaryKey(),
@@ -4355,16 +4359,16 @@ export const notifications = sqliteTable(
  >()
  .notNull(),
   /** Whether the user has read/dismissed this notification. */
-  read: integer("read", { mode: "boolean" }).default(false).notNull(),
+  read: boolean("read").default(false).notNull(),
   /** Arbitrary JSON payload (e.g. quizId, courseId, bookingId). */
-  metadata: text("metadata", { mode: "json" }).$defaultFn(() => ({})).notNull(),
+  metadata: jsonb("metadata").$defaultFn(() => ({})).notNull(),
   /** FCM delivery stats for the push attempt to this user's devices. */
-  attempted: integer("attempted").default(0).notNull(),
-  succeeded: integer("succeeded").default(0).notNull(),
-  failedCount: integer("failed_count").default(0).notNull(),
+  attempted: bigint("attempted", { mode: "number" }).default(0).notNull(),
+  succeeded: bigint("succeeded", { mode: "number" }).default(0).notNull(),
+  failedCount: bigint("failed_count", { mode: "number" }).default(0).notNull(),
   /** When the push attempt happened; null when the user had no registered device. */
-  sentAt: integer("sent_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
  index("idx_notifications_user_read").on(table.userId, table.read),
@@ -4375,7 +4379,7 @@ export const notifications = sqliteTable(
 // ─── P1A: Mastery Foundation ──────────────────────────────────────────────────
 
 // learning_events ; append-only event log; recompute worker reads this
-export const learningEvents = sqliteTable(
+export const learningEvents = pgTable(
  "learning_events",
  {
  id: text("id").primaryKey(),
@@ -4390,9 +4394,9 @@ export const learningEvents = sqliteTable(
  eventType: text("event_type")
  .$type<"quiz_answer" | "flashcard_review" | "material_completed" | "tutor_question">()
  .notNull(),
- correctness: real("correctness"),
- weight: real("weight").default(1).notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ correctness: doublePrecision("correctness"),
+ weight: doublePrecision("weight").default(1).notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
  index("idx_le_student_course_created").on(table.studentId, table.courseId, table.createdAt),
@@ -4402,7 +4406,7 @@ export const learningEvents = sqliteTable(
 
 // Zyra personalization stores only bounded presentation evidence. It never
 // replaces mastery, grades, attempts, or assessment policy.
-export const zyraLearnerProfiles = sqliteTable(
+export const zyraLearnerProfiles = pgTable(
  "zyra_learner_profiles",
  {
   id: text("id").primaryKey(),
@@ -4433,17 +4437,17 @@ export const zyraLearnerProfiles = sqliteTable(
    .$type<"unknown" | "free_text" | "teach_back" | "choice">()
    .notNull()
    .default("unknown"),
-  confidence: real("confidence").notNull().default(0),
-  evidenceCount: integer("evidence_count").notNull().default(0),
-  reasonCodes: text("reason_codes", { mode: "json" })
+  confidence: doublePrecision("confidence").notNull().default(0),
+  evidenceCount: bigint("evidence_count", { mode: "number" }).notNull().default(0),
+  reasonCodes: jsonb("reason_codes")
    .$type<string[]>()
    .$defaultFn(() => [])
    .notNull(),
-  lastEvidenceAt: integer("last_evidence_at", { mode: "timestamp" }),
-  expiresAt: integer("expires_at", { mode: "timestamp" }),
-  resetAt: integer("reset_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
+  lastEvidenceAt: timestamp("last_evidence_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  resetAt: timestamp("reset_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
    .defaultNow()
    .$onUpdate(() => new Date())
    .notNull(),
@@ -4455,7 +4459,7 @@ export const zyraLearnerProfiles = sqliteTable(
  ],
 );
 
-export const zyraLearnerPreferences = sqliteTable(
+export const zyraLearnerPreferences = pgTable(
  "zyra_learner_preferences",
  {
   id: text("id").primaryKey(),
@@ -4473,8 +4477,8 @@ export const zyraLearnerPreferences = sqliteTable(
    .$type<"concise" | "standard" | "detailed">(),
   checkpointType: text("checkpoint_type")
    .$type<"free_text" | "teach_back" | "choice">(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
    .defaultNow()
    .$onUpdate(() => new Date())
    .notNull(),
@@ -4485,7 +4489,7 @@ export const zyraLearnerPreferences = sqliteTable(
  ],
 );
 
-export const zyraLearningEvents = sqliteTable(
+export const zyraLearningEvents = pgTable(
  "zyra_learning_events",
  {
   id: text("id").primaryKey(),
@@ -4512,7 +4516,7 @@ export const zyraLearningEvents = sqliteTable(
    .notNull(),
   evidenceRef: text("evidence_ref"),
   outcome: text("outcome").$type<"success" | "failure" | "neutral" | "unknown">(),
-  correctness: real("correctness"),
+  correctness: doublePrecision("correctness"),
   responseLatencyBucket: text("response_latency_bucket")
    .$type<"very_fast" | "fast" | "standard" | "slow" | "unknown">()
    .notNull()
@@ -4525,9 +4529,9 @@ export const zyraLearningEvents = sqliteTable(
    .$type<"text" | "visual" | "stepwise" | "example" | "mixed" | "unknown">()
    .notNull()
    .default("unknown"),
-  weight: real("weight").notNull().default(1),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  expiresAt: integer("expires_at", { mode: "timestamp" }),
+  weight: doublePrecision("weight").notNull().default(1),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
  },
  (table) => [
   index("idx_zyra_event_student_course_created").on(table.studentId, table.courseId, table.createdAt),
@@ -4537,7 +4541,7 @@ export const zyraLearningEvents = sqliteTable(
 );
 
 // student_concept_mastery ; one row per (student, course, concept)
-export const studentConceptMastery = sqliteTable(
+export const studentConceptMastery = pgTable(
  "student_concept_mastery",
  {
  id: text("id").primaryKey(),
@@ -4548,12 +4552,12 @@ export const studentConceptMastery = sqliteTable(
  .notNull()
  .references(() => courses.id, { onDelete: "cascade" }),
  conceptName: text("concept_name").notNull(),
- masteryScore: integer("mastery_score").notNull(),
- confidence: integer("confidence").notNull(),
- evidenceCount: integer("evidence_count").notNull(),
+ masteryScore: bigint("mastery_score", { mode: "number" }).notNull(),
+ confidence: bigint("confidence", { mode: "number" }).notNull(),
+ evidenceCount: bigint("evidence_count", { mode: "number" }).notNull(),
  trend: text("trend").$type<"improving" | "stable" | "declining">(),
- lastEvidenceAt: integer("last_evidence_at", { mode: "timestamp" }).notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
+ lastEvidenceAt: timestamp("last_evidence_at", { withTimezone: true }).notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
  .$onUpdate(() => new Date())
  .notNull(),
@@ -4565,7 +4569,7 @@ export const studentConceptMastery = sqliteTable(
 );
 
 // student_concept_mastery_history ; daily snapshots for trend computation (P1B)
-export const studentConceptMasteryHistory = sqliteTable(
+export const studentConceptMasteryHistory = pgTable(
  "student_concept_mastery_history",
  {
  id: text("id").primaryKey(),
@@ -4576,8 +4580,8 @@ export const studentConceptMasteryHistory = sqliteTable(
  .notNull()
  .references(() => courses.id, { onDelete: "cascade" }),
  conceptName: text("concept_name").notNull(),
- masteryScore: integer("mastery_score").notNull(),
- confidence: integer("confidence").notNull(),
+ masteryScore: bigint("mastery_score", { mode: "number" }).notNull(),
+ confidence: bigint("confidence", { mode: "number" }).notNull(),
  snapshotDate: text("snapshot_date").notNull(), // yyyy-mm-dd
  },
  (table) => [
@@ -4588,16 +4592,16 @@ export const studentConceptMasteryHistory = sqliteTable(
 
 // ─── P2: Streak + Daily Recommendations ──────────────────────────────────────
 
-export const studentStreaks = sqliteTable("student_streaks", {
+export const studentStreaks = pgTable("student_streaks", {
  studentId: text("student_id")
  .primaryKey()
  .references(() => user.id, { onDelete: "cascade" }),
- currentStreak: integer("current_streak").default(0).notNull(),
- longestStreak: integer("longest_streak").default(0).notNull(),
+ currentStreak: bigint("current_streak", { mode: "number" }).default(0).notNull(),
+ longestStreak: bigint("longest_streak", { mode: "number" }).default(0).notNull(),
  lastActiveDate: text("last_active_date").notNull(), // yyyy-mm-dd (UTC)
 });
 
-export const dailyRecommendations = sqliteTable(
+export const dailyRecommendations = pgTable(
  "daily_recommendations",
  {
  id: text("id").primaryKey(),
@@ -4605,11 +4609,11 @@ export const dailyRecommendations = sqliteTable(
  .notNull()
  .references(() => user.id, { onDelete: "cascade" }),
  date: text("date").notNull(), // yyyy-mm-dd (UTC)
- payload: text("payload", { mode: "json" }).notNull(),
- completedItems: text("completed_items", { mode: "json" })
+ payload: jsonb("payload").notNull(),
+ completedItems: jsonb("completed_items")
  .$defaultFn(() => [])
  .notNull(),
- generatedAt: integer("generated_at", { mode: "timestamp" }).defaultNow().notNull(),
+ generatedAt: timestamp("generated_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
  unique("uq_daily_rec_student_date").on(table.studentId, table.date),
@@ -4620,7 +4624,7 @@ export const dailyRecommendations = sqliteTable(
 // ─── P3: Tutor session memory ────────────────────────────────────────────────
 
 // tutor_session_summaries ; one row per (student, course), deterministic update after each tutor exchange
-export const tutorSessionSummaries = sqliteTable(
+export const tutorSessionSummaries = pgTable(
   "tutor_session_summaries",
   {
   id: text("id").primaryKey(),
@@ -4630,11 +4634,11 @@ export const tutorSessionSummaries = sqliteTable(
   courseId: text("course_id")
   .notNull()
   .references(() => courses.id, { onDelete: "cascade" }),
-  askedConcepts: text("asked_concepts", { mode: "json" })
+  askedConcepts: jsonb("asked_concepts")
   .$defaultFn(() => [])
   .notNull(),
-  questionCount: integer("question_count").default(0).notNull(),
-  lastSessionAt: integer("last_session_at", { mode: "timestamp" }).defaultNow().notNull(),
+  questionCount: bigint("question_count", { mode: "number" }).default(0).notNull(),
+  lastSessionAt: timestamp("last_session_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
   unique("uq_tss_student_course").on(table.studentId, table.courseId),
@@ -4644,7 +4648,7 @@ export const tutorSessionSummaries = sqliteTable(
 // ─── P3A: Chat Sessions & Sources ────────────────────────────────────────────
 
 // chat_sessions ; groups conversations into named sessions per (student, course)
-export const chatSessions = sqliteTable(
+export const chatSessions = pgTable(
   "chat_sessions",
   {
   id: text("id").primaryKey(),
@@ -4655,10 +4659,10 @@ export const chatSessions = sqliteTable(
     .notNull()
     .references(() => courses.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
-  startedAt: integer("started_at", { mode: "timestamp" }).defaultNow().notNull(),
-  lastMessageAt: integer("last_message_at", { mode: "timestamp" }).defaultNow().notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
+  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+  lastMessageAt: timestamp("last_message_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
@@ -4670,7 +4674,7 @@ export const chatSessions = sqliteTable(
 );
 
 // tutor_chat_messages ; per-message history, linked to a session
-export const tutorChatMessages = sqliteTable(
+export const tutorChatMessages = pgTable(
   "tutor_chat_messages",
   {
   id: text("id").primaryKey(),
@@ -4685,8 +4689,8 @@ export const tutorChatMessages = sqliteTable(
     .references(() => chatSessions.id, { onDelete: "cascade" }),
   role: text("role", { enum: ["student", "ai"] }).notNull(),
   content: text("content").notNull(),
-  sources: text("sources", { mode: "json" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  sources: jsonb("sources"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
   index("idx_tcm_student_course").on(table.studentId, table.courseId),
@@ -4696,7 +4700,7 @@ export const tutorChatMessages = sqliteTable(
 );
 
 // chat_message_sources ; tracks which sources were used to generate an AI answer
-export const chatMessageSources = sqliteTable(
+export const chatMessageSources = pgTable(
   "chat_message_sources",
   {
   id: text("id").primaryKey(),
@@ -4707,8 +4711,8 @@ export const chatMessageSources = sqliteTable(
     "knowledge_object" | "website_material" | "flashcard" | "concept" | "assessment_question"
   >().notNull(),
   sourceId: text("source_id").notNull(),
-  relevanceScore: real("relevance_score").default(1.0).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  relevanceScore: doublePrecision("relevance_score").default(1.0).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("idx_cms_message").on(table.messageId),
@@ -4717,7 +4721,7 @@ export const chatMessageSources = sqliteTable(
 );
 
 // Zyra Plan 010 ; sanitized private learner image attachments. Source bytes are never stored.
-export const zyraMessageAttachments = sqliteTable(
+export const zyraMessageAttachments = pgTable(
   "zyra_message_attachments",
   {
     id: text("id").primaryKey(),
@@ -4734,19 +4738,19 @@ export const zyraMessageAttachments = sqliteTable(
       .references(() => tutorChatMessages.id, { onDelete: "set null" }),
     objectKey: text("object_key").notNull().unique(),
     mimeType: text("mime_type").notNull(),
-    byteSize: integer("byte_size").notNull(),
-    width: integer("width").notNull(),
-    height: integer("height").notNull(),
+    byteSize: bigint("byte_size", { mode: "number" }).notNull(),
+    width: bigint("width", { mode: "number" }).notNull(),
+    height: bigint("height", { mode: "number" }).notNull(),
     sanitizedSha256: text("sanitized_sha256").notNull(),
     sanitizerVersion: text("sanitizer_version").notNull(),
     status: text("status", {
       enum: ["uploaded", "attached", "dispatched", "deleted", "expired", "failed"],
     }).notNull().default("uploaded"),
     failureCode: text("failure_code"),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
-    deletedAt: integer("deleted_at", { mode: "timestamp" }),
-    providerDispatchedAt: integer("provider_dispatched_at", { mode: "timestamp" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    providerDispatchedAt: timestamp("provider_dispatched_at", { withTimezone: true }),
   },
   (table) => [
     index("idx_zyra_attachment_owner_scope").on(table.studentId, table.courseId, table.sessionId),
@@ -4757,7 +4761,7 @@ export const zyraMessageAttachments = sqliteTable(
 
 // Zyra Plan 012 ; proposal-only copilot records. Operations remain typed data,
 // never executable model text. Applying them requires a separate mutation boundary.
-export const zyraProposals = sqliteTable(
+export const zyraProposals = pgTable(
   "zyra_proposals",
   {
     id: text("id").primaryKey(),
@@ -4765,26 +4769,26 @@ export const zyraProposals = sqliteTable(
     role: text("role").$type<"tutor" | "admin">().notNull(),
     proposalType: text("proposal_type").notNull(),
     courseId: text("course_id").references(() => courses.id, { onDelete: "set null" }),
-    scope: text("scope", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-    evidenceRefs: text("evidence_refs", { mode: "json" }).$type<string[]>().notNull(),
-    preconditionSnapshot: text("precondition_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-    operations: text("operations", { mode: "json" }).$type<unknown[]>().notNull(),
-    learnerImpact: text("learner_impact", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-    reversibility: text("reversibility", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-    warnings: text("warnings", { mode: "json" }).$type<string[]>().notNull(),
-    proposerTrace: text("proposer_trace", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-    validatorResult: text("validator_result", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+    scope: jsonb("scope").$type<Record<string, unknown>>().notNull(),
+    evidenceRefs: jsonb("evidence_refs").$type<string[]>().notNull(),
+    preconditionSnapshot: jsonb("precondition_snapshot").$type<Record<string, unknown>>().notNull(),
+    operations: jsonb("operations").$type<unknown[]>().notNull(),
+    learnerImpact: jsonb("learner_impact").$type<Record<string, unknown>>().notNull(),
+    reversibility: jsonb("reversibility").$type<Record<string, unknown>>().notNull(),
+    warnings: jsonb("warnings").$type<string[]>().notNull(),
+    proposerTrace: jsonb("proposer_trace").$type<Record<string, unknown>>().notNull(),
+    validatorResult: jsonb("validator_result").$type<Record<string, unknown>>().notNull(),
     status: text("status").$type<"draft" | "validated" | "reviewed" | "confirmed" | "applied" | "rejected" | "expired" | "failed">().notNull().default("draft"),
-    preconditionVersion: integer("precondition_version").notNull(),
+    preconditionVersion: bigint("precondition_version", { mode: "number" }).notNull(),
     diffHash: text("diff_hash").notNull(),
     auditId: text("audit_id"),
     failureCode: text("failure_code"),
-    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    reviewedAt: integer("reviewed_at", { mode: "timestamp" }),
-    confirmedAt: integer("confirmed_at", { mode: "timestamp" }),
-    appliedAt: integer("applied_at", { mode: "timestamp" }),
-    updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
   },
   (table) => [
     index("idx_zyra_proposal_actor_status").on(table.actorId, table.status, table.createdAt),
@@ -4793,7 +4797,7 @@ export const zyraProposals = sqliteTable(
   ],
 );
 
-export const zyraProposalEvents = sqliteTable(
+export const zyraProposalEvents = pgTable(
   "zyra_proposal_events",
   {
     id: text("id").primaryKey(),
@@ -4803,7 +4807,7 @@ export const zyraProposalEvents = sqliteTable(
     toStatus: text("to_status").notNull(),
     reasonCode: text("reason_code").notNull(),
     diffHash: text("diff_hash").notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("idx_zyra_proposal_event_proposal").on(table.proposalId, table.createdAt),
@@ -4813,7 +4817,7 @@ export const zyraProposalEvents = sqliteTable(
 
 // Zyra Plan 013 ; fixed-column operational telemetry only. No prompts,
 // responses, object keys, full hashes, or identity-bearing metadata are stored.
-export const zyraOperationalEvents = sqliteTable(
+export const zyraOperationalEvents = pgTable(
   "zyra_operational_events",
   {
     id: text("id").primaryKey(),
@@ -4828,9 +4832,9 @@ export const zyraOperationalEvents = sqliteTable(
     latencyBucket: text("latency_bucket").notNull(),
     sizeBucket: text("size_bucket").notNull(),
     cacheResult: text("cache_result").notNull(),
-    attachmentCount: integer("attachment_count").notNull().default(0),
+    attachmentCount: bigint("attachment_count", { mode: "number" }).notNull().default(0),
     sanitizerVersion: text("sanitizer_version"),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("idx_zyra_ops_event_type_created").on(table.eventType, table.createdAt),
@@ -4906,22 +4910,22 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
 }));
 
 // P4: Quiz Feedback + Adaptive Companion Tables
-export const attemptFeedback = sqliteTable(
+export const attemptFeedback = pgTable(
  "attempt_feedback",
  {
  id: text("id").primaryKey(),
  attemptId: text("attempt_id")
  .notNull()
  .references(() => studentQuizAttempts.id, { onDelete: "cascade" }),
- questionIndex: integer("question_index").notNull(),
- payload: text("payload", { mode: "json" }).notNull(),
+ questionIndex: bigint("question_index", { mode: "number" }).notNull(),
+ payload: jsonb("payload").notNull(),
  },
  (table) => [
  unique("uq_attempt_feedback_question").on(table.attemptId, table.questionIndex),
  ]
 );
 
-export const interventions = sqliteTable(
+export const interventions = pgTable(
  "interventions",
  {
  id: text("id").primaryKey(),
@@ -4937,9 +4941,9 @@ export const interventions = sqliteTable(
  .$type<"active" | "dismissed" | "resolved">()
  .default("active")
  .notNull(),
- payload: text("payload", { mode: "json" }).notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- resolvedAt: integer("resolved_at", { mode: "timestamp" }),
+ payload: jsonb("payload").notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ resolvedAt: timestamp("resolved_at", { withTimezone: true }),
  },
  (table) => [
  uniqueIndex("uq_active_intervention")
@@ -4967,7 +4971,7 @@ export const interventionsRelations = relations(interventions, ({ one }) => ({
 }));
 
 // P5: Personalized Study Paths
-export const studyPaths = sqliteTable(
+export const studyPaths = pgTable(
  "study_paths",
  {
  id: text("id").primaryKey(),
@@ -4977,8 +4981,8 @@ export const studyPaths = sqliteTable(
  courseId: text("course_id")
  .notNull()
  .references(() => courses.id, { onDelete: "cascade" }),
- pathJson: text("path_json", { mode: "json" }).notNull(),
- computedAt: integer("computed_at", { mode: "timestamp" }).defaultNow().notNull(),
+ pathJson: jsonb("path_json").notNull(),
+ computedAt: timestamp("computed_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
  unique("uq_study_paths_student_course").on(table.studentId, table.courseId),
@@ -4998,7 +5002,7 @@ export const studyPathsRelations = relations(studyPaths, ({ one }) => ({
 }));
 
 // P6B: Course analytics snapshots ; daily pre-computed payloads for fast tutor page loads
-export const courseAnalyticsSnapshots = sqliteTable(
+export const courseAnalyticsSnapshots = pgTable(
  "course_analytics_snapshots",
  {
  id: text("id").primaryKey(),
@@ -5006,8 +5010,8 @@ export const courseAnalyticsSnapshots = sqliteTable(
  .notNull()
  .references(() => courses.id, { onDelete: "cascade" }),
  date: text("date").notNull(), // yyyy-mm-dd
- payload: text("payload", { mode: "json" }).notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ payload: jsonb("payload").notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
  unique("uq_course_snapshot_date").on(table.courseId, table.date),
@@ -5024,7 +5028,7 @@ export const courseAnalyticsSnapshotsRelations = relations(courseAnalyticsSnapsh
 
 // ─── P9: Live Quiz ────────────────────────────────────────────────────────────
 
-export const liveQuizSessions = sqliteTable(
+export const liveQuizSessions = pgTable(
  "live_quiz_sessions",
  {
  id: text("id").primaryKey(),
@@ -5041,17 +5045,17 @@ export const liveQuizSessions = sqliteTable(
  .$type<"lobby" | "question" | "reveal" | "ended">()
  .default("lobby")
  .notNull(),
- questionsSnapshot: text("questions_snapshot", { mode: "json" }).notNull(),
- participantCount: integer("participant_count").default(0).notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- endedAt: integer("ended_at", { mode: "timestamp" }),
+ questionsSnapshot: jsonb("questions_snapshot").notNull(),
+ participantCount: bigint("participant_count", { mode: "number" }).default(0).notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+ endedAt: timestamp("ended_at", { withTimezone: true }),
  deliveryStatus: text("delivery_status")
    .$type<"pending" | "processing" | "delivered" | "failed">()
    .default("pending")
    .notNull(),
- deliveryClaimedAt: integer("delivery_claimed_at", { mode: "timestamp" }),
+ deliveryClaimedAt: timestamp("delivery_claimed_at", { withTimezone: true }),
  deliveryClaimToken: text("delivery_claim_token"),
- deliveredAt: integer("delivered_at", { mode: "timestamp" }),
+ deliveredAt: timestamp("delivered_at", { withTimezone: true }),
  },
  (table) => [
  index("idx_live_sessions_code").on(table.code),
@@ -5059,7 +5063,7 @@ export const liveQuizSessions = sqliteTable(
  ]
 );
 
-export const liveQuizResults = sqliteTable(
+export const liveQuizResults = pgTable(
  "live_quiz_results",
  {
  id: text("id").primaryKey(),
@@ -5072,10 +5076,10 @@ export const liveQuizResults = sqliteTable(
  courseId: text("course_id")
  .notNull()
  .references(() => courses.id, { onDelete: "cascade" }),
- score: integer("score").default(0).notNull(),
- rank: integer("rank"),
- answersSnapshot: text("answers_snapshot", { mode: "json" }).notNull(),
- completedAt: integer("completed_at", { mode: "timestamp" }).defaultNow().notNull(),
+ score: bigint("score", { mode: "number" }).default(0).notNull(),
+ rank: bigint("rank", { mode: "number" }),
+ answersSnapshot: jsonb("answers_snapshot").notNull(),
+ completedAt: timestamp("completed_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
  index("idx_live_results_session").on(table.sessionId),
@@ -5117,7 +5121,7 @@ export const liveQuizResultsRelations = relations(liveQuizResults, ({ one }) => 
 
 // ─── PWR: Weekly Learning Reflection ──────────────────────────────────────────
 
-export const weeklyReflections = sqliteTable(
+export const weeklyReflections = pgTable(
  "weekly_reflections",
  {
  id: text("id").primaryKey(),
@@ -5125,7 +5129,7 @@ export const weeklyReflections = sqliteTable(
  .notNull()
  .references(() => user.id, { onDelete: "cascade" }),
  weekStart: text("week_start").notNull(), // yyyy-mm-dd (Monday)
- payload: text("payload", { mode: "json" }).$type<{
+ payload: jsonb("payload").$type<{
  completed: {
  quizzes: number;
  flashcards: number;
@@ -5138,7 +5142,7 @@ export const weeklyReflections = sqliteTable(
  longestStreak: number;
  };
  }>().notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
  unique("uq_weekly_ref_student_week").on(table.studentId, table.weekStart),
@@ -5153,7 +5157,7 @@ export const weeklyReflectionsRelations = relations(weeklyReflections, ({ one })
  }),
 }));
 
-export const aiExtractionFailures = sqliteTable(
+export const aiExtractionFailures = pgTable(
  "ai_extraction_failures",
  {
  id: text("id").primaryKey(),
@@ -5164,7 +5168,7 @@ export const aiExtractionFailures = sqliteTable(
  step: text("step").$type<"extraction" | "canonicalization" | "validation">().notNull(),
  rawOutput: text("raw_output").notNull(),
  errorMessage: text("error_message").notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  },
  (table) => [
  index("idx_ai_fail_course").on(table.courseId),
@@ -5184,7 +5188,7 @@ export const aiExtractionFailuresRelations = relations(aiExtractionFailures, ({ 
 }));
 
 // ─── EIF E5: concept-level graph rollup (rebuilt on KO publish) ────────────────
-export const conceptGraphEdges = sqliteTable(
+export const conceptGraphEdges = pgTable(
  "concept_graph_edges",
  {
  id: text("id").primaryKey(),
@@ -5209,7 +5213,7 @@ export const conceptGraphEdgesRelations = relations(conceptGraphEdges, ({ one })
 }));
 
 // student_chapter_mastery ; storing aggregated chapter-level mastery scores and trends
-export const studentChapterMastery = sqliteTable(
+export const studentChapterMastery = pgTable(
   "student_chapter_mastery",
   {
     id: text("id").primaryKey(),
@@ -5222,13 +5226,13 @@ export const studentChapterMastery = sqliteTable(
     chapterId: text("chapter_id")
       .notNull()
       .references(() => chapters.id, { onDelete: "cascade" }),
-    masteryScore: integer("mastery_score").notNull(),
-    confidence: real("confidence").notNull(),
-    evidenceCount: integer("evidence_count").notNull(),
+    masteryScore: bigint("mastery_score", { mode: "number" }).notNull(),
+    confidence: doublePrecision("confidence").notNull(),
+    evidenceCount: bigint("evidence_count", { mode: "number" }).notNull(),
     trend: text("trend").$type<"improving" | "stable" | "declining">(),
-    lastEvidenceAt: integer("last_evidence_at", { mode: "timestamp" }).notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    lastEvidenceAt: timestamp("last_evidence_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -5255,7 +5259,7 @@ export const studentChapterMasteryRelations = relations(studentChapterMastery, (
 }));
 
 // mastery_recompute_queue ; tracking pending recomputations to execute asynchronously
-export const masteryRecomputeQueue = sqliteTable(
+export const masteryRecomputeQueue = pgTable(
   "mastery_recompute_queue",
   {
     id: text("id").primaryKey(),
@@ -5270,9 +5274,9 @@ export const masteryRecomputeQueue = sqliteTable(
       .default("pending")
       .notNull(),
     reason: text("reason").notNull(),
-    retries: integer("retries").default(0).notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    retries: bigint("retries", { mode: "number" }).default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -5298,7 +5302,7 @@ export const masteryRecomputeQueueRelations = relations(masteryRecomputeQueue, (
 // Closes the audit's deepest structural gap (docs/audit/00-master-summary.md):
 // without this, "curriculum coverage" can only ever mean material-to-KO
 // coverage, never accreditation-style outcome coverage.
-export const learningOutcomes = sqliteTable(
+export const learningOutcomes = pgTable(
   "learning_outcomes",
   {
     id: text("id").primaryKey(),
@@ -5310,8 +5314,8 @@ export const learningOutcomes = sqliteTable(
     code: text("code").notNull(), // e.g. "CPL-1", "CPMK-1.2", "Sub-CPMK-1.2.1"
     description: text("description").notNull(),
     bloomTarget: text("bloom_target").$type<"remember" | "understand" | "apply" | "analyze" | "evaluate" | "create">(),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -5327,7 +5331,7 @@ export const learningOutcomes = sqliteTable(
 // Mirrors the assessmentObjectConcepts pattern so coverage queries can join
 // learningOutcomes -> learningOutcomeConcepts -> concepts -> knowledgeObjects/assessmentObjectConcepts
 // the same way assessment coverage already works.
-export const learningOutcomeConcepts = sqliteTable(
+export const learningOutcomeConcepts = pgTable(
   "learning_outcome_concepts",
   {
     id: text("id").primaryKey(),
@@ -5376,7 +5380,7 @@ export const learningOutcomeConceptsRelations = relations(learningOutcomeConcept
 // nothing computed into it. Pure SQL aggregation, no AI (AGENT_CONTEXT.md
 // zero-AI-for-analytics rule) ; mirrors the aiExtractionFailures observability
 // table pattern.
-export const contentQualityFlags = sqliteTable(
+export const contentQualityFlags = pgTable(
   "content_quality_flags",
   {
     id: text("id").primaryKey(),
@@ -5389,10 +5393,10 @@ export const contentQualityFlags = sqliteTable(
     flagType: text("flag_type")
       .$type<"too_easy" | "too_hard" | "dead_distractor">()
       .notNull(),
-    detail: text("detail", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-    sampleSize: integer("sample_size").notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    detail: jsonb("detail").$type<Record<string, unknown>>().notNull(),
+    sampleSize: bigint("sample_size", { mode: "number" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -5422,14 +5426,14 @@ export const contentQualityFlagsRelations = relations(contentQualityFlags, ({ on
 // with AGENT_CONTEXT.md's AI-quota philosophy. Ordering reuses the
 // prerequisite-graph + topological-sort approach already proven in
 // lib/study-path-service.ts, scoped to this target set instead of one course.
-export const careerPathTemplates = sqliteTable(
+export const careerPathTemplates = pgTable(
   "career_path_templates",
   {
     id: text("id").primaryKey(),
     title: text("title").notNull(),
     description: text("description"),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -5437,7 +5441,7 @@ export const careerPathTemplates = sqliteTable(
   (table) => [unique("uq_career_path_templates_title").on(table.title)]
 );
 
-export const careerPathConcepts = sqliteTable(
+export const careerPathConcepts = pgTable(
   "career_path_concepts",
   {
     id: text("id").primaryKey(),
@@ -5479,17 +5483,17 @@ export const careerPathConceptsRelations = relations(careerPathConcepts, ({ one 
 // end-to-end behind FEATURE_PKA.
 
 // Static subject/stage -> quiz template mapping, admin/seed-authored.
-export const pkaSimulationStages = sqliteTable(
+export const pkaSimulationStages = pgTable(
   "pka_simulation_stages",
   {
     id: text("id").primaryKey(),
     subject: text("subject").$type<"matematika" | "fisika" | "kimia">().notNull(),
-    stage: integer("stage").notNull(), // 1, 2, or 3
+    stage: bigint("stage", { mode: "number" }).notNull(), // 1, 2, or 3
     quizTemplateId: text("quiz_template_id")
       .notNull()
       .references(() => quizTemplates.id, { onDelete: "cascade" }),
-    passScoreThreshold: integer("pass_score_threshold").notNull(), // 0-100
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    passScoreThreshold: bigint("pass_score_threshold", { mode: "number" }).notNull(), // 0-100
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex("uq_pka_stages_subject_stage").on(table.subject, table.stage),
@@ -5497,7 +5501,7 @@ export const pkaSimulationStages = sqliteTable(
 );
 
 // Per-student gating state machine for the simulation.
-export const pkaStageProgress = sqliteTable(
+export const pkaStageProgress = pgTable(
   "pka_stage_progress",
   {
     id: text("id").primaryKey(),
@@ -5505,12 +5509,12 @@ export const pkaStageProgress = sqliteTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     subject: text("subject").$type<"matematika" | "fisika" | "kimia">().notNull(),
-    stage: integer("stage").notNull(),
+    stage: bigint("stage", { mode: "number" }).notNull(),
     status: text("status").$type<"locked" | "unlocked" | "completed" | "skipped">().default("locked").notNull(),
-    bestScore: integer("best_score"),
-    passed: integer("passed", { mode: "boolean" }),
+    bestScore: bigint("best_score", { mode: "number" }),
+    passed: boolean("passed"),
     attemptId: text("attempt_id").references(() => studentQuizAttempts.id, { onDelete: "set null" }),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -5521,21 +5525,21 @@ export const pkaStageProgress = sqliteTable(
 );
 
 // Admin-authored Google Meet review session broadcasts.
-export const pkaAnnouncements = sqliteTable("pka_announcements", {
+export const pkaAnnouncements = pgTable("pka_announcements", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
   body: text("body").notNull(),
   createdBy: text("created_by")
     .notNull()
     .references(() => user.id),
-  sentAt: integer("sent_at", { mode: "timestamp" }),
-  recipientCount: integer("recipient_count"),
-  isArchived: integer("is_archived", { mode: "boolean" }).default(false).notNull(),
-  isPinned: integer("is_pinned", { mode: "boolean" }).default(false).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  recipientCount: bigint("recipient_count", { mode: "number" }),
+  isArchived: boolean("is_archived").default(false).notNull(),
+  isPinned: boolean("is_pinned").default(false).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const pkaAnnouncementReads = sqliteTable(
+export const pkaAnnouncementReads = pgTable(
   "pka_announcement_reads",
   {
     announcementId: text("announcement_id")
@@ -5544,24 +5548,24 @@ export const pkaAnnouncementReads = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    readAt: integer("read_at", { mode: "timestamp" }).defaultNow().notNull(),
+    readAt: timestamp("read_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.announcementId, table.userId] }),
   ]
 );
 
-export const pkaSchedules = sqliteTable("pka_schedules", {
+export const pkaSchedules = pgTable("pka_schedules", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
-  sessionAt: integer("session_at", { mode: "timestamp" }).notNull(),
+  sessionAt: timestamp("session_at", { withTimezone: true }).notNull(),
   meetLink: text("meet_link"), // Optional link
   createdBy: text("created_by")
     .notNull()
     .references(() => user.id),
-  sentAt: integer("sent_at", { mode: "timestamp" }),
-  recipientCount: integer("recipient_count"),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  recipientCount: bigint("recipient_count", { mode: "number" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 // Gated enrollment intake: incoming students fill this form (name, faculty,
@@ -5569,7 +5573,7 @@ export const pkaSchedules = sqliteTable("pka_schedules", {
 // receiveAnnouncements remains a legacy fallback for existing rows and still
 // controls push delivery. Central preferences govern optional email delivery.
 // One row per user (uniqueIndex on user_id).
-export const pkaRegistrations = sqliteTable(
+export const pkaRegistrations = pgTable(
   "pka_registrations",
   {
     id: text("id").primaryKey(),
@@ -5581,10 +5585,10 @@ export const pkaRegistrations = sqliteTable(
     email: text("email").notNull(),
     instagramUsername: text("instagram_username").notNull(),
     proofKey: text("proof_key").notNull(), // R2 storage key for the follow screenshot
-    receiveAnnouncements: integer("receive_announcements", { mode: "boolean" })
+    receiveAnnouncements: boolean("receive_announcements")
       .default(true)
       .notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [uniqueIndex("uq_pka_registrations_user").on(table.userId)]
 );
@@ -5643,14 +5647,14 @@ export const pkaRegistrationsRelations = relations(pkaRegistrations, ({ one }) =
 // ─── Short Links ────────────────────────────────────────────────────────────
 // Custom URL shortener (zyxacademy.com/s/[slug])
 
-export const shortLink = sqliteTable("short_link", {
+export const shortLink = pgTable("short_link", {
   id: text("id").primaryKey(),
   slug: text("slug").notNull().unique(),
   url: text("url").notNull(),
   title: text("title"),
   userId: text("user_id").references(() => user.id, { onDelete: "set null" }), // Creator
-  clicks: integer("clicks").default(0).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  clicks: bigint("clicks", { mode: "number" }).default(0).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const shortLinkRelations = relations(shortLink, ({ one }) => ({
@@ -5661,7 +5665,7 @@ export const shortLinkRelations = relations(shortLink, ({ one }) => ({
 }));
 
 /** Master Google Meet session persistence table for titles & space metadata. */
-export const googleMeetSessions = sqliteTable(
+export const googleMeetSessions = pgTable(
   "google_meet_sessions",
   {
     id: text("id").primaryKey(),
@@ -5673,11 +5677,11 @@ export const googleMeetSessions = sqliteTable(
     createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
     slug: text("slug").unique(),
     hostEmail: text("host_email"),
-    coHostEmails: text("co_host_emails", { mode: "json" }).$type<string[]>(),
-    invitedEmails: text("invited_emails", { mode: "json" }).$type<string[]>(),
-    deletedAt: integer("deleted_at", { mode: "timestamp" }),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    coHostEmails: jsonb("co_host_emails").$type<string[]>(),
+    invitedEmails: jsonb("invited_emails").$type<string[]>(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -5700,7 +5704,7 @@ export const googleMeetSessionsRelations = relations(googleMeetSessions, ({ one 
 // Synchronization of GA4 popular pages cache
 
 /** Master Google Forms table for custom form builder & response analytics. */
-export const googleForms = sqliteTable(
+export const googleForms = pgTable(
   "google_forms",
   {
     id: text("id").primaryKey(),
@@ -5711,9 +5715,9 @@ export const googleForms = sqliteTable(
     editUri: text("edit_uri"),
     category: text("category").$type<"survey" | "quiz" | "feedback" | "registration">().default("survey").notNull(),
     createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
-    deletedAt: integer("deleted_at", { mode: "timestamp" }),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -5732,7 +5736,7 @@ export const googleFormsRelations = relations(googleForms, ({ one }) => ({
 }));
 
 /** Native Zyx Custom Forms table supporting 12 question types, short links, and native uploads. */
-export const customForms = sqliteTable(
+export const customForms = pgTable(
   "custom_forms",
   {
     id: text("id").primaryKey(),
@@ -5740,8 +5744,8 @@ export const customForms = sqliteTable(
     title: text("title").notNull(),
     description: text("description"),
     category: text("category").$type<"survey" | "quiz" | "feedback" | "registration">().default("survey").notNull(),
-    questions: text("questions", { mode: "json" }).$type<any[]>().notNull(),
-    settings: text("settings", { mode: "json" }).$type<{
+    questions: jsonb("questions").$type<any[]>().notNull(),
+    settings: jsonb("settings").$type<{
       acceptingResponses?: boolean;
       closedMessage?: string;
       openAt?: string;
@@ -5760,9 +5764,9 @@ export const customForms = sqliteTable(
     spreadsheetId: text("spreadsheet_id"),
     spreadsheetUrl: text("spreadsheet_url"),
     createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
-    deletedAt: integer("deleted_at", { mode: "timestamp" }),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -5782,7 +5786,7 @@ export const customFormsRelations = relations(customForms, ({ one, many }) => ({
 }));
 
 /** Native Zyx Custom Form Responses table storing submissions & file attachments. */
-export const customFormResponses = sqliteTable(
+export const customFormResponses = pgTable(
   "custom_form_responses",
   {
     id: text("id").primaryKey(),
@@ -5791,9 +5795,9 @@ export const customFormResponses = sqliteTable(
       .references(() => customForms.id, { onDelete: "cascade" }),
     responderUserId: text("responder_user_id").references(() => user.id, { onDelete: "set null" }),
     responderEmail: text("responder_email"),
-    answers: text("answers", { mode: "json" }).$type<Record<string, any>>().notNull(),
-    submittedAt: integer("submitted_at", { mode: "timestamp" }).defaultNow().notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    answers: jsonb("answers").$type<Record<string, any>>().notNull(),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("idx_custom_form_responses_form_id").on(table.formId),
@@ -5813,18 +5817,18 @@ export const customFormResponsesRelations = relations(customFormResponses, ({ on
 }));
 
 /** Reusable Form Studio presets (question blueprints + settings) that admins can save and re-apply. */
-export const customFormPresets = sqliteTable(
+export const customFormPresets = pgTable(
   "custom_form_presets",
   {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
     description: text("description"),
     category: text("category").$type<"survey" | "quiz" | "feedback" | "registration">().default("survey").notNull(),
-    questions: text("questions", { mode: "json" }).$type<any[]>().notNull(),
-    settings: text("settings", { mode: "json" }).$type<Record<string, any>>(),
+    questions: jsonb("questions").$type<any[]>().notNull(),
+    settings: jsonb("settings").$type<Record<string, any>>(),
     createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -5842,7 +5846,7 @@ export const customFormPresetsRelations = relations(customFormPresets, ({ one })
 }));
 
 /** Curated important links library (Tautan) managed by admins for quick access. */
-export const importantLinks = sqliteTable(
+export const importantLinks = pgTable(
   "important_links",
   {
     id: text("id").primaryKey(),
@@ -5852,12 +5856,12 @@ export const importantLinks = sqliteTable(
     icon: text("icon"),
     category: text("category"),
     color: text("color"),
-    sortOrder: integer("sort_order").default(0).notNull(),
-    isActive: integer("is_active", { mode: "boolean" }).default(true).notNull(),
+    sortOrder: bigint("sort_order", { mode: "number" }).default(0).notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
     createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
-    deletedAt: integer("deleted_at", { mode: "timestamp" }),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -5875,16 +5879,16 @@ export const importantLinksRelations = relations(importantLinks, ({ one }) => ({
   }),
 }));
 
-export const pageAnalytics = sqliteTable("page_analytics", {
+export const pageAnalytics = pgTable("page_analytics", {
   id: text("id").primaryKey(), // The path of the page, e.g., "/courses"
   title: text("title").notNull(),
-  views: integer("views").default(0).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().notNull(),
+  views: bigint("views", { mode: "number" }).default(0).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 // ─── Blog ───────────────────────────────────────────────────────────────────
 
-export const blogArticles = sqliteTable(
+export const blogArticles = pgTable(
   "blog_articles",
   {
     id: text("id").primaryKey(),
@@ -5896,14 +5900,14 @@ export const blogArticles = sqliteTable(
     category: text("category")
       .$type<"tips_kuliah" | "pojok_kampus" | "fakta_seru" | "kegiatan_zyx">()
       .notNull(),
-    readMinutes: integer("read_minutes").default(5).notNull(),
-    tags: text("tags", { mode: "json" }).$type<string[]>().$defaultFn(() => []),
+    readMinutes: bigint("read_minutes", { mode: "number" }).default(5).notNull(),
+    tags: jsonb("tags").$type<string[]>().$defaultFn(() => []),
     status: text("status").$type<"draft" | "published" | "scheduled">().default("draft").notNull(),
-    publishedAt: integer("published_at", { mode: "timestamp" }),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
     createdById: text("created_by_id")
       .references(() => user.id, { onDelete: "set null" }),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -5922,7 +5926,7 @@ export const blogArticlesRelations = relations(blogArticles, ({ one }) => ({
   }),
 }));
 
-export const exportSpreadsheets = sqliteTable(
+export const exportSpreadsheets = pgTable(
   "export_spreadsheets",
   {
     id: text("id").primaryKey(),
@@ -5932,11 +5936,11 @@ export const exportSpreadsheets = sqliteTable(
     spreadsheetUrl: text("spreadsheet_url").notNull(),
     driveFolderId: text("drive_folder_id").notNull(),
     folderPath: text("folder_path").notNull(),
-    lastHeaderCount: integer("last_header_count").notNull().default(0),
-    lastRowCount: integer("last_row_count").notNull().default(0),
+    lastHeaderCount: bigint("last_header_count", { mode: "number" }).notNull().default(0),
+    lastRowCount: bigint("last_row_count", { mode: "number" }).notNull().default(0),
     lastWrittenFingerprint: text("last_written_fingerprint"),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -5946,7 +5950,7 @@ export const exportSpreadsheets = sqliteTable(
   ]
 );
 
-export const searchDocuments = sqliteTable(
+export const searchDocuments = pgTable(
   "search_documents",
   {
     id: text("id").primaryKey(),
@@ -5958,13 +5962,13 @@ export const searchDocuments = sqliteTable(
     title: text("title").notNull(),
     searchableText: text("searchable_text").notNull(),
     path: text("path").notNull(),
-    minRole: integer("min_role").default(0).notNull(),
-    isSynced: integer("is_synced", { mode: "boolean" }).default(false).notNull(),
+    minRole: bigint("min_role", { mode: "number" }).default(0).notNull(),
+    isSynced: boolean("is_synced").default(false).notNull(),
     syncStatus: text("sync_status").$type<"pending" | "processing" | "completed" | "failed">().default("pending").notNull(),
     leaseId: text("lease_id"),
-    leaseExpiresAt: integer("lease_expires_at", { mode: "timestamp" }),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -5980,7 +5984,7 @@ export const searchDocuments = sqliteTable(
 
 // ─── Admin Ops Knowledge ───────────────────────────────────────────────────
 
-export const adminOpsKnowledgeSources = sqliteTable(
+export const adminOpsKnowledgeSources = pgTable(
   "admin_ops_knowledge_sources",
   {
     id: text("id").primaryKey(),
@@ -5989,15 +5993,15 @@ export const adminOpsKnowledgeSources = sqliteTable(
       .$type<"doc" | "schema_projection" | "catalog" | "bundle_contract" | "runbook">()
       .notNull(),
     title: text("title").notNull(),
-    version: integer("version").default(1).notNull(),
+    version: bigint("version", { mode: "number" }).default(1).notNull(),
     contentHash: text("content_hash").notNull(),
     manifestHash: text("manifest_hash").notNull(),
-    chunkCount: integer("chunk_count").default(0).notNull(),
+    chunkCount: bigint("chunk_count", { mode: "number" }).default(0).notNull(),
     status: text("status").$type<"active" | "stale" | "archived">().default("active").notNull(),
-    metadata: text("metadata", { mode: "json" }),
-    lastSyncedAt: integer("last_synced_at", { mode: "timestamp" }),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    metadata: jsonb("metadata"),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -6009,29 +6013,29 @@ export const adminOpsKnowledgeSources = sqliteTable(
   ]
 );
 
-export const adminOpsKnowledgeChunks = sqliteTable(
+export const adminOpsKnowledgeChunks = pgTable(
   "admin_ops_knowledge_chunks",
   {
     id: text("id").primaryKey(),
     sourceId: text("source_id")
       .notNull()
       .references(() => adminOpsKnowledgeSources.id, { onDelete: "cascade" }),
-    chunkIndex: integer("chunk_index").notNull(),
+    chunkIndex: bigint("chunk_index", { mode: "number" }).notNull(),
     locator: text("locator").notNull(),
-    headingHierarchy: text("heading_hierarchy", { mode: "json" })
+    headingHierarchy: jsonb("heading_hierarchy")
       .$type<string[]>()
       .default([])
       .notNull(),
-    startOffset: integer("start_offset").notNull(),
-    endOffset: integer("end_offset").notNull(),
+    startOffset: bigint("start_offset", { mode: "number" }).notNull(),
+    endOffset: bigint("end_offset", { mode: "number" }).notNull(),
     content: text("content").notNull(),
     contentHash: text("content_hash").notNull(),
-    version: integer("version").default(1).notNull(),
+    version: bigint("version", { mode: "number" }).default(1).notNull(),
     status: text("status").$type<"active" | "stale">().default("active").notNull(),
     vectorId: text("vector_id").notNull(),
-    metadata: text("metadata", { mode: "json" }),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -6049,7 +6053,7 @@ export const adminOpsKnowledgeChunks = sqliteTable(
   ]
 );
 
-export const adminOpsKnowledgeSyncQueue = sqliteTable(
+export const adminOpsKnowledgeSyncQueue = pgTable(
   "admin_ops_knowledge_sync_queue",
   {
     id: text("id").primaryKey(),
@@ -6063,11 +6067,11 @@ export const adminOpsKnowledgeSyncQueue = sqliteTable(
       .$type<"pending" | "processing" | "completed" | "failed">()
       .default("pending")
       .notNull(),
-    payload: text("payload", { mode: "json" }).notNull(),
-    attempts: integer("attempts").default(0).notNull(),
+    payload: jsonb("payload").notNull(),
+    attempts: bigint("attempts", { mode: "number" }).default(0).notNull(),
     lastError: text("last_error"),
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -6106,14 +6110,14 @@ export const adminOpsKnowledgeSyncQueueRelations = relations(
 );
 
 /** Versioned private coding problems. Only the explicit public projection reaches students. */
-export const codingProblems = sqliteTable("coding_problems", {
+export const codingProblems = pgTable("coding_problems", {
  id: text("id").notNull(),
- version: integer("version").notNull(),
+ version: bigint("version", { mode: "number" }).notNull(),
  courseId: text("course_id").notNull().references(() => mataKuliah.id, { onDelete: "restrict" }),
  status: text("status").$type<"draft" | "published">().notNull().default("draft"),
- snapshot: text("snapshot", { mode: "json" }).$type<import("@/lib/coding/contracts").CodingProblemPrivate>().notNull(),
+ snapshot: jsonb("snapshot").$type<import("@/lib/coding/contracts").CodingProblemPrivate>().notNull(),
  creatorId: text("creator_id").notNull().references(() => user.id, { onDelete: "restrict" }),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
  primaryKey({ columns: [table.id, table.version] }),
  index("coding_problems_course_status_idx").on(table.courseId, table.status),
@@ -6121,22 +6125,22 @@ export const codingProblems = sqliteTable("coding_problems", {
  check("coding_problems_status_check", sql`${table.status} IN ('draft', 'published')`),
 ]);
 
-export const codingAttempts = sqliteTable("coding_attempts", {
+export const codingAttempts = pgTable("coding_attempts", {
  id: text("id").primaryKey(),
  learnerId: text("learner_id").notNull().references(() => user.id, { onDelete: "cascade" }),
  courseId: text("course_id").notNull().references(() => mataKuliah.id, { onDelete: "restrict" }),
  problemId: text("problem_id").notNull(),
- problemVersion: integer("problem_version").notNull(),
+ problemVersion: bigint("problem_version", { mode: "number" }).notNull(),
  surface: text("surface").$type<"article" | "live_quiz">().notNull(),
  surfaceId: text("surface_id").notNull(),
  requestId: text("request_id").notNull(),
- ordinal: integer("ordinal").notNull(),
- request: text("request", { mode: "json" }).$type<import("@/lib/coding/contracts").CodingSubmissionRequest>().notNull(),
- evaluation: text("evaluation", { mode: "json" }).$type<import("@/lib/coding/contracts").CodingEvaluation>(),
+ ordinal: bigint("ordinal", { mode: "number" }).notNull(),
+ request: jsonb("request").$type<import("@/lib/coding/contracts").CodingSubmissionRequest>().notNull(),
+ evaluation: jsonb("evaluation").$type<import("@/lib/coding/contracts").CodingEvaluation>(),
  status: text("status").$type<"pending" | "completed" | "failed">().notNull().default("pending"),
  leaseToken: text("lease_token").notNull(),
- leaseExpiresAt: integer("lease_expires_at").notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ leaseExpiresAt: bigint("lease_expires_at", { mode: "number" }).notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
  uniqueIndex("coding_attempt_request_idx").on(table.learnerId, table.surface, table.surfaceId, table.requestId),
  index("coding_attempt_history_idx").on(table.learnerId, table.problemId, table.problemVersion),
@@ -6145,12 +6149,12 @@ export const codingAttempts = sqliteTable("coding_attempts", {
  check("coding_attempt_ordinal_check", sql`${table.ordinal} > 0`),
 ]);
 
-export const codingDrafts = sqliteTable("coding_drafts", {
+export const codingDrafts = pgTable("coding_drafts", {
  learnerId: text("learner_id").notNull().references(() => user.id, { onDelete: "cascade" }),
  courseId: text("course_id").notNull().references(() => mataKuliah.id, { onDelete: "restrict" }),
  draftKey: text("draft_key").notNull(),
  code: text("code").notNull(),
  stdin: text("stdin").notNull().default(""),
- revision: integer("revision").notNull().default(1),
- updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().notNull(),
+ revision: bigint("revision", { mode: "number" }).notNull().default(1),
+ updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [primaryKey({ columns: [table.learnerId, table.courseId, table.draftKey] })]);

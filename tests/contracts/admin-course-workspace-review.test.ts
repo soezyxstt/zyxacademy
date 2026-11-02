@@ -193,8 +193,9 @@ describe("CP3B Admin Course Workspace Review Materi Contract", () => {
     });
 
     test("mobile navbar maps course review path to Review Materi title", () => {
-      const title = getRouteTitle("/admin/courses/kalkulus-1/review");
-      expect(title).toBe("Review Materi");
+      const title = getRouteTitle("/admin/courses/kalkulus-1/review", "admin", (key) => key);
+      expect(title).toBe("admin.routeTitles.review");
+      expect(JSON.parse(source("messages/id/admin.json")).routeTitles.review).toBe("Review materi");
     });
 
     test("pathname parsing captures course slug from review path", () => {

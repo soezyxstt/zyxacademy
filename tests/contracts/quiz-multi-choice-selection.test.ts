@@ -28,10 +28,15 @@ describe("Quiz Multi-Choice and Option Indicator Invariants", () => {
   });
 
   it("ensures QuizPlayer renders question type badge (Pilihan Jamak vs Pilihan Tunggal)", () => {
-    expect(quizPlayerCode).toContain("Pilihan Jamak");
-    expect(quizPlayerCode).toContain("Pilihan Tunggal");
-    expect(quizPlayerCode).toContain("Pilih semua jawaban yang benar");
-    expect(quizPlayerCode).toContain("Pilih 1 jawaban");
+    expect(quizPlayerCode).toContain('t("quiz.multipleChoice")');
+    expect(quizPlayerCode).toContain('t("quiz.singleChoice")');
+    expect(quizPlayerCode).toContain('t("quiz.chooseAllCorrect")');
+    expect(quizPlayerCode).toContain('t("quiz.chooseOne")');
+    const quizMessages = JSON.parse(readFileSync("messages/id/learning.json", "utf8")).quiz;
+    expect(quizMessages.multipleChoice).toBe("Pilihan jamak");
+    expect(quizMessages.singleChoice).toBe("Pilihan tunggal");
+    expect(quizMessages.chooseAllCorrect).toBe("Pilih semua jawaban yang benar");
+    expect(quizMessages.chooseOne).toBe("Pilih satu jawaban");
   });
 
   it("ensures QuizPlayer renders circle vs boxie checkbox option indicators", () => {

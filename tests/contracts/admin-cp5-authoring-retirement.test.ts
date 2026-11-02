@@ -60,9 +60,11 @@ describe("CP5: Retirement of browser manual authoring and clean global navigatio
     it("keeps Generasi Soal and Distraktor as secondary actions on Bank Soal page", () => {
       const questionsPage = source("app/(admin)/admin/(eval)/questions/page.tsx");
       expect(questionsPage).toContain('href="/admin/jobs"');
-      expect(questionsPage).toContain("Generasi Soal");
+      expect(questionsPage).toContain('messageKey="routes.generationJobs"');
+      expect(JSON.parse(source("messages/id/adminEval.json")).routes.generationJobs).toBe("Generasi Soal");
       expect(questionsPage).toContain('href="/admin/distractors"');
-      expect(questionsPage).toContain("Distraktor");
+      expect(questionsPage).toContain('messageKey="routes.distractors"');
+      expect(JSON.parse(source("messages/id/adminEval.json")).routes.distractors).toBe("Analitik Distraktor");
     });
 
     it("does not list Generasi Soal or Distraktor as sidebar items", () => {

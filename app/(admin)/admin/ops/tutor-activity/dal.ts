@@ -149,8 +149,8 @@ export function buildTutorScopeCondition(): SQL {
       INNER JOIN ${peran} ON ${penggunaPeran.peranId} = ${peran.id}
       WHERE ${peran.code} = 'tutor'
     )`,
-    sql`json_extract(${auditMutasi.afterSnapshot}, '$.actorRoles') LIKE '%"tutor"%'`,
-    sql`json_extract(${auditMutasi.beforeSnapshot}, '$.actorRoles') LIKE '%"tutor"%'`,
+    sql`(${auditMutasi.afterSnapshot}::jsonb -> 'actorRoles')::text LIKE '%"tutor"%'`,
+    sql`(${auditMutasi.beforeSnapshot}::jsonb -> 'actorRoles')::text LIKE '%"tutor"%'`,
     sql`${auditMutasi.action} LIKE 'tutor:%'`,
     sql`${auditMutasi.action} LIKE 'workflow:tutor%'`,
   )!;

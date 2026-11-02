@@ -87,12 +87,15 @@ else:
                 "FAKE_ROOT": str(root), "SCENARIO": scenario,
                 "GITHUB_STEP_SUMMARY": str(root / "summary.md"),
                 "GITHUB_STAGING_SECRETS": json.dumps({
-                    "TURSO_CONNECTION_URL": "libsql://zyx-staging-soezyxstt.aws-ap-south-1.turso.io",
+                    "DATABASE_URL": "postgresql://user:dummy@ep-staging.example.neon.tech/neondb",
+                    "NEON_STORAGE_BUCKET": "staging-bucket", "AWS_ENDPOINT_URL_S3": "https://br-staging.storage.c-3.ap-southeast-1.aws.neon.tech",
+                    "AWS_REGION": "ap-southeast-1", "AWS_ACCESS_KEY_ID": "dummy", "AWS_SECRET_ACCESS_KEY": "dummy",
                     **{key: "dummy-runtime-value" for key in ("TURSO_AUTH_TOKEN", "BETTER_AUTH_SECRET",
                        "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "RESEND_API_KEY", "GEMINI_API_KEY", "INNGEST_EVENT_KEY")},
                     "GCP_SERVICE_ACCOUNT_KEY": "never-copy-this-ci-key",
                 }),
-                "GITHUB_STAGING_VARS": "{}",
+                "GITHUB_STAGING_VARS": json.dumps({"NEON_EXPECTED_HOST": "ep-staging.example.neon.tech", "STORAGE_PROVIDER_MODE": "neon",
+                    "NEON_EXPECTED_STORAGE_ENDPOINT": "https://br-staging.storage.c-3.ap-southeast-1.aws.neon.tech", "NEON_EXPECTED_STORAGE_BUCKET": "staging-bucket"}),
             }
             result = subprocess.run(["bash", str(SCRIPT)], env=env, capture_output=True, text=True)
             calls = [json.loads(line) for line in (root / "calls.jsonl").read_text().splitlines()] if (root / "calls.jsonl").exists() else []
@@ -142,8 +145,9 @@ else:
     def test_manual_service_gets_github_runtime_settings_before_traffic_switch(self):
         result, calls, _ = self.deploy(manual=True)
         self.assertEqual(result.returncode, 0, result.stderr)
-        for key in ("DATABASE_URL", "TURSO_DATABASE_URL", "TURSO_CONNECTION_URL"):
-            self.assertEqual(self.last_runtime[key], "libsql://zyx-staging-soezyxstt.aws-ap-south-1.turso.io")
+        self.assertEqual(self.last_runtime["DATABASE_URL"], "postgresql://user:dummy@ep-staging.example.neon.tech/neondb")
+        self.assertEqual(self.last_runtime["TURSO_DATABASE_URL"], "file:old.db")
+        self.assertEqual(self.last_runtime["STORAGE_PROVIDER_MODE"], "neon")
         self.assertEqual(self.last_runtime["ZYX_ENVIRONMENT"], "staging")
         self.assertNotIn("GCP_SERVICE_ACCOUNT_KEY", self.last_runtime)
 

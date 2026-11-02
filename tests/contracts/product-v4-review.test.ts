@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
-import { Database } from "bun:sqlite";
-import { drizzle } from "drizzle-orm/bun-sqlite";
+import { createPostgresTestDb } from "../helpers/postgres";
+import { eq } from "drizzle-orm";
+import * as schema from "@/db/schema";
 import { assertProductV4ReviewCardinality, computeProductV4SectionSemanticHash, validateProductV4ReviewContext } from "@/lib/bundle/product-v4-review";
 import { claimProductReviewSnapshot } from "@/lib/bundle/product-review-snapshot";
 import { PEDAGOGIC_CRITERION_IDS, QUALITY_POLICY_VERSION } from "@/lib/materials/quality-policy";
@@ -42,19 +43,29 @@ test("section semantic hashes include bound visual closure but ignore unrelated 
 });
 
 test("review snapshot CAS rejects concurrent publication, replacement, and evidence mutation", async () => {
-  const sqlite = new Database(":memory:");
-  sqlite.exec("CREATE TABLE impor_bundle (id TEXT PRIMARY KEY, status TEXT, checksum TEXT, source_uri_or_key TEXT, validation_report TEXT, updated_at INTEGER)");
-  const connection = drizzle(sqlite) as unknown as Parameters<typeof claimProductReviewSnapshot>[0];
+  const { client, testDb } = await createPostgresTestDb();
+  const connection = testDb as unknown as Parameters<typeof claimProductReviewSnapshot>[0];
   const row = { id: "import", status: "draft", checksum: hash, sourceUriOrKey: "bundle.zip", validationReport: { valid: true } } as Parameters<typeof claimProductReviewSnapshot>[1];
-  const reset = () => { sqlite.exec("DELETE FROM impor_bundle"); sqlite.query("INSERT INTO impor_bundle VALUES (?, ?, ?, ?, ?, ?)").run(row.id, row.status, row.checksum, row.sourceUriOrKey, JSON.stringify(row.validationReport), 0); };
+  const reset = async () => {
+    await testDb.delete(schema.imporBundle);
+    await testDb.insert(schema.imporBundle).values({ ...row, bundleId: "bundle", bundleType: "product", requestedBy: "reviewer", updatedAt: new Date(0) });
+  };
   try {
-    reset(); await claimProductReviewSnapshot(connection, row, new Date(1));
-    for (const mutation of ["status = 'published'", "checksum = 'changed'", "source_uri_or_key = 'replacement.zip'", "validation_report = '{}'"]) {
-      reset(); sqlite.exec(`UPDATE impor_bundle SET ${mutation}`);
+    await testDb.insert(schema.user).values({ id: "reviewer", name: "Reviewer", email: "reviewer@example.test" });
+    await testDb.insert(schema.pengguna).values({ id: "reviewer" });
+    await reset(); await claimProductReviewSnapshot(connection, row, new Date(1));
+    for (const mutation of [
+      { status: "published" as const },
+      { checksum: "changed" },
+      { sourceUriOrKey: "replacement.zip" },
+      { validationReport: {} },
+    ]) {
+      await reset(); await testDb.update(schema.imporBundle).set(mutation).where(eq(schema.imporBundle.id, row.id));
       await expect(claimProductReviewSnapshot(connection, row, new Date(2))).rejects.toThrow("STALE_CONTEXT");
-      expect(sqlite.query("SELECT status FROM impor_bundle").get()).toEqual({ status: mutation.startsWith("status") ? "published" : "draft" });
+      const [actual] = await testDb.select({ status: schema.imporBundle.status }).from(schema.imporBundle);
+      expect(actual).toEqual({ status: "status" in mutation ? "published" : "draft" });
     }
-    expect(sqlite.query("SELECT status FROM impor_bundle").get()).toEqual({ status: "draft" });
-  } finally { sqlite.close(); }
+    const [actual] = await testDb.select({ status: schema.imporBundle.status }).from(schema.imporBundle);
+    expect(actual).toEqual({ status: "draft" });
+  } finally { await client.close(); }
 });
-

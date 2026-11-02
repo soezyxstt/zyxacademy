@@ -1,19 +1,32 @@
-import { describe, expect, it, mock, beforeEach, beforeAll } from "bun:test";
+import { afterAll, describe, expect, it, mock, beforeEach, beforeAll } from "bun:test";
 import { createHmac, randomUUID } from "node:crypto";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { createPostgresTestDb } from "../helpers/postgres";
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import { NextRequest } from "next/server";
 import { env } from "@/lib/env";
 
 let mockSession: any = null;
+mock.module("server-only", () => ({}));
 
-const client = createClient({ url: "file::memory:?cache=shared" });
-const testDb = drizzle(client, { schema });
+let client: Awaited<ReturnType<typeof createPostgresTestDb>>["client"];
+let testDb: Awaited<ReturnType<typeof createPostgresTestDb>>["testDb"];
+const dbProxy = new Proxy({} as typeof testDb, {
+  get(_target, key) {
+    const value = Reflect.get(testDb, key);
+    return typeof value === "function" ? value.bind(testDb) : value;
+  },
+});
+beforeAll(async () => { ({ client, testDb } = await createPostgresTestDb()); }, 60_000);
+afterAll(async () => { await client?.close(); });
+
+async function clearTestData() {
+  const result = await client.query<{ tablename: string }>("SELECT tablename FROM pg_tables WHERE schemaname = 'public'");
+  if (result.rows.length) await client.exec(`TRUNCATE TABLE ${result.rows.map(({ tablename }) => `"${tablename.replaceAll('"', '""')}"`).join(", ")} CASCADE`);
+}
 
 mock.module("@/db", () => ({
-  db: testDb,
+  db: dbProxy,
 }));
 
 mock.module("@/lib/auth", () => ({
@@ -26,6 +39,7 @@ mock.module("@/lib/auth", () => ({
 
 mock.module("next/headers", () => ({
   headers: async () => new Headers(),
+  cookies: async () => ({ get: () => undefined }),
 }));
 
 mock.module("@/lib/env", () => ({
@@ -120,275 +134,6 @@ import LegacyCourseLiveHostPage from "@/app/(student)/courses/[id]/live/host/pag
 
 const { LiveQuizRoom, verifyHmacToken } = await import("@/workers/realtime/src/room");
 
-async function setupTables() {
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS user (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      role TEXT DEFAULT 'student',
-      last_activity_at INTEGER
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna (
-      id TEXT PRIMARY KEY REFERENCES user(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS peran (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna_peran (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      peran_id TEXT NOT NULL REFERENCES peran(id),
-      source TEXT NOT NULL,
-      audit_actor_pengguna_id TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS courses (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT 'Matematika',
-      description TEXT
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS mata_kuliah (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'active',
-      legacy_course_id TEXT REFERENCES courses(id),
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS penugasan_tutor (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      assignment_scope TEXT NOT NULL DEFAULT 'course',
-      legacy_tutor_course_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS tutor_courses (
-      id TEXT PRIMARY KEY,
-      tutor_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS quiz_templates (
-      id TEXT PRIMARY KEY,
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      title TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT 'daily',
-      visibility TEXT NOT NULL DEFAULT 'free',
-      status TEXT NOT NULL DEFAULT 'draft',
-      time_limit_seconds INTEGER,
-      max_attempts INTEGER,
-      selection_rules TEXT NOT NULL,
-      open_at INTEGER,
-      close_at INTEGER,
-      manual_status TEXT NOT NULL DEFAULT 'open',
-      show_discussion INTEGER NOT NULL DEFAULT 1,
-      spreadsheet_id TEXT,
-      spreadsheet_url TEXT,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS ai_question_bank (
-      id TEXT PRIMARY KEY,
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      source_section_id TEXT,
-      origin TEXT NOT NULL DEFAULT 'zyx_original',
-      source_event_name TEXT,
-      source_reference_id TEXT,
-      assessment_source_id TEXT,
-      source_question_number TEXT,
-      source_question_part TEXT,
-      source_page INTEGER,
-      answer_provenance TEXT,
-      solution_provenance TEXT,
-      knowledge_object_id TEXT,
-      source_mtd_id TEXT,
-      source_mtd_version INTEGER,
-      generation_hash TEXT,
-      generation_run_id TEXT,
-      status TEXT NOT NULL DEFAULT 'active',
-      is_stale INTEGER NOT NULL DEFAULT 0,
-      difficulty TEXT NOT NULL DEFAULT 'medium',
-      question_type TEXT NOT NULL DEFAULT 'multiple_choice',
-      tags TEXT NOT NULL DEFAULT '[]',
-      prompt TEXT NOT NULL,
-      options TEXT NOT NULL,
-      correct_indices TEXT NOT NULL,
-      acceptable_answers TEXT,
-      distractor_map TEXT NOT NULL DEFAULT '[]',
-      explanation TEXT NOT NULL,
-      review_status TEXT NOT NULL DEFAULT 'generated',
-      quiz_eligible INTEGER NOT NULL DEFAULT 0,
-      quality_score REAL,
-      use_count INTEGER NOT NULL DEFAULT 0,
-      styled_after_assessment_object_id TEXT,
-      pattern TEXT,
-      reasoning_type TEXT,
-      application_level INTEGER,
-      estimated_steps INTEGER,
-      created_at INTEGER NOT NULL DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer))
-    );
-  `);
-
-  await client.execute(
-    "ALTER TABLE ai_question_bank ADD COLUMN quiz_eligible INTEGER NOT NULL DEFAULT 0",
-  ).catch(() => {});
-  for (const columnDefinition of [
-    "assessment_source_id TEXT",
-    "source_question_number TEXT",
-    "source_question_part TEXT",
-    "source_page INTEGER",
-    "answer_provenance TEXT",
-    "solution_provenance TEXT",
-  ]) {
-    await client.execute(`ALTER TABLE ai_question_bank ADD COLUMN ${columnDefinition}`).catch(() => {});
-  }
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS live_quiz_sessions (
-      id TEXT PRIMARY KEY,
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      tutor_id TEXT NOT NULL REFERENCES user(id),
-      template_id TEXT,
-      code TEXT NOT NULL UNIQUE,
-      state TEXT NOT NULL DEFAULT 'lobby',
-      questions_snapshot TEXT NOT NULL,
-      participant_count INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      ended_at INTEGER,
-      delivery_status TEXT NOT NULL DEFAULT 'pending',
-      delivery_claimed_at INTEGER,
-      delivery_claim_token TEXT,
-      delivered_at INTEGER
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS mastery_recompute_queue (
-      id TEXT PRIMARY KEY,
-      student_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      status TEXT NOT NULL DEFAULT 'pending',
-      reason TEXT NOT NULL,
-      retries INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS learning_events (
-      id TEXT PRIMARY KEY,
-      student_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      concept_name TEXT,
-      ko_id TEXT,
-      event_type TEXT NOT NULL,
-      correctness REAL,
-      weight REAL NOT NULL DEFAULT 1,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS live_quiz_results (
-      id TEXT PRIMARY KEY,
-      session_id TEXT NOT NULL REFERENCES live_quiz_sessions(id),
-      student_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      score INTEGER NOT NULL DEFAULT 0,
-      rank INTEGER,
-      answers_snapshot TEXT NOT NULL,
-      completed_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS audit_mutasi (
-      id TEXT PRIMARY KEY,
-      actor_id TEXT NOT NULL,
-      entity_type TEXT NOT NULL,
-      entity_id TEXT NOT NULL,
-      action TEXT NOT NULL,
-      before_snapshot TEXT,
-      after_snapshot TEXT NOT NULL,
-      correlation_id TEXT NOT NULL,
-      course_id TEXT NOT NULL,
-      outcome TEXT NOT NULL DEFAULT 'success',
-      reason TEXT NOT NULL,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute("PRAGMA foreign_keys = ON;");
-}
-
-async function cleanTables() {
-  await client.execute("DELETE FROM audit_mutasi").catch(() => {});
-  await client.execute("DELETE FROM learning_events").catch(() => {});
-  await client.execute("DELETE FROM zyra_proposal_events").catch(() => {});
-  await client.execute("DELETE FROM zyra_proposals").catch(() => {});
-  await client.execute("DELETE FROM live_quiz_results").catch(() => {});
-  await client.execute("DELETE FROM live_quiz_sessions").catch(() => {});
-  await client.execute("DELETE FROM ai_question_bank").catch(() => {});
-  await client.execute("DELETE FROM quiz_templates").catch(() => {});
-  await client.execute("DELETE FROM penugasan_tutor").catch(() => {});
-  await client.execute("DELETE FROM tutor_courses").catch(() => {});
-  await client.execute("DELETE FROM pengguna_peran").catch(() => {});
-  await client.execute("DELETE FROM mata_kuliah").catch(() => {});
-  await client.execute("DELETE FROM courses").catch(() => {});
-  await client.execute("DELETE FROM pengguna").catch(() => {});
-  await client.execute("DELETE FROM user").catch(() => {});
-  await client.execute("DELETE FROM peran").catch(() => {});
-
-  await testDb.insert(schema.peran).values([
-    { id: "peran-admin", code: "admin" },
-    { id: "peran-tutor", code: "tutor" },
-    { id: "peran-murid", code: "murid" },
-  ]);
-}
-
 // Seeds a legacy courses row plus its active canonical mata_kuliah mapping,
 // mirroring production data for the legacy course foreign keys.
 async function seedCoursePair(
@@ -414,12 +159,14 @@ async function seedCoursePair(
 }
 
 describe("Tutor Live Hosting & Canonical Access Control", () => {
-  beforeAll(async () => {
-    await setupTables();
-  });
 
   beforeEach(async () => {
-    await cleanTables();
+    await clearTestData();
+    await testDb.insert(schema.peran).values([
+      { id: "peran-admin", code: "admin" },
+      { id: "peran-tutor", code: "tutor" },
+      { id: "peran-murid", code: "murid" },
+    ]);
     mockSession = null;
     inngestSentEvents.length = 0;
     recordedEventsList.length = 0;
@@ -488,7 +235,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       title: "Kuis Bab 1 Turunan",
       category: "weekly",
       status: "published",
-      selectionRules: JSON.stringify({ count: 5, assessmentType: "quiz" }),
+      selectionRules: { count: 5, assessmentType: "quiz" },
     });
 
     mockSession = {
@@ -569,7 +316,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       title: "Kuis Bab 1",
       category: "weekly",
       status: "published",
-      selectionRules: JSON.stringify({ count: 5 }),
+      selectionRules: { count: 5 },
     });
 
     mockSession = {
@@ -642,7 +389,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       title: "Kuis Draft",
       category: "weekly",
       status: "draft",
-      selectionRules: JSON.stringify({ count: 5 }),
+      selectionRules: { count: 5 },
     });
 
     mockSession = {
@@ -713,7 +460,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       title: "Simulasi Ujian",
       category: "simulation",
       status: "published",
-      selectionRules: JSON.stringify({ count: 20 }),
+      selectionRules: { count: 20 },
     });
 
     mockSession = {
@@ -811,7 +558,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       tutorId: "usr-owner",
       code: "XYZ999",
       state: "lobby",
-      questionsSnapshot: JSON.stringify([{ prompt: "P1", options: ["A", "B"], correctIndex: 0 }]),
+      questionsSnapshot: [{ prompt: "P1", options: ["A", "B"], correctIndex: 0 }],
       participantCount: 0,
     });
 
@@ -1021,7 +768,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       title: "Kuis Bab 1",
       category: "weekly",
       status: "published",
-      selectionRules: JSON.stringify({ count: 5 }),
+      selectionRules: { count: 5 },
     });
 
     mockSession = {
@@ -1151,7 +898,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       title: "Kuis Soal Hilang",
       category: "weekly",
       status: "published",
-      selectionRules: JSON.stringify({ questionIds: ["q-ghost-1", "q-ghost-2"] }),
+      selectionRules: { questionIds: ["q-ghost-1", "q-ghost-2"] },
     });
 
     mockSession = {
@@ -1180,8 +927,8 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       id: "q-fisika-1",
       courseId: "crs-fisika",
       prompt: "Berapa kecepatan awal?",
-      options: JSON.stringify(["10 m/s", "20 m/s"]),
-      correctIndices: JSON.stringify([0]),
+      options: ["10 m/s", "20 m/s"],
+      correctIndices: [0],
       origin: "zyx_original",
       explanation: "Kecepatan awal adalah nilai v saat t = 0.",
       reviewStatus: "published",
@@ -1193,7 +940,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       title: "Kuis Soal Fisika di Kalkulus",
       category: "weekly",
       status: "published",
-      selectionRules: JSON.stringify({ questionIds: ["q-fisika-1"] }),
+      selectionRules: { questionIds: ["q-fisika-1"] },
     });
 
     const req2 = new NextRequest("http://localhost/api/live/sessions", {
@@ -1219,8 +966,8 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
         id: "q-calc-1",
         courseId: "crs-kalkulus",
         prompt: "Turunan dari x^2?",
-        options: JSON.stringify(["2x", "x^2", "2", "x"]),
-        correctIndices: JSON.stringify([0]),
+        options: ["2x", "x^2", "2", "x"],
+        correctIndices: [0],
         origin: "zyx_original",
         explanation: "Aturan pangkat menghasilkan 2x.",
         reviewStatus: "published",
@@ -1229,8 +976,8 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
         id: "q-calc-2",
         courseId: "crs-kalkulus",
         prompt: "Integral dari 2x dx?",
-        options: JSON.stringify(["x^2 + C", "2x^2 + C"]),
-        correctIndices: JSON.stringify([0]),
+        options: ["x^2 + C", "2x^2 + C"],
+        correctIndices: [0],
         origin: "zyx_original",
         explanation: "Integral tak tentu dari 2x adalah x^2 + C.",
         reviewStatus: "published",
@@ -1243,7 +990,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       title: "Kuis Soal Valid",
       category: "weekly",
       status: "published",
-      selectionRules: JSON.stringify({ questionIds: ["q-calc-2", "q-calc-1"] }),
+      selectionRules: { questionIds: ["q-calc-2", "q-calc-1"] },
     });
 
     const req3 = new NextRequest("http://localhost/api/live/sessions", {
@@ -1277,8 +1024,8 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       courseId: "crs-kalkulus",
       origin: "historical_reference",
       prompt: "Soal historis belum siap",
-      options: JSON.stringify(["A", "B"]),
-      correctIndices: JSON.stringify([0]),
+      options: ["A", "B"],
+      correctIndices: [0],
       explanation: "Belum siap untuk quiz.",
       reviewStatus: "published",
       quizEligible: false,
@@ -1289,7 +1036,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       title: "Kuis Historis Belum Siap",
       category: "weekly",
       status: "published",
-      selectionRules: JSON.stringify({ questionIds: ["q-historical-ineligible"] }),
+      selectionRules: { questionIds: ["q-historical-ineligible"] },
     });
 
     const blockedHistorical = await createLiveSession(
@@ -1314,7 +1061,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       title: "Kuis Historis Siap",
       category: "weekly",
       status: "published",
-      selectionRules: JSON.stringify({ questionIds: ["q-historical-ineligible"] }),
+      selectionRules: { questionIds: ["q-historical-ineligible"] },
     });
 
     const eligibleHistorical = await createLiveSession(
@@ -1502,7 +1249,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       tutorId: "usr-tutor-resume",
       code: "RES001",
       state: "lobby",
-      questionsSnapshot: JSON.stringify([{ prompt: "P1" }, { prompt: "P2" }]),
+      questionsSnapshot: [{ prompt: "P1" }, { prompt: "P2" }],
       participantCount: 3,
     });
 
@@ -1580,7 +1327,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       title: "Kuis Mata Kuliah Lain",
       category: "weekly",
       status: "published",
-      selectionRules: JSON.stringify({ count: 5 }),
+      selectionRules: { count: 5 },
     });
 
     const req1 = new NextRequest("http://localhost/api/live/sessions", {
@@ -1620,7 +1367,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       title: "Kuis Bab 1",
       category: "weekly",
       status: "published",
-      selectionRules: JSON.stringify({ count: 5 }),
+      selectionRules: { count: 5 },
     });
 
     const req2 = new NextRequest("http://localhost/api/live/sessions", {
@@ -1672,7 +1419,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       title: "Kuis Tanpa Pemetaan",
       category: "weekly",
       status: "published",
-      selectionRules: JSON.stringify({ count: 5 }),
+      selectionRules: { count: 5 },
     });
 
     const req3 = new NextRequest("http://localhost/api/live/sessions", {
@@ -1964,7 +1711,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       title: "Kuis Biologi Sel",
       category: "weekly",
       status: "published",
-      selectionRules: JSON.stringify({ count: 5 }),
+      selectionRules: { count: 5 },
     });
 
     mockSession = {
@@ -2109,9 +1856,9 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       tutorId: "usr-tutor-cb",
       code: "ALJ001",
       state: "lobby",
-      questionsSnapshot: JSON.stringify([
+      questionsSnapshot: [
         { prompt: "Determinan dari matriks identitas?", options: ["0", "1"], correctIndex: 1 },
-      ]),
+      ],
       participantCount: 0,
     });
 
@@ -2280,7 +2027,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       title: "Kuis Statistika 1",
       category: "weekly",
       status: "published",
-      selectionRules: JSON.stringify({ count: 5 }),
+      selectionRules: { count: 5 },
     });
 
     mockSession = {
@@ -2388,9 +2135,9 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       tutorId: "usr-tutor-conc",
       code: "CNC001",
       state: "lobby",
-      questionsSnapshot: JSON.stringify([
+      questionsSnapshot: [
         { prompt: "Q1", options: ["A", "B"], correctIndex: 0 },
-      ]),
+      ],
       participantCount: 0,
     });
 
@@ -2476,9 +2223,9 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       tutorId: "usr-tutor-retry",
       code: "RTR001",
       state: "lobby",
-      questionsSnapshot: JSON.stringify([
+      questionsSnapshot: [
         { prompt: "Q1", options: ["A", "B"], correctIndex: 0 },
-      ]),
+      ],
       participantCount: 0,
     });
 
@@ -2625,9 +2372,9 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       tutorId: "usr-tutor-lease",
       code: "LSE001",
       state: "lobby",
-      questionsSnapshot: JSON.stringify([
+      questionsSnapshot: [
         { prompt: "Q1", options: ["A", "B"], correctIndex: 0 },
-      ]),
+      ],
       participantCount: 0,
     });
 
@@ -2732,9 +2479,9 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       tutorId: "usr-tutor-lease",
       code: "STL001",
       state: "ended",
-      questionsSnapshot: JSON.stringify([
+      questionsSnapshot: [
         { prompt: "Q1", options: ["A", "B"], correctIndex: 0 },
-      ]),
+      ],
       participantCount: 1,
       deliveryStatus: "processing",
       deliveryClaimedAt: expiredClaimTime,
@@ -2837,10 +2584,10 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       tutorId: "usr-tutor-part",
       code: "PRT001",
       state: "lobby",
-      questionsSnapshot: JSON.stringify([
+      questionsSnapshot: [
         { prompt: "Q1", options: ["A", "B"], correctIndex: 0 },
         { prompt: "Q2", options: ["C", "D"], correctIndex: 1 },
-      ]),
+      ],
       participantCount: 0,
     });
 
@@ -2994,9 +2741,9 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       tutorId: "usr-tutor-fence",
       code: "FNC001",
       state: "lobby",
-      questionsSnapshot: JSON.stringify([
+      questionsSnapshot: [
         { prompt: "Q1", options: ["A", "B"], correctIndex: 0 },
-      ]),
+      ],
       participantCount: 0,
     });
 
@@ -3202,9 +2949,9 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       tutorId: "usr-tutor-cas",
       code: "CAS001",
       state: "lobby",
-      questionsSnapshot: JSON.stringify([
+      questionsSnapshot: [
         { prompt: "Q1", options: ["A", "B"], correctIndex: 0 },
-      ]),
+      ],
       participantCount: 0,
       deliveryStatus: "pending",
       deliveryClaimToken: null,
@@ -3451,7 +3198,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       title: "Kuis Statistika 2",
       category: "weekly",
       status: "published",
-      selectionRules: JSON.stringify({ count: 5 }),
+      selectionRules: { count: 5 },
     });
 
     mockSession = {

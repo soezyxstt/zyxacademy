@@ -1,6 +1,5 @@
-import { describe, expect, it, mock } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { afterEach, beforeAll, describe, expect, it, mock } from "bun:test";
+import { createPostgresTestDb, preparePostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
 
 // The DAL declares `import "server-only"` as a server boundary marker. The marker
@@ -18,89 +17,20 @@ const {
   validateCursor,
 } = await import("@/app/(admin)/admin/ops/tutor-activity/dal");
 
+const clients: Array<Awaited<ReturnType<typeof createPostgresTestDb>>["client"]> = [];
+beforeAll(preparePostgresTestDb, 60_000);
+afterEach(async () => { for (const client of clients.splice(0)) await client.close(); });
+
 async function createTestDb() {
-  const client = createClient({ url: ":memory:" });
-  const testDb = drizzle(client, { schema });
+  const { client, testDb } = await createPostgresTestDb();
+  clients.push(client);
 
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS user (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      role TEXT DEFAULT 'student',
-      last_activity_at INTEGER
-    );
-  `);
 
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna (
-      id TEXT PRIMARY KEY REFERENCES user(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
 
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS peran (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      created_at INTEGER NOT NULL
-    );
-  `);
 
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna_peran (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      peran_id TEXT NOT NULL REFERENCES peran(id),
-      source TEXT NOT NULL,
-      audit_actor_pengguna_id TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
 
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS courses (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT 'Matematika',
-      description TEXT
-    );
-  `);
 
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS mata_kuliah (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'active',
-      legacy_course_id TEXT REFERENCES courses(id),
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
 
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS audit_mutasi (
-      id TEXT PRIMARY KEY,
-      actor_id TEXT REFERENCES pengguna(id) ON DELETE SET NULL,
-      entity_type TEXT NOT NULL,
-      entity_id TEXT NOT NULL,
-      action TEXT NOT NULL,
-      before_snapshot TEXT,
-      after_snapshot TEXT,
-      correlation_id TEXT,
-      course_id TEXT,
-      outcome TEXT,
-      reason TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
 
   // Seed roles
   const now = new Date("2026-08-15T00:00:00.000Z");
@@ -178,7 +108,8 @@ describe("Tutor Activity Log Query and Pagination Contract", () => {
       expect(res.items[0].outcome).toBe("unclassified");
       expect(res.items[0].outcome).not.toBe("success");
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -255,7 +186,8 @@ describe("Tutor Activity Log Query and Pagination Contract", () => {
       expect(stats.failed).toBe(1);
       expect(stats.unclassified).toBe(1);
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -329,7 +261,8 @@ describe("Tutor Activity Log Query and Pagination Contract", () => {
       expect(legacyItem?.actorName).toBe("Dr. Budi Santoso");
       expect(legacyItem?.courseTitle).toBe("Fisika Dasar 1");
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -388,7 +321,8 @@ describe("Tutor Activity Log Query and Pagination Contract", () => {
       expect(res.items.length).toBe(1);
       expect(res.items[0].id).toBe("mut-single-row");
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -539,7 +473,8 @@ describe("Tutor Activity Log Query and Pagination Contract", () => {
       expect(filterOptions.actions).not.toContain("admin:config:update");
       expect(filterOptions.actions).not.toContain("student:quiz:submit");
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -607,7 +542,8 @@ describe("Tutor Activity Log Query and Pagination Contract", () => {
       expect(filterOptions.actions).not.toContain("admin:role:request");
       expect(filterOptions.entityTypes).not.toContain("user_role");
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -649,7 +585,8 @@ describe("Tutor Activity Log Query and Pagination Contract", () => {
       const resEmpty = await queryTutorActivityLogs({ correlationId: "req-batch" }, testDb);
       expect(resEmpty.items.length).toBe(0);
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -688,7 +625,8 @@ describe("Tutor Activity Log Query and Pagination Contract", () => {
       expect(foundIds).not.toContain("e-prior");
       expect(foundIds).not.toContain("e-next");
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -764,7 +702,8 @@ describe("Tutor Activity Log Query and Pagination Contract", () => {
       expect(page2.items[0].id).toBe("log-item-005");
       expect(page2.items[4].id).toBe("log-item-001");
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -801,7 +740,8 @@ describe("Tutor Activity Log Query and Pagination Contract", () => {
       const notFound = await queryTutorActivityDetail("non-existent-id", testDb);
       expect(notFound).toBeNull();
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 

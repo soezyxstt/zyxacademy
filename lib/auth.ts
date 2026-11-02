@@ -34,7 +34,7 @@ export const auth = betterAuth({
    "https://www.zyxacademy.com",
  ],
  database: drizzleAdapter(db, {
- provider: "sqlite", // Using SQLite/libSQL
+ provider: "pg",
  schema: schema,
  }),
  socialProviders: {

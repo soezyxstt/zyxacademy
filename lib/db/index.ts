@@ -1,38 +1,24 @@
-import { drizzle } from "drizzle-orm/libsql/web";
-import { createClient as createWebClient } from "@libsql/client/web";
+import { drizzle } from "drizzle-orm/node-postgres";
+import pg from "pg";
 import * as schema from "@/db/schema";
+import { parsePostgresNumber } from "./postgres-result";
 
-const url =
-  process.env.TURSO_DATABASE_URL ||
-  process.env.TURSO_CONNECTION_URL ||
-  (process.env.DATABASE_URL && !process.env.DATABASE_URL.startsWith("postgres")
-    ? process.env.DATABASE_URL
+const url = process.env.DATABASE_URL ||
+  (process.env.ZYX_POSTGRES_BUILD_PLACEHOLDER === "1"
+    ? "postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder"
     : undefined);
 
-const authToken = process.env.TURSO_AUTH_TOKEN;
+if (!url) throw new Error("DATABASE_URL is required");
 
-const isRemoteTurso =
-  Boolean(url) &&
-  (url!.startsWith("libsql://") ||
-    url!.startsWith("https://") ||
-    url!.startsWith("http://") ||
-    url!.startsWith("wss://") ||
-    url!.startsWith("ws://"));
-
-let client;
-if (isRemoteTurso) {
-  client = createWebClient({ url: url!, authToken });
-} else {
-  const localUrl = url || "file:dev.db";
-
-  if (localUrl.startsWith("libsql://") || localUrl.startsWith("https://") || localUrl.startsWith("http://")) {
-    client = createWebClient({ url: localUrl, authToken });
-  } else {
-    // Next externalizes @libsql/client, so native SQLite loads only on this path.
-    // Remote Turso continues to use the web client above.
-    const { createClient: createNodeClient } = require("@libsql/client") as typeof import("@libsql/client");
-    client = createNodeClient({ url: localUrl });
-  }
+try {
+  const parsed = new URL(url);
+  if ((parsed.protocol !== "postgres:" && parsed.protocol !== "postgresql:") || !parsed.hostname) throw new Error();
+} catch {
+  throw new Error("DATABASE_URL must be a PostgreSQL connection URL");
 }
 
-export const db = drizzle(client, { schema });
+const { Pool, types } = pg;
+types.setTypeParser(20, "text", parsePostgresNumber);
+types.setTypeParser(1700, "text", parsePostgresNumber);
+
+export const db = drizzle(new Pool({ connectionString: url }), { schema });

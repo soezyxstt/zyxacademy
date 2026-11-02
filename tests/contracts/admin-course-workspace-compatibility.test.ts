@@ -219,10 +219,9 @@ describe("CP6 Admin Course Workspace Compatibility Routes & Reverse Resolvers Co
   });
 
   describe("5. Site search index clean state (no stale global course-scoped surfaces)", () => {
-    test("does not contain stale global Kuis, leaderboard, analytics, or Review Materi routes", () => {
+    test("does not contain stale global Kuis, analytics, or Review Materi routes", () => {
       const staticHrefs = STATIC_PAGES.map((p) => p.href);
       expect(staticHrefs).not.toContain("/admin/quizzes");
-      expect(staticHrefs).not.toContain("/admin/leaderboard");
       expect(staticHrefs).not.toContain("/admin/quiz-insights");
       expect(staticHrefs).not.toContain("/admin/materials/review");
       expect(staticHrefs).not.toContain("/admin/materials/manual");
@@ -232,6 +231,7 @@ describe("CP6 Admin Course Workspace Compatibility Routes & Reverse Resolvers Co
       const staticHrefs = STATIC_PAGES.map((p) => p.href);
       expect(staticHrefs).toContain("/admin");
       expect(staticHrefs).toContain("/admin/courses");
+      expect(staticHrefs).toContain("/admin/leaderboard");
       expect(staticHrefs).toContain("/admin/questions");
       expect(staticHrefs).toContain("/admin/jobs");
       expect(staticHrefs).toContain("/admin/distractors");

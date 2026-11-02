@@ -19,7 +19,7 @@ import {
 import { auth } from '@/lib/auth';
 import { hasAnyPeran } from '@/lib/auth/authorization';
 import { headers } from 'next/headers';
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { questionAuthoringInputSchema, canonicalQuestionStatus } from '@/lib/question-authoring-contract';
 import { createCanonicalQuestion, QuestionAuthoringError } from '@/lib/question-authoring';
 
@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
     .select()
     .from(aiQuestionBank)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(sql`(CASE WHEN ${aiQuestionBank.createdAt} > 10000000000 THEN ${aiQuestionBank.createdAt} / 1000 ELSE ${aiQuestionBank.createdAt} END) DESC`)
+    .orderBy(desc(aiQuestionBank.createdAt))
     .limit(limit)
     .offset(offset);
 

@@ -50,6 +50,12 @@ The deployment targets only `zyx-academy/asia-east1/zyx-academy`. It synchronize
 
 The image runs as an unprivileged Node 24 user and uses the traced server, static assets and public files. The Docker build context is allowlisted by `Dockerfile.cloud-run.dockerignore`. Root `.env` files, keys, local databases and generated Google credentials do not enter the image. Chromium is not downloaded; deployed browser work stays on the existing external providers. Only the isolated Next build process skips server environment validation. Sitemap generation requires the existing staging Turso URL/token as process environment values; the workflow checks the exact staging database hostname before building. These credentials are not image build arguments, copied environment files, or image environment settings. Prefer a read-only token for the build. The final image leaves runtime validation enabled.
 
+## Neon staging integration
+
+The migration branch uses PostgreSQL for both the build and runtime. Before deployment, configure and independently verify GitHub staging variables `NEON_EXPECTED_HOST`, `NEON_EXPECTED_STORAGE_ENDPOINT`, and `NEON_EXPECTED_STORAGE_BUCKET` against the intended staging Neon branch. Set `DATABASE_URL` to that branch's PostgreSQL connection and `STORAGE_PROVIDER_MODE=neon`, with `NEON_STORAGE_BUCKET`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` scoped to its private bucket. The web and Deno workflows reject mismatched targets before external deployment mutation. Preserve existing authentication, compute, browser, Inngest and feature settings.
+
+The earlier Turso build instructions below describe the currently serving artifact and its rollback requirements. The Neon staging cutover is still gated by the [migration runbook](neon-migration.md), including a final write freeze and source reconciliation. Do not change the production environment, reuse the rehearsal database, or restore a Turso URL into PostgreSQL-only code. Preserve the previous immutable image, runtime environment and worker configuration together for rollback.
+
 ## One-time Console setup for CI/CD
 
 These steps can be done through Google Cloud Console and GitHub Settings. No Cloud Shell commands are required.

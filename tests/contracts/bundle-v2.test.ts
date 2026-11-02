@@ -361,7 +361,7 @@ describe("Product Bundle V4 pilot", () => {
     article.sections[0].blocks[0].parts = [{ id: "unresolved", kind: "visual_ref", visualId: "missing-visual" }];
     const unresolved = validateProductBundle(buildTestBundleBytes([article], "product-bundle.v4"));
     expect(unresolved.success).toBe(false);
-    if (!unresolved.success) expect(unresolved.issues[0].code).toBe("PRODUCT_BLOCK_VISUAL_REFERENCE_INVALID");
+    if (!unresolved.success) expect(unresolved.issues[0].code).toBe("ARTICLE_PART_VISUAL_MISSING");
     expect(validateProductBundle(buildTestBundleBytes([article], "product-bundle.v3")).success).toBe(false);
   });
 

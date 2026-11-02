@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { and, desc, eq, like, or } from "drizzle-orm";
+import { and, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db";
 import {
   artikel,
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
         .where(
           and(
             courseId ? eq(diktatMateri.mataKuliahId, courseId) : undefined,
-            q ? or(like(diktatMateri.title, `%${q}%`), like(diktatMateri.id, `%${q}%`)) : undefined,
+            q ? or(ilike(diktatMateri.title, `%${q}%`), ilike(diktatMateri.id, `%${q}%`)) : undefined,
           )
         )
         .orderBy(desc(diktatMateri.createdAt))
@@ -110,7 +110,7 @@ export async function GET(request: Request) {
         .where(
           and(
             courseId ? eq(artikel.mataKuliahId, courseId) : undefined,
-            q ? or(like(artikel.title, `%${q}%`), like(artikel.id, `%${q}%`)) : undefined,
+            q ? or(ilike(artikel.title, `%${q}%`), ilike(artikel.id, `%${q}%`)) : undefined,
           )
         )
         .orderBy(desc(artikel.createdAt))
@@ -152,7 +152,7 @@ export async function GET(request: Request) {
         .where(
           and(
             courseId ? eq(setFlashcard.mataKuliahId, courseId) : undefined,
-            q ? or(like(setFlashcard.title, `%${q}%`), like(setFlashcard.id, `%${q}%`)) : undefined,
+            q ? or(ilike(setFlashcard.title, `%${q}%`), ilike(setFlashcard.id, `%${q}%`)) : undefined,
           )
         )
         .orderBy(desc(setFlashcard.createdAt))
@@ -208,7 +208,7 @@ export async function GET(request: Request) {
         .where(
           and(
             courseId ? eq(blueprintAsesmen.mataKuliahId, courseId) : undefined,
-            q ? or(like(blueprintAsesmen.title, `%${q}%`), like(blueprintAsesmen.id, `%${q}%`)) : undefined,
+            q ? or(ilike(blueprintAsesmen.title, `%${q}%`), ilike(blueprintAsesmen.id, `%${q}%`)) : undefined,
           )
         )
         .orderBy(desc(blueprintAsesmen.createdAt))
@@ -259,7 +259,7 @@ export async function GET(request: Request) {
         .where(
           and(
             courseId ? eq(soal.mataKuliahId, courseId) : undefined,
-            q ? or(like(soal.prompt, `%${q}%`), like(soal.id, `%${q}%`)) : undefined,
+            q ? or(ilike(soal.prompt, `%${q}%`), ilike(soal.id, `%${q}%`)) : undefined,
           )
         )
         .orderBy(desc(soal.createdAt))
