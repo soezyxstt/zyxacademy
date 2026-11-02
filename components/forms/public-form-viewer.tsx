@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import {
   AlertCircle,
   RefreshCw,
@@ -39,7 +39,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { buildFormSteps, formFileSizeLimitMb, isEmptyFormAnswer, type FormStep, type FormDisplayMode } from "@/lib/forms/presentation";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { useTranslations } from "@/lib/i18n/client";
 
@@ -57,6 +60,7 @@ interface QuestionItem {
   scaleHighLabel?: string;
   gridRows?: string[];
   gridColumns?: string[];
+  maxFileSizeMb?: number;
 }
 
 const OTHER_OPTION_MARKER = "\uE000__other__";
@@ -72,16 +76,9 @@ interface FormPayload {
     customSuccessMessage?: string;
     collectEmail?: "none" | "input" | "verified";
     requireLogin?: boolean;
+    displayMode?: FormDisplayMode;
   };
 }
-
-type StepType =
-  | { kind: "cover" }
-  | { kind: "email" }
-  | { kind: "section"; questionIndex: number }
-  | { kind: "statement"; questionIndex: number }
-  | { kind: "question"; questionIndex: number }
-  | { kind: "review" };
 
 const OPTION_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P"];
 
@@ -99,10 +96,13 @@ export function PublicFormViewer({
   const t = useTranslations("publicForms");
   const tRef = useRef(t);
   tRef.current = t;
+  const reducedMotion = useReducedMotion();
   const [form, setForm] = useState<FormPayload | null>(previewForm || null);
   const [loading, setLoading] = useState(!previewForm);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
   const [submittedMessage, setSubmittedMessage] = useState<string | null>(null);
 
   // Form input answers state (with ref to eliminate race conditions / stale closures)
@@ -110,6 +110,7 @@ export function PublicFormViewer({
   const answersRef = useRef<Record<number, any>>({});
 
   const [uploadingQIdx, setUploadingQIdx] = useState<number | null>(null);
+  const uploadInFlightRef = useRef(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
 
   // Email collection state
@@ -151,7 +152,10 @@ export function PublicFormViewer({
     }
   }, []);
 
+  const isFlowing = form?.settings?.displayMode === "section";
+
   const setFocusableRef = useCallback((el: HTMLElement | null) => {
+    if (isFlowing) return;
     if (el) {
       activeFocusRef.current = el;
       requestAnimationFrame(() => {
@@ -162,7 +166,7 @@ export function PublicFormViewer({
         }
       });
     }
-  }, []);
+  }, [isFlowing]);
 
   const fetchForm = useCallback(async () => {
     if (!idOrSlug) return;
@@ -199,37 +203,13 @@ export function PublicFormViewer({
 
   const collectEmail = form?.settings?.collectEmail || "none";
 
-  // Build the unified step sequence
-  const steps: StepType[] = useMemo(() => {
-    if (!form || !form.questions) return [];
-    const list: StepType[] = [];
+  const steps = useMemo(() => buildFormSteps(
+    form?.questions || [], isFlowing ? "section" : "question", collectEmail === "input",
+  ), [form, isFlowing, collectEmail]);
 
-    // 1. Cover / Welcome Step
-    list.push({ kind: "cover" });
-
-    // 2. Email step if collectEmail === "input"
-    if (collectEmail === "input") {
-      list.push({ kind: "email" });
-    }
-
-    // 3. Question, Section & Statement steps
-    form.questions.forEach((q, qIdx) => {
-      if (q.type === "SECTION") {
-        list.push({ kind: "section", questionIndex: qIdx });
-      } else if (q.type === "STATEMENT") {
-        list.push({ kind: "statement", questionIndex: qIdx });
-      } else {
-        list.push({ kind: "question", questionIndex: qIdx });
-      }
-    });
-
-    // 4. Final Review Step
-    list.push({ kind: "review" });
-
-    return list;
-  }, [form, collectEmail]);
-
-  // Question numbering map (excludes SECTION, STATEMENT, cover, review)
+  // A preview can change modes or remove questions while mounted.
+  const stepIndex = Math.min(currentStepIndex, steps.length - 1);
+  // Number only answerable questions.
   const questionNumberMap = useMemo(() => {
     const map = new Map<number, number>();
     if (!form?.questions) return map;
@@ -249,14 +229,22 @@ export function PublicFormViewer({
   }, [form]);
 
   // Calculate overall percentage progress
-  const progressPercent = useMemo(() => {
-    if (steps.length <= 1) return 0;
-    if (currentStepIndex === 0) return 0;
-    if (currentStepIndex >= steps.length - 1) return 100;
-    return Math.round((currentStepIndex / (steps.length - 1)) * 100);
-  }, [currentStepIndex, steps.length]);
+  const progressPercent = Math.round((stepIndex / Math.max(steps.length, 1)) * 100);
 
-  const currentStep = steps[currentStepIndex];
+  const currentStep = steps[stepIndex];
+  const visibleSteps: FormStep[] = currentStep?.kind === "page"
+    ? [
+        ...(currentStep.includeCover ? [{ kind: "cover" as const }] : []),
+        ...(currentStep.includeEmail ? [{ kind: "email" as const }] : []),
+        ...currentStep.questionIndices.map((questionIndex) => ({
+          kind: form?.questions[questionIndex].type === "SECTION" ? "section" as const
+            : form?.questions[questionIndex].type === "STATEMENT" ? "statement" as const : "question" as const,
+          questionIndex,
+        })),
+      ]
+    : currentStep ? [currentStep] : [];
+  const isLastStep = stepIndex === steps.length - 1;
+
 
   // Auto focus input on step change with animation completion fallback
   useEffect(() => {
@@ -317,8 +305,16 @@ export function PublicFormViewer({
   };
 
   const handleFileUpload = async (qIdx: number, file: File) => {
+    if (uploadInFlightRef.current) return;
+    const maxSizeMb = formFileSizeLimitMb(form?.questions[qIdx]?.maxFileSizeMb);
+    if (file.size > maxSizeMb * 1024 * 1024) {
+      toast.error(`Maksimal ${maxSizeMb} MB per berkas.`);
+      return;
+    }
+    uploadInFlightRef.current = true;
     setUploadingQIdx(qIdx);
     setUploadProgress(20);
+    let interval: ReturnType<typeof setInterval> | undefined;
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -330,7 +326,7 @@ export function PublicFormViewer({
       }
       formData.append("questionNumber", String(qIdx + 1));
 
-      const interval = setInterval(() => {
+      interval = setInterval(() => {
         setUploadProgress((prev) => (prev >= 85 ? prev : prev + 15));
       }, 200);
 
@@ -351,59 +347,45 @@ export function PublicFormViewer({
     } catch {
       toast.error(t("publicForm.uploadError"));
     } finally {
+      clearInterval(interval);
+      uploadInFlightRef.current = false;
       setUploadingQIdx(null);
       setUploadProgress(0);
     }
   };
 
-  // Step validation before moving to next step
-  const validateCurrentStep = (): boolean => {
-    if (!form || !currentStep) return true;
+  const validateEmail = () => {
+    const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(responderEmail.trim());
+    setEmailError(valid ? null : "Alamat email wajib diisi dengan format yang benar.");
+    return valid;
+  };
 
-    if (currentStep.kind === "email") {
-      const trimmed = responderEmail.trim();
-      if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-        setEmailError(t("publicForm.emailInvalid"));
-        return false;
-      }
-      setEmailError(null);
-      return true;
+  const validateQuestion = (qIdx: number) => {
+    const q = form?.questions[qIdx];
+    if (!q || q.type === "SECTION" || q.type === "STATEMENT") return true;
+    const value = answersRef.current[qIdx];
+    const isOtherEmpty = (value === OTHER_OPTION_MARKER ||
+      (Array.isArray(value) && value.includes(OTHER_OPTION_MARKER))) && !otherTextsRef.current[qIdx]?.trim();
+    if (isOtherEmpty || (q.required && isEmptyFormAnswer(q, value))) {
+      toast.error(isOtherEmpty ? "Jelaskan pilihan lainnya." : `Harap isi: ${q.title}`);
+      requestAnimationFrame(() => {
+        const field = mainScrollRef.current?.querySelector<HTMLElement>(`[data-question-index="${qIdx}"]`);
+        field?.scrollIntoView({ block: "center", behavior: "smooth" });
+        field?.focus({ preventScroll: true });
+      });
+      return false;
     }
+    return true;
+  };
 
-    if (currentStep.kind === "question") {
-      const qIdx = currentStep.questionIndex;
-      const q = form.questions[qIdx];
-      if (!q) return true;
-
-      // Read from synchronous ref to avoid stale closure race conditions
-      const userAns = answersRef.current[qIdx];
-      const otherTextVal = otherTextsRef.current[qIdx] || otherTexts[qIdx];
-      const isOtherEmpty =
-        (userAns === OTHER_OPTION_MARKER ||
-          (Array.isArray(userAns) && userAns.includes(OTHER_OPTION_MARKER))) &&
-        !(otherTextVal && otherTextVal.trim().length > 0);
-
-      if (q.required) {
-        const isEmpty =
-          userAns === undefined ||
-          userAns === null ||
-          userAns === "" ||
-          (Array.isArray(userAns) && userAns.length === 0);
-
-        if (isEmpty || isOtherEmpty) {
-          toast.error(
-            isOtherEmpty
-              ? t("publicForm.otherRequired")
-              : t("publicForm.required")
-          );
-          return false;
-        }
-      } else if (isOtherEmpty) {
-        toast.error(t("publicForm.otherRequired"));
-        return false;
-      }
+  const validateCurrentStep = () => {
+    if (!currentStep) return true;
+    if (currentStep.kind === "email") return validateEmail();
+    if (currentStep.kind === "question") return validateQuestion(currentStep.questionIndex);
+    if (currentStep.kind === "page") {
+      if (currentStep.includeEmail && !validateEmail()) return false;
+      return currentStep.questionIndices.every(validateQuestion);
     }
-
     return true;
   };
 
@@ -417,18 +399,24 @@ export function PublicFormViewer({
   };
 
   const goToNextStep = () => {
+    if (uploadInFlightRef.current || submittingRef.current) return;
     if (!validateCurrentStep()) return;
-    if (currentStepIndex < steps.length - 1) {
+    if (isLastStep) {
+      void handleSubmit();
+      return;
+    }
+    if (stepIndex < steps.length - 1) {
       setDirection(1);
-      setCurrentStepIndex((prev) => prev + 1);
+      setCurrentStepIndex(stepIndex + 1);
       resetScroll();
     }
   };
 
   const goToPrevStep = () => {
-    if (currentStepIndex > 0) {
+    if (uploadInFlightRef.current || submittingRef.current) return;
+    if (stepIndex > 0) {
       setDirection(-1);
-      setCurrentStepIndex((prev) => prev - 1);
+      setCurrentStepIndex(stepIndex - 1);
       resetScroll();
     }
   };
@@ -441,8 +429,13 @@ export function PublicFormViewer({
     }
   };
 
-  const handleSubmit = async () => {
-    if (!form) return;
+  // Single-choice auto advance never submits or opens a dialog.
+  const advanceAfterChoice = () => {
+    if (!isFlowing && !isLastStep) goToNextStep();
+  };
+
+  const handleSubmit = async (confirmed = false) => {
+    if (!form || submittingRef.current || uploadInFlightRef.current || submittedMessage) return;
 
     // Validate all required questions
     for (let qIdx = 0; qIdx < form.questions.length; qIdx += 1) {
@@ -454,19 +447,16 @@ export function PublicFormViewer({
         (value === OTHER_OPTION_MARKER ||
           (Array.isArray(value) && value.includes(OTHER_OPTION_MARKER))) &&
         !otherTextVal?.trim();
-      const isEmpty =
-        value === undefined ||
-        value === null ||
-        value === "" ||
-        (Array.isArray(value) && value.length === 0);
+      const isEmpty = isEmptyFormAnswer(question, value);
 
       if (hasEmptyOther || (question.required && isEmpty)) {
         const stepTarget = steps.findIndex(
-          (s) => s.kind === "question" && s.questionIndex === qIdx
+          (s) => (s.kind === "question" && s.questionIndex === qIdx) || (s.kind === "page" && s.questionIndices.includes(qIdx))
         );
         if (stepTarget >= 0) {
           jumpToStep(stepTarget);
         }
+        setConfirmSubmitOpen(false);
         toast.error(
           hasEmptyOther
             ? t("publicForm.otherRequiredNamed", { title: question.title || `#${questionNumberMap.get(qIdx) || qIdx + 1}` })
@@ -479,7 +469,7 @@ export function PublicFormViewer({
     const trimmedEmail = responderEmail.trim();
     if (collectEmail === "input") {
       if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-        const emailStepTarget = steps.findIndex((s) => s.kind === "email");
+        const emailStepTarget = steps.findIndex((s) => s.kind === "email" || (s.kind === "page" && s.includeEmail));
         if (emailStepTarget >= 0) jumpToStep(emailStepTarget);
         setEmailError(t("publicForm.emailInvalid"));
         toast.error(t("publicForm.emailInvalid"));
@@ -488,7 +478,14 @@ export function PublicFormViewer({
       setEmailError(null);
     }
 
+    if (!confirmed) {
+      setErrorMsg(null);
+      setConfirmSubmitOpen(true);
+      return;
+    }
+
     if (isPreview) {
+      setConfirmSubmitOpen(false);
       answersRef.current = {};
       otherTextsRef.current = {};
       setAnswers({});
@@ -518,6 +515,7 @@ export function PublicFormViewer({
       }
     }
 
+    submittingRef.current = true;
     setSubmitting(true);
     setErrorMsg(null);
     setLoginRequired(false);
@@ -532,6 +530,7 @@ export function PublicFormViewer({
         setLoginRequired(true);
         setErrorMsg(t("publicForm.loginDescription"));
       } else if (data.success) {
+        setConfirmSubmitOpen(false);
         answersRef.current = {};
         otherTextsRef.current = {};
         setAnswers({});
@@ -548,6 +547,7 @@ export function PublicFormViewer({
       toast.error(t("publicForm.networkError"));
       setErrorMsg(t("publicForm.networkError"));
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -556,6 +556,8 @@ export function PublicFormViewer({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
+      if (confirmSubmitOpen || zoomImageUri || submitting || submittedMessage || loading || (!form && errorMsg) || isClosed) return;
+      if (target?.closest('[role="dialog"], [role="listbox"], [role="combobox"], [role="menu"]')) return;
       const isTextarea = target?.tagName === "TEXTAREA";
       const isInput = target?.tagName === "INPUT";
 
@@ -565,6 +567,9 @@ export function PublicFormViewer({
         handleSubmit();
         return;
       }
+
+      if (isFlowing) return;
+      if (target?.closest("button, a")) return;
 
       // Enter key for advancing steps
       if (e.key === "Enter" && !e.shiftKey) {
@@ -590,9 +595,7 @@ export function PublicFormViewer({
             const chosenOption = q.options[optionIndex];
             if (q.type === "RADIO") {
               handleAnswerChange(qIdx, chosenOption);
-              setTimeout(() => {
-                goToNextStep();
-              }, 180);
+              advanceAfterChoice();
             } else {
               handleCheckboxToggle(qIdx, chosenOption);
             }
@@ -605,9 +608,7 @@ export function PublicFormViewer({
           if (num >= 1 && num <= 5) {
             e.preventDefault();
             handleAnswerChange(qIdx, num.toString());
-            setTimeout(() => {
-              goToNextStep();
-            }, 180);
+            advanceAfterChoice();
           }
         }
       }
@@ -620,9 +621,9 @@ export function PublicFormViewer({
   // Motion variants for smooth vertical slide & fade transitions
   const slideVariants = {
     enter: (dir: number) => ({
-      y: dir > 0 ? 32 : -32,
+      y: reducedMotion ? 0 : dir > 0 ? 16 : -16,
       opacity: 0,
-      filter: "blur(4px)",
+      filter: "none",
     }),
     center: {
       y: 0,
@@ -635,9 +636,9 @@ export function PublicFormViewer({
       },
     },
     exit: (dir: number) => ({
-      y: dir > 0 ? -32 : 32,
+      y: reducedMotion ? 0 : dir > 0 ? -16 : 16,
       opacity: 0,
-      filter: "blur(4px)",
+      filter: "none",
       transition: {
         y: { type: "spring" as const, stiffness: 350, damping: 30 },
         opacity: { duration: 0.2 },
@@ -777,8 +778,9 @@ export function PublicFormViewer({
         isPreview ? "min-h-[620px] h-[78vh] rounded-xl border border-border" : "h-screen h-[100dvh]"
       )}
     >
-      {/* Background Math Symbols, Radial Glows & Geometric Ornaments */}
-      <PageOrnaments variant="plans" />
+      <div className="pointer-events-none absolute inset-0 opacity-30" aria-hidden="true">
+        <PageOrnaments variant="plans" />
+      </div>
 
       {/* Top Fixed Minimal Progress Header */}
       <header className="shrink-0 z-40 w-full backdrop-blur-md bg-background/85 border-b border-border/40">
@@ -790,11 +792,12 @@ export function PublicFormViewer({
             transition={{ duration: 0.3, ease: "easeOut" }}
           />
         </div>
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 h-12 flex items-center justify-between text-body-xs font-semibold text-muted-foreground">
-          <span className="truncate max-w-[220px] sm:max-w-md font-medium text-foreground">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 h-12 flex items-center justify-between gap-3 text-body-xs font-semibold text-muted-foreground">
+          <span className="min-w-0 flex-1 truncate font-medium text-foreground">
             {form.title}
           </span>
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
+            {currentStep?.kind === "page" && <span>Bagian {stepIndex + 1} / {steps.length}</span>}
             {currentStep?.kind === "question" && (
               <span className="font-mono text-body-xs text-muted-foreground">
                 {questionNumberMap.get(currentStep.questionIndex) || 1} / {totalQuestions}
@@ -808,9 +811,12 @@ export function PublicFormViewer({
       </header>
 
       {/* Main Interactive Screen Area */}
-      <main ref={mainScrollRef} className="relative z-10 flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-8 sm:py-10 flex flex-col">
-        <div className="w-full max-w-2xl mx-auto my-auto shrink-0">
+      <main ref={mainScrollRef} className="relative z-10 flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-5 flex flex-col">
+        <div className="w-full max-w-2xl mx-auto shrink-0">
           <AnimatePresence mode="wait" custom={direction}>
+            <motion.div key={`${isFlowing ? "section" : "step"}-${stepIndex}`} className={isFlowing ? "divide-y divide-border/70 [&>div]:py-4 [&>div:first-child]:pt-0" : ""}>
+            {visibleSteps.map((currentStep, visibleIndex) => (
+              <div key={visibleIndex}>
             {/* 1. COVER / WELCOME SCREEN */}
             {currentStep?.kind === "cover" && (
               <motion.div
@@ -821,9 +827,9 @@ export function PublicFormViewer({
                 animate="center"
                 exit="exit"
                 onAnimationComplete={focusActiveElement}
-                className="space-y-6 text-left"
+                className="space-y-4 text-left"
               >
-                <div className="inline-flex items-center gap-2 rounded-md bg-brand-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-primary">
+                <div className={cn("inline-flex items-center gap-2 rounded-md bg-brand-primary/10 px-3 py-1 text-body-2xs font-bold uppercase tracking-wider text-brand-primary", isFlowing && "hidden")}>
                   <Tag className="size-3.5" />
                   {form.category}
                 </div>
@@ -838,13 +844,13 @@ export function PublicFormViewer({
                   </div>
                 )}
 
-                <div className="flex flex-wrap items-center gap-4 text-body-xs text-muted-foreground font-medium pt-2">
+                <div className={cn("flex flex-wrap items-center gap-4 text-body-xs text-muted-foreground font-medium pt-2", isFlowing && "hidden")}>
                   <span>~{Math.max(1, Math.round(totalQuestions * 0.5))} menit pengisian</span>
                   <span>•</span>
                   <span>{totalQuestions} pertanyaan</span>
                 </div>
 
-                <div className="pt-4 flex items-center gap-4">
+                <div className={cn("pt-2 flex items-center gap-3", isFlowing && "hidden")}>
                   <Button
                     ref={setFocusableRef as any}
                     size="lg"
@@ -871,18 +877,18 @@ export function PublicFormViewer({
                 animate="center"
                 exit="exit"
                 onAnimationComplete={focusActiveElement}
-                className="space-y-6 text-left"
+                className="space-y-4 text-left"
               >
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-brand-primary font-mono text-body-sm font-bold">
+                  <div className={cn("flex items-center gap-2 text-brand-primary font-mono text-body-sm font-bold", isFlowing && "hidden")}>
                     <span>*</span>
                     <span>{t("publicForm.respondentIdentification")}</span>
                   </div>
                   <h2 className="font-heading text-body-base font-semibold text-foreground leading-snug">
                     {t("publicForm.emailTitle")}
                   </h2>
-                  <p className="text-body-sm text-muted-foreground">
-                    {t("publicForm.emailExplanation")}
+                  <p className={cn("text-body-sm text-muted-foreground", isFlowing && "hidden")}>
+                    Email digunakan untuk konfirmasi identitas dan verifikasi tanggapan.
                   </p>
                 </div>
 
@@ -890,6 +896,7 @@ export function PublicFormViewer({
                   <input
                     ref={setFocusableRef as any}
                     type="email"
+                    aria-label="Alamat email"
                     required
                     value={responderEmail}
                     onChange={(e) => {
@@ -907,13 +914,13 @@ export function PublicFormViewer({
                   )}
                 </div>
 
-                <div className="pt-4 flex items-center gap-3">
+                <div className={cn("pt-2 flex items-center gap-3", isFlowing && "hidden")}>
                   <Button
                     size="lg"
                     onClick={goToNextStep}
                     className="h-11 px-6 text-body-sm font-bold shadow-sm cursor-pointer"
                   >
-                    <span>{t("publicForm.next")}</span>
+                    <span>{isLastStep ? "Kirim tanggapan" : "Lanjut"}</span>
                     <Check className="size-4 ml-1.5" />
                   </Button>
                   <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
@@ -941,9 +948,9 @@ export function PublicFormViewer({
                   animate="center"
                   exit="exit"
                   onAnimationComplete={focusActiveElement}
-                  className="space-y-6 text-left"
+                  className="space-y-4 text-left"
                 >
-                  <div className="inline-flex items-center gap-2 rounded-md bg-brand-secondary/15 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-secondary">
+                  <div className={cn("inline-flex items-center gap-2 rounded-md bg-brand-secondary/15 px-3 py-1 text-body-2xs font-bold uppercase tracking-wider text-brand-secondary", isFlowing && "hidden")}>
                     <Layers className="size-3.5" />
                     {hasUpcomingQuestions ? t("publicForm.newSection") : t("publicForm.closing")}
                   </div>
@@ -978,14 +985,14 @@ export function PublicFormViewer({
                     </div>
                   )}
 
-                  <div className="pt-4 flex items-center gap-4">
+                  <div className={cn("pt-2 flex items-center gap-3", isFlowing && "hidden")}>
                     <Button
                       ref={setFocusableRef as any}
                       size="lg"
                       onClick={goToNextStep}
                       className="h-12 px-7 text-body-sm font-bold shadow-sm inline-flex items-center gap-2 bg-brand-primary text-white cursor-pointer"
                     >
-                      <span>{t("publicForm.next")}</span>
+                      <span>{isLastStep ? "Kirim tanggapan" : "Lanjut"}</span>
                       <ArrowRight className="size-4" />
                     </Button>
                     <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
@@ -1010,7 +1017,7 @@ export function PublicFormViewer({
                   animate="center"
                   exit="exit"
                   onAnimationComplete={focusActiveElement}
-                  className="space-y-6 text-left"
+                  className="space-y-4 text-left"
                 >
                   <div className="inline-flex items-center gap-2 rounded-md bg-brand-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-primary">
                     <Info className="size-3.5" />
@@ -1049,14 +1056,14 @@ export function PublicFormViewer({
                     </div>
                   )}
 
-                  <div className="pt-4 flex items-center gap-4">
+                  <div className={cn("pt-2 flex items-center gap-3", isFlowing && "hidden")}>
                     <Button
                       ref={setFocusableRef as any}
                       size="lg"
                       onClick={goToNextStep}
                       className="h-12 px-7 text-body-sm font-bold shadow-sm inline-flex items-center gap-2 bg-brand-primary text-white cursor-pointer"
                     >
-                      <span>{t("publicForm.next")}</span>
+                      <span>{isLastStep ? "Kirim tanggapan" : "Lanjut"}</span>
                       <ArrowRight className="size-4" />
                     </Button>
                     <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
@@ -1085,46 +1092,32 @@ export function PublicFormViewer({
               return (
                 <motion.div
                   key={`q-${qIdx}`}
+                  data-question-index={qIdx}
+                  tabIndex={-1}
+                  role="group"
+                  aria-label={q.title}
                   custom={direction}
                   variants={slideVariants}
                   initial="enter"
                   animate="center"
                   exit="exit"
                   onAnimationComplete={focusActiveElement}
-                  className="space-y-6 text-left"
+                  className="space-y-4 text-left"
                 >
-                  {/* Question Header */}
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 text-brand-primary font-mono text-body-sm font-bold">
-                        <span>{qNumber}</span>
-                        <ArrowRight className="size-3.5 inline" />
-                        {q.required && <span className="text-destructive font-bold">*</span>}
-                      </div>
-
-                      {/* Clear Answer Button Header Link */}
+                    <div className="flex items-start gap-2">
+                      <span className="shrink-0 text-brand-primary font-mono text-body-sm pt-0.5">{qNumber}.</span>
+                      <h2 className="min-w-0 flex-1 font-heading text-body-base font-semibold text-foreground leading-snug">
+                        <MathText as="span">{q.title}</MathText>
+                        {q.required && <span className="ml-1 text-destructive">*</span>}
+                      </h2>
                       {hasAnswer && (
-                        <button
-                          type="button"
-                          onClick={() => handleClearAnswer(qIdx)}
-                          title={t("publicForm.clearQuestionTitle")}
-                          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-body-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-                        >
-                          <Eraser className="size-3" />
-                          <span>{t("publicForm.clearChoice")}</span>
-                        </button>
+                        <Button variant="ghost" size="icon-sm" onClick={() => handleClearAnswer(qIdx)} aria-label={`Kosongkan jawaban: ${q.title}`} title="Kosongkan jawaban">
+                          <Eraser className="size-3.5" />
+                        </Button>
                       )}
                     </div>
-
-                    <h2 className="font-heading text-body-base font-semibold text-foreground leading-snug">
-                      <MathText as="span">{q.title}</MathText>
-                    </h2>
-
-                    {q.description && (
-                      <div className="text-body-base text-muted-foreground leading-relaxed whitespace-pre-line">
-                        <MathText as="div">{q.description}</MathText>
-                      </div>
-                    )}
+                    {q.description && <MathText as="div" className="text-body-sm text-muted-foreground whitespace-pre-line">{q.description}</MathText>}
                   </div>
 
                   {/* Question Image Attachment */}
@@ -1156,6 +1149,7 @@ export function PublicFormViewer({
                         <input
                           ref={setFocusableRef as any}
                           type="text"
+                          aria-label={q.title}
                           required={q.required}
                           value={answerVal || ""}
                           onChange={(e) => handleAnswerChange(qIdx, e.target.value)}
@@ -1171,6 +1165,7 @@ export function PublicFormViewer({
                         <textarea
                           ref={setFocusableRef as any}
                           rows={4}
+                          aria-label={q.title}
                           required={q.required}
                           value={answerVal || ""}
                           onChange={(e) => handleAnswerChange(qIdx, e.target.value)}
@@ -1185,7 +1180,7 @@ export function PublicFormViewer({
 
                     {/* 3. RADIO (Multiple Choice Cards) */}
                     {q.type === "RADIO" && (
-                      <div className="space-y-3">
+                      <div className="space-y-1.5">
                         {(q.options || []).map((opt, oIdx) => {
                           const isSelected = answerVal === opt;
                           const letter = OPTION_LETTERS[oIdx] || String(oIdx + 1);
@@ -1197,19 +1192,17 @@ export function PublicFormViewer({
                               type="button"
                               onClick={() => {
                                 handleAnswerChange(qIdx, opt);
-                                setTimeout(() => {
-                                  goToNextStep();
-                                }, 180);
+                                advanceAfterChoice();
                               }}
-                              className={`w-full flex items-center justify-between p-4 rounded-xl border text-left transition-all cursor-pointer group ${
+                              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md border text-left transition-all cursor-pointer group ${
                                 isSelected
                                   ? "border-brand-primary bg-brand-primary/10 ring-1 ring-brand-primary text-foreground"
                                   : "border-border bg-card hover:border-brand-primary/50 hover:bg-muted/40 text-foreground"
                               }`}
                             >
-                              <div className="flex items-center gap-3.5">
+                              <div className="flex items-center gap-2.5">
                                 <span
-                                  className={`size-7 rounded-lg text-body-xs font-mono font-bold flex items-center justify-center shrink-0 transition-colors ${
+                                  className={`size-6 rounded-md text-body-xs font-mono font-bold flex items-center justify-center shrink-0 transition-colors ${
                                     isSelected
                                       ? "bg-brand-primary text-white"
                                       : "bg-muted text-muted-foreground group-hover:bg-brand-primary/20 group-hover:text-brand-primary"
@@ -1231,15 +1224,15 @@ export function PublicFormViewer({
                             <button
                               type="button"
                               onClick={() => handleAnswerChange(qIdx, OTHER_OPTION_MARKER)}
-                              className={`w-full flex items-center justify-between p-4 rounded-xl border text-left transition-all cursor-pointer group ${
+                              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md border text-left transition-all cursor-pointer group ${
                                 answerVal === OTHER_OPTION_MARKER
                                   ? "border-brand-primary bg-brand-primary/10 ring-1 ring-brand-primary text-foreground"
                                   : "border-border bg-card hover:border-brand-primary/50 hover:bg-muted/40 text-foreground"
                               }`}
                             >
-                              <div className="flex items-center gap-3.5">
+                              <div className="flex items-center gap-2.5">
                                 <span
-                                  className={`size-7 rounded-lg text-body-xs font-mono font-bold flex items-center justify-center shrink-0 transition-colors ${
+                                  className={`size-6 rounded-md text-body-xs font-mono font-bold flex items-center justify-center shrink-0 transition-colors ${
                                     answerVal === OTHER_OPTION_MARKER
                                       ? "bg-brand-primary text-white"
                                       : "bg-muted text-muted-foreground group-hover:bg-brand-primary/20 group-hover:text-brand-primary"
@@ -1290,15 +1283,15 @@ export function PublicFormViewer({
                               ref={oIdx === 0 && !selectedList.includes(OTHER_OPTION_MARKER) ? (setFocusableRef as any) : undefined}
                               type="button"
                               onClick={() => handleCheckboxToggle(qIdx, opt)}
-                              className={`w-full flex items-center justify-between p-4 rounded-xl border text-left transition-all cursor-pointer group ${
+                              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md border text-left transition-all cursor-pointer group ${
                                 isSelected
                                   ? "border-brand-primary bg-brand-primary/10 ring-1 ring-brand-primary text-foreground"
                                   : "border-border bg-card hover:border-brand-primary/50 hover:bg-muted/40 text-foreground"
                               }`}
                             >
-                              <div className="flex items-center gap-3.5">
+                              <div className="flex items-center gap-2.5">
                                 <span
-                                  className={`size-7 rounded-lg text-body-xs font-mono font-bold flex items-center justify-center shrink-0 transition-colors ${
+                                  className={`size-6 rounded-md text-body-xs font-mono font-bold flex items-center justify-center shrink-0 transition-colors ${
                                     isSelected
                                       ? "bg-brand-primary text-white"
                                       : "bg-muted text-muted-foreground group-hover:bg-brand-primary/20 group-hover:text-brand-primary"
@@ -1343,15 +1336,15 @@ export function PublicFormViewer({
                                       answersRef.current[qIdx] = updated;
                                       setAnswers((prev) => ({ ...prev, [qIdx]: updated }));
                                     }}
-                                    className={`w-full flex items-center justify-between p-4 rounded-xl border text-left transition-all cursor-pointer group ${
+                                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md border text-left transition-all cursor-pointer group ${
                                       isSelected
                                         ? "border-brand-primary bg-brand-primary/10 ring-1 ring-brand-primary text-foreground"
                                         : "border-border bg-card hover:border-brand-primary/50 hover:bg-muted/40 text-foreground"
                                     }`}
                                   >
-                                    <div className="flex items-center gap-3.5">
+                                    <div className="flex items-center gap-2.5">
                                       <span
-                                        className={`size-7 rounded-lg text-body-xs font-mono font-bold flex items-center justify-center shrink-0 transition-colors ${
+                                        className={`size-6 rounded-md text-body-xs font-mono font-bold flex items-center justify-center shrink-0 transition-colors ${
                                           isSelected
                                             ? "bg-brand-primary text-white"
                                             : "bg-muted text-muted-foreground group-hover:bg-brand-primary/20 group-hover:text-brand-primary"
@@ -1398,19 +1391,20 @@ export function PublicFormViewer({
 
                     {/* 5. DROP_DOWN */}
                     {q.type === "DROP_DOWN" && (
-                      <div className="space-y-3 max-w-md">
+                      <div className="space-y-2 max-w-md">
                         <Select
                           value={answerVal || ""}
                           onValueChange={(val) => {
                             handleAnswerChange(qIdx, val);
                             if (val !== OTHER_OPTION_MARKER) {
-                              setTimeout(() => goToNextStep(), 180);
+                              advanceAfterChoice();
                             }
                           }}
                         >
                           <SelectTrigger
+                            aria-label={q.title}
                             ref={answerVal !== OTHER_OPTION_MARKER ? (setFocusableRef as any) : undefined}
-                            className="w-full h-12 text-body-sm font-medium rounded-xl"
+                            className="w-full h-10 text-body-sm font-medium rounded-md"
                           >
                             <SelectValue placeholder={t("publicForm.dropdownPlaceholder")} />
                           </SelectTrigger>
@@ -1447,13 +1441,15 @@ export function PublicFormViewer({
 
                     {/* 6. FILE_UPLOAD (Modern Dropzone) */}
                     {q.type === "FILE_UPLOAD" && (
-                      <div className="space-y-4">
+                      <div className="space-y-2">
+                        <p className="text-body-xs text-muted-foreground">Maksimal {formFileSizeLimitMb(q.maxFileSizeMb)} MB per berkas</p>
                         {!answerVal ? (
-                          <label className="flex flex-col items-center justify-center border-2 border-dashed border-border hover:border-brand-primary/60 bg-card hover:bg-muted/30 rounded-2xl p-8 transition-colors cursor-pointer text-center group">
+                          <label className="flex flex-col items-center justify-center border-2 border-dashed border-border hover:border-brand-primary/60 bg-card hover:bg-muted/30 focus-within:ring-2 focus-within:ring-ring rounded-xl p-4 transition-colors cursor-pointer text-center group">
                             <input
                               type="file"
-                              className="hidden"
-                              disabled={uploadingQIdx === qIdx}
+                              aria-label={q.title}
+                              className="sr-only"
+                              disabled={uploadingQIdx !== null}
                               onChange={(e) => {
                                 const f = e.target.files?.[0];
                                 if (f) handleFileUpload(qIdx, f);
@@ -1472,16 +1468,14 @@ export function PublicFormViewer({
                                   <UploadCloud className="size-6" />
                                 </div>
                                 <p className="text-body-sm font-semibold text-foreground">
-                                  {t("publicForm.dropFile")}
+                                  Pilih berkas
                                 </p>
-                                <p className="text-body-xs text-muted-foreground">
-                                  {t("publicForm.uploadSupport")}
-                                </p>
+
                               </div>
                             )}
                           </label>
                         ) : (
-                          <div className="rounded-2xl border border-status-success/40 bg-status-success/10 p-5 flex items-center justify-between gap-4">
+                          <div className="rounded-lg border border-status-success/40 bg-status-success/10 p-3 flex items-center justify-between gap-4">
                             <div className="flex items-center gap-3 overflow-hidden">
                               <FileCheck2 className="size-7 text-status-success shrink-0" />
                               <div className="overflow-hidden">
@@ -1529,7 +1523,7 @@ export function PublicFormViewer({
                                 type="button"
                                 onClick={() => {
                                   handleAnswerChange(qIdx, num.toString());
-                                  setTimeout(() => goToNextStep(), 180);
+                                  advanceAfterChoice();
                                 }}
                                 className={`h-14 rounded-xl border font-heading text-body-sm font-bold transition-all cursor-pointer flex items-center justify-center ${
                                   isSelected
@@ -1542,8 +1536,8 @@ export function PublicFormViewer({
                             );
                           })}
                         </div>
-                        <p className="text-body-xs text-muted-foreground">
-                          {t("publicForm.scaleTip")}
+                        <p className={cn("text-body-xs text-muted-foreground", isFlowing && "hidden")}>
+                          Tip: Anda juga dapat menekan angka <strong className="font-semibold text-foreground">1-5</strong> di keyboard.
                         </p>
                       </div>
                     )}
@@ -1561,7 +1555,7 @@ export function PublicFormViewer({
                                 type="button"
                                 onClick={() => {
                                   handleAnswerChange(qIdx, starIdx.toString());
-                                  setTimeout(() => goToNextStep(), 180);
+                                  advanceAfterChoice();
                                 }}
                                 className="p-1 cursor-pointer transition-transform hover:scale-125 focus:outline-none"
                               >
@@ -1642,6 +1636,7 @@ export function PublicFormViewer({
                         <input
                           ref={setFocusableRef as any}
                           type="date"
+                          aria-label={q.title}
                           required={q.required}
                           value={answerVal || ""}
                           onChange={(e) => handleAnswerChange(qIdx, e.target.value)}
@@ -1657,6 +1652,7 @@ export function PublicFormViewer({
                         <input
                           ref={setFocusableRef as any}
                           type="time"
+                          aria-label={q.title}
                           required={q.required}
                           value={answerVal || ""}
                           onChange={(e) => handleAnswerChange(qIdx, e.target.value)}
@@ -1667,13 +1663,13 @@ export function PublicFormViewer({
                   </div>
 
                   {/* Primary OK / Lanjut Button */}
-                  <div className="pt-4 flex items-center gap-3">
+                  <div className={cn("pt-2 flex items-center gap-3", isFlowing && "hidden")}>
                     <Button
                       size="lg"
                       onClick={goToNextStep}
                       className="h-11 px-6 text-body-sm font-bold shadow-sm cursor-pointer inline-flex items-center gap-2"
                     >
-                      <span>{t("publicForm.ok")}</span>
+                      <span>{isLastStep ? "Kirim tanggapan" : "Lanjut"}</span>
                       <Check className="size-4" />
                     </Button>
                     <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
@@ -1684,138 +1680,24 @@ export function PublicFormViewer({
               );
             })()}
 
-            {/* 5. REVIEW & SUBMIT SCREEN */}
-            {currentStep?.kind === "review" && (
-              <motion.div
-                key="review"
-                custom={direction}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                onAnimationComplete={focusActiveElement}
-                className="space-y-6 text-left"
-              >
-                <div className="space-y-2">
-                  <span className="inline-block rounded-md bg-brand-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-primary">
-                    {t("publicForm.finalStage")}
-                  </span>
-                  <h2 className="font-heading text-body-base font-bold text-foreground">
-                    {t("publicForm.reviewTitle")}
-                  </h2>
-                  <p className="text-body-sm text-muted-foreground">
-                    {t("publicForm.reviewDescription")}
-                  </p>
-                </div>
-
-                {/* Answers Summary List */}
-                <div className="rounded-2xl border border-border bg-card divide-y divide-border/60 max-h-[50vh] overflow-y-auto p-2">
-                  {collectEmail === "input" && (
-                    <div className="p-3.5 flex items-center justify-between gap-3 text-body-sm">
-                      <div>
-                        <p className="font-semibold text-foreground">{t("publicForm.email")}</p>
-                        <p className="text-muted-foreground font-mono text-body-xs">{responderEmail || "-"}</p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          const emailIdx = steps.findIndex((s) => s.kind === "email");
-                          if (emailIdx >= 0) jumpToStep(emailIdx);
-                        }}
-                        className="text-body-xs font-semibold text-brand-primary"
-                      >
-                        {t("publicForm.edit")}
-                      </Button>
-                    </div>
-                  )}
-
-                  {form.questions.map((q, qIdx) => {
-                    if (q.type === "SECTION" || q.type === "STATEMENT") return null;
-                    const ans = answersRef.current[qIdx] ?? answers[qIdx];
-                    const otherTextVal = otherTextsRef.current[qIdx] ?? otherTexts[qIdx];
-                    const stepIdx = steps.findIndex(
-                      (s) => s.kind === "question" && s.questionIndex === qIdx
-                    );
-
-                    let displayAns = "-";
-                    if (ans !== undefined && ans !== null && ans !== "") {
-                      if (Array.isArray(ans)) {
-                        displayAns = ans
-                          .map((a) => (a === OTHER_OPTION_MARKER ? otherTextVal || otherLabelFor(qIdx) : a))
-                          .join(", ");
-                      } else if (ans === OTHER_OPTION_MARKER) {
-                        displayAns = otherTextVal || otherLabelFor(qIdx);
-                      } else if (typeof ans === "object") {
-                        displayAns = Object.entries(ans)
-                          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
-                          .join(" | ");
-                      } else {
-                        displayAns = String(ans);
-                      }
-                    }
-
-                    return (
-                      <div key={qIdx} className="p-3.5 flex items-start justify-between gap-3 text-body-sm">
-                        <div className="space-y-1 max-w-[80%] min-w-0">
-                          <div className="font-semibold text-foreground leading-snug">
-                            <span className="font-mono mr-1.5">
-                              {questionNumberMap.get(qIdx) || qIdx + 1}.
-                            </span>
-                            <MathText as="span">{q.title}</MathText>
-                          </div>
-                          <div className="text-muted-foreground text-body-xs line-clamp-3 break-words">
-                            <MathText as="span">{displayAns}</MathText>
-                          </div>
-                        </div>
-                        {stepIdx >= 0 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => jumpToStep(stepIdx)}
-                            className="text-body-xs font-semibold text-brand-primary shrink-0"
-                          >
-                            {t("publicForm.edit")}
-                          </Button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Final Submit Button */}
-                <div className="pt-2 flex flex-col sm:flex-row items-center gap-4">
-                  <Button
-                    ref={setFocusableRef as any}
-                    size="lg"
-                    disabled={submitting}
-                    onClick={handleSubmit}
-                    className="w-full sm:w-auto h-12 px-8 text-body-sm font-bold shadow-sm inline-flex items-center justify-center gap-2 bg-brand-primary text-white cursor-pointer"
-                  >
-                    {submitting ? (
-                      <>
-                        <RefreshCw className="size-4 animate-spin" />
-                        <span>{t("publicForm.submitting")}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Send className="size-4" />
-                        <span>{t("publicForm.submit")}</span>
-                      </>
-                    )}
-                  </Button>
-                  <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
-                    {t("publicForm.sendShortcut")}
-                  </span>
-                </div>
-              </motion.div>
-            )}
+              </div>
+            ))}
+            </motion.div>
           </AnimatePresence>
+          {isFlowing && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 mt-4">
+              <Button variant="outline" onClick={goToPrevStep} disabled={stepIndex === 0 || uploadingQIdx !== null}>Kembali</Button>
+              <Button onClick={goToNextStep} disabled={uploadingQIdx !== null || submitting}>
+                {isLastStep ? "Kirim tanggapan" : "Lanjut"}
+                {isLastStep ? <Send className="size-4" /> : <ArrowRight className="size-4" />}
+              </Button>
+            </div>
+          )}
         </div>
       </main>
 
       {/* Floating Bottom Navigation Dock (Fixed to viewport bottom edge) */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 w-full p-4 sm:p-6 flex items-center justify-between pointer-events-none">
+      {!isFlowing && <div className="relative z-30 shrink-0 w-full px-4 sm:px-6 py-3 flex items-center justify-between border-t border-border/60">
         <div className="pointer-events-auto">
           {currentStepIndex > 0 && (
             <Button
@@ -1843,7 +1725,7 @@ export function PublicFormViewer({
           <div className="h-4 w-px bg-border" />
           <button
             type="button"
-            disabled={currentStepIndex === steps.length - 1}
+            disabled={isLastStep || uploadingQIdx !== null}
             onClick={goToNextStep}
             title={t("publicForm.nextQuestion")}
             className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 cursor-pointer transition-colors"
@@ -1851,7 +1733,24 @@ export function PublicFormViewer({
             <ChevronDown className="size-4" />
           </button>
         </div>
-      </div>
+      </div>}
+
+      <Dialog open={confirmSubmitOpen} onOpenChange={(open) => { if (!submitting) setConfirmSubmitOpen(open); }}>
+        <DialogContent showCloseButton={!submitting}>
+          <DialogHeader>
+            <DialogTitle>Kirim tanggapan?</DialogTitle>
+            <DialogDescription>Tanggapan belum terkirim. Pilih kirim untuk menyelesaikan formulir.</DialogDescription>
+          </DialogHeader>
+          {errorMsg && <p role="alert" className="text-body-xs text-destructive">{errorMsg}</p>}
+          <DialogFooter>
+            <Button variant="outline" disabled={submitting} onClick={() => setConfirmSubmitOpen(false)}>Kembali mengisi</Button>
+            <Button disabled={submitting} onClick={() => void handleSubmit(true)}>
+              {submitting ? <RefreshCw className="size-4 animate-spin" /> : <Send className="size-4" />}
+              {submitting ? "Mengirim..." : "Kirim tanggapan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Lightbox Zoom Dialog for Question and Section Images */}
       <Dialog
