@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { FetchHttpHandler, streamCollector as collectWebStream } from "@smithy/fetch-http-handler";
 
 const TARGET_HOST = "br-cool-water-az2xxbul.storage.c-3.ap-southeast-1.aws.neon.tech";
 const TARGET_BUCKET = "zyx-migration";
@@ -59,13 +60,13 @@ export async function withBodyDeadline<T>(body: AsyncIterable<Uint8Array> & { de
 
 async function fingerprint(body: AsyncIterable<Uint8Array>): Promise<Fingerprint> {
   return withBodyDeadline(body, async () => {
-  const hash = createHash("sha256");
-  let size = 0;
-  for await (const chunk of body) {
-    size += chunk.byteLength;
-    hash.update(chunk);
-  }
-  return { size, sha256: hash.digest("hex") };
+    const hash = createHash("sha256");
+    let size = 0;
+    for await (const chunk of body) {
+      size += chunk.byteLength;
+      hash.update(chunk);
+    }
+    return { size, sha256: hash.digest("hex") };
   });
 }
 
@@ -82,11 +83,14 @@ export async function copyObject(source: Reader, destination: Reader, sourceBuck
   if (sourceObject.ContentLength !== item.size || sourceObject.ETag !== item.etag) throw new Error("SOURCE_CHANGED");
   const expected = await fingerprint(sourceObject.Body);
   if (expected.size !== sourceObject.ContentLength) throw new Error("SOURCE_LENGTH_MISMATCH");
-  try {
+  async function verifyDestination() {
     const existing = await readObject(destination, targetBucket, key);
     const actual = await fingerprint(existing.Body);
     if (actual.size !== existing.ContentLength || actual.size !== expected.size || actual.sha256 !== expected.sha256) throw new Error("DESTINATION_CONFLICT");
-    return "identical";
+    return "identical" as const;
+  }
+  try {
+    return await verifyDestination();
   } catch (error: any) {
     if (error?.name !== "NoSuchKey" && error?.$metadata?.httpStatusCode !== 404) throw error;
   }
@@ -104,15 +108,28 @@ export async function copyObject(source: Reader, destination: Reader, sourceBuck
   } });
   const bytes = Buffer.concat(chunks);
   if (bytes.length !== expected.size || createHash("sha256").update(bytes).digest("hex") !== expected.sha256) throw new Error("SOURCE_CHANGED");
-  await destination.send(new PutObjectCommand({
+  try { await destination.send(new PutObjectCommand({
     Bucket: targetBucket, Key: key, Body: bytes, ContentLength: expected.size,
     IfNoneMatch: "*", ContentType: sourceObject.ContentType, ContentDisposition: sourceObject.ContentDisposition,
     ContentEncoding: sourceObject.ContentEncoding, CacheControl: sourceObject.CacheControl, Metadata: sourceObject.Metadata,
-  }));
-  const copied = await readObject(destination, targetBucket, key);
-  const actual = await fingerprint(copied.Body);
-  if (actual.size !== copied.ContentLength || actual.size !== expected.size || actual.sha256 !== expected.sha256) throw new Error("COPY_VERIFICATION_FAILED");
+  })); } catch (error: any) {
+    // A committed upload can lose its response and return 412 on the SDK's retry.
+    if (error?.$metadata?.httpStatusCode === 412) return verifyDestination();
+    throw error;
+  }
+  try { await verifyDestination(); }
+  catch (error: any) { if (error?.message === "DESTINATION_CONFLICT") throw new Error("COPY_VERIFICATION_FAILED"); throw error; }
   return "copied";
+}
+
+export async function copyObjectWithRetry(...args: Parameters<typeof copyObject>) {
+  try { return await copyObject(...args); }
+  catch (error: any) {
+    const transient = error?.message === "STORAGE_BODY_TIMEOUT" || error?.message === "fetch failed" || ["TimeoutError", "RequestTimeout"].includes(error?.name) || ["ECONNRESET", "ETIMEDOUT", "EPIPE", "UND_ERR_SOCKET", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT"].includes(error?.code || error?.cause?.code);
+    if (!transient) throw error;
+    console.error(JSON.stringify({ event: "retry_storage_object", keyHash: createHash("sha256").update(args[3].key).digest("hex") }));
+    return copyObject(...args);
+  }
 }
 
 async function main() {
@@ -125,19 +142,34 @@ async function main() {
   const requestHandler = { connectionTimeout: 15000, requestTimeout: 120000, socketTimeout: 120000 };
   const source = new S3Client({ requestHandler, region: "auto", endpoint: R2_ENDPOINT, credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY } });
   const destination = new S3Client({ requestHandler, region: AWS_REGION, endpoint: AWS_ENDPOINT_URL_S3, forcePathStyle: true, requestChecksumCalculation: "WHEN_REQUIRED", credentials: { accessKeyId: AWS_ACCESS_KEY_ID, secretAccessKey: AWS_SECRET_ACCESS_KEY } });
+  const fetchHandler = new FetchHttpHandler({ requestInit: () => ({ signal: AbortSignal.timeout(120000) }) });
+  for (const client of [source, destination]) {
+    const nodeHandler = client.config.requestHandler;
+    const nodeCollector = client.config.streamCollector;
+    client.config.streamCollector = (stream: any) => stream instanceof ReadableStream ? collectWebStream(stream) : nodeCollector(stream);
+    // Fetch keeps the body tied to its abort signal; the Node handler stalled during bulk reads.
+    client.config.requestHandler = {
+      handle: async (request: any, options: any) => {
+        if (request.method !== "GET") return nodeHandler.handle(request, options);
+        return fetchHandler.handle(request, options);
+      },
+      destroy: () => nodeHandler.destroy?.(),
+      updateHttpClientConfig: nodeHandler.updateHttpClientConfig.bind(nodeHandler),
+      httpHandlerConfigs: nodeHandler.httpHandlerConfigs.bind(nodeHandler),
+    };
+  }
   const inventory = await listInventory(source, R2_BUCKET);
   const counts = { identical: 0, copied: 0, "would-copy": 0 };
-  for (let start = 0; start < inventory.length; start += 2) {
-    const results = await Promise.allSettled(inventory.slice(start, start + 2).map(async (item) => {
-      const outcome = await copyObject(source, destination, R2_BUCKET, item, process.argv.includes("--apply"), NEON_STORAGE_BUCKET);
+  // Concurrent large-object response streams stalled during the production rehearsal.
+  for (const item of inventory) {
+    try {
+      const outcome = await copyObjectWithRetry(source, destination, R2_BUCKET, item, process.argv.includes("--apply"), NEON_STORAGE_BUCKET);
       counts[outcome]++;
       console.log(JSON.stringify({ keyHash: createHash("sha256").update(item.key).digest("hex"), outcome }));
-    }));
-    for (const result of results) if (result.status === "rejected") {
-      const error = result.reason;
+    } catch (error: any) {
       console.error(JSON.stringify({ error: "COPY_OBJECT_FAILED", code: error?.name, status: error?.$metadata?.httpStatusCode, reason: /^[A-Z_]+$/.test(error?.message || "") ? error.message : undefined }));
+      throw new Error("COPY_BATCH_FAILED");
     }
-    if (results.some((result) => result.status === "rejected")) throw new Error("COPY_BATCH_FAILED");
   }
   assertInventoryUnchanged(inventory, await listInventory(source, R2_BUCKET));
   if (process.argv.includes("--apply") && counts.identical + counts.copied !== inventory.length) throw new Error("COPY_INCOMPLETE");

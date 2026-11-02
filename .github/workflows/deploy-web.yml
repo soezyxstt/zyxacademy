@@ -43,35 +43,23 @@ jobs:
           bun-version: '1.3.14'
       - name: Install pinned Vercel CLI
         run: npm install --global "vercel@$VERCEL_CLI_VERSION"
-      - name: Pull the exact deployment environment
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ -z "${VERCEL_TOKEN:-}" ]; then
-            echo '::error::Configure VERCEL_TOKEN in this GitHub Environment before enabling web deployments.'
-            exit 1
-          fi
-          args=(--yes --environment="$VERCEL_ENVIRONMENT")
-          if [ "$VERCEL_ENVIRONMENT" = preview ]; then
-            args+=(--git-branch=staging)
-          fi
-          vercel pull "${args[@]}"
       - name: Validate production Neon target
-        run: bun --env-file=.vercel/.env.production.local scripts/neon/validate-production-target.ts
-      - name: Build on the GitHub runner
-        # vercel build runs the frozen installCommand and bun run build from
-        # vercel.json, including authoring skills and V4 runtime preparation.
-        run: |
-          set -euo pipefail
-          vercel build --environment="$VERCEL_ENVIRONMENT"
-          test -s .vercel/output/config.json
-      - name: Deploy the prebuilt output
+        # Vercel pull substitutes [SENSITIVE] for production secrets.
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          STORAGE_PROVIDER_MODE: ${{ vars.STORAGE_PROVIDER_MODE || secrets.STORAGE_PROVIDER_MODE }}
+          NEON_STORAGE_BUCKET: ${{ vars.NEON_STORAGE_BUCKET || secrets.NEON_STORAGE_BUCKET }}
+          AWS_ENDPOINT_URL_S3: ${{ vars.AWS_ENDPOINT_URL_S3 || secrets.AWS_ENDPOINT_URL_S3 }}
+          AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: bun scripts/neon/validate-production-target.ts
+      - name: Build and deploy production on Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          vercel deploy --prebuilt --yes --environment="$VERCEL_ENVIRONMENT" \
+          vercel deploy --prod --yes --archive=tgz \
             --meta githubDeployment=1 \
             --meta githubCommitOrg=soezyxstt \
             --meta githubCommitRepo=zyxacademy \

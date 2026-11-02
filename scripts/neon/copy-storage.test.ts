@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { assertInventoryUnchanged, copyObject, listInventory, validateTarget, withBodyDeadline } from "./copy-storage";
+import { assertInventoryUnchanged, copyObject, copyObjectWithRetry, listInventory, validateTarget, withBodyDeadline } from "./copy-storage";
 import { Readable } from "node:stream";
 
 const endpoint = "https://br-cool-water-az2xxbul.storage.c-3.ap-southeast-1.aws.neon.tech";
@@ -8,6 +8,28 @@ const object = (value: string) => ({ Body: (async function* () { yield Buffer.fr
 const item = { key: "private/key", size: 6, etag: '"etag"', lastModified: "2026-01-01T00:00:00.000Z" };
 
 describe("storage copy", () => {
+  test("a terminated web response is caught and retried without an unhandled stream error", async () => {
+    let reads = 0;
+    const source = { send: async () => {
+      if (++reads > 1) return object("source");
+      const body = new ReadableStream({ start(controller) { controller.error(Object.assign(new TypeError("terminated"), { cause: { code: "UND_ERR_SOCKET" } })); } });
+      return { Body: body, ContentLength: 6, ETag: '"etag"' };
+    } };
+    expect(await copyObjectWithRetry(source, { send: async () => object("source") }, "source", item, false)).toBe("identical");
+    expect(reads).toBe(2);
+  });
+  test("retries a transient read once and never retries a data conflict", async () => {
+    let reads = 0;
+    const source = { send: async () => { if (++reads === 1) throw new TypeError("fetch failed"); return object("source"); } };
+    expect(await copyObjectWithRetry(source, { send: async () => object("source") }, "source", item, false)).toBe("identical");
+    expect(reads).toBe(2);
+    let conflicts = 0;
+    await expect(copyObjectWithRetry({ send: async () => object("source") }, { send: async () => { conflicts++; return object("wrong!"); } }, "source", item, true)).rejects.toThrow("DESTINATION_CONFLICT");
+    expect(conflicts).toBe(1);
+    let failures = 0;
+    await expect(copyObjectWithRetry({ send: async () => { failures++; throw new TypeError("fetch failed"); } }, { send: async () => object("source") }, "source", item, false)).rejects.toThrow("fetch failed");
+    expect(failures).toBe(2);
+  });
   test("stalled response bodies fail and release the stream instead of hanging or silently exiting", async () => {
     const body = new Readable({ read() {} });
     await expect(withBodyDeadline(body, async () => { for await (const _chunk of body) { /* no data */ } }, 10)).rejects.toThrow("STORAGE_BODY_TIMEOUT");
@@ -82,6 +104,20 @@ describe("storage copy", () => {
       return object("source");
     } };
     expect(await copyObject({ send: async () => object("source") }, destination, "source", item, true, "zyx-production")).toBe("copied");
+  });
+
+  test("a conditional upload retry reconciles committed bytes and rejects a different object", async () => {
+    for (const value of ["source", "wrong!"]) {
+      let uploaded = false;
+      const destination = { send: async (command: any) => {
+        if (command instanceof PutObjectCommand) { uploaded = true; throw { $metadata: { httpStatusCode: 412 } }; }
+        if (!uploaded) throw { name: "NoSuchKey" };
+        return object(value);
+      } };
+      const copy = copyObject({ send: async () => object("source") }, destination, "source", item, true, "zyx-production");
+      if (value === "source") expect(await copy).toBe("identical");
+      else await expect(copy).rejects.toThrow("DESTINATION_CONFLICT");
+    }
   });
 
   test("rejects a corrupted copy", async () => {

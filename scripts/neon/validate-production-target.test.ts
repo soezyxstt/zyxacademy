@@ -7,6 +7,8 @@ test("production deployments reject stale Turso, staging and mismatched storage 
   expect(() => validateProductionTarget(env)).not.toThrow();
   expect(() => validateProductionTarget({...env,AWS_ACCESS_KEY_ID:""})).toThrow("PRODUCTION_STORAGE_CREDENTIALS_REQUIRED");
   expect(() => validateProductionTarget({...env,AWS_SECRET_ACCESS_KEY:""})).toThrow("PRODUCTION_STORAGE_CREDENTIALS_REQUIRED");
+  expect(() => validateProductionTarget({...env,AWS_SECRET_ACCESS_KEY:"[SENSITIVE]"})).toThrow("PRODUCTION_STORAGE_CREDENTIALS_REQUIRED");
+  expect(() => validateProductionTarget({...env,DATABASE_URL:"[SENSITIVE]"})).toThrow();
   for (const changed of [{DATABASE_URL:"libsql://source.invalid"}, {DATABASE_URL:env.DATABASE_URL.replace("ep-quiet-math-azyey0mb", "ep-sparkling-lab-azrp3ymj")}, {STORAGE_PROVIDER_MODE:"r2"}, {NEON_STORAGE_BUCKET:"zyx-staging"}, {AWS_REGION:"auto"}, {AWS_ENDPOINT_URL_S3:env.AWS_ENDPOINT_URL_S3.replace("br-wandering-butterfly-azi11h8r", "br-gentle-scene-azq0gp91")}]) {
     expect(() => validateProductionTarget({...env,...changed})).toThrow();
   }
