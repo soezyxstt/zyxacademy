@@ -46,6 +46,7 @@ import {
   Info,
 } from "lucide-react";
 import type { CreateCustomQuestionInput, QuestionType } from "@/lib/google-forms";
+import type { FormDisplayMode } from "@/lib/forms/presentation";
 import { formatDatetimeLocal } from "@/lib/date-utils";
 import {
   Dialog,
@@ -108,6 +109,7 @@ function settingsForSave<T extends { openAt?: string; closeAt?: string }>(settin
 }
 
 const DEFAULT_FORM_SETTINGS = {
+  displayMode: "question" as FormDisplayMode,
   acceptingResponses: true,
   closedMessage: "Formulir ini telah ditutup dan tidak lagi menerima tanggapan.",
   openAt: "",
@@ -229,6 +231,7 @@ export default function AdminFormsBuilder({
     );
     const s = formToLoad.settings || {};
     setSettings({
+      displayMode: s.displayMode === "section" ? "section" : "question",
       acceptingResponses: s.acceptingResponses ?? true,
       closedMessage: s.closedMessage || "Formulir ini telah ditutup dan tidak lagi menerima tanggapan.",
       openAt: s.openAt ? formatDatetimeLocal(s.openAt) : "",
@@ -711,7 +714,7 @@ export default function AdminFormsBuilder({
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       {errorMsg && (
         <div className="flex items-center gap-3 rounded-xl border border-status-error/30 bg-status-error/10 p-4 text-body-sm text-status-error">
           <AlertCircle className="size-5 shrink-0" />
@@ -742,9 +745,9 @@ export default function AdminFormsBuilder({
         <TabsContent value="builder">
         <div className="grid gap-4 md:grid-cols-12 items-start">
           {/* Main Question Cards Column */}
-          <div className="md:col-span-9 space-y-4" ref={builderListRef}>
+          <div className="md:col-span-9 min-w-0 divide-y divide-border" ref={builderListRef}>
             {editingFormId && (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-primary/40 bg-brand-primary/10 p-3.5 sm:p-4 text-body-xs shadow-2xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border py-3 text-body-xs">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="secondary" className="bg-brand-primary text-brand-primary-foreground font-bold uppercase tracking-wider text-[10px]">
                     {t("ui.editMode")}
@@ -775,7 +778,7 @@ export default function AdminFormsBuilder({
             )}
 
             {/* Header Card (Title, Description, & Compact Toolbar) */}
-            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <div className="pb-4 space-y-3">
               <div>
                 <Input
                   type="text"
@@ -783,7 +786,7 @@ export default function AdminFormsBuilder({
                   placeholder={t("ui.formTitle")}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full font-heading text-body-sm font-bold text-foreground bg-transparent border-b border-border/40 pb-1.5 focus:border-brand-primary focus:outline-none transition-colors"
+                  className="w-full min-w-0 font-heading text-body-sm font-bold text-foreground bg-transparent border-b border-border/40 pb-1.5 focus:border-brand-primary focus:outline-none transition-colors"
                 />
               </div>
 
@@ -866,14 +869,14 @@ export default function AdminFormsBuilder({
                     setDraggedIdx(null);
                     setDragOverIdx(null);
                   }}
-                  className={`rounded-xl border bg-card p-3 sm:p-4 transition-colors space-y-3 relative ${
+                  className={`border-l-2 px-3 py-4 transition-colors space-y-3 relative ${
                     isDragging
-                      ? "opacity-40 border-dashed border-brand-primary"
+                      ? "opacity-40 border-dashed border-l-brand-primary"
                       : isDragOver
-                      ? "border-2 border-brand-primary bg-brand-primary/5"
+                      ? "border-l-brand-primary bg-brand-primary/5"
                       : isActive
-                      ? "border-l-4 border-l-brand-primary border-border ring-1 ring-brand-primary/20"
-                      : "border-border hover:border-border/80"
+                      ? "border-l-brand-primary bg-muted/20"
+                      : "border-l-transparent hover:bg-muted/10"
                   }`}
                 >
                   {/* Top Drag Handle & Quick Reorder Controls */}
@@ -1002,14 +1005,14 @@ export default function AdminFormsBuilder({
                   </div>
 
                   {/* Question Title & Question Type Selector Row */}
-                  <div className="grid gap-3 sm:grid-cols-12 items-start">
-                    <div className="sm:col-span-7 space-y-2">
+                  <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-12 items-start">
+                    <div className="sm:col-span-7 min-w-0 space-y-2">
                       <input
                         type="text"
                         placeholder={q.type === "STATEMENT" ? t("ui.optionalInfoTitle") : t("ui.questionText")}
                         value={q.title}
                         onChange={(e) => handleQuestionChange(qIdx, { title: e.target.value })}
-                        className="w-full font-heading text-body-base font-semibold text-foreground bg-transparent border-b border-border/40 pb-1 focus:border-brand-primary focus:outline-none transition-colors"
+                        className="w-full min-w-0 font-heading text-body-base font-semibold text-foreground bg-transparent border-b border-border/40 pb-1 focus:border-brand-primary focus:outline-none transition-colors"
                       />
 
                       {(q.showDescription ?? true) && (
@@ -1082,7 +1085,7 @@ export default function AdminFormsBuilder({
                       )}
                     </div>
 
-                    <div className="sm:col-span-5">
+                    <div className="sm:col-span-5 min-w-0">
                       <Select
                         value={q.type}
                         onValueChange={(val: QuestionType) => handleQuestionChange(qIdx, { type: val })}
@@ -1130,44 +1133,10 @@ export default function AdminFormsBuilder({
 
                   {/* Question Content & Option Editors per Type */}
                   <div className="pt-2">
-                    {/* STATEMENT */}
-                    {q.type === "STATEMENT" && (
-                      <div className="rounded-xl border border-brand-primary/40 bg-brand-primary/10 p-3 space-y-1">
-                        <div className="flex items-center gap-2 text-body-xs font-bold text-brand-primary uppercase tracking-wider">
-                          <Info className="size-3.5" />
-                          {t("ui.informationSlide")}
-                        </div>
-                        <p className="text-body-xs text-muted-foreground">
-                          {t("ui.informationHelp")}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* SECTION */}
                     {q.type === "SECTION" && (
-                      <div className="rounded-xl border border-brand-secondary/40 bg-brand-secondary/10 p-3 space-y-1">
-                        <div className="flex items-center gap-2 text-body-xs font-bold text-brand-secondary uppercase tracking-wider">
-                          <Layers className="size-3.5" />
-                          {t("ui.newSection")}
-                        </div>
-                        <p className="text-body-xs text-muted-foreground">
-                          {t("ui.sectionHelp")}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* 1. TEXT */}
-                    {q.type === "TEXT" && (
-                      <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-2 text-body-xs text-muted-foreground w-2/3">
-                        {t("ui.shortAnswer")}
-                      </div>
-                    )}
-
-                    {/* 2. PARAGRAPH */}
-                    {q.type === "PARAGRAPH" && (
-                      <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-body-xs text-muted-foreground w-full">
-                        {t("ui.longAnswer")}
-                      </div>
+                      <p className="text-body-xs text-muted-foreground">
+                        {settings.displayMode === "section" ? "Mulai halaman baru, berisi pertanyaan hingga bagian berikutnya." : "Tampilkan judul dan petunjuk sebelum pertanyaan berikutnya."}
+                      </p>
                     )}
 
                     {/* 3. CHOICE (RADIO, CHECKBOX, DROP_DOWN) */}
@@ -1220,34 +1189,28 @@ export default function AdminFormsBuilder({
 
                     {/* 4. FILE UPLOAD */}
                     {q.type === "FILE_UPLOAD" && (
-                      <div className="space-y-3 rounded-xl border border-dashed border-border/80 bg-muted/20 p-4">
+                      <div className="space-y-2 border-t border-border pt-3">
                         <div className="flex items-center gap-2 text-muted-foreground text-body-xs">
                           <UploadCloud className="size-4 text-brand-primary" />
-                          <span>{t("ui.fileUploadHelp")}</span>
+                          <span>Batas ukuran per berkas</span>
                         </div>
                         <div className="flex flex-wrap items-center gap-4 text-body-xs">
-                          <label className="flex items-center gap-1.5 font-semibold text-foreground">
-                            <span>{t("ui.maxSize")}</span>
-                            <select
-                              value={q.maxFileSizeMb || 10}
-                              onChange={(e) =>
-                                handleQuestionChange(qIdx, { maxFileSizeMb: parseInt(e.target.value, 10) })
-                              }
-                              className="rounded-md border border-border bg-background px-2 py-1 text-body-xs"
-                            >
-                              <option value={5}>5 MB</option>
-                              <option value={10}>10 MB</option>
-                              <option value={25}>25 MB</option>
-                              <option value={50}>50 MB</option>
-                            </select>
-                          </label>
+                          <div className="flex items-center gap-1.5 font-semibold text-foreground">
+                            <span>Maksimal Ukuran:</span>
+                            <Select value={String(q.maxFileSizeMb || 10)} onValueChange={(value) => handleQuestionChange(qIdx, { maxFileSizeMb: Number(value) })}>
+                              <SelectTrigger aria-label="Maksimal ukuran berkas" className="w-28"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {[5, 10, 25, 50].map((size) => <SelectItem key={size} value={String(size)}>{size} MB</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                       </div>
                     )}
 
                     {/* 5. LINEAR SCALE */}
                     {q.type === "SCALE" && (
-                      <div className="space-y-3 rounded-xl border border-border/80 bg-muted/20 p-3">
+                      <div className="space-y-2 border-t border-border pt-3">
                         <div className="flex items-center justify-between text-body-xs font-semibold text-muted-foreground">
                           <span>1 = {q.scaleLowLabel || t("ui.stronglyDisagree")}</span>
                           <span>5 = {q.scaleHighLabel || t("ui.stronglyAgree")}</span>
@@ -1568,7 +1531,7 @@ export default function AdminFormsBuilder({
 
         <TabsContent value="preview">
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-primary/30 bg-brand-primary/5 p-4 text-body-xs shadow-2xs">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3 text-body-xs">
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="bg-brand-primary text-brand-primary-foreground font-bold uppercase tracking-wider text-[10px]">
                   {t("ui.previewMode")}
@@ -1591,6 +1554,7 @@ export default function AdminFormsBuilder({
 
             <div className="overflow-hidden">
               <PublicFormViewer
+                key={settings.displayMode}
                 previewForm={{
                   id: editingFormId || "preview",
                   slug: slug || "preview",
@@ -1609,14 +1573,14 @@ export default function AdminFormsBuilder({
         <TabsContent value="settings">
         <div className="space-y-4 w-full">
           {presetsEnabled && (
-            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="border-b border-border pb-3">
               <PresetSettingsLoader
                 onApplySettings={(s) => setSettings((prev) => ({ ...prev, ...s }))}
               />
             </div>
           )}
 
-          <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+          <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 pb-1">
               <div>
                 <h2 className="font-heading text-body-base font-bold text-foreground">
@@ -1657,6 +1621,18 @@ export default function AdminFormsBuilder({
                   )}
                 </Button>
               </div>
+            </div>
+
+            <div className="space-y-2 border-t border-border pt-3">
+              <Label htmlFor="form-display-mode">Tampilan formulir</Label>
+              <Select value={settings.displayMode} onValueChange={(displayMode: FormDisplayMode) => setSettings({ ...settings, displayMode })}>
+                <SelectTrigger id="form-display-mode" className="w-full sm:w-72"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="question">Satu pertanyaan per halaman</SelectItem>
+                  <SelectItem value="section">Mengalir, satu bagian per halaman</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-body-xs text-muted-foreground">Setiap bagian memulai halaman baru. Tanpa bagian, semua pertanyaan tampil dalam satu halaman.</p>
             </div>
 
             {/* 1. Menerima Tanggapan & Jadwal Tutup/Buka */}
