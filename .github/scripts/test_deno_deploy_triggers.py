@@ -42,6 +42,8 @@ class DenoDeployTriggersTest(unittest.TestCase):
         text = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
         step = text.split("- name: Verify Diktat Runtime Assets", 1)[1].split("- name:", 1)[0]
         self.assertIn("DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder", step)
+        preparation = text.split("- name: Prepare V4 build identity for Deno", 1)[1].split("- name:", 1)[0]
+        self.assertIn("ZYX_POSTGRES_BUILD_PLACEHOLDER: '1'", preparation)
 
     def test_only_release_branches_can_mutate_worker_and_staging_guard_runs_first(self):
         text = DEPLOY_WORKFLOW.read_text(encoding="utf-8")

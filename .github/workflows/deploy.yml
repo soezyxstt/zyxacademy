@@ -645,6 +645,8 @@ jobs:
 
       - name: Prepare V4 build identity for Deno
         if: steps.impact.outputs.should_deploy == 'true'
+        env:
+          ZYX_POSTGRES_BUILD_PLACEHOLDER: '1'
         run: |
           bun install --frozen-lockfile --ignore-scripts
           bun scripts/authoring/prepare-web-verification.ts
