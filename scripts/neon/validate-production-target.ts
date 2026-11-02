@@ -1,11 +1,10 @@
 import { assertTarget } from "./import-core";
-import { validateTarget } from "./copy-storage";
 
 export function validateProductionTarget(env: Record<string, string | undefined>) {
   assertTarget(env.DATABASE_URL || "", "ep-quiet-math-azyey0mb-pooler.c-3.ap-southeast-1.aws.neon.tech", "neondb");
   if (env.STORAGE_PROVIDER_MODE !== "neon" || env.AWS_REGION !== "ap-southeast-1" || env.NEON_STORAGE_BUCKET !== "zyx-production") throw new Error("PRODUCTION_STORAGE_TARGET_MISMATCH");
   if ([env.AWS_ACCESS_KEY_ID, env.AWS_SECRET_ACCESS_KEY].some(value => !value || value === "[SENSITIVE]")) throw new Error("PRODUCTION_STORAGE_CREDENTIALS_REQUIRED");
-  validateTarget(env.AWS_ENDPOINT_URL_S3 || "", env.NEON_STORAGE_BUCKET);
+  if (new URL(env.AWS_ENDPOINT_URL_S3 || "").href !== "https://br-wandering-butterfly-azi11h8r.storage.c-3.ap-southeast-1.aws.neon.tech/") throw new Error("PRODUCTION_STORAGE_TARGET_MISMATCH");
 }
 
 if (import.meta.main) {
