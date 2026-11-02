@@ -142,7 +142,7 @@ async function main() {
   const requestHandler = { connectionTimeout: 15000, requestTimeout: 120000, socketTimeout: 120000 };
   const source = new S3Client({ requestHandler, region: "auto", endpoint: R2_ENDPOINT, credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY } });
   const destination = new S3Client({ requestHandler, region: AWS_REGION, endpoint: AWS_ENDPOINT_URL_S3, forcePathStyle: true, requestChecksumCalculation: "WHEN_REQUIRED", credentials: { accessKeyId: AWS_ACCESS_KEY_ID, secretAccessKey: AWS_SECRET_ACCESS_KEY } });
-  const fetchHandler = new FetchHttpHandler({ requestInit: () => ({ signal: AbortSignal.timeout(120000) }) });
+  const fetchHandler = new FetchHttpHandler({ requestInit: (request) => ({ headers: { ...request.headers, "accept-encoding": "identity" }, signal: AbortSignal.timeout(120000) }) });
   for (const client of [source, destination]) {
     const nodeHandler = client.config.requestHandler;
     const nodeCollector = client.config.streamCollector;

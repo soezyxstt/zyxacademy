@@ -462,6 +462,10 @@ on:
       - 'workers/deno-background/**'
   workflow_dispatch:
     inputs:
+      runtime_diagnostics:
+        description: "Read the production worker rollback identity without deploying or exporting secrets"
+        type: boolean
+        default: false
       browser_diagnostics:
         description: "Probe Browser Run only, without deploying or changing application data"
         type: boolean
@@ -477,6 +481,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  runtime-diagnostics:
+    if: github.event_name == 'workflow_dispatch' && inputs.runtime_diagnostics
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: python3 .github/scripts/inspect_production_deno.py
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: neon-production-deno-before
+          path: artifacts/neon-production/deno-before.json
+          retention-days: 7
+
   browser-diagnostics:
     if: github.event_name == 'workflow_dispatch' && inputs.browser_diagnostics
     runs-on: ubuntu-latest
@@ -547,7 +570,7 @@ jobs:
 
   deploy:
     name: Deploy Background Worker (${{ github.ref_name }})
-    if: github.event_name != 'pull_request' && !inputs.browser_diagnostics && (github.ref_name == 'main' || github.ref_name == 'staging')
+    if: github.event_name != 'pull_request' && !inputs.browser_diagnostics && !inputs.runtime_diagnostics && (github.ref_name == 'main' || github.ref_name == 'staging')
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
 
