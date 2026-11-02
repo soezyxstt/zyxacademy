@@ -466,6 +466,10 @@ on:
         description: "Read the production worker rollback identity without deploying or exporting secrets"
         type: boolean
         default: false
+      restore_turso_worker:
+        description: "Restore the recorded pre-Neon production worker and its original storage/database routing"
+        type: boolean
+        default: false
       browser_diagnostics:
         description: "Probe Browser Run only, without deploying or changing application data"
         type: boolean
@@ -482,7 +486,7 @@ concurrency:
 
 jobs:
   runtime-diagnostics:
-    if: github.event_name == 'workflow_dispatch' && inputs.runtime_diagnostics
+    if: github.event_name == 'workflow_dispatch' && (inputs.runtime_diagnostics || inputs.restore_turso_worker)
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -491,10 +495,11 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
-      - run: python3 .github/scripts/inspect_production_deno.py
+      - run: python3 .github/scripts/inspect_production_deno.py ${{ inputs.restore_turso_worker && '--restore-turso' || '' }}
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
       - uses: actions/upload-artifact@v4
+        if: !inputs.restore_turso_worker
         with:
           name: neon-production-deno-before
           path: artifacts/neon-production/deno-before.json
@@ -570,7 +575,7 @@ jobs:
 
   deploy:
     name: Deploy Background Worker (${{ github.ref_name }})
-    if: github.event_name != 'pull_request' && !inputs.browser_diagnostics && !inputs.runtime_diagnostics && (github.ref_name == 'main' || github.ref_name == 'staging')
+    if: github.event_name != 'pull_request' && !inputs.browser_diagnostics && !inputs.runtime_diagnostics && !inputs.restore_turso_worker && (github.ref_name == 'main' || github.ref_name == 'staging')
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
 

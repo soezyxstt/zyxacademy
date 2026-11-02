@@ -1,11 +1,24 @@
 """Read the production worker's rollback identity without exporting secret values."""
 import json
 import os
+import sys
 from pathlib import Path
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 HOST = "zyx-background.soezyxst.deno.net"
+ROLLBACK_REVISION = "gysznbeq1tqt"
+ROLLBACK_DATABASE = "libsql://zyx-soezyxstt.aws-ap-south-1.turso.io"
+
+
+def rollback_changes(app, revisions):
+    if app.get("id") != "b9601da7-4854-457a-b30e-0bffdf30420c" or not any(item["id"] == ROLLBACK_REVISION and item["status"] == "succeeded" for item in revisions):
+        raise RuntimeError("Verified rollback worker revision is unavailable")
+    database = [item for item in app.get("env_vars", []) if item["key"] == "DATABASE_URL" and item.get("contexts") == "all"]
+    if len(database) != 1:
+        raise RuntimeError("Production worker database setting is ambiguous")
+    owned = {"STORAGE_PROVIDER_MODE", "NEON_STORAGE_BUCKET", "AWS_ENDPOINT_URL_S3", "AWS_REGION", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"}
+    return [{"id": database[0]["id"], "value": ROLLBACK_DATABASE}] + [{"id": item["id"], "delete": True} for item in app.get("env_vars", []) if item["key"] in owned]
 
 
 def summarize_revision(revision):
@@ -23,16 +36,25 @@ def summarize_revision(revision):
 def main():
     token = os.environ["DENO_DEPLOY_TOKEN"]
 
-    def get(path):
-        request = Request("https://api.deno.com/v2" + path, headers={"Authorization": "Bearer " + token})
+    def request_api(path, method="GET", body=None):
+        request = Request("https://api.deno.com/v2" + path, method=method,
+                          data=json.dumps(body).encode() if body is not None else None,
+                          headers={"Authorization": "Bearer " + token, "Content-Type": "application/json"})
         with urlopen(request, timeout=30) as response:
-            return json.load(response)
+            return json.load(response) if response.status != 204 else None
 
-    app = get("/apps/zyx-background")
+    app = request_api("/apps/zyx-background")
     if app.get("slug") != "zyx-background":
         raise RuntimeError("Production worker identity mismatch")
-    revisions = get("/apps/" + app["id"] + "/revisions?limit=20&status=succeeded")
-    summaries = [summarize_revision(get("/revisions/" + item["id"])) for item in revisions[:5]]
+    revisions = request_api("/apps/" + app["id"] + "/revisions?limit=100&status=succeeded")
+    if sys.argv[1:] == ["--restore-turso"]:
+        request_api("/apps/" + app["id"], "PATCH", {"env_vars": rollback_changes(app, revisions)})
+        request_api("/revisions/" + ROLLBACK_REVISION + "/promote", "POST")
+        print(json.dumps({"appId": app["id"], "restoredRevision": ROLLBACK_REVISION, "unrelatedSecretsChanged": False}))
+        return
+    if sys.argv[1:]:
+        raise RuntimeError("Unknown production runtime operation")
+    summaries = [summarize_revision(request_api("/revisions/" + item["id"])) for item in revisions[:5]]
     live = [item for item in summaries if HOST in item["hostnames"]]
     if len(live) != 1:
         raise RuntimeError("Production worker live revision was not uniquely identified")

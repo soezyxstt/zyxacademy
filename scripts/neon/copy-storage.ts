@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { FetchHttpHandler, streamCollector as collectWebStream } from "@smithy/fetch-http-handler";
 
 const TARGET_HOST = "br-cool-water-az2xxbul.storage.c-3.ap-southeast-1.aws.neon.tech";
 const TARGET_BUCKET = "zyx-migration";
@@ -139,25 +138,10 @@ async function main() {
   validateTarget(AWS_ENDPOINT_URL_S3, NEON_STORAGE_BUCKET);
   const sourceUrl = new URL(R2_ENDPOINT);
   if (sourceUrl.protocol !== "https:" || !sourceUrl.hostname.endsWith(".r2.cloudflarestorage.com") || sourceUrl.port || sourceUrl.username || sourceUrl.password || sourceUrl.pathname !== "/" || sourceUrl.search || sourceUrl.hash) throw new Error("INVALID_R2_SOURCE");
+  // Mandatory full-object SHA-256 replaces optional SDK checksum streams that stalled during bulk reads.
   const requestHandler = { connectionTimeout: 15000, requestTimeout: 120000, socketTimeout: 120000 };
-  const source = new S3Client({ requestHandler, region: "auto", endpoint: R2_ENDPOINT, credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY } });
-  const destination = new S3Client({ requestHandler, region: AWS_REGION, endpoint: AWS_ENDPOINT_URL_S3, forcePathStyle: true, requestChecksumCalculation: "WHEN_REQUIRED", credentials: { accessKeyId: AWS_ACCESS_KEY_ID, secretAccessKey: AWS_SECRET_ACCESS_KEY } });
-  const fetchHandler = new FetchHttpHandler({ requestInit: (request) => ({ headers: { ...request.headers, "accept-encoding": "identity" }, signal: AbortSignal.timeout(120000) }) });
-  for (const client of [source, destination]) {
-    const nodeHandler = client.config.requestHandler;
-    const nodeCollector = client.config.streamCollector;
-    client.config.streamCollector = (stream: any) => stream instanceof ReadableStream ? collectWebStream(stream) : nodeCollector(stream);
-    // Fetch keeps the body tied to its abort signal; the Node handler stalled during bulk reads.
-    client.config.requestHandler = {
-      handle: async (request: any, options: any) => {
-        if (request.method !== "GET") return nodeHandler.handle(request, options);
-        return fetchHandler.handle(request, options);
-      },
-      destroy: () => nodeHandler.destroy?.(),
-      updateHttpClientConfig: nodeHandler.updateHttpClientConfig.bind(nodeHandler),
-      httpHandlerConfigs: nodeHandler.httpHandlerConfigs.bind(nodeHandler),
-    };
-  }
+  const source = new S3Client({ requestHandler, responseChecksumValidation: "WHEN_REQUIRED", region: "auto", endpoint: R2_ENDPOINT, credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY } });
+  const destination = new S3Client({ requestHandler, responseChecksumValidation: "WHEN_REQUIRED", region: AWS_REGION, endpoint: AWS_ENDPOINT_URL_S3, forcePathStyle: true, requestChecksumCalculation: "WHEN_REQUIRED", credentials: { accessKeyId: AWS_ACCESS_KEY_ID, secretAccessKey: AWS_SECRET_ACCESS_KEY } });
   const inventory = await listInventory(source, R2_BUCKET);
   const counts = { identical: 0, copied: 0, "would-copy": 0 };
   // Concurrent large-object response streams stalled during the production rehearsal.
