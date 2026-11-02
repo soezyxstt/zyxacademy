@@ -70,7 +70,8 @@ Koreksi: Tanda dari $(x-2)$ bergantung pada $x$. Perkalian silang variabel dilar
     expect(html).toContain("Zyx Academy");
     expect(html).toContain("Diktat Belajar");
     expect(html).toContain("Pertaksamaan dan Fungsi - Review Cepat");
-    expect(html).toContain("Hak Cipta Dilindungi");
+    expect(html).toContain("Instagram: zyx_academy");
+    expect(html).toContain("zyxforbusiness@gmail.com");
   });
 
   it("parses markdown headings without leaving raw hashes", () => {

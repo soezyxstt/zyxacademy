@@ -1,3 +1,4 @@
+import { contractChromiumPath } from "../helpers/chromium";
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -8,6 +9,7 @@ import type { ArticleDocument } from "@/lib/materials/article-contract";
 import type { ProductEntity } from "@/lib/bundle/product-validator";
 import {
   compileProductDiktatHtml,
+  compileCanonicalDiktatHtml,
   parseCanonicalDiktatMarkdownToHtml,
   PRODUCT_DIKTAT_PRINT_PROFILE,
   PRODUCT_DIKTAT_FOOTER_TEMPLATE,
@@ -133,11 +135,8 @@ async function savePdfPages(name: string, bytes: Uint8Array): Promise<void> {
 }
 
 before(async () => {
-  const customPath = "/home/soezyxst/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome";
-  const { existsSync } = await import("node:fs");
-  const useExplicit = process.platform === "linux" && existsSync(customPath);
   browser = await chromium.launch({
-    ...(useExplicit ? { executablePath: customPath } : {}),
+    executablePath: contractChromiumPath(),
     args: ["--no-sandbox"],
   });
 });
@@ -147,6 +146,37 @@ after(async () => {
 });
 
 describe("CP5 Product Bundle Diktat PDF", () => {
+  test("legacy canonical review markers force a real PDF page boundary", async () => {
+    const { PDFParse } = await import("pdf-parse");
+    PDFParse.setWorker(pathToFileURL(path.resolve("node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs")).href);
+    for (const viewport of [{ width: 380, height: 844 }, { width: 1536, height: 864 }]) {
+      const page = await browser.newPage({ viewport });
+      await page.emulateMedia({ media: "print" });
+      const errors: string[] = [];
+      page.on("pageerror", error => errors.push(error.message));
+      page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
+      page.on("response", response => { if (response.status() >= 400) errors.push(`HTTP ${response.status()}`); });
+      let bytes: Uint8Array;
+      try {
+        await page.setContent(compileCanonicalDiktatHtml("Review", "Pertanyaan\n\n<!-- page-break -->\n\n## Kunci jawaban\nJawaban ringkas."), { waitUntil: "load" });
+        assert.deepEqual(await page.locator(".diktat-running-header,.diktat-running-footer").evaluateAll(elements => elements.map(element => getComputedStyle(element).display)), ["none", "none"]);
+        bytes = new Uint8Array(await page.pdf({ format: "A4", printBackground: true, preferCSSPageSize: true }));
+        assert.deepEqual(errors, []);
+      } finally { await page.close(); }
+      const parser = new PDFParse({ data: bytes });
+      try {
+        const text = await parser.getText();
+        assert.equal(text.pages.length, 2);
+        assert.match(text.pages[0].text, /Pertanyaan/);
+        assert.doesNotMatch(text.pages[0].text, /Kunci jawaban/);
+        assert.match(text.pages[1].text, /Kunci jawaban/);
+        const directory = path.resolve("artifacts/visual-quality/results/canonical-review-break", String(viewport.width));
+        await mkdir(directory, { recursive: true });
+        const screenshots = await parser.getScreenshot({ desiredWidth: viewport.width, imageBuffer: true });
+        for (const shot of screenshots.pages) await writeFile(path.join(directory, `page-${shot.pageNumber}.png`), shot.data);
+      } finally { await parser.destroy(); }
+    }
+  });
   test("a multi-page Diktat starts its body on the title page", async () => {
     const article = articleProduct(LIMIT_ARTICLE_FIXTURE);
     const diktat = diktatProduct(article, "x^2");

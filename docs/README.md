@@ -180,7 +180,7 @@ To prevent confusion when navigating code or documentation, the active vs legacy
 
 | Authoring MCP distribution and playbooks | [authoring-mcp-distribution-and-playbooks.md](../plans/authoring-mcp-distribution-and-playbooks.md) | `OPEN / IN PROGRESS` | Local review fixes validated by 95 Bun contracts, 11 Python tests, a production build with local fixtures, and 15 traced playbook assets. Repository lint/typecheck still have unrelated errors; HTTP smoke, CP5 host verification, and CP6 rollout remain open. |
 
-| [operations/admin-mcp.md](operations/admin-mcp.md) | Admin MCP | `OPEN / IN PROGRESS` | 2026-11-02 | Exact operational tool catalog, scoped transaction and outbox contracts, local verification and remaining parity/rollout boundaries. |
+| [operations/admin-mcp.md](operations/admin-mcp.md) | Admin MCP | `OPEN / IN PROGRESS` | 2026-11-02 | Exact operational tool catalog, scoped transaction and outbox contracts, local verification and remaining parity/rollout boundaries. | Runtime CI follow-up records isolated fixtures, browser discovery and local PDF page-boundary evidence.
 
 Admin MCP changes also update `DB_SCHEMA.md`, `DEVELOPMENT.md`, `DEPLOYMENT.md`, `features.md`, `ARCHITECTURE.md` and `operations/authoring-mcp-skills.md`; their existing active registry status remains applicable.
 
