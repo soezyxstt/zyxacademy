@@ -23,6 +23,9 @@ The `ACTIVE` feature catalog records Zyra session continuity, conversational tut
 The `ACTIVE` feature catalog also documents compact Article formula rows, reading-first embedded graphs, optional parameter controls, and explicit graph interaction activation.
 
 The `ACTIVE` feature catalog records Article selection explanations, policy-validated contextual live-session follow-up suggestions, explicit Python generation with preserved retry intent and image snapshots, and the beginner Python generation policy.
+The `ACTIVE` feature catalog documents compact Form Studio rows, publication per question or per section, upload size labels, and confirmation before submission. Local fixture checks do not verify live storage or publication.
+
+The `ACTIVE` feature catalog records the mobile Article selection action and saved quote handoff to Zyra, with the desktop selection popover preserved.
 
 ---
 
