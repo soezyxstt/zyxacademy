@@ -5,7 +5,7 @@ const TARGET_HOST = "br-cool-water-az2xxbul.storage.c-3.ap-southeast-1.aws.neon.
 const TARGET_BUCKET = "zyx-migration";
 const STAGING_HOST = "br-holy-snow-azveniaa.storage.c-3.ap-southeast-1.aws.neon.tech";
 const CUTOVER_HOST = "br-gentle-scene-azq0gp91.storage.c-3.ap-southeast-1.aws.neon.tech";
-const PRODUCTION_HOST = "br-polished-cell-az2cjf0y.storage.c-3.ap-southeast-1.aws.neon.tech";
+const PRODUCTION_HOST = "br-wandering-butterfly-azi11h8r.storage.c-3.ap-southeast-1.aws.neon.tech";
 
 export function validateTarget(endpoint: string, bucket: string) {
   const url = new URL(endpoint);
@@ -44,7 +44,21 @@ export function assertInventoryUnchanged(before: InventoryItem[], after: Invento
   if (JSON.stringify(before) !== JSON.stringify(after)) throw new Error("SOURCE_INVENTORY_CHANGED");
 }
 
+export async function withBodyDeadline<T>(body: AsyncIterable<Uint8Array> & { destroy?: (error: Error) => void }, consume: () => Promise<T>, timeoutMs = 120000): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([consume(), new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const error = new Error("STORAGE_BODY_TIMEOUT");
+        reject(error);
+        body.destroy?.(error);
+      }, timeoutMs);
+    })]);
+  } finally { clearTimeout(timer); }
+}
+
 async function fingerprint(body: AsyncIterable<Uint8Array>): Promise<Fingerprint> {
+  return withBodyDeadline(body, async () => {
   const hash = createHash("sha256");
   let size = 0;
   for await (const chunk of body) {
@@ -52,6 +66,7 @@ async function fingerprint(body: AsyncIterable<Uint8Array>): Promise<Fingerprint
     hash.update(chunk);
   }
   return { size, sha256: hash.digest("hex") };
+  });
 }
 
 async function readObject(client: Reader, bucket: string, key: string) {
@@ -82,11 +97,11 @@ export async function copyObject(source: Reader, destination: Reader, sourceBuck
   if (upload.ContentLength !== item.size || upload.ETag !== item.etag) throw new Error("SOURCE_CHANGED");
   const chunks: Buffer[] = [];
   let received = 0;
-  for await (const chunk of upload.Body) {
+  await withBodyDeadline(upload.Body, async () => { for await (const chunk of upload.Body) {
     received += chunk.byteLength;
     if (received > item.size) throw new Error("SOURCE_LENGTH_MISMATCH");
     chunks.push(Buffer.from(chunk));
-  }
+  } });
   const bytes = Buffer.concat(chunks);
   if (bytes.length !== expected.size || createHash("sha256").update(bytes).digest("hex") !== expected.sha256) throw new Error("SOURCE_CHANGED");
   await destination.send(new PutObjectCommand({
@@ -120,7 +135,7 @@ async function main() {
     }));
     for (const result of results) if (result.status === "rejected") {
       const error = result.reason;
-      console.error(JSON.stringify({ error: "COPY_OBJECT_FAILED", code: error?.name, status: error?.$metadata?.httpStatusCode }));
+      console.error(JSON.stringify({ error: "COPY_OBJECT_FAILED", code: error?.name, status: error?.$metadata?.httpStatusCode, reason: /^[A-Z_]+$/.test(error?.message || "") ? error.message : undefined }));
     }
     if (results.some((result) => result.status === "rejected")) throw new Error("COPY_BATCH_FAILED");
   }
@@ -129,4 +144,4 @@ async function main() {
   console.log(JSON.stringify({ total: inventory.length, ...counts, mode: process.argv.includes("--apply") ? "apply" : "dry-run" }));
 }
 
-if (import.meta.main) main().catch(() => { console.error("Storage copy failed; inspect configuration and reconcile before retrying."); process.exitCode = 1; });
+if (import.meta.main) await main().catch(() => { console.error("Storage copy failed; inspect configuration and reconcile before retrying."); process.exitCode = 1; });

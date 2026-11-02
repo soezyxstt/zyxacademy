@@ -6,9 +6,9 @@ Status: `OPEN / IN PROGRESS`. Production still serves the existing Turso/R2 depl
 
 - Worktree: `D:/ZYX/zyx-neon-production`, branch `migration/neon-production`. The integration preserves the production Python terminal repair from `ae5b824e0bf414b66099a0128ec0d34c57cd02e6`.
 - Vercel project: `zyxacademy`, `prj_9wDdc36VFIH5wJT45jEXIHGst2pb`, team `team_rMFT8hSTCTObKzXirjJcbMFc`. The pre-cutover deployment is `dpl_9FdH4i1KTTw1yhEERuDzFkT7mCk9`, serving `zyxacademy.com` and `www.zyxacademy.com`.
-- Neon project: `muddy-sky-44104897`, Singapore. Dedicated production target: `br-polished-cell-az2cjf0y`, named `production-neon-cutover-20261102`, created from the independently checked empty root, separately from staging.
-- Database: `neondb`. Application host: `ep-icy-art-az6oa108-pooler.c-3.ap-southeast-1.aws.neon.tech`. Imports use the corresponding direct endpoint. Verified TLS is required.
-- Private bucket: `zyx-production`, endpoint `https://br-polished-cell-az2cjf0y.storage.c-3.ap-southeast-1.aws.neon.tech`, region `ap-southeast-1`. Its credential is scoped to the production branch, with storage read/write permissions.
+- Neon project: `muddy-sky-44104897`, Singapore. Dedicated production target: `br-wandering-butterfly-azi11h8r`, named `production`, the independently checked empty root. Staging remains isolated on its existing child branch. The initial preparation branch `br-polished-cell-az2cjf0y` was superseded because Neon rejects snapshots on non-root branches; retire it after final target acceptance.
+- Database: `neondb`. Application host: `ep-quiet-math-azyey0mb-pooler.c-3.ap-southeast-1.aws.neon.tech`. Imports use the corresponding direct endpoint. Verified TLS is required.
+- Private bucket: `zyx-production`, endpoint `https://br-wandering-butterfly-azi11h8r.storage.c-3.ap-southeast-1.aws.neon.tech`, region `ap-southeast-1`. Its credential is scoped to the production branch, with storage read/write permissions.
 - Ignored local settings: `.env.neon-production` and `.env.neon-production-source`. Keep signed snapshots in the owner-restricted `.tmp/neon-private-snapshots` directory. Never upload environments, snapshots, credentials or real sessions to CI or sandboxes.
 
 ## Rehearsal evidence
@@ -31,4 +31,4 @@ Evidence lives under ignored `artifacts/neon-production/`. The first local focus
 
 ## Rollback boundary
 
-Before accepting production writes in Neon, restore the previous immutable Vercel deployment, worker and settings, then restore access and original job pause states. After accepting writes, first freeze both backends and reconcile Neon-only transactions and objects. Switching a URL alone would lose those changes. Retain Turso/R2 and the old deployments throughout the observation window. Backup retention and recovery must be checked before claiming production readiness.
+Before accepting production writes in Neon, restore the previous immutable Vercel deployment, worker and settings, then restore access and original job pause states. After accepting writes, first freeze both backends and reconcile Neon-only transactions and objects. Switching a URL alone would lose those changes. Retain Turso/R2 and the old deployments throughout the observation window. The project history retention is configured to 24 hours. The production root has a read-back daily snapshot schedule at 20:00 UTC with seven-day retention. Snapshot creation and an isolated restore drill must pass before production readiness is claimed. The first attempt on the superseded child branch was rejected by Neon because snapshots require a root branch.

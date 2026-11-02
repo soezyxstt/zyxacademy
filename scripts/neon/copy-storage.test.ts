@@ -1,12 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { assertInventoryUnchanged, copyObject, listInventory, validateTarget } from "./copy-storage";
+import { assertInventoryUnchanged, copyObject, listInventory, validateTarget, withBodyDeadline } from "./copy-storage";
+import { Readable } from "node:stream";
 
 const endpoint = "https://br-cool-water-az2xxbul.storage.c-3.ap-southeast-1.aws.neon.tech";
 const object = (value: string) => ({ Body: (async function* () { yield Buffer.from(value); })(), ContentLength: Buffer.byteLength(value), ETag: '"etag"' });
 const item = { key: "private/key", size: 6, etag: '"etag"', lastModified: "2026-01-01T00:00:00.000Z" };
 
 describe("storage copy", () => {
+  test("stalled response bodies fail and release the stream instead of hanging or silently exiting", async () => {
+    const body = new Readable({ read() {} });
+    await expect(withBodyDeadline(body, async () => { for await (const _chunk of body) { /* no data */ } }, 10)).rejects.toThrow("STORAGE_BODY_TIMEOUT");
+    expect(body.destroyed).toBe(true);
+  });
   test("allows only the exact private migration target", () => {
     expect(() => validateTarget(endpoint, "zyx-migration")).not.toThrow();
     expect(() => validateTarget(`${endpoint}.evil.test`, "zyx-migration")).toThrow();
@@ -19,7 +25,7 @@ describe("storage copy", () => {
     expect(() => validateTarget(cutover, "zyx-staging")).not.toThrow();
     expect(() => validateTarget(cutover, "zyx-migration")).toThrow();
     expect(() => validateTarget(endpoint, "zyx-staging")).toThrow();
-    const production = "https://br-polished-cell-az2cjf0y.storage.c-3.ap-southeast-1.aws.neon.tech";
+    const production = "https://br-wandering-butterfly-azi11h8r.storage.c-3.ap-southeast-1.aws.neon.tech";
     expect(() => validateTarget(production, "zyx-production")).not.toThrow();
     expect(() => validateTarget(production, "zyx-staging")).toThrow();
     expect(() => validateTarget(cutover, "zyx-production")).toThrow();
