@@ -28,6 +28,7 @@ import {
   deleteAssessmentWithLegacyProjection,
 } from "@/lib/asesmen/quiz-canonical-sync";
 import { requireTutorCourseAccess } from "@/lib/auth/tutor-access";
+import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import {
   TUTOR_CAPABILITY_ERRORS,
   resolveActorRoles,
@@ -175,6 +176,9 @@ export async function saveTutorMaterialAction(
   }
 
   const parsedSections = parseMaterialIntoSections(rawText);
+  const identity = await resolveCourseIdentity(courseId);
+  const legacyCourseId = identity?.legacyId;
+  if (!legacyCourseId) throw new Error("COURSE_LEGACY_MAPPING_REQUIRED");
   const targetId = materialId || `mat-tutor-${randomUUID()}`;
 
   await db.transaction(async (tx) => {
@@ -205,7 +209,7 @@ export async function saveTutorMaterialAction(
     } else {
       await tx.insert(aiMaterialInstances).values({
         id: targetId,
-        courseId,
+        courseId: legacyCourseId,
         title,
         sourceType: "markdown",
         summary,
@@ -927,7 +931,7 @@ export async function getQuizTemplatePreviewAction(courseId: string, templateId:
 
     const tags = (rules?.tags as string[] | undefined) || [];
     const tagConditions = tags.map(
-      (tag) => sql`exists (select 1 from json_each(${aiQuestionBank.tags}) where json_each.value = ${tag})`
+      (tag) => sql`exists (select 1 from jsonb_array_elements_text(${aiQuestionBank.tags}::jsonb) as tag_value where tag_value = ${tag})`
     );
     const tagCondition = tags.length > 0 ? or(...tagConditions) : undefined;
 
@@ -1312,6 +1316,9 @@ export async function saveTryoutAction(
   }
 
   const targetId = examId || `exm-tutor-${randomUUID()}`;
+  const identity = await resolveCourseIdentity(courseId);
+  const legacyCourseId = identity?.legacyId;
+  if (!legacyCourseId) throw new Error("COURSE_LEGACY_MAPPING_REQUIRED");
   const settings = {
     timeLimitMinutes: data.timeLimitMinutes,
     maxAttempts: data.maxAttempts,
@@ -1346,7 +1353,7 @@ export async function saveTryoutAction(
       } else {
         await tx.insert(exams).values({
           id: targetId,
-          courseId,
+          courseId: legacyCourseId,
           type: "tryout",
           ...dbData,
         });

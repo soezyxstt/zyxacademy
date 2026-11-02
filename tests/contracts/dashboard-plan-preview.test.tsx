@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderWithMessages } from "../helpers/render-with-messages";
 import { DashboardPlanPreview } from "@/components/dashboard/plan-preview";
 
 describe("student dashboard plan preview", () => {
   test("shows the three paid plan summaries and links to the full comparison", () => {
-    const markup = renderToStaticMarkup(<DashboardPlanPreview />);
+    const markup = renderWithMessages(<DashboardPlanPreview />);
 
     expect(markup).toContain("Minimal");
     expect(markup).toContain("Essential");

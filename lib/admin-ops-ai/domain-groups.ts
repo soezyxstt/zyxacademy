@@ -8,7 +8,7 @@ import {
   user,
   studentQuizAttempts,
 } from "@/db/schema";
-import { eq, desc, like, or } from "drizzle-orm";
+import { eq, desc, inArray, and, ilike, or } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { getSemesterEndDate } from "@/lib/utils";
 import { PACKAGE_PRESETS, type PackageType } from "@/lib/group-constants";
@@ -329,8 +329,8 @@ export async function executeDiagnoseStudentAccess(input: DiagnoseStudentAccessI
     .where(
       or(
         eq(user.id, query),
-        like(user.email, `%${query}%`),
-        like(user.name, `%${query}%`)
+        ilike(user.email, `%${query}%`),
+        ilike(user.name, `%${query}%`)
       )
     )
     .limit(5);

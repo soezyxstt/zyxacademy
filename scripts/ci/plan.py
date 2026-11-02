@@ -142,7 +142,7 @@ def scope_paths(snapshot):
         # Fingerprint/playbook bytes are deployment inputs, not worker imports.
         'v4': runtime | snapshot.under('lib/authoring/playbooks/') | LOCKS,
         'authoring': snapshot.closure(authoring_roots) | LOCKS | {'authoring-skills.lock.json'},
-        'schedule': snapshot.closure(schedule_roots) | LOCKS | snapshot.under('drizzle/'),
+        'schedule': snapshot.closure(schedule_roots) | LOCKS | snapshot.under('drizzle/', 'drizzle-postgres/'),
     }
 
 
@@ -185,7 +185,7 @@ def plan(changed, head, base=None, force=False):
     for file, scope in workflows.items():
         if '.github/workflows/' + file in changed:
             result[scope] = True
-    broad = force or bool(changed & LOCKS) or any(p.startswith(('scripts/ci/', '.github/actions/')) for p in changed) or '.github/workflows/ci.yml' in changed
+    broad = bool(changed & {'scripts/test-contracts.ts', 'tests/helpers/postgres-preload.ts'}) or force or bool(changed & LOCKS) or any(p.startswith(('scripts/ci/', '.github/actions/')) for p in changed) or '.github/workflows/ci.yml' in changed
     if broad:
         result.update(dict.fromkeys(SCOPES, True))
     selected = []

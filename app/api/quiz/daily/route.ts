@@ -285,7 +285,7 @@ async function publishedQuestionsForTemplate(input: {
 
   const tags = [...new Set((input.tags ?? []).map((tag) => tag.trim()).filter(Boolean))];
   if (tags.length > 0) {
-    const tagConditions = tags.map((tag) => sql`exists (select 1 from json_each(${aiQuestionBank.tags}) where json_each.value = ${tag})`);
+    const tagConditions = tags.map((tag) => sql`exists (select 1 from jsonb_array_elements_text(${aiQuestionBank.tags}::jsonb) as tag_value where tag_value = ${tag})`);
     conditions.push(or(...tagConditions) as SQL);
   }
 

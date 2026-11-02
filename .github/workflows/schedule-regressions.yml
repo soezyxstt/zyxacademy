@@ -10,9 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
+      ZYX_POSTGRES_BUILD_PLACEHOLDER: '1'
       SKIP_ENV_VALIDATION: '1'
       BETTER_AUTH_SECRET: ci-contract-tests-only-not-a-real-secret
-      DATABASE_URL: 'file::memory:'
+      DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
 
     steps:
       - name: Checkout
@@ -44,5 +45,4 @@ jobs:
           SKIP_ENV_VALIDATION: "1"
         run: |
           bun tests/integration/tutorial-booking-lifecycle.ts
-          bun test tests/contracts/tutor-schedule-read-model.test.ts
-          bun test tests/contracts/tutor-schedule-actions.test.ts -t 'charges only for a future WIB slot|preserves the original booking'
+          bun scripts/test-contracts.ts tests/contracts/tutor-schedule-read-model.test.ts tests/contracts/tutor-schedule-actions.test.ts

@@ -16,6 +16,7 @@ export function getRouteTitle(
   const roleTitle = (namespace: "admin" | "tutor", key: string, fallback: string) =>
     translate?.(`${namespace}.routeTitles.${key}`) ?? fallback;
   if (pathname === "/admin") return roleTitle("admin", "dashboard", "Admin dashboard");
+  if (pathname === "/admin/docs" || pathname.startsWith("/admin/docs/")) return roleTitle("admin", "docs", "Documentation");
   if (pathname.startsWith("/admin/blog")) return roleTitle("admin", "blog", "Manage blog");
   if (pathname.startsWith("/admin/courses/")) {
     const match = pathname.match(/^\/admin\/courses\/([^/]+)(.*)$/);

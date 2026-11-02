@@ -1,196 +1,10 @@
-import { describe, expect, test, mock } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { afterAll, describe, expect, test, mock } from "bun:test";
+import { createPostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 
-// Setup in-memory SQLite database
-const client = createClient({ url: ":memory:" });
-const testDb = drizzle(client, { schema });
-
-await client.executeMultiple(`
-  CREATE TABLE IF NOT EXISTS courses (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    category TEXT NOT NULL,
-    description TEXT
-  );
-  CREATE TABLE IF NOT EXISTS mata_kuliah (
-    id TEXT PRIMARY KEY,
-    code TEXT NOT NULL UNIQUE,
-    title TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'active',
-    is_demo INTEGER NOT NULL DEFAULT 0,
-    legacy_course_id TEXT,
-    created_at INTEGER,
-    updated_at INTEGER
-  );
-  CREATE TABLE IF NOT EXISTS bab (
-    id TEXT PRIMARY KEY,
-    mata_kuliah_id TEXT NOT NULL,
-    code TEXT,
-    title TEXT NOT NULL,
-    order_index INTEGER NOT NULL DEFAULT 1,
-    status TEXT NOT NULL DEFAULT 'active',
-    legacy_chapter_id TEXT,
-    created_at INTEGER,
-    updated_at INTEGER
-  );
-  CREATE TABLE IF NOT EXISTS chapters (
-    id TEXT PRIMARY KEY,
-    course_id TEXT NOT NULL,
-    title TEXT NOT NULL,
-    order_index INTEGER NOT NULL DEFAULT 1,
-    status TEXT NOT NULL DEFAULT 'published',
-    created_at INTEGER,
-    updated_at INTEGER
-  );
-  CREATE TABLE IF NOT EXISTS artikel (
-    id TEXT PRIMARY KEY,
-    mata_kuliah_id TEXT NOT NULL,
-    bab_id TEXT,
-    slug TEXT NOT NULL,
-    title TEXT NOT NULL,
-    content_markdown TEXT,
-    structure_status TEXT DEFAULT 'legacy_unreviewed',
-    version INTEGER DEFAULT 1,
-    status TEXT NOT NULL DEFAULT 'draft',
-    source_hash TEXT,
-    generation_hash TEXT,
-    creator_id TEXT,
-    curator_id TEXT,
-    published_at INTEGER,
-    created_at INTEGER,
-    updated_at INTEGER
-  );
-  CREATE TABLE IF NOT EXISTS bagian_artikel (
-    id TEXT PRIMARY KEY,
-    artikel_id TEXT NOT NULL,
-    bagian_pembelajaran_id TEXT,
-    parent_section_id TEXT,
-    section_key TEXT NOT NULL DEFAULT 'topic',
-    section_kind TEXT NOT NULL DEFAULT 'topic',
-    slug TEXT NOT NULL DEFAULT 'topic',
-    created_at INTEGER NOT NULL DEFAULT 0,
-    updated_at INTEGER NOT NULL DEFAULT 0,
-    version INTEGER DEFAULT 1,
-    order_index INTEGER DEFAULT 1,
-    title TEXT,
-    status TEXT DEFAULT 'published',
-    learning_objective TEXT,
-    estimated_reading_minutes INTEGER DEFAULT 3
-  );
-  CREATE TABLE IF NOT EXISTS diktat_materi (
-    id TEXT PRIMARY KEY,
-    mata_kuliah_id TEXT NOT NULL,
-    bab_id TEXT,
-    title TEXT NOT NULL,
-    content_markdown TEXT,
-    file_key TEXT,
-    version INTEGER DEFAULT 1,
-    status TEXT NOT NULL DEFAULT 'draft',
-    source_hash TEXT,
-    generation_hash TEXT,
-    creator_id TEXT,
-    curator_id TEXT,
-    published_at INTEGER,
-    created_at INTEGER,
-    updated_at INTEGER
-  );
-  CREATE TABLE IF NOT EXISTS diktats (
-    id TEXT PRIMARY KEY,
-    course_id TEXT NOT NULL,
-    source_mtd_id TEXT,
-    source_mtd_version INTEGER,
-    is_stale INTEGER DEFAULT 0,
-    generation_hash TEXT,
-    title TEXT NOT NULL,
-    file_url TEXT,
-    chapter_ids TEXT DEFAULT '[]',
-    settings TEXT DEFAULT '{}',
-    status TEXT NOT NULL DEFAULT 'draft',
-    download_count INTEGER DEFAULT 0,
-    thumbnail_url TEXT,
-    created_at INTEGER,
-    updated_at INTEGER
-  );
-  CREATE TABLE IF NOT EXISTS ai_material_instances (
-    id TEXT PRIMARY KEY,
-    course_id TEXT NOT NULL,
-    title TEXT NOT NULL,
-    source_type TEXT,
-    summary TEXT,
-    learning_objectives TEXT DEFAULT '[]',
-    keywords TEXT DEFAULT '[]',
-    chapter_ids TEXT DEFAULT '[]',
-    pinecone_sync_status TEXT DEFAULT 'pending',
-    last_sync_error TEXT,
-    thumbnail_url TEXT,
-    created_at INTEGER,
-    updated_at INTEGER
-  );
-  CREATE TABLE IF NOT EXISTS website_materials (
-    id TEXT PRIMARY KEY,
-    course_id TEXT NOT NULL,
-    chapter_id TEXT,
-    source_mtd_id TEXT,
-    source_mtd_version INTEGER,
-    is_stale INTEGER DEFAULT 0,
-    generation_hash TEXT,
-    title TEXT NOT NULL,
-    slug TEXT,
-    canonical_markdown TEXT,
-    structured_content TEXT,
-    term_index TEXT,
-    content_version INTEGER DEFAULT 1,
-    status TEXT NOT NULL DEFAULT 'draft',
-    coverage_status TEXT,
-    coverage_report TEXT,
-    thumbnail_url TEXT,
-    created_at INTEGER,
-    updated_at INTEGER
-  );
-  CREATE TABLE IF NOT EXISTS quiz_templates (
-    id TEXT PRIMARY KEY,
-    course_id TEXT NOT NULL,
-    title TEXT NOT NULL,
-    category TEXT DEFAULT 'daily',
-    status TEXT NOT NULL DEFAULT 'published',
-    visibility TEXT DEFAULT 'free',
-    selection_rules TEXT,
-    open_at INTEGER,
-    close_at INTEGER,
-    manual_status TEXT DEFAULT 'scheduled',
-    show_discussion INTEGER DEFAULT 0,
-    spreadsheet_id TEXT,
-    spreadsheet_url TEXT,
-    time_limit_seconds INTEGER,
-    max_attempts INTEGER,
-    created_at INTEGER,
-    updated_at INTEGER
-  );
-  CREATE TABLE IF NOT EXISTS exams (
-    id TEXT PRIMARY KEY,
-    course_id TEXT NOT NULL,
-    title TEXT NOT NULL,
-    type TEXT DEFAULT 'tryout',
-    status TEXT NOT NULL DEFAULT 'published',
-    settings TEXT,
-    open_at INTEGER,
-    close_at INTEGER,
-    created_at INTEGER,
-    updated_at INTEGER
-  );
-  CREATE TABLE IF NOT EXISTS cakupan_asesmen (
-    id TEXT PRIMARY KEY,
-    asesmen_id TEXT NOT NULL,
-    bab_id TEXT NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS soal (
-    id TEXT PRIMARY KEY,
-    bab_id TEXT
-  );
-`);
+const { client, testDb } = await createPostgresTestDb();
+afterAll(async () => { await client.close(); });
 
 // Mock the db module
 let queryCounter = 0;
@@ -250,6 +64,17 @@ describe("Course Catalog Stats Batch Projection", () => {
       { id: "legacy-course-empty", title: "Empty Course", category: "TPB" },
     ]);
 
+    await testDb.insert(schema.user).values({ id: "fixture-author", name: "Fixture author", email: "fixture@example.test" });
+    await testDb.insert(schema.pengguna).values({ id: "fixture-author" });
+    await testDb.insert(schema.chapters).values([
+      { id: "legacy-ch-kinematika", courseId: "legacy-course-a", title: "Kinematika", orderIndex: 1 },
+      { id: "legacy-ch-dinamika", courseId: "legacy-course-a", title: "Dinamika", orderIndex: 2 },
+      { id: "legacy-ch-gelombang", courseId: "legacy-course-a", title: "Gelombang", orderIndex: 3 },
+    ]);
+    await testDb.insert(schema.masterTeachingDocuments).values({
+      id: "fixture-mtd", courseId: "legacy-course-a", title: "Source", markdownContent: "Source", createdById: "fixture-author",
+    });
+
     await testDb.insert(schema.mataKuliah).values([
       {
         id: "mk-fisika-a",
@@ -292,6 +117,7 @@ describe("Course Catalog Stats Batch Projection", () => {
     // Canonical published article linked to bab-kinematika
     await testDb.insert(schema.artikel).values([
       {
+        contentMarkdown: "Fixture", sourceHash: "fixture-hash", generationHash: "fixture-hash", creatorId: "fixture-author",
         id: "art-kin-1",
         mataKuliahId: "mk-fisika-a",
         babId: "bab-kinematika",
@@ -303,6 +129,7 @@ describe("Course Catalog Stats Batch Projection", () => {
       },
       // Draft article (should NOT be counted)
       {
+        contentMarkdown: "Fixture", sourceHash: "fixture-hash", generationHash: "fixture-hash", creatorId: "fixture-author",
         id: "art-kin-draft",
         mataKuliahId: "mk-fisika-a",
         babId: "bab-kinematika",
@@ -317,6 +144,7 @@ describe("Course Catalog Stats Batch Projection", () => {
     // Canonical published diktat linked to bab-dinamika
     await testDb.insert(schema.diktatMateri).values([
       {
+        contentMarkdown: "Fixture", sourceHash: "fixture-hash", generationHash: "fixture-hash", creatorId: "fixture-author",
         id: "diktat-din-1",
         mataKuliahId: "mk-fisika-a",
         babId: "bab-dinamika",
@@ -327,6 +155,7 @@ describe("Course Catalog Stats Batch Projection", () => {
       },
       // Draft canonical diktat (should NOT be counted)
       {
+        contentMarkdown: "Fixture", sourceHash: "fixture-hash", generationHash: "fixture-hash", creatorId: "fixture-author",
         id: "diktat-din-draft",
         mataKuliahId: "mk-fisika-a",
         babId: "bab-dinamika",
@@ -342,6 +171,7 @@ describe("Course Catalog Stats Batch Projection", () => {
     // One does NOT overlap -> should be COUNTED
     await testDb.insert(schema.diktats).values([
       {
+        sourceMtdId: "fixture-mtd", sourceMtdVersion: 1, generationHash: "fixture-hash",
         id: "leg-diktat-overlapping",
         courseId: "legacy-course-a",
         title: "Legacy Diktat Dinamika",
@@ -351,6 +181,7 @@ describe("Course Catalog Stats Batch Projection", () => {
         updatedAt: now,
       },
       {
+        sourceMtdId: "fixture-mtd", sourceMtdVersion: 1, generationHash: "fixture-hash",
         id: "leg-diktat-independent",
         courseId: "legacy-course-a",
         title: "Legacy Diktat Termodinamika",
@@ -361,6 +192,7 @@ describe("Course Catalog Stats Batch Projection", () => {
       },
       // Draft legacy diktat -> should NOT be counted
       {
+        sourceMtdId: "fixture-mtd", sourceMtdVersion: 1, generationHash: "fixture-hash",
         id: "leg-diktat-draft",
         courseId: "legacy-course-a",
         title: "Legacy Diktat Draft",
@@ -377,6 +209,7 @@ describe("Course Catalog Stats Batch Projection", () => {
     // One has [DRAF] prefix -> should be EXCLUDED
     await testDb.insert(schema.aiMaterialInstances).values([
       {
+        sourceType: "markdown", summary: "Fixture material",
         id: "ai-mat-overlapping",
         courseId: "legacy-course-a",
         title: "AI Kinematika",
@@ -385,6 +218,7 @@ describe("Course Catalog Stats Batch Projection", () => {
         updatedAt: now,
       },
       {
+        sourceType: "markdown", summary: "Fixture material",
         id: "ai-mat-independent",
         courseId: "legacy-course-a",
         title: "AI Optika",
@@ -393,6 +227,7 @@ describe("Course Catalog Stats Batch Projection", () => {
         updatedAt: now,
       },
       {
+        sourceType: "markdown", summary: "Fixture material",
         id: "ai-mat-draft",
         courseId: "legacy-course-a",
         title: "[DRAF] AI Relativitas",
@@ -408,6 +243,7 @@ describe("Course Catalog Stats Batch Projection", () => {
     // One with status 'draft' -> should NOT be counted
     await testDb.insert(schema.websiteMaterials).values([
       {
+        sourceMtdId: "fixture-mtd", sourceMtdVersion: 1, generationHash: "fixture-hash", canonicalMarkdown: "Fixture", structuredContent: {},
         id: "web-mat-overlapping",
         courseId: "legacy-course-a",
         chapterId: "legacy-ch-kinematika",
@@ -416,6 +252,7 @@ describe("Course Catalog Stats Batch Projection", () => {
         status: "published",
       },
       {
+        sourceMtdId: "fixture-mtd", sourceMtdVersion: 1, generationHash: "fixture-hash", canonicalMarkdown: "Fixture", structuredContent: {},
         id: "web-mat-independent",
         courseId: "legacy-course-a",
         chapterId: "legacy-ch-gelombang",
@@ -424,6 +261,7 @@ describe("Course Catalog Stats Batch Projection", () => {
         status: "published",
       },
       {
+        sourceMtdId: "fixture-mtd", sourceMtdVersion: 1, generationHash: "fixture-hash", canonicalMarkdown: "Fixture", structuredContent: {},
         id: "web-mat-draft",
         courseId: "legacy-course-a",
         chapterId: "legacy-ch-gelombang",
@@ -436,6 +274,7 @@ describe("Course Catalog Stats Batch Projection", () => {
     // 3. Seed quizzes for Course A and Course B
     await testDb.insert(schema.quizTemplates).values([
       {
+        category: "daily", selectionRules: {},
         id: "quiz-a-1",
         courseId: "legacy-course-a",
         title: "Kuis 1 Kinematika",
@@ -443,6 +282,7 @@ describe("Course Catalog Stats Batch Projection", () => {
         createdAt: now,
       },
       {
+        category: "daily", selectionRules: {},
         id: "quiz-a-2",
         courseId: "legacy-course-a",
         title: "Kuis 2 Dinamika",
@@ -450,6 +290,7 @@ describe("Course Catalog Stats Batch Projection", () => {
         createdAt: now,
       },
       {
+        category: "daily", selectionRules: {},
         id: "quiz-b-1",
         courseId: "legacy-course-b",
         title: "Kuis Kimia 1",

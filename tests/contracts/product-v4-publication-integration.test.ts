@@ -1,7 +1,5 @@
-import { afterAll, beforeAll, expect, mock, test } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
-import { migrate } from "drizzle-orm/libsql/migrator";
+import { afterAll, expect, mock, test } from "bun:test";
+import { createPostgresTestDb } from "../helpers/postgres";
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import { buildLocalVerificationFixture } from "../../scripts/authoring/local-verification-fixture";
@@ -14,19 +12,18 @@ import { PRODUCT_DIKTAT_PRINT_PROFILE } from "@/lib/bundle/product-diktat-pdf";
 import * as originalVerificationService from "@/lib/bundle/product-v4-verification-service";
 
 const originalVerificationExports = { ...originalVerificationService };
-const client = createClient({ url: "file::memory:?cache=shared" });
-const testDb = drizzle(client, { schema });
+const { client, testDb } = await createPostgresTestDb();
 const { bundle } = buildLocalVerificationFixture();
 const article = bundle.products.find(product => product.productType === "article")!;
 const diktat = bundle.products.find(product => product.productType === "diktat")!;
 if (article.productType !== "article" || diktat.productType !== "diktat") throw new Error("V4_TEST_PRODUCTS_REQUIRED");
 const publisherId = "local-verification-reviewer";
 const importId = "v4-publication-fixture";
-const authority = { signingKey: "sqlite-only-verification-fixture-signing-key", executorId: "sqlite-fixture-executor" };
+const authority = { signingKey: "postgres-only-verification-fixture-signing-key", executorId: "postgres-fixture-executor" };
 const hash = "a".repeat(64);
 const attemptId = "11111111-1111-4111-8111-111111111111";
 const bindingPorts = {
-  async course() { return { id: bundle.manifest.courseId, legacyCourseId: "sqlite-legacy-course" }; },
+  async course() { return { id: bundle.manifest.courseId, legacyCourseId: "postgres-legacy-course" }; },
   async figure(): Promise<never> { throw new Error("No source figures in fixture"); },
   async download(): Promise<Uint8Array> { throw new Error("No external storage in fixture"); },
   async runtime() { return { rendererChecksum: hash, fontChecksum: hash, contractChecksum: hash, playbookChecksum: hash, printProfile: PRODUCT_DIKTAT_PRINT_PROFILE }; },
@@ -43,7 +40,7 @@ const bindingPorts = {
 };
 const getRow = async () => (await testDb.select().from(schema.imporBundle).where(eq(schema.imporBundle.id, importId)))[0];
 async function currentPlan() {
-  const binding = await buildProductV4RuntimeBinding({ row: await getRow(), bundle, runId: "sqlite-run" }, bindingPorts);
+  const binding = await buildProductV4RuntimeBinding({ row: await getRow(), bundle, runId: "postgres-run" }, bindingPorts);
   return deriveProductV4VerificationPlan({ bundle, binding });
 }
 let trustedReceipt: Awaited<ReturnType<typeof runProductV4Verification>>;
@@ -57,20 +54,16 @@ mock.module("@/lib/bundle/product-v4-verification-service", () => ({ ...original
 const { publishProductBundle } = await import("@/lib/bundle/product-publication");
 const { provisionPenggunaForNewUser } = await import("@/lib/auth/authorization");
 
-beforeAll(async () => { await migrate(testDb, { migrationsFolder: "./drizzle" }); });
-afterAll(() => { mock.module("@/lib/bundle/product-v4-verification-service", () => originalVerificationExports); client.close(); });
+afterAll(async () => { mock.module("@/lib/bundle/product-v4-verification-service", () => originalVerificationExports); await client.close(); });
 
 async function seedReady() {
-  const tables = await client.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '%drizzle%'");
-  await client.execute("PRAGMA foreign_keys=OFF");
-  for (const table of tables.rows) await client.execute(`DELETE FROM "${String(table.name).replaceAll('"', '""')}"`);
-  await client.execute("PRAGMA foreign_keys=ON");
+  await client.exec('TRUNCATE TABLE "user", courses, mata_kuliah, peran CASCADE');
   for (const id of new Set([publisherId, bundle.manifest.creatorId, bundle.manifest.curatorId!])) {
     await testDb.insert(schema.user).values({ id, name: "Fixture admin", email: `${id}@example.test`, emailVerified: true, role: "admin", createdAt: new Date(0), updatedAt: new Date(0) });
     await provisionPenggunaForNewUser({ id, role: "admin" });
   }
-  await testDb.insert(schema.courses).values({ id: "sqlite-legacy-course", title: "Local V4", category: "Matematika", description: "Local publication test" });
-  await testDb.insert(schema.mataKuliah).values({ id: bundle.manifest.courseId, code: "V4SQL", title: "Local V4", legacyCourseId: "sqlite-legacy-course" });
+  await testDb.insert(schema.courses).values({ id: "postgres-legacy-course", title: "Local V4", category: "Matematika", description: "Local publication test" });
+  await testDb.insert(schema.mataKuliah).values({ id: bundle.manifest.courseId, code: "V4SQL", title: "Local V4", legacyCourseId: "postgres-legacy-course" });
   await testDb.insert(schema.bab).values({ id: "chapter-limit", mataKuliahId: bundle.manifest.courseId, code: "V4", title: "Limit", orderIndex: 1 });
   for (const idea of article.ideaLinks) await testDb.insert(schema.ide).values({ id: idea.id, mataKuliahId: bundle.manifest.courseId, babId: "chapter-limit", stableKey: idea.id, code: idea.id, canonicalStatement: "Limit statement", conciseExplanation: "Limit explanation", semanticHash: idea.semanticHash, generationHash: hash, version: idea.version, status: "published", creatorId: publisherId });
   for (const source of article.sourceRefs) {
@@ -78,13 +71,13 @@ async function seedReady() {
     for (const [index, id] of source.excerptIds.entries()) await testDb.insert(schema.potonganSumber).values({ id, sumberMateriId: source.sourceId, sourceVersion: source.version, content: "Fixture source", startOffset: index * 20, endOffset: index * 20 + 14, checksum: source.checksum });
   }
   for (const [index, section] of article.sections.entries()) if (section.learningSectionId) await testDb.insert(schema.bagianPembelajaran).values({ id: section.learningSectionId, mataKuliahId: bundle.manifest.courseId, babId: "chapter-limit", stableKey: section.learningSectionId, title: section.title, slug: section.slug, orderIndex: index, learningObjective: section.learningObjective });
-  await testDb.insert(schema.imporBundle).values({ id: importId, bundleId: bundle.manifest.bundleId, checksum: bundle.checksum, bundleType: "product", courseId: "sqlite-legacy-course", sourceUriOrKey: "fixture-v4.zip", version: 4, status: "draft", requestedBy: publisherId });
+  await testDb.insert(schema.imporBundle).values({ id: importId, bundleId: bundle.manifest.bundleId, checksum: bundle.checksum, bundleType: "product", courseId: "postgres-legacy-course", sourceUriOrKey: "fixture-v4.zip", version: 4, status: "draft", requestedBy: publisherId });
   const plan = await currentPlan();
   // Fixture executor tests publication wiring only; these bytes are not browser/PDF verification evidence.
   const pdf = new TextEncoder().encode("%PDF-1.7\nfixture\n%%EOF");
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
   trustedReceipt = await runProductV4Verification(plan, authority, async requirement => ({ checkId: requirement.id, status: "PASS", expected: "Fixture machine check", observed: "Fixture executor observation", pageCount: requirement.layer === "print" ? 1 : undefined, artifacts: [{ id: `artifact-${attemptId}-${requirement.id}-0.${requirement.artifactType === "application/pdf" ? "pdf" : requirement.artifactType === "image/png" ? "png" : "json"}`, mediaType: requirement.artifactType, bytes: requirement.artifactType === "application/pdf" ? pdf : requirement.artifactType === "image/png" ? png : new TextEncoder().encode("{}"), pageNumber: requirement.layer === "print" && requirement.artifactType === "image/png" ? 1 : undefined }] }));
-  await testDb.update(schema.imporBundle).set({ validationReport: { productV4Verification: { runId: "sqlite-run", planHash: plan.planHash, attemptId } } }).where(eq(schema.imporBundle.id, importId));
+  await testDb.update(schema.imporBundle).set({ validationReport: { productV4Verification: { runId: "postgres-run", planHash: plan.planHash, attemptId } } }).where(eq(schema.imporBundle.id, importId));
   const fingerprint = computePedagogyContentFingerprint({ article: Object.fromEntries(Object.entries(article)), diktat: Object.fromEntries(Object.entries(diktat)) });
   await testDb.insert(schema.reviewPedagogiBundle).values({ id: "v4-pedagogic-review", imporBundleId: importId, reviewerId: publisherId, contentFingerprint: fingerprint, policyVersion: QUALITY_POLICY_VERSION, status: "approved", exceptions: [], rubric: { verificationPlanHash: plan.planHash, verificationReceiptSignature: trustedReceipt.signature, sectionDecisions: article.sections.map(section => ({ sectionId: section.id, semanticHash: computeProductV4SectionSemanticHash(article, section.id), decision: "approved" })), criteria: PEDAGOGIC_CRITERION_IDS.map(criterionId => ({ criterionId, status: "met", contentAnchors: [{ targetType: "section", targetId: article.sections[0].id }], reason: "Explicit fixture section review" })) } });
   for (const section of article.sections) await testDb.insert(schema.reviewItemBundle).values({ id: `v4-section-${section.id}`, imporBundleId: importId, productId: article.id, reviewerId: publisherId, targetType: "article_section", targetId: section.id, status: "approved" });
@@ -94,7 +87,7 @@ async function seedReady() {
   for (const row of evidence) await testDb.insert(schema.buktiPdfBundle).values(row);
 }
 
-test("real V4 SQLite publication requires a current receipt, explicit review and PDF evidence", async () => {
+test("real V4 PostgreSQL publication requires a current receipt, explicit review and PDF evidence", async () => {
   await seedReady();
   expect((await publishProductBundle({ importId, publishedBy: publisherId })).published).toBe(true);
   expect((await testDb.select().from(schema.artikel).where(eq(schema.artikel.id, article.id)))[0].status).toBe("published");

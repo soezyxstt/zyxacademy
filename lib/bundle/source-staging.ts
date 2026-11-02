@@ -236,19 +236,19 @@ export async function stageSourcePack(input: SourcePackStageInput): Promise<Sour
   };
 }
 
-import { sql } from "drizzle-orm";
+
 import { normalizeDate } from "@/lib/date-utils";
 
 function compareSourcePackRows(
-  a: { id: string; createdAt: Date; updatedAt: Date; rowid: number },
-  b: { id: string; createdAt: Date; updatedAt: Date; rowid: number },
+  a: { id: string; createdAt: Date; updatedAt: Date; insertionOrder: number },
+  b: { id: string; createdAt: Date; updatedAt: Date; insertionOrder: number },
 ): number {
   const updatedDiff = b.updatedAt.getTime() - a.updatedAt.getTime();
   if (updatedDiff !== 0) return updatedDiff;
   const createdDiff = b.createdAt.getTime() - a.createdAt.getTime();
   if (createdDiff !== 0) return createdDiff;
-  const rowidDiff = b.rowid - a.rowid;
-  if (rowidDiff !== 0) return rowidDiff;
+  const insertionOrderDiff = b.insertionOrder - a.insertionOrder;
+  if (insertionOrderDiff !== 0) return insertionOrderDiff;
   return b.id.localeCompare(a.id);
 }
 
@@ -320,15 +320,15 @@ export async function listSourcePackImports(options?: {
   const rows = await db
     .select({
       row: imporBundle,
-      rowid: sql<number>`rowid`,
+      insertionOrder: imporBundle.insertionOrder,
     })
     .from(imporBundle)
     .where(eq(imporBundle.bundleType, "source"));
 
   return rows
-    .map(({ row, rowid }) => ({
+    .map(({ row, insertionOrder }) => ({
       ...toStoredSourcePackRecord(row),
-      rowid: Number(rowid ?? 0),
+      insertionOrder: Number(insertionOrder ?? 0),
     }))
     .filter((row) => {
       const report = row.validationReport;
@@ -344,7 +344,7 @@ export async function listSourcePackImports(options?: {
     })
     .sort(compareSourcePackRows)
     .slice(0, limit)
-    .map(({ rowid: _rowid, ...record }) => record);
+    .map(({ insertionOrder: _insertionOrder, ...record }) => record);
 }
 
 export async function resolveSourcePackImport(input: {
@@ -373,7 +373,7 @@ export async function resolveSourcePackImport(input: {
   const candidates = await db
     .select({
       row: imporBundle,
-      rowid: sql<number>`rowid`,
+      insertionOrder: imporBundle.insertionOrder,
     })
     .from(imporBundle)
     .where(and(eq(imporBundle.bundleType, "source"), eq(imporBundle.bundleId, input.packId)));
@@ -381,9 +381,9 @@ export async function resolveSourcePackImport(input: {
   if (candidates.length === 0) return null;
 
   const normalized = candidates
-    .map(({ row, rowid }) => ({
+    .map(({ row, insertionOrder }) => ({
       ...toStoredSourcePackRecord(row),
-      rowid: Number(rowid ?? 0),
+      insertionOrder: Number(insertionOrder ?? 0),
     }))
     .filter((row) => row.status === "validated" && row.validationReport?.valid !== false)
     .sort(compareSourcePackRows);
@@ -393,13 +393,13 @@ export async function resolveSourcePackImport(input: {
     if (!matchingChecksum) {
       throw new Error("AUTHORING_MCP_SOURCE_PACK_IMPORT_MISMATCH");
     }
-    const { rowid: _rowid, ...record } = matchingChecksum;
+    const { insertionOrder: _insertionOrder, ...record } = matchingChecksum;
     return record;
   }
 
   const latest = normalized[0];
   if (!latest) return null;
-  const { rowid: _rowid, ...record } = latest;
+  const { insertionOrder: _insertionOrder, ...record } = latest;
   return record;
 }
 

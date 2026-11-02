@@ -52,6 +52,10 @@ class CheckCommandsTest(unittest.TestCase):
         commands, _ = self.run_plan(structured_typecheck=True)
         self.assertEqual(commands, [['run', 'typegen'], ['run', 'typecheck:structured-articles']])
 
+    def test_contracts_use_staging_postgres_fixture_runner(self):
+        commands, _ = self.run_plan(tests=['tests/contracts/db.test.ts'])
+        self.assertEqual(commands, [['scripts/test-contracts.ts', 'tests/contracts/db.test.ts']])
+
     def test_bun_test_files_run_in_separate_processes(self):
         commands, _ = self.run_plan(tests=['tests/a.test.ts', 'tests/b.test.ts'])
         self.assertEqual(commands, [['test', 'tests/a.test.ts'], ['test', 'tests/b.test.ts']])

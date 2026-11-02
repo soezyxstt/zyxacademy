@@ -162,9 +162,8 @@ jobs:
           # Only this build process skips server-secret validation. Runtime does not.
           SKIP_ENV_VALIDATION: '1'
           # Sitemap generation reads published blog metadata during the build.
-          DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL || secrets.TURSO_CONNECTION_URL || secrets.DATABASE_URL }}
-          TURSO_CONNECTION_URL: ${{ secrets.TURSO_DATABASE_URL || secrets.TURSO_CONNECTION_URL || secrets.DATABASE_URL }}
-          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEON_EXPECTED_HOST: ${{ vars.NEON_EXPECTED_HOST }}
           AUTHORING_VERIFICATION_BROWSER_PROVIDER: ${{ vars.AUTHORING_VERIFICATION_BROWSER_PROVIDER || secrets.AUTHORING_VERIFICATION_BROWSER_PROVIDER || 'cloudflare' }}
           AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION: ${{ vars.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION || secrets.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION }}
           NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL || secrets.NEXT_PUBLIC_APP_URL }}
@@ -194,14 +193,7 @@ jobs:
               unset "$key"
             fi
           done < <(compgen -e)
-          bun -e '
-            const database = process.env.TURSO_CONNECTION_URL;
-            if (!database || !process.env.TURSO_AUTH_TOKEN ||
-                new URL(database).hostname !== "zyx-staging-soezyxstt.aws-ap-south-1.turso.io") {
-              throw new Error("Configure the existing staging Turso URL and token; production targets are rejected.");
-            }
-            console.log("Staging database build target verified.");
-          '
+          PYTHONPATH=.github/scripts python3 -c 'import os; from cloud_run_runtime import validate_database; validate_database(os.environ.get("DATABASE_URL", ""), os.environ.get("NEON_EXPECTED_HOST", ""))'
           bun run build
           test -s .next/standalone/server.js
           test -s .next/standalone/dist/skills/manifest.json

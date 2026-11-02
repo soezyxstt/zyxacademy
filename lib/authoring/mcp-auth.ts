@@ -1,8 +1,11 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { pengguna, session as authSession, user } from "@/db/schema";
+import { session as authSession } from "@/db/schema";
 import { hasPeran } from "@/lib/auth/authorization";
 import { readMcpConnectionToken, type McpConnectionTokenPayload } from "@/lib/authoring/mcp-workflows";
+import { hasMcpOAuthConsent } from "@/lib/authoring/mcp-oauth";
+
+export const MCP_MANUAL_CLIENT_ID = "zyx-admin-connection";
 
 export type McpPrincipal = {
   userId: string;
@@ -11,18 +14,6 @@ export type McpPrincipal = {
   scopes: string[];
   authMethod: "session" | "oauth";
 };
-
-async function activeAdmin(userId: string): Promise<{ id: string } | null> {
-  const [identity] = await db
-    .select({ id: pengguna.id, role: user.role, status: pengguna.status })
-    .from(pengguna)
-    .innerJoin(user, eq(user.id, pengguna.id))
-    .where(eq(pengguna.id, userId))
-    .limit(1);
-  if (!identity || identity.status !== "active") return null;
-  if (identity.role === "admin" || await hasPeran(userId, "admin")) return { id: identity.id };
-  return null;
-}
 
 async function liveSession(userId: string, sessionId: string): Promise<boolean> {
   const [row] = await db
@@ -40,25 +31,36 @@ export async function resolveMcpAdmin(input: {
   authMethod: McpPrincipal["authMethod"];
 }): Promise<McpPrincipal> {
   if (!(await liveSession(input.userId, input.sessionId))) throw new Error("AUTHORING_MCP_SESSION_INVALID");
-  const identity = await activeAdmin(input.userId);
-  if (!identity) throw new Error("AUTHORING_MCP_ADMIN_REQUIRED");
+  if (!(await hasPeran(input.userId, "admin"))) throw new Error("AUTHORING_MCP_ADMIN_REQUIRED");
   return {
     userId: input.userId,
-    actorId: identity.id,
+    actorId: input.userId,
     sessionId: input.sessionId,
     scopes: [...input.scopes],
     authMethod: input.authMethod,
   };
 }
 
-export async function principalFromConnectionToken(token: string): Promise<McpPrincipal> {
+export async function principalFromConnectionToken(token: string, expectedResource: string): Promise<McpPrincipal> {
   const payload: McpConnectionTokenPayload = readMcpConnectionToken(token);
-  return resolveMcpAdmin({
+  if (payload.resource !== expectedResource) throw new Error("AUTHORING_MCP_INVALID_RESOURCE");
+  const principal = await resolveMcpAdmin({
     userId: payload.userId,
     sessionId: payload.sessionId,
     scopes: payload.scopes,
     authMethod: "oauth",
   });
+  if (payload.clientId !== MCP_MANUAL_CLIENT_ID) {
+    const approved = await hasMcpOAuthConsent({
+      userId: payload.userId,
+      sessionId: payload.sessionId,
+      clientId: payload.clientId,
+      resource: expectedResource,
+      scope: payload.scopes,
+    });
+    if (!approved) throw new Error("AUTHORING_MCP_CONSENT_REQUIRED");
+  }
+  return principal;
 }
 
 export function requireMcpScope(principal: McpPrincipal, scope: string): void {

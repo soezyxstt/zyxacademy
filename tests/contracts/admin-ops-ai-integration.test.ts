@@ -1,17 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
+import { createPostgresTestDb } from "../helpers/postgres";
+import * as schema from "@/db/schema";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, mock } from "bun:test";
 import { randomUUID } from "node:crypto";
-import {
-  createOpsAiRuntimeResponse,
-} from "@/lib/admin-ops-ai/runtime";
 import {
   setOpsAiModelStreamMock,
 } from "@/lib/admin-ops-ai/model-factory";
-import {
-  executeOpsAiTool,
-} from "@/lib/admin-ops-ai/runtime-tools";
-import {
-  proposalStore,
-} from "@/lib/admin-ops-ai/proposal-store";
 import {
   OpsAiCitationSchema,
   OpsAiActionProposalV2Schema,
@@ -31,6 +24,12 @@ import type { CanonicalContentV2EmbeddingAdapter } from "@/lib/vectorize/embeddi
 // Auth & Header Mocks for Next.js Route Testing
 // ============================================================================
 
+let client: Awaited<ReturnType<typeof createPostgresTestDb>>["client"];
+let proposalStore: typeof import("@/lib/admin-ops-ai/proposal-store").proposalStore;
+let executeOpsAiTool: typeof import("@/lib/admin-ops-ai/runtime-tools").executeOpsAiTool;
+let executeRoutePost: typeof import("@/app/api/admin/ops-ai/execute/route").POST;
+let createOpsAiRuntimeResponse: typeof import("@/lib/admin-ops-ai/runtime").createOpsAiRuntimeResponse;
+
 let mockSessionUser: { id: string; role?: string; name?: string; email?: string } | null = null;
 let mockHasPeranAdmin = false;
 
@@ -45,7 +44,9 @@ mock.module("@/lib/auth", () => ({
   },
 }));
 
+const originalAuthorization = await import("@/lib/auth/authorization");
 mock.module("@/lib/auth/authorization", () => ({
+  ...originalAuthorization,
   hasPeran: async (_userId: string, role: string) => {
     if (role === "admin") return mockHasPeranAdmin;
     return false;
@@ -57,7 +58,7 @@ mock.module("next/headers", () => ({
   headers: async () => new Headers(),
 }));
 
-import { POST as executeRoutePost } from "@/app/api/admin/ops-ai/execute/route";
+
 
 function createFakeEmbeddingAdapter(): CanonicalContentV2EmbeddingAdapter {
   return {
@@ -90,6 +91,24 @@ describe("Admin Ops AI v2: End-to-End Integration Tests (OPS-AI-V2-CP7-INTEGRATI
   let embeddingAdapter: CanonicalContentV2EmbeddingAdapter;
   let mockSource: AdminKnowledgeSourceRecord;
   let mockChunk: AdminKnowledgeChunk;
+
+  beforeAll(async () => {
+    const fixture = await createPostgresTestDb();
+    client = fixture.client;
+    const testDb = fixture.testDb;
+    const now = new Date();
+    const actors = ["admin", "admin-operator-1", "admin-idempotent-1", "admin-auth-1", "admin-brand-1"];
+    await testDb.insert(schema.user).values(actors.map((id) => ({ id, name: id, email: `${id}@example.test`, role: "admin", createdAt: now, updatedAt: now })));
+    await testDb.insert(schema.pengguna).values(actors.map(id => ({ id, status: "active" as const })));
+    await testDb.insert(schema.courses).values(["kalkulus-1", "kalk-1", "fisika-dasar"].map((id) => ({ id, title: id, category: "Test" })));
+    mock.module("@/db", () => ({ db: testDb }));
+    ({ proposalStore } = await import("@/lib/admin-ops-ai/proposal-store"));
+    ({ executeOpsAiTool } = await import("@/lib/admin-ops-ai/runtime-tools"));
+    ({ createOpsAiRuntimeResponse } = await import("@/lib/admin-ops-ai/runtime"));
+    ({ POST: executeRoutePost } = await import("@/app/api/admin/ops-ai/execute/route"));
+  }, 60000);
+
+  afterAll(async () => { await client?.close(); });
 
   beforeEach(async () => {
     mockSessionUser = null;

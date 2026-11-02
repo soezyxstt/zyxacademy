@@ -14,7 +14,7 @@ import { createHash } from "node:crypto";
 import { storage, type StorageProvider } from "@/lib/storage";
 import { buildSourcePageImageKey } from "@/lib/storage/keys";
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
-import { and, asc, desc, eq, inArray, like, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { aiQuestionBank, asalIde, artikel, artikelIde, assessmentSources, bab, bagianArtikel, blokArtikel, buktiPdfBundle, diktatIde, diktatMateri, flashcard, flashcardIde, ide, ketergantunganProduk, mataKuliah, pembahasanSoal, potonganSumber, questionReferenceLinks, relasiIde, reviewPedagogiBundle, setFlashcard, soal, soalIde, soalItbReferensi, sumberMateri } from "@/db/schema";
 import { normalizeDate } from "@/lib/date-utils";
@@ -3789,7 +3789,7 @@ function registerKnowledgeTools(server: McpServer, principal: McpPrincipal): voi
       eq(sumberMateri.mataKuliahId, run.courseId),
       eq(sumberMateri.babId, run.chapterId),
       eq(sumberMateri.status, "active"),
-      like(potonganSumber.content, `%${query}%`),
+      ilike(potonganSumber.content, `%${query}%`),
     ];
     if (sourceId) conditions.push(eq(potonganSumber.sumberMateriId, sourceId));
     const rows = await db

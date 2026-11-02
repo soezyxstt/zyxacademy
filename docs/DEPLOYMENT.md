@@ -1,8 +1,9 @@
 # Deployment Guide
 
-## Proposed Cloud Run staging setup
+## Cloud Run staging
 
-The [Cloud Run staging runbook](operations/cloud-run-staging.md) is `OPEN / IN PROGRESS` for project `zyx-academy` in Taiwan (`asia-east1`). It covers the proposed request-based, scale-to-zero configuration, cost limits, container prerequisites, secrets, OAuth/origin checks, and scheduler migration. No Cloud Run deployment is verified yet.
+The [Cloud Run staging runbook](operations/cloud-run-staging.md) is `ACTIVE` for project `zyx-academy` in Taiwan (`asia-east1`). Staging serves Neon PostgreSQL and private Neon object storage following a verified frozen import. Its Deno worker uses the same guarded target. Target identity, hosted acceptance and rollback evidence are in the [migration runbook](operations/neon-migration.md).
+The separate Vercel migration project remains a rehearsal. Production remains on Turso and R2; the topology below describes that production deployment.
 
 ## Architecture
 
@@ -76,7 +77,11 @@ The old production-to-staging sync is not part of the overhaul. Any exceptional 
 
 ## Vercel Deployment
 
+Keep `.vercelignore` in CLI deployment inputs to exclude environment files and local artifacts.
+
 V4 verification uses the existing Deno Deploy worker with Cloudflare Browser Run (default) or Steel over CDP. Sync `BETTER_AUTH_SECRET`, `CF_API_TOKEN`, `CF_ACCOUNT_ID` and `NEXT_PUBLIC_APP_URL` from the exact GitHub environment. The browser token needs Browser Rendering Edit permission. Set GitHub environment variable `AUTHORING_VERIFICATION_BROWSER_PROVIDER=steel`, environment secret `STEEL_API_KEY`, and environment variable `AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION` to the exact reviewed version from a probe. Mirror the two non-secret variables in the web deployment environment so web and worker derive the same plan. The Deno deploy workflow syncs these settings and the key; the operations workflow reads the same provider/version. Cloudflare credentials stay compatible. Each new plan pins provider and deployed browser version; drift or an older plan without provider identity fails closed until reviewed and released. Switching provider changes plan hashes and requires a new attempt, receipt and PDF evidence. Inspect and cancel the exact existing native run before retrying the revision. The Deno workflow regenerates the V4 build identity before uploading it with the worker. Source crops pin the same PDF.js and native canvas versions in both Deno import maps. The local Node verification adapter is a test utility, not another hosting requirement.
+
+The browser-specific `CF_BROWSER_API_TOKEN` falls back to `CF_API_TOKEN`. A private same-origin `AUTHORING_VERIFICATION_ACCESS_URL` can establish access cookies without disabling deployment protection.
 
 The read-only `/v4` page presents a version-specific Article preview and its inspected static Diktat PDF. It does not convert or publish existing course content. Existing Articles adopt V4 through an explicitly authored and reviewed V4 bundle.
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { resolveMcpAdmin } from "@/lib/authoring/mcp-auth";
 import {
+  publicMcpOrigin,
   readClientRegistration,
   requestedScopes,
   resourceUrl,
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
     return errorResponse(request, "invalid_request", state, undefined);
   }
 
-  const expectedResource = resourceUrl(request.nextUrl.origin);
+  const expectedResource = resourceUrl();
   if (requestedResource && requestedResource !== expectedResource) {
     return errorResponse(request, "invalid_target", state, redirectUri);
   }
@@ -86,13 +87,17 @@ export async function GET(request: NextRequest) {
       if (state) target.searchParams.set("state", state);
       return NextResponse.redirect(target);
     } catch (error) {
-      const code = error instanceof Error && error.message === "AUTHORING_MCP_ADMIN_REQUIRED" ? "access_denied" : "server_error";
-      return errorResponse(request, code, state, redirectUri);
+      if (error instanceof Error) {
+        if (error.message === "consent_required") return errorResponse(request, "consent_required", state, redirectUri);
+        if (error.message === "AUTHORING_MCP_SESSION_INVALID") return errorResponse(request, "login_required", state, redirectUri);
+        if (error.message === "AUTHORING_MCP_ADMIN_REQUIRED") return errorResponse(request, "access_denied", state, redirectUri);
+      }
+      return errorResponse(request, "server_error", state, redirectUri);
     }
   }
 
   // Standard interactive user-agent consent flow
-  const authUrl = new URL("/mcp/authorize", request.nextUrl.origin);
+  const authUrl = new URL("/mcp/authorize", publicMcpOrigin());
   authUrl.search = request.nextUrl.search;
   return NextResponse.redirect(authUrl);
 }

@@ -5,7 +5,8 @@ import {
   MCP_CONNECTION_TOKEN_TTL_SECONDS,
   issueMcpConnectionToken,
 } from "@/lib/authoring/mcp-workflows";
-import { resolveMcpAdmin } from "@/lib/authoring/mcp-auth";
+import { resourceUrl } from "@/lib/authoring/mcp-oauth";
+import { MCP_MANUAL_CLIENT_ID, resolveMcpAdmin } from "@/lib/authoring/mcp-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,11 +22,11 @@ async function createConnection(request: NextRequest): Promise<NextResponse> {
       scopes: [...MCP_AUTHORING_SCOPES],
       authMethod: "session",
     });
-    const resource = `${request.nextUrl.origin}/api/mcp/authoring`;
+    const resource = resourceUrl();
     const accessToken = issueMcpConnectionToken({
       userId: principal.userId,
       sessionId: principal.sessionId,
-      clientId: "zyx-admin-connection",
+      clientId: MCP_MANUAL_CLIENT_ID,
       resource,
       scopes: principal.scopes,
     });

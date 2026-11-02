@@ -1,26 +1,30 @@
-import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { beforeAll, afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { createPostgresTestDb } from "../helpers/postgres";
 import { eq } from "drizzle-orm";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import * as schema from "@/db/schema";
 import { TUTOR_QUIZ_GRADING_ERRORS } from "@/lib/tutor/quiz-grading";
+import { createAssessmentWithLegacyProjection } from "@/lib/asesmen/quiz-canonical-sync";
 
 let mockSession: any = null;
 
-const testDirectory = mkdtempSync(join(tmpdir(), "zyx-tutor-quiz-grading-"));
-const client = createClient({ url: `file:${join(testDirectory, "test.db")}` });
-const testDb = drizzle(client, { schema });
-
-afterAll(() => {
-  client.close();
-  rmSync(testDirectory, { recursive: true, force: true });
+let client: Awaited<ReturnType<typeof createPostgresTestDb>>["client"];
+let testDb: Awaited<ReturnType<typeof createPostgresTestDb>>["testDb"];
+const dbProxy = new Proxy({} as typeof testDb, {
+  get(_target, key) {
+    const value = Reflect.get(testDb, key);
+    return typeof value === "function" ? value.bind(testDb) : value;
+  },
 });
+beforeAll(async () => { ({ client, testDb } = await createPostgresTestDb()); }, 60_000);
+afterAll(async () => { await client?.close(); });
+
+async function clearTestData() {
+  const result = await client.query<{ tablename: string }>("SELECT tablename FROM pg_tables WHERE schemaname = 'public'");
+  if (result.rows.length) await client.exec(`TRUNCATE TABLE ${result.rows.map(({ tablename }) => `"${tablename.replaceAll('"', '""')}"`).join(", ")} CASCADE`);
+}
 
 mock.module("@/db", () => ({
-  db: testDb,
+  db: dbProxy,
 }));
 
 mock.module("@/lib/auth", () => ({
@@ -52,320 +56,6 @@ import {
   getQuizAttemptDetailsForGrading,
 } from "@/lib/tutor/quiz-grading";
 import { gradeQuizAttemptAction } from "@/app/actions/tutor-quiz-grading";
-
-async function setupTables() {
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS user (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      role TEXT DEFAULT 'student',
-      last_activity_at INTEGER
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna (
-      id TEXT PRIMARY KEY REFERENCES user(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS peran (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna_peran (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      peran_id TEXT NOT NULL REFERENCES peran(id),
-      source TEXT NOT NULL,
-      audit_actor_pengguna_id TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS courses (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT 'Matematika',
-      description TEXT
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS mata_kuliah (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'active',
-      legacy_course_id TEXT REFERENCES courses(id),
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS bab (
-      id TEXT PRIMARY KEY,
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      code TEXT NOT NULL,
-      title TEXT NOT NULL,
-      order_index INTEGER NOT NULL,
-      status TEXT NOT NULL DEFAULT 'active',
-      legacy_chapter_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS penugasan_tutor (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      assignment_scope TEXT NOT NULL DEFAULT 'course',
-      legacy_tutor_course_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS tutor_courses (
-      id TEXT PRIMARY KEY,
-      tutor_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS quiz_templates (
-      id TEXT PRIMARY KEY,
-      course_id TEXT NOT NULL,
-      title TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT 'daily',
-      visibility TEXT NOT NULL DEFAULT 'free',
-      status TEXT NOT NULL DEFAULT 'published',
-      time_limit_seconds INTEGER,
-      max_attempts INTEGER,
-      selection_rules TEXT NOT NULL,
-      open_at INTEGER,
-      close_at INTEGER,
-      manual_status TEXT NOT NULL DEFAULT 'open',
-      show_discussion INTEGER NOT NULL DEFAULT 1,
-      spreadsheet_id TEXT,
-      spreadsheet_url TEXT,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS student_quiz_attempts (
-      id TEXT PRIMARY KEY,
-      student_id TEXT NOT NULL REFERENCES user(id),
-      template_id TEXT NOT NULL REFERENCES quiz_templates(id),
-      score INTEGER,
-      duration_seconds INTEGER,
-      status TEXT NOT NULL DEFAULT 'completed',
-      grading_status TEXT NOT NULL DEFAULT 'not_required',
-      questions_snapshot TEXT NOT NULL,
-      answers_snapshot TEXT,
-      started_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      submitted_at INTEGER,
-      strong_areas TEXT,
-      weak_areas TEXT,
-      recommended_next_steps TEXT,
-      mastery_before TEXT
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS asesmen (
-      id TEXT PRIMARY KEY,
-      blueprint_asesmen_id TEXT,
-      mata_kuliah_id TEXT,
-      title TEXT,
-      assessment_type TEXT,
-      version INTEGER DEFAULT 1,
-      status TEXT DEFAULT 'published',
-      generation_hash TEXT,
-      creator_id TEXT,
-      curator_id TEXT,
-      published_at INTEGER,
-      created_at INTEGER,
-      updated_at INTEGER
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS percobaan_asesmen (
-      id TEXT PRIMARY KEY,
-      asesmen_id TEXT NOT NULL,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      status TEXT NOT NULL DEFAULT 'in_progress',
-      rendered_question_snapshot TEXT NOT NULL,
-      option_order_snapshot TEXT NOT NULL,
-      grading_policy_snapshot TEXT NOT NULL,
-      content_version INTEGER NOT NULL DEFAULT 1,
-      started_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      submitted_at INTEGER,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS item_asesmen (
-      id TEXT PRIMARY KEY,
-      asesmen_id TEXT NOT NULL,
-      soal_id TEXT NOT NULL,
-      order_index INTEGER NOT NULL,
-      rendered_question_snapshot TEXT NOT NULL,
-      option_order_snapshot TEXT NOT NULL,
-      grading_policy_snapshot TEXT NOT NULL,
-      content_version INTEGER NOT NULL DEFAULT 1,
-      generation_hash TEXT,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS jawaban_murid (
-      id TEXT PRIMARY KEY,
-      percobaan_asesmen_id TEXT NOT NULL REFERENCES percobaan_asesmen(id),
-      item_asesmen_id TEXT NOT NULL REFERENCES item_asesmen(id),
-      rendered_question_snapshot TEXT NOT NULL,
-      option_order_snapshot TEXT NOT NULL,
-      response_snapshot TEXT NOT NULL,
-      grading_policy_snapshot TEXT NOT NULL,
-      content_version INTEGER NOT NULL DEFAULT 1,
-      score REAL,
-      status TEXT NOT NULL DEFAULT 'ungraded',
-      reviewer_id TEXT REFERENCES pengguna(id),
-      review_notes TEXT,
-      reviewed_at INTEGER,
-      review_revision INTEGER NOT NULL DEFAULT 0,
-      answered_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS ide (
-      id TEXT PRIMARY KEY,
-      mata_kuliah_id TEXT,
-      bab_id TEXT,
-      concept_id TEXT,
-      stable_key TEXT,
-      code TEXT,
-      canonical_statement TEXT,
-      concise_explanation TEXT,
-      latex TEXT,
-      knowledge_kind TEXT DEFAULT 'other',
-      instructional_role TEXT DEFAULT 'core',
-      difficulty_metadata TEXT DEFAULT '{}',
-      version INTEGER DEFAULT 1,
-      status TEXT DEFAULT 'published',
-      source_policy TEXT DEFAULT 'source_grounded',
-      schema_version TEXT DEFAULT '1.0',
-      semantic_hash TEXT,
-      generation_hash TEXT,
-      creator_id TEXT,
-      curator_id TEXT,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS soal_ide (
-      id TEXT PRIMARY KEY,
-      soal_id TEXT NOT NULL,
-      ide_id TEXT NOT NULL REFERENCES ide(id),
-      weight REAL NOT NULL,
-      role TEXT NOT NULL DEFAULT 'primary',
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS bukti_ide_jawaban (
-      id TEXT PRIMARY KEY,
-      jawaban_murid_id TEXT NOT NULL REFERENCES jawaban_murid(id),
-      ide_id TEXT NOT NULL REFERENCES ide(id),
-      score_contribution REAL NOT NULL,
-      weight REAL NOT NULL,
-      confidence INTEGER NOT NULL,
-      evidence_source TEXT NOT NULL,
-      rubric_version TEXT NOT NULL,
-      derivation_status TEXT NOT NULL,
-      ambiguous INTEGER NOT NULL DEFAULT 0,
-      affects_mastery INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS audit_mutasi (
-      id TEXT PRIMARY KEY,
-      actor_id TEXT REFERENCES pengguna(id),
-      entity_type TEXT NOT NULL,
-      entity_id TEXT NOT NULL,
-      action TEXT NOT NULL,
-      before_snapshot TEXT,
-      after_snapshot TEXT,
-      correlation_id TEXT,
-      course_id TEXT,
-      outcome TEXT,
-      reason TEXT,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-}
-
-const ALL_TABLES = [
-  "audit_mutasi",
-  "bukti_ide_jawaban",
-  "soal_ide",
-  "ide",
-  "jawaban_murid",
-  "item_asesmen",
-  "percobaan_asesmen",
-  "asesmen",
-  "student_quiz_attempts",
-  "quiz_templates",
-  "penugasan_tutor",
-  "tutor_courses",
-  "bab",
-  "mata_kuliah",
-  "courses",
-  "pengguna_peran",
-  "pengguna",
-  "peran",
-  "user",
-];
-
-async function purgeTables() {
-  for (const t of ALL_TABLES) {
-    try {
-      await client.execute(`DELETE FROM ${t}`);
-    } catch {}
-  }
-}
 
 async function seedTestData() {
   const now = new Date();
@@ -477,12 +167,7 @@ async function seedTestData() {
     createdAt: now,
     updatedAt: now,
   }).onConflictDoNothing();
-  await client.execute({
-    sql: `INSERT OR IGNORE INTO bab
-          (id, mata_kuliah_id, code, title, order_index, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    args: ["bab-calc", "mk-calc", "BAB-01", "Turunan", 0, now, now],
-  });
+  await testDb.insert(schema.bab).values({ id: "bab-calc", mataKuliahId: "mk-calc", code: "BAB-01", title: "Turunan", orderIndex: 0, createdAt: now, updatedAt: now }).onConflictDoNothing();
   await testDb.insert(schema.penugasanTutor).values({
     id: "pt-calc",
     penggunaId: "usr-tutor-assigned",
@@ -527,6 +212,13 @@ async function seedTestData() {
     updatedAt: now,
   }).onConflictDoNothing();
 
+  await testDb.insert(schema.soal).values({
+    id: "q-essay-1", mataKuliahId: "mk-calc", babId: "bab-calc",
+    questionType: "essay", prompt: "Jelaskan definisi turunan.",
+    difficulty: "medium", cognitiveLevel: "understand", reasoningPattern: "explanation",
+    generationHash: "gen-essay-1", creatorId: "usr-tutor-assigned",
+  });
+
   // SoalIde mapping for q-essay-1
   await testDb.insert(schema.soalIde).values({
     id: "si-essay-1",
@@ -536,39 +228,51 @@ async function seedTestData() {
     role: "primary",
   }).onConflictDoNothing();
 
+  // Snapshot questions still require canonical rows, even without Idea links.
+  await testDb.insert(schema.soal).values([
+    { id: "q-mc-1", questionType: "multiple_choice" as const },
+    { id: "q-mc", questionType: "multiple_choice" as const },
+    { id: "q-sa", questionType: "short_answer" as const },
+    { id: "q-es", questionType: "essay" as const },
+    { id: "q-essay-cas", questionType: "essay" as const },
+    { id: "q-unmapped-essay", questionType: "essay" as const },
+  ].map((question) => ({
+    ...question, mataKuliahId: "mk-calc", babId: "bab-calc", prompt: question.id,
+    difficulty: "medium" as const, cognitiveLevel: "understand" as const,
+    reasoningPattern: "explanation", generationHash: `fixture:${question.id}`,
+    creatorId: "usr-tutor-assigned",
+  })));
+
   // Quiz Template in Kalkulus
-  await testDb.insert(schema.quizTemplates).values({
+  await createAssessmentWithLegacyProjection({
     id: "tpl-calc-free-response",
-    courseId: "mk-calc",
+    courseId: "crs-calc",
     title: "Kuis Bab 2 Turunan",
     category: "chapter",
     visibility: "free",
     status: "published",
-    selectionRules: JSON.stringify({ count: 3 }),
-    createdAt: now,
-    updatedAt: now,
-  }).onConflictDoNothing();
+    selectionRules: { count: 3 },
+    creatorId: "usr-tutor-assigned",
+  });
 
   // Quiz Template in Physics
-  await testDb.insert(schema.quizTemplates).values({
+  await createAssessmentWithLegacyProjection({
     id: "tpl-physics-quiz",
-    courseId: "mk-physics",
+    courseId: "crs-physics",
     title: "Kuis Fisika Vektor",
     category: "chapter",
     visibility: "free",
     status: "published",
-    selectionRules: JSON.stringify({ count: 2 }),
-    createdAt: now,
-    updatedAt: now,
-  }).onConflictDoNothing();
+    selectionRules: { count: 2 },
+    creatorId: "usr-tutor-assigned",
+  });
 }
 
 describe("Tutor Quiz Manual Grading Contracts", () => {
   beforeEach(async () => {
     mockSession = null;
     recomputeCalls.length = 0;
-    await setupTables();
-    await purgeTables();
+    await clearTestData();
     await seedTestData();
   });
 
@@ -610,14 +314,14 @@ describe("Tutor Quiz Manual Grading Contracts", () => {
         status: "completed",
         gradingStatus: "pending",
         score: null,
-        questionsSnapshot: JSON.stringify([
+        questionsSnapshot: [
           { id: "q-mc-1", question_type: "multiple_choice", prompt: "2+2?", options: ["4", "5"], correct_indices: [0] },
           { id: "q-essay-1", question_type: "essay", prompt: "Jelaskan definisi turunan." },
-        ]),
-        answersSnapshot: JSON.stringify({
+        ],
+        answersSnapshot: {
           "q-mc-1": 0,
           "q-essay-1": "Turunan adalah limit fungsi delta y per delta x.",
-        }),
+        },
         startedAt: now,
         submittedAt: now,
       });
@@ -649,10 +353,10 @@ describe("Tutor Quiz Manual Grading Contracts", () => {
         status: "completed",
         gradingStatus: "pending",
         score: null,
-        questionsSnapshot: JSON.stringify([
+        questionsSnapshot: [
           { id: "q-phy-1", question_type: "essay", prompt: "Hukum Newton 1" },
-        ]),
-        answersSnapshot: JSON.stringify({ "q-phy-1": "Jawaban fisika" }),
+        ],
+        answersSnapshot: { "q-phy-1": "Jawaban fisika" },
         startedAt: now,
         submittedAt: now,
       });
@@ -691,10 +395,10 @@ describe("Tutor Quiz Manual Grading Contracts", () => {
         status: "completed",
         gradingStatus: "pending",
         score: null,
-        questionsSnapshot: JSON.stringify([
+        questionsSnapshot: [
           { id: "q-essay-1", question_type: "essay", prompt: "Jelaskan definisi turunan." },
-        ]),
-        answersSnapshot: JSON.stringify({ "q-essay-1": "Jawaban" }),
+        ],
+        answersSnapshot: { "q-essay-1": "Jawaban" },
         startedAt: now,
         submittedAt: now,
       });
@@ -719,11 +423,11 @@ describe("Tutor Quiz Manual Grading Contracts", () => {
         status: "completed",
         gradingStatus: "pending",
         score: null,
-        questionsSnapshot: JSON.stringify([
+        questionsSnapshot: [
           { id: "q-mc-1", question_type: "multiple_choice", prompt: "2+2?", options: ["4", "5"], correct_indices: [0] },
           { id: "q-essay-1", question_type: "essay", prompt: "Definisi turunan" },
-        ]),
-        answersSnapshot: JSON.stringify({ "q-mc-1": 1, "q-essay-1": "Jawaban" }),
+        ],
+        answersSnapshot: { "q-mc-1": 1, "q-essay-1": "Jawaban" },
         startedAt: now,
         submittedAt: now,
       });
@@ -754,16 +458,16 @@ describe("Tutor Quiz Manual Grading Contracts", () => {
         status: "completed",
         gradingStatus: "pending",
         score: null,
-        questionsSnapshot: JSON.stringify([
+        questionsSnapshot: [
           { id: "q-mc", question_type: "multiple_choice", prompt: "Pilihan", options: ["A", "B"], correct_indices: [0] },
           { id: "q-sa", question_type: "short_answer", prompt: "Isian", acceptable_answers: ["tepat"] },
           { id: "q-es", question_type: "essay", prompt: "Esai" },
-        ]),
-        answersSnapshot: JSON.stringify({
+        ],
+        answersSnapshot: {
           "q-mc": 0, // correct (1.0)
           "q-sa": "kurang tepat", // incorrect (0.0)
           "q-es": "Jawaban esai siswa",
-        }),
+        },
         startedAt: now,
         submittedAt: now,
       });
@@ -849,10 +553,10 @@ describe("Tutor Quiz Manual Grading Contracts", () => {
         status: "completed",
         gradingStatus: "pending",
         score: null,
-        questionsSnapshot: JSON.stringify([
+        questionsSnapshot: [
           { id: "q-essay-cas", question_type: "essay", prompt: "Esai" },
-        ]),
-        answersSnapshot: JSON.stringify({ "q-essay-cas": "Jawaban" }),
+        ],
+        answersSnapshot: { "q-essay-cas": "Jawaban" },
         startedAt: now,
         submittedAt: now,
       });
@@ -900,10 +604,10 @@ describe("Tutor Quiz Manual Grading Contracts", () => {
         status: "completed",
         gradingStatus: "pending",
         score: null,
-        questionsSnapshot: JSON.stringify([
+        questionsSnapshot: [
           { id: "q-essay-1", question_type: "essay", prompt: "Jelaskan definisi turunan." },
-        ]),
-        answersSnapshot: JSON.stringify({ "q-essay-1": "Jawaban esai" }),
+        ],
+        answersSnapshot: { "q-essay-1": "Jawaban esai" },
         startedAt: now,
         submittedAt: now,
       });
@@ -945,10 +649,10 @@ describe("Tutor Quiz Manual Grading Contracts", () => {
         status: "completed",
         gradingStatus: "pending",
         score: null,
-        questionsSnapshot: JSON.stringify([
+        questionsSnapshot: [
           { id: "q-unmapped-essay", question_type: "essay", prompt: "Pertanyaan bebas tanpa ide" },
-        ]),
-        answersSnapshot: JSON.stringify({ "q-unmapped-essay": "Jawaban refleksi" }),
+        ],
+        answersSnapshot: { "q-unmapped-essay": "Jawaban refleksi" },
         startedAt: now,
         submittedAt: now,
       });
@@ -987,11 +691,11 @@ describe("Tutor Quiz Manual Grading Contracts", () => {
         status: "completed",
         gradingStatus: "pending",
         score: null,
-        questionsSnapshot: JSON.stringify([
+        questionsSnapshot: [
           { id: "q1", question_type: "essay", prompt: "Esai 1" },
           { id: "q2", question_type: "essay", prompt: "Esai 2" },
-        ]),
-        answersSnapshot: JSON.stringify({ q1: "Ans 1", q2: "Ans 2" }),
+        ],
+        answersSnapshot: { q1: "Ans 1", q2: "Ans 2" },
         startedAt: now,
         submittedAt: now,
       });
@@ -1004,10 +708,10 @@ describe("Tutor Quiz Manual Grading Contracts", () => {
         status: "completed",
         gradingStatus: "graded",
         score: 85,
-        questionsSnapshot: JSON.stringify([
+        questionsSnapshot: [
           { id: "q1", question_type: "essay", prompt: "Esai 1" },
-        ]),
-        answersSnapshot: JSON.stringify({ q1: "Ans 1" }),
+        ],
+        answersSnapshot: { q1: "Ans 1" },
         startedAt: now,
         submittedAt: now,
       });
@@ -1020,10 +724,10 @@ describe("Tutor Quiz Manual Grading Contracts", () => {
         status: "completed",
         gradingStatus: "not_required",
         score: 100,
-        questionsSnapshot: JSON.stringify([
+        questionsSnapshot: [
           { id: "q-mc", question_type: "multiple_choice", prompt: "MC", options: ["A", "B"], correct_indices: [0] },
-        ]),
-        answersSnapshot: JSON.stringify({ "q-mc": 0 }),
+        ],
+        answersSnapshot: { "q-mc": 0 },
         startedAt: now,
         submittedAt: now,
       });
@@ -1044,16 +748,16 @@ describe("Tutor Quiz Manual Grading Contracts", () => {
         status: "completed",
         gradingStatus: "pending",
         score: null,
-        questionsSnapshot: JSON.stringify([
+        questionsSnapshot: [
           { id: "q-mc", question_type: "multiple_choice", prompt: "1+1?", options: ["2", "3"], correct_indices: [0] },
           { id: "q-sa", question_type: "short_answer", prompt: "Ibu kota?", acceptable_answers: ["Jakarta"] },
           { id: "q-es", question_type: "essay", prompt: "Opini anda" },
-        ]),
-        answersSnapshot: JSON.stringify({
+        ],
+        answersSnapshot: {
           "q-mc": 0,
           "q-sa": "Jakarta",
           "q-es": "Saya setuju.",
-        }),
+        },
         startedAt: now,
         submittedAt: now,
       });

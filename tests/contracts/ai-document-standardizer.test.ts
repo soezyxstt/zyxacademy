@@ -53,7 +53,7 @@ describe("AI Document Standardizer", () => {
 
       expect(result.category).toBe("soal");
       expect(result.subcategory).toBe("uts");
-      expect(result.title).toBe("UTS MA1101 2023");
+      expect(result.title).toBe("UTS MA1101 2023 (Soal)");
     });
 
     it("correctly formats Pembahasan UTS titles", () => {

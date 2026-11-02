@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
+import { hasDatabaseErrorCode } from "@/lib/database-retry";
 import {
   pengguna,
   penggunaPeran,
@@ -235,6 +236,7 @@ export class TutorAuditPersistenceError extends Error {
 }
 
 export function isSqliteBusyError(err: unknown): boolean {
+  if (hasDatabaseErrorCode(err, ["40001", "40P01"])) return true;
   if (!err || typeof err !== "object") return false;
   const anyErr = err as { code?: string; message?: string; rawCode?: number; cause?: unknown };
   if (
@@ -257,6 +259,7 @@ export function isSqliteBusyError(err: unknown): boolean {
 }
 
 export function isUniqueConstraintError(err: unknown): boolean {
+  if (hasDatabaseErrorCode(err, ["23505"])) return true;
   if (!err || typeof err !== "object") return false;
   const anyErr = err as { code?: string; message?: string; rawCode?: number; cause?: unknown };
   if (anyErr.code === "SQLITE_CONSTRAINT" || anyErr.code === "SQLITE_CONSTRAINT_UNIQUE") return true;

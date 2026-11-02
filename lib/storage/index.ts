@@ -37,15 +37,17 @@ import { R2Provider } from "./r2";
 import { WranglerR2Provider } from "./wrangler-r2";
 
 // Cloudflare R2 is the default storage provider
-const providerMode = "r2";
+const providerMode = process.env.STORAGE_PROVIDER_MODE === "neon" ? "neon" : "r2";
 const useWranglerStagingStorage = process.env.STAGING_BUNDLE_WRANGLER_STORAGE === "1";
 
 let activeProvider: StorageProvider;
 
-if (useWranglerStagingStorage) {
+if (useWranglerStagingStorage && providerMode === "neon") {
+  throw new Error("STORAGE_PROVIDER_CONFLICT");
+} else if (useWranglerStagingStorage) {
   activeProvider = new WranglerR2Provider();
 } else {
-  activeProvider = new R2Provider();
+  activeProvider = new R2Provider(providerMode);
 }
 
 export const storage = activeProvider;

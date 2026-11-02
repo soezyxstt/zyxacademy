@@ -23,6 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 type SearchParams = {
+  prompt?: string;
   client_id?: string;
   redirect_uri?: string;
   state?: string;
@@ -38,8 +39,15 @@ export default async function McpAuthorizePage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const t = await getTranslations("consent.authorize");
   const sp = await searchParams;
+  if (sp.prompt === "none") {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(sp)) {
+      if (typeof value === "string") params.set(key, value);
+    }
+    redirect(`/api/mcp/oauth/authorize?${params}`);
+  }
+  const t = await getTranslations("consent.authorize");
   const clientId = sp.client_id ?? "";
   const redirectUri = sp.redirect_uri ?? "";
   const state = sp.state;
@@ -83,10 +91,7 @@ export default async function McpAuthorizePage({
   }
 
   const reqHeaders = await headers();
-  const host = reqHeaders.get("host") || "localhost:3000";
-  const proto = reqHeaders.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
-  const origin = `${proto}://${host}`;
-  const expectedResource = resourceUrl(origin);
+  const expectedResource = resourceUrl();
 
   if (requestedResource && requestedResource !== expectedResource) {
     return (

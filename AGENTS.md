@@ -52,9 +52,9 @@ This file contains durable rules for work in this repository. Read the relevant 
 
 ## Repository invariants
 
-- The application uses Next.js, React, Bun scripts, Drizzle, Better Auth, Turso or local SQLite, Cloudflare R2, Inngest, and Gemini provider adapters. Follow the existing adapter and environment boundaries.
-- Turso is the remote database and local SQLite is the development database. Do not introduce PostgreSQL or `neon-client` for application data.
-- Cloudflare R2 is the default storage provider. UploadThing remains only where its compatibility call paths still exist.
+- The application uses Next.js, React, Bun scripts, Drizzle, Better Auth, Inngest, and Gemini provider adapters. Follow the existing adapter and environment boundaries.
+- Staging uses Neon PostgreSQL. This branch's adapter requires PostgreSQL, including local development and CI; it never falls back to SQLite or Turso. Production retains its prior Turso-compatible code and credentials. Verify the exact branch and environment before any database action.
+- Staging explicitly uses private Neon object storage with `STORAGE_PROVIDER_MODE=neon`. Production retains Cloudflare R2, which is still the adapter default when no mode is set. UploadThing remains only where its compatibility call paths still exist. Preserve source Turso/R2 resources and the complete rollback unit recorded in `docs/operations/neon-migration.md`.
 - Canonical retrieval uses the current Vectorize adapter and namespace. Do not delete legacy vector resources or change the retrieval cutover as part of an unrelated task.
 - Long-running ingestion, generation, synchronization, and recomputation work should use the existing job or Inngest path rather than blocking a request.
 - Reuse established KO extraction, RAG sync, question generation, quiz attempts, SM-2 flashcards, diktat, website-material, and admin AI flows unless the task explicitly changes one of them.
@@ -240,7 +240,7 @@ Common prefixes:
 
 ## Database and external mutations
 
-- For schema changes, edit `db/schema.ts`, then run `bun run db:generate` and `bun run db:migrate`. Never hand-edit generated files under `drizzle/`.
+- For schema changes, edit `db/schema.ts`, then run `bun run db:generate` and `bun run db:migrate` against a verified authorized target. Never hand-edit generated files under `drizzle/` or `drizzle-postgres/`.
 - Use `bun run db:push:prod` only for an explicitly authorized production push. Do not mutate a related-looking table or environment without tracing the actual authorization and data path.
 - For remote maintenance, confirm the exact environment file and hostname, run a guarded read-only query first, and record the before and after result for any authorized write.
 - Do not perform destructive data contraction, vector cutover, deployment, or feature rollout as an implicit part of a focused code task.
@@ -250,7 +250,7 @@ Common prefixes:
 
 Untuk screenshot halaman terproteksi (misal audit visual `/admin`) terhadap data staging, ikuti prosedur di `docs/operations/visual-audit-capture.md`. Jangan bereksperimen dari nol. Aturan yang paling sering salah dan sudah ditetapkan di sana:
 
-- Gunakan build produksi (`next build` + `next start`) dengan env staging, bukan `next dev`; `next dev` memakai jalur koneksi database yang berbeda dan gagal 401 terhadap Turso.
+- Gunakan build produksi (`next build` + `next start`) dengan env staging yang sudah diverifikasi. Staging kini memakai Neon PostgreSQL; instruksi Turso lama bukan konfigurasi staging aktif.
 - Sesi didapat read-only dengan pola `scripts/staging/smoke-auth.ts`: SELECT satu sesi admin aktif, tandatangani cookie secara lokal. Tidak ada mutasi database.
 - Token sesi bisa dirotasi pengguna staging yang aktif. Ambil token segar tepat sebelum setiap navigasi dan pakai sekali.
 - Nama cookie (`better-auth.session_token` vs `__Secure-...`) ditentukan lewat probe `get-session`, bukan ditebak.

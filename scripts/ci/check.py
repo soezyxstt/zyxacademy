@@ -38,7 +38,10 @@ if plan['i18n']:
     run('bun', 'run', 'i18n:check')
 for test in plan['tests']:
     # Each file gets its own process: Bun mock.module must not leak to another suite.
-    run('bun', 'test', test)
+    if test.startswith('tests/contracts/'):
+        run('bun', 'scripts/test-contracts.ts', test)
+    else:
+        run('bun', 'test', test)
 
 for config in plan['worker_projects']:
     name = Path(config).parent.name

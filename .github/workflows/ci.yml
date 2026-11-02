@@ -67,9 +67,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
+      ZYX_POSTGRES_BUILD_PLACEHOLDER: '1'
       SKIP_ENV_VALIDATION: '1'
       BETTER_AUTH_SECRET: ci-contract-tests-only-not-a-real-secret
-      DATABASE_URL: 'file::memory:'
+      DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       PUPPETEER_SKIP_DOWNLOAD: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
@@ -145,7 +146,7 @@ jobs:
       - run: deno check workers/deno-background/main.ts
       - name: Verify Diktat runtime assets
         env:
-          DATABASE_URL: https://diktat-smoke.invalid
+          DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
         run: deno run --allow-read --allow-env --config workers/deno-background/deno.json workers/deno-background/diktat-assets-smoke.ts
 
   gate:

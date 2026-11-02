@@ -34,7 +34,7 @@ export const auth = betterAuth({
    "https://www.zyxacademy.com",
  ],
  database: drizzleAdapter(db, {
- provider: "sqlite", // Using SQLite/libSQL
+ provider: "pg",
  schema: schema,
  }),
  socialProviders: {
@@ -49,7 +49,8 @@ export const auth = betterAuth({
   role: {
   type: "string",
   required: false,
-  defaultValue: "student", // Defaults to student as per your schema
+  input: false,
+  defaultValue: "student",
   },
   lastActivityAt: {
   type: "date",

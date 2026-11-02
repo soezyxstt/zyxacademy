@@ -4,6 +4,7 @@ import { finalizeTutorFollowups } from "@/lib/zyra/followup-safety";
 
 import { resolveCodingTutorContext, CODING_TUTOR_INSTRUCTIONS } from "@/lib/coding/tutor-context-server";
 import { getConversationMemory } from "@/lib/zyra/conversation-memory";
+import { affectedRows } from "@/lib/mutation-result";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { TutorActionService } from "@/lib/tutor-actions";
@@ -862,7 +863,7 @@ export async function saveTutorMessagesAction(
             gt(zyraMessageAttachments.expiresAt, new Date()),
             or(isNull(zyraMessageAttachments.messageId), eq(zyraMessageAttachments.messageId, row.id)),
           ));
-        if (linked.rowsAffected !== 1) throw new Error("ZYRA_ATTACHMENT_LINK_FAILED");
+        if (affectedRows(linked) !== 1) throw new Error("ZYRA_ATTACHMENT_LINK_FAILED");
       }
     }
   });

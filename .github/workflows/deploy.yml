@@ -63,7 +63,7 @@ jobs:
 
   deploy:
     name: Deploy Background Worker (${{ github.ref_name }})
-    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging') && github.event_name != 'pull_request' && !inputs.browser_diagnostics
+    if: github.event_name != 'pull_request' && !inputs.browser_diagnostics && (github.ref_name == 'main' || github.ref_name == 'staging')
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
 
@@ -98,7 +98,7 @@ jobs:
       - name: Verify Diktat Runtime Assets
         if: github.event_name == 'workflow_dispatch' || inputs.check_worker
         env:
-          DATABASE_URL: https://diktat-smoke.invalid
+          DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
         run: deno run --allow-read --allow-env --config workers/deno-background/deno.json workers/deno-background/diktat-assets-smoke.ts
 
       - name: Configure Target Environment
@@ -122,9 +122,30 @@ jobs:
           restore-keys: ${{ runner.os }}-bun-1.3.14-
 
       - name: Prepare V4 build identity for Deno
+        env:
+          ZYX_POSTGRES_BUILD_PLACEHOLDER: '1'
         run: |
           bun install --frozen-lockfile --ignore-scripts
           bun scripts/authoring/prepare-web-verification.ts
+
+      - name: Validate staging Neon target before Deno mutation
+        if: github.ref_name == 'staging'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          STORAGE_PROVIDER_MODE: ${{ vars.STORAGE_PROVIDER_MODE || secrets.STORAGE_PROVIDER_MODE }}
+          NEON_STORAGE_BUCKET: ${{ vars.NEON_STORAGE_BUCKET || secrets.NEON_STORAGE_BUCKET }}
+          AWS_ENDPOINT_URL_S3: ${{ vars.AWS_ENDPOINT_URL_S3 || secrets.AWS_ENDPOINT_URL_S3 }}
+          AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
+          NEON_EXPECTED_HOST: ${{ vars.NEON_EXPECTED_HOST }}
+          NEON_EXPECTED_STORAGE_ENDPOINT: ${{ vars.NEON_EXPECTED_STORAGE_ENDPOINT }}
+          NEON_EXPECTED_STORAGE_BUCKET: ${{ vars.NEON_EXPECTED_STORAGE_BUCKET }}
+        run: |
+          PYTHONPATH=.github/scripts python3 - <<'PY'
+          import os
+          from cloud_run_runtime import validate_staging_target
+          validate_staging_target(dict(os.environ), dict(os.environ))
+          print("Staging Neon database and storage targets verified.")
+          PY
 
       - name: Provision Deno Deploy App (if not exists)
         env:
@@ -176,6 +197,15 @@ jobs:
           VERIFICATION_STEEL_BROWSER_VERSION: ${{ vars.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION || secrets.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION }}
           SECRET_CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           SECRET_NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+          STAGING_STORAGE_PROVIDER_MODE: ${{ vars.STORAGE_PROVIDER_MODE || secrets.STORAGE_PROVIDER_MODE }}
+          STAGING_NEON_STORAGE_BUCKET: ${{ vars.NEON_STORAGE_BUCKET || secrets.NEON_STORAGE_BUCKET }}
+          STAGING_AWS_ENDPOINT_URL_S3: ${{ vars.AWS_ENDPOINT_URL_S3 || secrets.AWS_ENDPOINT_URL_S3 }}
+          STAGING_AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
+          STAGING_AWS_ACCESS_KEY_ID: ${{ vars.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY_ID }}
+          STAGING_AWS_SECRET_ACCESS_KEY: ${{ vars.AWS_SECRET_ACCESS_KEY || secrets.AWS_SECRET_ACCESS_KEY }}
+          STAGING_INNGEST_ENV: ${{ vars.INNGEST_ENV || secrets.INNGEST_ENV }}
+          STAGING_CF_BROWSER_API_TOKEN: ${{ vars.CF_BROWSER_API_TOKEN || secrets.CF_BROWSER_API_TOKEN }}
+          STAGING_AUTHORING_VERIFICATION_ACCESS_URL: ${{ vars.AUTHORING_VERIFICATION_ACCESS_URL || secrets.AUTHORING_VERIFICATION_ACCESS_URL }}
         run: |
           R2_BUCKET_RESOLVED="${SECRET_R2_BUCKET:-$SECRET_LEGACY_CF_R2_BUCKET}"
           R2_ACCESS_KEY_ID_RESOLVED="${SECRET_R2_ACCESS_KEY_ID:-$SECRET_LEGACY_CF_R2_ACCESS_KEY_ID}"
@@ -214,6 +244,20 @@ jobs:
           NEXT_PUBLIC_APP_URL=${SECRET_NEXT_PUBLIC_APP_URL}
           DIKTAT_RENDERER_SECRET=${SECRET_DIKTAT_RENDERER_SECRET}
           EOF
+
+          if [ "${{ github.ref_name }}" = staging ]; then
+            cat << EOF >> .env.deploy
+          STORAGE_PROVIDER_MODE=${STAGING_STORAGE_PROVIDER_MODE}
+          NEON_STORAGE_BUCKET=${STAGING_NEON_STORAGE_BUCKET}
+          AWS_ENDPOINT_URL_S3=${STAGING_AWS_ENDPOINT_URL_S3}
+          AWS_REGION=${STAGING_AWS_REGION}
+          AWS_ACCESS_KEY_ID=${STAGING_AWS_ACCESS_KEY_ID}
+          AWS_SECRET_ACCESS_KEY=${STAGING_AWS_SECRET_ACCESS_KEY}
+          INNGEST_ENV=${STAGING_INNGEST_ENV}
+          CF_BROWSER_API_TOKEN=${STAGING_CF_BROWSER_API_TOKEN}
+          AUTHORING_VERIFICATION_ACCESS_URL=${STAGING_AUTHORING_VERIFICATION_ACCESS_URL}
+          EOF
+          fi
 
           # Remove empty assignments while preserving Base64 padding and embedded '='.
           grep -v '^[A-Za-z_][A-Za-z0-9_]*=$' .env.deploy > .env.deploy.filtered || true

@@ -9,6 +9,19 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class DenoDeployTriggersTest(unittest.TestCase):
+    def test_diktat_asset_smoke_uses_local_postgres_placeholder(self):
+        text = (ROOT / '.github/workflows/deploy.yml').read_text()
+        step = text.split("- name: Verify Diktat Runtime Assets", 1)[1].split("- name:", 1)[0]
+        self.assertIn("DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder", step)
+        preparation = text.split("- name: Prepare V4 build identity for Deno", 1)[1].split("- name:", 1)[0]
+        self.assertIn("ZYX_POSTGRES_BUILD_PLACEHOLDER: '1'", preparation)
+
+    def test_only_release_branches_can_mutate_worker_and_staging_guard_runs_first(self):
+        text = (ROOT / '.github/workflows/deploy.yml').read_text()
+        self.assertIn("&& (github.ref_name == 'main' || github.ref_name == 'staging')", text)
+        self.assertLess(text.index("name: Validate staging Neon target before Deno mutation"),
+                        text.index("name: Provision Deno Deploy App"))
+
     def test_all_audited_worker_and_fingerprint_inputs_are_planned(self):
         with tempfile.TemporaryDirectory() as directory:
             impact = Path(directory) / 'impact.txt'

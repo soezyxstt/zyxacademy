@@ -1,6 +1,5 @@
-import { describe, expect, it } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { afterEach, beforeAll, describe, expect, it } from "bun:test";
+import { createPostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
 import {
   checkActiveGroupCourseEligibility,
@@ -17,179 +16,18 @@ import {
   validateSlotWeekdayDate,
 } from "@/lib/schedule/tutor-policy";
 
+const clients: Array<Awaited<ReturnType<typeof createPostgresTestDb>>["client"]> = [];
+beforeAll(async () => {
+  const { client } = await createPostgresTestDb();
+  await client.close();
+}, 60_000);
+afterEach(async () => {
+  await Promise.all(clients.splice(0).map((client) => client.close()));
+});
+
 async function createTestDb() {
-  const client = createClient({ url: ":memory:" });
-  const testDb = drizzle(client, { schema });
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS user (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      role TEXT DEFAULT 'student',
-      last_activity_at INTEGER
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna (
-      id TEXT PRIMARY KEY REFERENCES user(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS peran (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna_peran (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      peran_id TEXT NOT NULL REFERENCES peran(id),
-      source TEXT NOT NULL,
-      audit_actor_pengguna_id TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS courses (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT 'Matematika',
-      description TEXT
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS mata_kuliah (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'active',
-      legacy_course_id TEXT REFERENCES courses(id),
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS penugasan_tutor (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      assignment_scope TEXT NOT NULL DEFAULT 'course',
-      legacy_tutor_course_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS tutor_courses (
-      id TEXT PRIMARY KEY,
-      tutor_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS groups (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      package_type TEXT NOT NULL DEFAULT 'reguler_15',
-      package_name TEXT NOT NULL DEFAULT 'Paket Reguler (15 Sesi)',
-      total_quota_sessions INTEGER NOT NULL DEFAULT 15,
-      used_quota_sessions INTEGER NOT NULL DEFAULT 0,
-      weekly_quota_sessions INTEGER NOT NULL DEFAULT 2,
-      academic_year TEXT NOT NULL DEFAULT '2026/2027',
-      semester TEXT NOT NULL DEFAULT 'Ganjil',
-      start_date INTEGER,
-      end_date INTEGER,
-      status TEXT NOT NULL DEFAULT 'active',
-      notes TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS group_courses (
-      id TEXT PRIMARY KEY,
-      group_id TEXT NOT NULL REFERENCES groups(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS group_members (
-      id TEXT PRIMARY KEY,
-      group_id TEXT NOT NULL REFERENCES groups(id),
-      user_id TEXT NOT NULL REFERENCES user(id),
-      role TEXT NOT NULL DEFAULT 'member',
-      joined_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS tutor_slots (
-      id TEXT PRIMARY KEY,
-      tutor_id TEXT NOT NULL REFERENCES user(id),
-      day_of_week TEXT NOT NULL,
-      start_time TEXT NOT NULL,
-      end_time TEXT NOT NULL,
-      mode TEXT NOT NULL DEFAULT 'online',
-      location TEXT,
-      session_date TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS bookings (
-      id TEXT PRIMARY KEY,
-      slot_id TEXT NOT NULL UNIQUE REFERENCES tutor_slots(id),
-      student_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      group_id TEXT NOT NULL REFERENCES groups(id),
-      status TEXT NOT NULL DEFAULT 'scheduled',
-      session_date TEXT,
-      start_time TEXT,
-      end_time TEXT,
-      mode TEXT NOT NULL DEFAULT 'online',
-      location TEXT,
-      google_meet_url TEXT,
-      google_meet_space_name TEXT,
-      last_modified_by TEXT,
-      last_modified_at INTEGER NOT NULL,
-      topic TEXT,
-      pre_session_notes TEXT,
-      pre_session_attachments TEXT,
-      post_session_notes TEXT,
-      post_session_attachments TEXT,
-      post_session_link_url TEXT,
-      post_session_link_title TEXT,
-      post_session_link_description TEXT,
-      post_session_link_image TEXT,
-      completed_at INTEGER,
-      completed_by_id TEXT,
-      booked_at INTEGER NOT NULL
-    );
-  `);
+  const { client, testDb } = await createPostgresTestDb();
+  clients.push(client);
 
   // Seed roles
   await testDb.insert(schema.peran).values([

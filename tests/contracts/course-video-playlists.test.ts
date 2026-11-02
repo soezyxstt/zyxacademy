@@ -99,9 +99,9 @@ describe("Course Video Playlists Contract", () => {
 
   describe("Mobile Route Title Contract", () => {
     test("resolves Video title for admin and student course video routes", () => {
-      expect(getRouteTitle("/admin/courses/kalkulus-1/videos")).toBe("Video");
-      expect(getRouteTitle("/courses/kalkulus-1/video")).toBe("Video");
-      expect(getRouteTitle("/tutor/kalkulus-1/videos")).toBe("Video");
+      expect(getRouteTitle("/admin/courses/kalkulus-1/videos", "admin", (key) => key)).toBe("admin.routeTitles.videos");
+      expect(getRouteTitle("/courses/kalkulus-1/video", "student", (key) => key)).toBe("routeTitles.video");
+      expect(getRouteTitle("/tutor/kalkulus-1/videos", "tutor", (key) => key)).toBe("tutor.routeTitles.videos");
     });
   });
 });
