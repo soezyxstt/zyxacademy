@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { MCP_OAUTH_SCOPES } from "@/lib/authoring/mcp-oauth";
+import { MCP_OAUTH_SCOPES, publicMcpOrigin } from "@/lib/authoring/mcp-oauth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(request: Request) {
-  const origin = new URL(request.url).origin;
+export async function GET(_request: Request) {
+  const origin = publicMcpOrigin();
   return NextResponse.json({
     issuer: origin,
     authorization_endpoint: `${origin}/mcp/authorize`,

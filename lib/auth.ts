@@ -49,7 +49,8 @@ export const auth = betterAuth({
   role: {
   type: "string",
   required: false,
-  defaultValue: "student", // Defaults to student as per your schema
+  input: false,
+  defaultValue: "student",
   },
   lastActivityAt: {
   type: "date",

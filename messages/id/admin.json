@@ -1,5 +1,17 @@
 {
+  "docs": {
+    "title": "Dokumentasi admin",
+    "navigation": "Navigasi dokumentasi",
+    "navigationDescription": "Pilih panduan atau bagian yang ingin dibuka.",
+    "allDocs": "Semua panduan",
+    "sectionsFor": "Bagian dalam {title}",
+    "contentLanguage": "Panduan saat ini ditulis dalam bahasa Indonesia.",
+    "search": "Cari dokumentasi",
+    "noResults": "Dokumentasi tidak ditemukan",
+    "tryAnother": "Coba kata kunci lain atau hapus pencarian."
+  },
   "navigation": {
+    "docs": "Dokumentasi",
     "dashboard": "Panel admin",
     "blog": "Blog",
     "courses": "Mata kuliah",
@@ -58,6 +70,7 @@
     "pka": "Tutorial PKA"
   },
   "routeTitles": {
+    "docs": "Dokumentasi",
     "dashboard": "Panel admin",
     "blog": "Kelola blog",
     "courses": "Mata kuliah",

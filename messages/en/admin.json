@@ -1,5 +1,17 @@
 {
+  "docs": {
+    "title": "Admin documentation",
+    "navigation": "Documentation navigation",
+    "navigationDescription": "Choose a guide or section to open.",
+    "allDocs": "All guides",
+    "sectionsFor": "Sections in {title}",
+    "contentLanguage": "Guides are currently written in Indonesian.",
+    "search": "Search documentation",
+    "noResults": "No documentation found",
+    "tryAnother": "Try another keyword or clear your search."
+  },
   "navigation": {
+    "docs": "Documentation",
     "dashboard": "Admin dashboard",
     "blog": "Blog",
     "courses": "Courses",
@@ -58,6 +70,7 @@
     "pka": "PKA tutorials"
   },
   "routeTitles": {
+    "docs": "Documentation",
     "dashboard": "Admin dashboard",
     "blog": "Manage blog",
     "courses": "Courses",
