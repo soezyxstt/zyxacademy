@@ -1,17 +1,10 @@
 // Run with Bun as its own process to isolate the request mocks and clock.
 import { expect, mock, setSystemTime, spyOn } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { createClient } from "@libsql/client";
-import { pushSQLiteSchema } from "drizzle-kit/api";
-import { drizzle } from "drizzle-orm/libsql";
+import { createPostgresTestDb } from "../helpers/postgres";
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 
-const directory = await mkdtemp(join(tmpdir(), "zyx-booking-"));
-const client = createClient({ url: `file:${join(directory, "test.db")}` });
-const db = drizzle(client, { schema });
+const { client, testDb: db } = await createPostgresTestDb();
 const sessionDate = "2026-09-02";
 let actorId = "first-student";
 
@@ -48,14 +41,14 @@ async function seedGroupsAndSlot() {
 try {
   process.env.SKIP_ENV_VALIDATION = "1";
   setSystemTime(new Date("2026-08-31T08:00:00+07:00"));
+  mock.module("server-only", () => ({}));
   mock.module("@/db", () => ({ db }));
-  mock.module("next/headers", () => ({ headers: async () => new Headers() }));
+  mock.module("next/headers", () => ({ headers: async () => new Headers(), cookies: async () => ({ get: () => undefined }) }));
   mock.module("next/cache", () => ({ revalidatePath() {} }));
   mock.module("@/lib/auth", () => ({
     auth: { api: { getSession: async () => ({ user: { id: actorId, name: actorId } }) } },
   }));
 
-  await (await pushSQLiteSchema(schema, db)).apply();
   await seedGroupsAndSlot();
   const { collaborativeBookSlot, collaborativeCancelSlot, completeTutorSessionAction, getScheduleData, tutorCompleteSession } =
     await import("@/app/(student)/dashboard/schedule/actions");
@@ -122,6 +115,5 @@ try {
   actorId = "second-student";
   expect((await expectUsage(1)).availableSlots[0].booking).toBeNull();
 } finally {
-  client.close();
-  await rm(directory, { recursive: true, force: true });
+  await client.close();
 }

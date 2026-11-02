@@ -54,7 +54,8 @@ describe("admin course reader mode contract", () => {
     const page = source("app/(admin)/admin/(academic)/courses/[slug]/documents/page.tsx");
     const workspace = source("components/admin/course-detail/admin-document-workspace.tsx");
     const student = source("app/(student)/courses/[id]/material/[materialId]/page.tsx");
-    expect(page).toContain("DocumentListClient");
+    expect(page).toContain("CourseDocumentsClient");
+    expect(source("app/(student)/courses/[id]/material/course-documents-client.tsx")).toContain("<DocumentListClient");
     expect(page).toContain("listAdminCourseMaterials(identity)");
     expect(workspace.indexOf("AdminMaterialPreviewBar")).toBeLessThan(workspace.indexOf("StructuredArticleReader"));
     expect(student).not.toContain("AdminMaterialPreviewBar");

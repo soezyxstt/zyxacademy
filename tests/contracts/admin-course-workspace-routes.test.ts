@@ -81,7 +81,7 @@ describe("admin course workspace routes", () => {
     const mobileNavbar = source("components/mobile-navbar.tsx");
 
     expect(sidebar).toContain('id: "tryouts", label: "Tryout"');
-    expect(mobileNavbar).toContain('if (subpath.startsWith("/tryouts")) return "Tryout";');
+    expect(mobileNavbar).toContain('if (subpath.startsWith("/tryouts")) return roleTitle("admin", "tryouts", "Tryouts");');
   });
 
   test("publishes essay attachments through the existing tryout answer flow", () => {
@@ -91,7 +91,8 @@ describe("admin course workspace routes", () => {
 
     expect(tryoutPage).toContain('eq(aiQuestionBank.reviewStatus, "published")');
     expect(importAction).toContain('acceptsFile: row.questionType === "essay"');
-    expect(answerForm).toContain('placeholder="Ketik penjelasan runut, penjabaran matematika, atau esai Anda di sini..."');
+    expect(answerForm).toContain('placeholder={t("tryout.essayPlaceholder")}');
     expect(answerForm).toContain('accept=".pdf,image/*"');
+    expect(JSON.parse(source("messages/id/studentCourse.json")).tryout.essayPlaceholder).toBe("Tuliskan penjelasan, langkah matematika, atau esai Anda di sini...");
   });
 });

@@ -1,5 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, mock, beforeEach } from "bun:test";
 import React from "react";
+import { NextIntlClientProvider } from "next-intl";
+import { loadMessages } from "@/lib/i18n/catalogs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createPostgresTestDb, preparePostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
@@ -8,6 +10,13 @@ import {
   listTutorAccessibleCourses,
 } from "@/lib/auth/tutor-access";
 import { hasAnyPeran } from "@/lib/auth/authorization";
+
+const messages = await loadMessages("id");
+function renderWithMessages(node: React.ReactNode) {
+  return renderToStaticMarkup(React.createElement(NextIntlClientProvider, {
+    locale: "id", timeZone: "Asia/Jakarta", messages, children: node,
+  }));
+}
 
 let currentPathname = "/tutor";
 mock.module("next/headers", () => ({ headers: async () => new Headers() }));
@@ -95,7 +104,7 @@ describe("Tutor shell routing and route containment", () => {
 
   it("renders canonical global navigation items Pengajaran and Jadwal", () => {
     currentPathname = "/tutor";
-    const markup = renderToStaticMarkup(React.createElement(TutorSidebar));
+    const markup = renderWithMessages(React.createElement(TutorSidebar));
 
     expect(markup).toContain("Pengajaran");
     expect(markup).toContain('href="/tutor"');
@@ -109,7 +118,7 @@ describe("Tutor shell routing and route containment", () => {
 
   it("does not treat /tutor/schedule as an active course route", () => {
     currentPathname = "/tutor/schedule";
-    const markup = renderToStaticMarkup(React.createElement(TutorSidebar));
+    const markup = renderWithMessages(React.createElement(TutorSidebar));
 
     expect(markup).toContain("Pengajaran");
     expect(markup).toContain("Jadwal");
@@ -123,7 +132,7 @@ describe("Tutor shell routing and route containment", () => {
 
   it("does not detect active course from legacy /courses/:id routes", () => {
     currentPathname = "/courses/mk-kalkulus";
-    const markup = renderToStaticMarkup(React.createElement(TutorSidebar));
+    const markup = renderWithMessages(React.createElement(TutorSidebar));
 
     // Should not render tutor active course nav for /courses/...
     expect(markup).not.toContain("Navigasi Kelas");
@@ -141,7 +150,7 @@ describe("Tutor shell routing and route containment", () => {
       },
     ];
 
-    const markup = renderToStaticMarkup(
+    const markup = renderWithMessages(
       React.createElement(TutorSidebar, { assignedCourses }),
     );
 
@@ -152,13 +161,13 @@ describe("Tutor shell routing and route containment", () => {
     // Allowed active course navigation
     expect(markup).toContain("Ringkasan");
     expect(markup).toContain('href="/tutor/mk-kalkulus"');
-    expect(markup).toContain("Peserta &amp; Kelompok");
+    expect(markup).toContain("Peserta dan kelompok");
     expect(markup).toContain('href="/tutor/mk-kalkulus/participants"');
     expect(markup).toContain("Kuis");
     expect(markup).toContain('href="/tutor/mk-kalkulus/quizzes"');
-    expect(markup).toContain("Kuis Langsung");
+    expect(markup).toContain("Kuis langsung");
     expect(markup).toContain('href="/tutor/mk-kalkulus/live"');
-    expect(markup).toContain("Penilaian Tryout");
+    expect(markup).toContain("Penilaian tryout");
     expect(markup).toContain('href="/tutor/mk-kalkulus/grading"');
 
     // Forbidden authoring nav items must be absent
@@ -174,7 +183,7 @@ describe("Tutor shell routing and route containment", () => {
       { courseId: "mk-1", title: "Kalkulus 1", code: "MA-1101" },
     ];
 
-    const markup = renderToStaticMarkup(
+    const markup = renderWithMessages(
       React.createElement(TutorCourseSwitcher, {
         courses: singleCourse,
         activeCourseId: "mk-1",
@@ -193,7 +202,7 @@ describe("Tutor shell routing and route containment", () => {
       { courseId: "mk-2", title: "Fisika Dasar 1", code: "FI-1101" },
     ];
 
-    const markup = renderToStaticMarkup(
+    const markup = renderWithMessages(
       React.createElement(TutorCourseSwitcher, {
         courses: assignedCourses,
         activeCourseId: "mk-1",

@@ -37,7 +37,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       images: [{ url: siteOgImage, width: 1200, height: 630, alt: siteName }],
     },
-    twitter: { card: "summary", title, description, images: [siteOgImage] },
+    twitter: { card: "summary_large_image", title, description, images: [siteOgImage] },
     icons: {
       icon: [
         { url: "/brand/zyx-favicon-16.png", sizes: "16x16", type: "image/png" },

@@ -125,12 +125,12 @@ mock.module("cloudflare:workers", () => ({
   },
 }));
 
-import { POST as createLiveSession, GET as getLiveSessions } from "@/app/api/live/sessions/route";
-import { POST as controlLiveSession } from "@/app/api/live/[sessionId]/control/route";
-import { POST as callbackLiveSession } from "@/app/api/live/callback/route";
+const { POST: createLiveSession, GET: getLiveSessions } = await import("@/app/api/live/sessions/route");
+const { POST: controlLiveSession } = await import("@/app/api/live/[sessionId]/control/route");
+const { POST: callbackLiveSession } = await import("@/app/api/live/callback/route");
 import { buildLiveQuizLearningEventId } from "@/lib/live-quiz-learning-event";
 import { recordLearningEvents } from "@/lib/learning-events";
-import LegacyCourseLiveHostPage from "@/app/(student)/courses/[id]/live/host/page";
+const { default: LegacyCourseLiveHostPage } = await import("@/app/(student)/courses/[id]/live/host/page");
 
 const { LiveQuizRoom, verifyHmacToken } = await import("@/workers/realtime/src/room");
 
