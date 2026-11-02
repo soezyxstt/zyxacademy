@@ -82,7 +82,7 @@ export const env = createEnv({
  STEEL_API_KEY: z.string().optional(),
  /** Python Submit provider, independent of V4 authoring verification. Local is forbidden in production. */
  CODING_BROWSER_PROVIDER: z.enum(["local", "cloudflare", "steel"]).optional(),
- /** Server-only staging Python terminal ticket key, shared with the runtime worker. */
+ /** Server-only Python terminal ticket key, shared with the runtime worker. */
  PYTHON_RUNTIME_TOKEN_SECRET: z.string().optional(),
  CF_ACCOUNT_ID: z.string().optional(),
  /** Cloudflare Workers KV namespace ID for zyx-ai-cache */
