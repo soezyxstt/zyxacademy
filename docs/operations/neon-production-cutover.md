@@ -2,6 +2,8 @@
 
 Status: `OPEN / IN PROGRESS`. Production still serves the existing Turso/R2 deployment. Staging acceptance is recorded in [the migration runbook](neon-migration.md).
 
+Storage transfers now persist a signed local checkpoint after independently matching source and destination SHA-256 bytes. A resume reuses that proof only when both object versions still match; completion also requires fresh, matching source and destination inventories. The checkpoint is scoped to the exact endpoints and buckets and stays under ignored `.tmp/`. Never discard it to retry a network failure. Inspect the PID in its exclusive lock before removing a stale lock. The focused safeguards currently pass 22 tests; full transfer completion and exact-head CI remain pending.
+
 ## Verified targets
 
 - Worktree: `D:/ZYX/zyx-neon-production`, branch `migration/neon-production`. The integration preserves the production Python terminal repair from `ae5b824e0bf414b66099a0128ec0d34c57cd02e6`.

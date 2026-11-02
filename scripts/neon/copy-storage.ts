@@ -1,5 +1,8 @@
 import { createHash } from "node:crypto";
+import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { canReuseStorageProof, signStorageManifest, verifyStorageManifest, type ObjectVersion, type StorageManifest } from "./storage-manifest";
 
 const TARGET_HOST = "br-cool-water-az2xxbul.storage.c-3.ap-southeast-1.aws.neon.tech";
 const TARGET_BUCKET = "zyx-migration";
@@ -75,7 +78,7 @@ async function readObject(client: Reader, bucket: string, key: string) {
   return object;
 }
 
-export async function copyObject(source: Reader, destination: Reader, sourceBucket: string, item: InventoryItem, apply: boolean, targetBucket = TARGET_BUCKET): Promise<"identical" | "would-copy" | "copied"> {
+export async function copyObject(source: Reader, destination: Reader, sourceBucket: string, item: InventoryItem, apply: boolean, targetBucket = TARGET_BUCKET, onVerified?: (proof: { destination: ObjectVersion; sha256: string }) => void): Promise<"identical" | "would-copy" | "copied"> {
   if (![TARGET_BUCKET, "zyx-staging", "zyx-production"].includes(targetBucket)) throw new Error("INVALID_NEON_STORAGE_TARGET");
   const { key } = item;
   const sourceObject = await readObject(source, sourceBucket, key);
@@ -86,6 +89,10 @@ export async function copyObject(source: Reader, destination: Reader, sourceBuck
     const existing = await readObject(destination, targetBucket, key);
     const actual = await fingerprint(existing.Body);
     if (actual.size !== existing.ContentLength || actual.size !== expected.size || actual.sha256 !== expected.sha256) throw new Error("DESTINATION_CONFLICT");
+    if (onVerified) {
+      if (typeof existing.ETag !== "string" || !(existing.LastModified instanceof Date)) throw new Error("DESTINATION_VERSION_REQUIRED");
+      onVerified({ sha256: expected.sha256, destination: { size: actual.size, etag: existing.ETag, lastModified: existing.LastModified.toISOString() } });
+    }
     return "identical" as const;
   }
   try {
@@ -143,21 +150,57 @@ async function main() {
   const source = new S3Client({ requestHandler, responseChecksumValidation: "WHEN_REQUIRED", region: "auto", endpoint: R2_ENDPOINT, credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY } });
   const destination = new S3Client({ requestHandler, responseChecksumValidation: "WHEN_REQUIRED", region: AWS_REGION, endpoint: AWS_ENDPOINT_URL_S3, forcePathStyle: true, requestChecksumCalculation: "WHEN_REQUIRED", credentials: { accessKeyId: AWS_ACCESS_KEY_ID, secretAccessKey: AWS_SECRET_ACCESS_KEY } });
   const inventory = await listInventory(source, R2_BUCKET);
-  const counts = { identical: 0, copied: 0, "would-copy": 0 };
+  const destinationInventory = new Map((await listInventory(destination, NEON_STORAGE_BUCKET)).map(item => [item.key, item]));
+  const counts = { identical: 0, copied: 0, reused: 0, "would-copy": 0 };
+  const context = { sourceEndpoint: new URL(R2_ENDPOINT).href, sourceBucket: R2_BUCKET, targetEndpoint: new URL(AWS_ENDPOINT_URL_S3).href, targetBucket: NEON_STORAGE_BUCKET };
+  const manifestKey = process.env.NEON_MANIFEST_KEY;
+  let manifest: StorageManifest = { version: 1, context, objects: {} };
+  let manifestPath: string | undefined;
+  let lock: number | undefined;
+  if (manifestKey) {
+    mkdirSync(".tmp", { recursive: true, mode: 0o700 });
+    if (realpathSync(".tmp").toLowerCase() !== resolve(".tmp").toLowerCase()) throw new Error("UNSAFE_STORAGE_MANIFEST_PATH");
+    manifestPath = resolve(".tmp", `neon-storage-${new URL(AWS_ENDPOINT_URL_S3).hostname.split(".")[0]}.json`);
+    if (existsSync(manifestPath)) {
+      if (lstatSync(manifestPath).isSymbolicLink()) throw new Error("UNSAFE_STORAGE_MANIFEST_PATH");
+      manifest = verifyStorageManifest(JSON.parse(readFileSync(manifestPath, "utf8")), context, manifestKey);
+    }
+    lock = openSync(`${manifestPath}.lock`, "wx", 0o600);
+    writeFileSync(lock, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString() }));
+  }
+  try {
   // Concurrent large-object response streams stalled during the production rehearsal.
   for (const item of inventory) {
     try {
-      const outcome = await copyObjectWithRetry(source, destination, R2_BUCKET, item, process.argv.includes("--apply"), NEON_STORAGE_BUCKET);
+      const keyHash = createHash("sha256").update(item.key).digest("hex");
+      if (manifestKey && canReuseStorageProof(manifest.objects[keyHash], item, destinationInventory.get(item.key))) {
+        counts.reused++;
+        console.log(JSON.stringify({ keyHash, outcome: "reused-verified-version" }));
+        continue;
+      }
+      const outcome = await copyObjectWithRetry(source, destination, R2_BUCKET, item, process.argv.includes("--apply"), NEON_STORAGE_BUCKET, manifestKey ? (proof) => {
+        manifest.objects[keyHash] = { ...proof, source: { size: item.size, etag: item.etag, lastModified: item.lastModified } };
+        writeFileSync(`${manifestPath}.next`, JSON.stringify(signStorageManifest(manifest, manifestKey)), { mode: 0o600, flag: "wx" });
+        renameSync(`${manifestPath}.next`, manifestPath!);
+      } : undefined);
       counts[outcome]++;
       console.log(JSON.stringify({ keyHash: createHash("sha256").update(item.key).digest("hex"), outcome }));
     } catch (error: any) {
-      console.error(JSON.stringify({ error: "COPY_OBJECT_FAILED", code: error?.name, status: error?.$metadata?.httpStatusCode, reason: /^[A-Z_]+$/.test(error?.message || "") ? error.message : undefined }));
+      console.error(JSON.stringify({ error: "COPY_OBJECT_FAILED", type: error?.name, code: /^[A-Z0-9_]+$/.test(error?.code || "") ? error.code : undefined, causeCode: /^[A-Z0-9_]+$/.test(error?.cause?.code || "") ? error.cause.code : undefined, status: error?.$metadata?.httpStatusCode, reason: /^[A-Z_]+$/.test(error?.message || "") ? error.message : undefined }));
       throw new Error("COPY_BATCH_FAILED");
     }
   }
   assertInventoryUnchanged(inventory, await listInventory(source, R2_BUCKET));
-  if (process.argv.includes("--apply") && counts.identical + counts.copied !== inventory.length) throw new Error("COPY_INCOMPLETE");
+  if (process.argv.includes("--apply") && counts.identical + counts.copied + counts.reused !== inventory.length) throw new Error("COPY_INCOMPLETE");
+  if (manifestKey && process.argv.includes("--apply")) {
+    const after = new Map((await listInventory(destination, NEON_STORAGE_BUCKET)).map(item => [item.key, item]));
+    if (after.size !== inventory.length || inventory.some(item => !canReuseStorageProof(manifest.objects[createHash("sha256").update(item.key).digest("hex")], item, after.get(item.key)))) throw new Error("DESTINATION_VERSION_RECONCILIATION_FAILED");
+  }
   console.log(JSON.stringify({ total: inventory.length, ...counts, mode: process.argv.includes("--apply") ? "apply" : "dry-run" }));
+  } finally {
+    if (lock !== undefined) { closeSync(lock); unlinkSync(`${manifestPath}.lock`); }
+    source.destroy(); destination.destroy();
+  }
 }
 
 if (import.meta.main) await main().catch(() => { console.error("Storage copy failed; inspect configuration and reconcile before retrying."); process.exitCode = 1; });

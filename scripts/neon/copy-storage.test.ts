@@ -8,6 +8,16 @@ const object = (value: string) => ({ Body: (async function* () { yield Buffer.fr
 const item = { key: "private/key", size: 6, etag: '"etag"', lastModified: "2026-01-01T00:00:00.000Z" };
 
 describe("storage copy", () => {
+  test("a resumable proof is emitted only after bytes and destination version are verified", async () => {
+    const proofs: any[] = [];
+    const destination = { send: async () => ({...object("source"),LastModified:new Date("2026-01-01T00:00:00Z")}) };
+    expect(await copyObject({ send: async () => object("source") }, destination, "source", item, false, "zyx-production", proof => proofs.push(proof))).toBe("identical");
+    expect(proofs).toHaveLength(1);
+    expect(proofs[0].sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(proofs[0].destination).toEqual({size:6,etag:'"etag"',lastModified:"2026-01-01T00:00:00.000Z"});
+    await expect(copyObject({ send: async () => object("source") }, {send:async()=>object("wrong!")}, "source", item, true, "zyx-production", proof=>proofs.push(proof))).rejects.toThrow("DESTINATION_CONFLICT");
+    expect(proofs).toHaveLength(1);
+  });
   test("a terminated web response is caught and retried without an unhandled stream error", async () => {
     let reads = 0;
     const source = { send: async () => {

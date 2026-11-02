@@ -34,7 +34,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium
       - run: bun run build:authoring-skills
-      - run: bun test scripts/neon/copy-storage.test.ts scripts/neon/import-core.test.ts scripts/neon/source-snapshot.test.ts scripts/neon/validate-production-target.test.ts
+      - run: bun test scripts/neon/copy-storage.test.ts scripts/neon/storage-manifest.test.ts scripts/neon/import-core.test.ts scripts/neon/source-snapshot.test.ts scripts/neon/validate-production-target.test.ts
       - name: Run complete contract shard
         env:
           SHARD: ${{ matrix.shard }}
