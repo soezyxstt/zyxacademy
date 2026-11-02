@@ -49,8 +49,13 @@ test("archive detects references and preserves inhabited courses", async () => {
 test("video writes require playlist and chapter belonging to the same course", async () => {
   const playlist = (await commit("videos.playlists.create", { courseId: course.id, title: "Lessons" })).data;
   const invalid = await commit("videos.create", { courseId: course.id, playlistId: "missing", title: "Video", videoUrl: "https://example.test/v" }); expect(invalid.error).toBe("PLAYLIST_COURSE_MISMATCH");
-  const created = await commit("videos.create", { courseId: course.id, playlistId: playlist.id, chapterId: first.id, title: "Video", videoUrl: "https://example.test/v" }); expect(created.ok).toBe(true); expect(created.data.videoUrl).toBeUndefined();
-  expect((await commit("videos.delete", { id: created.data.id, expectedRevision: created.data.revision })).data.deleted).toBe(true);
+  const created = await commit("videos.create", { courseId: course.id, playlistId: playlist.id, chapterId: first.id, title: "Video", description: "Original", duration: 90, orderIndex: 3, videoUrl: "https://example.test/v" }); expect(created.ok).toBe(true); expect(created.data.videoUrl).toBeUndefined();
+  const updated = await commit("videos.update", { id: created.data.id, expectedRevision: created.data.revision, title: "Renamed" });
+  expect(updated.ok).toBe(true); expect(updated.data.title).toBe("Renamed");
+  const [stored] = await database.select().from(schema.courseVideos);
+  expect(stored.videoUrl).toBe("https://example.test/v"); expect(stored.chapterId).toBe(first.id);
+  expect(stored.description).toBe("Original"); expect(stored.duration).toBe(90); expect(stored.orderIndex).toBe(3);
+  expect((await commit("videos.delete", { id: created.data.id, expectedRevision: updated.data.revision })).data.deleted).toBe(true);
 });
 test("legacy token has no mutation scope", async () => {
   register(["authoring:read"]); expect((await call("courses.create", { id: "x", title: "X", category: "Umum" })).error).toBe("AUTHORING_MCP_SCOPE_REQUIRED"); register();

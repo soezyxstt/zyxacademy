@@ -1,15 +1,17 @@
 import { beforeAll, afterAll, expect, mock, test } from "bun:test";
 import { createPostgresTestDb } from "../helpers/postgres";
-import { eq } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 import * as schema from "@/db/schema";
 const { client, testDb: database } = await createPostgresTestDb(); let active = true;
 mock.module("@/lib/db", () => ({ db: database })); mock.module("@/db", () => ({ db: database }));
 mock.module("@/lib/authoring/mcp-auth", () => ({
+  MCP_MANUAL_CLIENT_ID: "zyx-admin-connection",
   requireMcpScope: (p: { scopes: string[] }, scope: string) => { if (!p.scopes.includes(scope)) throw new Error(`AUTHORING_MCP_SCOPE_REQUIRED:${scope}`); },
   resolveMcpAdmin: async () => { if (!active) throw new Error("private expired authorization"); },
 }));
 process.env.BETTER_AUTH_SECRET = "local-only-outbox-integration-signing-key";
 process.env.BETTER_AUTH_URL = "http://localhost:3100";
+process.env.NEXT_PUBLIC_APP_URL = process.env.BETTER_AUTH_URL;
 const { registerExternalTools } = await import("@/lib/admin-mcp/external-tools");
 let spreadsheetWrites = 0;
 mock.module("@/lib/google-sheets", () => ({ readSheetGrid: async () => [["manual"]], syncGoogleSpreadsheet: async () => { spreadsheetWrites++; return { spreadsheetId: "sheet", spreadsheetUrl: "https://docs.google.com/spreadsheets/d/sheet", isNew: false }; } }));
@@ -17,12 +19,14 @@ const { executeAdminOperation } = await import("@/lib/admin-mcp/external-executo
 const { formExportSnapshot } = await import("@/lib/admin-mcp/external-contracts");
 const { revisionOf } = await import("@/lib/admin-mcp/mutations");
 const { processAdminOperation } = await import("@/lib/admin-mcp/external-jobs");
+const { storeAuthorizationCode } = await import("@/lib/authoring/mcp-oauth");
+const grant = async (scope: string[] = principal.scopes) => storeAuthorizationCode({ userId: "admin", sessionId: "session", clientId: "fixture-oauth-client", resource: "http://localhost:3100/api/mcp/authoring", scope, redirectUri: "https://client.example.test/callback", codeChallenge: "fixture" }, new Date("2099-01-01"));
 const handlers = new Map<string, (input: Record<string, unknown>) => Promise<any>>();
-const principal = { userId: "admin", actorId: "admin", sessionId: "session", authMethod: "oauth" as const, scopes: ["notifications:send", "notifications:read", "jobs:read", "jobs:write", "meet:write", "meet:read", "forms:responses:read", "forms:responses:export"] };
+const principal = { userId: "admin", actorId: "admin", sessionId: "session", authMethod: "oauth" as const, clientId: "fixture-oauth-client", resource: "http://localhost:3100/api/mcp/authoring", scopes: ["notifications:send", "notifications:read", "jobs:read", "jobs:write", "meet:write", "meet:read", "forms:responses:read", "forms:responses:export"] };
 registerExternalTools({ registerTool: (name: string, _config: unknown, fn: (input: Record<string, unknown>) => Promise<any>) => handlers.set(name, fn) } as never, principal);
 const call = async (name: string, input: Record<string, unknown>) => (await handlers.get(name)!({ expectedEnvironment: "local", expectedOrigin: process.env.BETTER_AUTH_URL || "http://localhost:3000", ...input })).structuredContent;
 async function commit(name: string, input: Record<string, unknown>) { const plan = await call(name, input); expect(plan.ok).toBe(true); return call(name, { ...input, dryRun: false, confirmationToken: plan.data.confirmationToken }); }
-beforeAll(async () => {  for (const id of ["admin", "one", "two", "suspended"]) { await database.insert(schema.user).values({ id, name: id, email: `${id}@example.test` }); await database.insert(schema.pengguna).values({ id, status: id === "suspended" ? "suspended" : "active" }); } });
+beforeAll(async () => {  for (const id of ["admin", "one", "two", "suspended"]) { await database.insert(schema.user).values({ id, name: id, email: `${id}@example.test` }); await database.insert(schema.pengguna).values({ id, status: id === "suspended" ? "suspended" : "active" }); } await grant(); });
 afterAll(async () => { await client.close(); });
 let jobId = "";
 test("audience is explicit, excludes suspended users, never widens malformed targets", async () => {
@@ -93,9 +97,34 @@ test("a worker on a different origin cannot claim a queued operation", async () 
   let effects = 0;
   try {
     process.env.BETTER_AUTH_URL = "https://www.zyxacademy.com";
+    process.env.NEXT_PUBLIC_APP_URL = process.env.BETTER_AUTH_URL;
     expect((await processAdminOperation(created.data.id, async () => { effects++; return {}; })).claimed).toBe(false);
-  } finally { process.env.BETTER_AUTH_URL = previous; }
+  } finally { process.env.BETTER_AUTH_URL = previous; process.env.NEXT_PUBLIC_APP_URL = previous; }
   expect(effects).toBe(0);
   const [stored] = await database.select().from(schema.adminOperationJobs).where(eq(schema.adminOperationJobs.id, created.data.id));
   expect(stored.status).toBe("queued");
+});
+
+test("revoked client consent blocks queued effects even while the admin session remains active", async () => {
+  const created = await commit("meet.create", { requestKey: "revoked-consent-meet", title: "Class", slug: "revoked-consent" });
+  await database.delete(schema.verification).where(like(schema.verification.identifier, "mcp:oauth:consent:%"));
+  expect((await commit("meet.create", { requestKey: "revoked-consent-new-job", title: "Class", slug: "revoked-new" })).error).toBe("OAUTH_CONSENT_REQUIRED");
+  let effects = 0;
+  const result = await processAdminOperation(created.data.id, async () => { effects++; return {}; });
+  expect(result.status).toBe("failed"); expect(effects).toBe(0);
+  const [stored] = await database.select().from(schema.adminOperationJobs).where(eq(schema.adminOperationJobs.id, created.data.id));
+  expect(stored.errorCode).toBe("AUTHORIZATION_EXPIRED");
+  await grant();
+});
+test("export jobs recheck secondary response permission and reject manual connections", async () => {
+  const snapshot = await formExportSnapshot({ formId: "sheet-form" });
+  const created = await commit("forms.responses.export_sheet", { requestKey: "narrowed-consent-export", formId: "sheet-form", expectedDataRevision: snapshot.dataRevision, expectedSpreadsheetId: "sheet", expectedSheetFingerprint: revisionOf([["manual"]]) });
+  expect(created.ok).toBe(true);
+  await grant(principal.scopes.filter(scope => scope !== "forms:responses:read"));
+  let effects = 0;
+  expect((await processAdminOperation(created.data.id, async () => { effects++; return {}; })).status).toBe("failed");
+  expect(effects).toBe(0); await grant();
+  principal.clientId = "zyx-admin-connection";
+  try { expect((await commit("meet.create", { requestKey: "manual-denied-meet", title: "Class", slug: "manual-denied" })).error).toBe("OAUTH_CONSENT_REQUIRED"); }
+  finally { principal.clientId = "fixture-oauth-client"; }
 });

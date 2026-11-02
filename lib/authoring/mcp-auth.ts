@@ -13,6 +13,8 @@ export type McpPrincipal = {
   sessionId: string;
   scopes: string[];
   authMethod: "session" | "oauth";
+  clientId?: string;
+  resource?: string;
 };
 
 async function liveSession(userId: string, sessionId: string): Promise<boolean> {
@@ -60,7 +62,7 @@ export async function principalFromConnectionToken(token: string, expectedResour
     });
     if (!approved) throw new Error("AUTHORING_MCP_CONSENT_REQUIRED");
   }
-  return principal;
+  return { ...principal, clientId: payload.clientId, resource: expectedResource };
 }
 
 export function requireMcpScope(principal: McpPrincipal, scope: string): void {

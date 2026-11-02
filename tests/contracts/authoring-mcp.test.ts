@@ -236,7 +236,7 @@ describe("provider-neutral authoring MCP workflow registry", () => {
       }),
     }));
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ result: { serverInfo: { name: "zyx-authoring" } } });
+    expect(await response.json()).toMatchObject({ result: { serverInfo: { name: "zyx-authoring-local" } } });
   });
 
   it("rejects GET and DELETE with 405 Method Not Allowed to prevent persistent SSE compute drain", async () => {

@@ -199,3 +199,7 @@ Admin MCP local staging adaptation validation is complete: incremental applicati
 Admin MCP isolation contract in `operations/admin-mcp.md` is `ACTIVE`: server environment identity, mandatory target matching for data tools, origin-bound plans/jobs, and fail-closed configuration. Real remote/harness acceptance is still unverified.
 
 Admin MCP isolation validation: local negative scenarios, target-aware transport, TypeScript, lint, plugin packaging and worker dependency checks passed. Public staging/production OAuth metadata advertised separate canonical resources. Runtime database/storage targets, authenticated staging harness access and rollout remain unverified. The features, development and operations records reflect these boundaries.
+
+Admin MCP review fixes update `operations/admin-mcp.md`: queued operations recheck persisted OAuth client/resource consent before provider effects; video metadata edits preserve omitted values. Local review regression checks are recorded there, with CI acceptance still pending.
+
+Admin MCP review corrections were verified locally by the standalone OAuth consent integration, 80 CI-runner contracts, final video/outbox regressions, incremental TypeScript and source lint. Updated PR CI acceptance remains pending.

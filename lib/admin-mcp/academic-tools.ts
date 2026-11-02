@@ -107,10 +107,12 @@ export function registerAcademicTools(server: McpServer, principal: McpPrincipal
   write("videos.create", "videos:write", videoDefinition, "Tambahkan video HTTPS ke playlist dalam mata kuliah yang sama.", async (tx, input) => {
     await validateVideo(tx, input); const [row] = await tx.insert(courseVideos).values({ ...input, id: crypto.randomUUID(), uploadedBy: principal.userId }).returning(); return videoView(row);
   });
-  write("videos.update", "videos:write", videoDefinition.extend({ id: adminId, expectedRevision: adminRevision }), "Ubah metadata dan tautan video dengan validasi playlist dan bab.", async (tx, { id, expectedRevision, ...input }) => {
+  const videoChanges = videoDefinition.omit({ chapterId: true, description: true, duration: true, orderIndex: true }).partial().extend({ chapterId: adminId.nullable().optional(), description: z.string().max(20000).nullable().optional(), duration: z.number().int().nonnegative().nullable().optional(), orderIndex: z.number().int().nonnegative().optional() });
+  write("videos.update", "videos:write", videoChanges.extend({ id: adminId, expectedRevision: adminRevision }), "Ubah metadata dan tautan video dengan validasi playlist dan bab.", async (tx, { id, expectedRevision, ...input }) => {
     const old = await video(id, tx); expectRevision(old, expectedRevision);
-    if (old.courseId !== input.courseId) throw new AdminMcpError("COURSE_MOVE_FORBIDDEN");
-    await validateVideo(tx, input); const [row] = await tx.update(courseVideos).set(input).where(eq(courseVideos.id, id)).returning(); return videoView(row);
+    const merged = { courseId: old.courseId, playlistId: old.playlistId, chapterId: old.chapterId, title: old.title, description: old.description, videoUrl: old.videoUrl, duration: old.duration, orderIndex: old.orderIndex, ...input };
+    if (old.courseId !== merged.courseId) throw new AdminMcpError("COURSE_MOVE_FORBIDDEN");
+    await validateVideo(tx, merged); const [row] = await tx.update(courseVideos).set(merged).where(eq(courseVideos.id, id)).returning(); return videoView(row);
   });
   write("videos.delete", "videos:write", z.object({ id: adminId, expectedRevision: adminRevision }), "Hapus entri video. Objek penyimpanan tetap tersedia.", async (tx, input) => {
     expectRevision(await video(input.id, tx), input.expectedRevision); await tx.delete(courseVideos).where(eq(courseVideos.id, input.id)); return { id: input.id, deleted: true };
