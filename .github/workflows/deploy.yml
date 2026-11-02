@@ -624,7 +624,7 @@ jobs:
       - name: Verify Diktat Runtime Assets
         if: steps.impact.outputs.should_deploy == 'true'
         env:
-          DATABASE_URL: https://diktat-smoke.invalid
+          DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
         run: deno run --allow-read --allow-env --config workers/deno-background/deno.json workers/deno-background/diktat-assets-smoke.ts
 
       - name: Configure Target Environment

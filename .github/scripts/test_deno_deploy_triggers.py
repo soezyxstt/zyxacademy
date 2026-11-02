@@ -38,6 +38,11 @@ def matches_any_pattern(file_path: str, patterns: list[str]) -> bool:
 
 
 class DenoDeployTriggersTest(unittest.TestCase):
+    def test_diktat_asset_smoke_uses_local_postgres_placeholder(self):
+        text = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+        step = text.split("- name: Verify Diktat Runtime Assets", 1)[1].split("- name:", 1)[0]
+        self.assertIn("DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder", step)
+
     def test_only_release_branches_can_mutate_worker_and_staging_guard_runs_first(self):
         text = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("&& (github.ref_name == 'main' || github.ref_name == 'staging')", text)
