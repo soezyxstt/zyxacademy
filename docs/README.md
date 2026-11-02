@@ -52,6 +52,7 @@ docs/
 │   ├── authoring-mcp-skills.md                # Pinned MCP Skills Build and Import Acceptance
 │   ├── legacy-vector-contract-allowlist.md   # Allowed Legacy Vector References during Cutover
 │   ├── manual-test-plan-bundles-v2.md       # Human-driven Verification for Bundle Ingestion
+│   ├── neon-migration.md                    # Isolated Neon migration rehearsal
 │   ├── production-readiness-checklist.md     # Pre-deployment Gates and Plan Checkpoints
 │   ├── structured-article-v3-rollout.md       # Structured Article V3 Migration and Rollout
 │   ├── visual-audit-capture.md               # Procedure for Staging Visual Capture Audits
@@ -84,10 +85,10 @@ Every document in this repository has one of the following explicit statuses:
 | [README.md](README.md) | Index | `ACTIVE` | 2026-09-24 | Master documentation index, hierarchy map, course workspace compatibility status, marketing improvement plan, and lifecycle status ledger. |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-10-22 | Canonical platform boundaries, V4 authoring default representation, trusted verification, source figures and publication gates. Local verification is separate from rollout. |
 | [operations/authoring-mcp-skills.md](operations/authoring-mcp-skills.md) | Operations | `ACTIVE` | 2026-10-23 | Pinned external snapshots, 0.4.1 V4 defaults, browser deadlines and 2-slice checkpoints, early remote cleanup, backoff-aware leases, canonical CDP validation, scoped diagnostics and exact-revision recovery/cancellation, attested renderer and separate installed-host acceptance. |
-| [DATABASE.md](DATABASE.md) | Core Database | `ACTIVE` | Current | Database topology (Turso remote, SQLite local), Drizzle workflows, and driver adapters. |
-| [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | 2026-09-16 | Comprehensive schema catalog including the singleton public demo marker, tutorial scheduling lifecycle, dated tutor slots, normalized booking resources, historical assessment provenance, question reference links, retryable Idea Bundle cleanup, Product Bundle pedagogic review, and PDF evidence. |
+| [DATABASE.md](DATABASE.md) | Core Database | `ACTIVE` | 2026-11-02 | Existing Turso topology, separate Neon staging preparation, guarded import and import-order reconciliation. |
+| [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | 2026-11-02 | PostgreSQL schema catalog, staging locale/coding tables, occupied-slot uniqueness and import-order identity. |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Core Infrastructure | `ACTIVE` | 2026-10-10 | Vercel, Cloudflare Workers/R2/Vectorize deployment processes, Diktat runtime asset checks, secrets, and environments. |
-| [DEVELOPMENT.md](DEVELOPMENT.md) | Core Development | `ACTIVE` | 2026-10-21 | Local development, environment boundaries, pinned scientific dependencies and attested V4 verification commands. |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Core Development | `ACTIVE` | 2026-11-02 | Environment boundaries, separate staging import files, Bun 1.3.14, isolated PostgreSQL contracts and attested V4 verification commands. |
 | [FILE_NAMING_CONVENTIONS.md](FILE_NAMING_CONVENTIONS.md) | Standards | `ACTIVE` | Current | Standard file naming formula, taxonomy, and directory hierarchy for academic assets. |
 | [features.md](features.md) | Product | `ACTIVE` | 2026-10-22 | Student, tutor, admin and public workflows; Idea-linked quizzes, V4 authoring default Article/Diktat authoring, scientific rendering and review gates. |
 | [bundle/authoring-context-pack-v1.md](bundle/authoring-context-pack-v1.md) | Bundle Contract | `ACTIVE` | Current | Specification for authoring context pack export format and security boundaries. |
@@ -98,6 +99,7 @@ Every document in this repository has one of the following explicit statuses:
 | [bundle/product-bundle-v3.md](bundle/product-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-10-11 | Structured Article, fixed readable Diktat typography, pagination, and numbered contact footer, typed visuals with geometric axis scaling and domain boundaries, simplified revision-bound review, publication, and student reads. |
 | [bundle/product-bundle-v4.md](bundle/product-bundle-v4.md) | Bundle Contract | `ACTIVE` | 2026-10-22 | Default V4 authoring contract with legacy compatibility: scientific parts, authored graphical Diktat with fixed readable typography, source figures, trusted verification, unmarked scientific prose blockers, current explicit review and checksum-pinned schema delivery. Operational rollout is separate. |
 | [operations/production-readiness-checklist.md](operations/production-readiness-checklist.md) | Operations | `ACTIVE` | Current | Pre-deployment gates, quality criteria, staging validation checklist, and mandatory Idea links with exactly one primary for MCP quiz drafts and edits. |
+| [operations/neon-migration.md](operations/neon-migration.md) | Operations | `OPEN / IN PROGRESS` | 2026-11-02 | Rehearsal workflows pass. Separate Neon staging target has 21,272 reconciled rows and 124 verified objects; 1,834 contracts pass after focused assertion repair. Live Cloud Run integration and staging cutover remain. |
 | [operations/zyra-ops-runbooks.md](operations/zyra-ops-runbooks.md) | Operations | `ACTIVE` | 2026-09-02 | Operational runbooks, health metrics, alert responses, and Admin Ops AI v2 operational procedures (Vectorize sync, rollback without flag, provider mitigation, proposal retention). |
 | [operations/visual-audit-capture.md](operations/visual-audit-capture.md) | Operations | `ACTIVE` | Current | Safe procedure for capturing staging visual audits and screenshots. |
 | [operations/structured-article-v3-rollout.md](operations/structured-article-v3-rollout.md) | Operations | `ACTIVE` | 2026-09-01 | Additive migration, authoring rollout gates, rollback, and published student visibility for structured Articles. |
@@ -149,8 +151,8 @@ To prevent confusion when navigating code or documentation, the active vs legacy
 | System Area | Canonical / Active Standard | Legacy / Transitional Mechanism | Boundary Rules |
 |---|---|---|---|
 | **Retrieval & Vector Store** | Cloudflare Vectorize 768-dimensional (`text-embedding-004`) | Pinecone, 1024-dimensional Vectorize indexes | New retrieval queries use 768d Vectorize only. Legacy indexes are preserved for rollback only. |
-| **Object Storage** | Cloudflare R2 via `lib/storage/keys.ts` | UploadThing | All new storage writes use Cloudflare R2 keys. UploadThing remains for legacy compatibility paths only. |
-| **Database** | Turso (Production/Staging), SQLite (Local `dev.db`) | PostgreSQL / `neon-client` | Turso and local SQLite are the only supported engines. PostgreSQL is not used. |
+| **Object Storage** | Cloudflare R2 in existing deployments | UploadThing; isolated Neon S3 rehearsal | Existing keys use `lib/storage/keys.ts`; the isolated Neon target has not cut over. |
+| **Database** | Turso (Production/Staging), SQLite (Local `dev.db`) in existing deployments | Isolated Neon PostgreSQL rehearsal | The isolated branch targets PostgreSQL; existing deployments have not cut over. |
 | **Roles & Permissions** | Canonical `pengguna_peran` table with role assignments | Flat string role column on user | All new authorization checks use canonical `pengguna_peran`. |
 | **Course Ingestion** | Bundle V3 behind `FEATURE_STRUCTURED_ARTICLE_READER_V1` | Bundle V2 submission and legacy readers | Published V2 and V3 remain readable. New submissions require V3 only while the flag is enabled. |
 | **AI Harness & Quota** | Zyra Control Plane with Durable Object Quota Coordinator | Uncoordinated direct provider calls | Tutoring and generation route through Zyra quota coordinator and allowance ledger. |

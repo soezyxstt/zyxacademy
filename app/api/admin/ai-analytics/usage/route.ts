@@ -28,18 +28,8 @@ export async function GET(req: Request) {
     // Ensure end date includes the full day
     endDate.setHours(23, 59, 59, 999);
 
-    const startMs = startDate.getTime();
-    const startSec = Math.floor(startMs / 1000);
-    const endMs = endDate.getTime();
-    const endSec = Math.floor(endMs / 1000);
-
-    const conditions = sql`
-      (
-        (${aiUsageEvents.createdAt} > 9999999999 AND ${aiUsageEvents.createdAt} >= ${startMs} AND ${aiUsageEvents.createdAt} <= ${endMs})
-        OR
-        (${aiUsageEvents.createdAt} <= 9999999999 AND ${aiUsageEvents.createdAt} >= ${startSec} AND ${aiUsageEvents.createdAt} <= ${endSec})
-      )
-    `;
+    const conditions = sql`${aiUsageEvents.createdAt} >= ${startDate.toISOString()}::timestamptz
+      AND ${aiUsageEvents.createdAt} <= ${endDate.toISOString()}::timestamptz`;
 
     // 1. Group by user
     const usersUsage = await db
@@ -59,8 +49,7 @@ export async function GET(req: Request) {
       .orderBy(desc(sql`count(${aiUsageEvents.id})`));
 
     // 2. Group by day for the chart
-    // We dynamically divide by 1000 if it's in milliseconds (value > 9999999999) to support both seconds and ms transparently
-    const dateExpr = sql<string>`strftime('%Y-%m-%d', datetime(CASE WHEN ${aiUsageEvents.createdAt} > 9999999999 THEN ${aiUsageEvents.createdAt} / 1000 ELSE ${aiUsageEvents.createdAt} END, 'unixepoch'))`;
+    const dateExpr = sql<string>`to_char(${aiUsageEvents.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`;
 
     const dailyUsage = await db
       .select({
@@ -79,12 +68,14 @@ export async function GET(req: Request) {
       data: {
         users: usersUsage.map(u => ({
           ...u,
+          requests: Number(u.requests || 0),
           inputTokens: Number(u.inputTokens || 0),
           outputTokens: Number(u.outputTokens || 0),
           totalTokens: Number(u.totalTokens || 0),
         })),
         daily: dailyUsage.map(d => ({
           ...d,
+          requests: Number(d.requests || 0),
           inputTokens: Number(d.inputTokens || 0),
           outputTokens: Number(d.outputTokens || 0),
         })),

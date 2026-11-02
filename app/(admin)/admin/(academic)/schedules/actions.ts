@@ -1,5 +1,7 @@
 "use server";
 
+import { affectedRows } from "@/lib/mutation-result";
+import { lockScheduleEntity } from "@/lib/schedule/transaction-lock";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
 import { db } from "@/db";
@@ -398,6 +400,7 @@ export async function executeAdminCreateTutorAvailability(
   const now = options?.now ?? new Date();
   try {
     const slotId = await actor.client.transaction(async (tx) => {
+      await lockScheduleEntity(tx, "tutor", tutorId);
       const existingSlots = await tx
         .select({ id: tutorSlots.id, startTime: tutorSlots.startTime, endTime: tutorSlots.endTime })
         .from(tutorSlots)
@@ -500,7 +503,7 @@ export async function executeAdminDeleteTutorAvailability(
       if (existingBooking.length > 0) throw new Error("SLOT_ALREADY_BOOKED");
 
       const deleted = await tx.delete(tutorSlots).where(eq(tutorSlots.id, slotId));
-      if ((deleted.rowsAffected ?? 0) === 0) throw new Error("SLOT_NOT_FOUND");
+      if (affectedRows(deleted) === 0) throw new Error("SLOT_NOT_FOUND");
 
       await recordMutationAudit({
         actorId: actor.actorId,
@@ -606,7 +609,7 @@ export async function executeAdminAssignTutorialSession(
           eq(groups.id, groupId),
           lt(groups.usedQuotaSessions, groups.totalQuotaSessions),
         ));
-      if ((quotaClaim.rowsAffected ?? 0) === 0) throw new Error("TOTAL_QUOTA_EXCEEDED");
+      if (affectedRows(quotaClaim) === 0) throw new Error("TOTAL_QUOTA_EXCEEDED");
 
       const bookingId = generateRequestId();
       const resolvedCourseId = eligibility.legacyCourseId ?? eligibility.courseId ?? courseId;

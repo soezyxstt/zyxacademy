@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { RetryAfterError } from "inngest";
 import { productBundleManifestSchema, productEntitySchema } from "@/lib/bundle/product-validator";
-import { createProductV4VerificationService, type ProductV4VerificationPorts, type ProductV4VerificationSnapshot } from "@/lib/bundle/product-v4-verification-service";
+import { readProductVerificationObject, createProductV4VerificationService, type ProductV4VerificationPorts, type ProductV4VerificationSnapshot } from "@/lib/bundle/product-v4-verification-service";
 import { buildProductVerificationKey } from "@/lib/storage/keys";
 import { assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, evaluateProductV4Verification, PRODUCT_V4_VERIFICATION_POLICY, recordProductV4VerificationReport, runProductV4Verification, type ProductV4ObservedCheck, type ProductV4VerificationResult, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
 
@@ -131,6 +131,29 @@ test("persisted job only becomes ready after actual execution and intact artifac
   const artifact = result.receipt.results[0].artifacts[0];
   objects.set(buildProductVerificationKey(input.planHash, artifact.id), new TextEncoder().encode("changed bytes"));
   await expect(service.get(input)).rejects.toThrow("ARTIFACT_MISSING_OR_CHANGED");
+});
+
+test("verification reads directly and only treats storage not-found errors as absent", async () => {
+  const bytes = new Uint8Array([1, 2]);
+  expect(await readProductVerificationObject({ download: async () => bytes }, "key")).toBe(bytes);
+  for (const code of [404, 403, 500]) {
+    const failure = new Error("Storage request failed", { cause: { name: "NoSuchKey", $metadata: { httpStatusCode: code } } });
+    const provider = { download: async () => { throw failure; } };
+    if (code === 404) expect(await readProductVerificationObject(provider, "key")).toBeNull();
+    else await expect(readProductVerificationObject(provider, "key")).rejects.toBe(failure);
+  }
+});
+
+test("transient missing state retries without inventing an expired lease, persistent absence fails closed", async () => {
+  const { service, ports } = serviceFixture();
+  const requested = await service.request({ importId: "import", runId: "run" });
+  const read = ports.read;
+  let missingReads = 1;
+  ports.read = async key => key.includes("/state-") && missingReads-- > 0 ? null : read(key);
+  const input = { importId: "import", runId: "run", planHash: requested.jobId };
+  expect((await service.get(input)).state.status).toBe("pending");
+  ports.read = async key => key.includes("/state-") ? null : read(key);
+  await expect(service.get(input)).rejects.toThrow("PRODUCT_V4_VERIFICATION_STATE_MISSING");
 });
 
 test("interrupted verification resumes memoized checks and reports bounded progress", async () => {

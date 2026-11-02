@@ -1,8 +1,6 @@
-import { describe, expect, it } from "bun:test";
-import { randomUUID } from "node:crypto";
+import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { createPostgresTestDb } from "../helpers/postgres";
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import { executeAdminCreateTutorAvailability } from "@/app/(admin)/admin/(academic)/schedules/actions";
@@ -15,78 +13,18 @@ import {
 
 const repoRoot = process.cwd();
 
-async function createAdminAvailabilityDb() {
-  const dbPath = `/tmp/zyx_admin_schedule_${randomUUID().replace(/-/g, "")}.db`;
-  const client = createClient({ url: `file:${dbPath}` });
-  const testDb = drizzle(client, { schema });
+const clients: Array<Awaited<ReturnType<typeof createPostgresTestDb>>["client"]> = [];
+beforeAll(async () => {
+  const { client } = await createPostgresTestDb();
+  await client.close();
+}, 60_000);
+afterEach(async () => {
+  await Promise.all(clients.splice(0).map((client) => client.close()));
+});
 
-  await client.execute(`
-    CREATE TABLE user (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      role TEXT DEFAULT 'student',
-      last_activity_at INTEGER
-    );
-  `);
-  await client.execute(`
-    CREATE TABLE pengguna (
-      id TEXT PRIMARY KEY REFERENCES user(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-  await client.execute(`
-    CREATE TABLE peran (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      created_at INTEGER NOT NULL
-    );
-  `);
-  await client.execute(`
-    CREATE TABLE pengguna_peran (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      peran_id TEXT NOT NULL REFERENCES peran(id),
-      source TEXT NOT NULL,
-      audit_actor_pengguna_id TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
-  await client.execute(`
-    CREATE TABLE tutor_slots (
-      id TEXT PRIMARY KEY,
-      tutor_id TEXT NOT NULL REFERENCES user(id),
-      day_of_week TEXT NOT NULL,
-      start_time TEXT NOT NULL,
-      end_time TEXT NOT NULL,
-      mode TEXT NOT NULL DEFAULT 'online',
-      location TEXT,
-      session_date TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
-  await client.execute(`
-    CREATE TABLE audit_mutasi (
-      id TEXT PRIMARY KEY,
-      actor_id TEXT REFERENCES pengguna(id),
-      entity_type TEXT NOT NULL,
-      entity_id TEXT NOT NULL,
-      action TEXT NOT NULL,
-      before_snapshot TEXT,
-      after_snapshot TEXT,
-      correlation_id TEXT NOT NULL,
-      course_id TEXT NOT NULL,
-      outcome TEXT,
-      reason TEXT NOT NULL,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
+async function createAdminAvailabilityDb() {
+  const { client, testDb } = await createPostgresTestDb();
+  clients.push(client);
 
   const now = new Date("2026-09-09T08:00:00.000+07:00");
   await testDb.insert(schema.peran).values([
@@ -190,8 +128,8 @@ describe("admin scheduling operations", () => {
       `${repoRoot}/components/admin/academic-schedules-dashboard.tsx`,
       "utf8",
     );
-    expect(dashboard).toContain('onCreateScheduleDirect={calendarMode === "academic" ? handleCreateDirect : undefined}');
-    expect(dashboard).toContain('adminMode={calendarMode === "tutorial" ? "tutorial" : "academic"}');
+    expect(dashboard).toContain('onCreateScheduleDirect={calendarMode === "academic" || calendarMode === "all" ? handleCreateDirect : undefined}');
+    expect(dashboard).toContain('adminMode={calendarMode as "all" | "tutorial" | "academic"}');
   });
 
   it("routes tutor visits to the canonical tutor schedule page", () => {
@@ -324,6 +262,7 @@ describe("admin scheduling operations", () => {
       "utf8",
     );
     expect(actions).toContain("legacyNullDateSlotCount");
-    expect(calendar).toContain("if (!s.sessionDate) return false;");
+    expect(calendar).toContain("const dateIso = slot.sessionDate as CalendarDate | null | undefined;");
+    expect(calendar).toContain("if (!dateIso || bookingSlotIds.has(slot.id) || slot.booking) continue;");
   });
 });

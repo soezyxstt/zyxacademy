@@ -26,7 +26,7 @@ export async function GET() {
       .select({
         reviewStatus: aiQuestionBank.reviewStatus,
         count: sql<number>`count(*)`,
-        avgQuality: sql<number>`round(avg(${aiQuestionBank.qualityScore}), 3)`,
+        avgQuality: sql<number>`round(avg(${aiQuestionBank.qualityScore})::numeric, 3)`,
         totalUseCount: sql<number>`sum(${aiQuestionBank.useCount})`,
       })
       .from(aiQuestionBank)
@@ -48,7 +48,7 @@ export async function GET() {
       .select({
         status: studentQuizAttempts.status,
         count: sql<number>`count(*)`,
-        avgScore: sql<number>`round(avg(${studentQuizAttempts.score}), 2)`,
+        avgScore: sql<number>`round(avg(${studentQuizAttempts.score})::numeric, 2)`,
       })
       .from(studentQuizAttempts)
       .groupBy(studentQuizAttempts.status),

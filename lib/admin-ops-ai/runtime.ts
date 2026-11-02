@@ -220,7 +220,8 @@ export function createOpsAiAgent(options: CreateOpsAiAgentOptions = {}): ToolLoo
     // One extra generation is reserved for synthesis after the final permitted
     // tool execution. Any additional tool attempt is blocked by executionBudget.
     stopWhen: stepCountIs(maxExecutions + 1),
-    maxRetries: OPS_AI_POLICY_BOUNDS.maxRetryAttempts,
+    // The model adapter owns the bounded retry loop, including stream failures.
+    maxRetries: 0,
   });
 }
 

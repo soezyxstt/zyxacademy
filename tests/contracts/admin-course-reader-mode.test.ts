@@ -31,8 +31,10 @@ describe("admin course reader mode contract", () => {
     const content = source("components/course/structured-article-reader.tsx");
     expect(content).toContain('if (!learnerMode) return;\n      try {\n        const res = await fetch(`/api/student/articles/');
     expect(content).toContain('if (!learnerMode) return;\n    activeTimeSpentRef.current = 0');
-    expect(content).toContain('if (!learnerMode) return;\n    const handleSelectionChange');
-    expect(content).toContain("learnerMode && selectionCoords && selectedText");
+    expect(content).toContain('if (!learnerMode || !selectionAskEnabled || !isMobileSelection || isTutorOpen) return;\n');
+    expect(content).toContain('if (!learnerMode || !selectionAskEnabled || isMobileSelection) return;\n');
+    expect(content).toContain("learnerMode && isMobileSelection && !isTutorOpen && isSelectionToolbarOpen && selectionContext");
+    expect(content).toContain("learnerMode && !isMobileSelection && selectionCoords && selectionContext");
   });
 
   test("admin preview authenticates and resolves ownership before rendering", () => {

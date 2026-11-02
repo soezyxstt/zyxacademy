@@ -12,6 +12,7 @@ import { Calendar, Clock, ChevronLeft, User, Share2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ShareDialog, ShareBlock } from "@/components/blog/share-widget";
+import { storage } from "@/lib/storage";
 
 const getArticleBySlug = cache(async (slug: string) => {
   return db.query.blogArticles.findFirst({
@@ -38,7 +39,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     title: article.title,
     description: article.summary || `Baca artikel ${article.title} di Blog Zyx Academy.`,
     path: `/blog/${article.slug}`,
-    image: article.thumbnailUrl || siteOgImage,
+    image: article.thumbnailUrl?.startsWith("http") ? storage.getUrl(article.thumbnailUrl) : article.thumbnailUrl || siteOgImage,
     type: "article",
   });
 }
@@ -143,7 +144,7 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
               {article.thumbnailUrl && (
                 <div className="relative aspect-[16/9] w-full rounded-xl overflow-hidden border border-border shadow-sm">
                   <Image 
-                    src={article.thumbnailUrl} 
+                    src={article.thumbnailUrl.startsWith("http") ? storage.getUrl(article.thumbnailUrl) : article.thumbnailUrl}
                     alt={article.title} 
                     fill
                     className="object-cover"
@@ -200,7 +201,7 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
                     {other.thumbnailUrl && (
                       <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-border bg-muted">
                         <Image 
-                          src={other.thumbnailUrl} 
+                          src={other.thumbnailUrl.startsWith("http") ? storage.getUrl(other.thumbnailUrl) : other.thumbnailUrl}
                           alt={other.title} 
                           fill
                           className="object-cover"

@@ -1,3 +1,4 @@
+import { affectedRows } from "@/lib/mutation-result";
 import { createHash, randomUUID } from "node:crypto";
 import {
   OPS_AI_POLICY_BOUNDS,
@@ -368,9 +369,7 @@ export class OpsAiProposalStore {
       publicProposal,
     };
 
-    this.proposals.set(id, storedProposal as ServerStoredProposal);
-
-    // Persist to zyra_proposals table in database with hermetic fallback
+    // Execution requires the persisted row for its atomic state transition.
     try {
       await db.insert(zyraProposals).values({
         id,
@@ -399,9 +398,9 @@ export class OpsAiProposalStore {
         createdAt: new Date(createdAt),
       });
     } catch (err) {
-      // In-memory record is preserved; database error in test or mock environment is handled gracefully
-      // console.warn("[db.insert zyraProposals failed]:", err);
+      throw new Error("OPS_AI_PROPOSAL_PERSISTENCE_FAILED", { cause: err });
     }
+    this.proposals.set(id, storedProposal as ServerStoredProposal);
 
     return {
       storedProposal,
@@ -540,6 +539,14 @@ export class OpsAiProposalStore {
       )!;
     }
 
+    const previous = {
+      status: proposal.status,
+      confirmedBy: proposal.confirmedBy,
+      confirmedAt: proposal.confirmedAt,
+      publicConfirmedBy: proposal.publicProposal.confirmedBy,
+      publicConfirmedAt: proposal.publicProposal.confirmedAt,
+    };
+    let persistedStatus: OpsAiProposalStatus | undefined;
     // Update in-memory state
     proposal.status = newStatus;
     proposal.publicProposal.status = newStatus;
@@ -576,9 +583,7 @@ export class OpsAiProposalStore {
 
       if (
         (newStatus === "executing" || newStatus === "executed") &&
-        updateResult &&
-        typeof (updateResult as any).rowsAffected === "number" &&
-        (updateResult as any).rowsAffected === 0
+        affectedRows(updateResult) === 0
       ) {
         // Verify if row was persisted in DB
         const [existingRow] = await db
@@ -589,16 +594,24 @@ export class OpsAiProposalStore {
 
         if (existingRow) {
           // Revert in-memory status to match database reality
-          proposal.status = DB_STATUS_TO_PROPOSAL[existingRow.status as ZyraProposalDbStatus] || "failed";
+          persistedStatus = DB_STATUS_TO_PROPOSAL[existingRow.status as ZyraProposalDbStatus] || "failed";
+          proposal.status = persistedStatus;
           proposal.publicProposal.status = proposal.status;
 
           throw new Error(
             `Atomic transition to '${newStatus}' failed: proposal '${id}' sudah berada dalam status DB '${existingRow.status}' atau telah kedaluwarsa.`
           );
         }
+        throw new Error(`Atomic transition to '${newStatus}' failed: proposal '${id}' tidak ditemukan.`);
       }
     } catch (err: any) {
-      if (err?.message?.includes("Atomic transition")) {
+      if (newStatus === "executing" || newStatus === "executed") {
+        proposal.status = persistedStatus ?? previous.status;
+        proposal.publicProposal.status = proposal.status;
+        proposal.confirmedBy = previous.confirmedBy;
+        proposal.confirmedAt = previous.confirmedAt;
+        proposal.publicProposal.confirmedBy = previous.publicConfirmedBy;
+        proposal.publicProposal.confirmedAt = previous.publicConfirmedAt;
         throw err;
       }
       // Non-fatal if DB table is unconfigured in offline mock unit tests

@@ -1,4 +1,4 @@
-import { chromium, type Page } from "playwright-core";
+import { chromium, type Page, type BrowserContext } from "playwright-core";
 import { parseStoredPdfPages } from "./pdf-pages";
 import { deriveProductV4VerificationPlan, assertProductV4VerificationCurrent, type ProductV4ObservedCheck, type ProductV4VerificationPlan, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
 import { productBundleManifestSchema, productEntitySchema, productDependencySchema, deterministicProductSerialization, type ProductEntity } from "@/lib/bundle/product-validator";
@@ -26,15 +26,31 @@ export function validateVerificationBaseUrl(value: string): string {
 }
 export function validateDeployedVerificationBaseUrl(value: string): string {
   const url = new URL(value);
-  if (!["https://staging.zyxacademy.com", "https://www.zyxacademy.com"].includes(url.origin) || url.username || url.password || url.pathname !== "/" || url.search || url.hash) throw new Error("VERIFICATION_BASE_ORIGIN_INVALID");
+  if (!["https://staging.zyxacademy.com", "https://www.zyxacademy.com", "https://zyx-neon-migration.vercel.app"].includes(url.origin) || url.username || url.password || url.pathname !== "/" || url.search || url.hash) throw new Error("VERIFICATION_BASE_ORIGIN_INVALID");
   return url.origin;
 }
+export async function authenticateVerificationBrowser(context: BrowserContext, accessUrl: string, baseUrl: string): Promise<void> {
+  try {
+    let url = new URL(accessUrl);
+    if (url.origin !== baseUrl || url.username || url.password || url.hash) throw new Error();
+    let authenticated = false;
+    for (let redirects = 0; redirects < 6; redirects++) {
+      const response = await context.request.get(url.href, { maxRedirects: 0, timeout: 30_000 });
+      if (response.status() >= 300 && response.status() < 400) {
+        url = new URL(response.headers().location, url);
+        if (url.origin !== baseUrl || url.username || url.password || url.hash) throw new Error();
+      } else { authenticated = response.ok(); break; }
+    }
+    if (!authenticated) throw new Error();
+  } catch { await context.close().catch(() => {}); throw new Error("VERIFICATION_BROWSER_ACCESS_FAILED"); }
+}
+
 async function launchVerificationBrowser() {
   if (!deployed) {
     const browser = await chromium.launch({ headless: true });
     return { browser, close: () => browser.close() };
   }
-  const account = process.env.CF_ACCOUNT_ID, token = process.env.CF_API_TOKEN;
+  const account = process.env.CF_ACCOUNT_ID, token = process.env.CF_BROWSER_API_TOKEN ?? process.env.CF_API_TOKEN;
   if (!account || !/^[a-f0-9]{32}$/i.test(account) || !token) throw new Error("VERIFICATION_BROWSER_CONFIGURATION_REQUIRED");
   return acquireVerificationBrowser(account, token);
 }
@@ -213,6 +229,7 @@ export async function executeBrowserProductV4Check(input: {
   const expectedBrowserVersion = input.plan.binding.browserVersion ?? (deployed ? undefined : loadedBrowserRuntime?.browserVersion);
   if (!expectedBrowserVersion || launched.version() !== expectedBrowserVersion) throw new Error("PRODUCT_V4_BROWSER_VERSION_MISMATCH");
   const context = await launched.newContext({ viewport: requirement.viewport ?? { width: 703, height: 1032 }, reducedMotion: "reduce" });
+  if (deployed && process.env.AUTHORING_VERIFICATION_ACCESS_URL) await authenticateVerificationBrowser(context, process.env.AUTHORING_VERIFICATION_ACCESS_URL, baseUrl);
   const errors: string[] = [];
   const page = await context.newPage();
   page.setDefaultTimeout(20_000);

@@ -15,6 +15,7 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { Reveal } from "@/components/ui/reveal";
 import { cn } from "@/lib/utils";
 import { createMetadata } from "@/lib/site";
+import { storage } from "@/lib/storage";
 
 export const metadata: Metadata = createMetadata({
   title: "Blog",
@@ -281,7 +282,7 @@ function ArticleCard({ article }: { article: any }) {
       <div className="relative aspect-[4/3] w-full overflow-hidden border-b border-border/50 bg-muted">
         {article.thumbnailUrl ? (
           <Image
-            src={article.thumbnailUrl}
+            src={article.thumbnailUrl.startsWith("http") ? storage.getUrl(article.thumbnailUrl) : article.thumbnailUrl}
             alt={article.title}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1280px) 33vw, 400px"

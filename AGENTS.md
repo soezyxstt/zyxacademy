@@ -52,8 +52,8 @@ This file contains durable rules for work in this repository. Read the relevant 
 ## Repository invariants
 
 - The application uses Next.js, React, Bun scripts, Drizzle, Better Auth, Turso or local SQLite, Cloudflare R2, Inngest, and Gemini provider adapters. Follow the existing adapter and environment boundaries.
-- Turso is the remote database and local SQLite is the development database. Do not introduce PostgreSQL or `neon-client` for application data.
-- Cloudflare R2 is the default storage provider. UploadThing remains only where its compatibility call paths still exist.
+- Production and staging use Turso, with SQLite for local development on their existing branches. This isolated migration branch targets Neon PostgreSQL only; do not redirect existing environments or cut over without authorization.
+- Production and staging use Cloudflare R2. This isolated migration branch also supports the private Neon S3-compatible bucket. UploadThing remains only where its compatibility call paths still exist.
 - Canonical retrieval uses the current Vectorize adapter and namespace. Do not delete legacy vector resources or change the retrieval cutover as part of an unrelated task.
 - Long-running ingestion, generation, synchronization, and recomputation work should use the existing job or Inngest path rather than blocking a request.
 - Reuse established KO extraction, RAG sync, question generation, quiz attempts, SM-2 flashcards, diktat, website-material, and admin AI flows unless the task explicitly changes one of them.

@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { enrollments, searchDocuments } from "@/db/schema";
-import { eq, and, gt, lte, or, like } from "drizzle-orm";
+import { eq, and, gt, lte, or, ilike } from "drizzle-orm";
 import { getPeranCodes } from "@/lib/auth/authorization";
 import { embedSearchQuery, querySearchVectors } from "@/lib/search/service";
 import { parseSearchQueryString } from "@/lib/search/parser";
@@ -148,9 +148,9 @@ export async function GET(request: NextRequest) {
         if (effectiveQuery) {
           dbConditions.push(
             or(
-              like(searchDocuments.title, searchTerm),
-              like(searchDocuments.searchableText, searchTerm),
-              like(searchDocuments.path, searchTerm)
+              ilike(searchDocuments.title, searchTerm),
+              ilike(searchDocuments.searchableText, searchTerm),
+              ilike(searchDocuments.path, searchTerm)
             )!
           );
         }

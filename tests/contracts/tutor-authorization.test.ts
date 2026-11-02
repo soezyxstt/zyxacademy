@@ -1,6 +1,5 @@
-import { describe, expect, it } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { afterEach, beforeAll, describe, expect, it } from "bun:test";
+import { createPostgresTestDb, preparePostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
 import {
   checkTutorCourseAccess,
@@ -9,95 +8,21 @@ import {
   resolveTutorCourseAccess,
 } from "@/lib/auth/tutor-access";
 import { resolveActorRoles } from "@/lib/tutor/assessment-policy";
+const clients: Array<Awaited<ReturnType<typeof createPostgresTestDb>>["client"]> = [];
+beforeAll(preparePostgresTestDb, 60_000);
+afterEach(async () => { for (const client of clients.splice(0)) await client.close(); });
+
 async function createTestDb() {
-  const client = createClient({ url: ":memory:" });
-  const testDb = drizzle(client, { schema });
+  const { client, testDb } = await createPostgresTestDb();
+  clients.push(client);
 
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS user (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      role TEXT DEFAULT 'student',
-      last_activity_at INTEGER
-    );
-  `);
 
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna (
-      id TEXT PRIMARY KEY REFERENCES user(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
 
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS peran (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      created_at INTEGER NOT NULL
-    );
-  `);
 
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna_peran (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      peran_id TEXT NOT NULL REFERENCES peran(id),
-      source TEXT NOT NULL,
-      audit_actor_pengguna_id TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
 
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS courses (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT 'Matematika',
-      description TEXT
-    );
-  `);
 
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS mata_kuliah (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'active',
-      is_demo INTEGER NOT NULL DEFAULT 0,
-      legacy_course_id TEXT REFERENCES courses(id),
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
 
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS penugasan_tutor (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      assignment_scope TEXT NOT NULL DEFAULT 'course',
-      legacy_tutor_course_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
 
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS tutor_courses (
-      id TEXT PRIMARY KEY,
-      tutor_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      created_at INTEGER NOT NULL
-    );
-  `);
 
   // Seed standard peran
   await testDb.insert(schema.peran).values([
@@ -181,7 +106,8 @@ describe("Canonical Tutor Course Access and Fallback", () => {
       expect(resultLegacy.courseId).toBe("mk-calc");
       expect(resultLegacy.legacyCourseId).toBe("crs-calc");
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -284,7 +210,8 @@ describe("Canonical Tutor Course Access and Fallback", () => {
       expect(adminListOptIn[0].courseId).toBe("mk-physics");
       expect(adminListOptIn[0].source).toBe("admin_override");
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -364,7 +291,8 @@ describe("Canonical Tutor Course Access and Fallback", () => {
       expect(resultPrecedence.source).toBe("canonical_assignment");
       expect(resultPrecedence.isCompatibilityFallback).toBe(false);
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -583,7 +511,8 @@ describe("Canonical Tutor Course Access and Fallback", () => {
         requireTutorCourseAccess("usr-murid", "mk-bio", {}, testDb),
       ).rejects.toThrow("TUTOR_ACCESS_DENIED: ROLE_NOT_AUTHORIZED");
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -696,7 +625,8 @@ describe("Canonical Tutor Course Access and Fallback", () => {
       const item3 = list.find((c) => c.courseId === "mk-3" || c.courseId === "crs-3");
       expect(item3).toBeUndefined();
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -796,7 +726,8 @@ describe("Canonical Tutor Course Access and Fallback", () => {
       expect(betaItem?.legacyCourseId).toBe("mk-alpha");
       expect(betaItem?.source).toBe("compatibility_fallback");
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -843,7 +774,8 @@ describe("Canonical Tutor Course Access and Fallback", () => {
       const list = await listTutorAccessibleCourses("usr-tutor-unmapped", {}, testDb);
       expect(list).toEqual([]);
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -969,7 +901,8 @@ describe("Canonical Tutor Course Access and Fallback", () => {
       expect(list[0].source).toBe("compatibility_fallback");
       expect(list.find((c) => c.courseId === "mk-stats")).toBeUndefined();
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -1085,7 +1018,8 @@ describe("Canonical Tutor Course Access and Fallback", () => {
       const listContent = await listTutorAccessibleCourses("usr-scope-content", {}, testDb);
       expect(listContent).toEqual([]);
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -1190,7 +1124,8 @@ describe("Canonical Tutor Course Access and Fallback", () => {
       expect(listWithA.length).toBe(1);
       expect(listWithA[0].courseId).toBe("mk-dup-a");
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -1277,7 +1212,8 @@ describe("Canonical Tutor Course Access and Fallback", () => {
       expect(resAuthorized.courseId).toBe("mk-astro");
       expect(resAuthorized.legacyCourseId).toBe("crs-astro-legacy");
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 
@@ -1328,7 +1264,8 @@ describe("Canonical Tutor Course Access and Fallback", () => {
         expect(resultAdminStale.isTutor).toBe(false);
         expect(resultAdminStale.isAdmin).toBe(false);
       } finally {
-        client.close();
+        await client.close();
+        clients.splice(clients.indexOf(client), 1);
       }
     });
 
@@ -1365,7 +1302,8 @@ describe("Canonical Tutor Course Access and Fallback", () => {
         expect(resultAdmin.isTutor).toBe(false);
         expect(resultAdmin.isAdmin).toBe(true);
       } finally {
-        client.close();
+        await client.close();
+        clients.splice(clients.indexOf(client), 1);
       }
     });
 
@@ -1388,7 +1326,8 @@ describe("Canonical Tutor Course Access and Fallback", () => {
         expect(resultEmpty.isTutor).toBe(false);
         expect(resultEmpty.isAdmin).toBe(false);
       } finally {
-        client.close();
+        await client.close();
+        clients.splice(clients.indexOf(client), 1);
       }
     });
   });

@@ -1,8 +1,10 @@
 import type { MetadataRoute } from "next";
 import { siteDescription } from "@/lib/site";
 
-export default function manifest(): MetadataRoute.Manifest {
-  return {
+export const dynamic = "force-static";
+
+export function GET() {
+  const manifest: MetadataRoute.Manifest = {
     name: "Zyx Academy",
     short_name: "Zyx",
     description: siteDescription,
@@ -37,4 +39,5 @@ export default function manifest(): MetadataRoute.Manifest {
       },
     ],
   };
+  return Response.json(manifest, { headers: { "Content-Type": "application/manifest+json" } });
 }

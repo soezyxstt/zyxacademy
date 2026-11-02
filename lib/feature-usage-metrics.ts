@@ -60,24 +60,14 @@ const isoFromEpochSeconds = (value: unknown): string | null => {
   return seconds > 0 ? new Date(seconds * 1000).toISOString() : null;
 };
 
-/**
- * Some legacy rows store epoch milliseconds instead of epoch seconds
- * (see app/api/admin/ai-analytics/usage/route.ts for the same guard).
- * Normalize to seconds before comparing or grouping.
- */
-const EPOCH_MS_THRESHOLD = 9_999_999_999;
-
-const epochSecondsExpr = (column: AnyColumn) =>
-  sql<number>`(case when ${column} > ${EPOCH_MS_THRESHOLD} then ${column} / 1000 else ${column} end)`;
-
 const withinWindow = (column: AnyColumn, startEpochSeconds: number) =>
-  sql`${epochSecondsExpr(column)} >= ${startEpochSeconds}`;
+  sql`${column} >= to_timestamp(${startEpochSeconds})`;
 
 const maxEpochSeconds = (column: AnyColumn) =>
-  sql<number>`max(${epochSecondsExpr(column)})`;
+  sql<number>`extract(epoch from max(${column}))`;
 
 const dayExpr = (column: AnyColumn) =>
-  sql<string>`strftime('%Y-%m-%d', datetime(${epochSecondsExpr(column)}, 'unixepoch'))`;
+  sql<string>`to_char(${column} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`;
 
 /**
  * Cross-feature student usage read model. Aggregates existing per-domain

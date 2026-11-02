@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { daysFrom, formatIsoDateUtc } from "@/lib/date-utils";
 import {
   createDiscountVoucher,
   deleteDiscountVoucher,
@@ -32,9 +33,7 @@ import {
 } from "@/app/(admin)/admin/pricing/actions";
 
 function getDefaultExpiryDate(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 30);
-  return d.toISOString().slice(0, 10);
+  return formatIsoDateUtc(daysFrom(30));
 }
 
 export function VoucherManagementTab({
@@ -44,6 +43,7 @@ export function VoucherManagementTab({
 }) {
   const [vouchers, setVouchers] = useState<DiscountVoucherItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadedAt, setLoadedAt] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -70,6 +70,7 @@ export function VoucherManagementTab({
     setError(null);
     const res = await getDiscountVouchers();
     if (res.success && res.data) {
+      setLoadedAt(Date.now());
       setVouchers(res.data);
     } else {
       setError(res.error || "Gagal memuat daftar voucher.");
@@ -146,7 +147,7 @@ export function VoucherManagementTab({
     }
   };
 
-  const isExpired = (date: Date) => new Date(date).getTime() <= Date.now();
+  const isExpired = (date: Date) => new Date(date).getTime() <= loadedAt;
 
   return (
     <div className="space-y-6" data-voucher-management>

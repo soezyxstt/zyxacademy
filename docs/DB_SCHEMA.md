@@ -1,13 +1,28 @@
 # Zyx Database Schema Reference
 
-This document provides a detailed reference of the SQLite/Turso database schema defined in [db/schema.ts](../db/schema.ts). 
+This document catalogs the application schema. On this isolated migration branch, [db/schema.ts](../db/schema.ts) defines PostgreSQL tables and `drizzle-postgres/` contains their generated migrations. Existing production and staging still use SQLite/Turso.
+
+---
+
+## Staging schema compatibility
+
+Generated PostgreSQL migration `0002_classy_onslaught.sql` follows the staging SQLite schema at `37e64074d57fe92177c8d9334dc598850000331e`. It adds:
+
+| Table | Contract |
+| --- | --- |
+| `account_locale_preferences` | One locale per auth user, restricted to `id` or `en`; update time is `timestamptz`. |
+| `coding_problems` | Composite problem ID/version, canonical course and creator foreign keys, private JSONB snapshot, positive version and draft/published status. |
+| `coding_attempts` | Learner and canonical course foreign keys, idempotent request index, JSONB request/evaluation, positive attempt ordinal, surface and status checks. The import rejects pending attempts. |
+| `coding_drafts` | Composite learner/course/draft key, code/stdin, numeric revision and `timestamptz` update time. |
+
+The booking slot constraint now matches staging: a partial unique index permits cancelled history while allowing only one non-cancelled booking per slot. This preparation brings the PostgreSQL schema to 193 application tables; it does not deploy the newer staging application or apply changes to the rehearsal database.
 
 ---
 
 ## High Level Overview
 
-The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. Migrations are managed via Drizzle ORM. 
-- **Time Representation**: All timestamps are stored as SQLite `integer` values representing Unix milliseconds and are mapped to Javascript `Date` objects.
+The rehearsal uses PostgreSQL while existing deployments retain SQLite/Turso. Migrations are managed via Drizzle ORM.
+- **Time representation**: PostgreSQL timestamps map to JavaScript `Date` objects. The importer normalizes legacy integer timestamps under its explicit mixed-unit policy.
 - **Foreign Keys**: Cascade deletes are used extensively to maintain integrity across course-specific content.
 - **Coverage note**: `db/schema.ts` is authoritative; this document documents every table's columns. When this document and `db/schema.ts` disagree, trust `db/schema.ts`.
 
@@ -659,6 +674,7 @@ Checksum-identified import record; public Product status is `draft`, `published`
 * Optional legacy `courseId`, required `sourceUriOrKey`
 * `version`, `status` (default `received`), optional JSON `validationReport`
 * `requestedBy`, `createdAt`, `updatedAt`
+* On the isolated PostgreSQL branch, internal `insertionOrder` is a generated bigint identity. Source-import selection uses it to break equal timestamp ties; public import records omit it. Migrated values preserve SQLite insertion order.
 * A matching bundle ID and checksum is idempotent; a reused ID with a different checksum is a conflict.
 
 ### item_impor_bundle

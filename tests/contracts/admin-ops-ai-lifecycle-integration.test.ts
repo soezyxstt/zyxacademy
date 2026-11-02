@@ -12,7 +12,7 @@ import {
 } from "@/lib/admin-ops-ai/model-factory";
 import { UsageBudgetService } from "@/lib/usage-budget-service";
 import { db } from "@/db";
-import { user, courses, zyraProposals } from "@/db/schema";
+import { user, courses, pengguna, zyraProposals } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 describe("Admin Ops AI Lifecycle and Mutation Boundary Integration Tests", () => {
@@ -22,6 +22,7 @@ describe("Admin Ops AI Lifecycle and Mutation Boundary Integration Tests", () =>
   beforeAll(async () => {
     const [existingCourse] = await db.select({ id: courses.id }).from(courses).limit(1);
     testCourseId = existingCourse?.id ?? "calc-1";
+    if (!existingCourse) await db.insert(courses).values({ id: testCourseId, title: "Lifecycle fixture", category: "Test" });
 
     const [existing] = await db.select({ id: user.id }).from(user).limit(1);
     if (existing) {
@@ -32,11 +33,13 @@ describe("Admin Ops AI Lifecycle and Mutation Boundary Integration Tests", () =>
         id: testAdminId,
         name: "Test Admin Actor",
         email: "test-admin-actor@zyx.local",
+        role: "admin",
         emailVerified: true,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
     }
+    await db.insert(pengguna).values({ id: testAdminId, status: "active" }).onConflictDoNothing();
   });
 
   beforeEach(() => {

@@ -1,7 +1,5 @@
-import { describe, expect, test, beforeAll, beforeEach, mock } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
-import { migrate } from "drizzle-orm/libsql/migrator";
+import { describe, expect, test, beforeAll, beforeEach, afterAll, mock } from "bun:test";
+import { createPostgresTestDb } from "../helpers/postgres";
 import { eq } from "drizzle-orm";
 import { zipSync } from "fflate";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
@@ -87,10 +85,7 @@ const mockStorage = {
   listObjects: async () => ({ objects: [], isTruncated: false }),
 };
 
-const client = createClient({
-  url: "file::memory:?cache=shared",
-});
-const testDb = drizzle(client, { schema });
+const { client, testDb } = await createPostgresTestDb();
 
 mock.module("@/db", () => ({ db: testDb }));
 mock.module("@/lib/db", () => ({ db: testDb }));
@@ -364,87 +359,27 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
   beforeAll(async () => {
     process.env.BETTER_AUTH_SECRET = "test-better-auth-secret-for-mcp-contracts";
     process.env.FEATURE_STRUCTURED_ARTICLE_READER_V1 = "true";
-    try {
-      await migrate(testDb, { migrationsFolder: "./drizzle" });
-    } catch (err) {
-      if (!(err instanceof Error && err.message.includes("already exists"))) {
-        throw err;
-      }
-    }
-    await client.execute("PRAGMA foreign_keys = ON");
   });
+
+  afterAll(async () => { await client.close(); });
 
   beforeEach(async () => {
     storageMap.clear();
 
-    await client.execute("PRAGMA foreign_keys = OFF");
-    await client.execute("DELETE FROM item_asesmen");
-    await client.execute("DELETE FROM asesmen");
-    await client.execute("DELETE FROM blueprint_asesmen");
-    await client.execute("DELETE FROM quiz_templates");
-    await client.execute("DELETE FROM vector_sync_queue");
-    await client.execute("DELETE FROM audit_mutasi");
-    await client.execute("DELETE FROM publikasi_bundle");
-    await client.execute("DELETE FROM review_pedagogi_bundle");
-    await client.execute("DELETE FROM bukti_pdf_bundle");
-    await client.execute("DELETE FROM review_item_bundle");
-    await client.execute("DELETE FROM review_bundle");
-    await client.execute("DELETE FROM ketergantungan_produk");
-    await client.execute("DELETE FROM blok_artikel_sumber");
-    await client.execute("DELETE FROM blok_artikel_ide");
-    await client.execute("DELETE FROM blok_artikel");
-    await client.execute("DELETE FROM bagian_artikel");
-    await client.execute("DELETE FROM artikel_ide");
-    await client.execute("DELETE FROM artikel");
-    await client.execute("DELETE FROM diktat_ide");
-    await client.execute("DELETE FROM diktat_materi");
-    await client.execute("DELETE FROM pembahasan_soal");
-    await client.execute("DELETE FROM soal_ide");
-    await client.execute("DELETE FROM soal");
-    await client.execute("DELETE FROM assessment_sources");
-    await client.execute("DELETE FROM course_materials");
-    await client.execute("DELETE FROM item_impor_bundle");
-    await client.execute("DELETE FROM impor_bundle");
-    await client.execute("DELETE FROM potongan_sumber");
-    await client.execute("DELETE FROM sumber_materi");
-    await client.execute("DELETE FROM ide");
-    await client.execute("DELETE FROM bagian_pembelajaran");
-    await client.execute("DELETE FROM bab");
-    await client.execute("DELETE FROM pengguna_peran");
-    await client.execute("DELETE FROM peran");
-    await client.execute("DELETE FROM pengguna");
-    await client.execute("DELETE FROM user");
-    await client.execute("DELETE FROM mata_kuliah");
-    await client.execute("DELETE FROM courses");
-    await client.execute("PRAGMA foreign_keys = ON");
+    await client.exec('TRUNCATE TABLE "user", courses, mata_kuliah, peran CASCADE');
 
     // 1. Setup Courses and Mata Kuliah
-    await client.execute({
-      sql: "INSERT INTO courses (id, title, category, description) VALUES (?, ?, ?, ?)",
-      args: ["course-cp3", "Kalkulus CP3", "Matematika", "Deskripsi Kalkulus CP3"],
-    });
-    await client.execute({
-      sql: "INSERT INTO mata_kuliah (id, code, title, status, legacy_course_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, 0)",
-      args: ["course-cp3", "KAL-CP3", "Kalkulus CP3", "active", "course-cp3"],
-    });
+    await client.query("INSERT INTO courses (id, title, category, description) VALUES ($1, $2, $3, $4)", ["course-cp3", "Kalkulus CP3", "Matematika", "Deskripsi Kalkulus CP3"]);
+    await client.query("INSERT INTO mata_kuliah (id, code, title, status, legacy_course_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, now(), now())", ["course-cp3", "KAL-CP3", "Kalkulus CP3", "active", "course-cp3"]);
 
     // 2. Setup Users and Pengguna
-    await client.execute({
-      sql: "INSERT INTO user (id, name, email, email_verified, role, created_at, updated_at) VALUES (?, ?, ?, 1, 'admin', 0, 0)",
-      args: ["user-admin-cp3", "Admin CP3", "admin.cp3@example.test"],
-    });
+    await client.query("INSERT INTO \"user\" (id, name, email, email_verified, role, created_at, updated_at) VALUES ($1, $2, $3, true, 'admin', now(), now())", ["user-admin-cp3", "Admin CP3", "admin.cp3@example.test"]);
     await provisionPenggunaForNewUser({ id: "user-admin-cp3", role: "admin" });
 
-    await client.execute({
-      sql: "INSERT INTO user (id, name, email, email_verified, role, created_at, updated_at) VALUES (?, ?, ?, 1, 'teacher', 0, 0)",
-      args: ["user-author-cp3", "Author CP3", "author.cp3@example.test"],
-    });
+    await client.query("INSERT INTO \"user\" (id, name, email, email_verified, role, created_at, updated_at) VALUES ($1, $2, $3, true, 'teacher', now(), now())", ["user-author-cp3", "Author CP3", "author.cp3@example.test"]);
     await provisionPenggunaForNewUser({ id: "user-author-cp3", role: "teacher" });
 
-    await client.execute({
-      sql: "INSERT INTO user (id, name, email, email_verified, role, created_at, updated_at) VALUES (?, ?, ?, 1, 'student', 0, 0)",
-      args: ["user-reader-cp3", "Reader CP3", "reader.cp3@example.test"],
-    });
+    await client.query("INSERT INTO \"user\" (id, name, email, email_verified, role, created_at, updated_at) VALUES ($1, $2, $3, true, 'student', now(), now())", ["user-reader-cp3", "Reader CP3", "reader.cp3@example.test"]);
     await provisionPenggunaForNewUser({ id: "user-reader-cp3", role: "student" });
 
     // 3. Setup Chapter
@@ -1763,11 +1698,9 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
       expect(normalizeDate(targetDate).toISOString()).toBe(targetIso);
       expect(normalizeDate(normalizeDate(targetMillis)).toISOString()).toBe(targetIso);
 
-      // Insert 3 impor_bundle rows: one stored with Unix seconds, one with Unix milliseconds, one via Drizzle Date
-      await client.execute({
-        sql: `INSERT INTO impor_bundle (id, bundle_id, bundle_type, course_id, version, checksum, source_uri_or_key, status, validation_report, requested_by, created_at, updated_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [
+      // PostgreSQL stores timestamps as dates after normalizing both legacy units.
+      await client.query(`INSERT INTO impor_bundle (id, bundle_id, bundle_type, course_id, version, checksum, source_uri_or_key, status, validation_report, requested_by, created_at, updated_at)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`, [
           "imp-sec-source-001",
           "pack-sec-001",
           "source",
@@ -1778,15 +1711,12 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
           "validated",
           JSON.stringify({ valid: true, name: "Source Pack Sec Test", courseId: "course-cp3", chapterId: "bab-cp3-001", documentCount: 1 }),
           "user-admin-cp3",
-          targetSeconds,
-          targetSeconds,
-        ],
-      });
+          new Date(targetSeconds * 1000),
+          new Date(targetSeconds * 1000),
+        ]);
 
-      await client.execute({
-        sql: `INSERT INTO impor_bundle (id, bundle_id, bundle_type, course_id, version, checksum, source_uri_or_key, status, validation_report, requested_by, created_at, updated_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [
+      await client.query(`INSERT INTO impor_bundle (id, bundle_id, bundle_type, course_id, version, checksum, source_uri_or_key, status, validation_report, requested_by, created_at, updated_at)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`, [
           "imp-ms-source-001",
           "pack-ms-001",
           "source",
@@ -1797,10 +1727,9 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
           "validated",
           JSON.stringify({ valid: true, name: "Source Pack MS Test", courseId: "course-cp3", chapterId: "bab-cp3-001", documentCount: 1 }),
           "user-admin-cp3",
-          targetMillis,
-          targetMillis,
-        ],
-      });
+          new Date(targetMillis),
+          new Date(targetMillis),
+        ]);
 
       await testDb.insert(schema.imporBundle).values({
         id: "imp-date-source-001",

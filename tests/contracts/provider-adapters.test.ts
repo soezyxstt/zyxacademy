@@ -3,6 +3,7 @@ import { describe, expect, it } from "bun:test";
 import { createGeminiGenerateAdapter } from "@/lib/ai/provider/gemini-generate-adapter";
 import { createGeminiInteractionsAdapter } from "@/lib/ai/provider/gemini-interactions-adapter";
 import { ProviderAdapterError } from "@/lib/ai/provider/errors";
+import { MODEL_IDS } from "@/lib/ai/provider/model-registry";
 import {
   withProviderDeadline,
   type GeminiGenerateClient,
@@ -113,9 +114,11 @@ describe("Plan 002 Gemini provider adapters", () => {
 
   it("does not allow ordinary routing to select a quarantined model", async () => {
     const client = { models: { generateContent: async () => ({ text: "unused" }) } } as unknown as GeminiGenerateClient;
-    await expect(createGeminiGenerateAdapter(client).generate({
-      modelId: "gemini-3.5-flash-lite",
-      parts: [{ type: "text", text: "hello" }],
-    })).rejects.toBeInstanceOf(ProviderAdapterError);
+    for (const modelId of [MODEL_IDS.quarantinedPreview, MODEL_IDS.quarantinedGemma]) {
+      await expect(createGeminiGenerateAdapter(client).generate({
+        modelId,
+        parts: [{ type: "text", text: "hello" }],
+      })).rejects.toBeInstanceOf(ProviderAdapterError);
+    }
   });
 });

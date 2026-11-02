@@ -38,7 +38,7 @@ import {
 } from "./schema-introspection";
 import { db } from "@/db";
 import { user } from "@/db/schema";
-import { like, or } from "drizzle-orm";
+import { ilike, or } from "drizzle-orm";
 import { createCanonicalVectorClient } from "@/lib/vectorize-client";
 import type { CanonicalVectorProvider } from "@/lib/vectorize/contracts";
 import type { CanonicalContentV2EmbeddingAdapter } from "@/lib/vectorize/embedding";
@@ -424,7 +424,7 @@ export const OPS_TOOL_DEFINITIONS: Record<string, OpsToolDefinition<any>> = {
           createdAt: user.createdAt,
         })
         .from(user)
-        .where(or(like(user.name, `%${escaped}%`), like(user.email, `%${escaped}%`)))
+        .where(or(ilike(user.name, `%${escaped}%`), ilike(user.email, `%${escaped}%`)))
         .limit(6);
       const sanitizedUsers = sanitizeUserSearchProjection(rawUsers, {
         includeRedactedEmail: context?.includeRedactedEmail,

@@ -3,7 +3,7 @@ import { searchDocs } from "./rag-store";
 import { introspectDbSchema, getLiveSystemMetrics } from "./schema-introspection";
 import { db } from "@/db";
 import { user, courses } from "@/db/schema";
-import { like, or, eq } from "drizzle-orm";
+import { ilike, or, eq } from "drizzle-orm";
 import { generateEnrollmentToken } from "@/app/(admin)/admin/(academic)/tokens/actions";
 import { type OpsAiActionProposal, type ActionProposalType } from "./types";
 import { KNOWN_FEATURE_FLAGS } from "@/lib/feature-flags";
@@ -177,7 +177,7 @@ export async function executeToolCall(name: string, args: Record<string, any>): 
           createdAt: user.createdAt,
         })
         .from(user)
-        .where(or(like(user.name, `%${q}%`), like(user.email, `%${q}%`)))
+        .where(or(ilike(user.name, `%${q}%`), ilike(user.email, `%${q}%`)))
         .limit(6);
 
       return {

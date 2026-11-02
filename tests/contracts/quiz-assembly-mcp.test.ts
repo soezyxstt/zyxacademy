@@ -1,11 +1,9 @@
-import { describe, expect, it, mock, beforeAll, beforeEach } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { describe, expect, it, mock, beforeAll, afterAll } from "bun:test";
+import { createPostgresTestDb } from "../helpers/postgres";
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 
-const client = createClient({ url: "file::memory:?cache=shared" });
-const testDb = drizzle(client, { schema });
+const { client, testDb } = await createPostgresTestDb();
 
 mock.module("@/db", () => ({
   db: testDb,
@@ -25,60 +23,32 @@ import {
 import { createAuthoringMcpServer } from "@/lib/authoring/mcp-server";
 import type { McpPrincipal } from "@/lib/authoring/mcp-auth";
 
-import { migrate } from "drizzle-orm/libsql/migrator";
 import { createHmac } from "node:crypto";
-
-async function setupTables() {
-  try {
-    await migrate(testDb, { migrationsFolder: "./drizzle" });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    if (!message.includes("already exists")) {
-      throw err;
-    }
-  }
-}
 
 describe("Quiz Assembly Contract & MCP Tools", () => {
   const testCourseId = "perpindahan-panas";
   const testCanonicalCourseId = "mk-perpindahan-panas";
   const adminId = "admin-test-01";
 
+  afterAll(async () => { await client.close(); });
+
   beforeAll(async () => {
-    await setupTables();
 
     // Seed admin
-    await client.execute({
-      sql: `INSERT OR IGNORE INTO user (id, name, email, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
-      args: [adminId, "Admin Test", "admin@zyx.id", "admin", Date.now(), Date.now()],
-    });
-    await client.execute({
-      sql: `INSERT OR IGNORE INTO pengguna (id, status) VALUES (?, ?)`,
-      args: [adminId, "active"],
-    });
+    await client.query(`INSERT INTO "user" (id, name, email, role, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING`, [adminId, "Admin Test", "admin@zyx.id", "admin", new Date(), new Date()]);
+    await client.query(`INSERT INTO pengguna (id, status) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [adminId, "active"]);
 
     // Seed courses & mata_kuliah
-    await client.execute({
-      sql: `INSERT OR IGNORE INTO courses (id, title, category) VALUES (?, ?, ?)`,
-      args: [testCourseId, "Perpindahan Panas", "Teknik Mesin"],
-    });
-    await client.execute({
-      sql: `INSERT OR IGNORE INTO mata_kuliah (id, code, title, legacy_course_id) VALUES (?, ?, ?, ?)`,
-      args: [testCanonicalCourseId, testCourseId, "Perpindahan Panas", testCourseId],
-    });
+    await client.query(`INSERT INTO courses (id, title, category) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`, [testCourseId, "Perpindahan Panas", "Teknik Mesin"]);
+    await client.query(`INSERT INTO mata_kuliah (id, code, title, legacy_course_id) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`, [testCanonicalCourseId, testCourseId, "Perpindahan Panas", testCourseId]);
 
     // Seed bab
-    await client.execute({
-      sql: `INSERT OR IGNORE INTO bab (id, mata_kuliah_id, code, title, order_index) VALUES (?, ?, ?, ?, ?)`,
-      args: ["bab-01-intro", testCanonicalCourseId, "ch-01", "Introduction to Heat Transfer", 1],
-    });
+    await client.query(`INSERT INTO bab (id, mata_kuliah_id, code, title, order_index) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING`, ["bab-01-intro", testCanonicalCourseId, "ch-01", "Introduction to Heat Transfer", 1]);
 
     // Seed sample questions in soal
     for (let i = 1; i <= 5; i++) {
-      await client.execute({
-        sql: `INSERT OR IGNORE INTO soal (id, mata_kuliah_id, bab_id, question_type, prompt, options_snapshot, origin, status, difficulty, cognitive_level, reasoning_pattern, generation_hash, creator_id)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [
+      await client.query(`INSERT INTO soal (id, mata_kuliah_id, bab_id, question_type, prompt, options_snapshot, origin, status, difficulty, cognitive_level, reasoning_pattern, generation_hash, creator_id)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) ON CONFLICT DO NOTHING`, [
           `soal-ht-${i}`,
           testCanonicalCourseId,
           "bab-01-intro",
@@ -92,15 +62,12 @@ describe("Quiz Assembly Contract & MCP Tools", () => {
           "direct_application",
           `hash-${i}`,
           adminId,
-        ],
-      });
+        ]);
     }
 
     // Seed soal non-published (draft)
-    await client.execute({
-      sql: `INSERT OR IGNORE INTO soal (id, mata_kuliah_id, bab_id, question_type, prompt, options_snapshot, origin, status, difficulty, cognitive_level, reasoning_pattern, generation_hash, creator_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [
+    await client.query(`INSERT INTO soal (id, mata_kuliah_id, bab_id, question_type, prompt, options_snapshot, origin, status, difficulty, cognitive_level, reasoning_pattern, generation_hash, creator_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) ON CONFLICT DO NOTHING`, [
         "soal-ht-draft",
         testCanonicalCourseId,
         "bab-01-intro",
@@ -114,14 +81,11 @@ describe("Quiz Assembly Contract & MCP Tools", () => {
         "recall",
         "hash-draft",
         adminId,
-      ],
-    });
+      ]);
 
     // Seed soal historical reference yang belum quiz-eligible
-    await client.execute({
-      sql: `INSERT OR IGNORE INTO soal (id, mata_kuliah_id, bab_id, question_type, prompt, options_snapshot, origin, quiz_eligible, status, difficulty, cognitive_level, reasoning_pattern, generation_hash, creator_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [
+    await client.query(`INSERT INTO soal (id, mata_kuliah_id, bab_id, question_type, prompt, options_snapshot, origin, quiz_eligible, status, difficulty, cognitive_level, reasoning_pattern, generation_hash, creator_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) ON CONFLICT DO NOTHING`, [
         "soal-ht-hist-ineligible",
         testCanonicalCourseId,
         "bab-01-intro",
@@ -129,15 +93,14 @@ describe("Quiz Assembly Contract & MCP Tools", () => {
         "Soal Historical Belum Eligible",
         JSON.stringify(["A", "B"]),
         "historical_reference",
-        0,
+        false,
         "published",
         "hard",
         "analyze",
         "multi_step",
         "hash-hist",
         adminId,
-      ],
-    });
+      ]);
   });
 
   it("berhasil membuat kuis dengan kumpulan questionIds (quiz.create)", async () => {
@@ -459,18 +422,9 @@ describe("Quiz Assembly Contract & MCP Tools", () => {
     expect(wrongKindChapterRes.structuredContent.error).toBe("AUTHORING_MCP_TOKEN_INVALID");
 
     // 4. Chapter belonging to another course must fail with AUTHORING_MCP_SCOPE_MISMATCH
-    await client.execute({
-      sql: `INSERT OR IGNORE INTO courses (id, title, category) VALUES (?, ?, ?)`,
-      args: ["kimia-dasar-1", "Kimia Dasar I", "TPB"],
-    });
-    await client.execute({
-      sql: `INSERT OR IGNORE INTO mata_kuliah (id, code, title, legacy_course_id) VALUES (?, ?, ?, ?)`,
-      args: ["mk-kimia-dasar-1", "kimia-dasar-1", "Kimia Dasar I", "kimia-dasar-1"],
-    });
-    await client.execute({
-      sql: `INSERT OR IGNORE INTO bab (id, mata_kuliah_id, code, title, order_index) VALUES (?, ?, ?, ?, ?)`,
-      args: ["bab-ki-1", "mk-kimia-dasar-1", "BAB-01", "Stoikiometri", 1],
-    });
+    await client.query(`INSERT INTO courses (id, title, category) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`, ["kimia-dasar-1", "Kimia Dasar I", "TPB"]);
+    await client.query(`INSERT INTO mata_kuliah (id, code, title, legacy_course_id) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`, ["mk-kimia-dasar-1", "kimia-dasar-1", "Kimia Dasar I", "kimia-dasar-1"]);
+    await client.query(`INSERT INTO bab (id, mata_kuliah_id, code, title, order_index) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING`, ["bab-ki-1", "mk-kimia-dasar-1", "BAB-01", "Stoikiometri", 1]);
 
     const coursesRes2 = await tools["catalog.list_courses"].handler({});
     const kimiaCourseChoice = coursesRes2.structuredContent.choices.find(

@@ -5,7 +5,7 @@ const webRuntimePath = `${process.cwd()}/artifacts/authoring-verification/web-ru
 
 const nextConfig: NextConfig = {
   env: { NEXT_PUBLIC_V4_WEB_RUNTIME: existsSync(webRuntimePath) ? readFileSync(webRuntimePath, "utf8") : "" },
-  serverExternalPackages: ["puppeteer", "@napi-rs/canvas", "pdfjs-dist", "pdf-parse"],
+  serverExternalPackages: ["puppeteer", "@napi-rs/canvas", "pdfjs-dist", "pdf-parse", "pg", "drizzle-orm"],
   outputFileTracingIncludes: {
     "/api/**": [
       "./node_modules/katex/dist/**",

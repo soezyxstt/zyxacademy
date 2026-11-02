@@ -1,8 +1,6 @@
-import { describe, expect, it, beforeAll, beforeEach } from "bun:test";
+import { describe, expect, it, afterAll, beforeEach } from "bun:test";
 import { mock } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
-import { migrate } from "drizzle-orm/libsql/migrator";
+import { createPostgresTestDb } from "../helpers/postgres";
 import { zipSync } from "fflate";
 import * as schema from "@/db/schema";
 import {
@@ -52,8 +50,7 @@ const mockStorage = {
   },
 };
 
-const client = createClient({ url: "file::memory:?cache=shared" });
-const testDb = drizzle(client, { schema });
+const { client, testDb } = await createPostgresTestDb();
 
 mock.module("@/db", () => ({ db: testDb }));
 mock.module("@/lib/storage", () => ({
@@ -254,70 +251,36 @@ function buildBundleZip(
 }
 
 describe("Product Block Review Service Integration Contract", () => {
-  beforeAll(async () => {
-    await migrate(testDb, { migrationsFolder: "./drizzle" });
-    await client.execute("PRAGMA foreign_keys = ON");
-  });
+  afterAll(async () => { await client.close(); });
 
   beforeEach(async () => {
     storageMap.clear();
-
-    // Clean up tables
-    await client.execute("DELETE FROM review_item_bundle");
-    await client.execute("DELETE FROM review_bundle");
-    await client.execute("DELETE FROM item_impor_bundle");
-    await client.execute("DELETE FROM impor_bundle");
-    await client.execute("DELETE FROM audit_mutasi");
-    await client.execute("DELETE FROM penugasan_tutor");
-    await client.execute("DELETE FROM tutor_courses");
-    await client.execute("DELETE FROM pengguna_peran");
-    await client.execute("DELETE FROM peran");
-    await client.execute("DELETE FROM pengguna");
-    await client.execute("DELETE FROM user");
-    await client.execute("DELETE FROM mata_kuliah");
-    await client.execute("DELETE FROM courses");
+    await client.exec('TRUNCATE TABLE "user", pengguna, courses, mata_kuliah, peran CASCADE');
+    for (const id of ["creator-008", "curator-008"]) {
+      await client.query('INSERT INTO "user" (id, name, email, role) VALUES ($1, $2, $3, $4)', [id, id, `${id}@example.invalid`, "teacher"]);
+      await provisionPenggunaForNewUser({ id, role: "teacher" });
+    }
 
     // Set up course
-    await client.execute({
-      sql: "INSERT INTO courses (id, title, category, description) VALUES (?, ?, ?, ?)",
-      args: ["course-008", "Fisika Dasar", "Fisika", "Deskripsi Fisika"],
-    });
-    await client.execute({
-      sql: "INSERT INTO mata_kuliah (id, code, title, status, legacy_course_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, 0)",
-      args: ["mk-008", "FIS-008", "Fisika Dasar", "active", "course-008"],
-    });
+    await client.query(`INSERT INTO courses (id, title, category, description) VALUES ($1, $2, $3, $4)`, ["course-008", "Fisika Dasar", "Fisika", "Deskripsi Fisika"]);
+    await client.query(`INSERT INTO mata_kuliah (id, code, title, status, legacy_course_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, TIMESTAMPTZ '1970-01-01 00:00:00+00', TIMESTAMPTZ '1970-01-01 00:00:00+00')`, ["mk-008", "FIS-008", "Fisika Dasar", "active", "course-008"]);
 
     // Set up users and roles
     // 1. Admin
-    await client.execute({
-      sql: "INSERT INTO user (id, name, email, email_verified, role, created_at, updated_at) VALUES (?, ?, ?, 1, 'admin', 0, 0)",
-      args: ["user-admin-1", "Admin One", "admin1@example.test"],
-    });
+    await client.query(`INSERT INTO "user" (id, name, email, email_verified, role, created_at, updated_at) VALUES ($1, $2, $3, true, 'admin', TIMESTAMPTZ '1970-01-01 00:00:00+00', TIMESTAMPTZ '1970-01-01 00:00:00+00')`, ["user-admin-1", "Admin One", "admin1@example.test"]);
     await provisionPenggunaForNewUser({ id: "user-admin-1", role: "admin" });
 
     // 2. Assigned Tutor
-    await client.execute({
-      sql: "INSERT INTO user (id, name, email, email_verified, role, created_at, updated_at) VALUES (?, ?, ?, 1, 'teacher', 0, 0)",
-      args: ["user-tutor-assigned", "Tutor Assigned", "tutor_assigned@example.test"],
-    });
+    await client.query(`INSERT INTO "user" (id, name, email, email_verified, role, created_at, updated_at) VALUES ($1, $2, $3, true, 'teacher', TIMESTAMPTZ '1970-01-01 00:00:00+00', TIMESTAMPTZ '1970-01-01 00:00:00+00')`, ["user-tutor-assigned", "Tutor Assigned", "tutor_assigned@example.test"]);
     await provisionPenggunaForNewUser({ id: "user-tutor-assigned", role: "teacher" });
-    await client.execute({
-      sql: "INSERT INTO penugasan_tutor (id, pengguna_id, mata_kuliah_id, status, assignment_scope, created_at, updated_at) VALUES (?, ?, ?, 'active', 'course', 0, 0)",
-      args: ["penugasan-1", "user-tutor-assigned", "mk-008"],
-    });
+    await client.query(`INSERT INTO penugasan_tutor (id, pengguna_id, mata_kuliah_id, status, assignment_scope, created_at, updated_at) VALUES ($1, $2, $3, 'active', 'course', TIMESTAMPTZ '1970-01-01 00:00:00+00', TIMESTAMPTZ '1970-01-01 00:00:00+00')`, ["penugasan-1", "user-tutor-assigned", "mk-008"]);
 
     // 3. Unassigned Tutor
-    await client.execute({
-      sql: "INSERT INTO user (id, name, email, email_verified, role, created_at, updated_at) VALUES (?, ?, ?, 1, 'teacher', 0, 0)",
-      args: ["user-tutor-unassigned", "Tutor Unassigned", "tutor_unassigned@example.test"],
-    });
+    await client.query(`INSERT INTO "user" (id, name, email, email_verified, role, created_at, updated_at) VALUES ($1, $2, $3, true, 'teacher', TIMESTAMPTZ '1970-01-01 00:00:00+00', TIMESTAMPTZ '1970-01-01 00:00:00+00')`, ["user-tutor-unassigned", "Tutor Unassigned", "tutor_unassigned@example.test"]);
     await provisionPenggunaForNewUser({ id: "user-tutor-unassigned", role: "teacher" });
 
     // 4. Student (murid)
-    await client.execute({
-      sql: "INSERT INTO user (id, name, email, email_verified, role, created_at, updated_at) VALUES (?, ?, ?, 1, 'student', 0, 0)",
-      args: ["user-student-1", "Student One", "student1@example.test"],
-    });
+    await client.query(`INSERT INTO "user" (id, name, email, email_verified, role, created_at, updated_at) VALUES ($1, $2, $3, true, 'student', TIMESTAMPTZ '1970-01-01 00:00:00+00', TIMESTAMPTZ '1970-01-01 00:00:00+00')`, ["user-student-1", "Student One", "student1@example.test"]);
     await provisionPenggunaForNewUser({ id: "user-student-1", role: "student" });
   });
 
@@ -497,10 +460,7 @@ describe("Product Block Review Service Integration Contract", () => {
     const { staged } = await stageFixtureBundle();
 
     // Manually mark import as published in database
-    await client.execute({
-      sql: "UPDATE impor_bundle SET status = 'published' WHERE id = ?",
-      args: [staged.importId],
-    });
+    await client.query(`UPDATE impor_bundle SET status = 'published' WHERE id = $1`, [staged.importId]);
 
     await expect(
       upsertProductBlockReview({

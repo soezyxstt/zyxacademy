@@ -1,5 +1,7 @@
 # Deployment Guide
 
+An isolated Neon migration is in progress. Its separate Vercel project is not a staging or production cutover. Target identity, status and gates are in the [migration runbook](operations/neon-migration.md). The topology below describes the existing production deployment.
+
 ## Architecture
 
 Production runs on Vercel (Next.js) + Turso (DB) with Deno Deploy (background compute) and supporting Cloudflare services.
@@ -63,7 +65,9 @@ The old production-to-staging sync is not part of the overhaul. Any exceptional 
 
 ## Vercel Deployment
 
-V4 verification uses the existing Deno Deploy worker and Cloudflare Browser Run over CDP. Sync `BETTER_AUTH_SECRET`, `CF_API_TOKEN`, `CF_ACCOUNT_ID` and `NEXT_PUBLIC_APP_URL` from the exact GitHub environment. The browser token needs Browser Rendering Edit permission. Each plan pins the deployed browser version; drift fails closed until reviewed and released. The Deno workflow regenerates the V4 build identity before uploading it with the worker. Source crops pin the same PDF.js and native canvas versions in both Deno import maps. The local Node verification adapter is a test utility, not another hosting requirement.
+Keep `.vercelignore` in CLI deployment inputs. It explicitly excludes environment files, temporary files, QA artifacts and local databases. Inspect uploaded source filenames when changing packaging. For the isolated migration, retain the complete Turso-compatible rollback artifact before any later staging cutover; see the [migration runbook](operations/neon-migration.md).
+
+V4 verification uses the existing Deno Deploy worker and Cloudflare Browser Run over CDP. Sync `BETTER_AUTH_SECRET`, the browser credential (`CF_BROWSER_API_TOKEN`, falling back to `CF_API_TOKEN`), `CF_ACCOUNT_ID` and `NEXT_PUBLIC_APP_URL` from the exact environment. The isolated migration sets only the browser-specific token and leaves the general vector/cache token unset. Protected verification pages can use a private, same-origin `AUTHORING_VERIFICATION_ACCESS_URL` to establish the browser context access cookie without disabling Deployment Protection. The browser token needs Browser Rendering Edit permission. Each plan pins the deployed browser version; drift fails closed until reviewed and released. The Deno workflow regenerates the V4 build identity before uploading it with the worker. Source crops pin the same PDF.js and native canvas versions in both Deno import maps. The local Node verification adapter is a test utility, not another hosting requirement.
 
 The read-only `/v4` page presents a version-specific Article preview and its inspected static Diktat PDF. It does not convert or publish existing course content. Existing Articles adopt V4 through an explicitly authored and reviewed V4 bundle.
 

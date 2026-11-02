@@ -43,10 +43,10 @@ describe("public demo course contract", () => {
     const dashboard = source("app/(marketing)/demo/page.tsx");
     const detail = source("app/(marketing)/demo/[view]/page.tsx");
     const empty = source("components/demo/demo-empty-state.tsx");
-    expect(dashboard).toContain("index: false");
-    expect(dashboard).toContain("follow: false");
-    expect(detail).toContain("index: false");
-    expect(detail).toContain("follow: false");
+    expect(dashboard).toContain("noIndex: true");
+    expect(detail).toContain("noIndex: true");
+    const metadata = source("lib/site.ts");
+    expect(metadata).toMatch(/noIndex[\s\S]*index: false[\s\S]*follow: false/);
     expect(dashboard).toContain("if (!content) return <DemoEmptyState />");
     expect(detail).toContain("if (!content) return <DemoEmptyState />");
     expect(empty).toContain("Demo belum tersedia");
@@ -104,7 +104,7 @@ describe("public demo course contract", () => {
     expect(source("components/landing/landing-hero.tsx")).toContain('<Link href="/demo">Coba demo</Link>');
     expect(source("components/landing/landing-closing-cta.tsx")).toContain('<Link href="/demo">Coba demo</Link>');
     const plans = source("lib/plan-tiers.ts");
-    expect(plans).toContain("Bab 1 dan Bab 2 di setiap mata kuliah");
+    expect(plans).toContain("Bab pertama di setiap mata kuliah");
     expect(plans).toContain("Diktat dapat dibaca, tanpa unduhan");
     expect(plans).toContain("1 pertanyaan Zyra per hari");
     expect(source("components/landing/landing-faq.tsx")).toContain("Bisa melihat fitur sebelum membuat akun?");

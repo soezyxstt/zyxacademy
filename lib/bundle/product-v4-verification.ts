@@ -4,7 +4,7 @@ import { deriveEpsilonDelta } from "@/lib/materials/epsilon-delta";
 import { deterministicProductSerialization, type ProductBundleManifest, type ProductDependency, type ProductEntity } from "./product-validator";
 
 export const PRODUCT_V4_VERIFICATION_POLICY = "product-v4-verification.v1";
-export const PRODUCT_V4_DEPLOYED_BROWSER_VERSION = "128.0.6613.137";
+export const PRODUCT_V4_DEPLOYED_BROWSER_VERSION = "152.0.7977.64";
 export const PRODUCT_V4_VIEWPORTS = [{ width: 380, height: 844 }, { width: 1536, height: 864 }] as const;
 const digest = (value: unknown) => createHash("sha256").update(deterministicProductSerialization(value)).digest("hex");
 const sha256 = z.string().regex(/^[a-f0-9]{64}$/);

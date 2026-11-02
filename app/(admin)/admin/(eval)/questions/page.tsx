@@ -97,7 +97,7 @@ export default async function AIQuestionsPage() {
       .select()
       .from(aiQuestionBank)
       .where(sql`${aiQuestionBank.status} != 'retired'`)
-      .orderBy(sql`(CASE WHEN ${aiQuestionBank.createdAt} > 10000000000 THEN ${aiQuestionBank.createdAt} / 1000 ELSE ${aiQuestionBank.createdAt} END) DESC`),
+      .orderBy(desc(aiQuestionBank.createdAt)),
     // All questions in canonical soal table
     db
       .select({
@@ -118,7 +118,7 @@ export default async function AIQuestionsPage() {
       })
       .from(soal)
       .where(sql`${soal.status} != 'retired'`)
-      .orderBy(sql`(CASE WHEN ${soal.createdAt} > 10000000000 THEN ${soal.createdAt} / 1000 ELSE ${soal.createdAt} END) DESC`),
+      .orderBy(desc(soal.createdAt)),
     // Canonical mata kuliah
     db
       .select({
@@ -160,7 +160,7 @@ export default async function AIQuestionsPage() {
       .leftJoin(assessmentSources, eq(soal.assessmentSourceId, assessmentSources.id))
       .leftJoin(aiQuestionBank, eq(aiQuestionBank.id, soal.id))
       .where(eq(soal.origin, "historical_reference"))
-      .orderBy(sql`(CASE WHEN ${soal.createdAt} > 10000000000 THEN ${soal.createdAt} / 1000 ELSE ${soal.createdAt} END) DESC`),
+      .orderBy(desc(soal.createdAt)),
     // Chapters
     db
       .select({ id: bab.id, mataKuliahId: bab.mataKuliahId, code: bab.code, title: bab.title, orderIndex: bab.orderIndex })

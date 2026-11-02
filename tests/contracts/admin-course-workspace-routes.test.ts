@@ -28,7 +28,7 @@ describe("admin course workspace routes", () => {
   test("provides all six direct management pages", () => {
     const pages = [
       ["page.tsx", "ChaptersTab"],
-      ["documents/page.tsx", "DocumentListClient"],
+      ["documents/page.tsx", "CourseDocumentsClient"],
       ["quizzes/page.tsx", "QuizzesTab"],
       ["questions/page.tsx", "QuestionsTab"],
       ["flashcards/page.tsx", "FlashcardsTab"],
@@ -44,6 +44,11 @@ describe("admin course workspace routes", () => {
       expect(page).toContain(`<${component}`);
       expect(page).toContain("CourseDetailHeader");
     }
+  });
+
+  test("composes the document list inside the course catalog", () => {
+    expect(source("app/(student)/courses/[id]/material/course-documents-client.tsx")).toContain("<DocumentListClient");
+    expect(source(`${courseRoot}/documents/page.tsx`)).toContain("isAdmin");
   });
 
   test("keeps quiz create, edit, and insight links course-scoped", () => {

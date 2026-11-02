@@ -1,17 +1,29 @@
-import { describe, expect, it, mock, beforeEach, beforeAll } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { afterAll, describe, expect, it, mock, beforeEach, beforeAll } from "bun:test";
+import { createPostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
 import { NextRequest } from "next/server";
 import { env } from "@/lib/env";
 
 let mockSession: any = null;
 
-const client = createClient({ url: "file::memory:?cache=shared" });
-const testDb = drizzle(client, { schema });
+let client: Awaited<ReturnType<typeof createPostgresTestDb>>["client"];
+let testDb: Awaited<ReturnType<typeof createPostgresTestDb>>["testDb"];
+const dbProxy = new Proxy({} as typeof testDb, {
+  get(_target, key) {
+    const value = Reflect.get(testDb, key);
+    return typeof value === "function" ? value.bind(testDb) : value;
+  },
+});
+beforeAll(async () => { ({ client, testDb } = await createPostgresTestDb()); }, 60_000);
+afterAll(async () => { await client?.close(); });
+
+async function clearTestData() {
+  const result = await client.query<{ tablename: string }>("SELECT tablename FROM pg_tables WHERE schemaname = 'public'");
+  if (result.rows.length) await client.exec(`TRUNCATE TABLE ${result.rows.map(({ tablename }) => `"${tablename.replaceAll('"', '""')}"`).join(", ")} CASCADE`);
+}
 
 mock.module("@/db", () => ({
-  db: testDb,
+  db: dbProxy,
 }));
 
 mock.module("@/lib/auth", () => ({
@@ -90,282 +102,6 @@ import { GET as getAnalytics } from "@/app/api/tutor/analytics/route";
 import { POST as createZyraProposal, GET as listZyraProposalsRoute } from "@/app/api/zyra/proposals/route";
 import { GET as getZyraProposalItemRoute, PATCH as patchZyraProposalItemRoute } from "@/app/api/zyra/proposals/[id]/route";
 
-async function setupTables() {
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS user (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      role TEXT DEFAULT 'student',
-      last_activity_at INTEGER
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna (
-      id TEXT PRIMARY KEY REFERENCES user(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS peran (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna_peran (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      peran_id TEXT NOT NULL REFERENCES peran(id),
-      source TEXT NOT NULL,
-      audit_actor_pengguna_id TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS courses (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT 'Matematika',
-      description TEXT
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS mata_kuliah (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'active',
-      legacy_course_id TEXT REFERENCES courses(id),
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS penugasan_tutor (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      assignment_scope TEXT NOT NULL DEFAULT 'course',
-      legacy_tutor_course_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS tutor_courses (
-      id TEXT PRIMARY KEY,
-      tutor_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS quiz_templates (
-      id TEXT PRIMARY KEY,
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      title TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT 'daily',
-      visibility TEXT NOT NULL DEFAULT 'free',
-      status TEXT NOT NULL DEFAULT 'draft',
-      time_limit_seconds INTEGER,
-      max_attempts INTEGER,
-      selection_rules TEXT NOT NULL,
-      open_at INTEGER,
-      close_at INTEGER,
-      manual_status TEXT NOT NULL DEFAULT 'open',
-      show_discussion INTEGER NOT NULL DEFAULT 1,
-      spreadsheet_id TEXT,
-      spreadsheet_url TEXT,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS ai_question_bank (
-      id TEXT PRIMARY KEY,
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      source_section_id TEXT,
-      origin TEXT NOT NULL DEFAULT 'zyx_original',
-      source_event_name TEXT,
-      source_reference_id TEXT,
-      knowledge_object_id TEXT,
-      source_mtd_id TEXT,
-      source_mtd_version INTEGER,
-      generation_hash TEXT,
-      generation_run_id TEXT,
-      status TEXT NOT NULL DEFAULT 'active',
-      is_stale INTEGER NOT NULL DEFAULT 0,
-      difficulty TEXT NOT NULL DEFAULT 'medium',
-      question_type TEXT NOT NULL DEFAULT 'multiple_choice',
-      tags TEXT NOT NULL DEFAULT '[]',
-      prompt TEXT NOT NULL,
-      options TEXT NOT NULL,
-      correct_indices TEXT NOT NULL,
-      acceptable_answers TEXT,
-      distractor_map TEXT NOT NULL DEFAULT '[]',
-      explanation TEXT NOT NULL,
-      review_status TEXT NOT NULL DEFAULT 'generated',
-      quality_score REAL,
-      use_count INTEGER NOT NULL DEFAULT 0,
-      styled_after_assessment_object_id TEXT,
-      pattern TEXT,
-      reasoning_type TEXT,
-      application_level INTEGER,
-      estimated_steps INTEGER,
-      created_at INTEGER NOT NULL DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer))
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS live_quiz_sessions (
-      id TEXT PRIMARY KEY,
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      tutor_id TEXT NOT NULL REFERENCES user(id),
-      template_id TEXT,
-      code TEXT NOT NULL UNIQUE,
-      state TEXT NOT NULL DEFAULT 'lobby',
-      questions_snapshot TEXT NOT NULL,
-      participant_count INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      ended_at INTEGER,
-      delivery_status TEXT NOT NULL DEFAULT 'pending',
-      delivery_claimed_at INTEGER,
-      delivery_claim_token TEXT,
-      delivered_at INTEGER
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS mastery_recompute_queue (
-      id TEXT PRIMARY KEY,
-      student_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      status TEXT NOT NULL DEFAULT 'pending',
-      reason TEXT NOT NULL,
-      retries INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS live_quiz_results (
-      id TEXT PRIMARY KEY,
-      session_id TEXT NOT NULL REFERENCES live_quiz_sessions(id),
-      student_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      score INTEGER NOT NULL DEFAULT 0,
-      rank INTEGER,
-      answers_snapshot TEXT NOT NULL,
-      completed_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS zyra_proposals (
-      id TEXT PRIMARY KEY,
-      actor_id TEXT NOT NULL REFERENCES user(id),
-      role TEXT NOT NULL,
-      proposal_type TEXT NOT NULL,
-      course_id TEXT REFERENCES courses(id),
-      scope TEXT NOT NULL,
-      evidence_refs TEXT NOT NULL,
-      precondition_snapshot TEXT NOT NULL,
-      operations TEXT NOT NULL,
-      learner_impact TEXT NOT NULL,
-      reversibility TEXT NOT NULL,
-      warnings TEXT NOT NULL,
-      proposer_trace TEXT NOT NULL,
-      validator_result TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'draft',
-      precondition_version INTEGER NOT NULL,
-      diff_hash TEXT NOT NULL,
-      audit_id TEXT,
-      failure_code TEXT,
-      expires_at INTEGER NOT NULL,
-      created_at INTEGER NOT NULL DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)),
-      reviewed_at INTEGER,
-      confirmed_at INTEGER,
-      applied_at INTEGER,
-      updated_at INTEGER NOT NULL DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer))
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS zyra_proposal_events (
-      id TEXT PRIMARY KEY,
-      proposal_id TEXT NOT NULL REFERENCES zyra_proposals(id) ON DELETE CASCADE,
-      actor_id TEXT NOT NULL,
-      from_status TEXT,
-      to_status TEXT NOT NULL,
-      reason_code TEXT NOT NULL,
-      diff_hash TEXT NOT NULL,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS audit_mutasi (
-      id TEXT PRIMARY KEY,
-      actor_id TEXT NOT NULL,
-      entity_type TEXT NOT NULL,
-      entity_id TEXT NOT NULL,
-      action TEXT NOT NULL,
-      before_snapshot TEXT,
-      after_snapshot TEXT NOT NULL,
-      correlation_id TEXT NOT NULL,
-      course_id TEXT NOT NULL,
-      outcome TEXT NOT NULL DEFAULT 'success',
-      reason TEXT NOT NULL,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute("PRAGMA foreign_keys = ON;");
-}
-
-async function cleanTables() {
-  await client.execute("DELETE FROM audit_mutasi");
-  await client.execute("DELETE FROM zyra_proposal_events");
-  await client.execute("DELETE FROM zyra_proposals");
-  await client.execute("DELETE FROM live_quiz_results");
-  await client.execute("DELETE FROM live_quiz_sessions");
-  await client.execute("DELETE FROM ai_question_bank");
-  await client.execute("DELETE FROM quiz_templates");
-  await client.execute("DELETE FROM penugasan_tutor");
-  await client.execute("DELETE FROM tutor_courses");
-  await client.execute("DELETE FROM pengguna_peran");
-  await client.execute("DELETE FROM mata_kuliah");
-  await client.execute("DELETE FROM courses");
-  await client.execute("DELETE FROM pengguna");
-  await client.execute("DELETE FROM user");
-  await client.execute("DELETE FROM peran");
-
-  await testDb.insert(schema.peran).values([
-    { id: "peran-admin", code: "admin" },
-    { id: "peran-tutor", code: "tutor" },
-    { id: "peran-murid", code: "murid" },
-  ]);
-}
-
 async function seedCoursePair(
   canonicalId: string,
   legacyId: string,
@@ -389,12 +125,14 @@ async function seedCoursePair(
 }
 
 describe("Tutor Downstream Analytics and Zyra Bridge Contract", () => {
-  beforeAll(async () => {
-    await setupTables();
-  });
 
   beforeEach(async () => {
-    await cleanTables();
+    await clearTestData();
+    await testDb.insert(schema.peran).values([
+      { id: "peran-admin", code: "admin" },
+      { id: "peran-tutor", code: "tutor" },
+      { id: "peran-murid", code: "murid" },
+    ]);
     mockSession = null;
     inngestSentEvents.length = 0;
     recordedEventsList.length = 0;
