@@ -40,7 +40,9 @@ selected checks pass. Direct manual `workflow_dispatch` remains available on
 `main` and `staging`. For a V4-only release, worker import/typecheck/asset checks
 are skipped because the worker import graph is unchanged; its build identity is
 still regenerated and deployed. A worker-code release retains those checks.
-See [CI scope and incremental checks](DEVELOPMENT.md#ci-scope-and-incremental-checks).
+Push impact is measured from the last successful CI release, so replacing a
+pending run does not lose its worker changes. The gate rejects a superseded
+branch head before deployment. See [CI scope and incremental checks](DEVELOPMENT.md#ci-scope-and-incremental-checks).
 The deployment workflow performs the following actions:
 1. **Pre-deploy Verification**: Runs `worker:deno:audit` (dependency tree guard) and `worker:deno:check` (typecheck). Before deployment, `workers/deno-background/diktat-assets-smoke.ts` also verifies embedded KaTeX fonts and the contact footer with the worker import map, a dummy database URL, and no network permission.
 2. **Dynamic Provisioning**: Automatically provisions the Deno Deploy app via `deno deploy create` if it does not already exist.

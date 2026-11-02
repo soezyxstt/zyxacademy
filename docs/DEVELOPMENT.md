@@ -37,7 +37,12 @@ check; individual conditional jobs may legitimately be skipped.
 The first job runs `scripts/ci/plan.py` with Python's standard library. It installs
 no application packages. Checkout uses two commits; a multi-commit push fetches
 only the exact base SHA when needed. PR comparisons use the target base and the
-checked-out merge commit. Push comparisons use `before` and the pushed SHA. The
+checked-out merge commit. Push comparisons use the last successful `ci.yml` push
+run on the same branch and the pushed SHA. A cancelled pending run or a failed
+release cannot advance this baseline, so its undeployed changes remain in the
+next plan. The planner reads GitHub Actions history with read-only permissions;
+missing or inaccessible history selects all checks. Reruns never use their own
+SHA as an empty baseline. The
 planner uses a NUL-separated Git diff with rename detection disabled, so both
 old and new names are considered without GitHub path filters' file-count limits.
 It combines dependency graphs from both revisions, including removed imports.
@@ -60,8 +65,10 @@ planner instead of returning an empty plan.
 Scopes overlap intentionally for shared dependencies. The scanner follows literal
 static/dynamic imports, exports and `require`. Literal repository references in
 source-inspection tests are leaves: changing an inspected file selects its test,
-but changing an import inside that file does not execute a text-only contract. Runtime-discovered worker jobs, prompts, schedule and authoring areas have
-explicit directory guards. V4 byte inputs come from `PRODUCT_V4_RUNTIME_FILES`
+but changing an import inside that file does not execute a text-only contract.
+Runtime-discovered worker jobs, schedule and authoring areas have explicit
+directory guards. Prompts are selected through their import graph; a web-only
+prompt does not trigger Deno. V4 byte inputs come from `PRODUCT_V4_RUNTIME_FILES`
 and playbooks. Keep that manifest current when extending renderer fingerprints.
 The web scope deliberately includes all `lib/` and documentation because runtime
 discovery and operations knowledge are not fully described by imports. This is
@@ -92,14 +99,20 @@ Other worker projects also get their own metadata file. CI restores compiler and
 ESLint metadata with keys tied to the lockfile/configuration and commit, with a
 compatible prefix fallback. Compiler checks still validate their full selected
 project; a cache hit never skips a command. Delete `.cache/typecheck/` for a fresh
-standalone check.
+standalone check. Changing `tsconfig.structured-articles.json`, its configured
+source dependency closure, or the base TypeScript config selects
+`typecheck:structured-articles`; a specialized-config-only change runs that
+compiler and type generation without deployments.
 
 Bun downloads and Deno caches are reused. `node_modules`, credentials, environment
 files and deployment outputs are not cached by these changes. Authoring validates
 staging and production sequentially with one install, running shared quiz contracts
 once. PR runs may cancel superseded checks. Push releases and explicit plugin
 mirrors are not interrupted. Deployment jobs wait for the gate and run only on
-push; PRs and manual CI runs cannot deploy. Direct manual deployment workflows
+push; PRs and manual CI runs cannot deploy. Immediately before deployment, the
+gate reads the branch ref and fails if it advanced. That superseded run cannot
+become a successful release baseline. Concurrency still serializes active
+releases; pending runs may be replaced without losing their undeployed changes. Direct manual deployment workflows
 remain available. The historical PR 36 code-writing repair is manual-only.
 
 ## Available Commands

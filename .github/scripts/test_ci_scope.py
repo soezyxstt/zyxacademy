@@ -56,6 +56,20 @@ class ScopeTest(unittest.TestCase):
         self.assertFalse(result['web'])
         self.assertFalse(result['worker'])
 
+    def test_web_only_prompt_does_not_select_deno(self):
+        result = self.plan('prompts/tutor.ts')
+        self.assertFalse(result['worker'])
+        self.assertFalse(result['v4'])
+
+    def test_structured_config_selects_its_compiler_without_deployment(self):
+        result = self.plan('tsconfig.structured-articles.json')
+        self.assertTrue(result['structured_typecheck'])
+        for key in ['web', 'worker', 'v4', 'authoring', 'schedule', 'typecheck', 'test_typecheck']:
+            self.assertFalse(result[key], key)
+
+    def test_structured_source_selects_its_compiler(self):
+        self.assertTrue(self.plan('lib/articles/legacy-structure.ts')['structured_typecheck'])
+
     def test_schedule_audit_dependency_is_not_missed(self):
         self.assertTrue(self.plan('lib/schedule/tutor-audit.ts')['schedule'])
 
@@ -153,6 +167,15 @@ class HistoryTest(unittest.TestCase):
         self.write('shared/b.ts', 'import "./a";')
         head = self.snapshot()
         self.assertTrue(ci.plan(['shared/b.ts'], head)['worker'])
+
+    def test_transitive_prompt_is_still_a_worker_dependency(self):
+        self.write('workers/deno-background/main.ts', 'import "@/shared/helper";')
+        self.write('shared/helper.ts', 'import "@/prompts/worker";')
+        self.write('prompts/worker.ts', 'export const prompt = "worker";')
+        self.write('prompts/web.ts', 'export const prompt = "web";')
+        head = self.snapshot()
+        self.assertTrue(ci.plan(['prompts/worker.ts'], head)['worker'])
+        self.assertFalse(ci.plan(['prompts/web.ts'], head)['worker'])
 
     def test_dynamic_import_between_exports_is_not_swallowed(self):
         self.write('workers/deno-background/main.ts', 'export const value = 1; const lazy = import("@/shared/lazy"); export { other } from "@/shared/other";')

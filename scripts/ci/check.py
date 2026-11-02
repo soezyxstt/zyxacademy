@@ -16,7 +16,7 @@ if plan['lint_all']:
     run('bun', 'run', 'lint', '--cache', '--cache-strategy', 'content', '--cache-location', '.cache/eslint/')
 elif plan['lint_files']:
     run('bun', 'run', 'lint', '--no-warn-ignored', '--cache', '--cache-strategy', 'content', '--cache-location', '.cache/eslint/', '--', *plan['lint_files'])
-if plan['typecheck'] or plan['test_typecheck']:
+if plan['typecheck'] or plan['test_typecheck'] or plan['structured_typecheck']:
     run('bun', 'run', 'typegen')
 if plan['typecheck']:
     run('bun', 'run', 'typecheck')
@@ -32,6 +32,8 @@ if plan['test_typecheck']:
     }, indent=2) + '\n')
     run('node', '--max-old-space-size=4096', 'node_modules/typescript/bin/tsc',
         '--noEmit', '-p', str(config), '--tsBuildInfoFile', '.cache/typecheck/tests-selected.tsbuildinfo')
+if plan['structured_typecheck']:
+    run('bun', 'run', 'typecheck:structured-articles')
 if plan['i18n']:
     run('bun', 'run', 'i18n:check')
 for test in plan['tests']:

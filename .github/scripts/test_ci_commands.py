@@ -20,7 +20,7 @@ class CheckCommandsTest(unittest.TestCase):
                 file = bin_dir / command
                 file.write_text(logger)
                 file.chmod(0o755)
-            plan = dict.fromkeys(['lint_all', 'typecheck', 'test_typecheck', 'i18n', 'python_worker'], False)
+            plan = dict.fromkeys(['lint_all', 'typecheck', 'test_typecheck', 'structured_typecheck', 'i18n', 'python_worker'], False)
             plan.update({key: [] for key in ['lint_files', 'tests', 'compiler_tests', 'worker_projects']})
             plan.update(overrides)
             (root / 'plan.json').write_text(json.dumps(plan))
@@ -47,6 +47,10 @@ class CheckCommandsTest(unittest.TestCase):
         self.assertIn('tests-selected.json', commands[2][-3])
         self.assertTrue(config['include'][0].endswith('/tests/a.test.ts'))
         self.assertEqual(config['extends'], '../../tsconfig.test.json')
+
+    def test_structured_config_runs_typegen_then_its_compiler_only(self):
+        commands, _ = self.run_plan(structured_typecheck=True)
+        self.assertEqual(commands, [['run', 'typegen'], ['run', 'typecheck:structured-articles']])
 
     def test_bun_test_files_run_in_separate_processes(self):
         commands, _ = self.run_plan(tests=['tests/a.test.ts', 'tests/b.test.ts'])

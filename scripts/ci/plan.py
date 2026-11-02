@@ -14,7 +14,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
 CODE = {'.ts', '.tsx', '.js', '.jsx', '.mjs', '.mts', '.cts', '.cjs'}
-SCOPES = ('web', 'worker', 'v4', 'authoring', 'schedule', 'plugin', 'typecheck', 'test_typecheck', 'i18n', 'ci')
+SCOPES = ('web', 'worker', 'v4', 'authoring', 'schedule', 'plugin', 'typecheck', 'test_typecheck', 'structured_typecheck', 'i18n', 'ci')
 LOCKS = {'package.json', 'bun.lock', 'package-lock.json', '.npmrc'}
 SCHEDULE_TESTS = {
     'tests/contracts/tutorial-week-policy.test.ts',
@@ -121,7 +121,7 @@ class Snapshot:
 def scope_paths(snapshot):
     runtime = snapshot.runtime()
     worker = snapshot.closure({'workers/deno-background/main.ts'})
-    worker |= snapshot.under('workers/deno-background/', 'jobs/', 'prompts/')
+    worker |= snapshot.under('workers/deno-background/', 'jobs/')
     worker |= {'deno.json', 'deno.lock', 'scripts/audit-worker-dependencies.ts'} | LOCKS
     # Keep lib/ conservative: server actions may discover modules dynamically.
     # Other workers are excluded unless explicitly fingerprinted or imported.
@@ -160,8 +160,10 @@ def plan(changed, head, base=None, force=False):
     for path in changed:
         if path.startswith(('app/', 'components/', 'lib/', 'hooks/', 'i18n/', 'messages/', 'public/', 'styles/', 'types/', 'docs/')):
             result['web'] = True
-        if path.startswith(('workers/deno-background/', 'jobs/', 'prompts/')):
+        if path.startswith(('workers/deno-background/', 'jobs/')):
             result['worker'] = True
+        if path == 'tsconfig.structured-articles.json':
+            result['structured_typecheck'] = True
         if path.startswith('lib/authoring/'):
             result['authoring'] = True
         if path.startswith(('lib/schedule/', 'components/schedule/')):
@@ -198,6 +200,12 @@ def plan(changed, head, base=None, force=False):
         dependencies = head.closure({test}) | (base.closure({test}) if base else set())
         if broad or changed & dependencies or (result['v4'] and test in v4_tests):
             selected.append(test)
+    structured_inputs = set()
+    for snapshot in (head, base):
+        if snapshot and 'tsconfig.structured-articles.json' in snapshot.files:
+            config = json.loads(snapshot.read('tsconfig.structured-articles.json'))
+            structured_inputs |= snapshot.closure(config['include'])
+    result['structured_typecheck'] |= broad or bool(changed & structured_inputs) or 'tsconfig.json' in changed
     result['tests'] = selected
     result['worker_projects'] = []
     for config in sorted(f for f in head.files if re.fullmatch(r'workers/[^/]+/tsconfig.json', f)):
@@ -258,7 +266,7 @@ def main():
         with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
             for key in SCOPES:
                 stream.write(f'{key}={str(result[key]).lower()}\n')
-            stream.write(f'quality={str(result["typecheck"] or result["test_typecheck"] or result["i18n"] or bool(result["tests"]) or result["lint_all"] or bool(result["lint_files"]) or bool(result["worker_projects"]) or result["python_worker"]).lower()}\n')
+            stream.write(f'quality={str(result["typecheck"] or result["test_typecheck"] or result["structured_typecheck"] or result["i18n"] or bool(result["tests"]) or result["lint_all"] or bool(result["lint_files"]) or bool(result["worker_projects"]) or result["python_worker"]).lower()}\n')
     print(json.dumps({key: result[key] for key in SCOPES} | {'selected_tests': len(result['tests']), 'fallback': result['fallback']}))
 
 
