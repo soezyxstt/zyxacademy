@@ -109,6 +109,13 @@ class RuntimeSettingsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             prepare_runtime(self.service, {**self.secrets, "DATABASE_URL": DATABASE.replace("verify-full", "require")}, VARIABLES, ORIGIN)
 
+    def test_web_and_worker_cannot_select_different_database_credentials(self):
+        with self.assertRaisesRegex(ValueError, "conflicts"):
+            prepare_runtime(self.service, self.secrets, {**VARIABLES, "DATABASE_URL": DATABASE + "&application_name=other"}, ORIGIN)
+        with self.assertRaises(ValueError):
+            prepare_runtime(self.service, {k: v for k, v in self.secrets.items() if k != "DATABASE_URL"},
+                            {**VARIABLES, "DATABASE_URL": DATABASE}, ORIGIN)
+
 
 if __name__ == "__main__":
     unittest.main()

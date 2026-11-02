@@ -5,7 +5,7 @@ import { relative, resolve } from "node:path";
 const root = resolve("tests/contracts");
 const files = process.argv.length > 2
   ? process.argv.slice(2)
-  : [...new Bun.Glob("tests/contracts/**/*.test.ts").scanSync()].sort();
+  : [...new Bun.Glob("tests/contracts/**/*.test.{ts,tsx}").scanSync()].sort();
 assert.ok(files.length, "No contract tests selected");
 for (const file of files) {
   const path = relative(root, resolve(file));

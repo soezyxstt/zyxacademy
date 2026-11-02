@@ -43,7 +43,7 @@ jobs:
           import assert from "node:assert/strict";
           const shard = Number(process.env.SHARD);
           assert.ok(shard === 0 || shard === 1);
-          const all = [...new Bun.Glob("tests/contracts/**/*.test.ts").scanSync()].sort();
+          const all = [...new Bun.Glob("tests/contracts/**/*.test.{ts,tsx}").scanSync()].sort();
           const files = all.filter((_, index) => index % 2 === shard);
           console.log(JSON.stringify({ shard, totalFiles: all.length, selectedFiles: files.length }));
           process.argv = [process.execPath, "scripts/test-contracts.ts", ...files];
@@ -117,5 +117,15 @@ jobs:
           } finally { await client.end(); }
           TS
       - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run worker:deno:audit
+      - run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+      - run: bun test tests/unit/form-presentation.test.ts tests/unit/form-studio-features.test.ts
       - run: bun run build
       - run: node --check .next/standalone/server.js
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: neon-build-runtime
+          path: lib/compute/product-v4-build-runtime.json
+          retention-days: 7

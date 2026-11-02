@@ -1,21 +1,15 @@
 // Run in its own Bun process so the request/session mocks never reach other tests.
 import { expect, mock } from "bun:test";
 import { createHash, randomBytes } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { createClient } from "@libsql/client";
-import { pushSQLiteSchema } from "drizzle-kit/api";
 import { eq, like } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/libsql";
 import { NextRequest } from "next/server";
 import { getURLFromRedirectError } from "next/dist/client/components/redirect";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import * as schema from "@/db/schema";
+import { PERAN_IDS } from "@/lib/auth/peran";
+import { createPostgresTestDb } from "../helpers/postgres";
 
-const directory = await mkdtemp(join(tmpdir(), "zyx-oauth-"));
-const sqlite = createClient({ url: `file:${join(directory, "test.db")}` });
-const db = drizzle(sqlite, { schema });
+const { client, testDb: db } = await createPostgresTestDb();
 const origin = "https://issuer.example";
 const internalOrigin = "https://0.0.0.0:8080";
 const proxyHeaders = { host: "0.0.0.0:8080", "x-forwarded-host": "untrusted.example", "x-forwarded-proto": "http" };
@@ -54,12 +48,11 @@ try {
   }));
 
   const { user, session, pengguna, peran, penggunaPeran, verification } = schema;
-  await (await pushSQLiteSchema({ user, session, pengguna, peran, penggunaPeran, verification }, db)).apply();
-  await db.insert(peran).values({ id: "admin", code: "admin" });
+  await db.insert(peran).values({ id: PERAN_IDS.admin, code: "admin" });
   for (const id of ["ada", "ben", "student"]) {
     await db.insert(user).values({ id, name: id, email: `${id}@example.test` });
     await db.insert(pengguna).values({ id });
-    if (id !== "student") await db.insert(penggunaPeran).values({ id, penggunaId: id, peranId: "admin", source: "seed" });
+    if (id !== "student") await db.insert(penggunaPeran).values({ id, penggunaId: id, peranId: PERAN_IDS.admin, source: "seed" });
     await db.insert(session).values({ id: `${id}-session`, userId: id, token: id, expiresAt });
   }
   await db.insert(session).values({ id: "second-session", userId: "ada", token: "other", expiresAt });
@@ -202,6 +195,5 @@ try {
   expect((await silent()).get("error")).toBe("login_required");
   await expect(principalFromConnectionToken(manual, resource)).rejects.toThrow("AUTHORING_MCP_SESSION_INVALID");
 } finally {
-  sqlite.close();
-  await rm(directory, { recursive: true, force: true });
+  await client.close();
 }

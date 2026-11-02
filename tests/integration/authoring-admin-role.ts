@@ -1,31 +1,24 @@
-// Run in a dedicated Bun process so the local database cannot affect other tests.
+// Run in a dedicated Bun process so the database mock cannot affect other tests.
 import { expect, mock } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { randomBytes } from "node:crypto";
-import { createClient } from "@libsql/client";
 import { makeSignature } from "better-auth/crypto";
-import { pushSQLiteSchema } from "drizzle-kit/api";
 import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/libsql";
 import { NextRequest } from "next/server";
 import * as schema from "@/db/schema";
 import { PERAN_IDS } from "@/lib/auth/peran";
 import { countLegacyAdminsWithoutActiveGrant } from "@/scripts/staging/check-authoring-admin-roles";
+import { createPostgresTestDb } from "../helpers/postgres";
 
 const origin = "http://localhost:3000";
 const resource = `${origin}/api/mcp/authoring`;
-const directory = await mkdtemp(join(tmpdir(), "zyx-admin-role-"));
-const client = createClient({ url: `file:${join(directory, "test.db")}` });
-const db = drizzle(client, { schema });
+const { client, testDb: db } = await createPostgresTestDb();
 
 try {
   process.env.SKIP_ENV_VALIDATION = "1";
   process.env.BETTER_AUTH_URL = origin;
   process.env.BETTER_AUTH_SECRET = randomBytes(32).toString("hex");
+  mock.module("@/db", () => ({ db }));
   mock.module("@/lib/db", () => ({ db }));
-  await (await pushSQLiteSchema(schema, db)).apply();
 
   const { auth } = await import("@/lib/auth");
   const { POST: connect } = await import("@/app/api/mcp/authoring/connection/route");
@@ -73,6 +66,5 @@ try {
   expect((await requestConnection()).status).toBe(403);
   expect(await countLegacyAdminsWithoutActiveGrant(client)).toBe(1);
 } finally {
-  client.close();
-  await rm(directory, { recursive: true, force: true });
+  await client.close();
 }

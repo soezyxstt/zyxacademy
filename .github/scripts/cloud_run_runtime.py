@@ -89,13 +89,16 @@ def prepare_runtime(service, secrets, variables, origin):
         raise ValueError("Refusing to overwrite a non-staging environment.")
 
     incoming = {}
+    if variables.get("DATABASE_URL") and variables["DATABASE_URL"] != secrets.get("DATABASE_URL"):
+        raise ValueError("Staging database variable conflicts with the shared web and worker secret.")
     for name in RUNTIME_KEYS:
         value = variables.get(name) or secrets.get(name)
         if not value and name in ALIASES:
             value = variables.get(ALIASES[name]) or secrets.get(ALIASES[name])
         if isinstance(value, str) and value != "":
             incoming[name] = value
-    validate_database(incoming.get("DATABASE_URL", ""), variables.get("NEON_EXPECTED_HOST", ""))
+    incoming["DATABASE_URL"] = secrets.get("DATABASE_URL", "")
+    validate_database(incoming["DATABASE_URL"], variables.get("NEON_EXPECTED_HOST", ""))
     incoming.update(NODE_ENV="production", ZYX_ENVIRONMENT="staging", ZYX_MCP_ENVIRONMENT="staging",
                     BETTER_AUTH_URL=origin.rstrip("/"), NEXT_PUBLIC_APP_URL=origin.rstrip("/"))
     incoming.setdefault("AUTHORING_VERIFICATION_BROWSER_PROVIDER", "cloudflare")

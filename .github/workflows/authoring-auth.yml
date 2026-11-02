@@ -50,7 +50,7 @@ jobs:
         run: |
           bun tests/integration/authoring-admin-role.ts
           bun tests/integration/authoring-oauth-consent.ts
-          bun test tests/contracts/mcp-oauth-authorize-page.test.ts tests/contracts/mcp-consent.test.tsx tests/contracts/authoring-mcp.test.ts
+          bun scripts/test-contracts.ts tests/contracts/mcp-oauth-authorize-page.test.ts tests/contracts/mcp-consent.test.tsx tests/contracts/authoring-mcp.test.ts
 
   audit-staging-roles:
     if: github.event_name == 'push'
@@ -66,6 +66,6 @@ jobs:
       - name: Count legacy admins without an active canonical role
         env:
           ZYX_ENVIRONMENT: staging
-          TURSO_CONNECTION_URL: ${{ secrets.TURSO_DATABASE_URL || secrets.TURSO_CONNECTION_URL || secrets.DATABASE_URL }}
-          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEON_EXPECTED_HOST: ${{ vars.NEON_EXPECTED_HOST }}
         run: bun scripts/staging/check-authoring-admin-roles.ts
