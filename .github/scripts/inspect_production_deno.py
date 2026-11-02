@@ -1,4 +1,4 @@
-"""Read the production worker's rollback identity without exporting secret values."""
+"""Inspect production safely or restore its recorded pre-Neon worker routing."""
 import json
 import os
 import sys
@@ -28,7 +28,7 @@ def summarize_revision(revision):
         "createdAt": revision.get("created_at"),
         "hostnames": [host for timeline in revision.get("timelines", []) for host in timeline.get("hostnames", [])],
         "databaseHost": urlparse(values.get("DATABASE_URL", "")).hostname,
-        "storageProvider": "neon" if values.get("STORAGE_PROVIDER_MODE") == "neon" else "r2",
+        "storageProvider": values.get("STORAGE_PROVIDER_MODE") if values.get("STORAGE_PROVIDER_MODE") in ("neon", "r2") else "unknown",
         "environmentKeys": sorted(values),
     }
 
