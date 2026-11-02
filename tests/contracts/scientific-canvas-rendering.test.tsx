@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderWithMessages } from "../helpers/render-with-messages";
 import { LearningCanvasRenderer } from "@/components/course/learning-canvas/learning-canvas-renderer";
 import { CanvasSpecSchema } from "@/lib/zyra/canvas/contracts";
 
@@ -8,7 +8,7 @@ const base = {
   variables: [], controls: [], claimRefs: ["science"], altText: "Data ilmiah.",
   fallback: { summary: "Besaran $x$.", columns: [{ id: "x", label: "$x$", unit: "m" }], rows: [["$1$"]] },
 };
-const render = (value: object) => renderToStaticMarkup(<LearningCanvasRenderer spec={CanvasSpecSchema.parse({ ...base, ...value })} />);
+const render = (value: object) => renderWithMessages(<LearningCanvasRenderer spec={CanvasSpecSchema.parse({ ...base, ...value })} />);
 
 describe("Scientific canvas rendering", () => {
   test("typesets chemical subscripts through mhchem", () => {

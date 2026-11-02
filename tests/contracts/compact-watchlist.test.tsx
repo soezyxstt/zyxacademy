@@ -1,11 +1,11 @@
 import React from "react";
 import { describe, expect, test } from "bun:test";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderWithMessages } from "../helpers/render-with-messages";
 import { WatchlistTable } from "@/components/tutor/watchlist-table";
 
 describe("compact tutor watchlist", () => {
   test("keeps student identity, intervention count, and activity in semantic table cells", () => {
-    const markup = renderToStaticMarkup(
+    const markup = renderWithMessages(
       <WatchlistTable students={[
         { studentId: "one", name: "Siswa Satu", decliningConcepts: ["Limit", "Turunan", "Integral", "Vektor"], activeInterventionCount: 0, lastActiveAt: null },
         { studentId: "two", name: "Siswa Dua", decliningConcepts: [], activeInterventionCount: 2, lastActiveAt: null },
@@ -23,8 +23,8 @@ describe("compact tutor watchlist", () => {
   });
 
   test("renders a meaningful empty state without an empty table", () => {
-    const markup = renderToStaticMarkup(<WatchlistTable students={[]} />);
-    expect(markup).toContain("Tidak ada siswa perlu perhatian");
+    const markup = renderWithMessages(<WatchlistTable students={[]} />);
+    expect(markup).toContain("Tidak ada siswa yang perlu perhatian");
     expect(markup).not.toContain("<table");
   });
 });
