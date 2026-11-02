@@ -34,7 +34,10 @@ describe("MCP consent scope choices", () => {
     expect(approvedScopes(raw, requestedScopes(raw))).not.toContain("authoring:withdraw");
     const scopes = approvedScopes(raw, [...MCP_OAUTH_SCOPES]);
     expect(scopes).toEqual([...MCP_OAUTH_SCOPES]);
-    const token = issueMcpConnectionToken({ userId: "test-admin", sessionId: "test-session", scopes });
+    const token = issueMcpConnectionToken({
+      userId: "test-admin", sessionId: "test-session", clientId: "test-client",
+      resource: "https://example.test/api/mcp/authoring", scopes,
+    });
     expect(readMcpConnectionToken(token).scopes).toEqual(scopes);
     expect(() => approvedScopes(raw, [])).toThrow("invalid_scope");
     expect(() => approvedScopes(raw, ["authoring:publish"])).toThrow("invalid_scope");

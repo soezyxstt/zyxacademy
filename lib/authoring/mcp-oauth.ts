@@ -1,6 +1,7 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { and, eq, gt } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import { verification } from "@/db/schema";
 import {
   MCP_AUTHORING_DEFAULT_SCOPES,
@@ -25,8 +26,12 @@ export type McpAuthorizationCode = {
   resource: string;
 };
 
-export function resourceUrl(origin: string): string {
-  return `${origin}${MCP_OAUTH_RESOURCE_PATH}`;
+export function publicMcpOrigin(): string {
+  return new URL(resolveAuthBaseUrl()).origin;
+}
+
+export function resourceUrl(): string {
+  return `${publicMcpOrigin()}${MCP_OAUTH_RESOURCE_PATH}`;
 }
 
 export function isAllowedRedirectUri(value: string): boolean {
@@ -69,16 +74,46 @@ export function readClientRegistration(clientId: string): McpClientPayload {
   return client;
 }
 
-export async function storeAuthorizationCode(input: McpAuthorizationCode): Promise<string> {
+type ConsentRequest = Pick<McpAuthorizationCode, "userId" | "sessionId" | "clientId" | "resource"> & {
+  scope: readonly string[];
+};
+
+function consentId({ userId, sessionId, clientId, resource }: ConsentRequest): string {
+  const key = createHash("sha256").update(JSON.stringify([userId, sessionId, clientId, resource])).digest("hex");
+  return `mcp:oauth:consent:${key}`;
+}
+
+export async function hasMcpOAuthConsent(input: ConsentRequest, client: Pick<typeof db, "select"> = db): Promise<boolean> {
+  const [grant] = await client.select({ value: verification.value }).from(verification)
+    .where(and(eq(verification.id, consentId(input)), gt(verification.expiresAt, new Date())))
+    .limit(1);
+  if (!grant) return false;
+  const approved: unknown = JSON.parse(grant.value);
+  return Array.isArray(approved) && input.scope.every((scope) => approved.includes(scope));
+}
+
+/** Only the interactive consent action supplies an approval expiry. Other callers must have a grant. */
+export async function storeAuthorizationCode(input: McpAuthorizationCode, approvedUntil?: Date): Promise<string> {
   const code = randomUUID();
-  const now = new Date();
-  await db.insert(verification).values({
-    id: `mcp-oauth-code-${code}`,
-    identifier: `mcp:oauth:code:${code}`,
-    value: JSON.stringify(input),
-    expiresAt: new Date(now.getTime() + MCP_OAUTH_CODE_TTL_MS),
-    createdAt: now,
-    updatedAt: now,
+  await db.transaction(async (tx) => {
+    const now = new Date();
+    if (approvedUntil) {
+      if (!(approvedUntil.getTime() > now.getTime())) throw new Error("AUTHORING_MCP_SESSION_INVALID");
+      const id = consentId(input);
+      const grant = { value: JSON.stringify(input.scope), expiresAt: approvedUntil, updatedAt: now };
+      await tx.insert(verification).values({ id, identifier: id, ...grant, createdAt: now })
+        .onConflictDoUpdate({ target: verification.id, set: grant });
+    } else if (!(await hasMcpOAuthConsent(input, tx))) {
+      throw new Error("consent_required");
+    }
+    await tx.insert(verification).values({
+      id: `mcp-oauth-code-${code}`,
+      identifier: `mcp:oauth:code:${code}`,
+      value: JSON.stringify(input),
+      expiresAt: new Date(now.getTime() + MCP_OAUTH_CODE_TTL_MS),
+      createdAt: now,
+      updatedAt: now,
+    });
   });
   return code;
 }
@@ -100,6 +135,7 @@ export async function consumeAuthorizationCode(code: string): Promise<McpAuthori
     if (!parsed.clientId || !parsed.redirectUri || !parsed.userId || !parsed.sessionId || !parsed.codeChallenge || !Array.isArray(parsed.scope)) {
       throw new Error("invalid_grant");
     }
+    if (!(await hasMcpOAuthConsent(parsed))) throw new Error("invalid_grant");
     return parsed;
   } catch {
     throw new Error("invalid_grant");

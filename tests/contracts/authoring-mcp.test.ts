@@ -135,6 +135,8 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     const token = issueMcpConnectionToken({
       userId: testPrincipal.userId,
       sessionId: testPrincipal.sessionId,
+      clientId: "test-client",
+      resource: "https://example.test/api/mcp/authoring",
       scopes,
     });
     expect(readMcpConnectionToken(token).scopes).toEqual(["authoring:read"]);

@@ -31,7 +31,9 @@ export async function submitMcpAuthorization(formData: FormData) {
   const codeChallengeMethod = formData.get("code_challenge_method")?.toString() ?? "";
   const requestedResource = formData.get("resource")?.toString() || undefined;
 
-  // Rejection by user
+  const client = readClientRegistration(clientId);
+  if (!client.redirectUris.includes(redirectUri)) throw new Error("Invalid redirect URI");
+
   if (decision === "deny") {
     const target = new URL(redirectUri);
     target.searchParams.set("error", "access_denied");
@@ -39,33 +41,15 @@ export async function submitMcpAuthorization(formData: FormData) {
     redirect(target.toString());
   }
 
-  // Request validation
-  if (codeChallengeMethod !== "S256" || !codeChallenge) {
+  if (decision !== "approve" || codeChallengeMethod !== "S256" || !codeChallenge) {
     const target = new URL(redirectUri);
     target.searchParams.set("error", "invalid_request");
     if (state) target.searchParams.set("state", state);
     redirect(target.toString());
   }
 
-  let client;
-  try {
-    client = readClientRegistration(clientId);
-  } catch {
-    const target = new URL(redirectUri);
-    target.searchParams.set("error", "invalid_client");
-    if (state) target.searchParams.set("state", state);
-    redirect(target.toString());
-  }
-
-  if (!client.redirectUris.includes(redirectUri)) {
-    throw new Error("Invalid redirect URI");
-  }
-
   const reqHeaders = await headers();
-  const host = reqHeaders.get("host") || "localhost:3000";
-  const proto = reqHeaders.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
-  const origin = `${proto}://${host}`;
-  const expectedResource = resourceUrl(origin);
+  const expectedResource = resourceUrl();
 
   if (requestedResource && requestedResource !== expectedResource) {
     const target = new URL(redirectUri);
@@ -109,7 +93,7 @@ export async function submitMcpAuthorization(formData: FormData) {
       codeChallenge,
       scope: principal.scopes.filter((item) => scopes.includes(item)),
       resource: expectedResource,
-    });
+    }, session.session.expiresAt);
 
     const target = new URL(redirectUri);
     target.searchParams.set("code", code);
