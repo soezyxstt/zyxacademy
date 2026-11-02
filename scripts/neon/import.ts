@@ -1,5 +1,8 @@
 import { execFileSync } from "node:child_process";
-import { createHmac } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
+import { readFileSync, realpathSync } from "node:fs";
+import { isAbsolute, relative, resolve, sep } from "node:path";
+import { pathToFileURL } from "node:url";
 import { createClient } from "@libsql/client/web";
 import { Client } from "pg";
 import { AUTH_TABLES, SECRET_COLUMN, assertTarget, convert, type Conversion } from "./import-core";
@@ -43,7 +46,23 @@ async function main() {
   const sourceUrl = required("TURSO_DATABASE_URL");
   const sourceAddress = new URL(sourceUrl);
   if (sourceAddress.protocol !== "libsql:" || sourceAddress.hostname !== required("TURSO_EXPECTED_HOST").toLowerCase()) throw new Error("SOURCE_IDENTITY_MISMATCH");
-  const source = createClient({
+  const snapshot = process.env.NEON_SOURCE_SNAPSHOT;
+  let source: ReturnType<typeof createClient>;
+  if (snapshot) {
+    if (required("NEON_SOURCE_FREEZE_ACK") !== "staging-writes-frozen") throw new Error("SOURCE_FREEZE_ACK_REQUIRED");
+    const path = realpathSync(snapshot);
+    const inside = relative(realpathSync(resolve(".tmp")), path);
+    if (!inside || inside === ".." || inside.startsWith(`..${sep}`) || isAbsolute(inside)) throw new Error("UNSAFE_SNAPSHOT_PATH");
+    const signed = JSON.parse(readFileSync(`${path}.manifest.json`, "utf8"));
+    const { verifySnapshot } = await import("./source-snapshot");
+    if (!verifySnapshot(path, signed, key, createHash("sha256").update(sourceAddress.hostname).digest("hex"), revision)) throw new Error("SNAPSHOT_PROVENANCE_MISMATCH");
+    const { createClient: createLocalClient } = await import("@libsql/client/sqlite3");
+    source = createLocalClient({ url: pathToFileURL(path).href, intMode: "bigint" });
+    await source.execute("PRAGMA query_only=ON");
+    for (const name of AUTH_TABLES) {
+      if (Number(valueRows(await source.execute(`SELECT count(*) AS count FROM ${quote(name)}`))[0].count) !== 0) throw new Error("SNAPSHOT_CONTAINS_AUTH_ROWS");
+    }
+  } else source = createClient({
     url: sourceUrl, authToken: required("TURSO_AUTH_TOKEN"), intMode: "bigint",
     fetch: (input: RequestInfo | URL, init: RequestInit = {}) => fetch(input, { ...init, signal: AbortSignal.timeout(30000) }),
   });

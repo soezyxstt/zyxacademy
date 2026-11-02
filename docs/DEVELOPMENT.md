@@ -2,6 +2,8 @@
 
 For this isolated migration branch, `DATABASE_URL` points to the guarded Neon PostgreSQL target and `bun run db:migrate` applies `drizzle-postgres/`. The legacy production push and canonical backfill are disabled here. Storage can use the private Neon S3-compatible bucket with `STORAGE_PROVIDER_MODE=neon`. Use [.env.neon.example](../.env.neon.example) and the [migration runbook](operations/neon-migration.md); do not reuse production sessions or integration credentials. Other SQLite and R2 instructions below describe the existing deployments unless noted.
 
+The staging importer can consume a signed local source snapshot using `NEON_SOURCE_SNAPSHOT` and `NEON_SOURCE_FREEZE_ACK=staging-writes-frozen`. The snapshot exporter requires the dedicated ignored `.env.neon-staging-cutover-source` file and independently verified staging write freeze. Snapshots and their manifests stay under ignored `.tmp`, with local access restricted to the operator. They contain business data and must not enter CI uploads. `scripts/neon/source-snapshot.test.ts` exercises only synthetic data.
+
 Staging preparation uses ignored `.env.neon-staging` for the new target and `.env.neon-staging-source` for guarded imports. Do not substitute the production rehearsal environment. Apply generated migrations with `bun --env-file=.env.neon-staging run db:migrate`; run a read-only import preflight before `node --env-file=.env.neon-staging-source --import tsx scripts/neon/import.ts --apply`. The copy tool accepts only the exact rehearsal and staging host/bucket pairs. Never upload these environment files in deployment source archives.
 
 ## Quick Start
