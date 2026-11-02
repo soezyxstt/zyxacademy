@@ -12,7 +12,6 @@ import {
 import type { ResolvedCourseIdentity } from "@/lib/admin/course-identity";
 import {
   getCanonicalPublishedArticle,
-  getCanonicalPublishedArticlesForCourse,
   getCanonicalPublishedTextProduct,
 } from "@/lib/articles/structured-repository";
 import type { PublicArticleReadModel } from "@/lib/articles/structured-read-model";
@@ -49,7 +48,6 @@ export async function listAdminCourseMaterials(
   identity: ResolvedCourseIdentity,
 ): Promise<CourseMaterial[]> {
   const compatibleIds = legacyIds(identity);
-  const canonicalCourseId = identity.canonicalId ?? identity.primaryId;
 
   const [canonicalArticles, canonicalDiktats, compiledDiktats, webMaterials, pdfMaterials, generatedMaterials] =
     await Promise.all([

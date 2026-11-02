@@ -5,7 +5,9 @@ import { usePathname } from "next/navigation";
 import { useSwipe } from "@/hooks/use-swipe";
 
 const MOBILE_QUERY = "(max-width: 767px)";
-const SIDEBAR_SELECTOR = "aside.fixed.inset-y-0.left-0";
+// The sidebar can hydrate after this controller. Do not mutate server-rendered
+// attributes until the sidebar has mounted and owns its initial state.
+const SIDEBAR_SELECTOR = "aside.fixed.inset-y-0.left-0[data-sidebar-ready='true']";
 
 function getSidebar(): HTMLElement | null {
   return document.querySelector<HTMLElement>(SIDEBAR_SELECTOR);

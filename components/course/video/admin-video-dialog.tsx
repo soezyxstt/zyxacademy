@@ -1,6 +1,9 @@
 "use client";
 
+import Image from "next/image";
+
 import { useState, useEffect, useRef } from "react";
+import { useTranslations } from "@/lib/i18n/client";
 import {
   Dialog,
   DialogContent,
@@ -92,6 +95,7 @@ export function AdminVideoDialog({
   onOpenCreatePlaylist,
   onSuccess,
 }: AdminVideoDialogProps) {
+  const t = useTranslations("adminMedia");
   const isEditing = Boolean(video);
 
   // Mode: "youtube" or "upload"
@@ -331,7 +335,7 @@ export function AdminVideoDialog({
         }
         toast.success("Informasi video YouTube berhasil dimuat.");
       } else {
-        toast.error(res.error || "Gagal mengambil data video dari YouTube.");
+        toast.error(t("videoDialog.errors.fetchMetadata"));
       }
     } catch {
       toast.error("Terjadi kendala saat menghubungi layanan YouTube.");
@@ -461,10 +465,10 @@ export function AdminVideoDialog({
         onOpenChange(false);
         onSuccess?.();
       } else {
-        toast.error(res.error || "Gagal menyimpan video.");
+        toast.error(t("videoDialog.errors.save"));
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Terjadi kesalahan saat menyimpan video.");
+    } catch {
+      toast.error(t("videoDialog.errors.save"));
     } finally {
       setSaving(false);
       setUploadPercent(null);
@@ -557,7 +561,7 @@ export function AdminVideoDialog({
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 rounded-xl border border-border/70 bg-muted/20 p-2.5">
                   <div className="relative aspect-video w-full sm:w-40 shrink-0 overflow-hidden rounded-lg bg-black/10 border border-border/50">
                     {thumbnailPreviewUrl ? (
-                      <img
+                      <Image unoptimized loading="eager" width={160} height={90}
                         src={thumbnailPreviewUrl}
                         alt="Pratinjau YouTube"
                         className="h-full w-full object-cover"
@@ -691,13 +695,13 @@ export function AdminVideoDialog({
                               : "border-border/60 hover:border-border"
                           )}
                         >
-                          <img
+                          <Image unoptimized loading="eager" width={160} height={90}
                             src={cand.dataUrl}
                             alt={`Frame ${idx + 1}`}
                             className="h-full w-full object-cover"
                           />
                           {isSelected && (
-                            <div className="absolute top-1 right-1 rounded-full bg-brand-primary p-0.5 text-white">
+                            <div className="absolute top-1 right-1 rounded-full bg-brand-primary p-0.5 text-primary-foreground">
                               <CheckCircle2 className="size-3.5" />
                             </div>
                           )}
@@ -734,7 +738,7 @@ export function AdminVideoDialog({
 
                       {scrubPreviewUrl && (
                         <div className="flex items-center gap-3 pt-1">
-                          <img
+                          <Image unoptimized loading="eager" width={80} height={48}
                             src={scrubPreviewUrl}
                             alt="Scrub preview"
                             className="h-12 w-20 rounded border border-border/60 object-cover"
@@ -890,7 +894,7 @@ export function AdminVideoDialog({
 
                 {thumbnailPreviewUrl && (
                   <div className="flex items-center gap-3 rounded-lg border border-border/60 p-2 bg-muted/10">
-                    <img
+                    <Image unoptimized loading="eager" width={96} height={56}
                       src={thumbnailPreviewUrl}
                       alt="Thumbnail"
                       className="h-14 w-24 rounded border border-border/70 object-cover"
@@ -951,7 +955,7 @@ export function AdminVideoDialog({
                   (sourceType === "youtube" && !detectedVideoId) ||
                   (sourceType === "upload" && !video && !videoFile)
                 }
-                className="text-body-sm bg-brand-primary text-white hover:bg-brand-primary/90 gap-1.5"
+                className="text-body-sm bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 gap-1.5"
               >
                 {saving ? (
                   <>

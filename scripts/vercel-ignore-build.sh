@@ -25,6 +25,10 @@ fi
 
 for file in "${CHANGED_FILES[@]}"; do
   case "${file}" in
+    .github/workflows/deploy.yml)
+      echo "Vercel build required: shared worker deployment configuration changed."
+      exit 1
+      ;;
     docs/*|plans/*|.github/*|.claude-plugin/*|plugins/zyx-authoring-mcp/skills/*|README.md|AGENTS.md|CLAUDE.md)
       ;;
     *)

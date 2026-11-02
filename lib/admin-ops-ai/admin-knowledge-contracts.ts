@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { CANONICAL_VECTOR_PROFILE, type CanonicalVectorMetadata } from "@/lib/vectorize/contracts";
 
 /**
  * Zyx Admin Ops Knowledge Pipeline Contracts.

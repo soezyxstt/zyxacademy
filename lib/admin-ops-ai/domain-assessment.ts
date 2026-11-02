@@ -217,7 +217,7 @@ export interface CreateQuizInput {
   questionIds?: string[];
 }
 
-export async function executeCreateQuiz(input: CreateQuizInput, actorId?: string) {
+export async function executeCreateQuiz(input: CreateQuizInput, _actorId?: string) {
   const cleanCourseId = input.courseId.trim().toLowerCase();
   const cleanTitle = input.title.trim();
   if (!cleanCourseId) throw new Error("ID Mata Kuliah wajib diisi.");
@@ -264,7 +264,7 @@ export interface UpdateQuizInput {
   };
 }
 
-export async function executeUpdateQuiz(input: UpdateQuizInput, actorId?: string) {
+export async function executeUpdateQuiz(input: UpdateQuizInput, _actorId?: string) {
   const quizId = input.quizId.trim();
   if (!quizId) throw new Error("ID Kuis wajib diisi.");
 
@@ -334,7 +334,7 @@ export interface CreateQuestionInput {
   tags?: string[];
 }
 
-export async function executeCreateQuestion(input: CreateQuestionInput, actorId?: string) {
+export async function executeCreateQuestion(input: CreateQuestionInput, _actorId?: string) {
   const cleanCourseId = input.courseId.trim().toLowerCase();
   const cleanPrompt = input.prompt.trim();
   if (!cleanCourseId) throw new Error("ID Mata Kuliah wajib diisi.");
@@ -374,7 +374,7 @@ export interface PublishQuestionInput {
   questionId: string;
 }
 
-export async function executePublishQuestion(input: PublishQuestionInput, actorId?: string) {
+export async function executePublishQuestion(input: PublishQuestionInput, _actorId?: string) {
   const cleanId = input.questionId.trim();
   if (!cleanId) throw new Error("ID Soal wajib diisi.");
 

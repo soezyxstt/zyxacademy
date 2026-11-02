@@ -29,8 +29,8 @@ async function inspectRunTrace(planHash: string, attemptId: string, createdAt: D
   const trace = await get(`/v2/runs/${encodeURIComponent(run.run_id)}/trace?include=output&includeOutput=true`, apiKey);
   const sanitize = (value: string) => {
     let result = value;
-    for (const secret of [signingKey, apiKey, process.env.BETTER_AUTH_SECRET, process.env.TURSO_AUTH_TOKEN, process.env.R2_SECRET_ACCESS_KEY]) if (secret) result = result.replaceAll(secret, "[redacted]");
-    return result.replace(/https?:\/\/[^\s"<>]+/g, "[url]").replace(/[a-f0-9]{32,}/gi, "[hash]").replace(/[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}/gi, "[id]").slice(0, 1500);
+    for (const secret of [signingKey, apiKey, process.env.BETTER_AUTH_SECRET, process.env.TURSO_AUTH_TOKEN, process.env.R2_SECRET_ACCESS_KEY, process.env.STEEL_API_KEY, process.env.CF_API_TOKEN]) if (secret) result = result.replaceAll(secret, "[redacted]");
+    return result.replace(/(?:https?|wss?):\/\/[^\s"<>]+/g, "[url]").replace(/[a-f0-9]{32,}/gi, "[hash]").replace(/[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}/gi, "[id]").slice(0, 1500);
   };
   const errors = (output: unknown, depth = 0): string[] => {
     if (depth > 8) return [];

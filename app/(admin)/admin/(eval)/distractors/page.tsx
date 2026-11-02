@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 import { db } from "@/db";
 import { aiQuestionBank, courses, questionOptionStats } from "@/db/schema";
 import { inArray } from "drizzle-orm";
@@ -8,10 +9,12 @@ import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { MathText } from "@/components/course/math-text";
 import { Target } from "lucide-react";
+import { TranslatedText } from "@/components/i18n/translated-text";
 
-export const metadata: Metadata = {
-  title: pageTitle("Analitik Distraktor"),
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("adminEval");
+  return { title: pageTitle(t("metadata.distractors")) };
+}
 
 interface DistractorEntry {
   optionIndex: number;
@@ -57,10 +60,10 @@ export default async function DistractorAnalyticsPage() {
     <div className="space-y-5">
       <AdminPageHeader
         icon={Target}
-        title="Analitik Distraktor"
+        title={<TranslatedText namespace="adminEval" messageKey="routes.distractors" />}
       />
       {ordered.length === 0 ? (
-        <AdminEmptyState icon={Target} title="Belum ada analitik distraktor" description="Data tersedia setelah siswa mengerjakan kuis dengan fitur ini aktif." />
+        <AdminEmptyState icon={Target} title={<TranslatedText namespace="adminEval" messageKey="distractors.emptyTitle" />} description={<TranslatedText namespace="adminEval" messageKey="distractors.emptyDescription" />} />
       ) : (
         <div className="space-y-5">
           {ordered.map(({ id, agg }) => {
@@ -70,11 +73,11 @@ export default async function DistractorAnalyticsPage() {
             const dmap = (q.distractorMap as DistractorEntry[] | null) ?? [];
             const labelByIndex = new Map(dmap.map((d) => [d.optionIndex, d]));
             return (
-              <div key={id} className="space-y-3 border-b border-border pb-6">
-                <div className="flex items-start justify-between gap-4">
+              <div key={id} className="space-y-3 border-b border-border pb-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
                   <MathText className="text-body-base font-semibold text-foreground block" as="div">{q.prompt}</MathText>
                   <span className="shrink-0 text-body-sm text-muted-foreground">
-                    {agg.total} jawaban
+                    {agg.total} <TranslatedText namespace="adminEval" messageKey="distractors.answers" />
                   </span>
                 </div>
                 <p className="text-body-sm text-muted-foreground">{courseMap[q.courseId] ?? q.courseId}</p>
@@ -99,7 +102,7 @@ export default async function DistractorAnalyticsPage() {
                           />
                         </div>
                         {!isCorrect && tag && tag.kind === "misconception" && (
-                          <p className="text-body-sm text-status-warning">Miskonsepsi: {tag.label}</p>
+                          <p className="text-body-xs text-foreground"><TranslatedText namespace="adminEval" messageKey="distractors.misconception" /> {tag.label}</p>
                         )}
                       </div>
                     );

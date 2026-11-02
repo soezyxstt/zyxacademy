@@ -17,7 +17,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Views the AI-powered Quiz Learning Analytics & Diagnosis summary page after quiz completion (3-layer executive summary, deterministic concept mastery, AI error pattern detection, cognitive skill breakdown, time/speed insights, and personalized 3-step action plan)
 - Reviews flashcards with SM-2 spaced repetition
 - Chats with AI tutor for concept help
-- Article text selection shows a fixed bottom Tanya Zyra action below 768px and keeps the selection popover on desktop. Mobile selection changes update the saved quote, which is attached when Zyra opens.
+- Article text selection shows a fixed bottom Tanya Zyra action below 768px and keeps the selection popover on desktop. Mobile selection changes update the saved quote, which is attached when Zyra opens for an explanation of the selected text.
 - Books real tutor sessions
 - Participates in live classroom quizzes
 - Views leaderboard and answer keys
@@ -82,6 +82,16 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Navigation results show their Admin, Tutor, Murid, or Publik surface so identical sidebar labels remain distinguishable.
 - Typing `?` opens the search guide. It documents and applies the `group:`, `meet:`, `user:`, `form:`, `token:`, and `schedule:` prefixes, and shows every accepted alias for each prefix.
 - Changing the query resets the result list to the top. Selecting a result triggers the global route progress bar before navigation.
+
+### Bilingual interface and published content
+
+The application uses paired `id` and `en` JSON message catalogs. Locale resolution prefers a supported explicit public URL, then the signed-in account preference, the `zyx_locale` cookie, a supported browser language, and Indonesian. Public `/id/...` and `/en/...` prefixes are limited to the allowlist in `lib/public-locale-routes.ts`; this does not prefix protected routes or APIs. The account choice is stored in `account_locale_preferences` independently of learning preferences and role membership.
+
+The language applies to application-owned controls, errors, empty and loading states, generated system email and push wrappers, search categories, and navigation aliases. It does not rewrite the language or identity of published Articles, Diktat PDFs, historical exams, quiz questions and answers, flashcards, announcements, form questions, blog bodies, or user-authored text. Academic search results retain their source titles, and the bilingual navigation aliases do not promise cross-language academic search.
+
+Use these product terms consistently: `Mata kuliah / Course`, `Bab / Chapter`, `Idea / Idea`, `Artikel / Article`, `Diktat / Diktat`, `Kuis / Quiz`, and `Tryout / Practice test`. Keep stable identifiers and authored titles unchanged.
+
+Zyra accepts an allowlisted response language, honors explicit English or Indonesian instructions, and includes response language in exact and semantic cache identity. The shared tutor chat-request builder sends interface locale for typed, retry, image, and selection requests, with sticky language state guarded by an epoch. Account interface locale persists across visits. Explicit conversation overrides are memory-only, limited to 32 sessions, and cleared on drawer remount, reload, or account, course, and interface-locale changes. The Zyra contract suite passed 48 tests and the request/SSE boundary suite passed 8 tests. The full role/route/state matrix remains incomplete under CP7.
 
 ### MTD → Knowledge Objects (KO)
 1. Admin uploads a markdown master document
@@ -371,6 +381,8 @@ The standalone Admin material editor is retired. Existing website material remai
 - Cache identity is scoped to canonical evidence, policy, language, route, assessment mode, and embedding profile; learner-specific data is excluded.
 - Personalization is applied after cache retrieval, while cache hits consume zero provider units.
 
+Zyra uses bounded, session-scoped conversation context to interpret follow-up questions. Turns using that context bypass shared response caches; active assessment safeguards still apply. General explanations use a conversational tutor voice without mandatory learning-goal headings.
+
 ### Zyra Pedagogy V3
 
 - The server-owned teaching state machine and typed response contract are always-on. Shadow comparison remains an explicit staging request.
@@ -400,7 +412,7 @@ The standalone Admin material editor is retired. Existing website material remai
 - The harness renders exactly one interactive visual per answer: the validated `canvasSpec` emitted by the model through a structured channel. It never mines equations out of prose, so an answer without a structured spec has no canvas instead of a guessed plot. Tutor prompts no longer request `:::graph`, `:::chart`, or `:::flowchart` markdown blocks; legacy persisted answers with those blocks still render for backward compatibility.
 - Function and data plots use custom SVG surfaces with labeled adaptive axes, grid lines, hover crosshair tooltips, visible zero crossings, local expression editing, and coefficient controls. Plots are directly manipulable: drag pans the view, scroll wheel or pinch zooms around the pointer, double-click or Reset tampilan restores the fitted view, and axis labels keep precision at deep zoom levels. Common Gemini notation such as `y = 2x²` is normalized before semantic validation and rendering. Evaluator syntax is separately formatted as readable mathematical notation, so `a*x^2 + b*x + c` is presented as `ax² + bx + c`. Invalid expressions produce a visible recovery message.
 - The murid panel is mounted only by the student layout. On desktop it is a flex sibling that reduces the content width, with a persisted width from 360 px to the lower of 720 px or 50 percent of the viewport. Mouse, touch, and keyboard resize share the same limits. On mobile it is a dismissible overlay with backdrop and body scroll lock. Closing with the button, backdrop, or Escape returns focus to the invoking control.
-- Each current Zyra answer offers short follow-up actions that adapt to the answer. When Zyra ends with a comprehension-check question the chips become Socratic scaffolds; otherwise they stay generic accelerators for an example, a comprehension check, or another representation. The compact header shows Zyra and the human-readable course title. AI messages use a flat conversation surface, while learner messages use a light bubble. The sticky composer retains attachments, math input, Learning Canvas, quota, Socratic mode, and assessment safety.
+- Zyra can offer up to three contextual follow-up actions for a generated study answer. Active assessments and hint-only coding exercises do not offer generated suggestions. Suggestions exist only in the live session and are not restored from saved conversation history. The compact header shows Zyra and the human-readable course title. AI messages use a flat conversation surface, while learner messages use a light bubble. The sticky composer retains attachments, math input, Learning Canvas, quota, Socratic mode, and assessment safety.
 - The `desmos` markdown block renders a local multi-expression graph editor at zero AI cost: each row accepts a bounded function of `x` or a named point such as `A = (1, 2)`, rows can be added or removed inline, points are drag-editable on the plot, the vertical domain auto-fits the content, and invalid rows are flagged without blocking valid ones.
 - Static Zyra entry points use one application-owned hexagonal `Z` mark across material selection, mistake feedback, and panel fallback. The sidebar no longer duplicates the floating launcher.
 - When the pet capability is enabled, the course launcher becomes a draggable fox-like Zyra companion with ears, tail, paws, face, and state-specific expressions. Drag uses pointer capture and frame-based updates. On release it snaps to the nearest of four safe corners outside the sidebar, persists the anchor rather than raw coordinates, and recalculates after viewport changes. Click suppression prevents an accidental open after drag, and reduced motion disables the snap animation.
@@ -504,14 +516,11 @@ The canonical scheduling workflow uses concrete, date-specific 90-minute tutor s
 
 - Group Ownership & Collaborative Booking:
   - Tutoring sessions are booked on behalf of Study Groups.
-  - All group members have equal rights to choose, move, or cancel slots before the weekly lock cut-off.
-- Weekly Quota (Derived, Per Group):
-  - Each group carries a weekly session quota (`weeklyQuotaSessions`) set by admins according to the purchased package preset (1 to 3 sessions per week; custom values allowed).
-  - Usage is derived by counting active booking rows of the group inside the target week. Pre-lock cancellations preserve the booking row with status `cancelled` and write a durable `BOOKING_CANCELLED_QUOTA_REFUNDED` marker into `booking_audit_logs` to free the quota. Post-lock cancellations do not receive the refund marker and stay counted against the weekly quota (hangus).
-  - Students see "Terpakai minggu ini X/Y" when booking and on the Groups page; the last 4 weeks show attended versus missed/cancelled counts for traceability.
-- Weekly Lock & Automated Cut-Off:
-  - Tutors may publish availability for any future tutorial week. Changes for a target week close on the Friday before that week at 18:00 WIB. Student booking for that target week opens on the preceding Monday and remains open until Saturday at 23:59 WIB (Asia/Jakarta).
-  - Post-lock schedule adjustments require formal Reschedule or Cancellation tickets.
+  - Any group member can book or move a session to a slot before its start time in Asia/Jakarta. At the start time the calendar disables booking, and the server rejects late requests without consuming quota.
+- Booking and quota:
+  - A booking uses one package session. A student cancellation returns that session once. Another eligible group can then book the same future slot. The cancelled booking, its audit entries, and its documents stay attached to the original booking ID.
+  - Schedule and Groups use the same package counter. Weekly usage counts bookings in the Jakarta week, including historical cancellations without a refund marker. Cancelled rows carrying `BOOKING_CANCELLED_QUOTA_REFUNDED` do not count.
+  - Students can book an available slot later today. The server checks the slot's stored date and start time for both bookings and moves.
 - Fixed 90-Minute Slots:
   - Tutors open concrete availability slots of exactly 90 minutes. The server rejects other durations and the tutor form auto-computes the end time.
   - Copying the previous week creates new concrete rows for the target week. It never creates an unbounded recurring browser event.
@@ -571,7 +580,7 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
   - Exact 90-Minute Slots: Availability slots must span exactly 90 minutes. Start and end times are validated server-side.
   - Calendar-First Availability: The tutor schedule opens in week view and also supports day and month views. Selecting a future calendar time creates a date-specific 90-minute slot with a concrete session date. Visual states distinguish available slots, booked sessions, and unavailable past or locked slots.
   - Group Eligibility & Representative Selection: Sessions are scheduled for active study groups enrolled in the course. Group representative is deterministically selected (leader first, earliest `joinedAt`, lexicographical `userId`, member record `id`).
-  - Weekly Quota & Cancellation Refunds: Groups carry a weekly quota (`weekly_quota_sessions`, default 2). Usage is computed by counting booking rows in the target ISO week. Cancellations before the Saturday 23:59 WIB lock cut-off receive a durable `BOOKING_CANCELLED_QUOTA_REFUNDED` marker in `booking_audit_logs`, keeping the booking row for traceability while exempting it from weekly quota. Post-lock cancellations forfeit the quota without refund (hangus).
+  - Weekly usage follows the booking and refund policy above. Both the calendar and the Groups page exclude refunded sessions from the weekly count.
   - Notifications: Schedule bookings, cancellations, and status changes dispatch real-time multi-recipient notifications via `sendToMany`.
   - Durable Mutation Audit: Every tutor slot mutation, deletion, session creation, or cancellation (including failures and validation rejections) is recorded in `audit_mutasi` using `recordTutorMutationAudit` with bounded exponential backoff on SQLite lock contention (`TutorAuditPersistenceError`).
 
@@ -640,3 +649,21 @@ A section completes at 90 percent read depth or when the reader proceeds from it
 New Article/Diktat authoring defaults to V4. Existing V3 revisions and readers remain supported. Article parts keep explanations, formulas, conditions, symbols, examples and visuals in reading order. Mathematical prose, headings, scientific values, chemistry and units use the shared mathematical renderer. Diktat units are authored separately with references to Article elements and verified static figures. Existing V2/V3 content keeps its compatibility path.
 
 MCP exposes scoped source-figure extraction and resumable jobs, plus `authoring.verify_product_bundle` and `authoring.get_verification`. Approval requires current server verification, explicit decisions for every section, an anchored eight-criterion rubric and the same verified PDF artifact. V4 content is revised through its bundle rather than a lossy legacy editor. See [the V4 source contract](bundle/product-bundle-v4.md) and [the MCP skills runbook](operations/authoring-mcp-skills.md). Deployment and installation remain separate actions.
+## Python coding
+
+Course Playground, runnable V4 Article examples, repeated coding submissions,
+Zyra decomposition/flowchart help and Python Live Quiz are implemented locally
+without a new feature flag. Playground and runnable Article examples use an interactive terminal, Python autocomplete, automatic bracket and quote pairing, and indentation assistance. On staging, the terminal uses the isolated Python worker and does not count time spent entering input as execution time. Other environments retain the browser runtime. The Playground terminal can be collapsed and opens on Run. Playground uses the existing Zyra drawer with one compact composer and Python/Tutor modes beside the attachment and math controls. Python mode sends the current editor context. Ordinary messages request explanations without changing the program. The explicit `Buat kode` action applies one complete final Python block to the active editor, without repeating it in chat. Retries retain the original intent, quote, session, and ready image attachments without consuming a newer composer draft. Prose-only replies stay visible. If the editor changed during generation, an explicit apply action protects the new work. Tutor mode keeps explanations and example snippets in chat and does not change the editor. Explicit math delimiters render formulas inside the composer, with source editing on selection; prose, currency, code, invalid LaTeX, and unfinished formulas stay literal. Rendered formulas are single units for arrow navigation and deletion. The symbol palette closes after insertion and retains typing focus; Escape closes the palette before the drawer. Sending clears draft undo history. Conversation history counts persisted messages and refreshes after saves. Existing Live Quiz gating remains unchanged. See
+[coding contract](coding-foundation.md) for authoring, access and runtime limits.
+
+In Playground, learners can describe a problem and ask Zyra to generate Python. Generation follows the supplied teaching context and task level, preferring introductory constructs when context is missing. Functions, comprehensions, and other constructs remain appropriate when the task, material, or learner request justifies them.
+A complete fenced Python response replaces the editor draft after generation;
+errors, missing code, and edits made during generation leave the draft intact.
+
+Error help guides trial and error: explain the observed failure, offer a tentative
+concept diagnosis, let the learner clarify their reasoning, give one small next
+step, and encourage another predicted Run. After an edit, old explanations are
+marked stale until a new consultation. A successful browser Run remains practice,
+not an official Submit grade.
+
+Zyra preserves LaTeX spacing commands during answer cleanup and renders standalone formula steps as separate display rows. Display formula boundaries containing escaped line breaks are normalized without changing commands such as `\neq` or `\nabla`.

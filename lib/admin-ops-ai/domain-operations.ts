@@ -4,20 +4,18 @@ import {
   pengguna,
   penggunaPeran,
   peran,
-  notifications,
   pkaRegistrations,
   pkaAnnouncements,
   pkaSchedules,
   customForms,
-  customFormResponses,
   blogArticles,
   shortLink,
   aiGenerationJobs,
 } from "@/db/schema";
-import { eq, and, desc, inArray, like, count } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { getAllFeatureFlagsStatus, KNOWN_FEATURE_FLAGS } from "@/lib/feature-flags";
-import { membershipIdFor, peranIdFor, type PeranCode } from "@/lib/auth/peran";
+import { membershipIdFor, type PeranCode } from "@/lib/auth/peran";
 import { sendAdminBroadcast } from "@/lib/notifications/send";
 
 // ─── 1. Users & Permissions ──────────────────────────────────────────────────
@@ -80,7 +78,7 @@ export interface ToggleUserStatusInput {
   reason?: string;
 }
 
-export async function executeToggleUserStatus(input: ToggleUserStatusInput, actorId?: string) {
+export async function executeToggleUserStatus(input: ToggleUserStatusInput, _actorId?: string) {
   const userId = input.userId.trim();
   if (!userId) throw new Error("ID Pengguna wajib diisi.");
 
@@ -111,7 +109,7 @@ export interface SendBroadcastNotificationInput {
   link?: string;
 }
 
-export async function executeSendBroadcastNotification(input: SendBroadcastNotificationInput, actorId?: string) {
+export async function executeSendBroadcastNotification(input: SendBroadcastNotificationInput, _actorId?: string) {
   const title = input.title.trim();
   const body = input.body.trim();
   if (!title || !body) throw new Error("Judul dan isi notifikasi wajib diisi.");
@@ -491,7 +489,7 @@ export interface SetFeatureFlagInput {
   reason?: string;
 }
 
-export async function executeSetFeatureFlag(input: SetFeatureFlagInput, actorId?: string) {
+export async function executeSetFeatureFlag(input: SetFeatureFlagInput, _actorId?: string) {
   const flagKey = input.flagKey.trim();
   if (!flagKey) throw new Error("Kunci feature flag wajib diisi.");
 

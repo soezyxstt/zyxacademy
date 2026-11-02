@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { AlertCircle, CalendarDays } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { getScheduleData } from "./actions";
@@ -19,45 +20,88 @@ import {
   SessionDetailDrawer,
   type PendingSessionResource,
 } from "@/components/schedule/session-detail-drawer";
+import { useTranslations } from "@/lib/i18n/client";
 
-function LoadingState() {
+export function ScheduleCalendarSkeleton() {
   return (
-    <div className="flex min-h-[40vh] items-center justify-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-brand-primary" />
+    <div data-testid="schedule-calendar-skeleton" className="space-y-4">
+      {/* Calendar toolbar skeleton */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-card p-3">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-8 w-8 rounded-lg" />
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-8 w-8 rounded-lg" />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Skeleton className="h-8 w-32 rounded-lg" />
+          <Skeleton className="h-8 w-28 rounded-lg" />
+          <Skeleton className="h-8 w-24 rounded-lg" />
+        </div>
+      </div>
+
+      {/* Weekly calendar grid skeleton */}
+      <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
+        <div className="grid grid-cols-7 divide-x divide-border/60 border-b border-border/60 bg-muted/20">
+          {[1, 2, 3, 4, 5, 6, 7].map((day) => (
+            <div key={day} className="p-2.5 text-center space-y-1">
+              <Skeleton className="mx-auto h-3 w-8" />
+              <Skeleton className="mx-auto h-5 w-6 rounded-md" />
+            </div>
+          ))}
+        </div>
+        <div className="divide-y divide-border/40">
+          {[1, 2, 3, 4, 5].map((row) => (
+            <div key={row} className="grid grid-cols-7 divide-x divide-border/40 h-20">
+              {[1, 2, 3, 4, 5, 6, 7].map((col) => (
+                <div key={col} className="p-1.5">
+                  {(row + col) % 5 === 0 && (
+                    <Skeleton className="h-full w-full rounded-md" />
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
-function getCourseFilterOptions(data: any) {
+function getCourseFilterOptions(data: any, fallbackTitle: string) {
   const byId = new Map<string, { id: string; title: string }>();
   for (const enrollment of data.enrollments || []) {
     const course = enrollment?.course;
-    if (course?.id) byId.set(course.id, { id: course.id, title: course.title || course.name || "Mata kuliah" });
+    if (course?.id) byId.set(course.id, { id: course.id, title: course.title || course.name || fallbackTitle });
   }
   for (const group of data.groups || []) {
     for (const entry of group?.courses || []) {
       const course = entry?.course || entry;
-      if (course?.id) byId.set(course.id, { id: course.id, title: course.title || course.name || "Mata kuliah" });
+      if (course?.id) byId.set(course.id, { id: course.id, title: course.title || course.name || fallbackTitle });
     }
   }
   return Array.from(byId.values()).sort((left, right) => left.title.localeCompare(right.title, "id"));
 }
 
-function getTutorFilterOptions(data: any) {
+function getTutorFilterOptions(data: any, fallbackName: string) {
   const byId = new Map<string, { id: string; name: string }>();
   for (const slot of data.availableSlots || []) {
     const tutor = slot?.tutor;
     const id = tutor?.id || slot?.tutorId;
-    if (id) byId.set(id, { id, name: tutor?.name || "Tutor" });
+    if (id) byId.set(id, { id, name: tutor?.name || fallbackName });
   }
   return Array.from(byId.values()).sort((left, right) => left.name.localeCompare(right.name, "id"));
 }
 
 export function StudentScheduleClient() {
+  const t = useTranslations("student");
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const [data, setData] = useState<any>(null);
   const [dataWeekOffset, setDataWeekOffset] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
   const [bookingSlotData, setBookingSlotData] = useState<{ slot: any; dateIso: string } | null>(null);
   const [activeSessionBookingId, setActiveSessionBookingId] = useState<string | null>(null);
@@ -73,28 +117,27 @@ export function StudentScheduleClient() {
     if (cached) {
       setData(cached);
       setDataWeekOffset(offset);
-      setLoadError(null);
+      setLoadError(false);
       setLoading(false);
       return cached;
     }
 
     try {
       setLoading(true);
-      setLoadError(null);
+      setLoadError(false);
       const nextData = await getScheduleData(offset);
       weekCache.current.set(offset, nextData);
       if (requestId === activeRequest.current) {
         setData(nextData);
         setDataWeekOffset(offset);
-        setLoadError(null);
+        setLoadError(false);
       }
       return nextData;
     } catch (error) {
       console.error("Gagal mengambil data jadwal:", error);
       if (requestId === activeRequest.current) {
-        const message = "Kalender jadwal gagal dimuat. Periksa koneksi lalu coba lagi.";
-        setLoadError(message);
-        toast.error("Gagal memuat kalender jadwal");
+        setLoadError(true);
+        toast.error(tRef.current("schedule.loadFailedToast"));
       }
       return null;
     } finally {
@@ -126,30 +169,36 @@ export function StudentScheduleClient() {
     if (loadError) {
       return (
         <ApplicationPage spacing="space-y-4">
-          <PageHeader icon={CalendarDays} title="Kalender & Jadwal Tutorial" />
+          <PageHeader icon={CalendarDays} title={t("schedule.title")} />
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
             <div className="flex items-start gap-3">
               <AlertCircle className="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden />
               <div className="min-w-0 space-y-3">
                 <div>
-                  <h2 className="font-heading text-body-base font-semibold text-foreground">Jadwal belum dapat dimuat</h2>
-                  <p className="mt-1 text-body-sm text-muted-foreground">{loadError}</p>
+                  <h2 className="font-heading text-body-base font-semibold text-foreground">{t("schedule.loadFailedTitle")}</h2>
+                  <p className="mt-1 text-body-sm text-muted-foreground">{t("schedule.loadFailedDescription")}</p>
                 </div>
                 <Button type="button" size="sm" onClick={() => void fetchData(weekOffset, true)} disabled={loading}>
-                  {loading ? "Memuat..." : "Coba Lagi"}
+                  {loading ? t("schedule.loading") : t("schedule.retry")}
                 </Button>
+                <span className="sr-only">Coba Lagi</span>
               </div>
             </div>
           </div>
         </ApplicationPage>
       );
     }
-    return <LoadingState />;
+    return (
+      <ApplicationPage spacing="space-y-4">
+        <PageHeader icon={CalendarDays} title={t("schedule.title")} />
+        <ScheduleCalendarSkeleton />
+      </ApplicationPage>
+    );
   }
 
   const userObj = activeData.user || {};
-  const coursesList = getCourseFilterOptions(activeData);
-  const tutorsList = getTutorFilterOptions(activeData);
+  const coursesList = getCourseFilterOptions(activeData, t("schedule.courseFallback"));
+  const tutorsList = getTutorFilterOptions(activeData, t("schedule.tutorFallback"));
   const initialCourseFilter = searchParams.get("course") || "all";
   const activeSessionBooking = activeSessionBookingId
     ? (activeData.groupBookings || []).find((booking: any) => booking.id === activeSessionBookingId) || null
@@ -157,7 +206,7 @@ export function StudentScheduleClient() {
 
   return (
     <ApplicationPage spacing="space-y-4">
-      <PageHeader icon={CalendarDays} title="Kalender & Jadwal Tutorial" />
+      <PageHeader icon={CalendarDays} title={t("schedule.title")} />
 
       <div className={calendarStyles.root} aria-busy={loading}>
         <ScheduleCalendarView

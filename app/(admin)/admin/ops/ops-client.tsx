@@ -6,16 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
 import type { OpsMetrics } from "@/lib/ops-metrics";
+import { useTranslations } from "@/lib/i18n/client";
 
-function relativeTime(iso: string | null): string {
-  if (!iso) return "never";
+function relativeTime(iso: string | null, t: ReturnType<typeof useTranslations>): string {
+  if (!iso) return t("opsUI.never");
   const diffMs = Date.now() - new Date(iso).getTime();
   const diffMin = Math.floor(diffMs / 60_000);
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin} min ago`;
+  if (diffMin < 1) return t("opsUI.justNow");
+  if (diffMin < 60) return t("opsUI.minutes", { count: diffMin });
   const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
-  return `${Math.floor(diffH / 24)}d ago`;
+  if (diffH < 24) return t("opsUI.hours", { count: diffH });
+  return t("opsUI.days", { count: Math.floor(diffH / 24) });
 }
 
 type StatusLevel = "healthy" | "degraded" | "down";
@@ -27,8 +28,9 @@ const statusClass: Record<StatusLevel, string> = {
 };
 
 function StatusWord({ level }: { level: StatusLevel }) {
+  const t = useTranslations("adminOps");
   return (
-    <span className={`text-body-sm font-semibold ${statusClass[level]}`}>{level}</span>
+    <span className={`text-body-sm font-semibold ${statusClass[level]}`}>{t(`opsUI.status.${level}`)}</span>
   );
 }
 
@@ -60,17 +62,18 @@ function SectionHead({
   checkedAt,
 }: {
   title: string;
-  status: StatusLevel;
+  status?: StatusLevel;
   checkedAt: string;
 }) {
+  const t = useTranslations("adminOps");
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-3">
         <h2 className="font-heading text-body-base font-semibold text-foreground">{title}</h2>
-        <StatusWord level={status} />
+        {status && <StatusWord level={status} />}
       </div>
       <span className="text-body-sm text-muted-foreground">
-        checked {relativeTime(checkedAt)}
+        {t("opsUI.checked", { time: relativeTime(checkedAt, t) })}
       </span>
     </div>
   );
@@ -83,6 +86,7 @@ async function fetchMetrics(): Promise<OpsMetrics> {
 }
 
 export function OpsClient() {
+  const t = useTranslations("adminOps");
   const { data, isLoading, isFetching, error, refetch } = useQuery<OpsMetrics>({
     queryKey: ["ops-metrics"],
     queryFn: fetchMetrics,
@@ -92,32 +96,26 @@ export function OpsClient() {
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl space-y-8">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="space-y-3">
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-4 w-64" />
-          </div>
-        ))}
+      <div role="status" aria-label="Memuat" className="space-y-5">
+        <div className="flex justify-end"><Skeleton className="h-9 w-24" /></div>
+        <div className="divide-y divide-border rounded-xl border border-border bg-card px-4 sm:px-5">
+          {[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="space-y-3 py-4"><div className="flex justify-between gap-3"><Skeleton className="h-5 w-40" /><Skeleton className="h-4 w-20" /></div><div className="flex flex-wrap gap-6">{[0, 1, 2].map((stat) => <div key={stat} className="space-y-2"><Skeleton className="h-3 w-20" /><Skeleton className="h-5 w-14" /></div>)}</div></div>)}
+        </div>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <AdminErrorState message="Gagal memuat metrik operasional." onRetry={() => refetch()} />
+      <AdminErrorState message={t("opsUI.loadError")} onRetry={() => refetch()} />
     );
   }
 
-  const geminiStatus: StatusLevel =
-    data.gemini.reqToday > 240 ? "down" : data.gemini.reqToday > 200 ? "degraded" : "healthy";
-  const kvStatus: StatusLevel =
-    data.kv.writesToday > 900 ? "down" : data.kv.writesToday > 700 ? "degraded" : "healthy";
   const failureStatus: StatusLevel = data.jobFailures24h > 0 ? "degraded" : "healthy";
   const queueStatus: StatusLevel = data.syncQueueDepth > 100 ? "degraded" : "healthy";
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="space-y-5">
       <div className="flex justify-end">
         <Button
           variant="outline"
@@ -127,68 +125,48 @@ export function OpsClient() {
           className="flex items-center gap-2 text-body-sm text-muted-foreground hover:text-foreground transition-colors duration-150 cursor-pointer"
         >
           <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
-          Refresh
+          {t("opsUI.refresh")}
         </Button>
       </div>
 
-      <div className="divide-y divide-border">
+      <div className="divide-y divide-border rounded-xl border border-border bg-card px-4 sm:px-5">
         {/* 1. AI usage */}
-        <div className="py-4 first:pt-0 space-y-3">
-          <SectionHead title="AI usage" status={geminiStatus} checkedAt={data.checkedAt} />
+        <div className="py-4 space-y-3">
+          <SectionHead title={t("opsUI.aiUsage")} checkedAt={data.checkedAt} />
           <div className="flex flex-wrap gap-x-6 gap-y-3">
             <Stat
-              label="Model requests today"
+              label={t("opsUI.modelRequests")}
               value={data.gemini.reqToday}
-              unit="/ 250 free"
             />
-            <Stat label="cache hits today" value={data.gemini.cacheHitToday} />
-            <Stat label="cache hit rate" value={data.gemini.cacheHitPct} unit="%" />
+            <Stat label={t("opsUI.cacheHits")} value={data.gemini.cacheHitToday} />
+            <Stat label={t("opsUI.cacheRate")} value={data.gemini.cacheHitPct} unit="%" />
           </div>
           <p className="text-body-sm text-muted-foreground">
-            Budget: tutor {data.budgets.tutorPerDay}/day, feedback{" "}
-            {data.budgets.feedbackPerSubmission}/submission, summaries{" "}
-            {data.budgets.summariesPerDayPerUser}/day per user.
+            {t("opsUI.budget", { tutor: data.budgets.tutorPerDay, feedback: data.budgets.feedbackPerSubmission, summaries: data.budgets.summariesPerDayPerUser })}
           </p>
-        </div>
-
-        {/* 2. KV Writes */}
-        <div className="py-4 space-y-3">
-          <SectionHead title="KV Writes" status={kvStatus} checkedAt={data.checkedAt} />
-          <div className="flex flex-wrap gap-x-6 gap-y-3">
-            <Stat
-              label="writes today"
-              value={data.kv.writesToday}
-              unit={`/ ${data.kv.limit}`}
-            />
-            <Stat
-              label="headroom"
-              value={data.kv.limit - data.kv.writesToday}
-              unit="remaining"
-            />
-          </div>
         </div>
 
         {/* 3. Usage by Feature */}
         <div className="py-4 space-y-3">
-          <SectionHead title="Usage by Feature" status="healthy" checkedAt={data.checkedAt} />
+          <SectionHead title={t("opsUI.usageByFeature")} checkedAt={data.checkedAt} />
           {data.usageByFeature.length === 0 ? (
-            <AdminEmptyState compact title="Belum ada permintaan hari ini" />
+            <AdminEmptyState compact title={t("opsUI.noRequests")} />
           ) : (
             <div className="divide-y divide-border">
               {data.usageByFeature.map((row) => (
                 <div
                   key={row.feature}
-                  className="py-3 flex items-center justify-between gap-4"
+                  className="py-3 flex flex-wrap items-center justify-between gap-2"
                 >
-                  <span className="text-body-sm font-medium text-foreground">
+                  <span className="min-w-0 break-all text-body-sm font-medium text-foreground">
                     {row.feature}
                   </span>
-                  <div className="flex gap-6">
+                  <div className="flex flex-wrap gap-x-6 gap-y-1">
                     <span className="text-body-sm text-muted-foreground">
-                      {row.count} req
+                      {row.count} {t("opsUI.requests")}
                     </span>
                     <span className="text-body-sm text-muted-foreground">
-                      {row.tokens.toLocaleString()} tokens
+                      {row.tokens.toLocaleString()} {t("opsUI.tokens")}
                     </span>
                   </div>
                 </div>
@@ -200,49 +178,49 @@ export function OpsClient() {
         {/* 4. Job Failures */}
         <div className="py-4 space-y-3">
           <SectionHead
-            title="Job Failures (24 h)"
+            title={t("opsUI.jobFailures")}
             status={failureStatus}
             checkedAt={data.checkedAt}
           />
           <div className="flex flex-wrap gap-x-6 gap-y-3">
-            <Stat label="failed generation jobs" value={data.jobFailures24h} />
+            <Stat label={t("opsUI.failedJobs")} value={data.jobFailures24h} />
           </div>
         </div>
 
         {/* 5. Vector Sync Queue */}
         <div className="py-4 space-y-3">
           <SectionHead
-            title="Vector Sync Queue"
+            title={t("opsUI.vectorQueue")}
             status={queueStatus}
             checkedAt={data.checkedAt}
           />
           <div className="flex flex-wrap gap-x-6 gap-y-3">
-            <Stat label="pending items" value={data.syncQueueDepth} />
+            <Stat label={t("opsUI.pendingItems")} value={data.syncQueueDepth} />
           </div>
         </div>
 
         {/* 6. Job Health */}
         <div className="py-4 space-y-3">
-          <SectionHead title="Job Health" status="healthy" checkedAt={data.checkedAt} />
+          <SectionHead title={t("opsUI.jobHealth")} checkedAt={data.checkedAt} />
           <div className="divide-y divide-border">
-            <div className="py-3 flex items-center justify-between gap-4">
-              <span className="text-body-sm text-muted-foreground">Daily recommendations</span>
+            <div className="py-3 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-body-sm text-muted-foreground">{t("opsUI.dailyRecommendations")}</span>
               <span className="text-body-sm text-foreground">
-                {relativeTime(data.jobHealth.recommendationsLastAt)}
+                {relativeTime(data.jobHealth.recommendationsLastAt, t)}
               </span>
             </div>
-            <div className="py-3 flex items-center justify-between gap-4">
+            <div className="py-3 flex flex-wrap items-center justify-between gap-2">
               <span className="text-body-sm text-muted-foreground">
-                Course analytics snapshots
+                {t("opsUI.analyticsSnapshots")}
               </span>
               <span className="text-body-sm text-foreground">
-                {relativeTime(data.jobHealth.snapshotsLastAt)}
+                {relativeTime(data.jobHealth.snapshotsLastAt, t)}
               </span>
             </div>
-            <div className="py-3 flex items-center justify-between gap-4">
-              <span className="text-body-sm text-muted-foreground">Study paths</span>
+            <div className="py-3 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-body-sm text-muted-foreground">{t("opsUI.studyPaths")}</span>
               <span className="text-body-sm text-foreground">
-                {relativeTime(data.jobHealth.pathsLastAt)}
+                {relativeTime(data.jobHealth.pathsLastAt, t)}
               </span>
             </div>
           </div>

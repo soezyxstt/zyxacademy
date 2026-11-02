@@ -1,12 +1,14 @@
 "use client";
 
 import { CloudUpload, Images } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { MediaLibrary } from "@/components/admin/media-library";
 import { StorageBrowser } from "@/components/admin/storage-browser";
 
 export function MediaManager() {
+  const t = useTranslations("adminMedia");
   return (
     <Tabs defaultValue="media">
       <TabsList>
@@ -16,7 +18,7 @@ export function MediaManager() {
         </TabsTrigger>
         <TabsTrigger value="storage">
           <CloudUpload className="size-4" aria-hidden />
-          Storage R2
+          {t("storage.title")}
         </TabsTrigger>
       </TabsList>
       <TabsContent value="media">

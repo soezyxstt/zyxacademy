@@ -1,3 +1,4 @@
+import { FlowchartNodeKindSchema, type FlowchartNodeKind } from "./flowchart";
 import { 
   WebsiteMaterialAST, 
   ASTBlock, 
@@ -819,6 +820,13 @@ function parseBlockNode(
       const parsed = parseYamlLike(yamlLines);
       const edges: any[] = [];
       const nodeNames = new Set<string>();
+      const nodeKinds = new Map<string, FlowchartNodeKind>();
+      const readNode = (raw: string) => {
+        const suffix = raw.match(/\s+\[(start|end|input|output|process|decision)\]$/);
+        const name = (suffix ? raw.slice(0, suffix.index) : raw).trim().replace(/^"(.*)"$/, "$1");
+        if (suffix) nodeKinds.set(name, FlowchartNodeKindSchema.parse(suffix[1]));
+        return name;
+      };
 
       const cleanNodeName = (name: string): { label: string; stepNumber?: number } => {
         const match = name.match(/^(?:Langkah|Step|Phase|Stage)\s*(\d+)\s*[:.-]\s*(.+)$/i);
@@ -835,9 +843,11 @@ function parseBlockNode(
       edgeLines.forEach(line => {
         const match = line.match(edgeRegex);
         if (match) {
-          const rawSource = match[1].trim();
-          const label = (match[2] || match[3] || "").trim();
-          const rawTarget = match[4].trim();
+          const rawSource = readNode(match[1].trim());
+          const targetWithLabel = match[4].trim();
+          const trailingLabel = targetWithLabel.match(/\s+:\s+"([^"]*)"$/);
+          const label = (match[2] || match[3] || trailingLabel?.[1] || "").trim();
+          const rawTarget = readNode(trailingLabel ? targetWithLabel.slice(0, trailingLabel.index).trim() : targetWithLabel);
 
           const sourceId = rawSource.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-");
           const targetId = rawTarget.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-");
@@ -860,6 +870,7 @@ function parseBlockNode(
           id,
           label,
           stepNumber,
+          ...(nodeKinds.has(rawName) ? { kind: nodeKinds.get(rawName) } : {}),
         };
       });
 
@@ -1067,6 +1078,21 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
       continue;
     }
 
+    if (presenterType === "code") {
+      presenterLines.push(line);
+      if (trimmed.startsWith("```") && presenterLines.length > 1) {
+        flushPresenterBlock("code", presenterLines);
+        presenterLines = [];
+        presenterType = null;
+      }
+      continue;
+    }
+
+    // Ignore standalone HTML comments (e.g. Artikel v4 visual/coding anchors)
+    if (/^<!--[\s\S]*-->$/.test(trimmed)) {
+      continue;
+    }
+
     // Lists continuation parsing
     const listPattern = /^(\s*)([-*+]|\d+\.)\s+(.*)$/;
     if (listPattern.test(line)) {
@@ -1143,17 +1169,22 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
       continue;
     }
 
-    if (trimmed.startsWith("$$")) {
+    // A display formula can begin mid-paragraph; its closing delimiter is not a new block.
+    const closesParagraphMath = presenterType === "p" && trimmed.startsWith("$$") &&
+      (presenterLines.join("\n").replace(/`[^`]*`/g, "").match(/(?<!\\)\$\$/g)?.length ?? 0) % 2 === 1;
+    if (!closesParagraphMath && (trimmed === "$" || trimmed.startsWith("$$") || trimmed.startsWith("\\[") || /^\$[^$]+\$$/.test(trimmed))) {
       // Flush presenter block first
-      if (presenterType && presenterType !== "code") {
+      if (presenterType) {
         flushPresenterBlock(presenterType, presenterLines);
         presenterLines = [];
         presenterType = null;
       }
 
+      const openDelim = trimmed.startsWith("$$") ? "$$" : trimmed.startsWith("$") ? "$" : "\\[";
+      const closeDelim = openDelim === "\\[" ? "\\]" : openDelim;
       const mathLines: string[] = [];
-      if (trimmed.endsWith("$$") && trimmed.length > 2) {
-        mathLines.push(trimmed.slice(2, -2).trim());
+      if (trimmed.endsWith(closeDelim) && trimmed.length > openDelim.length + closeDelim.length) {
+        mathLines.push(trimmed.slice(openDelim.length, -closeDelim.length).trim());
         blocks.push({
           id: `md-${globalIndex}-mathblk`,
           type: "p",
@@ -1161,8 +1192,21 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
           content: `$$${mathLines[0]}$$`,
         });
       } else {
+        const firstLineRest = trimmed.slice(openDelim.length).trim();
+        if (firstLineRest) {
+          mathLines.push(firstLineRest);
+        }
         i++;
-        while (i < lines.length && !lines[i].trim().startsWith("$$")) {
+        while (i < lines.length) {
+          const lineTrimmed = lines[i].trim();
+          if (lineTrimmed === closeDelim || lineTrimmed.startsWith(closeDelim)) {
+            break;
+          }
+          if (lineTrimmed.endsWith(closeDelim)) {
+            const beforeClose = lineTrimmed.slice(0, -closeDelim.length).trim();
+            if (beforeClose) mathLines.push(beforeClose);
+            break;
+          }
           mathLines.push(lines[i]);
           i++;
         }
@@ -1178,7 +1222,7 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
 
     // Normal markdown line parsing
     if (!trimmed) {
-      if (presenterType && presenterType !== "code") {
+      if (presenterType) {
         flushPresenterBlock(presenterType, presenterLines);
         presenterLines = [];
         presenterType = null;
@@ -1200,16 +1244,6 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
       lineType = "list";
     } else if (trimmed === "---" || trimmed === "***" || trimmed === "___") {
       lineType = "hr";
-    }
-
-    if (presenterType === "code") {
-      presenterLines.push(line);
-      if (trimmed.startsWith("```") && presenterLines.length > 1) {
-        flushPresenterBlock("code", presenterLines);
-        presenterLines = [];
-        presenterType = null;
-      }
-      continue;
     }
 
     if (presenterType && presenterType !== lineType) {

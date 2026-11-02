@@ -4,23 +4,23 @@ import { History, BookOpen, CheckCircle2, ClipboardList, Target } from "lucide-r
 import { RecentActivityData } from "@/types/course-learning";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { cn } from "@/lib/utils";
+import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 
-function formatRelativeTime(isoString: string): string {
+function formatRelativeTime(isoString: string, locale: "id" | "en", t: ReturnType<typeof useTranslations>): string {
   try {
     const date = new Date(isoString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
-    if (diffMs < 0) return "Baru saja";
+    if (diffMs < 0) return t("course.recentActivity.justNow");
     const diffMins = Math.floor(diffMs / (60 * 1000));
-    if (diffMins < 1) return "Baru saja";
-    if (diffMins < 60) return `${diffMins} menit yang lalu`;
+    if (diffMins < 1) return t("course.recentActivity.justNow");
+    if (diffMins < 60) return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-diffMins, "minute");
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours} jam yang lalu`;
+    if (diffHours < 24) return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-diffHours, "hour");
     const diffDays = Math.floor(diffHours / 24);
-    if (diffDays === 1) return "Kemarin";
-    return `${diffDays} hari yang lalu`;
+    return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-diffDays, "day");
   } catch {
-    return "Baru-baru ini";
+    return t("course.recentActivity.recently");
   }
 }
 
@@ -58,6 +58,8 @@ export function RecentActivityCard({
   data,
   isLoading = false,
 }: RecentActivityCardProps) {
+  const t = useTranslations("studentCourse");
+  const { locale } = useAppLocale();
   if (isLoading) {
     return <RecentActivitySkeleton />;
   }
@@ -81,7 +83,7 @@ export function RecentActivityCard({
     <div className={cn(studentCardClass(), "w-full")}>
       <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2 mb-2">
         <History className="size-4.5 text-brand-primary" aria-hidden="true" />
-        Aktivitas Terbaru
+        {t("course.recentActivity.title")}
       </h3>
 
       {!isEmpty ? (
@@ -104,14 +106,14 @@ export function RecentActivityCard({
                 </div>
               </div>
               <span className="text-body-xs text-muted-foreground shrink-0 mt-0.5">
-                {formatRelativeTime(activity.timestamp)}
+                {formatRelativeTime(activity.timestamp, locale, t)}
               </span>
             </div>
           ))}
         </div>
       ) : (
         <div className="py-8 text-center animate-in fade-in duration-300">
-          <p className="text-body-sm text-muted-foreground">Belum ada aktivitas belajar.</p>
+          <p className="text-body-sm text-muted-foreground">{t("course.recentActivity.empty")}</p>
         </div>
       )}
     </div>

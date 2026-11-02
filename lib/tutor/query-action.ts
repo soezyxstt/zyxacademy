@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { PromptExecutor, type SystemPrompt } from "@/lib/prompt-executor";
 import { USE_CASES } from "@/lib/ai-router";
+import type { Locale } from "@/lib/i18n/locale";
 
 export type QueryActionType =
   | "retrieve"
@@ -17,6 +18,34 @@ export type ResponseModifier =
   | "english"
   | "graph"
   | "flowchart";
+
+export type ResponseLanguage = Locale;
+
+export function resolveResponseLanguage(input: {
+  requestedLanguage?: unknown;
+  responseModifiers?: readonly ResponseModifier[];
+}): ResponseLanguage {
+  const requested = input.requestedLanguage === "en" ? "en" : "id";
+  if (input.responseModifiers?.includes("english")) return "en";
+  if (input.responseModifiers?.includes("indonesian")) return "id";
+  return requested;
+}
+
+export function responseLanguageFromHistory(history: readonly ConversationTurn[]): ResponseLanguage | null {
+  for (const turn of [...history].reverse()) {
+    if (turn.role !== "student") continue;
+    const modifiers = extractStyleModifiers(turn.content).modifiers;
+    if (modifiers.includes("english")) return "en";
+    if (modifiers.includes("indonesian")) return "id";
+  }
+  return null;
+}
+
+export function responseLanguageInstruction(language: ResponseLanguage): string {
+  return language === "en"
+    ? "Write all learner-facing prose and generated canvas labels, captions, alt text, and fallback summaries in clear international English. Keep source titles, source text, citations, formulas, symbols, and assessment controls unchanged."
+    : "Tulis semua prosa untuk pelajar serta label canvas, teks alternatif, dan ringkasan fallback dalam Bahasa Indonesia yang jelas. Pertahankan judul dan isi sumber, sitasi, rumus, simbol, dan batasan asesmen apa adanya.";
+}
 
 export type TopicContinuity = "same" | "changed" | "uncertain";
 
@@ -105,7 +134,7 @@ const STYLE_PATTERNS: Array<{ regex: RegExp; modifier: ResponseModifier }> = [
 
 const GREETING_META_REGEX = /^(terima kasih|makasih|thanks|thank you|halo|hai|hi|siapa kamu|siapa anda|oke|ok|siap|paham|baik|mantap)\b/i;
 
-const PRONOUN_AMBIGUOUS_REGEX = /^(maksudnya\??|kenapa\??|mengapa\??|bisa bantu\??|maksudnya gimana\??|itu apa\??|dia apa\??)$/i;
+const PRONOUN_AMBIGUOUS_REGEX = /^(maksudnya\??|kenapa\??|mengapa\??|bisa bantu\??|maksudnya gimana\??|itu apa\??|dia apa\??|(?:jelaskan|terangkan) (?:itu|ini)(?: dong)?[?.!]*|explain (?:it|this)[?.!]*)$/i;
 
 const INJECTION_PATTERNS = /\b(ignore|previous|instructions|system prompt|jailbreak|disregard|dan abaikan|abaikan instruksi)\b/gi;
 
@@ -200,10 +229,15 @@ export async function classifyQueryAction(
 
   // 4. Conversation history exists: check for deterministic style follow-up on same topic
   const studentMessages = history.filter((m) => m.role === "student");
-  const lastStudentMsg = studentMessages[studentMessages.length - 1]?.content || "";
+  const lastStudentMsg = [...studentMessages].reverse().find((message) => {
+    const text = message.content.trim();
+    return !PRONOUN_AMBIGUOUS_REGEX.test(text)
+      && !GREETING_META_REGEX.test(text)
+      && extractStyleModifiers(text).cleanedText.length >= 3;
+  })?.content || studentMessages[studentMessages.length - 1]?.content || "";
   const lastTopicCleaned = extractStyleModifiers(lastStudentMsg).cleanedText;
 
-  if (modifiers.length > 0 && (cleanedText.length < 4 || PRONOUN_AMBIGUOUS_REGEX.test(rawQuestion))) {
+  if ((modifiers.length > 0 && cleanedText.length < 4) || PRONOUN_AMBIGUOUS_REGEX.test(rawQuestion)) {
     return {
       action: "reuse_previous_evidence",
       contentFocus: sanitizeTopicFocus(lastTopicCleaned || lastStudentMsg || rawQuestion),

@@ -8,9 +8,8 @@ import {
   studyPaths,
 } from "@/db/schema";
 import { sql, eq, gte, and, ne } from "drizzle-orm";
-import { kvGet } from "@/lib/kv-cache";
 import { BUDGETS } from "@/lib/usage-budget-service";
-import { toIsoTimestamp, startOfDay, todayUtc } from "@/lib/date-utils";
+import { toIsoTimestamp, startOfDayUtc } from "@/lib/date-utils";
 
 export { BUDGETS };
 
@@ -32,10 +31,6 @@ export interface OpsMetrics {
     cacheHitToday: number;
     cacheHitPct: number;
   };
-  kv: {
-    writesToday: number;
-    limit: number;
-  };
   usageByFeature: FeatureRollup[];
   jobFailures24h: number;
   syncQueueDepth: number;
@@ -46,11 +41,10 @@ export interface OpsMetrics {
 
 export async function getOpsMetrics(): Promise<OpsMetrics> {
   const now = new Date();
-  const dayStart = startOfDay(now);
+  const dayStart = startOfDayUtc(now);
   const h24Ago = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const todayKey = `meta:writes:${todayUtc()}`;
 
-  const [usageRows, syncDepthRows, failureRows, latestRecRows, latestSnapshotRows, latestPathRows, kvWriteRaw] =
+  const [usageRows, syncDepthRows, failureRows, latestRecRows, latestSnapshotRows, latestPathRows] =
     await Promise.all([
       db
         .select({
@@ -95,7 +89,6 @@ export async function getOpsMetrics(): Promise<OpsMetrics> {
         .select({ at: sql<number | null>`max(${studyPaths.computedAt})` })
         .from(studyPaths),
 
-      kvGet<number>(todayKey),
     ]);
 
   // Aggregate usage rows: split cache hits from real AI requests
@@ -123,12 +116,8 @@ export async function getOpsMetrics(): Promise<OpsMetrics> {
   const total = reqToday + cacheHitToday;
   const cacheHitPct = total > 0 ? Math.round((cacheHitToday / total) * 100) : 0;
 
-  const rawCount = typeof kvWriteRaw === "number" ? kvWriteRaw : Number(kvWriteRaw ?? 0);
-  const writesToday = isNaN(rawCount) ? 0 : rawCount;
-
   return {
     gemini: { reqToday, cacheHitToday, cacheHitPct },
-    kv: { writesToday, limit: 1000 },
     usageByFeature,
     jobFailures24h: Number(failureRows[0]?.count ?? 0),
     syncQueueDepth: Number(syncDepthRows[0]?.count ?? 0),

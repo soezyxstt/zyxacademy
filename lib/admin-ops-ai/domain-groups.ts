@@ -5,11 +5,10 @@ import {
   groupMembers,
   enrollmentTokens,
   enrollmentTokenCourses,
-  courses,
   user,
   studentQuizAttempts,
 } from "@/db/schema";
-import { eq, desc, inArray, and, like, or } from "drizzle-orm";
+import { eq, desc, like, or } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { getSemesterEndDate } from "@/lib/utils";
 import { PACKAGE_PRESETS, type PackageType } from "@/lib/group-constants";
@@ -151,7 +150,7 @@ export interface AssignTutorToGroupInput {
   tutorId: string;
 }
 
-export async function executeAssignTutorToGroup(input: AssignTutorToGroupInput, actorId?: string) {
+export async function executeAssignTutorToGroup(input: AssignTutorToGroupInput, _actorId?: string) {
   const groupId = input.groupId.trim();
   const tutorId = input.tutorId.trim();
   if (!groupId) throw new Error("ID Kelompok wajib diisi.");
@@ -184,7 +183,7 @@ export interface CreateEnrollmentTokenInput {
   packageType?: PackageType;
 }
 
-export async function executeCreateEnrollmentToken(input: CreateEnrollmentTokenInput, actorId?: string) {
+export async function executeCreateEnrollmentToken(input: CreateEnrollmentTokenInput, _actorId?: string) {
   const rawCourses = input.courseIds.map((s) => s.trim().toLowerCase()).filter(Boolean);
   if (rawCourses.length === 0) throw new Error("Pilih setidaknya satu mata kuliah.");
 

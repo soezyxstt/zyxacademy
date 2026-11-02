@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "@/lib/i18n/client";
 import { useTutor } from "@/components/course/tutor-drawer";
 
 /**
@@ -15,6 +16,7 @@ export function MistakeFeedbackButton({
   selectedAnswer: string;
 }) {
   const { openMistake } = useTutor();
+  const t = useTranslations("studentExtras.pka");
 
   return (
     <Button
@@ -24,7 +26,7 @@ export function MistakeFeedbackButton({
       className="rounded-lg"
       onClick={() => openMistake(questionId, selectedAnswer)}
     >
-      Tanya Zyra soal ini
+      {t("askZyra")}
     </Button>
   );
 }

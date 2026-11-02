@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { FlowchartNodeKindSchema } from "@/lib/flowchart";
 
 export const LEARNING_CANVAS_VERSION = "zyra-learning-canvas-v1";
 export const LEARNING_CANVAS_CAPABILITY_VERSION = "canvas-capabilities-v1";
@@ -144,6 +145,7 @@ export type TableCanvas = z.infer<typeof TableCanvasSchema>;
 const DiagramNodeSchema = z.object({
   id: IdentifierSchema,
   label: LabelSchema,
+  kind: FlowchartNodeKindSchema.optional(),
 }).strict();
 const DiagramEdgeSchema = z.object({
   source: IdentifierSchema,

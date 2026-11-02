@@ -1,20 +1,17 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useTranslations } from "@/lib/i18n/client";
 import {
   Layers,
   Plus,
-  Search,
   Trash2,
   Pencil,
-  FileQuestion,
   ChevronDown,
   ChevronRight,
   BookOpen,
   CheckCircle2,
   AlertCircle,
-  HelpCircle,
-  RefreshCw,
   FolderPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -80,11 +77,11 @@ type Props = {
 
 export function FlashcardsTab({
   courseId,
-  courseTitle,
   courseSlug,
   chapters,
   initialSets,
 }: Props) {
+  const t = useTranslations("adminAcademic");
   const [sets, setSets] = useState<AdminFlashcardSet[]>(initialSets);
   const [search, setSearch] = useState("");
   const [chapterFilter, setChapterFilter] = useState("all");
@@ -215,7 +212,7 @@ export function FlashcardsTab({
   const handleSaveSet = () => {
     const title = setTitle.trim();
     if (!title) {
-      toast.error("Judul set flashcard wajib diisi");
+      toast.error(t("courseDetail.flashcards.errors.setTitleRequired"));
       return;
     }
     const babId = setChapterId === "none" ? null : setChapterId;
@@ -230,7 +227,7 @@ export function FlashcardsTab({
           status: setStatus,
         });
         if (res.success) {
-          toast.success("Set flashcard berhasil diperbarui");
+          toast.success(t("courseDetail.flashcards.success.setUpdated"));
           setSets((prev) =>
             prev.map((s) =>
               s.id === editingSet.id
@@ -249,7 +246,7 @@ export function FlashcardsTab({
           );
           setSetDialogOpen(false);
         } else {
-          toast.error(res.error || "Gagal memperbarui set");
+          toast.error(t("courseDetail.flashcards.errors.setUpdate"));
         }
       } else {
         const res = await createFlashcardSetAction({
@@ -260,7 +257,7 @@ export function FlashcardsTab({
           status: setStatus,
         });
         if (res.success && res.setId) {
-          toast.success("Set flashcard berhasil dibuat");
+          toast.success(t("courseDetail.flashcards.success.setCreated"));
           const newSet: AdminFlashcardSet = {
             id: res.setId,
             title,
@@ -278,7 +275,7 @@ export function FlashcardsTab({
           setExpandedSets((prev) => new Set([...prev, res.setId!]));
           setSetDialogOpen(false);
         } else {
-          toast.error(res.error || "Gagal membuat set");
+          toast.error(t("courseDetail.flashcards.errors.setCreate"));
         }
       }
     });
@@ -288,7 +285,7 @@ export function FlashcardsTab({
   const handleOpenNewCard = (setId?: string) => {
     const activeSetId = setId || (sets[0] ? sets[0].id : "");
     if (!activeSetId) {
-      toast.error("Buat set flashcard terlebih dahulu");
+      toast.error(t("courseDetail.flashcards.errors.createSetFirst"));
       return;
     }
     setEditingCard(null);
@@ -315,11 +312,11 @@ export function FlashcardsTab({
     const front = cardFront.trim();
     const back = cardBack.trim();
     if (!front || !back) {
-      toast.error("Sisi depan dan belakang kartu wajib diisi");
+      toast.error(t("courseDetail.flashcards.errors.cardSidesRequired"));
       return;
     }
     if (!targetSetId) {
-      toast.error("Pilih set flashcard terlebih dahulu");
+      toast.error(t("courseDetail.flashcards.errors.selectSetFirst"));
       return;
     }
 
@@ -335,7 +332,7 @@ export function FlashcardsTab({
           status: cardStatus,
         });
         if (res.success) {
-          toast.success("Flashcard berhasil diperbarui");
+          toast.success(t("courseDetail.flashcards.success.cardUpdated"));
           setSets((prev) => {
             const oldSetId = editingCard.setId;
             const newSetId = targetSetId;
@@ -380,7 +377,7 @@ export function FlashcardsTab({
           });
           setCardDialogOpen(false);
         } else {
-          toast.error(res.error || "Gagal memperbarui flashcard");
+          toast.error(t("courseDetail.flashcards.errors.cardUpdate"));
         }
       } else {
         const res = await createFlashcardAction({
@@ -392,7 +389,7 @@ export function FlashcardsTab({
           status: cardStatus === "retired" ? "published" : cardStatus,
         });
         if (res.success && res.cardId) {
-          toast.success("Flashcard berhasil ditambahkan");
+          toast.success(t("courseDetail.flashcards.success.cardAdded"));
           const newCard: AdminFlashcardCard = {
             id: res.cardId,
             setId: targetSetId,
@@ -412,7 +409,7 @@ export function FlashcardsTab({
           );
           setCardDialogOpen(false);
         } else {
-          toast.error(res.error || "Gagal menambahkan flashcard");
+          toast.error(t("courseDetail.flashcards.errors.cardCreate"));
         }
       }
     });
@@ -429,11 +426,11 @@ export function FlashcardsTab({
           setId: deleteTarget.id,
         });
         if (res.success) {
-          toast.success("Set flashcard berhasil dihapus");
+          toast.success(t("courseDetail.flashcards.success.setDeleted"));
           setSets((prev) => prev.filter((s) => s.id !== deleteTarget.id));
           setDeleteTarget(null);
         } else {
-          toast.error(res.error || "Gagal menghapus set flashcard");
+          toast.error(t("courseDetail.flashcards.errors.setDelete"));
         }
       } else {
         const res = await deleteFlashcardAction({
@@ -441,7 +438,7 @@ export function FlashcardsTab({
           id: deleteTarget.id,
         });
         if (res.success) {
-          toast.success("Flashcard berhasil dihapus");
+          toast.success(t("courseDetail.flashcards.success.cardDeleted"));
           setSets((prev) =>
             prev.map((s) =>
               s.id === deleteTarget.setId
@@ -451,7 +448,7 @@ export function FlashcardsTab({
           );
           setDeleteTarget(null);
         } else {
-          toast.error(res.error || "Gagal menghapus flashcard");
+          toast.error(t("courseDetail.flashcards.errors.cardDelete"));
         }
       }
     });
@@ -463,38 +460,38 @@ export function FlashcardsTab({
       <AdminStatStrip className="grid-cols-2 lg:grid-cols-4">
         <AdminStatStripItem
           icon={Layers}
-          label="Total set"
+          label={t("courseDetail.flashcards.stats.totalSets")}
           value={totalSets}
-          caption="Set kartu terdaftar"
+          caption={t("courseDetail.flashcards.stats.registeredSets")}
         />
         <AdminStatStripItem
           icon={BookOpen}
-          label="Total kartu"
+          label={t("courseDetail.flashcards.stats.totalCards")}
           value={totalCards}
-          caption="Seluruh kartu flashcard"
+          caption={t("courseDetail.flashcards.stats.allCards")}
         />
         <AdminStatStripItem
           icon={CheckCircle2}
-          label="Published"
+          label={t("courseDetail.flashcards.status.published")}
           value={publishedCards}
           tone="success"
-          caption="Dapat diakses murid"
+          caption={t("courseDetail.flashcards.stats.availableToStudents")}
         />
         <AdminStatStripItem
           icon={AlertCircle}
-          label="Draft"
+          label={t("courseDetail.flashcards.status.draft")}
           value={draftCards}
           tone="default"
-          caption="Belum dipublikasikan"
+          caption={t("courseDetail.flashcards.stats.notPublished")}
         />
       </AdminStatStrip>
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
+        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[140px]">
           <SearchBar
             size="sm"
-            placeholder="Cari konsep, pertanyaan, atau pembahasan..."
+            placeholder={t("courseDetail.flashcards.search")}
             value={search}
             onSearch={setSearch}
             onClear={() => setSearch("")}
@@ -503,14 +500,14 @@ export function FlashcardsTab({
 
           <Select value={chapterFilter} onValueChange={setChapterFilter}>
             <SelectTrigger className="w-[160px] h-9 text-body-sm rounded-lg shrink-0">
-              <SelectValue placeholder="Semua bab" />
+              <SelectValue placeholder={t("courseDetail.flashcards.allChapters")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua bab</SelectItem>
-              <SelectItem value="unassigned">Tanpa bab</SelectItem>
+              <SelectItem value="all">{t("courseDetail.flashcards.allChapters")}</SelectItem>
+              <SelectItem value="unassigned">{t("courseDetail.flashcards.unassigned")}</SelectItem>
               {chapters.map((ch) => (
                 <SelectItem key={ch.id} value={ch.id}>
-                  Bab {ch.orderIndex}: {ch.title}
+                  {t("courseDetail.chapters.orderWithNumber", { number: ch.orderIndex })}: {ch.title}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -518,18 +515,18 @@ export function FlashcardsTab({
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[140px] h-9 text-body-sm rounded-lg shrink-0">
-              <SelectValue placeholder="Semua status" />
+              <SelectValue placeholder={t("courseDetail.flashcards.allStatuses")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua status</SelectItem>
-              <SelectItem value="published">Published</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="retired">Retired</SelectItem>
+              <SelectItem value="all">{t("courseDetail.flashcards.allStatuses")}</SelectItem>
+              <SelectItem value="published">{t("courseDetail.flashcards.status.published")}</SelectItem>
+              <SelectItem value="draft">{t("courseDetail.flashcards.status.draft")}</SelectItem>
+              <SelectItem value="retired">{t("courseDetail.flashcards.status.retired")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -537,7 +534,7 @@ export function FlashcardsTab({
             className="text-body-sm rounded-lg"
           >
             <FolderPlus className="size-4 mr-1.5" />
-            Tambah set
+            {t("courseDetail.flashcards.addSet")}
           </Button>
 
           <Button
@@ -546,7 +543,7 @@ export function FlashcardsTab({
             className="text-body-sm rounded-lg"
           >
             <Plus className="size-4 mr-1.5" />
-            Tambah kartu
+            {t("courseDetail.flashcards.addCard")}
           </Button>
         </div>
       </div>
@@ -555,17 +552,17 @@ export function FlashcardsTab({
       {filteredSets.length === 0 ? (
         <AdminEmptyState
           icon={Layers}
-          title={sets.length === 0 ? "Belum ada flashcard" : "Tidak ada hasil"}
+          title={sets.length === 0 ? t("courseDetail.flashcards.emptyTitle") : t("courseDetail.flashcards.noResults")}
           description={
             sets.length === 0
-              ? "Mata kuliah ini belum memiliki set flashcard. Buat set pertama untuk menambahkan kartu hafalan konsep."
-              : "Tidak ada kartu atau set yang sesuai dengan filter pencarian saat ini."
+              ? t("courseDetail.flashcards.emptyDescription")
+              : t("courseDetail.flashcards.noResultsDescription")
           }
           action={
             sets.length === 0 ? (
               <Button onClick={handleOpenNewSet} size="sm" className="mt-2 text-body-sm rounded-lg">
                 <Plus className="size-4 mr-1.5" />
-                Buat set flashcard
+                {t("courseDetail.flashcards.createSet")}
               </Button>
             ) : undefined
           }
@@ -588,7 +585,7 @@ export function FlashcardsTab({
                     <button
                       type="button"
                       className="text-muted-foreground hover:text-foreground shrink-0"
-                      aria-label={isExpanded ? "Tutup set" : "Buka set"}
+                      aria-label={isExpanded ? t("courseDetail.flashcards.collapseSet") : t("courseDetail.flashcards.expandSet")}
                     >
                       {isExpanded ? (
                         <ChevronDown className="size-5" />
@@ -647,7 +644,7 @@ export function FlashcardsTab({
                             Kartu
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Tambah kartu ke set ini</TooltipContent>
+                        <TooltipContent>{t("courseDetail.flashcards.addCardToSet")}</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
 
@@ -658,13 +655,13 @@ export function FlashcardsTab({
                             variant="ghost"
                             size="icon"
                             className="size-8 rounded-lg"
-                            aria-label="Edit set"
+                            aria-label={t("courseDetail.flashcards.editSet")}
                             onClick={() => handleOpenEditSet(set)}
                           >
                             <Pencil className="size-3.5" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Edit set</TooltipContent>
+                        <TooltipContent>{t("courseDetail.flashcards.editSet")}</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
 
@@ -675,7 +672,7 @@ export function FlashcardsTab({
                             variant="ghost"
                             size="icon"
                             className="size-8 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
-                            aria-label="Hapus set"
+                            aria-label={t("courseDetail.flashcards.deleteSet")}
                             onClick={() =>
                               setDeleteTarget({
                                 type: "set",
@@ -687,7 +684,7 @@ export function FlashcardsTab({
                             <Trash2 className="size-3.5" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Hapus set</TooltipContent>
+                        <TooltipContent>{t("courseDetail.flashcards.deleteSet")}</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   </div>
@@ -740,7 +737,7 @@ export function FlashcardsTab({
                                     variant="ghost"
                                     size="icon"
                                     className="size-7 rounded-md"
-                                    aria-label="Edit kartu"
+                            aria-label={t("courseDetail.flashcards.editCard")}
                                     onClick={() => handleOpenEditCard(card, set.id)}
                                   >
                                     <Pencil className="size-3" />
@@ -749,7 +746,7 @@ export function FlashcardsTab({
                                     variant="ghost"
                                     size="icon"
                                     className="size-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
-                                    aria-label="Hapus kartu"
+                            aria-label={t("courseDetail.flashcards.deleteCard")}
                                     onClick={() =>
                                       setDeleteTarget({
                                         type: "card",
@@ -811,18 +808,18 @@ export function FlashcardsTab({
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle>
-              {editingSet ? "Edit set flashcard" : "Tambah set flashcard"}
+              {editingSet ? t("courseDetail.flashcards.editSetTitle") : t("courseDetail.flashcards.addSetTitle")}
             </DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground">
-              Set flashcard mengelompokkan kartu hafalan untuk satu bab atau materi.
+              {t("courseDetail.flashcards.setDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label className="text-body-sm font-semibold">Judul set</Label>
+              <Label className="text-body-sm font-semibold">{t("courseDetail.flashcards.setTitle")}</Label>
               <Input
-                placeholder="misal: Flashcard Bab 1 Limit dan Kontinuitas"
+                placeholder={t("courseDetail.flashcards.setTitlePlaceholder")}
                 value={setTitle}
                 onChange={(e) => setSetTitle(e.target.value)}
                 className="text-body-sm rounded-lg"
@@ -830,16 +827,16 @@ export function FlashcardsTab({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-body-sm font-semibold">Kaitkan ke bab</Label>
+              <Label className="text-body-sm font-semibold">{t("courseDetail.flashcards.linkChapter")}</Label>
               <Select value={setChapterId} onValueChange={setSetChapterId}>
                 <SelectTrigger className="w-full text-body-sm rounded-lg">
-                  <SelectValue placeholder="Pilih bab" />
+                  <SelectValue placeholder={t("documents.selectChapter")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Tanpa bab (umum)</SelectItem>
+                  <SelectItem value="none">{t("courseDetail.flashcards.noChapter")}</SelectItem>
                   {chapters.map((ch) => (
                     <SelectItem key={ch.id} value={ch.id}>
-                      Bab {ch.orderIndex}: {ch.title}
+                      {t("courseDetail.chapters.orderWithNumber", { number: ch.orderIndex })}: {ch.title}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -847,7 +844,7 @@ export function FlashcardsTab({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-body-sm font-semibold">Status</Label>
+              <Label className="text-body-sm font-semibold">{t("courseDetail.flashcards.statusLabel")}</Label>
               <Select
                 value={setStatus}
                 onValueChange={(val) => setSetStatus(val as "draft" | "published")}
@@ -856,8 +853,8 @@ export function FlashcardsTab({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="published">Published</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="published">{t("courseDetail.flashcards.status.published")}</SelectItem>
+                  <SelectItem value="draft">{t("courseDetail.flashcards.status.draft")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -871,7 +868,7 @@ export function FlashcardsTab({
               disabled={isPending}
               className="text-body-sm rounded-lg"
             >
-              Batal
+              {t("common.cancel")}
             </Button>
             <Button
               size="sm"
@@ -879,7 +876,7 @@ export function FlashcardsTab({
               disabled={isPending}
               className="text-body-sm rounded-lg"
             >
-              {isPending ? "Menyimpan..." : editingSet ? "Simpan perubahan" : "Buat set"}
+              {isPending ? t("courseDetail.flashcards.saving") : editingSet ? t("courseDetail.flashcards.saveChanges") : t("courseDetail.flashcards.createSet")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -890,19 +887,19 @@ export function FlashcardsTab({
         <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingCard ? "Edit kartu flashcard" : "Tambah kartu flashcard"}
+              {editingCard ? t("courseDetail.flashcards.editCardTitle") : t("courseDetail.flashcards.addCardTitle")}
             </DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground">
-              Tulis pertanyaan di sisi depan dan jawaban di sisi belakang. Gunakan format LaTeX $...$ untuk rumus matematika.
+              {t("courseDetail.flashcards.cardDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label className="text-body-sm font-semibold">Set flashcard</Label>
+              <Label className="text-body-sm font-semibold">{t("courseDetail.flashcards.setLabel")}</Label>
               <Select value={targetSetId} onValueChange={setTargetSetId}>
                 <SelectTrigger className="w-full text-body-sm rounded-lg">
-                  <SelectValue placeholder="Pilih set" />
+                  <SelectValue placeholder={t("courseDetail.flashcards.selectSet")} />
                 </SelectTrigger>
                 <SelectContent>
                   {sets.map((s) => (
@@ -915,18 +912,18 @@ export function FlashcardsTab({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-body-sm font-semibold">Sisi depan (konsep atau pertanyaan)</Label>
+              <Label className="text-body-sm font-semibold">{t("courseDetail.flashcards.frontSide")}</Label>
               <Textarea
-                placeholder="misal: Berapakah nilai $\lim_{x \to 0} \frac{\sin x}{x}$?"
+                placeholder={t("courseDetail.flashcards.frontPlaceholder")}
                 value={cardFront}
                 onChange={(e) => setCardFront(e.target.value)}
                 rows={3}
-                className="text-body-sm rounded-lg font-mono text-xs"
+                className="text-body-sm rounded-lg font-mono"
               />
               {cardFront.trim() && (
                 <div className="rounded-md bg-muted/40 p-2.5 border border-border/60 text-body-sm">
                   <span className="text-body-2xs font-semibold text-muted-foreground block mb-1">
-                    Preview tampilan depan:
+                    {t("courseDetail.flashcards.frontPreview")}
                   </span>
                   <MathText>{cardFront}</MathText>
                 </div>
@@ -934,18 +931,18 @@ export function FlashcardsTab({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-body-sm font-semibold">Sisi belakang (jawaban)</Label>
+              <Label className="text-body-sm font-semibold">{t("courseDetail.flashcards.backSide")}</Label>
               <Textarea
-                placeholder="misal: $1$"
+                placeholder={t("courseDetail.flashcards.backPlaceholder")}
                 value={cardBack}
                 onChange={(e) => setCardBack(e.target.value)}
                 rows={3}
-                className="text-body-sm rounded-lg font-mono text-xs"
+                className="text-body-sm rounded-lg font-mono"
               />
               {cardBack.trim() && (
                 <div className="rounded-md bg-muted/40 p-2.5 border border-border/60 text-body-sm">
                   <span className="text-body-2xs font-semibold text-muted-foreground block mb-1">
-                    Preview tampilan belakang:
+                    {t("courseDetail.flashcards.backPreview")}
                   </span>
                   <MathText>{cardBack}</MathText>
                 </div>
@@ -953,18 +950,18 @@ export function FlashcardsTab({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-body-sm font-semibold">Penjelasan tambahan (opsional)</Label>
+              <Label className="text-body-sm font-semibold">{t("courseDetail.flashcards.extraExplanation")}</Label>
               <Textarea
-                placeholder="misal: Gunakan aturan L'Hopital atau pendekatan deret Taylor."
+                placeholder={t("courseDetail.flashcards.explanationPlaceholder")}
                 value={cardExplanation}
                 onChange={(e) => setCardExplanation(e.target.value)}
                 rows={2}
-                className="text-body-sm rounded-lg font-mono text-xs"
+                className="text-body-sm rounded-lg font-mono"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-body-sm font-semibold">Status</Label>
+              <Label className="text-body-sm font-semibold">{t("courseDetail.flashcards.statusLabel")}</Label>
               <Select
                 value={cardStatus}
                 onValueChange={(val) =>
@@ -975,9 +972,9 @@ export function FlashcardsTab({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="published">Published</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="retired">Retired</SelectItem>
+                  <SelectItem value="published">{t("courseDetail.flashcards.status.published")}</SelectItem>
+                  <SelectItem value="draft">{t("courseDetail.flashcards.status.draft")}</SelectItem>
+                  <SelectItem value="retired">{t("courseDetail.flashcards.status.retired")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -991,7 +988,7 @@ export function FlashcardsTab({
               disabled={isPending}
               className="text-body-sm rounded-lg"
             >
-              Batal
+              {t("common.cancel")}
             </Button>
             <Button
               size="sm"
@@ -999,7 +996,7 @@ export function FlashcardsTab({
               disabled={isPending}
               className="text-body-sm rounded-lg"
             >
-              {isPending ? "Menyimpan..." : editingCard ? "Simpan perubahan" : "Tambah kartu"}
+              {isPending ? t("courseDetail.flashcards.saving") : editingCard ? t("courseDetail.flashcards.saveChanges") : t("courseDetail.flashcards.addCard")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1011,13 +1008,13 @@ export function FlashcardsTab({
         onOpenChange={(open) => {
           if (!open) setDeleteTarget(null);
         }}
-        title={deleteTarget?.type === "set" ? "Hapus set flashcard" : "Hapus flashcard"}
+        title={deleteTarget?.type === "set" ? t("courseDetail.flashcards.deleteSet") : t("courseDetail.flashcards.deleteCard")}
         description={
           deleteTarget?.type === "set"
-            ? `Apakah Anda yakin ingin menghapus set "${deleteTarget.title}"? Seluruh kartu di dalam set ini juga akan dihapus.`
-            : `Apakah Anda yakin ingin menghapus kartu ini? Tindakan ini tidak dapat dibatalkan.`
+            ? t("courseDetail.flashcards.deleteSetDescription", { title: deleteTarget.title })
+            : t("courseDetail.flashcards.deleteCardDescription")
         }
-        confirmLabel="Ya, hapus"
+        confirmLabel={t("courseDetail.flashcards.confirmDelete")}
         destructive
         loading={isPending}
         onConfirm={handleConfirmDelete}

@@ -1,13 +1,16 @@
 "use client";
 
+import Image from "next/image";
+
 import { useEffect, useState, useRef } from "react";
 import "@vidstack/react/player/styles/default/theme.css";
 import "@vidstack/react/player/styles/default/layouts/video.css";
 import { MediaPlayer, MediaProvider, type MediaPlayerInstance } from "@vidstack/react";
 import { DefaultVideoLayout, defaultLayoutIcons } from "@vidstack/react/player/layouts/default";
-import { extractYouTubeVideoId, getCanonicalYouTubeUrl } from "@/lib/video/youtube";
-import { Play, Loader2 } from "lucide-react";
+import { extractYouTubeVideoId } from "@/lib/video/youtube";
+import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 export type ZyxVideoPlayerProps = {
   src: string;
@@ -31,6 +34,7 @@ export function ZyxVideoPlayer({
   onEnded,
   className,
 }: ZyxVideoPlayerProps) {
+  const t = useTranslations("studentCourse");
   const [mounted, setMounted] = useState(false);
   const playerRef = useRef<MediaPlayerInstance | null>(null);
 
@@ -50,7 +54,7 @@ export function ZyxVideoPlayer({
         )}
       >
         {poster && (
-          <img
+          <Image unoptimized loading="eager" width={160} height={90}
             src={poster}
             alt={title}
             className="absolute inset-0 h-full w-full object-cover opacity-60"
@@ -60,7 +64,7 @@ export function ZyxVideoPlayer({
           <div className="flex size-12 items-center justify-center rounded-full bg-brand-primary/90 shadow-md">
             <Play className="size-6 fill-white ml-0.5" />
           </div>
-          <span className="text-body-xs font-medium">Memuat pemutar video...</span>
+          <span className="text-body-xs font-medium">{t("courseVideos.loadingPlayer")}</span>
         </div>
       </div>
     );

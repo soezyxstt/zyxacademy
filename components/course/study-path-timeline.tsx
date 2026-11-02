@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, CircleAlert, Lock, Play, TriangleAlert } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, CircleAlert, Lock, Play, TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MathText } from "@/components/course/math-text";
+import { CourseStudyPathSkeleton } from "@/components/course/course-skeletons";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface StudyPathStep {
   stepId: string;
@@ -33,6 +35,7 @@ function primaryHref(step: StudyPathStep, courseId: string): string | null {
 }
 
 function StepRow({ step, courseId }: { step: StudyPathStep; courseId: string }) {
+  const t = useTranslations("studentCourse");
   const href = primaryHref(step, courseId);
   const isLocked = step.status === "locked";
 
@@ -68,30 +71,28 @@ function StepRow({ step, courseId }: { step: StudyPathStep; courseId: string }) 
       className={cn(
         "group flex items-center justify-between gap-3 px-4 py-3 transition-colors",
         isLocked
-          ? "bg-muted/15 opacity-70"
+          ? "bg-muted/15"
           : "hover:bg-muted/30 active:bg-muted/50",
       )}
     >
       <div className="flex min-w-0 flex-1 items-center gap-3">
         {statusIndicator}
         <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 text-body-sm font-medium leading-snug text-foreground transition-colors group-hover:text-brand-primary">
+          <p className="break-words text-body-sm font-medium leading-snug text-foreground transition-colors group-hover:text-brand-primary">
             <MathText as="span">{step.conceptName}</MathText>
           </p>
           {isLocked && step.prerequisites.length > 0 && (
-            <p className="mt-0.5 truncate text-body-xs text-muted-foreground">
-              Prasyarat: <MathText as="span">{step.prerequisites.slice(0, 2).join(", ")}</MathText>
+            <p className="mt-0.5 break-words text-body-xs text-muted-foreground">
+              {t("course.studyPath.prerequisites")} <MathText as="span">{step.prerequisites.slice(0, 2).join(", ")}</MathText>
             </p>
           )}
         </div>
       </div>
 
       <div className="flex items-center gap-1.5 shrink-0 text-body-xs text-muted-foreground">
-        <span>{step.estimatedMinutes}m</span>
+        <span>{t("course.studyPath.minutesShort", { count: step.estimatedMinutes })}</span>
         {!isLocked && (
-          <span className="text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-brand-primary text-body-sm">
-            ›
-          </span>
+          <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground group-hover:text-brand-primary" />
         )}
       </div>
     </div>
@@ -105,6 +106,7 @@ function StepRow({ step, courseId }: { step: StudyPathStep; courseId: string }) 
 }
 
 export function StudyPathTimeline({ courseId }: { courseId: string }) {
+  const t = useTranslations("studentCourse");
   const [steps, setSteps] = useState<StudyPathStep[]>([]);
   const [dayPlan, setDayPlan] = useState<StudyDayPlan[] | null>(null);
   const [daysInput, setDaysInput] = useState("");
@@ -119,15 +121,15 @@ export function StudyPathTimeline({ courseId }: { courseId: string }) {
     try {
       const response = await fetch(`/api/student/study-path?courseId=${courseId}${planningRequest ? `&days=${days}` : ""}`);
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Gagal memuat alur belajar");
+      if (!response.ok) throw new Error(t("course.studyPath.loadFailed"));
       setSteps(data.steps ?? []);
       setDayPlan(data.dayPlan ?? null);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Terjadi kesalahan koneksi");
+    } catch {
+      setError(t("course.studyPath.connectionError"));
     } finally {
       setLoading(false); setPlanning(false);
     }
-  }, [courseId]);
+  }, [courseId, t]);
 
   useEffect(() => { void fetchStudyPath(); }, [fetchStudyPath]);
   const groups = useMemo(() => {
@@ -140,18 +142,18 @@ export function StudyPathTimeline({ courseId }: { courseId: string }) {
   }, [steps]);
   const nextStep = steps.find((step) => step.status === "in_progress") ?? steps.find((step) => step.status === "available");
 
-  if (loading) return <div className="space-y-3" aria-busy="true">{Array.from({ length: 4 }).map((_, index) => <div key={index} className="h-16 animate-pulse rounded-lg bg-muted/50" />)}</div>;
-  if (error) return <div className="flex items-center gap-3 rounded-lg border border-status-error/20 bg-status-error/5 p-4 text-status-error"><TriangleAlert className="size-4" /><span className="flex-1 text-body-sm">{error}</span><Button variant="ghost" size="sm" onClick={() => void fetchStudyPath()}>Coba lagi</Button></div>;
-  if (steps.length === 0) return <div className="rounded-lg border border-dashed border-border p-8 text-center"><CircleAlert className="mx-auto size-5 text-muted-foreground" /><p className="mt-2 text-body-sm text-muted-foreground">Alur belajar akan tersedia setelah konten kelas diproses.</p></div>;
+  if (loading) return <CourseStudyPathSkeleton />;
+  if (error) return <div className="flex items-center gap-3 rounded-lg border border-status-error/20 bg-status-error/5 p-4 text-status-error"><TriangleAlert className="size-4" /><span className="flex-1 text-body-sm">{error}</span><Button variant="ghost" size="sm" onClick={() => void fetchStudyPath()}>{t("course.studyPath.retry")}</Button></div>;
+  if (steps.length === 0) return <div className="rounded-lg border border-dashed border-border p-8 text-center"><CircleAlert className="mx-auto size-5 text-muted-foreground" /><p className="mt-2 text-body-sm text-muted-foreground">{t("course.studyPath.empty")}</p></div>;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 border-b border-border/60 pb-3">
-        <label htmlFor="study-path-days" className="text-body-sm text-muted-foreground">Target selesai dalam</label>
+        <label htmlFor="study-path-days" className="text-body-sm text-muted-foreground">{t("course.studyPath.targetDuration")}</label>
         <Input id="study-path-days" type="number" min={1} max={60} value={daysInput} onChange={(event) => setDaysInput(event.target.value)} placeholder="7" className="h-9 w-16 rounded-md border border-input bg-background px-2 text-body-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
-        <span className="text-body-sm text-muted-foreground">hari</span>
-        <Button type="button" size="sm" variant="outline" className="rounded-md" disabled={planning || !daysInput} onClick={() => { const days = Number.parseInt(daysInput, 10); if (days > 0) void fetchStudyPath(days); }}>{planning ? "Menyusun..." : "Buat rencana"}</Button>
-        {dayPlan ? <Button type="button" size="sm" variant="ghost" className="rounded-md" onClick={() => setDayPlan(null)}>Lihat roadmap</Button> : null}
+        <span className="text-body-sm text-muted-foreground">{t("course.studyPath.days")}</span>
+        <Button type="button" size="sm" variant="outline" className="rounded-md" disabled={planning || !daysInput} onClick={() => { const days = Number.parseInt(daysInput, 10); if (days > 0) void fetchStudyPath(days); }}>{planning ? t("course.studyPath.planning") : t("course.studyPath.createPlan")}</Button>
+        {dayPlan ? <Button type="button" size="sm" variant="ghost" className="rounded-md" onClick={() => setDayPlan(null)}>{t("course.studyPath.viewRoadmap")}</Button> : null}
       </div>
 
       {dayPlan ? (
@@ -159,9 +161,9 @@ export function StudyPathTimeline({ courseId }: { courseId: string }) {
           {dayPlan.map((day, index) => (
             <details key={day.day} open={index === 0} className="group">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-body-sm font-semibold hover:bg-muted/30 transition-colors">
-                <span>Hari {day.day}</span>
+                <span>{t("course.studyPath.day", { count: day.day })}</span>
                 <span className="flex items-center gap-2 text-body-xs font-normal text-muted-foreground">
-                  {day.totalMinutes} menit
+                  {t("course.studyPath.minutes", { count: day.totalMinutes })}
                   <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
                 </span>
               </summary>
@@ -176,25 +178,25 @@ export function StudyPathTimeline({ courseId }: { courseId: string }) {
           {nextStep ? (
             <section className="grid gap-3 rounded-xl border border-brand-primary/25 bg-brand-primary/5 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center shadow-xs">
               <div>
-                <p className="text-body-xs font-semibold text-brand-primary">Lanjutkan belajar</p>
+                <p className="text-body-xs font-semibold text-brand-primary">{t("course.studyPath.continueLearning")}</p>
                 <h2 className="mt-1 font-heading text-body-base font-bold text-foreground">
                   <MathText as="span">{nextStep.conceptName}</MathText>
                 </h2>
                 <p className="mt-1 text-body-xs text-muted-foreground">
-                  {nextStep.priorityReason}, sekitar {nextStep.estimatedMinutes} menit.
+                  {t("course.studyPath.estimatedTime", { reason: nextStep.priorityReason, count: nextStep.estimatedMinutes })}
                 </p>
               </div>
               {primaryHref(nextStep, courseId) ? (
-                <Button asChild size="sm" className="rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90">
+                <Button asChild size="sm" className="rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/90">
                   <Link href={primaryHref(nextStep, courseId)!}>
-                    <Play className="mr-1.5 size-3.5 fill-white" />Mulai
+                    <Play className="mr-1.5 size-3.5 fill-white" />{t("course.studyPath.start")}
                   </Link>
                 </Button>
               ) : null}
             </section>
           ) : (
             <div className="flex items-center gap-2 rounded-xl border border-status-success/20 bg-status-success/5 p-4 text-body-sm text-status-success">
-              <Check className="size-4" />Semua langkah sudah dikuasai.
+              <Check className="size-4" />{t("course.studyPath.allMastered")}
             </div>
           )}
 
@@ -208,10 +210,10 @@ export function StudyPathTimeline({ courseId }: { courseId: string }) {
 
               return (
                 <details key={chapterId} open={defaultOpen} className="group overflow-hidden rounded-xl border border-border/70 bg-card shadow-2xs">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 select-none hover:bg-muted/30 transition-colors">
+                  <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-3 select-none hover:bg-muted/30 transition-colors">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
-                      <h2 className="font-heading text-body-sm font-bold truncate">Bab {group.order}: {group.title}</h2>
+                      <h2 className="font-heading text-body-sm font-bold break-words">Bab {group.order}: {group.title}</h2>
                     </div>
                     <span className="text-body-xs text-muted-foreground shrink-0 font-medium">
                       {mastered.length}/{group.steps.length} konsep dikuasai

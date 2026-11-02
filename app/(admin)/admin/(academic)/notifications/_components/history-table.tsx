@@ -18,20 +18,11 @@ import { AdminEmptyState } from "@/components/admin/state-panels";
 import { Button } from "@/components/ui/button";
 import { AdminTable } from "@/components/admin/table";
 import { getNotificationHistoryAction, type NotificationHistoryRow } from "../actions";
+import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 
 // ─── Type labels and colors ───────────────────────────────────────────────────
 
-const TYPE_LABELS: Record<string, string> = {
-  quiz_published: "Kuis",
-  flashcard_reminder: "Flashcard",
-  tutor_reminder: "Tutor",
-  payment_success: "Pembayaran",
-  admin_broadcast: "Broadcast",
-  announcement: "Pengumuman",
-};
-
-function TypeBadge({ type }: { type: string }) {
-  const label = TYPE_LABELS[type] ?? type;
+function TypeBadge({ label }: { type: string; label: string }) {
   return (
     <span className="inline-flex items-center rounded-md border border-border/60 bg-muted/40 px-2 py-0.5 text-body-xs font-medium text-foreground">
       {label}
@@ -42,13 +33,14 @@ function TypeBadge({ type }: { type: string }) {
 // ─── Delivery status ──────────────────────────────────────────────────────────
 
 function DeliveryStatus({ row }: { row: NotificationHistoryRow }) {
+  const t = useTranslations("adminOps");
   const { attempted, succeeded, failedCount } = row;
 
   if (attempted === 0) {
     return (
       <span className="flex items-center gap-1 text-body-xs text-muted-foreground">
         <Ban className="size-3.5" />
-        Tanpa perangkat
+        {t("notificationUI.noDevice")}
       </span>
     );
   }
@@ -56,7 +48,7 @@ function DeliveryStatus({ row }: { row: NotificationHistoryRow }) {
     return (
       <span className="flex items-center gap-1 text-body-xs text-status-success">
         <CheckCircle2 className="size-3.5" />
-        Terkirim
+        {t("notificationUI.sent")}
       </span>
     );
   }
@@ -64,30 +56,30 @@ function DeliveryStatus({ row }: { row: NotificationHistoryRow }) {
     return (
       <span className="flex items-center gap-1 text-body-xs text-status-warning">
         <AlertTriangle className="size-3.5" />
-        Sebagian
+        {t("notificationUI.partial")}
       </span>
     );
   }
   return (
     <span className="flex items-center gap-1 text-body-xs text-status-error">
       <AlertTriangle className="size-3.5" />
-      Gagal
+      {t("notificationUI.failed")}
     </span>
   );
 }
 
 // ─── Relative time helper ─────────────────────────────────────────────────────
 
-function formatRelative(date: Date): string {
+function formatRelative(date: Date, t: ReturnType<typeof useTranslations>): string {
   const now = Date.now();
   const diff = now - new Date(date).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "Baru saja";
-  if (mins < 60) return `${mins}m lalu`;
+  if (mins < 1) return t("notificationUI.justNow");
+  if (mins < 60) return t("notificationUI.minutes", { count: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}j lalu`;
+  if (hours < 24) return t("notificationUI.hours", { count: hours });
   const days = Math.floor(hours / 24);
-  return `${days}h lalu`;
+  return t("notificationUI.days", { count: days });
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -99,6 +91,8 @@ interface Props {
 }
 
 export function NotificationHistoryTable({ history: initialHistory, total, pageSize }: Props) {
+  const t = useTranslations("adminOps");
+  const { locale } = useAppLocale();
   const [history, setHistory] = useState(initialHistory);
   const [page, setPage] = useState(1);
   const [isPending, startTransition] = useTransition();
@@ -116,7 +110,7 @@ export function NotificationHistoryTable({ history: initialHistory, total, pageS
 
   if (total === 0) {
     return (
-      <AdminEmptyState title="Belum ada notifikasi" />
+      <AdminEmptyState title={t("notificationUI.emptyHistory")} />
     );
   }
 
@@ -125,11 +119,11 @@ export function NotificationHistoryTable({ history: initialHistory, total, pageS
       <AdminTable>
         {/* Header */}
         <div className="hidden md:grid grid-cols-[1.6fr_auto_auto_auto_auto] gap-4 px-5 py-3 border-b border-border bg-muted/30">
-          <span className="text-body-xs font-semibold text-muted-foreground">Pesan</span>
-          <span className="text-body-xs font-semibold text-muted-foreground">Tipe</span>
-          <span className="text-body-xs font-semibold text-muted-foreground">Status</span>
-          <span className="text-body-xs font-semibold text-muted-foreground">Dibaca</span>
-          <span className="text-body-xs font-semibold text-muted-foreground">Waktu</span>
+          <span className="text-body-xs font-semibold text-muted-foreground">{t("notificationUI.message")}</span>
+          <span className="text-body-xs font-semibold text-muted-foreground">{t("notificationUI.type")}</span>
+          <span className="text-body-xs font-semibold text-muted-foreground">{t("notificationUI.status")}</span>
+          <span className="text-body-xs font-semibold text-muted-foreground">{t("notificationUI.read")}</span>
+          <span className="text-body-xs font-semibold text-muted-foreground">{t("notificationUI.time")}</span>
         </div>
 
         {/* Rows */}
@@ -152,7 +146,7 @@ export function NotificationHistoryTable({ history: initialHistory, total, pageS
 
               {/* Type badge */}
               <div className="flex items-center">
-                <TypeBadge type={row.type} />
+                <TypeBadge type={row.type} label={t(`notificationUI.types.${row.type}`)} />
               </div>
 
               {/* Delivery status */}
@@ -165,12 +159,12 @@ export function NotificationHistoryTable({ history: initialHistory, total, pageS
                 {row.read ? (
                   <span className="flex items-center gap-1 text-body-xs text-status-success">
                     <CheckCircle2 className="size-3.5" />
-                    Dibaca
+                    {t("notificationUI.read")}
                   </span>
                 ) : (
                   <span className="flex items-center gap-1 text-body-xs text-muted-foreground">
                     <Circle className="size-3.5" />
-                    Belum
+                    {t("notificationUI.unread")}
                   </span>
                 )}
               </div>
@@ -179,9 +173,9 @@ export function NotificationHistoryTable({ history: initialHistory, total, pageS
               <div className="flex items-center">
                 <span
                   className="text-body-xs text-muted-foreground"
-                  title={new Date(row.createdAt).toLocaleString("id-ID")}
+                  title={new Date(row.createdAt).toLocaleString(locale === "en" ? "en-US" : "id-ID")}
                 >
-                  {formatRelative(new Date(row.createdAt))}
+                  {formatRelative(new Date(row.createdAt), t)}
                 </span>
               </div>
             </li>
@@ -192,7 +186,7 @@ export function NotificationHistoryTable({ history: initialHistory, total, pageS
       {/* Pagination */}
       <div className="flex items-center justify-between gap-2">
         <p className="text-body-xs text-muted-foreground">
-          {total} notifikasi · halaman {page} dari {totalPages}
+          {t("notificationUI.itemsOnPage", { total, page, pages: totalPages })}
         </p>
         <div className="flex items-center gap-1.5">
           <Button
@@ -204,7 +198,7 @@ export function NotificationHistoryTable({ history: initialHistory, total, pageS
             className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-body-sm font-medium text-foreground"
           >
             <ChevronLeft className="size-3.5" aria-hidden />
-            Sebelumnya
+            {t("notificationUI.previous")}
           </Button>
           <Button
             variant="outline"
@@ -214,7 +208,7 @@ export function NotificationHistoryTable({ history: initialHistory, total, pageS
             onClick={() => loadPage(page + 1)}
             className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-body-sm font-medium text-foreground"
           >
-            Berikutnya
+            {t("notificationUI.next")}
             <ChevronRight className="size-3.5" aria-hidden />
           </Button>
         </div>

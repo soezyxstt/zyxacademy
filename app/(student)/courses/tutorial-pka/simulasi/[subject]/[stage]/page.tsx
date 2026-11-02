@@ -5,9 +5,11 @@ import { ArrowLeft, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { pkaSimulationStages, quizTemplates, studentQuizAttempts } from "@/db/schema";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { createMetadata } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
+import { TranslatedText } from "@/components/i18n/translated-text";
 import { cn } from "@/lib/utils";
-import { PKA_SUBJECTS, PKA_SUBJECT_LABELS, type PkaSubject } from "@/lib/pka-config";
+import { PKA_SUBJECTS, type PkaSubject } from "@/lib/pka-config";
 import { getSubjectStageState, recordPkaStageResult } from "@/lib/pka-simulation";
 import { requirePkaSession } from "@/lib/pka-enrollment";
 import { CoursePageShell } from "@/components/course/course-page-shell";
@@ -31,16 +33,25 @@ function isPkaSubject(value: string): value is PkaSubject {
   return (PKA_SUBJECTS as readonly string[]).includes(value);
 }
 
+function subjectLabelKey(subject: PkaSubject) {
+  switch (subject) {
+    case "matematika": return "subjectMathematics";
+    case "fisika": return "subjectPhysics";
+    case "kimia": return "subjectChemistry";
+  }
+}
+
 function stagePath(subject: string, stage: number | string) {
   return `/courses/tutorial-pka/simulasi/${subject}/${stage}`;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { subject, stage } = await params;
-  const label = isPkaSubject(subject) ? PKA_SUBJECT_LABELS[subject] : "PKA";
+  const t = await getTranslations("studentExtras.pka");
+  const label = isPkaSubject(subject) ? t(subjectLabelKey(subject)) : t("pka");
   return createMetadata({
-    title: `Simulasi ${label}: Tahap ${stage}`,
-    description: `Simulasi ujian pemetaan ${label} tahap ${stage}.`,
+    title: t("stageMetadataTitle", { subject: label, stage }),
+    description: t("stageMetadataDescription", { subject: label, stage }),
     path: `/courses/tutorial-pka/simulasi/${subject}/${stage}`,
   });
 }
@@ -50,6 +61,8 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
   const { subject, stage: stageParam } = await params;
   const { attemptId } = await searchParams;
   const stage = Number(stageParam);
+  const t = await getTranslations("studentExtras.pka");
+  const subjectName = isPkaSubject(subject) ? t(subjectLabelKey(subject)) : t("pka");
 
   if (!isPkaSubject(subject) || !Number.isInteger(stage) || stage < 1 || stage > 3) notFound();
 
@@ -77,8 +90,8 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
             <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-5 shadow-sm">
               <AlertTriangle className="size-5 shrink-0 text-status-warning" />
               <div>
-                <h1 className="font-heading text-h5 font-bold text-foreground">Stage {stage} masih terkunci</h1>
-                <p className="mt-1 text-body-sm text-muted-foreground">Selesaikan stage sebelumnya terlebih dahulu untuk membuka stage ini.</p>
+                <h1 className="font-heading text-h5 font-bold text-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="stageLocked" values={{ stage }} /></h1>
+                <p className="mt-1 text-body-sm text-muted-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="completePrevious" /></p>
               </div>
             </div>
           </Reveal>
@@ -125,12 +138,12 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                 {passed ? <CheckCircle2 className="size-8 shrink-0 text-status-success" /> : <XCircle className="size-8 shrink-0 text-status-error" />}
                 <div>
                   <h1 className="font-heading text-h5 font-bold text-foreground">
-                    {PKA_SUBJECT_LABELS[subject]} - Stage {stage}: {attempt.score}%
+                    <TranslatedText namespace="studentExtras.pka" messageKey="stageScoreTitle" values={{ subject: subjectName, stage, score: attempt.score ?? 0 }} />
                   </h1>
                   <p className="text-body-sm text-muted-foreground">
                     {passed
-                      ? "Lolos ambang stage ini. Stage berikutnya otomatis dilewati."
-                      : `Belum mencapai ambang ${stageRow.passScoreThreshold}%. Stage berikutnya kini terbuka.`}
+                      ? <TranslatedText namespace="studentExtras.pka" messageKey="passedStage" />
+                      : t("failedStageThreshold", { threshold: stageRow.passScoreThreshold })}
                   </p>
                 </div>
               </div>
@@ -138,7 +151,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
 
             <Reveal>
               <div className="space-y-4">
-                <h2 className="font-heading text-body-base font-bold text-foreground">Pembahasan</h2>
+                <h2 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="explanation" /></h2>
                 <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-card">
                 {snapshot.map((q, idx) => {
                   const rawSel = answers[q.id];
@@ -169,11 +182,11 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                     <div key={q.id} className="p-4">
                       <div className="flex items-start gap-2.5">
                         <span className={quizOptionLetterClasses(isCorrect ? "correct" : "wrong")}>{idx + 1}</span>
-                        <div className="flex-1 text-body-base font-medium text-foreground">
+                        <div className="min-w-0 flex-1 text-body-base font-medium text-foreground">
                           <MarkdownRenderer content={q.prompt} className="space-y-3" />
                         </div>
                       </div>
-                      <ul className="mt-3 space-y-2 pl-9">
+                      <ul className="mt-3 space-y-2 sm:pl-9">
                         {q.options.map((opt, i) => {
                           const isSelected = selected.includes(i);
                           const isRight = correct.includes(i);
@@ -187,18 +200,18 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                         })}
                       </ul>
                       {q.explanation && (
-                        <div className="mt-4 ml-9 space-y-3 border-t border-border/80 pt-4">
-                          <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground">Pembahasan</h4>
+                        <div className="mt-4 space-y-3 border-t border-border/80 pt-4 sm:ml-9">
+                          <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="explanation" /></h4>
                           <div className="text-body-sm text-muted-foreground leading-relaxed">
                             <MarkdownRenderer content={q.explanation} className="space-y-3" />
                           </div>
                         </div>
                       )}
                       {!isCorrect && (
-                        <div className="mt-3 ml-9">
+                        <div className="mt-3 sm:ml-9">
                           <MistakeFeedbackButton
                             questionId={q.id}
-                            selectedAnswer={selectedText || "(tidak menjawab)"}
+                            selectedAnswer={selectedText || t("notAnswered")}
                           />
                         </div>
                       )}
@@ -299,11 +312,10 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
         <Reveal>
           <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
             <h1 className="font-heading text-h5 font-bold text-foreground">
-              {PKA_SUBJECT_LABELS[subject]} - Stage {stage}
+              <TranslatedText namespace="studentExtras.pka" messageKey="stageTitle" values={{ subject: subjectName, stage }} />
             </h1>
             <p className="mt-2 text-body-sm text-muted-foreground">
-              Ambang lolos stage ini: {stageRow.passScoreThreshold}%. Durasi{" "}
-              {template.timeLimitSeconds ? `${Math.round(template.timeLimitSeconds / 60)} menit` : "tanpa batas"}.
+              <TranslatedText namespace="studentExtras.pka" messageKey="stageInstructions" values={{ threshold: stageRow.passScoreThreshold, duration: template.timeLimitSeconds ? `${Math.round(template.timeLimitSeconds / 60)} ${t("minutes")}` : t("noTimeLimit") }} />
             </p>
             <div className="mt-5">
               {inProgress ? (
@@ -311,13 +323,13 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                   href={`${stagePath(subject, stage)}?attemptId=${inProgress.id}`}
                   className="inline-flex items-center rounded-md bg-brand-secondary px-6 py-2 text-body-sm font-bold text-white shadow-sm transition-colors duration-150 hover:bg-brand-secondary/90"
                 >
-                  Lanjutkan simulasi
+                  <TranslatedText namespace="studentExtras.pka" messageKey="continueSimulation" />
                 </Link>
               ) : (
                 <QuizStartButton
                   courseId={template.courseId}
                   templateId={template.id}
-                  label="Mulai simulasi"
+                  label={<TranslatedText namespace="studentExtras.pka" messageKey="startSimulation" />}
                   redirectBasePath={stagePath(subject, stage)}
                 />
               )}
@@ -336,7 +348,7 @@ function BackLink() {
       className="inline-flex items-center gap-1.5 text-body-sm font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground"
     >
       <ArrowLeft className="size-4" />
-      Kembali ke Simulasi
+      <TranslatedText namespace="studentExtras.pka" messageKey="backToSimulation" />
     </Link>
   );
 }

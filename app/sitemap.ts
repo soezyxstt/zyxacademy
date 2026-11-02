@@ -1,9 +1,9 @@
-import { MetadataRoute } from "next";
+import type { MetadataRoute } from "next";
 import { db } from "@/db";
-import { courses, mataKuliah, blogArticles } from "@/db/schema";
+import { blogArticles } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { PUBLIC_LOCALE_ROUTES, localizedPublicPath } from "@/lib/public-locale-routes";
 
-// Cache sitemap for 24 hours to prevent heavy database queries on every crawler hit (P1-11)
 export const revalidate = 86400;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -13,59 +13,43 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
       : "https://www.zyxacademy.com");
 
-  // Public indexable static pages
-  const staticPaths = ["", "/about", "/plans", "/testimonial", "/courses"];
-
-  const staticEntries: MetadataRoute.Sitemap = staticPaths.map((path) => ({
-    url: `${baseUrl}${path}`,
-    changeFrequency: (path === "" ? "daily" : "weekly") as "daily" | "weekly",
-    priority: path === "" ? 1.0 : 0.8,
-  }));
-
-  // Public course catalog overviews
-  const [canonicalCourses, legacyCourses] = await Promise.all([
-    db
-      .select({ id: mataKuliah.id })
-      .from(mataKuliah)
-      .where(eq(mataKuliah.status, "active")),
-    db
-      .select({ id: courses.id })
-      .from(courses),
-  ]);
-
-  const courseIds = Array.from(
-    new Set([...canonicalCourses.map((c) => c.id), ...legacyCourses.map((c) => c.id)])
+  const indexableStaticPaths = PUBLIC_LOCALE_ROUTES.filter(
+    (path) => !path.startsWith("/demo"),
   );
+  const staticEntries: MetadataRoute.Sitemap = indexableStaticPaths.flatMap((path) => {
+    const idPath = localizedPublicPath("id", path);
+    const enPath = localizedPublicPath("en", path);
+    if (!idPath || !enPath) return [];
+    const priority = path === "/" ? 1 : path === "/blog" ? 0.9 : 0.7;
+    const changeFrequency = (path === "/" || path === "/blog" ? "daily" : "weekly") as "daily" | "weekly";
+    const alternates = { languages: { id: `${baseUrl}${idPath}`, en: `${baseUrl}${enPath}` } };
+    return [idPath, enPath].map((localizedPath) => ({
+      url: `${baseUrl}${localizedPath}`,
+      changeFrequency,
+      priority,
+      alternates,
+    }));
+  });
 
-  const courseEntries: MetadataRoute.Sitemap = courseIds.map((id) => ({
-    url: `${baseUrl}/courses/${id}`,
-    changeFrequency: "weekly" as const,
-    priority: 0.7,
-  }));
-
-  // Published blog articles
-  const allBlogArticles = await db
+  // Article bodies are authored and remain available at their existing URLs.
+  // They have no English alternate until an actual translation is published.
+  const articles = await db
     .select({ slug: blogArticles.slug, publishedAt: blogArticles.publishedAt })
     .from(blogArticles)
     .where(eq(blogArticles.status, "published"));
 
-  const blogEntries: MetadataRoute.Sitemap = allBlogArticles.map((b) => ({
-    url: `${baseUrl}/blog/${b.slug}`,
-    lastModified: b.publishedAt ? new Date(b.publishedAt) : undefined,
-    changeFrequency: "monthly" as const,
+  const articleEntries: MetadataRoute.Sitemap = articles.map((article) => ({
+    url: `${baseUrl}/blog/${article.slug}`,
+    lastModified: article.publishedAt ? new Date(article.publishedAt) : undefined,
+    changeFrequency: "monthly",
     priority: 0.8,
   }));
 
-  const blogIndexEntry: MetadataRoute.Sitemap[number] = {
-    url: `${baseUrl}/blog`,
-    changeFrequency: "daily" as const,
-    priority: 0.9,
-  };
-
   return [
     ...staticEntries,
-    blogIndexEntry,
-    ...blogEntries,
-    ...courseEntries,
+    // The catalog shell is publicly readable, while individual course pages
+    // redirect unauthenticated visitors and are never advertised here.
+    { url: `${baseUrl}/courses`, changeFrequency: "weekly", priority: 0.7 },
+    ...articleEntries,
   ];
 }

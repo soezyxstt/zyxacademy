@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "@/lib/i18n/client";
 import { X, Pin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
@@ -20,12 +21,13 @@ interface AnnouncementCardProps {
 export function AnnouncementCard({ id, title, body, createdAt, isPinned }: AnnouncementCardProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const t = useTranslations("studentExtras.pka");
 
   const handleMarkAsRead = () => {
     startTransition(async () => {
       const res = await markPkaAnnouncementReadAction(id);
       if (res.error) {
-        toast.error("Gagal menandai telah dibaca", { description: res.error });
+        toast.error(t("markReadFailed"));
       } else {
         router.refresh();
       }
@@ -35,9 +37,9 @@ export function AnnouncementCard({ id, title, body, createdAt, isPinned }: Annou
   return (
     <div className="relative p-4 group">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2 pr-8">
-        <div className="flex items-center gap-2">
-          {isPinned && <Pin className="size-4 text-brand-primary fill-brand-primary/20" aria-label="Pinned" />}
-          <h3 className="font-heading text-body-base font-bold text-foreground">
+        <div className="flex min-w-0 items-start gap-2">
+          {isPinned && <Pin className="size-4 shrink-0 text-brand-primary fill-brand-primary/20" aria-label={t("pinned")} />}
+          <h3 className="min-w-0 break-words font-heading text-body-base font-bold text-foreground">
             {title}
           </h3>
         </div>
@@ -56,8 +58,8 @@ export function AnnouncementCard({ id, title, body, createdAt, isPinned }: Annou
           onClick={handleMarkAsRead}
           disabled={isPending}
           className="absolute top-3 right-3 size-8 rounded-md text-muted-foreground hover:text-foreground"
-          title="Tandai sudah dibaca"
-          aria-label="Tandai sudah dibaca"
+          title={t("markRead")}
+          aria-label={t("markRead")}
         >
           <X className="size-4" />
         </Button>

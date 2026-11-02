@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, gt, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { discountVouchers } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards";

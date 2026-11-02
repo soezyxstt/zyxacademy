@@ -22,10 +22,6 @@ export interface TutorialWeekRange {
   sunday: Date;
 }
 
-function targetWeekStartIso(targetDate: TutorialDateInput): string {
-  return getCalendarWeekRange(calendarDateFromInput(targetDate)).startIso;
-}
-
 /** Shifts a validated tutorial calendar date without changing its timezone semantics. */
 export function addTutorialDays(dateIso: string, days: number): string {
   return addCalendarDays(calendarDateFromInput(dateIso), days);
@@ -93,6 +89,16 @@ export function canTutorDeleteAvailability(
   _now: Date = new Date(),
 ): boolean {
   return true;
+}
+
+/** Student bookings and moves require a slot whose WIB start is still in the future. */
+export function canBookTutorialSlot(dateIso: string, startTime: string, now = new Date()): boolean {
+  try {
+    const startsAt = calendarDateToJakartaInstant(dateIso, startTime.padStart(5, "0"));
+    return now.getTime() < startsAt.getTime();
+  } catch {
+    return false;
+  }
 }
 
 export function canStudentBook(

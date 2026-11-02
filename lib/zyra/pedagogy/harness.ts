@@ -8,7 +8,7 @@ import {
   type ZyraTeachingResponse,
 } from "./contracts";
 import { composeSafeTeachingResponse } from "./composer";
-import { buildPedagogyPromptInput, type PedagogyEvidenceInput } from "./prompt-input";
+import { buildPedagogyPromptInput, codingProviderResponseSchema, codingTextProviderResponseSchema, type PedagogyEvidenceInput } from "./prompt-input";
 import { selectTeachingPlan, type TeachingPlan } from "./state-machine";
 import { createTeachingResponseValidator, validateTeachingResponse } from "./validators";
 import { ZYRA_PEDAGOGY_V3_CONTRACT } from "@/prompts/zyra/pedagogy-v3";
@@ -26,6 +26,7 @@ export interface RunPedagogicalTurnParams {
   cacheTtlSeconds?: number;
   idempotencyKey?: string;
   imageParts?: readonly ProviderInputPart[];
+  conversation?: Array<{ role: "student" | "ai"; content: string }>;
 }
 
 export interface PedagogicalTurnResult {
@@ -75,7 +76,7 @@ export async function runPedagogicalTurn(params: RunPedagogicalTurnParams): Prom
     plan,
     params.learnerQuestion,
     params.evidence,
-    { hasImages: Boolean(params.imageParts?.length) },
+    { hasImages: Boolean(params.imageParts?.length), conversation: params.conversation },
   );
   const parsedInput = PedagogyPromptInputSchema.parse(promptInput);
   const allowedSources = sourceMap(parsedInput.evidence);
@@ -93,6 +94,8 @@ export async function runPedagogicalTurn(params: RunPedagogicalTurnParams): Prom
 
   const contract = {
     ...ZYRA_PEDAGOGY_V3_CONTRACT,
+    ...(params.evidence.some((source) => source.id.startsWith("coding:"))
+      ? { responseSchema: params.context.responseModifiers.includes("flowchart") ? codingProviderResponseSchema : codingTextProviderResponseSchema } : {}),
     validators: [createTeachingResponseValidator(params.context, plan, allowedSources, params.protectedAnswers)],
   };
   const result = await PromptExecutor.run({
@@ -106,7 +109,7 @@ export async function runPedagogicalTurn(params: RunPedagogicalTurnParams): Prom
       evidenceIds: parsedInput.evidence.map((source) => source.id),
       evidenceVersions: parsedInput.evidence.map((source) => source.version),
     },
-    cachePolicy: params.imageParts?.length
+    cachePolicy: params.imageParts?.length || params.conversation?.length
       ? "bypass"
       : params.context.activeAssessment ? "active_assessment" : "public_scaffold",
     cacheKey: params.imageParts?.length ? undefined : params.cacheKey,

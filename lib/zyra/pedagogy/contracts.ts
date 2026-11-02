@@ -4,8 +4,8 @@ import { CanvasSpecSchema } from "@/lib/zyra/canvas";
 import { ZyraImageResponseFieldsSchema } from "@/lib/zyra/images/contracts";
 
 export const PEDAGOGY_VERSION = "zyra-pedagogy-v3";
-export const PEDAGOGY_PROMPT_VERSION = "3.0.0";
-export const PEDAGOGY_POLICY_VERSION = "3.0.0";
+export const PEDAGOGY_PROMPT_VERSION = "3.2.0";
+export const PEDAGOGY_POLICY_VERSION = "3.1.0";
 export const PEDAGOGY_RESPONSE_SCHEMA_VERSION = "3.0.0";
 
 export const TeachingStateSchema = z.enum([
@@ -85,6 +85,7 @@ export const PedagogySourceSchema = z.object({
 export type PedagogySource = z.infer<typeof PedagogySourceSchema>;
 
 export const PedagogyContextSchema = z.object({
+  responseLanguage: z.enum(["id", "en"]).default("id"),
   courseId: z.string().min(1),
   chapterId: z.string().nullable(),
   action: z.enum(["new_topic", "follow_up", "hint_request", "teach_back", "check_response"]),
@@ -105,7 +106,8 @@ export const PedagogyPromptInputSchema = z.object({
   selectedState: TeachingStateSchema,
   hintLevel: HintLevelSchema,
   evidence: z.array(PedagogySourceSchema).max(12),
-  learnerQuestion: z.string().min(1).max(1200),
+  learnerQuestion: z.string().min(1).max(5000),
+  conversation: z.array(z.object({ role: z.enum(["student", "ai"]), content: z.string().max(800) })).max(6).optional(),
   outputRules: z.array(z.string().min(1)).min(1).max(16),
 }).strict();
 export type PedagogyPromptInput = z.infer<typeof PedagogyPromptInputSchema>;

@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   ArrowRight,
@@ -17,6 +19,7 @@ import { PlanPrice, PlanPromotion } from "@/components/pricing/plan-price";
 import { DEFAULT_COURSES, DEFAULT_PERSONS } from "@/lib/pricing-constants";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 export interface CatalogCourse {
   id: string;
@@ -48,18 +51,18 @@ interface StudentOnboardingViewProps {
 const featureHighlights = [
   {
     icon: BookOpen,
-    title: "Dokumen dan soal PDF",
-    desc: "PDF materi dan arsip soal gratis.",
+    title: "pdfFeature",
+    desc: "pdfFeatureDescription",
   },
   {
     icon: ClipboardList,
-    title: "Kuis dan materi interaktif",
-    desc: "Token kelas membuka kuis, flashcard, dan artikel lengkap.",
+    title: "interactiveFeature",
+    desc: "interactiveFeatureDescription",
   },
   {
     icon: CheckCircle2,
-    title: "Progres tersimpan",
-    desc: "Lanjutkan dari posisi terakhir.",
+    title: "savedProgressFeature",
+    desc: "savedProgressDescription",
   },
 ];
 
@@ -71,27 +74,25 @@ export function StudentOnboardingView({
   catalogCourses,
   studentTargetCategory,
 }: StudentOnboardingViewProps) {
-  const firstName = userName.split(" ")[0];
+  const t = useTranslations("student");
+  const firstName = userName.trim().split(" ")[0] || t("dashboard.student");
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={
           <>
-            Mulai belajar,{" "}
-            <span className="text-brand-primary">
-              {firstName}
-            </span>
+            {t("dashboard.startLearning", { name: firstName })}
           </>
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button asChild variant="outline" size="sm" className="rounded-lg text-body-sm">
-              <Link href="/plans">Lihat paket</Link>
+              <Link href="/plans">{t("dashboard.plans")}</Link>
             </Button>
             <Button asChild size="sm" className="gap-1.5 rounded-lg text-body-sm">
               <Link href="/courses">
-                Jelajahi semua course
+                {t("dashboard.exploreAllCourses")}
                 <ArrowRight className="size-3.5" />
               </Link>
             </Button>
@@ -107,20 +108,20 @@ export function StudentOnboardingView({
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
                     <BookOpen className="size-4.5 text-brand-primary" />
-                    Course untukmu
+                    {t("dashboard.coursesForYou")}
                   </h2>
                   {studentTargetCategory && (
                     <span className="rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-2xs font-bold uppercase tracking-wider text-brand-primary ring-1 ring-brand-primary/20">
-                      {studentTargetCategory === "TPB" ? "Rekomendasi TPB" : `Rekomendasi ${studentTargetCategory}`}
+                      {studentTargetCategory === "TPB" ? t("dashboard.recommendedTpb") : t("dashboard.recommendedFor", { category: studentTargetCategory })}
                     </span>
                   )}
                 </div>
                 <p className="mt-1 text-body-xs text-muted-foreground">
-                  Bab pertama gratis di setiap mata kuliah.
+                  {t("dashboard.firstChapterFree")}
                 </p>
               </div>
               <span className="rounded-md bg-brand-primary/10 px-2 py-1 text-body-2xs font-semibold text-brand-primary">
-                Paket Free
+                {t("dashboard.freePackage")}
               </span>
             </div>
 
@@ -136,8 +137,8 @@ export function StudentOnboardingView({
                     ? `/courses/${course.id}/material/${course.firstIncompleteMaterialId}`
                     : `/courses/${course.id}`;
                   const nextLabel = completedMaterials > 0 && completedMaterials < totalMaterials
-                    ? "Lanjutkan belajar"
-                    : "Mulai Bab 1";
+                    ? t("dashboard.continueLearning")
+                    : t("dashboard.startChapterOne");
 
                   return (
                     <article key={course.id} className="py-4 first:pt-0 last:pb-0">
@@ -149,7 +150,7 @@ export function StudentOnboardingView({
                             </span>
                             {course.id === PKA_COURSE_ID ? (
                               <span className="rounded-md bg-brand-secondary/10 px-2 py-0.5 text-body-2xs font-bold text-brand-secondary">
-                                Maba ITB
+                                {t("dashboard.newStudent")}
                               </span>
                             ) : null}
                             <h3 className="break-words font-heading text-body-sm font-bold text-foreground">
@@ -157,9 +158,9 @@ export function StudentOnboardingView({
                             </h3>
                           </div>
                           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-body-xs text-muted-foreground">
-                            <span>{course.freeChapters.length} bab gratis</span>
-                            <span>{course.freeMaterialCount} materi</span>
-                            <span>{course.freeQuizCount} kuis</span>
+                            <span>{t("dashboard.freeChapters", { count: course.freeChapters.length })}</span>
+                            <span>{t("dashboard.materialsCount", { count: course.freeMaterialCount })}</span>
+                            <span>{t("dashboard.quizzesCount", { count: course.freeQuizCount })}</span>
                           </div>
                         </div>
                         <Button asChild size="sm" className="shrink-0 rounded-lg text-body-sm">
@@ -179,7 +180,7 @@ export function StudentOnboardingView({
                         </div>
                         <span className="text-body-xs font-semibold text-foreground">{progressPercent}%</span>
                         <span className="text-body-xs text-muted-foreground">
-                          {completedMaterials}/{totalMaterials} materi
+                          {t("dashboard.onboardingMaterialProgress", { complete: completedMaterials, total: totalMaterials })}
                         </span>
                       </div>
 
@@ -196,13 +197,13 @@ export function StudentOnboardingView({
                                 {index + 1}
                               </span>
                             )}
-                            <span className="truncate text-body-xs text-foreground">{chapter.title}</span>
+                            <span className="min-w-0 break-words text-body-xs text-foreground">{chapter.title}</span>
                             <span className="ml-auto shrink-0 rounded-md bg-status-success/10 px-1.5 py-0.5 text-body-2xs font-semibold text-status-success">
-                              Gratis
+                              {t("dashboard.free")}
                             </span>
                           </div>
                         )) : (
-                          <p className="text-body-xs text-muted-foreground">Materi bab gratis sedang disiapkan.</p>
+                          <p className="text-body-xs text-muted-foreground">{t("dashboard.preparingFreeMaterials")}</p>
                         )}
                       </div>
                     </article>
@@ -214,16 +215,16 @@ export function StudentOnboardingView({
                 <BookOpen className="mx-auto size-7 text-muted-foreground/60" />
                 <p className="mt-2 text-body-sm font-semibold text-foreground">
                   {studentTargetCategory
-                    ? `Belum ada course untuk ${studentTargetCategory}`
-                    : "Belum ada course yang tersedia"}
+                    ? t("dashboard.noCoursesForCategory", { category: studentTargetCategory })
+                    : t("dashboard.noCoursesAvailable")}
                 </p>
                 <p className="mt-1 text-body-xs text-muted-foreground">
                   {studentTargetCategory
-                    ? "Jelajahi mata kuliah lain di katalog."
-                    : "Kembali lagi setelah materi gratis dipublikasikan."}
+                    ? t("dashboard.exploreOtherCourses")
+                    : t("dashboard.returnAfterPublish")}
                 </p>
                 <Button asChild size="sm" variant="outline" className="mt-3 rounded-lg text-body-sm">
-                  <Link href="/courses">Lihat katalog</Link>
+                  <Link href="/courses">{t("dashboard.courseCatalog")}</Link>
                 </Button>
               </div>
             )}
@@ -232,7 +233,7 @@ export function StudentOnboardingView({
           <section className="border-b border-border/70 pb-6">
             <h2 className="mb-4 flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
               <Flame className="size-4.5 text-brand-primary" />
-              Yang tersedia di Free
+              {t("dashboard.availableInFree")}
             </h2>
 
             <div className="grid gap-3 sm:grid-cols-3">
@@ -243,8 +244,8 @@ export function StudentOnboardingView({
                     <div className="flex size-7 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
                       <Icon className="size-4" />
                     </div>
-                    <h3 className="mt-2.5 font-heading text-body-xs font-bold text-foreground">{feature.title}</h3>
-                    <p className="mt-1 text-body-xs leading-snug text-muted-foreground">{feature.desc}</p>
+                    <h3 className="mt-2.5 font-heading text-body-xs font-bold text-foreground">{t(`dashboard.${feature.title}`)}</h3>
+                    <p className="mt-1 text-body-xs leading-snug text-muted-foreground">{t(`dashboard.${feature.desc}`)}</p>
                   </div>
                 );
               })}
@@ -255,10 +256,10 @@ export function StudentOnboardingView({
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-3">
               <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
                 <GraduationCap className="size-4.5 text-brand-primary" />
-                Paket belajar semester
+                {t("dashboard.semesterPlans")}
               </h2>
               <Button asChild variant="outline" size="sm" className="rounded-lg text-body-sm">
-                <Link href="/plans">Bandingkan semua paket</Link>
+                <Link href="/plans">{t("dashboard.comparePlans")}</Link>
               </Button>
             </div>
 
@@ -278,7 +279,7 @@ export function StudentOnboardingView({
                       <span className="font-heading text-body-sm font-bold text-foreground">{tier.name}</span>
                       {tier.highlighted ? (
                         <span className="rounded-md bg-brand-primary/10 px-1.5 py-0.5 text-body-2xs font-bold text-brand-primary">
-                          Populer
+                          {t("dashboard.popular")}
                         </span>
                       ) : null}
                     </div>
@@ -302,19 +303,19 @@ export function StudentOnboardingView({
           <Card className="p-4 sm:p-5">
             <h2 className="flex items-center gap-2 font-heading text-body-sm font-bold text-foreground">
               <LockKeyhole className="size-4 text-muted-foreground" />
-              Sudah punya token kelas?
+              {t("dashboard.hasClassToken")}
             </h2>
             <EnrollmentForm className="mt-3.5" />
           </Card>
 
           <section className="border-t border-border pt-4">
-            <h2 className="font-heading text-body-sm font-bold text-foreground">Paket belajar</h2>
+            <h2 className="font-heading text-body-sm font-bold text-foreground">{t("dashboard.planTitle")}</h2>
             <p className="mt-2 text-body-xs leading-relaxed text-muted-foreground">
-              Kuis, tryout, artikel, dan flashcard lengkap.
+              {t("dashboard.planDetails")}
             </p>
             <Button asChild className="mt-4 w-full rounded-lg text-body-sm">
               <Link href="/plans">
-                Lihat pilihan paket
+                {t("dashboard.planOptions")}
                 <ArrowRight className="ml-1.5 size-4" />
               </Link>
             </Button>

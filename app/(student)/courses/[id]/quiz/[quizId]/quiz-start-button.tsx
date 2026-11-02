@@ -6,11 +6,13 @@ import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
+import type { ReactNode } from "react";
 
 type QuizStartButtonProps = {
   courseId: string;
   templateId: string;
-  label?: string;
+  label?: ReactNode;
   className?: string;
   /** Override the post-start redirect (defaults to the standard course quiz URL). */
   getRedirectPath?: (attemptId: string) => string;
@@ -18,7 +20,8 @@ type QuizStartButtonProps = {
   redirectBasePath?: string;
 };
 
-export function QuizStartButton({ courseId, templateId, label = "Mulai Kuis", className, getRedirectPath, redirectBasePath }: QuizStartButtonProps) {
+export function QuizStartButton({ courseId, templateId, label, className, getRedirectPath, redirectBasePath }: QuizStartButtonProps) {
+  const t = useTranslations("learning");
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -34,10 +37,10 @@ export function QuizStartButton({ courseId, templateId, label = "Mulai Kuis", cl
       });
 
       if (!res.ok) {
-        let message = "Gagal memulai kuis";
+        let message = t("quizStart.failed");
         try {
           const errData = await res.json();
-          if (errData?.error) message = typeof errData.error === "string" ? errData.error : "Terjadi kesalahan";
+          if (errData?.error && typeof errData.error !== "string") message = t("quizStart.genericError");
         } catch { /* empty or non-JSON body */ }
         throw new Error(message);
       }
@@ -46,12 +49,12 @@ export function QuizStartButton({ courseId, templateId, label = "Mulai Kuis", cl
       try {
         data = await res.json();
       } catch {
-        throw new Error("Respons server tidak valid. Silakan coba lagi.");
+        throw new Error(t("quizStart.invalidResponse"));
       }
       if (!data?.attemptId) {
-        throw new Error("Respons server tidak lengkap. Silakan coba lagi.");
+        throw new Error(t("quizStart.incompleteResponse"));
       }
-      toast.success("Kuis dimulai! Semoga berhasil.");
+      toast.success(t("quizStart.started"));
       const path = getRedirectPath
         ? getRedirectPath(data.attemptId)
         : redirectBasePath
@@ -59,7 +62,7 @@ export function QuizStartButton({ courseId, templateId, label = "Mulai Kuis", cl
           : `/courses/${courseId}/quiz/${templateId}?attemptId=${data.attemptId}`;
       router.push(path);
     } catch (err: any) {
-      toast.error(err.message || "Gagal memulai kuis");
+      toast.error(err.message || t("quizStart.failed"));
     } finally {
       setLoading(false);
     }
@@ -69,10 +72,10 @@ export function QuizStartButton({ courseId, templateId, label = "Mulai Kuis", cl
     <Button
       onClick={handleStart}
       isLoading={loading}
-      className={cn("bg-brand-primary text-white hover:bg-brand-primary/95 font-bold rounded-md interactive shadow-sm px-6 py-2 flex items-center gap-2 cursor-pointer", className)}
+      className={cn("bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 font-bold rounded-md interactive shadow-sm px-6 py-2 flex items-center gap-2 cursor-pointer", className)}
     >
       <Play className="size-4 fill-white" />
-      {label}
+      {label ?? t("quizStart.startQuiz")}
     </Button>
   );
 }

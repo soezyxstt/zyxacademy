@@ -1,14 +1,18 @@
+"use client";
+
 import Image from "next/image";
-import Link from "next/link";
 import { ArrowUpRight, Quote } from "lucide-react";
 import { testimonialStories } from "@/lib/testimonials";
 import { SectionContainer } from "@/components/layout/section-container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "@/lib/i18n/client";
+import { LocalizedPublicLink } from "@/components/localized-public-link";
 
 const proofStory = testimonialStories[0];
 
 export function LandingProof() {
+  const t = useTranslations("marketing");
   if (!proofStory) return null;
 
   return (
@@ -19,16 +23,16 @@ export function LandingProof() {
       <div className="grid items-center gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
         <div className="max-w-xl">
           <SectionHeading id="landing-proof-heading" className="text-foreground">
-            Ruang belajar yang membuatmu berani bertanya.
+            {t("home.proofTitle")}
           </SectionHeading>
           <p className="mt-4 text-body-base text-muted-foreground">
-            Tutor membantu menjelaskan konsep dengan sabar dan bertahap.
+            {t("home.proofDescription")}
           </p>
           <Button asChild variant="link" size="default" className="mt-4 px-0">
-            <Link href="/testimonial">
-              Baca semua cerita siswa
+            <LocalizedPublicLink href="/testimonial">
+              {t("home.readStories")}
               <ArrowUpRight className="size-4" data-icon="inline-end" aria-hidden="true" />
-            </Link>
+            </LocalizedPublicLink>
           </Button>
         </div>
 
@@ -40,7 +44,7 @@ export function LandingProof() {
           <figcaption className="mt-5 flex items-center gap-3 border-t border-border pt-4">
             <Image
               src={proofStory.avatarSrc}
-              alt={`Foto ${proofStory.name}`}
+              alt={t("about.founderPhoto", { name: proofStory.name })}
               width={48}
               height={48}
               className="photo-thumb size-12 shrink-0"

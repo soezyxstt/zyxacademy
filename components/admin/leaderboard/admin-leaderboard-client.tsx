@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import {
   Trophy,
@@ -83,14 +84,14 @@ interface LeaderboardSummary {
   highestScore: number;
 }
 
-function formatDuration(seconds: number): string {
-  if (!seconds || seconds <= 0) return "0s";
+function formatDuration(seconds: number, format: (key: "seconds" | "minutesSeconds", values: { seconds: number; minutes?: number }) => string): string {
+  if (!seconds || seconds <= 0) return format("seconds", { seconds: 0 });
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   if (mins > 0) {
-    return `${mins}m ${secs}s`;
+    return format("minutesSeconds", { minutes: mins, seconds: secs });
   }
-  return `${secs}s`;
+  return format("seconds", { seconds: secs });
 }
 
 function getInitials(name: string): string {
@@ -114,6 +115,7 @@ export function AdminLeaderboardClient({
   backLabel,
   hideHeader = Boolean(lockedCourse),
 }: AdminLeaderboardClientProps = {}) {
+  const tx = useTranslations("adminEval.leaderboard");
   const [courses, setCourses] = useState<CourseOption[]>([]);
   const [courseInsights, setCourseInsights] = useState<CourseInsight[]>([]);
   const [students, setStudents] = useState<RankedStudent[]>([]);
@@ -201,7 +203,7 @@ export function AdminLeaderboardClient({
           <div>
             <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
               <Trophy className="size-4 text-brand-primary" />
-              <span>Papan Peringkat Siswa</span>
+        <span>{tx("studentLeaderboard")}</span>
             </h2>
           </div>
           <Button
@@ -214,13 +216,13 @@ export function AdminLeaderboardClient({
             <RefreshCw
               className={cn("size-3.5", loading && "animate-spin")}
             />
-            <span>Perbarui</span>
+            <span>{tx("refresh")}</span>
           </Button>
         </div>
       ) : (
         <AdminPageHeader
           icon={Trophy}
-          title="Papan Peringkat"
+          title={tx("title")}
           backHref={backHref}
           backLabel={backLabel}
           actions={
@@ -234,7 +236,7 @@ export function AdminLeaderboardClient({
               <RefreshCw
                 className={cn("size-3.5", loading && "animate-spin")}
               />
-              <span>Perbarui</span>
+              <span>{tx("refresh")}</span>
             </Button>
           }
         />
@@ -243,28 +245,28 @@ export function AdminLeaderboardClient({
       {/* KPI Stats Bar */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-lg border border-border bg-card/60 px-3.5 py-2 text-body-xs shadow-2xs">
         <div className="flex items-center gap-1.5">
-          <span className="text-muted-foreground">{isOverview ? "Siswa Unik:" : "Siswa Dinilai:"}</span>
+          <span className="text-muted-foreground">{isOverview ? tx("uniqueStudents") : tx("rankedStudents")}</span>
           <span className="font-bold tabular-nums text-foreground">
             {summary.totalStudents}
           </span>
         </div>
         <span className="text-border hidden sm:inline">&bull;</span>
         <div className="flex items-center gap-1.5">
-          <span className="text-muted-foreground">Total Pengerjaan:</span>
+          <span className="text-muted-foreground">{tx("totalAttempts")}</span>
           <span className="font-bold tabular-nums text-foreground">
             {summary.totalAttempts}
           </span>
         </div>
         <span className="text-border hidden sm:inline">&bull;</span>
         <div className="flex items-center gap-1.5">
-          <span className="text-muted-foreground">Rata-rata Nilai:</span>
+          <span className="text-muted-foreground">{tx("averageScore")}</span>
           <span className="font-bold tabular-nums text-brand-primary">
             {summary.avgOverallScore}%
           </span>
         </div>
         <span className="text-border hidden sm:inline">&bull;</span>
         <div className="flex items-center gap-1.5">
-          <span className="text-muted-foreground">Skor Tertinggi:</span>
+          <span className="text-muted-foreground">{tx("highestScore")}</span>
           <span className="font-bold tabular-nums text-status-success">
             {summary.highestScore}
           </span>
@@ -278,8 +280,8 @@ export function AdminLeaderboardClient({
           size="sm"
           placeholder={
             isOverview
-              ? "Cari judul mata kuliah..."
-              : "Cari nama atau email siswa..."
+              ? tx("searchCourses")
+              : tx("searchStudents")
           }
           value={search}
           onSearch={setSearch}
@@ -293,19 +295,19 @@ export function AdminLeaderboardClient({
               courses={courses}
               value={selectedCourse}
               onValueChange={setSelectedCourse}
-              allLabel="Semua Mata Kuliah"
+              allLabel={tx("allCourses")}
               className="text-body-sm"
             />
           )}
 
           <Select value={selectedType} onValueChange={setSelectedType}>
             <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-sm rounded-lg shrink-0">
-              <SelectValue placeholder="Tipe Asesmen" />
+              <SelectValue placeholder={tx("assessmentType")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua Tipe</SelectItem>
-              <SelectItem value="quiz">Kuis</SelectItem>
-              <SelectItem value="simulation">Simulasi / Tryout</SelectItem>
+              <SelectItem value="all">{tx("allTypes")}</SelectItem>
+              <SelectItem value="quiz">{tx("quiz")}</SelectItem>
+              <SelectItem value="simulation">{tx("simulation")}</SelectItem>
             </SelectContent>
           </Select>
 
@@ -314,11 +316,11 @@ export function AdminLeaderboardClient({
               variant="ghost"
               size="sm"
               onClick={resetFilters}
-              title="Reset filter"
+              title={tx("resetFilters")}
               className="h-9 px-2.5 text-body-sm text-muted-foreground hover:text-foreground rounded-lg"
             >
               <X className="size-3.5 mr-1" />
-              <span>Reset</span>
+              <span>{tx("reset")}</span>
             </Button>
           )}
 
@@ -333,7 +335,7 @@ export function AdminLeaderboardClient({
               <RefreshCw
                 className={cn("size-3.5", loading && "animate-spin")}
               />
-              <span>Perbarui</span>
+              <span>{tx("refresh")}</span>
             </Button>
           )}
         </div>
@@ -344,27 +346,27 @@ export function AdminLeaderboardClient({
         {loading ? (
           <div className="p-12 text-center text-body-sm text-muted-foreground space-y-3">
             <RefreshCw className="size-6 animate-spin mx-auto text-brand-primary" />
-            <p>Memuat peringkat...</p>
+            <p>{tx("loading")}</p>
           </div>
         ) : isOverview ? (
           /* ====== OVERVIEW MODE ====== */
           courseInsights.length === 0 ? (
             <AdminEmptyState
               icon={BarChart3}
-              title="Tidak ada data perbandingan"
-              description="Belum ada pengerjaan yang tercatat. Data akan muncul setelah siswa menyelesaikan kuis."
+              title={tx("noComparisonData")}
+              description={tx("noComparisonDescription")}
             />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-body-sm">
                 <AdminTableHead className="text-body-xs font-semibold text-muted-foreground">
                   <tr>
-                    <th className="px-4 py-3">Mata Kuliah</th>
-                    <th className="px-4 py-3 text-center">Siswa</th>
-                    <th className="px-4 py-3 text-center">Pengerjaan</th>
-                    <th className="px-4 py-3 text-center">Rata-rata Nilai</th>
-                    <th className="px-4 py-3 text-center">Skor Tertinggi</th>
-                    <th className="px-4 py-3 text-right">Aksi</th>
+                    <th className="px-4 py-3">{tx("course")}</th>
+                    <th className="px-4 py-3 text-center">{tx("students")}</th>
+                    <th className="px-4 py-3 text-center">{tx("attempts")}</th>
+                    <th className="px-4 py-3 text-center">{tx("averageScore")}</th>
+                    <th className="px-4 py-3 text-center">{tx("highestScore")}</th>
+                    <th className="px-4 py-3 text-right">{tx("actions")}</th>
                   </tr>
                 </AdminTableHead>
                 <tbody className="divide-y divide-border">
@@ -405,7 +407,7 @@ export function AdminLeaderboardClient({
                           onClick={() => setSelectedCourse(ci.courseId)}
                           className="h-8 gap-1.5 px-2 text-body-sm text-brand-primary hover:text-brand-primary rounded-lg"
                         >
-                          <span>Lihat Peringkat</span>
+                          <span>{tx("viewLeaderboard")}</span>
                           <ArrowRight className="size-3.5" />
                         </Button>
                       </td>
@@ -419,8 +421,8 @@ export function AdminLeaderboardClient({
         students.length === 0 ? (
           <AdminEmptyState
             icon={SlidersHorizontal}
-            title="Tidak ada data peringkat"
-            description="Belum ada pengerjaan kuis yang cocok dengan filter atau kata kunci saat ini."
+            title={tx("noLeaderboardData")}
+            description={tx("noLeaderboardDescription")}
           />
         ) : (
           <div className="overflow-x-auto">
@@ -428,13 +430,13 @@ export function AdminLeaderboardClient({
               <AdminTableHead className="text-body-xs font-semibold text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 w-16 text-center">#</th>
-                  <th className="px-4 py-3">Siswa</th>
-                  <th className="px-4 py-3 text-center">Pengerjaan</th>
-                  <th className="px-4 py-3 text-center">Rata-rata Nilai</th>
-                  <th className="px-4 py-3 text-center">Skor Terbaik</th>
-                  <th className="px-4 py-3 text-center">Rata-rata Durasi</th>
-                  <th className="px-4 py-3">Terakhir Mengerjakan</th>
-                  <th className="px-4 py-3 text-right">Aksi</th>
+                  <th className="px-4 py-3">{tx("student")}</th>
+                  <th className="px-4 py-3 text-center">{tx("attempts")}</th>
+                  <th className="px-4 py-3 text-center">{tx("averageScore")}</th>
+                  <th className="px-4 py-3 text-center">{tx("bestScore")}</th>
+                  <th className="px-4 py-3 text-center">{tx("averageDuration")}</th>
+                  <th className="px-4 py-3">{tx("lastAttempt")}</th>
+                  <th className="px-4 py-3 text-right">{tx("actions")}</th>
                 </tr>
               </AdminTableHead>
               <tbody className="divide-y divide-border">
@@ -516,7 +518,7 @@ export function AdminLeaderboardClient({
                       </td>
 
                       <td className="px-4 py-3.5 text-center tabular-nums text-muted-foreground text-body-xs">
-                        {formatDuration(student.avgDuration)}
+                        {formatDuration(student.avgDuration, (key, values) => tx(key === "seconds" ? "durationSeconds" : "durationMinutesSeconds", values as any))}
                       </td>
 
                       <td className="px-4 py-3.5 text-muted-foreground text-body-xs whitespace-nowrap">
@@ -542,7 +544,7 @@ export function AdminLeaderboardClient({
                           className="h-8 gap-1.5 px-2 text-body-xs text-brand-primary hover:text-brand-primary rounded-lg"
                         >
                           <Eye className="size-3.5" />
-                          <span>Detail</span>
+                          <span>{tx("details")}</span>
                         </Button>
                       </td>
                     </tr>
@@ -565,12 +567,10 @@ export function AdminLeaderboardClient({
           <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                Riwayat Pengerjaan: {detailStudent.studentName}
+                {tx("attemptHistoryTitle", { name: detailStudent.studentName })}
               </DialogTitle>
               <DialogDescription>
-                {detailStudent.studentEmail} &bull;{" "}
-                {detailStudent.attemptCount} pengerjaan selesai &bull;
-                Rata-rata skor {detailStudent.avgScore}%
+                {tx("attemptHistoryDescription", { email: detailStudent.studentEmail, count: detailStudent.attemptCount, score: detailStudent.avgScore })}
               </DialogDescription>
             </DialogHeader>
 
@@ -578,12 +578,12 @@ export function AdminLeaderboardClient({
               <table className="w-full text-left text-body-sm">
                 <thead className="bg-muted/50 border-b border-border text-body-xs font-semibold text-muted-foreground">
                   <tr>
-                    <th className="px-3.5 py-2.5">Judul Kuis</th>
-                    <th className="px-3.5 py-2.5">Mata Kuliah</th>
-                    <th className="px-3.5 py-2.5">Kategori</th>
-                    <th className="px-3.5 py-2.5 text-center">Nilai</th>
-                    <th className="px-3.5 py-2.5 text-center">Durasi</th>
-                    <th className="px-3.5 py-2.5">Waktu</th>
+                    <th className="px-3.5 py-2.5">{tx("quizTitle")}</th>
+                    <th className="px-3.5 py-2.5">{tx("course")}</th>
+                    <th className="px-3.5 py-2.5">{tx("category")}</th>
+                    <th className="px-3.5 py-2.5 text-center">{tx("score")}</th>
+                    <th className="px-3.5 py-2.5 text-center">{tx("duration")}</th>
+                    <th className="px-3.5 py-2.5">{tx("time")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -600,9 +600,7 @@ export function AdminLeaderboardClient({
                           variant="secondary"
                           className="rounded-md text-body-xs capitalize"
                         >
-                          {att.category === "simulation"
-                            ? "Simulasi"
-                            : att.category}
+                          {tx.has(`categoryType.${att.category}`) ? tx(`categoryType.${att.category}`) : att.category}
                         </Badge>
                       </td>
                       <td className="px-3.5 py-2.5 text-center font-semibold tabular-nums">
@@ -617,7 +615,7 @@ export function AdminLeaderboardClient({
                         </span>
                       </td>
                       <td className="px-3.5 py-2.5 text-center tabular-nums text-muted-foreground text-body-xs">
-                        {formatDuration(att.durationSeconds)}
+                        {formatDuration(att.durationSeconds, (key, values) => tx(key === "seconds" ? "durationSeconds" : "durationMinutesSeconds", values as any))}
                       </td>
                       <td className="px-3.5 py-2.5 text-muted-foreground text-body-xs whitespace-nowrap">
                         {att.submittedAt ? (

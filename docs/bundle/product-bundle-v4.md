@@ -51,7 +51,7 @@ V4 verification and publication reject obvious unmarked mathematical notation in
 
 Structural validity allows a draft to be staged. It is not publication readiness. The server derives the complete requirement matrix from the stored bundle and dependency closure, including structure, model, web states at 380 by 844 and 1536 by 864, and printable pages. An agent cannot remove checks by submitting its own matrix or declaring a check not applicable.
 
-The plan binds exact content, import and run scope, live Idea/source/product dependencies, renderer source and package versions, fonts, contract, playbook, assets, print profile and policy. Any applicable change invalidates the old plan. Application-owned execution persists actual artifacts before issuing an HMAC-authenticated receipt. Artifact bytes are read back and checked. Local or agent reports remain reported evidence and cannot satisfy trusted readiness. Missing, failed, untested, stale or contradictory evidence blocks readiness.
+The plan binds the configured remote browser provider and exact Chromium version, exact content, import and run scope, live Idea/source/product dependencies, renderer source and package versions, fonts, contract, playbook, assets, print profile and policy. Any applicable change invalidates the old plan. Application-owned execution persists actual artifacts before issuing an HMAC-authenticated receipt. Artifact bytes are read back and checked. Local or agent reports remain reported evidence and cannot satisfy trusted readiness. Missing, failed, untested, stale or contradictory evidence blocks readiness.
 
 V4 approval requires the exact revision, quality-policy fingerprint, current verification plan and receipt signature, a complete criterion rubric, and an explicit current semantic decision for every section. Legacy whole-bundle approval cannot silently approve V4 sections. Publication repeats these checks and claims the unchanged import snapshot inside the transaction; stale content, evidence or concurrent replacement must not receive approval or publication from an earlier snapshot.
 
@@ -62,3 +62,11 @@ The test suite contains contract, model, lineage, HMAC/receipt, artifact-readbac
 Server playbooks and plugin build/host checks have separate provenance. Updating repository guidance does not establish that every installed plugin, active OAuth connection or external executor is current. Fresh live bootstrap and scoped read-only tool calls are required for each host. No deployment or remote mutation is implied by local tests.
 
 Implementation authorities: `lib/materials/article-parts.ts`, `diktat-v4.ts`, `diktat-static-visual.ts`, `diktat-print-readiness.ts`, `lib/bundle/product-validator.ts`, `product-diktat-pdf.ts`, `product-v4-verification.ts`, `product-v4-verification-service.ts`, `product-v4-review.ts`, and the [system design](../../plans/article-diktat-authoring-system-design.md). Operational acceptance and chapter rollout remain tracked separately from this active contract.
+
+## Python Article parts
+
+Article parts also accept `code_example` with Python source and a runnable boolean,
+and `coding_exercise` with a canonical problem ID/version locator. They contain
+no reference solution or private test payload. Publishing resolves every exercise
+against a published coding problem in the same course. Diktat printable parts
+retain their existing contract. See [coding contract](../coding-foundation.md).

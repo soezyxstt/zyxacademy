@@ -23,7 +23,6 @@ import { eq, asc, desc, inArray, and, or, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { storage } from "@/lib/storage";
 import { isSafeKey, joinKey, slugifySegment } from "@/lib/storage/keys";
-import { inngest } from "@/lib/inngest";
 import { generateAndSavePdfThumbnail } from "@/lib/thumbnail";
 import {
   isValidSubcategory,
@@ -684,7 +683,7 @@ export async function saveCourseMaterial(
   fileKey: string,
   subcategory?: CourseMaterialSubcategory | null,
   year?: number | null,
-  checksum?: string | null
+  _checksum?: string | null
 ) {
   const { user } = await assertAdmin();
 

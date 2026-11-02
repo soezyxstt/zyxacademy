@@ -1,9 +1,14 @@
-import Link from "next/link";
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { SectionContainer } from "@/components/layout/section-container";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { useTranslations } from "@/lib/i18n/client";
+import { LocalizedPublicLink } from "@/components/localized-public-link";
+import { LocalizedAuthLink } from "@/components/localized-auth-link";
 
 export function LandingClosingCta() {
+  const t = useTranslations("marketing");
   return (
     <SectionContainer
       className="bg-landing-aurora text-foreground"
@@ -11,15 +16,14 @@ export function LandingClosingCta() {
     >
       <div className="text-center">
         <SectionHeading id="closing-heading" tier="primary" className="text-foreground">
-          Mulai belajar dengan langkah yang jelas.
+          {t("home.closingTitle")}
         </SectionHeading>
         <p className="mx-auto mt-4 max-w-prose text-body-base text-muted-foreground">
-          Buat akun untuk melihat materi dan latihan yang tersedia, lalu pilih paket bila kamu
-          membutuhkan pendampingan tambahan.
+          {t("home.closingDescription")}
         </p>
         <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
           <Button asChild variant="marketingPrimary" size="marketing">
-            <Link href="/sign-up">Mulai gratis</Link>
+            <LocalizedAuthLink href="/sign-up">{t("home.startFree")}</LocalizedAuthLink>
           </Button>
           <Button
             asChild
@@ -27,10 +31,10 @@ export function LandingClosingCta() {
             size="marketing"
             className="bg-background hover:bg-muted/60 dark:bg-background"
           >
-            <Link href="/plans">Lihat paket</Link>
+            <LocalizedPublicLink href="/plans">{t("home.viewPlans")}</LocalizedPublicLink>
           </Button>
           <Button asChild variant="ghost" size="marketing" className="text-foreground">
-            <Link href="/demo">Coba demo</Link>
+            <LocalizedPublicLink href="/demo">{t("home.tryDemo")}</LocalizedPublicLink>
           </Button>
         </div>
       </div>

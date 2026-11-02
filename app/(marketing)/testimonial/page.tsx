@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import Image from "next/image";
 import { MarketingPageHero } from "@/components/marketing-page-hero";
 import { SectionContainer } from "@/components/layout/section-container";
@@ -7,31 +6,26 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { createLocalizedMetadata } from "@/lib/site-metadata";
+import { getTranslations } from "@/lib/i18n/server";
+import { LocalizedPublicLink } from "@/components/localized-public-link";
+import { LocalizedAuthLink } from "@/components/localized-auth-link";
 import { testimonialStories } from "@/lib/testimonials";
 
-export const metadata: Metadata = createMetadata({
-  title: "Testimoni",
-  description: "Testimoni singkat murid Zyx Academy mengenai kualitas layanan dan pengalaman belajar.",
-  path: "/testimonial",
-});
+export async function generateMetadata(): Promise<Metadata> {
+  return createLocalizedMetadata({ path: "/testimonial", titleKey: "meta.testimonial.title", descriptionKey: "meta.testimonial.description" });
+}
 
 
-/** One accent colour per card, cycling through brand palette */
-const CARD_ACCENTS = [
- "var(--primary)", // blue
- "var(--color-brand-secondary)", // orange
- "var(--color-tertiary-1)", // teal
-] as const;
-
-export default function TestimonialPage() {
+export default async function TestimonialPage() {
+ const t = await getTranslations("marketing");
  return (
  <div className="flex flex-col">
  <Reveal>
  <MarketingPageHero
  sectionId="testimonial"
- title="Testimoni"
- description="Cerita dari siswa Zyx Academy tentang proses belajar yang mereka jalani."
+ title={t("testimonial.title")}
+ description={t("testimonial.intro")}
  />
  </Reveal>
 
@@ -44,35 +38,18 @@ export default function TestimonialPage() {
 
  <div className="relative z-10 mx-auto mb-10 max-w-2xl text-center">
  <SectionHeading as="h2" id="testimonial-grid-heading" tier="secondary" className="text-foreground">
- Cerita dari proses belajar
+ {t("testimonial.storiesTitle")}
  </SectionHeading>
  </div>
 
  <div className="relative z-10 columns-1 gap-6 sm:columns-2 lg:columns-3">
- {testimonialStories.map((story, idx) => {
- const accent = CARD_ACCENTS[idx % CARD_ACCENTS.length];
- return (
+ {testimonialStories.map((story) => (
  <figure
  key={story.id}
  itemScope
  itemType="https://schema.org/Review"
- className="relative break-inside-avoid mb-6 flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-background"
- style={{
-  boxShadow: `0 8px 32px -4px color-mix(in oklch, ${accent} 18%, transparent), 0 2px 10px -2px color-mix(in oklch, var(--color-foreground) 9%, transparent)`,
- }}
+ className="mb-6 flex break-inside-avoid flex-col rounded-xl border border-border bg-card"
  >
- {/* Coloured accent strip */}
- <div className="h-[3px] w-full shrink-0" style={{ background: accent }} />
-
- {/* Large watermark quote ; decorative only */}
- <span
- aria-hidden
- className="pointer-events-none absolute -top-2 right-3 select-none font-heading text-[108px] font-black leading-none"
- style={{ color: accent, opacity: 0.08 }}
- >
- &rdquo;
- </span>
-
  <div className="relative z-10 flex flex-1 flex-col gap-4 p-6">
  <blockquote
  itemProp="reviewBody"
@@ -84,7 +61,7 @@ export default function TestimonialPage() {
  <figcaption className="flex items-center gap-3 border-t border-border pt-4">
  <Image
  src={story.avatarSrc}
- alt={`Foto ${story.name}`}
+ alt={t("testimonial.studentPhoto", { name: story.name })}
  width={40}
  height={40}
  className="photo-thumb size-10 shrink-0"
@@ -94,19 +71,18 @@ export default function TestimonialPage() {
  itemScope
  itemType="https://schema.org/Person"
  itemProp="author"
- className="block truncate font-heading text-body-sm font-semibold text-foreground"
+ className="block font-heading text-body-sm font-semibold text-foreground"
  >
  <span itemProp="name">{story.name}</span>
  </span>
- <span className="block truncate text-body-sm text-muted-foreground">
+ <span className="block text-body-xs text-muted-foreground">
  {story.program} / {story.location}
  </span>
  </div>
  </figcaption>
  </div>
  </figure>
- );
- })}
+ ))}
  </div>
  </SectionContainer>
  </Reveal>
@@ -115,17 +91,17 @@ export default function TestimonialPage() {
  <SectionContainer className="border-b border-border bg-background/40 py-16 text-center md:py-20">
  <div className="mx-auto max-w-2xl space-y-4">
  <SectionHeading as="h2" tier="secondary" className="text-foreground">
- Lihat cara belajar di Zyx
+ {t("testimonial.ctaTitle")}
  </SectionHeading>
  <p className="text-body-base text-muted-foreground">
- Mulai dari materi dan latihan mandiri, lalu pilih pendampingan tambahan jika sesuai kebutuhanmu.
+ {t("testimonial.ctaDescription")}
  </p>
  <div className="flex flex-wrap justify-center gap-3">
  <Button asChild>
- <Link href="/sign-up">Mulai gratis</Link>
+ <LocalizedAuthLink href="/sign-up">{t("home.startFree")}</LocalizedAuthLink>
  </Button>
  <Button asChild variant="outline">
- <Link href="/plans">Lihat paket</Link>
+ <LocalizedPublicLink href="/plans">{t("home.viewPlans")}</LocalizedPublicLink>
  </Button>
  </div>
  </div>

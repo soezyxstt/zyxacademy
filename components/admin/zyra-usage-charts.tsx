@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useTranslations } from "@/lib/i18n/client";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AdminErrorState } from "@/components/admin/state-panels";
@@ -24,6 +25,7 @@ type DailyUsage = {
 };
 
 export function ZyraUsageCharts() {
+  const t = useTranslations("admin.usageCharts");
   const [users, setUsers] = useState<UserUsage[]>([]);
   const [daily, setDaily] = useState<DailyUsage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,12 +53,12 @@ export function ZyraUsageCharts() {
       setUsers(json.data.users);
       setDaily(json.data.daily);
       setError(null);
-    } catch (err: any) {
-      setError(err.message || "Failed to load usage data");
+    } catch {
+      setError(t("loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [dateRange]);
+  }, [dateRange, t]);
 
   useEffect(() => {
     fetchData();

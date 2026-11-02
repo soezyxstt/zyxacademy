@@ -62,6 +62,7 @@ import {
 } from "@/app/(admin)/admin/(academic)/groups/actions";
 import { PACKAGE_PRESETS, type PackageType } from "@/lib/group-constants";
 import { formatIsoDate } from "@/lib/date-utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 type GroupItem = {
   id: string;
@@ -128,6 +129,7 @@ type Props = {
 };
 
 export function GroupsDashboard({ initialGroups, coursesList }: Props) {
+  const translate = useTranslations("adminOps");
   const router = useRouter();
 
   // Search & Filter State
@@ -214,7 +216,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim()) {
-      toast.error("Nama kelompok belajar wajib diisi");
+      toast.error(translate("groupsUI.missingName"));
       return;
     }
 
@@ -240,14 +242,14 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
       });
 
       if (res.success) {
-        toast.success("Kelompok belajar berhasil dibuat");
+        toast.success(translate("groupsUI.created"));
         setIsCreateOpen(false);
         router.refresh();
       } else {
-        toast.error(res.error || "Gagal membuat kelompok");
+        toast.error(translate("groupsUI.createFailure"));
       }
     } catch {
-      toast.error("Terjadi kesalahan sistem");
+      toast.error(translate("groupsUI.systemError"));
     } finally {
       setFormLoading(false);
     }
@@ -294,14 +296,14 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
       });
 
       if (res.success) {
-        toast.success("Data kelompok berhasil diperbarui");
+        toast.success(translate("groupsUI.updated"));
         setEditingGroup(null);
         router.refresh();
       } else {
-        toast.error(res.error || "Gagal memperbarui data");
+        toast.error(translate("groupsUI.updateFailure"));
       }
     } catch {
-      toast.error("Terjadi kesalahan sistem");
+      toast.error(translate("groupsUI.systemError"));
     } finally {
       setFormLoading(false);
     }
@@ -314,17 +316,17 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
     try {
       const res = await deleteStudyGroup(pendingDeleteGroup.id);
       if (res.success) {
-        toast.success("Kelompok belajar berhasil dihapus");
+        toast.success(translate("groupsUI.deleted"));
         setPendingDeleteGroup(null);
         if (detailGroup?.id === pendingDeleteGroup.id) {
           setDetailGroup(null);
         }
         router.refresh();
       } else {
-        toast.error(res.error || "Gagal menghapus kelompok");
+        toast.error(translate("groupsUI.deleteFailure"));
       }
     } catch {
-      toast.error("Terjadi kesalahan sistem");
+      toast.error(translate("groupsUI.systemError"));
     } finally {
       setIsDeletingGroup(false);
     }
@@ -375,10 +377,10 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
             : null
         );
       } else {
-        toast.error(res.error || "Gagal menambahkan anggota");
+        toast.error(translate("groupsUI.addMemberFailure"));
       }
     } catch {
-      toast.error("Terjadi kesalahan sistem");
+      toast.error(translate("groupsUI.systemError"));
     } finally {
       setAddingMemberId(null);
     }
@@ -401,17 +403,17 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
             : null
         );
       } else {
-        toast.error(res.error || "Gagal mengeluarkan anggota");
+        toast.error(translate("groupsUI.removeMemberFailure"));
       }
     } catch {
-      toast.error("Terjadi kesalahan sistem");
+      toast.error(translate("groupsUI.systemError"));
     }
   };
 
   const handleCopyText = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedToken(text);
-    toast.success("Token disalin ke papan klip");
+    toast.success(translate("groupsUI.tokenCopied"));
     setTimeout(() => setCopiedToken(null), 2000);
   };
 
@@ -420,42 +422,42 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
       {/* 1. KPI Strip */}
       <AdminStatStrip className="lg:grid-cols-4">
         <AdminStatStripItem
-          label="Total Kelompok"
+          label={translate("groupsUI.totalGroups")}
           value={totalGroups}
-          caption="Kelompok terdaftar"
+          caption={translate("groupsUI.registeredGroups")}
           icon={Users}
           tone="brand"
         />
         <AdminStatStripItem
-          label="Kelompok Aktif"
+          label={translate("groupsUI.activeGroups")}
           value={activeGroups}
-          caption="Semester ini"
+          caption={translate("groupsUI.thisSemester")}
           icon={CheckCircle2}
           tone="success"
         />
         <AdminStatStripItem
-          label="Mahasiswa Tergabung"
+          label={translate("groupsUI.joinedStudents")}
           value={totalMembers}
-          caption="Anggota aktif"
+          caption={translate("groupsUI.activeMembers")}
           icon={GraduationCap}
           tone="info"
         />
         <AdminStatStripItem
-          label="Pemakaian Kuota"
+          label={translate("groupsUI.quotaUsage")}
           value={`${avgQuotaUsed}%`}
-          caption="Rata-rata sesi semester"
+          caption={translate("groupsUI.semesterAverage")}
           icon={Percent}
           tone="warning"
         />
       </AdminStatStrip>
 
       {/* 2. Search, Filter, and Action Bar */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {/* Search Input */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-[140px]">
           <SearchBar
             size="sm"
-            placeholder="Cari kelompok, murid, atau mata kuliah..."
+            placeholder={translate("groupsUI.search")}
             value={searchQuery}
             onSearch={setSearchQuery}
             onClear={() => setSearchQuery("")}
@@ -465,37 +467,37 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
         {/* Status Filter */}
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="h-9 w-[130px] shrink-0 rounded-lg text-body-sm bg-card border-border">
-            <SelectValue placeholder="Semua Status" />
+            <SelectValue placeholder={translate("groupsUI.allStatus")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua Status</SelectItem>
-            <SelectItem value="active">Aktif</SelectItem>
-            <SelectItem value="completed">Selesai</SelectItem>
-            <SelectItem value="inactive">Nonaktif</SelectItem>
+            <SelectItem value="all">{translate("groupsUI.allStatus")}</SelectItem>
+            <SelectItem value="active">{translate("groupsUI.active")}</SelectItem>
+            <SelectItem value="completed">{translate("groupsUI.completed")}</SelectItem>
+            <SelectItem value="inactive">{translate("groupsUI.inactive")}</SelectItem>
           </SelectContent>
         </Select>
 
         {/* Package Filter */}
         <Select value={packageFilter} onValueChange={setPackageFilter}>
           <SelectTrigger className="h-9 w-[140px] shrink-0 rounded-lg text-body-sm bg-card border-border">
-            <SelectValue placeholder="Semua Paket" />
+            <SelectValue placeholder={translate("groupsUI.allPackages")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua Paket</SelectItem>
-            <SelectItem value="reguler_15">15 Sesi (1x/mgg)</SelectItem>
-            <SelectItem value="intensif_30">30 Sesi (2x/mgg)</SelectItem>
-            <SelectItem value="super_intensif_45">45 Sesi (3x/mgg)</SelectItem>
-            <SelectItem value="custom">Kustom</SelectItem>
+            <SelectItem value="all">{translate("groupsUI.allPackages")}</SelectItem>
+            <SelectItem value="reguler_15">{translate("groupsUI.regularPackage")}</SelectItem>
+            <SelectItem value="intensif_30">{translate("groupsUI.intensivePackage")}</SelectItem>
+            <SelectItem value="super_intensif_45">{translate("groupsUI.superIntensivePackage")}</SelectItem>
+            <SelectItem value="custom">{translate("groupsUI.custom")}</SelectItem>
           </SelectContent>
         </Select>
 
         {/* Course Filter */}
         <Select value={courseFilter} onValueChange={setCourseFilter}>
           <SelectTrigger className="h-9 w-[160px] sm:w-[180px] shrink-0 rounded-lg text-body-sm bg-card border-border truncate">
-            <SelectValue placeholder="Semua Mata Kuliah" />
+            <SelectValue placeholder={translate("groupsUI.allCourses")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua Mata Kuliah</SelectItem>
+            <SelectItem value="all">{translate("groupsUI.allCourses")}</SelectItem>
             {coursesList.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.title}
@@ -513,16 +515,16 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                 size="icon"
                 onClick={() => {
                   router.refresh();
-                  toast.success("Data diperbarui");
+                  toast.success(translate("groupsUI.refreshed"));
                 }}
                 className="size-9 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
-                aria-label="Refresh data"
+                aria-label={translate("groupsUI.refresh")}
               >
                 <RefreshCw className="size-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <p>Refresh data</p>
+              <p>{translate("groupsUI.refresh")}</p>
             </TooltipContent>
           </Tooltip>
 
@@ -531,14 +533,14 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
               <Button
                 size="icon"
                 onClick={handleOpenCreate}
-                className="size-9 shrink-0 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 shadow-sm shadow-brand-primary/20"
-                aria-label="Buat Kelompok"
+                className="size-9 shrink-0 rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 shadow-sm shadow-brand-primary/20"
+                aria-label={translate("groupsUI.createGroup")}
               >
                 <Plus className="size-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <p>Buat Kelompok</p>
+              <p>{translate("groupsUI.createGroup")}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -550,25 +552,25 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
           <AdminTableHead>
             <tr>
               <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold text-muted-foreground">
-                Kelompok & Paket
+                {translate("groupsUI.tableGroupPackage")}
               </th>
               <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold text-muted-foreground">
-                Kuota Sesi Semester
+                {translate("groupsUI.semesterQuota")}
               </th>
               <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold text-muted-foreground">
-                Mata Kuliah
+                {translate("groupsUI.course")}
               </th>
               <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold text-muted-foreground">
-                Anggota ({totalMembers})
+                {translate("groupsUI.members")} ({totalMembers})
               </th>
               <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold text-muted-foreground">
-                Periode Semester
+                {translate("groupsUI.semesterPeriod")}
               </th>
               <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold text-muted-foreground">
-                Status
+                {translate("groupsUI.status")}
               </th>
               <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold text-muted-foreground text-center">
-                Aksi
+                {translate("groupsUI.actions")}
               </th>
             </tr>
           </AdminTableHead>
@@ -576,7 +578,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
             {filteredGroups.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-5 py-12 text-center text-muted-foreground text-body-sm">
-                  Tidak ada kelompok belajar yang sesuai dengan kriteria filter.
+                  {translate("groupsUI.noGroups")}
                 </td>
               </tr>
             ) : (
@@ -597,12 +599,12 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
 
                 const statusText =
                   g.status === "active"
-                    ? "Aktif"
+                    ? translate("groupsUI.active")
                     : g.status === "completed"
-                    ? "Selesai"
+                    ? translate("groupsUI.completed")
                     : g.status === "inactive"
-                    ? "Nonaktif"
-                    : "Arsip";
+                    ? translate("groupsUI.inactive")
+                    : translate("groupsUI.archived");
 
                 return (
                   <tr key={g.id} className="hover:bg-muted/30 transition-colors">
@@ -631,15 +633,15 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between text-body-xs font-semibold">
                           <span className="text-foreground">
-                            {g.usedQuotaSessions} / {g.totalQuotaSessions} Sesi
+                            {g.usedQuotaSessions} / {g.totalQuotaSessions} {translate("groupsUI.sessions")}
                           </span>
                           <span className="text-muted-foreground text-[11px]">
-                            {g.remainingQuota} sisa
+                            {g.remainingQuota} {translate("groupsUI.remaining")}
                           </span>
                         </div>
-                        <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                        <div className="w-full bg-muted rounded-md h-1.5 overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all ${
+                            className={`h-full rounded-md transition-all ${
                               usedPct >= 90
                                 ? "bg-status-error"
                                 : usedPct >= 60
@@ -656,7 +658,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1 max-w-[200px]">
                         {g.courses.length === 0 ? (
-                          <span className="text-body-xs text-muted-foreground italic">Belum ada</span>
+                          <span className="text-body-xs text-muted-foreground italic">{translate("groupsUI.none")}</span>
                         ) : (
                           g.courses.map((c) => (
                             <span
@@ -675,7 +677,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-1">
                           <span className="font-semibold text-foreground text-body-xs">
-                            {g.members.length} Murid
+                            {translate("groupsUI.studentCount", { count: g.members.length })}
                           </span>
                         </div>
                         {g.members.length > 0 && (
@@ -703,13 +705,13 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                     <td className="px-4 py-3 text-body-xs text-muted-foreground whitespace-nowrap">
                       {g.startDate && g.endDate ? (
                         <span>
-                          {formatIsoDate(new Date(g.startDate))} s.d.{" "}
+                          {formatIsoDate(new Date(g.startDate))} {translate("groupsUI.until")}{" "}
                           {formatIsoDate(new Date(g.endDate))}
                         </span>
                       ) : g.endDate ? (
-                        <span>s.d. {formatIsoDate(new Date(g.endDate))}</span>
+                        <span>{translate("groupsUI.until")} {formatIsoDate(new Date(g.endDate))}</span>
                       ) : (
-                        <span>Satu Semester</span>
+                        <span>{translate("groupsUI.oneSemester")}</span>
                       )}
                     </td>
 
@@ -726,7 +728,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                           size="xs"
                           onClick={() => setDetailGroup(g)}
                           className="h-8 w-8 p-0 rounded-md text-muted-foreground hover:text-foreground"
-                          title="Lihat Detail & Anggota"
+                          title={translate("groupsUI.viewDetails")}
                         >
                           <Eye className="size-4" />
                         </Button>
@@ -735,7 +737,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                           size="xs"
                           onClick={() => handleOpenEdit(g)}
                           className="h-8 w-8 p-0 rounded-md text-muted-foreground hover:text-foreground"
-                          title="Edit Kelompok"
+                          title={translate("groupsUI.editGroup")}
                         >
                           <Edit3 className="size-4" />
                         </Button>
@@ -744,7 +746,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                           size="xs"
                           onClick={() => setPendingDeleteGroup(g)}
                           className="h-8 w-8 p-0 rounded-md text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                          title="Hapus Kelompok"
+                          title={translate("groupsUI.deleteGroup")}
                         >
                           <Trash2 className="size-4" />
                         </Button>
@@ -764,10 +766,10 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold flex items-center gap-2">
               <Users className="size-5 text-brand-primary" />
-              Buat Kelompok Belajar Baru
+              {translate("groupsUI.newGroup")}
             </DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground">
-              Konfigurasikan paket kuota sesi semester dan mata kuliah untuk kelompok belajar ini.
+              {translate("groupsUI.createDescription")}
             </DialogDescription>
           </DialogHeader>
 
@@ -775,10 +777,10 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
             {/* Nama Kelompok */}
             <div className="space-y-1.5">
               <label className="text-body-xs font-semibold text-foreground block">
-                Nama Kelompok Belajar
+                {translate("groupsUI.groupName")}
               </label>
               <Input
-                placeholder="Contoh: Kelompok Belajar Alpha (TPB ITB)"
+                placeholder={translate("groupsUI.namePlaceholder")}
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 required
@@ -789,14 +791,14 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
             {/* Pilihan Paket Kuota */}
             <div className="space-y-1.5">
               <label className="text-body-xs font-semibold text-foreground block">
-                Paket Kuota Pertemuan Semester
+                {translate("groupsUI.packageQuota")}
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[
-                  { id: "reguler_15" as const, title: "15 Sesi", sub: "1x / minggu" },
-                  { id: "intensif_30" as const, title: "30 Sesi", sub: "2x / minggu" },
-                  { id: "super_intensif_45" as const, title: "45 Sesi", sub: "3x / minggu" },
-                  { id: "custom" as const, title: "Kustom", sub: "Atur manual" },
+                  { id: "reguler_15" as const, title: translate("groupsUI.sessions15"), sub: translate("groupsUI.weekly1") },
+                  { id: "intensif_30" as const, title: translate("groupsUI.sessions30"), sub: translate("groupsUI.weekly2") },
+                  { id: "super_intensif_45" as const, title: translate("groupsUI.sessions45"), sub: translate("groupsUI.weekly3") },
+                  { id: "custom" as const, title: translate("groupsUI.custom"), sub: translate("groupsUI.manual") },
                 ].map((p) => {
                   const active = formPackageType === p.id;
                   return (
@@ -824,7 +826,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
               {formPackageType === "custom" && (
                 <div className="mt-2 flex items-center gap-3">
                   <label className="text-body-xs text-muted-foreground shrink-0">
-                    Jumlah Kuota Sesi:
+                    {translate("groupsUI.customQuota")}
                   </label>
                   <Input
                     type="number"
@@ -839,7 +841,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
 
               <div className="mt-2 flex items-center gap-3">
                 <label className="text-body-xs text-muted-foreground shrink-0">
-                  Kuota sesi per minggu:
+                  {translate("groupsUI.weeklyQuota")}
                 </label>
                 <Input
                   type="number"
@@ -847,7 +849,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                   max={100}
                   value={formWeeklyQuota}
                   onChange={(e) => setFormWeeklyQuota(parseInt(e.target.value, 10) || 1)}
-                  aria-label="Kuota sesi per minggu kelompok"
+                  aria-label={translate("groupsUI.weeklyQuotaAria")}
                   className="w-20 h-9 rounded-lg text-body-sm"
                 />
               </div>
@@ -857,20 +859,20 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-body-xs font-semibold text-foreground block">
-                  Semester
+                  {translate("groupsUI.semester")}
                 </label>
                 <Select value={formSemester} onValueChange={setFormSemester}>
-                  <SelectTrigger aria-label="Semester" className="w-full h-10 text-body-sm"><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label={translate("groupsUI.semester")} className="w-full h-10 text-body-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Ganjil">Semester Ganjil</SelectItem>
-                    <SelectItem value="Genap">Semester Genap</SelectItem>
-                    <SelectItem value="Pendek">Semester Pendek</SelectItem>
+                    <SelectItem value="Ganjil">{translate("groupsUI.oddSemester")}</SelectItem>
+                    <SelectItem value="Genap">{translate("groupsUI.evenSemester")}</SelectItem>
+                    <SelectItem value="Pendek">{translate("groupsUI.shortSemester")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <label className="text-body-xs font-semibold text-foreground block">
-                  Tahun Akademik
+                  {translate("groupsUI.academicYear")}
                 </label>
                 <Input
                   value={formAcademicYear}
@@ -885,7 +887,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-body-xs font-semibold text-foreground block">
-                  Tanggal Mulai (Opsional)
+                  {translate("groupsUI.startDateOptional")}
                 </label>
                 <Input
                   type="date"
@@ -896,7 +898,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
               </div>
               <div className="space-y-1.5">
                 <label className="text-body-xs font-semibold text-foreground block">
-                  Tanggal Berakhir (Opsional)
+                  {translate("groupsUI.endDateOptional")}
                 </label>
                 <Input
                   type="date"
@@ -910,7 +912,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
             {/* Mata Kuliah Kelompok */}
             <div className="space-y-1.5">
               <label className="text-body-xs font-semibold text-foreground block">
-                Mata Kuliah yang Diambil
+                {translate("groupsUI.coursesTaken")}
               </label>
               <div className="max-h-36 overflow-y-auto divide-y divide-border rounded-lg border border-border">
                 {coursesList.map((c) => {
@@ -943,10 +945,10 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
             {/* Catatan */}
             <div className="space-y-1.5">
               <label className="text-body-xs font-semibold text-muted-foreground block">
-                Catatan Administratif (Opsional)
+                {translate("groupsUI.notes")}
               </label>
               <Input
-                placeholder="Catatan internal pengelola..."
+                placeholder={translate("groupsUI.notesPlaceholder")}
                 value={formNotes}
                 onChange={(e) => setFormNotes(e.target.value)}
                 className="h-10 rounded-lg text-body-sm"
@@ -956,16 +958,16 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
             <DialogFooter className="gap-2 pt-2">
               <DialogClose asChild>
                 <Button variant="outline" type="button" disabled={formLoading}>
-                  Batal
+                  {translate("groupsUI.cancel")}
                 </Button>
               </DialogClose>
               <Button
                 type="submit"
                 disabled={formLoading}
                 isLoading={formLoading}
-                className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-lg"
+                className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-lg"
               >
-                Simpan Kelompok
+                {translate("groupsUI.saveGroup")}
               </Button>
             </DialogFooter>
           </form>
@@ -978,17 +980,17 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold flex items-center gap-2">
               <Edit3 className="size-5 text-brand-primary" />
-              Edit Kelompok Belajar
+              {translate("groupsUI.editGroup")}
             </DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground">
-              Perbarui konfigurasi paket, kuota pertemuan, dan mata kuliah.
+              {translate("groupsUI.editDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleEditSubmit} className="space-y-4 mt-2">
             <div className="space-y-1.5">
               <label className="text-body-xs font-semibold text-foreground block">
-                Nama Kelompok Belajar
+                {translate("groupsUI.groupName")}
               </label>
               <Input
                 value={formName}
@@ -1000,14 +1002,14 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
 
             <div className="space-y-1.5">
               <label className="text-body-xs font-semibold text-foreground block">
-                Paket Kuota Pertemuan Semester
+                {translate("groupsUI.packageQuota")}
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[
-                  { id: "reguler_15" as const, title: "15 Sesi", sub: "1x / minggu" },
-                  { id: "intensif_30" as const, title: "30 Sesi", sub: "2x / minggu" },
-                  { id: "super_intensif_45" as const, title: "45 Sesi", sub: "3x / minggu" },
-                  { id: "custom" as const, title: "Kustom", sub: "Atur manual" },
+                  { id: "reguler_15" as const, title: translate("groupsUI.sessions15"), sub: translate("groupsUI.weekly1") },
+                  { id: "intensif_30" as const, title: translate("groupsUI.sessions30"), sub: translate("groupsUI.weekly2") },
+                  { id: "super_intensif_45" as const, title: translate("groupsUI.sessions45"), sub: translate("groupsUI.weekly3") },
+                  { id: "custom" as const, title: translate("groupsUI.custom"), sub: translate("groupsUI.manual") },
                 ].map((p) => {
                   const active = formPackageType === p.id;
                   return (
@@ -1035,7 +1037,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
               {formPackageType === "custom" && (
                 <div className="mt-2 flex items-center gap-3">
                   <label className="text-body-xs text-muted-foreground shrink-0">
-                    Jumlah Kuota Sesi:
+                    {translate("groupsUI.customQuota")}
                   </label>
                   <Input
                     type="number"
@@ -1050,7 +1052,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
 
               <div className="mt-2 flex items-center gap-3">
                 <label className="text-body-xs text-muted-foreground shrink-0">
-                  Kuota sesi per minggu:
+                  {translate("groupsUI.weeklyQuota")}
                 </label>
                 <Input
                   type="number"
@@ -1058,7 +1060,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                   max={100}
                   value={formWeeklyQuota}
                   onChange={(e) => setFormWeeklyQuota(parseInt(e.target.value, 10) || 1)}
-                  aria-label="Kuota sesi per minggu kelompok"
+                  aria-label={translate("groupsUI.weeklyQuotaAria")}
                   className="w-20 h-9 rounded-lg text-body-sm"
                 />
               </div>
@@ -1067,20 +1069,20 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-body-xs font-semibold text-foreground block">
-                  Semester
+                  {translate("groupsUI.semester")}
                 </label>
                 <Select value={formSemester} onValueChange={setFormSemester}>
-                  <SelectTrigger aria-label="Semester" className="w-full h-10 text-body-sm"><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label={translate("groupsUI.semester")} className="w-full h-10 text-body-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Ganjil">Semester Ganjil</SelectItem>
-                    <SelectItem value="Genap">Semester Genap</SelectItem>
-                    <SelectItem value="Pendek">Semester Pendek</SelectItem>
+                    <SelectItem value="Ganjil">{translate("groupsUI.oddSemester")}</SelectItem>
+                    <SelectItem value="Genap">{translate("groupsUI.evenSemester")}</SelectItem>
+                    <SelectItem value="Pendek">{translate("groupsUI.shortSemester")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <label className="text-body-xs font-semibold text-foreground block">
-                  Tahun Akademik
+                  {translate("groupsUI.academicYear")}
                 </label>
                 <Input
                   value={formAcademicYear}
@@ -1093,7 +1095,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-body-xs font-semibold text-foreground block">
-                  Tanggal Mulai
+                  {translate("groupsUI.startDate")}
                 </label>
                 <Input
                   type="date"
@@ -1104,7 +1106,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
               </div>
               <div className="space-y-1.5">
                 <label className="text-body-xs font-semibold text-foreground block">
-                  Tanggal Berakhir
+                  {translate("groupsUI.endDate")}
                 </label>
                 <Input
                   type="date"
@@ -1117,7 +1119,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
 
             <div className="space-y-1.5">
               <label className="text-body-xs font-semibold text-foreground block">
-                Mata Kuliah yang Diambil
+                {translate("groupsUI.coursesTaken")}
               </label>
               <div className="max-h-36 overflow-y-auto divide-y divide-border rounded-lg border border-border">
                 {coursesList.map((c) => {
@@ -1150,16 +1152,16 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
             <DialogFooter className="gap-2 pt-2">
               <DialogClose asChild>
                 <Button variant="outline" type="button" disabled={formLoading}>
-                  Batal
+                  {translate("groupsUI.cancel")}
                 </Button>
               </DialogClose>
               <Button
                 type="submit"
                 disabled={formLoading}
                 isLoading={formLoading}
-                className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-lg"
+                className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-lg"
               >
-                Simpan Perubahan
+                {translate("groupsUI.saveChanges")}
               </Button>
             </DialogFooter>
           </form>
@@ -1182,7 +1184,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                     </DialogDescription>
                   </div>
                   <Badge variant="outline" className="font-semibold capitalize">
-                    {detailGroup.status}
+                    {detailGroup.status === "active" ? translate("groupsUI.active") : detailGroup.status === "completed" ? translate("groupsUI.completed") : detailGroup.status === "inactive" ? translate("groupsUI.inactive") : translate("groupsUI.archived")}
                   </Badge>
                 </div>
               </DialogHeader>
@@ -1190,14 +1192,14 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
               {/* Quota Summary Box */}
               <div className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
                 <div className="flex items-center justify-between text-body-sm font-semibold">
-                  <span className="text-foreground">Aktivitas Minggu Ini</span>
+                  <span className="text-foreground">{translate("groupsUI.activityThisWeek")}</span>
                   <span className="text-brand-primary font-bold">
-                    {detailGroup.weeklyUsedSessions ?? 0} Sesi
+                    {detailGroup.weeklyUsedSessions ?? 0} {translate("groupsUI.sessions")}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-body-xs text-muted-foreground">
-                  <span>Total terlaksana: {detailGroup.usedQuotaSessions} dari {detailGroup.totalQuotaSessions} sesi paket</span>
-                  <span>Frekuensi: {PACKAGE_PRESETS[detailGroup.packageType as PackageType]?.frequencyLabel || "Fleksibel"}</span>
+                  <span>{translate("groupsUI.totalHeld", { used: detailGroup.usedQuotaSessions, total: detailGroup.totalQuotaSessions })}</span>
+                  <span>{translate("groupsUI.frequency", { frequency: translate("groupsUI.flexible") })}</span>
                 </div>
                 {detailGroup.weeklyStats && detailGroup.weeklyStats.length > 0 && (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-border/60">
@@ -1205,8 +1207,8 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                       <div key={w.weekStartIso} className="px-2 py-1 text-center">
                         <span className="text-[11px] font-semibold text-foreground block">{w.label}</span>
                         <div className="flex items-center justify-center gap-2 text-[11px] mt-0.5">
-                          <span className="text-emerald-600 dark:text-emerald-400">{w.attended} hadir</span>
-                          <span className="text-red-500">{w.missed + w.cancelled} lewat</span>
+                          <span className="text-emerald-600 dark:text-emerald-400">{w.attended} {translate("groupsUI.attended")}</span>
+                          <span className="text-red-500">{w.missed + w.cancelled} {translate("groupsUI.missed")}</span>
                         </div>
                       </div>
                     ))}
@@ -1218,11 +1220,11 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
               <div className="space-y-2">
                 <h3 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
                   <BookOpen className="size-4 text-brand-primary" />
-                  Mata kuliah ({detailGroup.courses.length})
+                  {translate("groupsUI.course")} ({detailGroup.courses.length})
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {detailGroup.courses.length === 0 ? (
-                    <p className="text-body-xs text-muted-foreground italic">Belum ada mata kuliah yang terhubung.</p>
+                    <p className="text-body-xs text-muted-foreground italic">{translate("groupsUI.noCoursesLinked")}</p>
                   ) : (
                     detailGroup.courses.map((c) => (
                       <div
@@ -1242,7 +1244,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                 <div className="flex items-center justify-between">
                   <h3 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
                     <Users className="size-4 text-brand-primary" />
-                    Anggota Kelompok ({detailGroup.members.length})
+                    {translate("groupsUI.detailMembers")} ({detailGroup.members.length})
                   </h3>
                 </div>
 
@@ -1250,7 +1252,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                 <div className="divide-y divide-border border border-border rounded-xl bg-card overflow-hidden">
                   {detailGroup.members.length === 0 ? (
                     <div className="p-4 text-center text-body-xs text-muted-foreground">
-                      Belum ada anggota terdaftar dalam kelompok ini.
+                      {translate("groupsUI.noMembers")}
                     </div>
                   ) : (
                     detailGroup.members.map((m) => (
@@ -1268,14 +1270,14 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge variant={m.role === "leader" ? "default" : "outline"} className="text-[10px] uppercase">
-                            {m.role === "leader" ? "Ketua" : "Anggota"}
+                            {m.role === "leader" ? translate("groupsUI.leader") : translate("groupsUI.member")}
                           </Badge>
                           <Button
                             variant="ghost"
                             size="xs"
                             onClick={() => handleRemoveMemberFromGroup(m.userId, m.user.name)}
                             className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded"
-                            title="Keluarkan dari kelompok"
+                            title={translate("groupsUI.removeFromGroup")}
                           >
                             <UserMinus className="size-3.5" />
                           </Button>
@@ -1288,12 +1290,12 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                 {/* Add Member Search */}
                 <div className="space-y-2 pt-1">
                   <label className="text-body-xs font-semibold text-foreground block">
-                    Tambah Anggota Murid
+                    {translate("groupsUI.searchStudents")}
                   </label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
                     <Input
-                      placeholder="Ketik nama atau email mahasiswa..."
+                      placeholder={translate("groupsUI.studentSearchPlaceholder")}
                       value={memberSearchQuery}
                       onChange={(e) => handleSearchUsers(e.target.value)}
                       className="pl-8 h-9 rounded-lg text-body-xs"
@@ -1301,7 +1303,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                   </div>
                   <SearchBar
                     size="sm"
-                    placeholder="Ketik nama atau email mahasiswa..."
+                    placeholder={translate("groupsUI.studentSearchPlaceholder")}
                     value={memberSearchQuery}
                     onSearch={handleSearchUsers}
                     onClear={() => handleSearchUsers("")}
@@ -1321,16 +1323,16 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                               <p className="text-[10px] text-muted-foreground">{u.email}</p>
                             </div>
                             {isAlready ? (
-                              <span className="text-[10px] text-muted-foreground font-medium">Sudah tergabung</span>
+                              <span className="text-[10px] text-muted-foreground font-medium">{translate("groupsUI.alreadyJoined")}</span>
                             ) : (
                               <Button
                                 size="xs"
                                 disabled={addingMemberId === u.id}
                                 onClick={() => handleAddMemberToGroup(u)}
-                                className="h-7 rounded bg-brand-primary text-white text-[11px] gap-1"
+                                className="h-7 rounded bg-brand-primary text-primary-foreground text-[11px] gap-1"
                               >
                                 <UserPlus className="size-3" />
-                                {addingMemberId === u.id ? "Menambahkan..." : "Tambah"}
+                                {addingMemberId === u.id ? translate("groupsUI.adding") : translate("groupsUI.add")}
                               </Button>
                             )}
                           </div>
@@ -1341,12 +1343,12 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                 </div>
               </div>
 
-              {/* Token Aktivasi Terkait */}
+              {/* Related activation tokens */}
               {detailGroup.tokens && detailGroup.tokens.length > 0 && (
                 <div className="space-y-2">
                   <h3 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
                     <KeyRound className="size-4 text-brand-primary" />
-                    Token Aktivasi Terkait
+                    {translate("groupsUI.tokens")}
                   </h3>
                   <div className="space-y-1.5">
                     {detailGroup.tokens.map((t) => (
@@ -1357,13 +1359,13 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                         <span className="font-bold text-foreground">{t.token}</span>
                         <div className="flex items-center gap-2">
                           <span className="text-muted-foreground text-[11px]">
-                            Kapasitas: {t.capacity} orang
+                            {translate("groupsUI.groupCapacityLabel", { capacity: t.capacity })}
                           </span>
                           <Button variant="ghost"
                             type="button"
                             onClick={() => handleCopyText(t.token)}
                             className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-                            aria-label="Salin token"
+                            aria-label={translate("groupsUI.copyToken")}
                             size="icon"
                           >
                             {copiedToken === t.token ? (
@@ -1382,7 +1384,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
               <DialogFooter className="pt-2">
                 <DialogClose asChild>
                   <Button variant="outline" type="button">
-                    Tutup
+                    {translate("groupsUI.cancel")}
                   </Button>
                 </DialogClose>
               </DialogFooter>
@@ -1395,14 +1397,9 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
       <AdminConfirmDialog
         open={!!pendingDeleteGroup}
         onOpenChange={(open) => !open && setPendingDeleteGroup(null)}
-        title="Hapus Kelompok Belajar"
-        description={
-          <>
-            Apakah Anda yakin ingin menghapus kelompok belajar{" "}
-            <strong className="text-foreground">{pendingDeleteGroup?.name}</strong>?
-            Seluruh data anggota, pemesanan sesi, dan token yang terhubung akan dicabut.
-          </>
-        }
+        title={translate("groupsUI.deleteTitle")}
+        description={translate("groupsUI.deletePrompt", { name: pendingDeleteGroup?.name ?? "" })}
+        confirmLabel={translate("groupsUI.confirmDelete")}
         loading={isDeletingGroup}
         onConfirm={handleDeleteConfirm}
       />

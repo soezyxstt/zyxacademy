@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Check,
   CheckCircle2,
@@ -76,32 +77,6 @@ const statusTone: Record<ReviewStatus, "muted" | "info" | "success" | "warning" 
   retired: "error",
 };
 
-const statusLabel: Record<ReviewStatus, string> = {
-  generated: "Belum ditinjau",
-  reviewed: "Ditinjau",
-  published: "Published",
-  flagged: "Perlu perhatian",
-  retired: "Retired",
-};
-
-const categoryLabel: Record<string, string> = {
-  tutorial: "Tutorial",
-  quiz: "Quiz",
-  uts: "UTS",
-  uas: "UAS",
-  tryout: "Tryout",
-  homework: "Tugas",
-  exercise: "Latihan",
-  other: "Lainnya",
-};
-
-const provenanceLabel: Record<NonNullable<HistoricalQuestion["answerProvenance"]>, string> = {
-  official: "Jawaban resmi",
-  source_solution: "Dokumen pembahasan",
-  zyx_generated: "Generated Zyx",
-  unavailable: "Belum tersedia",
-};
-
 /**
  * Normalizes raw option values from JSON or arrays into structured HistoricalOption items.
  *
@@ -127,14 +102,12 @@ function normalizeOptions(value: unknown): HistoricalOption[] {
  * @param question - The historical question item to inspect.
  * @returns The target review action status and display label, or null if no transition applies.
  */
-function reviewActionFor(question: HistoricalQuestion): { status: ReviewActionStatus; label: string } | null {
+function reviewActionFor(question: HistoricalQuestion): ReviewActionStatus | null {
   if (question.reviewStatus === "generated" || question.reviewStatus === "flagged") {
-    return { status: "reviewed", label: "Tandai ditinjau" };
+    return "reviewed";
   }
   if (question.reviewStatus === "reviewed") {
-    return question.quizEligible
-      ? { status: "published", label: "Terbitkan" }
-      : { status: "flagged", label: "Tandai perlu perhatian" };
+    return question.quizEligible ? "published" : "flagged";
   }
   return null;
 }
@@ -147,6 +120,7 @@ function reviewActionFor(question: HistoricalQuestion): { status: ReviewActionSt
  * @param props - Component properties containing questions list, courses, and course map.
  */
 export function HistoricalQuestionsClient({ questions, courses, courseMap, canonicalCourseMap }: Props) {
+  const t = useTranslations("adminEval.historicalQuestions");
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCourse, setFilterCourse] = useState("all");
@@ -188,13 +162,13 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
   const allReviewableSelected = reviewableQuestions.length > 0 && reviewableQuestions.every((question) => selected.has(question.id));
   const selectedQuestions = localQuestions.filter((question) => selected.has(question.id));
   const selectedForReview = selectedQuestions
-    .filter((question) => reviewActionFor(question)?.status === "reviewed")
+    .filter((question) => reviewActionFor(question) === "reviewed")
     .map((question) => question.id);
   const selectedForPublish = selectedQuestions
-    .filter((question) => reviewActionFor(question)?.status === "published")
+    .filter((question) => reviewActionFor(question) === "published")
     .map((question) => question.id);
   const selectedForFlag = selectedQuestions
-    .filter((question) => reviewActionFor(question)?.status === "flagged")
+    .filter((question) => reviewActionFor(question) === "flagged")
     .map((question) => question.id);
 
   function toggleSelect(id: string) {
@@ -219,7 +193,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
 
   async function updateReviewStatus(ids: string[], reviewStatus: ReviewActionStatus) {
     if (ids.length === 0) {
-      toast.error("Pilih minimal satu soal yang dapat ditinjau.");
+      toast.error(t("selectReviewable"));
       return;
     }
     setUpdating(true);
@@ -229,9 +203,8 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids, reviewStatus }),
       });
-      const data = await response.json();
       if (!response.ok) {
-        toast.error(data.error || "Gagal memperbarui status review.");
+        toast.error(t("updateFailed"));
         return;
       }
       const canonicalStatus = reviewStatus === "published" ? "published" : "in_review";
@@ -241,14 +214,14 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
       setSelected(new Set());
       toast.success(
         reviewStatus === "published"
-          ? "Soal berhasil diterbitkan."
+          ? t("publishedToast")
           : reviewStatus === "reviewed"
-            ? "Soal ditandai sudah ditinjau."
-            : "Soal ditandai perlu perhatian.",
+            ? t("reviewedToast")
+            : t("flaggedToast"),
       );
       router.refresh();
     } catch {
-      toast.error("Terjadi kesalahan koneksi saat memperbarui review.");
+      toast.error(t("connectionError"));
     } finally {
       setUpdating(false);
     }
@@ -293,45 +266,45 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
       <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
         <SearchBar
           size="sm"
-          placeholder="Cari isi soal atau sumber..."
+          placeholder={t("search")}
           value={searchTerm}
           onSearch={setSearchTerm}
           onClear={() => setSearchTerm("")}
           containerClassName="min-w-[140px] flex-1"
         />
         <QuestionFilterPopover activeCount={activeFilterCount} onReset={resetFilters}>
-          <QuestionFilterField label="Mata kuliah">
+          <QuestionFilterField label={t("course")}>
             <Select value={filterCourse} onValueChange={setFilterCourse}>
-              <SelectTrigger aria-label="Filter mata kuliah" className="h-9 w-full rounded-lg text-body-sm">
-                <SelectValue placeholder="Mata kuliah" />
+              <SelectTrigger aria-label={t("filterCourse")} className="h-9 w-full rounded-lg text-body-sm">
+                <SelectValue placeholder={t("course")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua mata kuliah</SelectItem>
+                <SelectItem value="all">{t("allCourses")}</SelectItem>
                 {courses.map((course) => <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>)}
               </SelectContent>
             </Select>
           </QuestionFilterField>
-          <QuestionFilterField label="Kategori">
+          <QuestionFilterField label={t("categoryLabel")}>
             <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger aria-label="Filter kategori sumber" className="h-9 w-full rounded-lg text-body-sm">
-                <SelectValue placeholder="Kategori" />
+              <SelectTrigger aria-label={t("filterCategory")} className="h-9 w-full rounded-lg text-body-sm">
+                <SelectValue placeholder={t("categoryLabel")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua kategori</SelectItem>
-                {Object.entries(categoryLabel).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+                <SelectItem value="all">{t("allCategories")}</SelectItem>
+                {["tutorial", "quiz", "uts", "uas", "tryout", "homework", "exercise", "other"].map((value) => <SelectItem key={value} value={value}>{t(`category.${value}`)}</SelectItem>)}
               </SelectContent>
             </Select>
           </QuestionFilterField>
-          <QuestionFilterField label="Kesulitan">
+          <QuestionFilterField label={t("difficulty")}>
             <Select value={filterDifficulty} onValueChange={setFilterDifficulty}>
-              <SelectTrigger aria-label="Filter tingkat kesulitan" className="h-9 w-full rounded-lg text-body-sm">
-                <SelectValue placeholder="Kesulitan" />
+              <SelectTrigger aria-label={t("filterDifficulty")} className="h-9 w-full rounded-lg text-body-sm">
+                <SelectValue placeholder={t("difficulty")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua kesulitan</SelectItem>
-                <SelectItem value="easy">Easy</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="hard">Hard</SelectItem>
+                <SelectItem value="all">{t("allDifficulties")}</SelectItem>
+                <SelectItem value="easy">{t("easy")}</SelectItem>
+                <SelectItem value="medium">{t("medium")}</SelectItem>
+                <SelectItem value="hard">{t("hard")}</SelectItem>
               </SelectContent>
             </Select>
           </QuestionFilterField>
@@ -340,21 +313,21 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
 
       {selected.size > 0 ? (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/80 bg-background/90 px-4 py-3 shadow-sm">
-          <span className="text-body-sm font-semibold text-foreground">{selected.size} soal dipilih</span>
+          <span className="text-body-sm font-semibold text-foreground">{selected.size} {t("selectedCount")}</span>
           <div className="flex flex-wrap gap-2 sm:ml-auto">
             {selectedForReview.length > 0 ? (
               <Button type="button" size="sm" variant="outline" className="rounded-lg text-body-sm" onClick={() => updateReviewStatus(selectedForReview, "reviewed")} disabled={updating}>
-                <CheckCircle2 className="size-4" /> Tandai ditinjau
+                <CheckCircle2 className="size-4" />{t("action.reviewed")}
               </Button>
             ) : null}
             {selectedForPublish.length > 0 ? (
               <Button type="button" size="sm" variant="outline" className="rounded-lg text-body-sm" onClick={() => updateReviewStatus(selectedForPublish, "published")} disabled={updating}>
-                <CheckCircle2 className="size-4" /> Terbitkan
+                <CheckCircle2 className="size-4" />{t("action.published")}
               </Button>
             ) : null}
             {selectedForFlag.length > 0 ? (
               <Button type="button" size="sm" variant="outline" className="rounded-lg text-body-sm" onClick={() => updateReviewStatus(selectedForFlag, "flagged")} disabled={updating}>
-                <Flag className="size-4" /> Perlu perhatian
+                <Flag className="size-4" />{t("action.flagged")}
               </Button>
             ) : null}
           </div>
@@ -366,12 +339,12 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
       <AdminTable className="w-full">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/50 px-4 py-3">
           <span className="text-body-xs font-semibold text-muted-foreground">
-            Daftar soal ({filteredQuestions.length})
+            {t("questionCountList", { count: filteredQuestions.length })}
           </span>
 
           <div className="flex items-center gap-3 ml-auto flex-wrap">
             <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground">
-              <span className="hidden sm:inline">Per halaman:</span>
+              <span className="hidden sm:inline">{t("perPage")}</span>
               <Select
                 value={String(pageSize)}
                 onValueChange={(value) => {
@@ -379,7 +352,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
                   setCurrentPage(1);
                 }}
               >
-                <SelectTrigger aria-label="Jumlah soal per halaman" className="h-7 w-[68px] rounded-md text-body-xs px-2">
+                <SelectTrigger aria-label={t("pageSize")} className="h-8 w-[68px] rounded-md text-body-sm px-2">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -400,7 +373,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
                   className="size-7 p-0 rounded-md"
                   disabled={safeCurrentPage <= 1}
                   onClick={() => goToPage(safeCurrentPage - 1)}
-                  aria-label="Halaman sebelumnya"
+                  aria-label={t("previousPage")}
                 >
                   <ChevronLeft className="size-3.5" />
                 </Button>
@@ -414,7 +387,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
                   className="size-7 p-0 rounded-md"
                   disabled={safeCurrentPage >= totalPages}
                   onClick={() => goToPage(safeCurrentPage + 1)}
-                  aria-label="Halaman berikutnya"
+                  aria-label={t("nextPage")}
                 >
                   <ChevronRight className="size-3.5" />
                 </Button>
@@ -424,22 +397,22 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
         </div>
 
         {filteredQuestions.length === 0 ? (
-          <AdminEmptyState compact title="Tidak ada soal referensi historis yang cocok dengan filter." />
+          <AdminEmptyState compact title={t("empty")} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
               <AdminTableHead>
                 <tr>
                   <th className="w-10 px-4 py-3 text-center text-body-sm font-medium text-muted-foreground">
-                    <button type="button" onClick={toggleAll} aria-label={allReviewableSelected ? "Batalkan pilih semua" : "Pilih semua soal yang dapat ditinjau"} className="text-muted-foreground hover:text-foreground">
+                    <button type="button" onClick={toggleAll} aria-label={allReviewableSelected ? t("clearSelection") : t("selectAllReviewable")} className="text-muted-foreground hover:text-foreground">
                       {allReviewableSelected ? <CheckSquare className="size-4 text-brand-primary" /> : <Square className="size-4" />}
                     </button>
                   </th>
-                  <th className="px-4 py-3 text-left text-body-sm font-medium text-muted-foreground">Soal</th>
-                  <th className="px-4 py-3 text-left text-body-sm font-medium text-muted-foreground">Mata kuliah</th>
-                  <th className="px-4 py-3 text-left text-body-sm font-medium text-muted-foreground">Sumber</th>
-                  <th className="px-4 py-3 text-left text-body-sm font-medium text-muted-foreground">Status</th>
-                  <th className="w-12 px-4 py-3 text-center text-body-sm font-medium text-muted-foreground">Detail</th>
+                  <th className="px-4 py-3 text-left text-body-sm font-medium text-muted-foreground">{t("question")}</th>
+                  <th className="px-4 py-3 text-left text-body-sm font-medium text-muted-foreground">{t("course")}</th>
+                  <th className="px-4 py-3 text-left text-body-sm font-medium text-muted-foreground">{t("source")}</th>
+                  <th className="px-4 py-3 text-left text-body-sm font-medium text-muted-foreground">{t("statusLabel")}</th>
+                  <th className="w-12 px-4 py-3 text-center text-body-sm font-medium text-muted-foreground">{t("detail")}</th>
                 </tr>
               </AdminTableHead>
               <tbody>
@@ -453,7 +426,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
                     <tr key={question.id} className="border-b border-border transition-colors duration-150 hover:bg-muted/50">
                       <td className="px-4 py-3 text-center align-top">
                         {reviewAction ? (
-                          <button type="button" onClick={() => toggleSelect(question.id)} aria-label={"Pilih soal " + (question.sourceQuestionNumber || question.id)} className="mt-1 text-muted-foreground hover:text-foreground">
+                          <button type="button" onClick={() => toggleSelect(question.id)} aria-label={t("selectQuestion", { question: question.sourceQuestionNumber || question.id })} className="mt-1 text-muted-foreground hover:text-foreground">
                             {selected.has(question.id) ? <CheckSquare className="size-4 text-brand-primary" /> : <Square className="size-4" />}
                           </button>
                         ) : <span className="text-body-xs text-muted-foreground">-</span>}
@@ -467,26 +440,26 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
                         <div className="mt-2 flex flex-wrap items-center gap-1.5">
                           <DifficultyBadge difficulty={question.difficulty} subtle />
                           <StatusBadge tone={question.quizEligible ? "success" : "muted"} subtle>
-                            {question.quizEligible ? "Layak kuis" : "Referensi saja"}
+                            {question.quizEligible ? t("quizEligible") : t("referenceOnly")}
                           </StatusBadge>
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 align-top text-body-sm text-muted-foreground">{courseMap[question.courseId] || "Mata kuliah"}</td>
+                      <td className="whitespace-nowrap px-4 py-3 align-top text-body-sm text-muted-foreground">{courseMap[question.courseId] || t("course")}</td>
                       <td className="whitespace-nowrap px-4 py-3 align-top text-body-sm">
                         <div className="flex flex-col">
                           <span className="font-semibold text-foreground">{question.sourceTitle}</span>
                           <span className="text-body-xs text-muted-foreground">
-                            {categoryLabel[question.sourceCategory] ?? question.sourceCategory}
+                            {t.has(`category.${question.sourceCategory}`) ? t(`category.${question.sourceCategory}`) : question.sourceCategory}
                             {question.sourceYear ? " · " + question.sourceYear : ""}
                             {question.sourceQuestionNumber ? " · Soal " + question.sourceQuestionNumber + (question.sourceQuestionPart || "") : ""}
                           </span>
                         </div>
                       </td>
                       <td className="px-4 py-3 align-top">
-                        <StatusBadge tone={statusTone[question.reviewStatus]} subtle>{statusLabel[question.reviewStatus]}</StatusBadge>
+                        <StatusBadge tone={statusTone[question.reviewStatus]} subtle>{t(`status.${question.reviewStatus}`)}</StatusBadge>
                       </td>
                       <td className="px-4 py-3 text-center align-top">
-                        <button type="button" onClick={() => setExpandedId(isExpanded ? null : question.id)} aria-label={isExpanded ? "Sembunyikan detail soal" : "Lihat detail soal"} className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                        <button type="button" onClick={() => setExpandedId(isExpanded ? null : question.id)} aria-label={isExpanded ? t("hideDetails") : t("viewDetails")} className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
                           {isExpanded ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                         </button>
                       </td>
@@ -511,7 +484,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
                 className="size-8 p-0 rounded-lg"
                 disabled={safeCurrentPage <= 1}
                 onClick={() => goToPage(safeCurrentPage - 1)}
-                aria-label="Halaman sebelumnya"
+                aria-label={t("previousPage")}
               >
                 <ChevronLeft className="size-4" />
               </Button>
@@ -525,7 +498,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
                 className="size-8 p-0 rounded-lg"
                 disabled={safeCurrentPage >= totalPages}
                 onClick={() => goToPage(safeCurrentPage + 1)}
-                aria-label="Halaman berikutnya"
+                aria-label={t("nextPage")}
               >
                 <ChevronRight className="size-4" />
               </Button>
@@ -540,18 +513,18 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
         const options = normalizeOptions(question.options);
         const reviewAction = reviewActionFor(question);
         return (
-          <section key={"detail-" + question.id} className="space-y-4 rounded-xl border border-border/70 bg-card/75 p-4 shadow-xs">
+          <section key={"detail-" + question.id} className="space-y-4 rounded-xl border border-border bg-card p-4">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
               <div>
-                <p className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Detail referensi historis</p>
+                <p className="text-body-sm font-semibold text-foreground">{t("detailTitle")}</p>
                 <p className="mt-1 text-body-sm font-semibold text-foreground">{question.sourceTitle}</p>
               </div>
               {reviewAction ? (
-                <Button type="button" size="sm" variant="outline" className="rounded-lg text-body-sm" onClick={() => updateReviewStatus([question.id], reviewAction.status)} disabled={updating}>
-                  {reviewAction.status === "flagged" ? <Flag className="size-4" /> : <CheckCircle2 className="size-4" />}
-                  {reviewAction.label}
+                <Button type="button" size="sm" variant="outline" className="rounded-lg text-body-sm" onClick={() => updateReviewStatus([question.id], reviewAction)} disabled={updating}>
+                  {reviewAction === "flagged" ? <Flag className="size-4" /> : <CheckCircle2 className="size-4" />}
+                  {t(`action.${reviewAction}`)}
                 </Button>
-              ) : <StatusBadge tone="muted" subtle>Tidak ada aksi review</StatusBadge>}
+              ) : <StatusBadge tone="muted" subtle>{t("noReviewAction")}</StatusBadge>}
             </div>
             {options.length > 0 ? (
               <div className="grid gap-2 sm:grid-cols-2">
@@ -559,22 +532,22 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
                   <div key={option.id ?? question.id + "-option-" + index} className={option.isCorrect ? "flex gap-3 border-l-2 border-status-success bg-status-success/5 px-3 py-2 text-body-sm text-status-success" : "flex gap-3 px-3 py-2 text-body-sm text-muted-foreground"}>
                     <span className="shrink-0 font-bold">{String.fromCharCode(65 + index)}.</span>
                     <MarkdownRenderer content={option.text} className="flex-1 space-y-3 leading-relaxed" />
-                    {option.isCorrect ? <Check className="size-4 shrink-0" aria-label="Jawaban sumber" /> : null}
+                    {option.isCorrect ? <Check className="size-4 shrink-0" aria-label={t("sourceAnswer")} /> : null}
                   </div>
                 ))}
               </div>
             ) : null}
             {question.answerMarkdown ? (
               <div className="border-t border-border pt-3">
-                <p className="mb-1.5 text-body-xs font-bold uppercase tracking-wide text-muted-foreground">Jawaban / pembahasan sumber</p>
-                <MarkdownRenderer content={question.answerMarkdown} className="space-y-3 text-body-sm leading-relaxed text-foreground/80" />
+                <p className="mb-1.5 text-body-sm font-semibold text-foreground">{t("answerExplanation")}</p>
+                <MarkdownRenderer content={question.answerMarkdown} className="space-y-3 text-body-sm leading-relaxed text-foreground" />
               </div>
             ) : null}
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-body-xs text-muted-foreground">
-              <span>Jawaban: {question.answerProvenance ? provenanceLabel[question.answerProvenance] : "Belum tercatat"}</span>
-              <span>Pembahasan: {question.solutionProvenance ? provenanceLabel[question.solutionProvenance] : "Belum tercatat"}</span>
-              {question.sourcePage ? <span>Halaman {question.sourcePage}</span> : null}
-              <span>Status canonical: {question.canonicalStatus}</span>
+              <span>{t("answerLabel")}: {question.answerProvenance ? t(`provenance.${question.answerProvenance}`) : t("notRecorded")}</span>
+              <span>{t("solutionLabel")}: {question.solutionProvenance ? t(`provenance.${question.solutionProvenance}`) : t("notRecorded")}</span>
+              {question.sourcePage ? <span>{t("pageNumber", { page: question.sourcePage })}</span> : null}
+              <span>{t("canonicalStatus")}: {question.canonicalStatus}</span>
             </div>
           </section>
         );

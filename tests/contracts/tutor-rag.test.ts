@@ -6,11 +6,13 @@ import {
   normalizeQuestion,
   sanitizeAnswer,
   shouldRetrieveTutorEvidence,
+  selectImageTutorPrompt,
 } from "@/lib/tutor-rag";
+import { latestConversationSources } from "@/lib/zyra/conversation-memory";
 import { normalizeTutorMathMarkdown } from "@/lib/tutor/math-markdown";
 import { loadAiFixture } from "../helpers/ai-fixtures";
 import { assertNoStudentTextInSharedCache, buildTutorCacheKey, computeEvidenceVersion } from "@/lib/tutor/cache-contract";
-import { classifyQueryAction, extractStyleModifiers } from "@/lib/tutor/query-action";
+import { classifyQueryAction, extractStyleModifiers, resolveResponseLanguage, responseLanguageFromHistory } from "@/lib/tutor/query-action";
 import { evaluateAssessmentAssistancePolicy } from "@/lib/assessment-assistance-policy";
 import { env } from "@/lib/env";
 import { verifyCitations } from "@/lib/tutor/citation-verifier";
@@ -18,12 +20,30 @@ import { classifyEvidence } from "@/lib/tutor/evidence-coverage";
 import { sanitizePromptInput, formatSourceEnvelope, SourceEnvelope } from "@/lib/tutor/prompt-sanitizer";
 
 describe("Tutor RAG Contract Tests", () => {
+  it("uses only the latest exchange's evidence after a topic switch", () => {
+    const messages = [
+      { role: "student" as const, content: "limit" },
+      { role: "ai" as const, sources: [{ id: "limit-source" }] },
+      { role: "student" as const, content: "integral" },
+      { role: "ai" as const, sources: [{ id: "integral-source" }] },
+    ];
+    expect(latestConversationSources(messages)).toEqual([{ id: "integral-source" }]);
+    expect(latestConversationSources([...messages, { role: "ai", sources: [] }])).toEqual([]);
+    expect(latestConversationSources([...messages, { role: "ai" }])).toEqual([]);
+  });
+
   it("keeps attached images primary by bypassing text evidence retrieval", () => {
     expect(shouldRetrieveTutorEvidence(true)).toBe(false);
     expect(shouldRetrieveTutorEvidence(false)).toBe(true);
   });
 
-  it("composes an ungrounded explanation with a learning goal and one checkpoint", () => {
+  it("selects code generation for image playground requests only outside assessments", () => {
+    expect(selectImageTutorPrompt("coding:generate:user:session", "none").systemInstruction).toContain("complete runnable Python program");
+    expect(selectImageTutorPrompt("coding:generate:user:session", "in_progress").systemInstruction).not.toContain("complete runnable Python program");
+    expect(selectImageTutorPrompt("coding:user:session", "none").systemInstruction).not.toContain("complete runnable Python program");
+  });
+
+  it("composes an ungrounded explanation without rigid headings", () => {
     const answer = composeUngroundedTeachingAnswer({
       answer: "Konsep ini berada di luar materi kuliah saat ini.\n\n1. Mulai dari bentuk umum.",
       learningGoal: "Memahami bentuk umum persamaan kuadrat.",
@@ -32,9 +52,25 @@ describe("Tutor RAG Contract Tests", () => {
       confidence: 0.8,
     });
 
-    expect(answer).toContain("### Tujuan belajar");
-    expect(answer).toContain("### Cek pemahaman");
+    expect(answer).not.toContain("### Tujuan belajar");
+    expect(answer).not.toContain("### Cek pemahaman");
     expect(answer.match(/Apa peran diskriminan/g)).toHaveLength(1);
+  });
+
+  it("resolves a pronoun follow-up to the prior topic in deterministic mode", async () => {
+    const result = await classifyQueryAction({ question: "explain it", historyMessages: [
+      { role: "student", content: "limit" }, { role: "ai", content: "Limit describes an approaching value." },
+    ] }, { deterministicOnly: true });
+    expect(result.action).toBe("reuse_previous_evidence");
+    expect(result.contentFocus).toBe("limit");
+  });
+
+  it("keeps the topic across consecutive pronoun follow-ups", async () => {
+    const result = await classifyQueryAction({ question: "jelaskan itu", historyMessages: [
+      { role: "student", content: "limit" }, { role: "ai", content: "Limit describes an approaching value." },
+      { role: "student", content: "explain it" }, { role: "ai", content: "Think of approaching a point." },
+    ] }, { deterministicOnly: true });
+    expect(result.contentFocus).toBe("limit");
   });
 
   it("repairs common raw tutor equations without changing valid LaTeX", () => {
@@ -58,6 +94,34 @@ describe("Tutor RAG Contract Tests", () => {
     });
 
     expect(answer).toContain("integral dari $3x^2 + 4x$?");
+  });
+
+  it("keeps the effective locale unless the current request has an explicit language modifier", () => {
+    expect(resolveResponseLanguage({ requestedLanguage: "en", responseModifiers: [] })).toBe("en");
+    expect(resolveResponseLanguage({ requestedLanguage: "id", responseModifiers: ["english"] })).toBe("en");
+    expect(resolveResponseLanguage({ requestedLanguage: "en", responseModifiers: ["indonesian"] })).toBe("id");
+    expect(resolveResponseLanguage({ requestedLanguage: "fr", responseModifiers: [] })).toBe("id");
+    expect(extractStyleModifiers("Please answer in English").modifiers).toContain("english");
+    expect(extractStyleModifiers("jelaskan konsep limit").modifiers).not.toContain("english");
+    expect(responseLanguageFromHistory([
+      { role: "student", content: "Please explain in English" },
+      { role: "ai", content: "A prior English answer" },
+      { role: "student", content: "Can you simplify this?" },
+    ])).toBe("en");
+    expect(resolveResponseLanguage({ requestedLanguage: "id", responseModifiers: [] })).toBe("id");
+  });
+
+  it("builds an English general-teaching fallback without forced headings", () => {
+    const answer = composeUngroundedTeachingAnswer({
+      answer: "Use the definition to compare the two values.",
+      matchedConcepts: [],
+      confidence: 0.8,
+    }, "en");
+
+    expect(answer).not.toContain("### Learning goal");
+    expect(answer).not.toContain("### Check your understanding");
+    expect(answer).toBe("Use the definition to compare the two values.");
+    expect(answer).not.toContain("Tujuan belajar");
   });
 
   it("preserves LaTeX commands beginning with n", () => {
@@ -117,7 +181,16 @@ describe("Tutor RAG Contract Tests", () => {
     });
 
     expect(key1).toBe(key2);
-    expect(key1).toContain("tutor:v2:kalkulus-1:limit:");
+    expect(key1).toContain("tutor:v3:kalkulus-1:limit:");
+
+    const englishKey = buildTutorCacheKey({
+      courseId: "kalkulus-1",
+      chapterId: "limit",
+      academicQuery: "apa itu turunan fungsi",
+      evidenceVersion: "ev1",
+      responseLanguage: "en",
+    });
+    expect(englishKey).not.toBe(key1);
 
     // Evidence version mismatch produces different key
     const key3 = buildTutorCacheKey({

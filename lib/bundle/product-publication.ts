@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
+import { flattenArticleParts } from "@/lib/materials/article-parts";
 import { and, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
 import {
   aiQuestionBank,
   artikel,
+  codingProblems,
   artikelIde,
   auditMutasi,
   bab,
@@ -240,6 +242,11 @@ function canonicalProductVectorSpec(product: ProductEntity): CanonicalProductVec
 }
 
 async function insertArticle(tx: Tx, product: Extract<ProductEntity, { productType: "article" }>, course: { targetId: string }, now: Date): Promise<void> {
+  const exercises = flattenArticleParts(product.sections.flatMap((section) => section.blocks.flatMap((block) => block.parts ?? []))).filter((part) => part.kind === "coding_exercise");
+  for (const exercise of exercises) {
+    const [problem] = await tx.select({ id: codingProblems.id }).from(codingProblems).where(and(eq(codingProblems.id, exercise.problem.problemId), eq(codingProblems.version, exercise.problem.version), eq(codingProblems.courseId, course.targetId), eq(codingProblems.status, "published"))).limit(1);
+    if (!problem) throw new Error("PRODUCT_CODING_PROBLEM_UNAVAILABLE");
+  }
   const articleId = targetId(product);
   const chapterId = await resolveChapter(tx, product.chapterId, course.targetId);
   const [existing] = await tx.select({ id: artikel.id, title: artikel.title, version: artikel.version, sourceHash: artikel.sourceHash, generationHash: artikel.generationHash }).from(artikel).where(eq(artikel.id, articleId)).limit(1);

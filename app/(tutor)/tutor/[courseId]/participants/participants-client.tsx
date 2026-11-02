@@ -1,13 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Users, UserCheck, Layers, Shield } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Users, UserCheck, Layers, Shield } from "lucide-react";
+import { SearchBar } from "@/components/ui/search-bar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { useUrlTab } from "@/hooks/use-url-tab";
-import { formatIsoDate } from "@/lib/date-utils";
+import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 import type {
   TutorCourseParticipantsPayload,
   CourseParticipantItem,
@@ -19,11 +21,17 @@ interface ParticipantsClientProps {
 }
 
 export function ParticipantsClient({ data }: ParticipantsClientProps) {
+  const t = useTranslations("tutor.participants");
+  const { locale } = useAppLocale();
   const [search, setSearch] = useState("");
   const [enrollmentFilter, setEnrollmentFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useUrlTab("tab", "participants");
 
   const normalizedSearch = search.trim().toLowerCase();
+  const formatParticipantDate = (value: Date | string) => new Intl.DateTimeFormat(locale === "en" ? "en-US" : "id-ID", {
+    dateStyle: "medium",
+    timeZone: "Asia/Jakarta",
+  }).format(new Date(value));
 
   const filteredParticipants = useMemo(() => {
     return data.participants.filter((p: CourseParticipantItem) => {
@@ -56,10 +64,10 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
     <div className="space-y-4">
       {/* ── KPI Strip ── */}
       <AdminStatStrip className="grid-cols-2 sm:grid-cols-4">
-        <AdminStatStripItem icon={Users} label="Total peserta" value={data.summary.totalParticipants} caption="Aktif terdaftar" />
-        <AdminStatStripItem icon={UserCheck} label="Pendaftaran langsung" value={data.summary.directEnrollmentsCount} caption="Peserta individu" />
-        <AdminStatStripItem icon={Layers} label="Anggota kelompok" value={data.summary.groupParticipantsCount} caption="Peserta grup" />
-        <AdminStatStripItem icon={Shield} label="Kelompok aktif" value={data.summary.activeGroupsCount} caption="Grup belajar" />
+        <AdminStatStripItem icon={Users} label={t("totalParticipants")} value={data.summary.totalParticipants} caption={t("activeEnrolled")} />
+        <AdminStatStripItem icon={UserCheck} label={t("directEnrollments")} value={data.summary.directEnrollmentsCount} caption={t("individualParticipants")} />
+        <AdminStatStripItem icon={Layers} label={t("groupMembers")} value={data.summary.groupParticipantsCount} caption={t("groupParticipants")} />
+        <AdminStatStripItem icon={Shield} label={t("activeGroups")} value={data.summary.activeGroupsCount} caption={t("studyGroups")} />
       </AdminStatStrip>
 
       {/* ── Tabs & Search Toolbar ── */}
@@ -67,38 +75,38 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
           <TabsList>
             <TabsTrigger value="participants">
-              Peserta
+              {t("participants")}
             </TabsTrigger>
             <TabsTrigger value="groups">
-              Kelompok Belajar
+              {t("groups")}
             </TabsTrigger>
           </TabsList>
 
           {/* Search & Filter Toolbar */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[140px] sm:w-64">
-              <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Cari nama, email, kelompok..."
+            <div className="min-w-[140px] sm:w-64">
+              <SearchBar
+                size="sm"
+                aria-label={t("search")}
+                placeholder={t("search")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-9 rounded-lg pl-8 text-body-sm"
+                onClear={() => setSearch("")}
               />
             </div>
 
             {activeTab === "participants" && (
-              <select
-                aria-label="Filter tipe pendaftaran"
-                value={enrollmentFilter}
-                onChange={(e) => setEnrollmentFilter(e.target.value)}
-                className="h-9 shrink-0 rounded-lg border border-border bg-background px-2.5 text-body-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="all">Semua Tipe</option>
-                <option value="direct">Langsung</option>
-                <option value="group">Kelompok</option>
-                <option value="both">Keduanya</option>
-              </select>
+              <Select value={enrollmentFilter} onValueChange={setEnrollmentFilter}>
+                <SelectTrigger aria-label={t("enrollmentFilter")} className="h-9 w-auto min-w-32 shrink-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("allTypes")}</SelectItem>
+                  <SelectItem value="direct">{t("direct")}</SelectItem>
+                  <SelectItem value="group">{t("group")}</SelectItem>
+                  <SelectItem value="both">{t("both")}</SelectItem>
+                </SelectContent>
+              </Select>
             )}
           </div>
         </div>
@@ -106,28 +114,23 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
         {/* ── Tab 1: Participants List ── */}
         <TabsContent value="participants" className="mt-0 space-y-4">
           {filteredParticipants.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card p-12 text-center">
-              <Users className="mx-auto size-8 text-muted-foreground" />
-              <p className="mt-2 font-heading text-body-base font-semibold text-foreground">
-                Tidak ada peserta ditemukan
-              </p>
-              <p className="mt-1 text-body-xs text-muted-foreground">
-                {search || enrollmentFilter !== "all"
-                  ? "Coba ubah filter pencarian Anda."
-                  : "Belum ada peserta aktif untuk kelas ini."}
-              </p>
+            <div className="rounded-xl border border-border bg-card">
+              <AdminEmptyState icon={Users} title={t("noParticipantsFound")}
+                description={search || enrollmentFilter !== "all"
+                  ? t("changeFilters")
+                  : t("noActiveParticipants")} className="px-4 py-5" />
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border border-border bg-card">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-body-sm">
+                <table className="w-full min-w-[720px] text-left text-body-sm">
                   <thead className="border-b border-border bg-muted/40 text-body-xs font-semibold text-muted-foreground">
                     <tr>
-                      <th className="px-4 py-3">Peserta</th>
-                      <th className="px-4 py-3">Tipe Akses</th>
-                      <th className="px-4 py-3">Kelompok</th>
-                      <th className="px-4 py-3">Terdaftar Sejak</th>
-                      <th className="px-4 py-3">Masa Berlaku</th>
+                      <th className="px-4 py-3">{t("participants")}</th>
+                      <th className="px-4 py-3">{t("accessType")}</th>
+                      <th className="px-4 py-3">{t("groups")}</th>
+                      <th className="px-4 py-3">{t("enrolledSince")}</th>
+                      <th className="px-4 py-3">{t("validity")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -139,25 +142,25 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
                               {p.name.charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-medium text-foreground truncate">{p.name}</p>
-                              <p className="text-body-xs text-muted-foreground truncate">{p.email}</p>
+                              <p className="break-words font-medium text-foreground">{p.name}</p>
+                              <p className="break-all text-body-xs text-muted-foreground">{p.email}</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-4 py-3">
                           {p.enrollmentType === "both" && (
                             <Badge variant="outline" className="rounded-md border-brand-primary/30 bg-brand-primary/5 text-brand-primary text-body-xs font-normal">
-                              Langsung + Kelompok
+                              {t("directAndGroup")}
                             </Badge>
                           )}
                           {p.enrollmentType === "direct" && (
-                            <Badge variant="outline" className="rounded-md border-status-success/30 bg-status-success/5 text-status-success text-body-xs font-normal">
-                              Langsung
+                            <Badge variant="outline" className="rounded-md border-status-success/30 bg-status-success/5 text-foreground text-body-xs font-normal">
+                              {t("direct")}
                             </Badge>
                           )}
                           {p.enrollmentType === "group" && (
                             <Badge variant="outline" className="rounded-md border-border bg-muted text-muted-foreground text-body-xs font-normal">
-                              Kelompok
+                              {t("group")}
                             </Badge>
                           )}
                         </td>
@@ -171,20 +174,20 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
                                 >
                                   <span>{g.name}</span>
                                   {g.role === "leader" && (
-                                    <span className="font-semibold text-primary">(Ketua)</span>
+                                    <span className="font-semibold text-primary">({t("leader")})</span>
                                   )}
                                 </span>
                               ))}
                             </div>
                           ) : (
-                            <span className="text-body-xs text-muted-foreground">Tidak ada</span>
+                            <span className="text-body-xs text-muted-foreground">{t("none")}</span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-body-xs text-muted-foreground tabular-nums">
-                          {p.enrolledAt ? formatIsoDate(p.enrolledAt) : "Tidak tercatat"}
+                          {p.enrolledAt ? formatParticipantDate(p.enrolledAt) : t("notRecorded")}
                         </td>
                         <td className="px-4 py-3 text-body-xs text-muted-foreground tabular-nums">
-                          {p.expiresAt ? formatIsoDate(p.expiresAt) : "Aktif semester"}
+                          {p.expiresAt ? formatParticipantDate(p.expiresAt) : t("activeThisSemester")}
                         </td>
                       </tr>
                     ))}
@@ -198,16 +201,11 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
         {/* ── Tab 2: Study Groups List ── */}
         <TabsContent value="groups" className="mt-0 space-y-4">
           {filteredGroups.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card p-12 text-center">
-              <Shield className="mx-auto size-8 text-muted-foreground" />
-              <p className="mt-2 font-heading text-body-base font-semibold text-foreground">
-                Tidak ada kelompok ditemukan
-              </p>
-              <p className="mt-1 text-body-xs text-muted-foreground">
-                {search
-                  ? "Coba ubah filter pencarian Anda."
-                  : "Belum ada kelompok belajar aktif untuk kelas ini."}
-              </p>
+            <div className="rounded-xl border border-border bg-card">
+              <AdminEmptyState icon={Shield} title={t("noGroupsFound")}
+                description={search
+                  ? t("changeFilters")
+                  : t("noActiveGroups")} className="px-4 py-5" />
             </div>
           ) : (
             <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
@@ -229,21 +227,21 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
                       </Badge>
                     </div>
 
-                    <div className="flex items-center gap-4 text-body-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-body-xs text-muted-foreground">
                       <span>
-                        Kuota: <strong className="text-foreground tabular-nums">{grp.usedQuotaSessions} / {grp.totalQuotaSessions}</strong> sesi
+                        {t("quota")}: <strong className="text-foreground tabular-nums">{grp.usedQuotaSessions} / {grp.totalQuotaSessions}</strong> {t("sessions")}
                       </span>
                       <span>
-                        Mingguan: <strong className="text-foreground tabular-nums">{grp.weeklyQuotaSessions}</strong> sesi
+                        {t("weekly")}: <strong className="text-foreground tabular-nums">{grp.weeklyQuotaSessions}</strong> {t("sessions")}
                       </span>
                     </div>
 
                     {grp.representative && (
                       <div className="text-body-xs">
-                        <span className="text-muted-foreground">Perwakilan: </span>
+                        <span className="text-muted-foreground">{t("representative")}: </span>
                         <strong className="text-foreground">{grp.representative.name}</strong>
                         {grp.representative.role === "leader" && (
-                          <span className="ml-1 text-primary">(Ketua)</span>
+                          <span className="ml-1 text-primary">({t("leader")})</span>
                         )}
                       </div>
                     )}
@@ -252,7 +250,7 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
                   {/* Members list */}
                   <div className="space-y-2">
                     <p className="text-body-xs font-semibold text-muted-foreground">
-                      Anggota ({grp.members.length})
+                      {t("members", { count: grp.members.length })}
                     </p>
                     <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                       {grp.members.map((member) => (
@@ -260,13 +258,13 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
                           key={member.userId}
                           className="flex items-center justify-between gap-2 py-1 text-body-xs"
                         >
-                          <span className="text-foreground truncate">{member.name}</span>
+                          <span className="text-foreground break-words">{member.name}</span>
                           {member.role === "leader" ? (
                             <Badge variant="outline" className="rounded-md border-primary/30 bg-primary/5 text-primary text-[10px] shrink-0 font-medium">
-                              Ketua
+                              {t("leader")}
                             </Badge>
                           ) : (
-                            <span className="text-muted-foreground text-[10px] shrink-0">Anggota</span>
+                            <span className="text-muted-foreground text-[10px] shrink-0">{t("member")}</span>
                           )}
                         </div>
                       ))}

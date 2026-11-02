@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { CalendarDays, ChevronLeft, ChevronRight, Video } from "lucide-react";
 import {
   Dialog,
@@ -19,8 +20,6 @@ export interface PkaCalendarSession {
   sessionAt: string; // ISO string (serializable across the RSC boundary)
 }
 
-const WEEKDAY_LABELS = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
-
 function dayKey(d: Date) {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
@@ -35,6 +34,9 @@ function initialView(sessions: PkaCalendarSession[]): { year: number; month: num
 }
 
 export function PkaScheduleCalendar({ sessions }: { sessions: PkaCalendarSession[] }) {
+  const t = useTranslations("studentExtras.pka");
+  const { locale } = useAppLocale();
+  const weekdayLabels = t.raw("calendarWeekdays") as string[];
   const [initial] = React.useState(() => initialView(sessions));
   const [viewYear, setViewYear] = React.useState(initial.year);
   const [viewMonth, setViewMonth] = React.useState(initial.month);
@@ -54,7 +56,7 @@ export function PkaScheduleCalendar({ sessions }: { sessions: PkaCalendarSession
     return map;
   }, [sessions]);
 
-  const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString("id-ID", {
+  const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString(locale === "id" ? "id-ID" : "en-US", {
     month: "long",
     year: "numeric",
   });
@@ -85,7 +87,7 @@ export function PkaScheduleCalendar({ sessions }: { sessions: PkaCalendarSession
             variant="outline"
             size="icon"
             onClick={() => shiftMonth(-1)}
-            aria-label="Bulan sebelumnya"
+            aria-label={t("calendarPrevious")}
             className="flex size-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground"
           >
             <ChevronLeft className="size-4" />
@@ -95,7 +97,7 @@ export function PkaScheduleCalendar({ sessions }: { sessions: PkaCalendarSession
             variant="outline"
             size="icon"
             onClick={() => shiftMonth(1)}
-            aria-label="Bulan berikutnya"
+            aria-label={t("calendarNext")}
             className="flex size-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground"
           >
             <ChevronRight className="size-4" />
@@ -104,10 +106,10 @@ export function PkaScheduleCalendar({ sessions }: { sessions: PkaCalendarSession
       </div>
 
       <div className="grid grid-cols-7 gap-1">
-        {WEEKDAY_LABELS.map((label) => (
+        {weekdayLabels.map((label) => (
           <span
             key={label}
-            className="py-1 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+            className="py-1 text-center text-body-2xs font-bold uppercase tracking-wider text-muted-foreground"
           >
             {label}
           </span>
@@ -125,7 +127,7 @@ export function PkaScheduleCalendar({ sessions }: { sessions: PkaCalendarSession
           const isToday = key === todayKey;
 
           const cellClass = cn(
-            "relative flex aspect-square w-full flex-col items-center justify-center rounded-lg text-body-sm transition-colors duration-150",
+            "relative flex aspect-square w-full flex-col items-center justify-center rounded-lg text-body-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors duration-150",
             hasSessions
               ? "bg-brand-primary/10 font-bold text-brand-primary hover:bg-brand-primary/20 cursor-pointer"
               : "text-foreground/80",
@@ -137,7 +139,7 @@ export function PkaScheduleCalendar({ sessions }: { sessions: PkaCalendarSession
               key={key}
               type="button"
               onClick={() => setSelectedKey(key)}
-              aria-label={`Lihat jadwal ${dayNum} ${monthLabel}`}
+              aria-label={t("calendarViewDay", { day: dayNum, month: monthLabel })}
               className={cellClass}
             >
               {dayNum}
@@ -151,14 +153,14 @@ export function PkaScheduleCalendar({ sessions }: { sessions: PkaCalendarSession
         })}
       </div>
 
-      <div className="mt-3 flex items-center gap-4 border-t border-border pt-3 text-body-xs text-muted-foreground">
+      <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-border pt-3 text-body-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <span className="size-1.5 rounded-full bg-brand-primary" />
-          Ada sesi tutorial
+          {t("calendarHasSessions")}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="size-3 rounded-md ring-1 ring-brand-secondary" />
-          Hari ini
+          {t("calendarToday")}
         </span>
       </div>
 
@@ -167,11 +169,11 @@ export function PkaScheduleCalendar({ sessions }: { sessions: PkaCalendarSession
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               {selectedDate
-                ? selectedDate.toLocaleDateString("id-ID", { dateStyle: "full" })
-                : "Jadwal sesi"}
+                ? selectedDate.toLocaleDateString(locale === "id" ? "id-ID" : "en-US", { dateStyle: "full" })
+                : t("calendarSessionTitle")}
             </DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground">
-              {selectedSessions.length} sesi tutorial pada tanggal ini.
+              {t("sessionsOnDate", { count: selectedSessions.length })}
             </DialogDescription>
           </DialogHeader>
 
@@ -179,11 +181,11 @@ export function PkaScheduleCalendar({ sessions }: { sessions: PkaCalendarSession
             {selectedSessions.map((s) => (
               <div key={s.id} className="py-3 space-y-2">
                 <div>
-                  <p className="text-body-base font-semibold text-foreground">{s.title}</p>
+                  <p className="break-words text-body-base font-semibold text-foreground">{s.title}</p>
                 </div>
                 <p className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
                   <CalendarDays className="size-3.5" />
-                  {new Date(s.sessionAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
+                  {new Date(s.sessionAt).toLocaleString(locale === "id" ? "id-ID" : "en-US", { dateStyle: "medium", timeStyle: "short" })}
                 </p>
                 {s.meetLink ? (
                   <a
@@ -193,11 +195,11 @@ export function PkaScheduleCalendar({ sessions }: { sessions: PkaCalendarSession
                     className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary px-3 py-1.5 text-body-sm font-semibold text-white transition-colors duration-150 hover:bg-brand-primary/90"
                   >
                     <Video className="size-4" />
-                    Gabung Meet
+                    {t("joinMeetCalendar")}
                   </a>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-3 py-1.5 text-body-sm font-semibold text-muted-foreground">
-                    Link belum tersedia
+                    {t("calendarLinkMissing")}
                   </span>
                 )}
               </div>

@@ -8,16 +8,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { submitStudentFeedbackAction, type StudentFeedbackInput } from "./actions";
+import { useTranslations } from "@/lib/i18n/client";
 
-const CATEGORIES: Array<{ id: StudentFeedbackInput["category"]; label: string }> = [
-  { id: "materi", label: "Materi Kuliah" },
-  { id: "kuis", label: "Kuis & Ujian" },
-  { id: "tutor", label: "Tutor & Sesi" },
-  { id: "fitur", label: "Fitur Platform" },
-  { id: "lainnya", label: "Lainnya" },
+const CATEGORIES: Array<{ id: StudentFeedbackInput["category"]; key: string }> = [
+  { id: "materi", key: "categoryCourseMaterials" },
+  { id: "kuis", key: "categoryQuizzes" },
+  { id: "tutor", key: "categoryTutor" },
+  { id: "fitur", key: "categoryPlatform" },
+  { id: "lainnya", key: "categoryOther" },
 ];
 
 export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
+  const t = useTranslations("student");
   const [category, setCategory] = useState<StudentFeedbackInput["category"]>("materi");
   const [rating, setRating] = useState<number>(5);
   const [hoverRating, setHoverRating] = useState<number>(0);
@@ -29,7 +31,7 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim() || message.trim().length < 5) {
-      toast.error("Mohon tuliskan pesan masukan minimal 5 karakter.");
+      toast.error(t("feedback.messageRequired"));
       return;
     }
 
@@ -44,12 +46,12 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
 
       if (res.success) {
         setSubmitted(true);
-        toast.success(res.message);
+        toast.success(t("feedback.submitted"));
       } else {
-        toast.error(res.message);
+        toast.error(t("feedback.sendFailed"));
       }
     } catch {
-      toast.error("Terjadi kendala saat mengirim masukan.");
+      toast.error(t("feedback.sendFailed"));
     } finally {
       setLoading(false);
     }
@@ -58,25 +60,25 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
   if (submitted) {
     return (
       <div className="rounded-xl border border-border bg-card p-5 text-center">
-        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-status-success/10 text-status-success ring-1 ring-status-success/20">
+        <div className="mx-auto mb-3 flex size-10 items-center justify-center text-status-success">
           <CheckCircle2 className="size-7" />
         </div>
         <h2 className="font-heading text-h5 font-bold text-foreground">
-          Masukan berhasil terkirim
+          {t("feedback.submitted")}
         </h2>
         <p className="mx-auto mt-2 max-w-md text-body-sm text-muted-foreground">
-          Tim akademik akan meninjau masukan Anda.
+          {t("feedback.reviewedByTeam")}
         </p>
         <Button
           type="button"
           variant="outline"
-          className="mt-6 rounded-lg text-body-sm"
+          className="mt-4 rounded-lg text-body-sm"
           onClick={() => {
             setMessage("");
             setSubmitted(false);
           }}
         >
-          Kirim masukan lainnya
+          {t("feedback.sendAnother")}
         </Button>
       </div>
     );
@@ -88,10 +90,10 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
       className="space-y-4 max-w-2xl rounded-xl border border-border bg-card p-4 sm:p-5"
     >
       {/* Category selector */}
-      <div>
-        <label className="block text-body-sm font-semibold text-foreground mb-2.5">
-          Kategori Masukan
-        </label>
+      <fieldset>
+        <legend className="block text-body-sm font-semibold text-foreground mb-2.5">
+          {t("feedback.categoryLabel")}
+        </legend>
         <div className="flex flex-wrap gap-2">
           {CATEGORIES.map((cat) => (
             <Button
@@ -108,18 +110,18 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
                   : "border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
-              {cat.label}
+              {t(`feedback.${cat.key}`)}
             </Button>
           ))}
         </div>
-      </div>
+      </fieldset>
 
       {/* Rating selector */}
-      <div>
-        <label className="block text-body-sm font-semibold text-foreground mb-2">
-          Penilaian Pengalaman
-        </label>
-        <div className="flex items-center gap-1.5">
+      <fieldset>
+        <legend className="block text-body-sm font-semibold text-foreground mb-2">
+          {t("feedback.ratingLabel")}
+        </legend>
+        <div className="flex flex-wrap items-center gap-1.5">
           {[1, 2, 3, 4, 5].map((star) => (
             <Button
               variant="ghost"
@@ -130,52 +132,52 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
               onMouseEnter={() => setHoverRating(star)}
               onMouseLeave={() => setHoverRating(0)}
               onClick={() => setRating(star)}
-              className="p-1 text-muted-foreground hover:scale-110 transition-transform cursor-pointer"
-              aria-label={`Beri nilai ${star} dari 5 bintang`}
+              className="p-1 text-muted-foreground cursor-pointer"
+              aria-label={t("feedback.starAria", { rating: star })}
             >
               <Star
                 className={cn(
                   "size-6 transition-colors",
                   (hoverRating || rating) >= star
-                    ? "fill-yellow-400 text-yellow-500"
-                    : "text-muted-foreground/30"
+                    ? "fill-status-warning text-status-warning"
+                    : "text-muted-foreground"
                 )}
               />
             </Button>
           ))}
           <span className="ml-2 text-body-xs font-semibold text-muted-foreground">
-            {rating === 5 && "Sangat puas"}
-            {rating === 4 && "Puas"}
-            {rating === 3 && "Cukup"}
-            {rating === 2 && "Kurang"}
-            {rating === 1 && "Perlu perbaikan"}
+            {rating === 5 && t("feedback.verySatisfied")}
+            {rating === 4 && t("feedback.satisfied")}
+            {rating === 3 && t("feedback.neutral")}
+            {rating === 2 && t("feedback.dissatisfied")}
+            {rating === 1 && t("feedback.needsImprovement")}
           </span>
         </div>
-      </div>
+      </fieldset>
 
       {/* Message textarea */}
       <div>
         <label htmlFor="feedback-message" className="block text-body-sm font-semibold text-foreground mb-2">
-          Pesan dan Saran
+          {t("feedback.messageLabel")}
         </label>
         <Textarea
           id="feedback-message"
           rows={4}
-          placeholder="Tulis masukan Anda..."
+          placeholder={t("feedback.placeholder")}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           className="rounded-lg text-body-sm resize-y min-h-[100px]"
           required
         />
         <p className="mt-1 text-body-xs text-muted-foreground">
-          Minimal 5 karakter.
+          {t("feedback.minimumLength")}
         </p>
       </div>
 
       {/* Email input (optional) */}
       <div>
         <label htmlFor="feedback-email" className="block text-body-sm font-semibold text-foreground mb-2">
-          Alamat Surel (Opsional)
+          {t("feedback.emailLabel")}
         </label>
         <Input
           id="feedback-email"
@@ -186,7 +188,7 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
           className="rounded-lg text-body-sm max-w-md"
         />
         <p className="mt-1 text-body-xs text-muted-foreground">
-          Untuk tindak lanjut dari tim.
+          {t("feedback.followUpDescription")}
         </p>
       </div>
 
@@ -200,12 +202,12 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
           {loading ? (
             <>
               <Loader2 className="mr-2 size-4 animate-spin" />
-              Mengirim masukan...
+              {t("feedback.sending")}
             </>
           ) : (
             <>
               <Send className="mr-2 size-4" />
-              Kirim Masukan
+              {t("feedback.submit")}
             </>
           )}
         </Button>

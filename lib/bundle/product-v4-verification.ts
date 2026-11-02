@@ -4,7 +4,7 @@ import { deriveEpsilonDelta } from "@/lib/materials/epsilon-delta";
 import { deterministicProductSerialization, type ProductBundleManifest, type ProductDependency, type ProductEntity } from "./product-validator";
 
 export const PRODUCT_V4_VERIFICATION_POLICY = "product-v4-verification.v1";
-export const PRODUCT_V4_DEPLOYED_BROWSER_VERSION = "128.0.6613.137";
+export { CLOUDFLARE_VERIFICATION_BROWSER_VERSION as PRODUCT_V4_DEPLOYED_BROWSER_VERSION } from "@/lib/compute/product-v4-browser-config";
 export const PRODUCT_V4_VIEWPORTS = [{ width: 380, height: 844 }, { width: 1536, height: 864 }] as const;
 const digest = (value: unknown) => createHash("sha256").update(deterministicProductSerialization(value)).digest("hex");
 const sha256 = z.string().regex(/^[a-f0-9]{64}$/);
@@ -24,6 +24,7 @@ export interface ProductV4VerificationBinding {
   printProfile: string;
   policyRevision: string;
   browserVersion?: string;
+  browserProvider?: "cloudflare" | "steel";
 }
 export interface ProductV4VerificationRequirement {
   id: string;
@@ -55,7 +56,7 @@ export function deriveProductV4VerificationPlan(input: {
   const { bundle, binding } = input;
   if (bundle.manifest.schemaVersion !== "product-bundle.v4") throw new Error("PRODUCT_V4_REQUIRED");
   if (bundle.manifest.courseId !== binding.courseId) throw new Error("PRODUCT_V4_VERIFICATION_SCOPE_MISMATCH");
-  z.object({ importId: name, courseId: name, runId: name, revision: z.number().int().positive(), rendererChecksum: sha256, dependencyChecksum: sha256, contractChecksum: sha256, playbookChecksum: sha256, fontChecksum: sha256, assetChecksum: sha256, printProfile: name, policyRevision: name, browserVersion: z.string().regex(/^\d+\.\d+\.\d+\.\d+$/).optional() }).strict().parse(binding);
+  z.object({ importId: name, courseId: name, runId: name, revision: z.number().int().positive(), rendererChecksum: sha256, dependencyChecksum: sha256, contractChecksum: sha256, playbookChecksum: sha256, fontChecksum: sha256, assetChecksum: sha256, printProfile: name, policyRevision: name, browserProvider: z.enum(["cloudflare", "steel"]).optional(), browserVersion: z.string().regex(/^\d+\.\d+\.\d+\.\d+$/).optional() }).strict().parse(binding);
   const requirements: ProductV4VerificationRequirement[] = [];
   const add = (target: string, layer: ProductV4VerificationRequirement["layer"], state: string, viewport: ProductV4VerificationRequirement["viewport"], artifactType: ProductV4VerificationRequirement["artifactType"]) => {
     const check = { target, layer, state, viewport, artifactType };

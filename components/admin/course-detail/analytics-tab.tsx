@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import type { CourseQuiz } from "./quizzes-tab";
+import { useTranslations } from "@/lib/i18n/client";
 
 type Props = {
   courseId: string;
@@ -35,6 +36,7 @@ export function AnalyticsTab({
   quizzes,
   stats,
 }: Props) {
+  const t = useTranslations("adminAcademic");
   const analyzedWithAiCount = quizzes.filter((q) => q.lastAiInsight !== null && q.lastAiInsight !== undefined).length;
 
   return (
@@ -42,35 +44,35 @@ export function AnalyticsTab({
       {/* KPI Strip */}
       <AdminStatStrip className="lg:grid-cols-4">
         <AdminStatStripItem
-          label="Total Pengerjaan Siswa"
+          label={t("courseDetail.analytics.totalAttempts")}
           value={stats.totalAttempts}
-          caption={`Pada ${quizzes.length} kuis`}
+          caption={t("courseDetail.analytics.acrossQuizzes", { count: quizzes.length })}
           icon={TrendingUp}
           iconClassName="text-brand-primary"
         />
         <AdminStatStripItem
-          label="Rata-rata Nilai"
+          label={t("courseDetail.analytics.averageScore")}
           value={`${stats.avgScore} / 100`}
-          caption="Nilai pengerjaan siswa"
+          caption={t("courseDetail.analytics.studentScores")}
           icon={Award}
           iconClassName="text-brand-secondary"
         />
         <AdminStatStripItem
-          label="Tingkat Kelulusan"
+          label={t("courseDetail.analytics.passRate")}
           value={`${stats.passRate}%`}
-          caption="Siswa nilai ≥ 70"
+          caption={t("courseDetail.analytics.passingScore")}
           icon={CheckCircle2}
           iconClassName="text-status-success"
         />
         <AdminStatStripItem
-          label="Dianalisis"
+          label={t("courseDetail.analytics.analyzed")}
           value={
             <>
               {analyzedWithAiCount}{" "}
               <span className="text-body-xs text-muted-foreground font-normal">/ {quizzes.length}</span>
             </>
           }
-          caption="Kuis memiliki laporan insight"
+          caption={t("courseDetail.analytics.insightCount")}
           icon={BrainCircuit}
           iconClassName="text-brand-primary"
         />
@@ -81,30 +83,30 @@ export function AnalyticsTab({
         <div className="p-3 border-b border-border bg-muted/20 flex items-center justify-between">
           <h3 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
             <BarChart3 className="size-4 text-brand-primary" />
-            Evaluasi Hasil per Kuis &amp; Simulasi
+            {t("courseDetail.analytics.title")}
           </h3>
         </div>
 
         {quizzes.length === 0 ? (
           <div className="text-center py-8 px-4">
             <HelpCircle className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
-            <p className="text-body-xs font-medium text-foreground">Belum ada kuis untuk dianalisis</p>
+            <p className="text-body-xs font-medium text-foreground">{t("courseDetail.analytics.emptyTitle")}</p>
             <p className="text-body-xs text-muted-foreground mt-0.5">
-              Buat kuis terlebih dahulu pada tab Kuis &amp; Asesmen untuk mulai mengumpulkan data pengerjaan siswa.
+              {t("courseDetail.analytics.emptyDescription")}
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-body-xs">
+            <table className="w-full min-w-[760px] text-left text-body-xs">
               <thead className="bg-muted text-body-xs font-semibold text-muted-foreground">
                 <tr>
-                  <th className="px-3.5 py-2">Nama Kuis / Ujian</th>
-                  <th className="px-3.5 py-2">Kategori</th>
-                  <th className="px-3.5 py-2 text-center">Pengerjaan</th>
-                  <th className="px-3.5 py-2 text-center">Rata-rata Nilai</th>
-                  <th className="px-3.5 py-2 text-center">Kelulusan</th>
-                  <th className="px-3.5 py-2">Status Insight</th>
-                  <th className="px-3.5 py-2 text-right">Aksi</th>
+                  <th className="px-3.5 py-2">{t("courseDetail.analytics.quizName")}</th>
+                  <th className="px-3.5 py-2">{t("courseDetail.analytics.category")}</th>
+                  <th className="px-3.5 py-2 text-center">{t("courseDetail.analytics.attempts")}</th>
+                  <th className="px-3.5 py-2 text-center">{t("courseDetail.analytics.averageScore")}</th>
+                  <th className="px-3.5 py-2 text-center">{t("courseDetail.analytics.passRate")}</th>
+                  <th className="px-3.5 py-2">{t("courseDetail.analytics.insightStatus")}</th>
+                  <th className="px-3.5 py-2 text-right">{t("courseDetail.analytics.actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
@@ -117,13 +119,13 @@ export function AnalyticsTab({
                     <td className="px-3.5 py-2.5">
                       <Badge
                         variant="outline"
-                        className="rounded-md text-[10px] px-1.5 py-0 font-normal capitalize text-muted-foreground border-border/60 bg-muted/20"
+                        className="rounded-md text-body-2xs px-1.5 py-0 font-normal capitalize text-muted-foreground border-border/60 bg-muted/20"
                       >
-                        {quiz.category}
+                        {t(`courseDetail.quizzes.categories.${quiz.category}`)}
                       </Badge>
                     </td>
                     <td className="px-3.5 py-2.5 text-center font-medium">
-                      {quiz.totalAttempts || 0} siswa
+                          {t("courseDetail.analytics.students", { count: quiz.totalAttempts || 0 })}
                     </td>
                     <td className="px-3.5 py-2.5 text-center font-semibold">
                       {(quiz.totalAttempts || 0) > 0 ? (
@@ -131,14 +133,14 @@ export function AnalyticsTab({
                           {quiz.avgScore || 0} / 100
                         </span>
                       ) : (
-                        <span className="text-muted-foreground text-body-xs">Belum ada</span>
+                        <span className="text-muted-foreground text-body-xs">{t("courseDetail.analytics.noData")}</span>
                       )}
                     </td>
                     <td className="px-3.5 py-2.5 text-center font-medium">
                       {(quiz.totalAttempts || 0) > 0 ? (
                         <span>{quiz.passRate || 0}%</span>
                       ) : (
-                        <span className="text-muted-foreground text-body-xs">Belum ada</span>
+                        <span className="text-muted-foreground text-body-xs">{t("courseDetail.analytics.noData")}</span>
                       )}
                     </td>
                     <td className="px-3.5 py-2.5">
@@ -146,31 +148,32 @@ export function AnalyticsTab({
                         <div className="flex items-center gap-1 text-status-success text-body-xs font-medium">
                           <CheckCircle2 className="size-3.5 shrink-0" />
                           <span>
-                            Dianalisis (<FormattedDate date={quiz.lastAiInsight.createdAt} options={{ day: "numeric", month: "short" }} />)
+                            {t("courseDetail.analytics.analyzedAt")}<FormattedDate date={quiz.lastAiInsight.createdAt} options={{ day: "numeric", month: "short" }} />)
                           </span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-1 text-muted-foreground text-body-xs">
                           <HelpCircle className="size-3 text-muted-foreground/60 shrink-0" />
-                          <span>Belum dianalisis</span>
+                          <span>{t("courseDetail.analytics.notAnalyzed")}</span>
                         </div>
                       )}
                     </td>
                     <td className="px-3.5 py-2.5 text-right">
-                      <Link
-                        href={courseSlug
-                          ? `/admin/courses/${encodeURIComponent(courseSlug)}/analytics/${encodeURIComponent(quiz.id)}`
-                          : `/admin/quiz-insights/${encodeURIComponent(quiz.id)}`}
+                      <Button
+                        asChild
+                        size="sm"
+                        variant={quiz.lastAiInsight ? "default" : "outline"}
+                        className="gap-1 rounded-md text-body-sm h-8 px-2.5"
                       >
-                        <Button
-                          size="sm"
-                          variant={quiz.lastAiInsight ? "default" : "outline"}
-                          className="gap-1 rounded-md text-body-xs h-7 px-2.5"
+                        <Link
+                          href={courseSlug
+                            ? `/admin/courses/${encodeURIComponent(courseSlug)}/analytics/${encodeURIComponent(quiz.id)}`
+                            : `/admin/quiz-insights/${encodeURIComponent(quiz.id)}`}
                         >
-                          <span>Laporan</span>
+                          <span>{t("courseDetail.analytics.report")}</span>
                           <ArrowRight className="size-3" />
-                        </Button>
-                      </Link>
+                        </Link>
+                      </Button>
                     </td>
                   </tr>
                 ))}

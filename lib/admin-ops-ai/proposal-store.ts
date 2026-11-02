@@ -398,7 +398,7 @@ export class OpsAiProposalStore {
         expiresAt: new Date(expiresAt),
         createdAt: new Date(createdAt),
       });
-    } catch (err) {
+    } catch {
       // In-memory record is preserved; database error in test or mock environment is handled gracefully
       // console.warn("[db.insert zyraProposals failed]:", err);
     }

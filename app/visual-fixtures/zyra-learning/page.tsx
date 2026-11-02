@@ -1,3 +1,4 @@
+import { normalizeTutorMathMarkdown } from "@/lib/tutor/math-markdown";
 import { notFound } from "next/navigation";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { LearningCanvasRenderer } from "@/components/course/learning-canvas/learning-canvas-renderer";
@@ -29,6 +30,11 @@ export default function ZyraLearningFixture() {
       <section className="min-w-0 space-y-3" aria-label="Jawaban Zyra">
         <p className="font-heading text-body-sm font-semibold text-brand-primary">Zyra</p>
         <MarkdownRenderer density="compact" content={'Bayangkan jalan menanjak. Koefisien $a$ mengatur kemiringan, sedangkan $b$ menentukan titik awal.\n\n$$\ny = ax + b\n$$\n\n1. Ubah kemiringan pada grafik.\n2. Bandingkan garis naik, datar, dan turun.\n\n**Cek pemahaman:** Apa yang berubah ketika $a$ menjadi negatif?'} />
+        <div data-testid="limit-steps"><MarkdownRenderer density="compact" content={normalizeTutorMathMarkdown(String.raw`Untuk limit ini, faktorkan pembilangnya dulu.
+$\frac{x^2-1}{x-1}$
+$=\frac{(x-1)(x+1)}{x-1}$
+$=x+1$
+Saat $x$ mendekati $1$, nilainya mendekati $2$.`)} /></div>
         <LearningCanvasRenderer spec={canvas} />
       </section>
     </main></TooltipProvider></HydratedFixture>

@@ -51,8 +51,7 @@ export function registerProductV4Tools(server: McpServer, principal: McpPrincipa
         return result({ ok: true, result: await execute(input, run) });
       } catch (error) {
         const code = productV4RequestErrorCode(error);
-        console.error("[authoring-v4]", { operation: name, code, errorType: error instanceof Error ? error.name : "unknown",
-          frames: error instanceof Error ? error.stack?.split("\n").slice(1, 4) : undefined });
+        console.error("[authoring-v4]", { operation: name, code });
         return result({ ok: false, error: code }, true);
       }
     });

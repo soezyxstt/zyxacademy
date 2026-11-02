@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/dialog";
 import { buildFormSteps, formFileSizeLimitMb, isEmptyFormAnswer, type FormStep, type FormDisplayMode } from "@/lib/forms/presentation";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface QuestionItem {
   title: string;
@@ -92,6 +93,9 @@ export function PublicFormViewer({
   isPreview?: boolean;
   initialStepIndex?: number;
 }) {
+  const t = useTranslations("publicForms");
+  const tRef = useRef(t);
+  tRef.current = t;
   const reducedMotion = useReducedMotion();
   const [form, setForm] = useState<FormPayload | null>(previewForm || null);
   const [loading, setLoading] = useState(!previewForm);
@@ -175,13 +179,13 @@ export function PublicFormViewer({
         setForm(data.form);
         if (data.isClosed) {
           setIsClosed(true);
-          setClosedReason(data.closedReason || "Formulir ini tidak lagi menerima tanggapan.");
+          setClosedReason(data.closedReason || tRef.current("publicForm.closedDescription"));
         }
       } else {
-        setErrorMsg(data.error || "Formulir tidak ditemukan.");
+        setErrorMsg(tRef.current("publicForm.notFoundDescription"));
       }
     } catch {
-      setErrorMsg("Terjadi kesalahan jaringan saat mengambil formulir.");
+      setErrorMsg(tRef.current("publicForm.loadError"));
     } finally {
       setLoading(false);
     }
@@ -250,7 +254,7 @@ export function PublicFormViewer({
     return () => clearTimeout(timer);
   }, [currentStepIndex, focusActiveElement]);
 
-  const otherLabelFor = (qIdx: number) => form?.questions?.[qIdx]?.otherOption?.label || "Lainnya";
+  const otherLabelFor = (qIdx: number) => form?.questions?.[qIdx]?.otherOption?.label || t("publicForm.other");
 
   const handleAnswerChange = (qIdx: number, val: any) => {
     answersRef.current[qIdx] = val;
@@ -270,7 +274,7 @@ export function PublicFormViewer({
       delete copy[qIdx];
       return copy;
     });
-    toast.success("Pilihan jawaban telah dikosongkan.");
+    toast.success(t("publicForm.clearedAnswer"));
   };
 
   const handleCheckboxToggle = (qIdx: number, opt: string) => {
@@ -336,12 +340,12 @@ export function PublicFormViewer({
       const data = await res.json();
       if (data.success && data.url) {
         handleAnswerChange(qIdx, data.url);
-        toast.success("Berkas berhasil terunggah.");
+        toast.success(t("publicForm.uploadSuccess"));
       } else {
-        toast.error(data.error || "Gagal mengunggah berkas.");
+        toast.error(t("publicForm.uploadFailed"));
       }
     } catch {
-      toast.error("Terjadi kesalahan pengunggahan.");
+      toast.error(t("publicForm.uploadError"));
     } finally {
       clearInterval(interval);
       uploadInFlightRef.current = false;
@@ -455,8 +459,8 @@ export function PublicFormViewer({
         setConfirmSubmitOpen(false);
         toast.error(
           hasEmptyOther
-            ? `Jelaskan pilihan lainnya untuk: "${question.title || `Pertanyaan #${questionNumberMap.get(qIdx) || qIdx + 1}`}"`
-            : `Harap isi pertanyaan wajib: "${question.title || `Pertanyaan #${questionNumberMap.get(qIdx) || qIdx + 1}`}"`
+            ? t("publicForm.otherRequiredNamed", { title: question.title || `#${questionNumberMap.get(qIdx) || qIdx + 1}` })
+            : t("publicForm.requiredNamed", { title: question.title || `#${questionNumberMap.get(qIdx) || qIdx + 1}` })
         );
         return;
       }
@@ -467,8 +471,8 @@ export function PublicFormViewer({
       if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
         const emailStepTarget = steps.findIndex((s) => s.kind === "email" || (s.kind === "page" && s.includeEmail));
         if (emailStepTarget >= 0) jumpToStep(emailStepTarget);
-        setEmailError("Alamat email wajib diisi dengan format yang benar.");
-        toast.error("Alamat email wajib diisi dengan format yang benar.");
+        setEmailError(t("publicForm.emailInvalid"));
+        toast.error(t("publicForm.emailInvalid"));
         return;
       }
       setEmailError(null);
@@ -490,9 +494,9 @@ export function PublicFormViewer({
       setEmailError(null);
       setCurrentStepIndex(0);
       setSubmittedMessage(
-        form?.settings?.customSuccessMessage || "Jawaban Anda telah berhasil disimpan (Mode Pratinjau)."
+        form?.settings?.customSuccessMessage || t("publicForm.previewSuccess")
       );
-      toast.success("Mode Pratinjau: Simulasi pengisian berhasil.");
+      toast.success(t("publicForm.previewSubmitted"));
       return;
     }
 
@@ -524,7 +528,7 @@ export function PublicFormViewer({
       const data = await res.json();
       if (res.status === 401) {
         setLoginRequired(true);
-        setErrorMsg(data.error || "Anda harus login ke akun Zyx untuk mengisi formulir ini.");
+        setErrorMsg(t("publicForm.loginDescription"));
       } else if (data.success) {
         setConfirmSubmitOpen(false);
         answersRef.current = {};
@@ -534,14 +538,14 @@ export function PublicFormViewer({
         setResponderEmail("");
         setEmailError(null);
         setCurrentStepIndex(0);
-        setSubmittedMessage(data.message || form?.settings?.customSuccessMessage || "Tanggapan Anda telah berhasil disimpan.");
+        setSubmittedMessage(form?.settings?.customSuccessMessage || t("publicForm.submitSuccess"));
       } else {
-        toast.error(data.error || "Gagal mengirim formulir.");
-        setErrorMsg(data.error || "Gagal mengirim formulir.");
+        toast.error(t("publicForm.submitFailed"));
+        setErrorMsg(t("publicForm.submitFailed"));
       }
-    } catch (err: any) {
-      toast.error(err.message || "Terjadi kesalahan jaringan.");
-      setErrorMsg(err.message || "Terjadi kesalahan jaringan.");
+    } catch {
+      toast.error(t("publicForm.networkError"));
+      setErrorMsg(t("publicForm.networkError"));
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -650,7 +654,7 @@ export function PublicFormViewer({
         <div className="relative z-10 flex flex-col items-center justify-center space-y-4">
           <RefreshCw className="size-8 animate-spin text-brand-primary" />
           <p className="text-body-sm font-medium text-muted-foreground animate-pulse">
-            Memuat formulir...
+            {t("publicForm.loading")}
           </p>
         </div>
       </div>
@@ -666,13 +670,13 @@ export function PublicFormViewer({
             <AlertCircle className="size-6" />
           </div>
           <div className="space-y-1.5">
-            <h1 className="font-heading text-h5 font-bold text-foreground">Login Diperlukan</h1>
+            <h1 className="font-heading text-h5 font-bold text-foreground">{t("publicForm.loginRequired")}</h1>
             <p className="text-body-sm text-muted-foreground">
-              {errorMsg || "Anda harus masuk ke akun Zyx terlebih dahulu untuk mengisi formulir ini."}
+              {errorMsg || t("publicForm.loginDescription")}
             </p>
           </div>
           <Button asChild size="lg" className="w-full font-bold">
-            <Link href="/login">Masuk ke Akun Zyx</Link>
+            <Link href="/login">{t("publicForm.loginAction")}</Link>
           </Button>
         </div>
       </div>
@@ -688,11 +692,11 @@ export function PublicFormViewer({
             <AlertCircle className="size-6" />
           </div>
           <div className="space-y-1.5">
-            <h1 className="font-heading text-h5 font-bold text-foreground">Formulir Tidak Ditemukan</h1>
-            <p className="text-body-sm text-muted-foreground">{errorMsg || "Formulir ini mungkin telah dihapus atau tautan tidak valid."}</p>
+            <h1 className="font-heading text-h5 font-bold text-foreground">{t("publicForm.notFoundTitle")}</h1>
+            <p className="text-body-sm text-muted-foreground">{errorMsg || t("publicForm.notFoundDescription")}</p>
           </div>
           <Button asChild variant="outline">
-            <Link href="/">Kembali ke Beranda</Link>
+            <Link href="/">{t("publicForm.home")}</Link>
           </Button>
         </div>
       </div>
@@ -705,14 +709,14 @@ export function PublicFormViewer({
         <PageOrnaments variant="plans" />
         <div className="relative z-10 mx-auto max-w-lg w-full rounded-2xl border border-border bg-card/95 backdrop-blur-md p-8 shadow-sm text-center space-y-5 border-t-4 border-t-status-warning">
           <span className="inline-block rounded-md bg-status-warning/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-status-warning">
-            Formulir Ditutup
+            {t("publicForm.closed")}
           </span>
           <h1 className="font-heading text-h5 font-bold text-foreground">{form.title}</h1>
           <p className="text-body-sm text-muted-foreground whitespace-pre-line border-t border-border/40 pt-4">
-            {closedReason || "Formulir ini telah ditutup dan tidak lagi menerima tanggapan baru."}
+            {closedReason || t("publicForm.closedDescription")}
           </p>
           <Button asChild variant="outline">
-            <Link href="/">Kembali ke Beranda</Link>
+            <Link href="/">{t("publicForm.home")}</Link>
           </Button>
         </div>
       </div>
@@ -738,7 +742,7 @@ export function PublicFormViewer({
             <Check className="size-8 stroke-[2.5]" />
           </div>
           <div className="space-y-2">
-            <h1 className="font-heading text-h5 font-bold text-foreground">Terima Kasih!</h1>
+            <h1 className="font-heading text-h5 font-bold text-foreground">{t("publicForm.thankYou")}</h1>
             <p className="text-body-sm text-muted-foreground whitespace-pre-line">
               {submittedMessage}
             </p>
@@ -752,11 +756,11 @@ export function PublicFormViewer({
               variant="outline"
               className="w-full sm:w-auto font-medium"
             >
-              {isPreview ? "Ulangi Pratinjau" : "Isi Formulir Lagi"}
+              {isPreview ? t("publicForm.previewAgain") : t("publicForm.fillAgain")}
             </Button>
             {!isPreview && (
               <Button asChild className="w-full sm:w-auto font-semibold">
-                <Link href="/">Selesai</Link>
+                <Link href="/">{t("publicForm.done")}</Link>
               </Button>
             )}
           </div>
@@ -853,11 +857,11 @@ export function PublicFormViewer({
                     onClick={goToNextStep}
                     className="h-12 px-7 text-body-sm font-bold shadow-sm inline-flex items-center gap-2 group cursor-pointer"
                   >
-                    <span>Mulai Isi Formulir</span>
+                    <span>{t("publicForm.start")}</span>
                     <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
                   </Button>
                   <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
-                    Tekan <strong className="font-semibold text-foreground">Enter ↵</strong>
+                    {t("publicForm.keyboardEnter")}
                   </span>
                 </div>
               </motion.div>
@@ -878,10 +882,10 @@ export function PublicFormViewer({
                 <div className="space-y-2">
                   <div className={cn("flex items-center gap-2 text-brand-primary font-mono text-body-sm font-bold", isFlowing && "hidden")}>
                     <span>*</span>
-                    <span>Identifikasi Responden</span>
+                    <span>{t("publicForm.respondentIdentification")}</span>
                   </div>
                   <h2 className="font-heading text-body-base font-semibold text-foreground leading-snug">
-                    Alamat Email Anda
+                    {t("publicForm.emailTitle")}
                   </h2>
                   <p className={cn("text-body-sm text-muted-foreground", isFlowing && "hidden")}>
                     Email digunakan untuk konfirmasi identitas dan verifikasi tanggapan.
@@ -899,7 +903,7 @@ export function PublicFormViewer({
                       setResponderEmail(e.target.value);
                       if (emailError) setEmailError(null);
                     }}
-                    placeholder="nama@email.com"
+                    placeholder={t("publicForm.emailPlaceholder")}
                     className="w-full bg-transparent border-b-2 border-border/80 focus:border-brand-primary pb-3 font-heading text-body-sm text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
                   />
                   {emailError && (
@@ -920,7 +924,7 @@ export function PublicFormViewer({
                     <Check className="size-4 ml-1.5" />
                   </Button>
                   <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
-                    Tekan <strong className="font-semibold text-foreground">Enter ↵</strong>
+                    {t("publicForm.keyboardEnter")}
                   </span>
                 </div>
               </motion.div>
@@ -948,11 +952,11 @@ export function PublicFormViewer({
                 >
                   <div className={cn("inline-flex items-center gap-2 rounded-md bg-brand-secondary/15 px-3 py-1 text-body-2xs font-bold uppercase tracking-wider text-brand-secondary", isFlowing && "hidden")}>
                     <Layers className="size-3.5" />
-                    {hasUpcomingQuestions ? "Bagian Baru" : "Penutup"}
+                    {hasUpcomingQuestions ? t("publicForm.newSection") : t("publicForm.closing")}
                   </div>
 
                   <h2 className="font-heading text-body-base font-bold text-foreground tracking-tight leading-tight">
-                    <MathText as="span">{q.title || "Bagian Formulir"}</MathText>
+                    <MathText as="span">{q.title || t("publicForm.sectionFallback")}</MathText>
                   </h2>
 
                   {q.description && (
@@ -976,7 +980,7 @@ export function PublicFormViewer({
                         className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-md bg-black/75 px-2.5 py-1 text-body-xs font-semibold text-white backdrop-blur-xs cursor-pointer"
                       >
                         <ZoomIn className="size-3" />
-                        Perbesar
+                        {t("publicForm.enlarge")}
                       </button>
                     </div>
                   )}
@@ -992,7 +996,7 @@ export function PublicFormViewer({
                       <ArrowRight className="size-4" />
                     </Button>
                     <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
-                      Tekan <strong className="font-semibold text-foreground">Enter ↵</strong>
+                      {t("publicForm.keyboardEnter")}
                     </span>
                   </div>
                 </motion.div>
@@ -1017,7 +1021,7 @@ export function PublicFormViewer({
                 >
                   <div className="inline-flex items-center gap-2 rounded-md bg-brand-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-primary">
                     <Info className="size-3.5" />
-                    Informasi
+                    {t("publicForm.information")}
                   </div>
 
                   {q.title && (
@@ -1037,17 +1041,17 @@ export function PublicFormViewer({
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={q.imageUrl}
-                        alt={q.title || "Ilustrasi Informasi"}
+                        alt={q.title || t("publicForm.information")}
                         className="max-h-72 rounded-lg object-contain cursor-pointer"
-                        onClick={() => setZoomImageUri({ url: q.imageUrl!, title: q.title || "Informasi" })}
+                        onClick={() => setZoomImageUri({ url: q.imageUrl!, title: q.title || t("publicForm.information") })}
                       />
                       <button
                         type="button"
-                        onClick={() => setZoomImageUri({ url: q.imageUrl!, title: q.title || "Informasi" })}
+                        onClick={() => setZoomImageUri({ url: q.imageUrl!, title: q.title || t("publicForm.information") })}
                         className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-md bg-black/75 px-2.5 py-1 text-body-xs font-semibold text-white backdrop-blur-xs cursor-pointer hover:bg-black"
                       >
                         <ZoomIn className="size-3" />
-                        Perbesar
+                        {t("publicForm.enlarge")}
                       </button>
                     </div>
                   )}
@@ -1063,7 +1067,7 @@ export function PublicFormViewer({
                       <ArrowRight className="size-4" />
                     </Button>
                     <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
-                      Tekan <strong className="font-semibold text-foreground">Enter ↵</strong>
+                      {t("publicForm.keyboardEnter")}
                     </span>
                   </div>
                 </motion.div>
@@ -1132,7 +1136,7 @@ export function PublicFormViewer({
                         className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-md bg-black/75 px-2.5 py-1 text-body-xs font-semibold text-white backdrop-blur-xs cursor-pointer"
                       >
                         <ZoomIn className="size-3" />
-                        Perbesar
+                        {t("publicForm.enlarge")}
                       </button>
                     </div>
                   )}
@@ -1149,7 +1153,7 @@ export function PublicFormViewer({
                           required={q.required}
                           value={answerVal || ""}
                           onChange={(e) => handleAnswerChange(qIdx, e.target.value)}
-                          placeholder="Ketik jawaban Anda di sini..."
+                          placeholder={t("publicForm.textPlaceholder")}
                           className="w-full bg-transparent border-b-2 border-border/80 focus:border-brand-primary pb-3 font-heading text-body-sm text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
                         />
                       </div>
@@ -1165,11 +1169,11 @@ export function PublicFormViewer({
                           required={q.required}
                           value={answerVal || ""}
                           onChange={(e) => handleAnswerChange(qIdx, e.target.value)}
-                          placeholder="Tuliskan jawaban lengkap Anda di sini..."
+                          placeholder={t("publicForm.paragraphPlaceholder")}
                           className="w-full rounded-xl border border-input bg-card/60 p-4 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground/40 resize-y leading-relaxed"
                         />
                         <p className="text-body-xs text-muted-foreground">
-                          Gunakan <strong className="font-semibold text-foreground">Shift + Enter</strong> untuk membuat baris baru.
+                          {t("publicForm.newLineHelp")}
                         </p>
                       </div>
                     )}
@@ -1237,7 +1241,7 @@ export function PublicFormViewer({
                                   {OPTION_LETTERS[q.options?.length || 0] || "•"}
                                 </span>
                                 <span className="text-body-sm font-medium">
-                                  <MathText as="span">{q.otherOption.label || "Lainnya"}</MathText>
+                                  <MathText as="span">{q.otherOption.label || t("publicForm.other")}</MathText>
                                 </span>
                               </div>
                               {answerVal === OTHER_OPTION_MARKER && <Check className="size-5 text-brand-primary shrink-0" />}
@@ -1253,7 +1257,7 @@ export function PublicFormViewer({
                                   otherTextsRef.current[qIdx] = e.target.value;
                                   setOtherTexts((prev) => ({ ...prev, [qIdx]: e.target.value }));
                                 }}
-                                placeholder="Tuliskan rincian jawaban Anda..."
+                                placeholder={t("publicForm.otherDetailPlaceholder")}
                                 className="w-full bg-transparent border-b-2 border-brand-primary pb-2 font-heading text-body-sm text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
                               />
                             )}
@@ -1266,7 +1270,7 @@ export function PublicFormViewer({
                     {q.type === "CHECKBOX" && (
                       <div className="space-y-3">
                         <p className="text-body-xs text-muted-foreground uppercase tracking-wider font-semibold">
-                          Pilih satu atau beberapa jawaban yang sesuai
+                          {t("publicForm.chooseAnswers")}
                         </p>
                         {(q.options || []).map((opt, oIdx) => {
                           const selectedList: string[] = Array.isArray(answerVal) ? answerVal : [];
@@ -1349,7 +1353,7 @@ export function PublicFormViewer({
                                         {OPTION_LETTERS[q.options?.length || 0] || "•"}
                                       </span>
                                       <span className="text-body-sm font-medium">
-                                        <MathText as="span">{q.otherOption?.label || "Lainnya"}</MathText>
+                                        <MathText as="span">{q.otherOption?.label || t("publicForm.other")}</MathText>
                                       </span>
                                     </div>
                                     <div
@@ -1373,7 +1377,7 @@ export function PublicFormViewer({
                                         otherTextsRef.current[qIdx] = e.target.value;
                                         setOtherTexts((prev) => ({ ...prev, [qIdx]: e.target.value }));
                                       }}
-                                      placeholder="Tuliskan rincian jawaban lainnya..."
+                                      placeholder={t("publicForm.otherDetailPlaceholder")}
                                       className="w-full bg-transparent border-b-2 border-brand-primary pb-2 font-heading text-body-sm text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
                                     />
                                   )}
@@ -1402,7 +1406,7 @@ export function PublicFormViewer({
                             ref={answerVal !== OTHER_OPTION_MARKER ? (setFocusableRef as any) : undefined}
                             className="w-full h-10 text-body-sm font-medium rounded-md"
                           >
-                            <SelectValue placeholder="Pilih salah satu opsi..." />
+                            <SelectValue placeholder={t("publicForm.dropdownPlaceholder")} />
                           </SelectTrigger>
                           <SelectContent className="max-h-56">
                             {(q.options || []).map((opt, oIdx) => (
@@ -1412,7 +1416,7 @@ export function PublicFormViewer({
                             ))}
                             {q.otherOption?.enabled && (
                               <SelectItem value={OTHER_OPTION_MARKER} className="text-body-sm py-2.5">
-                                {q.otherOption.label || "Lainnya"}
+                                {q.otherOption.label || t("publicForm.other")}
                               </SelectItem>
                             )}
                           </SelectContent>
@@ -1428,7 +1432,7 @@ export function PublicFormViewer({
                               otherTextsRef.current[qIdx] = e.target.value;
                               setOtherTexts((prev) => ({ ...prev, [qIdx]: e.target.value }));
                             }}
-                            placeholder="Tuliskan rincian jawaban Anda..."
+                            placeholder={t("publicForm.otherDetailPlaceholder")}
                             className="w-full bg-transparent border-b-2 border-brand-primary pb-2 font-heading text-body-sm text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
                           />
                         )}
@@ -1455,7 +1459,7 @@ export function PublicFormViewer({
                               <div className="space-y-3">
                                 <RefreshCw className="size-8 animate-spin text-brand-primary mx-auto" />
                                 <p className="text-body-sm font-semibold text-foreground">
-                                  Mengunggah ke penyimpanan Zyx ({uploadProgress}%)...
+                                  {t("publicForm.uploadingFile", { progress: uploadProgress })}
                                 </p>
                               </div>
                             ) : (
@@ -1476,7 +1480,7 @@ export function PublicFormViewer({
                               <FileCheck2 className="size-7 text-status-success shrink-0" />
                               <div className="overflow-hidden">
                                 <p className="text-body-sm font-bold text-foreground truncate">
-                                  Berkas Berhasil Terunggah
+                                  {t("publicForm.uploadedFile")}
                                 </p>
                                 <a
                                   href={String(answerVal)}
@@ -1495,7 +1499,7 @@ export function PublicFormViewer({
                               onClick={() => handleClearAnswer(qIdx)}
                               className="shrink-0 text-body-xs"
                             >
-                              Ganti Berkas
+                              {t("publicForm.replaceFile")}
                             </Button>
                           </div>
                         )}
@@ -1506,8 +1510,8 @@ export function PublicFormViewer({
                     {q.type === "SCALE" && (
                       <div className="space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-2 text-body-xs text-muted-foreground">
-                          <span className="font-semibold">{q.scaleLowLabel || "1 (Sangat Buruk)"}</span>
-                          <span className="font-semibold">{q.scaleHighLabel || "5 (Sangat Baik)"}</span>
+                          <span className="font-semibold">{q.scaleLowLabel || t("publicForm.scaleLow")}</span>
+                          <span className="font-semibold">{q.scaleHighLabel || t("publicForm.scaleHigh")}</span>
                         </div>
 
                         <div className="grid grid-cols-5 gap-2.5 sm:gap-4 max-w-lg">
@@ -1568,7 +1572,7 @@ export function PublicFormViewer({
                         </div>
                         {answerVal && (
                           <p className="text-body-xs font-semibold text-foreground">
-                            {answerVal} dari 5 Bintang
+                            {t("publicForm.starRating", { rating: answerVal })}
                           </p>
                         )}
                       </div>
@@ -1580,7 +1584,7 @@ export function PublicFormViewer({
                         <table className="w-full text-left text-body-xs">
                           <thead>
                             <tr className="border-b border-border text-muted-foreground font-semibold">
-                              <th className="p-3 w-1/3">Kriteria</th>
+                              <th className="p-3 w-1/3">{t("publicForm.gridCriteria")}</th>
                               {(q.gridColumns || []).map((col, cIdx) => (
                                 <th key={cIdx} className="p-3 text-center text-foreground font-bold">
                                   {col}
@@ -1669,7 +1673,7 @@ export function PublicFormViewer({
                       <Check className="size-4" />
                     </Button>
                     <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
-                      Tekan <strong className="font-semibold text-foreground">Enter ↵</strong>
+                      {t("publicForm.keyboardEnter")}
                     </span>
                   </div>
                 </motion.div>
@@ -1703,7 +1707,7 @@ export function PublicFormViewer({
               className="rounded-lg shadow-md font-medium text-body-xs inline-flex items-center gap-1 bg-background/95 backdrop-blur-md"
             >
               <ArrowLeft className="size-3.5" />
-              <span>Kembali</span>
+              <span>{t("publicForm.back")}</span>
             </Button>
           )}
         </div>
@@ -1713,7 +1717,7 @@ export function PublicFormViewer({
             type="button"
             disabled={currentStepIndex === 0}
             onClick={goToPrevStep}
-            title="Pertanyaan Sebelumnya"
+            title={t("publicForm.previousQuestion")}
             className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 cursor-pointer transition-colors"
           >
             <ChevronUp className="size-4" />
@@ -1723,7 +1727,7 @@ export function PublicFormViewer({
             type="button"
             disabled={isLastStep || uploadingQIdx !== null}
             onClick={goToNextStep}
-            title="Pertanyaan Berikutnya"
+            title={t("publicForm.nextQuestion")}
             className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 cursor-pointer transition-colors"
           >
             <ChevronDown className="size-4" />
@@ -1757,7 +1761,7 @@ export function PublicFormViewer({
       >
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>{zoomImageUri?.title || "Pratinjau Gambar"}</DialogTitle>
+            <DialogTitle>{zoomImageUri?.title || t("publicForm.imagePreview")}</DialogTitle>
           </DialogHeader>
           <div className="flex items-center justify-center p-2">
             {zoomImageUri && (
@@ -1774,4 +1778,3 @@ export function PublicFormViewer({
     </div>
   );
 }
-

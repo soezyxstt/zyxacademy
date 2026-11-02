@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 import { db } from "@/db";
 import {
   aiQuestionBank,
@@ -23,10 +24,12 @@ import { AdminPageHeader } from "@/components/admin/page-header";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Library, Target, Zap } from "lucide-react";
+import { TranslatedText } from "@/components/i18n/translated-text";
 
-export const metadata: Metadata = {
-  title: pageTitle("Bank Soal"),
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("adminEval");
+  return { title: pageTitle(t("metadata.questionBank")) };
+}
 
 type CanonicalQuestionStatus = "draft" | "in_review" | "published" | "retired";
 type ReviewStatus = "generated" | "reviewed" | "published" | "flagged" | "retired";
@@ -311,25 +314,25 @@ export default async function AIQuestionsPage() {
     <div className="space-y-5">
       <AdminPageHeader
         icon={Library}
-        title="Bank Soal"
+        title={<TranslatedText namespace="adminEval" messageKey="routes.questionBank" />}
         actions={
           <>
             <Button asChild variant="outline" size="sm" className="text-body-sm">
-              <Link href="/admin/jobs"><Zap className="size-4" />Generasi Soal</Link>
+              <Link href="/admin/jobs"><Zap className="size-4" /><TranslatedText namespace="adminEval" messageKey="routes.generationJobs" /></Link>
             </Button>
             <Button asChild variant="outline" size="sm" className="text-body-sm">
-              <Link href="/admin/distractors"><Target className="size-4" />Distraktor</Link>
+              <Link href="/admin/distractors"><Target className="size-4" /><TranslatedText namespace="adminEval" messageKey="routes.distractors" /></Link>
             </Button>
           </>
         }
       />
-      <Tabs defaultValue="ai-generated" className="w-full space-y-6">
+      <Tabs defaultValue="ai-generated" className="w-full space-y-4">
         <TabsList>
-          <TabsTrigger value="ai-generated">Bank soal aktif</TabsTrigger>
-          <TabsTrigger value="historical">Referensi historis</TabsTrigger>
+          <TabsTrigger value="ai-generated"><TranslatedText namespace="adminEval" messageKey="routes.activeQuestions" /></TabsTrigger>
+          <TabsTrigger value="historical"><TranslatedText namespace="adminEval" messageKey="routes.historicalQuestions" /></TabsTrigger>
         </TabsList>
 
-        <TabsContent value="ai-generated" className="w-full space-y-6">
+        <TabsContent value="ai-generated" className="w-full space-y-4">
           <QuestionBankClient
             questions={questions}
             courses={allCourses}
@@ -341,7 +344,7 @@ export default async function AIQuestionsPage() {
           />
         </TabsContent>
 
-        <TabsContent value="historical" className="w-full space-y-6">
+        <TabsContent value="historical" className="w-full space-y-4">
           <HistoricalQuestionsClient
             questions={historicalQuestions}
             courses={allCourses}

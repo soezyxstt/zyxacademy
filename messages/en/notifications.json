@@ -1,0 +1,76 @@
+{
+  "push": {
+    "quizPublished": { "title": "📝 New quiz available", "body": "{quizTitle} for {courseTitle} is ready. Start now." },
+    "pkaSchedule": { "title": "New Tutorial PKA Schedule: {scheduleTitle}", "body": "Tutorial PKA session: {scheduleTitle}, {sessionLabel}. Open Schedule for the Meet link." },
+    "pkaScheduleUpdate": { "title": "Meet Link Update: {scheduleTitle}", "body": "A Google Meet link was added for {scheduleTitle} on {sessionLabel}." },
+    "tutorScheduleMoved": { "title": "Tutorial schedule updated", "body": "Your session moved to {dayOfWeek}, {sessionDate}, {startTime} to {endTime}." },
+    "tutorTicketDecision": { "title": "{ticketType} request {decision}", "body": "Your tutor has decided on the {ticketType} request." },
+    "tutorTicketMessage": { "title": "New reply in schedule discussion" }
+  },
+  "bell": "Notifications",
+  "title": "Notifications",
+  "markAllRead": "Mark all as read",
+  "empty": "No notifications yet.",
+  "relative": {
+    "justNow": "Just now",
+    "minutes": "{count} min ago",
+    "hours": "{count} hr ago",
+    "days": "{count} d ago"
+  },
+  "email": {
+    "pkaDisclaimer": "This simulation was created by Zyx Academy for independent practice; it is not an official ITB PKA result. Official SCL results and decisions are issued only by Ditsama ITB.",
+    "categories": {
+      "courseUpdates": { "label": "Course updates", "description": "Announcements, published materials, quizzes, and enrollment updates." },
+      "eventsAndSchedules": { "label": "Events and schedules", "description": "Live sessions, workshops, schedule changes, and meeting links." },
+      "learningReminders": { "label": "Learning reminders", "description": "Weekly reflections, study reminders, and progress summaries." },
+      "newsAndOffers": { "label": "News and offers", "description": "Product news, campaigns, and promotional offers." }
+    },
+    "footer": "You received this email because the {category} category is enabled for your Zyx account.",
+    "manage": "Unsubscribe or manage preferences",
+    "schedule": {
+      "subject": "PKA Review Session - {title}",
+      "intro": "A new PKA live tutorial session has been scheduled.",
+      "scheduleLabel": "Schedule:",
+      "join": "Join Google Meet",
+      "meetPending": "The Google Meet link will be shared before the session starts.",
+      "courseLinkIntro": "The full schedule, quiz simulations, and materials are available on the",
+      "courseLink": "Tutorial PKA page"
+    },
+    "scheduleUpdateSubject": "PKA Meet Link Update - {title}",
+    "announcement": {
+      "subject": "PKA Announcement - {title}",
+      "courseLinkIntro": "Visit the course page for more information:",
+      "courseLink": "Open Tutorial PKA"
+    },
+    "reflection": {
+      "subject": "Weekly Learning Reflection: {weekStart}",
+      "greeting": "Hello {name},",
+      "intro": "Here is your learning summary for the week starting",
+      "activity": "Recorded activity:",
+      "quizzes": "Quizzes completed:",
+      "flashcards": "Flashcards reviewed:",
+      "modules": "Modules completed:",
+      "progress": "Learning progress:",
+      "masteryGrowth": "Mastery growth:",
+      "mostImproved": "Topic with the most improvement:",
+      "streak": "Learning streak:",
+      "currentStreak": "Current streak:",
+      "longestStreak": "Longest streak:",
+      "days": "days",
+      "outro": "Keep up your learning progress at"
+    },
+    "unsubscribe": {
+      "title": "Email preferences",
+      "description": "Unsubscribe from optional Zyx Academy email.",
+      "successTitle": "Email preference updated",
+      "successBody": "You will no longer receive {category} email.",
+      "manageAll": "Manage all preferences",
+      "invalidTitle": "This unsubscribe link is invalid",
+      "invalidBody": "The link may be incomplete or older than 30 days.",
+      "manage": "Manage preferences",
+      "confirmTitle": "Unsubscribe from {category}",
+      "confirmBody": "This disables only {category} email. Your other optional categories and essential account email stay enabled.",
+      "unsubscribe": "Unsubscribe"
+    }
+  }
+}

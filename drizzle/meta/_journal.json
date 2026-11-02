@@ -687,6 +687,27 @@
       "when": 1791991177294,
       "tag": "0097_mushy_bushwacker",
       "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "6",
+      "when": 1792808421459,
+      "tag": "0098_workable_blue_blade",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "6",
+      "when": 1792844518311,
+      "tag": "0099_hard_meteorite",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "6",
+      "when": 1793547833417,
+      "tag": "0100_tutorial_slot_occupancy",
+      "breakpoints": true
     }
   ]
 }

@@ -39,14 +39,13 @@ import {
 import {
   addTutorialDays,
   getTutorialWeekRange,
-  isTutorialWeekLocked,
 } from "@/lib/schedule/week-policy";
 import {
   checkActiveGroupCourseEligibility,
   checkCanonicalTutorAssignment,
-  countsTowardGroupWeeklyQuota,
   doTutorSlotsOverlap,
   getIndonesianDayFromDate,
+  occupiesTutorSlot,
   validateSlotDuration,
   validateSlotWeekdayDate,
 } from "@/lib/schedule/tutor-policy";
@@ -141,7 +140,8 @@ export async function getAdminScheduleData(rawWeekOffset = 0) {
               },
             },
           },
-          booking: {
+          bookings: {
+            where: occupiesTutorSlot(),
             with: {
               group: true,
               course: true,
@@ -198,6 +198,10 @@ export async function getAdminScheduleData(rawWeekOffset = 0) {
         .where(and(isNull(tutorSlots.sessionDate), isNull(bookings.id))),
     ]);
 
+  const slots = allSlots.map(({ bookings: occupants, ...slot }) => ({
+    ...slot,
+    booking: occupants[0] ?? null,
+  }));
   const bookingIds = allBookings.map((booking) => booking.id);
   const ticketScope = [];
   if (bookingIds.length > 0) {
@@ -247,12 +251,12 @@ export async function getAdminScheduleData(rawWeekOffset = 0) {
     tutors: allTutors,
     courses: allCourses,
     groups: allGroups,
-    slots: allSlots,
+    slots,
     bookings: allBookings,
     tickets: allTickets,
     academicSchedules: allAcademicSchedules,
     auditLogs: allAuditLogs,
-    coverage: buildAdminCoverage(allTutors, allSlots),
+    coverage: buildAdminCoverage(allTutors, slots),
     legacyNullDateSlotCount: Number(legacyRows[0]?.count ?? 0),
   };
 }
@@ -580,7 +584,7 @@ export async function executeAdminAssignTutorialSession(
       const existingBooking = await tx
         .select({ id: bookings.id })
         .from(bookings)
-        .where(eq(bookings.slotId, slotId))
+        .where(and(eq(bookings.slotId, slotId), occupiesTutorSlot()))
         .limit(1);
       if (existingBooking.length > 0) throw new Error("SLOT_ALREADY_BOOKED");
 
@@ -718,7 +722,8 @@ export async function executeAdminMoveTutorialSession(
       if (!target) throw new Error("TARGET_SLOT_NOT_FOUND");
       if (!target.sessionDate) throw new Error("LEGACY_SLOT_NO_DATE");
       if (targetSlotId === booking.slotId) throw new Error("TARGET_SLOT_SAME");
-      const targetBooking = await tx.select({ id: bookings.id }).from(bookings).where(eq(bookings.slotId, targetSlotId)).limit(1);
+      const targetBooking = await tx.select({ id: bookings.id }).from(bookings)
+        .where(and(eq(bookings.slotId, targetSlotId), occupiesTutorSlot())).limit(1);
       if (targetBooking.length > 0) throw new Error("TARGET_SLOT_BOOKED");
       if (!validateSlotDuration(target.startTime, target.endTime).isValid) throw new Error("INVALID_DURATION_NOT_90_MINUTES");
       if (!validateSlotWeekdayDate(target.sessionDate, target.dayOfWeek).isValid) throw new Error("INVALID_SESSION_DATE");

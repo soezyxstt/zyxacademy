@@ -1,9 +1,13 @@
 import { Suspense } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { CalendarDays } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { hasAnyPeran } from "@/lib/auth/authorization";
-import { StudentScheduleClient } from "./schedule-client";
+import { ApplicationPage } from "@/components/application-page";
+import { PageHeader } from "@/components/page-header";
+import { StudentScheduleClient, ScheduleCalendarSkeleton } from "./schedule-client";
+import { TranslatedText } from "@/components/i18n/translated-text";
 
 export default async function StudentSchedulePage() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -19,9 +23,10 @@ export default async function StudentSchedulePage() {
   return (
     <Suspense
       fallback={
-        <div className="p-16 text-center text-muted-foreground text-body-sm">
-          Memuat data kalender dan slot tutorial...
-        </div>
+        <ApplicationPage spacing="space-y-4">
+          <PageHeader icon={CalendarDays} title={<TranslatedText namespace="student" messageKey="schedule.title" />} />
+          <ScheduleCalendarSkeleton />
+        </ApplicationPage>
       }
     >
       <StudentScheduleClient />

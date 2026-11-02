@@ -3,6 +3,7 @@
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { Plus, Edit2, Trash2, Trophy, Clock, Layers, ArrowLeft, Check, Library } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,6 +65,9 @@ const provenanceEnabled = true;
 
 export function TryoutsClient({ courseId, initialTryouts, initialQuestions, questionBank }: Props) {
   const router = useRouter();
+  const tr = useTranslations("tutor.tryouts");
+  const quizTr = useTranslations("tutor.quizList");
+  const { locale } = useAppLocale();
   const [isPending, startTransition] = useTransition();
 
   // Tryout Dialog State
@@ -94,6 +98,9 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
   const [deleteQId, setDeleteQId] = useState<string | null>(null);
   const [bankOpen, setBankOpen] = useState(false);
   const [selectedBankIds, setSelectedBankIds] = useState<Set<string>>(new Set());
+  const [bankPage, setBankPage] = useState(0);
+  const bankPageCount = Math.max(1, Math.ceil(questionBank.length / 20));
+  const currentBankPage = Math.min(bankPage, bankPageCount - 1);
 
   const activeQuestions = activeExam
     ? initialQuestions.filter((q) => q.examId === activeExam.id).sort((a, b) => a.order - b.order)
@@ -127,7 +134,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
 
   async function handleSaveT() {
     if (!tTitle.trim()) {
-      toast.error("Judul tryout wajib diisi.");
+      toast.error(tr("titleRequired"));
       return;
     }
 
@@ -142,15 +149,20 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
           closeAt: tCloseAt ? new Date(tCloseAt).toISOString() : null,
         });
         if (res.success) {
-          toast.success(editingT ? "Tryout diperbarui." : "Tryout dibuat.");
+          toast.success(editingT ? tr("updated") : tr("created"));
           setIsTOpen(false);
           router.refresh();
+        } else {
+          toast.error(tr("saveFailed"));
         }
-      } catch (err: any) {
-        toast.error(err.message || "Gagal menyimpan tryout.");
+      } catch {
+        toast.error(tr("saveFailed"));
       }
     });
   }
+
+  const tryoutToDelete = initialTryouts.find((tryout) => tryout.id === deleteTId);
+  const questionToDelete = activeQuestions.find((question) => question.id === deleteQId);
 
   async function handleDeleteT() {
     if (!deleteTId) return;
@@ -158,12 +170,14 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
       try {
         const res = await deleteTryoutAction(courseId, deleteTId);
         if (res.success) {
-          toast.success("Tryout berhasil dihapus.");
+          toast.success(tr("deleted"));
           setDeleteTId(null);
           router.refresh();
+        } else {
+          toast.error(tr("deleteFailed"));
         }
-      } catch (err: any) {
-        toast.error(err.message || "Gagal menghapus tryout.");
+      } catch {
+        toast.error(tr("deleteFailed"));
       }
     });
   }
@@ -202,17 +216,17 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
   async function handleSaveQ() {
     if (!activeExam) return;
     if (!qPrompt.trim()) {
-      toast.error("Pertanyaan wajib diisi.");
+      toast.error(tr("questionRequired"));
       return;
     }
 
     if (qType === "multiple_choice" && qCorrectIndex === undefined) {
-      toast.error("Pilih salah satu kunci jawaban benar.");
+      toast.error(tr("singleCorrectRequired"));
       return;
     }
 
     if (qType === "multiple_choices" && qCorrectIndices.length === 0) {
-      toast.error("Checklist minimal satu kunci jawaban benar.");
+      toast.error(tr("multiCorrectRequired"));
       return;
     }
 
@@ -229,12 +243,14 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
           acceptableAnswers: qAcceptableAnswers.split(",").map((a) => a.trim()).filter(Boolean),
         });
         if (res.success) {
-          toast.success("Soal disimpan.");
+          toast.success(tr("questionSaved"));
           setIsQOpen(false);
           router.refresh();
+        } else {
+          toast.error(tr("questionSaveFailed"));
         }
-      } catch (err: any) {
-        toast.error(err.message || "Gagal menyimpan soal.");
+      } catch {
+        toast.error(tr("questionSaveFailed"));
       }
     });
   }
@@ -245,12 +261,14 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
       try {
         const res = await deleteTryoutQuestionAction(courseId, deleteQId);
         if (res.success) {
-          toast.success("Soal tryout dihapus.");
+          toast.success(tr("questionDeleted"));
           setDeleteQId(null);
           router.refresh();
+        } else {
+          toast.error(tr("questionDeleteFailed"));
         }
-      } catch (err: any) {
-        toast.error(err.message || "Gagal menghapus soal.");
+      } catch {
+        toast.error(tr("questionDeleteFailed"));
       }
     });
   }
@@ -260,12 +278,12 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
     startTransition(async () => {
       try {
         const result = await importQuestionBankToTryoutAction(courseId, activeExam.id, [...selectedBankIds]);
-        toast.success(`${result.imported} soal ditambahkan${result.skipped > 0 ? `, ${result.skipped} sudah ada` : ""}.`);
+        toast.success(tr("importSuccess", { imported: result.imported, skipped: result.skipped }));
         setBankOpen(false);
         setSelectedBankIds(new Set());
         router.refresh();
-      } catch (error: unknown) {
-        toast.error(error instanceof Error ? error.message : "Gagal mengambil soal dari bank soal.");
+      } catch {
+        toast.error(tr("bankImportFailed"));
       }
     });
   }
@@ -295,35 +313,35 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={() => setActiveExam(null)} className="rounded-md border-border/80">
             <ArrowLeft className="mr-1.5 size-4" />
-            Kembali
+            {tr("back")}
           </Button>
           <div>
-            <h2 className="font-heading text-body-base font-bold text-foreground">Kelola Soal: {activeExam.title}</h2>
-            <p className="text-body-xs text-muted-foreground">Total: {activeQuestions.length} Soal</p>
+            <h2 className="font-heading text-body-base font-bold text-foreground">{tr("manageQuestions", { title: activeExam.title })}</h2>
+            <p className="text-body-xs text-muted-foreground">{tr("totalQuestions", { count: activeQuestions.length })}</p>
           </div>
         </div>
 
         {/* Action Row */}
         <div className="flex flex-wrap justify-end gap-2">
-          <Button variant="outline" onClick={() => { setSelectedBankIds(new Set()); setBankOpen(true); }} className="rounded-md border-border font-semibold gap-2">
+          <Button variant="outline" onClick={() => { setSelectedBankIds(new Set()); setBankPage(0); setBankOpen(true); }} className="rounded-md border-border font-semibold gap-2">
             <Library className="size-4" />
-            Ambil dari bank soal
+            {tr("importFromBank")}
           </Button>
-          <Button onClick={handleOpenAddQ} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
+          <Button onClick={handleOpenAddQ} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
             <Plus className="size-4" />
-            Tambah Pertanyaan
+            {tr("addQuestion")}
           </Button>
         </div>
 
         {/* Questions List */}
         {activeQuestions.length === 0 ? (
-          <AdminEmptyState icon={Trophy} title="Ujian Belum Memiliki Soal" />
+          <AdminEmptyState icon={Trophy} title={tr("examEmpty")} />
         ) : (
-          <div className="space-y-4">
+          <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
             {activeQuestions.map((q) => {
               const content = typeof q.content === "string" ? JSON.parse(q.content) : q.content;
               return (
-                <Card key={q.id} className="bg-card border border-border shadow-xs rounded-2xl p-5 relative">
+                <Card key={q.id} className="relative rounded-none border-0 bg-transparent p-4 shadow-none">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
@@ -331,14 +349,14 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                           {q.order}
                         </span>
                         <Badge variant="outline" className="text-[10px] rounded-md text-muted-foreground capitalize">
-                          {q.type.replace("_", " ")}
+                          {tr(q.type)}
                         </Badge>
                       </div>
                       <MarkdownRenderer content={content.prompt} className="pt-1 text-body-sm" />
                       {provenanceEnabled && content.origin === "itb_example" && content.sourceEventName ? (
-                        <p className="mt-2 text-body-xs font-medium text-muted-foreground">Sumber: {content.sourceEventName}</p>
+                        <p className="mt-2 text-body-xs font-medium text-muted-foreground">{tr("source")} {content.sourceEventName}</p>
                       ) : provenanceEnabled ? (
-                        <p className="mt-2 text-body-xs font-medium text-muted-foreground">Asli Zyx</p>
+                        <p className="mt-2 text-body-xs font-medium text-muted-foreground">{tr("originalZyx")}</p>
                       ) : null}
                     </div>
 
@@ -349,28 +367,28 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                             <Button
                               variant="ghost"
                               size="xs"
-                              aria-label={`Edit pertanyaan ${q.order}`}
+                              aria-label={tr("editQuestion", { number: q.order })}
                               onClick={() => handleOpenEditQ(q)}
                               className="rounded-md text-muted-foreground hover:text-foreground"
                             >
                               <Edit2 className="size-3.5" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Edit pertanyaan</TooltipContent>
+                          <TooltipContent>{tr("editQuestion", { number: q.order })}</TooltipContent>
                         </Tooltip>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
                               variant="ghost"
                               size="xs"
-                              aria-label={`Hapus pertanyaan ${q.order}`}
+                              aria-label={tr("deleteQuestion", { number: q.order })}
                               onClick={() => setDeleteQId(q.id)}
                               className="rounded-md text-status-error hover:bg-status-error/10 hover:text-status-error"
                             >
                               <Trash2 className="size-3.5" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Hapus pertanyaan</TooltipContent>
+                          <TooltipContent>{tr("deleteQuestion", { number: q.order })}</TooltipContent>
                         </Tooltip>
                       </div>
                     </TooltipProvider>
@@ -378,17 +396,17 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
 
                   {/* Options Preview for MC */}
                   {(q.type === "multiple_choice" || q.type === "multiple_choices") && content.options && (
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2 pl-8">
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2 sm:pl-8">
                       {content.options.map((opt: string, i: number) => {
                         const isCorrect = q.type === "multiple_choice"
                           ? content.correctIndex === i
                           : content.correctIndices?.includes(i);
                         return (
                           <div key={i} className={`flex items-center gap-2 text-body-xs px-3 py-1.5 rounded-lg border ${
-                            isCorrect ? "bg-emerald-500/5 border-emerald-500/25 text-emerald-700 font-medium" : "bg-muted/10 border-border/50 text-muted-foreground"
+                            isCorrect ? "bg-status-success/10 border-status-success/30 text-foreground font-medium" : "bg-muted/10 border-border/50 text-muted-foreground"
                           }`}>
                             <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                              isCorrect ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
+                              isCorrect ? "bg-status-success/15 text-foreground" : "bg-muted text-muted-foreground"
                             }`}>
                               {String.fromCharCode(65 + i)}
                             </span>
@@ -404,14 +422,14 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                   {/* Short Answer Key */}
                   {q.type === "short_answer" && content.acceptableAnswers && (
                     <p className="text-body-xs text-muted-foreground mt-3 pl-8">
-                      Kunci Jawaban Benar: <span className="font-semibold text-foreground">{(content.acceptableAnswers).join(" / ")}</span>
+                      {tr("answerKey")} <span className="font-semibold text-foreground">{(content.acceptableAnswers).join(" / ")}</span>
                     </p>
                   )}
 
                   {/* Essay attachments */}
                   {q.type === "essay" && (
                     <p className="text-body-xs text-muted-foreground mt-3 pl-8">
-                      Fitur: <span className="font-semibold text-foreground">{content.acceptsFile ? "Bisa Unggah Lampiran Coretan/PDF" : "Teks Esai Saja"}</span>
+                      {tr("feature")} <span className="font-semibold text-foreground">{content.acceptsFile ? tr("fileEssay") : tr("textEssay")}</span>
                     </p>
                   )}
                 </Card>
@@ -424,18 +442,19 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
         <Dialog open={bankOpen} onOpenChange={setBankOpen}>
           <DialogContent className="max-w-2xl rounded-2xl border-border bg-card">
             <DialogHeader>
-              <DialogTitle className="font-heading text-body-base font-bold text-foreground">Ambil soal dari bank soal</DialogTitle>
-              <DialogDescription>Pilih soal asli Zyx atau contoh ITB. Sitasi sumber ITB akan ikut dibawa ke tryout murid.</DialogDescription>
+              <DialogTitle className="font-heading text-body-base font-bold text-foreground">{tr("bankTitle")}</DialogTitle>
+              <DialogDescription>{tr("bankDescription")}</DialogDescription>
             </DialogHeader>
             <div className="max-h-[55vh] divide-y divide-border overflow-y-auto border-y border-border">
               {questionBank.length === 0 ? (
-                <p className="py-8 text-center text-body-sm text-muted-foreground">Belum ada soal terpublikasi untuk kelas ini.</p>
-              ) : questionBank.map((question) => {
+                <p className="py-8 text-center text-body-sm text-muted-foreground">{tr("noPublishedQuestions")}</p>
+              ) : questionBank.slice(currentBankPage * 20, (currentBankPage + 1) * 20).map((question) => {
                 const alreadyImported = importedBankIds.has(question.id);
                 const checked = selectedBankIds.has(question.id) || alreadyImported;
                 return (
-                  <label key={question.id} className="flex cursor-pointer items-start gap-3 py-3">
+                  <div key={question.id} className="flex items-start gap-3 py-3">
                     <Checkbox
+                      id={`bank-question-${question.id}`}
                       checked={checked}
                       disabled={alreadyImported}
                       onCheckedChange={(next) => setSelectedBankIds((current) => {
@@ -444,24 +463,30 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                         else updated.delete(question.id);
                         return updated;
                       })}
-                      aria-label={`Pilih ${question.id}`}
                     />
-                    <div className="min-w-0 flex-1">
+                    <label htmlFor={`bank-question-${question.id}`} className="min-w-0 flex-1 cursor-pointer">
                       <div className="flex flex-wrap items-center gap-2">
-                        {provenanceEnabled ? <Badge variant="outline">{question.origin === "itb_example" ? "Contoh ITB" : "Asli Zyx"}</Badge> : null}
-                        <span className="text-body-xs text-muted-foreground">{question.difficulty}</span>
-                        {alreadyImported ? <span className="text-body-xs font-medium text-status-success">Sudah ada</span> : null}
+                        {provenanceEnabled ? <Badge variant="outline">{question.origin === "itb_example" ? tr("itbExample") : tr("originalZyx")}</Badge> : null}
+                        <span className="text-body-xs text-muted-foreground">{tr(question.difficulty)}</span>
+                        {alreadyImported ? <span className="text-body-xs font-medium text-status-success">{tr("alreadyAdded")}</span> : null}
                       </div>
                       <MarkdownRenderer content={question.prompt} className="mt-1 text-body-sm" />
-                      {provenanceEnabled && question.origin === "itb_example" && question.sourceEventName ? <p className="mt-1 text-body-xs text-muted-foreground">Sumber: {question.sourceEventName}</p> : null}
-                    </div>
-                  </label>
+                      {provenanceEnabled && question.origin === "itb_example" && question.sourceEventName ? <p className="mt-1 text-body-xs text-muted-foreground">{tr("source")} {question.sourceEventName}</p> : null}
+                    </label>
+                  </div>
                 );
               })}
             </div>
+            {bankPageCount > 1 && (
+              <nav aria-label={locale === "id" ? "Halaman bank soal" : "Question bank pages"} className="flex flex-wrap items-center justify-end gap-2">
+                <Button variant="outline" size="sm" disabled={currentBankPage === 0} onClick={() => setBankPage(currentBankPage - 1)}>{locale === "id" ? "Sebelumnya" : "Previous"}</Button>
+                <span className="text-body-sm text-muted-foreground" aria-live="polite">{currentBankPage + 1} / {bankPageCount}</span>
+                <Button variant="outline" size="sm" disabled={currentBankPage === bankPageCount - 1} onClick={() => setBankPage(currentBankPage + 1)}>{locale === "id" ? "Berikutnya" : "Next"}</Button>
+              </nav>
+            )}
             <DialogFooter className="gap-2">
-              <Button variant="outline" onClick={() => setBankOpen(false)} disabled={isPending}>Batal</Button>
-              <Button onClick={handleImportFromBank} disabled={isPending || selectedBankIds.size === 0}>Tambahkan {selectedBankIds.size} soal</Button>
+              <Button variant="outline" onClick={() => setBankOpen(false)} disabled={isPending}>{tr("cancel")}</Button>
+              <Button onClick={handleImportFromBank} disabled={isPending || selectedBankIds.size === 0}>{tr("addSelected", { count: selectedBankIds.size })}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -469,17 +494,17 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
         <Dialog open={deleteQId !== null} onOpenChange={(open) => !open && setDeleteQId(null)}>
           <DialogContent className="max-w-md rounded-2xl border-border bg-card">
             <DialogHeader>
-              <DialogTitle className="font-heading text-body-base font-bold text-foreground">Hapus Pertanyaan?</DialogTitle>
+              <DialogTitle className="font-heading text-body-base font-bold text-foreground">{tr("deleteQuestionTitle", { number: questionToDelete?.order ?? "" })}</DialogTitle>
               <DialogDescription className="text-body-xs text-muted-foreground">
-                Apakah Anda yakin ingin menghapus pertanyaan ini? Ujian yang sedang dikerjakan siswa mungkin terganggu.
+                {tr("deleteQuestionDescription")}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="gap-2 mt-4">
               <Button variant="outline" onClick={() => setDeleteQId(null)} disabled={isPending} className="rounded-md border-border/80">
-                Batal
+                {tr("cancel")}
               </Button>
-              <Button onClick={handleDeleteQ} isLoading={isPending} className="bg-status-error hover:bg-status-error/90 text-white rounded-md font-semibold gap-1.5">
-                Hapus Soal
+              <Button variant="destructive" onClick={handleDeleteQ} isLoading={isPending}>
+                {tr("confirmDeleteQuestion")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -490,33 +515,33 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
           <DialogContent className="max-w-xl rounded-2xl border-border bg-card">
             <DialogHeader>
               <DialogTitle className="font-heading text-body-base font-bold text-foreground">
-                {editingQ ? "Edit Pertanyaan Tryout" : "Tambah Pertanyaan Baru"}
+                {editingQ ? tr("editQuestionTitle") : tr("addQuestionTitle")}
               </DialogTitle>
             </DialogHeader>
 
             <div className="space-y-4 my-2 font-sans overflow-y-auto max-h-[65vh] pr-1">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="grid gap-2">
-                  <Label htmlFor="que-type" className="text-body-sm font-semibold">Tipe Soal</Label>
+                  <Label htmlFor="que-type" className="text-body-sm font-semibold">{tr("questionType")}</Label>
                   <Select value={qType} onValueChange={(val: any) => {
                     setQType(val);
                     setQCorrectIndex(undefined);
                     setQCorrectIndices([]);
                   }}>
-                    <SelectTrigger className="rounded-lg border-input bg-background">
-                      <SelectValue placeholder="Pilih tipe" />
+                    <SelectTrigger id="que-type" className="rounded-lg border-input bg-background">
+                      <SelectValue placeholder={tr("chooseType")} />
                     </SelectTrigger>
                     <SelectContent className="bg-card border-border">
-                      <SelectItem value="multiple_choice">Pilihan Ganda (Single Choice)</SelectItem>
-                      <SelectItem value="multiple_choices">Pilihan Ganda (Multi Select)</SelectItem>
-                      <SelectItem value="short_answer">Isian Singkat</SelectItem>
-                      <SelectItem value="essay">Esai Mandiri</SelectItem>
+                      <SelectItem value="multiple_choice">{tr("singleChoice")}</SelectItem>
+                      <SelectItem value="multiple_choices">{tr("multiChoice")}</SelectItem>
+                      <SelectItem value="short_answer">{tr("shortAnswer")}</SelectItem>
+                      <SelectItem value="essay">{tr("essay")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="que-order" className="text-body-sm font-semibold">Nomor Urut Soal</Label>
+                  <Label htmlFor="que-order" className="text-body-sm font-semibold">{tr("questionOrder")}</Label>
                   <Input
                     id="que-order"
                     type="number"
@@ -528,13 +553,13 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="que-prompt" className="text-body-sm font-semibold">Pertanyaan</Label>
+                <Label htmlFor="que-prompt" className="text-body-sm font-semibold">{tr("question")}</Label>
                 <Textarea
                   id="que-prompt"
                   value={qPrompt}
                   onChange={(e) => setQPrompt(e.target.value)}
                   rows={8}
-                  placeholder="Gunakan daftar Markdown dan LaTeX untuk notasi kimia atau matematika."
+                  placeholder={tr("questionPlaceholder")}
                   className="rounded-lg border-input bg-background"
                 />
               </div>
@@ -542,7 +567,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
               {/* RENDER EDIT MC OPTIONS */}
               {(qType === "multiple_choice" || qType === "multiple_choices") && (
                 <div className="space-y-3">
-                  <Label className="text-body-sm font-semibold block">Opsi Jawaban & Kunci</Label>
+                  <Label className="text-body-sm font-semibold block">{tr("answerOptions")}</Label>
                   {qOptions.map((opt, i) => {
                     const checked = qType === "multiple_choice"
                       ? qCorrectIndex === i
@@ -551,9 +576,11 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                       <div key={i} className="flex items-center gap-3">
                         <button
                           type="button"
+                          aria-label={quizTr("markCorrect", { letter: String.fromCharCode(65 + i) })}
+                          aria-pressed={checked}
                           onClick={() => qType === "multiple_choice" ? selectSingleCorrect(i) : toggleMultiCorrect(i)}
-                          className={`flex size-6 shrink-0 items-center justify-center border transition-all ${
-                            checked ? "bg-emerald-500 border-emerald-500 text-white rounded-lg" : "border-border hover:border-emerald-500 rounded-lg"
+                          className={`flex size-6 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
+                            checked ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:border-primary"
                           }`}
                         >
                           {checked ? <Check className="size-3.5" /> : <span>{String.fromCharCode(65 + i)}</span>}
@@ -565,7 +592,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                             copy[i] = e.target.value;
                             setQOptions(copy);
                           }}
-                          placeholder={`Opsi ${String.fromCharCode(65 + i)}`}
+                          placeholder={`${tr("question")} ${String.fromCharCode(65 + i)}`}
                           className="rounded-lg border-input bg-background flex-1"
                         />
                       </div>
@@ -577,12 +604,12 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
               {/* RENDER SHORT ANSWER OPTIONS */}
               {qType === "short_answer" && (
                 <div className="grid gap-2">
-                  <Label htmlFor="que-short" className="text-body-sm font-semibold">Jawaban Benar yang Diterima (Pisahkan Koma)</Label>
+                  <Label htmlFor="que-short" className="text-body-sm font-semibold">{tr("acceptedAnswers")}</Label>
                   <Input
                     id="que-short"
                     value={qAcceptableAnswers}
                     onChange={(e) => setQAcceptableAnswers(e.target.value)}
-                    placeholder="Contoh: 2, 2.0, dua"
+                    placeholder={tr("acceptedAnswerExample")}
                     className="rounded-lg border-input bg-background"
                   />
                 </div>
@@ -592,7 +619,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
               {qType === "essay" && (
                 <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 p-3 select-none">
                   <Label htmlFor="que-file" className="text-body-sm font-semibold cursor-pointer">
-                    Izinkan siswa mengunggah berkas coretan pendukung (PDF/Gambar)
+                    {tr("allowFiles")}
                   </Label>
                   <Switch
                     id="que-file"
@@ -605,10 +632,10 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
 
             <DialogFooter className="gap-2 pt-2">
               <Button variant="outline" onClick={() => setIsQOpen(false)} disabled={isPending} className="rounded-md border-border/80">
-                Batal
+                {tr("cancel")}
               </Button>
-              <Button onClick={handleSaveQ} isLoading={isPending} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
-                Simpan Soal
+              <Button onClick={handleSaveQ} isLoading={isPending} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
+                {tr("saveQuestion")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -622,15 +649,15 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
     <div className="space-y-4">
       {/* Header action */}
       <div className="flex flex-wrap justify-between items-center gap-2">
-        <h2 className="font-heading text-body-base font-semibold text-foreground">Tryout ({initialTryouts.length})</h2>
-        <Button onClick={handleOpenAddT} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
+        <h2 className="font-heading text-body-base font-semibold text-foreground">{tr("tryoutCount", { count: initialTryouts.length })}</h2>
+        <Button onClick={handleOpenAddT} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
           <Plus className="size-4" />
-          Tambah tryout
+          {tr("addTryout")}
         </Button>
       </div>
 
       {initialTryouts.length === 0 ? (
-        <AdminEmptyState icon={Trophy} title="Belum Ada Tryout" />
+        <AdminEmptyState icon={Trophy} title={tr("noTryouts")} />
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
           {initialTryouts.map((t) => {
@@ -642,37 +669,33 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                 <CardHeader className="min-w-0 flex-1 p-4">
                   <div className="flex justify-between items-start gap-2">
                     <CardTitle className="font-heading text-body-base font-bold text-foreground break-words">{t.title}</CardTitle>
-                    <Badge variant={t.status === "published" ? "default" : "secondary"} className={`text-[10px] rounded-md px-1.5 py-0.5 border ${
-                      t.status === "published" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
-                      t.status === "draft" ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
-                      "bg-muted text-muted-foreground"
-                    }`}>
-                      {t.status}
+                    <Badge variant="secondary" className="shrink-0">
+                      {tr(t.status)}
                     </Badge>
                   </div>
                   <p className="text-body-xs text-muted-foreground mt-0.5 flex items-center gap-4">
                     <span className="flex items-center gap-1">
                       <Clock className="size-3" />
-                      {settings?.timeLimitMinutes || 90} menit
+                      {tr("minutes", { count: settings?.timeLimitMinutes || 90 })}
                     </span>
                     <span className="flex items-center gap-1">
                       <Layers className="size-3" />
-                      {qCount} soal
+                      {tr("questionCount", { count: qCount })}
                     </span>
                   </p>
                 </CardHeader>
 
                 <div className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:py-3">
                   <Button variant="outline" size="sm" onClick={() => setActiveExam(t)} className="rounded-md border-border/80 text-brand-primary hover:bg-brand-primary/5 hover:text-brand-primary">
-                    Kelola Soal
+                    {tr("manageQuestionButton")}
                   </Button>
                   
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => handleOpenEditT(t)} className="rounded-md border-border/80 text-muted-foreground hover:text-foreground">
-                      Edit
+                      {tr("edit")}
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => setDeleteTId(t.id)} className="rounded-md border-border/80 text-status-error hover:bg-status-error/10 hover:text-status-error">
-                      Hapus
+                      {tr("delete")}
                     </Button>
                   </div>
                 </div>
@@ -687,25 +710,25 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
         <DialogContent className="max-w-md rounded-2xl border-border bg-card">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
-              {editingT ? "Edit Tryout" : "Buat Tryout Baru"}
+              {editingT ? tr("editTryout") : tr("createTryout")}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 my-2 font-sans">
             <div className="grid gap-2">
-              <Label htmlFor="t-title" className="text-body-sm font-semibold">Judul Tryout</Label>
+              <Label htmlFor="t-title" className="text-body-sm font-semibold">{tr("tryoutTitle")}</Label>
               <Input
                 id="t-title"
                 value={tTitle}
                 onChange={(e) => setTTitle(e.target.value)}
-                placeholder="Contoh: Tryout UTS - Fisika Dasar I"
+                placeholder={tr("titlePlaceholder")}
                 className="rounded-lg border-input bg-background"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
-                <Label htmlFor="t-time" className="text-body-sm font-semibold">Waktu (Menit)</Label>
+                <Label htmlFor="t-time" className="text-body-sm font-semibold">{tr("timeMinutes")}</Label>
                 <Input
                   id="t-time"
                   type="number"
@@ -717,7 +740,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="t-attempts" className="text-body-sm font-semibold">Batas Percobaan</Label>
+                <Label htmlFor="t-attempts" className="text-body-sm font-semibold">{tr("attemptLimit")}</Label>
                 <Input
                   id="t-attempts"
                   type="number"
@@ -730,22 +753,22 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="t-status" className="text-body-sm font-semibold">Status Publikasi</Label>
+              <Label htmlFor="t-status" className="text-body-sm font-semibold">{tr("publicationStatus")}</Label>
               <Select value={tStatus} onValueChange={(val: any) => setTStatus(val)}>
-                <SelectTrigger className="rounded-lg border-input bg-background">
-                  <SelectValue placeholder="Pilih status" />
+                <SelectTrigger id="t-status" className="rounded-lg border-input bg-background">
+                  <SelectValue placeholder={tr("chooseStatus")} />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
-                  <SelectItem value="draft">Draft (Disembunyikan)</SelectItem>
-                  <SelectItem value="published">Published (Dibuka)</SelectItem>
-                  <SelectItem value="ended">Ended (Ditutup)</SelectItem>
+                  <SelectItem value="draft">{tr("draft")}</SelectItem>
+                  <SelectItem value="published">{tr("published")}</SelectItem>
+                  <SelectItem value="ended">{tr("ended")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid min-w-0 gap-2">
-                <Label htmlFor="t-open" className="text-body-sm font-semibold">Waktu Buka (Optional)</Label>
+                <Label htmlFor="t-open" className="text-body-sm font-semibold">{tr("opensAt")}</Label>
                 <Input
                   id="t-open"
                   type="datetime-local"
@@ -756,7 +779,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
               </div>
 
               <div className="grid min-w-0 gap-2">
-                <Label htmlFor="t-close" className="text-body-sm font-semibold">Waktu Tutup (Optional)</Label>
+                <Label htmlFor="t-close" className="text-body-sm font-semibold">{tr("closesAt")}</Label>
                 <Input
                   id="t-close"
                   type="datetime-local"
@@ -770,10 +793,10 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
 
           <DialogFooter className="gap-2 mt-4">
             <Button variant="outline" onClick={() => setIsTOpen(false)} disabled={isPending} className="rounded-md border-border/80">
-              Batal
+              {tr("cancel")}
             </Button>
-            <Button onClick={handleSaveT} isLoading={isPending} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
-              Simpan Tryout
+            <Button onClick={handleSaveT} isLoading={isPending} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
+              {tr("saveTryout")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -783,17 +806,17 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
       <Dialog open={deleteTId !== null} onOpenChange={(open) => !open && setDeleteTId(null)}>
         <DialogContent className="max-w-md rounded-2xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Hapus Tryout?</DialogTitle>
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">{tr("deleteTryoutTitle", { title: tryoutToDelete?.title ?? "" })}</DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground">
-              Apakah Anda yakin ingin menghapus tryout ini? Seluruh soal di dalamnya dan riwayat pengumpulan siswa juga akan ikut terhapus.
+              {tr("deleteTryoutDescription")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 mt-4">
             <Button variant="outline" onClick={() => setDeleteTId(null)} disabled={isPending} className="rounded-md border-border/80">
-              Batal
+              {tr("cancel")}
             </Button>
-            <Button onClick={handleDeleteT} isLoading={isPending} className="bg-status-error hover:bg-status-error/90 text-white rounded-md font-semibold gap-1.5">
-              Hapus Permanen
+            <Button variant="destructive" onClick={handleDeleteT} isLoading={isPending}>
+              {tr("deleteTryoutConfirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

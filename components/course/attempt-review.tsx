@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
 import { isShortAnswerCorrect, deduplicateAcceptableAnswers } from "@/lib/quiz/short-answer";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface QuestionSnapshot {
  id: string;
@@ -106,6 +107,7 @@ function checkReviewAnswerCorrectness(q: any, submitted: any): boolean {
 }
 
 export function AttemptReview({ attemptId }: { attemptId: string }) {
+ const t = useTranslations("studentCourse");
  const [pollCount, setPollCount] = useState(0);
  const [openFeedback, setOpenFeedback] = useState<Record<number, boolean>>({});
 
@@ -113,7 +115,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  queryKey: ["quiz-attempt", attemptId],
  queryFn: async () => {
  const res = await fetch(`/api/quiz/attempts/${attemptId}`);
- if (!res.ok) throw new Error("Gagal memuat data pembahasan");
+ if (!res.ok) throw new Error(t("attemptReview.loadDataFailed"));
  return res.json();
  },
  refetchInterval: (query) => {
@@ -164,7 +166,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  return (
  <div className="flex items-center gap-2 py-4 text-status-error text-body-sm">
  <TriangleAlert className="size-4" />
- <span>Gagal memuat pembahasan.</span>
+ <span>{t("attemptReview.loadFailed")}</span>
  <Button
  variant="ghost"
  size="sm"
@@ -173,7 +175,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  refetch();
  }}
  >
- Coba Lagi
+ {t("attemptReview.retry")}
  </Button>
  </div>
  );
@@ -224,19 +226,19 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
  <div>
  <span className="text-body-sm font-semibold uppercase tracking-wide text-muted-foreground">
- Kekuatan Anda
+ {t("attemptReview.strengths")}
  </span>
  <ul className="mt-2 space-y-1 text-body-base">
   {strongAreas && strongAreas.length > 0 ? (
   strongAreas.map((area, idx) => <li key={idx}><MathText as="span">{area}</MathText></li>)
   ) : (
- <li className="text-muted-foreground text-body-sm">Belum ada konsep yang dikuasai sepenuhnya.</li>
+ <li className="text-muted-foreground text-body-sm">{t("attemptReview.noStrengths")}</li>
  )}
  </ul>
  </div>
  <div>
  <span className="text-body-sm font-semibold uppercase tracking-wide text-muted-foreground">
- Perlu Latihan
+ {t("attemptReview.needsPractice")}
  </span>
  <ul className="mt-2 space-y-1 text-body-base">
  {weakAreas && weakAreas.length > 0 ? (
@@ -247,7 +249,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  </li>
  ))
  ) : (
- <li className="text-muted-foreground text-body-sm">Kerja bagus! Tidak ada konsep yang lemah.</li>
+ <li className="text-muted-foreground text-body-sm">{t("attemptReview.noWeakAreas")}</li>
  )}
  </ul>
  </div>
@@ -257,7 +259,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  {attempt.remediation && attempt.remediation.concepts.length > 0 && (
  <div className="border-t border-border pt-8 space-y-6">
  <div>
- <h3 className="font-heading text-body-base font-bold text-foreground">Perubahan Penguasaan</h3>
+ <h3 className="font-heading text-body-base font-bold text-foreground">{t("attemptReview.masteryChange")}</h3>
  <ul className="mt-3 space-y-3">
  {attempt.remediation.concepts.map((c) => (
  <li key={c.conceptName} className="space-y-1">
@@ -291,14 +293,14 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
 
  {attempt.remediation.rootCauses.length > 0 && (
  <div>
- <h3 className="font-heading text-body-base font-bold text-foreground">Kemungkinan Akar Masalah</h3>
+ <h3 className="font-heading text-body-base font-bold text-foreground">{t("attemptReview.possibleRootCauses")}</h3>
  <ul className="mt-3 space-y-2 text-body-sm">
  {attempt.remediation.rootCauses.map((rc) => (
  <li key={rc.conceptName}>
  <span className="font-medium text-foreground">
  <MathText as="span">{rc.conceptName}</MathText> ({rc.mastery})
  </span>
- <span className="text-muted-foreground"> bergantung pada: </span>
+ <span className="text-muted-foreground"> {t("attemptReview.dependsOn")} </span>
  <span className="text-status-error">
  {rc.blockedBy.map((b, bIdx) => (
    <span key={b.conceptName}>
@@ -343,7 +345,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
    acceptableArray = Array.isArray(acc) ? deduplicateAcceptableAnswers(acc) : [];
    correctLabel = acceptableArray.join(", ");
  } else if (qType === "essay") {
-   correctLabel = (q as any).explanation || "Jawaban Uraian / Rubrik";
+ correctLabel = (q as any).explanation || t("attemptReview.essayAnswer");
  } else {
    const correctArr = Array.isArray(q.correct_indices) ? q.correct_indices : (q as any).correctIndices || [];
    correctLabel = correctArr.map((i: number) => q.options?.[i] ?? `Opsi ${i}`).join(", ");
@@ -381,20 +383,20 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  : "bg-status-error/10 text-status-error border-status-error/20"
  )}
  >
- {isCorrect ? "Benar" : "Salah"}
+ {isCorrect ? t("attemptReview.correct") : t("attemptReview.incorrect")}
  </span>
  </div>
 
  {/* Answers */}
  <div className="mt-4 space-y-1.5 pl-4 border-l-2 border-muted text-body-sm">
  <p>
- <span className="text-muted-foreground">Jawaban Anda: </span>
+ <span className="text-muted-foreground">{t("attemptReview.yourAnswer")} </span>
  <MathText className="font-medium" as="span">{submittedLabel || "-"}</MathText>
  </p>
  {qType === "short_answer" && acceptableArray.length > 0 ? (
  <div className="pt-1">
  <span className="text-muted-foreground block mb-1 text-body-xs font-semibold uppercase tracking-wider text-status-success">
- Kunci Jawaban yang Diterima{acceptableArray.length > 1 ? ` (${acceptableArray.length} variasi format)` : ""}:
+ {t("attemptReview.acceptedAnswers")}{acceptableArray.length > 1 ? ` (${t("attemptReview.formatVariants", { count: acceptableArray.length })})` : ""}:
  </span>
  <div className="flex flex-wrap gap-1.5">
  {acceptableArray.map((ans, aIdx) => (
@@ -410,7 +412,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  </div>
  ) : (
  <p>
- <span className="text-muted-foreground">Jawaban Benar: </span>
+ <span className="text-muted-foreground">{t("attemptReview.correctAnswer")} </span>
  <MathText className="text-status-success font-semibold" as="span">{correctLabel}</MathText>
  </p>
  )}
@@ -427,7 +429,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  onClick={() => toggleFeedback(idx)}
  className="text-body-sm font-medium flex items-center gap-2 text-brand-primary hover:bg-transparent hover:text-brand-primary/80 p-0 h-auto"
  >
- <span className="font-heading font-bold uppercase tracking-wider text-body-xs">Analisis Kesalahan</span>
+ <span className="font-heading font-bold uppercase tracking-wider text-body-xs">{t("attemptReview.mistakeAnalysis")}</span>
  <ChevronDown
  className={cn(
  "size-4 transition-transform duration-200 text-muted-foreground",
@@ -440,7 +442,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  <div className="animate-in fade-in duration-200 pl-4 border-l-2 border-brand-primary/30 space-y-3">
   {fbItem.payload.misconceptionName && (
   <h6 className="text-body-sm font-semibold text-foreground">
-  Miskonsep: <MathText as="span">{fbItem.payload.misconceptionName}</MathText>
+  {t("attemptReview.misconception")}: <MathText as="span">{fbItem.payload.misconceptionName}</MathText>
   </h6>
   )}
   <p className="text-body-base text-muted-foreground">
@@ -448,7 +450,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
   </p>
   {fbItem.payload.correctApproach && fbItem.payload.correctApproach.length > 0 && (
   <div className="space-y-1">
-  <span className="text-body-sm font-semibold text-foreground">Langkah Penyelesaian:</span>
+  <span className="text-body-sm font-semibold text-foreground">{t("attemptReview.correctSteps")}</span>
   <ol className="list-decimal pl-4 space-y-1 text-body-sm text-muted-foreground">
   {fbItem.payload.correctApproach.map((stepMsg, sIdx) => (
   <li key={sIdx}><MathText as="span">{stepMsg}</MathText></li>
@@ -459,13 +461,13 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  <div className="flex flex-wrap items-center gap-3 pt-2">
  <MistakeFeedbackButton
  questionId={q.id}
- selectedAnswer={submittedLabel || "(tidak menjawab)"}
+ selectedAnswer={submittedLabel || t("attemptReview.noAnswer")}
  />
  <Link
  href={fbItem.payload.reviewHref}
  className="inline-flex items-center text-primary text-body-sm hover:underline"
  >
- Tinjau Konsep Ini
+ {t("attemptReview.reviewConcept")}
  </Link>
  </div>
  </div>
@@ -475,12 +477,12 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  ) : isFeedbackPending ? (
  <div className="flex items-center gap-2 text-body-sm text-brand-primary mt-2 font-medium">
  <Loader2 className="animate-spin size-3.5" />
- <span>Zyra sedang menganalisis kesalahan...</span>
+ <span>{t("attemptReview.analyzingMistake")}</span>
  </div>
  ) : isFeedbackTimeout ? (
  <div className="flex items-center gap-2 py-2 text-status-error text-body-sm">
  <TriangleAlert className="size-4" />
- <span>Gagal memuat penjelasan otomatis.</span>
+ <span>{t("attemptReview.autoExplanationFailed")}</span>
  <Button
  variant="ghost"
  size="sm"
@@ -490,7 +492,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  refetch();
  }}
  >
- Coba Lagi
+ {t("attemptReview.retry")}
  </Button>
  </div>
  ) : null}
@@ -504,7 +506,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  {/* Recommended Next Steps */}
  {recommendedNextSteps && recommendedNextSteps.length > 0 && (
  <div className="border-t border-border pt-8">
- <h3 className="font-heading text-body-base font-bold text-foreground">Rekomendasi Langkah Selanjutnya</h3>
+ <h3 className="font-heading text-body-base font-bold text-foreground">{t("attemptReview.nextSteps")}</h3>
  <ul className="divide-y divide-border mt-3">
  {recommendedNextSteps.map((item, index) => {
  const Icon = KIND_ICON[item.kind] || BookOpen;
@@ -518,11 +520,11 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  <span className="text-body-xs font-bold">{index + 1}</span>
  </div>
  <Icon className="size-4 text-muted-foreground shrink-0" />
- <span className="text-body-base font-medium flex-1 min-w-0 truncate">
+ <span className="text-body-base font-medium flex-1 min-w-0 break-words">
  {item.title}
  </span>
  <Button variant="ghost" size="sm" asChild>
- <Link href={item.href} aria-label={`Buka ${item.title}`}>
+ <Link href={item.href} aria-label={t("attemptReview.openNamed", { title: item.title })}>
  <ArrowRight className="size-4" />
  </Link>
  </Button>

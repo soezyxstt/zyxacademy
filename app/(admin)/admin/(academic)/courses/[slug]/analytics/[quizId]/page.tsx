@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 import { db } from "@/db";
 import { quizTemplates } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -13,6 +14,7 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const t = await getTranslations("adminAcademic");
   const { slug, quizId } = await params;
   try {
     const [courseIdentity, template] = await Promise.all([
@@ -26,15 +28,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ]);
 
     if (!courseIdentity || !template || !matchesCourseIdentity(template.courseId, courseIdentity)) {
-      return { title: pageTitle("Analisis Kuis Tidak Ditemukan") };
+      return { title: pageTitle(t("metadata.pages.quizAnalyticsNotFound")) };
     }
 
     return {
-      title: pageTitle(`Analisis: ${template.title}`),
-      description: `Analisis performa mendalam kuis ${template.title} untuk mata kuliah ${courseIdentity.title}.`,
+      title: pageTitle(t("metadata.pages.quizAnalyticsTitle", { quiz: template.title })),
+      description: t("metadata.pages.quizAnalyticsDescription", { quiz: template.title, course: courseIdentity.title }),
     };
   } catch {
-    return { title: pageTitle("Analisis Kuis") };
+    return { title: pageTitle(t("metadata.pages.quizAnalyticsFallbackTitle")) };
   }
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Bookmark, FolderOpen, Trash2 } from "lucide-react";
 import {
   Dialog,
@@ -37,12 +38,6 @@ export type FormPresetRecord = {
 
 type FormCategory = "survey" | "quiz" | "feedback" | "registration";
 
-const CATEGORY_LABELS: Record<string, string> = {
-  survey: "Survei & Riset",
-  feedback: "Umpan Balik",
-  quiz: "Kuis & Ujian",
-  registration: "Pendaftaran",
-};
 
 async function fetchPresets(): Promise<FormPresetRecord[]> {
   try {
@@ -67,6 +62,7 @@ export function FormPresetsPanel({
   onApplyQuestions: (questions: any[]) => void;
   onApplySettings: (settings: Record<string, any>) => void;
 }) {
+  const t = useTranslations("adminForms");
   const [presets, setPresets] = useState<FormPresetRecord[]>([]);
   const [saveOpen, setSaveOpen] = useState(false);
   const [loadOpen, setLoadOpen] = useState(false);
@@ -88,7 +84,7 @@ export function FormPresetsPanel({
 
   const handleSave = async () => {
     if (!presetName.trim()) {
-      toast.error("Nama preset wajib diisi.");
+      toast.error(t("presets.nameRequired"));
       return;
     }
     setSaving(true);
@@ -106,7 +102,7 @@ export function FormPresetsPanel({
       });
       const data = await res.json();
       if (data.success && data.preset) {
-        toast.success("Preset berhasil disimpan.");
+        toast.success(t("presets.savedToast"));
         setSaveOpen(false);
         setPresetName("");
         setPresetDescription("");
@@ -114,10 +110,10 @@ export function FormPresetsPanel({
         setIncludeSettings(true);
         refresh();
       } else {
-        toast.error(data.error || "Gagal menyimpan preset.");
+        toast.error(t("presets.saveFailed"));
       }
-    } catch (err: any) {
-      toast.error(err.message || "Terjadi kesalahan jaringan.");
+    } catch {
+      toast.error(t("presets.networkError"));
     } finally {
       setSaving(false);
     }
@@ -129,7 +125,7 @@ export function FormPresetsPanel({
       onApplySettings(preset.settings);
     }
     setLoadOpen(false);
-    toast.success(`Preset "${preset.name}" dimuat.`);
+    toast.success(t("presets.appliedToast", { name: preset.name }));
   };
 
   const handleDelete = async (id: string) => {
@@ -139,12 +135,12 @@ export function FormPresetsPanel({
       const data = await res.json();
       if (data.success) {
         setPresets((prev) => prev.filter((p) => p.id !== id));
-        toast.success("Preset dihapus.");
+        toast.success(t("presets.deletedToast"));
       } else {
-        toast.error(data.error || "Gagal menghapus preset.");
+        toast.error(t("presets.deleteFailed"));
       }
-    } catch (err: any) {
-      toast.error(err.message || "Terjadi kesalahan jaringan.");
+    } catch {
+      toast.error(t("presets.networkError"));
     } finally {
       setDeletingId(null);
     }
@@ -153,7 +149,7 @@ export function FormPresetsPanel({
   return (
     <div className="space-y-2">
       <p className="text-body-xs font-bold text-foreground uppercase tracking-wider">
-        Preset Formulir
+        {t("presets.title")}
       </p>
 
       <Button
@@ -163,7 +159,7 @@ export function FormPresetsPanel({
         onClick={() => setSaveOpen(true)}
       >
         <Bookmark className="size-3.5 text-brand-primary" />
-        Simpan Sebagai Preset
+        {t("presets.save")}
       </Button>
 
       <Button
@@ -176,28 +172,28 @@ export function FormPresetsPanel({
         }}
       >
         <FolderOpen className="size-3.5 text-brand-primary" />
-        Muat Preset
+        {t("presets.load")}
       </Button>
 
       {/* Save Preset Dialog */}
       <Dialog open={saveOpen} onOpenChange={(open) => !open && setSaveOpen(false)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Simpan Sebagai Preset</DialogTitle>
+            <DialogTitle>{t("presets.saveTitle")}</DialogTitle>
             <DialogDescription>
-              Preset menyimpan susunan pertanyaan saat ini agar bisa dipakai ulang di formulir lain.
+              {t("presets.saveDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="preset-name" className="text-body-sm font-semibold">
-                Nama Preset
+                {t("presets.name")}
               </Label>
               <Input
                 id="preset-name"
                 type="text"
-                placeholder="Mis. Formulir Evaluasi Perkuliahan"
+                placeholder={t("presets.namePlaceholder")}
                 value={presetName}
                 onChange={(e) => setPresetName(e.target.value)}
                 className="text-body-sm"
@@ -206,12 +202,12 @@ export function FormPresetsPanel({
 
             <div className="space-y-1.5">
               <Label htmlFor="preset-description" className="text-body-sm font-semibold">
-                Deskripsi (Opsional)
+                {t("presets.description")}
               </Label>
               <Textarea
                 id="preset-description"
                 rows={2}
-                placeholder="Penjelasan singkat tentang preset ini"
+                placeholder={t("presets.descriptionPlaceholder")}
                 value={presetDescription}
                 onChange={(e) => setPresetDescription(e.target.value)}
                 className="text-body-sm resize-y"
@@ -219,19 +215,19 @@ export function FormPresetsPanel({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-body-sm font-semibold">Kategori</Label>
+              <Label className="text-body-sm font-semibold">{t("presets.category")}</Label>
               <Select
                 value={presetCategory}
                 onValueChange={(val: any) => setPresetCategory(val)}
               >
                 <SelectTrigger className="w-full text-body-sm">
-                  <SelectValue placeholder="Pilih Kategori" />
+                  <SelectValue placeholder={t("presets.chooseCategory")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="survey">Survei & Riset</SelectItem>
-                  <SelectItem value="feedback">Umpan Balik</SelectItem>
-                  <SelectItem value="quiz">Kuis & Ujian</SelectItem>
-                  <SelectItem value="registration">Pendaftaran</SelectItem>
+                  <SelectItem value="survey">{t("presets.survey")}</SelectItem>
+                  <SelectItem value="feedback">{t("presets.feedback")}</SelectItem>
+                  <SelectItem value="quiz">{t("presets.quiz")}</SelectItem>
+                  <SelectItem value="registration">{t("presets.registration")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -242,17 +238,17 @@ export function FormPresetsPanel({
                 onCheckedChange={(checked) => setIncludeSettings(Boolean(checked))}
               />
               <span className="text-body-sm font-medium text-foreground">
-                Sertakan pengaturan (jadwal, email, batasan)
+                {t("presets.includeSettings")}
               </span>
             </label>
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setSaveOpen(false)} disabled={saving}>
-              Batal
+              {t("presets.cancel")}
             </Button>
             <Button onClick={handleSave} disabled={saving} isLoading={saving}>
-              Simpan Preset
+              {t("presets.saveAction")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -262,16 +258,16 @@ export function FormPresetsPanel({
       <Dialog open={loadOpen} onOpenChange={(open) => !open && setLoadOpen(false)}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>Muat Preset</DialogTitle>
+            <DialogTitle>{t("presets.loadTitle")}</DialogTitle>
             <DialogDescription>
-              Pilih preset untuk mengganti susunan pertanyaan saat ini.
+              {t("presets.loadDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
             {presets.length === 0 ? (
               <p className="rounded-lg border border-dashed border-border p-6 text-center text-body-sm text-muted-foreground">
-                Belum ada preset tersimpan. Simpan susunan pertanyaan ini sebagai preset terlebih dahulu.
+                {t("presets.empty")}
               </p>
             ) : (
               presets.map((preset) => (
@@ -283,13 +279,13 @@ export function FormPresetsPanel({
                     <p className="truncate text-body-sm font-semibold text-foreground">{preset.name}</p>
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Badge variant="secondary" className="bg-brand-primary/10 text-brand-primary text-[10px] font-semibold uppercase tracking-wider">
-                        {CATEGORY_LABELS[preset.category] || preset.category}
+                        {["survey", "feedback", "quiz", "registration"].includes(preset.category) ? t(`presets.${preset.category}`) : preset.category}
                       </Badge>
                       <span className="text-body-xs text-muted-foreground">
-                        {(preset.questions || []).filter((q: any) => q && q.type !== "SECTION").length} pertanyaan
+                        {(preset.questions || []).filter((q: any) => q && q.type !== "SECTION").length} {t("presets.questions")}
                       </span>
                       {preset.settings && Object.keys(preset.settings).length > 0 && (
-                        <span className="text-body-xs text-muted-foreground">dengan pengaturan</span>
+                        <span className="text-body-xs text-muted-foreground">{t("presets.withSettings")}</span>
                       )}
                     </div>
                     {preset.description && (
@@ -303,7 +299,7 @@ export function FormPresetsPanel({
                       onClick={() => handleApply(preset)}
                       className="text-body-xs font-semibold"
                     >
-                      Muat
+                      {t("presets.apply")}
                     </Button>
                     <Button
                       variant="ghost"
@@ -311,7 +307,7 @@ export function FormPresetsPanel({
                       disabled={deletingId === preset.id}
                       isLoading={deletingId === preset.id}
                       onClick={() => handleDelete(preset.id)}
-                      title="Hapus preset"
+                      title={t("presets.delete")}
                       className="text-status-error hover:text-status-error"
                     >
                       <Trash2 className="size-3.5" />
@@ -332,6 +328,7 @@ export function PresetSettingsLoader({
 }: {
   onApplySettings: (settings: Record<string, any>) => void;
 }) {
+  const t = useTranslations("adminForms");
   const [presets, setPresets] = useState<FormPresetRecord[]>([]);
 
   const refresh = useCallback(async () => {
@@ -346,21 +343,21 @@ export function PresetSettingsLoader({
 
   return (
     <div className="space-y-1.5">
-      <Label className="text-body-sm font-semibold">Muat pengaturan dari preset</Label>
+      <Label className="text-body-sm font-semibold">{t("presets.loadSettings")}</Label>
       <Select
         value=""
         onValueChange={(id) => {
           const preset = presets.find((p) => p.id === id);
           if (preset?.settings && Object.keys(preset.settings).length > 0) {
             onApplySettings(preset.settings);
-            toast.success(`Pengaturan dari "${preset.name}" diterapkan.`);
+            toast.success(t("presets.settingsApplied", { name: preset.name }));
           } else {
-            toast.error("Preset ini tidak menyertakan pengaturan.");
+            toast.error(t("presets.noSettings"));
           }
         }}
       >
         <SelectTrigger className="w-full text-body-sm">
-          <SelectValue placeholder="Pilih preset pengaturan..." />
+          <SelectValue placeholder={t("presets.settingsPlaceholder")} />
         </SelectTrigger>
         <SelectContent>
           {presets.map((preset) => (
@@ -371,7 +368,7 @@ export function PresetSettingsLoader({
         </SelectContent>
       </Select>
       <p className="text-body-xs text-muted-foreground">
-        Menerapkan jadwal, email, dan batasan dari preset yang dipilih.
+        {t("presets.settingsHelp")}
       </p>
     </div>
   );

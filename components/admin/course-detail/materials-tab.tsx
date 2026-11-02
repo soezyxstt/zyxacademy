@@ -364,11 +364,12 @@ export function MaterialsTab({
 
         <form onSubmit={handleUpload} className="space-y-3">
           <div className="flex flex-wrap items-end gap-2.5">
-            <div className="space-y-1.5 min-w-[200px] flex-1">
-              <Label className="text-body-sm font-semibold text-foreground h-5 flex items-center">
+            <div className="space-y-1.5 min-w-[140px] flex-1">
+              <Label htmlFor="material-title" className="text-body-sm font-semibold text-foreground h-5 flex items-center">
                 Judul Dokumen
               </Label>
               <Input
+                id="material-title"
                 placeholder="Contoh: Slide Perkuliahan Pertemuan 1"
                 value={title}
                 onChange={(e) => handleTitleChange(e.target.value)}
@@ -378,7 +379,7 @@ export function MaterialsTab({
             </div>
 
             <div className="space-y-1.5 w-full sm:w-36 shrink-0">
-              <Label className="text-body-sm font-semibold text-foreground h-5 flex items-center">
+              <Label htmlFor="material-category" className="text-body-sm font-semibold text-foreground h-5 flex items-center">
                 Kategori
               </Label>
               <Select
@@ -386,7 +387,7 @@ export function MaterialsTab({
                 onValueChange={(v: MaterialLevel1Category) => handleTypeChange(v)}
                 disabled={loading}
               >
-                <SelectTrigger className="h-9 text-body-sm rounded-lg">
+                <SelectTrigger id="material-category" className="h-9 text-body-sm rounded-lg">
                   <SelectValue placeholder="Pilih Kategori" />
                 </SelectTrigger>
                 <SelectContent>
@@ -400,7 +401,7 @@ export function MaterialsTab({
             </div>
 
             <div className="space-y-1.5 w-full sm:w-40 shrink-0">
-              <Label className="text-body-sm font-semibold text-foreground h-5 flex items-center">
+              <Label htmlFor="material-subcategory" className="text-body-sm font-semibold text-foreground h-5 flex items-center">
                 Sub-kategori
               </Label>
               <Select
@@ -408,7 +409,7 @@ export function MaterialsTab({
                 onValueChange={(v: CourseMaterialSubcategory) => handleSubcategoryChange(v)}
                 disabled={loading}
               >
-                <SelectTrigger className="h-9 text-body-sm rounded-lg">
+                <SelectTrigger id="material-subcategory" className="h-9 text-body-sm rounded-lg">
                   <SelectValue placeholder="Pilih Sub-kategori" />
                 </SelectTrigger>
                 <SelectContent>
@@ -422,10 +423,11 @@ export function MaterialsTab({
             </div>
 
             <div className="space-y-1.5 w-full sm:w-32 shrink-0">
-              <Label className="text-body-sm font-semibold text-foreground h-5 flex items-center gap-1 whitespace-nowrap">
+              <Label htmlFor="material-year" className="text-body-sm font-semibold text-foreground h-5 flex items-center gap-1 whitespace-nowrap">
                 Tahun <span className="text-muted-foreground font-normal text-body-xs">(opsional)</span>
               </Label>
               <Input
+                id="material-year"
                 placeholder="2024"
                 type="number"
                 min={1900}
@@ -438,7 +440,7 @@ export function MaterialsTab({
             </div>
 
             <div className="space-y-1.5 w-full sm:w-56 shrink-0">
-              <Label className="text-body-sm font-semibold text-foreground h-5 flex items-center">
+              <Label htmlFor="course-pdf-input" className="text-body-sm font-semibold text-foreground h-5 flex items-center">
                 Berkas PDF
               </Label>
               <Input
@@ -481,7 +483,7 @@ export function MaterialsTab({
           {selectedFile && (
             <div className="border-t border-border pt-3 space-y-1.5">
               <div className="flex items-center justify-between gap-2">
-                <Label className="text-body-xs font-semibold text-foreground">
+                <Label htmlFor="material-filename" className="text-body-sm font-semibold text-foreground">
                   Nama Berkas Terstandar (Disimpan ke Storage)
                 </Label>
                 {isCustomFilenameEdited && (
@@ -499,13 +501,14 @@ export function MaterialsTab({
                 )}
               </div>
               <Input
+                id="material-filename"
                 value={customFilename}
                 onChange={(e) => {
                   setCustomFilename(e.target.value);
                   setIsCustomFilenameEdited(true);
                 }}
                 disabled={loading}
-                className="h-8 font-mono text-body-xs rounded-lg bg-background"
+                className="h-8 font-mono text-body-sm rounded-lg bg-background"
                 placeholder="nama_file_standar.pdf"
               />
               <p className="text-body-xs text-muted-foreground">
@@ -542,7 +545,7 @@ export function MaterialsTab({
                   return (
                     <label
                       key={ch.id}
-                      className={`flex items-start gap-2 p-2 rounded-lg border text-body-xs cursor-pointer select-none transition-colors ${
+                      className={`flex items-start gap-2 p-2 rounded-lg border text-body-sm cursor-pointer select-none transition-colors ${
                         isChecked
                           ? "border-brand-primary bg-brand-primary/10 text-foreground"
                           : "border-border/60 hover:bg-muted/20 text-muted-foreground"
@@ -555,7 +558,7 @@ export function MaterialsTab({
                         disabled={loading}
                         className="mt-0.5 rounded border-border"
                       />
-                      <span className="truncate">
+                      <span className="min-w-0">
                         Bab {ch.orderIndex}: {ch.title}
                       </span>
                     </label>
@@ -583,7 +586,7 @@ export function MaterialsTab({
             </p>
           </div>
         ) : (
-          <table className="w-full text-left text-body-xs">
+          <table className="w-full min-w-[760px] text-left text-body-xs">
             <thead className="bg-muted text-body-xs font-semibold text-muted-foreground">
               <tr>
                 <th className="px-3 py-2">Judul Dokumen</th>

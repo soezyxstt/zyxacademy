@@ -1,4 +1,3 @@
-import { randomBytes } from "node:crypto";
 import { formatIsoDateUtc } from "@/lib/date-utils";
 
 const LEAF_HASH_BYTES = 4;
@@ -50,7 +49,9 @@ export function sanitizeFilename(filename: string): string {
 }
 
 export function userFileLeaf(filename: string): string {
-  return `${Date.now()}-${randomBytes(LEAF_HASH_BYTES).toString("hex")}-${sanitizeFilename(filename)}`;
+  const hash = [...crypto.getRandomValues(new Uint8Array(LEAF_HASH_BYTES))]
+    .map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${Date.now()}-${hash}-${sanitizeFilename(filename)}`;
 }
 
 export function joinKey(...segments: string[]): string {

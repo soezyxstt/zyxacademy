@@ -29,9 +29,9 @@ export function quizOptionClasses(state: QuizOptionState, className?: string) {
 
 const letterStateClasses: Record<QuizOptionState, string> = {
   idle: "bg-muted text-foreground",
-  selected: "bg-brand-primary text-white",
-  correct: "bg-status-success text-white",
-  wrong: "bg-status-error text-white",
+  selected: "bg-brand-primary text-primary-foreground",
+  correct: "bg-status-success/15 text-foreground",
+  wrong: "bg-status-error/15 text-foreground",
 };
 
 /**
@@ -57,11 +57,11 @@ export function quizOptionIndicatorClasses(
   const shape = isCircle ? "rounded-full" : "rounded-md";
   const stateColor =
     state === "selected"
-      ? "border-brand-primary bg-brand-primary text-white"
+      ? "border-brand-primary bg-brand-primary text-primary-foreground"
       : state === "correct"
-        ? "border-status-success bg-status-success text-white"
+        ? "border-status-success bg-status-success/15 text-foreground"
         : state === "wrong"
-          ? "border-status-error bg-status-error text-white"
+          ? "border-status-error bg-status-error/15 text-foreground"
           : "border-muted-foreground/35 bg-background group-hover:border-brand-primary/60";
 
   return cn(

@@ -32,7 +32,8 @@ const LazyEpsilonDeltaBoard = dynamic(
 );
 
 export interface ProductLearningVisualProps {
-  spec: PublicVisualSpec;
+  spec?: PublicVisualSpec;
+  visual?: PublicVisualSpec;
   className?: string;
   engine?: "legacy" | "jsxgraph";
 }
@@ -472,7 +473,9 @@ function EpsilonDeltaVisual({ spec, className, engine }: { spec: PublicEpsilonDe
   );
 }
 
-export function ProductLearningVisual({ spec, className, engine }: ProductLearningVisualProps) {
+export function ProductLearningVisual({ spec: specProp, visual, className, engine }: ProductLearningVisualProps) {
+  const spec = specProp ?? visual;
+  if (!spec) return null;
   if (spec.kind === "geometry_2d") return <Geometry2dVisual spec={spec} className={className} />;
   if (spec.kind === "source_figure") return <figure className={`space-y-3 ${className ?? ""}`} aria-label={spec.label} data-source-figure>
     <figcaption className="font-heading text-body-base font-bold"><MathText>{spec.label}</MathText></figcaption>

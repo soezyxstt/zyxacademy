@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useTranslations } from "@/lib/i18n/client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -78,6 +79,7 @@ export function QuestionsTab({
   chapters: _chapters,
   initialQuestions,
 }: Props) {
+  const t = useTranslations("adminAcademic");
   const [questions, setQuestions] = useState<QuestionItem[]>(initialQuestions);
   const [search, setSearch] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("all");
@@ -157,13 +159,13 @@ export function QuestionsTab({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Gagal menghapus soal.");
+        throw new Error(data.error || t("courseDetail.questions.errors.delete"));
       }
       setQuestions((prev) => prev.filter((q) => q.id !== deletingQuestion.id));
-      toast.success("Soal berhasil dihapus.");
+      toast.success(t("courseDetail.questions.success.delete"));
       setDeletingQuestion(null);
-    } catch (err: any) {
-      toast.error(err.message || "Gagal menghapus soal.");
+    } catch {
+      toast.error(t("courseDetail.questions.errors.delete"));
     } finally {
       setIsDeleting(false);
     }
@@ -173,17 +175,17 @@ export function QuestionsTab({
     <div className="space-y-4 font-sans">
       {/* Origin Filter Tabs */}
       <Tabs value={originTab} onValueChange={handleTabChange} syncUrl={false}>
-        <TabsList className="bg-muted/40 border border-border rounded-xl p-1">
+        <TabsList className="bg-muted/40 border border-border rounded-xl p-1 flex-wrap">
           <TabsTrigger value="all" className="text-body-sm font-medium">
-            Semua Soal ({questions.length})
+            {t("courseDetail.questions.all", { count: questions.length })}
           </TabsTrigger>
           <TabsTrigger value="zyx" className="text-body-sm font-medium flex items-center gap-1.5">
             <BookOpenCheck className="size-3.5 text-brand-primary" />
-            Soal Asli Zyx ({zyxCount})
+            {t("courseDetail.questions.zyxOriginal", { count: zyxCount })}
           </TabsTrigger>
           <TabsTrigger value="reference" className="text-body-sm font-medium flex items-center gap-1.5">
             <BookOpen className="size-3.5 text-muted-foreground" />
-            Referensi Historis ({refCount})
+            {t("courseDetail.questions.reference", { count: refCount })}
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -192,33 +194,33 @@ export function QuestionsTab({
       <div className="flex flex-wrap items-center gap-2">
         <SearchBar
           size="sm"
-          placeholder="Cari butir soal, pembahasan, atau sumber..."
+          placeholder={t("courseDetail.questions.search")}
           value={search}
           onSearch={handleSearchChange}
           onClear={() => handleSearchChange("")}
-          containerClassName="flex-1 min-w-[160px]"
+          containerClassName="flex-1 min-w-[140px]"
         />
 
         <Select value={difficultyFilter} onValueChange={handleDifficultyChange}>
           <SelectTrigger className="w-[140px] h-9 text-body-sm rounded-lg shrink-0">
-            <SelectValue placeholder="Tingkat Kesulitan" />
+            <SelectValue placeholder={t("courseDetail.questions.difficulty")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua Tingkat</SelectItem>
-            <SelectItem value="easy">Mudah</SelectItem>
-            <SelectItem value="medium">Sedang</SelectItem>
-            <SelectItem value="hard">Sulit</SelectItem>
+            <SelectItem value="all">{t("courseDetail.questions.allLevels")}</SelectItem>
+            <SelectItem value="easy">{t("editor.difficulty.easy")}</SelectItem>
+            <SelectItem value="medium">{t("editor.difficulty.medium")}</SelectItem>
+            <SelectItem value="hard">{t("editor.difficulty.hard")}</SelectItem>
           </SelectContent>
         </Select>
 
         <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
           <SelectTrigger className="w-[120px] h-9 text-body-sm rounded-lg shrink-0">
-            <SelectValue placeholder="Per Halaman" />
+            <SelectValue placeholder={t("courseDetail.questions.perPage")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="10">10 per hal.</SelectItem>
-            <SelectItem value="25">25 per hal.</SelectItem>
-            <SelectItem value="50">50 per hal.</SelectItem>
+            <SelectItem value="10">{t("courseDetail.questions.pageSize", { count: 10 })}</SelectItem>
+            <SelectItem value="25">{t("courseDetail.questions.pageSize", { count: 25 })}</SelectItem>
+            <SelectItem value="50">{t("courseDetail.questions.pageSize", { count: 50 })}</SelectItem>
           </SelectContent>
         </Select>
 
@@ -226,12 +228,12 @@ export function QuestionsTab({
           <Tooltip>
             <TooltipTrigger asChild>
               <Link href={`/admin/questions?courseId=${courseId}`} className="shrink-0">
-                <Button size="sm" variant="outline" className="size-9 p-0 rounded-lg shrink-0" aria-label="Buka Studio Bank Soal">
+                <Button size="sm" variant="outline" className="size-9 p-0 rounded-lg shrink-0" aria-label={t("courseDetail.questions.openBankStudio")}>
                   <ExternalLink className="size-4" />
                 </Button>
               </Link>
             </TooltipTrigger>
-            <TooltipContent>Buka Studio Bank Soal</TooltipContent>
+            <TooltipContent>{t("courseDetail.questions.openBankStudio")}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
@@ -241,19 +243,19 @@ export function QuestionsTab({
         <div className="flex items-center justify-between">
           <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <Library className="size-4 text-brand-primary" />
-            Bank soal ({totalItems})
+            {t("courseDetail.questions.questionBankCount", { count: totalItems })}
           </h2>
           <span className="text-body-xs text-muted-foreground">
-            Menampilkan {totalItems === 0 ? 0 : (validPage - 1) * pageSize + 1} - {Math.min(validPage * pageSize, totalItems)} dari {totalItems}
+            {t("courseDetail.questions.showing", { from: totalItems === 0 ? 0 : (validPage - 1) * pageSize + 1, to: Math.min(validPage * pageSize, totalItems), total: totalItems })}
           </span>
         </div>
 
         {paginatedQuestions.length === 0 ? (
           <div className="text-center py-12 border border-dashed border-border rounded-xl">
             <HelpCircle className="size-8 text-muted-foreground/40 mx-auto mb-2" />
-            <p className="text-body-sm font-medium text-foreground">Tidak ada butir soal yang sesuai</p>
+            <p className="text-body-sm font-medium text-foreground">{t("courseDetail.questions.emptyTitle")}</p>
             <p className="text-body-xs text-muted-foreground mt-0.5">
-              Ubah pencarian atau filter kesulitan.
+              {t("courseDetail.questions.emptyDescription")}
             </p>
           </div>
         ) : (
@@ -298,11 +300,11 @@ export function QuestionsTab({
                       </span>
                       {isReference ? (
                         <Badge variant="outline" className="rounded-md text-body-xs font-normal bg-muted/40 border-border text-foreground">
-                          {q.sourceEventName ? q.sourceEventName : "Referensi Historis"}
+                          {q.sourceEventName ? q.sourceEventName : t("courseDetail.questions.historicalReference")}
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="rounded-md text-body-xs font-normal border-brand-primary/30 text-brand-primary">
-                          Soal Asli Zyx
+                          {t("courseDetail.questions.zyxOriginalLabel")}
                         </Badge>
                       )}
                       <DifficultyBadge difficulty={q.difficulty} />
@@ -318,12 +320,12 @@ export function QuestionsTab({
                                 variant="ghost"
                                 className="size-8 p-0 text-muted-foreground hover:text-status-error"
                                 onClick={() => setDeletingQuestion(q)}
-                                aria-label="Hapus Soal"
+                                aria-label={t("courseDetail.questions.deleteQuestion")}
                               >
                                 <Trash2 className="size-4" />
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Hapus Soal</TooltipContent>
+                            <TooltipContent>{t("courseDetail.questions.deleteQuestion")}</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       </div>
@@ -355,7 +357,7 @@ export function QuestionsTab({
                             </div>
                             {isCorrect && (
                               <span className="text-body-xs font-bold text-status-success shrink-0">
-                                Benar
+                                {t("courseDetail.questions.correct")}
                               </span>
                             )}
                           </div>
@@ -367,7 +369,7 @@ export function QuestionsTab({
                   {/* Explanation */}
                   {q.explanation && (
                     <div className="p-3 rounded-lg bg-muted/20 border border-border/40 text-body-sm text-muted-foreground space-y-1">
-                      <strong className="text-foreground text-body-xs block">Pembahasan:</strong>
+                      <strong className="text-foreground text-body-xs block">{t("courseDetail.questions.explanation")}</strong>
                       <MathText>{q.explanation}</MathText>
                     </div>
                   )}
@@ -380,11 +382,11 @@ export function QuestionsTab({
         {/* Pagination Bar */}
         {totalPages > 1 && (
           <nav
-            aria-label="Navigasi halaman bank soal"
+            aria-label={t("courseDetail.questions.pagination")}
             className="flex items-center justify-between pt-3 border-t border-border/60"
           >
             <p className="text-body-xs text-muted-foreground">
-              Halaman {validPage} dari {totalPages}
+              {t("courseDetail.questions.pageOf", { page: validPage, total: totalPages })}
             </p>
             <div className="flex items-center gap-1.5">
               <Button
@@ -393,10 +395,10 @@ export function QuestionsTab({
                 className="h-8 px-2.5 text-body-xs rounded-lg"
                 disabled={validPage <= 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                aria-label="Halaman sebelumnya"
+                aria-label={t("courseDetail.questions.previousPage")}
               >
                 <ChevronLeft className="size-3.5 mr-1" />
-                Sebelumnya
+                {t("courseDetail.questions.previousPage")}
               </Button>
               <div className="hidden sm:flex items-center gap-1">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -418,7 +420,7 @@ export function QuestionsTab({
                       className="size-8 p-0 text-body-xs rounded-lg"
                       onClick={() => setCurrentPage(pageNum)}
                       aria-current={validPage === pageNum ? "page" : undefined}
-                      aria-label={`Halaman ${pageNum}`}
+                      aria-label={t("courseDetail.questions.pageNumber", { page: pageNum })}
                     >
                       {pageNum}
                     </Button>
@@ -431,9 +433,9 @@ export function QuestionsTab({
                 className="h-8 px-2.5 text-body-xs rounded-lg"
                 disabled={validPage >= totalPages}
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                aria-label="Halaman berikutnya"
+                aria-label={t("courseDetail.questions.nextPage")}
               >
-                Berikutnya
+                {t("courseDetail.questions.nextPage")}
                 <ChevronRight className="size-3.5 ml-1" />
               </Button>
             </div>
@@ -447,9 +449,9 @@ export function QuestionsTab({
         onOpenChange={(open) => {
           if (!open) setDeletingQuestion(null);
         }}
-        title="Hapus Butir Soal"
-        description="Apakah Anda yakin ingin menghapus butir soal ini? Tindakan ini tidak dapat dibatalkan."
-        confirmLabel={isDeleting ? "Menghapus..." : "Hapus"}
+        title={t("courseDetail.questions.deleteTitle")}
+        description={t("courseDetail.questions.deleteDescription")}
+        confirmLabel={isDeleting ? t("courseDetail.questions.deleting") : t("courseDetail.questions.deleteQuestion")}
         destructive={true}
         loading={isDeleting}
         onConfirm={() => {

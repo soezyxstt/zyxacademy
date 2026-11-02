@@ -1,9 +1,14 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { useEffect, useState, useCallback } from "react";
 import type { AiStats, AiRequestLog } from "@/lib/ai/analytics";
 import { ZyraUsageCharts } from "@/components/admin/zyra-usage-charts";
+import { Button } from "@/components/ui/button";
+import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
+import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Types
@@ -15,16 +20,16 @@ type GatewayMode = "gateway" | "direct" | "unknown";
 // Small helpers
 // ────────────────────────────────────────────────────────────────────────────
 
-function Badge({ via }: { via: boolean }) {
+function Badge({ via, label }: { via: boolean; label: string }) {
   return (
     <span
-      className={`inline-block rounded-md px-2 py-0.5 text-body-sm font-medium ${
+      className={`inline-block rounded-md px-2 py-0.5 text-body-xs font-medium ${
         via
           ? "bg-brand-primary/10 text-brand-primary"
           : "bg-muted text-muted-foreground"
       }`}
     >
-      {via ? "Gateway" : "Direct"}
+      {label}
     </span>
   );
 }
@@ -48,6 +53,8 @@ function formatLatency(ms: number) {
 const REFRESH_INTERVAL = 10_000; // 10 s
 
 export function AiAnalyticsClient() {
+  const t = useTranslations("adminOps");
+  const { locale } = useAppLocale();
   const [stats, setStats] = useState<AiStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,13 +63,13 @@ export function AiAnalyticsClient() {
   const fetchStats = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/ai-analytics");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error("analytics load failed");
       const data: AiStats = await res.json();
       setStats(data);
       setError(null);
       setLastRefreshed(new Date());
-    } catch (err: any) {
-      setError(err.message || "Failed to load stats");
+    } catch {
+      setError("loadError");
     } finally {
       setLoading(false);
     }
@@ -85,32 +92,25 @@ export function AiAnalyticsClient() {
   // ── Render ──────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24 text-muted-foreground text-body-sm">
-        Loading analytics…
+      <div role="status" aria-label={t("analyticsUI.loading")} className="space-y-5">
+        <div className="flex justify-between gap-3"><Skeleton className="h-8 w-48" /><Skeleton className="h-8 w-24" /></div>
+        <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-4">{[0, 1, 2, 3].map((i) => <div key={i} className="space-y-2 border-border p-4"><Skeleton className="h-4 w-24" /><Skeleton className="h-6 w-16" /></div>)}</div>
+        <div className="grid gap-4 sm:grid-cols-2">{[0, 1].map((i) => <div key={i} className="space-y-3 rounded-xl border border-border bg-card p-4"><Skeleton className="h-5 w-40" />{[0, 1, 2].map((row) => <Skeleton key={row} className="h-4 w-full" />)}</div>)}</div>
+        <Skeleton className="h-48 w-full rounded-xl" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-xl border border-status-error/30 bg-status-error/10 p-6 text-status-error text-body-sm">
-        Error: {error}
-      </div>
+      <AdminErrorState message={t(`analyticsUI.${error}`)} onRetry={fetchStats} />
     );
   }
 
   if (!stats || stats.totalRequests === 0) {
     return (
       <div className="space-y-5">
-        <div className="rounded-xl border border-border bg-muted/40 p-10 text-center">
-          <p className="text-body-base font-heading font-semibold text-foreground">
-            No model requests recorded yet
-          </p>
-          <p className="mt-2 text-body-sm text-muted-foreground">
-            Stats accumulate while the server process is running. Trigger an inference
-            operation (quiz generation, KO extraction, etc.) to see data here.
-          </p>
-        </div>
+        <AdminEmptyState title={t("analyticsUI.emptyTitle")} description={t("analyticsUI.emptyDescription")} />
         <ZyraUsageCharts />
       </div>
     );
@@ -119,10 +119,10 @@ export function AiAnalyticsClient() {
   return (
     <div className="space-y-5">
       {/* Header row ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="text-body-sm text-muted-foreground">
-            Routing mode:
+            {t("analyticsUI.routingMode")}
           </span>
           <span
             className={`rounded-md px-3 py-1 text-body-sm font-semibold ${
@@ -138,42 +138,43 @@ export function AiAnalyticsClient() {
               : "Direct API"}
           </span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           {lastRefreshed && (
             <span className="text-body-sm text-muted-foreground">
-              Refreshed {lastRefreshed.toLocaleTimeString()}
+              {t("analyticsUI.refreshed", { time: lastRefreshed.toLocaleTimeString(locale === "id" ? "id-ID" : "en-US") })}
             </span>
           )}
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             id="ai-analytics-refresh"
             onClick={fetchStats}
-            className="rounded-lg border border-border bg-card px-3 py-1.5 text-body-sm text-foreground hover:bg-muted transition-colors"
           >
-            Refresh
-          </button>
+            {t("analyticsUI.refresh")}
+          </Button>
         </div>
       </div>
 
       {/* Summary strip */}
       <AdminStatStrip className="lg:grid-cols-4">
         <AdminStatStripItem
-          label="Total Requests"
+          label={t("analyticsUI.totalRequests")}
           value={stats.totalRequests}
           tone="brand"
         />
         <AdminStatStripItem
-          label="Successful"
+          label={t("analyticsUI.successful")}
           value={stats.successfulRequests}
           caption={`${((stats.successfulRequests / stats.totalRequests) * 100).toFixed(1)}%`}
           tone="success"
         />
         <AdminStatStripItem
-          label="Failed"
+          label={t("analyticsUI.failed")}
           value={stats.failedRequests}
           tone={stats.failedRequests > 0 ? "error" : "default"}
         />
         <AdminStatStripItem
-          label="Avg Latency"
+          label={t("analyticsUI.avgLatency")}
           value={formatLatency(stats.averageLatencyMs)}
         />
       </AdminStatStrip>
@@ -186,13 +187,13 @@ export function AiAnalyticsClient() {
           </p>
           <div className="space-y-2 text-body-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Requests</span>
+              <span className="text-muted-foreground">{t("analyticsUI.requests")}</span>
               <span className="font-medium text-foreground">
                 {stats.gatewayRequests}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Success Rate</span>
+              <span className="text-muted-foreground">{t("analyticsUI.successRate")}</span>
               <span className="font-medium text-status-success">
                 {stats.gatewaySuccessRate}%
               </span>
@@ -206,13 +207,13 @@ export function AiAnalyticsClient() {
           </p>
           <div className="space-y-2 text-body-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Requests</span>
+              <span className="text-muted-foreground">{t("analyticsUI.requests")}</span>
               <span className="font-medium text-foreground">
                 {stats.directRequests}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Success Rate</span>
+              <span className="text-muted-foreground">{t("analyticsUI.successRate")}</span>
               <span className="font-medium text-status-success">
                 {stats.directSuccessRate}%
               </span>
@@ -224,29 +225,29 @@ export function AiAnalyticsClient() {
       {/* Recent request log ───────────────────────────────────────────────── */}
       <div>
         <h2 className="font-heading text-body-base font-semibold text-foreground mb-4">
-          Recent Requests
+          {t("analyticsUI.recentRequests")}
         </h2>
         <div className="overflow-x-auto rounded-xl border border-border">
           <table className="w-full text-body-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 <th className="px-4 py-3 text-left font-semibold text-muted-foreground">
-                  Time
+                  {t("analyticsUI.time")}
                 </th>
                 <th className="px-4 py-3 text-left font-semibold text-muted-foreground">
-                  Operation
+                  {t("analyticsUI.operation")}
                 </th>
                 <th className="px-4 py-3 text-left font-semibold text-muted-foreground">
-                  Model
+                  {t("analyticsUI.model")}
                 </th>
                 <th className="px-4 py-3 text-left font-semibold text-muted-foreground">
-                  Via
+                  {t("analyticsUI.via")}
                 </th>
                 <th className="px-4 py-3 text-right font-semibold text-muted-foreground">
-                  Latency
+                  {t("analyticsUI.latency")}
                 </th>
                 <th className="px-4 py-3 text-center font-semibold text-muted-foreground">
-                  Status
+                  {t("analyticsUI.status")}
                 </th>
               </tr>
             </thead>
@@ -266,7 +267,7 @@ export function AiAnalyticsClient() {
                     {log.model}
                   </td>
                   <td className="px-4 py-3">
-                    <Badge via={log.viaGateway} />
+                    <Badge via={log.viaGateway} label={log.viaGateway ? t("analyticsUI.gateway") : t("analyticsUI.direct")} />
                   </td>
                   <td className="px-4 py-3 text-right text-foreground">
                     {formatLatency(log.latencyMs)}
@@ -274,6 +275,7 @@ export function AiAnalyticsClient() {
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-1.5">
                       <StatusDot ok={log.success} />
+                      <span className="sr-only">{log.success ? t("analyticsUI.successful") : t("analyticsUI.failed")}</span>
                       {!log.success && log.error && (
                         <span
                           className="text-status-error text-body-sm truncate max-w-[120px]"

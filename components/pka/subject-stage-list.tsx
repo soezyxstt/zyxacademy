@@ -1,19 +1,20 @@
+"use client";
+
 import Link from "next/link";
+import { useTranslations } from "@/lib/i18n/client";
 import { CheckCircle2, Lock, PlayCircle, SkipForward, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PkaStageState } from "@/lib/pka-simulation";
 
-const STATUS_META: Record<
-  PkaStageState["status"],
-  { label: string; icon: typeof Lock; className: string }
-> = {
-  locked: { label: "Terkunci", icon: Lock, className: "text-muted-foreground" },
-  unlocked: { label: "Siap dikerjakan", icon: PlayCircle, className: "text-brand-primary" },
-  completed: { label: "Selesai", icon: CheckCircle2, className: "text-status-success" },
-  skipped: { label: "Dilewati (lulus di stage sebelumnya)", icon: SkipForward, className: "text-status-info" },
+const STATUS_META: Record<PkaStageState["status"], { messageKey: string; icon: typeof Lock; className: string }> = {
+  locked: { messageKey: "locked", icon: Lock, className: "text-muted-foreground" },
+  unlocked: { messageKey: "ready", icon: PlayCircle, className: "text-brand-primary" },
+  completed: { messageKey: "completed", icon: CheckCircle2, className: "text-status-success" },
+  skipped: { messageKey: "skipped", icon: SkipForward, className: "text-status-info" },
 };
 
 export function SubjectStageList({ subject, stages }: { subject: string; stages: PkaStageState[] }) {
+  const t = useTranslations("studentExtras.pka");
   return (
     <ul className="divide-y divide-border">
       {stages.map((s) => {
@@ -23,15 +24,15 @@ export function SubjectStageList({ subject, stages }: { subject: string; stages:
         const clickable = s.status === "unlocked" || s.status === "completed";
 
         const row = (
-          <div className="flex items-center justify-between gap-4 py-3">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
+            <div className="flex min-w-0 items-center gap-3">
               <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted", meta.className)}>
                 <Icon className="size-5" />
               </span>
               <div>
-                <span className="block text-body-base font-semibold text-foreground">Stage {s.stage}</span>
+                <span className="block text-body-base font-semibold text-foreground">{t("stage", { stage: s.stage })}</span>
                 <span className={cn("block text-body-sm", meta.className)}>
-                  {failed ? "Belum lolos ambang stage ini" : meta.label}
+                  {failed ? t("thresholdNotPassed") : t(meta.messageKey)}
                 </span>
               </div>
             </div>
@@ -44,7 +45,7 @@ export function SubjectStageList({ subject, stages }: { subject: string; stages:
               )}
               {clickable && (
                 <span className="text-body-sm font-semibold text-brand-primary">
-                  {s.status === "completed" ? "Lihat hasil" : "Mulai"}
+                  {s.status === "completed" ? t("viewResult") : t("start")}
                 </span>
               )}
             </div>
@@ -63,7 +64,7 @@ export function SubjectStageList({ subject, stages }: { subject: string; stages:
                 {row}
               </Link>
             ) : (
-              <div className="opacity-60">{row}</div>
+              <div>{row}</div>
             )}
           </li>
         );

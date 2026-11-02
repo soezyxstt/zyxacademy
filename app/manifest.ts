@@ -1,12 +1,17 @@
 import type { MetadataRoute } from "next";
-import { siteDescription } from "@/lib/site";
+import { getAppLocale, getTranslations } from "@/lib/i18n/server";
+import { APP_MANIFEST_ID, APP_MANIFEST_SCOPE, getLocalizedManifestStartUrl } from "@/lib/i18n/manifest";
 
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const [locale, t] = await Promise.all([getAppLocale(), getTranslations("core")]);
   return {
     name: "Zyx Academy",
     short_name: "Zyx",
-    description: siteDescription,
-    start_url: "/",
+    description: t("site.description"),
+    lang: locale,
+    id: APP_MANIFEST_ID,
+    scope: APP_MANIFEST_SCOPE,
+    start_url: getLocalizedManifestStartUrl(locale),
     display: "standalone",
     background_color: "#ffffff",
     theme_color: "#1a2744",

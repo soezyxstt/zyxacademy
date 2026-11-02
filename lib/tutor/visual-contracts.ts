@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { FlowchartNodeKindSchema } from "@/lib/flowchart";
 
 /**
  * Plan 006: Tutor Visual Contracts
@@ -20,6 +21,7 @@ export const VisualSpecSchema = z.object({
   type: VisualTypeSchema,
   title: z.string().min(3),
   semanticLabels: z.array(z.string().min(1)),
+  nodeKinds: z.record(z.string(), FlowchartNodeKindSchema).optional(),
   values: z.record(z.string(), z.union([z.number(), z.string()])),
   relationships: z.array(RelationshipEdgeSchema),
   sourceClaimIds: z.array(z.string().min(1)),

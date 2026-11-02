@@ -232,7 +232,7 @@ export function InteractiveGraphWidget({ initialFormula }: { initialFormula: str
   return (
     <div className="my-6 overflow-hidden rounded-2xl border border-border bg-card shadow-md">
       <div className="border-b border-border bg-muted/30 px-3 py-1.5 flex items-center gap-2">
-        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-brand-primary text-white text-[10px] font-bold font-mono">f</span>
+        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-brand-primary text-primary-foreground text-[10px] font-bold font-mono">f</span>
         <span className="text-body-xs font-semibold text-muted-foreground">Grafik Interaktif</span>
         <span className="text-body-xs text-muted-foreground/60 select-none">seret titik untuk mengubah nilai</span>
       </div>

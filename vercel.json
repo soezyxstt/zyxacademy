@@ -1,14 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "bun install --frozen-lockfile",
+  "buildCommand": "bun run build",
   "git": {
     "deploymentEnabled": {
-      "*": false,
-      "main": true,
-      "staging": true
+      "*": false
     }
   },
-  "ignoreCommand": "bash scripts/vercel-ignore-build.sh",
   "build": {
     "env": {
       "NODE_OPTIONS": "--max-old-space-size=4096"

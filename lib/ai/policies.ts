@@ -27,9 +27,9 @@ export const POLICY_ZYX_VOICE: PolicyFragment = {
 
 export const POLICY_LANGUAGE_ID: PolicyFragment = {
   id: 'language-choice',
-  version: '1.0',
+  version: '2.0',
   category: 'student',
-  content: `Write primarily in clear Indonesian (Bahasa Indonesia). Preserve standard scientific, mathematical, and technical terminology where appropriate.`,
+  content: `Follow the bounded responseLanguage value in the server-selected teaching context for learner-facing prose and generated canvas labels, captions, alt text, and fallback summaries. Use clear Indonesian when it is "id" and clear international English when it is "en". Keep source titles, source text, citations, formulas, symbols, and assessment restrictions unchanged.`,
 };
 
 export const POLICY_MATH_LATEX: PolicyFragment = {

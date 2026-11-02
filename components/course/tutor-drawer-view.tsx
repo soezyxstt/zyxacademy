@@ -4,10 +4,9 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import type { Followup } from "@/lib/zyra/followups";
 import {
-  BookOpen,
-  Layers,
-  ClipboardList,
   Compass,
   AlertTriangle,
   Loader2,
@@ -20,28 +19,18 @@ import {
   Minimize2,
   Copy,
   Trash2,
-  Send,
   HelpCircle,
   Paperclip,
   Plus,
-  Square,
   ArrowUp,
   ChevronDown,
   Quote,
 } from "lucide-react";
 import type { ZyraQuotedContext } from "./tutor-drawer";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
   explainConceptAction,
   analyzeMistakeAction,
   buildStudyPlanAction,
-  generatePracticeQuizAction,
-  askTutorRagAction,
   saveTutorMessagesAction,
   loadTutorHistoryAction,
   clearTutorHistoryAction,
@@ -49,6 +38,15 @@ import {
   listTutorSessionsAction,
 } from "@/app/actions/tutor";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import {
+  ArticleParts,
+  ProductLearningVisual,
+  ProductWorkedExample,
+  type PublicVisualSpec,
+  type PublicWorkedExamplePayload,
+} from "@/components/course/article-parts";
+import type { ArticlePart } from "@/lib/materials/article-parts";
+import { MathText } from "@/components/course/math-text";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { clampTutorPanelWidth, DEFAULT_TUTOR_PANEL_WIDTH, MAX_TUTOR_PANEL_WIDTH, MIN_TUTOR_PANEL_WIDTH } from "@/lib/tutor-panel-layout";
@@ -61,15 +59,28 @@ import {
 } from "@/components/course/zyra-attachment-composer";
 import { ZyraAllowanceSummary } from "@/components/course/zyra-allowance-summary";
 import { ZyraMathPalette } from "@/components/course/zyra-math-palette";
-import { ZyraFormulaPreview } from "@/components/course/zyra-formula-preview";
-import { useSwipe } from "@/hooks/use-swipe";
+import { ZyraComposerInput, type ZyraComposerInputHandle } from "@/components/course/zyra-composer-input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getPlaygroundBridge, subscribePlaygroundBridge } from "@/components/coding/playground-bridge";
+import { PythonPresets, pythonPresets, type PythonPreset } from "@/components/coding/python-presets";
+import { pythonReply } from "@/lib/coding/python-reply";
+import { composerMathRanges } from "@/components/course/zyra-composer-math";
 import { LearningCanvasRenderer } from "@/components/course/learning-canvas/learning-canvas-renderer";
 import type { CanvasSpec } from "@/lib/zyra/canvas";
 import { zyraImageFilesFromClipboard } from "@/lib/zyra/images/composer";
 import type { ZyraMessageAttachment } from "@/lib/zyra/images/contracts";
 import { ZyraMessageAttachments } from "@/components/course/zyra-message-attachments";
-import { getFlashcardsForKOAction } from "@/app/actions/tutor-extra";
 import { consumeZyraStream } from "@/lib/zyra/stream-consumer";
+import {
+  createZyraResponseLanguageState,
+  withZyraResponseLanguage,
+  zyraInterfaceLocaleChanged,
+  zyraResponseLanguageConversationChanged,
+  zyraResponseLanguageResolved,
+} from "@/lib/zyra/chat-language-contract";
+import { useTranslations } from "@/lib/i18n/client";
+import { useAppLocale } from "@/lib/i18n/client";
+import { useSession } from "@/lib/auth-client";
 
 export type TutorMode = "explain" | "mistake" | "study-plan" | "chat" | null;
 type ActiveAction = "none" | "flashcards" | "practice-quiz";
@@ -78,14 +89,28 @@ interface ChatMessage {
   id: string;
   role: "student" | "ai";
   content: string;
+  followups?: Followup[];
   quotedContext?: ZyraQuotedContext | null;
   sources?: Array<{ type: string; id: string; label: string; href: string }>;
   canvasSpec?: CanvasSpec | null;
   attachments?: ZyraMessageAttachment[];
+  sessionId?: string | null;
+  parts?: ArticlePart[];
+  visuals?: PublicVisualSpec[];
+  workedExample?: PublicWorkedExamplePayload | null;
   isError?: boolean;
+  persisted?: boolean;
+  pendingPython?: { code: string; apply: (code: string, force?: boolean) => string };
+  pythonStatus?: string;
   failedPayload?: {
     question: string;
     quotedContext?: ZyraQuotedContext | null;
+    intent: PythonPreset["intent"] | "hint" | "generate";
+    attachmentIds: string[];
+    attachments: ZyraMessageAttachment[];
+    courseId: string | null;
+    sessionId: string | null;
+    conversationEpoch: number;
   };
 }
 
@@ -100,41 +125,23 @@ function safeText(value: unknown, fallback: string): string {
   return trimmed.length > 0 ? trimmed : fallback;
 }
 
-function isComprehensionCheck(content: string): boolean {
-  if (/cek pemahaman|uji pemahaman/i.test(content)) return true;
-  const tail = content.trimEnd().slice(-400);
-  return /\?/.test(tail.replace(/[$`\\]/g, ""));
-}
-
-function formatSessionDate(isoString: string): string {
+function formatSessionDate(isoString: string, locale: "id" | "en", labels: { justNow: string; minutes: string; hours: string; days: string }): string {
   try {
     const date = new Date(isoString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return "Baru saja";
-    if (diffMins < 60) return `${diffMins}m lalu`;
+    if (diffMins < 1) return labels.justNow;
+    if (diffMins < 60) return labels.minutes.replace("{count}", String(diffMins));
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}j lalu`;
+    if (diffHours < 24) return labels.hours.replace("{count}", String(diffHours));
     const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 7) return `${diffDays}h lalu`;
-    return date.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+    if (diffDays < 7) return labels.days.replace("{count}", String(diffDays));
+    return date.toLocaleDateString(locale === "en" ? "en-US" : "id-ID", { day: "numeric", month: "short" });
   } catch {
     return "";
   }
 }
-
-const GENERIC_CHIPS = [
-  { icon: "example", label: "Contoh Soal", prompt: "Berikan contoh soal materi ini dan tuntun aku langkah demi langkah." },
-  { icon: "help", label: "Uji Pemahaman", prompt: "Uji pemahamanku tentang materi ini dengan 1 pertanyaan konsep singkat tanpa memberi kunci jawaban langsung." },
-  { icon: "compass", label: "Analogi", prompt: "Jelaskan materi ini dengan analogi sehari-hari yang mudah dibayangkan." },
-] as const;
-
-const CHECK_CHIPS = [
-  { icon: "help", label: "Beri hint langkah pertama", prompt: "Beri hint untuk langkah pertama saja tanpa mengungkap jawaban akhirnya." },
-  { icon: "refresh", label: "Bimbing aku lebih pelan", prompt: "Aku masih bingung. Bimbing aku ulangi penjelasannya lebih pelan, satu langkah pada satu waktu." },
-  { icon: "arrow", label: "Tampilkan pembahasan", prompt: "Aku belum bisa menjawab. Tampilkan pembahasan lengkapnya lalu uji aku dengan soal serupa." },
-] as const;
 
 function FollowUpChipIcon({ name }: { name: "example" | "help" | "compass" | "refresh" | "arrow" }) {
   if (name === "example") return <FileQuestion className="size-3 text-brand-primary" />;
@@ -144,28 +151,29 @@ function FollowUpChipIcon({ name }: { name: "example" | "help" | "compass" | "re
   return <HelpCircle className="size-3 text-brand-secondary" />;
 }
 
-function FollowUpChips({
-  comprehensionCheck,
-  onSend,
-}: {
-  comprehensionCheck: boolean;
-  onSend: (prompt: string) => void;
+function FollowUpChips({ followups, disabled, onSend }: {
+  followups: Followup[];
+  disabled: boolean;
+  onSend: (followup: Followup) => void;
 }) {
-  const chips = comprehensionCheck ? CHECK_CHIPS : GENERIC_CHIPS;
+  const t = useTranslations("studentCourse");
   return (
-    <div className="mt-2 pt-1.5 flex items-center gap-0.5 overflow-x-auto no-scrollbar" aria-label="Aksi belajar lanjutan">
-      {chips.map((chip) => (
-        <button
-          key={chip.label}
-          type="button"
-          onClick={() => onSend(chip.prompt)}
-          className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-body-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
-        >
-          <FollowUpChipIcon name={chip.icon} />
-          <span>{chip.label}</span>
-        </button>
+    <TooltipProvider>
+    <div className="mt-2 flex flex-wrap items-center gap-1" aria-label={t("tutorDrawer.followUpActions")}>
+      {followups.map((chip, index) => (
+        <Tooltip key={`${chip.label}-${index}`}>
+          <TooltipTrigger asChild>
+            <Button type="button" variant="ghost" size="sm" disabled={disabled}
+              onClick={() => onSend(chip)} className="h-auto max-w-full whitespace-normal px-2 py-1 text-left">
+              <FollowUpChipIcon name={chip.icon} />
+              <span className="break-words">{chip.label}</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{chip.prompt}</TooltipContent>
+        </Tooltip>
       ))}
     </div>
+    </TooltipProvider>
   );
 }
 
@@ -198,8 +206,40 @@ export function TutorDrawerView({
   quotedContext,
   onClearQuotedContext,
 }: TutorDrawerViewProps) {
+  const t = useTranslations("studentCourse");
+  const { locale } = useAppLocale();
+  const { data: authSession } = useSession();
+  const accountId = authSession?.user?.id ?? null;
+  const [conversationKey, setConversationKey] = React.useState("draft:0");
+  const conversationKeyRef = React.useRef(conversationKey);
+  const draftSequenceRef = React.useRef(0);
+  const conversationEpochRef = React.useRef(0);
+  const hasStartedConversationRef = React.useRef(false);
+  const responseLanguageByConversationRef = React.useRef(new Map<string, "id" | "en">());
+  const [responseLanguageState, setResponseLanguageState] = React.useState(() =>
+    createZyraResponseLanguageState(locale, conversationKey),
+  );
+  const responseLanguageStateRef = React.useRef(responseLanguageState);
+  const conversationScopeRef = React.useRef<string | null>(null);
+  const localeEpochRef = React.useRef(0);
+  React.useEffect(() => {
+    localeEpochRef.current += 1;
+    responseLanguageByConversationRef.current.clear();
+    const nextState = zyraInterfaceLocaleChanged(responseLanguageStateRef.current, locale);
+    responseLanguageStateRef.current = nextState;
+    setResponseLanguageState(nextState);
+  }, [locale]);
   const pathname = usePathname();
-  const courseIdFromPath = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+  const registeredBridge = React.useSyncExternalStore(subscribePlaygroundBridge, getPlaygroundBridge, () => null);
+  const codingBridge = pathname?.startsWith("/courses/") && pathname.split("/")[2] !== registeredBridge?.courseId ? null : registeredBridge;
+  const [assistantMode, setAssistantMode] = React.useState<"python" | "tutor">(() => codingBridge ? "python" : "tutor");
+  React.useEffect(() => { setAssistantMode(codingBridge ? "python" : "tutor"); }, [codingBridge]);
+  const courseIdFromPath = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : codingBridge?.courseId ?? null;
+  const conversationScope = `${accountId ?? "anonymous"}:${courseIdFromPath ?? "none"}`;
+  const conversationKeyForSession = React.useCallback(
+    (id: string) => `session:${conversationScope}:${id}`,
+    [conversationScope],
+  );
   const caps = getTutorCapabilities(courseIdFromPath);
   const [zyraAccessTier, setZyraAccessTier] = React.useState<"free" | "standard" | null>(null);
   // Allow existing standard modes unless the server has explicitly identified
@@ -223,7 +263,7 @@ export function TutorDrawerView({
     {
       id: "chat-welcome",
       role: "ai",
-      content: "Halo! Aku Zyra, asisten belajarmu. Tanyakan konsep, rumus matematika, atau soal latihan!",
+      content: t("tutorDrawer.welcome"),
     },
   ]);
   const [inputVal, setInputVal] = React.useState("");
@@ -231,16 +271,24 @@ export function TutorDrawerView({
 
   React.useEffect(() => {
     if (quotedContext) {
+      if (quotedContext.blockType === "code" && codingBridge) setAssistantMode("python");
       setActiveQuotedContext(quotedContext);
     }
-  }, [quotedContext]);
+  }, [quotedContext, codingBridge]);
 
   const [chatLoading, setChatLoading] = React.useState(false);
   const [sessionId, setSessionId] = React.useState<string | null>(null);
   const [attachmentIds, setAttachmentIds] = React.useState<string[]>([]);
   const [readyAttachments, setReadyAttachments] = React.useState<ZyraMessageAttachment[]>([]);
-  const [_attachmentComposerKey, setAttachmentComposerKey] = React.useState(0);
-  const [_attachmentsReady, setAttachmentsReady] = React.useState(true);
+  const [attachmentComposerKey, setAttachmentComposerKey] = React.useState(0);
+  const [attachmentsReady, setAttachmentsReady] = React.useState(true);
+
+  const resetComposerAttachments = React.useCallback(() => {
+    setAttachmentIds([]);
+    setReadyAttachments([]);
+    setAttachmentsReady(true);
+    setAttachmentComposerKey((value) => value + 1);
+  }, []);
   const [copiedMessageId, setCopiedMessageId] = React.useState<string | null>(null);
 
   // Chat sessions history
@@ -254,7 +302,7 @@ export function TutorDrawerView({
   const [sessionsLoading, setSessionsLoading] = React.useState(false);
 
   const loadSessions = React.useCallback(async () => {
-    const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+    const courseId = courseIdFromPath;
     if (!courseId) return;
     setSessionsLoading(true);
     try {
@@ -265,16 +313,88 @@ export function TutorDrawerView({
     } finally {
       setSessionsLoading(false);
     }
-  }, [pathname]);
+  }, [courseIdFromPath]);
 
   const attachmentComposerRef = React.useRef<ZyraAttachmentComposerHandle>(null);
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const textareaRef = React.useRef<ZyraComposerInputHandle>(null);
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const savedDataRef = React.useRef<any>(null);
-  const focusReturnRef = React.useRef<HTMLElement | null>(null);
 
   const panelRef = React.useRef<HTMLElement>(null);
   const abortControllerRef = React.useRef<AbortController | null>(null);
+
+  const rememberConversationOverride = React.useCallback((key: string, override: "id" | "en" | null) => {
+    const remembered = responseLanguageByConversationRef.current;
+    if (!override) {
+      remembered.delete(key);
+      return;
+    }
+    remembered.delete(key);
+    remembered.set(key, override);
+    while (remembered.size > 32) {
+      const oldestKey = remembered.keys().next().value;
+      if (!oldestKey) break;
+      remembered.delete(oldestKey);
+    }
+  }, []);
+
+  const updateResponseLanguageState = React.useCallback((
+    update: (current: typeof responseLanguageState) => typeof responseLanguageState,
+  ) => {
+    const nextState = update(responseLanguageStateRef.current);
+    responseLanguageStateRef.current = nextState;
+    rememberConversationOverride(nextState.conversationKey, nextState.stickyOverride);
+    setResponseLanguageState(nextState);
+  }, [rememberConversationOverride]);
+
+  const invalidateConversationRequests = React.useCallback(() => {
+    conversationEpochRef.current += 1;
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setChatLoading(false);
+  }, []);
+
+  const activateConversation = React.useCallback((
+    nextKey: string,
+    options: { invalidate?: boolean; preserveCurrentOverride?: boolean } = {},
+  ) => {
+    const currentKey = conversationKeyRef.current;
+    if (currentKey === nextKey) return;
+    if (options.invalidate !== false) invalidateConversationRequests();
+    const currentState = responseLanguageStateRef.current;
+    if (options.preserveCurrentOverride && currentState.stickyOverride) {
+      rememberConversationOverride(currentKey, currentState.stickyOverride);
+      rememberConversationOverride(nextKey, currentState.stickyOverride);
+    }
+    const rememberedOverride = responseLanguageByConversationRef.current.get(nextKey) ?? null;
+    const nextState = zyraResponseLanguageConversationChanged(currentState, nextKey, rememberedOverride);
+    conversationKeyRef.current = nextKey;
+    responseLanguageStateRef.current = nextState;
+    setConversationKey(nextKey);
+    setResponseLanguageState(nextState);
+  }, [invalidateConversationRequests, rememberConversationOverride]);
+
+  const startNewConversation = React.useCallback(() => {
+    draftSequenceRef.current += 1;
+    hasStartedConversationRef.current = true;
+    activateConversation(`draft:${draftSequenceRef.current}`);
+  }, [activateConversation]);
+
+  React.useEffect(() => {
+    if (conversationScopeRef.current === null) {
+      conversationScopeRef.current = conversationScope;
+      return;
+    }
+    if (conversationScopeRef.current === conversationScope) return;
+    conversationScopeRef.current = conversationScope;
+    responseLanguageByConversationRef.current.clear();
+    hasStartedConversationRef.current = false;
+    draftSequenceRef.current += 1;
+    activateConversation(`draft:${draftSequenceRef.current}`);
+    setSessionId(null);
+    resetComposerAttachments();
+    setMessages([{ id: "chat-welcome", role: "ai", content: t("tutorDrawer.welcome") }]);
+  }, [activateConversation, conversationScope, resetComposerAttachments, t]);
 
   // Resizable sidebar states
   const [sidebarWidth, setSidebarWidth] = React.useState<number>(DEFAULT_SIDEBAR_WIDTH);
@@ -315,11 +435,10 @@ export function TutorDrawerView({
 
   // Micro-apps inside drawer
   const [activeAction, setActiveAction] = React.useState<ActiveAction>("none");
-  const [actionData, setActionData] = React.useState<any[]>([]);
+  const [actionData] = React.useState<any[]>([]);
   const [actionIndex, setActionIndex] = React.useState(0);
   const [actionFlipped, setActionFlipped] = React.useState(false);
   const [actionSelectedAnswer, setActionSelectedAnswer] = React.useState<number | null>(null);
-  const [actionQuizSubmitted, setActionQuizSubmitted] = React.useState(false);
 
   // Initialize stored width safely on client
   React.useEffect(() => {
@@ -354,13 +473,13 @@ export function TutorDrawerView({
   // Dynamic header title matching Zyx Ops AI style
   const currentTitle = React.useMemo(() => {
     if (activeMode === "explain") {
-      return data?.title ? `Konsep: ${data.title}` : "Penjelasan Konsep";
+      return data?.title ? t("tutorDrawer.conceptTitle", { title: data.title }) : t("tutorDrawer.explainTitle");
     }
     if (activeMode === "mistake") {
-      return "Bedah Jawaban Kuis";
+      return t("tutorDrawer.mistakeTitle");
     }
     if (activeMode === "study-plan") {
-      return "Rencana Belajar Mandiri";
+      return t("tutorDrawer.studyPlanTitle");
     }
     const currentSession = sessions.find((s) => s.id === sessionId);
     if (currentSession?.title && currentSession.title !== "General Chat") {
@@ -370,8 +489,8 @@ export function TutorDrawerView({
     if (firstStudent?.content) {
       return firstStudent.content;
     }
-    return courseLabel || "Tanya Zyra";
-  }, [activeMode, data, messages, courseLabel, sessions, sessionId]);
+    return courseLabel || t("tutorDrawer.askZyra");
+  }, [activeMode, data, messages, courseLabel, sessions, sessionId, t]);
 
   // Mobile body scroll lock
   React.useEffect(() => {
@@ -393,11 +512,23 @@ export function TutorDrawerView({
   // Load chat history smoothly in background when in chat mode (non-blocking)
   React.useEffect(() => {
     if (activeMode !== "chat") return;
-    const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+    const courseId = courseIdFromPath;
+    const initialEpoch = conversationEpochRef.current;
+    let active = true;
 
     if (courseId) {
       loadTutorHistoryAction(courseId)
         .then((result) => {
+          if (
+            !active ||
+            hasStartedConversationRef.current ||
+            initialEpoch !== conversationEpochRef.current ||
+            !conversationKeyRef.current.startsWith("draft:")
+          ) return;
+          hasStartedConversationRef.current = true;
+          if (result.sessionId) {
+            activateConversation(conversationKeyForSession(result.sessionId), { invalidate: false });
+          }
           setSessionId(result.sessionId);
           if (result.messages.length > 0) {
             setMessages(result.messages);
@@ -405,23 +536,24 @@ export function TutorDrawerView({
         })
         .catch(() => {});
     }
-  }, [activeMode, pathname]);
+    return () => { active = false; };
+  }, [activeMode, courseIdFromPath, activateConversation, conversationKeyForSession]);
 
   // Handle initial question if passed
   React.useEffect(() => {
     if (initialQuestion) {
       setInputVal(initialQuestion);
       onClearInitialQuestion?.();
-      setTimeout(() => {
-        textareaRef.current?.focus({ preventScroll: true });
+      if (!quotedContext) setTimeout(() => {
+        textareaRef.current?.focus();
       }, 100);
     }
-  }, [initialQuestion, onClearInitialQuestion]);
+  }, [initialQuestion, onClearInitialQuestion, quotedContext]);
 
   // Escape key to close
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape" && !event.defaultPrevented) onClose();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -444,28 +576,28 @@ export function TutorDrawerView({
           if (res.success) {
             setData(res.data);
           } else {
-            setErrors(res.errors);
+            setErrors([t("tutorDrawer.actionFailed")]);
           }
         } else if (activeMode === "mistake" && questionId && userAnswer) {
           const res = await analyzeMistakeAction(questionId, userAnswer);
           if (res.success) {
             setData(res.data);
           } else {
-            setErrors(res.errors);
+            setErrors([t("tutorDrawer.actionFailed")]);
           }
         } else if (activeMode === "study-plan") {
           const res = await buildStudyPlanAction();
           setData(res.plan);
         }
-      } catch (err: any) {
-        setErrors([err?.message || "Terjadi kesalahan internal. Silakan coba lagi."]);
+      } catch {
+        setErrors([t("tutorDrawer.internalError")]);
       } finally {
         setLoading(false);
       }
     }
 
     loadData();
-  }, [activeMode, koId, questionId, userAnswer, explainMode, advancedModesEnabled]);
+  }, [activeMode, koId, questionId, userAnswer, explainMode, advancedModesEnabled, t]);
 
   // Free accounts only receive the text chat lane. Reset a mode that may have
   // been selected before the allowance tier finished loading, and keep the
@@ -483,7 +615,7 @@ export function TutorDrawerView({
     if (!data || !advancedModesEnabled) return;
     if (savedDataRef.current === data) return;
 
-    const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+    const courseId = courseIdFromPath;
     let newMessages: ChatMessage[] = [];
 
     if (activeMode === "explain") {
@@ -494,13 +626,16 @@ export function TutorDrawerView({
           role: "student",
           content: conceptTitle
             ? `Jelaskan konsep: ${conceptTitle}`
-            : "Jelaskan konsep ini.",
+            : t("tutorDrawer.explainPrompt"),
         },
         {
           id: `initial-a-${Date.now()}`,
           role: "ai",
-          content: safeText(data.content, "Materi konsep ini belum tersedia. Coba buka ulang materi atau tanyakan lewat chat."),
+          content: safeText(data.content, t("tutorDrawer.conceptUnavailable")),
           sources: data.sources || [],
+          parts: Array.isArray(data.parts) ? data.parts : undefined,
+          visuals: Array.isArray(data.visuals) ? data.visuals : undefined,
+          workedExample: data.workedExample ?? null,
         }
       ];
     } else if (activeMode === "mistake") {
@@ -513,7 +648,7 @@ export function TutorDrawerView({
         {
           id: `initial-a-${Date.now()}`,
           role: "ai",
-          content: `### Temuan Miskonsepsi Utama:\n${safeText(data.detectedMisconception, "Belum terdeteksi dari jawabanmu.")}\n\n### Kesalahan Perhitungan / Substitusi:\n${safeText(data.mathematicalError, "Tidak ditemukan kesalahan hitung yang spesifik.")}\n\n### Panduan Berpikir (Socratic):\n${safeText(data.socraticGuidance, "Coba telusuri ulang langkah penyelesaianmu satu per satu.")}`,
+          content: `### ${t("tutorDrawer.misconceptionHeading")}:\n${safeText(data.detectedMisconception, t("tutorDrawer.noMisconception"))}\n\n### ${t("tutorDrawer.calculationErrorHeading")}:\n${safeText(data.mathematicalError, t("tutorDrawer.noCalculationError"))}\n\n### ${t("tutorDrawer.socraticHeading")}:\n${safeText(data.socraticGuidance, t("tutorDrawer.socraticFallback"))}`,
         }
       ];
     } else if (activeMode === "study-plan") {
@@ -522,14 +657,14 @@ export function TutorDrawerView({
         {
           id: `initial-q-${Date.now()}`,
           role: "student",
-          content: "Tampilkan rencana belajar mandiriku.",
+          content: t("tutorDrawer.studyPlanPrompt"),
         },
         {
           id: `initial-a-${Date.now()}`,
           role: "ai",
           content: planSteps.length > 0
-            ? planSteps.map((s: any, idx: number) => `**Langkah ${idx + 1}: ${s.title || "Belajar"}**\n${s.description || ""}`).join("\n\n")
-            : "Rencana belajarmu sedang disiapkan.",
+            ? planSteps.map((s: any, idx: number) => `**${t("tutorDrawer.stepNumber", { number: idx + 1 })}: ${s.title || t("tutorDrawer.learn")}**\n${s.description || ""}`).join("\n\n")
+            : t("tutorDrawer.planPreparing"),
         }
       ];
     }
@@ -545,7 +680,7 @@ export function TutorDrawerView({
         })), sessionId).catch(() => {});
       }
     }
-  }, [data, activeMode, pathname, sessionId, advancedModesEnabled, zyraAccessTier]);
+  }, [data, activeMode, courseIdFromPath, sessionId, advancedModesEnabled, zyraAccessTier, t]);
 
   // Resize Pointer Handlers
   const handlePointerDownResize = React.useCallback(
@@ -672,136 +807,142 @@ export function TutorDrawerView({
     setIsExpanded((prev) => !prev);
   }, []);
 
-  // Flashcards launcher inside drawer
-  const handleLaunchFlashcards = async (targetKoId: string) => {
-    if (!advancedModesEnabled) return;
-    setLoading(true);
-    try {
-      const cards = await getFlashcardsForKOAction(targetKoId);
-      if (cards.length > 0) {
-        setActionData(cards);
-        setActionIndex(0);
-        setActionFlipped(false);
-        setActiveAction("flashcards");
-        toast.success(`Memuat ${cards.length} kartu hafalan.`);
-      } else {
-        toast.info("Tidak ada kartu hafalan terpasang untuk konsep ini.");
-      }
-    } catch {
-      toast.error("Gagal memuat kartu hafalan.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Practice Quiz launcher inside drawer
-  const handleLaunchPracticeQuiz = async (targetKoId: string) => {
-    if (!advancedModesEnabled) return;
-    setLoading(true);
-    try {
-      void generatePracticeQuizAction(targetKoId, "medium");
-      const { getQuestionsForKOAction } = await import("@/app/actions/tutor-extra");
-      const questions = await getQuestionsForKOAction(targetKoId);
-      if (questions.length > 0) {
-        setActionData(questions.slice(0, 3));
-        setActionIndex(0);
-        setActionSelectedAnswer(null);
-        setActionQuizSubmitted(false);
-        setActiveAction("practice-quiz");
-        toast.success("Latihan kuis cepat siap dimulai.");
-      } else {
-        toast.info("Gagal menemukan latihan kuis. Silakan coba beberapa saat lagi.");
-      }
-    } catch {
-      toast.error("Gagal membuat sesi latihan kuis.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleStopStream = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       setChatLoading(false);
-      toast.info("Pemrosesan respons telah dihentikan.");
+      toast.info(t("tutorDrawer.responseStopped"));
     }
   };
 
+  const handleComposerSessionCreated = React.useCallback(
+    (createdSessionId: string) => {
+      hasStartedConversationRef.current = true;
+      activateConversation(conversationKeyForSession(createdSessionId), {
+        invalidate: false,
+        preserveCurrentOverride: true,
+      });
+      setSessionId(createdSessionId);
+      void loadSessions();
+    },
+    [activateConversation, conversationKeyForSession, loadSessions],
+  );
+
+  const handlePaste = React.useCallback(
+    (e: React.ClipboardEvent<HTMLElement>) => {
+      if (e.defaultPrevented || !imageInputEnabled || !courseIdFromPath || chatLoading) return;
+      const files = zyraImageFilesFromClipboard(
+        e.clipboardData?.items ?? null,
+        e.clipboardData?.files ?? null,
+      );
+      if (files.length === 0) return;
+      e.preventDefault();
+      void attachmentComposerRef.current?.addFiles(files);
+    },
+    [imageInputEnabled, courseIdFromPath, chatLoading],
+  );
+
   // Handle sending arbitrary chat messages with SSE streaming
-  const handleSend = async (suggestedQuestion?: string, overrideQuote?: ZyraQuotedContext | null) => {
-    const rawQuestion = (suggestedQuestion || inputVal).trim();
+  const handleSend = async (suggestedQuestion?: string, overrideQuote?: ZyraQuotedContext | null, presetIntent?: PythonPreset["intent"] | "hint" | "generate", retry?: NonNullable<ChatMessage["failedPayload"]>) => {
+    if (chatLoading || abortControllerRef.current) return;
+    if (retry && (retry.courseId !== courseIdFromPath || retry.conversationEpoch !== conversationEpochRef.current || (retry.sessionId !== null && retry.sessionId !== sessionId))) return;
+    const codingRequest = codingBridge?.capture();
+    const isCodeQuote = (overrideQuote !== undefined ? overrideQuote : activeQuotedContext)?.blockType === "code";
+    const intent = retry?.intent ?? (isCodeQuote ? "review" : presetIntent ?? (assistantMode === "python" ? "review" : "hint"));
+    const pythonRequest = intent === "generate" ? codingRequest : null;
+    const rawQuestion = (suggestedQuestion ?? inputVal).trim();
     const effectiveQuote = overrideQuote !== undefined ? overrideQuote : activeQuotedContext;
-    if (!rawQuestion && !effectiveQuote) return;
-    const question = normalizeTutorMathMarkdown(rawQuestion);
-    const requestedAttachmentIds = [...attachmentIds];
-    const requestedAttachments = [...readyAttachments];
+    const requestedAttachmentIds = [...(retry?.attachmentIds ?? attachmentIds)];
+    const requestedAttachments = (retry?.attachments ?? readyAttachments).map((attachment) => ({ ...attachment }));
+    if (!rawQuestion && !effectiveQuote && requestedAttachmentIds.length === 0) return;
+    if (!retry && !attachmentsReady) return;
+    const fallbackQuestion = effectiveQuote
+      ? t("tutorDrawer.explainPrompt")
+      : requestedAttachmentIds.length > 0
+        ? "Bantu jelaskan gambar ini."
+        : "";
+    const question = normalizeTutorMathMarkdown(rawQuestion || fallbackQuestion);
+    const displayStudentQuestion = rawQuestion ? normalizeTutorMathMarkdown(rawQuestion) : "";
 
     if (zyraAccessTier === "free" && requestedAttachmentIds.length > 0) {
-      toast.error("Paket Free hanya mendukung pertanyaan teks.");
+      toast.error(t("tutorDrawer.freeTextOnly") || "Paket Free hanya mendukung pertanyaan teks.");
       return;
     }
+    hasStartedConversationRef.current = true;
+    if (activeMode !== "chat") setActiveMode("chat");
 
     const studentMsg: ChatMessage = {
+      persisted: false,
       id: `msg-${Date.now()}`,
       role: "student",
-      content: question,
+      content: displayStudentQuestion,
       quotedContext: effectiveQuote,
       attachments: requestedAttachments.length > 0 ? requestedAttachments : undefined,
+      sessionId,
     };
 
-    setMessages((prev) => [...prev, studentMsg]);
-    setInputVal("");
-    setActiveQuotedContext(null);
-    onClearQuotedContext?.();
-    setAttachmentIds([]);
-    setReadyAttachments([]);
-    setAttachmentsReady(true);
-    setAttachmentComposerKey((value) => value + 1);
+    setMessages((prev) => [...prev.map((message) => ({ ...message, followups: undefined })), studentMsg]);
+    if (!retry) {
+      setInputVal("");
+      setActiveQuotedContext(null);
+      onClearQuotedContext?.();
+      resetComposerAttachments();
+    }
     setChatLoading(true);
 
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
-    const courseId = pathname?.startsWith("/courses/")
-      ? pathname.split("/")[2]
-      : undefined;
+    const courseId = courseIdFromPath ?? undefined;
 
     const aiMsgId = `msg-ai-${Date.now()}`;
     const requestId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
       : `zyra-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    let activeSid = sessionId;
+    const failureSnapshot = () => ({ question: rawQuestion, quotedContext: effectiveQuote, intent, attachmentIds: requestedAttachmentIds, attachments: requestedAttachments, courseId: courseIdFromPath, sessionId: activeSid, conversationEpoch: requestConversationEpoch });
+    const requestConversationKey = conversationKeyRef.current;
+    const requestConversationEpoch = conversationEpochRef.current;
+    const requestLocaleEpoch = localeEpochRef.current;
+    const languageRequestBase = {
+      question,
+      ...(codingRequest ? { codingContext: { ...codingRequest.context, intent } } : {}),
+      courseId: courseId ?? "unknown",
+      conceptId: koId || undefined,
+      sessionId: activeSid || undefined,
+      attachmentIds: requestedAttachmentIds,
+      pathname,
+      requestId,
+      selectionContext: effectiveQuote ? {
+        snippet: effectiveQuote.snippet,
+        blockType: effectiveQuote.blockType,
+        surroundingText: effectiveQuote.surroundingText,
+        sectionTitle: effectiveQuote.sectionTitle,
+        chapterTitle: effectiveQuote.title,
+        intent: effectiveQuote.intent,
+      } : undefined,
+    };
     let accumulatedContent = "";
     let finalSources: any = undefined;
     let finalCanvasSpec: CanvasSpec | null = null;
-    let activeSid = sessionId;
     let hasError = false;
+    let completed = false;
 
     setMessages((prev) => [
       ...prev,
-      { id: aiMsgId, role: "ai", content: "" },
+      { id: aiMsgId, role: "ai", content: "", persisted: false },
     ]);
 
     try {
       const response = await fetch("/api/zyra/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question,
-          courseId: courseId ?? "unknown",
-          conceptId: koId || undefined,
-          sessionId: activeSid || undefined,
-          attachmentIds: requestedAttachmentIds,
-          pathname,
-          requestId,
-          selectionContext: effectiveQuote ? {
-            snippet: effectiveQuote.snippet,
-            blockType: effectiveQuote.blockType,
-            surroundingText: effectiveQuote.surroundingText,
-            sectionTitle: effectiveQuote.sectionTitle,
-            chapterTitle: effectiveQuote.title,
-            intent: effectiveQuote.intent,
-          } : undefined,
-        }),
+        body: JSON.stringify(withZyraResponseLanguage(
+          languageRequestBase,
+          responseLanguageStateRef.current,
+          locale,
+          requestConversationKey,
+        )),
         signal: abortController.signal,
       });
 
@@ -816,20 +957,32 @@ export function TutorDrawerView({
 
       if (response.body) {
         for await (const part of consumeZyraStream(response.body, abortController.signal)) {
-          if (part.type === "text-delta" && part.textDelta) {
+          if (part.type === "done") { completed = true; }
+          else if (part.type === "text-delta" && part.textDelta) {
             accumulatedContent += part.textDelta;
             setMessages((prev) =>
               prev.map((m) =>
-                m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
+                m.id === aiMsgId ? { ...m, content: pythonRequest ? pythonReply(accumulatedContent).explanation : accumulatedContent } : m
               )
             );
           } else if (part.type === "chunk" && part.text) {
             accumulatedContent += part.text;
             setMessages((prev) =>
               prev.map((m) =>
-                m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
+                m.id === aiMsgId ? { ...m, content: pythonRequest ? pythonReply(accumulatedContent).explanation : accumulatedContent } : m
               )
             );
+          } else if (part.type === "data-response-language") {
+            if (
+              requestLocaleEpoch === localeEpochRef.current &&
+              requestConversationEpoch === conversationEpochRef.current &&
+              requestConversationKey === conversationKeyRef.current
+            ) {
+              updateResponseLanguageState((current) => zyraResponseLanguageResolved(current, part.responseLanguage));
+            }
+          } else if (part.type === "data-followups") {
+            if (requestConversationEpoch !== conversationEpochRef.current || abortController.signal.aborted) continue;
+            setMessages((prev) => prev.map((m) => m.id === aiMsgId ? { ...m, followups: part.followups } : m));
           } else if (part.type === "data-sources" && part.sources) {
             finalSources = part.sources;
             setMessages((prev) =>
@@ -844,20 +997,33 @@ export function TutorDrawerView({
                 m.id === aiMsgId ? { ...m, canvasSpec: part.canvasSpec } : m
               )
             );
+          } else if (part.type === "data-history") {
+            if (requestConversationEpoch !== conversationEpochRef.current) continue;
+            if (part.saved) {
+              setMessages((prev) => prev.map((m) => m.id === studentMsg.id || m.id === aiMsgId ? { ...m, persisted: true } : m));
+              void loadSessions();
+            } else if (part.message) {
+              toast.error(part.message);
+            }
           } else if (part.type === "data-session" && part.sessionId) {
+            if (
+              requestConversationEpoch !== conversationEpochRef.current ||
+              requestConversationKey !== conversationKeyRef.current
+            ) continue;
             activeSid = part.sessionId;
+            activateConversation(conversationKeyForSession(part.sessionId), { invalidate: false, preserveCurrentOverride: true });
             setSessionId(part.sessionId);
             void loadSessions();
           } else if (part.type === "data-error" && part.data?.message) {
             hasError = true;
-            accumulatedContent = `Maaf, terjadi kendala: ${part.data.message}`;
+            accumulatedContent = t("tutorDrawer.responseError", { message: part.data.message });
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === aiMsgId ? {
                   ...m,
                   content: accumulatedContent,
                   isError: true,
-                  failedPayload: { question: rawQuestion, quotedContext: effectiveQuote },
+                  failedPayload: failureSnapshot(),
                 } : m
               )
             );
@@ -867,47 +1033,87 @@ export function TutorDrawerView({
     } catch (err: unknown) {
       hasError = true;
       if (abortController.signal.aborted) {
-        accumulatedContent = accumulatedContent || "Tanggapan dihentikan oleh pengguna.";
+        accumulatedContent = accumulatedContent || t("tutorDrawer.responseStopped");
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
+            m.id === aiMsgId ? { ...m, content: pythonRequest ? pythonReply(accumulatedContent).explanation : accumulatedContent, followups: undefined, isError: true, failedPayload: failureSnapshot() } : m
           )
         );
       } else {
-        const msg = err instanceof Error ? err.message : "Terjadi kesalahan koneksi.";
-        accumulatedContent = `Maaf, terjadi kendala saat memproses jawaban: ${msg}`;
+        console.error("Zyra response processing failed:", err);
+        accumulatedContent = t("tutorDrawer.responseProcessingError");
         setMessages((prev) =>
           prev.map((m) =>
             m.id === aiMsgId ? {
               ...m,
               content: accumulatedContent,
               isError: true,
-              failedPayload: { question: rawQuestion, quotedContext: effectiveQuote },
+              failedPayload: failureSnapshot(),
             } : m
           )
         );
       }
     } finally {
-      setChatLoading(false);
-      abortControllerRef.current = null;
+      if (requestConversationEpoch === conversationEpochRef.current) {
+        setChatLoading(false);
+        if (abortControllerRef.current === abortController) abortControllerRef.current = null;
+      }
     }
 
-    if (courseId && accumulatedContent && !hasError) {
+    if (!completed && !hasError && !abortController.signal.aborted && requestConversationEpoch === conversationEpochRef.current) {
+      hasError = true;
+      setMessages((prev) => prev.map((m) => m.id === aiMsgId ? {
+        ...m, content: t("tutorDrawer.responseProcessingError"), isError: true,
+        failedPayload: failureSnapshot(),
+      } : m));
+    }
+    if (pythonRequest && completed && !hasError && !abortController.signal.aborted && requestConversationEpoch === conversationEpochRef.current) {
+      const result = pythonReply(accumulatedContent);
+      const applied = result.code ? pythonRequest.apply(result.code) : "invalid";
+      const pythonStatus = !result.code && result.explanation ? undefined : applied === "applied" ? "Kode diterapkan ke editor." : applied === "changed" ? "Editor berubah saat Zyra menjawab. Terapkan hasil untuk mengganti kode terbaru." : applied === "inactive" ? "Buka Playground asal untuk meminta kode lagi." : "Program lengkap belum tersedia. Coba lagi atau gunakan mode Tutor untuk pembahasan.";
+      setMessages((prev) => prev.map((m) => m.id === aiMsgId ? {
+        ...m, content: result.explanation, pythonStatus,
+        pendingPython: applied === "changed" && result.code ? { code: result.code, apply: pythonRequest.apply } : undefined,
+      } : m));
+      accumulatedContent = [result.explanation, pythonStatus].filter(Boolean).join("\n\n");
+    }
+
+    if (
+      courseId &&
+      accumulatedContent &&
+      !codingRequest &&
+      !hasError &&
+      requestConversationEpoch === conversationEpochRef.current
+    ) {
       saveTutorMessagesAction(courseId, [
-        { role: studentMsg.role, content: studentMsg.content, attachmentIds: requestedAttachmentIds },
+        { role: studentMsg.role, content: studentMsg.content || question, attachmentIds: requestedAttachmentIds },
         { role: "ai", content: accumulatedContent, sources: finalSources, canvasSpec: finalCanvasSpec },
-      ], activeSid).catch(() => {});
+      ], activeSid).then(() => {
+        setMessages((prev) => prev.map((m) => m.id === studentMsg.id || m.id === aiMsgId ? { ...m, persisted: true } : m));
+        return loadSessions();
+      }).catch(() => toast.error(locale === "en"
+        ? "This answer could not be saved. Copy anything you need before closing this conversation."
+        : "Jawaban ini belum tersimpan. Salin bagian yang diperlukan sebelum menutup percakapan."));
     }
   };
 
-  const handleRetry = (payload: { question: string; quotedContext?: ZyraQuotedContext | null }) => {
-    void handleSend(payload.question, payload.quotedContext);
+  React.useEffect(() => {
+    const preset = pythonPresets.find(item => item.message === initialQuestion);
+    if (!isOpen || !codingBridge || !preset) return;
+    setAssistantMode("python");
+    void handleSend(preset.message, null, preset.intent);
+    // Initial preset requests are consumed once, like initialQuestion above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuestion, isOpen]);
+
+  const handleRetry = (payload: NonNullable<ChatMessage["failedPayload"]>) => {
+    void handleSend(payload.question, payload.quotedContext, payload.intent, payload);
   };
 
   const handleCopyText = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedMessageId(id);
-    toast.success("Teks disalin ke clipboard.");
+    toast.success(t("tutorDrawer.copied"));
     setTimeout(() => {
       setCopiedMessageId(null);
     }, 2000);
@@ -918,12 +1124,18 @@ export function TutorDrawerView({
       setShowMenu(false);
       return;
     }
-    const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+    const courseId = courseIdFromPath;
     if (!courseId) return;
+    hasStartedConversationRef.current = true;
+    invalidateConversationRequests();
+    resetComposerAttachments();
+    const loadEpoch = conversationEpochRef.current;
     setChatLoading(true);
     setShowMenu(false);
     try {
       const res = await loadTutorHistoryAction(courseId, targetSessionId);
+      if (loadEpoch !== conversationEpochRef.current) return;
+      activateConversation(conversationKeyForSession(res.sessionId), { invalidate: false });
       setSessionId(res.sessionId);
       if (res.messages.length > 0) {
         setMessages(res.messages);
@@ -932,86 +1144,98 @@ export function TutorDrawerView({
           {
             id: "chat-welcome",
             role: "ai",
-            content: "Halo! Aku Zyra, asisten belajarmu. Tanyakan konsep, rumus matematika, atau soal latihan!",
+            content: t("tutorDrawer.welcome"),
           },
         ]);
       }
     } catch {
-      toast.error("Gagal memuat sesi percakapan.");
+      if (loadEpoch === conversationEpochRef.current) toast.error(t("tutorDrawer.sessionLoadFailed"));
     } finally {
-      setChatLoading(false);
+      if (loadEpoch === conversationEpochRef.current) setChatLoading(false);
     }
-  }, [pathname, sessionId]);
+  }, [courseIdFromPath, sessionId, t, activateConversation, invalidateConversationRequests, conversationKeyForSession, resetComposerAttachments]);
 
   const handleDeleteSession = React.useCallback(async (targetSessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+    const courseId = courseIdFromPath;
     if (!courseId) return;
+    const targetConversationKey = conversationKeyForSession(targetSessionId);
+    const isCurrentConversation = conversationKeyRef.current === targetConversationKey;
+    if (isCurrentConversation) invalidateConversationRequests();
     try {
       await clearTutorHistoryAction(courseId, targetSessionId);
       setSessions((prev) => prev.filter((s) => s.id !== targetSessionId));
-      if (sessionId === targetSessionId) {
+      responseLanguageByConversationRef.current.delete(targetConversationKey);
+      if (isCurrentConversation && conversationKeyRef.current === targetConversationKey) {
+        startNewConversation();
         setSessionId(null);
+        resetComposerAttachments();
         setMessages([
           {
             id: "chat-welcome",
             role: "ai",
-            content: "Halo! Aku Zyra, asisten belajarmu. Tanyakan konsep, rumus matematika, atau soal latihan!",
+            content: t("tutorDrawer.welcome"),
           },
         ]);
       }
-      toast.success("Sesi percakapan dihapus.");
+      toast.success(t("tutorDrawer.sessionDeleted"));
     } catch {
-      toast.error("Gagal menghapus sesi.");
+      toast.error(t("tutorDrawer.sessionDeleteFailed"));
     }
-  }, [pathname, sessionId]);
+  }, [courseIdFromPath, t, startNewConversation, invalidateConversationRequests, conversationKeyForSession, resetComposerAttachments]);
 
   const handleNewChat = React.useCallback(() => {
+    startNewConversation();
     setSessionId(null);
+    resetComposerAttachments();
     setMessages([
       {
         id: "chat-welcome",
         role: "ai",
         content:
-          "Halo! Aku Zyra, asisten belajarmu. Tanyakan konsep, rumus matematika, atau soal latihan!",
+          t("tutorDrawer.welcome"),
       },
     ]);
     setShowMenu(false);
-    toast.success("Sesi obrolan baru dimulai.");
-  }, []);
+    toast.success(t("tutorDrawer.newChatStarted"));
+  }, [t, startNewConversation, resetComposerAttachments]);
 
   const handleClearHistory = React.useCallback(async () => {
-    const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
-    if (courseId) {
-      await clearTutorHistoryAction(courseId).catch(() => {});
-    }
+    const courseId = courseIdFromPath;
+    startNewConversation();
     setSessionId(null);
+    resetComposerAttachments();
     setSessions([]);
     setMessages([
       {
         id: "chat-welcome",
         role: "ai",
-        content: "Riwayat percakapan dibersihkan. Apa yang ingin kamu diskusikan berikutnya?",
+        content: t("tutorDrawer.historyClearedWelcome"),
       },
     ]);
-    toast.success("Riwayat obrolan dibersihkan.");
-  }, [pathname]);
+    responseLanguageByConversationRef.current.clear();
+    if (courseId) {
+      await clearTutorHistoryAction(courseId).catch(() => {});
+    }
+    toast.success(t("tutorDrawer.historyCleared"));
+  }, [courseIdFromPath, t, startNewConversation, resetComposerAttachments]);
 
   const handleInsertSnippet = (snippet: string) => {
-    const el = textareaRef.current;
-    if (!el) {
-      setInputVal((prev) => prev + snippet);
-      return;
-    }
-    const start = el.selectionStart ?? inputVal.length;
-    const end = el.selectionEnd ?? inputVal.length;
-    const next = inputVal.slice(0, start) + snippet + inputVal.slice(end);
-    setInputVal(next);
-    requestAnimationFrame(() => {
-      el.focus();
-      const caret = start + snippet.length;
-      el.setSelectionRange(caret, caret);
+    let start = textareaRef.current?.selectionStart ?? inputVal.length;
+    let end = textareaRef.current?.selectionEnd ?? start;
+    const ranges = composerMathRanges(inputVal);
+    const inMath = ranges.some(({ from, to }) => {
+      const delimiterLength = inputVal[from] === "$" && inputVal[from + 1] !== "$" ? 1 : 2;
+      return start >= from + delimiterLength && end <= to - delimiterLength;
     });
+    if (!inMath && start !== end) {
+      for (const range of ranges) if (range.from < end && range.to > start) {
+        start = Math.min(start, range.from);
+        end = Math.max(end, range.to);
+      }
+      textareaRef.current?.setSelectionRange(start, end);
+    }
+    textareaRef.current?.insertText(inMath ? snippet : `$${snippet.trim()}$`);
   };
 
   return (
@@ -1026,7 +1250,7 @@ export function TutorDrawerView({
       {/* Non-blocking, Docked Learning Assistant Sidebar */}
       <aside
         ref={panelRef}
-        aria-label="Zyra Learning Assistant"
+        aria-label={t("tutorDrawer.accessibleName")}
         style={{
           top: 0,
           "--zyra-panel-width": `${isExpanded ? Math.min(MAX_SIDEBAR_WIDTH, typeof window === "undefined" ? MAX_SIDEBAR_WIDTH : window.innerWidth * 0.7) : sidebarWidth}px`,
@@ -1045,12 +1269,12 @@ export function TutorDrawerView({
           onKeyDown={handleKeyDownResize}
           role="separator"
           aria-orientation="vertical"
-          aria-label="Ubah lebar sidebar Zyra"
+          aria-label={t("tutorDrawer.resizeSidebar")}
           aria-valuemin={MIN_SIDEBAR_WIDTH}
           aria-valuemax={typeof window === "undefined" ? MAX_SIDEBAR_WIDTH : Math.min(MAX_SIDEBAR_WIDTH, Math.floor(window.innerWidth * 0.7))}
           aria-valuenow={sidebarWidth}
           tabIndex={0}
-          title="Seret untuk mengubah ukuran, klik dua kali untuk toggle layar penuh, panah kiri/kanan untuk mengatur"
+          title={t("tutorDrawer.resizeHint")}
           className={cn(
             "absolute left-0 top-0 bottom-0 z-50 hidden w-2.5 cursor-col-resize touch-none select-none items-center justify-center outline-none transition-colors group hover:bg-brand-primary/20 focus-visible:bg-brand-primary/25 md:flex",
             isDragging && "bg-brand-primary/30"
@@ -1072,7 +1296,7 @@ export function TutorDrawerView({
               type="button"
               onClick={() => setShowMenu((prev) => !prev)}
               aria-expanded={showMenu}
-              aria-label="Menu topik dan mode Zyra"
+              aria-label={t("tutorDrawer.topicMenu")}
               className="flex items-center gap-1.5 text-left text-body-sm font-semibold text-foreground hover:text-brand-primary transition-colors cursor-pointer truncate max-w-full group"
             >
               <span className="truncate max-w-[220px] sm:max-w-[300px]">
@@ -1086,7 +1310,7 @@ export function TutorDrawerView({
               <div className="absolute top-full left-0 mt-1.5 w-[300px] sm:w-[340px] rounded-xl border border-border bg-background shadow-xl p-2 z-50 space-y-1.5 animate-in fade-in zoom-in-95 duration-150">
                 <div className="flex items-center justify-between px-2 pt-1 pb-1.5 border-b border-border/60">
                   <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    Riwayat Percakapan
+                    {t("tutorDrawer.history")}
                   </span>
                   <button
                     type="button"
@@ -1097,7 +1321,7 @@ export function TutorDrawerView({
                     className="inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline cursor-pointer"
                   >
                     <Plus className="size-3.5" />
-                    <span>Obrolan Baru</span>
+                    <span>{t("tutorDrawer.newChat")}</span>
                   </button>
                 </div>
 
@@ -1106,11 +1330,11 @@ export function TutorDrawerView({
                   {sessionsLoading ? (
                     <div className="flex items-center justify-center py-5 text-muted-foreground text-body-xs gap-2">
                       <Loader2 className="size-3.5 animate-spin text-brand-primary" />
-                      <span>Memuat riwayat...</span>
+                      <span>{t("tutorDrawer.loadingHistory")}</span>
                     </div>
                   ) : sessions.length === 0 ? (
                     <div className="py-5 text-center text-body-xs text-muted-foreground">
-                      Belum ada riwayat percakapan.
+                      {t("tutorDrawer.noHistory")}
                     </div>
                   ) : (
                     sessions.map((sess) => {
@@ -1132,14 +1356,14 @@ export function TutorDrawerView({
                           >
                             <p className="truncate text-body-xs font-medium">{sess.title}</p>
                             <span className="text-[10px] text-muted-foreground">
-                              {sess.messageCount} pesan{sess.lastMessageAt ? ` • ${formatSessionDate(sess.lastMessageAt)}` : ""}
+                              {t("tutorDrawer.messageCount", { count: sess.id === sessionId ? Math.max(sess.messageCount, Math.min(100, messages.filter((message) => message.id !== "chat-welcome" && message.persisted !== false && (message.content.trim() || message.pythonStatus || message.attachments?.length) && !message.isError).length)) : sess.messageCount })}{sess.lastMessageAt ? ` • ${formatSessionDate(sess.lastMessageAt, locale, { justNow: t("tutorDrawer.justNow"), minutes: t("tutorDrawer.minutesAgo"), hours: t("tutorDrawer.hoursAgo"), days: t("tutorDrawer.daysAgo") })}` : ""}
                             </span>
                           </button>
                           <button
                             type="button"
                             onClick={(e) => handleDeleteSession(sess.id, e)}
-                            aria-label="Hapus sesi"
-                            title="Hapus sesi ini"
+                            aria-label={t("tutorDrawer.deleteSession")}
+                            title={t("tutorDrawer.deleteSession")}
                             className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-opacity"
                           >
                             <Trash2 className="size-3" />
@@ -1152,12 +1376,12 @@ export function TutorDrawerView({
 
                 {zyraAccessTier === "free" && (
                   <div className="mt-2 border-t border-border/60 px-2 pt-2">
-                    <p className="text-body-xs text-muted-foreground">Paket Free hanya mendukung pertanyaan teks.</p>
+                    <p className="text-body-xs text-muted-foreground">{t("tutorDrawer.freeTextOnly") || "Paket Free hanya mendukung pertanyaan teks."}</p>
                     <Link
                       href="/plans"
                       className="mt-1 inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline"
                     >
-                      Buka fitur lengkap
+                      {t("tutorDrawer.fullFeatures") || "Buka fitur lengkap"}
                       <ArrowRight className="size-3" />
                     </Link>
                   </div>
@@ -1174,7 +1398,7 @@ export function TutorDrawerView({
                       className="w-full flex items-center gap-1.5 px-2 py-1.5 text-body-xs text-destructive hover:bg-destructive/10 rounded-lg transition-colors text-left cursor-pointer"
                     >
                       <Trash2 className="size-3.5" />
-                      <span>Hapus Semua Riwayat</span>
+                      <span>{t("tutorDrawer.clearHistory")}</span>
                     </button>
                   </div>
                 )}
@@ -1187,8 +1411,8 @@ export function TutorDrawerView({
             <button
               type="button"
               onClick={handleNewChat}
-              aria-label="Obrolan baru"
-              title="Mulai obrolan baru (+)"
+              aria-label={t("tutorDrawer.newChat")}
+              title={t("tutorDrawer.startNewChat")}
               className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
             >
               <Plus className="size-4" />
@@ -1197,8 +1421,8 @@ export function TutorDrawerView({
             <button
               type="button"
               onClick={toggleExpand}
-              aria-label={isExpanded ? "Kecilkan sidebar" : "Perbesar layar penuh"}
-              title={isExpanded ? "Kecilkan tampilan" : "Buka layar penuh"}
+              aria-label={isExpanded ? t("tutorDrawer.shrinkSidebar") : t("tutorDrawer.expandSidebar")}
+              title={isExpanded ? t("tutorDrawer.shrinkView") : t("tutorDrawer.expandView")}
               className="hidden md:inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
             >
               {isExpanded ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
@@ -1207,8 +1431,8 @@ export function TutorDrawerView({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Tutup panel asisten"
-              title="Tutup asisten (Esc)"
+              aria-label={t("tutorDrawer.closeAssistant")}
+              title={t("tutorDrawer.closeAssistantEsc")}
               className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
             >
               <X className="size-4" />
@@ -1220,7 +1444,7 @@ export function TutorDrawerView({
         <div
           ref={scrollContainerRef}
           role="region"
-          aria-label="Riwayat percakapan"
+          aria-label={t("tutorDrawer.conversationHistory")}
           tabIndex={0}
           className="flex-1 overflow-y-auto overscroll-contain min-h-0 p-4 space-y-5 font-sans text-body-sm focus-visible:outline-none"
         >
@@ -1238,40 +1462,55 @@ export function TutorDrawerView({
           {loading ? (
             <div className="flex h-48 flex-col items-center justify-center gap-2 text-muted-foreground">
               <Loader2 className="size-6 animate-spin text-brand-primary" />
-              <p className="text-body-xs font-medium">Zyra sedang menyiapkan materi...</p>
+              <p className="text-body-xs font-medium">{t("tutorDrawer.preparingMaterial")}</p>
             </div>
           ) : (
             <>
               {messages.map((msg, index) => {
                 const isStudent = msg.role === "student";
                 const isLastAiTurn = !isStudent && index === messages.length - 1;
-                const showComprehensionCheck = isLastAiTurn && !chatLoading && isComprehensionCheck(msg.content);
 
                 if (isStudent) {
+                  const attachmentSessionId = msg.sessionId ?? sessionId;
                   return (
                     <div key={msg.id || index} className="flex justify-end">
-                      <div className="max-w-[85%] rounded-2xl bg-muted/90 text-foreground px-4 py-2.5 text-body-sm leading-relaxed shadow-2xs space-y-2">
+                      <div className="min-w-0 max-w-[85%] rounded-2xl bg-muted/90 text-foreground px-4 py-2.5 text-body-sm leading-relaxed shadow-2xs space-y-2">
                         {msg.quotedContext && (
                           <div className="border-l-2 border-brand-primary/60 pl-2.5 py-0.5 text-body-xs space-y-0.5 text-muted-foreground">
                             <p className="font-medium text-foreground text-[11px] truncate">
-                              {msg.quotedContext.title || "Kutipan materi"}
-                              {msg.quotedContext.sectionTitle ? ` · ${msg.quotedContext.sectionTitle}` : ""}
+                              <MathText className="normal-case">
+                                {msg.quotedContext.title || t("tutorDrawer.materialQuote")}
+                              </MathText>
+                              {msg.quotedContext.sectionTitle ? (
+                                <>
+                                  {" · "}
+                                  <MathText className="normal-case">{msg.quotedContext.sectionTitle}</MathText>
+                                </>
+                              ) : ""}
                             </p>
                             <p className="line-clamp-2 italic text-[11px]">
-                              &ldquo;{msg.quotedContext.snippet}&rdquo;
+                              &ldquo;<MathText className="normal-case">{msg.quotedContext.snippet}</MathText>&rdquo;
                             </p>
                           </div>
                         )}
-                        {msg.attachments && msg.attachments.length > 0 && courseIdFromPath && sessionId && (
+                        {msg.attachments && msg.attachments.length > 0 && courseIdFromPath && attachmentSessionId && (
                           <div className="mb-2">
                             <ZyraMessageAttachments
                               attachments={msg.attachments}
                               courseId={courseIdFromPath}
-                              sessionId={sessionId}
+                              sessionId={attachmentSessionId}
                             />
                           </div>
                         )}
-                        {msg.content && <p className="whitespace-pre-wrap break-words font-sans text-body-sm">{msg.content}</p>}
+                        {msg.content && (
+                          <div className="min-w-0 max-w-full break-words text-body-sm leading-relaxed text-foreground">
+                            <MarkdownRenderer
+                              content={normalizeTutorMathMarkdown(msg.content)}
+                              density="compact"
+                              className="text-foreground"
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -1286,7 +1525,7 @@ export function TutorDrawerView({
                       </span>
                     </div>
 
-                    {/* Message Content Flow (Natural typography, no heavy card wrapper) */}
+                    {/* Message Content Flow (Synced with Artikel v4 renderer pipeline) */}
                     {msg.isError ? (
                       <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 space-y-2 text-body-xs">
                         <div className="flex items-center gap-2 text-destructive">
@@ -1304,14 +1543,36 @@ export function TutorDrawerView({
                               className="h-7 text-body-xs font-semibold gap-1.5 border-destructive/30 hover:bg-destructive/10 text-foreground cursor-pointer"
                             >
                               <RefreshCw className={cn("size-3", chatLoading && "animate-spin")} />
-                              <span>Coba lagi</span>
+                              <span>{t("tutorDrawer.retry")}</span>
                             </Button>
                           </div>
                         )}
                       </div>
                     ) : (
-                      <div className="prose prose-sm dark:prose-invert max-w-none break-words text-body-sm leading-relaxed text-foreground">
-                        <MarkdownRenderer content={sanitizeAnswer(msg.content, msg.sources)} density="compact" />
+                      <div
+                        className="min-w-0 max-w-full break-words text-body-sm leading-relaxed text-foreground space-y-3"
+                        data-content-lane="zyra-tutor"
+                      >
+                        {msg.parts && msg.parts.length > 0 ? (
+                          <ArticleParts parts={msg.parts} visuals={msg.visuals} density="compact" />
+                        ) : (
+                          <MarkdownRenderer content={sanitizeAnswer(msg.content, msg.sources)} density="compact" />
+                        )}
+                        {msg.pythonStatus ? <p role="status" className="text-body-xs text-muted-foreground">{msg.pythonStatus}</p> : null}
+                      {msg.pendingPython ? <Button size="sm" variant="outline" onClick={() => {
+                        const result = msg.pendingPython!.apply(msg.pendingPython!.code, true);
+                        setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, pendingPython: undefined, pythonStatus: result === "applied" ? "Kode diterapkan ke editor." : "Playground asal sudah ditutup. Minta kode kembali di Playground." } : m));
+                      }}>Terapkan ke editor</Button> : null}
+                      {msg.workedExample && (
+                          <ProductWorkedExample example={msg.workedExample} density="compact" />
+                        )}
+                        {!msg.parts?.length && msg.visuals && msg.visuals.length > 0 && (
+                          <div className="space-y-3">
+                            {msg.visuals.map((visual) => (
+                              <ProductLearningVisual key={visual.id} visual={visual} />
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -1323,18 +1584,18 @@ export function TutorDrawerView({
 
                     {msg.sources && msg.sources.length > 0 && (
                       <div className="mt-2.5 pt-2 border-t border-border/40 flex flex-wrap gap-1.5 items-center">
-                        <span className="text-[10px] uppercase font-semibold text-muted-foreground">Sumber:</span>
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground">{t("tutorDrawer.sources")}</span>
                         {msg.sources.map((s, idx) => {
                           const cleanLabel = (s.label || "").trim();
                           const displayLabel = cleanLabel && cleanLabel !== s.id
                             ? cleanLabel.replace(/^(?:Materi|Konsep|Pembahasan):\s*/i, "").trim() || cleanLabel
                             : (s.id.startsWith("article-") || s.id.startsWith("product-"))
-                              ? "Artikel materi"
+                              ? t("tutorDrawer.articleSource")
                               : (s.id.startsWith("diktat-") || s.id.startsWith("text-product-"))
-                                ? "Diktat kuliah"
+                                ? t("tutorDrawer.diktatSource")
                                 : (s.id.startsWith("quiz-review-") || s.id.startsWith("quiz-"))
-                                  ? "Pembahasan kuis"
-                                  : "Materi kuliah";
+                                  ? t("tutorDrawer.quizSource")
+                                  : t("tutorDrawer.courseMaterialSource");
                           return (
                             <a
                               key={idx}
@@ -1350,11 +1611,15 @@ export function TutorDrawerView({
                       </div>
                     )}
 
-                    {/* Quick Accelerators / Socratic follow-up chips */}
-                    {isLastAiTurn && !chatLoading && (
+                    {isLastAiTurn && !chatLoading && !msg.isError && !!msg.followups?.length && (
                       <FollowUpChips
-                        comprehensionCheck={showComprehensionCheck}
-                        onSend={handleSend}
+                        followups={msg.followups}
+                        disabled={chatLoading || !attachmentsReady}
+                        onSend={(followup) => void handleSend(
+                          followup.prompt,
+                          null,
+                          assistantMode === "python" ? (followup.intent === "explain" ? "review" : "hint") : undefined,
+                        )}
                       />
                     )}
 
@@ -1364,19 +1629,19 @@ export function TutorDrawerView({
                         <button
                           type="button"
                           onClick={() => handleCopyText(msg.id, msg.content)}
-                          aria-label="Salin pesan"
-                          title="Salin pesan"
+                          aria-label={t("tutorDrawer.copyMessage")}
+                          title={t("tutorDrawer.copyMessage")}
                           className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-0.5 px-1.5 rounded-md hover:bg-muted"
                         >
                           {copiedMessageId === msg.id ? (
                             <>
                               <Check className="size-3 text-status-success" />
-                              <span>Tersalin</span>
+                              <span>{t("tutorDrawer.copiedLabel")}</span>
                             </>
                           ) : (
                             <>
                               <Copy className="size-3" />
-                              <span>Salin</span>
+                              <span>{t("tutorDrawer.copy")}</span>
                             </>
                           )}
                         </button>
@@ -1387,16 +1652,16 @@ export function TutorDrawerView({
               })}
 
               {chatLoading && (
-                <div className="flex items-center gap-2 text-muted-foreground text-body-xs p-2">
+                <div role="status" className="flex items-center gap-2 text-muted-foreground text-body-xs p-2">
                   <Loader2 className="size-3.5 animate-spin text-brand-primary" />
-                  <span>Zyra sedang berpikir...</span>
+                  <span>{t("tutorDrawer.thinking")}</span>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={handleStopStream}
                     className="h-6 px-2 text-[10px] text-destructive hover:bg-destructive/10"
                   >
-                    Hentikan
+                    {t("tutorDrawer.stop")}
                   </Button>
                 </div>
               )}
@@ -1404,20 +1669,27 @@ export function TutorDrawerView({
           )}
         </div>
 
+        {assistantMode === "python" && codingBridge ? <div className="shrink-0 px-3 pb-1"><PythonPresets code={codingBridge.capture().context.code} hasError={["syntax_error", "runtime_error", "timeout"].includes(codingBridge.capture().context.execution?.status ?? "")} disabled={chatLoading} onSelect={preset => void handleSend(preset.message, null, preset.intent)} /></div> : null}
+
         {/* Input Composer & Toolbar */}
-        <footer className="shrink-0 border-t border-border/40 p-3 pt-2 bg-background/80 backdrop-blur-md">
-          <div className="relative rounded-2xl border border-border bg-background/95 backdrop-blur-md shadow-md focus-within:border-brand-primary/60 focus-within:ring-1 focus-within:ring-brand-primary/20 transition-all p-2.5">
-            {imageInputEnabled && courseIdFromPath && sessionId && (
-              <div className="mb-2">
-                <ZyraAttachmentComposer
-                  ref={attachmentComposerRef}
-                  courseId={courseIdFromPath}
-                  sessionId={sessionId}
-                  onAttachmentIdsChange={setAttachmentIds}
-                  onAttachmentsChange={setReadyAttachments}
-                  onAttachmentsReadyChange={setAttachmentsReady}
-                />
-              </div>
+        <footer className="shrink-0 border-t border-border/40 bg-background p-2">
+          <div
+            onPasteCapture={handlePaste}
+            className="relative rounded-2xl border border-border bg-background/95 backdrop-blur-md shadow-md focus-within:border-brand-primary/60 focus-within:ring-1 focus-within:ring-brand-primary/20 transition-colors p-1.5"
+          >
+            {imageInputEnabled && courseIdFromPath && (
+              <ZyraAttachmentComposer
+                key={attachmentComposerKey}
+                ref={attachmentComposerRef}
+                courseId={courseIdFromPath}
+                sessionId={sessionId}
+                disabled={chatLoading}
+                hideStandaloneTrigger
+                onSessionCreated={handleComposerSessionCreated}
+                onAttachmentIdsChange={setAttachmentIds}
+                onAttachmentsChange={setReadyAttachments}
+                onAttachmentsReadyChange={setAttachmentsReady}
+              />
             )}
 
             {activeQuotedContext && (
@@ -1426,11 +1698,18 @@ export function TutorDrawerView({
                   <Quote className="size-3.5 shrink-0 text-brand-primary" />
                   <div className="min-w-0 flex items-center gap-1.5">
                     <span className="font-semibold text-foreground text-[11px] shrink-0">
-                      {activeQuotedContext.title || "Kutipan materi"}
-                      {activeQuotedContext.sectionTitle ? ` · ${activeQuotedContext.sectionTitle}` : ""}:
+                      <MathText className="normal-case">
+                        {activeQuotedContext.title || t("tutorDrawer.materialQuote")}
+                      </MathText>
+                      {activeQuotedContext.sectionTitle ? (
+                        <>
+                          {" · "}
+                          <MathText className="normal-case">{activeQuotedContext.sectionTitle}</MathText>
+                        </>
+                      ) : ""}:
                     </span>
                     <span className="text-muted-foreground truncate italic text-[11px]">
-                      &ldquo;{activeQuotedContext.snippet}&rdquo;
+                      &ldquo;<MathText className="normal-case">{activeQuotedContext.snippet}</MathText>&rdquo;
                     </span>
                   </div>
                 </div>
@@ -1441,56 +1720,78 @@ export function TutorDrawerView({
                     onClearQuotedContext?.();
                   }}
                   className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground shrink-0 transition-colors cursor-pointer"
-                  aria-label="Hapus kutipan"
+                  aria-label={t("tutorDrawer.removeQuote")}
                 >
                   <X className="size-3.5" />
                 </button>
               </div>
             )}
 
-            <textarea
+            <ZyraComposerInput
+              className="text-body-sm"
               ref={textareaRef}
               value={inputVal}
-              onChange={(e) => setInputVal(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              placeholder="Tanyakan materi atau rumus..."
-              rows={2}
-              className="w-full resize-none border-none bg-transparent p-1 text-body-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+              onChange={setInputVal}
+              onSubmit={() => void handleSend()}
+              aria-label={t("tutorDrawer.inputPlaceholder")}
+              placeholder={t("tutorDrawer.inputPlaceholder")}
+              disabled={chatLoading}
             />
 
-            <div className="flex items-center justify-between pt-2 border-t border-border/30">
+            <div className="flex items-center justify-between gap-1 pt-1">
               <div className="flex items-center gap-1">
-                <ZyraMathPalette onInsert={handleInsertSnippet} />
-                <ZyraFormulaPreview input={inputVal} />
+                {imageInputEnabled && courseIdFromPath && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    disabled={chatLoading}
+                    onClick={() => attachmentComposerRef.current?.openFileDialog()}
+                    aria-label="Lampirkan gambar (atau tempel dengan Ctrl+V)"
+                    title="Lampirkan gambar (Ctrl+V)"
+                    className="size-7 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+                  >
+                    <Paperclip className="size-3.5" />
+                  </Button>
+                )}
+                <ZyraMathPalette onInsert={handleInsertSnippet} disabled={chatLoading} />
+                <Tabs value={assistantMode} onValueChange={(mode) => { setAssistantMode(mode as "python" | "tutor"); setActiveMode("chat"); }} syncUrl={false}>
+                  <TabsList aria-label="Mode Zyra" className="gap-0 p-0.5">
+                    <TabsTrigger value="python" disabled={!codingBridge || chatLoading} className="px-2 py-1" title={!codingBridge ? "Buka Playground untuk menggunakan Python" : undefined}>Python</TabsTrigger>
+                    <TabsTrigger value="tutor" disabled={chatLoading} className="px-2 py-1">Tutor</TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </div>
 
               <div className="flex items-center gap-2">
-                <ZyraAllowanceSummary courseId={courseIdFromPath} onAccessTierChange={setZyraAccessTier} />
                 {zyraAccessTier === "free" && (
                   <Link
                     href="/plans"
                     className="shrink-0 text-body-xs font-semibold text-brand-primary hover:underline"
                   >
-                    Buka fitur lengkap
+                    {t("tutorDrawer.fullFeatures") || "Buka fitur lengkap"}
                   </Link>
+                )}
+                {assistantMode === "python" && codingBridge && !activeQuotedContext && (
+                  <Button type="button" variant="outline" size="sm" className="h-8 text-body-sm" disabled={chatLoading || !attachmentsReady || (!inputVal.trim() && attachmentIds.length === 0)} onClick={() => void handleSend(undefined, null, "generate")}>Buat kode</Button>
                 )}
                 <Button
                   size="icon-xs"
-                  onClick={() => handleSend()}
-                  disabled={chatLoading || !inputVal.trim()}
-                  className="size-7 rounded-full bg-brand-primary text-white hover:bg-brand-primary/90 transition-transform active:scale-95 disabled:opacity-40"
-                  aria-label="Kirim pesan"
+                  onClick={() => void handleSend()}
+                  disabled={
+                    chatLoading ||
+                    !attachmentsReady ||
+                    (!inputVal.trim() && !activeQuotedContext && attachmentIds.length === 0)
+                  }
+                  className="size-8 rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 transition-transform active:scale-95 disabled:opacity-40"
+                  aria-label={t("tutorDrawer.sendMessage")}
                 >
                   <ArrowUp className="size-3.5" />
                 </Button>
               </div>
             </div>
           </div>
+          <div className="mt-1 empty:hidden"><ZyraAllowanceSummary courseId={courseIdFromPath} onAccessTierChange={setZyraAccessTier} /></div>
         </footer>
 
         {/* Micro-apps Modal View (Flashcards / Practice Quiz) */}
@@ -1498,13 +1799,13 @@ export function TutorDrawerView({
           <div className="absolute inset-0 z-50 flex flex-col bg-background p-4 animate-in fade-in duration-200">
             <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
               <span className="font-heading text-body-base font-bold">
-                {activeAction === "flashcards" ? "Kartu Hafalan (Flashcards)" : "Latihan Kuis Cepat"}
+                {activeAction === "flashcards" ? t("tutorDrawer.flashcardsTitle") : t("tutorDrawer.quickQuizTitle")}
               </span>
               <Button
                 variant="ghost"
                 size="icon-xs"
                 onClick={() => setActiveAction("none")}
-                aria-label="Tutup aktivitas"
+                aria-label={t("tutorDrawer.closeActivity")}
               >
                 <X className="size-4" />
               </Button>
@@ -1517,18 +1818,26 @@ export function TutorDrawerView({
                   className="w-full max-w-sm aspect-4/3 rounded-2xl border border-border bg-card p-6 flex flex-col items-center justify-center text-center cursor-pointer shadow-lg transition-transform hover:scale-[1.02]"
                 >
                   <span className="text-body-xs font-semibold text-muted-foreground uppercase mb-2">
-                    {actionFlipped ? "Jawaban / Pembahasan" : "Pertanyaan"}
+                    {actionFlipped ? t("tutorDrawer.answerOrExplanation") : t("tutorDrawer.question")}
                   </span>
-                  <p className="font-heading text-body-base text-foreground font-semibold">
-                    {actionFlipped ? actionData[actionIndex]?.back : actionData[actionIndex]?.front}
-                  </p>
-                  <span className="mt-4 text-[10px] text-muted-foreground">Klik kartu untuk membalik</span>
+                  <div className="font-heading text-body-base text-foreground font-semibold min-w-0 max-w-full">
+                    <MarkdownRenderer
+                      content={normalizeTutorMathMarkdown(
+                        String((actionFlipped ? actionData[actionIndex]?.back : actionData[actionIndex]?.front) ?? "")
+                      )}
+                      density="compact"
+                    />
+                  </div>
+                  <span className="mt-4 text-[10px] text-muted-foreground">{t("tutorDrawer.flipCardHint")}</span>
                 </div>
               ) : (
                 <div className="w-full max-w-sm space-y-4">
-                  <p className="font-heading text-body-base font-semibold">
-                    {actionData[actionIndex]?.question}
-                  </p>
+                  <div className="font-heading text-body-base font-semibold min-w-0 max-w-full">
+                    <MarkdownRenderer
+                      content={normalizeTutorMathMarkdown(String(actionData[actionIndex]?.question ?? ""))}
+                      density="compact"
+                    />
+                  </div>
                   <div className="space-y-2">
                     {actionData[actionIndex]?.options?.map((opt: string, optIdx: number) => (
                       <button
@@ -1542,7 +1851,7 @@ export function TutorDrawerView({
                             : "border-border bg-card hover:bg-muted/50"
                         )}
                       >
-                        {opt}
+                        <MathText>{normalizeTutorMathMarkdown(String(opt ?? ""))}</MathText>
                       </button>
                     ))}
                   </div>
@@ -1552,7 +1861,7 @@ export function TutorDrawerView({
 
             <div className="flex items-center justify-between border-t border-border pt-3 mt-4">
               <span className="text-body-xs text-muted-foreground">
-                Item {actionIndex + 1} dari {actionData.length}
+                {t("tutorDrawer.itemCount", { current: actionIndex + 1, total: actionData.length })}
               </span>
               <div className="flex gap-2">
                 <Button
@@ -1565,7 +1874,7 @@ export function TutorDrawerView({
                     setActionSelectedAnswer(null);
                   }}
                 >
-                  Sebelumnya
+                  {t("tutorDrawer.previous")}
                 </Button>
                 <Button
                   size="sm"
@@ -1575,12 +1884,12 @@ export function TutorDrawerView({
                       setActionFlipped(false);
                       setActionSelectedAnswer(null);
                     } else {
-                      toast.success("Aktivitas selesai.");
+                      toast.success(t("tutorDrawer.activityDone"));
                       setActiveAction("none");
                     }
                   }}
                 >
-                  {actionIndex === actionData.length - 1 ? "Selesai" : "Berikutnya"}
+                  {actionIndex === actionData.length - 1 ? t("tutorDrawer.done") : t("tutorDrawer.next")}
                 </Button>
               </div>
             </div>

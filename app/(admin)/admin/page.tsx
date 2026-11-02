@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { db } from "@/db";
 import {
@@ -17,6 +19,7 @@ import {
 } from "@/db/schema";
 import { sql, eq, gte, ne } from "drizzle-orm";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 import {
   KeyRound,
   Zap,
@@ -46,12 +49,12 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: pageTitle("Admin"),
-  description: "Panel admin Zyx Academy.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("admin");
+  return { title: pageTitle(t("metadata.homeTitle")), description: t("metadata.homeDescription") };
+}
 
-export default async function AdminHomePage() {
+async function AdminHomeContent() {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const todayStartMs = todayStart.getTime();
@@ -380,4 +383,32 @@ export default async function AdminHomePage() {
       </div>
     </div>
   );
+}
+
+function AdminHomeLoading() {
+  return (
+    <div role="status" aria-label="Memuat" className="space-y-5">
+      <AdminPageHeader icon={LayoutDashboard} title="Admin" actions={<Skeleton className="h-9 w-32" />} />
+      <div className="columns-1 gap-4 lg:columns-2 xl:columns-3">
+        {[3, 2, 6, 2, 6].map((rows, section) => (
+          <div key={section} className="mb-4 inline-block w-full overflow-hidden rounded-xl border border-border bg-card align-top">
+            <div className="border-b border-border/60 px-5 py-4"><Skeleton className="h-5 w-40" /></div>
+            <div className="divide-y divide-border/60">
+              {Array.from({ length: rows }, (_, row) => (
+                <div key={row} className="flex items-center gap-3 px-5 py-3">
+                  <Skeleton className="size-9 shrink-0 rounded-lg" />
+                  <div className="min-w-0 flex-1 space-y-1.5"><Skeleton className="h-4 w-36 max-w-full" /><Skeleton className="h-3 w-24" /></div>
+                  <Skeleton className="size-4 shrink-0" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function AdminHomePage() {
+  return <Suspense fallback={<AdminHomeLoading />}><AdminHomeContent /></Suspense>;
 }

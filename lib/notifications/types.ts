@@ -29,6 +29,14 @@ export interface NotificationPayload {
   imageUrl?: string;
   /** Arbitrary key-value pairs forwarded in the FCM `data` field. */
   metadata?: Record<string, string>;
+  /** A pure system template is rendered for each recipient at dispatch. */
+  systemTemplate?:
+    | { key: "quiz_published"; params: { quizTitle: string; courseTitle: string } }
+    | { key: "pka_schedule"; params: { scheduleTitle: string; sessionAt: string } }
+    | { key: "pka_schedule_update"; params: { scheduleTitle: string; sessionAt: string } }
+    | { key: "tutor_schedule_moved"; params: { dayOfWeek: string; sessionDate: string; startTime: string; endTime: string } }
+    | { key: "tutor_ticket_decision"; params: { ticketType: "reschedule" | "cancellation"; decision: "approved" | "rejected"; notes: string | null } }
+    | { key: "tutor_ticket_message"; params: { body: string } };
 }
 
 // ─── Send result ──────────────────────────────────────────────────────────────

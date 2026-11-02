@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
+import { useTranslations } from "@/lib/i18n/client";
 import { saveCourseMaterial } from "@/app/(admin)/admin/(academic)/courses/actions";
 import { BatchUploadDialog } from "@/components/admin/course-detail/batch-upload-dialog";
 import { uploadAdminPdfFile } from "@/lib/storage/admin-upload-client";
@@ -74,6 +75,7 @@ export function AdminUploadDocumentDialog({
   existingTitles = [],
 }: Props) {
   const router = useRouter();
+  const t = useTranslations("adminAcademic");
   const [loading, setLoading] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
 
@@ -170,13 +172,13 @@ export function AdminUploadDocumentDialog({
     if (!file) return;
 
     if (!file.name.toLowerCase().endsWith(".pdf")) {
-      toast.error("Hanya berkas PDF yang diperbolehkan.");
+      toast.error(t("documents.upload.pdfOnly"));
       setSelectedFile(null);
       return;
     }
 
     if (file.size > MAX_PDF_SIZE_BYTES) {
-      toast.error("Ukuran berkas PDF maksimal 50 MB.");
+      toast.error(t("documents.upload.maxSize"));
       setSelectedFile(null);
       return;
     }
@@ -316,12 +318,12 @@ export function AdminUploadDocumentDialog({
     e.preventDefault();
 
     if (!selectedFile) {
-      toast.error("Pilih berkas PDF yang akan diunggah.");
+      toast.error(t("documents.upload.selectFile"));
       return;
     }
 
     if (!effectiveTitle) {
-      toast.error("Judul dokumen belum lengkap.");
+      toast.error(t("documents.upload.titleRequired"));
       return;
     }
 
@@ -329,21 +331,21 @@ export function AdminUploadDocumentDialog({
     let targetChapterIds: string[] = [];
     if (intent === "materi" || intent === "scl") {
       if (!selectedChapterId) {
-        toast.error("Pilih bab terkait.");
+        toast.error(t("documents.upload.selectChapter"));
         return;
       }
       targetChapterIds = [selectedChapterId];
     } else {
       targetChapterIds = Array.from(selectedChapters);
       if (targetChapterIds.length === 0) {
-        toast.error("Pilih minimal satu bab terkait.");
+        toast.error(t("documents.upload.selectChapters"));
         return;
       }
     }
 
     const parsedYear = year.trim() ? parseInt(year.trim(), 10) : null;
     if (intent === "ujian" && !parsedYear) {
-      toast.error("Tahun ujian wajib diisi agar judul unik.");
+      toast.error(t("documents.upload.yearRequired"));
       return;
     }
 
@@ -376,16 +378,16 @@ export function AdminUploadDocumentDialog({
       );
 
       if (res.success) {
-        toast.success("Dokumen PDF berhasil disimpan.");
+        toast.success(t("documents.upload.saved"));
         resetForm();
         onOpenChange(false);
         router.refresh();
       } else {
-        toast.error(res.error || "Gagal menyimpan data materi.");
+        toast.error(t("documents.upload.saveError"));
       }
     } catch (err) {
       console.error(err);
-      toast.error("Terjadi kesalahan saat mengunggah berkas.");
+      toast.error(t("documents.upload.uploadError"));
     } finally {
       setLoading(false);
     }
@@ -396,26 +398,26 @@ export function AdminUploadDocumentDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto p-5 font-sans">
           <DialogHeader className="space-y-1">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
               <DialogTitle className="font-heading text-h5 text-foreground">
-                Unggah Dokumen PDF
+                {t("documents.upload.title")}
               </DialogTitle>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="gap-1.5 text-body-xs text-muted-foreground hover:text-foreground"
+                className="gap-1.5 text-body-sm text-muted-foreground hover:text-foreground"
                 onClick={() => {
                   onOpenChange(false);
                   setBatchOpen(true);
                 }}
               >
                 <Layers className="size-3.5" />
-                Unggah Batch
+                {t("documents.upload.batch")}
               </Button>
             </div>
             <DialogDescription className="text-body-xs text-muted-foreground">
-              Dokumen belajar untuk {courseTitle}.
+              {t("documents.upload.description", { course: courseTitle })}
             </DialogDescription>
           </DialogHeader>
 
@@ -434,7 +436,7 @@ export function AdminUploadDocumentDialog({
                   const file = e.dataTransfer.files?.[0];
                   if (file) handleFile(file);
                 }}
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-4 text-center cursor-pointer transition-colors ${
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-4 text-center cursor-pointer transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring ${
                   isDragOver
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-border/80 hover:bg-muted/20"
@@ -445,10 +447,10 @@ export function AdminUploadDocumentDialog({
                 </div>
                 <div>
                   <p className="text-body-sm font-semibold text-foreground">
-                    Pilih berkas PDF atau tarik ke sini
+                    {t("documents.upload.dropzone")}
                   </p>
                   <p className="text-body-xs text-muted-foreground">
-                    Format .pdf maksimal 50 MB
+                    {t("documents.upload.formatLimit")}
                   </p>
                 </div>
                 <input
@@ -481,7 +483,8 @@ export function AdminUploadDocumentDialog({
                   className="size-7 text-muted-foreground hover:text-foreground shrink-0"
                   onClick={() => setSelectedFile(null)}
                   disabled={loading}
-                  title="Ganti berkas"
+                  title={t("documents.upload.replaceFile")}
+                  aria-label={t("documents.upload.replaceFile")}
                 >
                   <X className="size-3.5" />
                 </Button>
@@ -490,33 +493,19 @@ export function AdminUploadDocumentDialog({
 
             {/* Intent Selector */}
             <div className="space-y-1.5">
-              <Label className="text-body-sm font-semibold text-foreground">
-                Jenis Dokumen
+              <Label htmlFor="upload-document-type" className="text-body-sm font-semibold text-foreground">
+                {t("documents.upload.documentType")}
               </Label>
-              <div className="grid grid-cols-5 gap-1.5 rounded-lg border border-border/70 bg-muted/20 p-1">
-                {(
-                  [
-                    { id: "materi", label: "Materi" },
-                    { id: "scl", label: "SCL" },
-                    { id: "ujian", label: "Ujian" },
-                    { id: "latihan", label: "Latihan" },
-                    { id: "ebook", label: "E-Book" },
-                  ] as const
-                ).map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => handleIntentChange(tab.id)}
-                    className={`rounded-md py-1.5 text-center text-body-sm transition-colors ${
-                      intent === tab.id
-                        ? "bg-card text-foreground shadow-2xs font-semibold"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
+              <Select value={intent} onValueChange={(value) => handleIntentChange(value as IntentType)} disabled={loading}>
+                <SelectTrigger id="upload-document-type" className="h-9 text-body-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="materi">{t("documents.upload.types.material")}</SelectItem>
+                  <SelectItem value="scl">{t("documents.upload.types.scl")}</SelectItem>
+                  <SelectItem value="ujian">{t("documents.upload.types.exam")}</SelectItem>
+                  <SelectItem value="latihan">{t("documents.upload.types.practice")}</SelectItem>
+                  <SelectItem value="ebook">{t("documents.upload.types.ebook")}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Dynamic Controls Per Intent */}
@@ -524,8 +513,8 @@ export function AdminUploadDocumentDialog({
               <div className="space-y-3 rounded-lg border border-border/70 bg-muted/10 p-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
-                      Pilih Bab
+                    <Label htmlFor="upload-chapter" className="text-body-sm font-semibold text-foreground">
+                      {t("documents.upload.selectChapterLabel")}
                     </Label>
                     <Select
                       value={selectedChapterId}
@@ -535,13 +524,13 @@ export function AdminUploadDocumentDialog({
                       }}
                       disabled={loading}
                     >
-                      <SelectTrigger className="h-9 text-body-sm rounded-lg">
-                        <SelectValue placeholder="Pilih Bab" />
+                      <SelectTrigger id="upload-chapter" className="h-9 text-body-sm rounded-lg">
+                        <SelectValue placeholder={t("documents.upload.selectChapterLabel")} />
                       </SelectTrigger>
                       <SelectContent>
                         {sortedChapters.map((ch) => (
                           <SelectItem key={ch.id} value={ch.id}>
-                            Bab {ch.orderIndex}: {ch.title}
+                            {t("documents.upload.chapterWithNumber", { number: ch.orderIndex })}: {ch.title}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -549,23 +538,23 @@ export function AdminUploadDocumentDialog({
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
-                      Sifat Materi
+                    <Label htmlFor="upload-qualifier" className="text-body-sm font-semibold text-foreground">
+                      {t("documents.upload.materialQualifier")}
                     </Label>
                     <Select
                       value={qualifier}
                       onValueChange={(val) => setQualifier(val as MaterialRoleQualifier)}
                       disabled={loading}
                     >
-                      <SelectTrigger className="h-9 text-body-sm rounded-lg">
-                        <SelectValue placeholder="Pilih Sifat" />
+                      <SelectTrigger id="upload-qualifier" className="h-9 text-body-sm rounded-lg">
+                        <SelectValue placeholder={t("documents.upload.selectQualifier")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="utama">Teori Utama</SelectItem>
-                        <SelectItem value="bagian">Multi-Bagian (Slide Lanjutan)</SelectItem>
-                        <SelectItem value="aplikasi">Contoh Aplikasi</SelectItem>
-                        <SelectItem value="problem">Contoh Problem</SelectItem>
-                        <SelectItem value="kustom">Topik Spesifik</SelectItem>
+                        <SelectItem value="utama">{t("documents.upload.qualifiers.mainTheory")}</SelectItem>
+                        <SelectItem value="bagian">{t("documents.upload.qualifiers.multiPart")}</SelectItem>
+                        <SelectItem value="aplikasi">{t("documents.upload.qualifiers.application")}</SelectItem>
+                        <SelectItem value="problem">{t("documents.upload.qualifiers.problem")}</SelectItem>
+                        <SelectItem value="kustom">{t("documents.upload.qualifiers.custom")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -573,10 +562,10 @@ export function AdminUploadDocumentDialog({
 
                 {qualifier === "bagian" && (
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
-                      Nomor Bagian
+                    <Label htmlFor="upload-part" className="text-body-sm font-semibold text-foreground">
+                      {t("documents.upload.partNumber")}
                     </Label>
-                    <Input
+                    <Input id="upload-part"
                       type="number"
                       min={1}
                       max={20}
@@ -590,13 +579,13 @@ export function AdminUploadDocumentDialog({
 
                 {(qualifier === "aplikasi" || qualifier === "problem" || qualifier === "kustom") && (
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
-                      Topik Tambahan <span className="font-normal text-muted-foreground text-body-xs">(opsional)</span>
+                    <Label htmlFor="upload-extra-topic" className="text-body-sm font-semibold text-foreground">
+                      {t("documents.upload.extraTopic")} <span className="font-normal text-muted-foreground text-body-xs">({t("documents.upload.optional")})</span>
                     </Label>
-                    <Input
+                    <Input id="upload-extra-topic"
                       value={customTopic}
                       onChange={(e) => setCustomTopic(e.target.value)}
-                      placeholder="Contoh: Model Pegas Beban"
+                      placeholder={t("documents.upload.exampleSpringModel")}
                       className="h-8 text-body-sm rounded-lg"
                     />
                   </div>
@@ -608,7 +597,7 @@ export function AdminUploadDocumentDialog({
               <div className="space-y-3 rounded-lg border border-border/70 bg-muted/10 p-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
+                    <Label htmlFor="upload-chapter" className="text-body-sm font-semibold text-foreground">
                       Pilih Bab
                     </Label>
                     <Select
@@ -619,8 +608,8 @@ export function AdminUploadDocumentDialog({
                       }}
                       disabled={loading}
                     >
-                      <SelectTrigger className="h-9 text-body-sm rounded-lg">
-                        <SelectValue placeholder="Pilih Bab" />
+                      <SelectTrigger id="upload-chapter" className="h-9 text-body-sm rounded-lg">
+                        <SelectValue placeholder={t("documents.upload.selectChapterLabel")} />
                       </SelectTrigger>
                       <SelectContent>
                         {sortedChapters.map((ch) => (
@@ -633,13 +622,13 @@ export function AdminUploadDocumentDialog({
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
-                      Judul / Modul SCL
+                    <Label htmlFor="upload-scl-title" className="text-body-sm font-semibold text-foreground">
+                      {t("documents.upload.sclTitle")}
                     </Label>
-                    <Input
+                    <Input id="upload-scl-title"
                       value={customTopic}
                       onChange={(e) => setCustomTopic(e.target.value)}
-                      placeholder="Contoh: Modul 1 Pengantar"
+                      placeholder={t("documents.upload.exampleModule")}
                       className="h-9 text-body-sm rounded-lg"
                     />
                   </div>
@@ -651,49 +640,49 @@ export function AdminUploadDocumentDialog({
               <div className="space-y-3 rounded-lg border border-border/70 bg-muted/10 p-3">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
-                      Ujian
+                    <Label htmlFor="upload-exam" className="text-body-sm font-semibold text-foreground">
+                      {t("documents.upload.exam")}
                     </Label>
                     <Select
                       value={subcategory}
                       onValueChange={(val) => setSubcategory(val as CourseMaterialSubcategory)}
                       disabled={loading}
                     >
-                      <SelectTrigger className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="upload-exam" className="h-9 text-body-sm rounded-lg">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="uts">UTS</SelectItem>
-                        <SelectItem value="uas">UAS</SelectItem>
+                        <SelectItem value="uts">{t("documents.upload.uts")}</SelectItem>
+                        <SelectItem value="uas">{t("documents.upload.uas")}</SelectItem>
                         <SelectItem value="up">UP</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
-                      Tipe
+                    <Label htmlFor="upload-role" className="text-body-sm font-semibold text-foreground">
+                      {t("documents.upload.type")}
                     </Label>
                     <Select
                       value={docRole}
                       onValueChange={(val) => handleDocRoleChange(val as "soal" | "pembahasan")}
                       disabled={loading}
                     >
-                      <SelectTrigger className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="upload-role" className="h-9 text-body-sm rounded-lg">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="soal">Soal</SelectItem>
-                        <SelectItem value="pembahasan">Pembahasan</SelectItem>
+                        <SelectItem value="soal">{t("documents.upload.question")}</SelectItem>
+                        <SelectItem value="pembahasan">{t("documents.upload.solution")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
-                      Tahun
+                    <Label htmlFor="upload-year" className="text-body-sm font-semibold text-foreground">
+                      {t("documents.upload.year")}
                     </Label>
-                    <Input
+                    <Input id="upload-year"
                       type="number"
                       min={1990}
                       max={2040}
@@ -705,13 +694,13 @@ export function AdminUploadDocumentDialog({
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
-                      Sesi <span className="font-normal text-muted-foreground text-body-xs">(opsional)</span>
+                    <Label htmlFor="upload-session" className="text-body-sm font-semibold text-foreground">
+                      {t("documents.upload.session")} <span className="font-normal text-muted-foreground text-body-xs">({t("documents.upload.optional")})</span>
                     </Label>
-                    <Input
+                    <Input id="upload-session"
                       value={session}
                       onChange={(e) => setSession(e.target.value)}
-                      placeholder="Sesi 1"
+                      placeholder={t("documents.upload.sessionExample")}
                       className="h-9 text-body-sm rounded-lg"
                     />
                   </div>
@@ -719,46 +708,46 @@ export function AdminUploadDocumentDialog({
 
                 {/* Chapter Presets for Exam */}
                 <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <Label className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Cakupan Bab ({selectedChapters.size} dipilih)
+                      {t("documents.upload.chapterCoverage", { count: selectedChapters.size })}
                     </Label>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-1.5 text-body-xs text-brand-primary"
+                        className="h-7 px-1.5 text-body-sm text-brand-primary"
                         onClick={selectUtsChapters}
                       >
-                        Paket UTS
+                        {t("documents.upload.utsSet")}
                       </Button>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-1.5 text-body-xs text-brand-primary"
+                        className="h-7 px-1.5 text-body-sm text-brand-primary"
                         onClick={selectUasChapters}
                       >
-                        Paket UAS
+                        {t("documents.upload.uasSet")}
                       </Button>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-1.5 text-body-xs text-brand-primary"
+                        className="h-7 px-1.5 text-body-sm text-brand-primary"
                         onClick={selectAllChapters}
                       >
-                        Semua
+                        {t("documents.upload.all")}
                       </Button>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-1.5 text-body-xs text-muted-foreground"
+                        className="h-7 px-1.5 text-body-sm text-muted-foreground"
                         onClick={clearChapters}
                       >
-                        Kosongkan
+                        {t("documents.upload.clear")}
                       </Button>
                     </div>
                   </div>
@@ -769,10 +758,11 @@ export function AdminUploadDocumentDialog({
                         <button
                           key={ch.id}
                           type="button"
+                          aria-pressed={isChecked}
                           onClick={() => toggleChapter(ch.id)}
-                          className={`flex items-center gap-1.5 p-1.5 rounded-md border text-left text-body-xs transition-colors ${
+                          className={`flex items-center gap-1.5 p-1.5 rounded-md border text-left text-body-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
                             isChecked
-                              ? "border-primary bg-primary/10 text-foreground font-medium"
+                              ? "border-primary bg-primary/10 text-foreground"
                               : "border-border/60 hover:bg-muted/30 text-muted-foreground"
                           }`}
                         >
@@ -781,7 +771,7 @@ export function AdminUploadDocumentDialog({
                           }`}>
                             {isChecked && <Check className="size-2.5" />}
                           </span>
-                          <span className="truncate">Bab {ch.orderIndex}</span>
+                          <span className="truncate">{t("documents.upload.chapterWithNumber", { number: ch.orderIndex })}</span>
                         </button>
                       );
                     })}
@@ -794,52 +784,52 @@ export function AdminUploadDocumentDialog({
               <div className="space-y-3 rounded-lg border border-border/70 bg-muted/10 p-3">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
-                      Sub-jenis
+                    <Label htmlFor="upload-subtype" className="text-body-sm font-semibold text-foreground">
+                      {t("documents.upload.subtype")}
                     </Label>
                     <Select
                       value={subcategory}
                       onValueChange={(val) => setSubcategory(val as CourseMaterialSubcategory)}
                       disabled={loading}
                     >
-                      <SelectTrigger className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="upload-subtype" className="h-9 text-body-sm rounded-lg">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="kuis">Kuis</SelectItem>
+                        <SelectItem value="kuis">{t("documents.upload.practiceTypes.quiz")}</SelectItem>
                         <SelectItem value="ltm">LTM</SelectItem>
                         <SelectItem value="kbf">KBF</SelectItem>
-                        <SelectItem value="tutorial">Tutorial</SelectItem>
-                        <SelectItem value="modul">Modul</SelectItem>
-                        <SelectItem value="lainnya">Lainnya</SelectItem>
+                        <SelectItem value="tutorial">{t("documents.upload.practiceTypes.tutorial")}</SelectItem>
+                        <SelectItem value="modul">{t("documents.upload.practiceTypes.module")}</SelectItem>
+                        <SelectItem value="lainnya">{t("documents.upload.practiceTypes.other")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
-                      Tipe
+                    <Label htmlFor="upload-role" className="text-body-sm font-semibold text-foreground">
+                      {t("documents.upload.type")}
                     </Label>
                     <Select
                       value={docRole}
                       onValueChange={(val) => handleDocRoleChange(val as "soal" | "pembahasan")}
                       disabled={loading}
                     >
-                      <SelectTrigger className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="upload-role" className="h-9 text-body-sm rounded-lg">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="soal">Soal</SelectItem>
-                        <SelectItem value="pembahasan">Pembahasan</SelectItem>
+                        <SelectItem value="soal">{t("documents.upload.question")}</SelectItem>
+                        <SelectItem value="pembahasan">{t("documents.upload.solution")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
-                      Tahun <span className="font-normal text-muted-foreground text-body-xs">(opsional)</span>
+                    <Label htmlFor="upload-year" className="text-body-sm font-semibold text-foreground">
+                      {t("documents.upload.year")} <span className="font-normal text-muted-foreground text-body-xs">({t("documents.upload.optional")})</span>
                     </Label>
-                    <Input
+                    <Input id="upload-year"
                       type="number"
                       min={1990}
                       max={2040}
@@ -851,10 +841,10 @@ export function AdminUploadDocumentDialog({
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
-                      Nomor / Topik
+                    <Label htmlFor="upload-topic" className="text-body-sm font-semibold text-foreground">
+                      {t("documents.upload.numberOrTopic")}
                     </Label>
-                    <Input
+                    <Input id="upload-topic"
                       value={customTopic}
                       onChange={(e) => setCustomTopic(e.target.value)}
                       placeholder="1"
@@ -865,28 +855,28 @@ export function AdminUploadDocumentDialog({
 
                 {/* Chapter Selection */}
                 <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <Label className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Kaitkan Bab ({selectedChapters.size} dipilih)
+                      {t("documents.upload.linkChapters", { count: selectedChapters.size })}
                     </Label>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-1.5 text-body-xs text-brand-primary"
+                        className="h-7 px-1.5 text-body-sm text-brand-primary"
                         onClick={selectAllChapters}
                       >
-                        Semua Bab
+                        {t("documents.upload.allChapters")}
                       </Button>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-1.5 text-body-xs text-muted-foreground"
+                        className="h-7 px-1.5 text-body-sm text-muted-foreground"
                         onClick={clearChapters}
                       >
-                        Kosongkan
+                        {t("documents.upload.clear")}
                       </Button>
                     </div>
                   </div>
@@ -897,10 +887,11 @@ export function AdminUploadDocumentDialog({
                         <button
                           key={ch.id}
                           type="button"
+                          aria-pressed={isChecked}
                           onClick={() => toggleChapter(ch.id)}
-                          className={`flex items-center gap-1.5 p-1.5 rounded-md border text-left text-body-xs transition-colors ${
+                          className={`flex items-center gap-1.5 p-1.5 rounded-md border text-left text-body-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
                             isChecked
-                              ? "border-primary bg-primary/10 text-foreground font-medium"
+                              ? "border-primary bg-primary/10 text-foreground"
                               : "border-border/60 hover:bg-muted/30 text-muted-foreground"
                           }`}
                         >
@@ -909,7 +900,7 @@ export function AdminUploadDocumentDialog({
                           }`}>
                             {isChecked && <Check className="size-2.5" />}
                           </span>
-                          <span className="truncate">Bab {ch.orderIndex}</span>
+                          <span className="truncate">{t("documents.upload.chapterWithNumber", { number: ch.orderIndex })}</span>
                         </button>
                       );
                     })}
@@ -921,13 +912,13 @@ export function AdminUploadDocumentDialog({
             {intent === "ebook" && (
               <div className="space-y-3 rounded-lg border border-border/70 bg-muted/10 p-3">
                 <div className="space-y-1">
-                  <Label className="text-body-sm font-semibold text-foreground">
-                    Judul Buku atau Pengarang
+                  <Label htmlFor="upload-book" className="text-body-sm font-semibold text-foreground">
+                    {t("documents.upload.bookTitleOrAuthor")}
                   </Label>
-                  <Input
+                  <Input id="upload-book"
                     value={customTopic}
                     onChange={(e) => setCustomTopic(e.target.value)}
-                    placeholder="Contoh: Calculus 9th Edition Dale Varberg"
+                    placeholder={t("documents.upload.exampleBook")}
                     className="h-9 text-body-sm rounded-lg"
                   />
                 </div>
@@ -937,8 +928,8 @@ export function AdminUploadDocumentDialog({
             {/* Live Canonical Title Preview Box */}
             <div className="space-y-1.5 rounded-lg border border-border bg-muted/25 p-3">
               <div className="flex items-center justify-between">
-                <Label className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Judul Tampilan Standar
+                <Label htmlFor={isManualTitle ? "upload-manual-title" : undefined} className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  {t("documents.upload.canonicalTitle")}
                 </Label>
                 <button
                   type="button"
@@ -950,15 +941,16 @@ export function AdminUploadDocumentDialog({
                   }}
                   className="text-body-xs text-brand-primary hover:underline cursor-pointer"
                 >
-                  {isManualTitle ? "Gunakan format otomatis" : "Ubah judul manual"}
+                  {isManualTitle ? t("documents.upload.useAutomaticTitle") : t("documents.upload.editTitleManually")}
                 </button>
               </div>
 
               {isManualTitle ? (
                 <Input
+                  id="upload-manual-title"
                   value={manualTitle}
                   onChange={(e) => setManualTitle(e.target.value)}
-                  placeholder="Masukkan judul dokumen"
+                  placeholder={t("documents.upload.enterTitle")}
                   className="h-8 text-body-sm rounded-lg"
                 />
               ) : (
@@ -971,7 +963,7 @@ export function AdminUploadDocumentDialog({
               {isDuplicate && (
                 <div className="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-body-xs text-amber-700 dark:text-amber-400">
                   <AlertCircle className="size-4 shrink-0" />
-                  <span>Judul ini sudah digunakan pada mata kuliah ini. Sesuaikan tahun, sesi, atau bagian agar unik.</span>
+                  <span>{t("documents.upload.duplicateTitle")}</span>
                 </div>
               )}
             </div>
@@ -984,7 +976,7 @@ export function AdminUploadDocumentDialog({
                 disabled={loading}
                 className="text-body-sm rounded-lg"
               >
-                Batal
+                {t("common.cancel")}
               </Button>
               <Button
                 type="submit"
@@ -992,7 +984,7 @@ export function AdminUploadDocumentDialog({
                 className="gap-1.5 text-body-sm font-semibold rounded-lg"
               >
                 {loading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-                Unggah Dokumen
+                {t("documents.upload.submit")}
               </Button>
             </DialogFooter>
           </form>

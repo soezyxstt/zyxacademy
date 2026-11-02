@@ -14,11 +14,42 @@ describe("Zyra learning presentation", () => {
     expect(rules).toContain("actual explanation");
   });
 
+  it("includes bounded private conversation to resolve follow-ups", () => {
+    const context = buildPedagogyContext({ courseId: "math", question: "explain it", action: "follow_up", activityKind: "study", attemptState: "none", answerReleaseState: "released", matchState: "none", allowDirectAnswerReveal: true, assessmentReasonCode: "STUDY", evidenceSufficiency: "sufficient" });
+    const input = buildPedagogyPromptInput(context, selectTeachingPlan(context), "explain it", [], { conversation: [{ role: "student", content: "limit" }] });
+    expect(input.conversation?.[0].content).toBe("limit");
+    expect(input.learnerQuestion).toBe("explain it");
+    expect(input.outputRules.join(" ")).toContain("untrusted context");
+  });
+
   it("keeps graph, flowchart, image, and assessment guidance within the input contract", () => {
     const context = buildPedagogyContext({ courseId: "math", question: "Grafik dan diagram", action: "hint_request", activityKind: "exam", attemptState: "in_progress", answerReleaseState: "hidden", matchState: "none", allowDirectAnswerReveal: false, assessmentReasonCode: "SCAFFOLD", evidenceSufficiency: "sufficient", responseModifiers: ["graph", "flowchart"] });
     const input = buildPedagogyPromptInput(context, selectTeachingPlan(context), context.explicitTopic, [], { hasImages: true });
     expect(input.outputRules.length).toBeLessThanOrEqual(16);
     expect(input.outputRules.join("\n")).toContain("approved hint level");
     expect(input.outputRules.join("\n")).toContain("unreadableRegions");
+  });
+
+  it("selects English output language while preserving active-assessment limits", () => {
+    const context = buildPedagogyContext({
+      courseId: "math",
+      question: "Explain this step",
+      responseLanguage: "en",
+      action: "follow_up",
+      activityKind: "exam",
+      attemptState: "in_progress",
+      answerReleaseState: "hidden",
+      matchState: "none",
+      allowDirectAnswerReveal: false,
+      assessmentReasonCode: "SCAFFOLD",
+      evidenceSufficiency: "sufficient",
+    });
+    const input = buildPedagogyPromptInput(context, selectTeachingPlan(context), context.explicitTopic, []);
+
+    expect(context.responseLanguage).toBe("en");
+    expect(context.activeAssessment).toBe(true);
+    expect(context.allowDirectAnswerReveal).toBe(false);
+    expect(input.outputRules.join("\n")).toContain("response language selected in context.responseLanguage");
+    expect(input.outputRules.join("\n")).toContain("Never reveal a final answer");
   });
 });

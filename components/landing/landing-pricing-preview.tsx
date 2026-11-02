@@ -1,8 +1,10 @@
 import { SectionContainer } from "@/components/layout/section-container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { PlanPreviewGrid } from "@/components/pricing/plan-preview-grid";
+import { getTranslations } from "@/lib/i18n/server";
 
-export function LandingPricingPreview() {
+export async function LandingPricingPreview() {
+  const t = await getTranslations("marketing");
   return (
     <SectionContainer
       id="pricing"
@@ -11,11 +13,10 @@ export function LandingPricingPreview() {
     >
       <div className="mx-auto max-w-3xl text-center">
         <SectionHeading id="pricing-preview-heading" tier="secondary" className="text-foreground">
-          Pilih dukungan belajar yang cocok
+          {t("home.pricingTitle")}
         </SectionHeading>
         <p className="mt-3 text-body-base text-muted-foreground">
-          Mulai dari akses belajar mandiri, lalu tambah tutorial dan konsultasi sesuai kebutuhan
-          kelompokmu.
+          {t("home.pricingDescription")}
         </p>
       </div>
 

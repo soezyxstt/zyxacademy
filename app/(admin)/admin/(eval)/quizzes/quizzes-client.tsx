@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, Clock, Award, BookOpen, Loader2, Calendar, Eye, Check, Edit } from "lucide-react";
@@ -48,6 +49,8 @@ interface Props {
 }
 
 export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCourseId, prefillTags }: Props) {
+  const tx = useTranslations("adminEval.quizzes");
+  const locale = useLocale();
   const [templates, setTemplates] = useState<TemplateType[]>(initialTemplates);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingTemplate, setDeletingTemplate] = useState<TemplateType | null>(null);
@@ -69,10 +72,10 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
       if (res.success) {
         setPreviewQuestions(res.questions);
       } else {
-        toast.error("Gagal memuat pratinjau kuis.");
+        toast.error(tx("previewFailed"));
       }
-    } catch (err: any) {
-      toast.error(err.message || "Gagal memuat pratinjau kuis.");
+    } catch {
+      toast.error(tx("previewFailed"));
     } finally {
       setLoadingPreview(false);
     }
@@ -90,17 +93,13 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
         body: JSON.stringify({ manualStatus: newManualStatus }),
       });
 
-      if (!res.ok) {
-        throw new Error("Failed to update status");
-      }
+      if (!res.ok) throw new Error("Failed to update status");
 
       toast.success(
-        `Status kuis berhasil diubah menjadi ${
-          newManualStatus === "open" ? "Buka Manual" : newManualStatus === "closed" ? "Tutup Manual" : "Ikuti Jadwal"
-        }`
+        tx("accessStatusUpdated", { status: tx(`access.${newManualStatus}`) })
       );
     } catch {
-      toast.error("Gagal memperbarui status akses kuis.");
+      toast.error(tx("accessUpdateFailed"));
     }
   };
 
@@ -120,9 +119,9 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
         throw new Error("Failed to update discussion status");
       }
 
-      toast.success(showDiscussion ? "Pembahasan kuis dibuka." : "Pembahasan kuis ditutup.");
+      toast.success(showDiscussion ? tx("discussionOpened") : tx("discussionClosed"));
     } catch {
-      toast.error("Gagal memperbarui status pembahasan kuis.");
+      toast.error(tx("discussionUpdateFailed"));
     }
   };
 
@@ -142,9 +141,9 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
         throw new Error("Failed to update publish status");
       }
 
-      toast.success(newStatus === "published" ? "Kuis berhasil dipublikasikan!" : "Kuis disimpan sebagai draf.");
+      toast.success(newStatus === "published" ? tx("publishedToast") : tx("draftSavedToast"));
     } catch {
-      toast.error("Gagal mengubah status publikasi kuis.");
+      toast.error(tx("publishUpdateFailed"));
     }
   };
 
@@ -161,14 +160,14 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
         method: "DELETE",
       });
       if (res.ok) {
-        toast.success("Kuis berhasil dihapus.");
+        toast.success(tx("deleteSucceeded"));
         setTemplates((prev) => prev.filter((t) => t.id !== deletingTemplate.id));
         setDeleteOpen(false);
       } else {
-        toast.error("Gagal menghapus kuis.");
+        toast.error(tx("deleteFailed"));
       }
     } catch {
-      toast.error("Terjadi kesalahan saat menghapus kuis.");
+      toast.error(tx("deleteError"));
     } finally {
       setIsDeleting(false);
     }
@@ -181,13 +180,13 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
   return (
     <div className="space-y-6 font-sans">
       {/* Top Toolbar */}
-      <div className="flex items-center justify-between border-b border-border/40 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-4">
         <span className="text-body-sm font-medium text-muted-foreground">
-          Total <strong>{templates.length}</strong> Kuis Terdaftar
+          {tx("registeredCount", { count: templates.length })}
         </span>
-        <Button asChild className="rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-bold shadow-xs">
+        <Button asChild className="rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 font-bold shadow-xs">
           <Link href={newQuizUrl} className="flex items-center gap-2">
-            <Plus className="size-4" /> Buat Kuis
+            <Plus className="size-4" /> {tx("createQuiz")}
           </Link>
         </Button>
       </div>
@@ -198,13 +197,13 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
           <div className="mx-auto flex size-14 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary mb-5 border border-brand-primary/20">
             <BookOpen className="size-6" />
           </div>
-          <h3 className="font-heading text-body-base font-bold text-foreground">Belum Ada Kuis</h3>
+          <h3 className="font-heading text-body-base font-bold text-foreground">{tx("emptyTitle")}</h3>
           <p className="text-body-sm text-muted-foreground max-w-sm mx-auto mt-2 leading-relaxed">
-            Mulai susun kuis evaluasi untuk menguji pemahaman mahasiswa.
+            {tx("emptyDescription")}
           </p>
-          <Button asChild className="mt-6 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-bold shadow-md">
+          <Button asChild className="mt-6 rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 font-bold shadow-md">
             <Link href={newQuizUrl} className="flex items-center gap-2">
-              <Plus className="size-4" /> Buat Kuis Baru
+              <Plus className="size-4" /> {tx("createQuiz")} Baru
             </Link>
           </Button>
         </div>
@@ -231,15 +230,15 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                     <div className="flex gap-1.5 flex-wrap items-center">
                       <span className="inline-flex rounded-md bg-muted/80 border border-border/40 px-2 py-0.5 text-body-xs font-semibold text-muted-foreground capitalize">
                         {template.category === "weekly"
-                          ? "Mingguan"
+                          ? tx("category.weekly")
                           : template.category === "chapter"
-                          ? "Evaluasi Bab"
+                          ? tx("category.chapter")
                           : template.category === "premium"
-                          ? "Premium"
+                          ? tx("category.premium")
                           : template.category === "simulation"
-                          ? "Simulasi"
-                          : "Harian"}{" "}
-                        · {template.visibility === "free" ? "Gratis" : "Khusus"}
+                          ? tx("category.simulation")
+                          : tx("category.daily")}{" "}
+                        · {template.visibility === "free" ? tx("free") : tx("restricted")}
                       </span>
                       <button
                         type="button"
@@ -247,14 +246,14 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                           handleUpdateStatus(template.id, template.status === "published" ? "draft" : "published")
                         }
                         className={cn(
-                          "inline-flex rounded-md border px-2 py-0.5 text-body-xs font-semibold capitalize cursor-pointer transition-colors hover:bg-muted/80",
+                          "inline-flex min-h-9 items-center rounded-md border px-2 text-body-sm font-semibold capitalize cursor-pointer transition-colors hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                           template.status === "published"
                             ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
                             : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
                         )}
-                        title="Klik untuk mengubah status draf/publikasi"
+                        title={tx("togglePublishTitle")}
                       >
-                        {template.status === "published" ? "Published" : "Draft"}
+                        {template.status === "published" ? tx("published") : tx("draft")}
                       </button>
                     </div>
                   </div>
@@ -267,12 +266,12 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                     <div className="flex items-center gap-2.5">
                       <BookOpen className="size-4 text-brand-primary/85 shrink-0" />
                       <span>
-                        <strong>{qCount} Soal</strong>{" "}
+                        <strong>{tx("questionCount", { count: qCount })}</strong>{" "}
                         {isSpecific ? (
-                          <span className="text-brand-primary text-body-xs font-semibold">(Pilihan Spesifik)</span>
+                          <span className="text-brand-primary text-body-xs font-semibold">({tx("specificSelection")})</span>
                         ) : (
                           <span className="text-muted-foreground/80 text-body-xs">
-                            ({props.easy} Easy · {props.medium} Medium · {props.hard} Hard)
+                            ({props.easy} {tx("difficulty.easy")} · {props.medium} {tx("difficulty.medium")} · {props.hard} {tx("difficulty.hard")})
                           </span>
                         )}
                       </span>
@@ -281,14 +280,14 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                     <div className="flex items-center gap-2.5">
                       <Clock className="size-4 text-emerald-500/85 shrink-0" />
                       <span>
-                        Limit:{" "}
+                        {tx("timeLimit")}:{" "}
                         {template.timeLimitSeconds
-                          ? `${Math.round(template.timeLimitSeconds / 60)} menit`
-                          : "Tanpa batas"}
+                          ? tx("minutes", { count: Math.round(template.timeLimitSeconds / 60) })
+                          : tx("unlimited")}
                       </span>
                       {perQuestionTimer && (
                         <Badge variant="outline" className="rounded-md border-brand-primary/30 text-brand-primary text-[10px] h-4 px-1">
-                          Timer Per Soal
+                          {tx("perQuestionTimer")}
                         </Badge>
                       )}
                     </div>
@@ -296,7 +295,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                     <div className="flex items-center gap-2.5">
                       <Award className="size-4 text-brand-secondary/85 shrink-0" />
                       <span>
-                        Batas Percobaan: {template.maxAttempts ? `${template.maxAttempts}x` : "Bebas"}
+                        {tx("attemptLimit")}: {template.maxAttempts ? `${template.maxAttempts}x` : tx("unlimited")}
                       </span>
                     </div>
                   </div>
@@ -318,7 +317,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                   <div className="mt-3 pt-3 border-t border-border/40 space-y-2 text-body-sm">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-body-xs font-bold text-muted-foreground uppercase tracking-wider">
-                        Akses Kuis:
+                        {tx("quizAccess")}:
                       </span>
                       <span
                         className={cn(
@@ -331,10 +330,10 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                         )}
                       >
                         {template.manualStatus === "open"
-                          ? "Buka Manual"
+                          ? tx("access.open")
                           : template.manualStatus === "closed"
-                          ? "Tutup Manual"
-                          : "Ikuti Jadwal"}
+                          ? tx("access.closed")
+                          : tx("access.scheduled")}
                       </span>
                     </div>
 
@@ -342,9 +341,9 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                       <div className="text-body-xs text-muted-foreground bg-muted/30 p-2 rounded-md border border-border/40 space-y-1">
                         {template.openAt && (
                           <div className="flex justify-between">
-                            <span>Buka:</span>
+                            <span>{tx("opensAt")}</span>
                             <span className="font-semibold text-foreground">
-                              {new Date(template.openAt).toLocaleString("id-ID", {
+                              {new Date(template.openAt).toLocaleString(locale, {
                                 dateStyle: "short",
                                 timeStyle: "short",
                               })}
@@ -353,9 +352,9 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                         )}
                         {template.closeAt && (
                           <div className="flex justify-between">
-                            <span>Tutup:</span>
+                            <span>{tx("closesAt")}</span>
                             <span className="font-semibold text-foreground">
-                              {new Date(template.closeAt).toLocaleString("id-ID", {
+                              {new Date(template.closeAt).toLocaleString(locale, {
                                 dateStyle: "short",
                                 timeStyle: "short",
                               })}
@@ -365,48 +364,51 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                       </div>
                     )}
 
-                    <div className="grid grid-cols-3 gap-1 pt-1">
+                    <div className="flex flex-wrap gap-2 pt-1">
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         className={cn(
-                          "text-[10px] h-7 px-1 rounded-md cursor-pointer",
+                          "text-body-sm rounded-md cursor-pointer",
                           template.manualStatus === "open"
-                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold border-emerald-500/30"
+                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
                             : "text-muted-foreground hover:bg-muted"
                         )}
+                        aria-pressed={template.manualStatus === "open"}
                         onClick={() => handleUpdateManualStatus(template.id, "open")}
                       >
-                        Buka
+                        {tx("open")}
                       </Button>
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         className={cn(
-                          "text-[10px] h-7 px-1 rounded-md cursor-pointer",
+                          "text-body-sm rounded-md cursor-pointer",
                           template.manualStatus === "closed"
-                            ? "bg-destructive/15 text-destructive font-bold border-destructive/30"
+                            ? "bg-destructive/15 text-destructive border-destructive/30"
                             : "text-muted-foreground hover:bg-muted"
                         )}
+                        aria-pressed={template.manualStatus === "closed"}
                         onClick={() => handleUpdateManualStatus(template.id, "closed")}
                       >
-                        Tutup
+                        {tx("close")}
                       </Button>
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         className={cn(
-                          "text-[10px] h-7 px-1 rounded-md cursor-pointer",
+                          "text-body-sm rounded-md cursor-pointer",
                           template.manualStatus === "scheduled"
-                            ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 font-bold border-blue-500/30"
+                            ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30"
                             : "text-muted-foreground hover:bg-muted"
                         )}
+                        aria-pressed={template.manualStatus === "scheduled"}
                         onClick={() => handleUpdateManualStatus(template.id, "scheduled")}
                       >
-                        Jadwal
+                        {tx("schedule")}
                       </Button>
                     </div>
 
@@ -415,11 +417,11 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                         htmlFor={`quiz-discussion-${template.id}`}
                         className="text-body-xs font-bold text-muted-foreground uppercase tracking-wider cursor-pointer"
                       >
-                        Pembahasan:
+                        {tx("discussion")}
                       </Label>
                       <div className="flex items-center gap-2">
                         <span className="text-body-xs font-medium text-foreground">
-                          {template.showDiscussion ? "Buka" : "Kunci"}
+                          {template.showDiscussion ? tx("open") : tx("locked")}
                         </span>
                         <Switch
                           id={`quiz-discussion-${template.id}`}
@@ -434,7 +436,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                 <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-3.5">
                   <span className="text-body-xs text-muted-foreground/80 flex items-center gap-1.5 font-medium">
                     <Calendar className="size-3.5" />
-                    {new Date(template.createdAt).toLocaleDateString("id-ID", { dateStyle: "medium" })}
+                    {new Date(template.createdAt).toLocaleDateString(locale, { dateStyle: "medium" })}
                   </span>
 
                   <div className="flex gap-1.5">
@@ -446,7 +448,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                       onClick={() => handleOpenPreviewTpl(template)}
                     >
                       <Eye className="size-3.5" />
-                      Preview
+                      {tx("preview")}
                     </Button>
                     <Button
                       asChild
@@ -456,7 +458,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                     >
                       <Link href={`/admin/quizzes/${template.id}/edit`}>
                         <Edit className="size-3.5" />
-                        Edit
+                        {tx("edit")}
                       </Link>
                     </Button>
                     <Button
@@ -465,7 +467,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                       size="icon-sm"
                       className="rounded-lg shrink-0 cursor-pointer shadow-xs transition-colors h-8 w-8 p-0"
                       onClick={() => handleDeleteStart(template)}
-                      title="Hapus Kuis"
+                      title={tx("deleteQuiz")}
                     >
                       <Trash2 className="size-3.5" />
                     </Button>
@@ -484,9 +486,9 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
           setDeleteOpen(open);
           if (!open) setDeletingTemplate(null);
         }}
-        title="Hapus Kuis"
-        description={`Tindakan ini akan menghapus kuis "${deletingTemplate?.title}" secara permanen dari database. Siswa tidak akan dapat mengakses kuis ini lagi.`}
-        confirmLabel="Ya, Hapus Permanen"
+        title={tx("deleteQuiz")}
+        description={tx("deleteDescription", { title: deletingTemplate?.title ?? "" })}
+        confirmLabel={tx("confirmDelete")}
         loading={isDeleting}
         onConfirm={handleDeleteConfirm}
       />
@@ -494,43 +496,43 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
       {/* PREVIEW QUIZ DIALOG */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
-          <DialogHeader className="p-6 pb-4 border-b border-border shrink-0">
+          <DialogHeader className="p-4 border-b border-border shrink-0">
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
-              Pratinjau Kuis: {previewTpl?.title}
+              {tx("previewTitle", { title: previewTpl?.title ?? "" })}
             </DialogTitle>
             <DialogDescription className="text-left text-body-xs text-muted-foreground flex gap-3 flex-wrap items-center mt-1">
               <span className="bg-muted px-2 py-0.5 rounded-md border border-border">
-                Kategori: {previewTpl?.category}
+                {tx("categoryLabel")}: {previewTpl?.category ? tx(`category.${previewTpl.category}`) : ""}
               </span>
               <span className="bg-muted px-2 py-0.5 rounded-md border border-border">
-                Batas Waktu: {previewTpl?.timeLimitSeconds ? `${previewTpl.timeLimitSeconds / 60} menit` : "Bebas"}
+                {tx("timeLimit")}: {previewTpl?.timeLimitSeconds ? tx("minutes", { count: previewTpl.timeLimitSeconds / 60 }) : tx("unlimited")}
               </span>
               <span className="bg-muted px-2 py-0.5 rounded-md border border-border">
-                Percobaan: {previewTpl?.maxAttempts ? `${previewTpl.maxAttempts}x` : "Bebas"}
+                {tx("attemptLimit")}: {previewTpl?.maxAttempts ? `${previewTpl.maxAttempts}x` : tx("unlimited")}
               </span>
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 text-left">
+          <div className="flex-1 overflow-y-auto p-4 text-left">
             {loadingPreview ? (
               <div className="py-12 flex flex-col items-center justify-center gap-3">
                 <Loader2 className="size-8 animate-spin text-brand-primary" />
-                <p className="text-body-sm text-muted-foreground">Memilih dan meresolusi butir soal...</p>
+                <p className="text-body-sm text-muted-foreground">{tx("resolvingQuestions")}</p>
               </div>
             ) : previewQuestions.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground text-body-sm">
-                Tidak ada soal yang tersedia untuk aturan seleksi kuis ini.
+                {tx("noPreviewQuestions")}
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="divide-y divide-border">
                 {previewQuestions.map((q, idx) => (
-                  <div key={q.id} className="p-5 rounded-xl border border-border bg-card space-y-4">
+                  <div key={q.id} className="py-4 first:pt-0 space-y-3">
                     <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
-                      <span className="text-body-sm font-bold text-foreground">Soal {idx + 1}</span>
+                      <span className="text-body-sm font-bold text-foreground">{tx("questionNumber", { number: idx + 1 })}</span>
                       <div className="flex items-center gap-2">
                         <DifficultyBadge difficulty={q.difficulty} />
                         <span className="capitalize text-[10px] bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
-                          {q.questionType === "multiple_choice" ? "Single Choice" : "Multi Choice"}
+                          {q.questionType === "multiple_choice" ? tx("singleChoice") : tx("multipleChoice")}
                         </span>
                       </div>
                     </div>
@@ -548,21 +550,21 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                             className={cn(
                               "flex items-center gap-3 p-3 rounded-lg border text-body-sm transition-colors",
                               isCorrect
-                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-medium"
+                                ? "bg-status-success/10 border-status-success/30 text-foreground font-medium"
                                 : "bg-background/50 border-border text-foreground/80"
                             )}
                           >
                             <AdminOptionLetter index={optIdx} isCorrect={isCorrect} />
                             <MathText className="leading-normal" as="span">{opt}</MathText>
-                            {isCorrect && <Check className="size-4 text-emerald-600 dark:text-emerald-400 ml-auto shrink-0" />}
+                            {isCorrect && <Check className="size-4 text-status-success ml-auto shrink-0" />}
                           </div>
                         );
                       })}
                     </div>
 
                     {q.explanation && (
-                      <div className="bg-brand-primary/5 border border-brand-primary/10 rounded-lg p-3.5 space-y-1.5 text-body-sm">
-                        <span className="font-bold text-brand-primary block text-body-xs uppercase tracking-wider">
+                      <div className="border-t border-border pt-3 space-y-1.5 text-body-sm">
+                        <span className="font-semibold text-foreground block text-body-sm">
                           Pembahasan Jawaban:
                         </span>
                         <MathText className="text-muted-foreground leading-relaxed whitespace-pre-wrap" as="p">
@@ -577,7 +579,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
           </div>
 
           <DialogFooter className="p-4 border-t border-border bg-muted/10 shrink-0">
-            <Button onClick={() => setIsPreviewOpen(false)} className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90">
+            <Button onClick={() => setIsPreviewOpen(false)} className="rounded-md bg-brand-primary text-primary-foreground hover:bg-brand-primary/90">
               Tutup
             </Button>
           </DialogFooter>

@@ -3,7 +3,9 @@ import { asc } from "drizzle-orm";
 import { CalendarDays, CalendarRange, CheckCircle2, Video } from "lucide-react";
 import { db } from "@/db";
 import { pkaSchedules } from "@/db/schema";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { createMetadata } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
+import { TranslatedText } from "@/components/i18n/translated-text";
 import { PKA_TOTAL_SESSIONS } from "@/lib/pka-config";
 import { requirePkaSession } from "@/lib/pka-enrollment";
 import { CoursePageShell } from "@/components/course/course-page-shell";
@@ -11,11 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
 import { FormattedDate } from "@/components/ui/formatted-date";
 
-export const metadata: Metadata = createMetadata({
-  title: "Jadwal Tutorial PKA",
-  description: "Jadwal sesi tutorial live PKA lengkap dengan link Google Meet.",
-  path: "/courses/tutorial-pka/jadwal",
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("studentExtras.pka");
+  return createMetadata({ title: t("scheduleTitle"), description: t("scheduleDescription"), path: "/courses/tutorial-pka/jadwal" });
+}
 
 
 export default async function PkaJadwalPage() {
@@ -26,21 +27,20 @@ export default async function PkaJadwalPage() {
 
   return (
     <CoursePageShell
-      title="Jadwal Live Tutorial"
-      description={`Tutorial live via Google Meet diadakan ${PKA_TOTAL_SESSIONS} kali sebelum pretest PKA berlangsung.`}
+      title={<TranslatedText namespace="studentExtras.pka" messageKey="schedulePageTitle" />}
+      description={<TranslatedText namespace="studentExtras.pka" messageKey="schedulePageDescription" values={{ count: PKA_TOTAL_SESSIONS }} />}
       icon={CalendarRange}
     >
       <div className="space-y-8">
         <Reveal>
           <section className="space-y-3">
           <div className="border-b border-border pb-2">
-            <h2 className="font-heading text-body-base font-bold text-foreground">Sesi tutorial</h2>
+            <h2 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="tutorialSessions" /></h2>
           </div>
 
           {schedules.length === 0 ? (
             <p className="py-4 text-body-sm text-muted-foreground">
-              Belum ada sesi yang dijadwalkan. Jadwal dan link Google Meet akan muncul di sini dan dikirim ke
-              email kamu setiap kali sesi diumumkan.
+              <TranslatedText namespace="studentExtras.pka" messageKey="noSessions" />
             </p>
           ) : (
             <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
@@ -53,7 +53,7 @@ export default async function PkaJadwalPage() {
                         {idx + 1}
                       </span>
                       <div className="min-w-0">
-                        <span className="block truncate text-body-base font-semibold text-foreground">{a.title}</span>
+                        <span className="block break-words text-body-base font-semibold text-foreground">{a.title}</span>
                         <span className="mt-0.5 flex items-center gap-1.5 text-body-sm text-muted-foreground">
                           <CalendarDays className="size-3.5" />
                           <FormattedDate date={a.sessionAt} options={{ dateStyle: "full", timeStyle: "short" }} />
@@ -63,7 +63,7 @@ export default async function PkaJadwalPage() {
                     {isPast ? (
                       <span className="flex shrink-0 items-center gap-1 text-body-sm text-muted-foreground">
                         <CheckCircle2 className="size-4" />
-                        Selesai
+                        <TranslatedText namespace="studentExtras.pka" messageKey="sessionCompleted" />
                       </span>
                     ) : (
                       a.meetLink ? (
@@ -72,15 +72,15 @@ export default async function PkaJadwalPage() {
                           href={a.meetLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex shrink-0 items-center gap-1.5 rounded-md bg-brand-primary px-3 py-1.5 text-body-sm font-semibold text-white transition-colors duration-150 hover:bg-brand-primary/90"
+                          className="flex shrink-0 items-center gap-1.5 rounded-md bg-brand-primary px-3 py-1.5 text-body-sm font-semibold text-primary-foreground transition-colors duration-150 hover:bg-brand-primary/90"
                         >
                           <Video className="size-4" />
-                          Gabung Meet
+                          <TranslatedText namespace="studentExtras.pka" messageKey="joinMeet" />
                         </a>
                         </Button>
                       ) : (
                         <span className="flex shrink-0 items-center gap-1.5 rounded-md bg-muted px-3 py-1.5 text-body-sm font-semibold text-muted-foreground">
-                          Link belum tersedia
+                          <TranslatedText namespace="studentExtras.pka" messageKey="calendarLinkMissing" />
                         </span>
                       )
                     )}

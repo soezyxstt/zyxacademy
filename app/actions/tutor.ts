@@ -1,15 +1,20 @@
 "use server";
 
+import { finalizeTutorFollowups } from "@/lib/zyra/followup-safety";
+
+import { resolveCodingTutorContext, CODING_TUTOR_INSTRUCTIONS } from "@/lib/coding/tutor-context-server";
+import { getConversationMemory } from "@/lib/zyra/conversation-memory";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { TutorActionService } from "@/lib/tutor-actions";
 import { db } from "@/db";
-import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, studentQuizAttempts, quizTemplates, zyraMessageAttachments, bab, chapters, mataKuliah, courseMaterials, diktatMateri } from "@/db/schema";
-import { eq, and, asc, desc, gt, inArray, isNull, or, sql } from "drizzle-orm";
-import { randomUUID } from "node:crypto";
+import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, studentQuizAttempts, quizTemplates, zyraMessageAttachments, bab, chapters, mataKuliah, courseMaterials } from "@/db/schema";
+import { eq, and, asc, desc, gt, inArray, isNull, or } from "drizzle-orm";
+import { createHash, randomUUID } from "node:crypto";
 import { exams } from "@/lib/student-course-fixtures";
 import { askTutorRag, type TutorPageContext } from "@/lib/tutor-rag";
 import { getOrCreateChatSession } from "@/lib/zyra/zyra-context-builder";
+import { getRecentSessions } from "@/lib/zyra/analytics-queries";
 import { isFreeChapterScoped } from "@/lib/course-utils";
 import { resolveCourseAccess, type CourseAccessResult } from "@/lib/student/course-access";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
@@ -424,6 +429,8 @@ export async function askTutorRagAction(
     chapterTitle?: string;
     intent?: string;
   } | null,
+  codingRequest?: unknown,
+  responseLanguage?: "id" | "en",
 ) {
   const { user, access } = await requireCourseAccess(courseId);
   const normalizedQuestion = typeof question === "string" ? question.trim() : "";
@@ -717,28 +724,56 @@ export async function askTutorRagAction(
       : `Jelaskan kutipan materi: "${selectionContext.snippet}"`;
   }
 
+  let codingHintOnly = false;
+  let codingPedagogyAction: "hint_request" | "follow_up" | undefined;
+  if (codingRequest) {
+    if ((codingRequest as { kind?: unknown }).kind === "exercise" && access.tier !== "enrolled" && access.tier !== "staff") throw new Error("NOT_ENROLLED");
+    if (!access.canonicalCourseId) throw new Error("COURSE_SCOPE_REQUIRED");
+    const coding = await resolveCodingTutorContext({ courseId: access.canonicalCourseId, userId: user.id, request: codingRequest });
+    codingHintOnly = coding.assistance === "hints";
+    codingPedagogyAction = codingHintOnly || (codingRequest as { intent?: unknown }).intent === "hint"
+      ? "hint_request" : "follow_up";
+    if (codingHintOnly && coding.protectedSolution) protectedAnswers = { ...protectedAnswers, explanationText: [protectedAnswers?.explanationText, coding.protectedSolution].filter(Boolean).join("\n") };
+    const memory = await getConversationMemory({ studentId: user.id, courseId, sessionId: sid, limit: 4 });
+    const recentConversation = memory.recentMessages
+      .filter((message) => !codingHintOnly || message.role === "student")
+      .map((message) => ({ role: message.role, content: message.content.slice(0, 600) }));
+    const generate = (codingRequest as { kind?: unknown; intent?: unknown }).kind === "playground" && (codingRequest as { intent?: unknown }).intent === "generate" && !hasActiveAttempt;
+    pageContext = { id: `coding:${generate ? "generate:" : ""}${user.id}:${sid}`, label: "Python", href: pagePath ?? `/courses/${courseId}/playground`, content: `${CODING_TUTOR_INSTRUCTIONS}\n\n${JSON.stringify({ recentConversation, ...coding.context })}` };
+  }
+
   const result = await askTutorRag({
     studentId: user.id,
     courseId,
     chapterId: resolvedChapterId,
     question: effectiveQuestion,
+    responseLanguage: responseLanguage === "en" || responseLanguage === "id" ? responseLanguage : undefined,
     sessionId: sid,
     accessTier: access?.tier === "free" ? "free" : "standard",
     freeChapterIds: access?.freeChapterIds,
     idempotencyKey,
-    attemptState: hasActiveAttempt ? "in_progress" : "none",
-    activityKind: hasActiveAttempt ? "quiz" : "study",
+    attemptState: hasActiveAttempt || codingHintOnly ? "in_progress" : "none",
+    activityKind: hasActiveAttempt || codingHintOnly ? "quiz" : "study",
+    matchState: codingHintOnly ? "strong" : undefined,
+    answerReleaseState: codingHintOnly ? "hidden" : undefined,
     protectedAnswers,
     imageParts,
     pageContext,
+    pedagogyAction: codingPedagogyAction,
   });
 
+  const finalizedAnswer = finalizeTutorFollowups(result.answer, {
+    sources: result.sources,
+    activeAssessment: hasActiveAttempt || codingHintOnly,
+    protectedAnswers,
+  });
   if (requestedAttachmentIds.length > 0 && result.answer) {
     await markZyraAttachmentsDispatched(requestedAttachmentIds, user.id);
   }
 
   return {
     ...result,
+    ...finalizedAnswer,
     sessionId: sid,
     processingTimeMs: Date.now() - startTime,
   };
@@ -749,7 +784,8 @@ const CHAT_HISTORY_LIMIT = 100;
 export async function saveTutorMessagesAction(
   courseId: string,
   messages: Array<{ role: "student" | "ai"; content: string; sources?: unknown; canvasSpec?: unknown; attachmentIds?: readonly string[] }>,
-  sessionId?: string | null
+  sessionId?: string | null,
+  requestId?: string
 ) {
   const { user, access } = await requireCourseAccess(courseId);
 
@@ -767,13 +803,15 @@ export async function saveTutorMessagesAction(
 
   const sid = await requireOwnedChatSession(user.id, courseId, providedSessionId, "General Chat");
 
-  const preparedRows = messages.map((m) => {
+  const preparedRows = messages.map((m, index) => {
     const rawSources = Array.isArray(m.sources) ? m.sources : [];
     const content = m.role === "ai"
       ? sanitizeAnswer(m.content ?? "", rawSources as any)
       : (m.content ?? "");
     return {
-      id: randomUUID(),
+      id: requestId && /^[A-Za-z0-9._:-]{1,128}$/.test(requestId)
+        ? createHash("sha256").update(JSON.stringify([user.id, courseId, requestId, index])).digest("hex")
+        : randomUUID(),
       studentId: user.id,
       courseId,
       sessionId: sid,
@@ -792,7 +830,25 @@ export async function saveTutorMessagesAction(
   for (const row of preparedRows) assertZyraImageCount(row.attachmentIds.length);
 
   await db.transaction(async (tx) => {
-    await tx.insert(tutorChatMessages).values(preparedRows.map(({ attachmentIds: _attachmentIds, ...row }) => row));
+    if (requestId) {
+      const existing = await tx.select().from(tutorChatMessages)
+        .where(inArray(tutorChatMessages.id, preparedRows.map((row) => row.id)));
+      if (existing.length > 0) {
+        if (existing.length !== preparedRows.length || preparedRows.some((row) => {
+          const saved = existing.find((message) => message.id === row.id);
+          return !saved || saved.sessionId !== row.sessionId || saved.role !== row.role || saved.content !== row.content
+            || JSON.stringify(saved.sources) !== JSON.stringify(row.sources);
+        })) throw new Error("ZYRA_HISTORY_REPLAY_CONFLICT");
+        const linked = await tx.select({ id: zyraMessageAttachments.id, messageId: zyraMessageAttachments.messageId })
+          .from(zyraMessageAttachments).where(inArray(zyraMessageAttachments.messageId, preparedRows.map((row) => row.id)));
+        const expected = preparedRows.flatMap((row) => row.attachmentIds.map((id) => ({ id, messageId: row.id })));
+        if (linked.length !== expected.length || expected.some((image) => !linked.some((saved) => saved.id === image.id && saved.messageId === image.messageId))) {
+          throw new Error("ZYRA_HISTORY_REPLAY_CONFLICT");
+        }
+        return;
+      }
+    }
+    await tx.insert(tutorChatMessages).values(preparedRows.map(({ attachmentIds: _attachmentIds, ...row }) => row)).onConflictDoNothing();
     for (const row of preparedRows) {
       if (row.attachmentIds.length === 0) continue;
       for (const attachmentId of row.attachmentIds) {
@@ -954,24 +1010,7 @@ export async function clearTutorHistoryAction(
 
 export async function listTutorSessionsAction(courseId: string) {
   const { user } = await requireCourseAccess(courseId);
-  const rows = await db
-    .select({
-      id: chatSessions.id,
-      title: chatSessions.title,
-      startedAt: chatSessions.startedAt,
-      lastMessageAt: chatSessions.lastMessageAt,
-      messageCount: sql<number>`(
-        select count(*) from ${tutorChatMessages}
-        where ${tutorChatMessages.sessionId} = ${chatSessions.id}
-      )`,
-    })
-    .from(chatSessions)
-    .where(and(
-      eq(chatSessions.studentId, user.id),
-      eq(chatSessions.courseId, courseId),
-    ))
-    .orderBy(desc(chatSessions.lastMessageAt))
-    .limit(30);
+  const rows = await getRecentSessions(user.id, courseId, 30);
 
   return rows.map((r) => ({
     id: r.id,

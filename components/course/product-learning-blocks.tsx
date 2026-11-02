@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { MarkdownRenderer, type MarkdownDensity } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { useFormativeCheckEndpointBase } from "@/components/course/formative-check-endpoint-context";
 import type {
@@ -29,20 +29,26 @@ import { cn } from "@/lib/utils";
 
 export interface ProductWorkedExampleProps {
   title?: string | null;
-  content: string;
+  content?: string;
   contentNode?: React.ReactNode;
-  workedExample: PublicWorkedExamplePayload;
+  workedExample?: PublicWorkedExamplePayload;
+  example?: PublicWorkedExamplePayload;
   className?: string;
+  density?: MarkdownDensity;
 }
 
 /** Presents a worked example with a vertical timeline stepper in the course article. */
 export function ProductWorkedExample({
   title,
-  content,
-  workedExample,
+  content = "",
+  workedExample: workedExampleProp,
+  example,
   contentNode,
   className,
+  density = "default",
 }: ProductWorkedExampleProps) {
+  const workedExample = workedExampleProp ?? example;
+  if (!workedExample) return null;
   return (
     <section
       aria-label={title || "Contoh dan Pembahasan Bertahap"}
@@ -61,7 +67,7 @@ export function ProductWorkedExample({
       {/* Problem Prompt */}
       {contentNode || content ? (
         <div className="rounded-lg border border-border/60 bg-muted/20 p-3.5 text-body-base leading-relaxed text-foreground">
-          {contentNode ?? <MarkdownRenderer content={content} density="compact" />}
+          {contentNode ?? <MarkdownRenderer content={content} density={density} />}
         </div>
       ) : null}
 
@@ -80,12 +86,12 @@ export function ProductWorkedExample({
               </h4>
 
               <div className="text-body-sm leading-relaxed text-foreground">
-                <MarkdownRenderer content={step.explanation} density="compact" />
+                <MarkdownRenderer content={step.explanation} density={density} />
               </div>
 
               {step.reason ? (
                 <div className="text-body-sm leading-relaxed text-muted-foreground">
-                  <MarkdownRenderer content={step.reason} density="compact" />
+                  <MarkdownRenderer content={step.reason} density={density} />
                 </div>
               ) : null}
             </div>
@@ -101,7 +107,7 @@ export function ProductWorkedExample({
             <span className="mb-0.5 block text-body-xs font-semibold text-status-success">
               Kesimpulan dan Verifikasi
             </span>
-            <MarkdownRenderer content={workedExample.verification} density="compact" />
+            <MarkdownRenderer content={workedExample.verification} density={density} />
           </div>
         </div>
       ) : null}
@@ -110,6 +116,7 @@ export function ProductWorkedExample({
 }
 
 export interface ProductFormativeCheckProps {
+  density?: MarkdownDensity;
   title?: string | null;
   content: string;
   contentNode?: React.ReactNode;
@@ -154,6 +161,7 @@ const verdictClasses: Record<FormativeCheckResult["verdict"], string> = {
 };
 
 export function ProductFormativeCheck({
+  density = "default",
   title,
   content,
   formativeCheck,
@@ -304,7 +312,7 @@ export function ProductFormativeCheck({
       {/* Question prompt */}
       {contentNode || content ? (
         <div className="text-body-base leading-relaxed text-foreground">
-          {contentNode ?? <MarkdownRenderer content={content} density="compact" />}
+          {contentNode ?? <MarkdownRenderer content={content} />}
         </div>
       ) : null}
 
@@ -454,7 +462,7 @@ export function ProductFormativeCheck({
           </div>
           <div className="border-t border-border/60 pt-2.5">
             <span className="mb-1 block text-body-2xs font-bold uppercase tracking-wider text-muted-foreground">Penjelasan dan pembahasan</span>
-            <div className="text-body-sm leading-relaxed text-foreground"><MarkdownRenderer content={reveal.explanation} density="compact" /></div>
+            <div className="text-body-sm leading-relaxed text-foreground"><MarkdownRenderer content={reveal.explanation} /></div>
           </div>
         </div>
       ) : null}

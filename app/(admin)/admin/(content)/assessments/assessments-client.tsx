@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,8 @@ interface Props {
 }
 
 export function AssessmentsClient({ sources, courses, courseMap }: Props) {
+  const t = useTranslations("adminEval.assessments");
+  const locale = useLocale();
   const router = useRouter();
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -87,16 +90,15 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
         method: "DELETE",
       });
       if (res.ok) {
-        toast.success("Dokumen asesmen berhasil dihapus.");
+        toast.success(t("deleteSucceeded"));
         setIsDeleteDialogOpen(false);
         setDeletingId(null);
         router.refresh();
       } else {
-        const err = await res.json();
-        toast.error("Gagal menghapus: " + (err.error ?? "Unknown error"));
+        toast.error(t("deleteFailed"));
       }
     } catch {
-      toast.error("Terjadi kesalahan jaringan.");
+      toast.error(t("networkError"));
     } finally {
       setIsDeleting(false);
     }
@@ -152,11 +154,11 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
       const data = await uploadAdminPdfFile(file, { courseId: form.courseId });
       setForm((prev) => ({ ...prev, pdfKey: data.key }));
       setPdfUploadState("done");
-      toast.success("PDF berhasil diunggah.");
+      toast.success(t("pdfUploaded"));
     } catch (error: any) {
       console.error(error);
       setPdfUploadState("error");
-      toast.error(error?.message || "Gagal mengunggah PDF.");
+      toast.error(t("pdfUploadFailed"));
     }
   };
 
@@ -164,7 +166,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
   const handleIngestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.courseId || !form.title || !form.rawText) {
-      toast.error("Silakan isi semua field wajib (Mata kuliah, Judul, Konten Markdown).");
+      toast.error(t("requiredFields"));
       return;
     }
 
@@ -187,13 +189,13 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
         }),
       });
 
-      const data = await res.json();
+      await res.json();
       if (!res.ok) {
-        toast.error("Gagal menyimpan dokumen asesmen: " + (data.error || "Error tidak diketahui"));
+        toast.error(t("saveFailed"));
         return;
       }
 
-      toast.success("Dokumen Asesmen berhasil diunggah. Klasifikasi soal berjalan di latar belakang.");
+      toast.success(t("uploadSucceeded"));
       setShowUploadModal(false);
       // Reset form
       setForm({ courseId: "", title: "", rawText: "", pdfKey: "" });
@@ -202,7 +204,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
       router.refresh();
     } catch (err) {
       console.error(err);
-      toast.error("Terjadi kesalahan jaringan.");
+      toast.error(t("networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -214,7 +216,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
       <div className="flex flex-wrap items-center gap-2">
         <SearchBar
           size="sm"
-          placeholder="Cari judul asesmen historis..."
+          placeholder={t("search")}
           value={searchQuery}
           onSearch={setSearchQuery}
           onClear={() => setSearchQuery("")}
@@ -223,10 +225,10 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
 
         <Select value={filterCourse} onValueChange={setFilterCourse}>
           <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-sm rounded-lg shrink-0">
-            <SelectValue placeholder="Semua Mata kuliah" />
+            <SelectValue placeholder={t("allCourses")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua Mata kuliah</SelectItem>
+            <SelectItem value="all">{t("allCourses")}</SelectItem>
             {courses.map((course) => (
               <SelectItem key={course.id} value={course.id}>
                 {course.title}
@@ -237,28 +239,28 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
 
         <Select value={filterCategory} onValueChange={setFilterCategory}>
           <SelectTrigger className="w-[110px] sm:w-[130px] h-9 text-body-sm rounded-lg shrink-0">
-            <SelectValue placeholder="Semua Kategori" />
+            <SelectValue placeholder={t("allCategories")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua Kategori</SelectItem>
-            <SelectItem value="uts">UTS</SelectItem>
-            <SelectItem value="uas">UAS</SelectItem>
-            <SelectItem value="quiz">Quiz</SelectItem>
-            <SelectItem value="tutorial">Tutorial</SelectItem>
-            <SelectItem value="tryout">Tryout</SelectItem>
+            <SelectItem value="all">{t("allCategories")}</SelectItem>
+            <SelectItem value="uts">{t("category.uts")}</SelectItem>
+            <SelectItem value="uas">{t("category.uas")}</SelectItem>
+            <SelectItem value="quiz">{t("category.quiz")}</SelectItem>
+            <SelectItem value="tutorial">{t("category.tutorial")}</SelectItem>
+            <SelectItem value="tryout">{t("category.tryout")}</SelectItem>
           </SelectContent>
         </Select>
 
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-[110px] sm:w-[130px] h-9 text-body-sm rounded-lg shrink-0">
-            <SelectValue placeholder="Semua Status" />
+            <SelectValue placeholder={t("allStatuses")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="processing">Processing</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="failed">Failed</SelectItem>
+            <SelectItem value="all">{t("allStatuses")}</SelectItem>
+            <SelectItem value="pending">{t("status.pending")}</SelectItem>
+            <SelectItem value="processing">{t("status.processing")}</SelectItem>
+            <SelectItem value="completed">{t("status.completed")}</SelectItem>
+            <SelectItem value="failed">{t("status.failed")}</SelectItem>
           </SelectContent>
         </Select>
 
@@ -271,13 +273,13 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
                   variant="ghost"
                   size="sm"
                   onClick={resetFilters}
-                  aria-label="Reset filter"
+                  aria-label={t("reset")}
                   className="size-9 p-0 rounded-lg shrink-0 text-muted-foreground hover:text-foreground"
                 >
                   <RotateCcw className="size-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Reset filter</TooltipContent>
+              <TooltipContent>{t("reset")}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         )}
@@ -288,13 +290,13 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
               <Button
                 onClick={() => setShowUploadModal(true)}
                 size="sm"
-                aria-label="Upload Asesmen"
-                className="size-9 p-0 rounded-lg shrink-0 bg-brand-primary text-white hover:bg-brand-primary/95 shadow-2xs"
+                aria-label={t("uploadAssessment")}
+                className="size-9 p-0 rounded-lg shrink-0 bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 shadow-2xs"
               >
                 <Plus className="size-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Upload Asesmen</TooltipContent>
+            <TooltipContent>{t("uploadAssessment")}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
@@ -305,14 +307,14 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
         <table className="w-full text-left border-collapse">
           <AdminTableHead>
             <tr>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Judul ujian</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Mata kuliah</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Kategori</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Tahun / Sem</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Status ingest</th>
-              <th className="px-4 py-3 font-medium text-muted-foreground text-body-sm text-center">Soal</th>
-              <th className="px-4 py-3 font-medium text-muted-foreground text-body-sm text-center">Bab</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Tanggal</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">{t("examTitle")}</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">{t("course")}</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">{t("categoryLabel")}</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">{t("yearSemester")}</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">{t("ingestionStatus")}</th>
+              <th className="px-4 py-3 font-medium text-muted-foreground text-body-sm text-center">{t("questions")}</th>
+              <th className="px-4 py-3 font-medium text-muted-foreground text-body-sm text-center">{t("chapters")}</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">{t("date")}</th>
               <th className="px-4 py-3 w-10"></th>
             </tr>
           </AdminTableHead>
@@ -320,7 +322,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
             {filteredSources.length === 0 ? (
               <tr>
                 <td colSpan={9} className="h-32 text-center text-body-sm text-muted-foreground px-4 py-3">
-                  Tidak ada asesmen yang cocok.
+                  {t("empty")}
                 </td>
               </tr>
             ) : (
@@ -336,40 +338,40 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
                     </Link>
                   </td>
                   <td className="text-body-sm text-muted-foreground px-4 py-3 align-middle">
-                    {courseMap[source.courseId] || "Mata kuliah Tidak Diketahui"}
+                    {courseMap[source.courseId] || t("unknownCourse")}
                   </td>
                   <td className="text-body-sm px-4 py-3 align-middle">
                     <Badge variant="outline" className="uppercase text-[10px] font-semibold tracking-wider">
-                      {source.category}
+                      {t(`category.${source.category}`)}
                     </Badge>
                   </td>
                   <td className="text-body-sm text-muted-foreground px-4 py-3 align-middle">
-                    {source.year} {source.semester ? `· Sem ${source.semester}` : ""}
+                    {source.year} {source.semester ? t("semester", { number: source.semester }) : ""}
                   </td>
                   <td className="px-4 py-3 align-middle">
                     <div className="flex items-center gap-2">
                       {source.ingestionStatus === "completed" && (
                         <Badge className="bg-status-success/10 text-status-success hover:bg-status-success/20 flex items-center gap-1 border-0">
                           <CheckCircle2 size={12} />
-                          Completed
+                          {t("status.completed")}
                         </Badge>
                       )}
                       {source.ingestionStatus === "processing" && (
                         <Badge className="bg-status-warning/10 text-status-warning hover:bg-status-warning/20 flex items-center gap-1 border-0">
                           <Clock className="animate-spin" size={12} />
-                          Processing
+                          {t("status.processing")}
                         </Badge>
                       )}
                       {source.ingestionStatus === "pending" && (
                         <Badge className="bg-muted text-muted-foreground flex items-center gap-1 border-0">
                           <Clock size={12} />
-                          Pending
+                          {t("status.pending")}
                         </Badge>
                       )}
                       {source.ingestionStatus === "failed" && (
                         <Badge className="bg-status-error/10 text-status-error hover:bg-status-error/20 flex items-center gap-1 border-0">
                           <XCircle size={12} />
-                          Failed
+                          {t("status.failed")}
                         </Badge>
                       )}
                     </div>
@@ -381,7 +383,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
                     {source.chapterCount}
                   </td>
                   <td className="text-body-sm text-muted-foreground px-4 py-3 align-middle">
-                    {new Date(source.createdAt).toLocaleDateString("id-ID", {
+                    {new Date(source.createdAt).toLocaleDateString(locale, {
                       day: "2-digit",
                       month: "short",
                       year: "numeric",
@@ -417,22 +419,22 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
       <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-base">Unggah Asesmen Historis</DialogTitle>
+            <DialogTitle className="font-heading text-body-base">{t("uploadTitle")}</DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground">
-              Unggah berkas asesmen canonical markdown. Konsep dan metadata soal akan diekstrak secara otomatis.
+              {t("uploadDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleIngestSubmit} className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-body-sm font-medium text-foreground">Mata kuliah Target *</label>
+                <label className="text-body-sm font-medium text-foreground">{t("targetCourse")}</label>
                 <Select
                   value={form.courseId}
                   onValueChange={(val) => setForm((prev) => ({ ...prev, courseId: val }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Pilih mata kuliah" />
+                    <SelectValue placeholder={t("selectCourse")} />
                   </SelectTrigger>
                   <SelectContent>
                     {courses.map((course) => (
@@ -445,10 +447,10 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
               </div>
 
               <div className="space-y-2">
-                <label className="text-body-sm font-medium text-foreground">Judul Dokumen *</label>
+                <label className="text-body-sm font-medium text-foreground">{t("documentTitle")}</label>
                 <Input
                   required
-                  placeholder="Contoh: UTS MA1101 Kalkulus I 2023"
+                  placeholder={t("documentTitlePlaceholder")}
                   value={form.title}
                   onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
                 />
@@ -457,7 +459,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
 
             <div className="space-y-2">
               <label className="text-body-sm font-medium text-foreground flex items-center justify-between">
-                <span>Original PDF File (Optional untuk Provenance)</span>
+                <span>{t("originalPdfOptional")}</span>
                 {pdfFileName && <span className="text-body-xs text-status-success">{pdfFileName}</span>}
               </label>
               <div className="flex gap-2 items-center">
@@ -474,7 +476,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
 
             <div className="space-y-2">
               <label className="text-body-sm font-medium text-foreground">
-                Canonical Markdown Content *
+                {t("markdownContent")}
               </label>
               <textarea
                 required
@@ -488,10 +490,10 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowUploadModal(false)}>
-                Batal
+                {t("cancel")}
               </Button>
               <Button type="submit" isLoading={submitting} disabled={pdfUploadState === "uploading"}>
-                Proses Ingest
+                {t("processIngestion")}
               </Button>
             </DialogFooter>
           </form>
@@ -504,9 +506,9 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
           setIsDeleteDialogOpen(open);
           if (!open) setDeletingId(null);
         }}
-        title="Hapus Dokumen Asesmen?"
-        description="Apakah Anda yakin ingin menghapus dokumen asesmen/bank soal ini? Tindakan ini akan menghapus dokumen secara permanen dan menyinkronkan profil asesmen kursus terkait."
-        confirmLabel="Hapus Permanen"
+        title={t("deleteTitle")}
+        description={t("deleteDescription")}
+        confirmLabel={t("confirmDelete")}
         loading={isDeleting}
         onConfirm={handleDelete}
       />

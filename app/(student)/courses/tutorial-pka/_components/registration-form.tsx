@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "@/lib/i18n/client";
 import Image from "next/image";
 import {
   AtSign,
@@ -30,6 +31,7 @@ export function PkaRegistrationForm({
   defaultName: string;
 }) {
   const router = useRouter();
+  const t = useTranslations("studentExtras.pka.registration");
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -47,11 +49,11 @@ export function PkaRegistrationForm({
       return;
     }
     if (!file.type.startsWith("image/")) {
-      toast.error("File harus berupa gambar.");
+      toast.error(t("fileImage"));
       return;
     }
     if (file.size > MAX_PROOF_BYTES) {
-      toast.error("Ukuran gambar maksimal 5 MB.");
+      toast.error(t("fileTooLarge"));
       return;
     }
     setProofFile(file);
@@ -66,11 +68,11 @@ export function PkaRegistrationForm({
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!fullName.trim()) return toast.error("Nama lengkap wajib diisi.");
-    if (!faculty.trim()) return toast.error("Fakultas wajib diisi.");
-    if (!googleEmail.trim()) return toast.error("Email wajib diisi.");
-    if (!instagram.trim()) return toast.error("Username Instagram wajib diisi.");
-    if (!proofFile) return toast.error("Unggah screenshot bukti follow terlebih dahulu.");
+    if (!fullName.trim()) return toast.error(t("fullNameRequired"));
+    if (!faculty.trim()) return toast.error(t("facultyRequired"));
+    if (!googleEmail.trim()) return toast.error(t("emailRequired"));
+    if (!instagram.trim()) return toast.error(t("instagramRequired"));
+    if (!proofFile) return toast.error(t("proofRequired"));
 
     const fd = new FormData();
     fd.set("fullName", fullName.trim());
@@ -81,10 +83,10 @@ export function PkaRegistrationForm({
     startTransition(async () => {
       const res = await registerPkaAction({}, fd);
       if (res.error) {
-        toast.error("Pendaftaran gagal", { description: res.error });
+        toast.error(t("failed"));
         return;
       }
-      toast.success("Pendaftaran berhasil. Selamat belajar!");
+      toast.success(t("success"));
       router.push("/courses/tutorial-pka");
       router.refresh();
     });
@@ -100,10 +102,10 @@ export function PkaRegistrationForm({
           </span>
           <div>
             <p className="text-body-base font-semibold text-foreground">
-              Follow @{IG_HANDLE} di Instagram
+              {t("followTitle", { handle: IG_HANDLE })}
             </p>
             <p className="text-body-sm text-muted-foreground">
-              Syarat gabung. Screenshot buktinya dan unggah di formulir ini.
+              {t("followDescription")}
             </p>
           </div>
         </div>
@@ -113,7 +115,7 @@ export function PkaRegistrationForm({
           rel="noopener noreferrer"
           className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-md border border-border bg-background px-3 py-2 text-body-sm font-semibold text-foreground transition-colors duration-150 hover:bg-muted sm:self-auto"
         >
-          Buka Instagram
+          {t("openInstagram")}
           <ExternalLink className="size-3.5" />
         </a>
       </section>
@@ -122,13 +124,13 @@ export function PkaRegistrationForm({
       <div className="space-y-4 rounded-xl border border-border bg-card p-4">
         <div className="space-y-1.5">
           <Label htmlFor="pka-fullname" className="text-body-sm font-medium text-foreground">
-            Nama lengkap
+            {t("fullName")}
           </Label>
           <Input
             id="pka-fullname"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            placeholder="Adi Haditya Nursyam"
+            placeholder={t("fullNamePlaceholder")}
             required
             className="rounded-md"
           />
@@ -136,7 +138,7 @@ export function PkaRegistrationForm({
 
         <div className="space-y-1.5">
           <Label htmlFor="pka-faculty" className="text-body-sm font-medium text-foreground">
-            Fakultas
+            {t("faculty")}
           </Label>
           <Input
             id="pka-faculty"
@@ -150,7 +152,7 @@ export function PkaRegistrationForm({
 
         <div className="space-y-1.5">
           <Label htmlFor="pka-email" className="text-body-sm font-medium text-foreground">
-            Email
+            {t("email")}
           </Label>
           <Input
             id="pka-email"
@@ -161,13 +163,13 @@ export function PkaRegistrationForm({
             className="rounded-md opacity-70"
           />
           <p className="pt-1 text-body-sm text-muted-foreground">
-            Email dikirim ke akun Google yang digunakan untuk masuk.
+            {t("emailHelp")}
           </p>
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="pka-instagram" className="text-body-sm font-medium text-foreground">
-            Username Instagram
+            {t("instagram")}
           </Label>
           <div className="flex items-center gap-0 rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring">
             <span className="pl-3 pr-1 text-body-base text-muted-foreground">@</span>
@@ -185,7 +187,7 @@ export function PkaRegistrationForm({
         {/* Proof uploader */}
         <div className="space-y-1.5">
           <Label className="text-body-sm font-medium text-foreground">
-            Screenshot bukti follow @{IG_HANDLE}
+            {t("proofLabel", { handle: IG_HANDLE })}
           </Label>
           <input
             ref={fileInputRef}
@@ -197,18 +199,18 @@ export function PkaRegistrationForm({
           {previewUrl ? (
             <div className="flex items-center gap-4 rounded-lg border border-border bg-muted/20 p-3">
               <div className="relative size-20 shrink-0 overflow-hidden rounded-md border border-border">
-                <Image src={previewUrl} alt="Pratinjau bukti follow" fill className="object-cover" unoptimized />
+                <Image src={previewUrl} alt={t("proofPreview")} fill className="object-cover" unoptimized />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1.5 text-body-sm font-medium text-status-success">
                   <CheckCircle2 className="size-4" />
-                  Gambar siap diunggah
+                  {t("proofReady")}
                 </p>
-                <p className="truncate text-body-sm text-muted-foreground">{proofFile?.name}</p>
+                <p className="break-all text-body-sm text-muted-foreground">{proofFile?.name}</p>
               </div>
               <Button type="button" variant="ghost" size="icon" className="size-8" onClick={clearFile}>
                 <X className="size-4" />
-                <span className="sr-only">Hapus gambar</span>
+                <span className="sr-only">{t("removeImage")}</span>
               </Button>
             </div>
           ) : (
@@ -220,10 +222,10 @@ export function PkaRegistrationForm({
               <span className="flex size-10 items-center justify-center rounded-lg bg-background text-muted-foreground">
                 <UploadCloud className="size-5" />
               </span>
-              <span className="text-body-sm font-medium text-foreground">Klik untuk mengunggah</span>
+              <span className="text-body-sm font-medium text-foreground">{t("uploadPrompt")}</span>
               <span className="flex items-center gap-1 text-body-sm text-muted-foreground">
                 <ImageIcon className="size-3.5" />
-                JPG, PNG, atau WEBP. Maksimal 5 MB.
+                {t("uploadHint")}
               </span>
             </button>
           )}
@@ -234,7 +236,7 @@ export function PkaRegistrationForm({
       <div className="flex items-center justify-end gap-3">
         <Button type="submit" isLoading={isPending} className="gap-2 rounded-lg">
           <ArrowRight className="size-4" />
-          Gabung sekarang
+          {t("submit")}
         </Button>
       </div>
     </form>

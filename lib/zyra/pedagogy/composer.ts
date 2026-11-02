@@ -7,6 +7,7 @@ import type {
 import type { TeachingPlan } from "./state-machine";
 import type { CanvasSpec } from "@/lib/zyra/canvas";
 import { parseCanvasSpec } from "@/lib/zyra/canvas";
+import { FOLLOWUPS_OPEN, FOLLOWUPS_CLOSE, parseFollowupAnswer } from "@/lib/zyra/followups";
 import { sanitizeAnswer } from "@/lib/tutor/answer-sanitizer";
 
 export interface LegacyTutorAnswer {
@@ -40,9 +41,13 @@ function checkForUnderstanding(context: PedagogyContext, plan: TeachingPlan) {
   if (!plan.requiresCheckpoint) return null;
   const shape = context.learnerResponseShape === "unknown" ? "free_text" : context.learnerResponseShape;
   return {
-    question: plan.state === "teach_back"
-      ? "Coba jelaskan kembali gagasan utamanya dengan kata-katamu sendiri."
-      : "Bagian mana yang paling membantu menjelaskan konsep ini? Jelaskan satu alasannya.",
+    question: context.responseLanguage === "en"
+      ? plan.state === "teach_back"
+        ? "Explain the main idea again in your own words."
+        : "Which part best explains this concept? Give one reason."
+      : plan.state === "teach_back"
+        ? "Coba jelaskan kembali gagasan utamanya dengan kata-katamu sendiri."
+        : "Bagian mana yang paling membantu menjelaskan konsep ini? Jelaskan satu alasannya.",
     expectedResponseShape: shape,
   } as const;
 }
@@ -66,9 +71,13 @@ export function composeSafeTeachingResponse(
   const generationFailed = reasonCode === "MODEL_OUTPUT_REJECTED";
   const teachingEvidence = evidence.filter((source) => !/Murid sedang membaca|PANDUAN KONTEKS|HARUS merujuk|Konteks halaman saat ini/i.test(source.content));
   if (generationFailed || teachingEvidence.length === 0 || context.evidenceSufficiency === "insufficient" || plan.state === "clarify") {
-    const clarification = generationFailed
-      ? "Penjelasannya belum berhasil dibuat. Coba lagi atau pilih bagian materi yang ingin kamu bahas."
-      : "Bahan ajar yang tersedia belum cukup untuk menjawab pertanyaan ini dengan pasti. Coba sebutkan bagian materi atau istilah yang ingin kamu bahas.";
+    const clarification = context.responseLanguage === "en"
+      ? generationFailed
+        ? "I couldn't prepare the explanation. Try again or choose a section of the material to discuss."
+        : "The available material isn't enough to answer this confidently. Name the section or term you'd like to discuss."
+      : generationFailed
+        ? "Penjelasannya belum berhasil dibuat. Coba lagi atau pilih bagian materi yang ingin kamu bahas."
+        : "Bahan ajar yang tersedia belum cukup untuk menjawab pertanyaan ini dengan pasti. Coba sebutkan bagian materi atau istilah yang ingin kamu bahas.";
     return {
       learningGoal: context.explicitTopic,
       observedFacts: [],
@@ -95,10 +104,12 @@ export function composeSafeTeachingResponse(
   const citations = teachingEvidence.slice(0, 3).map((source) => ({
     sourceId: source.id,
     sourceVersion: source.version,
-    claim: `Materi terkait ${source.title}`,
+    claim: context.responseLanguage === "en" ? `Related material: ${source.title}` : `Materi terkait ${source.title}`,
   }));
   const explanation = plan.state === "diagnose"
-    ? "Sebelum memilih penjelasan yang tepat, kita perlu membedakan bagian konsep yang masih membingungkan."
+    ? context.responseLanguage === "en"
+      ? "Before choosing an explanation, let's identify which part of the concept is unclear."
+      : "Sebelum memilih penjelasan yang tepat, kita perlu membedakan bagian konsep yang masih membingungkan."
     : evidenceText;
   const checkpoint = checkForUnderstanding(context, plan);
   const blocks: ZyraTeachingResponse["explanationBlocks"] = [
@@ -107,14 +118,20 @@ export function composeSafeTeachingResponse(
   if (checkpoint) blocks.push({ kind: "checkpoint" as const, text: checkpoint.question });
 
   const learnerText = plan.state === "diagnose"
-    ? `${explanation} Menurutmu, bagian mana yang paling sulit: definisinya, hubungan antarbesaran, atau langkah penerapannya?`
+    ? context.responseLanguage === "en"
+      ? `${explanation} Which part feels hardest: the definition, the relationship between quantities, or applying the steps?`
+      : `${explanation} Menurutmu, bagian mana yang paling sulit: definisinya, hubungan antarbesaran, atau langkah penerapannya?`
     : `${blocks.map((block) => block.text).join("\n\n")}`;
 
   return {
     learningGoal: context.explicitTopic,
-    observedFacts: [`Materi ${primary.title} tersedia untuk topik ini.`],
+    observedFacts: [context.responseLanguage === "en"
+      ? `Material titled ${primary.title} is available for this topic.`
+      : `Materi ${primary.title} tersedia untuk topik ini.`],
     diagnosisHypotheses: plan.state === "diagnose"
-      ? [{ hypothesis: "Penyebab kebingungan belum dapat dipastikan dari bukti yang tersedia.", evidenceSufficiency: "limited" }]
+      ? [{ hypothesis: context.responseLanguage === "en"
+        ? "The available evidence is not enough to determine the cause of the confusion."
+        : "Penyebab kebingungan belum dapat dipastikan dari bukti yang tersedia.", evidenceSufficiency: "limited" }]
       : [],
     selectedState: plan.state,
     teachingMove: plan.teachingMove,
@@ -147,8 +164,12 @@ export function teachingResponseToTutorAnswer(
       label: source.title,
       href: source.href,
     }));
+  const parsedAnswer = parseFollowupAnswer(response.learnerFacingText);
+  const suffix = parsedAnswer.followups.length
+    ? `\n${FOLLOWUPS_OPEN}${JSON.stringify(parsedAnswer.followups)}${FOLLOWUPS_CLOSE}`
+    : "";
   return {
-    answer: sanitizeAnswer(response.learnerFacingText, evidence),
+    answer: sanitizeAnswer(parsedAnswer.text, evidence) + suffix,
     sources,
     matchedConcepts: response.citations.map((citation) => citation.sourceId),
     confidence: sources.length > 0 ? 0.85 : 0,

@@ -1,8 +1,11 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface KeyModelDiagnostics {
   keyId: string;
@@ -34,14 +37,14 @@ interface KeyDiagnosticsData {
   totalRequestsToday: number;
 }
 
-function relativeTime(iso: string): string {
+function relativeTime(iso: string, t: ReturnType<typeof useTranslations<"adminOps">>): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const diffMin = Math.floor(diffMs / 60_000);
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin} min ago`;
+  if (diffMin < 1) return t("keysUI.relativeNow");
+  if (diffMin < 60) return t("keysUI.minutes", { count: diffMin });
   const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
-  return `${Math.floor(diffH / 24)}d ago`;
+  if (diffH < 24) return t("keysUI.hours", { count: diffH });
+  return t("keysUI.days", { count: Math.floor(diffH / 24) });
 }
 
 function circuitColor(state: string): string {
@@ -73,6 +76,7 @@ async function fetchData(): Promise<KeyDiagnosticsData> {
 }
 
 export function KeysClient() {
+  const t = useTranslations("adminOps");
   const { data, isLoading, isFetching, error, refetch } = useQuery<KeyDiagnosticsData>({
     queryKey: ["key-diagnostics"],
     queryFn: fetchData,
@@ -82,10 +86,9 @@ export function KeysClient() {
 
   if (isLoading) {
     return (
-      <div className="max-w-5xl space-y-6">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-6 rounded-md bg-muted animate-pulse w-full" />
-        ))}
+      <div role="status" aria-label="Memuat" className="max-w-5xl space-y-6">
+        <div className="flex justify-between gap-3"><Skeleton className="h-4 w-48" /><Skeleton className="h-9 w-24" /></div>
+        {[0, 1].map((group) => <div key={group} className="overflow-hidden rounded-xl border border-border bg-card"><div className="flex justify-between border-b border-border bg-muted/50 px-5 py-3"><Skeleton className="h-5 w-40" /><Skeleton className="h-4 w-24" /></div><div className="divide-y divide-border">{[0, 1, 2].map((row) => <div key={row} className="flex gap-4 px-5 py-3"><Skeleton className="h-4 flex-1" /><Skeleton className="h-4 w-16" /><Skeleton className="h-4 w-16" /><Skeleton className="hidden h-4 w-20 sm:block" /></div>)}</div></div>)}
       </div>
     );
   }
@@ -94,8 +97,8 @@ export function KeysClient() {
     return (
       <div className="max-w-5xl">
         <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-status-error">Failed to load diagnostics: {error.message}</p>
-          <Button variant="ghost" size="sm" onClick={() => refetch()} className="mt-2 text-body-sm text-brand-primary underline">Retry</Button>
+          <p className="text-status-error">{t("keysUI.failedLoad")}</p>
+          <Button variant="ghost" size="sm" onClick={() => refetch()} className="mt-2 text-body-sm text-brand-primary underline">{t("keysUI.retry")}</Button>
         </div>
       </div>
     );
@@ -117,7 +120,7 @@ export function KeysClient() {
     <div className="max-w-5xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-body-sm text-muted-foreground">
-          Checked {relativeTime(data.checkedAt)} · {data.totalRequestsToday} total requests today
+          {t("keysUI.checked", { time: relativeTime(data.checkedAt, t), count: data.totalRequestsToday })}
         </span>
         <Button variant="ghost" size="sm"
           onClick={() => refetch()}
@@ -125,35 +128,35 @@ export function KeysClient() {
           className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-body-sm text-foreground transition-colors hover:bg-muted disabled:opacity-50 cursor-pointer"
         >
           <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
-          Refresh
+          {t("keysUI.refresh")}
         </Button>
       </div>
 
       {keyHealth.map(({ keyId, healthy, totalToday, entries }) => (
         <div key={keyId} className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="flex items-center justify-between border-b border-border bg-muted/50 px-5 py-3">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/50 px-4 py-3">
+            <div className="flex flex-wrap items-center gap-3">
               <span className={`size-2.5 rounded-full ${healthy ? "bg-status-success" : "bg-status-error"}`} />
               <h2 className="font-heading text-body-base font-semibold text-foreground">{keyId}</h2>
               <span className={`text-body-sm ${healthy ? "text-status-success" : "text-status-error"}`}>
-                {healthy ? "healthy" : "degraded"}
+                {healthy ? t("keysUI.healthy") : t("keysUI.degraded")}
               </span>
             </div>
-            <span className="text-body-sm text-muted-foreground">{totalToday} requests today</span>
+            <span className="text-body-sm text-muted-foreground">{totalToday} {t("keysUI.requestsToday")}</span>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-body-sm">
               <thead>
                 <tr className="border-b border-border text-muted-foreground">
-                  <th className="px-5 py-2.5 font-medium">Model</th>
-                  <th className="px-3 py-2.5 font-medium">Today / RPD</th>
-                  <th className="px-3 py-2.5 font-medium">Util</th>
-                  <th className="px-3 py-2.5 font-medium">RPM</th>
-                  <th className="px-3 py-2.5 font-medium">Circuit</th>
-                  <th className="px-3 py-2.5 font-medium">S/F</th>
-                  <th className="px-3 py-2.5 font-medium">Cooldown</th>
-                  <th className="px-3 py-2.5 font-medium">Active</th>
+                  <th className="px-5 py-2.5 font-medium">{t("keysUI.model")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("keysUI.todayRpd")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("keysUI.util")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("keysUI.rpm")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("keysUI.circuit")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("keysUI.successFailure")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("keysUI.cooldown")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("keysUI.active")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -198,14 +201,14 @@ export function KeysClient() {
 
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="border-b border-border bg-muted/50 px-5 py-3">
-          <h2 className="font-heading text-body-base font-semibold text-foreground">RPD Limits</h2>
+          <h2 className="font-heading text-body-base font-semibold text-foreground">{t("keysUI.rpdLimits")}</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-body-sm">
             <thead>
               <tr className="border-b border-border text-muted-foreground">
-                <th className="px-5 py-2.5 font-medium">Model</th>
-                <th className="px-3 py-2.5 font-medium">RPD Limit</th>
+                <th className="px-5 py-2.5 font-medium">{t("keysUI.model")}</th>
+                <th className="px-3 py-2.5 font-medium">{t("keysUI.rpdLimit")}</th>
               </tr>
             </thead>
             <tbody>

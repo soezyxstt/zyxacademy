@@ -1,6 +1,5 @@
 import { drizzle } from "drizzle-orm/libsql/web";
 import { createClient as createWebClient } from "@libsql/client/web";
-import { createRequire } from "node:module";
 import * as schema from "@/db/schema";
 
 const url =
@@ -29,36 +28,10 @@ if (isRemoteTurso) {
   if (localUrl.startsWith("libsql://") || localUrl.startsWith("https://") || localUrl.startsWith("http://")) {
     client = createWebClient({ url: localUrl, authToken });
   } else {
-    // For local file: SQLite (e.g. dev.db), load node client via dynamic require so Turbopack does not trace native addons into production
-    const getNodeClient = () => {
-      try {
-        const nonWebpackReq = (globalThis as any).__non_webpack_require__;
-        if (typeof nonWebpackReq !== "undefined") {
-          return nonWebpackReq(["@", "libsql", "/", "client"].join("")).createClient;
-        }
-        let req;
-        try {
-          req = createRequire(import.meta.url);
-        } catch {
-          req = createRequire(process.cwd() + "/package.json");
-        }
-        return req(["@", "libsql", "/", "client"].join("")).createClient;
-      } catch {
-        try {
-          const req = createRequire(process.cwd() + "/package.json");
-          return req(["@", "libsql", "/", "client"].join("")).createClient;
-        } catch {
-          return createWebClient;
-        }
-      }
-    };
-
-    try {
-      const createNodeClient = getNodeClient();
-      client = createNodeClient({ url: localUrl });
-    } catch {
-      client = createWebClient({ url: "https://local-sqlite-placeholder.internal", authToken });
-    }
+    // Next externalizes @libsql/client, so native SQLite loads only on this path.
+    // Remote Turso continues to use the web client above.
+    const { createClient: createNodeClient } = require("@libsql/client") as typeof import("@libsql/client");
+    client = createNodeClient({ url: localUrl });
   }
 }
 

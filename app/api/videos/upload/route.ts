@@ -8,26 +8,10 @@ import {
 } from "@/lib/storage/keys";
 import { requireTutorCourseAccess } from "@/lib/auth/tutor-access";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
+import { ALLOWED_VIDEO_EXTENSIONS, ALLOWED_IMAGE_EXTENSIONS, ALLOWED_VIDEO_MIME_TYPES, ALLOWED_IMAGE_MIME_TYPES } from "@/lib/video/upload-policy";
 
 const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB
 const MAX_THUMBNAIL_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
-
-export const ALLOWED_VIDEO_EXTENSIONS = [".mp4", ".webm", ".mov", ".mkv", ".m4v"] as const;
-export const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"] as const;
-
-export const ALLOWED_VIDEO_MIME_TYPES = [
-  "video/mp4",
-  "video/webm",
-  "video/quicktime",
-  "video/x-matroska",
-  "video/x-m4v",
-] as const;
-
-export const ALLOWED_IMAGE_MIME_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-] as const;
 
 async function verifyVideoUploaderAccess(
   userId: string,
@@ -206,7 +190,7 @@ export async function POST(req: NextRequest) {
   const leaf = storageKey.split("/").pop() || file.name;
   const mime = matchedMime;
 
-  const { key, url } = await storage.upload(file, leaf, mime, {
+  const { key } = await storage.upload(file, leaf, mime, {
     key: storageKey,
     metadata: {
       uploadedBy: session.user.id,

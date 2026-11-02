@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -8,12 +10,10 @@ import {
   GraduationCap,
   BookOpen,
   UserCheck,
-  Search,
   RotateCcw,
   UserCog,
   ShieldAlert,
   Mail,
-  Calendar,
 } from "lucide-react";
 import {
   AdminStatStrip,
@@ -24,7 +24,6 @@ import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { SearchBar } from "@/components/ui/search-bar";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -43,6 +42,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useTranslations } from "@/lib/i18n/client";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import {
   type AdminUserItem,
@@ -76,11 +76,24 @@ const ROLE_OPTIONS: Array<{ code: PeranCode; label: string; description: string 
   },
 ];
 
+function UserAvatar({ name, image }: { name: string; image: string | null }) {
+  const [failedImage, setFailedImage] = useState<string | null>(null);
+  if (image && failedImage !== image) {
+    return <Image unoptimized loading="eager" width={32} height={32} src={image} alt="" onError={() => setFailedImage(image)} className="size-8 rounded-full object-cover shrink-0 border border-border" />;
+  }
+  return (
+    <div aria-hidden className="size-8 rounded-full bg-muted text-foreground font-bold text-body-xs flex items-center justify-center shrink-0 border border-border">
+      {name.charAt(0).toUpperCase() || "?"}
+    </div>
+  );
+}
+
 export function UsersDashboard({
   initialUsers,
   initialStats,
   currentUserId,
 }: UsersDashboardProps) {
+  const t = useTranslations("adminOps");
   const router = useRouter();
   const [users, setUsers] = useState<AdminUserItem[]>(initialUsers);
   const [stats, setStats] = useState<AdminUserStats>(initialStats);
@@ -134,19 +147,19 @@ export function UsersDashboard({
     if (!editingUser) return;
 
     if (selectedRoles.length === 0) {
-      toast.error("Pilih minimal satu peran.");
+      toast.error(t("usersUI.chooseRole"));
       return;
     }
 
     if (editingUser.id === currentUserId && !selectedRoles.includes("admin")) {
-      toast.error("Tidak dapat mencabut peran admin dari akun Anda sendiri.");
+      toast.error(t("usersUI.cannotRemoveOwnAdmin"));
       return;
     }
 
     startSaveRoles(async () => {
       const res = await updateUserRolesAction(editingUser.id, selectedRoles);
       if (res.success) {
-        toast.success(`Peran untuk ${editingUser.name} berhasil diperbarui.`);
+        toast.success(t("usersUI.rolesSaved", { name: editingUser.name }));
         setUsers((prev) =>
           prev.map((u) =>
             u.id === editingUser.id ? { ...u, roles: selectedRoles } : u
@@ -161,7 +174,7 @@ export function UsersDashboard({
         setEditingUser(null);
         router.refresh();
       } else {
-        toast.error(res.error || "Gagal memperbarui peran.");
+        toast.error(t("usersUI.updateRoleFailure"));
       }
     });
   };
@@ -174,8 +187,8 @@ export function UsersDashboard({
     startUpdateStatus(async () => {
       const res = await updateUserStatusAction(statusTargetUser.id, nextStatus);
       if (res.success) {
-        const label = nextStatus === "active" ? "diaktifkan" : "ditangguhkan";
-        toast.success(`Akun ${statusTargetUser.name} berhasil ${label}.`);
+        const label = nextStatus === "active" ? t("usersUI.accountActivated") : t("usersUI.accountSuspended");
+        toast.success(t("usersUI.statusUpdated", { name: statusTargetUser.name, status: label }));
         setUsers((prev) =>
           prev.map((u) =>
             u.id === statusTargetUser.id ? { ...u, status: nextStatus } : u
@@ -189,7 +202,7 @@ export function UsersDashboard({
         setStatusTargetUser(null);
         router.refresh();
       } else {
-        toast.error(res.error || "Gagal memperbarui status akun.");
+        toast.error(t("usersUI.updateStatusFailure"));
       }
     });
   };
@@ -233,31 +246,31 @@ export function UsersDashboard({
       {/* Grouped KPI Strip */}
       <AdminStatStrip className="grid-cols-2 md:grid-cols-5">
         <AdminStatStripItem
-          label="Total Pengguna"
+          label={t("usersUI.total")}
           value={stats.totalUsers}
           icon={Users}
           tone="default"
         />
         <AdminStatStripItem
-          label="Admin"
+          label={t("usersUI.admins")}
           value={stats.adminCount}
           icon={ShieldCheck}
           tone="brand"
         />
         <AdminStatStripItem
-          label="Tutor"
+          label={t("usersUI.tutors")}
           value={stats.tutorCount}
           icon={GraduationCap}
           tone="info"
         />
         <AdminStatStripItem
-          label="Murid"
+          label={t("usersUI.students")}
           value={stats.muridCount}
           icon={BookOpen}
           tone="default"
         />
         <AdminStatStripItem
-          label="Pengguna Aktif"
+          label={t("usersUI.activeUsers")}
           value={stats.activeCount}
           icon={UserCheck}
           tone="success"
@@ -272,30 +285,30 @@ export function UsersDashboard({
             value={searchQuery}
             onSearch={setSearchQuery}
             onClear={() => setSearchQuery("")}
-            placeholder="Cari nama atau email..."
+            placeholder={t("usersUI.search")}
           />
         </div>
 
         <Select value={roleFilter} onValueChange={setRoleFilter}>
           <SelectTrigger className="h-9 w-[130px] shrink-0 text-body-sm bg-card rounded-lg border-border">
-            <SelectValue placeholder="Semua Peran" />
+            <SelectValue placeholder={t("usersUI.allRoles")} />
           </SelectTrigger>
           <SelectContent className="rounded-lg text-body-sm">
-            <SelectItem value="all">Semua Peran</SelectItem>
+            <SelectItem value="all">{t("usersUI.allRoles")}</SelectItem>
             <SelectItem value="admin">Admin</SelectItem>
             <SelectItem value="tutor">Tutor</SelectItem>
-            <SelectItem value="murid">Murid</SelectItem>
+            <SelectItem value="murid">{t("usersUI.students")}</SelectItem>
           </SelectContent>
         </Select>
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="h-9 w-[140px] shrink-0 text-body-sm bg-card rounded-lg border-border">
-            <SelectValue placeholder="Semua Status" />
+            <SelectValue placeholder={t("usersUI.allStatuses")} />
           </SelectTrigger>
           <SelectContent className="rounded-lg text-body-sm">
-            <SelectItem value="all">Semua Status</SelectItem>
-            <SelectItem value="active">Aktif</SelectItem>
-            <SelectItem value="suspended">Ditangguhkan</SelectItem>
+            <SelectItem value="all">{t("usersUI.allStatuses")}</SelectItem>
+            <SelectItem value="active">{t("usersUI.active")}</SelectItem>
+            <SelectItem value="suspended">{t("usersUI.suspended")}</SelectItem>
           </SelectContent>
         </Select>
 
@@ -307,35 +320,35 @@ export function UsersDashboard({
             className="h-9 px-2.5 rounded-lg text-body-sm gap-1.5 text-muted-foreground hover:text-foreground"
           >
             <RotateCcw className="size-3.5" />
-            <span>Reset</span>
+            <span>{t("usersUI.reset")}</span>
           </Button>
         )}
 
         <div className="ml-auto text-body-xs text-muted-foreground self-center">
-          {filteredUsers.length} / {users.length} pengguna
+          {t("usersUI.resultCount", { shown: filteredUsers.length, total: users.length })}
         </div>
       </div>
 
       {/* Users Table */}
       {filteredUsers.length === 0 ? (
         <AdminEmptyState
-          title="Tidak ada pengguna ditemukan"
+          title={t("usersUI.emptyTitle")}
           description={
             isFilterActive
-              ? "Coba sesuaikan kata kunci pencarian atau filter yang dipilih."
-              : "Belum ada data pengguna terdaftar dalam sistem."
+              ? t("usersUI.emptyFiltered")
+              : t("usersUI.empty")
           }
         />
       ) : (
         <AdminTable>
-          <table className="w-full text-left text-body-sm border-collapse">
+          <table className="w-full min-w-[640px] text-left text-body-sm border-collapse">
             <AdminTableHead>
               <tr>
-                <th className="px-4 py-3 font-semibold text-foreground">Pengguna</th>
-                <th className="px-4 py-3 font-semibold text-foreground">Peran</th>
-                <th className="px-4 py-3 font-semibold text-foreground">Status</th>
-                <th className="px-4 py-3 font-semibold text-foreground">Bergabung</th>
-                <th className="px-4 py-3 font-semibold text-foreground text-right">Aksi</th>
+                <th className="px-4 py-3 font-semibold text-foreground">{t("usersUI.user")}</th>
+                <th className="px-4 py-3 font-semibold text-foreground">{t("usersUI.role")}</th>
+                <th className="px-4 py-3 font-semibold text-foreground">{t("usersUI.status")}</th>
+                <th className="px-4 py-3 font-semibold text-foreground">{t("usersUI.joined")}</th>
+                <th className="px-4 py-3 font-semibold text-foreground text-right">{t("usersUI.actions")}</th>
               </tr>
             </AdminTableHead>
             <tbody className="divide-y divide-border">
@@ -350,24 +363,14 @@ export function UsersDashboard({
                     {/* User info */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        {userItem.image ? (
-                          <img
-                            src={userItem.image}
-                            alt={userItem.name}
-                            className="size-8 rounded-full object-cover shrink-0 border border-border"
-                          />
-                        ) : (
-                          <div className="size-8 rounded-full bg-brand-primary/10 text-brand-primary font-bold text-body-xs flex items-center justify-center shrink-0 border border-brand-primary/20">
-                            {userItem.name.charAt(0).toUpperCase() || "?"}
-                          </div>
-                        )}
+                        <UserAvatar name={userItem.name} image={userItem.image ?? null} />
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className="font-semibold text-foreground truncate">
                               {userItem.name}
                             </span>
                             {isSelf && (
-                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground font-medium">
+                              <span className="text-body-2xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
                                 Anda
                               </span>
                             )}
@@ -394,11 +397,7 @@ export function UsersDashboard({
                                 : "muted"
                             }
                           >
-                            {role === "admin"
-                              ? "Admin"
-                              : role === "tutor"
-                              ? "Tutor"
-                              : "Murid"}
+                            {role === "admin" ? t("usersUI.admin") : role === "tutor" ? t("usersUI.tutor") : t("usersUI.student")}
                           </StatusBadge>
                         ))}
                       </div>
@@ -409,7 +408,7 @@ export function UsersDashboard({
                       <StatusBadge
                         tone={userItem.status === "active" ? "success" : "error"}
                       >
-                        {userItem.status === "active" ? "Aktif" : "Ditangguhkan"}
+                        {userItem.status === "active" ? t("usersUI.active") : t("usersUI.suspended")}
                       </StatusBadge>
                     </td>
 
@@ -432,7 +431,7 @@ export function UsersDashboard({
                           className="h-8 px-2.5 rounded-lg text-body-sm gap-1.5"
                         >
                           <UserCog className="size-3.5" />
-                          <span>Atur Peran</span>
+                          <span>{t("usersUI.setRoles")}</span>
                         </Button>
 
                         <Button
@@ -447,21 +446,21 @@ export function UsersDashboard({
                           }`}
                           title={
                             isSelf
-                              ? "Tidak dapat menangguhkan akun sendiri"
+                              ? t("usersUI.cannotSuspendSelf")
                               : userItem.status === "active"
-                              ? "Tangguhkan akun"
-                              : "Aktifkan akun"
+                              ? t("usersUI.suspendAccount")
+                              : t("usersUI.activateAccount")
                           }
                         >
                           {userItem.status === "active" ? (
                             <>
                               <ShieldAlert className="size-3.5" />
-                              <span className="hidden sm:inline">Tangguhkan</span>
+                              <span className="hidden sm:inline">{t("usersUI.suspend")}</span>
                             </>
                           ) : (
                             <>
                               <ShieldCheck className="size-3.5" />
-                              <span className="hidden sm:inline">Aktifkan</span>
+                              <span className="hidden sm:inline">{t("usersUI.activate")}</span>
                             </>
                           )}
                         </Button>
@@ -486,10 +485,10 @@ export function UsersDashboard({
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold flex items-center gap-2">
               <UserCog className="size-5 text-brand-primary" />
-              Kelola Peran Pengguna
+              {t("usersUI.manageRoles")}
             </DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground">
-              Atur satu atau beberapa peran untuk {editingUser?.name} ({editingUser?.email}).
+              {t("usersUI.rolesDescription", { name: editingUser?.name ?? "", email: editingUser?.email ?? "" })}
             </DialogDescription>
           </DialogHeader>
 
@@ -518,15 +517,15 @@ export function UsersDashboard({
                   <div className="space-y-0.5 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-body-sm font-semibold text-foreground">
-                        {opt.label}
+                        {opt.code === "murid" ? t("usersUI.student") : t(`usersUI.${opt.code}`)}
                       </span>
                     </div>
                     <p className="text-body-xs text-muted-foreground">
-                      {opt.description}
+                      {t(`usersUI.${opt.code === "murid" ? "studentRoleDesc" : `${opt.code}RoleDesc`}`)}
                     </p>
                     {isSelfAdmin && (
                       <p className="text-[10px] text-status-warning font-medium">
-                        Akun aktif sendiri harus tetap memiliki peran admin.
+                        {t("usersUI.selfAdminRequired")}
                       </p>
                     )}
                   </div>
@@ -543,7 +542,7 @@ export function UsersDashboard({
               disabled={isSavingRoles}
               className="h-9 px-4 rounded-lg text-body-sm font-semibold"
             >
-              Batal
+              {t("usersUI.cancel")}
             </Button>
             <Button
               size="sm"
@@ -552,7 +551,7 @@ export function UsersDashboard({
               isLoading={isSavingRoles}
               className="h-9 px-5 rounded-lg text-body-sm font-semibold"
             >
-              Simpan Peran
+              {t("usersUI.saveRoles")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -564,20 +563,20 @@ export function UsersDashboard({
         onOpenChange={(open) => !open && setStatusTargetUser(null)}
         title={
           statusTargetUser?.status === "active"
-            ? "Tangguhkan Akun Pengguna"
-            : "Aktifkan Akun Pengguna"
+            ? t("usersUI.suspendTitle")
+            : t("usersUI.activateTitle")
         }
         description={
           statusTargetUser?.status === "active"
-            ? `Apakah Anda yakin ingin menangguhkan akun ${statusTargetUser?.name}? Pengguna ini tidak akan dapat mengakses sesi atau fitur platform selama ditangguhkan.`
-            : `Apakah Anda yakin ingin mengaktifkan kembali akun ${statusTargetUser?.name}?`
+            ? t("usersUI.suspendDescription", { name: statusTargetUser?.name ?? "" })
+            : t("usersUI.activateDescription", { name: statusTargetUser?.name ?? "" })
         }
         confirmLabel={
           statusTargetUser?.status === "active"
-            ? "Ya, Tangguhkan"
-            : "Ya, Aktifkan"
+            ? t("usersUI.confirmSuspend")
+            : t("usersUI.confirmActivate")
         }
-        cancelLabel="Batal"
+        cancelLabel={t("usersUI.cancel")}
         destructive={statusTargetUser?.status === "active"}
         loading={isUpdatingStatus}
         onConfirm={handleConfirmStatusChange}

@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
-import { Inbox, TriangleAlert } from "lucide-react";
+import { Inbox } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 
 export type AdminEmptyStateProps = {
   title?: ReactNode;
@@ -37,24 +36,5 @@ export function AdminEmptyState({
   );
 }
 
-export type AdminErrorStateProps = {
-  message: ReactNode;
-  onRetry?: () => void;
-  className?: string;
-};
-
-export function AdminErrorState({ message, onRetry, className }: AdminErrorStateProps) {
-  return (
-    <div className={cn("flex flex-col items-center justify-center gap-3 py-8 text-center", className)}>
-      <div className="flex items-center gap-2">
-        <TriangleAlert className="size-4 text-status-error" aria-hidden />
-        <p className="text-body-sm text-status-error">{message}</p>
-      </div>
-      {onRetry && (
-        <Button variant="ghost" size="sm" className="rounded-lg" onClick={onRetry}>
-          Coba Lagi
-        </Button>
-      )}
-    </div>
-  );
-}
+export { AdminErrorState } from "@/components/admin/admin-error-state-client";
+export type { AdminErrorStateProps } from "@/components/admin/admin-error-state-client";

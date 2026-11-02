@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Lock, ClipboardList } from "lucide-react";
 import { FormattedDate } from "@/components/ui/formatted-date";
+import { useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import type { quizTemplates, studentQuizAttempts } from "@/db/schema";
 
@@ -20,11 +21,12 @@ type QuizListClientProps = {
 };
 
 export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ? "standard" : "anonymous", freeEligibleTemplateIds = [], templates, attempts }: QuizListClientProps) {
+  const t = useTranslations("learning");
   const freeEligibleIds = new Set(freeEligibleTemplateIds);
 
   return (
     <div className="font-sans">
-      <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card/75 backdrop-blur-sm shadow-2xs">
+      {templates.length > 0 && <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
         {templates.map((template) => {
           const isFree = template.visibility === "free";
           const accessible = accessTier === "standard"
@@ -67,7 +69,7 @@ export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ?
             if (!accessible) {
               return (
                 <span className="flex items-center gap-1 rounded-lg border border-border/60 bg-muted/40 px-2.5 py-1 text-body-xs text-muted-foreground shrink-0">
-                  Buka <Lock className="size-3" />
+                  {t("quizList.open")} <Lock className="size-3" />
                 </span>
               );
             }
@@ -75,26 +77,26 @@ export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ?
               if (accessible && (template as any).showDiscussion) {
                 return (
                   <span className="rounded-lg border border-brand-primary/30 bg-brand-primary/10 px-2.5 py-1 text-body-xs font-semibold text-brand-primary shrink-0">
-                    Pembahasan ›
+                    {t("quizList.discussion")} ›
                   </span>
                 );
               }
               return (
                 <span className="rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1 text-body-xs text-muted-foreground shrink-0">
-                  Ditutup
+                  {t("quizList.closed")}
                 </span>
               );
             }
             if (isUpcoming) {
               return (
                 <span className="rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1 text-body-xs text-muted-foreground shrink-0">
-                  Belum Buka
+                  {t("quizList.notOpen")}
                 </span>
               );
             }
             return (
-              <span className="rounded-lg bg-brand-primary/15 px-3 py-1.5 text-body-xs font-semibold text-brand-primary shrink-0 transition-colors group-hover:bg-brand-primary group-hover:text-white">
-                {activeAttempt ? "Lanjutkan ›" : "Mulai ›"}
+              <span className="rounded-lg bg-brand-primary/15 px-3 py-1.5 text-body-xs font-semibold text-brand-primary shrink-0 transition-colors group-hover:bg-brand-primary group-hover:text-primary-foreground">
+                {activeAttempt ? `${t("quizList.continue")} ›` : `${t("quizList.start")} ›`}
               </span>
             );
           })();
@@ -110,18 +112,18 @@ export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ?
                 href={targetHref}
                 className={cn(
                   "group flex items-center justify-between gap-3 px-4 py-3 transition-colors",
-                  accessible && isOpen ? "hover:bg-muted/30 active:bg-muted/50" : "bg-card/40 opacity-80 hover:opacity-100",
+                  accessible && isOpen ? "hover:bg-muted/30 active:bg-muted/50" : "hover:bg-muted/30",
                 )}
               >
                 <div className="min-w-0 flex-1">
-                  <h3 className="truncate font-heading text-body-sm font-semibold text-foreground group-hover:text-brand-primary transition-colors">
+                  <h3 className="break-words font-heading text-body-sm font-semibold text-foreground group-hover:text-brand-primary transition-colors">
                     {template.title}
                   </h3>
 
                   <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-body-xs text-muted-foreground">
-                    <span>{qCount} soal</span>
+                    <span>{t("quizList.questions", { count: qCount })}</span>
                     <span>·</span>
-                    <span>{template.timeLimitSeconds ? `${Math.round(template.timeLimitSeconds / 60)} mnt` : "Tanpa batas"}</span>
+                    <span>{template.timeLimitSeconds ? t("quizList.minutes", { count: Math.round(template.timeLimitSeconds / 60) }) : t("quizList.noLimit")}</span>
                     {template.category && (
                       <>
                         <span>·</span>
@@ -139,25 +141,25 @@ export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ?
                             : "text-brand-primary",
                       )}
                     >
-                      {!accessible ? "Terkunci" : isFree ? "Gratis" : "Premium"}
+                      {!accessible ? t("quizList.locked") : isFree ? t("quizList.free") : t("quizList.premium")}
                     </span>
                     {highestScore !== null && (
                       <>
                         <span>·</span>
-                        <span className="text-status-success font-medium">Nilai {highestScore}%</span>
+                        <span className="text-status-success font-medium">{t("quizList.score", { score: highestScore })}</span>
                       </>
                     )}
                     {activeAttempt && !isClosed && (
                       <>
                         <span>·</span>
-                        <span className="text-amber-500 font-medium">Sedang dikerjakan</span>
+                        <span className="text-amber-700 dark:text-amber-400 font-medium">{t("quizList.inProgress")}</span>
                       </>
                     )}
                     {isUpcoming && openDate && (
                       <>
                         <span>·</span>
                         <span className="text-status-warning">
-                          Buka: <FormattedDate date={openDate} options={{ dateStyle: "short", timeStyle: "short" }} />
+                          {t("quizList.opensAt")} <FormattedDate date={openDate} options={{ dateStyle: "short", timeStyle: "short" }} />
                         </span>
                       </>
                     )}
@@ -165,7 +167,7 @@ export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ?
                       <>
                         <span>·</span>
                         <span className="text-status-error">
-                          Tutup: <FormattedDate date={closeDate} options={{ dateStyle: "short", timeStyle: "short" }} />
+                          {t("quizList.closesAt")} <FormattedDate date={closeDate} options={{ dateStyle: "short", timeStyle: "short" }} />
                         </span>
                       </>
                     )}
@@ -177,16 +179,16 @@ export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ?
             </li>
           );
         })}
-      </ul>
+      </ul>}
 
       {templates.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border/80 bg-card/60 p-8 text-center sm:p-10">
           <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
             <ClipboardList className="size-6" />
           </div>
-          <h3 className="font-heading text-body-base font-bold text-foreground">Belum ada kuis</h3>
+          <h3 className="font-heading text-body-base font-bold text-foreground">{t("quizList.emptyTitle")}</h3>
           <p className="mx-auto mt-1 max-w-md text-body-sm text-muted-foreground">
-            Kuis untuk mata kuliah ini belum tersedia.
+            {t("quizList.emptyDescription")}
           </p>
         </div>
       ) : null}

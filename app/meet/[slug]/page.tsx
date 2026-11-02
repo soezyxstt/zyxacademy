@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { googleMeetSessions } from "@/db/schema";
 import { Button } from "@/components/ui/button";
 import { createMetadata } from "@/lib/site";
+import { getAppLocale, getTranslations } from "@/lib/i18n/server";
 
 export async function generateMetadata({
   params,
@@ -14,6 +15,8 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
+  const locale = await getAppLocale();
+  const t = await getTranslations("marketing");
 
   const [session] = await db
     .select({ title: googleMeetSessions.title })
@@ -23,16 +26,18 @@ export async function generateMetadata({
 
   if (session) {
     return createMetadata({
-      title: `Google Meet: ${session.title}`,
-      description: `Ruang pertemuan Google Meet untuk ${session.title}.`,
+      title: t("public.meetFor", { title: session.title }),
+      description: t("public.meetForDescription", { title: session.title }),
       path: `/meet/${slug}`,
+      locale,
     });
   }
 
   return createMetadata({
-    title: "Google Meet",
-    description: "Link sesi Google Meet Zyx Academy.",
+    title: t("public.meetTitle"),
+    description: t("public.meetDescription"),
     path: `/meet/${slug}`,
+    locale,
   });
 }
 
@@ -42,6 +47,7 @@ export default async function MeetSlugPage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  const t = await getTranslations("marketing");
   const { slug } = await params;
 
   const [session] = await db
@@ -61,14 +67,13 @@ export default async function MeetSlugPage({
           <Video className="size-6" aria-hidden />
         </div>
         <h1 className="mt-4 font-heading text-h5 font-semibold text-foreground">
-          Link Meeting Tidak Ditemukan
+          {t("public.meetNotFound")}
         </h1>
         <p className="mt-2 text-body-sm text-muted-foreground">
-          Link Zyx Meet yang Anda buka tidak tersedia atau sudah dihapus. Periksa kembali link yang
-          dikirim, atau hubungi admin.
+          {t("public.meetUnavailable")}
         </p>
         <Button asChild className="mt-6">
-          <Link href="/">Kembali ke Beranda</Link>
+          <Link href="/">{t("public.home")}</Link>
         </Button>
       </div>
     </div>

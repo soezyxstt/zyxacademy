@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Search, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 export interface SearchBarProps
   extends Omit<React.ComponentProps<"input">, "size"> {
@@ -30,9 +31,9 @@ export interface SearchBarProps
 
 const variantStyles = {
   default:
-    "bg-card border border-border/80 hover:border-border hover:bg-card/90 focus-within:bg-card focus-within:border-brand-primary/80 focus-within:ring-2 focus-within:ring-brand-primary/20 focus-within:shadow-[0_0_16px_rgba(37,99,235,0.12)] shadow-2xs",
+    "bg-card border border-border hover:border-border-strong focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30",
   muted:
-    "bg-muted/40 border border-transparent hover:bg-muted/70 hover:border-border/50 focus-within:bg-background focus-within:border-brand-primary/80 focus-within:ring-2 focus-within:ring-brand-primary/20 focus-within:shadow-[0_0_16px_rgba(37,99,235,0.12)]",
+    "bg-muted/40 border border-transparent hover:bg-muted/70 hover:border-border focus-within:bg-background focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30",
   bordered:
     "bg-background border border-border hover:border-foreground/30 focus-within:border-brand-primary focus-within:ring-2 focus-within:ring-brand-primary/25 shadow-xs",
 };
@@ -51,9 +52,9 @@ const sizeStyles = {
     clear: "p-1",
   },
   lg: {
-    container: "min-h-12 px-4 rounded-xl text-body-base",
+    container: "min-h-12 px-4 rounded-lg text-body-sm",
     icon: "size-4.5",
-    input: "min-h-0 py-2 pl-3 pr-2.5 text-body-base",
+    input: "min-h-0 py-2 pl-3 pr-2.5 text-body-sm",
     clear: "p-1.5",
   },
 };
@@ -72,13 +73,14 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
       shortcut,
       containerClassName,
       className,
-      placeholder = "Cari...",
+      placeholder,
       disabled,
       rightSection,
       ...props
     },
     ref
   ) => {
+    const t = useTranslations("search");
     const inputRef = React.useRef<HTMLInputElement | null>(null);
     const [internalValue, setInternalValue] = React.useState(
       defaultValue ?? ""
@@ -124,7 +126,7 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
         )}
       >
         {/* Left Search or Loading Icon */}
-        <div className="flex shrink-0 items-center justify-center text-muted-foreground transition-all duration-200 group-focus-within:text-brand-primary group-focus-within:scale-105">
+        <div className="flex shrink-0 items-center justify-center text-muted-foreground transition-colors duration-200 group-focus-within:text-primary">
           {isLoading ? (
             <Loader2 className={cn("animate-spin text-brand-primary", currentSize.icon)} />
           ) : (
@@ -138,7 +140,7 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
           type="text"
           value={query}
           onChange={handleChange}
-          placeholder={placeholder}
+          placeholder={placeholder ?? t("placeholder")}
           disabled={disabled}
           className={cn(
             "w-full min-w-0 bg-transparent text-foreground font-sans placeholder:text-muted-foreground/60 focus:outline-none",
@@ -158,8 +160,8 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
                 "rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-muted/80 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                 currentSize.clear
               )}
-              aria-label="Bersihkan pencarian"
-              title="Bersihkan pencarian"
+              aria-label={t("clear")}
+              title={t("clear")}
             >
               <X className={cn(currentSize.icon)} />
             </button>

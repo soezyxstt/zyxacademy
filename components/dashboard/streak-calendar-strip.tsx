@@ -2,6 +2,7 @@
 
 import { Flame, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface StreakCalendarStripProps {
   current: number;
@@ -9,25 +10,18 @@ interface StreakCalendarStripProps {
 }
 
 export function StreakCalendarStrip({ current, weeklyActivity = [] }: StreakCalendarStripProps) {
+  const t = useTranslations("student");
   const hasStreak = current > 0;
   
   // Day initials for Monday - Sunday (Senin, Selasa, Rabu, Kamis, Jumat, Sabtu, Minggu)
-  const days = [
-    { label: "S", name: "Senin" },
-    { label: "S", name: "Selasa" },
-    { label: "R", name: "Rabu" },
-    { label: "K", name: "Kamis" },
-    { label: "J", name: "Jumat" },
-    { label: "S", name: "Sabtu" },
-    { label: "M", name: "Minggu" },
-  ];
+  const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
   const currentDayIndex = (new Date().getDay() + 6) % 7; // Monday = 0, Sunday = 6
 
   return (
-    <div className="rounded-xl border border-border/70 bg-card/70 p-3.5 backdrop-blur-md shadow-xs select-none">
+    <div className="rounded-xl border border-border/70 bg-card p-3.5 select-none">
       <div className="flex items-center justify-between mb-2">
-        <span className="font-heading text-body-xs font-semibold text-foreground">Streak Mingguan</span>
+        <span className="font-heading text-body-xs font-semibold text-foreground">{t("dashboard.weeklyStreak")}</span>
         <div className="flex items-center gap-1">
           <Flame
             className={cn(
@@ -36,7 +30,7 @@ export function StreakCalendarStrip({ current, weeklyActivity = [] }: StreakCale
             )}
           />
           <span className="font-sans text-body-xs font-bold tabular-nums text-foreground">
-            {current} Hari
+            {t("dashboard.streakDays", { count: current })}
           </span>
         </div>
       </div>
@@ -48,15 +42,15 @@ export function StreakCalendarStrip({ current, weeklyActivity = [] }: StreakCale
 
           return (
             <div key={idx} className="flex flex-col items-center gap-1.5 min-w-0">
-              <span className="font-sans text-[11px] font-bold text-foreground/80 leading-none">
-                {day.label}
+              <span className="font-sans text-body-xs font-bold text-foreground leading-none" title={t(`dashboard.weekdays.${day}`)}>
+                {t(`dashboard.weekdaysShort.${day}`)}
               </span>
               <div
-                title={`${day.name}: ${isActive ? "Selesai" : "Belum selesai"}`}
+                title={`${t(`dashboard.weekdays.${day}`)}: ${isActive ? t("dashboard.dayDone") : t("dashboard.dayNotDone")}`}
                 className={cn(
                   "flex w-full aspect-square max-w-[24px] items-center justify-center rounded-md text-[10px] font-bold transition-colors",
                   isActive
-                    ? "bg-brand-secondary text-white shadow-xs"
+                    ? "bg-primary text-primary-foreground"
                     : "bg-muted/60 text-muted-foreground/40 border border-border/50",
                   isToday && "ring-1.5 ring-brand-primary ring-offset-1 ring-offset-background"
                 )}

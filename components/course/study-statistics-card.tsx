@@ -3,6 +3,7 @@
 import { BarChart3, Clock, BookOpen, CheckCircle2, Flame } from "lucide-react";
 import { StudyStatisticsData } from "@/types/course-learning";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
+import { useTranslations } from "@/lib/i18n/client";
 
 export function StudyStatisticsSkeleton() {
   return (
@@ -33,6 +34,7 @@ export function StudyStatisticsCard({
   data,
   isLoading = false,
 }: StudyStatisticsCardProps) {
+  const t = useTranslations("studentCourse");
   if (isLoading) {
     return <StudyStatisticsSkeleton />;
   }
@@ -48,14 +50,14 @@ export function StudyStatisticsCard({
     <div className="w-full space-y-2">
       <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
         <BarChart3 className="size-4.5 text-brand-primary" aria-hidden="true" />
-        Statistik Belajar
+        {t("course.statistics.title")}
       </h3>
 
       <AdminStatStrip className="grid-cols-2 sm:grid-cols-4">
-        <AdminStatStripItem icon={Clock} label="Waktu belajar" value={`${stats.studyTimeMin} menit`} tone="brand" />
-        <AdminStatStripItem icon={BookOpen} label="Dokumen selesai" value={`${stats.completedMaterialsCount} materi`} tone="info" />
-        <AdminStatStripItem icon={CheckCircle2} label="Kartu diulas" value={`${stats.cardsReviewedCount} ulasan`} tone="success" />
-        <AdminStatStripItem icon={Flame} label="Streak belajar" value={`${stats.currentStreakDays} hari`} tone="brand-secondary" />
+        <AdminStatStripItem icon={Clock} iconClassName="text-brand-primary" label={t("course.statistics.studyTime")} value={t("course.statistics.minutes", { count: stats.studyTimeMin })} />
+        <AdminStatStripItem icon={BookOpen} iconClassName="text-status-info" label={t("course.statistics.completedDocuments")} value={t("course.statistics.materials", { count: stats.completedMaterialsCount })} />
+        <AdminStatStripItem icon={CheckCircle2} iconClassName="text-status-success" label={t("course.statistics.reviewedCards")} value={t("course.statistics.reviews", { count: stats.cardsReviewedCount })} />
+        <AdminStatStripItem icon={Flame} iconClassName="text-brand-secondary" label={t("course.statistics.streak")} value={t("course.statistics.days", { count: stats.currentStreakDays })} />
       </AdminStatStrip>
     </div>
   );

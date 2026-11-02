@@ -17,6 +17,15 @@ export interface PendingZyraImage {
   errorCode?: string;
 }
 
+function inferImageMimeType(file: Pick<File, "type" | "name">): string {
+  if (file.type) return file.type;
+  const lower = file.name.toLowerCase();
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".webp")) return "image/webp";
+  return "";
+}
+
 export function selectZyraImageFiles(
   current: readonly PendingZyraImage[],
   files: readonly File[],
@@ -24,7 +33,8 @@ export function selectZyraImageFiles(
   const accepted = [...current];
   const rejected: string[] = [];
   for (const file of files) {
-    const mime = ZyraImageMimeSchema.safeParse(file.type);
+    const resolvedMime = inferImageMimeType(file);
+    const mime = ZyraImageMimeSchema.safeParse(resolvedMime);
     const key = `${file.name}:${file.size}:${file.lastModified}`;
     if (!mime.success) {
       rejected.push("UNSUPPORTED_MIME");
@@ -54,11 +64,38 @@ export function readyZyraAttachmentIds(items: readonly PendingZyraImage[]): stri
 }
 
 export function zyraImageFilesFromClipboard(
-  items: ArrayLike<Pick<DataTransferItem, "kind" | "type" | "getAsFile">>,
+  items: ArrayLike<Pick<DataTransferItem, "kind" | "type" | "getAsFile">> | null | undefined,
+  fallbackFiles?: ArrayLike<File> | null,
 ): File[] {
-  return Array.from(items).flatMap((item) => {
-    if (item.kind !== "file" || !item.type.startsWith("image/")) return [];
-    const file = item.getAsFile();
-    return file ? [file] : [];
-  });
+  const results: File[] = [];
+  const seenKeys = new Set<string>();
+
+  const pushIfImage = (file: File | null | undefined, declaredType?: string) => {
+    if (!file) return;
+    const mime = declaredType || inferImageMimeType(file);
+    if (!mime.startsWith("image/")) return;
+    const key = `${file.name}:${file.size}:${file.lastModified}`;
+    if (seenKeys.has(key)) return;
+    seenKeys.add(key);
+    if (!file.type && mime) {
+      results.push(new File([file], file.name, { type: mime, lastModified: file.lastModified }));
+    } else {
+      results.push(file);
+    }
+  };
+
+  if (items) {
+    for (const item of Array.from(items)) {
+      if (item.kind !== "file") continue;
+      pushIfImage(item.getAsFile(), item.type);
+    }
+  }
+
+  if (fallbackFiles) {
+    for (const file of Array.from(fallbackFiles)) {
+      pushIfImage(file, file.type);
+    }
+  }
+
+  return results;
 }

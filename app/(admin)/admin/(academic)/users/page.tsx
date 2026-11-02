@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { pageTitle } from "@/lib/site";
 import { assertAdmin } from "@/lib/auth/admin-guards";
@@ -6,11 +5,13 @@ import { getAdminUsersData } from "./actions";
 import { UsersDashboard } from "@/components/admin/users-dashboard";
 import { PageHeader } from "@/components/page-header";
 import { UserCog } from "lucide-react";
+import { getTranslations } from "@/lib/i18n/server";
+import { TranslatedText } from "@/components/i18n/translated-text";
 
-export const metadata: Metadata = {
-  title: pageTitle("Manajemen Pengguna"),
-  description: "Monitor akun dan kelola peran pengguna sistem.",
-};
+export async function generateMetadata() {
+  const t = await getTranslations("adminOps");
+  return { title: pageTitle(t("users.title")), description: t("users.description") };
+}
 
 export default async function AdminUsersPage() {
   try {
@@ -25,7 +26,7 @@ export default async function AdminUsersPage() {
     <div className="space-y-4">
       <PageHeader
         icon={UserCog}
-        title="Manajemen Pengguna"
+        title={<TranslatedText namespace="adminOps" messageKey="users.title" />}
       />
       <UsersDashboard
         initialUsers={users}

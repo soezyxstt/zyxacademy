@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
+import { useTranslations } from "@/lib/i18n/client";
+import { explainBundleError } from "@/lib/bundle/admin-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -63,7 +65,6 @@ import {
   detectMetadataFromFilename,
   formatBytes,
   generateFileName,
-  standardizeDocumentTitle,
   isHiddenOrSystemFile,
   isSupportedBatchFile,
   type BatchChapterInfo,
@@ -100,10 +101,10 @@ const TIME_RELATED_CATEGORIES: MaterialLevel1Category[] = [
   "pembahasan_soal",
 ];
 
-const DUPLICATE_ACTION_LABELS: Record<DuplicateAction, string> = {
-  skip: "Lewati",
-  overwrite: "Timpa dokumen lama",
-  keep: "Unggah sebagai versi baru",
+const DUPLICATE_ACTION_KEYS: Record<DuplicateAction, string> = {
+  skip: "duplicateActions.skip",
+  overwrite: "duplicateActions.overwrite",
+  keep: "duplicateActions.keep",
 };
 
 const CATEGORY_THEME: Record<
@@ -232,6 +233,12 @@ export function BatchUploadDialog({
   chapters: Chapter[];
 }) {
   const router = useRouter();
+  const t = useTranslations("adminAcademic");
+  const bundleT = useTranslations("admin");
+  const explainError = useCallback(
+    (value: string) => explainBundleError(value, (key) => bundleT(`bundleErrors.${key}`)),
+    [bundleT],
+  );
 
   const [step, setStep] = useState<UploadStep>("category");
   const [viewMode, setViewMode] = useState<ChapterViewMode>("kanban");
@@ -419,15 +426,15 @@ export function BatchUploadDialog({
           })
         );
 
-        toast.success(`${results.length} dokumen berhasil dirapikan format dan babnya dengan AI.`);
+        toast.success(t("documents.batch.aiFormatted", { count: results.length }));
       }
     } catch (err) {
       console.error("Batch AI format failed:", err);
-      toast.error("Gagal merapikan dengan AI. Format standar tetap dipertahankan.");
+      toast.error(t("documents.batch.aiFormatFailed"));
     } finally {
       setIsBatchFormattingAi(false);
     }
-  }, [docs, courseId, courseTitle, sortedChapters]);
+  }, [docs, courseId, courseTitle, sortedChapters, t]);
 
 
   const runHashAndDedup = useCallback(
@@ -442,7 +449,7 @@ export function BatchUploadDialog({
         } catch {
           updateDoc(doc.id, {
             status: "error",
-            errorMessage: "Gagal menghitung checksum",
+            errorMessage: t("documents.batch.checksumFailed"),
           });
         }
       });
@@ -463,7 +470,7 @@ export function BatchUploadDialog({
             serverDuplicates = payload.duplicates;
           }
         } catch {
-          toast.error("Gagal memeriksa duplikasi di server.");
+          toast.error(t("documents.batch.duplicateCheckFailed"));
         }
       }
 
@@ -480,7 +487,7 @@ export function BatchUploadDialog({
         })
       );
     },
-    [courseId, updateDoc]
+    [courseId, updateDoc, t]
   );
 
   const addStagedFiles = useCallback(
@@ -491,11 +498,11 @@ export function BatchUploadDialog({
       for (const { file, path } of incoming) {
         if (isHiddenOrSystemFile(file.name)) continue;
         if (!isSupportedBatchFile(file.name)) {
-          skipped.push({ name: file.name, reason: "Ekstensi tidak didukung" });
+          skipped.push({ name: file.name, reason: t("documents.batch.unsupportedExtension") });
           continue;
         }
         if (file.size > BATCH_MAX_FILE_BYTES) {
-          skipped.push({ name: file.name, reason: "Melebihi batas 50 MB" });
+          skipped.push({ name: file.name, reason: t("documents.batch.fileTooLarge") });
           continue;
         }
         accepted.push(createStagedDoc(file, path));
@@ -505,7 +512,7 @@ export function BatchUploadDialog({
       if (accepted.length > room) {
         skipped.push({
           name: `${accepted.length - room} berkas`,
-          reason: `Melebihi batas ${BATCH_MAX_FILES} dokumen per batch`,
+          reason: t("documents.batch.batchLimit", { count: BATCH_MAX_FILES }),
         });
       }
       const staged = accepted.slice(0, room);
@@ -518,7 +525,7 @@ export function BatchUploadDialog({
       setDocs((prev) => [...prev, ...staged]);
       await runHashAndDedup(staged);
     },
-    [createStagedDoc, runHashAndDedup]
+    [createStagedDoc, runHashAndDedup, t]
   );
 
   const handleInputFiles = useCallback(
@@ -771,31 +778,31 @@ export function BatchUploadDialog({
         });
         const payload = await res.json().catch(() => null);
         if (!res.ok) {
-          setCommitError(payload?.error || "Gagal menyimpan metadata batch.");
+          setCommitError(payload?.error ? explainError(payload.error) : t("documents.batch.metadataSaveFailed"));
           return null;
         }
         return { created: payload.created ?? 0, updated: payload.updated ?? 0 };
       } catch {
-        setCommitError("Terjadi kesalahan jaringan saat menyimpan metadata.");
+        setCommitError(t("documents.batch.networkSaveFailed"));
         return null;
       }
     },
-    [courseId]
+    [courseId, explainError, t]
   );
 
   const startUpload = useCallback(async () => {
     if (uploadRunning || isBatchFormattingAi || ingestPhase !== "idle") return;
 
     if (docs.length === 0) {
-      toast.error("Tidak ada dokumen untuk diunggah.");
+          toast.error(t("documents.batch.noDocuments"));
       return;
     }
     if (chapters.length === 0) {
-      toast.error("Mata kuliah belum memiliki bab.");
+          toast.error(t("documents.batch.noChapters"));
       return;
     }
     if (docs.some((d) => !d.title.trim())) {
-      toast.error("Semua dokumen memerlukan judul.");
+          toast.error(t("documents.batch.titlesRequired"));
       return;
     }
     const missingChapters = docs.filter(
@@ -806,13 +813,13 @@ export function BatchUploadDialog({
     );
     if (missingChapters.length > 0) {
       toast.error(
-        `${missingChapters.length} dokumen belum dikaitkan ke bab manapun. Atur bab terlebih dahulu.`
+        t("documents.batch.assignBeforeUpload", { count: missingChapters.length })
       );
       setStep("chapters");
       return;
     }
     if (!uploadableDocs.length) {
-      toast.error("Tidak ada dokumen siap unggah.");
+      toast.error(t("documents.batch.nothingReady"));
       return;
     }
 
@@ -834,7 +841,7 @@ export function BatchUploadDialog({
       });
       const presignPayload = await presignRes.json().catch(() => null);
       if (!presignRes.ok || !Array.isArray(presignPayload?.data)) {
-        throw new Error(presignPayload?.error || "Gagal meminta URL unggahan");
+        throw new Error(presignPayload?.error ? explainError(presignPayload.error) : t("documents.batch.presignFailed"));
       }
 
       const entriesById = new Map<string, { key: string; uploadUrl: string }>(
@@ -861,7 +868,7 @@ export function BatchUploadDialog({
           failedUploads += 1;
           updateDoc(doc.id, {
             status: "error",
-            errorMessage: "URL unggahan tidak tersedia",
+            errorMessage: t("documents.batch.uploadUrlMissing"),
           });
           return;
         }
@@ -875,7 +882,7 @@ export function BatchUploadDialog({
           failedUploads += 1;
           updateDoc(doc.id, {
             status: "error",
-            errorMessage: err instanceof Error ? err.message : "Unggahan gagal",
+            errorMessage: err instanceof Error ? explainError(err.message) : t("documents.batch.uploadFailed"),
           });
         }
       });
@@ -890,11 +897,11 @@ export function BatchUploadDialog({
             (d) => d.duplicateOf && d.duplicateAction === "skip"
           ).length,
         });
-        toast.success("Batch dokumen berhasil disimpan.");
+        toast.success(t("documents.batch.saved"));
         router.refresh();
       }
     } catch (err) {
-      setCommitError(err instanceof Error ? err.message : "Terjadi kesalahan jaringan.");
+        setCommitError(err instanceof Error ? explainError(err.message) : t("documents.batch.networkSaveFailed"));
     } finally {
       setUploadRunning(false);
     }
@@ -903,12 +910,14 @@ export function BatchUploadDialog({
     courseId,
     chapters.length,
     docs,
+    explainError,
     ingestPhase,
     isBatchFormattingAi,
     router,
     updateDoc,
     uploadRunning,
     uploadableDocs,
+    t,
   ]);
 
   const retryCommit = useCallback(async () => {
@@ -926,19 +935,19 @@ export function BatchUploadDialog({
             (d) => d.duplicateOf && d.duplicateAction === "skip"
           ).length,
         });
-        toast.success("Metadata batch berhasil disimpan.");
+        toast.success(t("documents.batch.saved"));
         router.refresh();
       }
     } finally {
       setUploadRunning(false);
     }
-  }, [commitCompletedUploads, docs, router]);
+  }, [commitCompletedUploads, docs, router, t]);
 
   const bulkApplyYear = useCallback(
     (raw: string) => {
       const year = raw.trim() ? Number(raw) : null;
       if (year !== null && (isNaN(year) || year < 1900 || year > 2100)) {
-        toast.error("Tahun harus antara 1900 dan 2100.");
+        toast.error(t("documents.batch.invalidYear"));
         return;
       }
       const ids = Array.from(selectionRef.current);
@@ -948,7 +957,7 @@ export function BatchUploadDialog({
         applyMetadataChange(id, { year });
       }
     },
-    [applyMetadataChange]
+    [applyMetadataChange, t]
   );
 
   const bulkApplySubcategory = useCallback(
@@ -974,9 +983,9 @@ export function BatchUploadDialog({
           ids.includes(doc.id) ? { ...doc, chapterIds: [...targetChapterIds] } : doc
         )
       );
-      toast.success(`${ids.length} dokumen diperbarui babnya.`);
+      toast.success(t("documents.batch.chapterAssignmentUpdated", { count: ids.length }));
     },
-    []
+    [t]
   );
 
   const bulkAddChapter = useCallback(
@@ -991,9 +1000,9 @@ export function BatchUploadDialog({
           };
         })
       );
-      toast.success(`Bab ditambahkan ke ${ids.length} dokumen.`);
+      toast.success(t("documents.batch.chapterAdded", { count: ids.length }));
     },
-    []
+    [t]
   );
 
   const bulkRemoveChapter = useCallback(
@@ -1008,9 +1017,9 @@ export function BatchUploadDialog({
           };
         })
       );
-      toast.success(`Bab dilepas dari ${ids.length} dokumen.`);
+      toast.success(t("documents.batch.chapterRemoved", { count: ids.length }));
     },
-    []
+    [t]
   );
 
   const hashingCount = docs.filter((d) => d.status === "hashing").length;
@@ -1022,12 +1031,12 @@ export function BatchUploadDialog({
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="space-y-0.5">
               <DialogTitle className="text-h5 font-heading font-bold text-foreground">
-                Unggah Batch Dokumen
+                {t("documents.batch.title")}
               </DialogTitle>
               <DialogDescription className="text-body-xs text-muted-foreground">
                 {step === "category"
-                  ? `Atur kategori (Materi, Soal, Pembahasan) dan tahun untuk ${courseTitle}.`
-                  : `Kaitkan setiap dokumen ke bab spesifik atau multi-bab untuk tipe ujian (UTS/UAS).`}
+                  ? t("documents.batch.categoryDescription", { course: courseTitle })
+                  : t("documents.batch.chapterDescription")}
               </DialogDescription>
             </div>
 
@@ -1043,7 +1052,7 @@ export function BatchUploadDialog({
                 }`}
               >
                 <Layers className="size-3.5" />
-                1. Kategori & Metadata
+                {t("documents.batch.stepCategory")}
               </button>
               <button
                 type="button"
@@ -1056,7 +1065,7 @@ export function BatchUploadDialog({
                 }`}
               >
                 <BookOpen className="size-3.5" />
-                2. Distribusi Bab
+                {t("documents.batch.stepChapters")}
                 {unassignedDocs.length > 0 && (
                   <span className="ml-1 px-1.5 py-0.2 text-[10px] font-bold rounded-md bg-status-warning/20 text-status-warning border border-status-warning/40">
                     {unassignedDocs.length}
@@ -1076,7 +1085,10 @@ export function BatchUploadDialog({
                 tabIndex={0}
                 onClick={() => filesInputRef.current?.click()}
                 onKeyDown={(e) => {
-                  if (e.target === e.currentTarget && e.code === "Enter") filesInputRef.current?.click();
+                  if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    filesInputRef.current?.click();
+                  }
                 }}
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -1084,7 +1096,7 @@ export function BatchUploadDialog({
                 }}
                 onDragLeave={() => setDragActive(false)}
                 onDrop={handleDrop}
-                className={`relative overflow-hidden flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition-all ${
+                className={`relative overflow-hidden flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   dragActive
                     ? "border-brand-primary bg-brand-primary/10 ring-2 ring-brand-primary/30"
                     : "border-border/80 bg-muted/20 hover:bg-muted/40 hover:border-brand-primary/50"
@@ -1095,10 +1107,10 @@ export function BatchUploadDialog({
                 </div>
                 <div>
                   <p className="text-body-sm font-semibold text-foreground">
-                    Tarik berkas atau folder PDF ke sini
+                    {t("documents.batch.dropzone")}
                   </p>
                   <p className="text-body-xs text-muted-foreground mt-0.5">
-                    Maksimal ${BATCH_MAX_FILES} dokumen, 50 MB per berkas. Kategori & tahun terdeteksi otomatis.
+                    {t("documents.batch.limits", { files: BATCH_MAX_FILES })}
                   </p>
                 </div>
                 <div className="flex gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
@@ -1110,7 +1122,7 @@ export function BatchUploadDialog({
                     onClick={() => filesInputRef.current?.click()}
                   >
                     <FileText className="size-3.5 mr-1" />
-                    Pilih Berkas
+                    {t("documents.batch.chooseFiles")}
                   </Button>
                   <Button
                     type="button"
@@ -1120,7 +1132,7 @@ export function BatchUploadDialog({
                     onClick={() => folderInputRef.current?.click()}
                   >
                     <FolderOpen className="size-3.5 mr-1" />
-                    Pilih Folder
+                    {t("documents.batch.chooseFolder")}
                   </Button>
                 </div>
               </div>
@@ -1152,7 +1164,7 @@ export function BatchUploadDialog({
                 <div className="flex items-center gap-2 text-body-xs font-medium text-brand-primary bg-brand-primary/10 border border-brand-primary/20 px-3 py-2 rounded-lg">
                   <Loader2 className="size-3.5 animate-spin shrink-0" />
                   <span>
-                    {ingestPhase === "checking" ? "Memeriksa duplikasi di server..." : "Menghitung checksum berkas..."}
+                    {ingestPhase === "checking" ? t("documents.batch.checkingDuplicates") : t("documents.batch.hashing")}
                   </span>
                 </div>
               )}
@@ -1164,7 +1176,7 @@ export function BatchUploadDialog({
                     className="font-semibold text-foreground hover:underline cursor-pointer"
                     onClick={() => setShowSkipped((v) => !v)}
                   >
-                    {skippedLog.length} berkas dilewati (klik untuk melihat)
+                    {t("documents.batch.skipped", { count: skippedLog.length })}
                   </button>
                   {showSkipped && (
                     <ul className="mt-1.5 space-y-0.5 list-disc list-inside text-muted-foreground">
@@ -1182,12 +1194,12 @@ export function BatchUploadDialog({
               <div className="flex items-center gap-2 rounded-xl border border-status-warning/30 bg-status-warning/10 px-3.5 py-2.5 text-body-xs text-foreground">
                 <AlertCircle className="size-4 text-status-warning shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <span className="font-semibold text-status-warning">Format Standar Zyx:</span>{" "}
-                  <code className="font-mono text-[11px] bg-background/80 px-1.5 py-0.5 rounded border border-status-warning/30 text-foreground">
+                  <span className="font-semibold text-status-warning">{t("documents.batch.standardFormat")}</span>{" "}
+                  <code className="font-mono text-body-xs bg-background/80 px-1.5 py-0.5 rounded border border-status-warning/30 text-foreground break-all">
                     {courseId.toLowerCase()}_[bab]_[kategori]_[topik]_[role]_[tahun].pdf
                   </code>
                   <span className="text-muted-foreground ml-1.5">
-                    Nama target disusun otomatis saat Anda memilih kategori, bab, dan judul topik.
+                    {t("documents.batch.filenameDescription")}
                   </span>
                 </div>
               </div>
@@ -1198,7 +1210,7 @@ export function BatchUploadDialog({
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="secondary" className="rounded-md text-body-xs font-semibold bg-muted/60 border border-border text-foreground">
-                        {docs.length} dokumen ({formatBytes(totalBytes)})
+                        {t("documents.batch.documentCount", { count: docs.length, size: formatBytes(totalBytes) })}
                       </Badge>
                       <Button
                         type="button"
@@ -1207,14 +1219,14 @@ export function BatchUploadDialog({
                         className="h-8 px-2.5 rounded-lg text-body-sm font-medium gap-1.5 border-brand-primary/30 text-brand-primary hover:bg-brand-primary/10"
                         disabled={isBatchFormattingAi || uploadRunning || docs.length === 0}
                         onClick={() => void handleBatchFormatAi()}
-                        title="Rapikan display name dan petakan bab seluruh dokumen dengan Gemini AI"
+                        title={t("documents.batch.aiFormatTitle")}
                       >
                         {isBatchFormattingAi ? (
                           <Loader2 className="size-3.5 animate-spin" />
                         ) : (
                           <Bot className="size-3.5" />
                         )}
-                        <span>{isBatchFormattingAi ? "Merapikan AI..." : "Rapikan dengan AI"}</span>
+                        <span>{isBatchFormattingAi ? t("documents.batch.formattingAi") : t("documents.batch.formatWithAi")}</span>
                       </Button>
                       {selection.size > 0 && (
                         <Button
@@ -1224,7 +1236,7 @@ export function BatchUploadDialog({
                           className="h-8 rounded-lg text-body-sm text-muted-foreground hover:text-foreground"
                           onClick={clearSelection}
                         >
-                          Bersihkan Seleksi ({selection.size})
+                          {t("documents.batch.clearSelection", { count: selection.size })}
                         </Button>
                       )}
                     </div>
@@ -1236,7 +1248,7 @@ export function BatchUploadDialog({
                       disabled={uploadRunning || ingestPhase !== "idle" || chapters.length === 0}
                       onClick={() => setStep("chapters")}
                     >
-                      Lanjut ke Distribusi Bab ({docs.length})
+                      {t("documents.batch.continueToChapters", { count: docs.length })}
                       <ArrowRight className="size-4 ml-1.5" />
                     </Button>
                   </div>
@@ -1274,7 +1286,7 @@ export function BatchUploadDialog({
                                 <Icon className="size-3.5" />
                               </div>
                               <span className={`font-heading text-body-sm font-bold ${theme.text}`}>
-                                {col.label}
+                                {t(`documents.batch.categories.${col.value}`)}
                               </span>
                             </div>
                             <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${theme.badgeBg}`}>
@@ -1306,7 +1318,7 @@ export function BatchUploadDialog({
                             ))}
                             {columnDocs.length === 0 && (
                               <div className="rounded-lg border border-dashed border-border/60 p-5 text-center text-body-xs text-muted-foreground/80 bg-background/30">
-                                Tarik dokumen ke kategori {col.label}
+                                {t("documents.batch.dropIntoCategory", { category: t(`documents.batch.categories.${col.value}`) })}
                               </div>
                             )}
                           </div>
@@ -1332,11 +1344,11 @@ export function BatchUploadDialog({
                       onClick={() => setStep("category")}
                     >
                       <ArrowLeft className="size-3.5 mr-1" />
-                      Kembali ke Kategori
+                      {t("documents.batch.backToCategory")}
                     </Button>
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-body-xs font-semibold bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
                       <Layers className="size-3 shrink-0" />
-                      {docs.length - unassignedDocs.length}/{docs.length} dokumen terkait bab
+                      {t("documents.batch.assignedCount", { assigned: docs.length - unassignedDocs.length, total: docs.length })}
                     </span>
                     {selection.size < docs.length ? (
                       <Button
@@ -1346,7 +1358,7 @@ export function BatchUploadDialog({
                         className="h-8 rounded-lg text-body-sm"
                         onClick={selectAll}
                       >
-                        Pilih Semua ({docs.length})
+                        {t("documents.batch.selectAll", { count: docs.length })}
                       </Button>
                     ) : (
                       <Button
@@ -1356,7 +1368,7 @@ export function BatchUploadDialog({
                         className="h-8 rounded-lg text-body-sm"
                         onClick={clearSelection}
                       >
-                        Bersihkan Seleksi ({selection.size})
+                        {t("documents.batch.clearSelection", { count: selection.size })}
                       </Button>
                     )}
                   </div>
@@ -1369,14 +1381,14 @@ export function BatchUploadDialog({
                       className="h-8 px-2.5 rounded-lg text-body-sm font-medium gap-1.5 border-brand-primary/30 text-brand-primary hover:bg-brand-primary/10"
                       disabled={isBatchFormattingAi || uploadRunning || docs.length === 0}
                       onClick={() => void handleBatchFormatAi()}
-                      title="Rapikan display name dan petakan bab seluruh dokumen dengan Gemini AI"
+                      title={t("documents.batch.aiFormatTitle")}
                     >
                       {isBatchFormattingAi ? (
                         <Loader2 className="size-3.5 animate-spin" />
                       ) : (
                         <Bot className="size-3.5" />
                       )}
-                      <span>{isBatchFormattingAi ? "Merapikan AI..." : "Rapikan dengan AI"}</span>
+                      <span>{isBatchFormattingAi ? t("documents.batch.formattingAi") : t("documents.batch.formatWithAi")}</span>
                     </Button>
                     <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5">
                       <Button
@@ -1389,7 +1401,7 @@ export function BatchUploadDialog({
                         onClick={() => setViewMode("kanban")}
                       >
                         <LayoutGrid className="size-3 mr-1" />
-                        Papan Kanban
+                        {t("documents.batch.kanban")}
                       </Button>
                       <Button
                         type="button"
@@ -1401,7 +1413,7 @@ export function BatchUploadDialog({
                         onClick={() => setViewMode("table")}
                       >
                         <List className="size-3 mr-1" />
-                        Tabel Matriks
+                        {t("documents.batch.matrixTable")}
                       </Button>
                     </div>
 
@@ -1424,7 +1436,7 @@ export function BatchUploadDialog({
                       ) : (
                         <Upload className="size-4" />
                       )}
-                      Unggah {uploadableDocs.length} Dokumen
+                      {t("documents.batch.uploadCount", { count: uploadableDocs.length })}
                     </Button>
                   </div>
                 </div>
@@ -1435,7 +1447,7 @@ export function BatchUploadDialog({
                     <div className="flex items-center gap-2 text-foreground">
                       <AlertTriangle className="size-4 shrink-0 text-status-warning" />
                       <span>
-                        Terdapat <strong>{unassignedDocs.length} dokumen</strong> yang belum dikaitkan dengan bab.
+                        {t("documents.batch.unassignedCount", { count: unassignedDocs.length })}
                       </span>
                     </div>
                     <Button
@@ -1450,10 +1462,10 @@ export function BatchUploadDialog({
                             d.chapterIds.length === 0 ? { ...d, chapterIds: allChapterIds } : d
                           )
                         );
-                        toast.success("Dokumen tanpa bab telah dikaitkan ke semua bab.");
+                        toast.success(t("documents.batch.unassignedAssigned"));
                       }}
                     >
-                      Kaitkan Semua yang Belum ke Semua Bab
+                      {t("documents.batch.assignAllUnassigned")}
                     </Button>
                   </div>
                 )}
@@ -1467,7 +1479,7 @@ export function BatchUploadDialog({
                       />
                     </div>
                     <div className="flex justify-between text-body-xs text-muted-foreground font-medium">
-                      <span>Mengunggah dokumen ke penyimpanan...</span>
+                        <span>{t("documents.batch.uploading")}</span>
                       <span>{overallProgress}%</span>
                     </div>
                   </div>
@@ -1477,7 +1489,7 @@ export function BatchUploadDialog({
                   <div className="rounded-xl border border-status-error/40 bg-status-error/10 p-3 space-y-2">
                     <div className="flex items-start gap-2 text-body-xs text-foreground font-medium">
                       <AlertTriangle className="size-4 shrink-0 text-status-error" />
-                      <span>{commitError} Berkas yang sudah terunggah dapat dicoba disimpan ulang.</span>
+                      <span>{commitError} {t("documents.batch.retryHint")}</span>
                     </div>
                     <Button
                       type="button"
@@ -1487,7 +1499,7 @@ export function BatchUploadDialog({
                       disabled={uploadRunning}
                       onClick={() => void retryCommit()}
                     >
-                      Coba Simpan Metadata Lagi
+                      {t("documents.batch.retryMetadata")}
                     </Button>
                   </div>
                 )}
@@ -1496,12 +1508,12 @@ export function BatchUploadDialog({
                   <div className="rounded-xl border border-status-success/40 bg-status-success/10 p-3">
                     <div className="flex items-center gap-2 text-body-sm font-semibold text-foreground">
                       <CheckCircle2 className="size-4 text-status-success" />
-                      Unggahan Selesai
+                      {t("documents.batch.uploadComplete")}
                     </div>
                     <p className="mt-1 text-body-xs text-muted-foreground">
-                      {summary.created} dokumen baru disimpan, {summary.updated} ditimpa.
-                      {summary.skippedDuplicates > 0 && ` ${summary.skippedDuplicates} duplikat dilewati.`}
-                      {summary.failedUploads > 0 && ` ${summary.failedUploads} unggahan gagal.`}
+                      {t("documents.batch.summary", { created: summary.created, updated: summary.updated })}
+                      {summary.skippedDuplicates > 0 && ` ${t("documents.batch.duplicatesSkipped", { count: summary.skippedDuplicates })}`}
+                      {summary.failedUploads > 0 && ` ${t("documents.batch.uploadFailures", { count: summary.failedUploads })}`}
                     </p>
                   </div>
                 )}
@@ -1535,7 +1547,7 @@ export function BatchUploadDialog({
                           <div className="flex items-center gap-1.5">
                             <AlertTriangle className="size-3.5 text-status-warning" />
                             <span className="font-heading text-body-sm font-bold text-status-warning">
-                              Belum Terkait Bab
+                              {t("documents.batch.unassigned")}
                             </span>
                           </div>
                           <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/20 text-amber-500 border border-amber-500/30">
@@ -1598,7 +1610,7 @@ export function BatchUploadDialog({
                               <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-brand-primary/15 text-brand-primary border border-brand-primary/30 shrink-0">
                                 B{ch.orderIndex}
                               </span>
-                              <span className="font-heading text-body-sm font-bold text-foreground truncate" title={`Bab ${ch.orderIndex}: ${ch.title}`}>
+                              <span className="font-heading text-body-sm font-bold text-foreground truncate" title={t("documents.batch.chapterWithTitle", { number: ch.orderIndex, title: ch.title })}>
                                 {ch.title}
                               </span>
                             </div>
@@ -1632,7 +1644,7 @@ export function BatchUploadDialog({
 
                             {chapterDocs.length === 0 && (
                               <div className="rounded-lg border border-dashed border-border/60 p-5 text-center text-body-xs text-muted-foreground/70 bg-background/20">
-                                Tarik berkas ke Bab {ch.orderIndex}
+                                {t("documents.batch.dropIntoChapter", { number: ch.orderIndex })}
                               </div>
                             )}
                           </div>
@@ -1691,7 +1703,7 @@ export function BatchUploadDialog({
           <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>{preview?.name}</DialogTitle>
-              <DialogDescription>Pratinjau cepat halaman pertama.</DialogDescription>
+              <DialogDescription>{t("documents.batch.previewPage")}</DialogDescription>
             </DialogHeader>
             {preview && (
               <iframe
@@ -1739,6 +1751,7 @@ function StagedCard({
   onKeyDown: (event: React.KeyboardEvent) => void;
   onDragStartCard: (id: string) => void;
 }) {
+  const t = useTranslations("adminAcademic");
   const showYear = TIME_RELATED_CATEGORIES.includes(doc.category);
   const subcategories = getSubcategoriesForLevel1(doc.category);
   const hasDuplicateFlag = Boolean(doc.duplicateOf) || inBatchDuplicate;
@@ -1766,13 +1779,13 @@ function StagedCard({
           disabled={disabled}
           onCheckedChange={() => onToggleSelect(doc.id, true)}
           onClick={(e) => e.stopPropagation()}
-          aria-label={`Pilih ${doc.originalName}`}
+          aria-label={t("documents.batch.selectFileNamed", { name: doc.originalName })}
           className="shrink-0"
         />
         <GripVertical className="size-3 shrink-0 text-muted-foreground/60 cursor-grab" />
         <span
           className="min-w-0 flex-1 truncate font-mono text-body-xs font-semibold text-foreground"
-          title={`Target: ${doc.generatedName}\nBerkas asli: ${doc.originalName}`}
+          title={t("documents.batch.fileNameTitle", { target: doc.generatedName, original: doc.originalName })}
         >
           {doc.generatedName}
         </span>
@@ -1784,7 +1797,7 @@ function StagedCard({
           className="size-6 shrink-0 rounded-md text-muted-foreground hover:text-foreground"
           onClick={onPreview}
           disabled={disabled}
-          aria-label={`Pratinjau ${doc.originalName}`}
+          aria-label={t("documents.batch.previewFileNamed", { name: doc.originalName })}
         >
           <Eye className="size-3.5" />
         </Button>
@@ -1794,10 +1807,10 @@ function StagedCard({
         <Input
           value={doc.title}
           disabled={disabled || doc.status === "hashing"}
-          placeholder="Judul topik materi"
+          placeholder={t("documents.batch.topicTitle")}
           onChange={(e) => onMetaChange(doc.id, { title: e.target.value })}
           className="h-8 rounded-lg text-body-sm bg-background border-border/80 font-medium"
-          aria-label="Judul dokumen"
+          aria-label={t("documents.batch.documentTitle")}
         />
       </div>
 
@@ -1807,13 +1820,13 @@ function StagedCard({
           disabled={disabled || doc.status === "hashing"}
           onValueChange={(v) => onMetaChange(doc.id, { subcategory: v as CourseMaterialSubcategory })}
         >
-          <SelectTrigger className="h-8 min-w-0 flex-1 rounded-lg text-body-sm bg-background border-border/80">
-            <SelectValue placeholder="Sub-kategori" />
+          <SelectTrigger aria-label={t("documents.batch.subcategory")} className="h-8 min-w-0 flex-1 rounded-lg text-body-sm bg-background border-border/80">
+            <SelectValue placeholder={t("documents.batch.subcategory")} />
           </SelectTrigger>
           <SelectContent>
             {subcategories.map((s) => (
               <SelectItem key={s.value} value={s.value} className="text-body-sm">
-                {s.label}
+                {t(`documents.batch.subcategories.${s.value}`)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -1825,13 +1838,13 @@ function StagedCard({
             max={2100}
             value={doc.year ?? ""}
             disabled={disabled || doc.status === "hashing"}
-            placeholder="Tahun"
+            placeholder={t("documents.batch.year")}
             onChange={(e) => {
               const raw = e.target.value;
               onMetaChange(doc.id, { year: raw ? Number(raw) : null });
             }}
             className="h-8 w-20 shrink-0 rounded-lg text-body-sm bg-background border-border/80 text-center font-medium"
-            aria-label="Tahun"
+            aria-label={t("documents.batch.year")}
           />
         )}
       </div>
@@ -1840,7 +1853,7 @@ function StagedCard({
         <div className="flex items-center gap-1">
           {doc.subcategory && (
             <span className={`px-1.5 py-0.5 rounded-md text-[10px] border ${subcatBadgeClass}`}>
-              {doc.subcategory.toUpperCase()}
+              {t(`documents.batch.subcategories.${doc.subcategory}`)}
             </span>
           )}
           {doc.year && (
@@ -1864,7 +1877,7 @@ function StagedCard({
             )}
             {doc.duplicateOf && (
               <span className="px-1.5 py-0.5 rounded-md bg-status-warning/15 text-foreground border border-status-warning/40 text-[10px]" title={doc.duplicateOf.title}>
-                Duplikat: {doc.duplicateOf.title}
+                {t("documents.batch.duplicateOf", { title: doc.duplicateOf.title })}
               </span>
             )}
           </div>
@@ -1873,13 +1886,13 @@ function StagedCard({
             disabled={disabled}
             onValueChange={(v) => onDuplicateAction(v as DuplicateAction)}
           >
-            <SelectTrigger className="h-7 w-full rounded-md text-body-xs bg-background">
+            <SelectTrigger aria-label={`${t("documents.batch.actions")}: ${doc.originalName}`} className="h-8 w-full rounded-md text-body-sm bg-background">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {(Object.keys(DUPLICATE_ACTION_LABELS) as DuplicateAction[]).map((action) => (
-                <SelectItem key={action} value={action} className="text-body-xs">
-                  {DUPLICATE_ACTION_LABELS[action]}
+              {(Object.keys(DUPLICATE_ACTION_KEYS) as DuplicateAction[]).map((action) => (
+                <SelectItem key={action} value={action} className="text-body-sm">
+                  {t(`documents.batch.${DUPLICATE_ACTION_KEYS[action]}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1906,12 +1919,12 @@ function StagedCard({
         )}
         {doc.status === "completed" && (
           <p className="flex items-center gap-1 text-[10px] text-status-success font-semibold">
-            <CheckCircle2 className="size-2.5" /> Terunggah
+            <CheckCircle2 className="size-2.5" /> {t("documents.batch.uploaded")}
           </p>
         )}
         {doc.status === "error" && (
           <p className="flex items-center gap-1 text-[10px] text-status-error font-medium">
-            <AlertTriangle className="size-2.5" /> {doc.errorMessage || "Gagal"}
+            <AlertTriangle className="size-2.5" /> {doc.errorMessage || t("documents.batch.failed")}
           </p>
         )}
       </div>
@@ -1946,6 +1959,7 @@ function ChapterKanbanCard({
   onRemove: () => void;
   onDragStartCard: (id: string) => void;
 }) {
+  const t = useTranslations("adminAcademic");
   const isMultiChapter = doc.chapterIds.length > 1;
   const isExamType = doc.subcategory === "uts" || doc.subcategory === "uas";
   const catTheme = CATEGORY_THEME[doc.category];
@@ -1977,7 +1991,7 @@ function ChapterKanbanCard({
           disabled={disabled}
           onCheckedChange={() => onToggleSelect(doc.id, true)}
           onClick={(e) => e.stopPropagation()}
-          aria-label={`Pilih ${doc.generatedName}`}
+          aria-label={t("documents.batch.selectFileNamed", { name: doc.generatedName })}
           className="shrink-0 mt-0.5"
         />
         <GripVertical className="size-3 shrink-0 text-muted-foreground/60 mt-0.5 cursor-grab" />
@@ -1992,11 +2006,11 @@ function ChapterKanbanCard({
           )}
           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
             <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold border capitalize ${catTheme.badgeBg}`}>
-              {doc.category.replace("_", " ")}
+              {t(`documents.batch.categories.${doc.category}`)}
             </span>
             {doc.subcategory && (
               <span className={`px-1.5 py-0.2 rounded text-[10px] border ${subcatBadgeClass}`}>
-                {doc.subcategory.toUpperCase()}
+                {t(`documents.batch.subcategories.${doc.subcategory}`)}
               </span>
             )}
             {doc.year && (
@@ -2014,7 +2028,7 @@ function ChapterKanbanCard({
             className="size-6 rounded-md text-muted-foreground hover:text-foreground"
             onClick={onPreview}
             disabled={disabled}
-            aria-label="Pratinjau berkas"
+            aria-label={t("documents.batch.previewFile")}
           >
             <Eye className="size-3.5" />
           </Button>
@@ -2025,7 +2039,7 @@ function ChapterKanbanCard({
             className="size-6 rounded-md text-muted-foreground hover:text-destructive"
             onClick={onRemove}
             disabled={disabled}
-            aria-label="Hapus dokumen dari antrean"
+            aria-label={t("documents.batch.removeFromQueue")}
           >
             <Trash2 className="size-3.5" />
           </Button>
@@ -2038,12 +2052,12 @@ function ChapterKanbanCard({
           <div className="flex items-center gap-1 flex-wrap">
             {isMultiChapter && (
               <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
-                Multi-Bab ({doc.chapterIds.length})
+                {t("documents.batch.multiChapter", { count: doc.chapterIds.length })}
               </span>
             )}
             {isExamType && !isMultiChapter && (
               <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-status-error/10 text-status-error border border-status-error/20">
-                Ujian Single Bab
+                {t("documents.batch.singleChapterExam")}
               </span>
             )}
           </div>
@@ -2058,14 +2072,14 @@ function ChapterKanbanCard({
                 disabled={disabled}
               >
                 <Plus className="size-3 mr-0.5" />
-                Atur Bab
+                {t("documents.batch.setChapters")}
               </Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-64 p-2.5 space-y-2 bg-popover border-border shadow-xl">
               <div className="flex items-center justify-between pb-1.5 border-b border-border text-body-xs font-bold">
-                <span>Kaitkan ke Bab</span>
+                <span>{t("documents.batch.linkChapters")}</span>
                 <span className="text-[10px] text-muted-foreground font-normal">
-                  {doc.chapterIds.length} bab aktif
+                  {t("documents.batch.activeChapterCount", { count: doc.chapterIds.length })}
                 </span>
               </div>
 
@@ -2075,7 +2089,7 @@ function ChapterKanbanCard({
                   return (
                     <label
                       key={ch.id}
-                      className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-body-xs font-medium cursor-pointer select-none transition-colors ${
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-body-sm font-medium cursor-pointer select-none transition-colors ${
                         isChecked
                           ? "bg-brand-primary/15 text-foreground border border-brand-primary/30"
                           : "hover:bg-muted/50 text-muted-foreground border border-transparent"
@@ -2085,8 +2099,8 @@ function ChapterKanbanCard({
                         checked={isChecked}
                         onCheckedChange={() => onToggleChapter(doc.id, ch.id)}
                       />
-                      <span className="truncate">
-                        Bab {ch.orderIndex}: {ch.title}
+                      <span className="min-w-0 break-words">
+                        {t("documents.batch.chapterWithTitle", { number: ch.orderIndex, title: ch.title })}
                       </span>
                     </label>
                   );
@@ -2101,7 +2115,7 @@ function ChapterKanbanCard({
                   className="h-7 text-body-xs px-1.5 rounded-md justify-center font-medium hover:bg-muted"
                   onClick={() => onSetChapters(chapters.map((c) => c.id))}
                 >
-                  Semua Bab
+                  {t("documents.batch.allChapters")}
                 </Button>
                 {chapters.length > 1 && (
                   <Button
@@ -2111,7 +2125,7 @@ function ChapterKanbanCard({
                     className="h-7 text-body-xs px-1.5 rounded-md justify-center font-medium hover:bg-muted"
                     onClick={() => onSetChapters(utsChapters)}
                   >
-                    Bab 1 s.d. UTS
+                    {t("documents.batch.firstHalfChapters")}
                   </Button>
                 )}
                 {currentColumnChapterId && (
@@ -2122,7 +2136,7 @@ function ChapterKanbanCard({
                     className="h-7 text-body-xs px-1.5 rounded-md justify-center font-medium hover:bg-muted"
                     onClick={() => onSetChapters([currentColumnChapterId])}
                   >
-                    Hanya Bab Ini
+                    {t("documents.batch.onlyThisChapter")}
                   </Button>
                 )}
                 <Button
@@ -2132,7 +2146,7 @@ function ChapterKanbanCard({
                   className="h-7 text-body-xs px-1.5 rounded-md justify-center font-medium text-destructive hover:text-destructive hover:bg-destructive/10"
                   onClick={() => onSetChapters([])}
                 >
-                  Kosongkan
+                  {t("documents.batch.clearChapters")}
                 </Button>
               </div>
             </PopoverContent>
@@ -2149,13 +2163,13 @@ function ChapterKanbanCard({
                 key={cid}
                 className="inline-flex items-center gap-1 rounded-md border border-brand-primary/40 bg-brand-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-foreground"
               >
-                <span className="truncate max-w-[120px]">Bab {ch.orderIndex}</span>
+                <span className="truncate max-w-[120px]">{t("documents.batch.chapterWithNumber", { number: ch.orderIndex })}</span>
                 {!disabled && (
                   <button
                     type="button"
                     onClick={() => onToggleChapter(doc.id, cid)}
                     className="text-muted-foreground hover:text-foreground cursor-pointer rounded-xs"
-                    aria-label={`Lepas bab ${ch.orderIndex}`}
+                    aria-label={t("documents.batch.removeChapterNumber", { number: ch.orderIndex })}
                   >
                     <X className="size-2.5" />
                   </button>
@@ -2165,7 +2179,7 @@ function ChapterKanbanCard({
           })}
           {doc.chapterIds.length === 0 && (
             <span className="text-[10px] font-semibold text-status-warning flex items-center gap-1">
-              <AlertTriangle className="size-2.5 shrink-0" /> Belum dikaitkan
+              <AlertTriangle className="size-2.5 shrink-0" /> {t("documents.batch.unassigned")}
             </span>
           )}
         </div>
@@ -2193,6 +2207,7 @@ function ChapterTableView({
   onPreview: (doc: StagedBatchDocument) => void;
   onRemove: (id: string) => void;
 }) {
+  const t = useTranslations("adminAcademic");
   return (
     <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-xs">
       <table className="w-full text-left text-body-xs">
@@ -2210,13 +2225,13 @@ function ChapterTableView({
                     }
                   }
                 }}
-                aria-label="Pilih semua"
+                aria-label={t("documents.batch.selectAllLabel")}
               />
             </th>
-            <th className="px-3.5 py-2.5">Nama Dokumen</th>
-            <th className="px-3.5 py-2.5">Kategori</th>
-            <th className="px-3.5 py-2.5">Terkait Bab</th>
-            <th className="w-20 px-3.5 py-2.5 text-right">Aksi</th>
+            <th className="px-3.5 py-2.5">{t("documents.batch.documentName")}</th>
+            <th className="px-3.5 py-2.5">{t("documents.batch.category")}</th>
+            <th className="px-3.5 py-2.5">{t("documents.batch.relatedChapters")}</th>
+            <th className="w-20 px-3.5 py-2.5 text-right">{t("documents.batch.actions")}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border/50">
@@ -2237,25 +2252,25 @@ function ChapterTableView({
                     checked={isSelected}
                     disabled={disabled}
                     onCheckedChange={() => onToggleSelect(doc.id, true)}
-                    aria-label={`Pilih ${doc.generatedName}`}
+                    aria-label={t("documents.batch.selectFileNamed", { name: doc.generatedName })}
                   />
                 </td>
                 <td className="px-3.5 py-2.5 max-w-[260px]">
                   <p className="truncate font-mono text-body-xs font-semibold text-foreground" title={doc.generatedName}>
                     {doc.generatedName}
                   </p>
-                  <p className="truncate text-[10px] text-muted-foreground mt-0.5" title={`Topik: ${doc.title}\nAsli: ${doc.originalName}`}>
+                  <p className="truncate text-[10px] text-muted-foreground mt-0.5" title={t("documents.batch.fileNameTitle", { target: doc.title, original: doc.originalName })}>
                     {doc.title ? `${doc.title} (${doc.originalName})` : doc.originalName}
                   </p>
                 </td>
                 <td className="px-3.5 py-2.5 whitespace-nowrap">
                   <div className="flex items-center gap-1.5">
                     <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border capitalize ${catTheme.badgeBg}`}>
-                      {doc.category.replace("_", " ")}
+                      {t(`documents.batch.categories.${doc.category}`)}
                     </span>
                     {doc.subcategory && (
                       <span className={`px-2 py-0.5 rounded-md text-[10px] border uppercase ${subcatBadgeClass}`}>
-                        {doc.subcategory}
+                        {t(`documents.batch.subcategories.${doc.subcategory}`)}
                       </span>
                     )}
                   </div>
@@ -2269,15 +2284,16 @@ function ChapterTableView({
                           key={ch.id}
                           type="button"
                           disabled={disabled}
+                          aria-pressed={isLinked}
                           onClick={() => onToggleChapter(doc.id, ch.id)}
-                          className={`px-2.5 py-1 rounded-md border text-[11px] font-semibold transition-all cursor-pointer ${
+                          className={`px-2.5 py-1 rounded-md border text-body-sm font-semibold transition-all cursor-pointer ${
                             isLinked
                               ? "border-brand-primary bg-primary text-primary-foreground shadow-2xs"
                               : "border-border/80 bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
                           }`}
-                          title={`Bab ${ch.orderIndex}: ${ch.title}`}
+                          title={t("documents.batch.chapterWithTitle", { number: ch.orderIndex, title: ch.title })}
                         >
-                          Bab {ch.orderIndex}
+                          {t("documents.batch.chapterWithNumber", { number: ch.orderIndex })}
                         </button>
                       );
                     })}
@@ -2291,7 +2307,7 @@ function ChapterTableView({
                       variant="ghost"
                       className="size-7 rounded-md text-muted-foreground hover:text-foreground"
                       onClick={() => onPreview(doc)}
-                      aria-label="Pratinjau berkas"
+                      aria-label={t("documents.batch.previewFile")}
                     >
                       <Eye className="size-3.5" />
                     </Button>
@@ -2301,7 +2317,7 @@ function ChapterTableView({
                       variant="ghost"
                       className="size-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={() => onRemove(doc.id)}
-                      aria-label="Hapus dari antrean"
+                      aria-label={t("documents.batch.removeFromQueue")}
                     >
                       <Trash2 className="size-3.5" />
                     </Button>
@@ -2329,6 +2345,7 @@ function BulkActionBar({
   onApplySubcategory: (subcategory: CourseMaterialSubcategory) => void;
   onRemove: () => void;
 }) {
+  const t = useTranslations("adminAcademic");
   const [moveTarget, setMoveTarget] = useState<MaterialLevel1Category>("materi");
   const [bulkYear, setBulkYear] = useState("");
   const [bulkSubcategory, setBulkSubcategory] = useState<CourseMaterialSubcategory | "">("");
@@ -2346,17 +2363,17 @@ function BulkActionBar({
     <div className="sticky bottom-0 z-10 mt-2 rounded-xl border border-border/80 bg-popover/95 backdrop-blur-md p-2.5 shadow-xl ring-1 ring-black/5 dark:ring-white/10">
       <div className="flex flex-wrap items-center gap-2">
         <span className="px-2.5 py-1 rounded-md text-body-xs font-bold bg-brand-primary/15 text-brand-primary border border-brand-primary/30">
-          {count} dipilih
+          {t("documents.batch.selectedCount", { count })}
         </span>
 
         <Select value={moveTarget} onValueChange={(v) => setMoveTarget(v as MaterialLevel1Category)}>
-          <SelectTrigger className="h-8 w-40 rounded-lg text-body-sm bg-background">
+          <SelectTrigger aria-label={t("documents.batch.applyCategory")} className="h-8 w-40 rounded-lg text-body-sm bg-background">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {LEVEL1_CATEGORIES.map((c) => (
               <SelectItem key={c.value} value={c.value} className="text-body-sm">
-                Pindah ke {c.label}
+                {t("documents.batch.moveToCategory", { category: t(`documents.batch.categories.${c.value}`) })}
               </SelectItem>
             ))}
           </SelectContent>
@@ -2368,7 +2385,7 @@ function BulkActionBar({
           className="h-8 rounded-lg text-body-sm bg-background"
           onClick={() => onMove(moveTarget)}
         >
-          Terapkan Kategori
+          {t("documents.batch.applyCategory")}
         </Button>
 
         <Input
@@ -2376,10 +2393,10 @@ function BulkActionBar({
           min={1900}
           max={2100}
           value={bulkYear}
-          placeholder="Tahun massal"
+          placeholder={t("documents.batch.bulkYear")}
           onChange={(e) => setBulkYear(e.target.value)}
           className="h-8 w-28 rounded-lg text-body-sm bg-background text-center"
-          aria-label="Tahun massal"
+          aria-label={t("documents.batch.bulkYear")}
         />
         <Button
           type="button"
@@ -2391,20 +2408,20 @@ function BulkActionBar({
             setBulkYear("");
           }}
         >
-          Terapkan Tahun
+          {t("documents.batch.applyYear")}
         </Button>
 
         <Select
           value={bulkSubcategory}
           onValueChange={(v) => setBulkSubcategory(v as CourseMaterialSubcategory)}
         >
-          <SelectTrigger className="h-8 w-44 rounded-lg text-body-sm bg-background">
-            <SelectValue placeholder="Sub-kategori massal" />
+          <SelectTrigger aria-label={t("documents.batch.bulkSubcategory")} className="h-8 w-44 rounded-lg text-body-sm bg-background">
+            <SelectValue placeholder={t("documents.batch.bulkSubcategory")} />
           </SelectTrigger>
           <SelectContent>
             {allSubcategories.map((s) => (
               <SelectItem key={s.value} value={s.value} className="text-body-sm">
-                {s.label}
+                {t(`documents.batch.subcategories.${s.value}`)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -2420,7 +2437,7 @@ function BulkActionBar({
             setBulkSubcategory("");
           }}
         >
-          Terapkan Sub-kategori
+          {t("documents.batch.applySubcategory")}
         </Button>
 
         <Button
@@ -2431,7 +2448,7 @@ function BulkActionBar({
           onClick={onRemove}
         >
           <Trash2 className="size-3.5 mr-1" />
-          Hapus
+          {t("documents.batch.removeSelected")}
         </Button>
       </div>
     </div>
@@ -2453,6 +2470,7 @@ function ChapterBulkActionBar({
   onRemoveChapter: (chapterId: string) => void;
   onRemove: () => void;
 }) {
+  const t = useTranslations("adminAcademic");
   const [selectedTargetChapter, setSelectedTargetChapter] = useState<string>("");
 
   const utsChapters = useMemo(() => {
@@ -2464,17 +2482,17 @@ function ChapterBulkActionBar({
     <div className="sticky bottom-0 z-10 mt-2 rounded-xl border border-border/80 bg-popover/95 backdrop-blur-md p-2.5 shadow-xl ring-1 ring-black/5 dark:ring-white/10">
       <div className="flex flex-wrap items-center gap-2">
         <span className="px-2.5 py-1 rounded-md text-body-xs font-bold bg-brand-primary/15 text-brand-primary border border-brand-primary/30">
-          {count} dipilih
+          {t("documents.batch.selectedCount", { count })}
         </span>
 
         <Select value={selectedTargetChapter} onValueChange={setSelectedTargetChapter}>
-          <SelectTrigger className="h-8 w-44 rounded-lg text-body-sm bg-background">
-            <SelectValue placeholder="Pilih Bab sasaran" />
+          <SelectTrigger aria-label={t("documents.batch.targetChapter")} className="h-8 w-44 rounded-lg text-body-sm bg-background">
+            <SelectValue placeholder={t("documents.batch.targetChapter")} />
           </SelectTrigger>
           <SelectContent>
             {chapters.map((ch) => (
               <SelectItem key={ch.id} value={ch.id} className="text-body-sm">
-                Bab {ch.orderIndex}: {ch.title}
+                {t("documents.batch.chapterWithTitle", { number: ch.orderIndex, title: ch.title })}
               </SelectItem>
             ))}
           </SelectContent>
@@ -2493,7 +2511,7 @@ function ChapterBulkActionBar({
           }}
         >
           <Plus className="size-3.5 mr-1" />
-          Tambah Bab
+          {t("documents.batch.addChapter")}
         </Button>
 
         <Button
@@ -2508,7 +2526,7 @@ function ChapterBulkActionBar({
             }
           }}
         >
-          Set Hanya Bab Ini
+          {t("documents.batch.setOnlyChapter")}
         </Button>
 
         <Button
@@ -2523,7 +2541,7 @@ function ChapterBulkActionBar({
             }
           }}
         >
-          Lepas Bab Ini
+          {t("documents.batch.removeChapter")}
         </Button>
 
         <Button
@@ -2533,7 +2551,7 @@ function ChapterBulkActionBar({
           className="h-8 rounded-lg text-body-sm bg-background"
           onClick={() => onSetChapters(chapters.map((c) => c.id))}
         >
-          Set Semua Bab
+          {t("documents.batch.setAllChapters")}
         </Button>
 
         {chapters.length > 1 && (
@@ -2544,7 +2562,7 @@ function ChapterBulkActionBar({
             className="h-8 rounded-lg text-body-sm bg-background"
             onClick={() => onSetChapters(utsChapters)}
           >
-            Set Bab 1 s.d. UTS
+            {t("documents.batch.setFirstHalfChapters")}
           </Button>
         )}
 
@@ -2555,7 +2573,7 @@ function ChapterBulkActionBar({
           className="h-8 rounded-lg text-body-sm bg-background"
           onClick={() => onSetChapters([])}
         >
-          Kosongkan Bab
+          {t("documents.batch.clearChapters")}
         </Button>
 
         <Button
@@ -2566,7 +2584,7 @@ function ChapterBulkActionBar({
           onClick={onRemove}
         >
           <Trash2 className="size-3.5 mr-1" />
-          Hapus
+          {t("documents.batch.removeSelected")}
         </Button>
       </div>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useTranslations } from "@/lib/i18n/client";
 import { ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -31,13 +32,14 @@ export function AdminConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = "Ya, Hapus",
-  cancelLabel = "Batal",
+  confirmLabel,
+  cancelLabel,
   icon: Icon = ShieldAlert,
   destructive = true,
   loading = false,
   onConfirm,
 }: AdminConfirmDialogProps) {
+  const t = useTranslations("admin.states");
   return (
     <Dialog
       open={open}
@@ -69,7 +71,7 @@ export function AdminConfirmDialog({
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >
-            {cancelLabel}
+            {cancelLabel ?? t("cancel")}
           </Button>
           <Button
             variant={destructive ? "destructive" : "default"}
@@ -77,7 +79,7 @@ export function AdminConfirmDialog({
             onClick={onConfirm}
             isLoading={loading}
           >
-            {confirmLabel}
+            {confirmLabel ?? t("confirmDelete")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -10,6 +10,7 @@ import { getYoutubeEmbedUrl } from "@/lib/youtube";
 import { useTutor } from "@/components/course/tutor-drawer";
 import type { SubmissionReviewFixture, SubmissionListItem } from "@/lib/student-course-fixtures";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
+import { useTranslations } from "@/lib/i18n/client";
 
 type ReviewClientProps = {
   courseId: string;
@@ -18,6 +19,7 @@ type ReviewClientProps = {
 };
 
 export function ReviewClient({ listItem, review }: ReviewClientProps) {
+  const t = useTranslations("learning");
   const { openMistake } = useTutor();
   const [userPlan, setUserPlan] = useState<string>("essential");
 
@@ -44,22 +46,22 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
       {/* Overview stats */}
       <div className="rounded-xl border border-border bg-card p-4 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <span className="text-body-xs font-semibold text-muted-foreground uppercase">Status Pengerjaan</span>
+          <span className="text-body-xs font-semibold text-muted-foreground uppercase">{t("review.status")}</span>
           <h2 className="font-heading text-body-base font-bold text-foreground mt-0.5">
             {review.examTitle}
           </h2>
         </div>
         <div className="flex items-center gap-6">
           <div className="text-left md:text-right">
-            <span className="text-body-xs font-semibold text-muted-foreground uppercase">Skor Akhir</span>
+            <span className="text-body-xs font-semibold text-muted-foreground uppercase">{t("review.finalScore")}</span>
             <p className="font-heading text-h5 font-bold text-foreground">
-              {listItem.score != null ? `${listItem.score}%` : "Pending"}
+              {listItem.score != null ? `${listItem.score}%` : t("review.pending")}
             </p>
           </div>
           <div className="text-left md:text-right">
-            <span className="text-body-xs font-semibold text-muted-foreground uppercase">Paket Aktif</span>
+            <span className="text-body-xs font-semibold text-muted-foreground uppercase">{t("review.activePlan")}</span>
             <p className="text-body-xs font-bold text-brand-primary uppercase mt-1">
-              ⭐ {userPlan}
+              {userPlan}
             </p>
           </div>
         </div>
@@ -83,15 +85,15 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
                 {/* Answer Correctness Badges */}
                 {item.correct === true ? (
                   <span className="inline-flex items-center gap-1 rounded-md bg-status-success/12 px-2.5 py-0.5 text-body-xs font-semibold text-status-success ring-1 ring-status-success/20">
-                    <Check className="size-3.5" aria-hidden /> Benar
+                    <Check className="size-3.5" aria-hidden /> {t("review.correct")}
                   </span>
                 ) : item.correct === false ? (
                   <span className="inline-flex items-center gap-1 rounded-md bg-status-error/12 px-2.5 py-0.5 text-body-xs font-semibold text-status-error ring-1 ring-status-error/20">
-                    <X className="size-3.5" aria-hidden /> Salah
+                    <X className="size-3.5" aria-hidden /> {t("review.incorrect")}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 rounded-md bg-status-warning/12 px-2.5 py-0.5 text-body-xs font-semibold text-status-warning ring-1 ring-status-warning/20">
-                    <HelpCircle className="size-3.5" aria-hidden /> Menunggu Dinilai
+                    <HelpCircle className="size-3.5" aria-hidden /> {t("review.pendingReview")}
                   </span>
                 )}
               </div>
@@ -99,18 +101,18 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
               {/* User answer and key details */}
               <div className="mt-5 space-y-2 text-body-sm border-l-2 border-muted pl-4">
                 <p>
-                  <span className="font-semibold text-muted-foreground">Jawaban Anda: </span>
+                  <span className="font-semibold text-muted-foreground">{t("review.yourAnswer")} </span>
                   <MathText className="text-foreground font-medium">{item.userAnswer || "-"}</MathText>
                 </p>
                 {item.correctAnswerLabel && (
                   <p>
-                    <span className="font-semibold text-muted-foreground">Jawaban Benar: </span>
+                    <span className="font-semibold text-muted-foreground">{t("review.correctAnswer")} </span>
                     <MathText className="text-status-success font-semibold">{item.correctAnswerLabel}</MathText>
                   </p>
                 )}
                 {item.teacherNote && (
                   <div className="mt-3 rounded-xl bg-muted/40 border border-border p-3 text-body-xs text-foreground leading-relaxed">
-                    <span className="font-bold text-brand-secondary">Catatan Pengajar: </span>
+                    <span className="font-bold text-brand-secondary">{t("review.teacherNote")} </span>
                     <MathText>{item.teacherNote}</MathText>
                   </div>
                 )}
@@ -120,9 +122,9 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
                       size="sm"
                       variant="outline"
                       onClick={() => openMistake(item.questionId, item.userAnswer || "")}
-                      className="text-body-xs font-semibold flex items-center gap-1.5 border-brand-primary/30 text-brand-primary hover:bg-brand-primary/5 rounded-lg h-9"
+                      className="text-body-sm font-semibold flex items-center gap-1.5 border-brand-primary/30 text-brand-primary hover:bg-brand-primary/5 rounded-lg h-9"
                     >
-                      Tanya Zyra
+                      {t("review.askZyra")}
                     </Button>
                   </div>
                 )}
@@ -131,7 +133,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
               {/* Zyra-Generated Discussion and Explanation Section */}
               {hasExplanation && (
                 <div className="mt-6 border-t border-border/80 pt-6 space-y-4">
-                  <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground">Pembahasan</h4>
+                  <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground">{t("review.explanation")}</h4>
 
                   {/* Text-based explanation */}
                   {item.explanationText && (
@@ -145,12 +147,12 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
                     <div className="relative mx-auto max-w-md aspect-video border border-border rounded-2xl overflow-hidden mt-3 shadow-xs">
                       <Image
                         src={item.explanationImage}
-                        alt={`Diagram Pembahasan Soal ${idx + 1}`}
+                        alt={t("review.diagramAlt", { number: idx + 1 })}
                         fill
                         className="object-cover"
                       />
-                      <div className="bg-muted/70 px-3 py-1.5 text-[10px] text-center text-muted-foreground border-t border-border font-medium">
-                        Gambar: Ilustrasi Grafik Penyelesaian Matematika
+                      <div className="bg-muted/70 px-3 py-1.5 text-body-xs text-center text-muted-foreground border-t border-border font-medium">
+                        {t("review.diagramCaption")}
                       </div>
                     </div>
                   )}
@@ -160,7 +162,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
                     <div className="space-y-2 mt-4">
                       <span className="text-body-xs font-bold text-foreground flex items-center gap-1.5">
                         <Video className="size-3.5 text-brand-primary" />
-                        Video Pembahasan Tutor:
+                        {t("review.tutorVideo")}
                       </span>
 
                       <div className="relative w-full max-w-xl aspect-video rounded-2xl border border-border bg-black overflow-hidden shadow-md">
@@ -171,14 +173,14 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
                               const embed = getYoutubeEmbedUrl(item.explanationVideoUrl);
                               return embed ? (
                                 <iframe
-                                  title={`Video Pembahasan Soal ${idx + 1}`}
+                                  title={t("review.videoTitle", { number: idx + 1 })}
                                   src={embed}
                                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                   allowFullScreen
                                   className="w-full h-full border-0"
                                 />
                               ) : (
-                                <p className="text-body-sm text-white p-4">Embed video gagal dimuat.</p>
+                                <p className="text-body-sm text-white p-4">{t("review.videoLoadFailed")}</p>
                               );
                             })()
                           ) : (
@@ -201,17 +203,17 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
                               <span className="flex size-11 items-center justify-center rounded-full bg-brand-secondary/20 text-brand-secondary mb-3 border border-brand-secondary/35">
                                 <Lock className="size-5" />
                               </span>
-                              <h5 className="font-heading text-body-sm font-bold text-white">Video Pembahasan Terkunci</h5>
-                              <p className="text-[10px] text-muted-foreground mt-1 max-w-sm leading-relaxed">
-                                Fitur video pembahasan tutor ini hanya tersedia untuk paket langganan <b>Essential</b> atau <b>Premium</b>.
+                              <h5 className="font-heading text-body-sm font-bold text-white">{t("review.lockedVideoTitle")}</h5>
+                              <p className="mt-1 max-w-sm text-body-xs leading-relaxed text-white/80">
+                                {t("review.lockedVideoDescription")}
                               </p>
                               <Button
                                 asChild
                                 size="sm"
-                                className="mt-4 bg-brand-secondary hover:bg-brand-secondary/95 text-white text-body-xs font-semibold h-8"
+                                className="mt-4 bg-brand-secondary hover:bg-brand-secondary/95 text-white text-body-sm font-semibold h-9"
                               >
                                 <Link href="/plans">
-                                  Tingkatkan Paket Sekarang
+                                  {t("review.upgradePlan")}
                                   <ExternalLink className="ml-1 size-3" />
                                 </Link>
                               </Button>

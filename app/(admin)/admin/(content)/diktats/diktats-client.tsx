@@ -242,12 +242,12 @@ export function DiktatCompilerClient({
 
         {/* Course Target Select */}
         <div className="space-y-1.5">
-          <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Mata Kuliah</label>
+          <label htmlFor="diktat-course" className="text-body-sm font-semibold">Mata kuliah</label>
           <Select value={selectedCourseId} onValueChange={(val) => {
             setSelectedCourseId(val);
             setSelectedChapters(new Set()); // Reset selected chapters when course shifts
           }}>
-            <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
+            <SelectTrigger id="diktat-course" className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
               <SelectValue placeholder="Pilih Mata Kuliah" />
             </SelectTrigger>
             <SelectContent>
@@ -262,8 +262,9 @@ export function DiktatCompilerClient({
 
         {/* Custom Title Input */}
         <div className="space-y-1.5">
-          <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Judul diktat (opsional)</label>
+          <label htmlFor="diktat-title" className="text-body-sm font-semibold">Judul diktat (opsional)</label>
           <Input
+            id="diktat-title"
             type="text"
             value={customTitle}
             onChange={(e) => setCustomTitle(e.target.value)}
@@ -274,10 +275,11 @@ export function DiktatCompilerClient({
 
         {/* Cover Page Configurator */}
         <div className="space-y-1.5">
-          <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Sampul</label>
-          <div className="grid grid-cols-2 gap-3">
+          <p id="diktat-cover-label" className="text-body-sm font-semibold">Sampul</p>
+          <div role="group" aria-labelledby="diktat-cover-label" className="grid grid-cols-2 gap-3">
             <Button variant="outline"
               type="button"
+              aria-pressed={coverStyle === "academic"}
               onClick={() => setCoverStyle("academic")}
               className={cn(
                 "p-3 rounded-lg border text-body-sm font-semibold text-center transition-all",
@@ -290,6 +292,7 @@ export function DiktatCompilerClient({
             </Button>
             <Button variant="outline"
               type="button"
+              aria-pressed={coverStyle === "modern"}
               onClick={() => setCoverStyle("modern")}
               className={cn(
                 "p-3 rounded-lg border text-body-sm font-semibold text-center transition-all",
@@ -305,7 +308,7 @@ export function DiktatCompilerClient({
 
         {/* Chapter Checklist */}
         <div className="space-y-2 border-t border-border pt-4">
-          <div className="flex items-center justify-between text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="flex items-center justify-between text-body-sm font-semibold">
             <span>Bab ({courseChapters.length})</span>
             {courseChapters.length > 0 && (
               <Button variant="outline"

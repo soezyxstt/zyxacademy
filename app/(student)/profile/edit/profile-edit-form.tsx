@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { GraduationCap, Mail, ShieldCheck, AlertCircle } from "lucide-react";
@@ -11,10 +11,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { SelectField } from "@/components/ui/select-field";
 import { toast } from "@/components/ui/toast";
+import { useTranslations } from "@/lib/i18n/client";
 
 const INITIAL_STATE: StudentProfileActionState = {
   success: false,
   message: "",
+  errorCode: undefined,
   submittedAt: 0,
 };
 
@@ -34,6 +36,7 @@ interface ProfileEditFormProps {
  * Reactively cascades available major options when a faculty is chosen.
  */
 export function ProfileEditForm({ user }: ProfileEditFormProps) {
+  const t = useTranslations("student");
   const router = useRouter();
   const [selectedFaculty, setSelectedFaculty] = useState(user.faculty || "");
   const [selectedMajor, setSelectedMajor] = useState(user.major || "");
@@ -42,6 +45,7 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
   );
 
   const [state, formAction, isPending] = useActionState(updateStudentProfileAction, INITIAL_STATE);
+  const shownSubmission = useRef(0);
 
   const availableMajors = selectedFaculty ? getMajorsForFaculty(selectedFaculty) : [];
   const entryYears = generateEntryYears();
@@ -52,14 +56,15 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
   };
 
   useEffect(() => {
-    if (!state.submittedAt) return;
+    if (!state.submittedAt || shownSubmission.current === state.submittedAt) return;
+    shownSubmission.current = state.submittedAt;
     if (state.success) {
-      toast.success(state.message);
+      toast.success(t("profile.saved"));
       router.push("/profile");
     } else {
-      toast.error(state.message);
+      toast.error(t("profile.saveFailed"));
     }
-  }, [state, router]);
+  }, [state, router, t]);
 
   const facultyOptions = ITB_FACULTIES.map((f) => ({
     value: f.code,
@@ -79,17 +84,17 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
   return (
     <Card className="max-w-2xl border-border bg-card shadow-xs">
       <CardHeader className="border-b border-border pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <GraduationCap className="size-5 text-brand-primary shrink-0" />
-            Informasi Akademis ITB
+            {t("profile.academicInfo")}
           </CardTitle>
           <Badge variant="secondary" className="border-brand-primary/20 bg-brand-primary/10 text-brand-primary uppercase tracking-wider text-body-2xs font-semibold">
-            Mahasiswa ITB
+            {t("profile.itbStudent")}
           </Badge>
         </div>
         <CardDescription className="text-body-xs text-muted-foreground mt-1">
-          Untuk menyesuaikan rekomendasi kelas.
+          {t("profile.recommendationDescription")}
         </CardDescription>
       </CardHeader>
 
@@ -98,31 +103,31 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
         <div className="mb-4 border-b border-border pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-body-sm">
           <div>
             <p className="font-semibold text-foreground">{user.name}</p>
-            <p className="text-body-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+            <p className="text-body-xs text-muted-foreground flex items-center gap-1.5 mt-0.5 break-all">
               <Mail className="size-3.5" />
               {user.email}
             </p>
           </div>
           <span className="inline-flex items-center gap-1.5 text-body-xs font-semibold text-status-success shrink-0">
             <ShieldCheck className="size-4" />
-            Akun Google terverifikasi
+            {t("profile.googleVerified")}
           </span>
         </div>
 
         {state.message && !state.success && (
           <div className="mb-6 flex items-center gap-2 rounded-xl border border-status-error/30 bg-status-error/10 p-3 text-body-xs font-medium text-status-error">
             <AlertCircle className="size-4 shrink-0" />
-            <span>{state.message}</span>
+            <span>{state.errorCode ? t(`profile.errors.${state.errorCode}`) : t("profile.saveFailed")}</span>
           </div>
         )}
 
-        <form action={formAction} className="space-y-5">
+        <form action={formAction} className="space-y-4">
           {/* Fakultas */}
           <SelectField
             id="faculty"
             name="faculty"
-            label="Fakultas atau sekolah ITB"
-            placeholder="Pilih fakultas atau sekolah..."
+            label={t("profile.facultyLabel")}
+            placeholder={t("profile.facultyPlaceholder")}
             options={facultyOptions}
             value={selectedFaculty}
             onValueChange={handleFacultyChange}
@@ -133,9 +138,9 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
           <SelectField
             id="major"
             name="major"
-            label="Jurusan atau program studi"
-            description="Pilih opsi TPB jika belum penjurusan"
-            placeholder={selectedFaculty ? "Pilih jurusan atau program studi..." : "Pilih fakultas terlebih dahulu..."}
+            label={t("profile.majorLabel")}
+            description={t("profile.majorDescription")}
+            placeholder={selectedFaculty ? t("profile.majorPlaceholder") : t("profile.selectFacultyFirst")}
             options={majorOptions}
             value={selectedMajor}
             onValueChange={setSelectedMajor}
@@ -147,9 +152,9 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
           <SelectField
             id="entryYear"
             name="entryYear"
-            label="Tahun masuk ITB (Angkatan)"
-            description="Tahun pertama memprioritaskan mata kuliah TPB."
-            placeholder="Pilih tahun masuk..."
+            label={t("profile.entryYearLabel")}
+            description={t("profile.entryYearDescription")}
+            placeholder={t("profile.entryYearPlaceholder")}
             options={entryYearOptions}
             value={selectedEntryYear}
             onValueChange={setSelectedEntryYear}
@@ -157,7 +162,7 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
           />
 
           {/* Form Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+          <div className="flex flex-wrap items-center justify-end gap-2 pt-4 border-t border-border">
             <Button
               type="button"
               variant="outline"
@@ -166,16 +171,16 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
               className="text-body-sm font-semibold"
             >
               <Link href="/profile">
-                Batal
+                {t("profile.cancel")}
               </Link>
             </Button>
             <Button
               type="submit"
               size="sm"
               disabled={isPending}
-              className="text-body-sm font-semibold bg-brand-primary hover:bg-primary-hover text-white"
+              className="text-body-sm font-semibold bg-brand-primary hover:bg-primary-hover text-primary-foreground"
             >
-              {isPending ? "Menyimpan..." : "Simpan profil"}
+              {isPending ? t("profile.saving") : t("profile.save")}
             </Button>
           </div>
         </form>

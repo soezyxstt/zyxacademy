@@ -1,4 +1,7 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
 type StatusTone = "muted" | "info" | "success" | "warning" | "error" | "brand";
@@ -21,6 +24,13 @@ const subtleStatusToneClasses: Record<StatusTone, string> = {
   brand: "bg-brand-primary/5 text-brand-primary/80 border border-brand-primary/10",
 };
 
+const enumMessageKeys: Record<string, string> = {
+  active: "active", inactive: "inactive", pending: "pending", approved: "approved",
+  rejected: "rejected", published: "published", draft: "draft", failed: "failed",
+  completed: "completed", processing: "processing", expired: "expired", cancelled: "cancelled",
+  ready: "ready", stale: "stale", UP_TO_DATE: "upToDate", NEEDS_REVIEW: "needsReview",
+};
+
 export type StatusBadgeProps = {
   tone?: StatusTone;
   subtle?: boolean;
@@ -29,6 +39,10 @@ export type StatusBadgeProps = {
 };
 
 export function StatusBadge({ tone = "muted", subtle = false, className, children }: StatusBadgeProps) {
+  const t = useTranslations("admin.enums");
+  const displayChildren = typeof children === "string" && enumMessageKeys[children]
+    ? t(enumMessageKeys[children])
+    : children;
   return (
     <span
       className={cn(
@@ -39,7 +53,7 @@ export function StatusBadge({ tone = "muted", subtle = false, className, childre
         className
       )}
     >
-      {children}
+      {displayChildren}
     </span>
   );
 }
@@ -59,6 +73,7 @@ const difficultyTone: Record<string, StatusTone> = {
 };
 
 export function DifficultyBadge({ difficulty, subtle = false, className, title, prefix }: DifficultyBadgeProps) {
+  const t = useTranslations("admin.states");
   const normalized =
     typeof difficulty === "number"
       ? difficulty >= 3
@@ -68,6 +83,7 @@ export function DifficultyBadge({ difficulty, subtle = false, className, title, 
           : "easy"
       : String(difficulty);
   const tone = difficultyTone[normalized] ?? "muted";
+  const localizedDifficulty = t(normalized === "easy" ? "easy" : normalized === "medium" ? "medium" : normalized === "hard" ? "hard" : "unknownDifficulty");
   return (
     <span
       title={title}
@@ -79,7 +95,7 @@ export function DifficultyBadge({ difficulty, subtle = false, className, title, 
         className
       )}
     >
-      {prefix ? `${prefix}: ${normalized}` : normalized}
+      {prefix ? `${prefix}: ${localizedDifficulty}` : localizedDifficulty}
     </span>
   );
 }

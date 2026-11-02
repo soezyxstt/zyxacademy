@@ -1,6 +1,9 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import {
   BrainCircuit,
@@ -125,8 +128,9 @@ export function QuizInsightDetailClient({
   quizId,
   lockedCourse,
   backHref = "/admin/quiz-insights",
-  backLabel = "Analisis & Insight Kuis",
+  backLabel,
 }: QuizInsightDetailClientProps) {
+  const tx = useTranslations("adminEval.quizInsightDetail");
   const [data, setData] = useState<QuizDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzingAi, setAnalyzingAi] = useState(false);
@@ -142,16 +146,15 @@ export function QuizInsightDetailClient({
         const json = await res.json();
         setData(json);
       } else {
-        const err = await res.json();
-        setErrorMsg(err.error || "Gagal mengambil data kuis.");
+        setErrorMsg(tx("loadFailed"));
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg("Terjadi kesalahan saat memuat data kuis.");
+      setErrorMsg(tx("connectionError"));
     } finally {
       setLoading(false);
     }
-  }, [quizId]);
+  }, [quizId, tx]);
 
   useEffect(() => {
     fetchDetail();
@@ -167,12 +170,11 @@ export function QuizInsightDetailClient({
       if (res.ok) {
         await fetchDetail();
       } else {
-        const err = await res.json();
-        setErrorMsg(err.error || "Gagal menjalankan analisis performa.");
+        setErrorMsg(tx("analysisFailed"));
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg("Terjadi kesalahan saat memproses analisis.");
+      setErrorMsg(tx("analysisError"));
     } finally {
       setAnalyzingAi(false);
     }
@@ -180,9 +182,11 @@ export function QuizInsightDetailClient({
 
   if (loading) {
     return (
-      <div className="p-12 text-center text-body-sm text-muted-foreground space-y-3">
-        <RefreshCw className="size-8 animate-spin mx-auto text-brand-primary" />
-        <p className="font-medium text-foreground">Memuat data analitik kuis...</p>
+      <div role="status" aria-label={tx("loading")} className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4"><div className="space-y-2"><Skeleton className="h-7 w-56" /><Skeleton className="h-4 w-40" /></div><Skeleton className="h-9 w-40" /></div>
+        <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-4">{[0, 1, 2, 3].map((i) => <div key={i} className="space-y-2 p-4"><Skeleton className="h-4 w-24" /><Skeleton className="h-6 w-16" /></div>)}</div>
+        <Skeleton className="h-10 w-80 max-w-full" />
+        <div className="grid gap-4 md:grid-cols-2">{[0, 1].map((i) => <div key={i} className="space-y-3 rounded-xl border border-border bg-card p-4"><Skeleton className="h-5 w-40" /><Skeleton className="h-32 w-full" /></div>)}</div>
       </div>
     );
   }
@@ -194,7 +198,7 @@ export function QuizInsightDetailClient({
         <p className="text-body-base font-semibold text-status-error">{errorMsg}</p>
         <Link href={backHref}>
           <Button variant="outline" size="sm" className="rounded-lg">
-            {backLabel}
+            {backLabel ?? tx("backLabel")}
           </Button>
         </Link>
       </div>
@@ -206,11 +210,11 @@ export function QuizInsightDetailClient({
   const { template, summary, questionAnalysis, conceptAnalysis, latestAiInsight } = data;
 
   const formatDuration = (secs: number) => {
-    if (!secs) return "0 detik";
+    if (!secs) return tx("durationSeconds", { seconds: 0 });
     const mins = Math.floor(secs / 60);
     const remainder = secs % 60;
-    if (mins === 0) return `${remainder} dtk`;
-    return `${mins} mnt ${remainder} dtk`;
+    if (mins === 0) return tx("durationSeconds", { seconds: remainder });
+    return tx("durationMinutesSeconds", { minutes: mins, seconds: remainder });
   };
 
   const courseDisplayName = lockedCourse?.title || template.courseName || template.courseId;
@@ -220,7 +224,7 @@ export function QuizInsightDetailClient({
       <AdminPageHeader
         icon={BarChart3}
         backHref={backHref}
-        backLabel={backLabel}
+        backLabel={backLabel ?? tx("backLabel")}
         title={
           <span className="flex flex-wrap items-center gap-2">
             <span>{template.title}</span>
@@ -228,13 +232,13 @@ export function QuizInsightDetailClient({
               {courseDisplayName}
             </Badge>
             <Badge variant="secondary" className="rounded-md text-body-xs capitalize">
-              {template.category}
+              {tx(`category.${template.category}`)}
             </Badge>
           </span>
         }
         description={
           <>
-            ID Kuis: {template.id} | Limit: {template.timeLimitSeconds ? formatDuration(template.timeLimitSeconds) : "Tanpa Batas"} | Dibuat pada:{" "}
+            {tx("quizMetadata", { id: template.id, limit: template.timeLimitSeconds ? formatDuration(template.timeLimitSeconds) : tx("unlimited") })} · {tx("createdAt")} {" "}
             <FormattedDate date={template.createdAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
           </>
         }
@@ -242,14 +246,14 @@ export function QuizInsightDetailClient({
           <Button
             onClick={handleRunAiAnalysis}
             disabled={analyzingAi || summary.totalCompleted === 0}
-            className="gap-2 bg-brand-primary text-white hover:bg-brand-primary/90 rounded-lg"
+            className="gap-2 bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-lg"
           >
             {analyzingAi ? (
               <RefreshCw className="size-4 animate-spin" />
             ) : (
               <BrainCircuit className="size-4 text-amber-300" />
             )}
-            <span>{analyzingAi ? "Menganalisis..." : "Jalankan Analisis Performa"}</span>
+            <span>{analyzingAi ? tx("analyzing") : tx("runPerformanceAnalysis")}</span>
           </Button>
         }
       />
@@ -264,40 +268,40 @@ export function QuizInsightDetailClient({
       {/* Overview Stat Strip */}
       <AdminStatStrip className="lg:grid-cols-4">
         <AdminStatStripItem
-          label="Total Peserta Selesai"
+          label={tx("completedParticipants")}
           value={summary.totalCompleted}
-          caption={`Tingkat penyelesaian ${summary.completionRate}% dari ${summary.totalStarted} mulai`}
+          caption={tx("completionRateCaption", { rate: summary.completionRate, started: summary.totalStarted })}
           icon={Target}
           iconClassName="text-brand-primary"
         />
         <AdminStatStripItem
-          label="Rata-rata Skor"
+          label={tx("averageScore")}
           value={`${summary.avgScore} / 100`}
-          caption={`Median: ${summary.medianScore} | Min: ${summary.minScore} | Max: ${summary.maxScore}`}
+          caption={tx("scoreRangeCaption", { median: summary.medianScore, min: summary.minScore, max: summary.maxScore })}
           icon={BarChart3}
           iconClassName="text-status-info"
         />
         <AdminStatStripItem
-          label="Rata-rata Waktu"
+          label={tx("averageTime")}
           value={formatDuration(summary.avgDurationSeconds)}
           icon={BookOpen}
           iconClassName="text-brand-secondary"
         />
         <AdminStatStripItem
-          label="Status Evaluasi AI"
+          label={tx("aiEvaluationStatus")}
           value={
             latestAiInsight ? (
               <div className="flex items-center gap-1.5 text-status-success">
                 <CheckCircle2 className="size-5" />
-                <span className="text-body-sm font-semibold">Tersedia</span>
+                <span className="text-body-sm font-semibold">{tx("available")}</span>
               </div>
             ) : (
-              <span className="text-body-sm font-normal text-muted-foreground">Belum Dianalisis</span>
+              <span className="text-body-sm font-normal text-muted-foreground">{tx("notAnalyzed")}</span>
             )
           }
-          caption={latestAiInsight ? `Berdasarkan ${latestAiInsight.sampleSize} pengerjaan` : undefined}
+          caption={latestAiInsight ? tx("basedOnAttempts", { count: latestAiInsight.sampleSize }) : undefined}
           icon={BrainCircuit}
-          iconClassName="text-amber-500"
+          iconClassName="text-status-warning"
         />
       </AdminStatStrip>
 
@@ -306,43 +310,43 @@ export function QuizInsightDetailClient({
         <TabsList>
           <TabsTrigger value="ai-insights" className="gap-2">
             <BrainCircuit className="size-4 text-brand-primary" />
-            <span>Evaluasi AI</span>
+            <span>{tx("aiEvaluation")}</span>
             <BetaBadge />
           </TabsTrigger>
           <TabsTrigger value="questions" className="gap-2">
             <Target className="size-4" />
-            <span>Analisis soal</span>
+            <span>{tx("questionAnalysis")}</span>
           </TabsTrigger>
           <TabsTrigger value="score-dist" className="gap-2">
             <BarChart3 className="size-4" />
-            <span>Distribusi Nilai</span>
+            <span>{tx("scoreDistribution")}</span>
           </TabsTrigger>
           <TabsTrigger value="attempts-sheet" className="gap-2">
             <FileSpreadsheet className="size-4 text-brand-primary" />
-            <span>Pengerjaan Siswa</span>
+            <span>{tx("studentAttempts")}</span>
           </TabsTrigger>
         </TabsList>
 
         {/* Tab 1: AI evaluation */}
         <TabsContent value="ai-insights" className="space-y-4">
           {!latestAiInsight ? (
-            <div className="border border-border/80 rounded-2xl p-12 text-center bg-card/50 space-y-4">
+            <div className="border border-border rounded-xl p-6 text-center bg-card space-y-4">
               <div className="size-12 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center mx-auto">
                 <BrainCircuit className="size-6" />
               </div>
               <div className="max-w-md mx-auto space-y-1">
-                <h3 className="text-body-base font-semibold text-foreground">Belum Ada Analisis AI</h3>
+                <h3 className="text-body-base font-semibold text-foreground">{tx("noAiAnalysis")}</h3>
                 <p className="text-body-sm text-muted-foreground">
-                  Gunakan model penalaran AI untuk mendiagnosis miskonsepsi umum siswa, distraktor paling mengecoh, dan rekomendasi bahan ajar.
+                  {tx("noAiAnalysisDescription")}
                 </p>
               </div>
               <Button
                 onClick={handleRunAiAnalysis}
                 disabled={analyzingAi || summary.totalCompleted === 0}
-                className="gap-2 bg-brand-primary text-white hover:bg-brand-primary/90"
+                className="gap-2 bg-brand-primary text-primary-foreground hover:bg-brand-primary/90"
               >
                 {analyzingAi ? <RefreshCw className="size-4 animate-spin" /> : <Zap className="size-4" />}
-                {summary.totalCompleted === 0 ? "Butuh minimal 1 pengerjaan siswa" : "Jalankan analisis"}
+                {summary.totalCompleted === 0 ? tx("needOneAttempt") : tx("runAnalysis")}
               </Button>
             </div>
           ) : (
@@ -350,8 +354,8 @@ export function QuizInsightDetailClient({
               {/* Executive Summary */}
               <div className="border border-border rounded-xl p-4 bg-card space-y-3">
                 <div className="flex items-center gap-2 text-foreground font-semibold text-body-base">
-                  <Lightbulb className="size-5 text-amber-500" />
-                  <h4>Ringkasan evaluasi</h4>
+                  <Lightbulb className="size-5 text-status-warning" />
+                  <h4>{tx("evaluationSummary")}</h4>
                 </div>
                 <p className="text-body-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
                   {latestAiInsight.insights.summaryOverview || latestAiInsight.summary}
@@ -364,10 +368,10 @@ export function QuizInsightDetailClient({
                 <div className="border border-border rounded-xl p-4 bg-card space-y-3">
                   <h4 className="font-semibold text-body-base text-foreground flex items-center gap-2">
                     <AlertTriangle className="size-4 text-status-warning" />
-                    <span>Miskonsepsi</span>
+                    <span>{tx("misconceptions")}</span>
                   </h4>
                   {latestAiInsight.insights.misconceptions?.length === 0 ? (
-                    <p className="text-body-xs text-muted-foreground italic">Tidak ditemukan pola miskonsepsi kritis.</p>
+                    <p className="text-body-xs text-muted-foreground italic">{tx("noCriticalMisconceptions")}</p>
                   ) : (
                     <div className="space-y-3">
                       {latestAiInsight.insights.misconceptions?.map((misc, idx) => (
@@ -378,7 +382,7 @@ export function QuizInsightDetailClient({
                               variant="secondary"
                               className={misc.frequency === "high" ? "text-body-xs capitalize border-status-error/30 text-status-error" : "text-body-xs capitalize"}
                             >
-                              Frekuensi {misc.frequency}
+                              {tx("frequency", { level: tx(`frequencyLevels.${misc.frequency}`) })}
                             </Badge>
                           </div>
                           <p className="text-body-xs text-muted-foreground">{misc.description}</p>
@@ -392,10 +396,10 @@ export function QuizInsightDetailClient({
                 <div className="border border-border rounded-xl p-4 bg-card space-y-3">
                   <h4 className="font-semibold text-body-base text-foreground flex items-center gap-2">
                     <Target className="size-4 text-status-info" />
-                    <span>Tindak lanjut</span>
+                    <span>{tx("followUps")}</span>
                   </h4>
                   {latestAiInsight.insights.teachingRecommendations?.length === 0 ? (
-                    <p className="text-body-xs text-muted-foreground italic">Belum ada rekomendasi khusus.</p>
+                    <p className="text-body-xs text-muted-foreground italic">{tx("noRecommendations")}</p>
                   ) : (
                     <div className="space-y-3">
                       {latestAiInsight.insights.teachingRecommendations?.map((rec, idx) => (
@@ -415,7 +419,7 @@ export function QuizInsightDetailClient({
                 <div className="border border-border rounded-xl p-4 bg-card space-y-3">
                   <h4 className="font-semibold text-body-base text-foreground flex items-center gap-2">
                     <AlertTriangle className="size-4 text-status-error" />
-                    <span>Soal sulit dan distraktor</span>
+                    <span>{tx("difficultQuestionsAndDistractors")}</span>
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {latestAiInsight.insights.hardestQuestionsAnalysis.map((item, idx) => (
@@ -423,13 +427,13 @@ export function QuizInsightDetailClient({
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-body-xs font-mono text-muted-foreground">ID: {item.questionId}</span>
                           <Badge variant="outline" className="text-status-error border-status-error/40 text-body-xs">
-                            Akurasi {item.accuracyRate}%
+                            {tx("accuracyValue", { value: item.accuracyRate })}
                           </Badge>
                         </div>
                         <p className="text-body-sm font-medium text-foreground line-clamp-2">{item.promptSnippet}</p>
                         <div className="text-body-xs space-y-1 pt-1 border-t border-border">
-                          <p className="text-muted-foreground"><strong className="text-foreground">Diagnosis:</strong> {item.diagnosis}</p>
-                          <p className="text-status-warning"><strong className="text-foreground">Jebakan:</strong> {item.distractorTrap}</p>
+                          <p className="text-muted-foreground"><strong className="text-foreground">{tx("diagnosis")}</strong> {item.diagnosis}</p>
+                          <p className="text-status-warning"><strong className="text-foreground">{tx("distractorTrap")}</strong> {item.distractorTrap}</p>
                         </div>
                       </div>
                     ))}
@@ -442,9 +446,9 @@ export function QuizInsightDetailClient({
 
         {/* Tab 2: Question Item & Distractor Analysis */}
         <TabsContent value="questions" className="space-y-4">
-          <div className="space-y-4">
+          <div className="divide-y divide-border rounded-xl border border-border bg-card">
             {questionAnalysis.map((q, idx) => (
-              <div key={q.questionId} className="border border-border rounded-xl p-4 bg-card space-y-3">
+              <div key={q.questionId} className="p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="size-6 rounded-full bg-brand-primary/10 text-brand-primary text-body-xs font-bold flex items-center justify-center">
@@ -455,13 +459,13 @@ export function QuizInsightDetailClient({
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-body-xs text-muted-foreground">
-                      Jawaban Siswa: <strong className="text-foreground">{q.totalAnswers}</strong>
+                      {tx("studentAnswers")}: <strong className="text-foreground">{q.totalAnswers}</strong>
                     </span>
                     <Badge
                       variant="secondary"
                       className={q.accuracyRate >= 70 ? "text-body-xs font-semibold" : "text-body-xs font-semibold border-status-error/30 text-status-error"}
                     >
-                      Akurasi: {q.accuracyRate}%
+                      {tx("accuracy")}: {q.accuracyRate}%
                     </Badge>
                   </div>
                 </div>
@@ -472,7 +476,7 @@ export function QuizInsightDetailClient({
 
                 {/* Option Breakdown */}
                 <div className="space-y-2 pt-2 border-t border-border">
-                  <p className="text-body-xs font-semibold text-muted-foreground">Distribusi jawaban</p>
+                  <p className="text-body-xs font-semibold text-muted-foreground">{tx("answerDistribution")}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {q.options.map((opt, optIdx) => {
                       const isCorrect = q.correctIndices.includes(optIdx);
@@ -490,7 +494,7 @@ export function QuizInsightDetailClient({
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="font-bold shrink-0">{String.fromCharCode(65 + optIdx)}.</span>
-                            <div className="truncate"><MathText>{opt}</MathText></div>
+                            <div className="min-w-0 break-words"><MathText>{opt}</MathText></div>
                           </div>
                           <div className="shrink-0 tabular-nums text-right">
                             <span>{chosenCount} ({percentage}%)</span>
@@ -504,7 +508,7 @@ export function QuizInsightDetailClient({
 
                 {q.explanation && (
                   <div className="border-t border-border pt-3 text-body-xs text-muted-foreground space-y-1">
-                    <p className="font-semibold text-foreground">Pembahasan:</p>
+                    <p className="font-semibold text-foreground">{tx("solutionExplanation")}</p>
                     <MathText>{q.explanation}</MathText>
                   </div>
                 )}
@@ -520,24 +524,24 @@ export function QuizInsightDetailClient({
             <div className="border border-border rounded-xl p-4 bg-card space-y-3">
               <h4 className="font-semibold text-body-base text-foreground flex items-center gap-2">
                 <BarChart3 className="size-4 text-brand-primary" />
-                <span>Distribusi nilai</span>
+                <span>{tx("scoreDistribution")}</span>
               </h4>
               <div className="space-y-3 pt-2">
                 {[
-                  { label: "81 - 100 (Sangat Baik)", count: summary.scoreRanges.range81_100, color: "bg-status-success" },
-                  { label: "61 - 80 (Baik / Lulus)", count: summary.scoreRanges.range61_80, color: "bg-brand-primary" },
-                  { label: "41 - 60 (Cukup)", count: summary.scoreRanges.range41_60, color: "bg-status-warning" },
-                  { label: "21 - 40 (Kurang)", count: summary.scoreRanges.range21_40, color: "bg-amber-600" },
-                  { label: "0 - 20 (Sangat Kurang)", count: summary.scoreRanges.range0_20, color: "bg-status-error" },
+                  { label: tx("scoreBands.excellent"), count: summary.scoreRanges.range81_100, color: "bg-status-success" },
+                  { label: tx("scoreBands.good"), count: summary.scoreRanges.range61_80, color: "bg-brand-primary" },
+                  { label: tx("scoreBands.fair"), count: summary.scoreRanges.range41_60, color: "bg-status-warning" },
+                  { label: tx("scoreBands.low"), count: summary.scoreRanges.range21_40, color: "bg-amber-600" },
+                  { label: tx("scoreBands.veryLow"), count: summary.scoreRanges.range0_20, color: "bg-status-error"},
                 ].map((range, idx) => {
                   const pct = summary.totalCompleted > 0 ? Math.round((range.count / summary.totalCompleted) * 100) : 0;
                   return (
                     <div key={idx} className="space-y-1">
                       <div className="flex justify-between text-body-xs text-muted-foreground">
                         <span>{range.label}</span>
-                        <span className="font-semibold text-foreground">{range.count} siswa ({pct}%)</span>
+                        <span className="font-semibold text-foreground">{tx("studentsPercent", { count: range.count, percent: pct })}</span>
                       </div>
-                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                      <div className="h-2 w-full bg-muted rounded-md overflow-hidden">
                         <div className={`h-full ${range.color}`} style={{ width: `${pct}%` }} />
                       </div>
                     </div>
@@ -550,10 +554,10 @@ export function QuizInsightDetailClient({
             <div className="border border-border rounded-xl p-4 bg-card space-y-3">
               <h4 className="font-semibold text-body-base text-foreground flex items-center gap-2">
                 <Target className="size-4 text-brand-secondary" />
-                <span>Penguasaan konsep</span>
+                <span>{tx("conceptMastery")}</span>
               </h4>
               {conceptAnalysis.length === 0 ? (
-                <p className="text-body-xs text-muted-foreground italic">Tidak ada metadata tag pada soal kuis ini.</p>
+                <p className="text-body-xs text-muted-foreground italic">{tx("noQuestionTags")}</p>
               ) : (
                 <div className="space-y-3 pt-2">
                   {conceptAnalysis.map((c, idx) => (
@@ -561,10 +565,10 @@ export function QuizInsightDetailClient({
                       <div className="flex justify-between text-body-xs">
                         <span className="font-medium text-foreground capitalize">{c.tag}</span>
                         <span className="text-muted-foreground">
-                          Akurasi: <strong className={c.accuracyRate >= 70 ? "text-status-success" : "text-status-warning"}>{c.accuracyRate}%</strong> ({c.correctCount}/{c.totalAnswered})
+                          {tx("accuracy")}: <strong className={c.accuracyRate >= 70 ? "text-status-success" : "text-status-warning"}>{c.accuracyRate}%</strong> ({c.correctCount}/{c.totalAnswered})
                         </span>
                       </div>
-                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                      <div className="h-2 w-full bg-muted rounded-md overflow-hidden">
                         <div
                           className={`h-full ${c.accuracyRate >= 70 ? "bg-status-success" : "bg-status-warning"}`}
                           style={{ width: `${c.accuracyRate}%` }}

@@ -33,8 +33,11 @@ import {
   type PkaScheduleRow,
 } from "../actions";
 import { formatDatetimeLocal } from "@/lib/date-utils";
+import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 
 export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
+  const t = useTranslations("adminOps");
+  const { locale } = useAppLocale();
   const [isPending, startTransition] = useTransition();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<PkaScheduleRow | null>(null);
@@ -76,7 +79,7 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
 
     const parsed = new Date(sessionAt);
     if (Number.isNaN(parsed.getTime())) {
-      toast.error("Waktu pelaksanaan tidak valid.");
+      toast.error(t("pkaScheduleUI.invalidTime"));
       return;
     }
 
@@ -91,21 +94,21 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
       if (editItem) {
         const res = await updatePkaScheduleAction(editItem.id, formData);
         if (!res.success) {
-          toast.error("Gagal menyimpan jadwal", { description: res.error });
+          toast.error(t("pkaScheduleUI.saveFailure"), { description: res.error });
           return;
         }
-        toast.success("Jadwal berhasil diperbarui.");
+        toast.success(t("pkaScheduleUI.saveSuccess"));
       } else {
         const res = await createPkaScheduleAction({}, formData);
         if (res.error) {
-          toast.error("Gagal menambah jadwal", { description: res.error });
+          toast.error(t("pkaScheduleUI.createFailure"), { description: res.error });
           return;
         }
         if (res.result?.broadcasted) {
-          toast.success(`Jadwal ditambahkan dan dikirim ke ${res.result.recipientCount} siswa.`);
+          toast.success(t("pkaScheduleUI.broadcastSuccess", { count: res.result.recipientCount }));
         } else {
-          toast.success("Jadwal ditambahkan.", {
-            description: "Sesi sudah lewat, jadi tidak ada notifikasi yang dikirim.",
+          toast.success(t("pkaScheduleUI.pastSuccess"), {
+            description: t("pkaScheduleUI.pastNote"),
           });
         }
       }
@@ -120,9 +123,9 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
     startTransition(async () => {
       const res = await deletePkaScheduleAction(deleteItem.id);
       if (!res.success) {
-        toast.error("Gagal menghapus jadwal", { description: res.error });
+        toast.error(t("pkaScheduleUI.deleteFailure"), { description: res.error });
       } else {
-        toast.success("Jadwal berhasil dihapus.");
+        toast.success(t("pkaScheduleUI.deleteSuccess"));
         setDeleteItem(null);
         router.refresh();
       }
@@ -133,25 +136,25 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <p className="text-body-sm text-muted-foreground">
-          {schedules.length} sesi total, {upcomingCount} akan datang.
+          {t("pkaScheduleUI.totalUpcoming", { total: schedules.length, upcoming: upcomingCount })}
         </p>
         <Button onClick={handleOpenCreate} size="sm" className="gap-2 rounded-lg">
           <Plus className="size-4" />
-          Tambah Jadwal
+          {t("pkaScheduleUI.add")}
         </Button>
       </div>
 
       {schedules.length === 0 ? (
-        <AdminEmptyState icon={CalendarDays} title="Belum ada jadwal live" action={
-          <Button onClick={handleOpenCreate} variant="outline" size="sm"><Plus className="size-4" />Tambah jadwal</Button>
+        <AdminEmptyState icon={CalendarDays} title={t("pkaScheduleUI.empty")} action={
+          <Button onClick={handleOpenCreate} variant="outline" size="sm"><Plus className="size-4" />{t("pkaScheduleUI.add")}</Button>
         } />
       ) : (
         <AdminTable>
           <div className="hidden md:grid grid-cols-[1fr_auto_auto_auto] gap-4 border-b border-border bg-muted/30 px-5 py-3">
-            <span className="text-body-xs font-semibold text-muted-foreground">Sesi</span>
-            <span className="text-body-xs font-semibold text-muted-foreground">Status</span>
-            <span className="text-body-xs font-semibold text-muted-foreground">Link Meet</span>
-            <span className="text-body-xs font-semibold text-muted-foreground text-right">Aksi</span>
+            <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaScheduleUI.session")}</span>
+            <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaScheduleUI.status")}</span>
+            <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaScheduleUI.meetLink")}</span>
+            <span className="text-body-xs font-semibold text-muted-foreground text-right">{t("pkaScheduleUI.actions")}</span>
           </div>
           <ul className="divide-y divide-border/60">
             {schedules.map((row) => {
@@ -168,7 +171,7 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
                     </p>
                     <p className="mt-0.5 flex items-center gap-1.5 text-body-xs text-muted-foreground">
                       <CalendarDays className="size-3.5 shrink-0" />
-                      {sessionDate.toLocaleString("id-ID", { dateStyle: "full", timeStyle: "short" })}
+                      {sessionDate.toLocaleString(locale === "id" ? "id-ID" : "en-US", { dateStyle: "full", timeStyle: "short" })}
                     </p>
                   </div>
 
@@ -176,12 +179,12 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
                     {isPast ? (
                       <span className="flex items-center gap-1 text-body-xs text-muted-foreground">
                         <CheckCircle2 className="size-3.5" />
-                        Selesai
+                        {t("pkaScheduleUI.finished")}
                       </span>
                     ) : (
                       <span className="flex items-center gap-1 text-body-xs text-status-success">
                         <Clock className="size-3.5" />
-                        Akan datang
+                        {t("pkaScheduleUI.upcoming")}
                       </span>
                     )}
                   </div>
@@ -195,11 +198,11 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
                         className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary/10 px-2 py-1 text-body-xs font-medium text-brand-primary transition-colors duration-150 hover:bg-brand-primary/20"
                       >
                         <Video className="size-3.5" />
-                        Buka Meet
+                        {t("pkaScheduleUI.openMeet")}
                       </a>
                     ) : (
                       <span className="inline-flex items-center rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-body-xs font-medium text-muted-foreground">
-                        Belum ada link
+                        {t("pkaScheduleUI.noLink")}
                       </span>
                     )}
                   </div>
@@ -212,7 +215,7 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
                       onClick={() => handleOpenEdit(row)}
                     >
                       <Pencil className="size-4" />
-                      <span className="sr-only">Edit jadwal</span>
+                      <span className="sr-only">{t("pkaScheduleUI.edit")}</span>
                     </Button>
                     <Button
                       variant="ghost"
@@ -221,7 +224,7 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
                       onClick={() => setDeleteItem(row)}
                     >
                       <Trash2 className="size-4" />
-                      <span className="sr-only">Hapus jadwal</span>
+                      <span className="sr-only">{t("pkaScheduleUI.delete")}</span>
                     </Button>
                   </div>
                 </li>
@@ -236,31 +239,31 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
         <DialogContent className="sm:max-w-md">
           <form onSubmit={handleSave} className="space-y-4">
             <DialogHeader>
-              <DialogTitle>{editItem ? "Edit Jadwal" : "Tambah Jadwal Baru"}</DialogTitle>
+              <DialogTitle>{editItem ? t("pkaScheduleUI.editTitle") : t("pkaScheduleUI.createTitle")}</DialogTitle>
               <DialogDescription>
                 {editItem
-                  ? "Perubahan tidak mengirim ulang notifikasi ke siswa."
-                  : "Jadwal dengan waktu di masa depan langsung dikirim ke email dan notifikasi siswa."}
+                  ? t("pkaScheduleUI.editNote")
+                  : t("pkaScheduleUI.createNote")}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="pka-sched-title" className="text-body-sm font-medium text-foreground">
-                  Judul / Topik
+                  {t("pkaScheduleUI.titleTopic")}
                 </Label>
                 <Input
                   id="pka-sched-title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Contoh: Pembahasan Soal Fungsi (Matematika)"
+                  placeholder={t("pkaScheduleUI.titlePlaceholder")}
                   required
                   className="rounded-md"
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="pka-sched-at" className="text-body-sm font-medium text-foreground">
-                  Waktu Pelaksanaan
+                  {t("pkaScheduleUI.time")}
                 </Label>
                 <Input
                   id="pka-sched-at"
@@ -273,7 +276,7 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="pka-sched-link" className="text-body-sm font-medium text-foreground">
-                  Link Google Meet <span className="font-normal text-muted-foreground">(opsional)</span>
+                  {t("pkaScheduleUI.meetLink")} <span className="font-normal text-muted-foreground">({t("pkaScheduleUI.optional")})</span>
                 </Label>
                 <Input
                   id="pka-sched-link"
@@ -284,17 +287,17 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
                   className="rounded-md"
                 />
                 <p className="text-body-xs text-muted-foreground">
-                  Bisa dikosongkan dan ditambahkan lewat Edit saat sesi akan dimulai.
+                  {t("pkaScheduleUI.meetHelp")}
                 </p>
               </div>
             </div>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={resetForm} disabled={isPending}>
-                Batal
+                {t("pkaScheduleUI.cancel")}
               </Button>
               <Button type="submit" isLoading={isPending} className="gap-2">
-                Simpan
+                {t("pkaScheduleUI.save")}
               </Button>
             </DialogFooter>
           </form>
@@ -305,18 +308,17 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
       <Dialog open={!!deleteItem} onOpenChange={(open) => !open && setDeleteItem(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Hapus Jadwal</DialogTitle>
+            <DialogTitle>{t("pkaScheduleUI.deleteTitle")}</DialogTitle>
             <DialogDescription>
-              Yakin ingin menghapus jadwal <strong>{deleteItem?.title}</strong>? Tindakan ini tidak dapat
-              dibatalkan dan jadwal langsung hilang dari halaman siswa.
+              {t("pkaScheduleUI.deleteDescription", { title: deleteItem?.title ?? "" })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setDeleteItem(null)} disabled={isPending}>
-              Batal
+              {t("pkaScheduleUI.cancel")}
             </Button>
             <Button type="button" variant="destructive" onClick={handleDelete} isLoading={isPending} className="gap-2">
-              Hapus
+              {t("pkaScheduleUI.confirmDelete")}
             </Button>
           </DialogFooter>
         </DialogContent>

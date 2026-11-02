@@ -23,10 +23,13 @@ import {
 import { eq, inArray } from "drizzle-orm";
 import { adminMessaging } from "@/lib/firebase/admin";
 import { randomUUID } from "crypto";
+import { getUserLocalePreference } from "@/lib/i18n/preferences";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 import type { NotificationPayload, SendResult } from "./types";
 import {
  quizPublishedPayload,
  adminBroadcastPayload,
+ renderNotificationPayload,
 } from "./templates";
 
 // ─── Delivery stats persisted on every notification row ───────────────────────
@@ -159,18 +162,21 @@ async function sendMulticast(
  */
 export async function sendToUser(
  userId: string,
- payload: NotificationPayload
+ payload: NotificationPayload,
+ deliveryLocale?: Locale,
 ): Promise<SendResult> {
+ const locale = deliveryLocale ?? (payload.systemTemplate ? (await getUserLocalePreference(userId)) ?? DEFAULT_LOCALE : undefined);
+ const renderedPayload = locale ? renderNotificationPayload(payload, locale) : payload;
  const rows = await db
  .select({ token: userPushTokens.token })
  .from(userPushTokens)
  .where(eq(userPushTokens.userId, userId));
 
  const tokens = rows.map((r) => r.token);
- const result = await sendMulticast(tokens, payload);
+ const result = await sendMulticast(tokens, renderedPayload);
 
  // Persist one notification record per user (not per token)
- await persistNotification(userId, payload, {
+ await persistNotification(userId, renderedPayload, {
   attempted: tokens.length,
   succeeded: result.succeeded,
   failedCount: result.failedTokens.length,
@@ -193,10 +199,11 @@ export async function sendToUser(
  */
 export async function sendToMany(
  userIds: string[],
- payload: NotificationPayload
+ payload: NotificationPayload,
+ deliveryLocales?: Record<string, Locale>,
 ): Promise<SendResult> {
  const results = await Promise.allSettled(
- userIds.map((uid) => sendToUser(uid, payload))
+ userIds.map((uid) => sendToUser(uid, payload, deliveryLocales?.[uid]))
  );
 
  return results.reduce<SendResult>(

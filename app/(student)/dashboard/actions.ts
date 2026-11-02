@@ -26,16 +26,10 @@ import { listStudentEnrollments, resolveStudentCourse } from "@/lib/student/cour
 import { getStudentMaterialAccess, isFreeChapterScoped } from "@/lib/course-utils";
 import { resolveCourseAccess } from "@/lib/student/course-access";
 import { recordLearningEvidence } from "@/lib/pemahaman/evidence";
+import { requireAuthUser } from "@/lib/auth-session";
 
 async function requireUser() {
-  const h = await headers();
-  const session = await auth.api.getSession({
-    headers: h,
-  });
-  if (!session?.user?.id) {
-    throw new Error("Unauthorized");
-  }
-  return session.user;
+  return requireAuthUser();
 }
 
 /**
@@ -55,7 +49,7 @@ export async function enrollWithToken(tokenStr: string) {
   const now = new Date();
 
   if (!cleanToken) {
-    return { success: false, error: "Token tidak boleh kosong" };
+    return { success: false, errorCode: "empty", error: "Token tidak boleh kosong" };
   }
 
   // 1. Find token in DB
@@ -72,7 +66,7 @@ export async function enrollWithToken(tokenStr: string) {
   });
 
   if (!tokenRecord) {
-    return { success: false, error: "Token tidak valid" };
+    return { success: false, errorCode: "invalid", error: "Token tidak valid" };
   }
 
   // 2. Check if user is already a member of the group
@@ -80,24 +74,24 @@ export async function enrollWithToken(tokenStr: string) {
     (m) => m.userId === user.id
   );
   if (isAlreadyMember) {
-    return { success: false, error: "Anda sudah terdaftar menggunakan token ini" };
+    return { success: false, errorCode: "alreadyMember", error: "Anda sudah terdaftar menggunakan token ini" };
   }
 
   // 3. Check if group capacity is reached
   const currentMemberCount = tokenRecord.group?.members.length || 0;
   if (currentMemberCount >= tokenRecord.capacity) {
-    return { success: false, error: "Token ini sudah mencapai batas kuota kelompok" };
+    return { success: false, errorCode: "capacityReached", error: "Token ini sudah mencapai batas kuota kelompok" };
   }
 
   // 4. Check if token itself is expired
   if (tokenRecord.expiresAt < now) {
-    return { success: false, error: "Token sudah kedaluwarsa untuk semester ini" };
+    return { success: false, errorCode: "expired", error: "Token sudah kedaluwarsa untuk semester ini" };
   }
 
   // 5. Get course IDs associated with this token
   const courseIds = tokenRecord.tokenCourses.map((tc) => tc.courseId);
   if (courseIds.length === 0) {
-    return { success: false, error: "Token tidak memiliki course yang terasosiasi" };
+    return { success: false, errorCode: "noCourses", error: "Token tidak memiliki course yang terasosiasi" };
   }
 
   // 6. Check if student is already enrolled in any of these courses active
@@ -106,7 +100,7 @@ export async function enrollWithToken(tokenStr: string) {
   const coursesToEnroll = courseIds.filter((cid) => !enrolledCourseIds.has(cid));
 
   if (coursesToEnroll.length === 0) {
-    return { success: false, error: "Anda sudah terdaftar di semua course yang diaktifkan oleh token ini" };
+    return { success: false, errorCode: "alreadyEnrolled", error: "Anda sudah terdaftar di semua course yang diaktifkan oleh token ini" };
   }
 
   // 7. Calculate enrollment semester closing date
@@ -145,7 +139,7 @@ export async function enrollWithToken(tokenStr: string) {
     return { success: true };
   } catch (err: any) {
     console.error("Failed to enroll via transaction:", err);
-    return { success: false, error: "Terjadi kesalahan internal. Silakan coba lagi." };
+    return { success: false, errorCode: "internal", error: "Terjadi kesalahan internal. Silakan coba lagi." };
   }
 }
 

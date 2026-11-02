@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { saveTutorMaterialAction, deleteTutorMaterialAction } from "@/app/actions/tutor-management";
 import { cleanSummary } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface MaterialChunk {
   chunkText: string;
@@ -50,6 +51,7 @@ function reconstructMarkdown(material: MaterialInstance): string {
 }
 
 export function MaterialsClient({ courseId, initialMaterials }: Props) {
+  const t = useTranslations("tutor.materials");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -80,7 +82,7 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
 
   async function handleSave() {
     if (!title.trim() || !summary.trim() || !rawText.trim()) {
-      toast.error("Semua field wajib diisi.");
+      toast.error(t("requiredFields"));
       return;
     }
 
@@ -94,12 +96,12 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
           rawText
         );
         if (res.success) {
-          toast.success(editingMaterial ? "Materi diperbarui." : "Materi ditambahkan.");
+          toast.success(editingMaterial ? t("updated") : t("added"));
           setIsOpen(false);
           router.refresh();
         }
-      } catch (err: any) {
-        toast.error(err.message || "Gagal menyimpan materi.");
+      } catch {
+        toast.error(t("saveFailed"));
       }
     });
   }
@@ -111,12 +113,12 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
       try {
         const res = await deleteTutorMaterialAction(courseId, deleteId);
         if (res.success) {
-          toast.success("Materi berhasil dihapus.");
+          toast.success(t("deleted"));
           setDeleteId(null);
           router.refresh();
         }
-      } catch (err: any) {
-        toast.error(err.message || "Gagal menghapus materi.");
+      } catch {
+        toast.error(t("deleteFailed"));
       }
     });
   }
@@ -125,16 +127,16 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
     <div className="space-y-4">
       {/* Action Row */}
       <div className="flex flex-wrap justify-between items-center gap-2">
-        <h2 className="font-heading text-body-base font-semibold text-foreground">Materi ({initialMaterials.length})</h2>
-        <Button onClick={handleOpenAdd} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
+        <h2 className="font-heading text-body-base font-semibold text-foreground">{t("materialsCount", { count: initialMaterials.length })}</h2>
+        <Button onClick={handleOpenAdd} className="gap-2">
           <Plus className="size-4" />
-          Tambah Materi
+          {t("addMaterial")}
         </Button>
       </div>
 
       {/* Grid List */}
       {initialMaterials.length === 0 ? (
-        <AdminEmptyState icon={BookOpen} title="Belum ada materi" action={<Button onClick={handleOpenAdd} size="sm"><Plus className="size-4" />Tambah materi</Button>} />
+        <AdminEmptyState icon={BookOpen} title={t("noMaterials")} action={<Button onClick={handleOpenAdd} size="sm"><Plus className="size-4" />{t("addMaterial")}</Button>} />
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
           {initialMaterials.map((m) => (
@@ -145,8 +147,8 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
                 <p className="mt-0.5 text-body-xs text-muted-foreground line-clamp-2">{cleanSummary(m.summary)}</p>
               </div>
               <div className="flex shrink-0 gap-2">
-                <Button variant="outline" size="sm" onClick={() => handleOpenEdit(m)}><Edit2 className="size-3.5" />Edit</Button>
-                <Button variant="outline" size="sm" onClick={() => setDeleteId(m.id)} className="text-destructive"><Trash2 className="size-3.5" />Hapus</Button>
+                <Button variant="outline" size="sm" onClick={() => handleOpenEdit(m)}><Edit2 className="size-3.5" />{t("edit")}</Button>
+                <Button variant="outline" size="sm" onClick={() => setDeleteId(m.id)} className="text-destructive"><Trash2 className="size-3.5" />{t("delete")}</Button>
               </div>
             </div>
           ))}
@@ -158,55 +160,55 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
         <DialogContent className="max-w-3xl rounded-2xl border-border bg-card">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
-              {editingMaterial ? "Edit Materi Belajar" : "Tambah Materi Belajar"}
+              {editingMaterial ? t("editMaterial") : t("addMaterial")}
             </DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground">
-              Gunakan Markdown. Judul ## membagi materi menjadi halaman.
+              {t("markdownHelp")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 my-4 font-sans">
             <div className="grid gap-2">
-              <Label htmlFor="title" className="text-body-sm font-semibold">Judul Materi</Label>
+              <Label htmlFor="title" className="text-body-sm font-semibold">{t("title")}</Label>
               <Input
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Contoh: Bab 1: Limit Fungsi Aljabar"
+                placeholder={t("titlePlaceholder")}
                 className="rounded-lg border-input bg-background focus-visible:ring-brand-primary"
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="summary" className="text-body-sm font-semibold">Ringkasan Singkat</Label>
+              <Label htmlFor="summary" className="text-body-sm font-semibold">{t("summary")}</Label>
               <Input
                 id="summary"
                 value={summary}
                 onChange={(e) => setSummary(e.target.value)}
-                placeholder="Deskripsi singkat modul untuk halaman katalog siswa..."
+                placeholder={t("summaryPlaceholder")}
                 className="rounded-lg border-input bg-background focus-visible:ring-brand-primary"
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="content" className="text-body-sm font-semibold">Isi Materi (Markdown)</Label>
+              <Label htmlFor="content" className="text-body-sm font-semibold">{t("contentMarkdown")}</Label>
               <Textarea
                 id="content"
                 value={rawText}
                 onChange={(e) => setRawText(e.target.value)}
                 rows={12}
-                placeholder="## Judul Subbab&#10;Isi materi dan penjelasan disini...&#10;&#10;## Subbab Kedua&#10;Gunakan LaTeX untuk rumus matematika: $$f(x) = x^2$$"
-                className="rounded-lg border-input bg-background font-mono text-body-xs leading-relaxed focus-visible:ring-brand-primary"
+                placeholder={t("contentPlaceholder")}
+                className="rounded-lg border-input bg-background font-mono text-body-sm leading-relaxed focus-visible:ring-brand-primary"
               />
             </div>
           </div>
 
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isPending} className="rounded-md border-border/80">
-              Batal
+              {t("cancel")}
             </Button>
-            <Button onClick={handleSave} isLoading={isPending} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
-              Simpan Bab
+            <Button onClick={handleSave} isLoading={isPending} className="gap-1.5">
+              {t("saveMaterial")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -216,17 +218,17 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
       <Dialog open={deleteId !== null} onOpenChange={(open) => !open && setDeleteId(null)}>
         <DialogContent className="max-w-md rounded-2xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Hapus Materi?</DialogTitle>
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("deleteTitle", { title: initialMaterials.find((material) => material.id === deleteId)?.title ?? "" })}</DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground">
-              Materi dihapus permanen dan tidak dapat diakses siswa.
+              {t("deleteDescription")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 mt-4">
             <Button variant="outline" onClick={() => setDeleteId(null)} disabled={isPending} className="rounded-md border-border/80">
-              Batal
+              {t("cancel")}
             </Button>
-            <Button onClick={handleDelete} isLoading={isPending} className="bg-status-error hover:bg-status-error/90 text-white rounded-md font-semibold gap-1.5">
-              Hapus
+            <Button variant="destructive" onClick={handleDelete} isLoading={isPending} className="rounded-md font-semibold gap-1.5">
+              {t("deleteMaterial")}
             </Button>
           </DialogFooter>
         </DialogContent>

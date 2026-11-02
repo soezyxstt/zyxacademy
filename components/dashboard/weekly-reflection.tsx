@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface WeeklyReflectionProps {
   reflection: {
@@ -27,6 +28,7 @@ interface WeeklyReflectionProps {
 }
 
 export function WeeklyReflection({ reflection }: WeeklyReflectionProps) {
+  const t = useTranslations("student");
   const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
@@ -60,13 +62,13 @@ export function WeeklyReflection({ reflection }: WeeklyReflectionProps) {
   };
 
   return (
-    <section className="relative mb-6 hidden overflow-hidden rounded-xl border border-border/60 bg-card/60 backdrop-blur-md px-4 py-3 sm:px-5 sm:py-3 shadow-2xs animate-in fade-in slide-in-from-bottom-2 duration-300 sm:block">
+    <section className="relative mb-6 hidden overflow-hidden rounded-xl border border-border/60 bg-card px-4 py-3 sm:px-5 sm:py-3 sm:block">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <div className="flex items-center gap-2">
             <TrendingUp className="size-4 text-brand-primary shrink-0" />
             <span className="font-heading text-body-sm font-bold text-foreground">
-              Refleksi mingguan
+              {t("dashboard.weeklyReflection")}
             </span>
           </div>
           <div className="flex items-baseline gap-1.5 border-l border-border/50 pl-3">
@@ -75,33 +77,33 @@ export function WeeklyReflection({ reflection }: WeeklyReflectionProps) {
                 <span className="font-heading text-body-base font-bold tabular-nums text-status-success">
                   +{masteryGrowth}
                 </span>
-                <span className="text-body-xs text-muted-foreground">poin penguasaan</span>
+                <span className="text-body-xs text-muted-foreground">{t("dashboard.masteryPoints")}</span>
               </>
             ) : (
               <>
                 <span className="font-heading text-body-base font-bold tabular-nums text-foreground">
                   {totalCompleted}
                 </span>
-                <span className="text-body-xs text-muted-foreground">aktivitas selesai</span>
+                <span className="text-body-xs text-muted-foreground">{t("dashboard.completedActivities")}</span>
               </>
             )}
           </div>
           <div className="hidden lg:flex items-center gap-x-3 text-body-xs text-muted-foreground">
-            <span>•</span>
-            <span>{completed.quizzes} kuis</span>
-            <span>•</span>
-            <span>{completed.flashcards} flashcard</span>
-            <span>•</span>
-            <span>{completed.modules} modul</span>
-            <span>•</span>
-            <span>{streak.currentStreak} hari streak</span>
+
+            <span>{t("dashboard.quizCount", { count: completed.quizzes })}</span>
+
+            <span>{t("dashboard.flashcardCount", { count: completed.flashcards })}</span>
+
+            <span>{t("dashboard.moduleCount", { count: completed.modules })}</span>
+
+            <span>{t("dashboard.streakCount", { count: streak.currentStreak })}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
           {mostImproved && (
             <span className="text-body-xs text-muted-foreground hidden md:inline">
-              Peningkatan: <strong className="text-foreground">{mostImproved}</strong>
+              {t("dashboard.improvement")} <strong className="text-foreground">{mostImproved}</strong>
             </span>
           )}
           <Button
@@ -109,7 +111,7 @@ export function WeeklyReflection({ reflection }: WeeklyReflectionProps) {
             size="icon"
             onClick={handleDismiss}
             className="size-7 text-muted-foreground hover:text-foreground"
-            aria-label="Tutup refleksi mingguan"
+            aria-label={t("dashboard.closeReflection")}
           >
             <X className="size-3.5" />
           </Button>

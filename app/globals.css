@@ -33,8 +33,10 @@
  --color-border-strong: var(--border-strong);
  --color-secondary-foreground: var(--secondary-foreground);
  --color-secondary: var(--secondary);
+ --color-secondary-hover: var(--secondary-hover);
  --color-primary-foreground: var(--primary-foreground);
  --color-primary: var(--primary);
+ --color-primary-hover: var(--primary-hover);
  --color-popover-foreground: var(--popover-foreground);
  --color-popover: var(--popover);
  --color-card-foreground: var(--card-foreground);
@@ -169,8 +171,9 @@
  --primary-foreground: oklch(1 0 0);
  --primary-hover: oklch(0.43 0.0829 266.28);
 
- --secondary: oklch(0.5956 0.1622 38.5);
+ --secondary: oklch(0.57 0.1622 38.5);
  --secondary-foreground: oklch(1 0 0);
+ --secondary-hover: oklch(0.54 0.1622 38.5);
 
  --muted: oklch(0.9067 0 0);
  --muted-foreground: oklch(0.55 0 0);
@@ -178,7 +181,7 @@
  --accent: oklch(0.9067 0 0);
  --accent-foreground: oklch(0.3211 0 0);
 
- --destructive: oklch(0.6534 0.1835 23.68);
+ --destructive: oklch(0.42 0.16 23.68);
 
  --border: oklch(0.9067 0 0);
  --border-muted: oklch(0.9067 0 0);
@@ -202,6 +205,17 @@
  --sidebar-accent-foreground: oklch(0.3211 0 0);
  --sidebar-border: oklch(0.9067 0 0);
  --sidebar-ring: oklch(0.3653 0.0829 266.28);
+ /* Code editor syntax, GitHub Light palette */
+ --code-keyword: #cf222e;
+ --code-string: #0a3069;
+ --code-comment: #6e7781;
+ --code-constant: #0550ae;
+ --code-function: #8250df;
+ --code-type: #953800;
+ --code-invalid: #82071e;
+ --code-gutter: oklch(0.65 0 0);
+ --code-active-line: oklch(0.97 0 0);
+ --code-selection: oklch(0.3653 0.0829 266.28 / 0.14);
 }
 
 .dark {
@@ -217,12 +231,13 @@
  --popover: oklch(0.2768 0 0);
  --popover-foreground: oklch(1 0 0);
 
- --primary: oklch(0.58 0.14 266.28);
- --primary-foreground: oklch(1 0 0);
- --primary-hover: oklch(0.65 0.14 266.28);
+ --primary: oklch(0.65 0.14 266.28);
+ --primary-foreground: oklch(0.15 0.03 266.28);
+ --primary-hover: oklch(0.7 0.14 266.28);
 
- --secondary: oklch(0.5956 0.1622 38.5);
- --secondary-foreground: oklch(1 0 0);
+ --secondary: oklch(0.68 0.15 38.5);
+ --secondary-foreground: oklch(0.15 0.03 38.5);
+ --secondary-hover: oklch(0.73 0.15 38.5);
 
  --muted: oklch(0.4276 0 0);
  --muted-foreground: oklch(0.7984 0 0);
@@ -230,7 +245,7 @@
  --accent: oklch(0.4276 0 0);
  --accent-foreground: oklch(1 0 0);
 
- --destructive: oklch(0.6534 0.1835 23.68);
+ --destructive: oklch(0.88 0.1 23.68);
 
  --border: oklch(0.4276 0 0);
  --border-muted: oklch(0.4276 0 0);
@@ -252,6 +267,17 @@
  --sidebar-accent-foreground: oklch(1 0 0);
  --sidebar-border: oklch(0.4276 0 0);
  --sidebar-ring: oklch(0.7617 0.1145 240.09);
+ /* Code editor syntax, GitHub Dark palette */
+ --code-keyword: #ff7b72;
+ --code-string: #a5d6ff;
+ --code-comment: #8b949e;
+ --code-constant: #79c0ff;
+ --code-function: #d2a8ff;
+ --code-type: #ffa657;
+ --code-invalid: #ffa198;
+ --code-gutter: oklch(0.55 0 0);
+ --code-active-line: oklch(1 0 0 / 0.04);
+ --code-selection: oklch(0.7617 0.1145 240.09 / 0.24);
 }
 
 @layer base {
@@ -941,4 +967,9 @@
     overflow: visible !important;
     max-width: none;
   }
+}
+
+/* Focus surfaces such as the Python playground opt out of decorative shell ornaments. */
+body:has([data-plain-canvas]) [data-page-ornaments] {
+  display: none;
 }

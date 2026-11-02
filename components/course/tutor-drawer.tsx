@@ -222,7 +222,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
               onMouseEnter={() => import("./tutor-drawer-view").catch(() => {})}
               aria-label="Tanya Zyra"
               title="Tanya Zyra"
-              className="group fixed bottom-6 right-6 z-40 flex size-14 items-center justify-center rounded-full bg-brand-primary text-white shadow-lg shadow-brand-primary/30 transition-all hover:scale-105 hover:bg-brand-primary/95 active:scale-95 md:bottom-8 md:right-8"
+              className="group fixed bottom-6 right-6 z-40 flex size-14 items-center justify-center rounded-full bg-brand-primary text-primary-foreground shadow-lg shadow-brand-primary/30 transition-all hover:scale-105 hover:bg-brand-primary/95 active:scale-95 md:bottom-8 md:right-8"
             >
               <MessageSquareText className="size-6 transition-transform duration-150 group-hover:scale-105" />
               <span className="pointer-events-none absolute right-full mr-3 hidden whitespace-nowrap rounded-lg bg-foreground px-2.5 py-1.5 text-body-xs font-semibold text-background opacity-0 shadow-md transition-opacity group-hover:opacity-100 md:block">

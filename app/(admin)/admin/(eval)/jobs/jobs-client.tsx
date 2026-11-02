@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Plus, Zap, RefreshCw } from "lucide-react";
 import { toast } from "@/components/ui/toast";
@@ -61,6 +62,8 @@ const statusTone: Record<JobStatus, "muted" | "info" | "success" | "error"> = {
 };
 
 export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects, courseMap }: Props) {
+ const t = useTranslations("adminEval.jobs");
+ const locale = useLocale();
  const [showForm, setShowForm] = useState(false);
  const [submitting, setSubmitting] = useState(false);
  const [localJobs, setLocalJobs] = useState(jobs);
@@ -76,7 +79,7 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  async function handleCreate(e: React.FormEvent) {
  e.preventDefault();
  if (!form.courseId || !form.chapterId) {
- toast.error("Kursus dan bab wajib diisi.");
+ toast.error(t("courseChapterRequired"));
  return;
  }
  setSubmitting(true);
@@ -88,14 +91,14 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  });
  const data = await res.json();
  if (!res.ok) {
- toast.error("Gagal membuat job: " + (data.error ?? "Unknown error"));
+ toast.error(t("createFailed"));
  return;
  }
- 
+
  const targetCount = data.targetCount ?? (form.koId === "all" ? filteredKOs.length : 1);
- toast.success(`Job berhasil dibuat: ${data.jobId}. Pipeline berjalan di background.`);
+ toast.success(t("jobCreatedWithId", { id: data.jobId }));
  setShowForm(false);
- 
+
  // Optimistically add job to list
  setLocalJobs((prev) => [
  {
@@ -103,10 +106,10 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  courseId: form.courseId,
  tutorId: "",
  status: "pending" as JobStatus,
- promptParameters: { 
- chapterId: form.chapterId, 
+ promptParameters: {
+ chapterId: form.chapterId,
  koId: form.koId,
- logs: [`[${new Date().toLocaleString("id-ID")}] Job dibuat.`] 
+ logs: [`[${new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" }).format(new Date())}] ${t("jobCreated")}`]
  },
  targetCount,
  generatedCount: 0,
@@ -118,7 +121,7 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  ...prev,
  ]);
   } catch {
- toast.error("Terjadi kesalahan jaringan.");
+ toast.error(t("networkError"));
  } finally {
  setSubmitting(false);
  }
@@ -158,15 +161,15 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
 
  return (
  <div>
- <div className="flex items-center justify-between mb-6">
- <p className="text-body-sm text-muted-foreground">{localJobs.length} job terbaru</p>
+ <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+ <p className="text-body-sm text-muted-foreground">{localJobs.length} {t("latest")}</p>
  <Button
  className="rounded-lg gap-2"
  onClick={() => setShowForm((v) => !v)}
  variant={showForm ? "outline" : "default"}
  >
  <Plus className="size-4" />
- {showForm ? "Tutup" : "Buat job"}
+ {showForm ? t("close") : t("createJob")}
  </Button>
  </div>
 
@@ -175,11 +178,11 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  onSubmit={handleCreate}
  className="mb-4 rounded-xl border border-border bg-card p-4 space-y-3"
  >
-  <AdminSectionTitle size="h6" icon={Zap} iconClassName="text-status-warning" title="Generasi soal" />
+  <AdminSectionTitle size="h6" icon={Zap} iconClassName="text-status-warning" title={t("questionGeneration")} />
 
   <div className="grid gap-4 sm:grid-cols-2">
   <div>
-  <label className="text-body-sm font-medium text-foreground mb-1 block">Kursus</label>
+  <label className="text-body-sm font-medium text-foreground mb-1 block">{t("course")}</label>
   <Select
     value={form.courseId}
     onValueChange={(courseId) => {
@@ -187,7 +190,7 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
     }}
   >
     <SelectTrigger className="w-full">
-      <SelectValue placeholder="Pilih kursus..." />
+      <SelectValue placeholder={t("selectCourse")} />
     </SelectTrigger>
     <SelectContent>
       {courses.map((c) => (
@@ -200,7 +203,7 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
   </div>
 
   <div>
-  <label className="text-body-sm font-medium text-foreground mb-1 block">Bab</label>
+  <label className="text-body-sm font-medium text-foreground mb-1 block">{t("chapter")}</label>
   <Select
     value={form.chapterId}
     onValueChange={(chapterId) => {
@@ -209,7 +212,7 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
     disabled={!form.courseId}
   >
     <SelectTrigger className="w-full">
-      <SelectValue placeholder="Pilih bab..." />
+      <SelectValue placeholder={t("selectChapter")} />
     </SelectTrigger>
     <SelectContent>
       {filteredChapters.map((c) => (
@@ -223,17 +226,17 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
   </div>
 
   <div>
-  <label className="text-body-sm font-medium text-foreground mb-1 block">Objek Pengetahuan (KO)</label>
+  <label className="text-body-sm font-medium text-foreground mb-1 block">{t("knowledgeObject")}</label>
   <Select
     value={form.koId}
     onValueChange={(koId) => setForm((f) => ({ ...f, koId }))}
     disabled={!form.chapterId}
   >
     <SelectTrigger className="w-full">
-      <SelectValue placeholder="Semua objek pengetahuan" />
+      <SelectValue placeholder={t("allKnowledgeObjects")} />
     </SelectTrigger>
     <SelectContent>
-      <SelectItem value="all">Semua objek pengetahuan</SelectItem>
+      <SelectItem value="all">{t("allKnowledgeObjects")}</SelectItem>
       {filteredKOs.map((k) => (
         <SelectItem key={k.id} value={k.id}>
           [{k.conceptName}] {k.title}
@@ -246,14 +249,14 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  {form.chapterId && (
  <p className="text-body-xs text-muted-foreground">
  {form.koId === "all"
- ? `${filteredKOs.length} objek pengetahuan akan diproses.`
- : "1 objek pengetahuan akan diproses."}
+ ? t("knowledgeObjectCount", { count: filteredKOs.length })
+ : t("oneKnowledgeObject")}
  </p>
  )}
 
  <div className="flex gap-3 pt-2">
  <Button type="submit" className="rounded-lg" disabled={submitting}>
- {submitting ? "Mengirim..." : "Jalankan"}
+ {submitting ? t("submitting") : t("run")}
  </Button>
  <Button
  type="button"
@@ -261,23 +264,23 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  className="rounded-lg"
  onClick={() => setShowForm(false)}
  >
- Batal
+ {t("cancel")}
  </Button>
  </div>
  </form>
  )}
 
  {localJobs.length === 0 ? (
- <AdminEmptyState compact className="py-16" title="Belum ada generation job." />
+ <AdminEmptyState icon={Zap} className="py-8" title={t("empty")} />
  ) : (
  <div className="divide-y divide-border">
  {localJobs.map((job) => {
  const params = job.promptParameters as Record<string, any> || {};
  const chapter = chapters.find((c) => c.id === params.chapterId);
- const chapterDisplay = chapter ? `Bab ${chapter.orderIndex}: ${chapter.title}` : params.chapterId || "";
+ const chapterDisplay = chapter ? t("chapterNumber", { number: chapter.orderIndex, title: chapter.title }) : params.chapterId || "";
  const koTitle = params.koId && params.koId !== "all"
  ? knowledgeObjects.find((k) => k.id === params.koId)?.title || params.koId
- : "Semua Objek Pengetahuan";
+ : t("allKnowledgeObjects");
 
  return (
  <div key={job.id} className="py-4 flex items-start gap-4">
@@ -295,15 +298,15 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  <span className="text-body-sm text-muted-foreground">
  {courseMap[job.courseId] ?? job.courseId}
  </span>
- <StatusBadge tone={statusTone[job.status]}>{job.status}</StatusBadge>
+ <StatusBadge tone={statusTone[job.status]}>{t(job.status)}</StatusBadge>
  </div>
  <p className="text-body-sm text-muted-foreground mt-1">
- {job.generatedCount}/{job.targetCount} soal ·{" "}
- {new Date(job.createdAt).toLocaleString("id-ID")}
+ {t("questionsGenerated", { generated: job.generatedCount, target: job.targetCount })} ·{" "}
+ {new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(job.createdAt))}
  </p>
  {params?.logs && Array.isArray(params.logs) && params.logs.length > 0 && (
  <div className="mt-2.5 rounded-lg border border-border bg-muted/20 p-3 text-body-xs font-mono space-y-1 text-muted-foreground max-h-36 overflow-y-auto">
- <p className="font-sans font-bold text-[10px] text-muted-foreground/80 tracking-wider uppercase mb-1">PROGRES DETAIL:</p>
+ <p className="font-sans font-bold text-body-xs text-muted-foreground mb-1">{t("progressDetails")}</p>
  {params.logs.map((log: string, idx: number) => (
  <div key={idx} className="leading-relaxed">
  {log}
@@ -313,18 +316,18 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  )}
  {job.errorMessage && (
  <p className="text-body-sm text-status-error mt-1.5 font-medium">
- Detail Error: {job.errorMessage}
+ {t("errorDetails")} {job.errorMessage}
  </p>
  )}
  </div>
  {(job.status === "pending" || job.status === "processing") && (
- <button
+ <Button
+ type="button" variant="ghost" size="icon"
  onClick={() => refreshJob(job.id)}
- className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
- aria-label="Refresh status"
+ aria-label={t("refreshStatus")}
  >
  <RefreshCw className="size-4" />
- </button>
+ </Button>
  )}
  </div>
  );

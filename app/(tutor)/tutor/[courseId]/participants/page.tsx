@@ -7,14 +7,17 @@ import { ApplicationPage } from "@/components/application-page";
 import { pageTitle } from "@/lib/site";
 import { getTutorCourseParticipants } from "@/lib/tutor/participant-read-model";
 import { ParticipantsClient } from "./participants-client";
+import { getTranslations } from "@/lib/i18n/server";
+import { TranslatedText } from "@/components/i18n/translated-text";
 
 type Props = { params: Promise<{ courseId: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { courseId } = await params;
+  const t = await getTranslations("tutor.routeTitles");
   return {
-    title: pageTitle("Peserta & Kelompok"),
-    description: `Daftar peserta dan kelompok belajar aktif untuk kelas ${courseId}.`,
+    title: pageTitle(t("participants")),
+    description: t("participantsDescription", { courseId }),
   };
 }
 
@@ -39,9 +42,9 @@ export default async function TutorParticipantsPage({ params }: Props) {
   return (
     <ApplicationPage>
       <PageHeader
-        title={payload.course.title ? `Peserta & Kelompok: ${payload.course.title}` : "Peserta & Kelompok"}
+        title={payload.course.title ? <><TranslatedText namespace="tutor" messageKey="routeTitles.participants" />: {payload.course.title}</> : <TranslatedText namespace="tutor" messageKey="routeTitles.participants" />}
         backHref={`/tutor/${courseId}`}
-        backLabel="Ringkasan"
+        backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.overview" />}
       />
 
       <ParticipantsClient data={payload} />

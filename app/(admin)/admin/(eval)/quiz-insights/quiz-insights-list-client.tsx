@@ -1,6 +1,9 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import {
   BarChart3,
@@ -67,6 +70,7 @@ export function QuizInsightsListClient({
   backLabel,
   hideHeader = Boolean(lockedCourse),
 }: QuizInsightsListClientProps = {}) {
+  const tx = useTranslations("adminEval.quizInsights");
   const [items, setItems] = useState<QuizInsightOverviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -129,10 +133,10 @@ export function QuizInsightsListClient({
           <div>
             <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
               <BarChart3 className="size-4 text-brand-primary" />
-              <span>Analitik Kuis Mata Kuliah</span>
+              <span>{tx("courseQuizAnalytics")}</span>
             </h2>
             <p className="text-body-xs text-muted-foreground">
-              Evaluasi performa kuis, distraktor jebakan, dan insight AI untuk {lockedCourse.title}.
+              {tx("courseQuizAnalyticsDescription", { course: lockedCourse.title })}
             </p>
           </div>
           <Button
@@ -143,13 +147,13 @@ export function QuizInsightsListClient({
             className="gap-2 rounded-lg text-body-sm"
           >
             <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
-            <span>Perbarui</span>
+            <span>{tx("refresh")}</span>
           </Button>
         </div>
       ) : (
         <AdminPageHeader
           icon={BarChart3}
-          title="Analisis kuis"
+          title={tx("title")}
           backHref={backHref}
           backLabel={backLabel}
           actions={
@@ -161,7 +165,7 @@ export function QuizInsightsListClient({
               className="gap-2 rounded-lg text-body-sm"
             >
               <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
-              <span>Perbarui</span>
+              <span>{tx("refresh")}</span>
             </Button>
           }
         />
@@ -170,27 +174,27 @@ export function QuizInsightsListClient({
       {/* KPI Strip */}
       <AdminStatStrip className="lg:grid-cols-4">
         <AdminStatStripItem
-          label="Total Kuis & Simulasi"
+          label={tx("totalQuizzes")}
           value={totalQuizzes}
           icon={BookOpen}
           iconClassName="text-brand-primary"
         />
         <AdminStatStripItem
-          label="Total Pengerjaan"
+          label={tx("totalAttempts")}
           value={totalAttemptsSum}
-          caption="Pengerjaan selesai oleh siswa"
+          caption={tx("completedAttempts")}
           icon={TrendingUp}
           iconClassName="text-status-info"
         />
         <AdminStatStripItem
-          label="Rata-rata Nilai"
+          label={tx("averageScore")}
           value={`${avgOverallScore} / 100`}
-          caption="Rata-rata dari kuis terpilih"
+          caption={tx("averageSelectedQuizzes")}
           icon={Award}
           iconClassName="text-brand-secondary"
         />
         <AdminStatStripItem
-          label="Dianalisis"
+          label={tx("analyzed")}
           value={
             <>
               {analyzedWithAiCount}{" "}
@@ -208,8 +212,8 @@ export function QuizInsightsListClient({
           size="sm"
           placeholder={
             lockedCourse
-              ? "Cari berdasarkan judul kuis..."
-              : "Cari berdasarkan judul kuis atau mata kuliah..."
+              ? tx("searchQuizTitle")
+              : tx("searchQuizOrCourse")
           }
           value={search}
           onSearch={setSearch}
@@ -220,10 +224,10 @@ export function QuizInsightsListClient({
         {!lockedCourse && (
           <Select value={selectedCourse} onValueChange={setSelectedCourse}>
             <SelectTrigger className="w-[160px] sm:w-[180px] h-9 text-body-sm rounded-lg shrink-0">
-              <SelectValue placeholder="Mata Kuliah" />
+              <SelectValue placeholder={tx("course")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua Mata Kuliah</SelectItem>
+              <SelectItem value="all">{tx("allCourses")}</SelectItem>
               {uniqueCourses.map(([cId, cName]) => (
                 <SelectItem key={cId} value={cId}>
                   {cName}
@@ -235,15 +239,15 @@ export function QuizInsightsListClient({
 
         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
           <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-sm rounded-lg shrink-0">
-            <SelectValue placeholder="Kategori Kuis" />
+            <SelectValue placeholder={tx("quizCategory")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua Kategori</SelectItem>
-            <SelectItem value="daily">Daily Quiz</SelectItem>
-            <SelectItem value="weekly">Weekly Quiz</SelectItem>
-            <SelectItem value="chapter">Chapter Quiz</SelectItem>
-            <SelectItem value="simulation">Simulasi / Tryout</SelectItem>
-            <SelectItem value="premium">Premium</SelectItem>
+            <SelectItem value="all">{tx("allCategories")}</SelectItem>
+            <SelectItem value="daily">{tx("category.daily")}</SelectItem>
+            <SelectItem value="weekly">{tx("category.weekly")}</SelectItem>
+            <SelectItem value="chapter">{tx("category.chapter")}</SelectItem>
+            <SelectItem value="simulation">{tx("category.simulation")}</SelectItem>
+            <SelectItem value="premium">{tx("category.premium")}</SelectItem>
           </SelectContent>
         </Select>
 
@@ -256,7 +260,7 @@ export function QuizInsightsListClient({
             className="h-9 gap-1.5 rounded-lg text-body-sm shrink-0"
           >
             <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
-            <span>Perbarui</span>
+            <span>{tx("refresh")}</span>
           </Button>
         )}
       </div>
@@ -264,18 +268,17 @@ export function QuizInsightsListClient({
       {/* Quizzes Grid / Table */}
       <AdminTable>
         {loading ? (
-          <div className="p-8 text-center text-body-sm text-muted-foreground space-y-3">
-            <RefreshCw className="size-6 animate-spin mx-auto text-brand-primary" />
-            <p>Memuat analisis...</p>
+          <div role="status" aria-label={tx("loading")} className="divide-y divide-border">
+            {[0, 1, 2, 3, 4].map((row) => <div key={row} className="flex items-center gap-4 px-4 py-3.5"><div className="min-w-0 flex-1 space-y-2"><Skeleton className="h-4 w-40 max-w-full" /><Skeleton className="h-3 w-20" /></div><Skeleton className="hidden h-5 w-24 sm:block" /><Skeleton className="hidden h-5 w-20 md:block" /><Skeleton className="h-5 w-12" /><Skeleton className="hidden h-5 w-16 lg:block" /><Skeleton className="h-8 w-8" /></div>)}
           </div>
         ) : filteredItems.length === 0 ? (
           <AdminEmptyState
             icon={HelpCircle}
-            title="Tidak ada kuis yang ditemukan"
+            title={tx("noQuizzesFound")}
             description={
               lockedCourse
-                ? "Belum ada kuis untuk mata kuliah ini atau kuis tidak cocok dengan filter."
-                : "Coba sesuaikan kata kunci pencarian atau filter mata kuliah."
+                ? tx("noCourseQuizzesMatch")
+                : tx("adjustSearchOrCourseFilter")
             }
           />
         ) : (
@@ -283,14 +286,14 @@ export function QuizInsightsListClient({
             <table className="w-full text-left text-body-sm">
               <AdminTableHead className="text-body-xs font-semibold text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3">Kuis</th>
-                  {!lockedCourse && <th className="px-4 py-3">Mata Kuliah</th>}
-                  <th className="px-4 py-3">Kategori</th>
-                  <th className="px-4 py-3 text-center">Pengerjaan</th>
-                  <th className="px-4 py-3 text-center">Rata-rata Nilai</th>
-                  <th className="px-4 py-3 text-center">Kelulusan (≥70)</th>
-                  <th className="px-4 py-3">Status Insight</th>
-                  <th className="px-4 py-3 text-right">Aksi</th>
+                  <th className="px-4 py-3">{tx("quiz")}</th>
+                  {!lockedCourse && <th className="px-4 py-3">{tx("course")}</th>}
+                  <th className="px-4 py-3">{tx("categoryLabel")}</th>
+                  <th className="px-4 py-3 text-center">{tx("attempts")}</th>
+                  <th className="px-4 py-3 text-center">{tx("averageScore")}</th>
+                  <th className="px-4 py-3 text-center">{tx("passRate")}</th>
+                  <th className="px-4 py-3">{tx("insightStatus")}</th>
+                  <th className="px-4 py-3 text-right">{tx("actions")}</th>
                 </tr>
               </AdminTableHead>
               <tbody className="divide-y divide-border">
@@ -313,11 +316,11 @@ export function QuizInsightsListClient({
                       )}
                       <td className="px-4 py-3.5">
                         <Badge variant="secondary" className="rounded-md text-body-xs capitalize">
-                          {item.category}
+                          {tx(`category.${item.category}`)}
                         </Badge>
                       </td>
                       <td className="px-4 py-3.5 text-center font-medium tabular-nums">
-                        {item.totalAttempts} siswa
+                        {tx("studentAttempts", { count: item.totalAttempts })}
                       </td>
                       <td className="px-4 py-3.5 text-center font-semibold tabular-nums">
                         <span className={item.avgScore >= 70 ? "text-status-success" : "text-status-warning"}>
@@ -332,27 +335,25 @@ export function QuizInsightsListClient({
                           <div className="flex items-center gap-1.5 text-status-success text-body-xs font-medium">
                             <CheckCircle2 className="size-4 shrink-0" />
                             <span>
-                              Sudah dianalisis (<FormattedDate date={item.lastAiInsight.createdAt} options={{ day: "numeric", month: "short", year: "numeric" }} />)
+                              {tx("analyzedOn", { date: "__DATE__" }).split("__DATE__")[0]}<FormattedDate date={item.lastAiInsight.createdAt} options={{ day: "numeric", month: "short", year: "numeric" }} />{tx("analyzedOn", { date: "__DATE__" }).split("__DATE__")[1]}
                             </span>
                           </div>
                         ) : (
                           <div className="flex items-center gap-1.5 text-muted-foreground text-body-xs">
                             <HelpCircle className="size-3.5 text-muted-foreground/60 shrink-0" />
-                            <span>Belum dianalisis</span>
+                            <span>{tx("notAnalyzed")}</span>
                           </div>
                         )}
                       </td>
                       <td className="px-4 py-3.5 text-right">
-                        <Link href={detailHref}>
-                          <Button
+                        <Button
+                            asChild
                             size="sm"
                             variant={item.lastAiInsight ? "default" : "outline"}
-                            className="gap-1.5 rounded-lg text-body-xs"
+                            className="gap-1.5 rounded-lg text-body-sm"
                           >
-                            <span>Lihat Analisis</span>
-                            <ArrowRight className="size-3.5" />
+                            <Link href={detailHref}><span>{tx("viewAnalysis")}</span><ArrowRight className="size-3.5" /></Link>
                           </Button>
-                        </Link>
                       </td>
                     </tr>
                   );

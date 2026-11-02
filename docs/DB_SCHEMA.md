@@ -37,6 +37,13 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 
 The row is created on the first explicit save or unsubscribe. A missing row derives initial course and event values from the legacy Tutorial PKA `receiveAnnouncements` choice; learning reminders default on and news and offers default off. This table never controls essential account, security, payment, or enrollment email.
 
+### accountLocalePreferences
+* `userId`: Primary key and cascading foreign key to `user.id`.
+* `locale`: Presentation locale constrained to `id` or `en`.
+* `updatedAt`: Last preference update time, stored as Unix milliseconds.
+
+This table keeps a user's interface language separate from authorization, course learning preferences, and authored content. It is defined by `db/schema.ts` and the additive Drizzle migration `drizzle/0098_workable_blue_blade.sql`. A guarded, read-only staging schema query on 2026-10-24 found no `0098` ledger entry and no `account_locale_preferences` table, so the migration is pending on that staging database. No staging or production migration was applied. See `artifacts/bilingual/staging-preflight-locale-0098.json` for the non-secret fingerprint, guarded query outcome, and environment-file limitation.
+
 ### session
 * `id`
 * `userId`
@@ -111,9 +118,9 @@ The row is created on the first explicit save or unsubscribe. A missing row deri
 * `name`: Study group name (e.g. Kelompok Belajar Alpha).
 * `packageType`: Package tier ("reguler_15", "intensif_30", "super_intensif_45", "custom").
 * `packageName`: Display package label (e.g. Paket Reguler (15 Sesi)).
-* `totalQuotaSessions`: Total meeting quota per semester (default 15). Deprecated for enforcement: booking no longer decrements it.
-* `usedQuotaSessions`: Legacy counter kept read-only. Weekly usage is now derived from `bookings` rows per target week.
-* `weeklyQuotaSessions`: Sessions the group may book per target week (default 2; presets set 1-3). Enforcement derives usage by counting bookings in that ISO week, so pre-lock cancellations free quota while post-lock cancellations keep it consumed.
+* `totalQuotaSessions`: Number of sessions in the group package (default 15).
+* `usedQuotaSessions`: Package sessions used. Booking consumes one session and a student cancellation returns one session.
+* `weeklyQuotaSessions`: Target sessions per week. Weekly usage counts bookings in the Jakarta week and excludes cancellations that have a refund marker.
 * `academicYear`: Academic year string (e.g. 2026/2027).
 * `semester`: Active semester label (e.g. Ganjil, Genap, Pendek).
 * `startDate`: Semester start timestamp.
@@ -173,7 +180,7 @@ Canonical policy: tutor availability for the following week opens Monday and clo
 
 ### bookings
 * `id`
-* `slotId`: Unique reference to booked tutor slot (FCFS per slot).
+* `slotId`: Reference to the tutor slot. A partial unique index allows one non-cancelled booking per slot. Cancelled bookings keep their slot reference and history.
 * `studentId`: Student user ID who initiated the booking.
 * `courseId`: Course associated with the session.
 * `groupId`: Study group that owns the booking.
@@ -1789,3 +1796,13 @@ Indexes:
 * `idx_search_documents_synced`: Index on `is_synced`
 * `idx_search_documents_min_role`: Index on `min_role`
 * `idx_search_documents_course`: Index on `course_id`
+
+## Coding learning
+
+Generated migration `0099_hard_meteorite.sql` adds `coding_problems` (immutable private snapshots keyed by ID and
+version, canonical course and author), `coding_drafts` (learner/course/key with
+optimistic revision), and `coding_attempts` (owner, problem version, surface,
+idempotency request, ordinal, immutable code, evaluation, status and fenced lease).
+Public projections exclude solutions and private tests. See
+[coding contract](coding-foundation.md). Local SQLite migration is verified;
+remote migration is a separate operation.

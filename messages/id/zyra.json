@@ -1,0 +1,32 @@
+{
+  "chat": {
+    "workSearching": "Menelusuri materi kuliah dan kurikulum...",
+    "workReady": "Materi dan konteks pembelajaran siap",
+    "invalidCourse": "Mata kuliah tidak valid.",
+    "invalidAttachment": "Lampiran tidak valid.",
+    "questionOrImageRequired": "Pertanyaan atau lampiran tidak boleh kosong.",
+    "courseAccessUnavailable": "Akses Zyra untuk mata kuliah ini belum tersedia.",
+    "freeTextOnly": "Paket Free hanya mendukung pertanyaan teks.",
+    "freeDailyLimit": "Paket Free hanya mendukung satu pertanyaan teks per hari.",
+    "questionRequired": "Pertanyaan tidak boleh kosong.",
+    "imageInputUnavailable": "Input gambar Zyra sedang tidak tersedia.",
+    "dailyLimit": "Zyra tidak dapat menjawab pertanyaan baru hari ini karena batas harian tercapai. Coba lagi besok, atau gunakan buku teks dan kartu hafalan untuk belajar mandiri.",
+    "providerImageAndQuestionUnavailable": "Gambar dan pertanyaanmu sudah diterima, tetapi layanan AI sedang mengalami kendala sementara. Coba kirim ulang beberapa saat lagi.",
+    "providerImageUnavailable": "Gambarmu sudah diterima, tetapi layanan AI sedang mengalami kendala sementara. Coba kirim ulang beberapa saat lagi.",
+    "providerQuestionUnavailable": "Pertanyaanmu sudah diterima, tetapi layanan AI sedang mengalami kendala sementara. Coba kirim ulang beberapa saat lagi.",
+    "answerUnavailable": "Maaf, terjadi gangguan saat memproses jawaban. Coba lagi dalam beberapa saat.",
+    "internalError": "Terjadi kesalahan internal.",
+    "clarification": "Mohon berikan pertanyaan yang lebih spesifik atau jelas mengenai materi kuliah agar aku bisa membantu.",
+    "greeting": "Halo, ada yang bisa aku bantu mengenai materi kuliah hari ini?",
+    "assessmentScaffold": "Fokus pada pemahaman konsep dasarnya. Coba definisikan dulu rumus atau sifat yang berlaku.",
+    "conflictingSources": "Terdapat perbedaan informasi pada sumber materi. Silakan tinjau kembali sumber yang dirujuk.",
+    "outOfScope": "Zyra membantu topik belajar dalam cakupan Zyx. Coba tanyakan konsep pelajaran, latihan, atau strategi belajar.",
+    "personalization": {
+      "takeSlowly": "Kita pelan-pelan dan bertahap.",
+      "breakIntoSteps": "Kita pecah penjelasannya menjadi beberapa langkah.",
+      "pictureRelations": "Coba bayangkan hubungan antarbagian ini secara visual.",
+      "keyIdea": "Intinya begini:",
+      "moreDetail": "Kita uraikan dengan lebih lengkap."
+    }
+  }
+}

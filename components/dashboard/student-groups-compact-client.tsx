@@ -30,8 +30,8 @@ import {
   getGroupRenameStatus,
   renameStudentGroup,
 } from "@/app/(student)/dashboard/groups/rename-actions";
-import { formatIsoDate } from "@/lib/date-utils";
 import { useUrlTab } from "@/hooks/use-url-tab";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 
 type StudentGroup = {
   id: string;
@@ -64,12 +64,19 @@ type RenameStatus = {
   nextRenameAt: string | null;
 } | null;
 
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("id-ID", {
+function formatDateTime(value: string, locale: "id" | "en") {
+  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "id-ID", {
     dateStyle: "long",
     timeStyle: "short",
     timeZone: "Asia/Jakarta",
   }).format(new Date(value));
+}
+
+function formatDate(value: Date, locale: "id" | "en") {
+  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "id-ID", {
+    dateStyle: "medium",
+    timeZone: "Asia/Jakarta",
+  }).format(value);
 }
 
 /**
@@ -79,6 +86,8 @@ function formatDateTime(value: string) {
  * @param props - Component props containing initial student groups.
  */
 export function StudentGroupsCompactClient({ initialGroups }: Props) {
+  const t = useTranslations("student");
+  const { locale } = useAppLocale();
   const router = useRouter();
   const defaultGroupId = initialGroups[0]?.id ?? "";
   const [selectedGroupId, setSelectedGroupId] = useUrlTab("group", defaultGroupId, defaultGroupId);
@@ -102,14 +111,14 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
     try {
       const result = await joinGroupWithToken(tokenInput.trim());
       if (!result.success) {
-        toast.error(result.error || "Gagal bergabung ke kelompok");
+        toast.error(t("groups.joinFailed"));
         return;
       }
-      toast.success("Berhasil bergabung ke kelompok belajar.");
+      toast.success(t("groups.joinSuccess"));
       setTokenInput("");
       router.refresh();
     } catch {
-      toast.error("Terjadi kesalahan sistem");
+      toast.error(t("groups.systemError"));
     } finally {
       setTokenLoading(false);
     }
@@ -118,7 +127,7 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
   const copyToken = (token: string) => {
     navigator.clipboard.writeText(token);
     setCopiedToken(token);
-    toast.success("Token kelompok disalin");
+    toast.success(t("groups.tokenCopied"));
     window.setTimeout(() => setCopiedToken(null), 1600);
   };
 
@@ -139,7 +148,7 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
       const result = await getGroupRenameStatus(activeGroup.id);
       if (requestId !== statusRequest.current) return;
       if (!result.success) {
-        toast.error(result.error);
+        toast.error(t("groups.renameFailure"));
         closeRename();
         return;
       }
@@ -155,13 +164,13 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
     startSaveTransition(async () => {
       const result = await renameStudentGroup(groupId, draftName);
       if (!result.success) {
-        toast.error(result.error);
+        toast.error(t("groups.renameFailure"));
         if ("nextRenameAt" in result && result.nextRenameAt) {
           setRenameStatus({ canRename: false, nextRenameAt: result.nextRenameAt });
         }
         return;
       }
-      if (result.changed) toast.success("Nama kelompok berhasil diganti.");
+      if (result.changed) toast.success(t("groups.renameSuccess"));
       closeRename();
       router.refresh();
     });
@@ -172,23 +181,23 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
       <section className="mx-auto max-w-xl border-y border-border/60 py-5 sm:rounded-xl sm:border sm:p-5">
         <div className="flex items-center gap-2">
           <Users className="size-4 text-brand-primary" />
-          <h2 className="font-heading text-body-base font-bold text-foreground">Gabung kelompok belajar</h2>
+          <h2 className="font-heading text-body-base font-bold text-foreground">{t("groups.join")}</h2>
         </div>
         <form onSubmit={handleJoinToken} className="mt-4 flex gap-2">
           <Input
             type="text"
-            placeholder="Token kelompok"
+            placeholder={t("groups.tokenPlaceholder")}
             value={tokenInput}
             onChange={(event) => setTokenInput(event.target.value)}
             className="min-w-0 flex-1 font-mono"
           />
           <Button type="submit" disabled={tokenLoading || !tokenInput.trim()}>
-            {tokenLoading ? "Memproses" : "Gabung"}
+            {tokenLoading ? t("groups.processing") : t("groups.joinAction")}
           </Button>
         </form>
         <p className="mt-2 flex items-center gap-1.5 text-body-xs text-muted-foreground">
           <KeyRound className="size-3.5 shrink-0" />
-          Gunakan token dari admin atau anggota kelompok.
+          {t("groups.tokenHelp")}
         </p>
       </section>
     );
@@ -203,7 +212,7 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
     <div className="space-y-4">
       {initialGroups.length > 1 ? (
         <Tabs value={activeGroup.id} onValueChange={setSelectedGroupId} syncUrl={false}>
-          <TabsList aria-label="Pilih kelompok belajar">
+          <TabsList aria-label={t("groups.selectGroup")}>
             {initialGroups.map((group) => (
               <TabsTrigger key={group.id} value={group.id}>{group.name}</TabsTrigger>
             ))}
@@ -215,22 +224,22 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/50 pb-4">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <h2 className="min-w-0 truncate font-heading text-h5 font-bold text-foreground">
+              <h2 className="min-w-0 break-words font-heading text-h5 font-bold text-foreground">
                 {activeGroup.name}
               </h2>
               <button
                 type="button"
                 onClick={openRename}
                 className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                aria-label="Ganti nama kelompok"
-                title="Ganti nama kelompok"
+                aria-label={t("groups.rename")}
+                title={t("groups.rename")}
               >
                 <PencilLine className="size-3.5" />
               </button>
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-2 text-body-xs text-muted-foreground">
               <Badge variant="outline" className="text-body-2xs">
-                {activeGroup.myRole === "leader" ? "Ketua" : "Anggota"}
+                {activeGroup.myRole === "leader" ? t("groups.leader") : t("groups.member")}
               </Badge>
               <span>{activeGroup.packageName}</span>
               <span>•</span>
@@ -242,7 +251,7 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
             <Button asChild size="sm" className="shrink-0 gap-1.5">
               <Link href="/dashboard/schedule">
                 <CalendarRange className="size-3.5" />
-                Jadwalkan sesi
+                {t("groups.scheduleSession")}
               </Link>
             </Button>
           ) : null}
@@ -252,11 +261,11 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
           <div className="py-4">
             <div className="flex items-end justify-between gap-4">
               <div>
-                <p className="text-body-xs text-muted-foreground">Kuota paket</p>
+                <p className="text-body-xs text-muted-foreground">{t("groups.packageQuota")}</p>
                 <p className="font-heading text-h5 font-bold text-foreground">
                   {activeGroup.usedQuotaSessions}
                   <span className="ml-1 text-body-sm font-normal text-muted-foreground">
-                    / {activeGroup.totalQuotaSessions} sesi
+                / {t("groups.sessionCount", { count: activeGroup.totalQuotaSessions })}
                   </span>
                 </p>
               </div>
@@ -264,7 +273,7 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
                 <span className="block font-heading text-h5 font-bold text-brand-primary">
                   {activeGroup.remainingQuota ?? Math.max(0, activeGroup.totalQuotaSessions - activeGroup.usedQuotaSessions)}
                 </span>
-                tersisa
+                {t("groups.remaining")}
               </p>
             </div>
             <div
@@ -277,15 +286,15 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
               <div className="h-full rounded-md bg-brand-primary transition-all" style={{ width: `${totalPercent}%` }} />
             </div>
             <div className="mt-2 flex flex-wrap justify-between gap-2 text-body-xs text-muted-foreground">
-              <span>Minggu ini: {activeGroup.weeklyUsedSessions} sesi</span>
+              <span>{t("groups.weekUsage", { count: activeGroup.weeklyUsedSessions })}</span>
               <span>{activeGroup.frequencyLabel}</span>
             </div>
           </div>
         ) : (
           <div className="py-4">
             <div className="text-body-xs text-muted-foreground">
-              <p className="font-semibold text-foreground">Paket belajar mandiri</p>
-              <p className="mt-0.5">Tanpa sesi tutorial. Materi dan kuis tetap aktif.</p>
+              <p className="font-semibold text-foreground">{t("groups.selfStudy")}</p>
+              <p className="mt-0.5">{t("groups.selfStudyDescription")}</p>
             </div>
           </div>
         )}
@@ -294,19 +303,19 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
           <div className="py-4 sm:pr-5">
             <div className="flex items-center gap-2 text-body-sm font-semibold text-foreground">
               <CalendarDays className="size-4 text-brand-primary" />
-              {activeGroup.endDate ? `Aktif sampai ${formatIsoDate(new Date(activeGroup.endDate))}` : "Satu semester penuh"}
+              {activeGroup.endDate ? t("groups.activeUntil", { date: formatDate(new Date(activeGroup.endDate), locale) }) : t("groups.fullSemester")}
             </div>
             <p className="mt-1 text-body-xs text-muted-foreground">
-              Bergabung {formatIsoDate(new Date(activeGroup.joinedAt))}
+              {t("groups.joinedAt", { date: formatDate(new Date(activeGroup.joinedAt), locale) })}
             </p>
           </div>
 
           <div className="border-t border-border/50 py-4 sm:border-l sm:border-t-0 sm:pl-5">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-body-sm font-semibold text-foreground">Anggota</p>
+                <p className="text-body-sm font-semibold text-foreground">{t("groups.members")}</p>
                 <p className="truncate text-body-xs text-muted-foreground">
-                  {activeGroup.members.map((member) => member.isMe ? `${member.name} (Anda)` : member.name).join(", ")}
+                  {activeGroup.members.map((member) => member.isMe ? t("groups.memberYou", { name: member.name }) : member.name).join(", ")}
                 </p>
               </div>
               <span className="shrink-0 text-body-xs text-muted-foreground">
@@ -329,8 +338,8 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
         {activeGroup.token && activeGroup.members.length < activeGroup.token.capacity ? (
           <div className="flex items-center justify-between gap-3 border-t border-border/50 pt-4">
             <div className="min-w-0">
-              <p className="text-body-xs text-muted-foreground">Token undangan</p>
-              <p className="truncate font-mono text-body-sm font-semibold text-foreground">{activeGroup.token.token}</p>
+              <p className="text-body-xs text-muted-foreground">{t("groups.inviteToken")}</p>
+              <p className="break-all font-mono text-body-sm font-semibold text-foreground">{activeGroup.token.token}</p>
             </div>
             <Button
               type="button"
@@ -340,7 +349,7 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
               className="shrink-0 gap-1.5"
             >
               {copiedToken === activeGroup.token.token ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-              Salin
+              {t("groups.copy")}
             </Button>
           </div>
         ) : null}
@@ -354,12 +363,12 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Ganti nama kelompok</DialogTitle>
-            <DialogDescription>Nama dapat diganti sekali tiap 30 hari.</DialogDescription>
+            <DialogTitle>{t("groups.rename")}</DialogTitle>
+            <DialogDescription>{t("groups.cooldown")}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2 py-1">
-            <label htmlFor="student-group-name" className="text-body-sm font-semibold">Nama baru</label>
+            <label htmlFor="student-group-name" className="text-body-sm font-semibold">{t("groups.newName")}</label>
             <Input
               id="student-group-name"
               value={draftName}
@@ -370,13 +379,13 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
             />
             {renameStatus?.canRename === false && renameStatus.nextRenameAt ? (
               <p className="text-body-xs text-muted-foreground">
-                Dapat diganti lagi {formatDateTime(renameStatus.nextRenameAt)}.
+                {t("groups.cooldownUntil", { date: formatDateTime(renameStatus.nextRenameAt, locale) })}
               </p>
             ) : null}
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" disabled={saving} onClick={closeRename}>Batal</Button>
+            <Button type="button" variant="outline" disabled={saving} onClick={closeRename}>{t("groups.cancel")}</Button>
             <Button
               type="button"
               disabled={
@@ -388,7 +397,7 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
               }
               onClick={submitRename}
             >
-              {saving ? "Menyimpan" : "Simpan"}
+              {saving ? t("groups.saving") : t("groups.saved")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
-import { BookOpenCheck, CheckCircle2, XCircle, BrainCircuit, X } from "lucide-react";
+import { BookOpenCheck, CheckCircle2, XCircle, BrainCircuit } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 import { jakartaDay } from "@/lib/date-utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 const DAILY_QUIZ_STORAGE_PREFIX = "zyx-daily-quiz";
 
@@ -62,6 +63,7 @@ export function DailyQuizPopup({
   onCloseManual,
   dailyTrivia,
 }: DailyQuizPopupProps) {
+  const t = useTranslations("studentCourse");
   const [show, setShow] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -125,27 +127,23 @@ export function DailyQuizPopup({
 
   if (!show || !trivia) return null;
 
-  return createPortal(
-    <div className="fixed inset-0 z-50 grid min-h-dvh place-items-center overflow-y-auto bg-black/60 p-4 font-sans backdrop-blur-xs transition-opacity animate-in fade-in duration-200">
-      <div className="relative my-auto w-full max-w-lg rounded-3xl border border-brand-primary/30 bg-card/95 p-6 shadow-2xl backdrop-blur-md md:p-8 animate-in zoom-in-95 duration-200">
-        <button type="button" aria-label="Tutup trivia" className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground hover:bg-border cursor-pointer transition-colors" onClick={handleClose}><X className="size-4" /></button>
-
-        <div className="flex items-center gap-2.5">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
+  return (
+    <Dialog open={show} onOpenChange={(open) => { if (!open) handleClose(); }}>
+      <DialogContent aria-describedby={undefined} closeLabel={t("course.dailyQuiz.close")} className="max-h-[calc(100dvh-2rem)] gap-0 overflow-y-auto p-5 font-sans">
+        <div className="flex items-center gap-2.5 pr-8">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-primary">
             <BrainCircuit className="size-5" />
           </span>
-          <div>
-            <h3 className="font-heading text-body-base font-bold text-foreground leading-tight">{courseTitle} Trivia</h3>
-          </div>
+          <DialogTitle className="min-w-0 break-words leading-tight">{courseTitle} Trivia</DialogTitle>
         </div>
 
         {!submitted ? (
-          <div className="mt-6">
+          <div className="mt-4">
             <p className="text-body-base font-semibold text-foreground leading-relaxed">
               <MathText>{trivia.question}</MathText>
             </p>
 
-            <ul className="mt-5 space-y-2.5">
+            <ul className="mt-4 space-y-2">
               {trivia.options.map((opt, idx) => {
                 const selected = selectedIdx === idx;
                 return (
@@ -153,8 +151,9 @@ export function DailyQuizPopup({
                     <button
                       type="button"
                       onClick={() => setSelectedIdx(idx)}
+                      aria-pressed={selected}
                       className={cn(
-                        "flex w-full items-center gap-3 rounded-2xl border px-4 py-3.5 text-left text-body-sm font-medium transition-all",
+                        "flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-body-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                         selected
                           ? "border-brand-primary bg-brand-primary/10 ring-1 ring-brand-primary"
                           : "border-border bg-muted/20 hover:border-brand-primary/30 hover:bg-muted/40"
@@ -163,56 +162,56 @@ export function DailyQuizPopup({
                       <span
                         className={cn(
                           "flex size-7 shrink-0 items-center justify-center rounded-lg text-body-xs font-bold transition-colors",
-                          selected ? "bg-brand-primary text-white" : "bg-muted text-muted-foreground"
+                          selected ? "bg-brand-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                         )}
                       >
                         {String.fromCharCode(65 + idx)}
                       </span>
-                      <MathText className="text-foreground">{opt}</MathText>
+                      <MathText className="min-w-0 break-words text-foreground">{opt}</MathText>
                     </button>
                   </li>
                 );
               })}
             </ul>
 
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
               <Button variant="ghost" onClick={handleClose} className="rounded-md">
-                Nanti saja
+                {t("course.dailyQuiz.later")}
               </Button>
               <Button
                 onClick={handleSubmit}
                 disabled={selectedIdx === null}
-                className="rounded-md bg-brand-primary px-6"
+                className="rounded-md bg-brand-primary text-primary-foreground px-6"
               >
-                Kirim Jawaban
+                {t("course.dailyQuiz.sendAnswer")}
               </Button>
             </div>
           </div>
         ) : (
-          <div className="mt-6 space-y-4 animate-in fade-in duration-300">
+          <div className="mt-4 space-y-4">
             <div
               className={cn(
-                "rounded-2xl border p-4 flex items-start gap-3",
+                "rounded-lg border p-3 flex items-start gap-3",
                 isCorrect
-                  ? "bg-status-success/10 border-status-success/20 text-status-success"
-                  : "bg-status-error/10 border-status-error/20 text-status-error"
+                  ? "bg-status-success/10 border-status-success/20 text-foreground"
+                  : "bg-status-error/10 border-status-error/20 text-foreground"
               )}
             >
               {isCorrect ? (
-                <CheckCircle2 className="size-6 shrink-0 mt-0.5" />
+                <CheckCircle2 className="size-6 shrink-0 mt-0.5 text-status-success" />
               ) : (
-                <XCircle className="size-6 shrink-0 mt-0.5" />
+                <XCircle className="size-6 shrink-0 mt-0.5 text-status-error" />
               )}
               <div>
                 <p className="font-bold text-body-base leading-none">
-                  {isCorrect ? "Jawaban benar" : "Jawaban kurang tepat"}
+                  {isCorrect ? t("course.dailyQuiz.correct") : t("course.dailyQuiz.incorrect")}
                 </p>
                 <p className="text-body-xs mt-1 text-foreground/80">
                   {isCorrect
-                    ? "Kamu berhasil menjawab trivia hari ini dengan benar."
+                    ? t("course.dailyQuiz.success")
                     : (
                       <>
-                        Jawaban yang benar adalah:{" "}
+                        {t("course.dailyQuiz.correctAnswer")}{" "}
                         <MathText>{trivia.options[trivia.correctIndex]}</MathText>
                       </>
                     )}
@@ -220,10 +219,10 @@ export function DailyQuizPopup({
               </div>
             </div>
 
-            <div className="rounded-2xl border border-brand-primary/20 bg-brand-primary/5 p-4">
+            <div className="border-t border-border pt-3">
               <h4 className="font-heading text-body-xs font-bold text-brand-primary flex items-center gap-1.5">
                 <BookOpenCheck className="size-3.5" />
-                Pembahasan:
+                {t("course.dailyQuiz.explanation")}
               </h4>
               <p className="mt-2 text-body-xs text-muted-foreground leading-relaxed">
                 <MathText>{trivia.explanation}</MathText>
@@ -232,13 +231,12 @@ export function DailyQuizPopup({
 
             <div className="flex justify-end gap-2 pt-2">
               <Button onClick={handleClose} className="rounded-md bg-foreground text-background hover:bg-foreground/90 px-6">
-                Selesai & Tutup
+                {t("course.dailyQuiz.doneClose")}
               </Button>
             </div>
           </div>
         )}
-      </div>
-    </div>,
-    document.body
+      </DialogContent>
+    </Dialog>
   );
 }

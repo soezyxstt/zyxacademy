@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { saveArticle } from "@/app/(admin)/admin/blog/actions";
 import { cn } from "@/lib/utils";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface MarkdownEditorProps {
   initialData?: any;
@@ -69,6 +70,7 @@ function BlogThumbnailPreview({
 
 export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
   const router = useRouter();
+  const t = useTranslations("adminAcademic");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     id: initialData?.id || "",
@@ -128,14 +130,14 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
       }
 
       if (!data || !data.url) {
-        throw new Error("Respon dari server tidak valid (format data tidak sesuai).");
+        throw new Error("INVALID_UPLOAD_RESPONSE");
       }
 
       setFormData((prev) => ({ ...prev, thumbnailUrl: data.url }));
       setFormData((prev: any) => ({ ...prev, thumbnailUrl: data.url }));
-      toast.success("Thumbnail berhasil diunggah");
-    } catch (err: any) {
-      toast.error(err.message || "Gagal mengunggah thumbnail");
+      toast.success(t("editor.thumbnailUploaded"));
+    } catch {
+      toast.error(t("editor.thumbnailUploadFailed"));
     } finally {
       setIsUploadingThumbnail(false);
     }
@@ -192,13 +194,13 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
       }
 
       if (!data || !data.url) {
-        throw new Error("Respon dari server tidak valid (format data tidak sesuai).");
+        throw new Error("INVALID_UPLOAD_RESPONSE");
       }
 
       setMediaUrl(data.url);
-      toast.success("Berkas berhasil diunggah");
-    } catch (err: any) {
-      toast.error(err.message || "Gagal mengunggah berkas");
+      toast.success(t("editor.fileUploaded"));
+    } catch {
+      toast.error(t("editor.fileUploadFailed"));
     } finally {
       setIsUploading(false);
     }
@@ -206,7 +208,7 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
 
   const handleInsertMedia = () => {
     if (!mediaUrl) {
-      toast.error("URL Media tidak boleh kosong");
+      toast.error(t("editor.mediaUrlRequired"));
       return;
     }
 
@@ -230,11 +232,11 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
     setIsSubmitting(false);
     
     if (res.success) {
-      toast.success("Artikel berhasil disimpan");
+      toast.success(t("editor.articleSaved"));
       router.push("/admin/blog");
       router.refresh();
     } else {
-      toast.error(res.error || "Terjadi kesalahan saat menyimpan artikel");
+      toast.error(t("editor.articleSaveFailed"));
     }
   };
 

@@ -1,3 +1,4 @@
+import { validateFollowups, type Followup } from "@/lib/zyra/followups";
 import type { CanvasSpec } from "@/lib/zyra/canvas";
 
 export interface ZyraSource {
@@ -13,12 +14,17 @@ export interface ZyraWorkStepData {
   status: string;
 }
 
+export type ZyraResponseLanguage = "id" | "en";
+
 export type ZyraStreamPart =
   | { type: "text-delta"; textDelta: string }
   | { type: "chunk"; text: string }
+  | { type: "data-followups"; followups: Followup[] }
   | { type: "data-sources"; sources: ZyraSource[] }
   | { type: "data-canvas"; canvasSpec: CanvasSpec }
   | { type: "data-session"; sessionId: string }
+  | { type: "data-history"; saved: boolean; message?: string }
+  | { type: "data-response-language"; responseLanguage: ZyraResponseLanguage }
   | { type: "data-work-step"; data: ZyraWorkStepData }
   | { type: "data-error"; data: { message: string } }
   | { type: "done" };
@@ -54,7 +60,11 @@ export async function* consumeZyraStream(
         try {
           const parsed = JSON.parse(dataStr);
           if (parsed && typeof parsed === "object" && "type" in parsed) {
-            yield parsed as ZyraStreamPart;
+            if (parsed.type === "data-followups") {
+              yield { type: "data-followups", followups: validateFollowups(parsed.followups) };
+            } else {
+              yield parsed as ZyraStreamPart;
+            }
           }
         } catch {
           // Ignore malformed JSON chunks

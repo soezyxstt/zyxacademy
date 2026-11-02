@@ -1,0 +1,19 @@
+# Only the prebuilt runtime and public assets can enter this build context.
+**
+!Dockerfile.cloud-run
+!.next/
+!.next/standalone/
+!.next/standalone/**
+!.next/static/
+!.next/static/**
+!public/
+!public/**
+
+# Defense in depth against credentials or local data copied by tracing.
+**/.env*
+**/gha-creds-*.json
+**/.git
+**/*.db
+**/*.db-*
+**/*.pem
+**/*.key

@@ -5,6 +5,9 @@ import * as schema from "@/db/schema";
 import { resolveAuthSecret } from "@/lib/auth-secret";
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import { provisionPenggunaForNewUser } from "@/lib/auth/authorization";
+import { LOCALE_COOKIE_NAME } from "@/lib/i18n/shared";
+import { inheritUserLocalePreference } from "@/lib/i18n/preferences";
+import { normalizeLocale } from "@/lib/i18n/locale";
 
 function requiredEnv(name: string): string {
   const v = process.env[name];
@@ -72,13 +75,20 @@ export const auth = betterAuth({
  databaseHooks: {
   user: {
    create: {
-    after: async (createdUser) => {
+    after: async (createdUser, context) => {
      await provisionPenggunaForNewUser({
       id: createdUser.id,
       role: createdUser.role,
       createdAt: createdUser.createdAt,
       updatedAt: createdUser.updatedAt,
      });
+     const cookieHeader = context?.request?.headers.get("cookie");
+     const localeCookie = cookieHeader?.split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith(`${LOCALE_COOKIE_NAME}=`))
+      ?.slice(LOCALE_COOKIE_NAME.length + 1);
+     const locale = normalizeLocale(localeCookie);
+     if (locale) await inheritUserLocalePreference(createdUser.id, locale);
     },
    },
   },

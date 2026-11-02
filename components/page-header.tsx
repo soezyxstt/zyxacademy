@@ -24,7 +24,7 @@ export type PageHeaderProps = {
   icon?: ComponentType<{ className?: string }>;
   actions?: ReactNode;
   backHref?: string;
-  backLabel?: string;
+  backLabel?: ReactNode;
   breadcrumbs?: BreadcrumbItem[] | ReactNode;
   divider?: boolean;
   className?: string;
@@ -178,7 +178,7 @@ export function PageHeader({
       className={cn(
         "w-full min-w-0 flex-col items-stretch gap-2 text-left",
         hasMobileControls ? "flex mb-3 md:mb-0" : "hidden md:flex",
-        divider && "md:border-b md:border-border md:pb-2.5 md:mb-3.5",
+        divider && "md:pb-2.5 md:mb-3.5",
         className,
       )}
     >
@@ -205,7 +205,7 @@ export function PageHeader({
               <Icon className="size-3.5 sm:size-4" aria-hidden />
             </span>
           )}
-          <h1 className="font-heading text-body-base sm:text-h5 font-bold tracking-tight text-foreground leading-snug truncate">
+          <h1 className="min-w-0 break-words font-heading text-body-base sm:text-h5 font-bold tracking-tight text-foreground leading-snug">
             {title}
           </h1>
         </div>

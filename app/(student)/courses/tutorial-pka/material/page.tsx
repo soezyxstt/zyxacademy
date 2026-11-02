@@ -17,7 +17,7 @@ type PkaProps = {
   searchParams?: Promise<{ tab?: string }>;
 };
 
-export default async function PkaMaterialPage(props?: PkaProps) {
+export default async function PkaMaterialPage(props: PkaProps) {
   await requirePkaSession("/courses/tutorial-pka/material");
-  return CourseMaterialListPage({ ...pkaParams, searchParams: props?.searchParams });
+  return CourseMaterialListPage({ ...pkaParams, searchParams: props.searchParams });
 }

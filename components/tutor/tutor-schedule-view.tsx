@@ -57,14 +57,12 @@ import {
   parseDateInput,
   daysFrom,
 } from "@/lib/date-utils";
-import {
-  canTutorCreateAvailability,
-  isTutorialWeekLocked,
-} from "@/lib/schedule/week-policy";
 import { ScheduleCalendarView } from "@/components/schedule/schedule-calendar-view";
 import calendarStyles from "@/components/schedule/schedule-calendar-readability.module.css";
 import { SessionDetailDrawer } from "@/components/schedule/session-detail-drawer";
 import { cn } from "@/lib/utils";
+import { useTranslations, useAppLocale } from "@/lib/i18n/client";
+import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import type {
   TutorScheduleReadModel,
   OwnedBookingItem,
@@ -99,6 +97,15 @@ function getIndonesianWeekdayFromDate(dateStr: string): IndonesianDay {
   return dayIdx === 0 ? "Minggu" : INDONESIAN_DAYS[dayIdx - 1];
 }
 
+function formatWeekDate(dateStr: string, locale: "id" | "en") {
+  const date = parseDateInput(dateStr);
+  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "id-ID", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(date);
+}
+
 export interface TutorScheduleViewProps {
   initialData: TutorScheduleReadModel;
   currentUserId: string;
@@ -110,6 +117,9 @@ export function TutorScheduleView({
   currentUserId,
   initialWeekOffset = 0,
 }: TutorScheduleViewProps) {
+  const t = useTranslations("tutor.schedule");
+  const statusLabel = useTranslations("schedule.session.status");
+  const { locale } = useAppLocale();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [activeTab, setActiveTab] = useUrlTab("tab", "calendar");
@@ -120,6 +130,7 @@ export function TutorScheduleView({
   const [scheduleData, setScheduleData] = useState(initialData);
   const [slotNotes, setSlotNotes] = useState<Record<string, string>>({});
   const [activeSessionBookingId, setActiveSessionBookingId] = useState<string | null>(null);
+  const [slotPendingDelete, setSlotPendingDelete] = useState<string | null>(null);
 
   useEffect(() => {
     setWeekOffset(initialWeekOffset);
@@ -179,7 +190,6 @@ export function TutorScheduleView({
     () => getIndonesianWeekdayFromDate(newSlotDate),
     [newSlotDate],
   );
-  const canEditSelectedSlotDate = true;
 
   const [movingBooking, setMovingBooking] = useState<OwnedBookingItem | null>(null);
   const [targetMoveSlotId, setTargetMoveSlotId] = useState<string>("");
@@ -254,10 +264,10 @@ export function TutorScheduleView({
       if (res.success) {
         setIsAddSlotOpen(false);
         setNewSlotNotes("");
-        toast.success("Slot ketersediaan berhasil ditambahkan.");
+        toast.success(t("slotAdded"));
         router.refresh();
       } else {
-        toast.error(res.error || "Gagal menambahkan slot.");
+        toast.error(t("slotAddFailed"));
       }
     });
   };
@@ -304,6 +314,8 @@ export function TutorScheduleView({
     setIsMoveSessionOpen(true);
   };
 
+  const requestDeleteSlot = (slotId: string) => setSlotPendingDelete(slotId);
+
   const handleDeleteSlot = (slotId: string) => {
     startTransition(async () => {
       const res = await deleteTutorSlotAction({ slotId });
@@ -313,17 +325,18 @@ export function TutorScheduleView({
           delete next[slotId];
           return next;
         });
-        toast.success("Slot berhasil dihapus.");
+        toast.success(t("slotDeleted"));
+        setSlotPendingDelete(null);
         router.refresh();
       } else {
-        toast.error(res.error || "Gagal menghapus slot.");
+        toast.error(t("slotDeleteFailed"));
       }
     });
   };
 
   const handleMoveSession = () => {
     if (!movingBooking || !targetMoveSlotId || !targetMoveDate) {
-      toast.error("Harap pilih slot dan tanggal tujuan.");
+      toast.error(t("chooseSlotAndDate"));
       return;
     }
     startTransition(async () => {
@@ -337,13 +350,13 @@ export function TutorScheduleView({
         setIsMoveSessionOpen(false);
         setMovingBooking(null);
         if (res.movedDirectly) {
-          toast.success("Sesi berhasil dipindahkan.");
+          toast.success(t("sessionMoved"));
         } else {
-          toast.info("Permohonan reschedule berhasil diajukan sebagai tiket.");
+          toast.info(t("rescheduleSubmitted"));
         }
         router.refresh();
       } else {
-        toast.error(res.error || "Gagal memindahkan sesi.");
+        toast.error(t("sessionMoveFailed"));
       }
     });
   };
@@ -359,10 +372,10 @@ export function TutorScheduleView({
       if (res.success) {
         setIsDecideTicketOpen(false);
         setDecidingTicket(null);
-        toast.success(`Tiket berhasil ${ticketDecision === "approved" ? "disetujui" : "ditolak"}.`);
+        toast.success(t("ticketDecisionSaved", { decision: t(ticketDecision === "approved" ? "decisionApproved" : "decisionRejected") }));
         router.refresh();
       } else {
-        toast.error(res.error || "Gagal memproses tiket.");
+        toast.error(t("ticketProcessFailed"));
       }
     });
   };
@@ -376,10 +389,10 @@ export function TutorScheduleView({
       });
       if (res.success) {
         setReplyText("");
-        toast.success("Balasan diskusi terkirim.");
+        toast.success(t("replySent"));
         router.refresh();
       } else {
-        toast.error(res.error || "Gagal mengirim pesan.");
+        toast.error(t("replyFailed"));
       }
     });
   };
@@ -388,14 +401,15 @@ export function TutorScheduleView({
   const weekSlots = scheduleData.ownedSlots.filter(
     (slot) => slot.sessionDate && slot.sessionDate >= weekInfo.startOfWeekIso && slot.sessionDate <= weekInfo.endOfWeekIso,
   );
-  const weekBookings = scheduleData.ownedBookings.filter(
-    (booking) => booking.sessionDate && booking.sessionDate >= weekInfo.startOfWeekIso && booking.sessionDate <= weekInfo.endOfWeekIso,
-  );
+  const slotsWithHistory = new Set(scheduleData.ownedBookings.map((booking) => booking.slotId));
   const openedSlotCount = weekSlots.length;
-  const filledSlotCount = new Set(weekBookings.map((booking) => booking.slotId)).size;
+  const filledSlotCount = weekSlots.filter((slot) => slot.booking).length;
   const availableSlotCount = Math.max(0, openedSlotCount - filledSlotCount);
   const activeSessionBooking = activeSessionBookingId
     ? scheduleData.ownedBookings.find((booking) => booking.id === activeSessionBookingId) || null
+    : null;
+  const pendingDeleteSlot = slotPendingDelete
+    ? scheduleData.ownedSlots.find((slot) => slot.id === slotPendingDelete) ?? null
     : null;
 
   const handleCopyPreviousWeek = () => {
@@ -403,12 +417,12 @@ export function TutorScheduleView({
       const result = await copyTutorAvailabilityAction(weekInfo.startOfWeekIso);
       if (result.success) {
         const conflictMessage = result.conflicts.length > 0
-          ? ` ${result.conflicts.length} slot dilewati karena bentrok.`
+          ? t("slotConflicts", { count: result.conflicts.length })
           : "";
-        toast.success(`${result.createdCount} slot disalin dari pekan sebelumnya.${conflictMessage}`);
+        toast.success(`${t("copiedSlots", { count: result.createdCount })}${conflictMessage}`);
         router.refresh();
       } else {
-        toast.error(result.error || "Gagal menyalin slot.");
+        toast.error(t("copySlotFailed"));
       }
     });
   };
@@ -427,25 +441,25 @@ export function TutorScheduleView({
       <header className="flex flex-col gap-3 border-b border-border pb-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h1 className="font-heading text-xl font-bold text-foreground">Jadwal Tutorial</h1>
+            <h1 className="font-heading text-h5 font-bold text-foreground">{t("title")}</h1>
             <span className="text-body-sm font-semibold text-foreground">
-              {weekInfo.days[0].dayOfMonth} {weekInfo.days[0].monthName} - {weekInfo.days[6].dayOfMonth} {weekInfo.days[6].monthName} {weekInfo.days[6].dateIso.slice(0, 4)}
+              {formatWeekDate(weekInfo.days[0].dateIso, locale)} - {formatWeekDate(weekInfo.days[6].dateIso, locale)}
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-xs text-muted-foreground">
-            <span><strong className="text-foreground">{openedSlotCount}</strong> dibuka</span>
-            <span><strong className="text-foreground">{filledSlotCount}</strong> terisi</span>
-            <span><strong className="text-foreground">{availableSlotCount}</strong> tersedia</span>
+            <span><strong className="text-foreground">{openedSlotCount}</strong> {t("opened")}</span>
+            <span><strong className="text-foreground">{filledSlotCount}</strong> {t("filled")}</span>
+            <span><strong className="text-foreground">{availableSlotCount}</strong> {t("available")}</span>
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <Button type="button" size="sm" variant="outline" disabled={isPending} onClick={handleCopyPreviousWeek} className="h-9 text-body-sm">
             <CalendarDays className="size-3.5" />
-            Salin pekan lalu
+            {t("copyPreviousWeek")}
           </Button>
           <Button type="button" size="sm" onClick={openAddSlotDialog} className="h-9 text-body-sm">
             <Plus className="size-4" />
-            Tambah Slot
+            {t("addSlot")}
           </Button>
         </div>
       </header>
@@ -454,7 +468,7 @@ export function TutorScheduleView({
         <div className="flex flex-wrap items-center gap-2">
           <div className="min-w-[140px] max-w-sm flex-1">
             <SearchBar
-              placeholder="Cari slot, topik, kelompok..."
+              placeholder={t("search")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               size="sm"
@@ -462,20 +476,20 @@ export function TutorScheduleView({
           </div>
           <Select value={selectedDayFilter} onValueChange={setSelectedDayFilter}>
             <SelectTrigger className="h-9 w-[130px] shrink-0 rounded-lg text-body-sm">
-              <SelectValue placeholder="Pilih Hari" />
+              <SelectValue placeholder={t("chooseDay")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua Hari</SelectItem>
-              {INDONESIAN_DAYS.map((day) => <SelectItem key={day} value={day}>{day}</SelectItem>)}
+              <SelectItem value="all">{t("allDays")}</SelectItem>
+              {INDONESIAN_DAYS.map((day) => <SelectItem key={day} value={day}>{t(`days.${day}`)}</SelectItem>)}
             </SelectContent>
           </Select>
           {initialData.assignedActiveCourses.length > 0 && (
             <Select value={selectedCourseFilter} onValueChange={setSelectedCourseFilter}>
               <SelectTrigger className="h-9 w-[150px] shrink-0 rounded-lg text-body-sm">
-                <SelectValue placeholder="Semua Mata Kuliah" />
+                <SelectValue placeholder={t("allCourses")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua Mata Kuliah</SelectItem>
+                <SelectItem value="all">{t("allCourses")}</SelectItem>
                 {initialData.assignedActiveCourses.map((course) => (
                   <SelectItem key={course.courseId} value={course.courseId}>{course.title}</SelectItem>
                 ))}
@@ -485,10 +499,10 @@ export function TutorScheduleView({
           {initialData.eligibleGroups.length > 0 && (
             <Select value={selectedGroupFilter} onValueChange={setSelectedGroupFilter}>
               <SelectTrigger className="h-9 w-[150px] shrink-0 rounded-lg text-body-sm">
-                <SelectValue placeholder="Semua Kelompok" />
+                <SelectValue placeholder={t("allGroups")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua Kelompok</SelectItem>
+                <SelectItem value="all">{t("allGroups")}</SelectItem>
                 {initialData.eligibleGroups.map((group) => (
                   <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
                 ))}
@@ -501,11 +515,11 @@ export function TutorScheduleView({
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
         <div>
           <TabsList>
-            <TabsTrigger value="calendar">Kalender</TabsTrigger>
-            <TabsTrigger value="tickets">Tiket</TabsTrigger>
-            <TabsTrigger value="groups">Kelas & Kelompok</TabsTrigger>
-            <TabsTrigger value="slots">Slot</TabsTrigger>
-            <TabsTrigger value="sessions">Sesi</TabsTrigger>
+            <TabsTrigger value="calendar">{t("calendar")}</TabsTrigger>
+            <TabsTrigger value="tickets">{t("tickets")}</TabsTrigger>
+            <TabsTrigger value="groups">{t("classesGroups")}</TabsTrigger>
+            <TabsTrigger value="slots">{t("slots")}</TabsTrigger>
+            <TabsTrigger value="sessions">{t("sessions")}</TabsTrigger>
           </TabsList>
         </div>
 
@@ -524,7 +538,7 @@ export function TutorScheduleView({
               bookings={scheduleData.ownedBookings}
               onCreateScheduleDirect={handleCreateSlotDirect}
               onMoveSession={handleOpenMoveModal}
-              onDeleteSlot={handleDeleteSlot}
+              onDeleteSlot={requestDeleteSlot}
               onOpenSessionDetail={(booking) => setActiveSessionBookingId(booking.id)}
             />
           </div>
@@ -533,7 +547,7 @@ export function TutorScheduleView({
         <TabsContent value="slots" className="space-y-3">
           {filteredSlots.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border bg-card">
-              <AdminEmptyState icon={CalendarDays} title="Belum ada slot ketersediaan." description="Tambahkan slot 90 menit agar sesi tutorial kelompok dapat dijadwalkan." />
+              <AdminEmptyState icon={CalendarDays} title={t("noSlots")} description={t("noSlotsDescription")} />
             </div>
           ) : (
             <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
@@ -543,30 +557,30 @@ export function TutorScheduleView({
                   <div key={slot.id} className="flex flex-col justify-between gap-3 p-4 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center">
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-heading text-body-base font-bold text-foreground">{slot.dayOfWeek}</span>
-                        <Badge variant={isBooked ? "default" : "secondary"} className="rounded-md text-body-xs font-semibold">{isBooked ? "Terisi" : "Tersedia"}</Badge>
-                        <Badge variant="outline" className="rounded-md text-body-xs font-normal">{slot.mode === "online" ? "Online" : "Tatap Muka"}</Badge>
+                        <span className="font-heading text-body-base font-bold text-foreground">{t(`days.${slot.dayOfWeek}`)}</span>
+                        <Badge variant={isBooked ? "default" : "secondary"} className="rounded-md text-body-xs font-semibold">{isBooked ? t("booked") : t("open")}</Badge>
+                        <Badge variant="outline" className="rounded-md text-body-xs font-normal">{slot.mode === "online" ? t("online") : t("inPerson")}</Badge>
                       </div>
                       <div className="flex flex-wrap items-center gap-3 text-body-xs text-muted-foreground">
                         <span className="inline-flex items-center gap-1"><Clock className="size-3.5" />{slot.startTime} - {slot.endTime} (90m)</span>
                         {slot.location && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" />{slot.location}</span>}
-                        {slot.sessionDate && <span>Tanggal: {slot.sessionDate}</span>}
+                        {slot.sessionDate && <span>{t("date")}: {slot.sessionDate}</span>}
                       </div>
                       {slotNotes[slot.id] && (
                         <p className="max-w-2xl whitespace-pre-wrap break-words text-body-xs text-muted-foreground">
-                          Catatan tutor: {slotNotes[slot.id]}
+                          {t("tutorNotes")}: {slotNotes[slot.id]}
                         </p>
                       )}
-                      {slot.booking && <p className="pt-0.5 text-body-xs font-medium text-foreground">Topik: {slot.booking.topic || "Belum ada topik khusus"}</p>}
+                      {slot.booking && <p className="pt-0.5 text-body-xs font-medium text-foreground">{t("topic")}: {slot.booking.topic || t("noSpecificTopic")}</p>}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       {isBooked ? (
-                        <Button variant="outline" size="sm" disabled className="h-8 rounded-lg text-body-sm opacity-60">Terisi</Button>
-                      ) : (
-                        <Button variant="ghost" size="sm" disabled={isPending} onClick={() => handleDeleteSlot(slot.id)} className="h-8 rounded-lg text-body-sm text-status-error hover:bg-status-error/10 hover:text-status-error">
-                          <Trash2 className="mr-1.5 size-4" />Hapus
+                        <Button variant="outline" size="sm" disabled className="h-8 rounded-lg text-body-sm opacity-60">{t("booked")}</Button>
+                      ) : !slotsWithHistory.has(slot.id) ? (
+                        <Button variant="ghost" size="sm" disabled={isPending} onClick={() => requestDeleteSlot(slot.id)} className="h-8 rounded-lg text-body-sm text-status-error hover:bg-status-error/10 hover:text-status-error">
+                          <Trash2 className="mr-1.5 size-4" />{t("delete")}
                         </Button>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 );
@@ -577,33 +591,33 @@ export function TutorScheduleView({
 
         <TabsContent value="sessions" className="space-y-3">
           {filteredBookings.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-card"><AdminEmptyState icon={BookOpen} title="Belum ada sesi tutorial yang dijadwalkan." /></div>
+            <div className="rounded-xl border border-dashed border-border bg-card"><AdminEmptyState icon={BookOpen} title={t("noSessions")} /></div>
           ) : (
             <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
               {filteredBookings.map((booking) => (
                 <div key={booking.id} className="flex flex-col justify-between gap-3 p-4 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center">
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-heading text-body-base font-bold text-foreground">{booking.course?.title || "Mata Kuliah"}</span>
-                      <Badge variant="outline" className="rounded-md border-brand-primary/30 text-body-xs font-semibold text-brand-primary">{booking.group?.name || "Kelompok"}</Badge>
-                      <Badge variant={booking.status === "completed" ? "default" : "secondary"} className="rounded-md text-body-xs">{booking.status === "completed" ? "Selesai" : "Terjadwal"}</Badge>
+                      <span className="font-heading text-body-base font-bold text-foreground">{booking.course?.title || t("course")}</span>
+                      <Badge variant="outline" className="rounded-md border-brand-primary/30 text-body-xs font-semibold text-brand-primary">{booking.group?.name || t("group")}</Badge>
+                      <Badge variant={booking.status === "completed" ? "default" : "secondary"} className="rounded-md text-body-xs">{statusLabel(booking.status === "completed" || booking.status === "cancelled" ? booking.status : "scheduled")}</Badge>
                     </div>
                     <div className="flex flex-wrap items-center gap-3 text-body-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1"><Clock className="size-3.5" />{booking.sessionDate} ({booking.startTime} - {booking.endTime})</span>
-                      <span className="inline-flex items-center gap-1"><Users className="size-3.5" />Rep: {booking.student?.name || "Ketua"}</span>
+                      <span className="inline-flex items-center gap-1"><Users className="size-3.5" />{t("representativeShort")}: {booking.student?.name || t("leader")}</span>
                     </div>
                     {booking.topic && <p className="pt-0.5 text-body-xs font-medium text-foreground">Topik: {booking.topic}</p>}
                     {booking.googleMeetUrl && (
                       <div className="pt-1">
                         <a href={booking.googleMeetUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-body-xs font-semibold text-brand-primary hover:underline">
-                          <Video className="size-3.5" /><span>Google Meet Sesi</span><ExternalLink className="size-3" />
+                          <Video className="size-3.5" /><span>{t("googleMeetSession")}</span><ExternalLink className="size-3" />
                         </a>
                       </div>
                     )}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <Button variant="outline" size="sm" onClick={() => handleOpenMoveModal(booking)} className="h-8 rounded-lg text-body-sm">
-                      <RotateCcw className="mr-1.5 size-3.5" />Pindah Jadwal
+                      <RotateCcw className="mr-1.5 size-3.5" />{t("moveSchedule")}
                     </Button>
                   </div>
                 </div>
@@ -614,7 +628,7 @@ export function TutorScheduleView({
 
         <TabsContent value="tickets" className="space-y-3">
           {filteredTickets.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-card"><AdminEmptyState icon={ShieldCheck} title="Tidak ada tiket reschedule atau pembatalan." /></div>
+            <div className="rounded-xl border border-dashed border-border bg-card"><AdminEmptyState icon={ShieldCheck} title={t("noTickets")} /></div>
           ) : (
             <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
               {filteredTickets.map((ticket) => {
@@ -624,32 +638,32 @@ export function TutorScheduleView({
                   <div key={ticket.id} className="space-y-3 p-4">
                     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                       <div className="min-w-0 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-heading text-body-base font-bold text-foreground">Tiket {ticket.type === "reschedule" ? "Reschedule" : "Pembatalan"}</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-heading text-body-base font-bold text-foreground">{t("ticket")}: {ticket.type === "reschedule" ? t("reschedule") : t("cancellation")}</span>
                           <Badge
                             variant={ticket.status === "approved" ? "default" : ticket.status === "rejected" ? "outline" : "secondary"}
                             className={`rounded-md text-body-xs font-semibold ${ticket.status === "rejected" ? "border-status-error/30 bg-status-error/10 text-status-error" : ""}`}
                           >
-                            {ticket.status === "approved" ? "Disetujui" : ticket.status === "rejected" ? "Ditolak" : "Menunggu Keputusan"}
+                            {ticket.status === "approved" ? t("approved") : ticket.status === "rejected" ? t("rejected") : t("awaitingDecision")}
                           </Badge>
                         </div>
-                        <p className="text-body-xs font-medium text-foreground">Alasan: {ticket.reason}</p>
-                        {ticket.proposedDate && <p className="text-body-xs text-muted-foreground">Usulan Tanggal: {ticket.proposedDate}</p>}
-                        {ticket.decisionNotes && <p className="text-body-xs italic text-muted-foreground">Catatan: {ticket.decisionNotes}</p>}
+                        <p className="text-body-xs font-medium text-foreground">{t("reason")}: {ticket.reason}</p>
+                        {ticket.proposedDate && <p className="text-body-xs text-muted-foreground">{t("proposedDate")}: {ticket.proposedDate}</p>}
+                        {ticket.decisionNotes && <p className="text-body-xs italic text-muted-foreground">{t("notes")}: {ticket.decisionNotes}</p>}
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
                         <Button variant="outline" size="sm" onClick={() => { setOpenThreadId(isThreadOpen ? null : ticket.id); setReplyText(""); }} aria-expanded={isThreadOpen} className="h-8 rounded-lg text-body-sm">
-                          <MessageSquare className="mr-1.5 size-4" />Diskusi{ticket.messages.length > 0 ? ` (${ticket.messages.length})` : ""}
+                          <MessageSquare className="mr-1.5 size-4" />{t("discussion")}{ticket.messages.length > 0 ? ` (${ticket.messages.length})` : ""}
                         </Button>
                         {isPendingTicket && (
-                          <Button size="sm" onClick={() => { setDecidingTicket(ticket); setTicketDecision("approved"); setDecisionNotesInput(""); setIsDecideTicketOpen(true); }} className="h-8 rounded-lg bg-brand-primary text-body-sm text-white hover:bg-brand-primary/90">Putuskan</Button>
+                          <Button size="sm" onClick={() => { setDecidingTicket(ticket); setTicketDecision("approved"); setDecisionNotesInput(""); setIsDecideTicketOpen(true); }} className="h-8 rounded-lg bg-brand-primary text-body-sm text-primary-foreground hover:bg-brand-primary/90">{t("decide")}</Button>
                         )}
                       </div>
                     </div>
                     {isThreadOpen && (
                       <div className="space-y-3 border-l-2 border-border pl-3">
                         {ticket.messages.length === 0 ? (
-                          <p className="text-body-xs text-muted-foreground">Belum ada pesan diskusi pada tiket ini.</p>
+                          <p className="text-body-xs text-muted-foreground">{t("noMessages")}</p>
                         ) : (
                           <ul className="space-y-2">
                             {ticket.messages.map((msg) => {
@@ -657,8 +671,8 @@ export function TutorScheduleView({
                               return (
                                 <li key={msg.id} className={cn("space-y-1 rounded-lg border p-2.5", isTutor ? "border-brand-primary/25 bg-brand-primary/5" : "border-border/70 bg-card")}>
                                   <div className="flex items-center justify-between gap-2">
-                                    <p className="text-body-xs font-semibold text-foreground">{isTutor ? "Anda" : msg.senderName || "Anggota Kelompok"}</p>
-                                    <FormattedDate date={msg.createdAt} options={{ dateStyle: "short", timeStyle: "short" }} locale="id-ID" />
+                                    <p className="text-body-xs font-semibold text-foreground">{isTutor ? t("you") : msg.senderName || t("groupMember")}</p>
+                                    <FormattedDate date={msg.createdAt} options={{ dateStyle: "short", timeStyle: "short" }} locale={locale === "en" ? "en-US" : "id-ID"} />
                                   </div>
                                   <p className="whitespace-pre-wrap text-body-sm text-foreground">{msg.message}</p>
                                 </li>
@@ -667,8 +681,8 @@ export function TutorScheduleView({
                           </ul>
                         )}
                         <div className="flex items-end gap-2">
-                          <Textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Balas diskusi untuk kelompok belajar..." className="min-h-[44px] flex-1 resize-none text-body-sm" maxLength={2000} />
-                          <Button size="sm" disabled={isPending || replyText.trim().length === 0} onClick={handleReplyTicket} aria-label="Kirim balasan" className="h-9 shrink-0 rounded-lg"><Send className="mr-1.5 size-4" />Kirim</Button>
+                          <Textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder={t("replyPlaceholder")} className="min-h-[44px] flex-1 resize-none text-body-sm" maxLength={2000} />
+                          <Button size="sm" disabled={isPending || replyText.trim().length === 0} onClick={handleReplyTicket} aria-label={t("sendReply")} className="h-9 shrink-0 rounded-lg"><Send className="mr-1.5 size-4" />{t("send")}</Button>
                         </div>
                       </div>
                     )}
@@ -681,30 +695,30 @@ export function TutorScheduleView({
 
         <TabsContent value="groups" className="space-y-4">
           <div className="space-y-3">
-            <h2 className="font-heading text-body-base font-bold text-foreground">Mata Kuliah Ditugaskan</h2>
+            <h2 className="font-heading text-body-base font-bold text-foreground">{t("assignedCourses")}</h2>
             <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
               {initialData.assignedActiveCourses.map((course) => (
                 <div key={course.courseId} className="flex items-center justify-between gap-3 p-4">
-                  <div><p className="font-heading text-body-sm font-bold text-foreground">{course.title}</p><p className="text-body-xs text-muted-foreground">Kode: {course.code || course.courseId}</p></div>
-                  <Badge variant="outline" className="rounded-md text-body-xs text-muted-foreground">{course.isCompatibilityFallback ? "Legacy Assignment" : "Canonical Penugasan"}</Badge>
+                  <div><p className="font-heading text-body-sm font-bold text-foreground">{course.title}</p><p className="text-body-xs text-muted-foreground">{t("courseCode")}: {course.code || course.courseId}</p></div>
+                  <Badge variant="outline" className="rounded-md text-body-xs text-muted-foreground">{course.isCompatibilityFallback ? t("legacyAssignment") : t("canonicalAssignment")}</Badge>
                 </div>
               ))}
             </div>
           </div>
           <div className="space-y-3">
-            <h2 className="font-heading text-body-base font-bold text-foreground">Kelompok Belajar Aktif</h2>
+            <h2 className="font-heading text-body-base font-bold text-foreground">{t("activeGroups")}</h2>
             <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
               {initialData.eligibleGroups.length === 0 ? (
-                <p className="p-4 text-body-sm text-muted-foreground">Belum ada kelompok aktif yang terdaftar pada mata kuliah penugasan.</p>
+                <AdminEmptyState icon={Users} title={t("noActiveGroups")} className="py-6" />
               ) : (
                 initialData.eligibleGroups.map((grp) => (
                   <div key={grp.id} className="flex flex-col justify-between gap-3 p-4 sm:flex-row sm:items-center">
                     <div className="space-y-1">
                       <p className="font-heading text-body-sm font-bold text-foreground">{grp.name}</p>
-                      <p className="text-body-xs text-muted-foreground">Paket: {grp.packageName} ({grp.usedQuotaSessions}/{grp.totalQuotaSessions} sesi digunakan)</p>
-                      <p className="text-body-xs text-muted-foreground">Perwakilan: {grp.representative?.name || "Ketua"} ({grp.representative?.role || "Leader"})</p>
+                      <p className="text-body-xs text-muted-foreground">{t("package")}: {grp.packageName} ({grp.usedQuotaSessions}/{grp.totalQuotaSessions} {t("sessionsUsed")})</p>
+                      <p className="text-body-xs text-muted-foreground">{t("representativeShort")}: {grp.representative?.name || t("leader")} ({grp.representative?.role || t("leader")})</p>
                     </div>
-                    <Badge variant="secondary" className="shrink-0 rounded-md text-body-xs">{grp.membersCount} Anggota</Badge>
+                    <Badge variant="secondary" className="shrink-0 rounded-md text-body-xs">{grp.membersCount} {t("members")}</Badge>
                   </div>
                 ))
               )}
@@ -716,12 +730,12 @@ export function TutorScheduleView({
       <Dialog open={isAddSlotOpen} onOpenChange={(open) => { if (!isPending) setIsAddSlotOpen(open); }}>
         <DialogContent className="sm:max-w-[460px]">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-base font-bold">Tambah Slot Ketersediaan 90 Menit</DialogTitle>
-            <DialogDescription className="text-body-xs">Pilih tanggal, waktu mulai, mode, dan catatan yang perlu disimpan bersama slot.</DialogDescription>
+            <DialogTitle className="font-heading text-body-base font-bold">{t("addSlotTitle")}</DialogTitle>
+            <DialogDescription className="text-body-xs">{t("addSlotDescription")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1">
-              <Label htmlFor="tutor-slot-date" className="text-body-sm font-semibold">Tanggal</Label>
+              <Label htmlFor="tutor-slot-date" className="text-body-sm font-semibold">{t("date")}</Label>
               <Input
                 id="tutor-slot-date"
                 type="date"
@@ -733,72 +747,87 @@ export function TutorScheduleView({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-body-sm font-semibold">Mulai (HH:MM)</Label>
+                <Label className="text-body-sm font-semibold">{t("start")}</Label>
                 <Input type="time" value={newSlotStart} onChange={(e) => handleStartTimeChange(e.target.value)} placeholder="09:00" min="07:00" max="20:30" step="1800" className="h-9 text-body-sm" />
               </div>
               <div className="space-y-1">
-                <Label className="text-body-sm font-semibold">Selesai (HH:MM)</Label>
+                <Label className="text-body-sm font-semibold">{t("end")}</Label>
                 <Input value={newSlotEnd} readOnly placeholder="10:30" className="h-9 cursor-not-allowed bg-muted text-body-sm text-muted-foreground" />
               </div>
             </div>
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold">Mode Sesi</Label>
+              <Label className="text-body-sm font-semibold">{t("sessionMode")}</Label>
               <Select value={newSlotMode} onValueChange={(val) => setNewSlotMode(val as "online" | "offline")}>
                 <SelectTrigger className="h-9 text-body-sm"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="online">Online (Google Meet)</SelectItem><SelectItem value="offline">Tatap Muka (Offline)</SelectItem></SelectContent>
+                <SelectContent><SelectItem value="online">{t("online")} (Google Meet)</SelectItem><SelectItem value="offline">{t("inPerson")}</SelectItem></SelectContent>
               </Select>
             </div>
             {newSlotMode === "offline" && (
               <div className="space-y-1">
-                <Label className="text-body-sm font-semibold">Lokasi / Ruangan Fisik</Label>
-                <Input value={newSlotLocation} onChange={(e) => setNewSlotLocation(e.target.value)} placeholder="Ruang 204 Gedung Utama" className="h-9 text-body-sm" />
+                <Label className="text-body-sm font-semibold">{t("location")}</Label>
+                <Input value={newSlotLocation} onChange={(e) => setNewSlotLocation(e.target.value)} placeholder={t("locationPlaceholder")} className="h-9 text-body-sm" />
               </div>
             )}
             <div className="space-y-1">
-              <Label htmlFor="tutor-slot-notes" className="text-body-sm font-semibold">Catatan tutor <span className="font-normal text-muted-foreground">(opsional)</span></Label>
+              <Label htmlFor="tutor-slot-notes" className="text-body-sm font-semibold">{t("tutorNotes")} <span className="font-normal text-muted-foreground">({t("optional")})</span></Label>
               <Textarea
                 id="tutor-slot-notes"
                 value={newSlotNotes}
                 onChange={(e) => setNewSlotNotes(e.target.value)}
-                placeholder="Contoh: siapkan soal yang ingin dibahas atau beri konteks sesi."
+                placeholder={t("notesPlaceholder")}
                 maxLength={1000}
                 className="min-h-20 resize-y text-body-sm"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" disabled={isPending} onClick={() => setIsAddSlotOpen(false)} className="h-9 rounded-lg text-body-sm">Batal</Button>
-            <Button size="sm" isLoading={isPending} disabled={!newSlotStart} onClick={handleAddSlot} className="h-9 rounded-lg bg-brand-primary text-body-sm text-white hover:bg-brand-primary/90">Simpan Slot</Button>
+            <Button variant="outline" size="sm" disabled={isPending} onClick={() => setIsAddSlotOpen(false)} className="h-9 rounded-lg text-body-sm">{t("cancel")}</Button>
+            <Button size="sm" isLoading={isPending} disabled={!newSlotStart} onClick={handleAddSlot} className="h-9 rounded-lg bg-brand-primary text-body-sm text-primary-foreground hover:bg-brand-primary/90">{t("saveSlot")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      <AdminConfirmDialog
+        open={Boolean(pendingDeleteSlot)}
+        onOpenChange={(open) => { if (!open) setSlotPendingDelete(null); }}
+        title={t("deleteSlotTitle")}
+        description={pendingDeleteSlot ? t("deleteSlotDescription", {
+          day: t(`days.${pendingDeleteSlot.dayOfWeek}`),
+          startTime: pendingDeleteSlot.startTime,
+          endTime: pendingDeleteSlot.endTime,
+        }) : ""}
+        confirmLabel={t("deleteSpecificSlot")}
+        cancelLabel={t("cancel")}
+        loading={isPending}
+        onConfirm={() => { if (pendingDeleteSlot) handleDeleteSlot(pendingDeleteSlot.id); }}
+      />
+
       <Dialog open={isMoveSessionOpen} onOpenChange={(open) => { if (!isPending) setIsMoveSessionOpen(open); }}>
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-base font-bold">Pindahkan Jadwal Sesi</DialogTitle>
-            <DialogDescription className="text-body-xs">Pilih slot ketersediaan baru untuk memindahkan sesi.</DialogDescription>
+            <DialogTitle className="font-heading text-body-base font-bold">{t("moveSessionTitle")}</DialogTitle>
+            <DialogDescription className="text-body-xs">{t("moveSessionDescription")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold">Slot Tujuan</Label>
+              <Label className="text-body-sm font-semibold">{t("targetSlot")}</Label>
               <Select value={targetMoveSlotId} onValueChange={setTargetMoveSlotId}>
-                <SelectTrigger className="h-9 text-body-sm"><SelectValue placeholder="Pilih Slot Baru" /></SelectTrigger>
-                <SelectContent>{unbookedSlots.map((s) => <SelectItem key={s.id} value={s.id}>{s.dayOfWeek} ({s.startTime} - {s.endTime})</SelectItem>)}</SelectContent>
+                <SelectTrigger className="h-9 text-body-sm"><SelectValue placeholder={t("selectNewSlot")} /></SelectTrigger>
+                <SelectContent>{unbookedSlots.map((s) => <SelectItem key={s.id} value={s.id}>{t(`days.${s.dayOfWeek}`)} ({s.startTime} - {s.endTime})</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold">Tanggal Baru</Label>
+              <Label className="text-body-sm font-semibold">{t("newDate")}</Label>
               <Input type="date" value={targetMoveDate} onChange={(e) => setTargetMoveDate(e.target.value)} className="h-9 text-body-sm" />
             </div>
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold">Alasan Perubahan</Label>
-              <Textarea value={moveReasonInput} onChange={(e) => setMoveReasonInput(e.target.value)} placeholder="Jelaskan alasan pemindahan sesi..." className="h-20 resize-none rounded-lg text-body-sm" />
+              <Label className="text-body-sm font-semibold">{t("changeReason")}</Label>
+              <Textarea value={moveReasonInput} onChange={(e) => setMoveReasonInput(e.target.value)} placeholder={t("moveReasonPlaceholder")} className="h-20 resize-none rounded-lg text-body-sm" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" disabled={isPending} onClick={() => setIsMoveSessionOpen(false)} className="h-9 rounded-lg text-body-sm">Batal</Button>
-            <Button size="sm" isLoading={isPending} onClick={handleMoveSession} className="h-9 rounded-lg bg-brand-primary text-body-sm text-white hover:bg-brand-primary/90">Konfirmasi Pindah</Button>
+            <Button variant="outline" size="sm" disabled={isPending} onClick={() => setIsMoveSessionOpen(false)} className="h-9 rounded-lg text-body-sm">{t("cancel")}</Button>
+            <Button size="sm" isLoading={isPending} onClick={handleMoveSession} className="h-9 rounded-lg bg-brand-primary text-body-sm text-primary-foreground hover:bg-brand-primary/90">{t("confirmMove")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -806,25 +835,25 @@ export function TutorScheduleView({
       <Dialog open={isDecideTicketOpen} onOpenChange={(open) => { if (!isPending) setIsDecideTicketOpen(open); }}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-base font-bold">Putusan Tiket {decidingTicket?.type === "reschedule" ? "Reschedule" : "Pembatalan"}</DialogTitle>
-            <DialogDescription className="text-body-xs">Tentukan persetujuan atau penolakan permohonan perubahan jadwal.</DialogDescription>
+            <DialogTitle className="font-heading text-body-base font-bold">{t("ticketDecisionTitle", { type: decidingTicket?.type === "reschedule" ? t("reschedule") : t("cancellation") })}</DialogTitle>
+            <DialogDescription className="text-body-xs">{t("ticketDecisionDescription")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold">Keputusan</Label>
+              <Label className="text-body-sm font-semibold">{t("decision")}</Label>
               <Select value={ticketDecision} onValueChange={(val) => setTicketDecision(val as "approved" | "rejected")}>
                 <SelectTrigger className="h-9 text-body-sm"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="approved">Setujui (Approved)</SelectItem><SelectItem value="rejected">Tolak (Rejected)</SelectItem></SelectContent>
+                <SelectContent><SelectItem value="approved">{t("approve")}</SelectItem><SelectItem value="rejected">{t("rejected")}</SelectItem></SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold">Catatan Keputusan</Label>
-              <Textarea value={decisionNotesInput} onChange={(e) => setDecisionNotesInput(e.target.value)} placeholder="Tuliskan catatan penjelasan untuk kelompok belajar..." className="h-20 resize-none rounded-lg text-body-sm" />
+              <Label className="text-body-sm font-semibold">{t("decisionNotes")}</Label>
+              <Textarea value={decisionNotesInput} onChange={(e) => setDecisionNotesInput(e.target.value)} placeholder={t("decisionNotesPlaceholder")} className="h-20 resize-none rounded-lg text-body-sm" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" disabled={isPending} onClick={() => setIsDecideTicketOpen(false)} className="h-9 rounded-lg text-body-sm">Batal</Button>
-            <Button size="sm" isLoading={isPending} onClick={handleDecideTicket} className={`h-9 rounded-lg text-body-sm ${ticketDecision === "approved" ? "bg-brand-primary text-white hover:bg-brand-primary/90" : "bg-status-error text-white hover:bg-status-error/90"}`}>Simpan Keputusan</Button>
+            <Button variant="outline" size="sm" disabled={isPending} onClick={() => setIsDecideTicketOpen(false)} className="h-9 rounded-lg text-body-sm">{t("cancel")}</Button>
+            <Button size="sm" isLoading={isPending} onClick={handleDecideTicket} className={`h-9 rounded-lg text-body-sm ${ticketDecision === "approved" ? "bg-brand-primary text-primary-foreground hover:bg-brand-primary/90" : "bg-status-error text-white hover:bg-status-error/90"}`}>{t("saveDecision")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

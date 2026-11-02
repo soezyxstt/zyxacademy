@@ -22,8 +22,11 @@ import {
   getWhatsAppPlanUrl,
 } from "@/lib/pricing-constants";
 import { planTiers } from "@/lib/plan-tiers";
+import { useTranslations } from "@/lib/i18n/client";
+import { LocalizedAuthLink } from "@/components/localized-auth-link";
 
 export default function PlansClient() {
+  const t = useTranslations("marketing");
   const pricingPhase = usePlanPricingPhase();
   const [persons, setPersons] = useState<number>(DEFAULT_PERSONS);
   // Separate standard courses and other courses (Lain-Lain) count
@@ -44,8 +47,8 @@ export default function PlansClient() {
     ...(otherCoursesCount > 0
       ? [
           otherCoursesCount === 1
-            ? "Mata Kuliah Lain-Lain"
-            : `Mata Kuliah Lain-Lain (${otherCoursesCount})`,
+            ? t("pricing.otherCourse")
+            : t("pricing.otherCourseCount", { count: otherCoursesCount }),
         ]
       : []),
   ];
@@ -87,43 +90,43 @@ export default function PlansClient() {
         <MarketingPageHero
           className="py-8 md:py-10"
           sectionId="plans"
-          title="Paket & layanan"
-          description="Pilih kombinasi course dan intensitas pendampingan. Pembayaran dilakukan di luar website; admin akan mengaktifkan akses sesuai paket."
+          title={t("plans.title")}
+          description={t("plans.description")}
         />
       </Reveal>
 
-      <div className="sticky top-[52px] z-30 w-full border-y border-border bg-background/95 py-2 shadow-xs backdrop-blur-md animate-in fade-in duration-200 md:top-[56px] md:py-3">
+      <div className="sticky top-[52px] z-30 w-full border-y border-border bg-background py-2 md:top-[56px] md:py-3">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <p className="sr-only" aria-live="polite">
-            Konfigurasi harga: {persons} orang dan {courses} mata kuliah.
+            {t("plans.priceConfiguration", { people: persons, courses })}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-2 md:justify-end">
             <div
-              aria-label="Jumlah anggota kelompok"
+              aria-label={t("plans.peopleLabel")}
               className="flex items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-1.5 py-1 dark:bg-card"
             >
                 <span className="px-1 text-body-xs font-semibold text-muted-foreground">
-                  Grup
+                  {t("plans.group")}
                 </span>
                 <Button
                   variant="outline"
                   size="icon-xs"
                   onClick={handleDecrementPersons}
                   disabled={persons <= MIN_PERSONS}
-                  aria-label="Kurangi jumlah orang"
+                  aria-label={t("plans.decreasePeople")}
                   className="size-7 rounded-md bg-background"
                 >
                   <Minus className="size-3" />
                 </Button>
                 <span className="min-w-[3.75rem] text-center font-heading text-body-sm font-semibold text-foreground">
-                  {persons} orang
+                  {t("plans.peopleCount", { count: persons })}
                 </span>
                 <Button
                   variant="outline"
                   size="icon-xs"
                   onClick={handleIncrementPersons}
                   disabled={persons >= MAX_PERSONS}
-                  aria-label="Tambah jumlah orang"
+                  aria-label={t("plans.increasePeople")}
                   className="size-7 rounded-md bg-background"
                 >
                   <Plus className="size-3" />
@@ -131,31 +134,31 @@ export default function PlansClient() {
             </div>
 
             <div
-              aria-label="Jumlah mata kuliah"
+              aria-label={t("plans.coursesLabel")}
               className="flex items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-1.5 py-1 dark:bg-card"
             >
                 <span className="px-1 text-body-xs font-semibold text-muted-foreground">
-                  Matkul
+                  {t("plans.courseShort")}
                 </span>
                 <Button
                   variant="outline"
                   size="icon-xs"
                   onClick={handleDecrementCourses}
                   disabled={courses <= MIN_COURSES}
-                  aria-label="Kurangi mata kuliah"
+                  aria-label={t("plans.decreaseCourses")}
                   className="size-7 rounded-md bg-background"
                 >
                   <Minus className="size-3" />
                 </Button>
                 <span className="min-w-[3.75rem] text-center font-heading text-body-sm font-semibold text-foreground">
-                  {courses} matkul
+                  {t("plans.courseCount", { count: courses })}
                 </span>
                 <Button
                   variant="outline"
                   size="icon-xs"
                   onClick={handleIncrementCourses}
                   disabled={courses >= MAX_COURSES}
-                  aria-label="Tambah mata kuliah"
+                  aria-label={t("plans.increaseCourses")}
                   className="size-7 rounded-md bg-background"
                 >
                   <Plus className="size-3" />
@@ -174,7 +177,7 @@ export default function PlansClient() {
               }`}
             >
               <BookOpen className="size-3.5" aria-hidden="true" />
-              <span>Daftar matkul ({courses})</span>
+              <span>{t("plans.courseList", { count: courses })}</span>
             </button>
           </div>
         </div>
@@ -188,13 +191,13 @@ export default function PlansClient() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Mata Kuliah Yang Dicover ({courses}/{MAX_COURSES})
+                {t("plans.coveredCourses", { count: courses, max: MAX_COURSES })}
               </h3>
               <button 
                 onClick={() => setShowSubjects(false)}
                 className="text-body-xs text-primary font-semibold hover:underline"
               >
-                Tutup
+                {t("plans.close")}
               </button>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -215,14 +218,14 @@ export default function PlansClient() {
                             setOtherCoursesCount((prev) => Math.max(0, prev - 1));
                           }}
                           className="px-2 py-1 hover:bg-[var(--zx-accent)]/20 border-r border-[var(--zx-accent)]/20 transition-all focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
-                          title="Kurangi Mata Kuliah Lain-Lain"
+                          title={t("plans.decreaseOtherCourse")}
                           disabled={courses <= MIN_COURSES}
                         >
                           <Minus className="size-3" />
                         </button>
                         <span className="px-3 py-1 font-semibold select-none flex items-center gap-1.5">
                           <Check className="size-3 text-[var(--zx-accent)]" />
-                          Mata Kuliah Lain-Lain ({otherCoursesCount})
+                          {t("pricing.otherCourseCount", { count: otherCoursesCount })}
                         </span>
                         <button
                           onClick={() => {
@@ -230,7 +233,7 @@ export default function PlansClient() {
                             setOtherCoursesCount((prev) => prev + 1);
                           }}
                           className="px-2 py-1 hover:bg-[var(--zx-accent)]/20 border-l border-[var(--zx-accent)]/20 transition-all focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
-                          title="Tambah Mata Kuliah Lain-Lain"
+                          title={t("plans.increaseOtherCourse")}
                           disabled={courses >= MAX_COURSES}
                         >
                           <Plus className="size-3" />
@@ -248,7 +251,7 @@ export default function PlansClient() {
                         disabled={courses >= MAX_COURSES}
                         className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-body-xs font-medium transition-all duration-300 border border-transparent bg-muted/30 text-muted-foreground/50 hover:bg-muted/60 hover:text-foreground hover:border-border/50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none"
                       >
-                        {subject}
+                        {isLainLain ? t("pricing.otherCourse") : subject}
                       </button>
                     );
                   }
@@ -276,7 +279,7 @@ export default function PlansClient() {
                     }`}
                   >
                     {isActive && <Check className="size-3" />}
-                    {subject}
+                    {isLainLain ? t("pricing.otherCourse") : subject}
                   </button>
                 );
               })}
@@ -294,11 +297,12 @@ export default function PlansClient() {
             {planTiers.map((tier) => {
               const isCustom = tier.key === "custom";
               const isFree = tier.key === "free";
+              const tierName = t(`pricing.tiers.${tier.key}.name`);
               const whatsAppUrl = pricingPhase
-                ? getWhatsAppPlanUrl(tier.key, tier.name, persons, courses, selectedCoursesList, pricingPhase)
+                ? getWhatsAppPlanUrl(tier.key, tierName, persons, courses, selectedCoursesList, pricingPhase)
                 : null;
               const planAction = isFree ? (
-                <Link href="/sign-up">Mulai dengan Free</Link>
+                <LocalizedAuthLink href="/sign-up">{t("plans.startWithFree")}</LocalizedAuthLink>
               ) : whatsAppUrl ? (
                 <Link
                   href={whatsAppUrl}
@@ -307,7 +311,7 @@ export default function PlansClient() {
                   onClick={(event) => {
                     const refreshedHref = getWhatsAppPlanUrl(
                       tier.key,
-                      tier.name,
+                      tierName,
                       persons,
                       courses,
                       selectedCoursesList,
@@ -315,7 +319,7 @@ export default function PlansClient() {
                     if (refreshedHref) event.currentTarget.href = refreshedHref;
                   }}
                 >
-                  {isCustom ? "Tanya via WhatsApp" : "Tanya paket via WhatsApp"}
+                  {isCustom ? t("pricing.askWhatsapp") : t("pricing.askPlanWhatsapp")}
                 </Link>
               ) : null;
 
@@ -324,23 +328,23 @@ export default function PlansClient() {
                   key={tier.key}
                   className={
                     tier.highlighted
-                      ? "relative flex flex-col rounded-2xl border-2 border-[var(--zx-accent)] bg-card/85 p-5 shadow-md ring-2 ring-[var(--zx-accent)]/10 backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:bg-card/95 md:p-6"
-                      : "relative flex flex-col rounded-2xl border border-border/70 bg-card/80 p-5 shadow-sm backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:bg-card/95 hover:shadow-md md:p-6"
+                      ? "relative flex flex-col rounded-xl border border-primary bg-card p-5 md:p-6"
+                      : "relative flex flex-col rounded-xl border border-border bg-card p-5 md:p-6"
                   }
                 >
                   {tier.highlighted ? (
                     <Badge className="absolute -top-3 left-5 bg-[var(--zx-accent)] font-semibold text-black-1 shadow-xs hover:bg-[var(--zx-accent)]">
-                      Rekomendasi
+                      {t("pricing.recommended")}
                     </Badge>
                   ) : null}
 
                   <div className="flex-1">
                     <h3 className="text-body-base font-heading font-bold text-card-foreground">
-                      {tier.name}
+                      {tierName}
                     </h3>
                     
                     <p className="mt-2 min-h-[32px] text-body-xs text-muted-foreground">
-                      {tier.note}
+                      {t(`pricing.tiers.${tier.key}.note`)}
                     </p>
 
                     <div className="mt-4 border-t border-border/60 pt-4">
@@ -348,15 +352,15 @@ export default function PlansClient() {
                         <PlanPrice plan={tier.key} persons={persons} courses={courses} perPerson className="text-h5" />
                       ) : (
                         <p className="font-heading text-h5 font-extrabold text-foreground tracking-tight transition-all duration-300">
-                          {isFree ? "Gratis" : "Hubungi admin"}
+                          {isFree ? t("plans.free") : t("plans.contactAdmin")}
                         </p>
                       )}
                     </div>
 
                     {!isCustom && <ul className="mt-6 flex flex-col gap-3">
-                      {tier.features.map((f) => (
+                      {(t.raw(`pricing.tiers.${tier.key}.features`) as string[]).map((f) => (
                         <li key={f} className="flex gap-2 text-body-sm text-muted-foreground items-start">
-                          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center text-primary">
                             <Check className="size-3" strokeWidth={2.5} aria-hidden />
                           </span>
                           <span className="leading-tight">{f}</span>
@@ -371,9 +375,9 @@ export default function PlansClient() {
                         asChild
                         variant={tier.highlighted ? "default" : "outline"}
                         size="marketing"
-                        className={`w-full group/btn transition-all duration-300 ${
+                        className={`w-full transition-colors duration-200 ${
                           tier.highlighted
-                            ? "bg-[var(--zx-accent)] text-white hover:bg-[var(--zx-accent)]/90 hover:shadow-lg hover:shadow-[var(--zx-accent)]/20"
+                            ? "bg-[var(--zx-accent)] text-white hover:bg-[var(--zx-accent)]/90"
                             : ""
                         }`}
                       >
@@ -381,7 +385,7 @@ export default function PlansClient() {
                       </Button>
                     ) : (
                       <Button type="button" variant="outline" size="marketing" className="w-full" disabled>
-                        {pricingPhase ? "Kontak belum tersedia" : "Memuat harga"}
+                        {pricingPhase ? t("plans.contactUnavailable") : t("pricing.loading")}
                       </Button>
                     )}
                   </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, type ReactNode } from "react";
-import katex from "@/lib/math/katex";
+import { renderKatexToString } from "@/lib/math/katex-render";
 import { 
   Info, 
   BookOpenCheck,
@@ -12,6 +12,7 @@ import {
   Copy, 
   Check 
 } from "lucide-react";
+import { useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import { getYoutubeEmbedUrl } from "@/lib/youtube";
 import dynamic from "next/dynamic";
@@ -19,17 +20,25 @@ import { compileMarkdown } from "@/lib/markdown-compiler";
 import { ASTBlock } from "@/lib/ast-validator";
 import { compileSafeExpression, normalizeLegacyGraphExpression } from "@/lib/zyra/canvas";
 import { splitScientificText } from "@/lib/math/text-segments";
+import { scientificValueToMathText } from "@/lib/math/scientific-format";
 import { MathText } from "@/components/course/math-text";
+import { ArticleParts } from "@/components/course/article-parts";
+import { extractEmbeddedArticleParts } from "@/lib/tutor/answer-sanitizer";
+
+function CanvasLoading({ labelKey }: { labelKey: "chartLoading" | "diagramLoading" | "interactiveGraphLoading" }) {
+  const t = useTranslations("studentCourse");
+  return (
+    <div className="w-full h-[350px] flex items-center justify-center text-muted-foreground text-body-sm font-sans">
+      {t(`learningCanvas.${labelKey}`)}
+    </div>
+  );
+}
 
 const ChartRenderer = dynamic(
   () => import("@/components/course/markdown/chart-renderer").then((m) => m.ChartRenderer),
   {
     ssr: false,
-    loading: () => (
-      <div className="w-full h-[300px] flex items-center justify-center text-muted-foreground text-body-sm font-sans">
-        Memuat grafik...
-      </div>
-    ),
+    loading: () => <CanvasLoading labelKey="chartLoading" />,
   }
 );
 
@@ -37,11 +46,7 @@ const FlowchartDiagramRenderer = dynamic(
   () => import("@/components/course/markdown/flowchart-diagram-renderer").then((m) => m.FlowchartDiagramRenderer),
   {
     ssr: false,
-    loading: () => (
-      <div className="w-full h-[350px] flex items-center justify-center text-muted-foreground text-body-sm font-sans">
-        Memuat diagram...
-      </div>
-    ),
+    loading: () => <CanvasLoading labelKey="diagramLoading" />,
   }
 );
 
@@ -49,11 +54,7 @@ const InteractiveGraphWidget = dynamic(
   () => import("@/components/course/interactive-graph-widget").then((m) => m.InteractiveGraphWidget),
   {
     ssr: false,
-    loading: () => (
-      <div className="w-full h-[380px] flex items-center justify-center text-muted-foreground text-body-sm font-sans">
-        Memuat grafik interaktif...
-      </div>
-    ),
+    loading: () => <CanvasLoading labelKey="interactiveGraphLoading" />,
   }
 );
 
@@ -128,7 +129,7 @@ function standaloneMathSource(content: string): string {
 
 function renderMath(value: string, displayMode: boolean): string {
   try {
-    return katex.renderToString(value, { ...katexOptions, displayMode });
+    return renderKatexToString(value, { ...katexOptions, displayMode });
   } catch (err) {
     console.error("KaTeX render error:", err);
     return value;
@@ -1147,7 +1148,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
                           align === "right" && "text-right"
                         )}
                       >
-                        {renderRichText(cell)}
+                        {renderRichText(scientificValueToMathText(cell))}
                       </td>
                     );
                   })}
@@ -1203,14 +1204,21 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       );
 
     case "formula":
-      const formulaHtml = katex.renderToString(block.content.latex, { throwOnError: false, displayMode: true });
+      const formulaHtml = renderKatexToString(block.content.latex, { throwOnError: false, displayMode: true });
       return (
         <div id={block.id} className={cn(
           "border border-border bg-card shadow-xs text-left",
           isCompact ? "p-3 rounded-lg my-2" : "p-3.5 rounded-xl my-2.5"
         )}>
           <h4 className={cn("text-body-sm font-heading font-bold text-foreground", isCompact ? "mb-1.5" : "mb-2")}>{block.content.title ? renderRichText(block.content.title) : "Formula"}</h4>
-          <div className={cn("overflow-x-auto text-center w-full max-w-full [&_.katex-display]:my-0 [&_.katex-display]:py-0", isCompact ? "my-1.5" : "my-2")} dangerouslySetInnerHTML={{ __html: formulaHtml }} />
+          <div
+            className={cn("article-formula-row w-full max-w-full [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left", isCompact ? "my-1.5" : "my-2")}
+            data-math-scroll
+            role="region"
+            aria-label="Rumus matematika"
+            tabIndex={0}
+            dangerouslySetInnerHTML={{ __html: formulaHtml }}
+          />
           {block.content.interpretation && (
             <div className={cn("text-body-xs text-muted-foreground leading-relaxed", isCompact ? "mt-1.5" : "mt-2")}>
               <MarkdownRenderer content={block.content.interpretation} density={density} />
@@ -1242,7 +1250,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       );
 
     case "formula_reference":
-      const refHtml = katex.renderToString(block.content.latex, { throwOnError: false, displayMode: false });
+      const refHtml = renderKatexToString(block.content.latex, { throwOnError: false, displayMode: false });
       return (
         <div className={cn(
           "inline-flex items-center border border-border bg-muted/30 font-medium",
@@ -1488,22 +1496,45 @@ export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
   );
 }
 
+function VisualCompilerErrorFallback() {
+  let title = "Kesalahan Kompilator Visual";
+  let description = "Kompilator visual tidak tersedia untuk merender bagian ini.";
+  try {
+    const t = useTranslations("studentCourse");
+    title = t("learningCanvas.visualCompilerError");
+    description = t("learningCanvas.visualCompilerUnavailable");
+  } catch {
+    // Fallback when rendered outside NextIntlClientProvider (e.g. SSR/contract tests)
+  }
+  return (
+    <div className="p-4 bg-status-error/10 border border-status-error/25 text-status-error rounded-xl text-body-sm font-sans">
+      <strong>{title}</strong>
+      <p className="mt-1 text-body-xs">{description}</p>
+    </div>
+  );
+}
+
 export function MarkdownRenderer({ content, className, density }: MarkdownRendererProps) {
   const contextDensity = useMarkdownDensity();
   const activeDensity = density ?? contextDensity;
+
+  const embeddedParts = React.useMemo(() => {
+    if (typeof content !== "string" || !content) return null;
+    return extractEmbeddedArticleParts(content);
+  }, [content]);
 
   // The compile step (parse + validate + diagnostics + stats) is expensive and
   // depends only on the source string, so memoize it. Without this it re-runs on
   // every parent re-render (e.g. every selection/progress tick in the reader).
   const compiled = React.useMemo(() => {
-    if (typeof content !== "string" || !content) return null;
+    if (typeof content !== "string" || !content || embeddedParts) return null;
     try {
       return { ok: true as const, result: compileMarkdown(content) };
     } catch (err) {
       console.error("Visual compiler failed, fallback to raw rendering:", err);
       return { ok: false as const, error: err };
     }
-  }, [content]);
+  }, [content, embeddedParts]);
 
   if (!content) return null;
   if (typeof content !== "string") {
@@ -1511,16 +1542,18 @@ export function MarkdownRenderer({ content, className, density }: MarkdownRender
     return <ASTRenderer blocks={content} className={className} density={activeDensity} />;
   }
 
+  if (embeddedParts) {
+    return (
+      <div className={cn("min-w-0 max-w-full", className)}>
+        <ArticleParts parts={embeddedParts} density={activeDensity} />
+      </div>
+    );
+  }
+
   if (!compiled) return null;
 
   if (!compiled.ok) {
-    const err = compiled.error;
-    return (
-      <div className="p-4 bg-status-error/10 border border-status-error/25 text-status-error rounded-xl text-body-sm font-sans">
-        <strong>Visual Compiler Error:</strong>
-        <p className="mt-1 font-mono text-body-xs">{err instanceof Error ? err.message : String(err)}</p>
-      </div>
-    );
+    return <VisualCompilerErrorFallback />;
   }
 
   if (compiled.result.ast.blocks.length === 0) {

@@ -12,10 +12,11 @@ import {
 } from "lucide-react";
 import { db } from "@/db";
 import { pkaAnnouncements, pkaAnnouncementReads, pkaSchedules, quizTemplates, studentQuizAttempts } from "@/db/schema";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { createMetadata } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
+import { TranslatedText } from "@/components/i18n/translated-text";
 import {
   PKA_ASSUMED_TEST_DATE,
-  PKA_DISCLAIMER,
   PKA_COURSE_ID,
   PKA_TOTAL_SESSIONS,
 } from "@/lib/pka-config";
@@ -27,12 +28,10 @@ import { Reveal } from "@/components/ui/reveal";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { AnnouncementCard } from "./_components/announcement-card";
 
-export const metadata: Metadata = createMetadata({
-  title: "Tutorial PKA",
-  description:
-    "Persiapan Pemetaan Kesiapan Akademik (PKA) ITB: jadwal sesi live, simulasi kuis, dan materi Matematika, Fisika, Kimia.",
-  path: "/courses/tutorial-pka",
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("studentExtras.pka");
+  return createMetadata({ title: t("homeTitle"), description: t("homeDescription"), path: "/courses/tutorial-pka" });
+}
 
 
 export default async function PkaCourseHomePage() {
@@ -98,6 +97,7 @@ export default async function PkaCourseHomePage() {
       .orderBy(desc(pkaAnnouncements.isPinned), desc(pkaAnnouncements.createdAt)),
   ]);
 
+  const t = await getTranslations("studentExtras.pka");
   const nextSession = upcoming[0] ?? null;
   const completedAttempts = studentAttempts.filter((a) => a.status === "completed");
   const completedCount = completedAttempts.length;
@@ -107,7 +107,7 @@ export default async function PkaCourseHomePage() {
 
   return (
     <CoursePageShell
-      title="Tutorial PKA"
+      title={<TranslatedText namespace="studentExtras.pka" messageKey="homeTitle" />}
 
       icon={GraduationCap}
     >
@@ -122,7 +122,7 @@ export default async function PkaCourseHomePage() {
             <section className="space-y-3">
               <div className="flex items-center gap-2 border-b border-border pb-2">
                 <BellRing className="size-5 text-brand-primary" />
-                <h2 className="font-heading text-body-base font-bold text-foreground">Pengumuman</h2>
+                <h2 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="announcements" /></h2>
               </div>
               <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-card">
                 {announcements.map((announcement) => (
@@ -137,19 +137,19 @@ export default async function PkaCourseHomePage() {
         <Reveal>
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-4 border-b border-border pb-2">
-              <h2 className="font-heading text-body-base font-bold text-foreground">Sesi berikutnya</h2>
+              <h2 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="nextSession" /></h2>
               <Link
                 href="/courses/tutorial-pka/jadwal"
                 className="flex items-center gap-1 text-body-sm font-semibold text-brand-primary transition-colors duration-150 hover:text-brand-primary/80"
               >
-                Semua jadwal
+                <TranslatedText namespace="studentExtras.pka" messageKey="allSchedules" />
                 <ArrowRight className="size-3.5" />
               </Link>
             </div>
             {nextSession ? (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
                 <div className="min-w-0">
-                  <span className="block truncate text-body-base font-semibold text-foreground">
+                  <span className="block break-words text-body-base font-semibold text-foreground">
                     {nextSession.title}
                   </span>
                   <span className="mt-0.5 flex items-center gap-1.5 text-body-sm text-muted-foreground">
@@ -163,22 +163,21 @@ export default async function PkaCourseHomePage() {
                     href={nextSession.meetLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex shrink-0 items-center gap-1.5 rounded-md bg-brand-primary px-3 py-1.5 text-body-sm font-semibold text-white transition-colors duration-150 hover:bg-brand-primary/90"
+                    className="flex shrink-0 items-center gap-1.5 rounded-md bg-brand-primary px-3 py-1.5 text-body-sm font-semibold text-primary-foreground transition-colors duration-150 hover:bg-brand-primary/90"
                   >
                     <Video className="size-4" />
-                    Gabung Meet
+                    <TranslatedText namespace="studentExtras.pka" messageKey="joinMeet" />
                   </a>
                   </Button>
                 ) : (
                   <span className="flex shrink-0 items-center gap-1.5 rounded-md bg-muted px-3 py-1.5 text-body-sm font-semibold text-muted-foreground">
-                    Link belum tersedia
+                    <TranslatedText namespace="studentExtras.pka" messageKey="meetLinkUnavailable" />
                   </span>
                 )}
               </div>
             ) : (
               <p className="py-2 text-body-sm text-muted-foreground">
-                Belum ada sesi mendatang. Dari total {PKA_TOTAL_SESSIONS} sesi tutorial live, jadwal dan link
-                Google Meet akan muncul di tab Jadwal dan dikirim ke email kamu.
+                <TranslatedText namespace="studentExtras.pka" messageKey="noUpcomingSessions" values={{ count: PKA_TOTAL_SESSIONS }} />
               </p>
             )}
           </section>
@@ -188,32 +187,32 @@ export default async function PkaCourseHomePage() {
         <Reveal>
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-4 border-b border-border pb-2">
-              <h2 className="font-heading text-body-base font-bold text-foreground">Simulasi ujian</h2>
+              <h2 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="examSimulation" /></h2>
               <Link
                 href="/courses/tutorial-pka/leaderboard?type=simulation"
                 className="flex items-center gap-1 text-body-sm font-semibold text-brand-primary transition-colors duration-150 hover:text-brand-primary/80"
               >
                 <BarChart3 className="size-3.5" />
-                Peringkat simulasi
+                <TranslatedText namespace="studentExtras.pka" messageKey="viewLeaderboard" />
               </Link>
             </div>
             <div className="rounded-xl border border-border bg-card p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <span className="block text-body-base font-semibold text-foreground">
-                  {simTemplates.length} simulasi
+                  <TranslatedText namespace="studentExtras.pka" messageKey="simulationCount" values={{ count: simTemplates.length }} />
                 </span>
                 <span className="block text-body-sm text-muted-foreground">
                   {completedCount > 0
-                    ? `${completedCount} selesai · Skor tertinggi ${bestScore}%`
-                    : "Belum dikerjakan"}
+                    ? t("completedSummary", { count: completedCount, score: bestScore })
+                    : t("notStarted")}
                 </span>
               </div>
               <Button asChild size="sm">
               <Link
                 href="/courses/tutorial-pka/simulasi"
-                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md bg-brand-primary px-4 py-2 text-body-sm font-bold text-white shadow-xs transition-colors duration-150 hover:bg-brand-primary/90"
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md bg-brand-primary px-4 py-2 text-body-sm font-bold text-primary-foreground shadow-xs transition-colors duration-150 hover:bg-brand-primary/90"
               >
-                {completedCount > 0 ? "Lanjutkan simulasi" : "Buka simulasi"}
+                <TranslatedText namespace="studentExtras.pka" messageKey={completedCount > 0 ? "continueSimulation" : "openSimulation"} />
                 <ArrowRight className="size-4" />
               </Link>
               </Button>
@@ -224,7 +223,7 @@ export default async function PkaCourseHomePage() {
         <Reveal>
           <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-4">
             <ShieldAlert className="size-5 shrink-0 text-muted-foreground" />
-            <p className="text-body-sm text-muted-foreground">{PKA_DISCLAIMER}</p>
+            <p className="text-body-sm text-muted-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="disclaimer" /></p>
           </div>
         </Reveal>
       </div>

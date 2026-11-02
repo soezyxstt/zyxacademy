@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import {
-  AlertCircle,
   CalendarDays,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Info,
@@ -27,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { canBookTutorialSlot } from "@/lib/schedule/week-policy";
 import {
   addCalendarDays,
   addCalendarMonths,
@@ -45,7 +45,6 @@ const HOUR_HEIGHT = 64;
 const START_MINUTES = START_HOUR * 60;
 const END_MINUTES = END_HOUR * 60;
 const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, index) => START_HOUR + index);
-const DAY_LABELS = ["MIN", "SEN", "SEL", "RAB", "KAM", "JUM", "SAB"];
 
 export type ScheduleCalendarProps = {
   role: "student" | "teacher" | "admin";
@@ -105,6 +104,7 @@ type CalendarEvent = {
   courseId?: string | null;
   tutorId?: string | null;
   locked?: boolean;
+  hasBookingHistory?: boolean;
   allDay?: boolean;
   source: any;
 };
@@ -127,9 +127,9 @@ function minutesToTime(value: number): string {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
-function formatCalendarDateLabel(dateIso: CalendarDate, options: Intl.DateTimeFormatOptions): string {
+function formatCalendarDateLabel(dateIso: CalendarDate, options: Intl.DateTimeFormatOptions, locale: "id" | "en" = "id"): string {
   const { year, month, day } = parseCalendarDate(dateIso);
-  return new Intl.DateTimeFormat("id-ID", { ...options, timeZone: "UTC" }).format(
+  return new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", { ...options, timeZone: "UTC" }).format(
     new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0)),
   );
 }
@@ -164,13 +164,6 @@ function parseAcademicInstant(value: unknown): { dateIso: CalendarDate; minutes:
     dateIso,
     minutes: Number(values.hour) * 60 + Number(values.minute),
   };
-}
-
-function academicTypeLabel(type?: string | null): string {
-  if (type === "official_exam") return "Ujian ITB";
-  if (type === "tryout") return "Tryout";
-  if (type === "quiz") return "Kuis";
-  return "Akademik";
 }
 
 function eventTone(event: CalendarEvent): string {
@@ -245,10 +238,14 @@ function MonthPicker({
   value,
   viewMode,
   onSelect,
+  locale,
+  labels,
 }: {
   value: CalendarDate;
   viewMode: CalendarViewMode;
   onSelect: (dateIso: CalendarDate) => void;
+  locale: "id" | "en";
+  labels: { previous: string; next: string; today: string };
 }) {
   const [cursor, setCursor] = useState<CalendarDate>(() => getCalendarMonthRange(value).startIso);
 
@@ -268,13 +265,13 @@ function MonthPicker({
   return (
     <div className="w-[min(22rem,calc(100vw-2rem))] p-1">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <Button type="button" size="icon-sm" variant="ghost" onClick={() => setCursor(addCalendarMonths(cursor, -1))} aria-label="Bulan sebelumnya">
+        <Button type="button" size="icon-sm" variant="ghost" onClick={() => setCursor(addCalendarMonths(cursor, -1))} aria-label={labels.previous}>
           <ChevronLeft className="size-4" />
         </Button>
         <p className="font-heading text-body-sm font-semibold">
-          {formatCalendarDateLabel(cursor, { month: "long", year: "numeric" })}
+          {formatCalendarDateLabel(cursor, { month: "long", year: "numeric" }, locale)}
         </p>
-        <Button type="button" size="icon-sm" variant="ghost" onClick={() => setCursor(addCalendarMonths(cursor, 1))} aria-label="Bulan berikutnya">
+        <Button type="button" size="icon-sm" variant="ghost" onClick={() => setCursor(addCalendarMonths(cursor, 1))} aria-label={labels.next}>
           <ChevronRight className="size-4" />
         </Button>
       </div>
@@ -312,7 +309,7 @@ function MonthPicker({
         })}
       </div>
       <div className="mt-2 flex justify-end">
-        <Button type="button" variant="ghost" size="sm" onClick={() => onSelect(today)}>Hari ini</Button>
+        <Button type="button" variant="ghost" size="sm" onClick={() => onSelect(today)}>{labels.today}</Button>
       </div>
     </div>
   );
@@ -326,11 +323,13 @@ function EventCard({
   compact = false,
   onOpen,
   onDeleteSlot,
+  labels,
 }: {
   event: CalendarEvent;
   compact?: boolean;
   onOpen?: () => void;
   onDeleteSlot?: (slotId: string) => void;
+  labels: { deleteSlot: string; allDay: string; online: string; offline: string };
 }) {
   const interactive = Boolean(onOpen);
   return (
@@ -355,7 +354,7 @@ function EventCard({
       <div className="flex h-full min-w-0 flex-col gap-0.5">
         <div className="flex min-w-0 items-start gap-1">
           <p className={cn("min-w-0 flex-1 break-words font-semibold leading-tight", compact ? "text-[10px]" : "text-[11px]")}>{event.title}</p>
-          {event.kind === "availability" && onDeleteSlot && !event.locked ? (
+          {event.kind === "availability" && onDeleteSlot && !event.locked && !event.hasBookingHistory ? (
             <button
               type="button"
               onClick={(clickEvent) => {
@@ -363,14 +362,14 @@ function EventCard({
                 onDeleteSlot(event.source.id);
               }}
               className="shrink-0 rounded p-0.5 text-current/65 opacity-0 transition-opacity hover:bg-black/5 group-hover:opacity-100 focus:opacity-100 dark:hover:bg-white/10"
-              aria-label="Hapus slot"
+              aria-label={labels.deleteSlot}
             >
               <Trash2 className="size-3" />
             </button>
           ) : null}
         </div>
         {event.allDay ? (
-          <p className={cn("break-words leading-tight text-current/80", compact ? "text-[9px]" : "text-[10px]")}>Sepanjang hari</p>
+          <p className={cn("break-words leading-tight text-current/80", compact ? "text-[9px]" : "text-[10px]")}>{labels.allDay}</p>
         ) : (
           <p className={cn("break-words leading-tight text-current/80", compact ? "text-[9px]" : "text-[10px]")}>{minutesToTime(event.startMinutes)} - {minutesToTime(event.endMinutes)}</p>
         )}
@@ -378,8 +377,8 @@ function EventCard({
         {!compact && event.meta ? <p className="break-words text-[10px] leading-tight text-current/65">{event.meta}</p> : null}
         {!compact && (event.mode || event.location) ? (
           <div className="mt-auto flex flex-wrap items-center gap-x-1.5 gap-y-0.5 pt-0.5 text-[9px] font-medium text-current/75">
-            {event.mode === "online" ? <span className="inline-flex items-center gap-1"><Video className="size-2.5" /> Online</span> : null}
-            {event.mode === "offline" ? <span className="inline-flex items-center gap-1"><MapPin className="size-2.5" /> Offline</span> : null}
+            {event.mode === "online" ? <span className="inline-flex items-center gap-1"><Video className="size-2.5" /> {labels.online}</span> : null}
+            {event.mode === "offline" ? <span className="inline-flex items-center gap-1"><MapPin className="size-2.5" /> {labels.offline}</span> : null}
             {event.location ? <span className="break-words">{event.location}</span> : null}
           </div>
         ) : null}
@@ -395,7 +394,6 @@ export function ScheduleCalendarView({
   role,
   adminMode = "all",
   weekInfo,
-  isWeekLocked,
   weekOffset,
   onWeekChange,
   coursesList,
@@ -407,20 +405,29 @@ export function ScheduleCalendarView({
   onCreateScheduleDirect,
   onOpenPreSession,
   onOpenPostSession,
-  onOpenAuditLog,
   onEditSchedule,
-  onMoveSession,
   onDeleteSlot,
   onAssignTutorialSlot,
   onOpenSessionDetail,
   initialCourseFilter = "all",
 }: ScheduleCalendarProps) {
+  const t = useTranslations("schedule");
+  const { locale } = useAppLocale();
   const [viewMode, setViewMode] = useState<CalendarViewMode>("week");
   const [activeDate, setActiveDate] = useState<CalendarDate>(() => weekInfo.startOfWeekIso as CalendarDate);
   const [courseFilter, setCourseFilter] = useState(initialCourseFilter || "all");
   const [tutorFilter, setTutorFilter] = useState("all");
-  const today = getJakartaCalendarDate();
-  const nowMinutes = getJakartaClock();
+  const [now, setNow] = useState(() => new Date());
+  const today = getJakartaCalendarDate(now);
+  const nowMinutes = getJakartaClock(now);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setNow(new Date()), 60_000 - Date.now() % 60_000);
+    return () => window.clearTimeout(timer);
+  }, [now]);
+
+  const eventLabels = { deleteSlot: t("calendar.deleteSlot"), allDay: t("calendar.allDay"), online: t("session.online"), offline: t("calendar.offline") };
+  const weekdayLabels = Array.from({ length: 7 }, (_, index) => new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", { weekday: "short", timeZone: "UTC" }).format(new Date(Date.UTC(2024, 0, index + 1))));
 
   useEffect(() => {
     const incomingStart = weekInfo.startOfWeekIso as CalendarDate;
@@ -449,14 +456,15 @@ export function ScheduleCalendarView({
 
   const normalizedEvents = useMemo<CalendarEvent[]>(() => {
     const result: CalendarEvent[] = [];
-    const bookingSlotIds = new Set(bookings.map((booking: any) => booking.slotId).filter(Boolean));
+    const bookingSlotIds = new Set(bookings.filter((booking) => booking.status !== "cancelled").map((booking) => booking.slotId));
+    const cancelledSlotIds = new Set(bookings.filter((booking) => booking.status === "cancelled").map((booking) => booking.slotId));
 
     for (const slot of slots) {
       const dateIso = slot.sessionDate as CalendarDate | null | undefined;
       if (!dateIso || bookingSlotIds.has(slot.id) || slot.booking) continue;
       const startMinutes = timeToMinutes(slot.startTime);
       const endMinutes = Math.max(startMinutes + 30, timeToMinutes(slot.endTime));
-      const tutorName = slot.tutor?.name || "Tutor";
+      const tutorName = slot.tutor?.name || t("session.tutorFallback");
       result.push({
         id: `slot-${slot.id}`,
         kind: "availability",
@@ -464,12 +472,13 @@ export function ScheduleCalendarView({
         startMinutes,
         endMinutes,
         title: `${minutesToTime(startMinutes)}-${minutesToTime(endMinutes)}`,
-        subtitle: `Tutor: ${tutorName}`,
+        subtitle: `${t("audit.tutor")}: ${tutorName}`,
         meta: slot.notes || null,
         mode: slot.mode,
         location: slot.location,
         tutorId: slot.tutorId || slot.tutor?.id || null,
-        locked: dateIso < today,
+        locked: role === "student" ? !canBookTutorialSlot(dateIso, slot.startTime, now) : dateIso < today,
+        hasBookingHistory: cancelledSlotIds.has(slot.id),
         source: slot,
       });
     }
@@ -481,14 +490,14 @@ export function ScheduleCalendarView({
       const endMinutes = Math.max(startMinutes + 30, timeToMinutes(booking.endTime || booking.slot?.endTime));
       const groupName = booking.group?.name || booking.groupName;
       const tutorName = booking.slot?.tutor?.name || booking.tutor?.name;
-      const subtitle = [groupName, tutorName ? `Tutor: ${tutorName}` : null].filter(Boolean).join(" • ") || null;
+      const subtitle = [booking.status === "cancelled" ? t("session.status.cancelled") : null, groupName, tutorName ? `${t("audit.tutor")}: ${tutorName}` : null].filter(Boolean).join(" • ") || null;
       result.push({
         id: `booking-${booking.id}`,
         kind: "booking",
         dateIso,
         startMinutes,
         endMinutes,
-        title: booking.course?.title || booking.courseTitle || booking.topic || "Sesi tutorial",
+        title: booking.course?.title || booking.courseTitle || booking.topic || t("session.title"),
         subtitle,
         meta: booking.topic || booking.preSessionNotes || null,
         mode: booking.mode || booking.slot?.mode,
@@ -517,8 +526,8 @@ export function ScheduleCalendarView({
         dateIso: start.dateIso,
         startMinutes: start.minutes,
         endMinutes,
-        title: schedule.title || academicTypeLabel(schedule.type),
-        subtitle: schedule.course?.title || schedule.courseTitle || academicTypeLabel(schedule.type),
+        title: schedule.title || t(`academic.types.${schedule.type === "official_exam" || schedule.type === "tryout" || schedule.type === "quiz" ? schedule.type : "general"}`),
+        subtitle: schedule.course?.title || schedule.courseTitle || t(`academic.types.${schedule.type === "official_exam" || schedule.type === "tryout" || schedule.type === "quiz" ? schedule.type : "general"}`),
         meta: schedule.description || null,
         location: schedule.location,
         courseId: schedule.courseId || schedule.course?.id || null,
@@ -528,7 +537,7 @@ export function ScheduleCalendarView({
     }
 
     return result;
-  }, [academicSchedules, bookings, isWeekLocked, slots, today]);
+  }, [academicSchedules, bookings, slots, role, now, today, t]);
 
   const filteredEvents = useMemo(() => normalizedEvents.filter((event) => {
     if (courseFilter !== "all") {
@@ -551,26 +560,39 @@ export function ScheduleCalendarView({
       const info = weekInfo.days.find((day) => day.dateIso === activeDate);
       return [info || {
         dateIso: activeDate,
-        dayName: formatCalendarDateLabel(activeDate, { weekday: "long" }),
+        dayName: formatCalendarDateLabel(activeDate, { weekday: "long" }, locale),
         dayOfMonth: parseCalendarDate(activeDate).day,
-        monthName: formatCalendarDateLabel(activeDate, { month: "short" }),
+        monthName: formatCalendarDateLabel(activeDate, { month: "short" }, locale),
         isToday: activeDate === today,
         isPast: activeDate < today,
       }];
     }
     return weekInfo.days;
-  }, [activeDate, today, viewMode, weekInfo.days]);
+  }, [activeDate, locale, today, viewMode, weekInfo.days]);
+
+  const timedDays = visibleDays.map((day) => {
+    const events = layoutEvents(filteredEvents.filter((event) =>
+      !event.allDay && event.dateIso === day.dateIso && event.endMinutes > START_MINUTES && event.startMinutes < END_MINUTES
+    ));
+    const laneCount = events.reduce((max, event) => Math.max(max, event.laneCount), 1);
+    return { day, events, minWidth: laneCount === 1 ? 108 : laneCount * 128 };
+  });
+  const gridTemplateColumns = ["56px", ...timedDays.map(({ minWidth }) => `minmax(${minWidth}px, 1fr)`)].join(" ");
+  const gridMinWidth = timedDays.reduce((width, column) => width + column.minWidth, 56);
 
   const rangeLabel = viewMode === "day"
-    ? formatCalendarDateLabel(activeDate, { weekday: "short", day: "numeric", month: "short", year: "numeric" })
+    ? formatCalendarDateLabel(activeDate, { weekday: "short", day: "numeric", month: "short", year: "numeric" }, locale)
     : viewMode === "month"
-      ? formatCalendarDateLabel(activeDate, { month: "long", year: "numeric" })
-      : `${formatCalendarDateLabel(weekInfo.startOfWeekIso as CalendarDate, { day: "numeric", month: "short" })} - ${formatCalendarDateLabel(weekInfo.endOfWeekIso as CalendarDate, { day: "numeric", month: "short", year: "numeric" })}`;
+      ? formatCalendarDateLabel(activeDate, { month: "long", year: "numeric" }, locale)
+      : `${formatCalendarDateLabel(weekInfo.startOfWeekIso as CalendarDate, { day: "numeric", month: "short" }, locale)} - ${formatCalendarDateLabel(weekInfo.endOfWeekIso as CalendarDate, { day: "numeric", month: "short", year: "numeric" }, locale)}`;
 
   const openEvent = (event: CalendarEvent) => {
     if (event.kind === "availability") {
-      if (role === "student" && !event.locked) onSelectSlotToBook?.(event.source, event.dateIso);
-      else if (role === "admin") onAssignTutorialSlot?.(event.source);
+      if (role === "student" && canBookTutorialSlot(event.dateIso, event.source.startTime)) {
+        onSelectSlotToBook?.(event.source, event.dateIso);
+      } else if (role === "admin") {
+        onAssignTutorialSlot?.(event.source);
+      }
       return;
     }
     if (event.kind === "academic") {
@@ -580,6 +602,13 @@ export function ScheduleCalendarView({
     if (onOpenSessionDetail) onOpenSessionDetail(event.source);
     else if (role === "student") onOpenPreSession?.(event.source);
     else onOpenPostSession?.(event.source);
+  };
+
+  const eventHandler = (event: CalendarEvent) => {
+    if (event.kind === "availability" && role !== "admin" && (role !== "student" || event.locked)) {
+      return undefined;
+    }
+    return () => openEvent(event);
   };
 
   const handleGridCreate = (dateIso: CalendarDate, hour: number) => {
@@ -598,16 +627,16 @@ export function ScheduleCalendarView({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="day">Hari</SelectItem>
-            <SelectItem value="week">Minggu</SelectItem>
-            <SelectItem value="month">Bulan</SelectItem>
+            <SelectItem value="day">{t("calendar.day")}</SelectItem>
+            <SelectItem value="week">{t("calendar.week")}</SelectItem>
+            <SelectItem value="month">{t("calendar.month")}</SelectItem>
           </SelectContent>
         </Select>
 
-        <Button type="button" variant="outline" size="sm" className="h-9 shrink-0" onClick={() => selectAnchor(today)}>Hari Ini</Button>
+        <Button type="button" variant="outline" size="sm" className="h-9 shrink-0" onClick={() => selectAnchor(today)}>{t("calendar.today")}</Button>
         <div className="flex shrink-0 items-center">
-          <Button type="button" variant="ghost" size="icon-sm" onClick={() => navigate(-1)} aria-label="Rentang sebelumnya"><ChevronLeft className="size-4" /></Button>
-          <Button type="button" variant="ghost" size="icon-sm" onClick={() => navigate(1)} aria-label="Rentang berikutnya"><ChevronRight className="size-4" /></Button>
+          <Button type="button" variant="ghost" size="icon-sm" onClick={() => navigate(-1)} aria-label={t("calendar.previousRange")}><ChevronLeft className="size-4" /></Button>
+          <Button type="button" variant="ghost" size="icon-sm" onClick={() => navigate(1)} aria-label={t("calendar.nextRange")}><ChevronRight className="size-4" /></Button>
         </div>
 
         <Popover>
@@ -618,48 +647,48 @@ export function ScheduleCalendarView({
             </Button>
           </PopoverTrigger>
           <PopoverContent align="start" className="w-auto p-2">
-            <MonthPicker value={activeDate} viewMode={viewMode} onSelect={selectAnchor} />
+            <MonthPicker value={activeDate} viewMode={viewMode} onSelect={selectAnchor} locale={locale} labels={{ previous: t("calendar.previousMonth"), next: t("calendar.nextMonth"), today: t("calendar.today") }} />
           </PopoverContent>
         </Popover>
 
         <div className="ml-auto flex shrink-0 items-center gap-1">
           <Popover>
             <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="icon-sm" aria-label="Keterangan warna"><Info className="size-4" /></Button>
+              <Button type="button" variant="ghost" size="icon-sm" aria-label={t("calendar.legendLabel")}><Info className="size-4" /></Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-60 space-y-2 p-3 text-body-xs">
-              <p className="font-semibold text-foreground">Keterangan</p>
+              <p className="font-semibold text-foreground">{t("calendar.legend")}</p>
               <div className="space-y-1.5 text-muted-foreground">
-                <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-emerald-500" /> Slot tersedia</p>
-                <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-indigo-500" /> Sesi terjadwal</p>
-                <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-amber-500" /> Jadwal akademik / ujian</p>
-                <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-zinc-500" /> Selesai atau lewat</p>
+                <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-emerald-500" /> {t("calendar.availableSlots")}</p>
+                <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-indigo-500" /> {t("calendar.scheduledSessions")}</p>
+                <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-amber-500" /> {t("calendar.academicSchedules")}</p>
+                <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-zinc-500" /> {t("calendar.completedOrPast")}</p>
               </div>
             </PopoverContent>
           </Popover>
 
           <Popover>
             <PopoverTrigger asChild>
-              <Button type="button" variant="outline" size="sm" className="h-9 gap-1.5 px-2.5"><SlidersHorizontal className="size-4" /><span className="hidden sm:inline">Filter</span></Button>
+              <Button type="button" variant="outline" size="sm" className="h-9 gap-1.5 px-2.5"><SlidersHorizontal className="size-4" /><span className="hidden sm:inline">{t("calendar.filter")}</span></Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-72 space-y-3 p-3">
               <div className="space-y-1.5">
-                <p className="text-body-xs font-semibold">Mata kuliah</p>
+                <p className="text-body-xs font-semibold">{t("academic.course")}</p>
                 <Select value={courseFilter} onValueChange={setCourseFilter}>
                   <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Semua mata kuliah</SelectItem>
+                    <SelectItem value="all">{t("calendar.allCourses")}</SelectItem>
                     {coursesList.map((course) => <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               {tutorsList.length > 0 ? (
                 <div className="space-y-1.5">
-                  <p className="text-body-xs font-semibold">Tutor</p>
+                  <p className="text-body-xs font-semibold">{t("audit.tutor")}</p>
                   <Select value={tutorFilter} onValueChange={setTutorFilter}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Semua tutor</SelectItem>
+                      <SelectItem value="all">{t("calendar.allTutors")}</SelectItem>
                       {tutorsList.map((tutor) => <SelectItem key={tutor.id} value={tutor.id}>{tutor.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -679,21 +708,23 @@ export function ScheduleCalendarView({
             setViewMode("day");
             selectAnchor(dateIso);
           }}
-          onOpenEvent={openEvent}
+          eventHandler={eventHandler}
+          weekdayLabels={weekdayLabels}
+          labels={eventLabels}
         />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border/80 bg-card/55 shadow-xs">
-          <div className={cn("min-w-[820px]", viewMode === "day" && "min-w-[420px]") }>
+          <div style={{ minWidth: gridMinWidth }}>
             <div
               className="grid border-b border-border/70 bg-muted/20"
-              style={{ gridTemplateColumns: viewMode === "day" ? "56px minmax(0,1fr)" : "56px repeat(7,minmax(108px,1fr))" }}
+              style={{ gridTemplateColumns }}
             >
               <div className="flex flex-col items-center justify-center border-r border-border/70 py-2 text-[10px] font-semibold text-muted-foreground">
                 <span>WIB</span><span className="mt-0.5 text-[9px]">GMT+7</span>
               </div>
               {visibleDays.map((day) => (
                 <div key={day.dateIso} className={cn("border-r border-border/60 px-2 py-2 text-center", day.isToday && "bg-brand-primary/5") }>
-                  <p className="text-[10px] font-semibold uppercase text-muted-foreground">{String(day.dayName).slice(0, 3)}</p>
+                  <p className="text-[10px] font-semibold uppercase text-muted-foreground">{formatCalendarDateLabel(day.dateIso as CalendarDate, { weekday: "short" }, locale)}</p>
                   <p className={cn("mx-auto mt-1 flex size-7 items-center justify-center rounded-full text-body-sm font-bold", day.isToday && "bg-brand-primary text-white")}>{day.dayOfMonth}</p>
                 </div>
               ))}
@@ -702,10 +733,10 @@ export function ScheduleCalendarView({
             {filteredEvents.some((event) => event.allDay && visibleDays.some((day) => day.dateIso === event.dateIso)) ? (
               <div
                 className="grid border-b border-border/70 bg-card"
-                style={{ gridTemplateColumns: viewMode === "day" ? "56px minmax(0,1fr)" : "56px repeat(7,minmax(108px,1fr))" }}
+                style={{ gridTemplateColumns }}
               >
                 <div className="flex items-center justify-end border-r border-border/70 px-1 py-1.5 text-[9px] font-medium text-muted-foreground">
-                  Sepanjang hari
+                  {t("calendar.allDay")}
                 </div>
                 {visibleDays.map((day) => {
                   const allDayEvents = filteredEvents.filter((event) => event.allDay && event.dateIso === day.dateIso);
@@ -713,7 +744,7 @@ export function ScheduleCalendarView({
                     <div key={`all-day-${day.dateIso}`} className={cn("min-h-10 space-y-1 border-r border-border/60 p-1", day.isToday && "bg-brand-primary/[0.02]")}>
                       {allDayEvents.map((event) => (
                         <div key={event.id} className="min-h-10">
-                          <EventCard event={event} compact onOpen={() => openEvent(event)} />
+                          <EventCard event={event} compact onOpen={() => openEvent(event)} labels={eventLabels} />
                         </div>
                       ))}
                     </div>
@@ -726,7 +757,7 @@ export function ScheduleCalendarView({
               <div
                 className="grid relative"
                 style={{
-                  gridTemplateColumns: viewMode === "day" ? "56px minmax(0,1fr)" : "56px repeat(7,minmax(108px,1fr))",
+                  gridTemplateColumns,
                   height: `${HOURS.length * HOUR_HEIGHT}px`,
                 }}
               >
@@ -739,9 +770,8 @@ export function ScheduleCalendarView({
                   <span className="absolute bottom-0 right-1 translate-y-1/2 bg-card px-0.5 text-[9px] text-muted-foreground">24:00</span>
                 </div>
 
-                {visibleDays.map((day) => {
+                {timedDays.map(({ day, events: dayEvents }) => {
                   const dayIso = day.dateIso as CalendarDate;
-                  const dayEvents = layoutEvents(filteredEvents.filter((event) => !event.allDay && event.dateIso === dayIso && event.endMinutes > START_MINUTES && event.startMinutes < END_MINUTES));
                   const canCreate = Boolean(onCreateScheduleDirect) && (role === "admin" || role === "teacher") && dayIso >= today;
                   return (
                     <div key={dayIso} className={cn("relative border-r border-border/60", day.isToday && "bg-brand-primary/[0.02]") }>
@@ -749,7 +779,7 @@ export function ScheduleCalendarView({
                         <button
                           key={hour}
                           type="button"
-                          aria-label={`Buat jadwal ${dayIso} ${hour}:00`}
+                          aria-label={t("calendar.createScheduleAt", { date: formatCalendarDateLabel(dayIso, { dateStyle: "long" }, locale), hour: `${hour}:00` })}
                           onClick={() => canCreate && handleGridCreate(dayIso, hour)}
                           className={cn("block w-full border-b border-border/35 transition-colors", canCreate && "cursor-pointer hover:bg-brand-primary/5")}
                           style={{ height: HOUR_HEIGHT }}
@@ -771,9 +801,6 @@ export function ScheduleCalendarView({
                         const height = Math.max(42, ((visibleEnd - visibleStart) / 60) * HOUR_HEIGHT - 3);
                         const laneWidth = 100 / event.laneCount;
                         const left = event.lane * laneWidth;
-                        const opening = event.kind === "availability"
-                          ? role === "student" ? !event.locked : role === "admin"
-                          : true;
                         return (
                           <div
                             key={event.id}
@@ -782,8 +809,9 @@ export function ScheduleCalendarView({
                           >
                             <EventCard
                               event={event}
-                              onOpen={opening ? () => openEvent(event) : undefined}
+                              onOpen={eventHandler(event)}
                               onDeleteSlot={(role === "teacher" || (role === "admin" && (adminMode === "tutorial" || adminMode === "all"))) ? onDeleteSlot : undefined}
+                              labels={eventLabels}
                             />
                           </div>
                         );
@@ -809,13 +837,17 @@ function MonthView({
   events,
   today,
   onSelectDate,
-  onOpenEvent,
+  eventHandler,
+  weekdayLabels,
+  labels,
 }: {
   activeDate: CalendarDate;
   events: CalendarEvent[];
   today: CalendarDate;
   onSelectDate: (dateIso: CalendarDate) => void;
-  onOpenEvent: (event: CalendarEvent) => void;
+  eventHandler: (event: CalendarEvent) => (() => void) | undefined;
+  weekdayLabels: string[];
+  labels: { deleteSlot: string; allDay: string; online: string; offline: string };
 }) {
   const monthRange = getCalendarMonthRange(activeDate);
   const firstDay = getCalendarDayIndex(monthRange.startIso);
@@ -827,7 +859,7 @@ function MonthView({
     <div className="overflow-x-auto rounded-xl border border-border/80 bg-card/55 shadow-xs">
       <div className="min-w-[760px]">
         <div className="grid grid-cols-7 border-b border-border/70 bg-muted/20">
-          {["SEN", "SEL", "RAB", "KAM", "JUM", "SAB", "MIN"].map((label) => (
+          {weekdayLabels.map((label) => (
             <div key={label} className="border-r border-border/60 px-2 py-2 text-center text-[10px] font-semibold text-muted-foreground">{label}</div>
           ))}
         </div>
@@ -842,7 +874,7 @@ function MonthView({
                 <div className="space-y-1">
                   {dayEvents.map((event) => (
                     <div key={event.id} className="min-h-12">
-                      <EventCard event={event} compact onOpen={() => onOpenEvent(event)} />
+                      <EventCard event={event} compact onOpen={eventHandler(event)} labels={labels} />
                     </div>
                   ))}
                 </div>

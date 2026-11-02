@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
+import { useTranslations } from "@/lib/i18n/client";
 import {
   createVideoPlaylistAction,
   updateVideoPlaylistAction,
@@ -38,6 +39,7 @@ export function PlaylistDialog({
   playlist,
   onSuccess,
 }: PlaylistDialogProps) {
+  const t = useTranslations("studentCourse");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
@@ -58,7 +60,7 @@ export function PlaylistDialog({
     e.preventDefault();
     const cleanTitle = title.trim();
     if (!cleanTitle) {
-      toast.error("Judul playlist wajib diisi.");
+      toast.error(t("courseVideos.playlistTitleRequired"));
       return;
     }
 
@@ -71,11 +73,11 @@ export function PlaylistDialog({
           description.trim() || null
         );
         if (res.success) {
-          toast.success("Playlist berhasil diperbarui.");
+          toast.success(t("courseVideos.playlistUpdated"));
           onOpenChange(false);
           onSuccess?.(playlist.id);
         } else {
-          toast.error(res.error || "Gagal memperbarui playlist.");
+          toast.error(t("courseVideos.playlistUpdateFailed"));
         }
       } else {
         const res = await createVideoPlaylistAction(
@@ -84,15 +86,15 @@ export function PlaylistDialog({
           description.trim() || null
         );
         if (res.success) {
-          toast.success("Playlist baru berhasil dibuat.");
+          toast.success(t("courseVideos.playlistCreated"));
           onOpenChange(false);
           onSuccess?.(res.playlistId);
         } else {
-          toast.error(res.error || "Gagal membuat playlist.");
+          toast.error(t("courseVideos.playlistCreateFailed"));
         }
       }
     } catch {
-      toast.error("Terjadi kesalahan saat memproses playlist.");
+      toast.error(t("courseVideos.playlistProcessError"));
     } finally {
       setLoading(false);
     }
@@ -103,21 +105,21 @@ export function PlaylistDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-heading text-body-base font-bold">
-            {isEditing ? "Edit Playlist" : "Buat Playlist Baru"}
+            {isEditing ? t("courseVideos.editPlaylist") : t("courseVideos.newPlaylist")}
           </DialogTitle>
           <DialogDescription className="text-body-xs text-muted-foreground">
-            Kelompokkan video pembelajaran ke dalam playlist topik atau pembahasan.
+            {t("courseVideos.playlistDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div className="space-y-1.5">
             <Label htmlFor="playlist-title" className="text-body-sm font-semibold">
-              Judul Playlist <span className="text-destructive">*</span>
+              {t("courseVideos.playlistTitle")} <span className="text-destructive">*</span>
             </Label>
             <Input
               id="playlist-title"
-              placeholder="Contoh: Pembahasan Soal UTS 2022"
+              placeholder={t("courseVideos.playlistTitlePlaceholder")}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="text-body-sm"
@@ -127,11 +129,11 @@ export function PlaylistDialog({
 
           <div className="space-y-1.5">
             <Label htmlFor="playlist-desc" className="text-body-sm font-semibold">
-              Deskripsi <span className="text-body-xs text-muted-foreground font-normal">(opsional)</span>
+              {t("courseVideos.description")} <span className="text-body-xs text-muted-foreground font-normal">({t("courseVideos.optional")})</span>
             </Label>
             <Textarea
               id="playlist-desc"
-              placeholder="Catatan ringkas mengenai kumpulan video ini..."
+              placeholder={t("courseVideos.playlistDescriptionPlaceholder")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="text-body-sm min-h-[80px]"
@@ -147,15 +149,15 @@ export function PlaylistDialog({
               disabled={loading}
               className="text-body-sm"
             >
-              Batal
+              {t("courseVideos.cancel")}
             </Button>
             <Button
               type="submit"
               size="sm"
               disabled={loading}
-              className="text-body-sm bg-brand-primary text-white hover:bg-brand-primary/90"
+              className="text-body-sm bg-brand-primary text-primary-foreground hover:bg-brand-primary/90"
             >
-              {loading ? "Menyimpan..." : isEditing ? "Simpan Perubahan" : "Buat Playlist"}
+              {loading ? t("courseVideos.saving") : isEditing ? t("courseVideos.saveChanges") : t("courseVideos.createPlaylist")}
             </Button>
           </DialogFooter>
         </form>

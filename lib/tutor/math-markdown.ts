@@ -1,20 +1,43 @@
+import { renderKatexToString } from "@/lib/math/katex-render";
+
 /**
  * Adds safe delimiters to common raw equations emitted by a provider.
  * Existing LaTeX, inline code, and fenced code remain unchanged.
  */
+function restoreEscapedNewlines(text: string): string {
+  return text.replace(/\\n([A-Za-z]*)/g, (command, suffix: string) => {
+    if (!suffix) return "\n";
+    try {
+      // Ask the same renderer used by the UI whether this is a real command.
+      // A missing argument still means the command exists and must survive.
+      renderKatexToString(command, { throwOnError: true, strict: false, trust: false });
+      return command;
+    } catch (error) {
+      return error instanceof Error && error.message.includes("Undefined control sequence")
+        ? `\n${suffix}`
+        : command;
+    }
+  });
+}
+
 export function normalizeTutorMathMarkdown(text: string): string {
   const protectedSegments: string[] = [];
   const protectedText = text.replace(
     /```[\s\S]*?```|`[^`\n]*`|\$\$[\s\S]*?\$\$|\$[^$\n]+\$|\\\[[\s\S]*?\\\]|\\\([^\n]*?\\\)/g,
     (segment) => {
       const marker = `@@ZYRA_MATH_${protectedSegments.length}@@`;
-      protectedSegments.push(segment);
+      // Providers sometimes double-escape line breaks inside display math.
+      // Keep LaTeX commands such as \neq and \nabla intact.
+      const isDisplay = segment.startsWith("$$") || segment.startsWith("\\[");
+      protectedSegments.push(isDisplay
+        ? restoreEscapedNewlines(segment)
+        : segment);
       return marker;
     },
   );
 
   // Unescape literal \n strings outside math/code blocks (fixes raw "\n" prefix bugs)
-  const cleanNewlines = protectedText.replace(/\\n/g, "\n");
+  const cleanNewlines = restoreEscapedNewlines(protectedText);
 
   const equationSegments: string[] = [];
   const withEquations = cleanNewlines.replace(
@@ -31,7 +54,20 @@ export function normalizeTutorMathMarkdown(text: string): string {
     (expression) => `$${expression.trim()}$`,
   );
 
-  return withPolynomials
+  const formulaRows = withPolynomials.replace(
+    /^(\s*)(@@ZYRA_MATH_\d+@@)([ \t]*)$/gm,
+    (row, _indent: string, marker: string) => {
+      const index = Number(marker.match(/\d+/)?.[0]);
+      const formula = protectedSegments[index];
+      if (formula?.startsWith("$") && !formula.startsWith("$$")) {
+        protectedSegments[index] = `$$\n${formula.slice(1, -1)}\n$$`;
+        return `\n${marker}\n`;
+      }
+      return row;
+    },
+  );
+
+  return formulaRows
     .replace(/@@ZYRA_EQUATION_(\d+)@@/g, (_, index: string) => equationSegments[Number(index)] ?? "")
     .replace(/@@ZYRA_MATH_(\d+)@@/g, (_, index: string) => protectedSegments[Number(index)] ?? "");
 }

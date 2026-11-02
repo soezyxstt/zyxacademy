@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { DemoQuizQuestion } from "@/app/(marketing)/demo/demo-data";
 import { DemoAuthCta } from "./demo-shell";
+import { useTranslations } from "@/lib/i18n/client";
 
 type QuizResult = {
   index: number;
@@ -22,6 +23,7 @@ export function DemoQuiz({
   quizSetToken: string;
   nextPath: string;
 }) {
+  const t = useTranslations("marketing");
   const [answers, setAnswers] = useState<number[][]>(() => questions.map(() => []));
   const [results, setResults] = useState<QuizResult[] | null>(null);
   const [score, setScore] = useState<number | null>(null);
@@ -60,12 +62,12 @@ export function DemoQuiz({
         error?: string;
       } | null;
       if (!response.ok || !payload?.results) {
-        throw new Error(payload?.error || "Kuis belum dapat diperiksa.");
+        throw new Error(t("demo.quiz.error"));
       }
       setScore(payload.score ?? 0);
       setResults(payload.results);
-    } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Kuis belum dapat diperiksa.");
+    } catch {
+      setError(t("demo.quiz.error"));
     } finally {
       setSubmitting(false);
     }
@@ -77,8 +79,8 @@ export function DemoQuiz({
         <div className="flex items-start gap-3 border-b border-border pb-5">
           <CheckSquare className="mt-1 size-5 shrink-0 text-brand-primary" aria-hidden="true" />
           <div>
-            <h2 className="font-heading text-h5 font-bold text-foreground">Cek pemahamanmu</h2>
-            <p className="mt-1 text-body-xs text-muted-foreground">Tiga soal, hasil hanya muncul setelah dikirim.</p>
+            <h2 className="font-heading text-h5 font-bold text-foreground">{t("demo.quiz.title")}</h2>
+            <p className="mt-1 text-body-xs text-muted-foreground">{t("demo.quiz.description")}</p>
           </div>
         </div>
 
@@ -116,7 +118,7 @@ export function DemoQuiz({
                 </div>
                 {result ? (
                   <p className={result.isCorrect ? "text-body-xs text-status-success" : "text-body-xs text-status-error"}>
-                    {result.isCorrect ? "Jawaban benar." : "Jawaban belum tepat."}
+                    {result.isCorrect ? t("demo.quiz.correct") : t("demo.quiz.incorrect")}
                     {result.explanation ? ` ${result.explanation}` : ""}
                   </p>
                 ) : null}
@@ -128,20 +130,20 @@ export function DemoQuiz({
         {error ? <p className="mt-6 text-body-sm text-status-error">{error}</p> : null}
         {score !== null ? (
           <p className="mt-6 rounded-lg bg-status-success/10 px-3 py-2 text-body-sm font-semibold text-status-success" aria-live="polite">
-            Skor demo: {score} dari {questions.length}
+            {t("demo.quiz.score", { score, total: questions.length })}
           </p>
         ) : null}
 
         <Button type="button" onClick={submit} disabled={submitting} className="mt-6 gap-1.5 rounded-lg">
           {submitting ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-          {submitting ? "Memeriksa..." : "Kirim jawaban"}
+          {submitting ? t("demo.quiz.checking") : t("demo.quiz.submit")}
         </Button>
       </Card>
 
       <div className="mt-5 flex flex-col gap-3 rounded-xl border border-brand-primary/20 bg-brand-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-heading text-body-base font-bold text-foreground">Ingin hasil tersimpan?</h2>
-          <p className="mt-1 text-body-xs text-muted-foreground">Masuk untuk melanjutkan latihan di akun Free.</p>
+          <h2 className="font-heading text-body-base font-bold text-foreground">{t("demo.quiz.saveTitle")}</h2>
+          <p className="mt-1 text-body-xs text-muted-foreground">{t("demo.quiz.saveDescription")}</p>
         </div>
         <DemoAuthCta nextPath={nextPath} />
       </div>

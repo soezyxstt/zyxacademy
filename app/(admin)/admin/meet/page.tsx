@@ -1,5 +1,7 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
@@ -23,7 +25,6 @@ import {
   Crown,
   Mail,
 } from "lucide-react";
-import { formatIsoDate } from "@/lib/date-utils";
 import { toast } from "@/components/ui/toast";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 
 interface MeetSpaceInfo {
   name: string;
@@ -79,13 +81,9 @@ function slugifyTitle(input: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  admin: "Admin",
-  tutor: "Tutor",
-  murid: "Murid",
-};
-
 export default function AdminMeetPage() {
+  const t = useTranslations("adminOps");
+  const { locale } = useAppLocale();
   const [creating, setCreating] = useState(false);
   const [ending, setEnding] = useState(false);
   const [title, setTitle] = useState("");
@@ -182,7 +180,7 @@ export default function AdminMeetPage() {
       if (data.success && data.space) {
         setActiveSpace({
           ...data.space,
-          title: data.space.title || title.trim() || "Sesi Meeting Baru",
+          title: data.space.title || title.trim() || t("meetMainUI.defaultTitle"),
         });
         setTitle("");
         setSlug("");
@@ -190,13 +188,13 @@ export default function AdminMeetPage() {
         setSelectedEmails([]);
         setShowAllCoHosts(false);
         if (Array.isArray(data.warnings) && data.warnings.length > 0) {
-          toast.warning(`${data.warnings.length} akun belum mendapat hak Meet. Periksa izin Developer Preview dan scope OAuth.`);
+          toast.warning(t("meetMainUI.permissionWarning", { count: data.warnings.length }));
         }
       } else {
-        setErrorMsg(data.error || "Gagal membuat Google Meet space.");
+        setErrorMsg(t("meetMainUI.createError"));
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || "Terjadi kesalahan jaringan.");
+    } catch {
+      setErrorMsg(t("meetMainUI.networkError"));
     } finally {
       setCreating(false);
     }
@@ -217,10 +215,10 @@ export default function AdminMeetPage() {
         setActiveSpace(null);
         fetchRecords();
       } else {
-        setErrorMsg(data.error || "Gagal mengakhiri meeting.");
+        setErrorMsg(t("meetMainUI.endError"));
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || "Terjadi kesalahan jaringan.");
+    } catch {
+      setErrorMsg(t("meetMainUI.networkError"));
     } finally {
       setEnding(false);
     }
@@ -228,7 +226,7 @@ export default function AdminMeetPage() {
 
   const handleDeleteRecord = async (recordName: string) => {
     const recordId = recordName.replace(/^conferenceRecords\//, "");
-    if (!confirm("Apakah Anda yakin ingin menghapus log meeting ini dari daftar?")) return;
+    if (!confirm(t("meetMainUI.deleteConfirm"))) return;
 
     setDeletingId(recordId);
     try {
@@ -238,12 +236,12 @@ export default function AdminMeetPage() {
       const data = await res.json();
       if (data.success) {
         setRecords((prev) => prev.filter((r) => r.name !== recordName));
-        toast.success("Log meeting berhasil dihapus.");
+        toast.success(t("meetMainUI.deleteSuccess"));
       } else {
-        toast.error(data.error || "Gagal menghapus log meeting.");
+        toast.error(t("meetMainUI.deleteError"));
       }
-    } catch (err: any) {
-      toast.error(err.message || "Terjadi kesalahan jaringan.");
+    } catch {
+      toast.error(t("meetMainUI.networkError"));
     } finally {
       setDeletingId(null);
     }
@@ -311,28 +309,28 @@ export default function AdminMeetPage() {
 
   const formatTimeOnly = (isoStr?: string) => {
     if (!isoStr) return "-";
-    return new Date(isoStr).toLocaleTimeString("id-ID", {
+    return new Date(isoStr).toLocaleTimeString(locale === "id" ? "id-ID" : "en-US", {
       hour: "2-digit",
       minute: "2-digit",
     });
   };
 
   const calculateDuration = (startStr: string, endStr?: string) => {
-    if (!endStr) return "Sedang Berlangsung";
+    if (!endStr) return t("meetMainUI.inProgress");
     const start = new Date(startStr).getTime();
     const end = new Date(endStr).getTime();
     const diffSec = Math.round((end - start) / 1000);
-    if (diffSec < 60) return `${diffSec} s`;
+    if (diffSec < 60) return `${diffSec} ${t("meetMainUI.seconds")}`;
     const mins = Math.floor(diffSec / 60);
     const secs = diffSec % 60;
-    return `${mins} m ${secs} s`;
+    return `${mins} ${t("meetMainUI.minutesShort")} ${secs} ${t("meetMainUI.seconds")}`;
   };
 
   return (
     <div className="space-y-6">
       <AdminPageHeader
         icon={Video}
-        title="Meet"
+        title={t("meetMainUI.title")}
       />
 
       {errorMsg && (
@@ -349,18 +347,18 @@ export default function AdminMeetPage() {
           <div className="flex items-center gap-2">
             <PlusCircle className="size-5 text-brand-primary" />
             <h2 className="font-heading text-body-base font-bold text-foreground">
-              Buat meeting baru
+              {t("meetMainUI.createHeading")}
             </h2>
           </div>
 
           <div className="mt-4 space-y-3">
             <div>
               <label className="mb-1 block text-body-xs font-semibold text-foreground">
-                Judul meeting (opsional)
+                {t("meetMainUI.meetingTitle")}
               </label>
               <Input
                 type="text"
-                placeholder="Tutorial Fisika Kinematika Bab 2"
+                placeholder={t("meetMainUI.titlePlaceholder")}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
@@ -368,7 +366,7 @@ export default function AdminMeetPage() {
 
             <div>
               <label className="mb-1 block text-body-xs font-semibold text-foreground">
-                Slug tautan
+                {t("meetMainUI.slugLabel")}
               </label>
               <div className="flex items-center gap-2">
                 <span className="shrink-0 rounded-md bg-muted px-2 py-2 text-body-xs font-medium text-muted-foreground">
@@ -376,7 +374,7 @@ export default function AdminMeetPage() {
                 </span>
                 <Input
                   type="text"
-                  placeholder="judul-meeting"
+                  placeholder={t("meetMainUI.slugPlaceholder")}
                   value={slug}
                   onChange={(e) => {
                     setSlugEdited(true);
@@ -386,23 +384,23 @@ export default function AdminMeetPage() {
               </div>
               {createLink && (
                 <p className="mt-1.5 truncate text-body-xs text-muted-foreground">
-                  Tautan: <span className="font-medium text-brand-primary">{createLink}</span>
+                  {t("meetMainUI.linkLabel")}: <span className="font-medium text-brand-primary">{createLink}</span>
                 </p>
               )}
             </div>
 
             <div>
               <label className="mb-1 block text-body-xs font-semibold text-foreground">
-                Aksesibilitas
+                {t("meetMainUI.accessLabel")}
               </label>
               <Select value={accessType} onValueChange={(v) => setAccessType(v as any)}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Pilih akses" />
+                  <SelectValue placeholder={t("meetMainUI.chooseAccess")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="OPEN">Terbuka (siapa saja dapat masuk)</SelectItem>
-                  <SelectItem value="TRUSTED">Organisasi dan undangan</SelectItem>
-                  <SelectItem value="RESTRICTED">Perlu izin host</SelectItem>
+                  <SelectItem value="OPEN">{t("meetMainUI.accessOpen")}</SelectItem>
+                  <SelectItem value="TRUSTED">{t("meetMainUI.accessTrusted")}</SelectItem>
+                  <SelectItem value="RESTRICTED">{t("meetMainUI.accessRestricted")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -410,14 +408,14 @@ export default function AdminMeetPage() {
             {accessType !== "OPEN" && (
               <div>
                 <label className="mb-1 block text-body-xs font-semibold text-foreground">
-                  Undang peserta ({selectedEmails.length})
+                  {t("meetMainUI.inviteParticipants", { count: selectedEmails.length })}
                 </label>
                 <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
                   <PopoverTrigger asChild>
                     <Button type="button" variant="outline" className="w-full justify-between">
                       <span className="flex items-center gap-2">
                         <UserPlus className="size-4" />
-                        Pilih peserta
+                        {t("meetMainUI.chooseParticipants")}
                       </span>
                       <span className="rounded-md bg-muted px-2 py-0.5 text-body-xs font-semibold text-muted-foreground">
                         {selectedEmails.length}
@@ -428,28 +426,28 @@ export default function AdminMeetPage() {
                     <div className="space-y-3">
                       <Input
                         type="text"
-                        placeholder="Cari nama atau email"
+                        placeholder={t("meetMainUI.searchPeople")}
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                       />
                       <div className="grid grid-cols-2 gap-2">
                         <Select value={roleFilter} onValueChange={setRoleFilter}>
                           <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Peran" />
+                            <SelectValue placeholder={t("meetMainUI.role")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="all">Semua peran</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="tutor">Tutor</SelectItem>
-                            <SelectItem value="murid">Murid</SelectItem>
+                            <SelectItem value="all">{t("meetMainUI.allRoles")}</SelectItem>
+                            <SelectItem value="admin">{t("meetMainUI.admin")}</SelectItem>
+                            <SelectItem value="tutor">{t("meetMainUI.tutor")}</SelectItem>
+                            <SelectItem value="murid">{t("meetMainUI.student")}</SelectItem>
                           </SelectContent>
                         </Select>
                         <Select value={courseFilter} onValueChange={setCourseFilter}>
                           <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Mata kuliah" />
+                            <SelectValue placeholder={t("meetMainUI.course")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="all">Semua mata kuliah</SelectItem>
+                            <SelectItem value="all">{t("meetMainUI.allCourses")}</SelectItem>
                             {meetCourses.map((c) => (
                               <SelectItem key={c.id} value={c.id}>
                                 {c.title}
@@ -461,11 +459,11 @@ export default function AdminMeetPage() {
                       <div className="flex flex-wrap gap-1.5">
                         <Button type="button" variant="outline" size="sm" onClick={() => toggleRoleBulk("admin")}>
                           {roleAllSelected("admin") ? <Check className="size-3.5 text-status-success" /> : <UserPlus className="size-3.5" />}
-                          Admin
+                          {t("meetMainUI.admin")}
                         </Button>
                         <Button type="button" variant="outline" size="sm" onClick={() => toggleRoleBulk("tutor")}>
                           {roleAllSelected("tutor") ? <Check className="size-3.5 text-status-success" /> : <UserPlus className="size-3.5" />}
-                          Tutor
+                          {t("meetMainUI.tutor")}
                         </Button>
                         {selectedCourse && (
                           <Button type="button" variant="outline" size="sm" onClick={() => toggleCourseBulk(selectedCourse.id)}>
@@ -476,9 +474,9 @@ export default function AdminMeetPage() {
                       </div>
                       <div className="max-h-64 overflow-y-auto rounded-xl border border-border bg-background">
                         {usersLoading ? (
-                          <p className="p-4 text-body-sm text-muted-foreground">Memuat peserta...</p>
+                          <p className="p-4 text-body-sm text-muted-foreground">{t("meetMainUI.loadingParticipants")}</p>
                         ) : filteredUsers.length === 0 ? (
-                          <p className="p-4 text-body-sm text-muted-foreground">Tidak ada peserta yang cocok.</p>
+                          <p className="p-4 text-body-sm text-muted-foreground">{t("meetMainUI.noMatchingParticipants")}</p>
                         ) : (
                           filteredUsers.map((u) => (
                             <label
@@ -500,12 +498,12 @@ export default function AdminMeetPage() {
                                 <span className="mt-1 flex flex-wrap gap-1">
                                   {u.roles.map((r) => (
                                     <Badge key={r} variant="secondary" className="text-[10px] uppercase tracking-wide">
-                                      {ROLE_LABELS[r] || r}
+                                      {r === "admin" ? t("meetMainUI.admin") : r === "tutor" ? t("meetMainUI.tutor") : r === "murid" ? t("meetMainUI.student") : r}
                                     </Badge>
                                   ))}
                                   {u.courseIds.length > 0 && (
                                     <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                                      {u.courseIds.length} matkul
+                                      {t("meetMainUI.courseCount", { count: u.courseIds.length })}
                                     </Badge>
                                   )}
                                 </span>
@@ -516,10 +514,10 @@ export default function AdminMeetPage() {
                       </div>
                       <div className="flex items-center justify-between border-t border-border pt-3">
                         <p className="text-body-xs text-muted-foreground">
-                          {selectedEmails.length} peserta dipilih
+                          {t("meetMainUI.selectedParticipants", { count: selectedEmails.length })}
                         </p>
                         <Button type="button" size="sm" onClick={() => setPickerOpen(false)}>
-                          Selesai
+                          {t("meetMainUI.done")}
                         </Button>
                       </div>
                     </div>
@@ -537,7 +535,7 @@ export default function AdminMeetPage() {
                           type="button"
                           onClick={() => toggleEmail(email)}
                           className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-                          aria-label={`Hapus ${email}`}
+                          aria-label={t("meetMainUI.removeEmail", { email })}
                         >
                           <X className="size-3" />
                         </button>
@@ -557,12 +555,12 @@ export default function AdminMeetPage() {
               {creating ? (
                 <>
                   <RefreshCw className="size-4 animate-spin" />
-                  Membuat ruang...
+                  {t("meetMainUI.creatingSpace")}
                 </>
               ) : (
                 <>
                   <Video className="size-4" />
-                  Mulai meeting
+                  {t("meetMainUI.startMeeting")}
                 </>
               )}
             </Button>
@@ -576,17 +574,17 @@ export default function AdminMeetPage() {
               <div className="flex items-center gap-2">
                 <Shield className="size-5 text-status-success" />
                 <h2 className="font-heading text-body-base font-bold text-foreground">
-                  Status meeting
+                  {t("meetMainUI.meetingStatus")}
                 </h2>
               </div>
               {activeSpace ? (
                 <span className="inline-flex items-center gap-1.5 rounded-md bg-status-success/15 px-2.5 py-1 text-body-xs font-semibold text-status-success">
                   <span className="size-2 rounded-full bg-status-success animate-pulse" />
-                  Aktif
+                  {t("meetMainUI.active")}
                 </span>
               ) : (
                 <span className="rounded-md bg-muted px-2.5 py-1 text-body-xs font-medium text-muted-foreground">
-                  Tidak aktif
+                  {t("meetMainUI.inactive")}
                 </span>
               )}
             </div>
@@ -598,7 +596,7 @@ export default function AdminMeetPage() {
                     {activeSpace.title}
                   </p>
                   <p className="mt-0.5 text-body-xs font-mono text-muted-foreground">
-                    Kode: {activeSpace.meetingCode}
+                    {t("meetMainUI.codeLabel")}: {activeSpace.meetingCode}
                   </p>
 
                   <div className="mt-2 space-y-1.5">
@@ -614,7 +612,7 @@ export default function AdminMeetPage() {
                           size="icon"
                           className="size-6 shrink-0"
                           onClick={() => handleCopy(activeZyxLink, "zyx")}
-                          title="Salin tautan Zyx"
+                          title={t("meetMainUI.copyZyxLink")}
                         >
                           {copied === "zyx" ? (
                             <Check className="size-3.5 text-status-success" />
@@ -635,7 +633,7 @@ export default function AdminMeetPage() {
                         size="icon"
                         className="size-6 shrink-0"
                         onClick={() => handleCopy(activeSpace.meetingUri, "meet")}
-                        title="Salin link Google Meet"
+                        title={t("meetMainUI.copyMeetLink")}
                       >
                         {copied === "meet" ? (
                           <Check className="size-3.5 text-status-success" />
@@ -650,7 +648,7 @@ export default function AdminMeetPage() {
                 {activeSpace.hostEmail && (
                   <p className="flex items-center gap-1.5 text-body-xs text-muted-foreground">
                     <Crown className="size-3.5 shrink-0 text-brand-secondary" />
-                    Host: <span className="font-medium text-foreground">{activeSpace.hostEmail}</span>
+                    {t("meetMainUI.hostLabel")}: <span className="font-medium text-foreground">{activeSpace.hostEmail}</span>
                   </p>
                 )}
 
@@ -658,7 +656,7 @@ export default function AdminMeetPage() {
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Users className="size-3.5 shrink-0 text-muted-foreground" />
                     <span className="text-body-xs text-muted-foreground">
-                      Co-Host ({activeSpace.coHostEmails.length}):
+                      {t("meetMainUI.coHosts", { count: activeSpace.coHostEmails.length })}:
                     </span>
                     {(showAllCoHosts ? activeSpace.coHostEmails : activeSpace.coHostEmails.slice(0, 3)).map(
                       (email) => (
@@ -677,7 +675,7 @@ export default function AdminMeetPage() {
                         onClick={() => setShowAllCoHosts((v) => !v)}
                         className="text-body-xs font-medium text-brand-primary transition-colors hover:text-brand-primary/80"
                       >
-                        {showAllCoHosts ? "Sembunyikan" : `${activeSpace.coHostEmails.length - 3} lainnya`}
+                        {showAllCoHosts ? t("meetMainUI.hide") : t("meetMainUI.more", { count: activeSpace.coHostEmails.length - 3 })}
                       </button>
                     )}
                   </div>
@@ -686,7 +684,7 @@ export default function AdminMeetPage() {
                 {activeSpace.invitedEmails && activeSpace.invitedEmails.length > 0 && (
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Mail className="size-3.5 shrink-0 text-muted-foreground" />
-                    <span className="text-body-xs text-muted-foreground">Diundang:</span>
+                    <span className="text-body-xs text-muted-foreground">{t("meetMainUI.invitedLabel")}</span>
                     {activeSpace.invitedEmails.slice(0, 3).map((email) => (
                       <Badge
                         key={email}
@@ -698,7 +696,7 @@ export default function AdminMeetPage() {
                     ))}
                     {activeSpace.invitedEmails.length > 3 && (
                       <Badge variant="outline" className="text-[10px]">
-                        +{activeSpace.invitedEmails.length - 3} lainnya
+                        {t("meetMainUI.more", { count: activeSpace.invitedEmails.length - 3 })}
                       </Badge>
                     )}
                   </div>
@@ -712,14 +710,14 @@ export default function AdminMeetPage() {
                   >
                     <a href={hostMeetingUri} target="_blank" rel="noreferrer">
                       <ExternalLink className="size-3.5" />
-                      Buka sebagai host
+                      {t("meetMainUI.openAsHost")}
                     </a>
                   </Button>
                 </div>
               </div>
             ) : (
               <p className="mt-4 text-body-xs text-muted-foreground">
-                Belum ada sesi meeting aktif.
+                {t("meetMainUI.noActiveMeeting")}
               </p>
             )}
           </div>
@@ -738,7 +736,7 @@ export default function AdminMeetPage() {
                 ) : (
                   <Square className="size-4 fill-current" />
                 )}
-                Akhiri meeting
+                {t("meetMainUI.endMeeting")}
               </Button>
             </div>
           )}
@@ -749,7 +747,7 @@ export default function AdminMeetPage() {
       <section className="space-y-4">
         <div className="flex items-center justify-between border-b border-border pb-3">
           <h2 className="font-heading text-body-base font-bold text-foreground">
-            Riwayat meeting
+            {t("meetMainUI.historyHeading")}
           </h2>
           <Button
             type="button"
@@ -759,22 +757,20 @@ export default function AdminMeetPage() {
             disabled={loadingRecords}
           >
             <RefreshCw className={`size-3.5 ${loadingRecords ? "animate-spin" : ""}`} />
-            Muat ulang
+            {t("meetMainUI.refresh")}
           </Button>
         </div>
 
         {loadingRecords ? (
-          <div className="flex h-40 items-center justify-center rounded-2xl border border-border bg-card">
-            <RefreshCw className="size-6 animate-spin text-muted-foreground" />
-          </div>
+          <div role="status" aria-label="Memuat" className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">{[0, 1, 2, 3].map((i) => <div key={i} className="flex items-center gap-4 px-4 py-3.5"><div className="min-w-0 flex-1 space-y-2"><Skeleton className="h-4 w-40 max-w-full" /><Skeleton className="h-3 w-24" /></div><Skeleton className="hidden h-4 w-24 sm:block" /><Skeleton className="hidden h-4 w-16 md:block" /><Skeleton className="h-8 w-8" /></div>)}</div>
         ) : records.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-12 text-center">
             <Clock className="size-10 text-muted-foreground/60" />
             <p className="mt-3 font-heading text-body-base font-semibold text-foreground">
-              Belum ada riwayat meeting
+              {t("meetMainUI.noHistory")}
             </p>
             <p className="mt-1 max-w-md text-body-xs text-muted-foreground">
-              Meeting selesai akan muncul di sini.
+              {t("meetMainUI.historyDescription")}
             </p>
           </div>
         ) : (
@@ -783,11 +779,11 @@ export default function AdminMeetPage() {
               <Table className="w-full text-left text-body-sm">
                 <TableHeader className="border-b border-border bg-muted/50 text-body-xs font-semibold text-muted-foreground">
                   <TableRow>
-                    <TableHead className="px-4 py-3">Judul</TableHead>
-                    <TableHead className="px-4 py-3">Waktu</TableHead>
-                    <TableHead className="px-4 py-3">Durasi</TableHead>
-                    <TableHead className="px-4 py-3">Peserta</TableHead>
-                    <TableHead className="px-4 py-3 text-right">Aksi</TableHead>
+                    <TableHead className="px-4 py-3">{t("meetMainUI.titleColumn")}</TableHead>
+                    <TableHead className="px-4 py-3">{t("meetMainUI.timeColumn")}</TableHead>
+                    <TableHead className="px-4 py-3">{t("meetMainUI.durationColumn")}</TableHead>
+                    <TableHead className="px-4 py-3">{t("meetMainUI.participantsColumn")}</TableHead>
+                    <TableHead className="px-4 py-3 text-right">{t("meetMainUI.actionsColumn")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y divide-border">
@@ -801,7 +797,7 @@ export default function AdminMeetPage() {
                       <TableRow key={rec.name} className="transition-colors hover:bg-muted/30">
                         <TableCell className="whitespace-nowrap px-4 py-3.5 font-medium text-foreground">
                           <p className="text-body-sm font-bold text-foreground">
-                            {rec.title || `Meeting ${recordId.slice(0, 8)}`}
+                            {rec.title || t("meetMainUI.recordFallback", { id: recordId.slice(0, 8) })}
                           </p>
                           <p className="font-mono text-body-xs text-muted-foreground">
                             ID: {recordId.slice(0, 16)}...
@@ -810,7 +806,7 @@ export default function AdminMeetPage() {
 
                         <TableCell className="whitespace-nowrap px-4 py-3.5 text-foreground">
                           <p className="text-body-xs font-semibold">
-                            {formatIsoDate(new Date(rec.startTime))}
+                            {new Date(rec.startTime).toLocaleDateString(locale === "id" ? "id-ID" : "en-US", { day: "numeric", month: "short", year: "numeric" })}
                           </p>
                           <p className="text-body-xs text-muted-foreground">
                             {formatTimeOnly(rec.startTime)} - {formatTimeOnly(rec.endTime)}
@@ -824,8 +820,8 @@ export default function AdminMeetPage() {
                         <TableCell className="whitespace-nowrap px-4 py-3.5">
                           <div className="flex items-center gap-1.5 text-body-xs font-semibold text-foreground">
                             <TrendingUp className="size-3.5 text-brand-primary" />
-                            <span>Peak: <strong className="text-brand-primary">{peak}</strong></span>
-                            <span className="font-normal text-muted-foreground">(Total: {total})</span>
+                            <span>{t("meetMainUI.peakLabel")}: <strong className="text-brand-primary">{peak}</strong></span>
+                            <span className="font-normal text-muted-foreground">({t("meetMainUI.totalLabel")}: {total})</span>
                           </div>
                         </TableCell>
 
@@ -834,7 +830,7 @@ export default function AdminMeetPage() {
                             <Button variant="outline" size="sm" asChild>
                               <Link href={`/admin/meet/${recordId}`}>
                                 <Users className="size-3.5" />
-                                Detail log
+                                {t("meetMainUI.logDetails")}
                                 <ChevronRight className="size-3.5" />
                               </Link>
                             </Button>
@@ -845,7 +841,7 @@ export default function AdminMeetPage() {
                               size="icon"
                               onClick={() => handleDeleteRecord(rec.name)}
                               disabled={isDeleting}
-                              title="Hapus log meeting"
+                              title={t("meetMainUI.deleteLog")}
                               className="border-status-error/30 bg-status-error/10 text-status-error hover:bg-status-error/20"
                             >
                               {isDeleting ? (

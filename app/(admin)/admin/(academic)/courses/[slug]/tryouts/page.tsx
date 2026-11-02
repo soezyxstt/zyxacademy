@@ -8,15 +8,17 @@ import { aiQuestionBank, exams, questions } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { getCourse } from "@/lib/course-utils";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 import { getCourseDetailData } from "../../actions";
 
 type Props = {
   params: Promise<{ slug: string }>;
 };
 
-export const metadata: Metadata = {
-  title: pageTitle("Tryout Mata Kuliah"),
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("adminAcademic");
+  return { title: pageTitle(t("metadata.pages.tryoutsTitle")) };
+}
 
 export default async function AdminCourseTryoutsPage({ params }: Props) {
   try {

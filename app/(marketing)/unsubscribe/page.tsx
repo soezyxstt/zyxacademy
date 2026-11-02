@@ -4,17 +4,15 @@ import { MailCheck, MailX } from "lucide-react";
 import { confirmEmailUnsubscribeAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  EMAIL_NOTIFICATION_CATEGORY_DETAILS,
-  isEmailNotificationCategory,
-} from "@/lib/email-preferences/contracts";
+import { isEmailNotificationCategory, type EmailNotificationCategory } from "@/lib/email-preferences/contracts";
 import { verifyEmailUnsubscribeToken } from "@/lib/email-preferences/token";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-  title: pageTitle("Email preferences"),
-  description: "Unsubscribe from optional Zyx Academy email.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("notifications");
+  return { title: pageTitle(t("email.unsubscribe.title")), description: t("email.unsubscribe.description") };
+}
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -22,12 +20,22 @@ function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function categoryMessageKey(category: EmailNotificationCategory) {
+  return {
+    course_updates: "courseUpdates",
+    events_and_schedules: "eventsAndSchedules",
+    learning_reminders: "learningReminders",
+    news_and_offers: "newsAndOffers",
+  }[category];
+}
+
 export default async function UnsubscribePage({ searchParams }: { searchParams: SearchParams }) {
+  const t = await getTranslations("notifications");
   const params = await searchParams;
   const status = first(params.status);
   const categoryParam = first(params.category);
   if (status === "success" && isEmailNotificationCategory(categoryParam)) {
-    const details = EMAIL_NOTIFICATION_CATEGORY_DETAILS[categoryParam];
+    const categoryLabel = t(`email.categories.${categoryMessageKey(categoryParam)}.label`);
     return (
       <div className="marketing-container flex min-h-[60vh] items-center justify-center py-16">
         <Card className="w-full max-w-xl shadow-sm">
@@ -35,12 +43,12 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
             <span className="flex size-12 items-center justify-center rounded-xl bg-status-success/10 text-status-success">
               <MailCheck className="size-6" aria-hidden />
             </span>
-            <CardTitle className="text-h5">Email preference updated</CardTitle>
-            <CardDescription>You will no longer receive {details.label} email.</CardDescription>
+            <CardTitle className="text-h5">{t("email.unsubscribe.successTitle")}</CardTitle>
+            <CardDescription>{t("email.unsubscribe.successBody", { category: categoryLabel })}</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
             <Button asChild variant="outline" size="lg">
-              <Link href="/settings/notifications">Manage all preferences</Link>
+              <Link href="/settings/notifications">{t("email.unsubscribe.manageAll")}</Link>
             </Button>
           </CardContent>
         </Card>
@@ -66,12 +74,12 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
             <span className="flex size-12 items-center justify-center rounded-xl bg-status-error/10 text-status-error">
               <MailX className="size-6" aria-hidden />
             </span>
-            <CardTitle className="text-h5">This unsubscribe link is invalid</CardTitle>
-            <CardDescription>The link may be incomplete or older than 30 days.</CardDescription>
+            <CardTitle className="text-h5">{t("email.unsubscribe.invalidTitle")}</CardTitle>
+            <CardDescription>{t("email.unsubscribe.invalidBody")}</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
             <Button asChild variant="outline" size="lg">
-              <Link href="/settings/notifications">Manage preferences</Link>
+              <Link href="/settings/notifications">{t("email.unsubscribe.manage")}</Link>
             </Button>
           </CardContent>
         </Card>
@@ -79,25 +87,25 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
     );
   }
 
-  const details = EMAIL_NOTIFICATION_CATEGORY_DETAILS[category];
+  const categoryLabel = t(`email.categories.${categoryMessageKey(category)}.label`);
   return (
     <div className="marketing-container flex min-h-[60vh] items-center justify-center py-16">
       <Card className="w-full max-w-xl shadow-sm">
         <CardHeader>
-          <CardTitle className="text-h5">Unsubscribe from {details.label}</CardTitle>
+          <CardTitle className="text-h5">{t("email.unsubscribe.confirmTitle", { category: categoryLabel })}</CardTitle>
           <CardDescription>
-            This disables only {details.label} email. Your other optional categories and essential account email stay enabled.
+            {t("email.unsubscribe.confirmBody", { category: categoryLabel })}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
           <form action={confirmEmailUnsubscribeAction}>
             <input type="hidden" name="token" value={token} />
             <Button type="submit" variant="destructive" size="lg">
-              Unsubscribe
+              {t("email.unsubscribe.unsubscribe")}
             </Button>
           </form>
           <Button asChild variant="outline" size="lg">
-            <Link href="/settings/notifications">Manage all preferences</Link>
+            <Link href="/settings/notifications">{t("email.unsubscribe.manageAll")}</Link>
           </Button>
         </CardContent>
       </Card>
