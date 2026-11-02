@@ -9,6 +9,7 @@
     "zyx-idea-bundle-mcp",
     "zyx-product-bundle-mcp",
     "zyx-question-authoring-mcp",
-    "reference-question-ingest"
+    "reference-question-ingest",
+    "zyx-admin-operations"
   ]
 }

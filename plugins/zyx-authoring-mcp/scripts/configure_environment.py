@@ -48,6 +48,7 @@ EXPECTED_SKILLS = (
     "zyx-product-bundle-mcp",
     "zyx-question-authoring-mcp",
     "reference-question-ingest",
+    "zyx-admin-operations",
 )
 
 BASE_ALLOWED_FILES = {
@@ -392,7 +393,7 @@ def validate_rendered_package(target_root: Path, environment: str) -> dict[str, 
             raise ValueError(f"skills/{skill}/SKILL.md is missing active environment connection block")
         if other_config["endpoint"] in skill_text or f"`{other_config['server_id']}`" in skill_text:
             raise ValueError(f"skills/{skill}/SKILL.md contains cross-environment endpoint or server ID")
-        if "workflow.get_playbook" not in skill_text:
+        if skill != "zyx-admin-operations" and "workflow.get_playbook" not in skill_text:
             raise ValueError(f"skills/{skill}/SKILL.md must require workflow.get_playbook bootstrap")
         if "references/" in skill_text:
             raise ValueError(f"skills/{skill}/SKILL.md must not reference deleted local references/*.md")

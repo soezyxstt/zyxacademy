@@ -1824,3 +1824,9 @@ idempotency request, ordinal, immutable code, evaluation, status and fenced leas
 Public projections exclude solutions and private tests. See
 [coding contract](coding-foundation.md). Local SQLite migration is verified;
 remote migration is a separate operation.
+
+## Admin operation outbox
+
+Status: `ACTIVE`
+
+`admin_operation_jobs` is defined in `db/schema.ts`, migration `drizzle-postgres/0003_white_echo.sql`. Columns: `id` primary key; `actor_id` references `pengguna` with restricted deletion; `session_id`; `kind`; `required_scope`; `environment`; JSON `payload`; `status` (`queued`, `running`, `succeeded`, `failed`, `unknown`, `cancelled`); JSON `result`; sanitized `error_code`; `created_at`; `updated_at`. Queue and actor indexes order by creation time. Payloads may contain private recipient or response metadata and must never be returned by generic job reads. Successful media uploads clear stored file bytes. This PostgreSQL migration has not been applied to a remote environment. See [Admin MCP operations](operations/admin-mcp.md).

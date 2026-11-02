@@ -30,6 +30,8 @@ export interface StorageProvider {
    * Lists objects under a key prefix (used by the Media Library browser).
    * Folders are derived from key segments; only leaf objects are returned.
    */
+  listPage?(prefix: string, limit: number, cursor?: string): Promise<{ objects: { key: string; size: number; lastModified: Date }[]; cursor: string | null }>;
+
   list?(prefix: string): Promise<{ key: string; size: number; lastModified: Date }[]>;
 }
 

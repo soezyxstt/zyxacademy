@@ -42,7 +42,8 @@ test("MCP mutations reject missing stage before source or storage I/O", async ()
 
 test("MCP requires fresh identity-bound bootstrap and rejects cross-course source", async () => {
   let touched = 0;
-  const connection = await connect(principal.scopes, { resolveFile: async () => { touched++; return { row: { courseId: "foreign" }, token: { courseId: "foreign", legacyCourseId: "foreign", chapterId: "chapter" } } as Awaited<ReturnType<NonNullable<Parameters<typeof registerProductV4Tools>[2]>["resolveFile"]>>; } });
+  // This partial foreign record exercises scope rejection before other fields are read.
+  const connection = await connect(principal.scopes, { resolveFile: async () => { touched++; return { row: { courseId: "foreign" }, token: { courseId: "foreign", legacyCourseId: "foreign", chapterId: "chapter" } } as Awaited<ReturnType<NonNullable<NonNullable<Parameters<typeof registerProductV4Tools>[2]>["resolveFile"]>>>; } });
   try {
     const input = { runToken: runToken(), bootstrapToken: bootstrapToken("other-actor"), fileKey: "source", assetId: "a".repeat(64) };
     expect((await connection.client.callTool({ name: "source.get_figure", arguments: input })).isError).toBe(true);

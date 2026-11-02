@@ -65,6 +65,7 @@ const PRINT_PROFILES = {
 
 type KnownProfile = keyof typeof PRINT_PROFILES;
 
+// This Fetch signature is shared by Workers builds and Node-based contract tests.
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -126,4 +127,4 @@ export default {
       return Response.json({ error: message }, { status: 500 });
     }
   },
-} satisfies ExportedHandler<Env>;
+} satisfies { fetch(request: Request, env: Env): Promise<Response> };

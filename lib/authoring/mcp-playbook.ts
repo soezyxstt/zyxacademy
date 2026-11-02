@@ -1,3 +1,4 @@
+import { mcpEnvironmentIdentity } from "./mcp-environment";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -511,18 +512,7 @@ export function evaluatePlaybookCompatibility(input: {
 }
 
 export function resolveAuthoringMcpEnvironment(): "staging" | "production" | "local" {
-  const explicit = (process.env.ZYX_MCP_ENVIRONMENT ?? process.env.VERCEL_ENV ?? "").trim().toLowerCase();
-  if (explicit === "production") return "production";
-  if (explicit === "preview" || explicit === "staging") return "staging";
-
-  const appUrl = (process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "").trim();
-  if (appUrl) {
-    const hostname = new URL(appUrl).hostname.toLowerCase();
-    if (hostname === "staging.zyxacademy.com") return "staging";
-    if (["zyxacademy.com", "www.zyxacademy.com", "zyx.id", "www.zyx.id"].includes(hostname)) return "production";
-    if (!["localhost", "127.0.0.1", "[::1]"].includes(hostname)) throw new Error("AUTHORING_MCP_ENVIRONMENT_UNKNOWN");
-  }
-  return "local";
+  return mcpEnvironmentIdentity().environment;
 }
 
 export function resolveAuthoringServerRevision(): string {

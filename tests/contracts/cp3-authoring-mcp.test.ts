@@ -6,8 +6,8 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import * as schema from "@/db/schema";
 import {
   createAuthoringMcpServer,
-  type McpPrincipal,
 } from "@/lib/authoring/mcp-server";
+import type { McpPrincipal } from "@/lib/authoring/mcp-auth";
 import {
   issueMcpRunToken,
   workflowContract,
@@ -474,6 +474,7 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
       const localContract = workflowContract(runToken);
       expect(localContract.workflow.key).toBe("idea_product");
       const pbContract = localContract.outputs.productBundle;
+      if (!pbContract) throw new Error("Expected product bundle contract");
       expect(pbContract.schemaVersion).toBe("product-bundle.v4");
       expect(pbContract.compatibleReadVersions).toEqual(["product-bundle.v2", "product-bundle.v3", "product-bundle.v4"]);
       expect(pbContract.publicationPermitted).toBe(false);
@@ -607,7 +608,9 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
     test("rejects broken visual bounds consistently in direct evaluator and MCP tool", async () => {
       const article = createV3Article();
       // Invalidate visual spec: bounds xMin >= xMax
-      article.visuals[0].bounds = { xMin: 5, xMax: 2, yMin: 0, yMax: 10 };
+      const visual = article.visuals?.[0];
+      if (!visual || visual.kind !== "epsilon_delta_graph") throw new Error("Expected epsilon-delta graph fixture");
+      visual.bounds = { xMin: 5, xMax: 2, yMin: 0, yMax: 10 };
       const diktat = createDiktat(article);
       const dep = createDiktatDependency(article, diktat);
       const bundle = buildBundleZip([article, diktat], [dep], "bundle-bad-visual", "course-cp3", { skipBundleValidation: true });
@@ -825,7 +828,9 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
 
     test("blocks staging mutation when product bundle is deterministically invalid", async () => {
       const article = createV3Article("article-invalid-submit");
-      article.visuals[0].bounds = { xMin: 10, xMax: 1, yMin: 0, yMax: 10 };
+      const visual = article.visuals?.[0];
+      if (!visual || visual.kind !== "epsilon_delta_graph") throw new Error("Expected epsilon-delta graph fixture");
+      visual.bounds = { xMin: 10, xMax: 1, yMin: 0, yMax: 10 };
       const diktat = createDiktat(article, "diktat-invalid-submit");
       const dep = createDiktatDependency(article, diktat);
       const bundle = buildBundleZip([article, diktat], [dep], "bundle-invalid-submit", "course-cp3", { skipBundleValidation: true });
@@ -1359,10 +1364,10 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
           contentFingerprint: newFingerprint,
           status: "approved",
           rubric: { criteria: validCriteria },
-          exceptions: { exceptions: [] },
+          // Preserve the legacy JSON shape stored by this fixture.
+          exceptions: { exceptions: [] } as unknown as NonNullable<typeof schema.reviewPedagogiBundle.$inferInsert.exceptions>,
           notes: "Approved for new fingerprint",
           createdAt: new Date(Date.now() + 1000),
-          updatedAt: new Date(Date.now() + 1000),
         });
       }
 
@@ -1619,8 +1624,9 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
           { id: "opt-2", text: "5", isCorrect: true },
         ],
         origin: "zyx_original",
-        answerProvenance: "author_defined",
-        solutionProvenance: "author_written",
+        // Preserve legacy provenance values exercised by the readback assertions.
+        answerProvenance: "author_defined" as typeof schema.soal.$inferInsert.answerProvenance,
+        solutionProvenance: "author_written" as typeof schema.soal.$inferInsert.solutionProvenance,
         quizEligible: true,
         version: 2,
         status: "published",
@@ -1847,7 +1853,8 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
           courseId: "legacy-course-cp3",
           title: "Solusi Resmi UTS Kalkulus IA 2025",
           type: "pembahasan_soal",
-          subcategory: "pembahasan_soal",
+          // Preserve the legacy subcategory stored in this fixture.
+          subcategory: "pembahasan_soal" as typeof schema.courseMaterials.$inferInsert.subcategory,
           year: 2025,
           fileUrl: "courses/legacy-course-cp3/materials/uts-2025-solusi.pdf",
           checksum: HASH_B,
@@ -1866,7 +1873,8 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
         code: "ID-CP3-DRAFT-001",
         canonicalStatement: "Pernyataan ide masih draft.",
         conciseExplanation: "Penjelasan ide draft.",
-        knowledgeKind: "concept",
+        // Preserve this legacy draft Idea value for the unpublished-link case.
+        knowledgeKind: "concept" as typeof schema.ide.$inferInsert.knowledgeKind,
         instructionalRole: "core",
         difficultyMetadata: { level: "introductory" },
         version: 1,

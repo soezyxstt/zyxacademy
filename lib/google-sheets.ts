@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { getGoogleFormsAccessToken } from "@/lib/google-forms";
 import { db } from "@/db";
-import { env } from "@/lib/env";
 import { exportSpreadsheets, customForms, quizTemplates } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getAllAdminEmails } from "@/lib/google-drive-permissions";
@@ -523,7 +522,7 @@ export async function syncGoogleSpreadsheet(input: SyncSpreadsheetInput): Promis
     }
   }
 
-  if (!needsConfirmation && env.FEATURE_DRIVE_EDITOR_SYNC === "1") {
+  if (!needsConfirmation && process.env.FEATURE_DRIVE_EDITOR_SYNC === "1") {
     try {
       const adminEmails = await getAdminEmails();
       await grantDriveEditorAccess(spreadsheetId!, adminEmails);

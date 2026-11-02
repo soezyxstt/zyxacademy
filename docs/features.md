@@ -673,3 +673,7 @@ marked stale until a new consultation. A successful browser Run remains practice
 not an official Submit grade.
 
 Zyra preserves LaTeX spacing commands during answer cleanup and renders standalone formula steps as separate display rows. Display formula boundaries containing escaped line breaks are normalized without changing commands such as `\neq` or `\nabla`.
+
+Admin MCP adds scoped admin tools to the existing authoring endpoint, without a new feature flag. Supported operations include form and short link management, isolated form preview and simulation, aggregate response visuals and exports, academic metadata, users, groups, access tokens, schedules, blog, links, notifications and durable provider jobs. Writes require a signed plan and replay-safe request key; existing tokens do not acquire new permissions automatically. The exact catalog, limits, incomplete admin parity and deployment boundaries are recorded in [Admin MCP operations](operations/admin-mcp.md).
+
+Admin MCP distinguishes its application environment from the hosting deployment tier. Before data operations, discover `admin.environment` and pass the user-intended `expectedEnvironment` and `expectedOrigin`; mismatched targets are denied. This local implementation does not establish live database/storage separation. See [Admin MCP isolation](operations/admin-mcp.md#staging-and-production-isolation).

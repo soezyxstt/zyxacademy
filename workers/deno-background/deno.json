@@ -22,6 +22,7 @@
     "fflate": "npm:fflate@^0.8.2",
     "drizzle-orm": "npm:drizzle-orm@^0.45.2",
     "drizzle-orm/": "npm:/drizzle-orm@^0.45.2/",
+    "firebase-admin/": "npm:/firebase-admin@14.3.0/",
     "@google/genai": "npm:@google/genai@^2.8.0",
     "zod": "npm:zod@4.4.3",
     "pg": "npm:pg@8.21.0",

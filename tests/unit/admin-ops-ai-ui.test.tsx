@@ -836,7 +836,7 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(html).toContain(OPS_AI_CITATION_OFFICIAL_LABEL);
       // The button text must NOT contain 'truncate' on the official label span
       expect(html).toContain(
-        `font-heading text-body-xs font-bold text-foreground block leading-snug break-words`
+        `font-sans text-body-sm font-medium text-foreground block leading-snug break-words`
       );
     });
 
@@ -856,7 +856,7 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       const html = renderToStaticMarkup(<WorkTraceView steps={sampleSteps} />);
       expect(html).toContain("Jejak Kerja Audit");
       expect(html).toContain(
-        `font-heading text-body-xs font-bold text-foreground block leading-snug break-words`
+        `font-sans text-body-sm font-medium text-foreground block leading-snug break-words`
       );
     });
 
@@ -1047,7 +1047,7 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(html).toContain("Tidak");
       expect(html).toContain('placeholder="Ketik sendiri..."');
       expect(html).toContain("h-7");
-      expect(html).toContain("text-body-xs");
+      expect(html).toContain("text-body-sm");
     });
 
     it("renders QuickActionsBar under the latest assistant proposal message in OpsAiPanel", () => {

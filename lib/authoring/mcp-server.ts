@@ -1,3 +1,17 @@
+import { mcpEnvironmentIdentity } from "./mcp-environment";
+import { registerTutorialTools } from "@/lib/admin-mcp/tutorial-tools";
+import { registerEnrollmentTools } from "@/lib/admin-mcp/enrollment-tools";
+import { registerGroupTools } from "@/lib/admin-mcp/group-tools";
+import { registerSchedulingTools } from "@/lib/admin-mcp/scheduling-tools";
+import { registerAccessTools } from "@/lib/admin-mcp/access-tools";
+import { registerCommunicationsTools } from "@/lib/admin-mcp/communications-tools";
+import { registerSystemTools } from "@/lib/admin-mcp/system-tools";
+import { registerExternalTools } from "@/lib/admin-mcp/external-tools";
+import { formsUiResources } from "@/lib/admin-mcp/forms-ui";
+import { registerFormPresetsTools } from "@/lib/admin-mcp/form-presets-tools";
+import { registerAcademicTools } from "@/lib/admin-mcp/academic-tools";
+import { registerFormsTools } from "@/lib/admin-mcp/forms-tools";
+import { registerOperationsTools } from "@/lib/admin-mcp/operations-tools";
 import { sourceReadJob } from "@/lib/authoring/source-read-jobs";
 import { sourcePageMetadata } from "@/lib/authoring/source-page-metadata";
 import { readSourceFileMetadata } from "@/lib/authoring/source-file-metadata";
@@ -104,7 +118,7 @@ import {
   clientCapabilitiesSchema,
   resolveAuthoringMcpEnvironment,
 } from "@/lib/authoring/mcp-playbook";
-import { requireMcpScope, type McpPrincipal } from "@/lib/authoring/mcp-auth";
+import { requireMcpScope, resolveMcpAdmin, type McpPrincipal } from "@/lib/authoring/mcp-auth";
 import {
   createQuizWithQuestions,
   getQuizDetail,
@@ -4208,17 +4222,41 @@ function registerQuizAssemblyTools(server: McpServer, principal: McpPrincipal): 
 }
 
 export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: string, skillsProfile: SkillCatalogProfile = "chatgpt"): McpServer {
+  const identity = mcpEnvironmentIdentity();
   const server = new McpServer(
-    { name: "zyx-authoring", version: "1.1.0" },
+    { name: `zyx-authoring-${identity.environment}`, version: "1.1.0" },
     {
       capabilities: { tools: {} },
       instructions:
-        "Panggil workflow.get_playbook sebelum memulai authoring, setiap berpindah tahap, dan saat melanjutkan run untuk mengambil playbook terbaru serta bootstrapToken bertanda tangan.",
+        `Koneksi ini adalah ${identity.environment} di ${identity.origin}. ` +
+        "Sebelum operasi admin, panggil admin.environment dan cocokkan dengan target yang diminta pengguna. Jika target belum disebutkan, pastikan target dahulu; jangan memilih production secara default. Jangan substitusi staging dan production. Operasi data wajib menyebut expectedEnvironment dan expectedOrigin. Operasi admin memakai scope eksplisit; baca revisi target dan siapkan dryRun sebelum mutasi. Untuk authoring, panggil workflow.get_playbook sebelum memulai authoring, setiap berpindah tahap, dan saat melanjutkan run untuk mengambil playbook terbaru serta bootstrapToken bertanda tangan.",
     },
   );
+  server.registerTool("admin.environment", {
+    description: "Baca identitas koneksi ini sebelum operasi. Cocokkan dengan target pengguna; jangan mengganti staging dengan production atau sebaliknya.",
+    inputSchema: {}, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async () => {
+    try {
+      await resolveMcpAdmin(principal);
+      const data = mcpEnvironmentIdentity();
+      return { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: data };
+    } catch { return { content: [{ type: "text", text: "MCP_ENVIRONMENT_UNAVAILABLE" }], isError: true }; }
+  });
+  registerTutorialTools(server, principal);
+  registerEnrollmentTools(server, principal);
+  registerFormsTools(server, principal);
+  registerFormPresetsTools(server, principal);
+  registerOperationsTools(server, principal);
+  registerAcademicTools(server, principal);
+  registerExternalTools(server, principal);
+  registerSystemTools(server, principal);
+  registerSchedulingTools(server, principal);
+  registerAccessTools(server, principal);
+  registerGroupTools(server, principal);
+  registerCommunicationsTools(server, principal);
   registerWorkflowTools(server, principal, requestId);
   registerProductV4Tools(server, principal);
-  registerAuthoringSkills(server, skillsProfile, undefined, resolveAuthoringMcpEnvironment());
+  registerAuthoringSkills(server, skillsProfile, undefined, resolveAuthoringMcpEnvironment(), formsUiResources);
   registerValidationTools(server, principal);
   registerReferenceQuestionTools(server, principal);
   registerLifecycleTools(server, principal);

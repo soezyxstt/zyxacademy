@@ -37,6 +37,8 @@ async function redirectOf(action: Promise<unknown>): Promise<URL> {
 try {
   process.env.SKIP_ENV_VALIDATION = "1";
   process.env.BETTER_AUTH_URL = origin;
+  process.env.NEXT_PUBLIC_APP_URL = origin;
+  process.env.ZYX_MCP_ENVIRONMENT = "staging";
   process.env.BETTER_AUTH_SECRET = randomBytes(32).toString("hex");
   mock.module("@/db", () => ({ db }));
   mock.module("@/lib/db", () => ({ db }));
@@ -149,7 +151,8 @@ try {
   expect((await principalFromConnectionToken(manual, resource)).userId).toBe(userId);
   await expect(principalFromConnectionToken(manual, `${resource}-other`)).rejects.toThrow("AUTHORING_MCP_INVALID_RESOURCE");
 
-  const interactive = await consent("approve", [read, stage]);
+  expect((await consent("approve", [read, stage])).searchParams.get("error")).toBe("invalid_scope");
+  const interactive = await consent("approve", [read, stage], { scope: `${read} ${stage}` });
   const interactiveToken = await redeem(interactive.searchParams.get("code")!);
   expect(readMcpConnectionToken(interactiveToken.access_token).scopes).toEqual([read, stage]);
   expect(await (await callAuthoring(interactiveToken.access_token)).json()).toEqual({ error: "INVALID_SKILLS_PROFILE" });
@@ -163,10 +166,12 @@ try {
   const otherResource = "https://other.example/api/mcp/authoring";
   expect((await silent({ resource: otherResource })).get("error")).toBe("invalid_target");
   process.env.BETTER_AUTH_URL = "https://other.example";
+  process.env.NEXT_PUBLIC_APP_URL = process.env.BETTER_AUTH_URL;
   try {
     expect((await silent({ resource: otherResource })).get("error")).toBe("consent_required");
   } finally {
     process.env.BETTER_AUTH_URL = origin;
+    process.env.NEXT_PUBLIC_APP_URL = origin;
   }
   userId = "ben"; sessionId = "ben-session";
   expect((await silent()).get("error")).toBe("consent_required");

@@ -1,3 +1,5 @@
+import { adminOperationsWorker } from "./admin-operations";
+export { adminOperationsWorker } from "./admin-operations";
 export { inngest } from "./client";
 
 export {
@@ -61,6 +63,7 @@ import { productVerificationWorker } from "./product-verification";
  * All background functions for Deno/compute Inngest execution.
  */
 export const computeFunctions = [
+  adminOperationsWorker,
   sourceReadPageWorker,
   sourceFigureWorker,
   productVerificationWorker,

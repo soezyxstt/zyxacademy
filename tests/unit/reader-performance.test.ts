@@ -9,6 +9,7 @@ import katex from "katex";
 mock.module("server-only", () => ({}));
 mock.module("next/headers", () => ({
   headers: async () => new Headers(),
+  cookies: async () => new Map(),
 }));
 
 // Set up React Server Cache Dispatcher
@@ -36,7 +37,8 @@ mock.module("react", () => ({
   ...ReactActual,
   cache: ReactServer.cache,
   default: {
-    ...ReactActual.default,
+    // Bun exposes a CommonJS default at runtime, although React types only declare named exports.
+    ...(ReactActual as unknown as { default: typeof ReactActual }).default,
     cache: ReactServer.cache,
   },
 }));
@@ -313,14 +315,14 @@ describe("KaTeX Production Renderer & Bounded Memoization", () => {
 
     // First SSR render
     const html1 = renderToStaticMarkup(
-      React.createElement(MathText, { bareMath: false }, formulaText),
+      React.createElement(MathText, { bareMath: false, children: formulaText }),
     );
     expect(html1).toContain("katex");
     expect(spy).toHaveBeenCalledTimes(1);
 
     // Second SSR render of the exact same component and formula
     const html2 = renderToStaticMarkup(
-      React.createElement(MathText, { bareMath: false }, formulaText),
+      React.createElement(MathText, { bareMath: false, children: formulaText }),
     );
     expect(html2).toBe(html1);
     // Spy count must NOT increase on cache hit
@@ -328,7 +330,7 @@ describe("KaTeX Production Renderer & Bounded Memoization", () => {
 
     // Rendering a different formula increments the spy count
     const html3 = renderToStaticMarkup(
-      React.createElement(MathText, { bareMath: false }, "$\\nabla \\times B = \\mu_0 J$"),
+      React.createElement(MathText, { bareMath: false, children: "$\\nabla \\times B = \\mu_0 J$" }),
     );
     expect(html3).toContain("katex");
     expect(spy).toHaveBeenCalledTimes(2);

@@ -507,6 +507,7 @@ export function parseCanonicalDiktatMarkdownToHtml(markdown: string, documentTit
  */
 export function compileCanonicalDiktatHtml(title: string, markdown: string): string {
   const safeTitle = escapeHtml(title);
+  const printTitle = JSON.stringify(title).replaceAll("<", "\\3c ");
   const renderedContent = parseCanonicalDiktatMarkdownToHtml(withoutRepeatedDocumentHeading(markdown), title);
 
   return `<!doctype html>
@@ -516,6 +517,12 @@ ${WATERMARK_CSS}
 @page {
   size: A4;
   margin: 22mm 15mm 18mm 15mm;
+  @top-left { content: "Zyx Academy · Diktat Belajar"; font: 600 7.5pt Arial, sans-serif; color: #64748b; }
+  @top-right { content: ${printTitle}; font: 7.5pt Arial, sans-serif; color: #64748b; }
+  @bottom-center { content: "Instagram: zyx_academy | Email: zyxforbusiness@gmail.com | WhatsApp: 0851 9475 4224 | zyxacademy.com"; font: 7pt Arial, sans-serif; color: #64748b; }
+}
+@media print {
+  body > .diktat-running-header, body > .diktat-running-footer { display: none; }
 }
 * { box-sizing: border-box; }
 
@@ -924,6 +931,9 @@ blockquote {
   color: #475569;
   font-style: italic;
 }
+
+/* Honor the explicit review-section break marker in the legacy compiler too. */
+.diktat-page-break { break-before: page; page-break-before: always; column-span: all; }
 
 /* Print Container */
 .diktat-container {

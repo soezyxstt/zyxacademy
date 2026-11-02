@@ -1,8 +1,15 @@
-import { describe, it, expect } from "bun:test";
-import { executeToolCall } from "@/lib/admin-ops-ai/tools";
-import { executeOpsAiTool } from "@/lib/admin-ops-ai/runtime-tools";
-import { introspectDbSchema } from "@/lib/admin-ops-ai/schema-introspection";
-import { db } from "@/db";
+import { describe, it, expect, mock, afterAll } from "bun:test";
+import { createPostgresTestDb } from "../helpers/postgres";
+import { user, pengguna } from "@/db/schema";
+const { client, testDb: db } = await createPostgresTestDb();
+mock.module("@/db", () => ({ db }));
+mock.module("@/lib/db", () => ({ db }));
+await db.insert(user).values({ id: "test-admin", name: "admin", email: "admin@example.test", role: "admin" });
+await db.insert(pengguna).values({ id: "test-admin" });
+afterAll(async () => { await client.close(); });
+const { executeToolCall } = await import("@/lib/admin-ops-ai/tools");
+const { executeOpsAiTool } = await import("@/lib/admin-ops-ai/runtime-tools");
+const { introspectDbSchema } = await import("@/lib/admin-ops-ai/schema-introspection");
 import { courseMaterials, chapters } from "@/db/schema";
 import { inArray, eq } from "drizzle-orm";
 
