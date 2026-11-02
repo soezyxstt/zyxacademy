@@ -24,7 +24,7 @@
     "security": "Zyx security commitments",
     "noPasswords": "Cannot access your password or Google authentication data",
     "noStudentData": "Cannot view student personal information, grades, or activity",
-    "scopeBoundary": "Operates only within the allowed authoring tools",
+    "scopeBoundary": "Access is limited to the permissions you select.",
     "target": "Target",
     "sessionDuration": "30-day session",
     "authorizing": "Authorizing…",
@@ -32,7 +32,7 @@
     "selectScope": "Select at least one permission.",
     "cancel": "Cancel",
     "deny": "Deny access",
-    "revoke": "You can revoke this integration's access at any time from the Zyx admin dashboard.",
+    "revoke": "Sign out of your Zyx session to stop this integration’s access.",
     "invalidRequest": "Invalid request parameters",
     "invalidRequestDescription": "The authorization request must include response_type=code, code_challenge_method=S256, and a valid code_challenge.",
     "unknownClient": "Client is not registered",
@@ -49,7 +49,8 @@
     "back": "Back",
     "metadataTitle": "MCP authorization",
     "metadataDescription": "Authorize a Zyx Academy Model Context Protocol integration.",
-    "defaultClientName": "MCP client"
+    "defaultClientName": "MCP client",
+    "adminData": "Response and user permissions can expose personal information."
   },
   "shell": {
     "secureMcpAuthorization": "Secure MCP authorization",

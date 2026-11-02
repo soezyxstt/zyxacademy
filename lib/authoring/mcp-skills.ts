@@ -1,5 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ErrorCode, ListResourcesRequestSchema, McpError, PaginatedRequestSchema, ReadResourceRequestSchema, type Result } from "@modelcontextprotocol/sdk/types.js";
+import { ErrorCode, ListResourcesRequestSchema, McpError, PaginatedRequestSchema, ReadResourceRequestSchema, type Result, type TextResourceContents } from "@modelcontextprotocol/sdk/types.js";
 import { resolve } from "node:path";
 import { z } from "zod";
 import { loadSkillCatalog, type SkillCatalogProfile } from "./skill-catalog";
@@ -10,7 +10,7 @@ const catalogs = new Map<SkillCatalogProfile, ReturnType<typeof loadSkillCatalog
 // The installed SDK predates skills capabilities; validate the extension without weakening its Server type.
 const skillsCapabilities = z.object({ resources: z.object({}), extensions: z.object({ "io.modelcontextprotocol/skills": z.object({}) }) }).parse({ resources: {}, extensions: { "io.modelcontextprotocol/skills": {} } });
 
-export function registerAuthoringSkills(server: McpServer, profile: SkillCatalogProfile = "chatgpt", root = resolve(process.cwd(), "dist/skills"), environment?: "staging" | "production" | "local"): void {
+export function registerAuthoringSkills(server: McpServer, profile: SkillCatalogProfile = "chatgpt", root = resolve(process.cwd(), "dist/skills"), environment?: "staging" | "production" | "local", additionalResources: readonly TextResourceContents[] = []): void {
   server.server.registerCapabilities(skillsCapabilities);
   // Load only on skill requests so a missing artifact cannot disable existing authoring tools.
   const catalog = () => {
@@ -33,11 +33,19 @@ export function registerAuthoringSkills(server: McpServer, profile: SkillCatalog
     if (!skill) throw new McpError(ErrorCode.InvalidParams, "Unknown skill URI");
     return { skill };
   });
-  server.server.setRequestHandler(ListResourcesRequestSchema, async () => ({
-    resources: [...catalog().resources.values()].map(({ uri, mimeType }) => ({ uri, name: uri.split("/").at(-1)!, mimeType })),
-  }));
+  server.server.setRequestHandler(ListResourcesRequestSchema, async () => {
+    let resources: Array<{ uri: string; name: string; mimeType?: string }>;
+    try {
+      resources = [...catalog().resources.values()].map(({ uri, mimeType }) => ({ uri, name: uri.split("/").at(-1)!, mimeType }));
+    } catch (error) {
+      // Skills remain fail-closed through skills/list and skills/get. Independent UI resources still work.
+      if (!additionalResources.length) throw error;
+      resources = [];
+    }
+    return { resources: [...resources, ...additionalResources.map(({ uri, mimeType }) => ({ uri, name: uri.split("/").at(-1)!, mimeType }))] };
+  });
   server.server.setRequestHandler(ReadResourceRequestSchema, async ({ params }) => {
-    const content = catalog().resources.get(params.uri);
+    const content = additionalResources.find(resource => resource.uri === params.uri) ?? catalog().resources.get(params.uri);
     if (!content) throw new McpError(ErrorCode.InvalidParams, "Unknown skill resource URI");
     return { contents: [content] };
   });

@@ -15,7 +15,7 @@
  * - For UTC date strings in DB columns (streaks, recommendations), use `todayUtc()`.
  */
 
-import { addDays, format, subDays, subWeeks, startOfDay as fnsStartOfDay, startOfWeek as fnsStartOfWeek } from "date-fns";
+import { addDays, format, getUnixTime, subMinutes, subDays, subWeeks, startOfDay as fnsStartOfDay, startOfWeek as fnsStartOfWeek } from "date-fns";
 
 const CALENDAR_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const JAKARTA_TIME_ZONE = "Asia/Jakarta";
@@ -461,3 +461,10 @@ export function getWeekScheduleDays(anchorDate?: Date | string): {
     days,
   };
 }
+
+/** Minute-based lease boundaries for background work. */
+export function minutesAgo(minutes: number, from: Date = new Date()): Date { return subMinutes(from, minutes); }
+
+export const SQLITE_MILLISECOND_THRESHOLD = 100_000_000_000;
+/** Normalize legacy SQLite milliseconds before comparing timestamp-second columns. */
+export function toUnixSeconds(value: Date | string | number): number { return getUnixTime(normalizeDate(value)); }

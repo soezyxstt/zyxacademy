@@ -608,3 +608,12 @@ Keep push consent denied in synthetic UI probes; do not register a remote token.
 ### Isolated hosted workflow checks
 
 Use only the guarded migration environment for `scripts/neon/smoke-booking-workflow.ts` and `scripts/neon/smoke-authoring-workflow.ts`. The booking script invokes deployed server actions and removes its synthetic records. The authoring script stages a synthetic V4 bundle, checks stale-edit and publication gates, requests real worker verification, and exercises review/publication/PDF download. It retains fixture metadata while a worker job is in flight; `--resume` continues that exact import and attempt rather than enqueuing a duplicate. `--cleanup-only` verifies saved workflow proof and terminal Inngest completion before removing its exact owned records and objects. Never delete its retained fixture while Inngest is still executing. Real Google sessions are not test fixtures and must be preserved.
+
+
+## Admin MCP local checks
+
+Status: `ACTIVE`
+
+Run focused `tests/contracts/admin-mcp-*.test.ts` files in separate Bun processes because their database mocks are process-global. PostgreSQL integration fixtures use the local PGlite helper and generated PostgreSQL migrations. The existing `authoring-skills.test.ts` also requires `bun run build:authoring-skills` to produce its locked snapshot. Keep TypeScript incremental checking enabled. Provider test doubles do not verify credentials or remote delivery. See [Admin MCP operations](operations/admin-mcp.md) for scope and job contracts.
+
+Admin MCP data tools require explicit `expectedEnvironment` and `expectedOrigin` from the intended connection identity, discovered through `admin.environment`. Do not infer application environment from `VERCEL_ENV`; a staging app can use the production deployment tier. Conflicting auth/public origins or declared environment and known hostname stop MCP initialization. See [Admin MCP isolation](operations/admin-mcp.md#staging-and-production-isolation).

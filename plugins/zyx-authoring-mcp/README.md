@@ -28,7 +28,7 @@ Do not publish either variant with the legacy MCP server ID `zyx-authoring` or `
 
 ## Thin skills and server-delivered playbooks
 
-This package includes six active authoring skills:
+This package includes six authoring skills and one admin operations skill:
 
 - `zyx-authoring-pipeline`
 - `zyx-source-pack-mcp`
@@ -36,8 +36,9 @@ This package includes six active authoring skills:
 - `zyx-product-bundle-mcp`
 - `zyx-question-authoring-mcp`
 - `reference-question-ingest`
+- `zyx-admin-operations`
 
-Each local `SKILL.md` carries only trigger metadata, environment connection identity, bootstrap protocol `1`, host subagent execution mechanics, and fail-closed safety boundaries. Detailed editorial rubrics, schema contracts, reconciliation checklists, and stage workflows are served dynamically by the MCP server through `workflow.get_playbook` and `workflow.get_contract`.
+The admin operations skill uses the explicit tool catalog, OAuth permissions, signed mutation plans, and external-operation job receipts. It does not use the authoring stage bootstrap. Each authoring `SKILL.md` carries only trigger metadata, environment connection identity, bootstrap protocol `1`, host subagent execution mechanics, and fail-closed safety boundaries. Detailed editorial rubrics, schema contracts, reconciliation checklists, and stage workflows are served dynamically by the MCP server through `workflow.get_playbook` and `workflow.get_contract`.
 
 Before drafting, validating, or submitting any artifact (and upon resuming any checkpoint), the agent must call `workflow.get_playbook` with its literal skill ID, `bootstrapProtocol: 1`, `pluginVersion: "0.4.1"`, and accurate `clientCapabilities`, then pass the returned `bootstrapToken` into `workflow.start` and stage-transition tools. If `workflow.get_playbook` fails or reports `status: "incompatible"`, the agent must stop immediately and never fall back to stale cached instructions.
 

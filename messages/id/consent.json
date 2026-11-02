@@ -24,7 +24,7 @@
     "security": "Jaminan keamanan Zyx",
     "noPasswords": "Tidak dapat mengakses kata sandi atau data autentikasi Google Anda",
     "noStudentData": "Tidak dapat melihat informasi pribadi, nilai, atau aktivitas murid",
-    "scopeBoundary": "Hanya beroperasi dalam batas alat authoring yang diizinkan",
+    "scopeBoundary": "Akses terbatas pada izin yang Anda pilih.",
     "target": "Tujuan",
     "sessionDuration": "Sesi 30 hari",
     "authorizing": "Mengotorisasi…",
@@ -32,7 +32,7 @@
     "selectScope": "Pilih minimal 1 izin.",
     "cancel": "Batalkan",
     "deny": "Tolak akses",
-    "revoke": "Anda dapat mencabut izin integrasi ini kapan saja melalui dashboard admin Zyx.",
+    "revoke": "Keluar dari sesi Zyx untuk menghentikan akses integrasi ini.",
     "invalidRequest": "Parameter permintaan tidak valid",
     "invalidRequestDescription": "Permintaan otorisasi harus menyertakan response_type=code, code_challenge_method=S256, dan parameter code_challenge yang sah.",
     "unknownClient": "Klien tidak terdaftar",
@@ -49,7 +49,8 @@
     "back": "Kembali",
     "metadataTitle": "Otorisasi MCP",
     "metadataDescription": "Otorisasi integrasi Model Context Protocol Zyx Academy.",
-    "defaultClientName": "Klien MCP"
+    "defaultClientName": "Klien MCP",
+    "adminData": "Izin respons dan pengguna dapat membuka informasi pribadi."
   },
   "shell": {
     "secureMcpAuthorization": "Otorisasi MCP yang aman",

@@ -562,3 +562,9 @@ falls back automatically, and provider release failures remain ungradable.
 Runtime package assets and Worker/frame files
 are included in Next output tracing. See [coding contract](coding-foundation.md).
 Local implementation/testing does not establish remote rollout or credentials.
+
+## Admin MCP deployment boundary
+
+Status: `OPEN / IN PROGRESS`
+
+The local Admin MCP expansion has not been deployed. Inspect the exact target before an authorized PostgreSQL migration 0003. Deploy web and Deno worker from the same revision; the worker registers the admin outbox through the existing Inngest registry. Provider jobs require the matching environment identity and existing Google, Firebase and storage credentials. Do not introduce a separate feature flag: new permissions require explicit OAuth scope consent, and old tokens retain their grants. The local admin plugin skill is a candidate; promoting the separate pinned skills repository and verifying host import are separate release steps. See [Admin MCP operations](operations/admin-mcp.md) for remaining parity and verification.

@@ -10,7 +10,7 @@ The `ACTIVE` architecture guide records request-scoped session and read deduplic
 
 The `ACTIVE` architecture guide records integer PNG dimensions, source checksum metadata, explicit PDF page citations, and visual review markers for damaged extracted text. The source playbook includes polling fallback for stale connector catalogs.
 
-The `ACTIVE` architecture, deployment, development, and feature guides document all four MCP OAuth default scopes, all four consent checkboxes even for narrower client requests, and reauthorization for existing tokens.
+The `ACTIVE` architecture, deployment, development, and feature guides document all four MCP OAuth default scopes, consent limited to requested scopes and explicit admin scope grants, and reauthorization for existing tokens.
 
 The `ACTIVE` development, architecture, and Product Bundle V3 guides document R2-backed MCP PDF page images, deterministic course/document/checksum folders, citation metadata, the page-read stage-scope requirement, the compute text/PNG cache keyed by document checksum, page, renderer revision, and resolution, plus text/image representation, request timings, per-page Inngest jobs and polling, and resumable signed binary downloads. The `ACTIVE` deployment guide records worker registration and remote Range verification required for this always-on change.
 
@@ -179,3 +179,23 @@ To prevent confusion when navigating code or documentation, the active vs legacy
 5. **Accurate Cross-Linking**: Ensure all markdown links use relative paths that correctly resolve from the referencing file.
 
 | Authoring MCP distribution and playbooks | [authoring-mcp-distribution-and-playbooks.md](../plans/authoring-mcp-distribution-and-playbooks.md) | `OPEN / IN PROGRESS` | Local review fixes validated by 95 Bun contracts, 11 Python tests, a production build with local fixtures, and 15 traced playbook assets. Repository lint/typecheck still have unrelated errors; HTTP smoke, CP5 host verification, and CP6 rollout remain open. |
+
+| [operations/admin-mcp.md](operations/admin-mcp.md) | Admin MCP | `OPEN / IN PROGRESS` | 2026-11-02 | Exact operational tool catalog, scoped transaction and outbox contracts, local verification and remaining parity/rollout boundaries. |
+
+Admin MCP changes also update `DB_SCHEMA.md`, `DEVELOPMENT.md`, `DEPLOYMENT.md`, `features.md`, `ARCHITECTURE.md` and `operations/authoring-mcp-skills.md`; their existing active registry status remains applicable.
+
+Local verification for the active Admin MCP work includes isolated academic and communications integration checks; production compilation remains unverified after SIGKILL. The Admin MCP operations record stays `OPEN / IN PROGRESS`.
+
+Admin MCP scope decision: PKA is excluded from the expansion; its new MCP tools, grants and worker broadcast additions have been removed. Existing PKA implementation remains unchanged. The operations record stays `OPEN / IN PROGRESS`.
+
+The Admin MCP operations catalog now reflects the PKA exclusion and includes a transport guard against advertising PKA tools.
+
+Admin MCP staging adaptation is `OPEN / IN PROGRESS`: existing capabilities are retained while adopting PostgreSQL migrations, native timestamp filters, canonical admin/consent checks and active storage selection from `a67a4744`. Updated operations, schema, development, deployment, feature and architecture records distinguish prior SQLite checks from pending staging compatibility. No new worker service is introduced.
+
+Admin MCP adaptation to current staging passed 84 focused checks across 19 isolated processes and the application incremental TypeScript check. The operations record remains `OPEN / IN PROGRESS` for unverified deployment/provider boundaries and intentionally deferred UI-only operations.
+
+Admin MCP local staging adaptation validation is complete: incremental application TypeScript, lint, static worker import audit and 84 focused tests passed. Deployment, real host and provider acceptance remain open in `operations/admin-mcp.md`.
+
+Admin MCP isolation contract in `operations/admin-mcp.md` is `ACTIVE`: server environment identity, mandatory target matching for data tools, origin-bound plans/jobs, and fail-closed configuration. Real remote/harness acceptance is still unverified.
+
+Admin MCP isolation validation: local negative scenarios, target-aware transport, TypeScript, lint, plugin packaging and worker dependency checks passed. Public staging/production OAuth metadata advertised separate canonical resources. Runtime database/storage targets, authenticated staging harness access and rollout remain unverified. The features, development and operations records reflect these boundaries.

@@ -51,6 +51,15 @@ export const WorkerEnvSchema = z.object({
   R2_ACCESS_KEY_ID: optionalString,
   R2_SECRET_ACCESS_KEY: optionalString,
 
+  // Admin external-operation providers
+  GOOGLE_CLIENT_ID: optionalString,
+  GOOGLE_CLIENT_SECRET: optionalString,
+  GOOGLE_REFRESH_TOKEN: optionalString,
+  FIREBASE_SERVICE_ACCOUNT_JSON: optionalString,
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: optionalString,
+  FEATURE_DRIVE_EDITOR_SYNC: optionalString,
+  BETTER_AUTH_URL: optionalUrl,
+
   // Services
   RESEND_API_KEY: optionalString,
   NEXT_PUBLIC_BRAND_EMAIL: optionalString,
