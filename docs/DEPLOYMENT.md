@@ -3,20 +3,20 @@
 ## Cloud Run staging
 
 The [Cloud Run staging runbook](operations/cloud-run-staging.md) is `ACTIVE` for project `zyx-academy` in Taiwan (`asia-east1`). Staging serves Neon PostgreSQL and private Neon object storage following a verified frozen import. Its Deno worker uses the same guarded target. Target identity, hosted acceptance and rollback evidence are in the [migration runbook](operations/neon-migration.md).
-The separate Vercel migration project remains a rehearsal. Production remains on Turso and R2; the topology below describes that production deployment.
+The separate Vercel migration project is paused after rehearsal. Production Vercel now serves its own Neon PostgreSQL branch and private Neon object storage.
 
-Production Neon cutover is `OPEN / IN PROGRESS`; follow [the production runbook](operations/neon-production-cutover.md). Its dedicated target is prepared, but production runtime settings and traffic must remain on Turso/R2 until the frozen-cutover gates pass. The prepared release adds exact-target checks to both Vercel and Deno deployment paths.
+The production cutover is complete; follow [the active production runbook](operations/neon-production-cutover.md) for targets, evidence and recovery boundaries. Vercel and Deno use the protected production root and private `zyx-production` bucket. Both deployment paths reject a mismatched target. Source Turso/R2 and the old deployment unit remain available for recovery, subject to reconciliation of any Neon writes.
 
 ## Architecture
 
-Production runs on Vercel (Next.js) + Turso (DB) with Deno Deploy (background compute) and supporting Cloudflare services.
+Production runs on Vercel (Next.js) + Neon PostgreSQL and Object Storage, with Deno Deploy (background compute) and supporting Cloudflare services. Vercel builds remotely so existing sensitive environment variables remain available without downloading their values.
 
 ```
 Vercel (Next.js App Router)
- â”œâ”€â”€ Turso (libsql database)
+ â”œâ”€â”€ Neon PostgreSQL (production root)
  â”œâ”€â”€ Inngest Cloud (background orchestration)
  â”‚    â””â”€â”€ Deno Deploy (background worker: zyx-background / zyx-background-staging)
- â”œâ”€â”€ Cloudflare R2 (object storage)
+ â”œâ”€â”€ Neon Object Storage (private production bucket)
  â”œâ”€â”€ Cloudflare AI Gateway (Gemini proxy)
  â”œâ”€â”€ Cloudflare Vectorize (canonical 768-dimensional vector store)
  â””â”€â”€ Cloudflare Workers (3 production services plus the staging-only Zyra control plane)
