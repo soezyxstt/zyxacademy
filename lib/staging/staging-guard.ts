@@ -135,7 +135,7 @@ function hashResource(key: StagingResourceKey, value: string): string {
     .slice(0, 16);
 }
 
-function isAllowlistedStagingResource(key: StagingResourceKey, value: string): boolean {
+export function isAllowlistedStagingResource(key: StagingResourceKey, value: string): boolean {
   const normalized = normalizeResource(value);
   return (STAGING_ALLOWLIST[key] ?? []).some((allowed) => normalizeResource(allowed) === normalized);
 }
