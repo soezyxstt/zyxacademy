@@ -1,17 +1,19 @@
 # Database Guide
 
-This branch is an isolated PostgreSQL migration rehearsal. Production and staging remain on Turso. See [the migration runbook](operations/neon-migration.md) for its target and current evidence. The environment table below describes the existing deployments.
+Staging now uses Neon PostgreSQL; production remains on Turso. See [the migration runbook](operations/neon-migration.md) for exact targets and cutover evidence. The PostgreSQL adapter does not fall back to Turso or a local SQLite file.
 
-The separate staging preparation target is Neon project `muddy-sky-44104897`, branch `br-holy-snow-azveniaa` (`staging-neon-20261102`), database `neondb`, with private bucket `zyx-staging`. Target credentials are in ignored `.env.neon-staging`; `.env.neon-staging-source` also contains the guarded staging source and private reconciliation key. Use the verified direct PostgreSQL endpoint for imports. The importer keeps its transaction active during sequential source metadata reads and never retries an ambiguous commit automatically. Existing staging traffic still uses its Turso/R2 configuration.
+The serving staging target is Neon project `muddy-sky-44104897`, branch `br-gentle-scene-azq0gp91` (`staging-neon-cutover-20261102`), database `neondb`, with its own private `zyx-staging` bucket. Target credentials are in ignored `.env.neon-staging-cutover`; `.env.neon-staging-cutover-source` also contains the guarded staging source and private reconciliation key. Use the verified direct PostgreSQL endpoint for imports and the pooled endpoint for application traffic. Frozen imports can consume a signed local source snapshot; the importer never retries an ambiguous commit automatically. The earlier branch `br-holy-snow-azveniaa` remains a separate preparation target.
 
 ## Stack
 
 | Environment | Engine | URL pattern |
 |---|---|---|
-| Development | SQLite (`dev.db`) | `file:dev.db` |
+| Development and CI on this branch | PostgreSQL | `postgresql://...` |
+| Legacy development before migration | SQLite (`dev.db`) | `file:dev.db` |
+| Staging | Neon PostgreSQL | Guarded pooled PostgreSQL URL |
 | Production | Turso (distributed SQLite) | `libsql://...` or `DATABASE_URL` |
 
-Those environments describe existing deployments. On this branch `lib/db/index.ts` connects to PostgreSQL using `DATABASE_URL`.
+On this branch `lib/db/index.ts` connects to PostgreSQL using `DATABASE_URL`. Production still runs its previous Turso-compatible code.
 
 ## Migration Workflow
 

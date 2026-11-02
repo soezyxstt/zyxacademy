@@ -1,9 +1,9 @@
 # Deployment Guide
 
-## Proposed Cloud Run staging setup
+## Cloud Run staging
 
-The [Cloud Run staging runbook](operations/cloud-run-staging.md) is `OPEN / IN PROGRESS` for project `zyx-academy` in Taiwan (`asia-east1`). Staging currently serves from Cloud Run. The Neon integration preserves its deployment workflow; database and storage cutover remain gated on integrated validation and a frozen source reconciliation.
-An isolated Neon migration is in progress. Its separate Vercel project is not a staging or production cutover. Target identity, status and gates are in the [migration runbook](operations/neon-migration.md). The topology below describes the existing production deployment.
+The [Cloud Run staging runbook](operations/cloud-run-staging.md) is `ACTIVE` for project `zyx-academy` in Taiwan (`asia-east1`). Staging serves Neon PostgreSQL and private Neon object storage following a verified frozen import. Its Deno worker uses the same guarded target. Target identity, hosted acceptance and rollback evidence are in the [migration runbook](operations/neon-migration.md).
+The separate Vercel migration project remains a rehearsal. Production remains on Turso and R2; the topology below describes that production deployment.
 
 ## Architecture
 

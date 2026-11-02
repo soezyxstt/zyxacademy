@@ -1,6 +1,8 @@
 # Zyx Database Schema Reference
 
-This document catalogs the application schema. On this isolated migration branch, [db/schema.ts](../db/schema.ts) defines PostgreSQL tables and `drizzle-postgres/` contains their generated migrations. Existing production and staging still use SQLite/Turso.
+This document catalogs the application schema. Staging uses the PostgreSQL tables in [db/schema.ts](../db/schema.ts) and generated migrations in `drizzle-postgres/`. Production retains its previous SQLite/Turso schema and code.
+
+Legacy SQLite SQL and storage-type descriptions below remain historical reference. Use `db/schema.ts` and `drizzle-postgres/` for exact staging column types and constraints.
 
 ---
 
