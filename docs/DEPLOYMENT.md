@@ -35,7 +35,16 @@ Background execution is handled by Deno Deploy, orchestrated via Inngest. Deploy
 
 ### Automated Pipeline Capabilities
 
-The deployment workflow performs the following actions automatically on push (filtered to worker-relevant paths) or manual `workflow_dispatch`:
+The central `.github/workflows/ci.yml` planner calls the reusable deployment
+workflow only for worker dependencies or V4 fingerprint inputs on push, after
+selected checks pass. Direct manual `workflow_dispatch` remains available on
+`main` and `staging`. For a V4-only release, worker import/typecheck/asset checks
+are skipped because the worker import graph is unchanged; its build identity is
+still regenerated and deployed. A worker-code release retains those checks.
+Push impact is measured from the last successful CI release, so replacing a
+pending run does not lose its worker changes. The gate rejects a superseded
+branch head before deployment. See [CI scope and incremental checks](DEVELOPMENT.md#ci-scope-and-incremental-checks).
+The deployment workflow performs the following actions:
 1. **Pre-deploy Verification**: Runs `worker:deno:audit` (dependency tree guard) and `worker:deno:check` (typecheck). Before deployment, `workers/deno-background/diktat-assets-smoke.ts` also verifies embedded KaTeX fonts and the contact footer with the worker import map, a dummy database URL, and no network permission.
 2. **Dynamic Provisioning**: Automatically provisions the Deno Deploy app via `deno deploy create` if it does not already exist.
 3. **Environment Sync**: Synchronizes all repository and environment secrets to Deno Deploy via `deno deploy env load --replace`.
@@ -78,7 +87,9 @@ The read-only `/v4` page presents a version-specific Article preview and its ins
 
 ### Web builds in GitHub Actions
 
-`.github/workflows/deploy-web.yml` retains the production Vercel prebuilt job for
+The central CI planner calls `.github/workflows/deploy-web.yml` only for web
+inputs on push, after the selected checks pass. The reusable workflow also keeps
+manual dispatch and retains the production Vercel prebuilt job for
 `main`. Its `staging-image` job builds branch `staging` with Node 24 and Bun 1.3.14,
 then packages the standalone output in `Dockerfile.cloud-run`, smoke tests it,
 and pushes an immutable commit-tagged image to

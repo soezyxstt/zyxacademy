@@ -29,9 +29,103 @@ and Variables during deployment, using the explicit runtime allowlist and a
 private temporary environment file. They are not embedded in the image. Existing
 unmanaged settings and unreplaced Secret Manager references remain available. Follow the
 [Cloud Run staging runbook](operations/cloud-run-staging.md) before running the
-workflow or changing the staging origin. After one-time service/secret setup, each staging push deploys the exact
+workflow or changing the staging origin. After one-time service/secret setup, each eligible staging push deploys the exact
 published digest and switches traffic only after readiness checks. Cloud Build
 is not used.
+
+## CI scope and incremental checks
+
+`.github/workflows/ci.yml` owns general automatic runs: pull requests, and pushes to
+`main` or `staging`. Other validation and deployment workflows expose
+`workflow_call` and their existing manual operations. They no longer start a
+second automatic run for the same event. No branch protection settings are
+modified by the repository change. Configure `CI gate` as the universally required
+check; individual conditional jobs may legitimately be skipped. The specialized
+Authoring access security checks and migration-only Neon validation from staging
+retain their existing triggers and environment boundaries.
+
+The first job runs `scripts/ci/plan.py` with Python's standard library. It installs
+no application packages. Checkout uses two commits; a multi-commit push fetches
+only the exact base SHA when needed. PR comparisons use the target base and the
+checked-out merge commit. Push comparisons use the last successful `ci.yml` push
+run on the same branch and the pushed SHA. A cancelled pending run or a failed
+release cannot advance this baseline, so its undeployed changes remain in the
+next plan. The planner reads GitHub Actions history with read-only permissions;
+missing or inaccessible history selects all checks. Reruns never use their own
+SHA as an empty baseline. The
+planner uses a NUL-separated Git diff with rename detection disabled, so both
+old and new names are considered without GitHub path filters' file-count limits.
+It combines dependency graphs from both revisions, including removed imports.
+Missing history selects all checks. An unreadable current V4 manifest fails the
+planner instead of returning an empty plan.
+
+| Changed input | Selected work |
+| --- | --- |
+| Ordinary frontend component | Application typecheck, lint changed files, tests and test compilation affected through imports; web release on push |
+| Worker-only entry or module | Deno dependency audit, typecheck and asset smoke on PR; worker release on push; no web release unless the file is also a web dependency |
+| V4 renderer or fingerprinted CSS | V4 binding/verification contracts; coordinated web and worker releases on push; worker import checks only if worker code is also affected |
+| Schedule implementation or dependency | Schedule contracts and booking integration, including dependencies such as tutor audit helpers |
+| Authoring implementation or dependency | Both locked skills distributions and authoring contracts |
+| Plugin distribution | Python distribution checks; mirroring still requires the explicit manual plugin operation |
+| Another worker project | Its own TypeScript configuration and local Bun tests; Python runtime gets Node syntax checks; no background-worker or web deployment by directory alone |
+| Documentation | Web release for operations knowledge; no compiler checks from prose alone |
+| Plans or Android files | Planner and gate only, unless a code graph actually references the changed file |
+| Root dependency locks or planner implementation | All checks, conservatively |
+
+Scopes overlap intentionally for shared dependencies. The scanner follows literal
+static/dynamic imports, exports and `require`. Literal repository references in
+source-inspection tests are leaves: changing an inspected file selects its test,
+but changing an import inside that file does not execute a text-only contract.
+Runtime-discovered worker jobs, schedule and authoring areas have explicit
+directory guards. Prompts are selected through their import graph; a web-only
+prompt does not trigger Deno. V4 byte inputs come from `PRODUCT_V4_RUNTIME_FILES`
+and playbooks. Keep that manifest current when extending renderer fingerprints.
+The web scope deliberately includes all `lib/` and documentation because runtime
+discovery and operations knowledge are not fully described by imports. This is
+conservative impact selection, not a claim to resolve arbitrary computed imports.
+New computed loading mechanisms need a matching directory guard and regression case.
+
+The plan is saved as the short-lived `ci-plan` artifact, with changed files,
+matching dependencies, selected tests and compiler inputs. Run locally with:
+
+```bash
+bun run ci:plan --base <base-sha> --head HEAD
+python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
+```
+
+The quality job installs dependencies once with a frozen lockfile. It lints only
+changed surviving files using a content-based cache; ESLint configuration or planner changes select full lint.
+Bun tests are selected through dependency closures and run in separate processes
+to isolate `mock.module`. Contract files use `scripts/test-contracts.ts`, preserving
+staging's PostgreSQL preload, isolated environment and database fixtures. Other
+test files continue to run directly with Bun. Schedule and authoring tests stay in their established
+workflows and are excluded from the generic runner. Test compilation uses a
+generated configuration containing affected tests and their complete import
+closure. A test-config change selects all tests for compilation. The explicit
+`bun run typecheck:tests` command remains the full test-project check.
+
+`bun run typegen` generates Next.js route types without building. Application,
+test, affected-test and structured Article checks keep isolated incremental
+metadata under `.cache/typecheck/`, separate from Next.js build metadata.
+Other worker projects also get their own metadata file. CI restores compiler and
+ESLint metadata with keys tied to the lockfile/configuration and commit, with a
+compatible prefix fallback. Compiler checks still validate their full selected
+project; a cache hit never skips a command. Delete `.cache/typecheck/` for a fresh
+standalone check. Changing `tsconfig.structured-articles.json`, its configured
+source dependency closure, or the base TypeScript config selects
+`typecheck:structured-articles`; a specialized-config-only change runs that
+compiler and type generation without deployments.
+
+Bun downloads and Deno caches are reused. `node_modules`, credentials, environment
+files and deployment outputs are not cached by these changes. Authoring validates
+staging and production sequentially with one install, running shared quiz contracts
+once. PR runs may cancel superseded checks. Push releases and explicit plugin
+mirrors are not interrupted. Deployment jobs wait for the gate and run only on
+push; PRs and manual CI runs cannot deploy. Immediately before deployment, the
+gate reads the branch ref and fails if it advanced. That superseded run cannot
+become a successful release baseline. Concurrency still serializes active
+releases; pending runs may be replaced without losing their undeployed changes. Direct manual deployment workflows
+remain available. The historical PR 36 code-writing repair is manual-only.
 
 ## Available Commands
 
@@ -41,7 +135,9 @@ is not used.
 | `bun run build` | Production build |
 | `bun run start` | Start production server |
 | `bun run lint` | Run ESLint |
-| `bun run typecheck` | bunx tsc --noEmit |
+| `bun run typegen` | Generate route types without a production build |
+| `bun run typecheck` | Incremental application typecheck with isolated metadata |
+| `bun run typecheck:tests` | Check the complete test project |
 | `bun run typecheck:structured-articles` | Type check the structured Article contracts and compiler core only |
 | `bun run test` | Run all Bun test suites |
 | `bun run test:ai-contracts` | Run deterministic AI contract tests (`tests/contracts`) |
