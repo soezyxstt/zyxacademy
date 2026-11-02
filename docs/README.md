@@ -115,6 +115,8 @@ Every document in this repository has one of the following explicit statuses:
 
 ---
 
+| [audit/production-playground-css-20261102.md](audit/production-playground-css-20261102.md) | Audit | `OPEN / IN PROGRESS` | 2026-11-02 | Production lacks editor color tokens despite matching source; clean local CSS probes pass, Vercel cache diagnosis and fresh deployed verification remain open. |
+
 ## 4. Plans Cross-Reference
 
 Implementation plans reside in `plans/` with detailed specifications:
@@ -177,3 +179,7 @@ To prevent confusion when navigating code or documentation, the active vs legacy
 5. **Accurate Cross-Linking**: Ensure all markdown links use relative paths that correctly resolve from the referencing file.
 
 | Authoring MCP distribution and playbooks | [authoring-mcp-distribution-and-playbooks.md](../plans/authoring-mcp-distribution-and-playbooks.md) | `OPEN / IN PROGRESS` | Local review fixes validated by 95 Bun contracts, 11 Python tests, a production build with local fixtures, and 15 traced playbook assets. Repository lint/typecheck still have unrelated errors; HTTP smoke, CP5 host verification, and CP6 rollout remain open. |
+
+The `ACTIVE` deployment, development, and feature guides document shared staging and production Python terminal access, environment-bound tickets, and coordinated ticket-key rotation.
+
+| Production Playground CSS | [audit/production-playground-css-20261102.md](audit/production-playground-css-20261102.md) | `OPEN / IN PROGRESS` | Missing served editor tokens confirmed; cache hypothesis awaits a fresh production build and authenticated visual verification. |

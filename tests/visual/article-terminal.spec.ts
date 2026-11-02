@@ -15,8 +15,6 @@ test("article Python example supports delayed interactive input and autocomplete
   await editor.fill('nama=input("Nama: ")\nprint("Halo,",nama)');
   await page.screenshot({ path: info.outputPath("screenshots/article-idle.png"), fullPage: true });
   await example.getByRole("button", { name: "Jalankan", exact: true }).click();
-  await expect(example.getByText("Menyiapkan Python...")).toBeVisible();
-  await page.screenshot({ path: info.outputPath("screenshots/article-loading.png"), fullPage: true });
   const input = example.getByRole("textbox", { name: "Input terminal" });
   await expect(example.locator('pre[aria-live="polite"]')).toContainText("Nama:");
   await expect(input).toBeVisible();

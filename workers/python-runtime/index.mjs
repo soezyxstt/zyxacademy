@@ -6,8 +6,10 @@ import { startPython, reconcileSandbox } from "./shared-runtime.mjs";
 
 export function createServerApp({ secret = process.env.PYTHON_RUNTIME_TOKEN_SECRET, origin = process.env.PYTHON_RUNTIME_ORIGIN, daytonaApiKey = process.env.DAYTONA_API_KEY, sandboxId = process.env.DAYTONA_SANDBOX_ID, assets = {}, launch = startPython, reconcile = reconcileSandbox, testReady = false, warmTtlMs = 60000 } = {}) {
   const key = typeof secret === "string" && /^[A-Za-z0-9_-]{43,}$/.test(secret) ? Buffer.from(secret, "base64url") : Buffer.alloc(0);
-  const configured = key.length >= 32 && Boolean(origin) && typeof daytonaApiKey === "string" && Boolean(daytonaApiKey.trim()) && typeof sandboxId === "string" && Boolean(sandboxId.trim());
-  let ready = key.length >= 32 && Boolean(origin) && testReady;
+  const origins = new Set(typeof origin === "string" ? origin.split(",").map(value => value.trim()) : []);
+  const validOrigins = origins.size > 0 && [...origins].every(value => { try { const url = new URL(value); return url.protocol === "https:" && url.origin === value; } catch { return false; } });
+  const configured = key.length >= 32 && validOrigins && typeof daytonaApiKey === "string" && Boolean(daytonaApiKey.trim()) && typeof sandboxId === "string" && Boolean(sandboxId.trim());
+  let ready = key.length >= 32 && validOrigins && testReady;
   const nonces = new Map();
   const clients = new Set();
   let warmClient;
@@ -24,7 +26,7 @@ export function createServerApp({ secret = process.env.PYTHON_RUNTIME_TOKEN_SECR
     void attempt();
   });
   const wss = new WebSocketServer({ noServer: true, maxPayload: 70000, perMessageDeflate: false, handleProtocols: (protocols) => protocols.has("zyx-v1") ? "zyx-v1" : false });
-  function verify(raw) {
+  function verify(raw, requestOrigin) {
     if (!raw || raw.length > 1200) return false;
     const [body, signature, extra] = raw.split(".");
     if (extra !== undefined || !/^[A-Za-z0-9_-]+$/.test(body || "") || !/^[A-Za-z0-9_-]+$/.test(signature || "")) return false;
@@ -33,7 +35,8 @@ export function createServerApp({ secret = process.env.PYTHON_RUNTIME_TOKEN_SECR
     if (supplied.length !== expected.length || !timingSafeEqual(expected, supplied)) return false;
     let ticket; try { ticket = JSON.parse(Buffer.from(body, "base64url").toString("utf8")); } catch { return false; }
     const now = Math.floor(Date.now() / 1000);
-    if (ticket.aud !== "zyx-python-staging" || !Number.isSafeInteger(ticket.exp) || ticket.exp <= now || ticket.exp > now + 90 || typeof ticket.jti !== "string" || !/^[A-Za-z0-9_-]{22,80}$/.test(ticket.jti)) return false;
+    const audience = ["https://www.zyxacademy.com", "https://zyxacademy.com"].includes(requestOrigin) ? "zyx-python-production" : "zyx-python-staging";
+    if (ticket.aud !== audience || !Number.isSafeInteger(ticket.exp) || ticket.exp <= now || ticket.exp > now + 90 || typeof ticket.jti !== "string" || !/^[A-Za-z0-9_-]{22,80}$/.test(ticket.jti)) return false;
     for (const [jti, exp] of nonces) if (exp <= now) nonces.delete(jti);
     if (nonces.has(ticket.jti) || nonces.size >= 10000) return false;
     nonces.set(ticket.jti, ticket.exp);
@@ -45,7 +48,7 @@ export function createServerApp({ secret = process.env.PYTHON_RUNTIME_TOKEN_SECR
     if (++attempts > 60) { socket.write("HTTP/1.1 429 Too Many Requests\r\nConnection: close\r\n\r\n"); socket.destroy(); return; }
     const protocols = (req.headers["sec-websocket-protocol"] || "").split(",").map((value) => value.trim());
     const tokens = protocols.filter((p) => p.startsWith("ticket."));
-    if (!ready || req.url !== "/v1/terminal" || req.headers.origin !== origin || !protocols.includes("zyx-v1") || tokens.length !== 1 || !verify(tokens[0].slice(7))) { socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n"); socket.destroy(); return; }
+    if (!ready || req.url !== "/v1/terminal" || !origins.has(req.headers.origin) || !protocols.includes("zyx-v1") || tokens.length !== 1 || !verify(tokens[0].slice(7), req.headers.origin)) { socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n"); socket.destroy(); return; }
     if (clients.size >= 2) { if (!protocols.includes("zyx-warm") && warmClient) warmClient.terminate(); socket.write("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n"); socket.destroy(); return; }
     wss.handleUpgrade(req, socket, head, (ws) => { clients.add(ws); wss.emit("connection", ws, { warm: protocols.includes("zyx-warm") }); });
   });
