@@ -76,6 +76,12 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 
 ## Core Pipelines
 
+### Admin documentation
+
+- `/admin/docs` provides an admin-only searchable guide and linked articles covering course identity, material and video naming, access, assessment, operations, and agent authoring. The admin layout enforces access; the page is always available to admins.
+- Guide content is authored in Indonesian. English interface controls indicate the current content language. Operational instructions distinguish application validation from team conventions and must be reviewed against the current code and runtime contract when workflows change.
+- The documentation navigation lists guides and their sections on every `/admin/docs` page. It appears as a right sidebar on wide screens and a right-side sheet on smaller screens. Section links include a URL fragment for direct access.
+
 ### Site-wide command search
 
 - `Ctrl+K` or `Cmd+K` opens the site-wide command search. Results combine the local index with authenticated API matches, then apply deterministic lexical ranking so exact titles, complete token matches, and matching numbers appear before semantic neighbors.

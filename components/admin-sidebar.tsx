@@ -145,6 +145,7 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
 
   // Alat & Komunikasi
   { id: "pricing", label: "Kalkulator Harga", href: "/admin/pricing", icon: Calculator, group: "alat" },
+  { id: "docs", label: "Dokumentasi", href: "/admin/docs", icon: BookOpen, group: "alat" },
   { id: "forms", label: "Form Studio", href: "/admin/forms", icon: FilePen, group: "alat" },
   { id: "meet", label: "Meet", href: "/admin/meet", icon: Video, group: "alat" },
   { id: "media", label: "Pustaka Media", href: "/admin/media", icon: ImageIcon, group: "alat" },
@@ -176,7 +177,7 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
 
 const ADMIN_TAB_MESSAGE_KEYS: Record<string, string> = {
   dashboard: "dashboard", blog: "blog", courses: "courses", schedules: "schedules",
-  "bank-soal": "questionBank", pricing: "pricing", forms: "forms", meet: "meet",
+  "bank-soal": "questionBank", pricing: "pricing", docs: "docs", forms: "forms", meet: "meet",
   media: "media", tautan: "publicLinks", users: "users", groups: "groups", tokens: "tokens",
   notifications: "notifications", "ops-monitor": "opsMonitor", "tutor-activity": "tutorActivity",
   "feature-flags": "featureFlags", "ai-analytics": "zyraAnalytics", "feature-usage": "featureUsage",
@@ -632,6 +633,7 @@ function AdminSidebarInner() {
             })}
           </div>
 
+          <NavItem href="/admin/docs" icon={BookOpen} label={t("docs")} active={false} collapsed={c} />
           <div className="flex-1" />
         </nav>
       );
