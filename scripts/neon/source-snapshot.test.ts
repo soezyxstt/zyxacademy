@@ -42,6 +42,21 @@ test("without rowid and snapshot table bound", () => {
   expect(() => snapshotSql(Array.from({length:500}, (_, i) => ({...table,name:`t${i}`})))).toThrow("TOO_MANY_SNAPSHOT_TABLES");
 });
 
+test("real values round-trip without JSON's default precision loss or overflow", () => {
+  const db = new Database(":memory:");
+  try {
+    db.exec("CREATE TABLE item (value REAL)");
+    const values = [1.2345678901234567, 1 / 3, Number.MIN_VALUE, Number.MAX_VALUE, -Number.MAX_VALUE, 0.1];
+    const insert = db.prepare("INSERT INTO item VALUES (?)");
+    try { for (const value of values) insert.run(value); } finally { insert.finalize(); }
+    const table: Table = { name: "item", sql: "CREATE TABLE item (value REAL)", columns: [{ name: "value", type: "REAL", pk: 0, hidden: 0 }], rowid: "rowid" };
+    const rows = db.query(snapshotSql([table])).all() as { name: string; data: string }[];
+    const decoded = JSON.parse(rows.find(row => row.name === "item")!.data).map((row: unknown[]) => decodeValue(row[0]));
+    expect(decoded).toEqual(values);
+    expect(() => decodeValue(["real", "9e999"])).toThrow("INVALID_SNAPSHOT_VALUE");
+  } finally { db.close(); }
+});
+
 test("one VALUES statement snapshots more than 100 tables without a compound SELECT", () => {
   const db = new Database(":memory:");
   try {

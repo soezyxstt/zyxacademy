@@ -55,7 +55,8 @@ export function planTables(metadata: MetadataRow[], infos: Map<string, Column[]>
     return { name, sql, columns, rowid };
   });
 }
-const encoded = (expr: string) => `json_array(typeof(${expr}),CASE typeof(${expr}) WHEN 'integer' THEN CAST(${expr} AS TEXT) WHEN 'blob' THEN hex(${expr}) ELSE ${expr} END)`;
+// JSON's default number formatting loses precision, so numeric values travel as text.
+const encoded = (expr: string) => `json_array(typeof(${expr}),CASE typeof(${expr}) WHEN 'integer' THEN CAST(${expr} AS TEXT) WHEN 'real' THEN printf('%!.17g',${expr}) WHEN 'blob' THEN hex(${expr}) ELSE ${expr} END)`;
 export function snapshotSql(tables: Table[]): string {
   const selected = tables.filter((t) => !AUTH_TABLES.has(t.name) && t.name !== "__drizzle_migrations");
   if (selected.length + 1 > 500) throw new Error("TOO_MANY_SNAPSHOT_TABLES");
@@ -70,7 +71,7 @@ export function decodeValue(value: unknown): string | number | bigint | Uint8Arr
   if (type === "integer" && typeof v === "string" && /^-?(0|[1-9][0-9]*)$/.test(v)) { const n = BigInt(v); if (n >= -(1n << 63n) && n < (1n << 63n)) return n; }
   if (type === "blob" && typeof v === "string" && /^(?:[0-9A-F]{2})*$/.test(v)) return Buffer.from(v, "hex");
   if (type === "text" && typeof v === "string") return v;
-  if (type === "real" && typeof v === "number" && Number.isFinite(v)) return v;
+  if (type === "real" && typeof v === "string" && /^-?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:e[+-]?[0-9]+)?$/i.test(v) && Number.isFinite(Number(v))) return Number(v);
   throw new Error("INVALID_SNAPSHOT_VALUE");
 }
 

@@ -47,6 +47,7 @@ async function main() {
   const sourceAddress = new URL(sourceUrl);
   if (sourceAddress.protocol !== "libsql:" || sourceAddress.hostname !== required("TURSO_EXPECTED_HOST").toLowerCase()) throw new Error("SOURCE_IDENTITY_MISMATCH");
   const snapshot = process.env.NEON_SOURCE_SNAPSHOT;
+  let sourceSnapshotSha256: string | undefined;
   let source: ReturnType<typeof createClient>;
   if (snapshot) {
     if (required("NEON_SOURCE_FREEZE_ACK") !== "staging-writes-frozen") throw new Error("SOURCE_FREEZE_ACK_REQUIRED");
@@ -56,6 +57,7 @@ async function main() {
     const signed = JSON.parse(readFileSync(`${path}.manifest.json`, "utf8"));
     const { verifySnapshot } = await import("./source-snapshot");
     if (!verifySnapshot(path, signed, key, createHash("sha256").update(sourceAddress.hostname).digest("hex"), revision)) throw new Error("SNAPSHOT_PROVENANCE_MISMATCH");
+    sourceSnapshotSha256 = signed.manifest.dbFileSha256;
     const { createClient: createLocalClient } = await import("@libsql/client/sqlite3");
     source = createLocalClient({ url: pathToFileURL(path).href, intMode: "bigint" });
     await source.execute("PRAGMA query_only=ON");
@@ -187,7 +189,7 @@ async function main() {
       await dest.query("COMMIT");
     } else await dest.query("ROLLBACK");
     destinationOpen = false;
-    console.log(JSON.stringify({ status: "ok", mode: apply ? "applied" : verify ? "verified" : "dry-run", timestampPolicy: "zyx-2000-2100-mixed-unit", timestampUnits: timestamps, schemaRevision: revision, excludedTables: sourceNames.filter((name) => ignored.has(name) || (!includeAuth && AUTH_TABLES.has(name))), tables: summary }));
+    console.log(JSON.stringify({ status: "ok", mode: apply ? "applied" : verify ? "verified" : "dry-run", source: snapshot ? "signed-local-snapshot" : "Turso-read-transaction", sourceSnapshotSha256, timestampPolicy: "zyx-2000-2100-mixed-unit", timestampUnits: timestamps, schemaRevision: revision, excludedTables: sourceNames.filter((name) => ignored.has(name) || (!includeAuth && AUTH_TABLES.has(name))), tables: summary }));
   } finally {
     if (destinationOpen) await dest.query("ROLLBACK").catch(() => {});
     if (sourceTx) await sourceTx.rollback().catch(() => {});
