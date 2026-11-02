@@ -1454,7 +1454,8 @@ export async function executeMoveTutorSession(
         .select({ weeklyQuotaSessions: groups.weeklyQuotaSessions })
         .from(groups)
         .where(eq(groups.id, booking.groupId))
-        .limit(1);
+        .limit(1)
+        .for("no key update");
       const weeklyQuota = groupQuotaRows[0]?.weeklyQuotaSessions || 2;
 
       const weekCountRows = await tx
@@ -1492,6 +1493,7 @@ export async function executeMoveTutorSession(
         .where(
           and(
             eq(bookings.id, targetBookingId),
+            eq(bookings.slotId, booking.slotId),
             terminalStatusGuard(),
           ),
         );
@@ -2111,6 +2113,7 @@ export async function executeDecideTutorRescheduleTicket(
     await client.transaction(async (tx) => {
       // Atomic guard: update ticket only if status is still pending; verify
       // affected rows so a concurrent decision cannot apply twice.
+      await tx.select({ id: groups.id }).from(groups).where(eq(groups.id, ticket.groupId)).for("no key update");
       const ticketClaim = await tx
         .update(bookingRescheduleTickets)
         .set({
@@ -2179,6 +2182,7 @@ export async function executeDecideTutorRescheduleTicket(
             .where(
               and(
                 eq(bookings.id, ticket.bookingId),
+                eq(bookings.slotId, booking.slotId),
                 terminalStatusGuard(),
               ),
             );

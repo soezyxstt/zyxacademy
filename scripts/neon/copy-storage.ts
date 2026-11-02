@@ -4,10 +4,11 @@ import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } fr
 const TARGET_HOST = "br-cool-water-az2xxbul.storage.c-3.ap-southeast-1.aws.neon.tech";
 const TARGET_BUCKET = "zyx-migration";
 const STAGING_HOST = "br-holy-snow-azveniaa.storage.c-3.ap-southeast-1.aws.neon.tech";
+const CUTOVER_HOST = "br-gentle-scene-azq0gp91.storage.c-3.ap-southeast-1.aws.neon.tech";
 
 export function validateTarget(endpoint: string, bucket: string) {
   const url = new URL(endpoint);
-  const targetMatches = url.hostname === TARGET_HOST && bucket === TARGET_BUCKET || url.hostname === STAGING_HOST && bucket === "zyx-staging";
+  const targetMatches = url.hostname === TARGET_HOST && bucket === TARGET_BUCKET || [STAGING_HOST, CUTOVER_HOST].includes(url.hostname) && bucket === "zyx-staging";
   if (url.protocol !== "https:" || !targetMatches || url.port || url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
     throw new Error("INVALID_NEON_STORAGE_TARGET");
   }

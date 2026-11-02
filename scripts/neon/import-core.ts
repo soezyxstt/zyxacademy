@@ -9,8 +9,12 @@ export const SECRET_COLUMN = /(?:token|secret|password|private|api[_-]?key|acces
 
 export function assertTarget(url: string, expectedHostname: string, expectedDatabase: string): void {
   const target = new URL(url);
+  const parameters = [...target.searchParams];
   if (!expectedHostname || !expectedDatabase || target.protocol !== "postgresql:" ||
       target.hostname !== expectedHostname.toLowerCase() || !target.hostname.endsWith(".neon.tech") ||
+      target.hash || (target.port && target.port !== "5432") ||
+      parameters.length !== new Set(parameters.map(([key]) => key)).size ||
+      parameters.some(([key]) => !["sslmode", "channel_binding", "application_name", "connect_timeout"].includes(key)) ||
       decodeURIComponent(target.pathname.slice(1)) !== expectedDatabase || target.searchParams.get("sslmode") !== "verify-full") {
     throw new Error("TARGET_IDENTITY_MISMATCH");
   }

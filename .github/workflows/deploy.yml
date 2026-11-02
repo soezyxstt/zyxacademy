@@ -547,7 +547,7 @@ jobs:
 
   deploy:
     name: Deploy Background Worker (${{ github.ref_name }})
-    if: github.event_name != 'pull_request' && !inputs.browser_diagnostics
+    if: github.event_name != 'pull_request' && !inputs.browser_diagnostics && (github.ref_name == 'main' || github.ref_name == 'staging')
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
 

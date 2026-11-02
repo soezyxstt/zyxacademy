@@ -38,6 +38,12 @@ def matches_any_pattern(file_path: str, patterns: list[str]) -> bool:
 
 
 class DenoDeployTriggersTest(unittest.TestCase):
+    def test_only_release_branches_can_mutate_worker_and_staging_guard_runs_first(self):
+        text = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("&& (github.ref_name == 'main' || github.ref_name == 'staging')", text)
+        self.assertLess(text.index("name: Validate staging Neon target before Deno mutation"),
+                        text.index("name: Provision Deno Deploy App"))
+
     def test_deploy_workflow_has_no_broad_top_level_globs(self):
         push_paths, pr_paths = load_trigger_paths()
         forbidden_globs = {"app/**", "components/**", "lib/**", "prompts/**", "db/**"}

@@ -862,6 +862,7 @@ export async function collaborativeCancelSlot(bookingId: string) {
       const requestId = randomUUID();
 
       // Guarded cancel: preserve history by marking status 'cancelled'
+      await tx.select({ id: groups.id }).from(groups).where(eq(groups.id, booking.groupId)).for("no key update");
       const cancelRes = await tx
         .update(bookings)
         .set({

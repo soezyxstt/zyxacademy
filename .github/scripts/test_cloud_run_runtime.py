@@ -5,7 +5,7 @@ from cloud_run_runtime import prepare_runtime
 
 ORIGIN = "https://staging.zyxacademy.com"
 HOST = "ep-staging.example.neon.tech"
-DATABASE = "postgresql://user:dummy@" + HOST + "/neondb"
+DATABASE = "postgresql://user:dummy@" + HOST + "/neondb?sslmode=verify-full"
 ENDPOINT = "https://br-staging.storage.c-3.ap-southeast-1.aws.neon.tech"
 VARIABLES = {"NEON_EXPECTED_HOST": HOST, "STORAGE_PROVIDER_MODE": "neon",
              "NEON_EXPECTED_STORAGE_ENDPOINT": ENDPOINT, "NEON_EXPECTED_STORAGE_BUCKET": "staging-bucket"}
@@ -101,6 +101,13 @@ class RuntimeSettingsTest(unittest.TestCase):
         for key in ("NEON_EXPECTED_STORAGE_ENDPOINT", "NEON_EXPECTED_STORAGE_BUCKET"):
             with self.subTest(key=key), self.assertRaises(ValueError):
                 prepare_runtime(self.service, self.secrets, {k: v for k, v in VARIABLES.items() if k != key}, ORIGIN)
+
+    def test_connection_parameter_overrides_and_unverified_tls_are_rejected(self):
+        for suffix in ("&host=other.neon.tech", "&port=5433", "&database=other", "&sslmode=disable"):
+            with self.subTest(suffix=suffix), self.assertRaises(ValueError):
+                prepare_runtime(self.service, {**self.secrets, "DATABASE_URL": DATABASE + suffix}, VARIABLES, ORIGIN)
+        with self.assertRaises(ValueError):
+            prepare_runtime(self.service, {**self.secrets, "DATABASE_URL": DATABASE.replace("verify-full", "require")}, VARIABLES, ORIGIN)
 
 
 if __name__ == "__main__":

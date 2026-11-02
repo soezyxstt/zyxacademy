@@ -9,6 +9,9 @@ describe("Neon import safeguards", () => {
     expect(() => assertTarget(url, "ep-other.aws.neon.tech", "rehearsal")).toThrow();
     expect(() => assertTarget(url.replace("verify-full", "require"), "ep-demo.aws.neon.tech", "rehearsal")).toThrow();
     expect(() => assertTarget(url, "ep-demo.aws.neon.tech", "production")).toThrow();
+    for (const parameter of ["host=other.neon.tech", "port=5433", "database=other", "sslmode=disable"]) {
+      expect(() => assertTarget(`${url}&${parameter}`, "ep-demo.aws.neon.tech", "rehearsal")).toThrow();
+    }
   });
 
   test("converts only explicitly specified and valid SQLite values", () => {

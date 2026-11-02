@@ -2,7 +2,7 @@
 import json
 import os
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlparse
 
 
 # CI credentials, deployment tokens, build-only switches and mutation opt-ins
@@ -46,9 +46,13 @@ REQUIRED = ("DATABASE_URL", "STORAGE_PROVIDER_MODE", "NEON_STORAGE_BUCKET", "AWS
 
 def validate_database(database, expected_host):
     parsed = urlparse(database)
+    parameters = parse_qsl(parsed.query, keep_blank_values=True)
     if (parsed.scheme not in ("postgres", "postgresql") or not expected_host
             or not expected_host.endswith(".neon.tech") or parsed.hostname != expected_host
-            or parsed.path != "/neondb"):
+            or parsed.path != "/neondb" or parsed.fragment or parsed.port not in (None, 5432)
+            or len(parameters) != len(dict(parameters))
+            or any(key not in ("sslmode", "channel_binding", "application_name", "connect_timeout") for key, _ in parameters)
+            or dict(parameters).get("sslmode") != "verify-full"):
         raise ValueError("GitHub staging must provide the exact expected Neon PostgreSQL target.")
 
 

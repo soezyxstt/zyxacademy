@@ -87,7 +87,7 @@ else:
                 "FAKE_ROOT": str(root), "SCENARIO": scenario,
                 "GITHUB_STEP_SUMMARY": str(root / "summary.md"),
                 "GITHUB_STAGING_SECRETS": json.dumps({
-                    "DATABASE_URL": "postgresql://user:dummy@ep-staging.example.neon.tech/neondb",
+                    "DATABASE_URL": "postgresql://user:dummy@ep-staging.example.neon.tech/neondb?sslmode=verify-full",
                     "NEON_STORAGE_BUCKET": "staging-bucket", "AWS_ENDPOINT_URL_S3": "https://br-staging.storage.c-3.ap-southeast-1.aws.neon.tech",
                     "AWS_REGION": "ap-southeast-1", "AWS_ACCESS_KEY_ID": "dummy", "AWS_SECRET_ACCESS_KEY": "dummy",
                     **{key: "dummy-runtime-value" for key in ("TURSO_AUTH_TOKEN", "BETTER_AUTH_SECRET",
@@ -145,7 +145,7 @@ else:
     def test_manual_service_gets_github_runtime_settings_before_traffic_switch(self):
         result, calls, _ = self.deploy(manual=True)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(self.last_runtime["DATABASE_URL"], "postgresql://user:dummy@ep-staging.example.neon.tech/neondb")
+        self.assertEqual(self.last_runtime["DATABASE_URL"], "postgresql://user:dummy@ep-staging.example.neon.tech/neondb?sslmode=verify-full")
         self.assertEqual(self.last_runtime["TURSO_DATABASE_URL"], "file:old.db")
         self.assertEqual(self.last_runtime["STORAGE_PROVIDER_MODE"], "neon")
         self.assertEqual(self.last_runtime["ZYX_ENVIRONMENT"], "staging")

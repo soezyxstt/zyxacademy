@@ -15,6 +15,9 @@ describe("storage copy", () => {
     const staging = "https://br-holy-snow-azveniaa.storage.c-3.ap-southeast-1.aws.neon.tech";
     expect(() => validateTarget(staging, "zyx-staging")).not.toThrow();
     expect(() => validateTarget(staging, "zyx-migration")).toThrow();
+    const cutover = "https://br-gentle-scene-azq0gp91.storage.c-3.ap-southeast-1.aws.neon.tech";
+    expect(() => validateTarget(cutover, "zyx-staging")).not.toThrow();
+    expect(() => validateTarget(cutover, "zyx-migration")).toThrow();
     expect(() => validateTarget(endpoint, "zyx-staging")).toThrow();
   });
 
