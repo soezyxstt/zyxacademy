@@ -1,12 +1,12 @@
 # Zyx Academy Architecture (vNext)
 
-This document describes the existing deployed architecture. The isolated migration branch replaces its database adapter and storage target with Neon PostgreSQL and Neon S3-compatible storage for a separate rehearsal. The [migration runbook](operations/neon-migration.md) records the boundary and unverified integrations; it does not establish a staging or production cutover.
+Staging and production serve separate Neon PostgreSQL branches and private Neon S3-compatible buckets. The [staging migration runbook](operations/neon-migration.md) and [production cutover runbook](operations/neon-production-cutover.md) record verified targets and recovery boundaries. R2 terminology in feature descriptions below refers to the storage abstraction and retained compatibility paths; the serving provider is explicitly Neon. Turso/R2 source resources remain recovery artifacts.
 
 PDF reader repair: image dimensions come from PNG IHDR integers, and renderer revision v2 isolates previous failed jobs. Start a fresh `source.read_file` request after rollout. Page citations explicitly identify `pdfPage`; `printedPage` is only an unverified boundary-text candidate (`printedPageVerified: false`). Control characters and empty extraction set `textQuality.status: needs_visual_review`; preserve source text and verify formulas through page images. This does not reconstruct formulas or run OCR.
 
 Page workers persist SHA-256 and byte size in private R2 metadata bound to source key and version. Downloads reuse this checksum; when absent, stage-authorized callers receive `checksumStatus: pending` and `checksumJobId` while a text-page job prepares it. Read-only callers can still download without starting jobs. `workflow.list.sourceReader` advertises reader options and polling fallback; host connector catalog refresh remains a separate host operation.
 
-**Stack:** Next.js 16 (App Router), Deno Deploy (background worker), Drizzle ORM + SQLite (dev) / Turso (prod), Better Auth, Gemini AI via Cloudflare AI Gateway, canonical Cloudflare Vectorize (vector search), Cloudflare R2 with UploadThing as a compatibility fallback (storage abstraction), Inngest (background orchestration), Firebase Cloud Messaging (push notifs), Cloudflare Workers (vector API, realtime, diktat renderer)
+**Stack:** Next.js 16 (App Router), Deno Deploy (background worker), Drizzle ORM + PostgreSQL (Neon in staging and production), Better Auth, Gemini AI via Cloudflare AI Gateway, canonical Cloudflare Vectorize (vector search), private Neon Object Storage with retained R2/UploadThing compatibility paths, Inngest (background orchestration), Firebase Cloud Messaging (push notifs), Cloudflare Workers (vector API, realtime, diktat renderer)
 
 ---
 
