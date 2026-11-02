@@ -5,19 +5,21 @@
 The [Cloud Run staging runbook](operations/cloud-run-staging.md) is `ACTIVE` for project `zyx-academy` in Taiwan (`asia-east1`). Staging serves Neon PostgreSQL and private Neon object storage following a verified frozen import. Its Deno worker uses the same guarded target. Target identity, hosted acceptance and rollback evidence are in the [migration runbook](operations/neon-migration.md).
 The separate Vercel migration project remains a rehearsal. Production remains on Turso and R2; the topology below describes that production deployment.
 
+Production Neon cutover is `OPEN / IN PROGRESS`; follow [the production runbook](operations/neon-production-cutover.md). Its dedicated target is prepared, but production runtime settings and traffic must remain on Turso/R2 until the frozen-cutover gates pass. The prepared release adds exact-target checks to both Vercel and Deno deployment paths.
+
 ## Architecture
 
 Production runs on Vercel (Next.js) + Turso (DB) with Deno Deploy (background compute) and supporting Cloudflare services.
 
 ```
 Vercel (Next.js App Router)
- ├── Turso (libsql database)
- ├── Inngest Cloud (background orchestration)
- │    └── Deno Deploy (background worker: zyx-background / zyx-background-staging)
- ├── Cloudflare R2 (object storage)
- ├── Cloudflare AI Gateway (Gemini proxy)
- ├── Cloudflare Vectorize (canonical 768-dimensional vector store)
- └── Cloudflare Workers (3 production services plus the staging-only Zyra control plane)
+ â”œâ”€â”€ Turso (libsql database)
+ â”œâ”€â”€ Inngest Cloud (background orchestration)
+ â”‚    â””â”€â”€ Deno Deploy (background worker: zyx-background / zyx-background-staging)
+ â”œâ”€â”€ Cloudflare R2 (object storage)
+ â”œâ”€â”€ Cloudflare AI Gateway (Gemini proxy)
+ â”œâ”€â”€ Cloudflare Vectorize (canonical 768-dimensional vector store)
+ â””â”€â”€ Cloudflare Workers (3 production services plus the staging-only Zyra control plane)
 ```
 
 ## Deno Deploy Background Worker Deployment
@@ -191,7 +193,7 @@ turso db create-token zyx-academy
 
 ### Migration
 ```bash
-bun run db:push:prod   # safe runner: backup → migrate → verify
+bun run db:push:prod   # safe runner: backup â†’ migrate â†’ verify
 ```
 
 The production migration script (`db/push-prod.ts`):
@@ -219,8 +221,8 @@ Cloudflare dashboard. No payload recording is configured by this repository.
 ### 1. zyx-vector-api (Vectorize proxy)
 ```
 workers/vector-api/
-├── wrangler.toml
-├── index.ts
+â”œâ”€â”€ wrangler.toml
+â”œâ”€â”€ index.ts
 ```
 
 - Exposes authenticated `/v2/upsert`, `/v2/query`, `/v2/delete`, `/v2/list`, and `/v2/get` routes
@@ -288,8 +290,8 @@ Keep `zyx-edu` and the legacy `VECTORIZE` binding during the entire rollout. For
 ### 2. zyxrealtime (Live quiz WebSocket/SSE)
 ```
 workers/realtime/
-├── wrangler.toml
-├── src/index.ts
+â”œâ”€â”€ wrangler.toml
+â”œâ”€â”€ src/index.ts
 ```
 
 - Durable Object `LiveQuizRoom` for real-time quiz sessions

@@ -5,10 +5,11 @@ const TARGET_HOST = "br-cool-water-az2xxbul.storage.c-3.ap-southeast-1.aws.neon.
 const TARGET_BUCKET = "zyx-migration";
 const STAGING_HOST = "br-holy-snow-azveniaa.storage.c-3.ap-southeast-1.aws.neon.tech";
 const CUTOVER_HOST = "br-gentle-scene-azq0gp91.storage.c-3.ap-southeast-1.aws.neon.tech";
+const PRODUCTION_HOST = "br-polished-cell-az2cjf0y.storage.c-3.ap-southeast-1.aws.neon.tech";
 
 export function validateTarget(endpoint: string, bucket: string) {
   const url = new URL(endpoint);
-  const targetMatches = url.hostname === TARGET_HOST && bucket === TARGET_BUCKET || [STAGING_HOST, CUTOVER_HOST].includes(url.hostname) && bucket === "zyx-staging";
+  const targetMatches = url.hostname === TARGET_HOST && bucket === TARGET_BUCKET || [STAGING_HOST, CUTOVER_HOST].includes(url.hostname) && bucket === "zyx-staging" || url.hostname === PRODUCTION_HOST && bucket === "zyx-production";
   if (url.protocol !== "https:" || !targetMatches || url.port || url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
     throw new Error("INVALID_NEON_STORAGE_TARGET");
   }
@@ -60,7 +61,7 @@ async function readObject(client: Reader, bucket: string, key: string) {
 }
 
 export async function copyObject(source: Reader, destination: Reader, sourceBucket: string, item: InventoryItem, apply: boolean, targetBucket = TARGET_BUCKET): Promise<"identical" | "would-copy" | "copied"> {
-  if (targetBucket !== TARGET_BUCKET && targetBucket !== "zyx-staging") throw new Error("INVALID_NEON_STORAGE_TARGET");
+  if (![TARGET_BUCKET, "zyx-staging", "zyx-production"].includes(targetBucket)) throw new Error("INVALID_NEON_STORAGE_TARGET");
   const { key } = item;
   const sourceObject = await readObject(source, sourceBucket, key);
   if (sourceObject.ContentLength !== item.size || sourceObject.ETag !== item.etag) throw new Error("SOURCE_CHANGED");
@@ -106,8 +107,9 @@ async function main() {
   validateTarget(AWS_ENDPOINT_URL_S3, NEON_STORAGE_BUCKET);
   const sourceUrl = new URL(R2_ENDPOINT);
   if (sourceUrl.protocol !== "https:" || !sourceUrl.hostname.endsWith(".r2.cloudflarestorage.com") || sourceUrl.port || sourceUrl.username || sourceUrl.password || sourceUrl.pathname !== "/" || sourceUrl.search || sourceUrl.hash) throw new Error("INVALID_R2_SOURCE");
-  const source = new S3Client({ region: "auto", endpoint: R2_ENDPOINT, credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY } });
-  const destination = new S3Client({ region: AWS_REGION, endpoint: AWS_ENDPOINT_URL_S3, forcePathStyle: true, requestChecksumCalculation: "WHEN_REQUIRED", credentials: { accessKeyId: AWS_ACCESS_KEY_ID, secretAccessKey: AWS_SECRET_ACCESS_KEY } });
+  const requestHandler = { connectionTimeout: 15000, requestTimeout: 120000, socketTimeout: 120000 };
+  const source = new S3Client({ requestHandler, region: "auto", endpoint: R2_ENDPOINT, credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY } });
+  const destination = new S3Client({ requestHandler, region: AWS_REGION, endpoint: AWS_ENDPOINT_URL_S3, forcePathStyle: true, requestChecksumCalculation: "WHEN_REQUIRED", credentials: { accessKeyId: AWS_ACCESS_KEY_ID, secretAccessKey: AWS_SECRET_ACCESS_KEY } });
   const inventory = await listInventory(source, R2_BUCKET);
   const counts = { identical: 0, copied: 0, "would-copy": 0 };
   for (let start = 0; start < inventory.length; start += 2) {

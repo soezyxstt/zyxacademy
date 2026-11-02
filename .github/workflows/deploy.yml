@@ -670,6 +670,16 @@ jobs:
           print("Staging Neon database and storage targets verified.")
           PY
 
+      - name: Validate production Neon target before Deno mutation
+        if: steps.impact.outputs.should_deploy == 'true' && github.ref_name == 'main'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          STORAGE_PROVIDER_MODE: ${{ vars.STORAGE_PROVIDER_MODE || secrets.STORAGE_PROVIDER_MODE }}
+          NEON_STORAGE_BUCKET: ${{ vars.NEON_STORAGE_BUCKET || secrets.NEON_STORAGE_BUCKET }}
+          AWS_ENDPOINT_URL_S3: ${{ vars.AWS_ENDPOINT_URL_S3 || secrets.AWS_ENDPOINT_URL_S3 }}
+          AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
+        run: bun scripts/neon/validate-production-target.ts
+
       - name: Provision Deno Deploy App (if not exists)
         if: steps.impact.outputs.should_deploy == 'true'
         env:
@@ -722,15 +732,15 @@ jobs:
           VERIFICATION_STEEL_BROWSER_VERSION: ${{ vars.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION || secrets.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION }}
           SECRET_CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           SECRET_NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
-          STAGING_STORAGE_PROVIDER_MODE: ${{ vars.STORAGE_PROVIDER_MODE || secrets.STORAGE_PROVIDER_MODE }}
-          STAGING_NEON_STORAGE_BUCKET: ${{ vars.NEON_STORAGE_BUCKET || secrets.NEON_STORAGE_BUCKET }}
-          STAGING_AWS_ENDPOINT_URL_S3: ${{ vars.AWS_ENDPOINT_URL_S3 || secrets.AWS_ENDPOINT_URL_S3 }}
-          STAGING_AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
-          STAGING_AWS_ACCESS_KEY_ID: ${{ vars.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY_ID }}
-          STAGING_AWS_SECRET_ACCESS_KEY: ${{ vars.AWS_SECRET_ACCESS_KEY || secrets.AWS_SECRET_ACCESS_KEY }}
-          STAGING_INNGEST_ENV: ${{ vars.INNGEST_ENV || secrets.INNGEST_ENV }}
-          STAGING_CF_BROWSER_API_TOKEN: ${{ vars.CF_BROWSER_API_TOKEN || secrets.CF_BROWSER_API_TOKEN }}
-          STAGING_AUTHORING_VERIFICATION_ACCESS_URL: ${{ vars.AUTHORING_VERIFICATION_ACCESS_URL || secrets.AUTHORING_VERIFICATION_ACCESS_URL }}
+          TARGET_STORAGE_PROVIDER_MODE: ${{ vars.STORAGE_PROVIDER_MODE || secrets.STORAGE_PROVIDER_MODE }}
+          TARGET_NEON_STORAGE_BUCKET: ${{ vars.NEON_STORAGE_BUCKET || secrets.NEON_STORAGE_BUCKET }}
+          TARGET_AWS_ENDPOINT_URL_S3: ${{ vars.AWS_ENDPOINT_URL_S3 || secrets.AWS_ENDPOINT_URL_S3 }}
+          TARGET_AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
+          TARGET_AWS_ACCESS_KEY_ID: ${{ vars.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY_ID }}
+          TARGET_AWS_SECRET_ACCESS_KEY: ${{ vars.AWS_SECRET_ACCESS_KEY || secrets.AWS_SECRET_ACCESS_KEY }}
+          TARGET_INNGEST_ENV: ${{ vars.INNGEST_ENV || secrets.INNGEST_ENV }}
+          TARGET_CF_BROWSER_API_TOKEN: ${{ vars.CF_BROWSER_API_TOKEN || secrets.CF_BROWSER_API_TOKEN }}
+          TARGET_AUTHORING_VERIFICATION_ACCESS_URL: ${{ vars.AUTHORING_VERIFICATION_ACCESS_URL || secrets.AUTHORING_VERIFICATION_ACCESS_URL }}
         run: |
           R2_BUCKET_RESOLVED="${SECRET_R2_BUCKET:-$SECRET_LEGACY_CF_R2_BUCKET}"
           R2_ACCESS_KEY_ID_RESOLVED="${SECRET_R2_ACCESS_KEY_ID:-$SECRET_LEGACY_CF_R2_ACCESS_KEY_ID}"
@@ -770,19 +780,17 @@ jobs:
           DIKTAT_RENDERER_SECRET=${SECRET_DIKTAT_RENDERER_SECRET}
           EOF
 
-          if [ "${{ github.ref_name }}" = staging ]; then
-            cat << EOF >> .env.deploy
-          STORAGE_PROVIDER_MODE=${STAGING_STORAGE_PROVIDER_MODE}
-          NEON_STORAGE_BUCKET=${STAGING_NEON_STORAGE_BUCKET}
-          AWS_ENDPOINT_URL_S3=${STAGING_AWS_ENDPOINT_URL_S3}
-          AWS_REGION=${STAGING_AWS_REGION}
-          AWS_ACCESS_KEY_ID=${STAGING_AWS_ACCESS_KEY_ID}
-          AWS_SECRET_ACCESS_KEY=${STAGING_AWS_SECRET_ACCESS_KEY}
-          INNGEST_ENV=${STAGING_INNGEST_ENV}
-          CF_BROWSER_API_TOKEN=${STAGING_CF_BROWSER_API_TOKEN}
-          AUTHORING_VERIFICATION_ACCESS_URL=${STAGING_AUTHORING_VERIFICATION_ACCESS_URL}
+          cat << EOF >> .env.deploy
+          STORAGE_PROVIDER_MODE=${TARGET_STORAGE_PROVIDER_MODE}
+          NEON_STORAGE_BUCKET=${TARGET_NEON_STORAGE_BUCKET}
+          AWS_ENDPOINT_URL_S3=${TARGET_AWS_ENDPOINT_URL_S3}
+          AWS_REGION=${TARGET_AWS_REGION}
+          AWS_ACCESS_KEY_ID=${TARGET_AWS_ACCESS_KEY_ID}
+          AWS_SECRET_ACCESS_KEY=${TARGET_AWS_SECRET_ACCESS_KEY}
+          INNGEST_ENV=${TARGET_INNGEST_ENV}
+          CF_BROWSER_API_TOKEN=${TARGET_CF_BROWSER_API_TOKEN}
+          AUTHORING_VERIFICATION_ACCESS_URL=${TARGET_AUTHORING_VERIFICATION_ACCESS_URL}
           EOF
-          fi
 
           # Remove empty assignments while preserving Base64 padding and embedded '='.
           grep -v '^[A-Za-z_][A-Za-z0-9_]*=$' .env.deploy > .env.deploy.filtered || true

@@ -19,6 +19,11 @@ describe("storage copy", () => {
     expect(() => validateTarget(cutover, "zyx-staging")).not.toThrow();
     expect(() => validateTarget(cutover, "zyx-migration")).toThrow();
     expect(() => validateTarget(endpoint, "zyx-staging")).toThrow();
+    const production = "https://br-polished-cell-az2cjf0y.storage.c-3.ap-southeast-1.aws.neon.tech";
+    expect(() => validateTarget(production, "zyx-production")).not.toThrow();
+    expect(() => validateTarget(production, "zyx-staging")).toThrow();
+    expect(() => validateTarget(cutover, "zyx-production")).toThrow();
+    expect(() => validateTarget(`${production}.evil.test`, "zyx-production")).toThrow();
   });
 
   test("dry run never writes and refuses a different destination object", async () => {
@@ -60,6 +65,17 @@ describe("storage copy", () => {
     } };
     expect(await copyObject({ send: async () => object("source") }, destination, "source", item, true, "zyx-staging")).toBe("copied");
     await expect(copyObject({ send: async () => object("source") }, destination, "source", item, true, "other")).rejects.toThrow("INVALID_NEON_STORAGE_TARGET");
+  });
+
+  test("production writes stay in the production bucket", async () => {
+    let uploaded = false;
+    const destination = { send: async (command: any) => {
+      expect(command.input.Bucket).toBe("zyx-production");
+      if (command instanceof PutObjectCommand) { uploaded = true; return {}; }
+      if (!uploaded) throw { name: "NoSuchKey" };
+      return object("source");
+    } };
+    expect(await copyObject({ send: async () => object("source") }, destination, "source", item, true, "zyx-production")).toBe("copied");
   });
 
   test("rejects a corrupted copy", async () => {

@@ -57,6 +57,8 @@ jobs:
             args+=(--git-branch=staging)
           fi
           vercel pull "${args[@]}"
+      - name: Validate production Neon target
+        run: bun --env-file=.vercel/.env.production.local scripts/neon/validate-production-target.ts
       - name: Build on the GitHub runner
         # vercel build runs the frozen installCommand and bun run build from
         # vercel.json, including authoring skills and V4 runtime preparation.

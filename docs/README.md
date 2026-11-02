@@ -35,36 +35,37 @@ The documentation is organized into clear functional layers:
 
 ```text
 docs/
-├── README.md                                 # Master Index and Status Authority (this file)
-├── ARCHITECTURE.md                           # System Architecture, Data Flow, and Boundaries
-├── DATABASE.md                               # Database Setup, Environments, and Adapters
-├── DB_SCHEMA.md                              # Schema Definition, Tables, and Relations
-├── DEPLOYMENT.md                             # Production and Staging Deployment Topology
-├── DEVELOPMENT.md                            # Local Development, Tooling, and Feature Flags
-├── FILE_NAMING_CONVENTIONS.md                # Official File Naming and Directory Taxonomy
-├── features.md                               # Product Feature Catalog and Workflows
-│
-├── bundle/                                   # Bundle Specifications and Authoring Contracts
-│   ├── authoring-context-pack-v1.md          # Authoring Context Pack V1 Contract
-│   ├── authoring-job-pack-v1.md              # Authoring Job Pack V1 Contract
-│   ├── idea-bundle-v2.md                     # Transitional Idea Bundle V2 Contract
-│   ├── idea-bundle-v3.md                     # Structured Idea Bundle V3 Contract
-│   ├── product-bundle-v2.md                  # Transitional Product Bundle V2 Contract
-│   ├── product-bundle-v3.md                  # Structured Product Bundle V3 Contract
-│   └── product-bundle-v4.md                  # Default V4 authoring contract, legacy compatibility and generated JSON Schema delivery
-│
-├── operations/                               # Operational Runbooks, Checklists, and Allowances
-│   ├── authoring-mcp-skills.md                # Pinned MCP Skills Build and Import Acceptance
-│   ├── legacy-vector-contract-allowlist.md   # Allowed Legacy Vector References during Cutover
-│   ├── manual-test-plan-bundles-v2.md       # Human-driven Verification for Bundle Ingestion
-│   ├── neon-migration.md                    # Neon rehearsal and live staging cutover evidence
-│   ├── production-readiness-checklist.md     # Pre-deployment Gates and Plan Checkpoints
-│   ├── structured-article-v3-rollout.md       # Structured Article V3 Migration and Rollout
-│   ├── visual-audit-capture.md               # Procedure for Staging Visual Capture Audits
-│   └── zyra-ops-runbooks.md                  # Zyra AI Alert Runbooks and Incident Handling
-│
-└── handoffs/                                 # Milestone Handoff Records and Checkpoints
-    └── zyra-ai-plans-001-007.md              # Zyra AI Plans 001-007 Staging Checkpoint
+â”œâ”€â”€ README.md                                 # Master Index and Status Authority (this file)
+â”œâ”€â”€ ARCHITECTURE.md                           # System Architecture, Data Flow, and Boundaries
+â”œâ”€â”€ DATABASE.md                               # Database Setup, Environments, and Adapters
+â”œâ”€â”€ DB_SCHEMA.md                              # Schema Definition, Tables, and Relations
+â”œâ”€â”€ DEPLOYMENT.md                             # Production and Staging Deployment Topology
+â”œâ”€â”€ DEVELOPMENT.md                            # Local Development, Tooling, and Feature Flags
+â”œâ”€â”€ FILE_NAMING_CONVENTIONS.md                # Official File Naming and Directory Taxonomy
+â”œâ”€â”€ features.md                               # Product Feature Catalog and Workflows
+â”‚
+â”œâ”€â”€ bundle/                                   # Bundle Specifications and Authoring Contracts
+â”‚   â”œâ”€â”€ authoring-context-pack-v1.md          # Authoring Context Pack V1 Contract
+â”‚   â”œâ”€â”€ authoring-job-pack-v1.md              # Authoring Job Pack V1 Contract
+â”‚   â”œâ”€â”€ idea-bundle-v2.md                     # Transitional Idea Bundle V2 Contract
+â”‚   â”œâ”€â”€ idea-bundle-v3.md                     # Structured Idea Bundle V3 Contract
+â”‚   â”œâ”€â”€ product-bundle-v2.md                  # Transitional Product Bundle V2 Contract
+â”‚   â”œâ”€â”€ product-bundle-v3.md                  # Structured Product Bundle V3 Contract
+â”‚   â””â”€â”€ product-bundle-v4.md                  # Default V4 authoring contract, legacy compatibility and generated JSON Schema delivery
+â”‚
+â”œâ”€â”€ operations/                               # Operational Runbooks, Checklists, and Allowances
+â”‚   â”œâ”€â”€ authoring-mcp-skills.md                # Pinned MCP Skills Build and Import Acceptance
+â”‚   â”œâ”€â”€ legacy-vector-contract-allowlist.md   # Allowed Legacy Vector References during Cutover
+â”‚   â”œâ”€â”€ manual-test-plan-bundles-v2.md       # Human-driven Verification for Bundle Ingestion
+â”‚   â”œâ”€â”€ neon-migration.md                    # Neon rehearsal and live staging cutover evidence
+â”‚   â”œâ”€â”€ neon-production-cutover.md           # Production rehearsal and guarded maintenance cutover
+â”‚   â”œâ”€â”€ production-readiness-checklist.md     # Pre-deployment Gates and Plan Checkpoints
+â”‚   â”œâ”€â”€ structured-article-v3-rollout.md       # Structured Article V3 Migration and Rollout
+â”‚   â”œâ”€â”€ visual-audit-capture.md               # Procedure for Staging Visual Capture Audits
+â”‚   â””â”€â”€ zyra-ops-runbooks.md                  # Zyra AI Alert Runbooks and Incident Handling
+â”‚
+â””â”€â”€ handoffs/                                 # Milestone Handoff Records and Checkpoints
+    â””â”€â”€ zyra-ai-plans-001-007.md              # Zyra AI Plans 001-007 Staging Checkpoint
 ```
 
 ---
@@ -108,6 +109,7 @@ Every document in this repository has one of the following explicit statuses:
 | [bundle/product-bundle-v4.md](bundle/product-bundle-v4.md) | Bundle Contract | `ACTIVE` | 2026-10-22 | Default V4 authoring contract with legacy compatibility: scientific parts, authored graphical Diktat with fixed readable typography, source figures, trusted verification, unmarked scientific prose blockers, current explicit review and checksum-pinned schema delivery. Operational rollout is separate. |
 | [operations/production-readiness-checklist.md](operations/production-readiness-checklist.md) | Operations | `ACTIVE` | Current | Pre-deployment gates, quality criteria, staging validation checklist, and mandatory Idea links with exactly one primary for MCP quiz drafts and edits. |
 | [operations/neon-migration.md](operations/neon-migration.md) | Operations | `COMPLETED / RESOLVED` | 2026-11-02 | Verified staging cutover with 21,273 business rows, 124 source objects, Google login, 14 hosted routes, booking recovery, worker PDF integration and six concurrency regressions. CI passed 2,038 contracts across 313 files; hosted authoring passed 22 checks through review, publication and PDF download. Production is unchanged. |
+| [operations/neon-production-cutover.md](operations/neon-production-cutover.md) | Operations | `OPEN / IN PROGRESS` | 2026-11-02 | Dedicated production target and authenticated rehearsal import prepared. Production remains on Turso/R2 until CI, storage reconciliation, production Inngest access, frozen cutover and hosted acceptance pass. |
 | [operations/zyra-ops-runbooks.md](operations/zyra-ops-runbooks.md) | Operations | `ACTIVE` | 2026-09-02 | Operational runbooks, health metrics, alert responses, and Admin Ops AI v2 operational procedures (Vectorize sync, rollback without flag, provider mitigation, proposal retention). |
 | [operations/visual-audit-capture.md](operations/visual-audit-capture.md) | Operations | `ACTIVE` | Current | Safe procedure for capturing staging visual audits and screenshots. |
 | [operations/structured-article-v3-rollout.md](operations/structured-article-v3-rollout.md) | Operations | `ACTIVE` | 2026-09-01 | Additive migration, authoring rollout gates, rollback, and published student visibility for structured Articles. |
