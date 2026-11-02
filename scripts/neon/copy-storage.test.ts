@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { assertInventoryUnchanged, copyObject, copyObjectWithRetry, listInventory, validateTarget, withBodyDeadline } from "./copy-storage";
+import { assertDestinationInventory, assertInventoryUnchanged, assertObjectMetadata, copyObject, copyObjectWithRetry, listInventory, validateTarget, verifyInventoryMetadata, withBodyDeadline } from "./copy-storage";
 import { Readable } from "node:stream";
 
 const endpoint = "https://br-cool-water-az2xxbul.storage.c-3.ap-southeast-1.aws.neon.tech";
@@ -8,6 +8,29 @@ const object = (value: string) => ({ Body: (async function* () { yield Buffer.fr
 const item = { key: "private/key", size: 6, etag: '"etag"', lastModified: "2026-01-01T00:00:00.000Z" };
 
 describe("storage copy", () => {
+  test("identical bytes with incompatible metadata never produce a signed proof", async () => {
+    const proofs: any[]=[];
+    await expect(copyObject({send:async()=>({...object("source"),ContentType:"image/png"})}, {send:async()=>({...object("source"),ContentType:"application/octet-stream"})}, "source",item,true,"zyx-production",proof=>proofs.push(proof))).rejects.toThrow("DESTINATION_METADATA_CONFLICT");
+    expect(proofs).toHaveLength(0);
+    expect(()=>assertObjectMetadata({Metadata:{a:"1",b:"2"}},{Metadata:{b:"2",a:"1"}})).not.toThrow();
+    for(const field of ["ContentType","ContentDisposition","ContentEncoding","CacheControl","ContentLanguage","Expires","Metadata"]){
+      const value=field==="Expires"?new Date(0):field==="Metadata"?{a:"1"}:"different";
+      expect(()=>assertObjectMetadata({[field]:value},{})).toThrow("DESTINATION_METADATA_CONFLICT");
+    }
+  });
+  test("completion rejects extra destination objects independently of checkpoint keys", () => {
+    expect(()=>assertDestinationInventory([item],[item])).not.toThrow();
+    for(const changed of [[],[item,{...item,key:"stale"}],[{...item,key:"other"}],[{...item,size:7}]])expect(()=>assertDestinationInventory([item],changed)).toThrow("DESTINATION_INVENTORY_MISMATCH");
+  });
+  test("resumed byte proofs still require fresh matching metadata and object versions", async () => {
+    const head={ContentLength:6,ETag:item.etag,LastModified:new Date(item.lastModified),ContentType:"image/png"};
+    let requests=0;
+    const source={send:async()=>{requests++;return head;}};
+    await verifyInventoryMetadata(source,{send:async()=>head},"source","zyx-production",[item],[item]);
+    expect(requests).toBe(1);
+    await expect(verifyInventoryMetadata(source,{send:async()=>({...head,ContentType:"text/plain"})},"source","zyx-production",[item],[item])).rejects.toThrow("DESTINATION_METADATA_CONFLICT");
+    await expect(verifyInventoryMetadata(source,{send:async()=>({...head,ETag:'"changed"'})},"source","zyx-production",[item],[item])).rejects.toThrow("OBJECT_VERSION_CHANGED_DURING_METADATA_CHECK");
+  });
   test("a resumable proof is emitted only after bytes and destination version are verified", async () => {
     const proofs: any[] = [];
     const destination = { send: async () => ({...object("source"),LastModified:new Date("2026-01-01T00:00:00Z")}) };
