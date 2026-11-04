@@ -16,7 +16,8 @@ export function sanitizeDemoMarkdown(text: string): string {
   return value
     .replace(/<!--[\s\S]*?(?:-->|$)/g, "")
     .replace(/<(script|style|svg|iframe|object|video|audio|picture)[\s\S]*?<\/\1\s*>/gi, "")
-    .replace(/<[^>]*(?:>|$)/g, "")
+    .replace(/<\/?[a-z][a-z0-9:-]*(?:\s[^<>]*)?\/?>/gi, "")
+    .replace(/<\/?(?:img|script|style|iframe|object|embed|svg|video|audio|link|meta)\b[^>]*$/gi, "")
     .replace(/^\s*\[[^\]\n]+\]:[^\n]*(?:\n|$)/gm, "")
     .replace(/!?\[([^\]\n]*)\]\([^\n)]*(?:\)[^\n)]*)?\)/g, "$1")
     .replace(/!?\[([^\]\n]*)\]\[[^\]\n]*\]/g, "$1")
@@ -37,7 +38,7 @@ export class DemoPublicContentMetadataError extends Error {
 }
 
 function identifier(value: unknown): void {
-  if (typeof value !== "string" || value.length < 1 || value.length > 200 || !/^[\p{L}\p{M}\p{N}_.-]+$/u.test(value) || value === "." || value === ".." || /\.\./.test(value)) throw new DemoPublicContentMetadataError();
+  if (typeof value !== "string" || value.length < 1 || value.length > 200 || !/^[\p{L}\p{M}\p{N}_.:-]+$/u.test(value) || sanitizeDemoMarkdown(value) !== value || value === "." || value === ".." || /\.\./.test(value)) throw new DemoPublicContentMetadataError();
 }
 function optionalId(value: unknown): void { if (value !== null && value !== undefined) identifier(value); }
 function ids(values: readonly string[] | undefined): void { values?.forEach(identifier); }

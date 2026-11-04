@@ -3,6 +3,9 @@ import { DemoPublicContentMetadataError, sanitizeDemoArticle, sanitizeDemoMarkdo
 import type { PublicArticleReadModel } from "@/lib/articles/structured-read-model";
 
 describe("public demo content sanitizer", () => {
+  test("retains inequalities in learning content", () => {
+    expect(sanitizeDemoMarkdown("$x < 2$, $x<y$ dan $y>0$.")).toBe("$x < 2$, $x<y$ dan $y>0$.");
+  });
   test("removes destinations and embedded resources while retaining prose and math", () => {
     const value = sanitizeDemoMarkdown('Baca [materi](/api/storage/private?token=abc), ![gambar](https://example.test/x.png), [rujukan][a].\n[a]: /private/file\n<img src="/private"> <svg><a href="/secret">x</a></svg>\nhttps://host.test/file?sig=secret /api/storage/key &#x6a;avascript&#58;alert(1) data&#58;image/png;base64,abc\nNilai $x=1/2$ dan $\\frac{1}{2}$.');
     expect(value).toContain("materi");
@@ -28,6 +31,8 @@ describe("public demo content sanitizer", () => {
 
   test("rejects unsafe structural identifiers and discards private or unknown fields", () => {
     const base = { id: "article", courseId: "course", chapterId: "chapter", slug: "geometri-ruang", title: "Judul", courseTitle: "Kursus", chapterTitle: null, chapterNumber: 1, version: 1, totalEstimatedReadingMinutes: 1, progress: { private: "/secret" }, extra: "/secret", sections: [{ id: "section", slug: "perubahan-α", title: "Bagian", sectionNumber: "1.1", sectionKind: "topic", learningObjective: "Tujuan", estimatedReadingMinutes: 1, orderIndex: 0, parentSectionId: null, blocks: [{ id: "block", blockKey: "key", blockType: "explanation", title: null, orderIndex: 0, content: "Teks", parts: [{ id: "math", kind: "math_unit", latex: "dx/dt", meaningMarkdown: "distance/time", symbolRefs: ["symbol"] }], formativeCheck: { checkKind: "multiple_choice", evaluationMode: null, options: [{ id: "a", text: "A", answer: true }], correctAnswer: "a" } }] }] } as unknown as PublicArticleReadModel;
+    expect(sanitizeDemoArticle({ ...base, id: "article:v3" }).id).toBe("article:v3");
+    expect(() => sanitizeDemoArticle({ ...base, id: "javascript:alert" })).toThrow(DemoPublicContentMetadataError);
     const result = sanitizeDemoArticle(base);
     expect(result.progress).toBeNull();
     expect(JSON.stringify(result)).not.toMatch(/extra|private|correctAnswer|"answer"/);

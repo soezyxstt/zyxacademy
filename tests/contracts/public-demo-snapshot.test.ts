@@ -74,7 +74,7 @@ describe("public demo snapshot", () => {
     expect(publicResolver).toContain("eq(artikel.babId, first.id)");
     expect(publicResolver).toContain("eq(diktatMateri.babId, first.id)");
     expect(publicResolver).toContain("eq(setFlashcard.babId, first.id)");
-    expect(publicResolver).toContain("resolveArticle(course, first, articleId)");
+    expect(publicResolver).toContain("resolveArticle(course, first, articleId, true)");
     expect(publicResolver).toContain("resolveDiktat(course, first, diktatId, true)");
     expect(publicResolver).toContain("if (!match) return null");
     expect(publicResolver).toContain("COLLECTION_PAGE_SIZE + 1");

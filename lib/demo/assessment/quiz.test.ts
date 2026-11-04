@@ -14,10 +14,10 @@ describe("public quiz adapter", () => {
     try {
       for (const count of [1, 2]) {
         const payloads: Record<string, unknown>[] = [];
-        globalThis.fetch = async (_input, init) => {
+        globalThis.fetch = Object.assign(async (_input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
           payloads.push(JSON.parse(String(init?.body)));
           return Response.json(result(count));
-        };
+        }, { preconnect: original.preconnect });
         const page = questions.slice(0, count);
         expect((await gradeDemoQuiz("course", page, "token", {}, 3)).total).toBe(count);
         expect(payloads[0]?.quizOffset).toBe(3);
@@ -31,7 +31,7 @@ describe("public quiz adapter", () => {
     await expect(gradeDemoQuiz("course", questions, "token", {}, 1)).rejects.toThrow();
     const original = globalThis.fetch;
     try {
-      globalThis.fetch = async () => Response.json(result(2));
+      globalThis.fetch = Object.assign(async () => Response.json(result(2)), { preconnect: original.preconnect });
       await expect(gradeDemoQuiz("course", questions.slice(0, 1), "token", {}, 3)).rejects.toThrow();
     } finally { globalThis.fetch = original; }
   });

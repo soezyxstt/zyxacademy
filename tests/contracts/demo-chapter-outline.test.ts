@@ -28,8 +28,8 @@ test("public content resolver passes only the selected first chapter to content 
   const source = readFileSync("lib/demo/legacy-eligibility.ts", "utf8");
   const resolver = source.slice(source.indexOf("export async function resolvePublicFreeFirstChapter"));
   expect(resolver).toContain("free[0]?.canonicalId");
-  for (const loader of ["resolveArticle", "resolveDiktat", "resolveFlashcards", "resolveQuiz"]) {
-    expect(resolver).toContain(`${loader}(course, first)`);
+  for (const loader of ["resolveArticle", "resolveDiktat", "resolveFlashcards", "resolvePublicQuiz"]) {
+    expect(resolver).toContain(`${loader}(course, first,`);
   }
   expect(resolver).not.toMatch(/mockChapters|resolve(?:Article|Diktat|Flashcards|Quiz)\(course,\s*(?:chapters|free)\[/);
 });

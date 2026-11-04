@@ -12,7 +12,7 @@ if target.exists():
 tracked = set(subprocess.check_output(['git', 'ls-files', '-z', '--cached'], cwd=root).decode().split('\0'))
 untracked = set(subprocess.check_output(['git', 'ls-files', '-z', '--others', '--exclude-standard'], cwd=root).decode().split('\0'))
 paths = tracked | untracked
-allowed_roots = {'app', 'components', 'lib', 'db', 'public', 'messages', 'i18n', 'hooks', 'types', 'jobs', 'workers', 'scripts', 'tests'}
+allowed_roots = {'app', 'components', 'lib', 'db', 'public', 'messages', 'i18n', 'hooks', 'types', 'prompts', 'jobs', 'workers', 'scripts', 'tests'}
 root_files = {'package.json', 'bun.lock', 'bun.lockb', 'tsconfig.json', 'next.config.ts', 'postcss.config.mjs', 'components.json', 'proxy.ts', 'instrumentation.ts', 'playwright.config.ts', 'deno.json', 'sentry.client.config.ts', 'sentry.server.config.ts', 'sentry.edge.config.ts'}
 for name in set(paths):
     if not name:
@@ -37,5 +37,9 @@ for name in set(paths):
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, dest)
 shutil.copy2(root / 'tests/visual/demo-harness/demo-data.ts', target / 'app/(marketing)/demo/demo-data.ts')
+# Keep Tailwind's source scan inside the credential-free copy.
+(target / 'postcss.config.mjs').write_text('export default { plugins: { "@tailwindcss/postcss": { base: import.meta.dirname } } };\n')
+css = target / 'app/globals.css'
+css.write_text(css.read_text(encoding='utf-8').replace('@import "tailwindcss";', '@import "tailwindcss" source(none);\n@source "../app";\n@source "../components";\n@source "../lib";\n@source "../hooks";'), encoding='utf-8')
 (target / 'node_modules').symlink_to(root / 'node_modules', target_is_directory=True)
 print(f'Prepared isolated harness at {target}')

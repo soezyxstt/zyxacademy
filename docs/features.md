@@ -69,6 +69,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 ## Public demo and Free access
 
 - The approved public demo policy permits real Free-eligible products from the first active chapter only, matching the current Free chapter scope. Product-specific publication, visibility and chapter-scope checks must be enforced on reads and grading. Diktat is read-only with no download; generic uploaded PDFs remain unavailable unless an existing explicit Free eligibility path covers the exact file and first chapter.
+- Authored fictional fallback products are authorized only where eligible real products are unavailable. They do not change real publication, chapter or Free permissions.
 - Progress, monthly history and later-chapter data are fictional. Later-chapter real bodies and answers, premium storage objects and downloads must not be exposed. The V2 snapshot is present in source; product collections and structured-media sanitization are present in source; boundary and runtime verification remain pending; see [the seeding guide](operations/public-demo-seeding.md).
 - The legacy admin `isDemo` singleton remains separate from the snapshot allowlist.
 - The Free chapter resolver selects the first active chapter, including eligible Article, Diktat, Kuis, and Flashcard content. Diktat is readable without download. Zyra allows 5 questions per day, and authenticated learning progress is stored.

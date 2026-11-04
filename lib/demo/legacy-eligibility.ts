@@ -9,6 +9,7 @@ import {
   quizTemplates,
   bab,
   courses,
+  chapters as legacyChaptersTable,
   diktatMateri,
   flashcard,
   mataKuliah,
@@ -17,6 +18,7 @@ import {
   soal,
 } from "@/db/schema";
 import { db } from "@/lib/db";
+import { fictionalDemoProducts } from "@/lib/demo/fictional-products";
 import { getAuthorizedFreeQuestionIds } from "@/lib/demo/free-quiz-policy";
 import { selectFreeChapters, hasChapterScopeWithin } from "@/lib/student/course-access";
 import {
@@ -25,7 +27,6 @@ import {
 import { buildPublicArticleReadModel, type PublicArticleReadModel } from "@/lib/articles/structured-read-model";
 
 
-const demoColumn = mataKuliah.isDemo;
 
 export type DemoDiktatSection = {
   title: string;
@@ -140,28 +141,6 @@ async function resolveCanonicalCourse(courseId: string): Promise<CanonicalCourse
   return row ? asCanonicalCourse(row) : null;
 }
 
-async function getSelectedCourse(): Promise<CanonicalCourse | null> {
-  try {
-    const rows = await db
-      .select()
-      .from(mataKuliah)
-      .where(eq(demoColumn, true))
-      .orderBy(asc(mataKuliah.title), asc(mataKuliah.id));
-
-    // The public boundary is intentionally unavailable unless there is one,
-    // and only one, active demo marker. Re-resolve through the legacy alias so
-    // duplicate canonical mappings also fail closed.
-    if (rows.length !== 1) return null;
-    const selected = rows[0];
-    if (selected.status !== "active") return null;
-    return resolveCanonicalCourse(selected.legacyCourseId ?? selected.id);
-  } catch {
-    // A database that has not applied the additive demo migration fails closed
-    // to the public empty state.
-    return null;
-  }
-}
-
 async function buildCourseSummary(course: CanonicalCourse, chapter: typeof bab.$inferSelect): Promise<DemoCourseSummary> {
   const legacyId = course.legacyCourseId ?? course.id;
   const [legacy] = await db
@@ -213,7 +192,7 @@ async function resolveArticle(course: CanonicalCourse, chapter: typeof bab.$infe
 
   if (!record) return null;
   const shared = await fetchSharedCanonicalArticle(course.id, record.id);
-  if (!shared || shared.articleRecord.mataKuliahId !== course.id || shared.articleRecord.babId !== chapter.id || (!publicVisuals && shared.articleVisuals.length)) return null;
+  if (!shared || shared.articleRecord.id !== record.id || shared.articleRecord.mataKuliahId !== course.id || shared.articleRecord.babId !== chapter.id || (!publicVisuals && shared.articleVisuals.length)) return null;
   const article = buildPublicArticleReadModel({
     id: shared.articleRecord.id, courseId: course.id, babId: chapter.id, slug: shared.articleRecord.slug,
     title: shared.articleRecord.title, version: shared.articleRecord.version, status: shared.articleRecord.status,
@@ -621,7 +600,15 @@ export async function resolvePublicFreeFirstChapter(courseId: string, selection:
   const free = selectFreeChapters(chapters.map((chapter) => ({ id: chapter.id, title: chapter.title, orderIndex: chapter.orderIndex, canonicalId: chapter.id, legacyId: chapter.legacyChapterId, source: "canonical" as const })));
   const first = chapters.find((chapter) => chapter.id === free[0]?.canonicalId);
   if (!first || !hasChapterScopeWithin([first.id], free.flatMap((chapter) => [chapter.id, chapter.canonicalId, chapter.legacyId].filter((id): id is string => Boolean(id))))) return null;
-  const [articles, diktats, flashcardSets, initialArticles, initialDiktats, initialSets, quizPage] = await Promise.all([
+  if (first.legacyChapterId) {
+    const [mappings, legacyChapters] = await Promise.all([
+      db.select({ id: bab.id }).from(bab).where(eq(bab.legacyChapterId, first.legacyChapterId)),
+      db.select({ courseId: legacyChaptersTable.courseId }).from(legacyChaptersTable).where(eq(legacyChaptersTable.id, first.legacyChapterId)),
+    ]);
+    if (mappings.length !== 1 || mappings[0].id !== first.id || legacyChapters.length !== 1
+      || legacyChapters[0].courseId !== course.legacyCourseId) return null;
+  }
+  const [articles, diktats, flashcardSets, initialArticles, initialDiktats, initialSets, realQuizPage] = await Promise.all([
     db.select({ id: artikel.id, title: artikel.title }).from(artikel).where(and(eq(artikel.mataKuliahId, course.id), eq(artikel.babId, first.id), eq(artikel.structureStatus, "structured"), eq(artikel.status, "published"))).orderBy(asc(artikel.id)).limit(COLLECTION_PAGE_SIZE + 1).offset(collectionOffset),
     db.select({ id: diktatMateri.id, title: diktatMateri.title }).from(diktatMateri).where(and(eq(diktatMateri.mataKuliahId, course.id), eq(diktatMateri.babId, first.id), eq(diktatMateri.status, "published"))).orderBy(asc(diktatMateri.id)).limit(COLLECTION_PAGE_SIZE + 1).offset(collectionOffset),
     db.select({ id: setFlashcard.id, title: setFlashcard.title }).from(setFlashcard).where(and(eq(setFlashcard.mataKuliahId, course.id), eq(setFlashcard.babId, first.id), eq(setFlashcard.status, "published"))).orderBy(asc(setFlashcard.id)).limit(COLLECTION_PAGE_SIZE + 1).offset(collectionOffset),
@@ -630,19 +617,35 @@ export async function resolvePublicFreeFirstChapter(courseId: string, selection:
     db.select({ id: setFlashcard.id }).from(setFlashcard).where(and(eq(setFlashcard.mataKuliahId, course.id), eq(setFlashcard.babId, first.id), eq(setFlashcard.status, "published"))).orderBy(asc(setFlashcard.id)).limit(1),
     resolvePublicQuiz(course, first, selection.quizOffset ?? 0),
   ]);
-  const articleId = selection.articleId ?? initialArticles[0]?.id;
-  const diktatId = selection.diktatId ?? initialDiktats[0]?.id;
-  const flashcardSetId = selection.flashcardSetId ?? initialSets[0]?.id ?? null;
-  if (!articleId || !diktatId || !quizPage || (selection.flashcardSetId && !flashcardSetId)) return null;
-  if (selection.flashcardSetId) {
+  const fallback = fictionalDemoProducts(course, first);
+  const fallbackArticle = initialArticles.length === 0 ? fallback?.article : undefined;
+  const fallbackDiktat = initialDiktats.length === 0 ? fallback?.diktat : undefined;
+  const fallbackSet = initialSets.length === 0 ? fallback?.flashcardSet : undefined;
+  const articleId = selection.articleId ?? initialArticles[0]?.id ?? fallbackArticle?.id;
+  const diktatId = selection.diktatId ?? initialDiktats[0]?.id ?? fallbackDiktat?.id;
+  const flashcardSetId = selection.flashcardSetId ?? initialSets[0]?.id ?? fallbackSet?.id ?? null;
+  const quizPage = realQuizPage ?? (fallback && (selection.quizOffset ?? 0) === 0 ? {
+    questions: fallback.quiz,
+    metadata: { offset: 0, total: fallback.quiz.length, pageSize: QUIZ_PAGE_SIZE, nextOffset: null, previousOffset: null },
+  } : null);
+  if (!articleId || !diktatId || !quizPage) return null;
+  if (selection.flashcardSetId && selection.flashcardSetId !== fallbackSet?.id) {
     const [match] = await db.select({ id: setFlashcard.id }).from(setFlashcard).where(and(eq(setFlashcard.id, selection.flashcardSetId), eq(setFlashcard.mataKuliahId, course.id), eq(setFlashcard.babId, first.id), eq(setFlashcard.status, "published"))).limit(1);
     if (!match) return null;
   }
   const [courseSummary, article, diktat, cardRows] = await Promise.all([
-    buildCourseSummary(course, first), resolveArticle(course, first, articleId, true), resolveDiktat(course, first, diktatId, true),
-    flashcardSetId ? resolveFlashcards(course, first, flashcardSetId, flashcardOffset, FLASHCARD_PAGE_SIZE + 1) : Promise.resolve([]),
+    buildCourseSummary(course, first),
+    articleId === fallbackArticle?.id ? fallbackArticle : resolveArticle(course, first, articleId, true),
+    diktatId === fallbackDiktat?.id ? fallbackDiktat : resolveDiktat(course, first, diktatId, true),
+    flashcardSetId === fallbackSet?.id ? (flashcardOffset === 0 ? fallback?.flashcards ?? [] : [])
+      : flashcardSetId ? resolveFlashcards(course, first, flashcardSetId, flashcardOffset, FLASHCARD_PAGE_SIZE + 1) : Promise.resolve([]),
   ]);
   if (!article || !diktat || (flashcardOffset > 0 && cardRows.length === 0)) return null;
+  if (collectionOffset === 0) {
+    if (fallbackArticle) articles.push({ id: fallbackArticle.id, title: fallbackArticle.title });
+    if (fallbackDiktat) diktats.push({ id: fallbackDiktat.id, title: fallbackDiktat.title });
+    if (fallbackSet) flashcardSets.push(fallbackSet);
+  }
   const pieces = { course: courseSummary, article, diktat, flashcards: cardRows.slice(0, FLASHCARD_PAGE_SIZE), quiz: quizPage.questions,
     collections: { articles: articles.slice(0, COLLECTION_PAGE_SIZE), diktats: diktats.slice(0, COLLECTION_PAGE_SIZE), flashcardSets: flashcardSets.slice(0, COLLECTION_PAGE_SIZE), quiz: quizPage.metadata,
       page: { offset: collectionOffset, pageSize: COLLECTION_PAGE_SIZE, hasMore: articles.length > COLLECTION_PAGE_SIZE || diktats.length > COLLECTION_PAGE_SIZE || flashcardSets.length > COLLECTION_PAGE_SIZE, nextOffset: articles.length > COLLECTION_PAGE_SIZE || diktats.length > COLLECTION_PAGE_SIZE || flashcardSets.length > COLLECTION_PAGE_SIZE ? collectionOffset + COLLECTION_PAGE_SIZE : null },

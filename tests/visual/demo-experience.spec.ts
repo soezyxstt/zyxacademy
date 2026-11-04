@@ -1,7 +1,7 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 // Run only against the isolated harness described in public-demo-seeding.md.
-const routes = ["/demo", "/demo/courses", "/demo/progress", "/demo/history", "/demo/article", "/demo/diktat", "/demo/flashcards", "/demo/quiz", "/demo/zyra"];
+const routes = ["/demo", "/demo/courses", "/demo/progress", "/demo/history", "/demo/article", "/demo/diktat", "/demo/flashcards", "/demo/quiz", "/demo/tryout", "/demo/zyra"];
 const courses = [
   { id: "fictional-berpikir", title: "Berpikir Komputasional" },
   { id: "fictional-fisika", title: "Fisika Dasar I" },
