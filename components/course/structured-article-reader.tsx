@@ -938,11 +938,12 @@ export function StructuredArticleReader({
   // Overall reading progress calculation
   const totalSections = article.sections.length || 1;
   const completedCount = useMemo(() => {
+    if (adapter?.completed) return article.sections.length;
     return article.sections.filter((s) => {
       const p = sectionProgressMap[s.id];
       return p?.completed || (p?.maxReadPercent ?? 0) >= 90;
     }).length;
-  }, [article.sections, sectionProgressMap]);
+  }, [article.sections, sectionProgressMap, adapter?.completed]);
 
   const overallPercent = Math.min(100, Math.round((completedCount / totalSections) * 100));
 
@@ -1071,7 +1072,7 @@ export function StructuredArticleReader({
               {article.sections.map((section) => {
                 const isCurrent = activeSectionSlug === section.slug;
                 const prog = sectionProgressMap[section.id];
-                const isDone = prog?.completed || (prog?.maxReadPercent ?? 0) >= 90;
+                const isDone = adapter ? adapter.completed : prog?.completed || (prog?.maxReadPercent ?? 0) >= 90;
                 const subheadings = section.blocks.map(block => ({ block, title: getBlockTitle(block, section.title, t) })).filter(item => item.title);
 
                 return (

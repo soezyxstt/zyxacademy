@@ -27,7 +27,11 @@ function guard(page: Page) {
 }
 async function capture(page: Page, info: TestInfo, name: string) {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    window.scrollTo(0, 0);
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  });
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   const path = info.outputPath(`screenshots/${name}.png`);
   await page.screenshot({ path, fullPage: true, animations: "disabled", caret: "initial", style: "nextjs-portal { display: none !important; } input, textarea { caret-color: transparent !important; }" });
@@ -41,6 +45,12 @@ async function visit(page: Page, path: string) {
   expect(new URL(page.url()).search).toBe(new URL(path, "http://localhost").search);
   await expect(page.getByText("Demo belum tersedia")).toHaveCount(0);
   await expect(page.locator("#main-content")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Atur ulang demo|Reset demo/i, includeHidden: true })).toBeEnabled();
+  await expect(page.locator("#main-content > div")).toHaveCSS("opacity", "1");
+  const view = new URL(path, "http://localhost").pathname.split("/").at(-1);
+  if (view === "quiz" || view === "tryout") await expect(page.getByRole("radio").first()).toBeVisible();
+  if (view === "flashcards") await expect(page.getByText("Pertanyaan kartu 1?", { exact: true })).toBeVisible();
+  if (view === "diktat") await expect(page.getByRole("heading", { name: "Ringkasan konsep 1", exact: true })).toBeVisible();
   if (new URL(path, "http://localhost").pathname.endsWith("/courses")) await expect(page.locator("#main-content").getByRole("link", { name: /Berpikir Komputasional/ }).first()).toBeVisible();
 }
 for (const path of routes) {
@@ -57,6 +67,7 @@ test("article completion persists across reload and reset", async ({ page }, inf
   await visit(page, withCourse("/demo/article"));
   await page.getByRole("button", { name: /Tandai selesai|Mark complete/i }).click();
   await expect(page.getByRole("button", { name: /^(Selesai|Completed)$/i })).toBeDisabled();
+  if (info.project.name !== "mobile-380") await expect(page.getByText("1/1 selesai", { exact: true })).toBeVisible();
   await capture(page, info, "article-completed");
   await page.reload();
   await expect(page.getByRole("button", { name: /^(Selesai|Completed)$/i })).toBeDisabled();
@@ -276,10 +287,14 @@ test("course switcher lists four courses and changes the selected course", async
 test("synthetic tryout completes locally and survives reload", async ({ page }, info) => {
   const failures = guard(page);
   await visit(page, withCourse("/demo/tryout"));
-  for (let index = 0; index < 3; index++) {
-    await page.getByRole("radio").first().click();
-    if (index < 2) await page.getByRole("button", { name: /^Lanjut$/ }).click();
-  }
+  await page.getByRole("radio").first().click();
+  await capture(page, info, "tryout-choice");
+  await page.getByRole("button", { name: /^Lanjut$/ }).click();
+  await page.getByRole("checkbox").first().click();
+  await capture(page, info, "tryout-multiple-select");
+  await page.getByRole("button", { name: /^Lanjut$/ }).click();
+  await page.getByRole("textbox").first().fill("Menyusun rencana belajar");
+  await capture(page, info, "tryout-short-answer");
   await page.getByRole("button", { name: /^Kumpulkan jawaban$/i }).click();
   await capture(page, info, "tryout-confirm");
   await page.getByRole("dialog").getByRole("button", { name: /Ya, kumpulkan/i }).click();

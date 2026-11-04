@@ -28,6 +28,7 @@ interface CourseCatalogClientProps {
   groups: CourseGroup[];
   studentTargetCategory?: string | null;
   showCounts?: boolean;
+  showGroupHeaders?: boolean;
 }
 
 /**
@@ -87,6 +88,7 @@ function getCourseBadgeInfo(course: CatalogCourseItem) {
 export function CourseCatalogClient({
   groups,
   showCounts = true,
+  showGroupHeaders = true,
 }: CourseCatalogClientProps) {
   const t = useTranslations("learning");
   const { courseHref } = useStudentExperience();
@@ -130,6 +132,7 @@ export function CourseCatalogClient({
 
   const renderSection = (group: CourseGroup) => (
     <section key={group.jurusan} className="space-y-3">
+      {showGroupHeaders && (
       <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2.5">
         <div className="flex items-center gap-2">
           <h2 className="font-heading text-body-base font-bold text-foreground">
@@ -145,6 +148,7 @@ export function CourseCatalogClient({
           {t("courseCatalog.courseCount", { count: group.courses.length })}
         </span>
       </div>
+      )}
       <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60 bg-card">
         {group.courses.map(renderRow)}
       </div>

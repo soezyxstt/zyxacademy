@@ -59,7 +59,7 @@ The first-chapter Free policy is approved; its implementation, product-specific 
 
 ## Credential-free visual harness on the designated machine
 
-The unexecuted preparation script `scripts/visual/prepare-demo-harness.py` creates `artifacts/visual-quality/demo-harness` from git-enumerated source files and unignored additions, excludes hidden paths, sensitive file extensions and secret-named untracked additions, refuses source symlinks, and links installed dependencies. Reviewed tracked source files such as `lib/auth-secret.ts` are retained. It replaces the copied server resolver with `tests/visual/demo-harness/demo-data.ts` and constrains the copied Tailwind source scan to the harness directory. No fixture activation exists in production. The fixture supplies fictional data and production UI components. Its V2 snapshot and grading seam use the first-chapter policy, fictional course IDs and snapshot revision. It uses fictional test content and does not seed a database or approve real course content for public use. Run from a checkout with installed dependencies and no sensitive untracked files under source directories. Do not expose the harness server to a network.
+The preparation script `scripts/visual/prepare-demo-harness.py` creates `artifacts/visual-quality/demo-harness` from git-enumerated source files and unignored additions, excludes hidden paths, sensitive file extensions and secret-named untracked additions, refuses source symlinks, and links installed dependencies. Reviewed tracked source files such as `lib/auth-secret.ts` are retained. It replaces the copied server resolver with `tests/visual/demo-harness/demo-data.ts` and constrains the copied Tailwind source scan to the harness directory. No fixture activation exists in production. The fixture supplies fictional data and production UI components. Its V2 snapshot and grading seam use the first-chapter policy, fictional course IDs and snapshot revision. It uses fictional test content and does not seed a database or approve real course content for public use. Run from a checkout with installed dependencies and no sensitive untracked files under source directories. Do not expose the harness server to a network.
 
 On the designated machine, after the concurrent frontend work settles, the intended isolated startup is:
 
@@ -69,19 +69,19 @@ cd artifacts/visual-quality/demo-harness
 env -i PATH="$PATH" HOME="$HOME" SKIP_ENV_VALIDATION=1 DATABASE_URL=postgresql://localhost:1/fixture BETTER_AUTH_SECRET=fixture-only-secret-not-used-for-auth NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000 bun run dev -- --hostname 127.0.0.1
 ```
 
-From the original checkout in another terminal, run `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 bun run test:visual -- tests/visual/demo-experience.spec.ts`. Stop the server afterwards. The copied resolver provides four fictional course IDs, two products per collection, and four questions in pages of three and one. Fictional quiz tokens bind course, policy, snapshot revision and question page; no private answers appear in initial UI data. The command selects only the new spec; the older `demo-flow.spec.ts` is not part of this run. The spec checks both configured viewports for the populated demo routes, product selection, the final quiz page, article completion and reset, flashcard flip and grade, quiz error and result, corrupt and unavailable storage, English navigation, four-course selection and per-course overlay isolation. Cross-course, revision and cross-page token assertions expect rejection; the zero HTTP error gate applies to the ordinary browser flows. It captures mobile navigation closed and open at 380px. Screenshots are under `artifacts/visual-quality/results/`; the primary agent must inspect each and record the matrix. Final frontend changes may require selector updates, especially the mobile navigation toggle and grade labels. No test or runtime result is claimed here.
+From the original checkout in another terminal, run `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 bun run test:visual -- tests/visual/demo-experience.spec.ts`. Stop the server afterwards. The copied resolver provides four fictional course IDs, two products per collection, and four questions in pages of three and one. Fictional quiz tokens bind course, policy, snapshot revision and question page; no private answers appear in initial UI data. The command selects only the new spec; the older `demo-flow.spec.ts` is not part of this run. The spec checks both configured viewports for the populated demo routes, product selection, the final quiz page, article completion and reset, flashcard flip and grade, quiz error and result, corrupt and unavailable storage, English navigation, four-course selection and per-course overlay isolation. Cross-course, revision and cross-page token assertions expect rejection; the zero HTTP error gate applies to the ordinary browser flows. It captures mobile navigation closed and open at 380px. Screenshots are under `artifacts/visual-quality/results/`; the primary agent must inspect each and record the matrix. The selectors now match the shared navigation and grading controls. Current local acceptance is recorded below; production acceptance remains separate.
 
 ## Feature parity inventory
 
-This inventory is limited to source inspected while the frontend implementation is in progress. It is not runtime or visual verification. Recheck imports after the frontend worker finishes.
+This source inventory records shared component reuse. Local fixture runtime and visual acceptance are recorded below; production and full student feature parity remain separate.
 
 | Surface | Source status |
 |---|---|
-| Course catalogue | Demo dashboard imports the student `CourseCatalogClient` and uses `StudentExperienceProvider` for links. Runtime and visual verification are pending. |
-| Dashboard course progress | Demo and student dashboards both import `StudentCourseProgressRow` and `StudentDashboardSection`. Runtime and visual verification are pending. |
+| Course catalogue | Demo dashboard imports the student `CourseCatalogClient` and uses `StudentExperienceProvider` for links. Local fixture acceptance passed; production acceptance is pending. |
+| Dashboard course progress | Demo and student dashboards both import `StudentCourseProgressRow` and `StudentDashboardSection`. Local fixture acceptance passed; production acceptance is pending. |
 | Sidebar and layout | Demo uses shared `ApplicationShell`, `SidebarShell`, `StudentNavigationItems` and `ApplicationPage`. This does not establish full student shell parity. |
-| Article, flashcards, quiz | Demo adapters import `StructuredArticleReader`, `FlashcardClient`, and `QuizPlayer`; production product eligibility and visual behavior remain unverified. |
-| Diktat | Uses the shared `MaterialViewer` in read-only mode with downloads disabled; eligibility and runtime behavior remain unverified. |
+| Article, flashcards, quiz | Demo adapters import `StructuredArticleReader`, `FlashcardClient`, and `QuizPlayer`; real product eligibility passed read-only preflight and fixture visuals passed; production serving remains unverified. |
+| Diktat | Uses the shared `MaterialViewer` in read-only mode with downloads disabled; fixture behavior passed; production serving remains unverified. |
 | Tryout | `/demo/tryout` uses shared `TryoutForm` with synthetic questions and local completion; real assessment parity is not established. |
 | Zyra | Scripted messages reuse `TutorAssistantLabel` and `TutorStudentMessage`; live tutoring and paid feature parity are not established. |
 | Other student features | Not established as ported; inventory and acceptance remain pending. |
@@ -102,4 +102,25 @@ bun --conditions=react-server --env-file=/verified/production.env scripts/seed-p
 
 After required validation and authorized migration, append `--apply` to upsert exactly four validated fictional baselines in one transaction. `DATABASE_URL`, `NEON_EXPECTED_HOST` and `NEON_EXPECTED_DATABASE` must identify the verified target with verified TLS. The snapshot revision is `demo-2026-11-05-v1`; replacing it invalidates the previous browser overlay without deleting browser storage.
 
-Read-only production preflight passed for all four courses, including public Article metadata sanitization. Focused contracts and PostgreSQL fixture checks cover real product precedence, later-chapter exclusion, storage-key exclusion, paid quiz rejection in favor of authored fictional questions, and ambiguous legacy chapter denial. The sanitizer preserves versioned canonical IDs and mathematical inequalities. These checks do not establish browser, deployment or production runtime acceptance. Migration, seeding and deployment remain pending until the final evidence is recorded here.
+Read-only production preflight passed for all four courses, including public Article metadata sanitization. Focused contracts and PostgreSQL fixture checks cover real product precedence, later-chapter exclusion, storage-key exclusion, paid quiz rejection in favor of authored fictional questions, and ambiguous legacy chapter denial. The sanitizer preserves versioned canonical IDs and mathematical inequalities. There are 48 passing focused contracts and four passing PostgreSQL resolver/API fixture tests. Twelve additional contracts pass after updating stale reader, quiz storage and table-count assertions.
+
+### Local browser acceptance
+
+The primary agent ran `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 node node_modules/@playwright/test/cli.js test --config=playwright.config.ts tests/visual/demo-experience.spec.ts`: 57 passed, one desktop-only mobile-navigation skip, exit 0. Targeted recaptures after hydration synchronization and UI fixes also exited 0. The credential-free harness was copied to `D:/ZYX/zyx-web/artifacts/public-demo-verification-75e7e017` so Turbopack could follow the installed dependency junction on the same drive. It bound only to loopback and was stopped after verification.
+
+The primary agent directly inspected all 78 accepted screenshots at 380 by 844 and 1536 by 864. The exact file and viewport matrix is `artifacts/visual-quality/accepted-demo-matrix.json`; screenshots are under `artifacts/visual-quality/results/`. The accepted route/state matrix covers:
+
+| Surface | Inspected states at both viewports |
+|---|---|
+| Dashboard, courses | Populated dashboard, catalogue, four-course selection, course switcher, per-course overlay isolation |
+| Progress, history | Overview, concepts, daily, monthly, reviews, assessments |
+| Article | Initial, collection open, selected product, completed, reset, reload, corrupt and unavailable storage |
+| Diktat | Initial, collection open, selected product, read-only viewer |
+| Flashcards | Initial, collection open, selected set, flipped, graded |
+| Quiz | Initial, submission error, graded result, final one-question page and result |
+| Tryout, Zyra | Initial, question types, confirmation, local completion/reload, scripted tutor |
+| Navigation | English navigation, mobile navigation closed and open at 380px |
+
+Ordinary browser flows passed HTTP, redirect, page error, console error and horizontal-overflow gates. Deliberate invalid-course and token tests assert rejection separately. The local fixes remove a server invocation of a client helper, keep the asynchronous Footer on the server, display completed article progress consistently, and remove the demo quiz's redirect toast. Typecheck and focused ESLint pass. A prior CI build passed; the final head still requires the complete CI run. The harness establishes fixture behavior and visual acceptance, not production runtime acceptance or full student feature parity.
+
+A fresh read-only production check confirmed migrations 0000 through 0002 and no snapshot table. Migration 0003, four-row seeding and deployment remain pending final CI acceptance.

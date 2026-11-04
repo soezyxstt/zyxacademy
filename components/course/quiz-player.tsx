@@ -439,7 +439,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       storage.removeItem(timerStorageKey);
       storage.removeItem(`zyx-quiz-answers-${attemptId}`);
       storage.removeItem(`zyx-quiz-flags-${attemptId}`);
-      toast.success(t("quiz.submitted"));
+      if (!transport) toast.success(t("quiz.submitted"));
 
       // Demo transport owns its result presentation and navigation.
       if (transport) return;
@@ -487,7 +487,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     }, 1000);
 
     return () => clearInterval(qTimer);
-  }, [perQuestionTimerEnabled, isSubmitted, submitting, index, sorted.length, timerStorageKey, t]);
+  }, [perQuestionTimerEnabled, isSubmitted, submitting, index, sorted.length, timerStorageKey, t, storage]);
 
   useEffect(() => {
     const rawDeadline = storage.getItem(timerStorageKey);
@@ -513,7 +513,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     const nextTimeLeft = Math.max(0, Math.ceil((deadline - now) / 1000));
     const syncTimer = window.setTimeout(() => setTimeLeft(nextTimeLeft), 0);
     return () => window.clearTimeout(syncTimer);
-  }, [durationSeconds, timerStorageKey, startedAtMs, closeAtMs]);
+  }, [durationSeconds, timerStorageKey, startedAtMs, closeAtMs, storage]);
 
   useEffect(() => {
     if (isSubmitted || submitting) return;
@@ -533,7 +533,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       }
     }, 1000);
     return () => clearInterval(timer);
-  }, [handleSubmit, isSubmitted, submitting, t, timerStorageKey]);
+  }, [handleSubmit, isSubmitted, submitting, t, timerStorageKey, storage]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
