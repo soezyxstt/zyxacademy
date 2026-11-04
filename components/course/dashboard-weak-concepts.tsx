@@ -21,6 +21,7 @@ interface DashboardWeakConceptsProps {
   courseTitle?: string;
   className?: string;
   showHeader?: boolean;
+  hideTrend?: boolean;
 }
 
 function barTone(score: number) {
@@ -40,6 +41,7 @@ export function DashboardWeakConcepts({
   courseTitle,
   className,
   showHeader = true,
+  hideTrend = false,
 }: DashboardWeakConceptsProps) {
   const t = useTranslations("studentCourse");
   const resolvedCourseTitle = courseTitle ?? t("course.dashboardWeakConcepts.defaultCourse");
@@ -80,7 +82,7 @@ export function DashboardWeakConcepts({
                 <div className="flex items-start justify-between gap-2 text-body-sm">
                   <span className="flex items-center gap-1.5 font-medium text-foreground min-w-0 break-words leading-snug">
                     <MathText as="span">{c.conceptName}</MathText>
-                    {isMeasured && <TrendIcon trend={c.trend} />}
+                    {isMeasured && !hideTrend && <TrendIcon trend={c.trend} />}
                   </span>
                   <span className="font-mono text-body-xs font-semibold text-muted-foreground shrink-0 mt-0.5">
                     {isMeasured ? `${c.masteryScore}%` : t("course.dashboardWeakConcepts.notMeasured")}

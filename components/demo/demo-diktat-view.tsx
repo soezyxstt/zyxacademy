@@ -1,52 +1,10 @@
-import { FileText, LockKeyhole } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+"use client";
+import { MaterialViewer } from "@/components/course/material-viewer";
 import type { DemoDiktatSection } from "@/app/(marketing)/demo/demo-data";
-import { DemoAuthCta } from "./demo-shell";
-import { getTranslations } from "@/lib/i18n/server";
+import { useStudentExperience } from "@/components/student-experience-provider";
 
-export async function DemoDiktatView({
-  title,
-  sections,
-  nextPath,
-}: {
-  title: string;
-  sections: DemoDiktatSection[];
-  nextPath: string;
-}) {
-  const t = await getTranslations("marketing");
-  return (
-    <article className="mx-auto max-w-3xl">
-      <Card variant="solid" className="p-5 sm:p-8">
-        <div className="flex items-start gap-3 border-b border-border pb-5">
-          <FileText className="mt-1 size-5 shrink-0 text-brand-primary" aria-hidden="true" />
-          <div>
-            <h2 className="font-heading text-h5 font-bold tracking-tight text-foreground">{title}</h2>
-          </div>
-        </div>
-
-        <div className="mt-8 space-y-10">
-          {sections.slice(0, 2).map((section, index) => (
-            <section key={`${section.title}-${index}`}>
-              <h3 className="font-heading text-body-base font-bold text-foreground">{section.title}</h3>
-              <div className="mt-4">
-                <MarkdownRenderer content={section.content} />
-              </div>
-            </section>
-          ))}
-        </div>
-      </Card>
-
-      <div className="mt-5 flex flex-col gap-3 rounded-xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <LockKeyhole className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <div>
-            <h2 className="font-heading text-body-sm font-bold text-foreground">{t("demo.diktat.ctaTitle")}</h2>
-            <p className="mt-1 text-body-xs text-muted-foreground">{t("demo.diktat.ctaDescription")}</p>
-          </div>
-        </div>
-        <DemoAuthCta nextPath={nextPath} />
-      </div>
-    </article>
-  );
+export function DemoDiktatView({ title, sections }: { title: string; sections: DemoDiktatSection[]; nextPath: string }) {
+  const experience = useStudentExperience();
+  const material = { id: "demo-diktat", courseId: "demo-course", title, kind: "article" as const, docCategory: "diktat" as const, body: `# ${title.replace(/\r?\n/g, " ")}\n\n${sections.map((section) => `## ${section.title}\n\n${section.content}`).join("\n\n")}`, completed: false };
+  return <div className="h-[70vh]"><MaterialViewer material={material} mode="admin-preview" backHref={experience.route("courses")} canDownload={false} /></div>;
 }

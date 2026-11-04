@@ -1,152 +1,68 @@
 "use client";
 
-import { useState } from "react";
-import { CheckSquare, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AssessmentResult } from "./assessment/assessment-result";
+import { QuizPlayer } from "@/components/course/quiz-player";
 import type { DemoQuizQuestion } from "@/app/(marketing)/demo/demo-data";
-import { DemoAuthCta } from "./demo-shell";
+import { demoQuizEventKey, demoQuizExam, demoQuizIdentity, gradeDemoQuiz, parseDemoQuizResult, serializeDemoQuizResult, type DemoQuizResult } from "@/lib/demo/assessment/quiz";
 import { useTranslations } from "@/lib/i18n/client";
+import { useDemoSession } from "./demo-session";
+import { useStudentExperience } from "@/components/student-experience-provider";
 
-type QuizResult = {
-  index: number;
-  isCorrect: boolean;
-  explanation: string | null;
-};
-
-export function DemoQuiz({
-  questions,
-  quizSetToken,
-  nextPath,
-}: {
+/** Uses only the server-provided, redacted question set. */
+export function DemoQuiz({ questions, quizSetToken, courseId, quizOffset = 0 }: {
   questions: DemoQuizQuestion[];
   quizSetToken: string;
+  quizOffset?: number;
+  courseId: string;
   nextPath: string;
 }) {
   const t = useTranslations("marketing");
-  const [answers, setAnswers] = useState<number[][]>(() => questions.map(() => []));
-  const [results, setResults] = useState<QuizResult[] | null>(null);
-  const [score, setScore] = useState<number | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const choose = (questionIndex: number, optionIndex: number, multiple: boolean) => {
-    setResults(null);
-    setScore(null);
-    setAnswers((current) => current.map((answer, index) => {
-      if (index !== questionIndex) return answer;
-      if (!multiple) return [optionIndex];
-      return answer.includes(optionIndex)
-        ? answer.filter((value) => value !== optionIndex)
-        : [...answer, optionIndex].sort((a, b) => a - b);
-    }));
-  };
-
-  const submit = async () => {
-    setSubmitting(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/demo/quiz", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        cache: "no-store",
-        body: JSON.stringify({
-          answers,
-          questionIds: questions.map((question) => question.id),
-          questionSetToken: quizSetToken,
-        }),
-      });
-      const payload = await response.json().catch(() => null) as {
-        score?: number;
-        results?: QuizResult[];
-        error?: string;
-      } | null;
-      if (!response.ok || !payload?.results) {
-        throw new Error(t("demo.quiz.error"));
-      }
-      setScore(payload.score ?? 0);
-      setResults(payload.results);
-    } catch {
-      setError(t("demo.quiz.error"));
-    } finally {
-      setSubmitting(false);
+  const { record, ready, generation, overlay } = useDemoSession();
+  const experience = useStudentExperience();
+  const revision = experience.baseline.find((snapshot) => snapshot.courseId === courseId)?.revision;
+  const identity = demoQuizIdentity(courseId, revision ?? "", quizOffset, questions);
+  const questionKey = demoQuizEventKey(identity);
+  const resultKey = `zyx-demo-quiz-result:v2:${questionKey}`;
+  const memoryResult = useRef<{ identity: string; result: DemoQuizResult } | null>(null);
+  const [loaded, setLoaded] = useState<{ identity: string; generation: number; result: DemoQuizResult | null } | null>(null);
+  const exam = useMemo(() => demoQuizExam(questions, t("demo.quiz.title")), [questions, t]);
+  useEffect(() => {
+    if (!ready || !revision || experience.mode !== "demo" || experience.selectedCourseId !== courseId) return;
+    let stored = memoryResult.current?.identity === identity ? memoryResult.current.result : null;
+    if (overlay.events.some((event) => event.kind === "quiz" && event.id === questionKey)) {
+      try { stored = parseDemoQuizResult(sessionStorage.getItem(resultKey), identity, questions.length) ?? stored; } catch { /* Storage is optional. */ }
+    } else {
+      stored = null;
+      memoryResult.current = null;
+      try { sessionStorage.removeItem(resultKey); } catch { /* Storage is optional. */ }
     }
-  };
+    setLoaded({ identity, generation, result: stored });
+  }, [ready, revision, generation, overlay, questionKey, resultKey, identity, questions.length, experience.mode, experience.selectedCourseId, courseId]);
+  const submit = useCallback(async (answers: Record<string, unknown>) => {
+    if (!ready || !revision || experience.mode !== "demo" || experience.selectedCourseId !== courseId) throw new Error("Session unavailable");
+    const graded = await gradeDemoQuiz(courseId, questions, quizSetToken, answers, quizOffset);
+    try { sessionStorage.setItem(resultKey, serializeDemoQuizResult(identity, graded)); } catch { /* Keep the result in memory. */ }
+    memoryResult.current = { identity, result: graded };
+    record("quiz", questionKey);
+    setLoaded({ identity, generation, result: graded });
+  }, [courseId, questions, quizSetToken, quizOffset, ready, revision, experience.mode, experience.selectedCourseId, record, questionKey, resultKey, identity, generation]);
+  const transport = useMemo(() => ({ submit }), [submit]);
 
-  return (
-    <div className="mx-auto max-w-3xl">
-      <Card variant="solid" className="p-5 sm:p-8">
-        <div className="flex items-start gap-3 border-b border-border pb-5">
-          <CheckSquare className="mt-1 size-5 shrink-0 text-brand-primary" aria-hidden="true" />
-          <div>
-            <h2 className="font-heading text-h5 font-bold text-foreground">{t("demo.quiz.title")}</h2>
-            <p className="mt-1 text-body-xs text-muted-foreground">{t("demo.quiz.description")}</p>
-          </div>
-        </div>
+  if (!ready || !revision || experience.mode !== "demo" || experience.selectedCourseId !== courseId || (loaded?.identity !== identity || loaded.generation !== generation)) return null;
+  if (loaded.result) return <DemoQuizResults result={loaded.result} />;
+  return <QuizPlayer key={`${questionKey}:${generation}`} courseId={courseId} exam={exam} attemptId={`demo:${questionKey}:${generation}`} transport={transport} />;
+}
 
-        <div className="mt-8 space-y-8">
-          {questions.map((question, questionIndex) => {
-            const selected = answers[questionIndex] ?? [];
-            const result = results?.[questionIndex];
-            return (
-              <fieldset key={`${question.prompt}-${questionIndex}`} className="space-y-3">
-                <legend className="text-body-base font-semibold leading-relaxed text-foreground">
-                  {questionIndex + 1}. {question.prompt}
-                </legend>
-                <div className="space-y-2">
-                  {question.options.map((option, optionIndex) => {
-                    const checked = selected.includes(optionIndex);
-                    const inputId = `demo-question-${questionIndex}-option-${optionIndex}`;
-                    return (
-                      <label
-                        key={inputId}
-                        htmlFor={inputId}
-                        className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-background px-3 py-3 text-body-sm transition-colors has-[:checked]:border-brand-primary/50 has-[:checked]:bg-brand-primary/5"
-                      >
-                        <input
-                          id={inputId}
-                          type={question.multiple ? "checkbox" : "radio"}
-                          name={`demo-question-${questionIndex}`}
-                          checked={checked}
-                          onChange={() => choose(questionIndex, optionIndex, question.multiple)}
-                          className="mt-0.5 size-4 accent-[var(--zx-accent)]"
-                        />
-                        <span className="leading-relaxed text-foreground">{option}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-                {result ? (
-                  <p className={result.isCorrect ? "text-body-xs text-status-success" : "text-body-xs text-status-error"}>
-                    {result.isCorrect ? t("demo.quiz.correct") : t("demo.quiz.incorrect")}
-                    {result.explanation ? ` ${result.explanation}` : ""}
-                  </p>
-                ) : null}
-              </fieldset>
-            );
-          })}
-        </div>
-
-        {error ? <p className="mt-6 text-body-sm text-status-error">{error}</p> : null}
-        {score !== null ? (
-          <p className="mt-6 rounded-lg bg-status-success/10 px-3 py-2 text-body-sm font-semibold text-status-success" aria-live="polite">
-            {t("demo.quiz.score", { score, total: questions.length })}
-          </p>
-        ) : null}
-
-        <Button type="button" onClick={submit} disabled={submitting} className="mt-6 gap-1.5 rounded-lg">
-          {submitting ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-          {submitting ? t("demo.quiz.checking") : t("demo.quiz.submit")}
-        </Button>
-      </Card>
-
-      <div className="mt-5 flex flex-col gap-3 rounded-xl border border-brand-primary/20 bg-brand-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="font-heading text-body-base font-bold text-foreground">{t("demo.quiz.saveTitle")}</h2>
-          <p className="mt-1 text-body-xs text-muted-foreground">{t("demo.quiz.saveDescription")}</p>
-        </div>
-        <DemoAuthCta nextPath={nextPath} />
-      </div>
-    </div>
-  );
+/** Route owners may reuse this after loading a validated local result. */
+export function DemoQuizResults({ result }: { result: DemoQuizResult }) {
+  const t = useTranslations("marketing");
+  return <AssessmentResult title={t("demo.quiz.score", { score: result.score, total: result.total })}>
+    <ol className="divide-y divide-border rounded-xl border border-border bg-card px-4">
+      {[...result.results].sort((a, b) => a.index - b.index).map((item) => <li key={item.index} className="space-y-1 py-3 text-body-sm">
+        <p className={item.isCorrect ? "text-status-success" : "text-status-error"}>{item.index + 1}. {item.isCorrect ? t("demo.quiz.correct") : t("demo.quiz.incorrect")}</p>
+        {item.explanation && <p className="text-muted-foreground">{item.explanation}</p>}
+      </li>)}
+    </ol>
+  </AssessmentResult>;
 }

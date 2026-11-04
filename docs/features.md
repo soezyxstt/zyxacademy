@@ -68,11 +68,12 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 
 ## Public demo and Free access
 
-- `/demo` is a public, read-only introduction. It requires exactly one active course selected by an admin, an unambiguous canonical and legacy mapping, and resolves only published content from the first active Bab, in deterministic order.
-- The demo dashboard links to the full structured Article, a two-section Diktat preview with no download, five Flashcards, a stateless three-question Kuis, and a scripted Zyra conversation. Demo interactions stay in memory, never create progress or quiz attempts, and never call an AI provider.
-- If zero or more than one course is selected, its canonical and legacy mapping is ambiguous, or its published content becomes incomplete, `/demo` shows a recovery state and does not fall back to draft or legacy content. Sign-in links use a safe `next` callback to return to the real selected course path, `/courses/{id}`.
-- The Free package provides Bab 1 and Bab 2 in every mata kuliah, including the related Article, Diktat, Kuis, and Flashcard content. Diktat is readable without download. Zyra allows 5 questions per day, and authenticated learning progress is stored.
-- Admins select the public course from course settings. Selection is allowed only when the course is active, its canonical and legacy mapping is unambiguous, and it has a complete published Article, two-section Diktat, at least five published Flashcards, and at least three published Kuis questions. The selection is transactional and singleton-scoped.
+- The approved public demo policy permits real Free-eligible products from the first active chapter only, matching the current Free chapter scope. Product-specific publication, visibility and chapter-scope checks must be enforced on reads and grading. Diktat is read-only with no download; generic uploaded PDFs remain unavailable unless an existing explicit Free eligibility path covers the exact file and first chapter.
+- Authored fictional fallback products are authorized only where eligible real products are unavailable. They do not change real publication, chapter or Free permissions.
+- Progress, monthly history and later-chapter data are fictional. Later-chapter real bodies and answers, premium storage objects and downloads must not be exposed. The V2 snapshot is present in source; product collections and structured-media sanitization are present in source; boundary and runtime verification remain pending; see [the seeding guide](operations/public-demo-seeding.md).
+- The legacy admin `isDemo` singleton remains separate from the snapshot allowlist.
+- The Free chapter resolver selects the first active chapter, including eligible Article, Diktat, Kuis, and Flashcard content. Diktat is readable without download. Zyra allows 5 questions per day, and authenticated learning progress is stored.
+- Admins select the legacy singleton demo course from course settings. Selection is allowed only when the course is active, its canonical and legacy mapping is unambiguous, and it has a complete published Article, two-section Diktat, at least five published Flashcards, and at least three published Kuis questions. The selection is transactional and singleton-scoped.
 
 ## Core Pipelines
 

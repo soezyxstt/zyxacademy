@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TutorAssistantLabel, TutorStudentMessage } from "@/components/course/tutor-message-frame";
 import type { Followup } from "@/lib/zyra/followups";
 import {
   Compass,
@@ -1473,8 +1474,7 @@ export function TutorDrawerView({
                 if (isStudent) {
                   const attachmentSessionId = msg.sessionId ?? sessionId;
                   return (
-                    <div key={msg.id || index} className="flex justify-end">
-                      <div className="min-w-0 max-w-[85%] rounded-2xl bg-muted/90 text-foreground px-4 py-2.5 text-body-sm leading-relaxed shadow-2xs space-y-2">
+                    <TutorStudentMessage key={msg.id || index}>
                         {msg.quotedContext && (
                           <div className="border-l-2 border-brand-primary/60 pl-2.5 py-0.5 text-body-xs space-y-0.5 text-muted-foreground">
                             <p className="font-medium text-foreground text-[11px] truncate">
@@ -1511,19 +1511,13 @@ export function TutorDrawerView({
                             />
                           </div>
                         )}
-                      </div>
-                    </div>
+                    </TutorStudentMessage>
                   );
                 }
 
                 return (
                   <div key={msg.id || index} className="space-y-2 select-text">
-                    {/* Zyra Header Label */}
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-heading text-body-xs font-bold text-brand-primary">
-                        Zyra
-                      </span>
-                    </div>
+                    <TutorAssistantLabel />
 
                     {/* Message Content Flow (Synced with Artikel v4 renderer pipeline) */}
                     {msg.isError ? (

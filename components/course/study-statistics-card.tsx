@@ -26,7 +26,7 @@ export function StudyStatisticsSkeleton() {
 }
 
 interface StudyStatisticsCardProps {
-  data: StudyStatisticsData | null;
+  data: (Omit<StudyStatisticsData, "studyTimeMin" | "cardsReviewedCount"> & { studyTimeMin: number | null; cardsReviewedCount: number | null }) | null;
   isLoading?: boolean;
 }
 
@@ -54,9 +54,9 @@ export function StudyStatisticsCard({
       </h3>
 
       <AdminStatStrip className="grid-cols-2 sm:grid-cols-4">
-        <AdminStatStripItem icon={Clock} iconClassName="text-brand-primary" label={t("course.statistics.studyTime")} value={t("course.statistics.minutes", { count: stats.studyTimeMin })} />
+        <AdminStatStripItem icon={Clock} iconClassName="text-brand-primary" label={t("course.statistics.studyTime")} value={stats.studyTimeMin === null ? "-" : t("course.statistics.minutes", { count: stats.studyTimeMin })} />
         <AdminStatStripItem icon={BookOpen} iconClassName="text-status-info" label={t("course.statistics.completedDocuments")} value={t("course.statistics.materials", { count: stats.completedMaterialsCount })} />
-        <AdminStatStripItem icon={CheckCircle2} iconClassName="text-status-success" label={t("course.statistics.reviewedCards")} value={t("course.statistics.reviews", { count: stats.cardsReviewedCount })} />
+        <AdminStatStripItem icon={CheckCircle2} iconClassName="text-status-success" label={t("course.statistics.reviewedCards")} value={stats.cardsReviewedCount === null ? "-" : t("course.statistics.reviews", { count: stats.cardsReviewedCount })} />
         <AdminStatStripItem icon={Flame} iconClassName="text-brand-secondary" label={t("course.statistics.streak")} value={t("course.statistics.days", { count: stats.currentStreakDays })} />
       </AdminStatStrip>
     </div>

@@ -1,15 +1,7 @@
 import type { ReactNode } from "react";
-import { Navbar } from "@/components/navbar";
-import { SiteMain } from "@/components/site-main";
 import { Footer } from "@/components/footer";
-import { CommandMenuProvider } from "@/components/command-menu";
+import { DemoAwareMarketingLayout } from "@/components/demo/demo-marketing-layout";
 
 export default function MarketingLayout({ children }: { children: ReactNode }) {
-  return (
-    <CommandMenuProvider>
-      <Navbar />
-      <SiteMain>{children}</SiteMain>
-      <Footer />
-    </CommandMenuProvider>
-  );
+  return <DemoAwareMarketingLayout footer={<Footer />}>{children}</DemoAwareMarketingLayout>;
 }

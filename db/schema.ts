@@ -1666,6 +1666,13 @@ export const mataKuliah = pgTable(
  ],
 );
 
+export const publicDemoSnapshots = pgTable("public_demo_snapshots", {
+ id: text("id").primaryKey(),
+ courseId: text("course_id").notNull().unique().references(() => mataKuliah.id, { onDelete: "cascade" }),
+ snapshot: jsonb("snapshot").notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
+});
+
 export const bab = pgTable(
  "bab",
  {

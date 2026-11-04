@@ -29,12 +29,12 @@ describe("admin course reader mode contract", () => {
 
   test("gates progress and Zyra paths in StructuredArticleReader", () => {
     const content = source("components/course/structured-article-reader.tsx");
-    expect(content).toContain('if (!learnerMode) return;\n      try {\n        const res = await fetch(`/api/student/articles/');
-    expect(content).toContain('if (!learnerMode) return;\n    activeTimeSpentRef.current = 0');
+    expect(content).toContain('if (!learnerMode || adapter) return;\n      try {\n        const res = await fetch(`/api/student/articles/');
+    expect(content).toContain('if (!learnerMode || adapter) return;\n    activeTimeSpentRef.current = 0');
     expect(content).toContain('if (!learnerMode || !selectionAskEnabled || !isMobileSelection || isTutorOpen) return;\n');
     expect(content).toContain('if (!learnerMode || !selectionAskEnabled || isMobileSelection) return;\n');
-    expect(content).toContain("learnerMode && isMobileSelection && !isTutorOpen && isSelectionToolbarOpen && selectionContext");
-    expect(content).toContain("learnerMode && !isMobileSelection && selectionCoords && selectionContext");
+    expect(content).toContain("learnerMode && selectionAskEnabled && isMobileSelection && !isTutorOpen && isSelectionToolbarOpen && selectionContext");
+    expect(content).toContain("learnerMode && selectionAskEnabled && !isMobileSelection && selectionCoords && selectionContext");
   });
 
   test("admin preview authenticates and resolves ownership before rendering", () => {

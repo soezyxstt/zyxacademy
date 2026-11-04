@@ -4,39 +4,21 @@ import { readFileSync } from "node:fs";
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("public demo course contract", () => {
-  test("resolves one active selected course and only published content", () => {
-    const resolver = source("app/(marketing)/demo/demo-data.ts");
-    expect(resolver).toContain("eq(mataKuliah.status, \"active\")");
-    expect(resolver).toContain("eq(demoColumn, true)");
-    expect(resolver).toContain("orderBy(asc(mataKuliah.title), asc(mataKuliah.id))");
+  test("resolves allowlisted active courses and published first-chapter products", () => {
+    const resolver = source("lib/demo/legacy-eligibility.ts");
+    const publicData = source("app/(marketing)/demo/demo-data.ts");
+    expect(publicData).toContain("getPublicDemoSnapshots()");
+    expect(publicData).toContain("resolvePublicFreeFirstChapter(row.snapshot.courseId, selection)");
+    expect(resolver).toContain('eq(mataKuliah.status, "active")');
     expect(resolver).toContain("if (rows.length !== 1) return null");
-    expect(resolver).toContain("const selected = rows[0]");
-    expect(resolver).toContain('if (selected.status !== "active") return null');
-    expect(resolver).toContain("resolveCanonicalCourse(selected.legacyCourseId ?? selected.id)");
     expect(resolver).toContain("if (mappedRows.length !== 1 || mappedRows[0]?.id !== row.id) return null");
     expect(resolver).toContain("if (legacyRows.length !== 1) return null");
-    const canonicalResolver = resolver.slice(
-      resolver.indexOf("async function resolveCanonicalCourse"),
-      resolver.indexOf("async function getSelectedCourse"),
-    );
-    const selectedResolver = resolver.slice(
-      resolver.indexOf("async function getSelectedCourse"),
-      resolver.indexOf("async function buildCourseSummary"),
-    );
-    expect(canonicalResolver).not.toContain(".limit(1)");
-    expect(selectedResolver).not.toContain(".limit(1)");
-    expect(resolver).toContain("getCanonicalPublishedArticle(course.id, record.id)");
-    expect(resolver).toContain("eq(artikel.status, \"published\")");
-    expect(resolver).toContain("eq(diktatMateri.status, \"published\")");
-    expect(resolver).toContain("eq(setFlashcard.status, \"published\")");
-    expect(resolver).toContain("eq(flashcard.status, \"published\")");
-    expect(resolver).toContain("eq(soal.status, \"published\")");
-    expect(resolver).toContain(".limit(5)");
-    expect(resolver).toContain(".slice(0, 3)");
-    expect(resolver).toContain("chapterNumber: chapter.orderIndex,");
+    for (const product of ["artikel", "diktatMateri", "setFlashcard", "flashcard", "soal"]) {
+      expect(resolver).toContain(`eq(${product}.status, "published")`);
+    }
+    expect(resolver).toContain("fetchSharedCanonicalArticle(course.id, record.id)");
+    expect(resolver).toContain("chapterNumber: chapter.orderIndex");
     expect(resolver).not.toContain("chapter.orderIndex + 1");
-    expect(resolver).not.toContain("gemini");
-    expect(resolver).not.toContain("GoogleGenerativeAI");
   });
 
   test("keeps the public route noindex and shows a safe empty state", () => {
@@ -47,8 +29,8 @@ describe("public demo course contract", () => {
     expect(detail).toContain("noIndex: true");
     const metadata = source("lib/site.ts");
     expect(metadata).toMatch(/noIndex[\s\S]*index: false[\s\S]*follow: false/);
-    expect(dashboard).toContain("if (!content) return <DemoEmptyState />");
-    expect(detail).toContain("if (!content) return <DemoEmptyState />");
+    expect(dashboard).toContain("if (!experiences.length) return <DemoEmptyState />");
+    expect(detail).toContain("if (!defaults.length) return <DemoEmptyState />");
     expect(empty).toContain('t("demo.emptyTitle")');
     expect(JSON.parse(source("messages/id/marketing.json")).demo.emptyTitle).toBe("Demo belum tersedia");
   });
@@ -65,23 +47,14 @@ describe("public demo course contract", () => {
     expect(api).toContain("questionSetToken");
     expect(api).toContain("verifyDemoQuestionSetToken");
     expect(api).toContain("sameQuestionOrder");
-    expect(quiz).toContain('fetch("/api/demo/quiz"');
-    expect(quiz).toContain("questionSetToken");
-    expect(quiz).toContain('t("demo.quiz.title")');
-    expect(quiz).toContain('t("demo.quiz.description")');
-    expect(JSON.parse(source("messages/id/marketing.json")).demo.quiz.title).not.toContain("Kuis singkat");
-    expect(quiz).toContain("useState<QuizResult[] | null>(null)");
-    expect(quiz).toContain("setResults(payload.results)");
-    expect(quiz).toContain("const result = results?.[questionIndex]");
-    expect(quiz).toContain("{result ? (");
-    expect(data).toContain("function toPublicContent");
+    const adapter = source("lib/demo/assessment/quiz.ts");
+    expect(adapter).toContain('fetch("/api/demo/quiz"');
+    expect(adapter).toContain("questionSetToken");
+    expect(quiz).toContain("QuizPlayer");
+    expect(quiz).toContain("DemoQuizResults");
     expect(data).toContain("quiz: pieces.quiz.map(({ id, prompt, options, multiple })");
-    expect(data).toContain("DEMO_QUESTION_SET_TOKEN_VERSION");
-    expect(data).toContain("quizSetToken");
-    expect(data).toContain("version: soal.version");
-    expect(data).toContain("questionVersions");
-    expect(data).toContain("sameQuestionVersions(payload.questionVersions, expected.questionVersions)");
-    expect(data).toContain("sameQuestionOrder(payload.questionIds, expected.questionIds)");
+    expect(data).toContain("matchesDemoQuizScope(value, expected)");
+    expect(data).toContain("timingSafeEqual(actual, wanted)");
     expect(api).toContain("expectedQuestionVersions");
   });
 
@@ -120,12 +93,10 @@ describe("public demo course contract", () => {
 
   test("returns demo visitors to the selected course after sign-in", () => {
     const shell = source("components/demo/demo-shell.tsx");
-    const dashboard = source("app/(marketing)/demo/page.tsx");
     const detail = source("app/(marketing)/demo/[view]/page.tsx");
-    expect(shell).toContain("demoCoursePath(course.id)");
-    expect(shell).toContain("return `/courses/${encodeURIComponent(courseId)}`");
+    expect(source("lib/demo/routes.ts")).toContain("return `/courses/${encodeURIComponent(courseId)}`");
     expect(shell).not.toContain("Mode demo");
-    expect(dashboard).toContain("demoCoursePath(content.course.id)");
+    expect(shell).toContain("demoSignInHref(nextPath)");
     expect(detail).toContain("const nextPath = demoCoursePath(content.course.id)");
     for (const component of [
       "components/demo/demo-article-view.tsx",

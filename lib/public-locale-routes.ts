@@ -10,10 +10,14 @@ export const PUBLIC_LOCALE_ROUTES = [
   "/privacy",
   "/terms",
   "/demo",
+  "/demo/courses",
+  "/demo/progress",
+  "/demo/history",
   "/demo/article",
   "/demo/diktat",
   "/demo/flashcards",
   "/demo/quiz",
+  "/demo/tryout",
   "/demo/zyra",
 ] as const;
 
