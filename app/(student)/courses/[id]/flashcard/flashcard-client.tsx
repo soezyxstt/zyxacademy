@@ -26,7 +26,7 @@ interface Flashcard {
   createdAt: Date;
 }
 
-interface QueueItem {
+export interface QueueItem {
   card: Flashcard;
   progress: any;
   dueStatus: "new" | "review";
@@ -42,11 +42,12 @@ type FlashcardClientProps = {
   courseId: string;
   initialQueue: QueueItem[];
   studentId: string;
+  adapter?: { onReview: (cardId: string, grade: number) => void | Promise<void>; backHref: string; onRestart?: () => void };
 };
 
 const BATCH_SIZE = 10;
 
-export function FlashcardClient({ courseId, initialQueue, studentId }: FlashcardClientProps) {
+export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: FlashcardClientProps) {
   const t = useTranslations("learning");
   const [queue, setQueue] = useState<QueueItem[]>(initialQueue);
   const [batchOffset, setBatchOffset] = useState(0);
@@ -102,7 +103,8 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
     setLoading(true);
     try {
       // Call server action wrapper
-      await submitReviewAction(
+      if (adapter) await adapter.onReview(currentItem.card.id, grade);
+      else await submitReviewAction(
         studentId,
         currentItem.card.id,
         grade,
@@ -113,7 +115,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
 
       toast.success(t("flashcards.gradeSaved"));
       setCompletedCount((prev) => prev + 1);
-      emitActivityUpdated({ type: "flashcard", courseId, cardId: currentItem.card.id });
+      if (!adapter) emitActivityUpdated({ type: "flashcard", courseId, cardId: currentItem.card.id });
 
       // If user selected "Again / Ulangi" (grade 1), put the card back at the end of the queue for retry
       if (grade === 1) {
@@ -207,13 +209,13 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               {t("flashcards.nextSession", { count: Math.min(BATCH_SIZE, queue.length - (batchOffset + BATCH_SIZE)) })}
             </Button>
           ) : (
-            <Button type="button" onClick={() => window.location.reload()} className="rounded-md">
+            <Button type="button" onClick={() => adapter?.onRestart ? adapter.onRestart() : window.location.reload()} className="rounded-md">
               <RefreshCw className="mr-1.5 size-4" />
               {t("flashcards.restart")}
             </Button>
           )}
           <Button asChild variant="outline" className="rounded-md">
-            <Link href={`/courses/${courseId}`}>{t("flashcards.backToOverview")}</Link>
+            <Link href={adapter?.backHref ?? `/courses/${courseId}`}>{t("flashcards.backToOverview")}</Link>
           </Button>
         </div>
       </div>

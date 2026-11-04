@@ -653,6 +653,7 @@ interface SidebarShellProps {
   headerActions?: (collapsed: boolean) => ReactNode;
   topSection?: (collapsed: boolean) => ReactNode;
   bottomSection?: (collapsed: boolean) => ReactNode;
+  showAccountTools?: boolean;
 }
 
 export function SidebarShell({
@@ -663,6 +664,7 @@ export function SidebarShell({
   headerActions,
   topSection,
   bottomSection,
+  showAccountTools = true,
 }: SidebarShellProps) {
   const t = useTranslations("common");
   const pathname = usePathname();
@@ -822,11 +824,11 @@ export function SidebarShell({
                 <Logo variant="symbol" className="[--logo-height:1.75rem]" />
               </Link>
 
-              <NotificationBell variant="sidebar" />
+              {showAccountTools && <NotificationBell variant="sidebar" />}
 
               {headerActions?.(false)}
 
-              <SidebarTooltip label={t("searchWithShortcut", { shortcut: modKeyHint })} collapsed={false}>
+              {showAccountTools && <SidebarTooltip label={t("searchWithShortcut", { shortcut: modKeyHint })} collapsed={false}>
                 <button
                   type="button"
                   onClick={() => setSearchOpen(true)}
@@ -835,7 +837,7 @@ export function SidebarShell({
                 >
                   <Search className="size-4" />
                 </button>
-              </SidebarTooltip>
+              </SidebarTooltip>}
 
               <SidebarTooltip label={t("closeSidebar")} collapsed={false}>
                 <button
@@ -870,7 +872,7 @@ export function SidebarShell({
         {/* Collapsed quick search button & header actions */}
         {isCollapsed && (
           <div className="px-1 pt-2 shrink-0 flex flex-col items-center gap-1.5">
-            <SidebarTooltip label={t("searchWithShortcut", { shortcut: modKeyHint })} collapsed={true}>
+            {showAccountTools && <SidebarTooltip label={t("searchWithShortcut", { shortcut: modKeyHint })} collapsed={true}>
               <button
                 type="button"
                 onClick={() => setSearchOpen(true)}
@@ -879,7 +881,7 @@ export function SidebarShell({
               >
                 <Search className="size-4" />
               </button>
-            </SidebarTooltip>
+            </SidebarTooltip>}
             {headerActions?.(true)}
           </div>
         )}
@@ -897,7 +899,7 @@ export function SidebarShell({
             isCollapsed && "flex justify-center p-1.5"
           )}
         >
-          <SidebarUserMenu collapsed={isCollapsed} />
+          {showAccountTools && <SidebarUserMenu collapsed={isCollapsed} />}
         </div>
       </aside>
     </SidebarContext.Provider>

@@ -1,4 +1,5 @@
-import { MessageCircle, Bot } from "lucide-react";
+import { MessageCircle } from "lucide-react";
+import { TutorAssistantLabel, TutorStudentMessage } from "@/components/course/tutor-message-frame";
 import { Card } from "@/components/ui/card";
 import { DemoAuthCta } from "./demo-shell";
 import { getTranslations } from "@/lib/i18n/server";
@@ -24,18 +25,10 @@ export async function DemoZyra({ nextPath }: { nextPath: string }) {
         <div className="mt-8 space-y-3" aria-label={t("demo.zyra.conversationLabel")}>
           {messages.map((message, index) => {
             const fromZyra = message.role === "Zyra";
-            return (
-              <div key={`${message.role}-${index}`} className={fromZyra ? "flex items-start gap-2" : "flex justify-end"}>
-                {fromZyra ? <Bot className="mt-2 size-4 shrink-0 text-brand-primary" aria-hidden="true" /> : null}
-                <div
-                  className={fromZyra
-                    ? "max-w-[88%] rounded-xl rounded-tl-sm bg-muted px-3 py-2.5 text-body-sm leading-relaxed text-foreground"
-                    : "max-w-[88%] rounded-xl rounded-tr-sm bg-brand-primary px-3 py-2.5 text-body-sm leading-relaxed text-brand-primary-foreground"}
-                >
-                  {message.text}
-                </div>
-              </div>
-            );
+            return fromZyra ? (
+              <div key={index} className="space-y-2"><TutorAssistantLabel /><p className="text-body-sm leading-relaxed">{message.text}</p></div>
+            ) : <TutorStudentMessage key={index}>{message.text}</TutorStudentMessage>;
+
           })}
         </div>
       </Card>

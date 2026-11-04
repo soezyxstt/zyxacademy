@@ -1,3 +1,5 @@
+import { StudentDashboardSection } from "@/components/dashboard/student-dashboard-section";
+import { StudentCourseProgressRow } from "@/components/dashboard/student-course-progress-row";
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
@@ -525,24 +527,7 @@ export default async function DashboardPage() {
                 {/* Left Column (Primary learning track) - 7 cols */}
                 <div className="space-y-6 lg:col-span-7 min-w-0">
                   {/* Classes list Section */}
-                  <section>
-                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
-                      <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-                        <GraduationCap className="size-4 text-brand-primary" />
-                        <TranslatedText namespace="student" messageKey="dashboard.classesActive" />
-                      </h2>
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-                        <ActivateClassModal />
-                        <Link
-                          href="/courses"
-                          className="text-body-xs font-bold text-brand-primary hover:underline flex items-center gap-0.5 shrink-0"
-                        >
-                          <TranslatedText namespace="student" messageKey="dashboard.viewAll" />
-                          <ArrowUpRight className="size-3.5" />
-                        </Link>
-                      </div>
-                    </div>
-
+                  <StudentDashboardSection title={<><GraduationCap className="size-4 text-brand-primary" /><TranslatedText namespace="student" messageKey="dashboard.classesActive" /></>} actions={<div className="flex flex-wrap items-center gap-2 sm:gap-2.5"><ActivateClassModal /><Link href="/courses" className="text-body-xs font-bold text-brand-primary hover:underline flex items-center gap-0.5 shrink-0"><TranslatedText namespace="student" messageKey="dashboard.viewAll" /><ArrowUpRight className="size-3.5" /></Link></div>}>
                     <div className="divide-y divide-border/30">
                       {enrollments.map((course) => {
                         const materials = courseDataMap.get(course.id)?.materials || [];
@@ -550,58 +535,13 @@ export default async function DashboardPage() {
                           .filter((p) => p.status === "completed")
                           .map((p) => p.materialId);
                         const doneCount = materials.filter((m) => m.completed || courseCompletedIds.includes(m.id)).length;
-                        const progressPct = materials.length > 0 ? Math.round((doneCount / materials.length) * 100) : 0;
 
                         return (
-                          <Link
-                            key={course.id}
-                            href={`/courses/${course.id}`}
-                            className="group block py-3.5 px-2 -mx-2 rounded-xl transition-colors hover:bg-muted/40"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0 flex-1">
-                                {/* Category Badge + Title */}
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="inline-flex rounded-md bg-brand-primary/10 px-2 py-0.5 text-[10px] font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20 shrink-0">
-                                    {course.category}
-                                  </span>
-                                  <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors break-words min-w-0">
-                                    {course.title}
-                                  </h3>
-                                </div>
-
-                                {/* Sleek inline progress */}
-                                <div className="mt-2.5 flex flex-wrap items-center gap-2 sm:gap-3 max-w-md">
-                                  <div className="h-1.5 w-20 sm:w-28 shrink-0 overflow-hidden rounded bg-muted">
-                                    <div
-                                      className="h-full bg-brand-primary transition-all duration-300 rounded"
-                                      style={{ width: `${progressPct}%` }}
-                                    />
-                                  </div>
-                                  <span className="text-body-xs font-semibold text-foreground shrink-0">{progressPct}%</span>
-                                  <span className="text-body-xs text-muted-foreground"><TranslatedText namespace="student" messageKey="dashboard.enrolledMaterialProgress" values={{ done: doneCount, total: materials.length }} /></span>
-                                </div>
-
-                                {nextConcepts[course.id] && (
-                                  <div className="mt-2 text-body-xs font-medium text-muted-foreground break-words min-w-0">
-                                    <TranslatedText namespace="student" messageKey="dashboard.nextStep" />{" "}
-                                    <span className="text-brand-primary font-semibold group-hover:underline">
-                                      <MathText as="span">{nextConcepts[course.id]}</MathText>
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Interactive arrow indicator */}
-                              <div className="flex size-7 items-center justify-center rounded-lg border border-border/70 bg-background text-muted-foreground group-hover:text-brand-primary group-hover:border-brand-primary/30 transition-all shrink-0">
-                                <ArrowUpRight className="size-4" />
-                              </div>
-                            </div>
-                          </Link>
+                          <StudentCourseProgressRow key={course.id} href={`/courses/${course.id}`} category={course.category} title={course.title} doneCount={doneCount} total={materials.length} nextConcept={nextConcepts[course.id]} />
                         );
                       })}
                     </div>
-                  </section>
+                  </StudentDashboardSection>
 
                   {/* Documents In Progress */}
                   <section>

@@ -371,7 +371,7 @@ Plan 003 adds these tables without changing legacy courses, chapters, enrollment
 ### mata_kuliah
 * `id`, `code`, `title`, `status`, `isDemo`
 * `legacyCourseId`: Optional compatibility reference to `courses.id`.
-* `isDemo`: Boolean marker for the single active public demo course. A partial unique index allows at most one row with `isDemo = true`; archived or incomplete courses are not eligible for selection.
+* `isDemo`: Boolean marker for the legacy singleton admin demo selection, separate from the public snapshot allowlist. A partial unique index allows at most one row with `isDemo = true`; archived or incomplete courses are not eligible for selection.
 * `createdAt`, `updatedAt`
 * Admin course create and update mirror `courses` and `mata_kuliah` transactionally. Admin delete removes the legacy projection and archives the canonical row.
 * Admin demo selection validates the first active `bab` and its published Article, Diktat, Flashcard, and Kuis requirements before clearing and setting the marker in one transaction.
@@ -1824,3 +1824,7 @@ idempotency request, ordinal, immutable code, evaluation, status and fenced leas
 Public projections exclude solutions and private tests. See
 [coding contract](coding-foundation.md). Local SQLite migration is verified;
 remote migration is a separate operation.
+
+### `public_demo_snapshots`
+
+The code defines `id` text primary key, `course_id` text unique not null with cascading foreign key to `mata_kuliah.id`, `snapshot` jsonb not null, and `updated_at` timestamptz not null default now. Each row opts in one canonical course for the intended demo; the V2 JSON requires `contentPolicy` equal to `free-first-chapter` and supports fictional `mockChapters`; V1 fails validation. The JSONB shape change alone requires no new schema migration; see [seeding handoff](operations/public-demo-seeding.md). Migration and seed application remain unverified.

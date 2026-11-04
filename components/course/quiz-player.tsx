@@ -22,8 +22,10 @@ import {
 import { ScientificInput } from "@/components/ui/scientific-input";
 import { useTranslations } from "@/lib/i18n/client";
 
-type QuizPlayerProps = {
+export type QuizPlayerProps = {
   courseId: string;
+  /** Isolated client transport. No student endpoints or uploads are used when supplied. */
+  transport?: { submit: (answers: Record<string, unknown>, durationSeconds: number) => Promise<void> };
   exam: {
     id: string;
     title: string;
@@ -72,8 +74,16 @@ function isMultipleChoiceQuestion(type?: string): boolean {
 /**
  * Interactive student quiz player component with timer, navigation, file uploads, and submission handling.
  */
-export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirectBasePath, initialAnswers, startedAtMs, closeAtMs }: QuizPlayerProps) {
+export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirectBasePath, initialAnswers, startedAtMs, closeAtMs, transport }: QuizPlayerProps) {
   const t = useTranslations("learning");
+  const storage = useMemo(() => {
+    const fallback = new Map<string, string>();
+    return {
+      getItem: (key: string) => { try { return (transport ? window.sessionStorage : window.localStorage).getItem(key); } catch { return fallback.get(key) ?? null; } },
+      setItem: (key: string, value: string) => { try { (transport ? window.sessionStorage : window.localStorage).setItem(key, value); } catch { fallback.set(key, value); } },
+      removeItem: (key: string) => { try { (transport ? window.sessionStorage : window.localStorage).removeItem(key); } catch { fallback.delete(key); } },
+    };
+  }, [transport]);
   const router = useRouter();
   const { setSuppressPet } = useTutor();
   const durationSeconds =
@@ -92,7 +102,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>(() => {
     if (typeof window !== "undefined") {
-      const stored = window.localStorage.getItem(`zyx-quiz-answers-${attemptId}`);
+      const stored = storage.getItem(`zyx-quiz-answers-${attemptId}`);
       if (stored) {
         try {
           return JSON.parse(stored);
@@ -112,7 +122,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
   // Flag state for "Ragu-ragu"
   const [flags, setFlags] = useState<Record<string, boolean>>(() => {
     if (typeof window !== "undefined") {
-      const stored = window.localStorage.getItem(`zyx-quiz-flags-${attemptId}`);
+      const stored = storage.getItem(`zyx-quiz-flags-${attemptId}`);
       if (stored) {
         try {
           return JSON.parse(stored);
@@ -163,6 +173,10 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
    * Uploads an essay file attachment for a question, tracking progress and updating attempt state.
    */
   function uploadEssayAttachment(questionId: string, file: File) {
+    if (transport) {
+      toast.error(t("quiz.uploadFailed"));
+      return;
+    }
     setUploadingFile((prev) => ({ ...prev, [questionId]: file.name }));
     setUploadProgress((prev) => ({ ...prev, [questionId]: 0 }));
 
@@ -204,7 +218,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
           };
           answersRef.current = next;
           setAnswers(next);
-          window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
+          storage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
           toast.success(t("quiz.uploadSuccess", { fileName: file.name }));
         } else {
           toast.error(t("quiz.uploadFailed"));
@@ -261,7 +275,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     const currentAns = answers[questionId];
     const fileKey = typeof currentAns === "object" && currentAns !== null ? currentAns.fileKey : null;
 
-    if (fileKey) {
+    if (fileKey && !transport) {
       try {
         const res = await fetch("/api/quiz/attachments", {
           method: "DELETE",
@@ -291,7 +305,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
         },
       };
       answersRef.current = next;
-      window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
+      storage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
       return next;
     });
 
@@ -394,6 +408,9 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
         }
       }
 
+      if (transport) {
+        await transport.submit(formattedAnswers, Math.max(0, durationSeconds - timeLeft));
+      } else {
       const res = await fetch(`/api/quiz/attempts/${attemptId}`, {
         method: "POST",
         headers: {
@@ -414,15 +431,18 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
         throw new Error(message);
       }
 
+      }
+
       isSubmittedRef.current = true;
       setIsSubmitted(true);
-      emitActivityUpdated({ type: "quiz", attemptId, courseId });
-      window.localStorage.removeItem(timerStorageKey);
-      window.localStorage.removeItem(`zyx-quiz-answers-${attemptId}`);
-      window.localStorage.removeItem(`zyx-quiz-flags-${attemptId}`);
+      if (!transport) emitActivityUpdated({ type: "quiz", attemptId, courseId });
+      storage.removeItem(timerStorageKey);
+      storage.removeItem(`zyx-quiz-answers-${attemptId}`);
+      storage.removeItem(`zyx-quiz-flags-${attemptId}`);
       toast.success(t("quiz.submitted"));
 
-      // Navigate to the review screen for this attempt
+      // Demo transport owns its result presentation and navigation.
+      if (transport) return;
       const reviewPath = getRedirectPath
         ? getRedirectPath(attemptId)
         : redirectBasePath
@@ -438,7 +458,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       submittingRef.current = false;
       setSubmitting(false);
     }
-  }, [uploadingFile, requireAllAnswered, t, sorted, isQuestionAnswered, attemptId, durationSeconds, timeLeft, courseId, timerStorageKey, getRedirectPath, redirectBasePath, exam.id, exam.questions, router]);
+  }, [uploadingFile, requireAllAnswered, t, sorted, isQuestionAnswered, attemptId, durationSeconds, timeLeft, courseId, timerStorageKey, getRedirectPath, redirectBasePath, exam.id, exam.questions, router, transport, storage]);
 
   // Per-question timer interval
   useEffect(() => {
@@ -452,7 +472,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
             toast.info(t("quiz.questionTimeEnded"));
             setIndex((i) => i + 1);
           } else {
-            const totalDeadline = Number(window.localStorage.getItem(timerStorageKey));
+            const totalDeadline = Number(storage.getItem(timerStorageKey));
             const totalRemaining = Number.isFinite(totalDeadline)
               ? Math.max(0, Math.ceil((totalDeadline - Date.now()) / 1000))
               : 0;
@@ -470,7 +490,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
   }, [perQuestionTimerEnabled, isSubmitted, submitting, index, sorted.length, timerStorageKey, t]);
 
   useEffect(() => {
-    const rawDeadline = window.localStorage.getItem(timerStorageKey);
+    const rawDeadline = storage.getItem(timerStorageKey);
     const storedDeadline = rawDeadline ? Number(rawDeadline) : NaN;
     const now = Date.now();
     let deadline: number;
@@ -488,7 +508,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       deadline = Math.min(deadline, closeAtMs);
     }
 
-    window.localStorage.setItem(timerStorageKey, String(deadline));
+    storage.setItem(timerStorageKey, String(deadline));
 
     const nextTimeLeft = Math.max(0, Math.ceil((deadline - now) / 1000));
     const syncTimer = window.setTimeout(() => setTimeLeft(nextTimeLeft), 0);
@@ -499,7 +519,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     if (isSubmitted || submitting) return;
 
     const timer = setInterval(() => {
-      const deadline = Number(window.localStorage.getItem(timerStorageKey));
+      const deadline = Number(storage.getItem(timerStorageKey));
       const remaining = Number.isFinite(deadline)
         ? Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
         : 0;
@@ -554,7 +574,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
 
     const next = { ...answers, [qId]: nextValue };
     setAnswers(next);
-    window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
+    storage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
   }
 
   /**
@@ -564,7 +584,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     if (isSubmitted || submitting) return;
     const next = { ...flags, [qId]: !flags[qId] };
     setFlags(next);
-    window.localStorage.setItem(`zyx-quiz-flags-${attemptId}`, JSON.stringify(next));
+    storage.setItem(`zyx-quiz-flags-${attemptId}`, JSON.stringify(next));
   }
 
   /**
@@ -668,7 +688,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                   onChange={(val) => {
                     const next = { ...answers, [q.id]: val };
                     setAnswers(next);
-                    window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
+                    storage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
                   }}
                   placeholder={t("quiz.shortAnswerPlaceholder")}
                 />
@@ -682,13 +702,14 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                       const currentObj = typeof ans === "object" && ans !== null ? ans : {};
                       const next = { ...answers, [q.id]: { ...currentObj, text: e.target.value } };
                       setAnswers(next);
-                      window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
+                      storage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
                     }}
                     placeholder={t("quiz.essayPlaceholder")}
                     className="w-full rounded-lg border border-border bg-background p-3 font-sans text-body-sm font-medium leading-relaxed transition-all hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none"
                   />
 
                   {/* Cloudflare R2 file uploader widget for Essay */}
+                  {transport && <p className="text-body-xs text-muted-foreground">Lampiran tidak tersedia di demo.</p>}
                   <div className="space-y-2.5 pt-1">
                     <span className="block text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       {t("quiz.attachmentLabel")}
@@ -699,7 +720,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                         <input
                           type="file"
                           accept=".pdf,image/*"
-                          disabled={submitting || isSubmitted}
+                          disabled={submitting || isSubmitted || Boolean(transport)}
                           onChange={(e) => handleFileChange(q.id, e)}
                           className="absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
                         />

@@ -1,128 +1,34 @@
 "use client";
-
 import type { ReactNode } from "react";
 import Link from "next/link";
-import {
-  ArrowRight,
-  BookOpen,
-  Brain,
-  CheckSquare,
-  FileText,
-  Layers3,
-  MessageCircle,
-} from "lucide-react";
+import { ArrowRight, BarChart3, BookOpen, CheckSquare, FileText, History, Layers3, LayoutDashboard, Menu, MessageCircle, GraduationCap } from "lucide-react";
+import { ApplicationShell } from "@/components/application-shell";
+import { ApplicationPage } from "@/components/application-page";
+import { SidebarShell, openMobileSidebar } from "@/components/sidebar-shell";
+import { StudentNavigationItems } from "@/components/student-navigation-items";
+import { StudentExperienceProvider } from "@/components/student-experience-provider";
 import { Button } from "@/components/ui/button";
-import { PageOrnaments } from "@/components/ui/page-ornaments";
-import { cn } from "@/lib/utils";
-import type { DemoCourseSummary } from "@/app/(marketing)/demo/demo-data";
-import { useTranslations } from "@/lib/i18n/client";
-import { LocalizedPublicLink } from "@/components/localized-public-link";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import { demoRoute, type DemoRouteView } from "@/lib/demo/routes";
+import { overlayKey } from "@/lib/demo/session-overlay";
+import type { DemoExperience, DemoProductSelection } from "@/app/(marketing)/demo/demo-data";
+import { demoSelectionHref } from "@/lib/demo/selection";
+import { DemoSession, useDemoSession } from "./demo-session";
 
-export type DemoView = "dashboard" | "article" | "diktat" | "flashcards" | "quiz" | "zyra";
-
-const demoNav: Array<{ view: Exclude<DemoView, "dashboard">; key: string; icon: typeof BookOpen }> = [
-  { view: "article", key: "demo.views.article", icon: BookOpen },
-  { view: "diktat", key: "demo.views.diktat", icon: FileText },
-  { view: "flashcards", key: "demo.views.flashcards", icon: Layers3 },
-  { view: "quiz", key: "demo.views.quiz", icon: CheckSquare },
-  { view: "zyra", key: "demo.views.zyra", icon: MessageCircle },
-];
-
-export function demoSignInHref(nextPath: string): string {
-  const safeNextPath = nextPath.startsWith("/") && !nextPath.startsWith("//")
-    ? nextPath
-    : "/dashboard";
-  return `/sign-in?next=${encodeURIComponent(safeNextPath)}`;
+export type DemoSummary = { snapshot: DemoExperience["snapshot"]; content: Pick<DemoExperience["content"], "course"> };
+export type DemoView = "dashboard" | "courses" | "progress" | "history" | "article" | "diktat" | "flashcards" | "quiz" | "tryout" | "zyra";
+const items = [{ view: "dashboard", icon: LayoutDashboard }, { view: "courses", icon: GraduationCap }, { view: "progress", icon: BarChart3 }, { view: "history", icon: History }, { view: "article", icon: BookOpen }, { view: "diktat", icon: FileText }, { view: "flashcards", icon: Layers3 }, { view: "quiz", icon: CheckSquare }, { view: "tryout", icon: GraduationCap }, { view: "zyra", icon: MessageCircle }] as const;
+export function demoSignInHref(nextPath: string): string { const safe = nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/dashboard"; return `/sign-in?next=${encodeURIComponent(safe)}`; }
+export function demoCoursePath(courseId: string): string { return `/courses/${encodeURIComponent(courseId)}`; }
+export function DemoAuthCta({ nextPath, label }: { nextPath: string; label?: string }) { const t = useTranslations("marketing"); return <Button asChild size="sm"><Link href={demoSignInHref(nextPath)}>{label ?? t("demo.authCta")}<ArrowRight className="size-3.5" aria-hidden="true" /></Link></Button>; }
+export function DemoShell({ experiences, selected, activeView, children, selection = {}, reviewScope }: { experiences: DemoSummary[]; selected: DemoSummary; activeView: DemoView; children: ReactNode; selection?: DemoProductSelection; reviewScope?: { setId: string; offset: number } }) {
+  return <DemoSession key={overlayKey(selected.snapshot.courseId, selected.snapshot.revision)} courseId={selected.snapshot.courseId} revision={selected.snapshot.revision} reviewScope={reviewScope} scopes={experiences.map(({ snapshot }) => ({ courseId: snapshot.courseId, revision: snapshot.revision }))}><Shell experiences={experiences} selected={selected} activeView={activeView} selection={selection}>{children}</Shell></DemoSession>;
 }
-
-export function demoCoursePath(courseId: string): string {
-  return `/courses/${encodeURIComponent(courseId)}`;
-}
-
-export function DemoAuthCta({
-  nextPath,
-  label,
-}: {
-  nextPath: string;
-  label?: string;
-}) {
-  const t = useTranslations("marketing");
-  return (
-    <Button asChild size="sm" className="gap-1.5 rounded-lg">
-      <Link href={demoSignInHref(nextPath)}>
-        {label ?? t("demo.authCta")}
-        <ArrowRight className="size-3.5" aria-hidden="true" />
-      </Link>
-    </Button>
-  );
-}
-
-export function DemoShell({
-  course,
-  activeView,
-  children,
-}: {
-  course: DemoCourseSummary;
-  activeView: DemoView;
-  children: ReactNode;
-}) {
-  const t = useTranslations("marketing");
-  return (
-    <div className="relative overflow-hidden bg-muted/20">
-      <PageOrnaments variant="about" />
-      <div className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 md:pb-24 md:pt-14 lg:px-8">
-        <div className="flex flex-col gap-5 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
-          <div className="min-w-0">
-            <p className="text-body-xs font-semibold text-muted-foreground">{course.category}</p>
-            <h1 className="mt-3 max-w-3xl font-heading text-h5 font-bold tracking-tight text-foreground sm:text-h4">
-              {course.title}
-            </h1>
-            <p className="mt-1 text-body-sm text-muted-foreground">
-              {t("demo.chapter", { number: course.chapterNumber, title: course.chapterTitle })}
-            </p>
-          </div>
-          <div className="shrink-0">
-            <DemoAuthCta nextPath={demoCoursePath(course.id)} />
-          </div>
-        </div>
-
-        <nav
-          aria-label={t("demo.navLabel")}
-          className="mt-5 flex flex-wrap gap-2 rounded-xl border border-border bg-card/70 p-2 shadow-xs"
-        >
-          <LocalizedPublicLink
-            href="/demo"
-            aria-current={activeView === "dashboard" ? "page" : undefined}
-            className={cn(
-              "inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-body-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--zx-accent)]",
-              activeView === "dashboard"
-                ? "bg-card text-foreground shadow-xs"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
-            )}
-          >
-            <Brain className="size-4" aria-hidden="true" />
-            {t("demo.views.dashboard")}
-          </LocalizedPublicLink>
-          {demoNav.map(({ view, key, icon: Icon }) => (
-            <LocalizedPublicLink
-              key={view}
-              href={`/demo/${view}`}
-              aria-current={activeView === view ? "page" : undefined}
-              className={cn(
-                "inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-body-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--zx-accent)]",
-                activeView === view
-                  ? "bg-card text-foreground shadow-xs"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              <Icon className="size-4" aria-hidden="true" />
-              {t(key)}
-            </LocalizedPublicLink>
-          ))}
-        </nav>
-
-        <main className="mt-8">{children}</main>
-      </div>
-    </div>
-  );
+function Shell({ experiences, selected, activeView, children, selection = {} }: { experiences: DemoSummary[]; selected: DemoSummary; activeView: DemoView; children: ReactNode; selection?: DemoProductSelection }) {
+  const t = useTranslations("marketing"); const studentT = useTranslations("student"); const { locale } = useAppLocale(); const { reset, record, generation, ready, overlay } = useDemoSession();
+  const route = (view: string, courseId = selected.snapshot.courseId) => { const base = demoRoute(locale, view as DemoRouteView, courseId); return courseId === selected.snapshot.courseId ? demoSelectionHref(base, selection) : base; };
+  const sorted = [...experiences].sort((a, b) => a.content.course.title.localeCompare(b.content.course.title));
+  const sidebar = <SidebarShell collapsedKey="demo-sidebar-collapsed" logoHref={route("dashboard")} logoLabel={t("demo.navLabel")} showAccountTools={false} topSection={(collapsed) => <div className={collapsed ? "px-1 pt-3" : "px-3 pt-3"}><DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size={collapsed ? "icon-sm" : "default"} aria-label={`${studentT("navigation.switchCourse")}: ${selected.content.course.title}`} className={collapsed ? "mx-auto flex" : "w-full justify-between"}>{collapsed ? <BookOpen className="size-4" /> : selected.content.course.title}</Button></DropdownMenuTrigger><DropdownMenuContent>{sorted.map((e) => <DropdownMenuItem key={e.snapshot.courseId} asChild><Link href={route(activeView, e.snapshot.courseId)}>{e.content.course.title}</Link></DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu></div>} nav={(collapsed) => <nav aria-label={t("demo.navLabel")} className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4"><StudentNavigationItems collapsed={collapsed} items={items.map(({ view, icon }) => ({ href: route(view), icon, label: t(`demo.views.${view}`), active: view === activeView }))} /><div className="mt-auto">{!collapsed && <Button variant="outline" size="sm" disabled={!ready} onClick={reset}>{t("demo.session.reset")}</Button>}</div></nav>} />;
+  return <StudentExperienceProvider value={{ mode: "demo", route, courseHref: (id) => route("progress", id), baseline: experiences.map((e) => e.snapshot), selectedCourseId: selected.snapshot.courseId, overlay, ready, record, reset }}><ApplicationShell showOrnaments={false} sidebar={sidebar} mobileNavigation={<div className="flex h-14 items-center gap-3 border-b px-4 md:hidden"><Button variant="outline" size="icon-sm" aria-label={t("demo.navLabel")} onClick={openMobileSidebar}><Menu className="size-4" /></Button><span className="truncate text-body-sm font-semibold">{selected.content.course.title}</span></div>}><ApplicationPage><div key={generation}>{children}</div></ApplicationPage></ApplicationShell></StudentExperienceProvider>;
 }

@@ -33,6 +33,7 @@ import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { useSession } from "@/lib/auth-client";
 import { getStudentEnrollments, getCourseAction } from "@/app/(student)/dashboard/actions";
 import { cn } from "@/lib/utils";
+import { StudentNavigationItems } from "@/components/student-navigation-items";
 import { SidebarShell, NavItem } from "@/components/sidebar-shell";
 import { createActivityRefresh } from "@/lib/student/activity-refresh";
 import { ZYX_ACTIVITY_UPDATED_EVENT } from "@/lib/activity-signal";
@@ -393,16 +394,7 @@ export function StudentSidebar({
           )}
 
           <div className={cn("space-y-1", c && "w-full flex flex-col items-center")}>
-            {primaryItems.map((item) => (
-              <NavItem
-                key={item.href}
-                href={item.href}
-                icon={item.icon}
-                label={item.label}
-                active={item.customActive ?? (item.exact ? pathname === item.href : pathname.startsWith(item.href))}
-                collapsed={c}
-              />
-            ))}
+            <StudentNavigationItems collapsed={c} items={primaryItems.map((item) => ({ ...item, active: item.customActive ?? (item.exact ? pathname === item.href : pathname.startsWith(item.href)) }))} />
 
             {secondaryItems.length > 0 && (
               <>
@@ -415,17 +407,7 @@ export function StudentSidebar({
                 )}
                 {c && <div className="my-3 w-5 border-t border-border/60" />}
 
-                {secondaryItems.map((item) => (
-                  <NavItem
-                    key={item.href}
-                    href={item.href}
-                    icon={item.icon}
-                    label={item.label}
-                    badge={item.badge}
-                    active={item.exact ? pathname === item.href : pathname.startsWith(item.href)}
-                    collapsed={c}
-                  />
-                ))}
+                <StudentNavigationItems collapsed={c} items={secondaryItems.map((item) => ({ ...item, active: item.exact ? pathname === item.href : pathname.startsWith(item.href) }))} />
               </>
             )}
           </div>
