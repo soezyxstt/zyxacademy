@@ -94,7 +94,7 @@ describe("public demo course contract", () => {
   test("returns demo visitors to the selected course after sign-in", () => {
     const shell = source("components/demo/demo-shell.tsx");
     const detail = source("app/(marketing)/demo/[view]/page.tsx");
-    expect(shell).toContain("return `/courses/${encodeURIComponent(courseId)}`");
+    expect(source("lib/demo/routes.ts")).toContain("return `/courses/${encodeURIComponent(courseId)}`");
     expect(shell).not.toContain("Mode demo");
     expect(shell).toContain("demoSignInHref(nextPath)");
     expect(detail).toContain("const nextPath = demoCoursePath(content.course.id)");

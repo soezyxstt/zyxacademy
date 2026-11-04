@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { demoCoursePath } from "@/lib/demo/routes";
 import { DemoProductControls } from "@/components/demo/demo-product-controls";
 import { parseDemoSelection, type DemoSearchParams } from "@/lib/demo/selection";
 import { DemoDashboard } from "@/components/demo/demo-dashboard";
@@ -9,7 +10,7 @@ import { DemoEmptyState } from "@/components/demo/demo-empty-state";
 import { DemoFlashcards } from "@/components/demo/demo-flashcards";
 import { DemoTryout } from "@/components/demo/assessment/demo-tryout";
 import { DemoQuiz } from "@/components/demo/demo-quiz";
-import { demoCoursePath, DemoShell, type DemoView } from "@/components/demo/demo-shell";
+import { DemoShell, type DemoView } from "@/components/demo/demo-shell";
 import { DemoZyra } from "@/components/demo/demo-zyra";
 import { getDemoExperience, getDemoExperiences } from "../demo-data";
 

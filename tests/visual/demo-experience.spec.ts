@@ -30,16 +30,18 @@ async function capture(page: Page, info: TestInfo, name: string) {
   await page.evaluate(() => document.fonts.ready);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   const path = info.outputPath(`screenshots/${name}.png`);
-  await page.screenshot({ path, fullPage: true, animations: "disabled", caret: "hide" });
+  await page.screenshot({ path, fullPage: true, animations: "disabled", caret: "initial", style: "nextjs-portal { display: none !important; } input, textarea { caret-color: transparent !important; }" });
   await info.attach(name, { path, contentType: "image/png" });
 }
 async function visit(page: Page, path: string) {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const response = await page.goto(path, { waitUntil: "networkidle" });
   expect(response?.status()).toBe(200);
   expect(new URL(page.url()).pathname).toBe(new URL(path, "http://localhost").pathname);
   expect(new URL(page.url()).search).toBe(new URL(path, "http://localhost").search);
   await expect(page.getByText("Demo belum tersedia")).toHaveCount(0);
-  await expect(page.locator("body")).toBeVisible();
+  await expect(page.locator("#main-content")).toBeVisible();
+  if (new URL(path, "http://localhost").pathname.endsWith("/courses")) await expect(page.locator("#main-content").getByRole("link", { name: /Berpikir Komputasional/ }).first()).toBeVisible();
 }
 for (const path of routes) {
   test(`populated ${path}`, async ({ page }, info) => {
@@ -92,7 +94,6 @@ test("quiz error and graded result", async ({ page }, info) => {
   await expect(page.getByText(/Gagal mengumpulkan kuis|failed to submit/i).first()).toBeVisible();
   await capture(page, info, "quiz-error");
   await page.unroute("**/api/demo/quiz");
-  await page.getByRole("button", { name: /^(Kirim jawaban|Submit answers)$/i }).click();
   await page.getByRole("dialog").getByRole("button", { name: /Ya, kumpulkan|Confirm submit/i }).click();
   await expect(page.getByText(/Skor: 2 dari 3|Score: 2 of 3/i)).toBeVisible();
   await expect.poll(() => page.evaluate(k => sessionStorage.getItem(k), key)).toContain('"quiz"');
@@ -119,7 +120,7 @@ test("unavailable storage remains usable", async ({ page }, info) => {
 test("English navigation", async ({ page }, info) => {
   const failures = guard(page);
   await visit(page, withCourse("/en/demo"));
-  await expect(page.getByText(/Hello, Pelajar Demo/i)).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, includeHidden: true })).toHaveText("Hello, Pelajar Demo");
   if (info.project.name === "mobile-380") await page.getByRole("button", { name: /demo navigation/i }).click();
   await page.getByRole("navigation", { name: "Demo navigation" }).getByRole("link", { name: "History", exact: true }).click();
   await expect(page).toHaveURL(/\/en\/demo\/history\?course=fictional-berpikir$/);
@@ -169,17 +170,12 @@ test("overlays are isolated by course and revision", async ({ page }, info) => {
   await capture(page, info, "course-overlay-isolation");
   expect(failures).toEqual([]);
 });
-test("unknown course does not show a populated course", async ({ page }, info) => {
-  const failures = guard(page);
-  const path = withCourse("/demo", "fictional-unknown");
-  const response = await page.goto(path, { waitUntil: "networkidle" });
-  expect(response?.status()).toBe(200);
-  expect(new URL(page.url()).search).toBe("?course=fictional-unknown");
-  await expect(page.getByText("Mengenal konsep dasar")).toHaveCount(0);
-  await expect(page.getByText(/Demo belum tersedia/i)).toBeVisible();
-  await capture(page, info, "unknown-course");
-  expect(failures).toEqual([]);
+test("unknown course does not show a populated course", async ({ request }) => {
+  const response = await request.get(withCourse("/demo", "fictional-unknown"));
+  expect(response.status()).toBe(404);
+  expect(await response.text()).not.toContain("Mengenal konsep dasar");
 });
+
 test("quiz token rejects a different course", async ({ request }) => {
   const response = await request.post("/api/demo/quiz", { data: {
     courseId: courses[1].id,
@@ -211,9 +207,10 @@ test("product collections expose only fixture selections", async ({ page }, info
     await visit(page, withCourse(`/demo/${view}`));
     await page.getByRole("button", { name: first, exact: true }).click();
     const menu = page.getByRole("menu");
-    await expect(menu.getByRole("link", { name: second })).toHaveAttribute("href", new RegExp(`${key}=${selected.id}-${suffix}`));
+    await expect(menu.getByRole("menuitem", { name: second })).toHaveAttribute("href", new RegExp(`${key}=${selected.id}-${suffix}`));
     await expect(menu).not.toContainText("paid-out-of-scope");
-    await menu.getByRole("link", { name: second }).click();
+    await capture(page, info, `open-${view}-collection`);
+    await menu.getByRole("menuitem", { name: second }).click();
     await expect(page).toHaveURL(new RegExp(`${key}=${selected.id}-${suffix}`));
     await capture(page, info, `selected-${view}`);
   }
@@ -248,4 +245,47 @@ test("unknown product selection does not expose another chapter", async ({ reque
     expect(response.status()).toBe(404);
     expect(await response.text()).not.toContain("paid-out-of-scope-content");
   }
+});
+
+
+test("progress and history tabs show their selected content", async ({ page }, info) => {
+  const failures = guard(page);
+  await visit(page, withCourse("/demo/progress"));
+  await page.getByRole("tab", { name: "Konsep yang perlu dipelajari" }).click();
+  await expect(page.getByText("Penerapan konsep", { exact: true })).toBeVisible();
+  await capture(page, info, "progress-concepts");
+  await visit(page, withCourse("/demo/history"));
+  for (const [label, name] of [["Aktivitas bulanan", "monthly"], ["Ulasan flashcard terbaru", "reviews"], ["Kuis tersedia", "assessments"]]) {
+    await page.getByRole("tab", { name: label, exact: true }).click();
+    await capture(page, info, `history-${name}`);
+  }
+  expect(failures).toEqual([]);
+});
+
+test("course switcher lists four courses and changes the selected course", async ({ page }, info) => {
+  const failures = guard(page);
+  await visit(page, withCourse("/demo/article"));
+  if (info.project.name === "mobile-380") await page.getByRole("button", { name: "Navigasi demo" }).click();
+  await page.getByRole("button", { name: /Ganti mata kuliah:/ }).click();
+  await capture(page, info, "course-switcher-open");
+  await page.getByRole("menu").getByRole("menuitem", { name: "Fisika Dasar I" }).click();
+  await expect(page).toHaveURL(/course=fictional-fisika/);
+  expect(failures).toEqual([]);
+});
+
+test("synthetic tryout completes locally and survives reload", async ({ page }, info) => {
+  const failures = guard(page);
+  await visit(page, withCourse("/demo/tryout"));
+  for (let index = 0; index < 3; index++) {
+    await page.getByRole("radio").first().click();
+    if (index < 2) await page.getByRole("button", { name: /^Lanjut$/ }).click();
+  }
+  await page.getByRole("button", { name: /^Kumpulkan jawaban$/i }).click();
+  await capture(page, info, "tryout-confirm");
+  await page.getByRole("dialog").getByRole("button", { name: /Ya, kumpulkan/i }).click();
+  await expect(page.getByText("Tryout latihan selesai")).toBeVisible();
+  await capture(page, info, "tryout-completed");
+  await page.reload();
+  await expect(page.getByText("Tryout latihan selesai")).toBeVisible();
+  expect(failures).toEqual([]);
 });

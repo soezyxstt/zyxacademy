@@ -5,3 +5,5 @@ export function demoRoute(locale: Locale, view: DemoRouteView, courseId: string)
   const path = view === "dashboard" ? "/demo" : `/demo/${view}`;
   return `${localizedPublicPath(locale, path) ?? path}?course=${encodeURIComponent(courseId)}`;
 }
+
+export function demoCoursePath(courseId: string): string { return `/courses/${encodeURIComponent(courseId)}`; }
