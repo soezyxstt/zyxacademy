@@ -1,12 +1,18 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 
 test.skip(process.env.DEMO_STREAMING_VISUAL !== "1", "Requires the delayed credential-free demo harness");
 const course = "fictional-berpikir";
 const url = (view = "") => `/id/demo${view ? `/${view}` : ""}?course=${course}`;
 
-async function capture(page: Page, info: TestInfo, name: string) {
-  await expect(page.locator("main")).toBeVisible();
-  await expect.poll(() => page.locator("main").evaluate(element => Number(getComputedStyle(element).opacity))).toBe(1);
+async function capture(page: Page, info: TestInfo, name: string, target: Locator) {
+  await expect(target).toBeVisible();
+  await expect.poll(() => target.evaluate(element => {
+    for (let current: Element | null = element; current; current = current.parentElement) {
+      if (Number(getComputedStyle(current).opacity) < 0.99) return false;
+    }
+    const bounds = element.getBoundingClientRect();
+    return bounds.width > 0 && bounds.height > 0;
+  })).toBe(true);
   await page.evaluate(async () => {
     await document.fonts.ready;
     await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
@@ -31,11 +37,11 @@ test("dashboard streams its plan and mastery independently", async ({ page }, in
   const mastery = page.getByTestId("demo-mastery-skeleton");
   await expect(plan).toBeVisible({ timeout: 60000 });
   await expect(mastery).toBeAttached();
-  const progress = page.getByRole("link", { name: /Fisika Dasar I/ }).first();
+  const progress = page.locator('#main-content a[href="/id/demo/overview?course=fictional-fisika"]');
   await expect(progress).toBeVisible();
+  await capture(page, info, "dashboard-partial", plan);
   const before = await progress.boundingBox();
   const skeletonBounds = await plan.boundingBox();
-  await capture(page, info, "dashboard-partial");
   await expect(plan).toBeHidden({ timeout: 60000 });
   await expect(mastery).toBeAttached();
   const after = await progress.boundingBox();
@@ -52,7 +58,7 @@ test("dashboard streams its plan and mastery independently", async ({ page }, in
   for (const id of ["fictional-berpikir", "fictional-fisika", "fictional-kimia", "fictional-matematika"]) {
     await expect(page.locator(`a[href*="mastery"][href*="${id}"]`)).toHaveCount(1);
   }
-  await capture(page, info, "dashboard-ready");
+  await capture(page, info, "dashboard-ready", progress);
 });
 
 for (const [view, skeleton] of [
@@ -65,17 +71,17 @@ for (const [view, skeleton] of [
     test.setTimeout(120000);
     if (view === "overview") {
       await page.goto(url(), { waitUntil: "commit" });
-      const courseLink = page.getByRole("link", { name: /Berpikir Komputasional/ }).filter({ has: page.locator("h3") });
+      const courseLink = page.locator(`#main-content a[href="${url("overview")}"]`);
       await expect(courseLink).toBeVisible({ timeout: 60000 });
       await courseLink.click();
       await expect(page).toHaveURL(/\/demo\/overview\?course=fictional-berpikir/);
     } else {
       await page.goto(url(view), { waitUntil: "commit" });
     }
-    const loading = page.getByTestId(skeleton);
+    const loading = page.locator("#main-content").getByTestId(skeleton);
     await expect(loading).toBeVisible({ timeout: 60000 });
-    await capture(page, info, `${view}-loading`);
+    await capture(page, info, `${view}-loading`, loading);
     await expect(loading).toBeHidden({ timeout: 90000 });
-    await capture(page, info, `${view}-ready`);
+    await capture(page, info, `${view}-ready`, page.locator("#main-content > div"));
   });
 }

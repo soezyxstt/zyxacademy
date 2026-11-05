@@ -18,7 +18,8 @@ describe("demo product selection", () => {
   test("both routes reject foreign selection when the scoped resolver returns null", () => {
     for (const path of ["app/(marketing)/demo/page.tsx", "app/(marketing)/demo/[view]/page.tsx"]) {
       const source = readFileSync(path, "utf8");
-      expect(source).toContain("getDemoExperience(courseId, parsed.selection)");
+      expect(source).toContain("selection={parsed.selection}");
+      expect(source).toContain("getDemoExperience(courseId, selection)");
       expect(source).toContain("if (!experience) notFound()");
     }
   });

@@ -29,8 +29,8 @@ describe("public demo course contract", () => {
     expect(detail).toContain("noIndex: true");
     const metadata = source("lib/site.ts");
     expect(metadata).toMatch(/noIndex[\s\S]*index: false[\s\S]*follow: false/);
-    expect(dashboard).toContain("if (!experiences.length) return <DemoEmptyState />");
-    expect(detail).toContain("if (!defaults.length) return <DemoEmptyState />");
+    expect(dashboard).toContain("if (!summaries.length) return <DemoEmptyState />");
+    expect(detail).toContain("if (!experiences.length) return <DemoEmptyState />");
     expect(empty).toContain('t("demo.emptyTitle")');
     expect(JSON.parse(source("messages/id/marketing.json")).demo.emptyTitle).toBe("Demo belum tersedia");
   });
