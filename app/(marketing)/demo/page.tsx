@@ -25,8 +25,11 @@ export default async function DemoPage({ searchParams }: { searchParams: Promise
   const parsed = parseDemoSelection(await searchParams);
   if (!parsed) notFound();
   const courseId = parsed.course ?? experiences[0].snapshot.courseId;
-  if (!experiences.some((item) => item.snapshot.courseId === courseId)) notFound();
-  const experience = await getDemoExperience(courseId, parsed.selection);
+  const defaultExperience = experiences.find((item) => item.snapshot.courseId === courseId);
+  if (!defaultExperience) notFound();
+  const experience = Object.keys(parsed.selection).length === 0
+    ? defaultExperience
+    : await getDemoExperience(courseId, parsed.selection);
   if (!experience) notFound();
   const { page, articles, diktats, flashcardSets } = experience.content.collections;
   if (page.offset > 0 && !articles.length && !diktats.length && !flashcardSets.length) notFound();
