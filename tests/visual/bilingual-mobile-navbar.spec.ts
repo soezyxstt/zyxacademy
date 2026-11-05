@@ -44,7 +44,6 @@ function expectNoRuntimeOrNetworkErrors(diagnostics: PageDiagnostics) {
 }
 
 test.setTimeout(90_000);
-test.use({ reducedMotion: "reduce" });
 test.beforeEach(async ({ page }) => {
   await stubVisualTelemetry(page);
   await page.emulateMedia({ reducedMotion: "reduce" });

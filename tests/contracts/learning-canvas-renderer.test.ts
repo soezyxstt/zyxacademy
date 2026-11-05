@@ -21,7 +21,7 @@ const spec: FunctionPlotCanvas = {
     rows: [["0", "0"]],
   },
   domain: { min: 0, max: 2, sampleCount: 5 },
-  series: [{ id: "f", label: "f(x)", expression: "a*x" }],
+  series: [{ id: "f", label: "f(x)", expression: "a*x", lineStyle: "solid", role: "primary" }],
 };
 
 describe("Learning Canvas renderer contracts", () => {
@@ -46,16 +46,16 @@ describe("Learning Canvas renderer contracts", () => {
   });
 
   test("breaks the curve at an excluded point even when sampling misses its x coordinate", () => {
-    const result = evaluateFunctionPlot({ ...spec, variables: [], series: [{ id: "f", label: "f(x)", expression: "x+1" }], pointMarkers: [{ seriesId: "f", x: 0.3, y: 1.3, kind: "open", label: "Excluded" }] });
+    const result = evaluateFunctionPlot({ ...spec, variables: [], series: [{ id: "f", label: "f(x)", expression: "x+1", lineStyle: "solid", role: "primary" }], pointMarkers: [{ seriesId: "f", x: 0.3, y: 1.3, kind: "open", label: "Excluded" }] });
     expect(result[0].points.find(point => point.x === 0.3)?.y).toBeNull();
     expect(result[0].points.map(point => point.x)).toEqual([0, 0.3, 0.5, 1, 1.5, 2]);
   });
   test("never joins the branches across a declared vertical asymptote", () => {
-    const result = evaluateFunctionPlot({ ...spec, variables: [], series: [{ id: "f", label: "f(x)", expression: "1/(x-0.3)", excludedX: [0.3] }] });
+    const result = evaluateFunctionPlot({ ...spec, variables: [], series: [{ id: "f", label: "f(x)", expression: "1/(x-0.3)", excludedX: [0.3], lineStyle: "solid", role: "primary" }] });
     expect(result[0].points.find(point => point.x === 0.3)?.y).toBeNull();
   });
   test("refines real-domain boundaries without joining excluded intervals", () => {
-    const result = evaluateFunctionPlot({ ...spec, variables: [], domain: { min: -5, max: 5, sampleCount: 20 }, series: [{ id: "circle", label: "Circle", expression: "sqrt(9-x^2)" }] });
+    const result = evaluateFunctionPlot({ ...spec, variables: [], domain: { min: -5, max: 5, sampleCount: 20 }, series: [{ id: "circle", label: "Circle", expression: "sqrt(9-x^2)", lineStyle: "solid", role: "primary" }] });
     const finite = result[0].points.filter(p => p.y !== null);
     expect(Math.abs(finite[0].x + 3)).toBeLessThan(0.000001);
     expect(Math.abs(finite.at(-1)!.x - 3)).toBeLessThan(0.000001);

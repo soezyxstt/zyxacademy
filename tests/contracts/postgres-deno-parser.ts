@@ -1,6 +1,9 @@
 import { sql } from "drizzle-orm";
 import { user } from "@/db/schema";
 
+// This module is executed by Deno; declare only the API used by this probe.
+declare const Deno: { env: { set(name: string, value: string): void } };
+
 Deno.env.set("DATABASE_URL", "postgresql://user:password@127.0.0.1:5432/test");
 const { db } = await import("@/lib/db");
 const query = db.select({ count: sql<number>`count(*)` }).from(user).prepare("parser_test");
