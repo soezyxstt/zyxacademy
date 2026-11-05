@@ -6,7 +6,7 @@ test("separates final Python from explanations without applying incomplete or am
   expect(pythonReply("Penjelasan.\n```python\nprint(")).toEqual({ explanation: "Penjelasan.", code: null });
   expect(pythonReply("```py\na\n```\n```python\nb\n```").code).toBeNull();
   expect(pythonReply("print(2)")).toEqual({ explanation: "print(2)", code: null });
-  expect(pythonHistoryReply("Perlu detail tambahan.", "id")).toBe("Perlu detail tambahan.");
+  expect(pythonReply("Perlu detail tambahan.")).toEqual({ explanation: "Perlu detail tambahan.", code: null });
   expect(pythonReply("```python\nprint(1)\n```\n```python\nprint(2)").code).toBeNull();
   expect(pythonReply("```python\nprint(1)\n```\n```\nprint(2)\n```").code).toBeNull();
   const streamed = "Penjelasan.\n```python\nprint(2)\n```";
@@ -21,4 +21,19 @@ test("Python history omits final code and gives recovery without claiming it was
   expect(saved).not.toContain("print(2)");
   expect(saved).toContain("Jika belum diterapkan");
   expect(pythonHistoryReply("```py\nprint(2)\n```", "en")).toContain("ask Zyra to generate it again");
+});
+
+
+test("live Python replies preserve prose while history safely recovers incomplete generations", () => {
+  for (const language of ["id", "en"] as const) {
+    const clarification = language === "id" ? "Perlu detail tambahan." : "Please provide more detail.";
+    expect(pythonReply(clarification)).toEqual({ explanation: clarification, code: null });
+    const partial = `${clarification}\n\`\`\`python\nprint(`;
+    expect(pythonReply(partial)).toEqual({ explanation: clarification, code: null });
+    for (const text of [clarification, partial, "```python\nprint(", "print(99)"]) {
+      const incomplete = pythonHistoryReply(text, language);
+      expect(incomplete).not.toContain("print(");
+      expect(incomplete).toContain(language === "id" ? "Program lengkap belum tersedia" : "A complete program is not available");
+    }
+  }
 });
