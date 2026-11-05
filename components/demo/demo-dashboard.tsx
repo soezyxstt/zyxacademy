@@ -26,7 +26,7 @@ export function DemoDashboard({ experiences, selected, masterySection, todayPlan
         inProgressDocuments={sorted.flatMap(({snapshot: item,content}) => {
           const article = content.article;
           if (article && (overlays[item.courseId] ?? emptyOverlay()).events.some(event => event.kind === "article" && event.id === `demo-article-${article.id}`.slice(0,128))) return [];
-          return item.inProgressDocuments.map(doc => ({id:article?.id ?? doc.id,title:article?.title ?? doc.title,completionPercent:doc.completionPercent,kind:"article",courseId:item.courseId,courseTitle:content.course.title,href:href(`/courses/${item.courseId}/material${article ? `/${article.id}` : ""}`)}));
+          return item.inProgressDocuments.map(doc => ({id:article?.id ?? doc.id,title:article?.title ?? doc.title,completionPercent:doc.completionPercent,kind:"article",courseId:item.courseId,courseTitle:content.course.title,href:href?.(`/courses/${item.courseId}/material${article ? `/${article.id}` : ""}`)}));
         })}
         recommendedUnenrolledCourses={[]}
         studentTargetCategory="TPB"
