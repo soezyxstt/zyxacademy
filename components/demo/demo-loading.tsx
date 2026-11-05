@@ -28,6 +28,16 @@ export function DemoMasterySkeleton() {
   return <section className="space-y-6" data-testid="demo-mastery-skeleton" aria-busy="true">{[0, 1, 2, 3].map(i => <div key={i} className="space-y-3"><Skeleton className="h-6 w-48" />{[0, 1, 2].map(j => <Skeleton key={j} className="h-10 w-full" />)}</div>)}</section>;
 }
 
+function DemoQuizPlayerSkeleton() {
+  return <div data-testid="demo-quiz-player-skeleton" className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-12">
+    <div className="space-y-4 md:space-y-5 lg:col-span-8">
+      <div className="flex flex-col gap-2.5 border-b border-border pb-3 sm:flex-row sm:items-center sm:gap-4 md:pb-4"><div className="flex-1 space-y-1.5"><div className="flex justify-between"><Skeleton className="h-4 w-20" /><Skeleton className="h-4 w-24" /></div><Skeleton className="h-2 w-full" /></div><Skeleton className="h-8 w-24" /></div>
+      <div className="space-y-5 rounded-xl border border-border/85 bg-card p-4 md:rounded-2xl md:p-6"><div className="flex gap-3"><Skeleton className="size-8 shrink-0" /><Skeleton className="h-5 w-3/4" /></div><div className="space-y-3">{[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div><div className="flex justify-between"><Skeleton className="h-9 w-24" /><Skeleton className="h-9 w-24" /></div></div>
+    </div>
+    <div className="space-y-4 lg:col-span-4 lg:border-l lg:border-border lg:pl-6"><Skeleton className="h-5 w-40" /><Skeleton className="h-4 w-56 max-w-full" /><div className="flex gap-2">{[0, 1, 2, 3].map(i => <Skeleton key={i} className="size-9" />)}</div></div>
+  </div>;
+}
+
 export function DemoViewSkeleton({ view }: { view: string }) {
   let body;
   switch (view) {
@@ -37,7 +47,8 @@ export function DemoViewSkeleton({ view }: { view: string }) {
     case "mastery": body = <CourseMasteryContentSkeleton />; break;
     case "progress": body = <CourseProgressContentSkeleton />; break;
     case "flashcards": body = <CourseFlashcardSkeleton />; break;
-    case "quiz-list": case "quiz-start": case "quiz": case "quiz-review": case "quiz-summary": body = <CourseQuizListSkeleton />; break;
+    case "quiz": body = <DemoQuizPlayerSkeleton />; break;
+    case "quiz-list": case "quiz-start": case "quiz-review": case "quiz-summary": body = <CourseQuizListSkeleton />; break;
     case "tryout-list": case "tryout": case "tryout-review": body = <CourseTryoutListSkeleton />; break;
     case "dashboard": body = <DashboardSkeleton />; break;
     default: body = <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-12 w-full" /><Skeleton className="h-40 w-full" /></div>;

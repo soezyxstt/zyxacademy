@@ -65,7 +65,7 @@ for (const [view, skeleton] of [
   ["overview", "course-overview-content-skeleton"],
   ["documents", "course-material-list-skeleton"],
   ["flashcards", "course-flashcard-skeleton"],
-  ["quiz", "course-quiz-list-skeleton"],
+  ["quiz", "demo-quiz-player-skeleton"],
 ] as const) {
   test(`${view} shows a tailored fallback`, async ({ page }, info) => {
     test.setTimeout(120000);
