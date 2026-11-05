@@ -6,7 +6,7 @@ import { Check, Plus, Minus, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PlanPrice, PlanPromotion } from "@/components/pricing/plan-price";
-import { usePlanPricingPhase } from "@/hooks/use-plan-pricing-phase";
+import { usePricingDiscounts } from "@/hooks/use-pricing-discounts";
 import { SectionContainer } from "@/components/layout/section-container";
 import { MarketingPageHero } from "@/components/marketing-page-hero";
 import { Reveal } from "@/components/ui/reveal";
@@ -27,7 +27,8 @@ import { LocalizedAuthLink } from "@/components/localized-auth-link";
 
 export default function PlansClient() {
   const t = useTranslations("marketing");
-  const pricingPhase = usePlanPricingPhase();
+  const { settings, now } = usePricingDiscounts();
+  const pricingPhase = settings && now;
   const [persons, setPersons] = useState<number>(DEFAULT_PERSONS);
   // Separate standard courses and other courses (Lain-Lain) count
   const [selectedStandardCourses, setSelectedStandardCourses] = useState<string[]>(() =>
@@ -299,7 +300,7 @@ export default function PlansClient() {
               const isFree = tier.key === "free";
               const tierName = t(`pricing.tiers.${tier.key}.name`);
               const whatsAppUrl = pricingPhase
-                ? getWhatsAppPlanUrl(tier.key, tierName, persons, courses, selectedCoursesList, pricingPhase)
+                ? getWhatsAppPlanUrl(tier.key, tierName, persons, courses, selectedCoursesList, undefined, settings)
                 : null;
               const planAction = isFree ? (
                 <LocalizedAuthLink href="/sign-up">{t("plans.startWithFree")}</LocalizedAuthLink>
@@ -315,6 +316,8 @@ export default function PlansClient() {
                       persons,
                       courses,
                       selectedCoursesList,
+                      undefined,
+                      settings,
                     );
                     if (refreshedHref) event.currentTarget.href = refreshedHref;
                   }}

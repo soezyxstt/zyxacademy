@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useStudentExperience } from "@/components/student-experience-provider";
 import { ChevronRight, Lock, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormattedDate } from "@/components/ui/formatted-date";
@@ -37,7 +38,7 @@ function readAttempts(tryouts: TryoutItem[]) {
   }
 
   for (const tryout of tryouts) {
-    counts[tryout.id] = parseInt(localStorage.getItem(`zyx-tryout-attempts-${tryout.id}`) || "0", 10);
+    try { const value = Number.parseInt(localStorage.getItem(`zyx-tryout-attempts-${tryout.id}`) || "0", 10); counts[tryout.id] = Number.isSafeInteger(value) && value >= 0 ? value : 0; } catch { counts[tryout.id] = 0; }
   }
 
   return counts;
@@ -45,16 +46,19 @@ function readAttempts(tryouts: TryoutItem[]) {
 
 export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListClientProps) {
   const t = useTranslations("learning");
-  const [attempts, setAttempts] = useState<Record<string, number>>(() => readAttempts(tryouts));
+  const experience = useStudentExperience();
+  const href = experience.href ?? ((path: string) => path);
+  const [attempts, setAttempts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const handleReset = () => {
-      setAttempts(readAttempts(tryouts));
+      setAttempts(experience.mode === "demo" ? Object.fromEntries(tryouts.map(tryout => [tryout.id, experience.overlay?.events.some(event => event.id === "fictional-tryout-complete") ? 1 : 0])) : readAttempts(tryouts));
     };
+    handleReset();
 
     window.addEventListener("zyx-tryout-attempts-reset", handleReset);
     return () => window.removeEventListener("zyx-tryout-attempts-reset", handleReset);
-  }, [tryouts]);
+  }, [tryouts, experience.mode, experience.overlay]);
 
   return (
     <div className="space-y-3 font-sans">
@@ -68,7 +72,7 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
             {t("tryoutList.emptyDescription")}
           </p>
           <Button asChild size="sm" className="mt-5 rounded-md">
-            <Link href={`/courses/${courseId}/quiz`}>
+            <Link href={href(`/courses/${courseId}/quiz`)}>
               {t("tryoutList.practiceWithQuiz")}
             </Link>
           </Button>
@@ -111,7 +115,7 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
                   size="sm"
                   className="interactive rounded-md md:justify-self-end border-dashed text-muted-foreground hover:text-foreground"
                 >
-                  <Link href={`/courses/${courseId}/tryout/${tryout.id}`}>
+                  <Link href={href(`/courses/${courseId}/tryout/${tryout.id}`)}>
                     {t("quizList.open")} <Lock className="ml-1 size-3.5" />
                   </Link>
                 </Button>
@@ -160,7 +164,7 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
                 size="sm"
                 className="interactive rounded-md md:justify-self-end bg-brand-primary text-primary-foreground hover:bg-brand-primary/95"
               >
-                <Link href={`/courses/${courseId}/tryout/${tryout.id}`}>
+                <Link href={href(`/courses/${courseId}/tryout/${tryout.id}`)}>
                   {t("tryoutList.start")} <ChevronRight className="ml-1 size-4" />
                 </Link>
               </Button>

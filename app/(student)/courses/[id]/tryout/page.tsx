@@ -1,8 +1,7 @@
+import { StudentTryoutsView } from "@/components/course/student-tryouts-view";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 
-import { GraduationCap } from "lucide-react";
-import { CoursePageShell } from "@/components/course/course-page-shell";
 import { CourseTryoutListSkeleton } from "@/components/course/course-skeletons";
 import { pageTitle } from "@/lib/site";
 import { getCourse } from "@/lib/course-utils";
@@ -111,13 +110,10 @@ export default async function CourseTryoutListPage({ params }: Props) {
   }
 
   return (
-    <CoursePageShell
-      title={<TranslatedText namespace="learning" messageKey="tryoutPage.title" values={{ course: course.title }} />}
-      icon={GraduationCap}
-    >
+    <StudentTryoutsView courseTitle={course.title}>
       <Suspense fallback={<CourseTryoutListSkeleton />}>
         <CourseTryoutListContent id={id} course={course} />
       </Suspense>
-    </CoursePageShell>
+    </StudentTryoutsView>
   );
 }

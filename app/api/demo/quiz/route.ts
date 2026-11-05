@@ -45,41 +45,53 @@ export async function POST(request: Request) {
       ? (payload as { questionSetToken?: unknown }).questionSetToken
       : undefined;
 
-  if (!Array.isArray(rawAnswers) || rawAnswers.length !== 3) {
-    return response({ error: "Kuis demo membutuhkan tiga jawaban." }, 400);
+  const courseId = payload && typeof payload === "object" && !Array.isArray(payload)
+    ? (payload as { courseId?: unknown }).courseId : undefined;
+  if (typeof courseId !== "string" || !courseId.trim() || courseId !== courseId.trim() || courseId.length > 128) {
+    return response({ error: "Mata kuliah demo tidak valid." }, 400);
   }
 
-  if (!Array.isArray(rawQuestionIds) || rawQuestionIds.length !== 3
+  const rawOffset = payload && typeof payload === "object" && !Array.isArray(payload) ? (payload as { quizOffset?: unknown }).quizOffset : undefined;
+  const quizOffset = rawOffset === undefined ? 0 : rawOffset;
+  if (typeof quizOffset !== "number" || !Number.isSafeInteger(quizOffset) || quizOffset < 0 || quizOffset % 3 !== 0) return response({ error: "Halaman kuis tidak valid." }, 400);
+  if (!Array.isArray(rawAnswers) || rawAnswers.length < 1 || rawAnswers.length > 3) {
+    return response({ error: "Jumlah jawaban tidak valid." }, 400);
+  }
+
+  if (!Array.isArray(rawQuestionIds) || rawQuestionIds.length !== rawAnswers.length
     || rawQuestionIds.some((id) => typeof id !== "string" || !id.trim())
     || new Set(rawQuestionIds).size !== rawQuestionIds.length) {
     return response({ error: "Daftar soal kuis demo tidak valid." }, 400);
   }
   const questionIds = rawQuestionIds.map((id) => (id as string).trim());
 
-  const answers = rawAnswers.map((answer) => {
-    if (Array.isArray(answer)) {
-      return [...new Set(answer.filter(isInteger))];
-    }
-    return isInteger(answer) ? [answer] : [];
-  });
+  if (rawAnswers.some(answer => Array.isArray(answer)
+    ? answer.length < 1 || answer.length > 21 || answer.some(value => !isInteger(value)) || new Set(answer).size !== answer.length
+    : !isInteger(answer))) return response({ error: "Pilihan jawaban tidak valid." }, 400);
+  const answers = rawAnswers.map(answer => Array.isArray(answer) ? answer as number[] : [answer as number]);
 
-  if (answers.some((answer) => answer.some((value) => value < 0 || value > 20))) {
-    return response({ error: "Pilihan jawaban tidak valid." }, 400);
-  }
 
-  const quizSet = await getDemoQuizSet();
+  const quizSet = await getDemoQuizSet(courseId, quizOffset);
   if (!quizSet) {
     return response({ error: "Kuis demo belum tersedia." }, 404);
   }
+
+  if (rawAnswers.length !== quizSet.questions.length) return response({ error: "Jumlah jawaban tidak valid." }, 400);
 
   const expectedQuestionIds = quizSet.questions.map((question) => question.id);
   const expectedQuestionVersions = quizSet.questions.map((question) => question.version);
   if (!verifyDemoQuestionSetToken(questionSetToken, {
     courseId: quizSet.courseId,
+    contentPolicy: quizSet.contentPolicy,
+    contentRevision: quizSet.contentRevision,
     questionIds: expectedQuestionIds,
     questionVersions: expectedQuestionVersions,
   }) || !sameQuestionOrder(questionIds, expectedQuestionIds)) {
     return response({ error: "Sesi kuis demo sudah tidak valid. Muat ulang halaman." }, 409);
+  }
+
+  if (answers.some((answer, index) => answer.some(value => value < 0 || value >= quizSet.questions[index].options.length) || (!quizSet.questions[index].multiple && answer.length !== 1))) {
+    return response({ error: "Pilihan jawaban tidak valid." }, 400);
   }
 
   const result = gradeDemoAnswers(quizSet.questions, answers);
@@ -89,6 +101,7 @@ export async function POST(request: Request) {
     results: result.results.map(({ index, isCorrect, explanation }) => ({
       index,
       isCorrect,
+      correctIndices: quizSet.questions[index].correctIndices,
       explanation,
     })),
   });

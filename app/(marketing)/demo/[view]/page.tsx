@@ -1,26 +1,43 @@
+import { DemoTryoutReview } from "@/components/demo/assessment/demo-tryout-review";
+import { collectDemoProducts, collectDemoFlashcards } from "@/lib/demo/product-pages";
+import { collectDemoQuizPages } from "@/lib/demo/quiz-pages";
+import { addSelectedFallback } from "@/lib/demo/catalogue";
+import { DemoStudentPage } from "@/components/demo/demo-student-pages";
+import { env } from "@/lib/env";
+import { getWhatsAppAdminChatHref } from "@/lib/whatsapp-admin";
+import { DemoTryoutList } from "@/components/demo/demo-tryout-list";
+import { DemoResults } from "@/components/demo/demo-results";
+import { DemoQuizList, DemoQuizGateway } from "@/components/demo/demo-quiz-list";
+import { DemoCourseCatalog } from "@/components/demo/demo-course-catalog";
+import { DemoDocuments } from "@/components/demo/demo-documents";
+import { DemoCourseProgress } from "@/components/demo/demo-course-progress";
+import { DemoCourseOverview } from "@/components/demo/demo-course-overview";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { parseDemoSelection, type DemoSearchParams } from "@/lib/demo/selection";
 import { DemoArticleView } from "@/components/demo/demo-article-view";
 import { DemoDiktatView } from "@/components/demo/demo-diktat-view";
 import { DemoEmptyState } from "@/components/demo/demo-empty-state";
 import { DemoFlashcards } from "@/components/demo/demo-flashcards";
+import { DemoTryout } from "@/components/demo/assessment/demo-tryout";
 import { DemoQuiz } from "@/components/demo/demo-quiz";
-import { demoCoursePath, DemoShell, type DemoView } from "@/components/demo/demo-shell";
+import { DemoShell, type DemoView } from "@/components/demo/demo-shell";
 import { DemoZyra } from "@/components/demo/demo-zyra";
-import { getDemoContent } from "../demo-data";
+import { getDemoCatalogue, getDemoExperience, getDemoExperiences } from "../demo-data";
 
 import { createLocalizedMetadata } from "@/lib/site-metadata";
 
 type Props = {
   params: Promise<{ view: string }>;
+  searchParams: Promise<DemoSearchParams>;
 };
 
-const supportedViews = ["article", "diktat", "flashcards", "quiz", "zyra"] as const;
+const supportedViews = ["feedback", "tryout-review", "quiz-review", "quiz-summary", "profile-edit", "reflections", "leaderboard", "course-leaderboard", "playground", "live", "profile", "settings", "notifications", "groups", "schedule", "video", "path", "mastery", "tryout-list", "results", "quiz-list", "quiz-start", "documents", "overview", "courses", "progress", "history", "article", "diktat", "flashcards", "quiz", "tryout", "zyra"] as const;
 type SupportedView = (typeof supportedViews)[number];
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { view } = await params;
-  const key = isSupportedView(view) ? `demo.views.${view}` : "meta.demo.title";
+  const key = isSupportedView(view) && !["courses", "progress", "history", "overview", "documents", "quiz-list", "quiz-start", "results", "tryout-list", "profile", "settings", "notifications", "groups", "schedule", "video", "path", "mastery", "leaderboard", "course-leaderboard", "playground", "live", "profile-edit", "reflections", "quiz-review", "quiz-summary", "tryout-review", "feedback"].includes(view) ? `demo.views.${view}` : "meta.demo.title";
   return createLocalizedMetadata({ path: `/demo/${view}`, titleKey: key, descriptionKey: "meta.demo.description", noIndex: true });
 }
 
@@ -31,36 +48,102 @@ function isSupportedView(value: string): value is SupportedView {
   return (supportedViews as readonly string[]).includes(value);
 }
 
-export default async function DemoViewPage({ params }: Props) {
+export default async function DemoViewPage({ params, searchParams }: Props) {
   const { view } = await params;
   if (!isSupportedView(view)) notFound();
 
-  const content = await getDemoContent();
-  if (!content) return <DemoEmptyState />;
+  const parsed = parseDemoSelection(await searchParams);
+  if (!parsed) notFound();
+  const ui = { showLive: env.FEATURE_LIVE === "1", whatsappHref: getWhatsAppAdminChatHref() };
+  const defaults = await getDemoExperiences();
+  if (!defaults.length) return <DemoEmptyState />;
+  const courseId = parsed.course ?? defaults[0].snapshot.courseId;
+  const defaultExperience = defaults.find((item) => item.snapshot.courseId === courseId);
+  if (!defaultExperience) notFound();
+  const experience = Object.keys(parsed.selection).length === 0
+    ? defaultExperience
+    : await getDemoExperience(courseId, parsed.selection);
+  if (!experience) notFound();
+  const { page, articles, diktats, flashcardSets } = experience.content.collections;
+  if (page.offset > 0 && !articles.length && !diktats.length && !flashcardSets.length) notFound();
+  const experiences = defaults.map(({ snapshot, content }) => ({ snapshot, content: { course: content.course, article: { id: content.article.id, title: content.article.title } } }));
 
-  const nextPath = demoCoursePath(content.course.id);
+  const { content, snapshot } = experience;
+  const completeCatalogue = (catalogue: NonNullable<Awaited<ReturnType<typeof getDemoCatalogue>>>) => addSelectedFallback(catalogue, content.selected, { article: content.article.title, diktat: content.diktat.title });
 
   let body: React.ReactNode;
   switch (view) {
+    case "tryout-review":
+      body = <DemoTryoutReview courseId={snapshot.courseId} />;
+      break;
+    case "feedback": case "profile-edit": case "reflections": case "leaderboard": case "course-leaderboard": case "playground": case "live": case "profile": case "settings": case "notifications": case "groups": case "schedule": case "video": case "path": case "mastery":
+      body = <DemoStudentPage view={view} experience={experience} />;
+      break;
+    case "tryout-list":
+      body = <DemoTryoutList experience={experience} />;
+      break;
+    case "quiz-list":
+      body = <DemoQuizList experience={experience} />;
+      break;
+    case "quiz-start":
+      body = <DemoQuizGateway experience={experience} />;
+      break;
+    case "courses":
+      body = <DemoCourseCatalog experiences={experiences} whatsappHref={ui.whatsappHref} />;
+      break;
+    case "documents": {
+      const [products, catalogue] = await Promise.all([collectDemoProducts(experience, getDemoExperience), getDemoCatalogue(courseId)]);
+      if (!products || !catalogue) notFound();
+      body = <DemoDocuments experience={experience} products={products} catalogue={completeCatalogue(catalogue)} />;
+      break;
+    }
+    case "progress":
+      body = <DemoCourseProgress experience={experience} />;
+      break;
+    case "overview": {
+      const catalogue = await getDemoCatalogue(courseId);
+      if (!catalogue) notFound();
+      body = <DemoCourseOverview experience={experience} catalogue={completeCatalogue(catalogue)} />;
+      break;
+    }
+    case "history":
+    case "results":
+      body = <DemoResults experience={experience} />;
+      break;
     case "article":
-      body = <DemoArticleView article={content.article} nextPath={nextPath} />;
+      body = <DemoArticleView article={content.article} course={content.course} />;
       break;
     case "diktat":
-      body = <DemoDiktatView title={content.diktat.title} sections={content.diktat.sections} nextPath={nextPath} />;
+      body = <DemoDiktatView chapterId={content.article.chapterId} id={content.selected.diktatId} course={content.course} title={content.diktat.title} sections={content.diktat.sections} />;
       break;
-    case "flashcards":
-      body = <DemoFlashcards cards={content.flashcards} nextPath={nextPath} />;
+    case "flashcards": {
+      const products = await collectDemoProducts(experience, getDemoExperience);
+      const cards = products ? await collectDemoFlashcards(experience, products, getDemoExperience) : null;
+      if (!cards) notFound();
+      body = <DemoFlashcards key={`${snapshot.courseId}:${snapshot.revision}`} cards={cards} course={content.course} />;
       break;
-    case "quiz":
-      body = <DemoQuiz questions={content.quiz} quizSetToken={content.quizSetToken} nextPath={nextPath} />;
+    }
+    case "quiz-review":
+    case "quiz-summary":
+    case "quiz": {
+      const pages = await collectDemoQuizPages(experience, getDemoExperience);
+      if (!pages) notFound();
+      body = <DemoQuiz key={`${snapshot.courseId}:${snapshot.revision}`} view={view} courseId={snapshot.courseId} pages={pages} />;
       break;
-    case "zyra":
-      body = <DemoZyra nextPath={nextPath} />;
+    }
+    case "tryout":
+      body = <DemoTryout key={`${snapshot.courseId}:${snapshot.revision}`} courseId={snapshot.courseId} />;
       break;
+    case "zyra": {
+      const catalogue = await getDemoCatalogue(courseId);
+      if (!catalogue) notFound();
+      body = <DemoZyra><DemoCourseOverview experience={experience} catalogue={completeCatalogue(catalogue)} /></DemoZyra>;
+      break;
+    }
   }
 
   return (
-    <DemoShell activeView={view as DemoView} course={content.course}>
+    <DemoShell showLive={ui.showLive} experiences={experiences} selected={{ snapshot, content: { course: content.course, article: { id: content.article.id, title: content.article.title } } }} activeView={view as DemoView} selection={parsed.selection} reviewScope={content.selected.flashcardSetId ? { setId: content.selected.flashcardSetId, offset: content.collections.flashcards.offset } : undefined}>
       {body}
     </DemoShell>
   );

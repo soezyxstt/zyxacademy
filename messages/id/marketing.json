@@ -1,4 +1,10 @@
 {
+  "discounts": {
+    "unavailable": "Harga belum tersedia. Coba lagi.",
+    "platform": "Platform",
+    "tutorial": "Tutorial",
+    "schedule": "{component}: {percent}% off, {start} sampai {end} WIB."
+  },
   "nav": {
     "plans": "Paket",
     "about": "Tentang kami",
@@ -568,7 +574,11 @@
       "diktat": "Diktat",
       "flashcards": "Flashcard",
       "quiz": "Kuis",
-      "zyra": "Zyra"
+      "zyra": "Zyra",
+      "courses": "Mata kuliah",
+      "progress": "Progres",
+      "history": "Riwayat",
+      "tryout": "Tryout"
     },
     "authCta": "Masuk untuk lanjut",
     "chapter": "Bab {number}, {title}",
@@ -612,7 +622,13 @@
       "question": "Pertanyaan",
       "flipBack": "Balik ke pertanyaan",
       "saveTitle": "Simpan kartu belajarmu",
-      "saveDescription": "Masuk untuk menyimpan kemajuan flashcard."
+      "saveDescription": "Masuk untuk menyimpan kemajuan flashcard.",
+      "grades": {
+        "again": "Ulangi",
+        "hard": "Sulit",
+        "good": "Baik",
+        "easy": "Mudah"
+      }
     },
     "quiz": {
       "title": "Kuis",
@@ -641,6 +657,47 @@
       "conversationLabel": "Contoh percakapan dengan tutor AI",
       "ctaTitle": "Belajar bersama tutor AI",
       "ctaDescription": "Masuk untuk melanjutkan percakapan dan menyimpan kemajuan."
+    },
+    "session": {
+      "reset": "Atur ulang demo",
+      "completed": "Selesai",
+      "markComplete": "Tandai selesai",
+      "greeting": "Halo, {name}",
+      "materialProgress": "{completed} dari {total} materi selesai",
+      "nextConcept": "Berikutnya: {title}",
+      "streak": "Hari beruntun",
+      "due": "Flashcard perlu ditinjau",
+      "inProgress": "Materi dalam proses",
+      "noDocuments": "Belum ada materi dalam proses.",
+      "weakConcepts": "Konsep yang perlu dipelajari",
+      "noConcepts": "Belum ada data penguasaan.",
+      "assessments": "Kuis tersedia",
+      "openQuiz": "Buka kuis",
+      "noAssessments": "Belum ada kuis tersedia.",
+      "dailyActivity": "Aktivitas harian",
+      "dailyCounts": "{materials} materi, {reviews} ulasan flashcard, {quizzes} kuis",
+      "noActivity": "Belum ada aktivitas.",
+      "recentReviews": "Ulasan flashcard terbaru",
+      "noReviews": "Belum ada ulasan flashcard.",
+      "overview": "Ringkasan",
+      "event": {
+        "article": "Materi selesai",
+        "review": "Flashcard ditinjau",
+        "quiz": "Kuis selesai"
+      },
+      "scoresUnavailable": "Nilai per percobaan sebelumnya tidak tersedia.",
+      "practiceQuiz": "Latihan kuis",
+      "dueCount": "{count} flashcard perlu ditinjau",
+      "chapterAvailable": "Materi tersedia",
+      "mockChapterProgress": "Progres contoh: {percent}%",
+      "monthlyActivity": "Aktivitas bulanan"
+    },
+    "products": {
+      "choose": "Pilih materi",
+      "previousProducts": "Produk sebelumnya",
+      "nextProducts": "Produk berikutnya",
+      "previousPage": "Halaman sebelumnya",
+      "nextPage": "Halaman berikutnya"
     }
   },
   "testimonial": {

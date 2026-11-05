@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { openMobileSidebar } from "@/components/sidebar-shell";
 import { useCommandMenu } from "@/components/command-menu";
 import { useTranslations } from "@/lib/i18n/client";
+import { useStudentExperience } from "@/components/student-experience-provider";
 
 export function getRouteTitle(
   pathname: string,
@@ -133,7 +134,9 @@ function isMobileSidebarBackdrop(target: EventTarget | null): target is HTMLElem
 }
 
 export function MobileNavbar({ surface, className }: MobileNavbarProps) {
-  const pathname = usePathname();
+  const actualPathname = usePathname();
+  const experience = useStudentExperience();
+  const pathname = experience.pathname ?? actualPathname;
   const t = useTranslations("student");
   const tAdmin = useTranslations("admin");
   const tTutor = useTranslations("tutor");

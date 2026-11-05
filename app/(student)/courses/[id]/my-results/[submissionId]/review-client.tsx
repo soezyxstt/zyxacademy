@@ -12,6 +12,8 @@ import type { SubmissionReviewFixture, SubmissionListItem } from "@/lib/student-
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import { useTranslations } from "@/lib/i18n/client";
 
+import { useStudentExperience } from "@/components/student-experience-provider";
+
 type ReviewClientProps = {
   courseId: string;
   listItem: SubmissionListItem;
@@ -20,14 +22,16 @@ type ReviewClientProps = {
 
 export function ReviewClient({ listItem, review }: ReviewClientProps) {
   const t = useTranslations("learning");
+  const experience = useStudentExperience();
   const { openMistake } = useTutor();
   const [userPlan, setUserPlan] = useState<string>("essential");
 
   const loadPlan = () => {
-    setUserPlan(localStorage.getItem("zyx-user-plan") || "essential");
+    try { setUserPlan(localStorage.getItem("zyx-user-plan") || "essential"); } catch { setUserPlan("essential"); }
   };
 
   useEffect(() => {
+    if (experience.mode === "demo") return;
     const timer = window.setTimeout(loadPlan, 0);
 
     // Listen to simulator plan updates
@@ -36,7 +40,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
       window.clearTimeout(timer);
       window.removeEventListener("zyx-plan-changed", loadPlan);
     };
-  }, []);
+  }, [experience.mode]);
 
   const isVideoUnlocked = userPlan === "essential" || userPlan === "premium";
 

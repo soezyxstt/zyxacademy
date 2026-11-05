@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { submitStudentFeedbackAction, type StudentFeedbackInput } from "./actions";
 import { useTranslations } from "@/lib/i18n/client";
 
+import { useStudentExperience } from "@/components/student-experience-provider";
+
 const CATEGORIES: Array<{ id: StudentFeedbackInput["category"]; key: string }> = [
   { id: "materi", key: "categoryCourseMaterials" },
   { id: "kuis", key: "categoryQuizzes" },
@@ -20,6 +22,7 @@ const CATEGORIES: Array<{ id: StudentFeedbackInput["category"]; key: string }> =
 
 export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
   const t = useTranslations("student");
+  const experience = useStudentExperience();
   const [category, setCategory] = useState<StudentFeedbackInput["category"]>("materi");
   const [rating, setRating] = useState<number>(5);
   const [hoverRating, setHoverRating] = useState<number>(0);
@@ -35,6 +38,7 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
       return;
     }
 
+    if (experience.mode === "demo") { toast.error("Masuk untuk mengirim masukan."); return; }
     setLoading(true);
     try {
       const res = await submitStudentFeedbackAction({

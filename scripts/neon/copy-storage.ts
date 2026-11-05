@@ -1,14 +1,18 @@
 import { createHash } from "node:crypto";
-import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { GetObjectCommand, HeadObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { canReuseStorageProof, signStorageManifest, verifyStorageManifest, type ObjectVersion, type StorageManifest } from "./storage-manifest";
 
 const TARGET_HOST = "br-cool-water-az2xxbul.storage.c-3.ap-southeast-1.aws.neon.tech";
 const TARGET_BUCKET = "zyx-migration";
 const STAGING_HOST = "br-holy-snow-azveniaa.storage.c-3.ap-southeast-1.aws.neon.tech";
 const CUTOVER_HOST = "br-gentle-scene-azq0gp91.storage.c-3.ap-southeast-1.aws.neon.tech";
+const PRODUCTION_HOST = "br-wandering-butterfly-azi11h8r.storage.c-3.ap-southeast-1.aws.neon.tech";
 
 export function validateTarget(endpoint: string, bucket: string) {
   const url = new URL(endpoint);
-  const targetMatches = url.hostname === TARGET_HOST && bucket === TARGET_BUCKET || [STAGING_HOST, CUTOVER_HOST].includes(url.hostname) && bucket === "zyx-staging";
+  const targetMatches = url.hostname === TARGET_HOST && bucket === TARGET_BUCKET || [STAGING_HOST, CUTOVER_HOST].includes(url.hostname) && bucket === "zyx-staging" || url.hostname === PRODUCTION_HOST && bucket === "zyx-production";
   if (url.protocol !== "https:" || !targetMatches || url.port || url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
     throw new Error("INVALID_NEON_STORAGE_TARGET");
   }
@@ -43,14 +47,61 @@ export function assertInventoryUnchanged(before: InventoryItem[], after: Invento
   if (JSON.stringify(before) !== JSON.stringify(after)) throw new Error("SOURCE_INVENTORY_CHANGED");
 }
 
+export function assertDestinationInventory(source: InventoryItem[], destination: InventoryItem[]) {
+  if (source.length !== destination.length || source.some((item, index) => item.key !== destination[index]?.key || item.size !== destination[index]?.size)) throw new Error("DESTINATION_INVENTORY_MISMATCH");
+}
+
+export function assertObjectMetadata(source: any, destination: any) {
+  const normalize = (value: any) => JSON.stringify([
+    ...["ContentType", "ContentDisposition", "ContentEncoding", "CacheControl", "ContentLanguage"].map(key => value[key] ?? null),
+    value.Expires ? new Date(value.Expires).toISOString() : null,
+    Object.entries(value.Metadata ?? {}).sort(([a], [b]) => a.localeCompare(b)),
+  ]);
+  if (normalize(source) !== normalize(destination)) throw new Error("DESTINATION_METADATA_CONFLICT");
+}
+
+export async function verifyInventoryMetadata(source: Reader, destination: Reader, sourceBucket: string, targetBucket: string, inventory: InventoryItem[], targetInventory: InventoryItem[]) {
+  assertDestinationInventory(inventory, targetInventory);
+  let next = 0;
+  // HEAD requests carry no response streams; bounded concurrency avoids rereading verified bytes.
+  await Promise.all(Array.from({length: 4}, async () => {
+    while (next < inventory.length) {
+      const index = next++, item = inventory[index], target = targetInventory[index];
+      const [a,b] = await Promise.all([
+        source.send(new HeadObjectCommand({Bucket:sourceBucket,Key:item.key})),
+        destination.send(new HeadObjectCommand({Bucket:targetBucket,Key:item.key})),
+      ]);
+      for (const [head, expected] of [[a,item],[b,target]] as const) {
+        if (head.ContentLength !== expected.size || head.ETag !== expected.etag || !(head.LastModified instanceof Date) || Math.floor(head.LastModified.getTime()/1000) !== Math.floor(Date.parse(expected.lastModified)/1000)) throw new Error("OBJECT_VERSION_CHANGED_DURING_METADATA_CHECK");
+      }
+      assertObjectMetadata(a,b);
+    }
+  }));
+}
+
+export async function withBodyDeadline<T>(body: AsyncIterable<Uint8Array> & { destroy?: (error: Error) => void }, consume: () => Promise<T>, timeoutMs = 120000): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([consume(), new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const error = new Error("STORAGE_BODY_TIMEOUT");
+        reject(error);
+        body.destroy?.(error);
+      }, timeoutMs);
+    })]);
+  } finally { clearTimeout(timer); }
+}
+
 async function fingerprint(body: AsyncIterable<Uint8Array>): Promise<Fingerprint> {
-  const hash = createHash("sha256");
-  let size = 0;
-  for await (const chunk of body) {
-    size += chunk.byteLength;
-    hash.update(chunk);
-  }
-  return { size, sha256: hash.digest("hex") };
+  return withBodyDeadline(body, async () => {
+    const hash = createHash("sha256");
+    let size = 0;
+    for await (const chunk of body) {
+      size += chunk.byteLength;
+      hash.update(chunk);
+    }
+    return { size, sha256: hash.digest("hex") };
+  });
 }
 
 async function readObject(client: Reader, bucket: string, key: string) {
@@ -59,18 +110,26 @@ async function readObject(client: Reader, bucket: string, key: string) {
   return object;
 }
 
-export async function copyObject(source: Reader, destination: Reader, sourceBucket: string, item: InventoryItem, apply: boolean, targetBucket = TARGET_BUCKET): Promise<"identical" | "would-copy" | "copied"> {
-  if (targetBucket !== TARGET_BUCKET && targetBucket !== "zyx-staging") throw new Error("INVALID_NEON_STORAGE_TARGET");
+export async function copyObject(source: Reader, destination: Reader, sourceBucket: string, item: InventoryItem, apply: boolean, targetBucket = TARGET_BUCKET, onVerified?: (proof: { destination: ObjectVersion; sha256: string }) => void): Promise<"identical" | "would-copy" | "copied"> {
+  if (![TARGET_BUCKET, "zyx-staging", "zyx-production"].includes(targetBucket)) throw new Error("INVALID_NEON_STORAGE_TARGET");
   const { key } = item;
   const sourceObject = await readObject(source, sourceBucket, key);
   if (sourceObject.ContentLength !== item.size || sourceObject.ETag !== item.etag) throw new Error("SOURCE_CHANGED");
   const expected = await fingerprint(sourceObject.Body);
   if (expected.size !== sourceObject.ContentLength) throw new Error("SOURCE_LENGTH_MISMATCH");
-  try {
+  async function verifyDestination() {
     const existing = await readObject(destination, targetBucket, key);
     const actual = await fingerprint(existing.Body);
     if (actual.size !== existing.ContentLength || actual.size !== expected.size || actual.sha256 !== expected.sha256) throw new Error("DESTINATION_CONFLICT");
-    return "identical";
+    assertObjectMetadata(sourceObject, existing);
+    if (onVerified) {
+      if (typeof existing.ETag !== "string" || !(existing.LastModified instanceof Date)) throw new Error("DESTINATION_VERSION_REQUIRED");
+      onVerified({ sha256: expected.sha256, destination: { size: actual.size, etag: existing.ETag, lastModified: existing.LastModified.toISOString() } });
+    }
+    return "identical" as const;
+  }
+  try {
+    return await verifyDestination();
   } catch (error: any) {
     if (error?.name !== "NoSuchKey" && error?.$metadata?.httpStatusCode !== 404) throw error;
   }
@@ -81,22 +140,35 @@ export async function copyObject(source: Reader, destination: Reader, sourceBuck
   if (upload.ContentLength !== item.size || upload.ETag !== item.etag) throw new Error("SOURCE_CHANGED");
   const chunks: Buffer[] = [];
   let received = 0;
-  for await (const chunk of upload.Body) {
+  await withBodyDeadline(upload.Body, async () => { for await (const chunk of upload.Body) {
     received += chunk.byteLength;
     if (received > item.size) throw new Error("SOURCE_LENGTH_MISMATCH");
     chunks.push(Buffer.from(chunk));
-  }
+  } });
   const bytes = Buffer.concat(chunks);
   if (bytes.length !== expected.size || createHash("sha256").update(bytes).digest("hex") !== expected.sha256) throw new Error("SOURCE_CHANGED");
-  await destination.send(new PutObjectCommand({
+  try { await destination.send(new PutObjectCommand({
     Bucket: targetBucket, Key: key, Body: bytes, ContentLength: expected.size,
     IfNoneMatch: "*", ContentType: sourceObject.ContentType, ContentDisposition: sourceObject.ContentDisposition,
-    ContentEncoding: sourceObject.ContentEncoding, CacheControl: sourceObject.CacheControl, Metadata: sourceObject.Metadata,
-  }));
-  const copied = await readObject(destination, targetBucket, key);
-  const actual = await fingerprint(copied.Body);
-  if (actual.size !== copied.ContentLength || actual.size !== expected.size || actual.sha256 !== expected.sha256) throw new Error("COPY_VERIFICATION_FAILED");
+    ContentEncoding: sourceObject.ContentEncoding, CacheControl: sourceObject.CacheControl, ContentLanguage: sourceObject.ContentLanguage, Expires: sourceObject.Expires, Metadata: sourceObject.Metadata,
+  })); } catch (error: any) {
+    // A committed upload can lose its response and return 412 on the SDK's retry.
+    if (error?.$metadata?.httpStatusCode === 412) return verifyDestination();
+    throw error;
+  }
+  try { await verifyDestination(); }
+  catch (error: any) { if (error?.message === "DESTINATION_CONFLICT") throw new Error("COPY_VERIFICATION_FAILED"); throw error; }
   return "copied";
+}
+
+export async function copyObjectWithRetry(...args: Parameters<typeof copyObject>) {
+  try { return await copyObject(...args); }
+  catch (error: any) {
+    const transient = error?.message === "STORAGE_BODY_TIMEOUT" || error?.message === "fetch failed" || ["TimeoutError", "RequestTimeout"].includes(error?.name) || ["ECONNRESET", "ETIMEDOUT", "EPIPE", "UND_ERR_SOCKET", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT"].includes(error?.code || error?.cause?.code);
+    if (!transient) throw error;
+    console.error(JSON.stringify({ event: "retry_storage_object", keyHash: createHash("sha256").update(args[3].key).digest("hex") }));
+    return copyObject(...args);
+  }
 }
 
 async function main() {
@@ -106,25 +178,67 @@ async function main() {
   validateTarget(AWS_ENDPOINT_URL_S3, NEON_STORAGE_BUCKET);
   const sourceUrl = new URL(R2_ENDPOINT);
   if (sourceUrl.protocol !== "https:" || !sourceUrl.hostname.endsWith(".r2.cloudflarestorage.com") || sourceUrl.port || sourceUrl.username || sourceUrl.password || sourceUrl.pathname !== "/" || sourceUrl.search || sourceUrl.hash) throw new Error("INVALID_R2_SOURCE");
-  const source = new S3Client({ region: "auto", endpoint: R2_ENDPOINT, credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY } });
-  const destination = new S3Client({ region: AWS_REGION, endpoint: AWS_ENDPOINT_URL_S3, forcePathStyle: true, requestChecksumCalculation: "WHEN_REQUIRED", credentials: { accessKeyId: AWS_ACCESS_KEY_ID, secretAccessKey: AWS_SECRET_ACCESS_KEY } });
+  // Mandatory full-object SHA-256 replaces optional SDK checksum streams that stalled during bulk reads.
+  const requestHandler = { connectionTimeout: 15000, requestTimeout: 120000, socketTimeout: 120000 };
+  const source = new S3Client({ requestHandler, responseChecksumValidation: "WHEN_REQUIRED", region: "auto", endpoint: R2_ENDPOINT, credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY } });
+  const destination = new S3Client({ requestHandler, responseChecksumValidation: "WHEN_REQUIRED", region: AWS_REGION, endpoint: AWS_ENDPOINT_URL_S3, forcePathStyle: true, requestChecksumCalculation: "WHEN_REQUIRED", credentials: { accessKeyId: AWS_ACCESS_KEY_ID, secretAccessKey: AWS_SECRET_ACCESS_KEY } });
   const inventory = await listInventory(source, R2_BUCKET);
-  const counts = { identical: 0, copied: 0, "would-copy": 0 };
-  for (let start = 0; start < inventory.length; start += 2) {
-    const results = await Promise.allSettled(inventory.slice(start, start + 2).map(async (item) => {
-      const outcome = await copyObject(source, destination, R2_BUCKET, item, process.argv.includes("--apply"), NEON_STORAGE_BUCKET);
+  const destinationInventory = new Map((await listInventory(destination, NEON_STORAGE_BUCKET)).map(item => [item.key, item]));
+  const counts = { identical: 0, copied: 0, reused: 0, "would-copy": 0 };
+  const context = { sourceEndpoint: new URL(R2_ENDPOINT).href, sourceBucket: R2_BUCKET, targetEndpoint: new URL(AWS_ENDPOINT_URL_S3).href, targetBucket: NEON_STORAGE_BUCKET };
+  const manifestKey = process.env.NEON_MANIFEST_KEY;
+  let manifest: StorageManifest = { version: 1, context, objects: {} };
+  let manifestPath: string | undefined;
+  let lock: number | undefined;
+  if (manifestKey) {
+    mkdirSync(".tmp", { recursive: true, mode: 0o700 });
+    if (realpathSync(".tmp").toLowerCase() !== resolve(".tmp").toLowerCase()) throw new Error("UNSAFE_STORAGE_MANIFEST_PATH");
+    manifestPath = resolve(".tmp", `neon-storage-${new URL(AWS_ENDPOINT_URL_S3).hostname.split(".")[0]}.json`);
+    if (existsSync(manifestPath)) {
+      if (lstatSync(manifestPath).isSymbolicLink()) throw new Error("UNSAFE_STORAGE_MANIFEST_PATH");
+      manifest = verifyStorageManifest(JSON.parse(readFileSync(manifestPath, "utf8")), context, manifestKey);
+    }
+    lock = openSync(`${manifestPath}.lock`, "wx", 0o600);
+    writeFileSync(lock, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString() }));
+  }
+  try {
+  // Concurrent large-object response streams stalled during the production rehearsal.
+  for (const item of inventory) {
+    try {
+      const keyHash = createHash("sha256").update(item.key).digest("hex");
+      if (manifestKey && canReuseStorageProof(manifest.objects[keyHash], item, destinationInventory.get(item.key))) {
+        counts.reused++;
+        console.log(JSON.stringify({ keyHash, outcome: "reused-verified-version" }));
+        continue;
+      }
+      const outcome = await copyObjectWithRetry(source, destination, R2_BUCKET, item, process.argv.includes("--apply"), NEON_STORAGE_BUCKET, manifestKey ? (proof) => {
+        manifest.objects[keyHash] = { ...proof, source: { size: item.size, etag: item.etag, lastModified: item.lastModified } };
+        writeFileSync(`${manifestPath}.next`, JSON.stringify(signStorageManifest(manifest, manifestKey)), { mode: 0o600, flag: "wx" });
+        renameSync(`${manifestPath}.next`, manifestPath!);
+      } : undefined);
       counts[outcome]++;
       console.log(JSON.stringify({ keyHash: createHash("sha256").update(item.key).digest("hex"), outcome }));
-    }));
-    for (const result of results) if (result.status === "rejected") {
-      const error = result.reason;
-      console.error(JSON.stringify({ error: "COPY_OBJECT_FAILED", code: error?.name, status: error?.$metadata?.httpStatusCode }));
+    } catch (error: any) {
+      console.error(JSON.stringify({ error: "COPY_OBJECT_FAILED", type: error?.name, code: /^[A-Z0-9_]+$/.test(error?.code || "") ? error.code : undefined, causeCode: /^[A-Z0-9_]+$/.test(error?.cause?.code || "") ? error.cause.code : undefined, status: error?.$metadata?.httpStatusCode, reason: /^[A-Z_]+$/.test(error?.message || "") ? error.message : undefined }));
+      throw new Error("COPY_BATCH_FAILED");
     }
-    if (results.some((result) => result.status === "rejected")) throw new Error("COPY_BATCH_FAILED");
   }
   assertInventoryUnchanged(inventory, await listInventory(source, R2_BUCKET));
-  if (process.argv.includes("--apply") && counts.identical + counts.copied !== inventory.length) throw new Error("COPY_INCOMPLETE");
-  console.log(JSON.stringify({ total: inventory.length, ...counts, mode: process.argv.includes("--apply") ? "apply" : "dry-run" }));
+  if (process.argv.includes("--apply") && counts.identical + counts.copied + counts.reused !== inventory.length) throw new Error("COPY_INCOMPLETE");
+  if (process.argv.includes("--apply")) {
+    const targetInventory = await listInventory(destination, NEON_STORAGE_BUCKET);
+    assertDestinationInventory(inventory, targetInventory);
+    const after = new Map(targetInventory.map(item => [item.key, item]));
+    if (manifestKey && inventory.some(item => !canReuseStorageProof(manifest.objects[createHash("sha256").update(item.key).digest("hex")], item, after.get(item.key)))) throw new Error("DESTINATION_VERSION_RECONCILIATION_FAILED");
+    await verifyInventoryMetadata(source, destination, R2_BUCKET, NEON_STORAGE_BUCKET, inventory, targetInventory);
+    assertInventoryUnchanged(inventory, await listInventory(source, R2_BUCKET));
+    assertInventoryUnchanged(targetInventory, await listInventory(destination, NEON_STORAGE_BUCKET));
+  }
+  console.log(JSON.stringify({ total: inventory.length, ...counts, metadataVerified: process.argv.includes("--apply"), mode: process.argv.includes("--apply") ? "apply" : "dry-run" }));
+  } finally {
+    if (lock !== undefined) { closeSync(lock); unlinkSync(`${manifestPath}.lock`); }
+    source.destroy(); destination.destroy();
+  }
 }
 
-if (import.meta.main) main().catch(() => { console.error("Storage copy failed; inspect configuration and reconcile before retrying."); process.exitCode = 1; });
+if (import.meta.main) await main().catch((error: unknown) => { console.error(JSON.stringify({error:"STORAGE_COPY_FAILED",reason:error instanceof Error && /^[A-Z_]+$/.test(error.message) ? error.message : undefined})); process.exitCode = 1; });

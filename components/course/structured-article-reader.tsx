@@ -88,6 +88,8 @@ export interface StructuredArticleReaderProps {
   onToggleToc?: () => void;
   isMobileSheetOpen?: boolean;
   onToggleMobileSheet?: (open: boolean) => void;
+  /** Isolated reader actions, used when private student services are unavailable. */
+  adapter?: { onComplete: () => void; completed: boolean; ready: boolean };
 }
 
 interface BlockMetadata {
@@ -218,12 +220,14 @@ export function StructuredArticleSectionContent({
   articleVersion,
   completed = false,
   showProgress = true,
+  interactiveChecks = true,
 }: {
   section: PublicSectionReadModel;
   articleId: string;
   articleVersion: number;
   completed?: boolean;
   showProgress?: boolean;
+  interactiveChecks?: boolean;
 }) {
   const t = useTranslations("studentCourse");
   return (
@@ -300,7 +304,7 @@ export function StructuredArticleSectionContent({
 
           if (
             (block.blockType === "retrieval_prompt" || block.blockType === "retrieval_close") &&
-            block.formativeCheck
+            block.formativeCheck && interactiveChecks
           ) {
             return (
               <div
@@ -412,6 +416,7 @@ export function StructuredArticleReader({
   onToggleToc: controlledToggleToc,
   isMobileSheetOpen: controlledMobileSheetOpen,
   onToggleMobileSheet: controlledToggleMobileSheet,
+  adapter,
 }: StructuredArticleReaderProps) {
   const t = useTranslations("studentCourse");
   const learnerMode = isLearnerReaderMode(mode);
@@ -693,7 +698,7 @@ export function StructuredArticleReader({
       timeSpent: number,
       markCompleted?: boolean,
     ) => {
-      if (!learnerMode) return;
+      if (!learnerMode || adapter) return;
       try {
         const res = await fetch(`/api/student/articles/${article.id}/progress`, {
           method: "PUT",
@@ -722,12 +727,12 @@ export function StructuredArticleReader({
         }
       } catch {}
     },
-    [article.id, course?.id, learnerMode],
+    [article.id, course?.id, learnerMode, adapter],
   );
 
   // Reset scroll & timer tracking on active section change
   useEffect(() => {
-    if (!learnerMode) return;
+    if (!learnerMode || adapter) return;
     activeTimeSpentRef.current = 0;
     maxScrollPercentRef.current = 0;
 
@@ -745,11 +750,11 @@ export function StructuredArticleReader({
         );
       }
     };
-  }, [activeSection, learnerMode, sendProgressUpdate]);
+  }, [activeSection, learnerMode, adapter, sendProgressUpdate]);
 
   // Scroll listener to track read percentage and completion across all sections in continuous flow
   useEffect(() => {
-    if (!learnerMode) return;
+    if (!learnerMode || adapter) return;
     const handleScroll = () => {
       const el = contentContainerRef.current;
       if (!el) return;
@@ -800,7 +805,7 @@ export function StructuredArticleReader({
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [activeSection, article.sections, learnerMode, sendProgressUpdate]);
+  }, [activeSection, article.sections, learnerMode, adapter, sendProgressUpdate]);
 
   // Selection listener for selection-to-Zyra toolbar using mouseup and keyup
   useEffect(() => {
@@ -933,15 +938,17 @@ export function StructuredArticleReader({
   // Overall reading progress calculation
   const totalSections = article.sections.length || 1;
   const completedCount = useMemo(() => {
+    if (adapter?.completed) return article.sections.length;
     return article.sections.filter((s) => {
       const p = sectionProgressMap[s.id];
       return p?.completed || (p?.maxReadPercent ?? 0) >= 90;
     }).length;
-  }, [article.sections, sectionProgressMap]);
+  }, [article.sections, sectionProgressMap, adapter?.completed]);
 
   const overallPercent = Math.min(100, Math.round((completedCount / totalSections) * 100));
 
   const handleFinishArticle = () => {
+    if (adapter) { if (adapter.ready) { adapter.onComplete(); router.push(backHref ?? `/courses/${article.courseId}/material`); } return; }
     if (learnerMode) {
       for (const sec of article.sections) {
         if (!completedSectionsSentRef.current.has(sec.id)) {
@@ -1065,7 +1072,7 @@ export function StructuredArticleReader({
               {article.sections.map((section) => {
                 const isCurrent = activeSectionSlug === section.slug;
                 const prog = sectionProgressMap[section.id];
-                const isDone = prog?.completed || (prog?.maxReadPercent ?? 0) >= 90;
+                const isDone = adapter ? adapter.completed : prog?.completed || (prog?.maxReadPercent ?? 0) >= 90;
                 const subheadings = section.blocks.map(block => ({ block, title: getBlockTitle(block, section.title, t) })).filter(item => item.title);
 
                 return (
@@ -1123,7 +1130,7 @@ export function StructuredArticleReader({
   );
 
   return (
-    <ArticleCodingProvider value={{ courseId: article.courseId, articleId: article.id, articleVersion: article.version, enabled: learnerMode }}>
+    <ArticleCodingProvider value={{ courseId: article.courseId, articleId: article.id, articleVersion: article.version, enabled: learnerMode && !adapter }}>
     <div className="min-h-screen w-full min-w-0 flex-1 bg-background text-foreground flex flex-col">
       {/* Sticky Reader Header / Focus Header - only rendered in learner mode */}
       {learnerMode &&
@@ -1329,7 +1336,8 @@ export function StructuredArticleReader({
                         section={sec}
                         articleId={article.id}
                         articleVersion={article.version}
-                        completed={isSecDone}
+                        completed={adapter ? adapter.completed : isSecDone}
+                        interactiveChecks
                       />
                     </article>
 
@@ -1386,6 +1394,7 @@ export function StructuredArticleReader({
                       variant="default"
                       size="default"
                       onClick={handleFinishArticle}
+                      disabled={adapter ? !adapter.ready : false}
                       className="rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground font-semibold gap-1.5"
                     >
                       <span>{t("articleReader.backToMaterials")}</span>
@@ -1433,7 +1442,7 @@ export function StructuredArticleReader({
       </div>
 
       {/* Floating Selection-to-Zyra toolbar using Shadcn Popover with Progressive Disclosure */}
-      {learnerMode && isMobileSelection && !isTutorOpen && isSelectionToolbarOpen && selectionContext && (
+      {learnerMode && selectionAskEnabled && isMobileSelection && !isTutorOpen && isSelectionToolbarOpen && selectionContext && (
         <div
           data-slot="zyra-mobile-selection"
           className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 flex items-center gap-2 rounded-xl border border-border bg-card p-2 shadow-lg md:hidden"
@@ -1478,7 +1487,7 @@ export function StructuredArticleReader({
           </TooltipProvider>
         </div>
       )}
-      {learnerMode && !isMobileSelection && selectionCoords && selectionContext && (
+      {learnerMode && selectionAskEnabled && !isMobileSelection && selectionCoords && selectionContext && (
         <ZyraSelectionToolbar
           courseId={article.courseId}
           selectionContext={selectionContext}

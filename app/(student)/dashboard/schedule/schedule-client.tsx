@@ -22,6 +22,9 @@ import {
 } from "@/components/schedule/session-detail-drawer";
 import { useTranslations } from "@/lib/i18n/client";
 
+import { useStudentExperience } from "@/components/student-experience-provider";
+import { daysFrom, getJakartaNow, getWeekScheduleDays } from "@/lib/date-utils";
+
 export function ScheduleCalendarSkeleton() {
   return (
     <div data-testid="schedule-calendar-skeleton" className="space-y-4">
@@ -93,6 +96,17 @@ function getTutorFilterOptions(data: any, fallbackName: string) {
 }
 
 export function StudentScheduleClient() {
+  const experience = useStudentExperience();
+  const loadSchedule = useCallback(async (offset: number) => {
+    if (experience.mode !== "demo") return getScheduleData(offset);
+    return {
+      role: "student", user: { id: "fictional-demo-student", ...experience.account },
+      weekInfo: getWeekScheduleDays(daysFrom(offset * 7, getJakartaNow())),
+      isWeekLocked: false, groups: [],
+      enrollments: (experience.courses ?? []).map((course) => ({ course })),
+      availableSlots: [], groupBookings: [], academicSchedules: [],
+    };
+  }, [experience]);
   const t = useTranslations("student");
   const tRef = useRef(t);
   useEffect(() => {
@@ -125,7 +139,7 @@ export function StudentScheduleClient() {
     try {
       setLoading(true);
       setLoadError(false);
-      const nextData = await getScheduleData(offset);
+      const nextData = await loadSchedule(offset);
       weekCache.current.set(offset, nextData);
       if (requestId === activeRequest.current) {
         setData(nextData);
@@ -145,7 +159,7 @@ export function StudentScheduleClient() {
         setLoading(false);
       }
     }
-  }, []);
+  }, [loadSchedule]);
 
   useEffect(() => {
     void fetchData(weekOffset);
@@ -156,13 +170,13 @@ export function StudentScheduleClient() {
 
     for (const adjacentOffset of [weekOffset - 1, weekOffset + 1]) {
       if (weekCache.current.has(adjacentOffset)) continue;
-      void getScheduleData(adjacentOffset)
+      void loadSchedule(adjacentOffset)
         .then((adjacentData) => {
           weekCache.current.set(adjacentOffset, adjacentData);
         })
         .catch(() => undefined);
     }
-  }, [data, dataWeekOffset, loading, weekOffset]);
+  }, [data, dataWeekOffset, loading, weekOffset, loadSchedule]);
 
   const activeData = dataWeekOffset === weekOffset ? data : null;
   if (!activeData) {

@@ -7,8 +7,8 @@ test("local PostgreSQL fixtures enforce native defaults and constraints and stay
   const first=await createPostgresTestDb();
   try {
     const tables=await first.testDb.execute(sql`SELECT count(*)::int AS count FROM information_schema.tables WHERE table_schema='public'`);
-    // Includes the additive Admin MCP outbox migration.
-    expect(tables.rows[0].count).toBe(194);
+    // Includes the Admin MCP outbox and main branch tables.
+    expect(tables.rows[0].count).toBe(196);
     await first.testDb.insert(user).values({id:"fixture",name:"Local fixture",email:"fixture@example.invalid"});
     const [row]=await first.testDb.select().from(user);
     expect(row.createdAt).toBeInstanceOf(Date);

@@ -1,96 +1,49 @@
-import Link from "next/link";
-import { ArrowRight, BookOpen, CheckSquare, FileText, Layers3, MessageCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { DemoAuthCta } from "./demo-shell";
-import { getTranslations, getAppLocale } from "@/lib/i18n/server";
-import { localizedPublicPath } from "@/lib/public-locale-routes";
+"use client";
 
-const checklist = [
-  {
-    href: "/demo/article",
-    label: "demo.dashboard.article",
-    detail: "demo.dashboard.articleDetail",
-    icon: BookOpen,
-  },
-  {
-    href: "/demo/diktat",
-    label: "demo.dashboard.handout",
-    detail: "demo.dashboard.handoutDetail",
-    icon: FileText,
-  },
-  {
-    href: "/demo/flashcards",
-    label: "demo.dashboard.flashcards",
-    detail: "demo.dashboard.flashcardsDetail",
-    icon: Layers3,
-  },
-  {
-    href: "/demo/quiz",
-    label: "demo.dashboard.quiz",
-    detail: "demo.dashboard.quizDetail",
-    icon: CheckSquare,
-  },
-  {
-    href: "/demo/zyra",
-    label: "demo.dashboard.zyra",
-    detail: "demo.dashboard.zyraDetail",
-    icon: MessageCircle,
-  },
-] as const;
+import { ApplicationPage } from "@/components/application-page";
+import { ActivateClassModal } from "@/components/dashboard/activate-class-modal";
+import { StudentDashboardContent } from "@/components/dashboard/student-dashboard-content";
+import { TodayPlan } from "@/components/dashboard/today-plan";
+import type { DemoSummary } from "./demo-shell";
+import type { DemoExperience } from "@/app/(marketing)/demo/demo-data";
+import { demoProgress } from "@/lib/demo/progress-overlay";
+import { emptyOverlay } from "@/lib/demo/session-overlay";
+import { useStudentExperience } from "@/components/student-experience-provider";
+import { useTranslations } from "@/lib/i18n/client";
+import { useDemoSession } from "./demo-session";
 
-export async function DemoDashboard({ nextPath }: { nextPath: string }) {
-  const [t, locale] = await Promise.all([getTranslations("marketing"), getAppLocale()]);
-  return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
-      <Card variant="solid" className="p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="font-heading text-h5 font-bold text-foreground">{t("demo.dashboard.title")}</h2>
-          </div>
-          <Button asChild size="sm" className="gap-1.5 rounded-lg">
-            <Link href={localizedPublicPath(locale, "/demo/article") ?? "/demo/article"}>
-              {t("demo.dashboard.startArticle")}
-              <ArrowRight className="size-3.5" aria-hidden="true" />
-            </Link>
-          </Button>
-        </div>
-
-        <ol className="mt-6 space-y-2">
-          {checklist.map(({ href, label, detail, icon: Icon }, index) => (
-            <li key={href}>
-              <Link
-                href={localizedPublicPath(locale, href) ?? href}
-                className="group flex items-center gap-3 rounded-xl border border-border/70 bg-background px-3 py-3 transition-colors hover:border-brand-primary/35 hover:bg-brand-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--zx-accent)]"
-              >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-body-sm font-semibold text-brand-primary">
-                  {index + 1}
-                </span>
-                <span className="flex min-w-0 flex-1 items-center gap-3">
-                  <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                  <span className="min-w-0">
-                    <span className="block text-body-sm font-semibold text-foreground">{t(label)}</span>
-                    <span className="block text-body-xs text-muted-foreground">{t(detail)}</span>
-                  </span>
-                </span>
-                <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-              </Link>
-            </li>
-          ))}
-        </ol>
-      </Card>
-
-      <Card variant="subtle" className="flex flex-col justify-between p-5 sm:p-6">
-        <div>
-          <h2 className="font-heading text-h5 font-bold text-foreground">{t("demo.dashboard.saveTitle")}</h2>
-          <p className="mt-2 text-body-sm leading-relaxed text-muted-foreground">
-            {t("demo.dashboard.saveDescription")}
-          </p>
-        </div>
-        <div className="mt-6">
-          <DemoAuthCta nextPath={nextPath} label={t("demo.dashboard.googleCta")} />
-        </div>
-      </Card>
-    </div>
-  );
+export function DemoDashboard({ experiences, selected }: { experiences: DemoSummary[]; selected: DemoExperience }) {
+  const { snapshot } = selected;
+  const { route, href } = useStudentExperience();
+  const t = useTranslations("marketing");
+  const { overlay, overlays, record } = useDemoSession();
+  const progress = demoProgress(snapshot, overlay);
+  const sorted = [...experiences].sort((a,b) => a.content.course.title.localeCompare(b.content.course.title));
+  const completed = (id: string) => overlay.events.some(event => event.id === id);
+  return <ApplicationPage className="pb-16">
+      <TodayPlan firstName={snapshot.displayName.split(" ")[0]} adapter={{
+        data: { streak: { current: snapshot.streakDays, longest: snapshot.streakDays }, items: [
+          { id: selected.content.article.id, kind: "module", title: selected.content.article.title, href: route("article"), done: completed(`demo-article-${selected.content.article.id}`.slice(0,128)) },
+          { id: "fictional-review-plan", kind: "flashcards", title: t("demo.views.flashcards"), count: progress.dueCount, href: route("flashcards"), done: completed("fictional-review-plan") },
+          { id: "fictional-quiz-plan", kind: "quiz", title: t("demo.session.practiceQuiz"), href: route("quiz"), done: completed("fictional-quiz-plan") },
+        ] }, complete: id => record(id === "fictional-review-plan" ? "review" : id === "fictional-quiz-plan" ? "quiz" : "article", id === selected.content.article.id ? `demo-article-${id}`.slice(0,128) : id, id === "fictional-review-plan" ? 3 : undefined),
+      }} />
+      <StudentDashboardContent href={href}
+        enrollments={sorted.map(item => item.content.course)}
+        courseProgress={Object.fromEntries(sorted.map(({snapshot: item}) => [item.courseId, {doneCount: demoProgress(item, overlays[item.courseId] ?? emptyOverlay()).completedMaterials, total: item.course.totalMaterials, nextConcept: item.course.nextConcept ?? undefined}]))}
+        inProgressDocuments={sorted.flatMap(({snapshot: item,content}) => {
+          const article = content.article;
+          if (article && (overlays[item.courseId] ?? emptyOverlay()).events.some(event => event.kind === "article" && event.id === `demo-article-${article.id}`.slice(0,128))) return [];
+          return item.inProgressDocuments.map(doc => ({id:article?.id ?? doc.id,title:article?.title ?? doc.title,completionPercent:doc.completionPercent,kind:"article",courseId:item.courseId,courseTitle:content.course.title}));
+        })}
+        recommendedUnenrolledCourses={[]}
+        studentTargetCategory="TPB"
+        totalDueFlashcards={sorted.reduce((sum, {snapshot: item}) => sum + demoProgress(item, overlays[item.courseId] ?? emptyOverlay()).dueCount, 0)}
+        firstCourseWithQueue={snapshot.courseId}
+        recentReviews={sorted.flatMap(({snapshot: item,content}) => item.flashcards.recentReviews.map(review => ({...review,id:`${item.courseId}:${review.id}`,reviewedAt:review.reviewedOn,courseTitle:content.course.title})))}
+        masteryConcepts={snapshot.weakConcepts.map(concept => ({conceptName:concept.title,masteryScore:concept.masteryPercent,evidenceCount:3,isMeasured:true,trend:"stable"}))}
+        availableExams={sorted.flatMap(({snapshot: item,content}) => item.availableAssessments.map(exam => ({...exam,id:`${item.courseId}:${exam.id}`,courseId:item.courseId,courseTitle:content.course.title})))}
+        activateClassAction={<ActivateClassModal />}
+      />
+  </ApplicationPage>;
 }

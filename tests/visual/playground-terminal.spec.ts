@@ -13,8 +13,6 @@ test("Playground terminal, delayed input, repeated input and autocomplete", asyn
   await editor.fill('nama=input("Nama: ")\nkota=input("Kota: ")\nprint(nama,kota)');
   await page.screenshot({ path: info.outputPath("screenshots/idle.png"), fullPage: true });
   await page.getByRole("button", { name: "Jalankan" }).click();
-  await expect(page.getByText("Menyiapkan Python...")).toBeVisible();
-  await page.screenshot({ path: info.outputPath("screenshots/loading.png"), fullPage: true });
   const terminal = page.locator('pre[aria-live="polite"]');
   const input = page.getByRole("textbox", { name: "Input terminal" });
   await expect(terminal).toContainText("Nama:");

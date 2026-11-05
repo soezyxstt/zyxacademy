@@ -5,11 +5,29 @@ import WebSocket from "ws";
 import { createServerApp } from "./index.mjs";
 
 const secret = randomBytes(32).toString("base64url"), origin = "https://staging.example.test";
-function ticket(jti = randomBytes(18).toString("base64url")) {
-  const body = Buffer.from(JSON.stringify({ aud: "zyx-python-staging", exp: Math.floor(Date.now() / 1000) + 60, jti })).toString("base64url");
+function ticket(jti = randomBytes(18).toString("base64url"), aud = "zyx-python-staging") {
+  const body = Buffer.from(JSON.stringify({ aud, exp: Math.floor(Date.now() / 1000) + 60, jti })).toString("base64url");
   return `${body}.${createHmac("sha256", Buffer.from(secret, "base64url")).update(body).digest("base64url")}`;
 }
 const once = (emitter, event) => new Promise((resolve, reject) => { emitter.once(event, resolve); emitter.once("error", reject); });
+test("shared worker accepts production and staging but rejects cross-environment tickets", async () => {
+  const production = "https://www.zyxacademy.com";
+  const app = createServerApp({ secret, origin: `${origin},${production},https://zyxacademy.com`, testReady: true });
+  await new Promise(resolve => app.server.listen(0, "127.0.0.1", resolve));
+  const base = `ws://127.0.0.1:${app.server.address().port}/v1/terminal`;
+  try {
+    for (const requestOrigin of [origin, production, "https://zyxacademy.com"]) {
+      const audience = requestOrigin === origin ? "zyx-python-staging" : "zyx-python-production";
+      const ws = new WebSocket(base, ["zyx-v1", `ticket.${ticket(undefined, audience)}`], { origin: requestOrigin });
+      await once(ws, "open");
+      const closed = once(ws, "close"); ws.close(); await closed;
+    }
+    for (const [requestOrigin, audience] of [[production, "zyx-python-staging"], [origin, "zyx-python-production"], ["https://evil.example.test", "zyx-python-production"]]) {
+      const ws = new WebSocket(base, ["zyx-v1", `ticket.${ticket(undefined, audience)}`], { origin: requestOrigin });
+      await assert.rejects(once(ws, "open"));
+    }
+  } finally { await new Promise(resolve => app.server.close(resolve)); }
+});
 test("health fails closed without a key", async () => {
   const app = createServerApp({ secret: "", origin, testReady: true });
   await new Promise(r => app.server.listen(0, "127.0.0.1", r));

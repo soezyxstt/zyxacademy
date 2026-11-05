@@ -50,18 +50,20 @@ async function main() {
   let sourceSnapshotSha256: string | undefined;
   let source: ReturnType<typeof createClient>;
   if (snapshot) {
-    if (required("NEON_SOURCE_FREEZE_ACK") !== "staging-writes-frozen") throw new Error("SOURCE_FREEZE_ACK_REQUIRED");
+    const { assertSnapshotMode } = await import("./source-snapshot");
+    assertSnapshotMode(createHash("sha256").update(sourceAddress.hostname).digest("hex"), process.env.NEON_SOURCE_FREEZE_ACK, includeAuth);
     const path = realpathSync(snapshot);
     const inside = relative(realpathSync(resolve(".tmp")), path);
     if (!inside || inside === ".." || inside.startsWith(`..${sep}`) || isAbsolute(inside)) throw new Error("UNSAFE_SNAPSHOT_PATH");
     const signed = JSON.parse(readFileSync(`${path}.manifest.json`, "utf8"));
-    const { verifySnapshot } = await import("./source-snapshot");
+    const { verifySnapshot, assertSnapshotAuthPolicy } = await import("./source-snapshot");
     if (!verifySnapshot(path, signed, key, createHash("sha256").update(sourceAddress.hostname).digest("hex"), revision)) throw new Error("SNAPSHOT_PROVENANCE_MISMATCH");
+    assertSnapshotAuthPolicy(signed.manifest, includeAuth, process.env.NEON_SOURCE_FREEZE_ACK);
     sourceSnapshotSha256 = signed.manifest.dbFileSha256;
     const { createClient: createLocalClient } = await import("@libsql/client/sqlite3");
     source = createLocalClient({ url: pathToFileURL(path).href, intMode: "bigint" });
     await source.execute("PRAGMA query_only=ON");
-    for (const name of AUTH_TABLES) {
+    for (const name of includeAuth ? [] : AUTH_TABLES) {
       if (Number(valueRows(await source.execute(`SELECT count(*) AS count FROM ${quote(name)}`))[0].count) !== 0) throw new Error("SNAPSHOT_CONTAINS_AUTH_ROWS");
     }
   } else source = createClient({
@@ -91,9 +93,9 @@ async function main() {
     const targetNames = (await dest.query("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public' ORDER BY tablename")).rows.map((row) => String(row.tablename));
     if (!targetNames.length || sourceTables.some((name) => !targetNames.includes(name)) || targetNames.some((name) => !sourceTables.includes(name))) throw new Error("TABLE_SET_MISMATCH");
     if (apply) await dest.query(`LOCK TABLE ${targetNames.map(table).join(", ")} IN ACCESS EXCLUSIVE MODE`);
-    for (const name of targetNames) {
-      const result = await dest.query(`SELECT EXISTS (SELECT 1 FROM ${table(name)} LIMIT 1) AS present`);
-      if (result.rows[0].present && !verify) throw new Error(`TARGET_NOT_EMPTY:${name}`);
+    if (!verify) {
+      const present = await dest.query(targetNames.map((name, index) => `SELECT $${index + 1}::text AS name WHERE EXISTS (SELECT 1 FROM ${table(name)} LIMIT 1)`).join(" UNION ALL ") + " LIMIT 1", targetNames);
+      if (present.rowCount) throw new Error(`TARGET_NOT_EMPTY:${present.rows[0].name}`);
     }
     const targetColumns = (await dest.query("SELECT table_name, column_name, data_type, is_identity, is_generated FROM information_schema.columns WHERE table_schema = 'public' ORDER BY table_name, ordinal_position")).rows;
     const plans = new Map<string, Column[]>();
@@ -104,7 +106,7 @@ async function main() {
       const sourceInfo = valueRows(await sourceTx.execute(`PRAGMA table_info(${quote(name)})`));
       // Turso metadata scans can exceed Neon's transaction idle timeout.
       if (destinationConnectionLost) throw new Error("DESTINATION_CONNECTION_LOST");
-      await dest.query("SELECT 1");
+      if (!snapshot) await dest.query("SELECT 1");
       const sourceColumns = sourceInfo.map((row) => String(row.name));
       const primary = sourceInfo.filter((row) => Number(row.pk) > 0).sort((a, b) => Number(a.pk) - Number(b.pk)).map((row) => quote(String(row.name)));
       const withoutRowid = /\bWITHOUT\s+ROWID\b/i.test(String(sourceMetadata.find((row) => row.name === name)?.sql ?? ""));
@@ -131,13 +133,15 @@ async function main() {
     const fks = (await dest.query("SELECT conrelid::regclass::text AS relation, conname, condeferrable, convalidated, confrelid::regclass::text AS referenced FROM pg_constraint WHERE contype = 'f' AND connamespace = 'public'::regnamespace")).rows;
     if (fks.some((fk) => !fk.convalidated || !String(fk.referenced).startsWith("public."))) throw new Error("UNVALIDATED_OR_EXTERNAL_FOREIGN_KEY");
     if (apply) {
-      for (const fk of fks.filter((item) => !item.condeferrable)) await dest.query(`ALTER TABLE ${fk.relation} ALTER CONSTRAINT ${quote(fk.conname)} DEFERRABLE INITIALLY IMMEDIATE`);
+      const alterations = fks.filter((item) => !item.condeferrable).map((fk) => `ALTER TABLE ${fk.relation} ALTER CONSTRAINT ${quote(fk.conname)} DEFERRABLE INITIALLY IMMEDIATE`);
+      if (alterations.length) await dest.query(alterations.join(";"));
       await dest.query("SET CONSTRAINTS ALL DEFERRED");
     }
     const summary: Record<string, { count: number; digest: string }> = {};
     const timestamps: Record<string, { seconds: number; milliseconds: number }> = {};
     const selected = sourceTables.filter((name) => includeAuth || !AUTH_TABLES.has(name));
     for (const name of selected) {
+      console.error(JSON.stringify({ phase: "reconcile", table: name }));
       const columns = plans.get(name)!;
       const sourceHashes: string[] = [];
       let offset = 0;
@@ -185,7 +189,8 @@ async function main() {
     if (apply) {
       await dest.query("SELECT setval(pg_get_serial_sequence('public.impor_bundle', 'insertion_order'), COALESCE((SELECT max(insertion_order) FROM public.impor_bundle), 1), EXISTS(SELECT 1 FROM public.impor_bundle))");
       await dest.query("SET CONSTRAINTS ALL IMMEDIATE");
-      for (const fk of fks.filter((item) => !item.condeferrable)) await dest.query(`ALTER TABLE ${fk.relation} ALTER CONSTRAINT ${quote(fk.conname)} NOT DEFERRABLE`);
+      const restorations = fks.filter((item) => !item.condeferrable).map((fk) => `ALTER TABLE ${fk.relation} ALTER CONSTRAINT ${quote(fk.conname)} NOT DEFERRABLE`);
+      if (restorations.length) await dest.query(restorations.join(";"));
       await dest.query("COMMIT");
     } else await dest.query("ROLLBACK");
     destinationOpen = false;
@@ -203,7 +208,7 @@ main().catch((error) => {
     const value = error?.[key];
     return typeof value === "string" && /^[A-Za-z0-9_]{1,160}$/.test(value) ? [[key, value]] : [];
   }));
-  console.error(JSON.stringify({ error: "IMPORT_DIAGNOSTIC", ...diagnostic }));
+  console.error(JSON.stringify({ error: "IMPORT_DIAGNOSTIC", ...diagnostic, categories: ["connection", "timeout", "transaction", "memory", "closed", "certificate", "socket", "parameter", "size"].filter(word => String(error?.message || "").toLowerCase().includes(word)), frames: String(error?.stack || "").split("\n").filter(frame => /^\s+at /.test(frame)).slice(0, 3) }));
   const message = error instanceof Error && /^[A-Z_]+(?::[A-Za-z0-9_]+)?$/.test(error.message) ? error.message : "IMPORT_FAILED_REVIEW_CONFIGURATION_OR_SCHEMA";
   console.error(message);
   process.exitCode = 1;
