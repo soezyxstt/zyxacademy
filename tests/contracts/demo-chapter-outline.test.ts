@@ -28,6 +28,12 @@ describe("demo chapter outline", () => {
     expect(rows[0].completionPercent).toBe(100);
     expect(rows[1].completionPercent).toBe(0);
   });
+  test("another article completion keeps the default article partial progress until reset", () => {
+    const catalogue = { chapters: [{ id: "chapter-1", title: "Bab 1", orderIndex: 1 }], materials: ["first", "second"].map(id => ({ id, title: id, chapterId: "chapter-1", kind: "article" as const })) };
+    const render = (overlay: ReturnType<typeof emptyOverlay>) => demoChapterOutline({ courseId: "course", catalogue, articleId: "first", overlay, articleHref: "/demo/article", progressLabel: String, partialPercent: 40 })[0].completionPercent;
+    expect(render({ version: 1, events: [{ kind: "article", id: "demo-article-second", date: "2026-01-01" }] })).toBe(70);
+    expect(render(emptyOverlay())).toBe(20);
+  });
   test("chapter percentages and course totals use the same fictional material outcomes", () => {
     const chapters = [1, 2, 3].map(n => ({ id: `chapter-${n}`, title: `Bab ${n}`, orderIndex: n }));
     const materials = chapters.flatMap(chapter => Array.from({ length: 10 }, (_, index) => ({ id: `${chapter.id}-${index}`, title: `Materi ${index}`, chapterId: chapter.id, kind: "article" as const })));
@@ -43,8 +49,10 @@ describe("demo chapter outline", () => {
 test("public content resolver passes only the selected first chapter to content loaders", async () => {
   const { readFileSync } = await import("node:fs");
   const source = readFileSync("lib/demo/legacy-eligibility.ts", "utf8");
+  const chapterResolver = source.slice(source.indexOf("export async function resolveDemoFirstChapter"), source.indexOf("export async function resolveDemoInitialArticles"));
   const resolver = source.slice(source.indexOf("export async function resolvePublicFreeFirstChapter"));
-  expect(resolver).toContain("free[0]?.canonicalId");
+  expect(chapterResolver).toContain("free[0]?.canonicalId");
+  expect(resolver).toContain("resolveDemoFirstChapter(course)");
   for (const loader of ["resolveArticle", "resolveDiktat", "resolveFlashcards", "resolvePublicQuiz"]) expect(resolver).toContain(`${loader}(course, first,`);
   expect(resolver).not.toMatch(/mockChapters|resolve(?:Article|Diktat|Flashcards|Quiz)\(course,\s*(?:chapters|free)\[/);
 });

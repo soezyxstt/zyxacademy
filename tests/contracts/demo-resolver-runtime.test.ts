@@ -12,11 +12,13 @@ let getDemoExperience: typeof import("@/app/(marketing)/demo/demo-data").getDemo
 let POST: typeof import("@/app/api/demo/quiz/route").POST;
 let resolvePublicFreeFirstChapter: typeof import("@/lib/demo/legacy-eligibility").resolvePublicFreeFirstChapter;
 let getDemoCatalogue: typeof import("@/lib/demo/catalogue-repository").getDemoCatalogue;
+let getDemoMastery: typeof import("@/lib/demo/mastery-repository").getDemoMastery;
 
 beforeAll(async () => {
   fixture = await createPostgresTestDb();
   ({ resolvePublicFreeFirstChapter } = await import("@/lib/demo/legacy-eligibility"));
   ({ getDemoCatalogue } = await import("@/lib/demo/catalogue-repository"));
+  ({ getDemoMastery } = await import("@/lib/demo/mastery-repository"));
   ({ getDemoExperience } = await import("@/app/(marketing)/demo/demo-data"));
   ({ POST } = await import("@/app/api/demo/quiz/route"));
   process.env.BETTER_AUTH_SECRET = "fictional-runtime-test-secret-only";
@@ -45,6 +47,44 @@ beforeAll(async () => {
   await db.insert(s.quizTemplates).values({ id: "quiz", courseId: "legacy", title: "Quiz", status: "published", visibility: "free", category: "chapter", selectionRules: { chapterIds: ["chapter-1"], fixedQuestionIds: ["q1", "q2", "q3"] } });
 }, 60_000);
 afterAll(async () => { await fixture?.client.close(); });
+
+test("mastery falls back to published material titles for unmapped ideas", async () => {
+  const db = fixture.testDb;
+  await db.insert(s.ide).values({ id: "idea-unmapped", mataKuliahId: "course", babId: "chapter-1", code: "unmapped", stableKey: "unmapped", canonicalStatement: "PRIVATE IDEA BODY", conciseExplanation: "PRIVATE IDEA EXPLANATION", semanticHash: "fixture", generationHash: "fixture", creatorId: "author", status: "published" });
+  await db.insert(s.chapters).values({ id: "mastery-legacy-chapter", courseId: "legacy", title: "Legacy", orderIndex: 1 });
+  await db.update(s.bab).set({ legacyChapterId: "mastery-legacy-chapter" }).where(eq(s.bab.id, "chapter-1"));
+  await db.insert(s.masterTeachingDocuments).values({ id: "mastery-draft-mtd", courseId: "legacy", title: "Draft", markdownContent: "PRIVATE BODY", createdById: "author" });
+  await db.insert(s.concepts).values({ id: "mastery-private-concept", canonicalSlug: "mastery-private" });
+  await db.insert(s.knowledgeObjects).values({ id: "mastery-private-ko", courseId: "legacy", mtdId: "mastery-draft-mtd", chapterId: "mastery-legacy-chapter", conceptId: "mastery-private-concept", learningOrder: 1, title: "Draft", conceptName: "PRIVATE KO NAME", content: "PRIVATE BODY", type: "definition", bloomLevel: "understand", status: "active" });
+  await db.insert(s.diktatMateri).values({ id: "duplicate-title", mataKuliahId: "course", babId: "chapter-1", title: "Real Free article", contentMarkdown: "", creatorId: "author", sourceHash: "fixture", generationHash: "fixture", status: "published" });
+  await db.insert(s.artikel).values({ id: "mastery-draft", mataKuliahId: "course", babId: "chapter-1", slug: "mastery-draft", title: "PRIVATE DRAFT TITLE", creatorId: "author", sourceHash: "fixture", generationHash: "fixture", status: "draft", structureStatus: "structured", contentMarkdown: "PRIVATE BODY" });
+  const model = (await getDemoMastery(["course"])).course;
+  expect(model.groups.map(group => group.chapter.id)).toEqual(["chapter-1", "chapter-2"]);
+  expect(model.groups[0].concepts.filter(item => item.conceptName === "Real Free article")).toHaveLength(1);
+  expect(model.groups[1].concepts.map(item => item.conceptName)).toContain("Diktat 2");
+  expect(JSON.stringify(model)).not.toMatch(/PRIVATE/);
+  await db.delete(s.diktatMateri).where(eq(s.diktatMateri.id, "duplicate-title"));
+  await db.update(s.bab).set({ legacyChapterId: null }).where(eq(s.bab.id, "chapter-1"));
+});
+
+test("mastery reads published course-scoped concept names without idea bodies or student data", async () => {
+  const db = fixture.testDb;
+  await db.insert(s.concepts).values([{ id: "concept-a", canonicalSlug: "a" }, { id: "concept-b", canonicalSlug: "b" }, { id: "concept-draft", canonicalSlug: "draft" }]);
+  await db.insert(s.conceptLocalizations).values([{ id: "loc-a", conceptId: "concept-a", lang: "id", displayName: "Bilangan" }, { id: "loc-b", conceptId: "concept-b", lang: "id", displayName: "Fungsi" }, { id: "loc-draft", conceptId: "concept-draft", lang: "id", displayName: "Private draft" }]);
+  const common = { mataKuliahId: "course", creatorId: "author", canonicalStatement: "PRIVATE BODY", conciseExplanation: "PRIVATE EXPLANATION", semanticHash: "fixture", generationHash: "fixture" };
+  await db.insert(s.ide).values([
+    { ...common, id: "idea-a", code: "a", stableKey: "a", babId: "chapter-1", conceptId: "concept-a", status: "published" },
+    { ...common, id: "idea-b", code: "b", stableKey: "b", babId: "chapter-2", conceptId: "concept-b", status: "published" },
+    { ...common, id: "idea-draft", code: "draft", stableKey: "draft", babId: "chapter-1", conceptId: "concept-draft", status: "draft" },
+  ]);
+  const result = await getDemoMastery(["course"]);
+  expect(result.course.groups.map(group => group.chapter.id)).toEqual(["chapter-1", "chapter-2"]);
+  expect(result.course.graphNodes.map(node => node.conceptName)).toEqual(["Bilangan", "Fungsi"]);
+  expect(JSON.stringify(result)).not.toMatch(/PRIVATE|draft|EXPLANATION/);
+  await db.insert(s.mataKuliah).values({ id: "other-course", code: "O", title: "Other course" });
+  await db.insert(s.ide).values({ ...common, mataKuliahId: "other-course", id: "mismatched-idea", code: "mismatch", stableKey: "mismatch", babId: "chapter-1", conceptId: "concept-a", status: "published" });
+  expect(await getDemoMastery(["other-course"])).toEqual({});
+});
 
 test("reads actual Free products, excludes later chapters and storage keys", async () => {
   const result = await resolvePublicFreeFirstChapter("course");

@@ -10,7 +10,7 @@ export function demoChapterOutline({ courseId, catalogue, articleId, overlay, ar
   return catalogue.chapters.map((chapter, index) => {
     const locallyCompleted = index === 0 && overlay.events.some(event => event.kind === "article" && event.id === `demo-article-${articleId}`.slice(0, 128));
     const items = catalogue.materials.filter(material => material.chapterId === chapter.id);
-    const completedCount = items.filter(material => fictionalMaterialCompleted(courseId, material, index) || (locallyCompleted && material.id === articleId)).length;
+    const completedCount = items.filter(material => fictionalMaterialCompleted(courseId, material, index) || (index === 0 && material.kind === "article" && overlay.events.some(event => event.kind === "article" && event.id === `demo-article-${material.id}`.slice(0, 128)))).length;
     const partial = index === 0 && !locallyCompleted && items.some(item => item.id === articleId) ? partialPercent / 100 : 0;
     const completionPercent = items.length ? Math.round((completedCount + partial) / items.length * 100) : 0;
     return { id: chapter.id, title: chapter.title, number: chapter.orderIndex, completionPercent,

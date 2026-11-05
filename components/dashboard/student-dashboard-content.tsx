@@ -15,18 +15,19 @@ export type StudentDashboardContentProps = {
  href?: (path: string) => string;
   enrollments: { id: string; title: string; category: string }[];
   courseProgress: Record<string, { doneCount: number; total: number; nextConcept?: string }>;
-  inProgressDocuments: { id: string; title: string; kind: string; courseId: string; courseTitle: string; completionPercent: number; lastSectionId?: string | null }[];
+  inProgressDocuments: { id: string; title: string; kind: string; courseId: string; courseTitle: string; completionPercent: number; lastSectionId?: string | null; href?: string }[];
   recommendedUnenrolledCourses: { id: string; title: string; category: string; materialsCount: number }[];
   studentTargetCategory: string | null;
   totalDueFlashcards: number;
   firstCourseWithQueue?: string;
   recentReviews: { id: string; front: string; grade: number; reviewedAt: Date | string; courseTitle: string }[];
   masteryConcepts: ComponentProps<typeof DashboardWeakConcepts>["concepts"];
+  masterySection?: ReactNode;
   availableExams: { id: string; title: string; courseId: string; courseTitle: string; type: string }[];
   activateClassAction: ReactNode;
 };
 
-export function StudentDashboardContent({ href = (path: string) => path,  enrollments, courseProgress, inProgressDocuments, recommendedUnenrolledCourses, studentTargetCategory, totalDueFlashcards, firstCourseWithQueue, recentReviews, masteryConcepts, availableExams, activateClassAction }: StudentDashboardContentProps) {
+export function StudentDashboardContent({ href = (path: string) => path,  enrollments, courseProgress, inProgressDocuments, recommendedUnenrolledCourses, studentTargetCategory, totalDueFlashcards, firstCourseWithQueue, recentReviews, masteryConcepts, masterySection, availableExams, activateClassAction }: StudentDashboardContentProps) {
 
   return (
             <Reveal duration="duration-700" className="w-full min-w-0">
@@ -70,7 +71,7 @@ export function StudentDashboardContent({ href = (path: string) => path,  enroll
                               className="group py-3 px-2 -mx-2 rounded-xl transition-colors hover:bg-muted/40"
                             >
                               <Link
-                                href={`/courses/${doc.courseId}/material/${doc.id}${doc.lastSectionId ? `?section=${encodeURIComponent(doc.lastSectionId)}` : ""}`}
+                                href={doc.href ?? href(`/courses/${doc.courseId}/material/${doc.id}${doc.lastSectionId ? `?section=${encodeURIComponent(doc.lastSectionId)}` : ""}`)}
                                 className="flex items-center justify-between gap-3 sm:gap-4 min-w-0"
                               >
                                 <div className="min-w-0 flex-1">
@@ -268,7 +269,7 @@ export function StudentDashboardContent({ href = (path: string) => path,  enroll
                   </section>
 
                   {/* Peta Penguasaan */}
-                  <section>
+                  {masterySection ?? <section>
                     <DashboardWeakConcepts
                       concepts={masteryConcepts}
                       courseTitle={enrollments[0]?.title}
@@ -283,8 +284,7 @@ export function StudentDashboardContent({ href = (path: string) => path,  enroll
                         <ArrowUpRight className="size-3.5" />
                       </Link>
                     )}
-                  </section>
-
+                  </section>}
                   {/* Quizzes and Tryouts */}
                   <section>
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">

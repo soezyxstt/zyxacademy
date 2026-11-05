@@ -15,7 +15,10 @@
  * - For UTC date strings in DB columns (streaks, recommendations), use `todayUtc()`.
  */
 
-import { addDays, format, subDays, subWeeks, startOfDay as fnsStartOfDay, startOfWeek as fnsStartOfWeek } from "date-fns";
+import { addDays, format, getISODay, subDays, subWeeks, startOfDay as fnsStartOfDay, startOfWeek as fnsStartOfWeek } from "date-fns";
+
+/** Monday is index 0, using the local calendar day. */
+export function localWeekdayIndex(date: Date): number { return getISODay(date) - 1; }
 
 const CALENDAR_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const JAKARTA_TIME_ZONE = "Asia/Jakarta";

@@ -54,7 +54,7 @@ function safeIdentity(value: string): string {
   return value;
 }
 
-function sanitizeSnapshot(snapshot: PublicDemoSnapshot): PublicDemoSnapshot {
+export function sanitizeSnapshot(snapshot: PublicDemoSnapshot): PublicDemoSnapshot {
   const cleanItem = <T extends { id: string; title: string }>(item: T): T => ({ ...item, id: safeIdentity(item.id), title: sanitizeDemoMarkdown(item.title) });
   return {
     ...snapshot,

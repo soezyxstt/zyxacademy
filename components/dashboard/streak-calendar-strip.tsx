@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Flame, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { localWeekdayIndex } from "@/lib/date-utils";
 import { useTranslations } from "@/lib/i18n/client";
 
 interface StreakCalendarStripProps {
@@ -12,11 +14,13 @@ interface StreakCalendarStripProps {
 export function StreakCalendarStrip({ current, weeklyActivity = [] }: StreakCalendarStripProps) {
   const t = useTranslations("student");
   const hasStreak = current > 0;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   
   // Day initials for Monday - Sunday (Senin, Selasa, Rabu, Kamis, Jumat, Sabtu, Minggu)
   const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
-  const currentDayIndex = (new Date().getDay() + 6) % 7; // Monday = 0, Sunday = 6
+  const currentDayIndex = mounted ? localWeekdayIndex(new Date()) : null;
 
   return (
     <div className="rounded-xl border border-border/70 bg-card p-3.5 select-none">
