@@ -6,6 +6,7 @@ describe("Quiz Multi-Choice and Option Indicator Invariants", () => {
   const quizPlayerCode = normalize(readFileSync("components/course/quiz-player.tsx", "utf8"));
   const quizOptionStylesCode = normalize(readFileSync("components/course/quiz-option-styles.ts", "utf8"));
   const studentQuizPageCode = normalize(readFileSync("app/(student)/courses/[id]/quiz/[quizId]/page.tsx", "utf8"));
+  const studentQuizReviewCode = normalize(readFileSync("components/course/student-quiz-review.tsx", "utf8"));
   const attemptReviewCode = normalize(readFileSync("components/course/attempt-review.tsx", "utf8"));
   const pkaPageCode = normalize(readFileSync("app/(student)/courses/tutorial-pka/simulasi/[subject]/[stage]/page.tsx", "utf8"));
   const submitRouteCode = normalize(readFileSync("app/api/quiz/attempts/[id]/route.ts", "utf8"));
@@ -51,8 +52,8 @@ describe("Quiz Multi-Choice and Option Indicator Invariants", () => {
   });
 
   it("ensures completed review scoring in pages and submit route treats multiple correct indices as multi-select", () => {
-    expect(studentQuizPageCode).toContain('const isMultiple = qType === "multiple_choices" || correctIndices.length > 1;');
-    expect(studentQuizPageCode).toContain('} else if (!isMultiple && (qType === "multiple_choice" || !qType)) {');
+    expect(studentQuizReviewCode).toContain('const isMultiple = qType === "multiple_choices" || correctIndices.length > 1;');
+    expect(studentQuizReviewCode).toContain('} else if (!isMultiple && (qType === "multiple_choice" || !qType)) {');
 
     expect(pkaPageCode).toContain('const isMultiple = qType === "multiple_choices" || correct.length > 1;');
     expect(pkaPageCode).toContain('} else if (!isMultiple && (qType === "multiple_choice" || !qType)) {');

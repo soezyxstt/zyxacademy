@@ -3,7 +3,7 @@ import { Database } from "bun:sqlite";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { assertOutputPath, assertSource, decodeValue, exportSourceSnapshot, planTables, signManifest, snapshotSql, verifySnapshot, type Table } from "./source-snapshot";
+import { assertOutputPath, assertSnapshotAuthPolicy, assertSnapshotMode, assertSource, decodeValue, exportSourceSnapshot, planTables, signManifest, snapshotSql, verifySnapshot, type Table } from "./source-snapshot";
 import { parseSourceSchema } from "./source-schema";
 
 const schema = parseSourceSchema([`sqliteTable("item", { id: integer("id"), payload: blob("payload"), label: text("label") }); sqliteTable("account", { id: text("id") });`]);
@@ -40,6 +40,27 @@ test("without rowid and snapshot table bound", () => {
   const table: Table = { name:"item", sql:"CREATE TABLE item (id INTEGER PRIMARY KEY) WITHOUT ROWID", columns:[{name:"id",type:"INTEGER",pk:1,hidden:0}], rowid:null };
   expect(snapshotSql([table])).not.toContain('"rowid"');
   expect(() => snapshotSql(Array.from({length:500}, (_, i) => ({...table,name:`t${i}`})))).toThrow("TOO_MANY_SNAPSHOT_TABLES");
+});
+
+test("production snapshots preserve auth atomically and reject cross-environment acknowledgements", () => {
+  const db = new Database(":memory:");
+  try {
+    for (const table of meta) db.exec(table.sql);
+    db.exec("INSERT INTO account VALUES ('synthetic-google-link')");
+    const rows = db.query(snapshotSql(planTables(meta, infos, schema), true)).all() as {name:string;data:string}[];
+    expect(JSON.parse(rows.find(row => row.name === "account")!.data)[0].map(decodeValue)).toEqual(["synthetic-google-link",1n]);
+    const prod = "011abc825046" + "0".repeat(52), staging = "12dd1a4c11dc" + "0".repeat(52);
+    assertSnapshotMode(prod, "production-read-only-rehearsal", true);
+    assertSnapshotMode(prod, "production-writes-frozen", true);
+    expect(() => assertSnapshotMode(prod, "staging-writes-frozen", true)).toThrow("SOURCE_FREEZE_ACK_REQUIRED");
+    expect(() => assertSnapshotMode(staging, "production-writes-frozen", false)).toThrow("SOURCE_FREEZE_ACK_REQUIRED");
+    expect(() => assertSnapshotMode(prod, "production-writes-frozen", false)).toThrow("SNAPSHOT_AUTH_POLICY_MISMATCH");
+    expect(() => assertSnapshotMode(staging, "staging-writes-frozen", true)).toThrow("SNAPSHOT_AUTH_POLICY_MISMATCH");
+    expect(() => assertSnapshotAuthPolicy({excludedAuthTables:[],sourceWriteState:"rehearsal"},true,"production-writes-frozen")).toThrow("REHEARSAL_SNAPSHOT_CANNOT_AUTHORIZE_CUTOVER");
+    expect(() => assertSnapshotAuthPolicy({excludedAuthTables:["account"],sourceWriteState:"frozen"},true,"production-writes-frozen")).toThrow("SNAPSHOT_AUTH_POLICY_MISMATCH");
+    expect(() => assertSnapshotAuthPolicy({excludedAuthTables:[],sourceWriteState:"frozen"},true,"production-writes-frozen")).not.toThrow();
+    expect(assertSource("libsql://zyx-soezyxstt.aws-ap-south-1.turso.io", "zyx-soezyxstt.aws-ap-south-1.turso.io")).toStartWith("011abc825046");
+  } finally { db.close(); }
 });
 
 test("real values round-trip without JSON's default precision loss or overflow", () => {

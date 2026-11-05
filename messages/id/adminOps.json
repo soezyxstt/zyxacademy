@@ -1,4 +1,18 @@
 {
+  "discountSettings": {
+    "title": "Diskon",
+    "scheduleHelp": "Tanggal berlaku dalam WIB, termasuk tanggal akhir. Isi 0% untuk menonaktifkan diskon.",
+    "platform": "Biaya platform",
+    "tutorial": "Biaya tutorial pertemuan",
+    "percent": "Diskon (%)",
+    "startsOn": "Mulai",
+    "endsOn": "Sampai",
+    "save": "Simpan diskon",
+    "saving": "Menyimpan...",
+    "invalid": "Periksa persentase 0 sampai 100 dan urutan tanggal diskon.",
+    "saved": "Diskon tersimpan dan berlaku di seluruh situs.",
+    "failed": "Gagal menyimpan diskon. Coba lagi."
+  },
   "groups": {
     "title": "Kelompok Belajar",
     "description": "Kelola konfigurasi kelompok belajar, paket kuota sesi semester, dan anggota murid."

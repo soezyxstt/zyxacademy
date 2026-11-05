@@ -1,5 +1,6 @@
 "use client";
 
+import { usePricingDiscounts } from "@/hooks/use-pricing-discounts";
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, BookOpen, CalendarDays, Calculator, Info, Tag, Users } from "lucide-react";
 import { AdminSectionTitle } from "@/components/admin/section-title";
@@ -55,6 +56,7 @@ export function CustomPriceEstimator({
 }: {
   initialVouchers?: ActiveDiscountVoucher[];
 } = {}) {
+  const { settings, now, error: pricingError } = usePricingDiscounts();
   const [values, setValues] = useState<QuantityValues>(initialValues);
   const [selectedVoucherCode, setSelectedVoucherCode] = useState<string>("none");
   const [activeVouchers, setActiveVouchers] = useState<ActiveDiscountVoucher[]>(initialVouchers ?? []);
@@ -116,6 +118,7 @@ export function CustomPriceEstimator({
 
   const quote = useMemo(() => {
     if (
+      !settings || !now ||
       errors.meetings ||
       errors.courses ||
       errors.persons ||
@@ -130,9 +133,11 @@ export function CustomPriceEstimator({
       quantities.meetings,
       quantities.persons,
       quantities.courses,
-      selectedVoucher?.discountPercent
+      selectedVoucher?.discountPercent,
+      settings,
+      now,
     );
-  }, [errors, quantities, selectedVoucher]);
+  }, [errors, quantities, selectedVoucher, settings, now]);
 
   const updateValue = (key: QuantityKey, value: string) => {
     setValues((current) => ({ ...current, [key]: value }));
@@ -273,7 +278,7 @@ export function CustomPriceEstimator({
             ) : (
               <p className="text-body-xs text-muted-foreground">
                 {activeVouchers.length > 0
-                  ? "Pilih voucher aktif untuk potongan tambahan setelah promo 40%."
+                  ? "Voucher diterapkan setelah diskon komponen."
                   : "Belum ada voucher aktif. Buat di tab Kelola voucher."}
               </p>
             )}
@@ -295,17 +300,17 @@ export function CustomPriceEstimator({
         <AdminSectionTitle
           icon={Calculator}
           title="Perkiraan harga"
-          right={
+          right={quote && quote.discountAmount > 0 ? (
             <span className="rounded-md border border-[var(--zx-accent)]/30 bg-[var(--zx-accent)]/10 px-2 py-1 text-body-xs font-semibold text-[var(--zx-accent)]">
-              Diskon 40%
+              Diskon {quote.discountPercent}%
             </span>
-          }
+          ) : null}
         />
 
         {quote ? (
           <div className="mt-4 space-y-4" aria-live="polite">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2 border-t border-border pt-3">
+            <div className={`grid gap-3 ${quote.discountAmount > 0 ? "sm:grid-cols-2" : ""}`}>
+              {quote.discountAmount > 0 && <div className="space-y-2 border-t border-border pt-3">
                 <p className="text-body-xs font-semibold text-muted-foreground">Sebelum diskon</p>
                 <p
                   className="mt-2 font-heading text-h5 font-bold text-foreground"
@@ -324,10 +329,10 @@ export function CustomPriceEstimator({
                     <span className="ml-1 font-sans text-body-xs font-normal text-muted-foreground">/ semester</span>
                   </p>
                 </div>
-              </div>
+              </div>}
 
               <div className="border-l-2 border-primary pl-3 py-2">
-                <p className="text-body-xs font-semibold text-[var(--zx-accent)]">Setelah diskon</p>
+                <p className="text-body-xs font-semibold text-[var(--zx-accent)]">{quote.discountAmount > 0 ? "Setelah diskon" : "Harga berlaku"}</p>
                 <p
                   className="mt-2 font-heading text-h5 font-bold text-foreground"
                   data-price-after={quote.afterDiscount}
@@ -403,7 +408,7 @@ export function CustomPriceEstimator({
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span>Total hemat (Promo 40% + Voucher):</span>
+                    <span>Total hemat:</span>
                     <span className="font-semibold text-foreground">
                       -{formatPlanPrice(quote.totalSavings!)}
                     </span>
@@ -412,7 +417,7 @@ export function CustomPriceEstimator({
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-3 border-y border-border/70 py-3 text-body-sm">
+            {quote.discountAmount > 0 && <div className="flex items-center justify-between gap-3 border-y border-border/70 py-3 text-body-sm">
               <span className="text-muted-foreground">Potongan {quote.discountPercent}%</span>
               <div className="text-right">
                 <span className="font-semibold text-status-success" data-price-discount={quote.discountAmount}>
@@ -425,7 +430,7 @@ export function CustomPriceEstimator({
                   -{formatPlanPrice(quote.discountAmountPerPerson)} / orang
                 </span>
               </div>
-            </div>
+            </div>}
 
             <div className="space-y-2">
               <p className="text-body-xs font-semibold text-muted-foreground">Ringkasan konfigurasi</p>
@@ -449,10 +454,10 @@ export function CustomPriceEstimator({
           <div className="mt-6 flex items-start gap-3 rounded-lg border border-status-warning/30 bg-status-warning/10 p-4" role="status">
             <AlertCircle className="mt-0.5 size-5 shrink-0 text-status-warning" aria-hidden="true" />
             <div className="space-y-1">
-              <p className="text-body-sm font-semibold text-foreground">Lengkapi konfigurasi</p>
-              <p className="text-body-xs leading-relaxed text-muted-foreground">
+              <p className="text-body-sm font-semibold text-foreground">{pricingError ? "Gagal memuat harga. Coba muat ulang." : !settings ? "Memuat harga..." : "Lengkapi konfigurasi"}</p>
+              {settings && !pricingError && <p className="text-body-xs leading-relaxed text-muted-foreground">
                 Periksa jumlah pertemuan, mata kuliah, dan anggota kelompok untuk menampilkan estimasi harga.
-              </p>
+              </p>}
             </div>
           </div>
         )}

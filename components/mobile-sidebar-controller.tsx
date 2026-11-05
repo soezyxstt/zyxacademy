@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
+import { useStudentExperience } from "@/components/student-experience-provider";
 import { useSwipe } from "@/hooks/use-swipe";
 
 const MOBILE_QUERY = "(max-width: 767px)";
@@ -36,7 +37,9 @@ function setSidebarOpen(open: boolean) {
  * while the existing SidebarShell state continues to own its normal rendering.
  */
 export function MobileSidebarController() {
-  const pathname = usePathname();
+  const actualPathname = usePathname();
+  const experience = useStudentExperience();
+  const pathname = experience.pathname ?? actualPathname;
   const openRef = useRef(false);
 
   const open = () => {

@@ -21,6 +21,11 @@ class DenoDeployTriggersTest(unittest.TestCase):
         self.assertIn("&& (github.ref_name == 'main' || github.ref_name == 'staging')", text)
         self.assertLess(text.index("name: Validate staging Neon target before Deno mutation"),
                         text.index("name: Provision Deno Deploy App"))
+        self.assertLess(text.index("name: Validate production Neon target before Deno mutation"),
+                        text.index("name: Provision Deno Deploy App"))
+        production = text.split("- name: Validate production Neon target before Deno mutation", 1)[1].split("- name:", 1)[0]
+        for key in ("DATABASE_URL", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_ENDPOINT_URL_S3", "NEON_STORAGE_BUCKET"):
+            self.assertIn(key + ":", production)
 
     def test_all_audited_worker_and_fingerprint_inputs_are_planned(self):
         with tempfile.TemporaryDirectory() as directory:

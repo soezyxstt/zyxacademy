@@ -5,6 +5,8 @@ import { CircleHelp, Gauge } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ZyraAllowanceSummarySchema, type ZyraAllowanceSummary } from "@/lib/zyra/murid";
 
+import { useStudentExperience } from "@/components/student-experience-provider";
+
 type AllowanceSummaryView = ZyraAllowanceSummary & { accessTier: "free" | "standard" };
 
 export function ZyraAllowanceSummary({
@@ -16,6 +18,7 @@ export function ZyraAllowanceSummary({
   courseId?: string | null;
   onAccessTierChange?: (tier: "free" | "standard") => void;
 }) {
+  const experience = useStudentExperience();
   const [summary, setSummary] = React.useState<AllowanceSummaryView | null>(null);
   const [unavailable, setUnavailable] = React.useState(false);
 
@@ -26,6 +29,7 @@ export function ZyraAllowanceSummary({
 
   React.useEffect(() => {
     let cancelled = false;
+    if (experience.mode === "demo") { onAccessTierChange?.("standard"); return; }
     const query = courseId ? `?courseId=${encodeURIComponent(courseId)}` : "";
     fetch(`/api/zyra/allowance${query}`, { cache: "no-store" })
       .then(async (response) => {
@@ -52,7 +56,7 @@ export function ZyraAllowanceSummary({
         if (!cancelled) setUnavailable(true);
       });
     return () => { cancelled = true; };
-  }, [courseId, onAccessTierChange, refreshKey]);
+  }, [courseId, onAccessTierChange, refreshKey, experience.mode]);
 
   if (unavailable || !summary) return null;
   const resetLabel = new Intl.DateTimeFormat("id-ID", {

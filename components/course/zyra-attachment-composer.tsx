@@ -13,6 +13,8 @@ import {
 } from "@/lib/zyra/images/composer";
 import type { ZyraMessageAttachment } from "@/lib/zyra/images/contracts";
 
+import { useStudentExperience } from "@/components/student-experience-provider";
+
 interface ZyraAttachmentComposerProps {
   courseId: string;
   sessionId?: string | null;
@@ -47,6 +49,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
   onAttachmentsChange,
   onAttachmentsReadyChange,
 }: ZyraAttachmentComposerProps, ref) {
+  const experience = useStudentExperience();
   const [items, setItems] = React.useState<PendingZyraImage[]>([]);
   const itemsRef = React.useRef<PendingZyraImage[]>([]);
   const updateItems = React.useCallback((update: (current: PendingZyraImage[]) => PendingZyraImage[]) => {
@@ -78,6 +81,11 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
   }, [items, onAttachmentIdsChange, onAttachmentsChange, onAttachmentsReadyChange]);
 
   const performUpload = React.useCallback(async (item: PendingZyraImage) => {
+    if (experience.mode === "demo") {
+      setComposerError("Unggahan gambar memerlukan akun.");
+      updateItems(current => setItemStatus(current, item.key, { status: "failed", errorCode: "ATTACHMENT_UPLOAD_FAILED" }));
+      return;
+    }
     const form = new FormData();
     form.set("courseId", courseId);
     if (sessionIdRef.current) {
@@ -123,7 +131,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
         errorCode: "ATTACHMENT_UPLOAD_FAILED",
       }));
     }
-  }, [courseId, onSessionCreated, updateItems]);
+  }, [courseId, onSessionCreated, updateItems, experience.mode]);
 
   const uploadItem = React.useCallback((item: PendingZyraImage) => {
     // If no sessionId exists yet, serialize behind the queue so multi-file paste
@@ -163,7 +171,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
 
   const removeItem = async (item: PendingZyraImage) => {
     const activeSessionId = sessionIdRef.current;
-    if (item.attachmentId && activeSessionId) {
+    if (experience.mode !== "demo" && item.attachmentId && activeSessionId) {
       const query = new URLSearchParams({ courseId, sessionId: activeSessionId });
       await fetch(`/api/zyra/attachments/${encodeURIComponent(item.attachmentId)}?${query.toString()}`, { method: "DELETE" }).catch(() => undefined);
     }

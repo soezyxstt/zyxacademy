@@ -9,6 +9,7 @@ const targets: Record<string, string> = {
   "br-cool-water-az2xxbul": "ep-damp-wind-azpa13lu",
   "br-holy-snow-azveniaa": "ep-empty-wave-azlduma4",
   "br-gentle-scene-azq0gp91": "ep-sparkling-lab-azrp3ymj",
+  "br-wandering-butterfly-azi11h8r": "ep-quiet-math-azyey0mb",
 };
 const endpoint = targets[process.env.NEON_BRANCH_ID || ""];
 if (!endpoint || !new URL(url).hostname.startsWith(`${endpoint}-pooler.`) && !new URL(url).hostname.startsWith(`${endpoint}.`)) throw new Error("ISOLATED_MIGRATION_BRANCH_REQUIRED");

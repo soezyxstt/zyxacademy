@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useStudentExperience } from "@/components/student-experience-provider";
 import { ArrowRight } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
@@ -26,6 +27,8 @@ export interface CourseGroup {
 interface CourseCatalogClientProps {
   groups: CourseGroup[];
   studentTargetCategory?: string | null;
+  showCounts?: boolean;
+  showGroupHeaders?: boolean;
 }
 
 /**
@@ -84,8 +87,11 @@ function getCourseBadgeInfo(course: CatalogCourseItem) {
 
 export function CourseCatalogClient({
   groups,
+  showCounts = true,
+  showGroupHeaders = true,
 }: CourseCatalogClientProps) {
   const t = useTranslations("learning");
+  const { courseHref } = useStudentExperience();
   const totalCourses = groups.reduce((acc, g) => acc + g.courses.length, 0);
 
   const renderRow = (c: CatalogCourseItem) => {
@@ -95,7 +101,7 @@ export function CourseCatalogClient({
     return (
       <Link
         key={c.id}
-        href={`/courses/${c.id}`}
+        href={courseHref(c.id)}
         className="group flex items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-muted/30 active:bg-muted/50"
       >
         <div className="flex min-w-0 items-center gap-3">
@@ -106,7 +112,7 @@ export function CourseCatalogClient({
             <h3 className="break-words font-heading text-body-sm font-semibold text-foreground transition-colors group-hover:text-brand-primary">
               {c.title}
             </h3>
-            <p className="mt-0.5 text-body-xs text-muted-foreground flex items-center gap-1.5">
+            {showCounts && <p className="mt-0.5 text-body-xs text-muted-foreground flex items-center gap-1.5">
               {isPka ? (
                 <span>{t("courseCatalog.pkaSummary")}</span>
               ) : (
@@ -114,7 +120,7 @@ export function CourseCatalogClient({
                   {t("courseCatalog.counts", { materials: c.materialsCount, quizzes: c.quizzesCount, tryouts: c.tryoutsCount })}
                 </span>
               )}
-            </p>
+            </p>}
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -126,6 +132,7 @@ export function CourseCatalogClient({
 
   const renderSection = (group: CourseGroup) => (
     <section key={group.jurusan} className="space-y-3">
+      {showGroupHeaders && (
       <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2.5">
         <div className="flex items-center gap-2">
           <h2 className="font-heading text-body-base font-bold text-foreground">
@@ -141,6 +148,7 @@ export function CourseCatalogClient({
           {t("courseCatalog.courseCount", { count: group.courses.length })}
         </span>
       </div>
+      )}
       <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60 bg-card">
         {group.courses.map(renderRow)}
       </div>

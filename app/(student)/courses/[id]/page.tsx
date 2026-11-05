@@ -1,8 +1,6 @@
+import { StudentCourseOverviewView } from "@/components/course/student-course-overview-view";
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
-import { BookOpen, ArrowRight } from "lucide-react";
-import { CoursePageShell } from "@/components/course/course-page-shell";
 import { ChapterOutline } from "@/components/course/chapter-outline";
 import { CoursePrimaryActions } from "@/components/course/course-primary-actions";
 import { CourseAttentionStrip } from "@/components/course/course-attention-strip";
@@ -10,14 +8,11 @@ import {
   CourseOverviewPrimaryActionsSkeleton,
   CourseChapterOutlineSkeleton,
 } from "@/components/course/course-skeletons";
-import { EnrollmentForm } from "@/components/enrollment-form";
-import { Reveal } from "@/components/ui/reveal";
 import { createMetadata } from "@/lib/site";
 import { getCourse, getCourseChapterOutline, getStudentCourseAccess } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
 import { getCourseOverviewData } from "@/lib/learning-analytics";
 import { redirect } from "next/navigation";
-import { TranslatedText } from "@/components/i18n/translated-text";
 import { getTranslations } from "@/lib/i18n/server";
 
 type Props = { params: Promise<{ id: string }> };
@@ -141,45 +136,10 @@ export default async function CourseOverviewPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <CoursePageShell title={course.title} description={shortDescription} icon={BookOpen} maxWidth="7xl" hideMobileTitle>
-        <Reveal>
-          {!isEnrolled && (
-            <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
-              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
-                <div>
-                  <h3 className="font-heading text-body-base font-bold text-brand-secondary"><TranslatedText namespace="learning" messageKey="quizPage.activationTitle" /></h3>
-                  <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground"><TranslatedText namespace="learning" messageKey="courseOverview.activationDescription" /></p>
-                </div>
-                <EnrollmentForm className="w-full" />
-              </div>
-            </div>
-          )}
-          {/* Primary learning actions and attention strip streamed via Suspense */}
-          {isEnrolled && (
-            <Suspense fallback={<CourseOverviewPrimaryActionsSkeleton />}>
-              <CourseOverviewHighlights studentId={studentId} courseId={id} chapterOutline={chapterOutline} />
-            </Suspense>
-          )}
-          <div className="mb-6">
-            <Suspense fallback={<CourseChapterOutlineSkeleton />}>
-              <CourseChapterOutlineSection
-                courseId={id}
-                studentId={studentId}
-                isEnrolled={isEnrolled}
-                initialChapters={chapterOutline}
-              />
-            </Suspense>
-          </div>
-          {isEnrolled && (
-            <div className="mt-6 flex items-center justify-between border-t border-border/40 pt-4">
-              <Link href={`/courses/${id}/progress`} className="inline-flex items-center gap-1.5 text-body-sm font-semibold text-brand-primary hover:underline">
-                <span><TranslatedText namespace="learning" messageKey="courseOverview.viewProgress" /></span>
-                <ArrowRight className="size-4" />
-              </Link>
-            </div>
-          )}
-        </Reveal>
-      </CoursePageShell>
+      <StudentCourseOverviewView course={{ id: course.id, title: course.title, description: shortDescription }} isEnrolled={isEnrolled}
+        highlights={<Suspense fallback={<CourseOverviewPrimaryActionsSkeleton />}><CourseOverviewHighlights studentId={studentId} courseId={id} chapterOutline={chapterOutline} /></Suspense>}
+        chapterOutline={<Suspense fallback={<CourseChapterOutlineSkeleton />}><CourseChapterOutlineSection courseId={id} studentId={studentId} isEnrolled={isEnrolled} initialChapters={chapterOutline} /></Suspense>}
+      />
     </>
   );
 }

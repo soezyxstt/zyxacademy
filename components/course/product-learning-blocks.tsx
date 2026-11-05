@@ -160,8 +160,10 @@ const verdictClasses: Record<FormativeCheckResult["verdict"], string> = {
   ungradable: "border-border/80 bg-muted/30 text-muted-foreground",
 };
 
+import { useStudentExperience } from "@/components/student-experience-provider";
+
 export function ProductFormativeCheck({
-  density = "default",
+  density: _density = "default",
   title,
   content,
   formativeCheck,
@@ -170,6 +172,7 @@ export function ProductFormativeCheck({
   className,
 }: ProductFormativeCheckProps) {
   const endpointBase = useFormativeCheckEndpointBase();
+  const experience = useStudentExperience();
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [textValue, setTextValue] = useState("");
   const [numericValue, setNumericValue] = useState("");
@@ -208,6 +211,7 @@ export function ProductFormativeCheck({
   };
 
   const submitResponse = async () => {
+    if (experience.mode === "demo") { setError("Pemeriksaan latihan memerlukan akun."); setUiState("error"); return; }
     const response = getLearnerResponse();
     if (!response) {
       setError("Isi responsmu sebelum mengirim jawaban.");
@@ -240,6 +244,7 @@ export function ProductFormativeCheck({
   };
 
   const revealAnswer = async () => {
+    if (experience.mode === "demo") { setError("Kunci latihan memerlukan akun."); setUiState("error"); return; }
     if (reveal) {
       setReveal(null);
       setUiState(result ? "evaluated" : "idle");

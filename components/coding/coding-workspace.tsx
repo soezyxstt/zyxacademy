@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
-import { useSession } from "@/lib/auth-client";
+import { StudentAccountBoundary, type StudentAccountState } from "@/components/student-account-boundary";
+import { useStudentExperience } from "@/components/student-experience-provider";
 import { useTutor } from "@/components/course/tutor-drawer";
 import { PythonPresets } from "./python-presets";
 import { PythonEditor } from "./python-editor";
@@ -28,19 +29,24 @@ type Feedback = ReturnType<typeof publicCodingFeedback>;
 const verdictLabels = { correct: "Semua kasus uji lolos", partial: "Sebagian kasus uji belum lolos", incorrect: "Jawaban belum sesuai", ungradable: "Pemeriksaan belum tersedia. Coba Submit lagi." };
 const statusLabels: Record<ExecutionResult["status"], string> = { completed: "Eksekusi selesai", syntax_error: "Periksa penulisan kode", runtime_error: "Terjadi error saat menjalankan kode", timeout: "Eksekusi melewati batas waktu", stopped: "Eksekusi dihentikan", unavailable: "Python belum tersedia. Coba lagi." };
 const clampSplit = (value: number) => Math.min(75, Math.max(25, value));
-const useStagingTerminal = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") === "https://staging.zyxacademy.com";
+const useRemoteTerminal = ["https://staging.zyxacademy.com", "https://www.zyxacademy.com", "https://zyxacademy.com"].includes(process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ?? "");
 
-export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialStdin = "", problem, surface, allowHelp = true, learnerId, playgroundLink = false, disabled = false, interactive = false }: {
-  courseId: string; draftKey: string; initialCode?: string; initialStdin?: string; problem?: CodingProblemPublic;
+export function CodingWorkspace(props: Omit<Parameters<typeof CodingWorkspaceContent>[0], "account">) {
+  return <StudentAccountBoundary>{({ data }) => <CodingWorkspaceContent {...props} account={data} />}</StudentAccountBoundary>;
+}
+function CodingWorkspaceContent({ account, courseId, draftKey, initialCode = "", initialStdin = "", problem, surface, allowHelp = true, learnerId, playgroundLink = false, disabled = false, interactive = false }: {
+  account: StudentAccountState["data"]; courseId: string; draftKey: string; initialCode?: string; initialStdin?: string; problem?: CodingProblemPublic;
   surface?: z.infer<typeof codingSurfaceSchema>; allowHelp?: boolean; learnerId?: string;
   playgroundLink?: boolean; disabled?: boolean; interactive?: boolean;
 }) {
   const { openChatWithQuestion } = useTutor();
   const explainSelection = (snippet: string) => openChatWithQuestion("Jelaskan bagian kode Python ini.", { title: "Kode Python", snippet, blockType: "code", intent: "define" });
-  const { data: session } = useSession();
+  const experience = useStudentExperience();
+  const localOnly = experience.mode === "demo";
+  const session = account;
   const router = useRouter();
   const owner = learnerId ?? session?.user?.id;
-  const draft = useCodingDraft({ courseId, draftKey, learnerId: owner, initialCode: problem?.starterCode ?? initialCode, initialStdin });
+  const draft = useCodingDraft({ courseId, localOnly, draftKey: localOnly ? `demo:${experience.baseline.find(row => row.courseId === courseId)?.revision}:${draftKey}` : draftKey, learnerId: owner, initialCode: problem?.starterCode ?? initialCode, initialStdin });
   const [phase, setPhase] = useState<"idle" | "loading" | "running">("idle");
   const [executedInput, setExecutedInput] = useState<string | null>(null);
   const [execution, setExecution] = useState<ExecutionResult | null>(null), [executedCode, setExecutedCode] = useState<string | null>(null);
@@ -76,13 +82,13 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
   }
   useEffect(() => {
     if (!interactive) return;
-    if (useStagingTerminal) return owner ? warmRemotePython(courseId) : undefined;
+    if (useRemoteTerminal && !localOnly) return owner ? warmRemotePython(courseId) : undefined;
     return preloadPythonAssets();
-  }, [interactive, owner, courseId]);
+  }, [interactive, owner, courseId, localOnly]);
   const surfaceKey = surface ? JSON.stringify(surface) : "";
   useEffect(() => () => { active.current?.abort(); submitAbort.current?.abort(); }, []);
   useEffect(() => {
-    if (!problem || !owner) return;
+    if (localOnly || !problem || !owner) return;
     const abort = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     async function refresh() {
@@ -96,7 +102,7 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
     }
     void refresh();
     return () => { abort.abort(); clearTimeout(timer); };
-  }, [courseId, problem, owner, surfaceKey]);
+  }, [courseId, problem, owner, surfaceKey, localOnly]);
   async function run() {
     if (phase !== "idle" || submitting) return;
     const controller = new AbortController(); active.current = controller;
@@ -107,12 +113,12 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
       output: (text: string) => setTerminalOutput((value) => (value + text).slice(0, 8000)),
       input: (send: (value: string) => void) => { sendInput.current = send; setWaitingInput(true); },
     } : undefined;
-    const runtime = callbacks && useStagingTerminal ? createRemotePythonRuntime(courseId, setPhase, callbacks) : createBrowserPythonRuntime(setPhase, callbacks);
+    const runtime = callbacks && useRemoteTerminal && !localOnly ? createRemotePythonRuntime(courseId, setPhase, callbacks) : createBrowserPythonRuntime(setPhase, callbacks);
     try { setExecution(await executePython(runtime, { code, stdin: draft.stdin, limits: problem?.limits ?? { timeoutMs: 5000, maxOutputChars: 8000 }, signal: controller.signal })); }
     finally { sendInput.current = null; setWaitingInput(false); setPhase("idle"); }
   }
   async function submit() {
-    if (!problem || !surface || submitting || disabled) return;
+    if (localOnly || !problem || !surface || submitting || disabled) return;
     const controller = new AbortController(); submitAbort.current = controller;
     setSubmitting(true); setError("");
     const code = draft.code, stdin = draft.stdin;
@@ -167,7 +173,7 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
       <div ref={terminalRef} id={inputId + "-terminal"} hidden={!terminalOpen} className={cn("min-w-0 flex-1 flex-col border-t border-border md:border-t-0", terminalOpen && "flex")}>
         <div className="flex h-10 items-center border-b border-border px-3"><h2 className="font-heading text-body-xs font-semibold">Terminal</h2></div>
         <div className="min-h-[220px] flex-1 bg-muted/30 p-3 font-mono text-body-sm text-foreground">
-          <div className="max-h-80 overflow-auto whitespace-pre-wrap break-words"><pre aria-live="polite" className="inline whitespace-pre-wrap break-words">{terminalOutput}</pre>{waitingInput ? <form className="inline" onSubmit={(event) => { event.preventDefault(); const value = terminalInput; sendInput.current?.(value); if (!useStagingTerminal) { sendInput.current = null; setWaitingInput(false); } setTerminalOutput((output) => (output + value + "\n").slice(0, 8000)); setTerminalHistory((history) => [...history, value]); setTerminalInput(""); }}><Input autoFocus aria-label="Input terminal" value={terminalInput} maxLength={Math.max(0, 8000 - terminalHistory.join("\n").length - (terminalHistory.length ? 1 : 0))} onChange={(event) => setTerminalInput(event.target.value)} autoComplete="off" autoCapitalize="off" spellCheck={false} style={{ width: `${Math.max(1, Array.from(terminalInput).length + 1)}ch` }} className="inline h-auto w-auto max-w-full min-w-0 rounded-none border-0 bg-transparent p-0 font-mono text-body-sm shadow-none outline-none caret-foreground align-baseline focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0" /></form> : null}</div>
+          <div className="max-h-80 overflow-auto whitespace-pre-wrap break-words"><pre aria-live="polite" className="inline whitespace-pre-wrap break-words">{terminalOutput}</pre>{waitingInput ? <form className="inline" onSubmit={(event) => { event.preventDefault(); const value = terminalInput; sendInput.current?.(value); if (!useRemoteTerminal) { sendInput.current = null; setWaitingInput(false); } setTerminalOutput((output) => (output + value + "\n").slice(0, 8000)); setTerminalHistory((history) => [...history, value]); setTerminalInput(""); }}><Input autoFocus aria-label="Input terminal" value={terminalInput} maxLength={Math.max(0, 8000 - terminalHistory.join("\n").length - (terminalHistory.length ? 1 : 0))} onChange={(event) => setTerminalInput(event.target.value)} autoComplete="off" autoCapitalize="off" spellCheck={false} style={{ width: `${Math.max(1, Array.from(terminalInput).length + 1)}ch` }} className="inline h-auto w-auto max-w-full min-w-0 rounded-none border-0 bg-transparent p-0 font-mono text-body-sm shadow-none outline-none caret-foreground align-baseline focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0" /></form> : null}</div>
           {phase === "loading" ? <p role="status" className="flex items-center gap-1.5 font-sans text-body-xs text-foreground/80"><Loader2 className="size-3.5 animate-spin" aria-hidden="true" />Menyiapkan Python...</p> : null}
           {execution ? <p role="status" className={cn("mt-3 flex items-start gap-1.5 border-t border-border pt-2 font-sans text-body-xs", execution.status === "completed" ? "text-foreground/80" : "text-destructive")}>{execution.status === "completed" ? <CheckCircle2 className="mt-px size-3.5 shrink-0 text-status-success" aria-hidden="true" /> : <AlertCircle className="mt-px size-3.5 shrink-0" aria-hidden="true" />}<span>{statusLabels[execution.status]}{execution.stderr && !terminalOutput.includes(execution.stderr) && execution.stderr.replace(/[.!]+$/, "") !== statusLabels[execution.status].replace(/[.!]+$/, "") ? `: ${execution.stderr}` : ""}</span></p> : null}
         </div>

@@ -41,7 +41,8 @@ import {
   getStudentSearchDocuments,
   getMarketingSearchDocuments,
 } from "@/app/(student)/dashboard/search-actions";
-import { useSession } from "@/lib/auth-client";
+import { StudentAccountBoundary, type StudentAccountState } from "@/components/student-account-boundary";
+import { useStudentExperience } from "@/components/student-experience-provider";
 import {
   parseSearchQueryString,
   SEARCH_PREFIX_DEFINITIONS,
@@ -409,16 +410,21 @@ const MARKETING_SUGGESTED_TOPICS = [
   },
 ];
 
-export function CommandMenuDialog({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
+type CommandMenuDialogProps = { open: boolean; onOpenChange: (open: boolean) => void };
+export function CommandMenuDialog(props: CommandMenuDialogProps) {
+  return <StudentAccountBoundary>{account => <CommandMenuDialogContent {...props} account={account} />}</StudentAccountBoundary>;
+}
+function CommandMenuDialogContent({ open, onOpenChange, account }: CommandMenuDialogProps & { account: StudentAccountState }) {
   const router = useRouter();
   const t = useTranslations("search");
-  const { data: session } = useSession();
+  const { data: session } = account;
+  const experience = useStudentExperience();
+  const demo = experience.mode === "demo";
+  const recentStorageKey = demo ? `demo_${RECENT_STORAGE_KEY}` : RECENT_STORAGE_KEY;
+  const favoritesStorageKey = demo ? `demo_${FAVORITES_STORAGE_KEY}` : FAVORITES_STORAGE_KEY;
+  const demoDocuments = useMemo<SiteSearchDocument[]>(() => (experience.courses ?? []).map(course => ({
+    id: course.id, title: course.title, subtitle: "", href: `/courses/${course.id}`, group: "Course & Modul", keywords: course.title, content: "",
+  })), [experience.courses]);
   const isAuthenticated = Boolean(session?.user);
 
   const getCuratedTopicLabels = (title: string, subtitle: string) => {
@@ -444,6 +450,7 @@ export function CommandMenuDialog({
 
   // Search documents cache: initialize with marketing-only if guest, or all static docs if authed
   const [docs, setDocs] = useState<SiteSearchDocument[]>(() => {
+    if (demo) return demoDocuments;
     const allStatic = getSiteSearchDocuments();
     return isAuthenticated ? allStatic : allStatic.filter((d) => isMarketingHref(d.href));
   });
@@ -475,8 +482,8 @@ export function CommandMenuDialog({
   // Sync recent and favorites from localStorage when opened
   useEffect(() => {
     if (open) {
-      const storedRecent = getStoredItems(RECENT_STORAGE_KEY);
-      const storedFav = getStoredItems(FAVORITES_STORAGE_KEY);
+      const storedRecent = getStoredItems(recentStorageKey);
+      const storedFav = getStoredItems(favoritesStorageKey);
       if (isAuthenticated) {
         setRecentItems(storedRecent);
         setFavoriteItems(storedFav);
@@ -486,10 +493,11 @@ export function CommandMenuDialog({
         setFavoriteItems(storedFav.filter((i) => isMarketingHref(i.href)));
       }
     }
-  }, [open, isAuthenticated]);
+  }, [open, isAuthenticated, recentStorageKey, favoritesStorageKey]);
 
   // Load documents depending on authentication status
   useEffect(() => {
+    if (demo) { setDocs(demoDocuments); return; }
     if (isAuthenticated) {
       getStudentSearchDocuments()
         .then((items) => setDocs(addNavigationAliases(items)))
@@ -503,7 +511,7 @@ export function CommandMenuDialog({
           setDocs(getSiteSearchDocuments().filter((d) => isMarketingHref(d.href)));
         });
     }
-  }, [isAuthenticated, addNavigationAliases]);
+  }, [isAuthenticated, addNavigationAliases, demo, demoDocuments]);
 
   // Client Fuse instance
   const fuse = useMemo(() => {
@@ -566,7 +574,7 @@ export function CommandMenuDialog({
 
   // Debounced API search (250ms)
   useEffect(() => {
-    if (!trimmed || isHelpMode) {
+    if (demo || !trimmed || isHelpMode) {
       setApiResults([]);
       setIsLoading(false);
       return;
@@ -621,7 +629,7 @@ export function CommandMenuDialog({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [trimmed, isHelpMode]);
+  }, [trimmed, isHelpMode, demo]);
 
   // Merge API and local hits, then apply deterministic lexical ranking
   const flatResults = useMemo(() => {
@@ -676,18 +684,18 @@ export function CommandMenuDialog({
         (i) => i.id !== item.id && i.href !== item.href
       );
       const next = [item, ...filtered].slice(0, MAX_RECENT_ITEMS);
-      setStoredItems(RECENT_STORAGE_KEY, next);
+      setStoredItems(recentStorageKey, next);
       return next;
     });
-  }, []);
+  }, [recentStorageKey]);
 
   const removeRecent = useCallback((id: string) => {
     setRecentItems((prev) => {
       const next = prev.filter((i) => i.id !== id);
-      setStoredItems(RECENT_STORAGE_KEY, next);
+      setStoredItems(recentStorageKey, next);
       return next;
     });
-  }, []);
+  }, [recentStorageKey]);
 
   const toggleFavorite = useCallback((item: SearchItem) => {
     setFavoriteItems((prev) => {
@@ -695,18 +703,18 @@ export function CommandMenuDialog({
       const next = exists
         ? prev.filter((i) => i.id !== item.id && i.href !== item.href)
         : [item, ...prev];
-      setStoredItems(FAVORITES_STORAGE_KEY, next);
+      setStoredItems(favoritesStorageKey, next);
       return next;
     });
-  }, []);
+  }, [favoritesStorageKey]);
 
   const removeFavorite = useCallback((id: string) => {
     setFavoriteItems((prev) => {
       const next = prev.filter((i) => i.id !== id);
-      setStoredItems(FAVORITES_STORAGE_KEY, next);
+      setStoredItems(favoritesStorageKey, next);
       return next;
     });
-  }, []);
+  }, [favoritesStorageKey]);
 
   const isFavorite = useCallback(
     (id: string, href: string) => {
@@ -717,12 +725,13 @@ export function CommandMenuDialog({
 
   const navigate = useCallback(
     (item: SearchItem) => {
-      saveRecent(item);
+      const target = { ...item, href: experience.href?.(item.href) ?? item.href };
+      saveRecent(target);
       onOpenChange(false);
       setSearch("");
-      router.push(item.href);
+      router.push(target.href);
     },
-    [router, saveRecent, onOpenChange]
+    [router, saveRecent, onOpenChange, experience]
   );
 
   return (

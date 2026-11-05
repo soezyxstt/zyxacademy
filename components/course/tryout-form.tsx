@@ -26,13 +26,16 @@ import { useTranslations } from "@/lib/i18n/client";
 
 import { submitTryoutAction } from "@/app/actions/tutor-management";
 
-type AnswerState =
+export type AnswerState =
   | { type: "short_answer"; text: string; fileName: string | null }
   | { type: "multiple_choice"; index: number | null }
   | { type: "multiple_choices"; indices: number[] }
   | { type: "essay"; text: string; fileName: string | null; fileSize?: string; fileKey?: string | null };
 
-function emptyAnswer(q: QuestionSpec): AnswerState {
+type PublicQuestion<T = QuestionSpec> = T extends QuestionSpec ? Omit<T, "correctIndex" | "correctIndices" | "acceptableAnswers"> : never;
+export type TryoutPresentationExam = Omit<ExamFixture, "questions"> & { questions: PublicQuestion[] };
+
+function emptyAnswer(q: PublicQuestion): AnswerState {
   if (q.type === "short_answer") return { type: "short_answer", text: "", fileName: null };
   if (q.type === "multiple_choice") return { type: "multiple_choice", index: null };
   if (q.type === "multiple_choices") return { type: "multiple_choices", indices: [] };
@@ -41,10 +44,11 @@ function emptyAnswer(q: QuestionSpec): AnswerState {
 
 type TryoutFormProps = {
   courseId: string;
-  exam: ExamFixture;
+  exam: TryoutPresentationExam;
+  transport?: { submit: (answers: Record<string, AnswerState>) => Promise<void>; afterSubmitHref?: string };
 };
 
-export function TryoutForm({ courseId, exam }: TryoutFormProps) {
+export function TryoutForm({ courseId, exam, transport }: TryoutFormProps) {
   const t = useTranslations("studentCourse");
   const router = useRouter();
   const [index, setIndex] = useState(0);
@@ -60,6 +64,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
     return (exam.settings?.timeLimitMinutes ?? 90) * 60;
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Real Cloudflare R2 upload for essay attachments
@@ -70,6 +75,12 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
     if (isSubmitting) return;
     try {
       setIsSubmitting(true);
+      if (transport) {
+        await transport.submit(answers);
+        setSubmitted(true);
+        if (transport.afterSubmitHref) { toast.success(t("tryout.submitted")); router.push(transport.afterSubmitHref); }
+        return;
+      }
       // Save to Database
       const res = await submitTryoutAction(courseId, exam.id, answers);
       if (res.success) {
@@ -85,9 +96,10 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
     }
 
     router.push(`/courses/${courseId}/my-results`);
-  }, [courseId, exam.id, answers, router, isSubmitting, t]);
+  }, [courseId, exam.id, answers, router, isSubmitting, t, transport]);
 
   useEffect(() => {
+    if (submitted) return;
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -100,7 +112,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [handleSubmit, t]);
+  }, [handleSubmit, t, submitted]);
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
@@ -130,6 +142,10 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
 
   // Upload the essay attachment to R2 via /api/exams/attachments and track progress.
   function uploadEssayAttachment(questionId: string, file: File) {
+    if (transport) {
+      toast.error(t("tryout.uploadFailed"));
+      return;
+    }
     setUploadingFile((prev) => ({ ...prev, [questionId]: file.name }));
     setUploadProgress((prev) => ({ ...prev, [questionId]: 0 }));
 
@@ -215,7 +231,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
     if (index < sorted.length - 1) setIndex((i) => i + 1);
   }
 
-  function isQuestionAnswered(question: QuestionSpec) {
+  function isQuestionAnswered(question: PublicQuestion) {
     const ans = answers[question.id];
     if (!ans) return false;
     if (ans.type === "multiple_choice") return ans.index !== null;
@@ -230,6 +246,8 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
 
   const ans = answers[q.id];
   const currentFlagged = !!flags[q.id];
+
+  if (submitted) return null;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start font-sans">
@@ -380,10 +398,12 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
                     {t("tryout.uploadAttachment")}
                   </span>
 
+                  {transport && <p className="text-body-xs text-muted-foreground">Lampiran tidak tersedia di demo.</p>}
                   {!ans.fileName && !uploadingFile[q.id] ? (
                     <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/10 p-6 text-center hover:bg-muted/20 hover:border-brand-primary/40 transition-all relative">
                       <input
                         type="file"
+                        disabled={Boolean(transport)}
                         accept=".pdf,image/*"
                         onChange={(e) => handleFileChange(q.id, e)}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"

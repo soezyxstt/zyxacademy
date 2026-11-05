@@ -8,12 +8,14 @@ import { Button } from "@/components/ui/button";
 import { KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
+import { useStudentExperience } from "@/components/student-experience-provider";
 
 export function EnrollmentForm({ className, onSuccess }: { className?: string; onSuccess?: () => void }) {
   const t = useTranslations("schedule");
   const [token, setToken] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const experience = useStudentExperience();
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +27,9 @@ export function EnrollmentForm({ className, onSuccess }: { className?: string; o
 
     setLoading(true);
     try {
-      const res = await enrollWithToken(cleanToken);
+      const res = experience.mode === "demo"
+        ? { success: false, errorCode: "invalid" }
+        : await enrollWithToken(cleanToken);
       if (res.success) {
         toast.success(t("enrollment.success"));
         setToken("");

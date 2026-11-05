@@ -31,6 +31,14 @@ jobs:
           SKIP_ENV_VALIDATION: '1'
           BETTER_AUTH_SECRET: 'ci-quiz-invariant-tests-only-not-a-real-secret'
         run: bun scripts/test-contracts.ts tests/contracts/authoring-mcp.test.ts tests/contracts/authoring-mcp-playbook.test.ts tests/contracts/question-authoring.test.ts
+      - name: Save contract failure logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: authoring-contract-failures-${{ github.sha }}
+          path: artifacts/test-contracts/
+          if-no-files-found: ignore
+          retention-days: 3
       - uses: actions/upload-artifact@v4
         with:
           name: authoring-skills-staging-${{ github.sha }}

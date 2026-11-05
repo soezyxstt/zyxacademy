@@ -33,6 +33,8 @@ import {
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 
+import { useStudentExperience } from "@/components/student-experience-provider";
+
 type StudentGroup = {
   id: string;
   name: string;
@@ -87,6 +89,7 @@ function formatDate(value: Date, locale: "id" | "en") {
  */
 export function StudentGroupsCompactClient({ initialGroups }: Props) {
   const t = useTranslations("student");
+  const experience = useStudentExperience();
   const { locale } = useAppLocale();
   const router = useRouter();
   const defaultGroupId = initialGroups[0]?.id ?? "";
@@ -109,7 +112,7 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
 
     setTokenLoading(true);
     try {
-      const result = await joinGroupWithToken(tokenInput.trim());
+      const result = experience?.mode === "demo" ? { success: false } : await joinGroupWithToken(tokenInput.trim());
       if (!result.success) {
         toast.error(t("groups.joinFailed"));
         return;

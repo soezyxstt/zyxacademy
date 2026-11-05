@@ -9,8 +9,10 @@ describe("student courses layout, whatsapp contact, and material access contract
     const coursesPage = source("app/(student)/courses/page.tsx");
 
     // Standard shell components
-    expect(coursesPage).toContain("ApplicationPage");
-    expect(coursesPage).toContain("PageHeader");
+    expect(coursesPage).toContain("<StudentCourseCatalogView");
+    const presentation = source("components/course/student-course-catalog-view.tsx");
+    expect(presentation).toContain("ApplicationPage");
+    expect(presentation).toContain("PageHeader");
 
     // Contact button uses WhatsApp, not /feedback
     expect(coursesPage).toContain("getWhatsAppAdminChatHref");

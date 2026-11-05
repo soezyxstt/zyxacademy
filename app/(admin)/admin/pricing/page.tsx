@@ -9,6 +9,8 @@ import { assertAdmin } from "@/lib/auth/admin-guards";
 import { pageTitle } from "@/lib/site";
 import { getTranslations } from "@/lib/i18n/server";
 import { TranslatedText } from "@/components/i18n/translated-text";
+import { PricingDiscountSettings } from "@/components/admin/pricing-discount-settings";
+import { getPricingDiscounts } from "@/lib/pricing-settings";
 
 export async function generateMetadata() {
   const t = await getTranslations("adminOps");
@@ -23,6 +25,7 @@ export default async function AdminPricingPage() {
     redirect("/");
   }
 
+  const discounts = await getPricingDiscounts();
   return (
     <div className="space-y-6">
       <AdminPageHeader
@@ -35,6 +38,7 @@ export default async function AdminPricingPage() {
           <TabsTrigger value="student-pricing">{t("pricing.studentTab")}</TabsTrigger>
           <TabsTrigger value="tutor-fee">{t("pricing.tutorTab")}</TabsTrigger>
           <TabsTrigger value="vouchers">{t("pricing.voucherTab")}</TabsTrigger>
+          <TabsTrigger value="discounts">{t("discountSettings.title")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="student-pricing">
@@ -47,6 +51,9 @@ export default async function AdminPricingPage() {
 
         <TabsContent value="vouchers">
           <VoucherManagementTab />
+        </TabsContent>
+        <TabsContent value="discounts">
+          <PricingDiscountSettings initialSettings={discounts} />
         </TabsContent>
       </Tabs>
     </div>

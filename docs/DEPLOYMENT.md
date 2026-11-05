@@ -3,21 +3,23 @@
 ## Cloud Run staging
 
 The [Cloud Run staging runbook](operations/cloud-run-staging.md) is `ACTIVE` for project `zyx-academy` in Taiwan (`asia-east1`). Staging serves Neon PostgreSQL and private Neon object storage following a verified frozen import. Its Deno worker uses the same guarded target. Target identity, hosted acceptance and rollback evidence are in the [migration runbook](operations/neon-migration.md).
-The separate Vercel migration project remains a rehearsal. Production remains on Turso and R2; the topology below describes that production deployment.
+The separate Vercel migration project is paused after rehearsal. Production Vercel now serves its own Neon PostgreSQL branch and private Neon object storage.
+
+The production cutover is complete; follow [the active production runbook](operations/neon-production-cutover.md) for targets, evidence and recovery boundaries. Vercel and Deno use the protected production root and private `zyx-production` bucket. Both deployment paths reject a mismatched target. Source Turso/R2 and the old deployment unit remain available for recovery, subject to reconciliation of any Neon writes.
 
 ## Architecture
 
-Production runs on Vercel (Next.js) + Turso (DB) with Deno Deploy (background compute) and supporting Cloudflare services.
+Production runs on Vercel (Next.js) + Neon PostgreSQL and Object Storage, with Deno Deploy (background compute) and supporting Cloudflare services. Vercel builds remotely so existing sensitive environment variables remain available without downloading their values.
 
 ```
 Vercel (Next.js App Router)
- ├── Turso (libsql database)
- ├── Inngest Cloud (background orchestration)
- │    └── Deno Deploy (background worker: zyx-background / zyx-background-staging)
- ├── Cloudflare R2 (object storage)
- ├── Cloudflare AI Gateway (Gemini proxy)
- ├── Cloudflare Vectorize (canonical 768-dimensional vector store)
- └── Cloudflare Workers (3 production services plus the staging-only Zyra control plane)
+ â”œâ”€â”€ Neon PostgreSQL (production root)
+ â”œâ”€â”€ Inngest Cloud (background orchestration)
+ â”‚    â””â”€â”€ Deno Deploy (background worker: zyx-background / zyx-background-staging)
+ â”œâ”€â”€ Neon Object Storage (private production bucket)
+ â”œâ”€â”€ Cloudflare AI Gateway (Gemini proxy)
+ â”œâ”€â”€ Cloudflare Vectorize (canonical 768-dimensional vector store)
+ â””â”€â”€ Cloudflare Workers (3 production services plus the staging-only Zyra control plane)
 ```
 
 ## Deno Deploy Background Worker Deployment
@@ -202,7 +204,7 @@ turso db create-token zyx-academy
 
 ### Migration
 ```bash
-bun run db:push:prod   # safe runner: backup → migrate → verify
+bun run db:push:prod   # safe runner: backup â†’ migrate â†’ verify
 ```
 
 The production migration script (`db/push-prod.ts`):
@@ -230,8 +232,8 @@ Cloudflare dashboard. No payload recording is configured by this repository.
 ### 1. zyx-vector-api (Vectorize proxy)
 ```
 workers/vector-api/
-├── wrangler.toml
-├── index.ts
+â”œâ”€â”€ wrangler.toml
+â”œâ”€â”€ index.ts
 ```
 
 - Exposes authenticated `/v2/upsert`, `/v2/query`, `/v2/delete`, `/v2/list`, and `/v2/get` routes
@@ -299,8 +301,8 @@ Keep `zyx-edu` and the legacy `VECTORIZE` binding during the entire rollout. For
 ### 2. zyxrealtime (Live quiz WebSocket/SSE)
 ```
 workers/realtime/
-├── wrangler.toml
-├── src/index.ts
+â”œâ”€â”€ wrangler.toml
+â”œâ”€â”€ src/index.ts
 ```
 
 - Durable Object `LiveQuizRoom` for real-time quiz sessions
@@ -543,12 +545,21 @@ The always-on PDF page reader requires `source-read-page` in the Deno compute ap
 
 ## Python coding deployment
 
-Staging interactive Playground and runnable Article examples require
-`PYTHON_RUNTIME_TOKEN_SECRET` in GitHub Environment `staging`, matching the
-Render Python worker. The staging runtime allowlist forwards it to Cloud Run.
-The ticket endpoint checks course access and returns a short-lived WebSocket
-ticket; the key never reaches the browser. The worker and Daytona sandbox must
-already be available. This does not change Submit grading or production Run.
+Interactive Playground and runnable Article examples use the shared Render
+Python worker on the public staging and production origins. Set
+`PYTHON_RUNTIME_TOKEN_SECRET` in GitHub Environment `staging`, Cloud Run staging,
+and Vercel Production to the key configured on the Render worker. Configure the
+worker's `PYTHON_RUNTIME_ORIGIN` as the comma-separated exact origins
+`https://staging.zyxacademy.com,https://www.zyxacademy.com,https://zyxacademy.com`.
+The ticket endpoint checks course access and the configured public origin.
+Production tickets use audience `zyx-python-production`; staging keeps
+`zyx-python-staging`. The worker rejects a ticket from the other environment.
+The key never reaches the browser. The worker and Daytona sandbox must already
+be available; both environments share the existing two-session capacity.
+Deploy the worker's multi-origin support before releasing the web changes.
+For key rotation, update the worker and both ticket issuers together and verify
+fresh staging and production tickets. Local and unrecognized browser origins
+retain Pyodide. Submit grading is separate.
 
 Python coding requires the generated coding table migration and a paired release
 of the Next application and `workers/realtime` for graded Live Quiz. Production

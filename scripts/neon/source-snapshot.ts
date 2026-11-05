@@ -7,19 +7,19 @@ import { AUTH_TABLES } from "./import-core";
 import { parseSourceSchema, type SourceSchema } from "./source-schema";
 
 const MAX_BYTES = 256 * 1024 * 1024;
-const FINGERPRINT = "12dd1a4c11dc";
+const FINGERPRINTS = { staging: "12dd1a4c11dc", production: "011abc825046" };
 const q = (s: string) => `"${s.replaceAll('"', '""')}"`;
 type Column = { name: string; type: string; pk: number; hidden: number };
 export type Table = { name: string; sql: string; columns: Column[]; rowid: string | null };
 type MetadataRow = { name: string; sql: string; type: string; tbl_name: string };
-export type SnapshotManifest = { sourceHostnameHash: string; schemaRevision: string; dbFileSha256: string; rowCounts: Record<string, number>; excludedAuthTables: string[]; snapshotTimestamp: string; consistentSingleStatement: true };
+export type SnapshotManifest = { sourceHostnameHash: string; schemaRevision: string; dbFileSha256: string; rowCounts: Record<string, number>; excludedAuthTables: string[]; snapshotTimestamp: string; consistentSingleStatement: true; sourceWriteState?: "frozen" | "rehearsal" };
 export type SignedManifest = { manifest: SnapshotManifest; hmac: string };
 const hash = (s: string | Uint8Array) => createHash("sha256").update(s).digest("hex");
 const mac = (manifest: SnapshotManifest, key: string) => createHmac("sha256", key).update(JSON.stringify(manifest)).digest("hex");
 
 export function assertSource(url: string, expectedHost: string): string {
   const u = new URL(url);
-  if (u.protocol !== "libsql:" || u.hostname !== expectedHost.toLowerCase() || !expectedHost || u.username || u.password || u.port || u.pathname !== "" && u.pathname !== "/" || u.search || u.hash || hash(u.hostname).slice(0, 12) !== FINGERPRINT) throw new Error("SOURCE_IDENTITY_MISMATCH");
+  if (u.protocol !== "libsql:" || u.hostname !== expectedHost.toLowerCase() || !expectedHost || u.username || u.password || u.port || u.pathname !== "" && u.pathname !== "/" || u.search || u.hash || !Object.values(FINGERPRINTS).includes(hash(u.hostname).slice(0, 12))) throw new Error("SOURCE_IDENTITY_MISMATCH");
   return hash(u.hostname);
 }
 export function assertOutputPath(path: string, root = resolve(".tmp")): string {
@@ -38,7 +38,7 @@ export function signManifest(manifest: SnapshotManifest, key: string): SignedMan
 export function verifySnapshot(file: string, signed: SignedManifest, key: string, sourceHostnameHash: string, schemaRevision: string): boolean {
   if (key.length < 32 || !/^[a-f0-9]{64}$/.test(signed.hmac) || !/^[a-f0-9]{64}$/.test(sourceHostnameHash)) return false;
   const expected = Buffer.from(mac(signed.manifest, key), "hex");
-  return timingSafeEqual(expected, Buffer.from(signed.hmac, "hex")) && signed.manifest.sourceHostnameHash === sourceHostnameHash && sourceHostnameHash.startsWith(FINGERPRINT) && signed.manifest.schemaRevision === schemaRevision && signed.manifest.consistentSingleStatement === true && statSync(file).size <= MAX_BYTES && hash(readFileSync(file)) === signed.manifest.dbFileSha256;
+  return timingSafeEqual(expected, Buffer.from(signed.hmac, "hex")) && signed.manifest.sourceHostnameHash === sourceHostnameHash && Object.values(FINGERPRINTS).some(prefix => sourceHostnameHash.startsWith(prefix)) && signed.manifest.schemaRevision === schemaRevision && signed.manifest.consistentSingleStatement === true && statSync(file).size <= MAX_BYTES && hash(readFileSync(file)) === signed.manifest.dbFileSha256;
 }
 export function planTables(metadata: MetadataRow[], infos: Map<string, Column[]>, declared: SourceSchema): Table[] {
   const tables = metadata.filter((m) => m.type === "table");
@@ -57,8 +57,8 @@ export function planTables(metadata: MetadataRow[], infos: Map<string, Column[]>
 }
 // JSON's default number formatting loses precision, so numeric values travel as text.
 const encoded = (expr: string) => `json_array(typeof(${expr}),CASE typeof(${expr}) WHEN 'integer' THEN CAST(${expr} AS TEXT) WHEN 'real' THEN printf('%!.17g',${expr}) WHEN 'blob' THEN hex(${expr}) ELSE ${expr} END)`;
-export function snapshotSql(tables: Table[]): string {
-  const selected = tables.filter((t) => !AUTH_TABLES.has(t.name) && t.name !== "__drizzle_migrations");
+export function snapshotSql(tables: Table[], includeAuth = false): string {
+  const selected = tables.filter((t) => (includeAuth || !AUTH_TABLES.has(t.name)) && t.name !== "__drizzle_migrations");
   if (selected.length + 1 > 500) throw new Error("TOO_MANY_SNAPSHOT_TABLES");
   const rows = selected.map((t) => `('${t.name.replaceAll("'", "''")}', (SELECT COALESCE(json_group_array(json_array(${[...t.columns.map((c) => encoded(q(c.name))), ...(t.rowid ? [encoded(q(t.rowid))] : [])].join(",")})), '[]') FROM ${q(t.name)}))`);
   rows.push("('__foreign_key_check__', (SELECT CAST(count(*) AS TEXT) FROM pragma_foreign_key_check))");
@@ -75,14 +75,31 @@ export function decodeValue(value: unknown): string | number | bigint | Uint8Arr
   throw new Error("INVALID_SNAPSHOT_VALUE");
 }
 
-// Parent calls this only after independently verifying the staging freeze.
-export async function exportSourceSnapshot(outputPath: string): Promise<SignedManifest> {
-  if (process.env.NEON_SOURCE_FREEZE_ACK !== "staging-writes-frozen") throw new Error("SOURCE_FREEZE_ACK_REQUIRED");
+export function assertSnapshotMode(sourceHash: string, acknowledgement: string | undefined, includeAuth: boolean) {
+  const production = sourceHash.startsWith(FINGERPRINTS.production);
+  const accepted = production ? ["production-writes-frozen", "production-read-only-rehearsal"] : ["staging-writes-frozen"];
+  if (!Object.values(FINGERPRINTS).some(prefix => sourceHash.startsWith(prefix)) || !accepted.includes(acknowledgement || "")) throw new Error("SOURCE_FREEZE_ACK_REQUIRED");
+  if (includeAuth !== production) throw new Error("SNAPSHOT_AUTH_POLICY_MISMATCH");
+}
+
+export function assertSnapshotAuthPolicy(manifest: Pick<SnapshotManifest, "excludedAuthTables" | "sourceWriteState">, includeAuth: boolean, acknowledgement: string | undefined) {
+  if (includeAuth && manifest.excludedAuthTables.length !== 0) throw new Error("SNAPSHOT_AUTH_POLICY_MISMATCH");
+  if (includeAuth && acknowledgement === "production-writes-frozen" && manifest.sourceWriteState !== "frozen") throw new Error("REHEARSAL_SNAPSHOT_CANNOT_AUTHORIZE_CUTOVER");
+}
+
+// The operator independently verifies the freeze; rehearsal snapshots cannot authorize traffic cutover.
+export async function exportSourceSnapshot(outputPath: string, environment: "staging" | "production" = "staging"): Promise<SignedManifest> {
+  if (!process.env.NEON_SOURCE_FREEZE_ACK) throw new Error("SOURCE_FREEZE_ACK_REQUIRED");
+  if (!["staging", "production"].includes(environment)) throw new Error("INVALID_SOURCE_ENVIRONMENT");
   const { parse } = await import("dotenv");
-  const sourceEnv = parse(readFileSync(resolve(".env.neon-staging-cutover-source")));
+  const sourceEnv = parse(readFileSync(resolve(environment === "production" ? ".env.neon-production-source" : ".env.neon-staging-cutover-source")));
   const required = (name: string) => { const value = sourceEnv[name]?.trim(); if (!value) throw new Error(`MISSING_ENV:${name}`); return value; };
   const sourceUrl = required("TURSO_DATABASE_URL");
   const sourceHostnameHash = assertSource(sourceUrl, required("TURSO_EXPECTED_HOST"));
+  if (!sourceHostnameHash.startsWith(FINGERPRINTS[environment])) throw new Error("SOURCE_IDENTITY_MISMATCH");
+  const includeAuth = environment === "production";
+  assertSnapshotMode(sourceHostnameHash, process.env.NEON_SOURCE_FREEZE_ACK, includeAuth);
+  if (includeAuth && required("NEON_PRIVATE_TARGET_ACK") !== "private-isolated") throw new Error("PRIVATE_TARGET_ACK_REQUIRED");
   const authToken = required("TURSO_AUTH_TOKEN");
   const key = required("NEON_MANIFEST_KEY");
   if (key.length < 32) throw new Error("MANIFEST_KEY_TOO_SHORT");
@@ -113,7 +130,7 @@ export async function exportSourceSnapshot(outputPath: string): Promise<SignedMa
       infos.set(item.name, result.rows.map((r) => ({ name: String(r.name), type: String(r.type), pk: Number(r.pk), hidden: Number(r.hidden) })));
     }
     const tables = planTables(metadata, infos, declared);
-    const result = await source.execute(snapshotSql(tables));
+    const result = await source.execute(snapshotSql(tables, includeAuth));
     const snapshotTimestamp = new Date().toISOString();
     const data = new Map(result.rows.map((r) => [String(r.name), String(r.data)]));
     if (data.size !== result.rows.length || data.get("__foreign_key_check__") !== "0") throw new Error("SOURCE_FOREIGN_KEY_VIOLATIONS");
@@ -123,7 +140,7 @@ export async function exportSourceSnapshot(outputPath: string): Promise<SignedMa
     for (const index of metadata.filter((m) => m.type === "index")) { if (!tables.some((t) => t.name === index.tbl_name)) throw new Error("UNCLASSIFIED_INDEX"); db.exec(index.sql); }
     const rowCounts: Record<string, number> = {};
     for (const t of tables) {
-      if (AUTH_TABLES.has(t.name) || t.name === "__drizzle_migrations") { rowCounts[t.name] = 0; continue; }
+      if ((!includeAuth && AUTH_TABLES.has(t.name)) || t.name === "__drizzle_migrations") { rowCounts[t.name] = 0; continue; }
       const raw = data.get(t.name); if (raw === undefined) throw new Error("MISSING_SNAPSHOT_TABLE");
       const rows: unknown = JSON.parse(raw); if (!Array.isArray(rows)) throw new Error("INVALID_SNAPSHOT_ROWS");
       const cols = [...t.columns.map((c) => q(c.name)), ...(t.rowid ? [q(t.rowid)] : [])];
@@ -135,7 +152,7 @@ export async function exportSourceSnapshot(outputPath: string): Promise<SignedMa
     }
     db.exec("COMMIT"); db.close(); db = undefined;
     if (statSync(output).size > MAX_BYTES) throw new Error("SNAPSHOT_TOO_LARGE");
-    const signed = signManifest({ sourceHostnameHash, schemaRevision: revision, dbFileSha256: hash(readFileSync(output)), rowCounts, excludedAuthTables: [...AUTH_TABLES].sort(), snapshotTimestamp, consistentSingleStatement: true }, key);
+    const signed = signManifest({ sourceHostnameHash, schemaRevision: revision, dbFileSha256: hash(readFileSync(output)), rowCounts, excludedAuthTables: includeAuth ? [] : [...AUTH_TABLES].sort(), snapshotTimestamp, consistentSingleStatement: true, sourceWriteState: process.env.NEON_SOURCE_FREEZE_ACK === "production-read-only-rehearsal" ? "rehearsal" : "frozen" }, key);
     writeFileSync(`${output}.manifest.json`, JSON.stringify(signed), { flag: "wx", mode: 0o600 }); manifestCreated = true;
     return signed;
   } catch (error) { if (db) db.close(); if (!manifestCreated) unlinkSync(output); throw error; }
