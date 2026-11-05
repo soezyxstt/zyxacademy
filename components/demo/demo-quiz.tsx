@@ -9,6 +9,7 @@ import { QuizPlayer } from "@/components/course/quiz-player";
 import type { DemoQuizPage } from "@/lib/demo/quiz-pages";
 import type { DemoQuizQuestion } from "@/app/(marketing)/demo/demo-data";
 import { demoQuizEventKey, demoQuizExam, demoQuizIdentity, gradeDemoQuiz, parseDemoQuizAttempt, serializeDemoQuizResult, type DemoQuizResult } from "@/lib/demo/assessment/quiz";
+import { fictionalQuizCorrectCount } from "@/lib/demo/assessment/history";
 import { useTranslations } from "@/lib/i18n/client";
 import { useDemoSession } from "./demo-session";
 import { useStudentExperience } from "@/components/student-experience-provider";
@@ -31,6 +32,7 @@ export function DemoQuiz({ pages, courseId, view = "quiz" }: {
   const quizOffset = 0;
   const t = useTranslations("marketing");
   const attempt = useSearchParams().get("attempt");
+  const baselineCorrect = fictionalQuizCorrectCount(courseId, attempt ?? "latest");
   const { record, ready, generation, overlay } = useDemoSession();
   const experience = useStudentExperience();
   const revision = experience.baseline.find((snapshot) => snapshot.courseId === courseId)?.revision;
@@ -77,7 +79,7 @@ export function DemoQuiz({ pages, courseId, view = "quiz" }: {
   if (!ready || !revision || experience.mode !== "demo" || experience.selectedCourseId !== courseId || (loaded?.identity !== identity || loaded.key !== resultKey || loaded.generation !== generation)) return null;
   if (view === "quiz-summary") {
     const result = loaded.result;
-    const total = result?.total ?? historicalQuestions.length, correct = result?.score ?? 3;
+    const total = result?.total ?? historicalQuestions.length, correct = result?.score ?? baselineCorrect;
     const title = experience.baseline.find(row => row.courseId === courseId)?.availableAssessments[0]?.title ?? "Kuis";
     const id = attempt ?? "latest";
     return <StudentQuizSummaryView title={title} reviewHref={`${experience.route("quiz-review")}&attempt=${encodeURIComponent(id)}`} historyHref={experience.route("results")} retryHref={experience.route("quiz-start")} pending={false}>
@@ -89,8 +91,8 @@ export function DemoQuiz({ pages, courseId, view = "quiz" }: {
     </StudentQuizSummaryView>;
   }
   if (view === "quiz-review" && !loaded.result) {
-    const baselineResult: DemoQuizResult = { score: 3, total: historicalQuestions.length, results: historicalQuestions.map((_, index) => ({ index, isCorrect: index > 0, correctIndices: [0], explanation: null })) };
-    return <DemoQuizResults result={baselineResult} questions={historicalQuestions} answers={Object.fromEntries(historicalQuestions.map((question, index) => [question.id, [index === 0 ? 1 : 0]]))} courseId={courseId} />;
+    const baselineResult: DemoQuizResult = { score: baselineCorrect, total: historicalQuestions.length, results: historicalQuestions.map((_, index) => ({ index, isCorrect: index < baselineCorrect, correctIndices: [0], explanation: null })) };
+    return <DemoQuizResults result={baselineResult} questions={historicalQuestions} answers={Object.fromEntries(historicalQuestions.map((question, index) => [question.id, [index < baselineCorrect ? 0 : 1]]))} courseId={courseId} />;
   }
   if (loaded.result) return <DemoQuizResults result={loaded.result} questions={questions} answers={loaded.answers} courseId={courseId} />;
   return <QuizPlayer key={`${questionKey}:${generation}`} courseId={courseId} exam={exam} attemptId={`demo:${questionKey}:${generation}`} transport={transport} />;

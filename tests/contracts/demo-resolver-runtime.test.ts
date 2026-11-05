@@ -11,10 +11,12 @@ mock.module("@/db", () => ({ get db() { return fixture.testDb; } }));
 let getDemoExperience: typeof import("@/app/(marketing)/demo/demo-data").getDemoExperience;
 let POST: typeof import("@/app/api/demo/quiz/route").POST;
 let resolvePublicFreeFirstChapter: typeof import("@/lib/demo/legacy-eligibility").resolvePublicFreeFirstChapter;
+let getDemoCatalogue: typeof import("@/lib/demo/catalogue-repository").getDemoCatalogue;
 
 beforeAll(async () => {
   fixture = await createPostgresTestDb();
   ({ resolvePublicFreeFirstChapter } = await import("@/lib/demo/legacy-eligibility"));
+  ({ getDemoCatalogue } = await import("@/lib/demo/catalogue-repository"));
   ({ getDemoExperience } = await import("@/app/(marketing)/demo/demo-data"));
   ({ POST } = await import("@/app/api/demo/quiz/route"));
   process.env.BETTER_AUTH_SECRET = "fictional-runtime-test-secret-only";
@@ -23,7 +25,7 @@ beforeAll(async () => {
   await db.insert(s.pengguna).values({ id: "author" });
   await db.insert(s.courses).values({ id: "legacy", title: "Matematika I", category: "Matematika" });
   await db.insert(s.mataKuliah).values({ id: "course", code: "M", title: "Matematika I", legacyCourseId: "legacy" });
-  await db.insert(s.courseMaterials).values({ id: "generic-pdf", courseId: "legacy", title: "Private generic PDF", type: "materi", chapterIds: ["chapter-1"], fileUrl: "paid/generic.pdf" });
+  await db.insert(s.courseMaterials).values({ id: "generic-pdf", courseId: "legacy", title: "Uploaded course notes", type: "materi", chapterIds: ["chapter-1"], fileUrl: "paid/generic.pdf" });
   await db.insert(s.publicDemoSnapshots).values({ id: "snapshot", courseId: "course", snapshot: fictionalDemoSnapshot("course") });
   await db.insert(s.bab).values([1, 2].map(n => ({ id: `chapter-${n}`, mataKuliahId: "course", code: `B${n}`, title: `Bab ${n}`, orderIndex: n })));
   const common = { mataKuliahId: "course", creatorId: "author", sourceHash: "fixture", generationHash: "fixture", status: "published" as const };
@@ -52,10 +54,22 @@ test("reads actual Free products, excludes later chapters and storage keys", asy
   expect(result?.quiz.map(x => x.id)).toEqual(["q1", "q2", "q3"]);
   expect(JSON.stringify(result)).not.toContain("PRIVATE LATER BODY");
   expect(JSON.stringify(result)).not.toContain("paid/private.pdf");
-  expect(JSON.stringify(result)).not.toMatch(/generic-pdf|paid\/generic.pdf|Private generic PDF/);
+  expect(JSON.stringify(result)).not.toMatch(/generic-pdf|paid\/generic.pdf|Uploaded course notes/);
   for (const selection of [{ articleId: "foreign" }, { diktatId: "diktat-2" }, { flashcardSetId: "set-2" }, { quizOffset: 3 }, { flashcardOffset: 100 }]) {
     expect(await resolvePublicFreeFirstChapter("course", selection)).toBeNull();
   }
+});
+
+test("catalogue shows only scoped chapter metadata without bodies, storage paths or unpublished titles", async () => {
+  await fixture.testDb.insert(s.bab).values({ id: "chapter-3", mataKuliahId: "course", code: "B3", title: "Bab 3", orderIndex: 3 });
+  await fixture.testDb.insert(s.artikel).values({ id: "draft-catalogue", mataKuliahId: "course", babId: "chapter-3", slug: "draft-catalogue", title: "PRIVATE DRAFT", structureStatus: "structured", contentMarkdown: "PRIVATE BODY", creatorId: "author", sourceHash: "fixture", generationHash: "fixture", status: "draft" });
+  await fixture.testDb.insert(s.courseMaterials).values({ id: "draft-upload", courseId: "legacy", title: "[DRAF] Not for students", type: "materi", chapterIds: ["chapter-1"], fileUrl: "private/draft.pdf" });
+  const catalogue = await getDemoCatalogue("course");
+  expect(catalogue?.chapters.map(row => row.id)).toEqual(["chapter-1", "chapter-2", "chapter-3"]);
+  expect(catalogue?.materials.find(row => row.id === "diktat-2")?.chapterId).toBe("chapter-2");
+  expect(catalogue?.materials.find(row => row.id === "generic-pdf")?.chapterId).toBe("chapter-1");
+  expect(catalogue?.materials.find(row => row.id === "generic-pdf")?.title).toBe("Uploaded course notes");
+  expect(JSON.stringify(catalogue)).not.toMatch(/PRIVATE DRAFT|PRIVATE BODY|draft-upload|Not for students|paid\/|fileUrl|fileKey/);
 });
 
 test("initial public payload redacts answers and grading enforces the issued scope without writes", async () => {

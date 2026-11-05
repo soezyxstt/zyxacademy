@@ -18,3 +18,13 @@ test("four course fallbacks are authored, scoped and safe for the public reader"
   }
   expect(fictionalDemoProducts({ id: "other", title: "Other" }, { id: "first", title: "First", orderIndex: 1 })).toBeNull();
 });
+
+test("fictional course baselines vary and agree with their history", () => {
+  const snapshots = publicDemoCourseTitles.map((title, index) => fictionalDemoSnapshot(`course-${index}`, title));
+  expect(new Set(snapshots.map(snapshot => snapshot.course.completedMaterials)).size).toBe(4);
+  expect(new Set(snapshots.map(snapshot => snapshot.flashcards.dueCount)).size).toBe(4);
+  for (const snapshot of snapshots) {
+    expect(snapshot.history.reduce((sum, day) => sum + day.materialsCompleted, 0)).toBe(snapshot.course.completedMaterials);
+    expect(snapshot.revision).toBe("demo-2026-11-05-v2");
+  }
+});
