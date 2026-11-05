@@ -2,7 +2,7 @@
 
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { BarChart3 } from "lucide-react";
-import type { DemoExperience } from "@/app/(marketing)/demo/demo-data";
+import type { DemoSummary } from "./demo-shell";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { StudentCourseProgressView } from "@/components/course/student-course-progress-view";
 import { Reveal } from "@/components/ui/reveal";
@@ -10,7 +10,7 @@ import { TranslatedText } from "@/components/i18n/translated-text";
 import { demoProgress } from "@/lib/demo/progress-overlay";
 import { useDemoSession } from "./demo-session";
 
-export function DemoCourseProgress({ experience: { snapshot, content } }: { experience: DemoExperience }) {
+export function DemoCourseProgress({ experience: { snapshot, content } }: { experience: DemoSummary }) {
   const { href } = useStudentExperience();
   const { overlay } = useDemoSession();
   const progress = demoProgress(snapshot, overlay);

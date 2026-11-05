@@ -3,13 +3,13 @@
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { useDemoQuizHistory } from "./use-demo-quiz-history";
 import { History } from "lucide-react";
-import type { DemoExperience } from "@/app/(marketing)/demo/demo-data";
+import type { DemoSummary } from "./demo-shell";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { StudentCourseResultsList, type StudentResultRow } from "@/components/course/student-course-results-list";
 import { Reveal } from "@/components/ui/reveal";
 import { TranslatedText } from "@/components/i18n/translated-text";
 
-export function DemoResults({ experience: { content, snapshot } }: { experience: DemoExperience }) {
+export function DemoResults({ experience: { content, snapshot } }: { experience: DemoSummary }) {
   const experience = useStudentExperience();
   const attempts = useDemoQuizHistory(snapshot);
   const rows: StudentResultRow[] = attempts.map(attempt => ({ id: attempt.id, examTitle: `Latihan ${content.course.chapterTitle}`, examType: "quiz", status: attempt.status, score: attempt.score, submittedAt: attempt.submittedAt.toISOString() }));

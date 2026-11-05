@@ -55,3 +55,8 @@ export function DemoSession({ courseId, revision, scopes, reviewScope, children 
   return <Context.Provider value={{ overlay, overlays, record, reset, generation, ready }}>{children}</Context.Provider>;
 }
 export function useDemoSession() { const value = useContext(Context); if (!value) throw new Error("DemoSession missing"); return value; }
+
+export function DemoReviewScope({ setId, offset, children }: { setId: string; offset: number; children: ReactNode }) {
+  const session = useDemoSession();
+  return <Context.Provider value={{ ...session, record: (kind, id, grade) => session.record(kind, kind === "review" ? scopedDemoReviewId(setId, offset, id) : id, grade) }}>{children}</Context.Provider>;
+}

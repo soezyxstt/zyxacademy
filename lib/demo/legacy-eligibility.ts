@@ -104,7 +104,7 @@ function asCanonicalCourse(row: typeof mataKuliah.$inferSelect): CanonicalCourse
   return row as CanonicalCourse;
 }
 
-async function resolveCanonicalCourse(courseId: string): Promise<CanonicalCourse | null> {
+export async function resolveCanonicalCourse(courseId: string): Promise<CanonicalCourse | null> {
   const cleanId = courseId.trim().toLowerCase();
   if (!cleanId) return null;
 
@@ -141,7 +141,7 @@ async function resolveCanonicalCourse(courseId: string): Promise<CanonicalCourse
   return row ? asCanonicalCourse(row) : null;
 }
 
-async function buildCourseSummary(course: CanonicalCourse, chapter: typeof bab.$inferSelect): Promise<DemoCourseSummary> {
+export async function buildCourseSummary(course: CanonicalCourse, chapter: typeof bab.$inferSelect): Promise<DemoCourseSummary> {
   const legacyId = course.legacyCourseId ?? course.id;
   const [legacy] = await db
     .select({ category: courses.category, description: courses.description })
@@ -588,14 +588,7 @@ async function resolvePublicQuiz(course: CanonicalCourse, chapter: typeof bab.$i
     metadata: { offset, total, pageSize: QUIZ_PAGE_SIZE, nextOffset: offset + QUIZ_PAGE_SIZE < total ? offset + QUIZ_PAGE_SIZE : null, previousOffset: offset > 0 ? offset - QUIZ_PAGE_SIZE : null } };
 }
 
-/** Resolve products only inside the allowlisted course's first Free chapter. */
-export async function resolvePublicFreeFirstChapter(courseId: string, selection: PublicDemoSelection = {}) {
-  const course = await resolveCanonicalCourse(courseId);
-  if (!course || course.id !== courseId) return null;
-  if ([selection.articleId, selection.diktatId, selection.flashcardSetId].some((id) => id !== undefined && (typeof id !== "string" || !id.trim() || id !== id.trim() || id.length > 128))) return null;
-  const collectionOffset = selection.collectionOffset ?? 0;
-  const flashcardOffset = selection.flashcardOffset ?? 0;
-  if (!validOffset(collectionOffset, COLLECTION_PAGE_SIZE) || !validOffset(flashcardOffset, FLASHCARD_PAGE_SIZE)) return null;
+export async function resolveDemoFirstChapter(course: CanonicalCourse) {
   const chapters = await db.select().from(bab).where(and(eq(bab.mataKuliahId, course.id), eq(bab.status, "active"))).orderBy(asc(bab.orderIndex), asc(bab.id));
   const free = selectFreeChapters(chapters.map((chapter) => ({ id: chapter.id, title: chapter.title, orderIndex: chapter.orderIndex, canonicalId: chapter.id, legacyId: chapter.legacyChapterId, source: "canonical" as const })));
   const first = chapters.find((chapter) => chapter.id === free[0]?.canonicalId);
@@ -608,11 +601,31 @@ export async function resolvePublicFreeFirstChapter(courseId: string, selection:
     if (mappings.length !== 1 || mappings[0].id !== first.id || legacyChapters.length !== 1
       || legacyChapters[0].courseId !== course.legacyCourseId) return null;
   }
+  return first;
+}
+
+/** Default article metadata follows the same selection order as the reader. */
+export async function resolveDemoInitialArticles(course: CanonicalCourse, first: typeof bab.$inferSelect) {
+  return db.select({ id: artikel.id, title: artikel.title }).from(artikel)
+    .where(and(eq(artikel.mataKuliahId, course.id), eq(artikel.babId, first.id), eq(artikel.structureStatus, "structured"), eq(artikel.status, "published")))
+    .orderBy(asc(artikel.id)).limit(1);
+}
+
+/** Resolve products only inside the allowlisted course's first Free chapter. */
+export async function resolvePublicFreeFirstChapter(courseId: string, selection: PublicDemoSelection = {}) {
+  const course = await resolveCanonicalCourse(courseId);
+  if (!course || course.id !== courseId) return null;
+  if ([selection.articleId, selection.diktatId, selection.flashcardSetId].some((id) => id !== undefined && (typeof id !== "string" || !id.trim() || id !== id.trim() || id.length > 128))) return null;
+  const collectionOffset = selection.collectionOffset ?? 0;
+  const flashcardOffset = selection.flashcardOffset ?? 0;
+  if (!validOffset(collectionOffset, COLLECTION_PAGE_SIZE) || !validOffset(flashcardOffset, FLASHCARD_PAGE_SIZE)) return null;
+  const first = await resolveDemoFirstChapter(course);
+  if (!first) return null;
   const [articles, diktats, flashcardSets, initialArticles, initialDiktats, initialSets, realQuizPage] = await Promise.all([
     db.select({ id: artikel.id, title: artikel.title }).from(artikel).where(and(eq(artikel.mataKuliahId, course.id), eq(artikel.babId, first.id), eq(artikel.structureStatus, "structured"), eq(artikel.status, "published"))).orderBy(asc(artikel.id)).limit(COLLECTION_PAGE_SIZE + 1).offset(collectionOffset),
     db.select({ id: diktatMateri.id, title: diktatMateri.title }).from(diktatMateri).where(and(eq(diktatMateri.mataKuliahId, course.id), eq(diktatMateri.babId, first.id), eq(diktatMateri.status, "published"))).orderBy(asc(diktatMateri.id)).limit(COLLECTION_PAGE_SIZE + 1).offset(collectionOffset),
     db.select({ id: setFlashcard.id, title: setFlashcard.title }).from(setFlashcard).where(and(eq(setFlashcard.mataKuliahId, course.id), eq(setFlashcard.babId, first.id), eq(setFlashcard.status, "published"))).orderBy(asc(setFlashcard.id)).limit(COLLECTION_PAGE_SIZE + 1).offset(collectionOffset),
-    db.select({ id: artikel.id }).from(artikel).where(and(eq(artikel.mataKuliahId, course.id), eq(artikel.babId, first.id), eq(artikel.structureStatus, "structured"), eq(artikel.status, "published"))).orderBy(asc(artikel.id)).limit(1),
+    resolveDemoInitialArticles(course, first),
     db.select({ id: diktatMateri.id }).from(diktatMateri).where(and(eq(diktatMateri.mataKuliahId, course.id), eq(diktatMateri.babId, first.id), eq(diktatMateri.status, "published"))).orderBy(asc(diktatMateri.id)).limit(1),
     db.select({ id: setFlashcard.id }).from(setFlashcard).where(and(eq(setFlashcard.mataKuliahId, course.id), eq(setFlashcard.babId, first.id), eq(setFlashcard.status, "published"))).orderBy(asc(setFlashcard.id)).limit(1),
     resolvePublicQuiz(course, first, selection.quizOffset ?? 0),

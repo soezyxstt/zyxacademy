@@ -14,7 +14,7 @@ import { StudentCourseLeaderboardContent } from "@/components/course/student-cou
 import { tabListClassName, tabTriggerClassName, tabTriggerActiveClassName } from "@/components/ui/tab-styles";
 import { cn } from "@/lib/utils";
 import LiveStudentPage from "@/app/(student)/courses/[id]/live/page";
-import type { DemoExperience } from "@/app/(marketing)/demo/demo-data";
+import type { DemoSummary } from "./demo-shell";
 import { ApplicationPage } from "@/components/application-page";
 import { PageHeader } from "@/components/page-header";
 import { Reveal } from "@/components/ui/reveal";
@@ -31,11 +31,12 @@ import { ConceptMap } from "@/components/course/concept-map";
 import { ConceptGraphView } from "@/components/course/concept-graph-view";
 import { useTranslations } from "@/lib/i18n/client";
 import { demoProgress } from "@/lib/demo/progress-overlay";
+import type { DemoMastery } from "@/lib/demo/mastery";
 
 const Playground = dynamic(() => import("@/components/coding/playground").then(module => module.Playground));
 const StudentScheduleClient = dynamic(() => import("@/app/(student)/dashboard/schedule/schedule-client").then(module => module.StudentScheduleClient));
 
-export function DemoStudentPage({ view, experience: { content, snapshot } }: { view: string; experience: DemoExperience }) {
+export function DemoStudentPage({ view, experience: { content, snapshot }, mastery }: { view: string; experience: DemoSummary; mastery?: DemoMastery }) {
  const experience = useStudentExperience();
  const searchParams = useSearchParams();
  const [profile, setProfile] = useState<AcademicProfile | null>(null);
@@ -96,8 +97,8 @@ export function DemoStudentPage({ view, experience: { content, snapshot } }: { v
    return <CoursePageShell title={t("path.title", { course: content.course.title })} icon={Compass}><StudyPathTimeline courseId={courseId} initialSteps={steps} /></CoursePageShell>;
  }
  if (view === "mastery") return <CoursePageShell title={t("mastery.title", { course: content.course.title })} icon={Target}>
-   <Reveal><div className="mb-6 space-y-3"><h2 className="font-heading text-body-base font-bold text-foreground">{t("mastery.conceptGraph")}</h2><ConceptGraphView courseId={courseId} nodes={snapshot.weakConcepts.map(concept => ({ conceptName: concept.title, mastery: concept.masteryPercent }))} edges={[]} /></div></Reveal>
-   <ConceptMap courseId={courseId} groups={[{ chapter: { id: "fictional-first-chapter", title: content.course.chapterTitle, orderIndex: 1 }, concepts: snapshot.weakConcepts.map(concept => ({ conceptName: concept.title, conceptSlug: null, masteryScore: concept.masteryPercent, confidence: 70, trend: "improving", blockedBy: [] })) }]} />
+   <Reveal><div className="mb-6 space-y-3"><h2 className="font-heading text-body-base font-bold text-foreground">{t("mastery.conceptGraph")}</h2><ConceptGraphView courseId={courseId} nodes={mastery?.graphNodes ?? snapshot.weakConcepts.map(concept => ({ conceptName: concept.title, mastery: concept.masteryPercent }))} edges={mastery?.graphEdges ?? []} /></div></Reveal>
+   <ConceptMap courseId={courseId} groups={mastery?.groups ?? [{ chapter: { id: "fictional-first-chapter", title: content.course.chapterTitle, orderIndex: 1 }, concepts: snapshot.weakConcepts.map(concept => ({ conceptName: concept.title, conceptSlug: null, masteryScore: concept.masteryPercent, confidence: 70, trend: "improving", blockedBy: [] })) }]} />
  </CoursePageShell>;
  return null;
 }

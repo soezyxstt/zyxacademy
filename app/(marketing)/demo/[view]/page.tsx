@@ -1,3 +1,7 @@
+import { DemoReviewScope } from "@/components/demo/demo-session";
+import { getDemoMastery } from "@/lib/demo/mastery-repository";
+import { Suspense } from "react";
+import { DemoViewSkeleton } from "@/components/demo/demo-loading";
 import { DemoTryoutReview } from "@/components/demo/assessment/demo-tryout-review";
 import { collectDemoProducts, collectDemoFlashcards } from "@/lib/demo/product-pages";
 import { collectDemoQuizPages } from "@/lib/demo/quiz-pages";
@@ -23,7 +27,10 @@ import { DemoTryout } from "@/components/demo/assessment/demo-tryout";
 import { DemoQuiz } from "@/components/demo/demo-quiz";
 import { DemoShell, type DemoView } from "@/components/demo/demo-shell";
 import { DemoZyra } from "@/components/demo/demo-zyra";
-import { getDemoCatalogue, getDemoExperience, getDemoExperiences } from "../demo-data";
+import { getDemoCatalogue, getDemoExperience } from "../demo-data";
+import { getDemoSummaries } from "@/lib/demo/summary-repository";
+import type { DemoProductSelection } from "../demo-data";
+import type { DemoSummary } from "@/components/demo/demo-shell";
 
 import { createLocalizedMetadata } from "@/lib/site-metadata";
 
@@ -55,41 +62,54 @@ export default async function DemoViewPage({ params, searchParams }: Props) {
   const parsed = parseDemoSelection(await searchParams);
   if (!parsed) notFound();
   const ui = { showLive: env.FEATURE_LIVE === "1", whatsappHref: getWhatsAppAdminChatHref() };
-  const defaults = await getDemoExperiences();
-  if (!defaults.length) return <DemoEmptyState />;
-  const courseId = parsed.course ?? defaults[0].snapshot.courseId;
-  const defaultExperience = defaults.find((item) => item.snapshot.courseId === courseId);
-  if (!defaultExperience) notFound();
-  const experience = Object.keys(parsed.selection).length === 0
-    ? defaultExperience
-    : await getDemoExperience(courseId, parsed.selection);
+  const experiences = await getDemoSummaries();
+  if (!experiences.length) return <DemoEmptyState />;
+  const courseId = parsed.course ?? experiences[0].snapshot.courseId;
+  const selected = experiences.find(item => item.snapshot.courseId === courseId);
+  if (!selected) notFound();
+  return <DemoShell showLive={ui.showLive} experiences={experiences} selected={selected} activeView={view as DemoView} selection={parsed.selection}>
+    <Suspense key={`${view}:${courseId}:${JSON.stringify(parsed.selection)}`} fallback={<DemoViewSkeleton view={view} />}>
+      <DemoViewBody view={view} summary={selected} selection={parsed.selection} experiences={experiences} whatsappHref={ui.whatsappHref} />
+    </Suspense>
+  </DemoShell>;
+}
+
+async function DemoViewBody({ view, summary, selection, experiences, whatsappHref }: { view: SupportedView; summary: DemoSummary; selection: DemoProductSelection; experiences: DemoSummary[]; whatsappHref: string | null }) {
+  const courseId = summary.snapshot.courseId;
+  switch (view) {
+    case "mastery": {
+      const mastery = await getDemoMastery([courseId]);
+      return <DemoStudentPage view={view} experience={summary} mastery={mastery[courseId]} />;
+    }
+    case "feedback": case "profile-edit": case "reflections": case "leaderboard": case "course-leaderboard": case "playground": case "live": case "profile": case "settings": case "notifications": case "groups": case "schedule": case "video": case "path":
+      return <DemoStudentPage view={view} experience={summary} />;
+    case "overview": case "zyra": {
+      const catalogue = await getDemoCatalogue(courseId);
+      if (!catalogue) notFound();
+      const overview = <DemoCourseOverview experience={summary} catalogue={catalogue} />;
+      return view === "zyra" ? <DemoZyra>{overview}</DemoZyra> : overview;
+    }
+    case "courses": return <DemoCourseCatalog experiences={experiences} whatsappHref={whatsappHref} />;
+    case "progress": return <DemoCourseProgress experience={summary} />;
+    case "tryout-list": return <DemoTryoutList experience={summary} />;
+    case "results": case "history": return <DemoResults experience={summary} />;
+    case "tryout-review": return <DemoTryoutReview courseId={courseId} />;
+    case "tryout": return <DemoTryout key={`${courseId}:${summary.snapshot.revision}`} courseId={courseId} />;
+  }
+  const experience = await getDemoExperience(courseId, selection);
   if (!experience) notFound();
   const { page, articles, diktats, flashcardSets } = experience.content.collections;
   if (page.offset > 0 && !articles.length && !diktats.length && !flashcardSets.length) notFound();
-  const experiences = defaults.map(({ snapshot, content }) => ({ snapshot, content: { course: content.course, article: { id: content.article.id, title: content.article.title } } }));
-
   const { content, snapshot } = experience;
   const completeCatalogue = (catalogue: NonNullable<Awaited<ReturnType<typeof getDemoCatalogue>>>) => addSelectedFallback(catalogue, content.selected, { article: content.article.title, diktat: content.diktat.title });
 
   let body: React.ReactNode;
   switch (view) {
-    case "tryout-review":
-      body = <DemoTryoutReview courseId={snapshot.courseId} />;
-      break;
-    case "feedback": case "profile-edit": case "reflections": case "leaderboard": case "course-leaderboard": case "playground": case "live": case "profile": case "settings": case "notifications": case "groups": case "schedule": case "video": case "path": case "mastery":
-      body = <DemoStudentPage view={view} experience={experience} />;
-      break;
-    case "tryout-list":
-      body = <DemoTryoutList experience={experience} />;
-      break;
     case "quiz-list":
       body = <DemoQuizList experience={experience} />;
       break;
     case "quiz-start":
       body = <DemoQuizGateway experience={experience} />;
-      break;
-    case "courses":
-      body = <DemoCourseCatalog experiences={experiences} whatsappHref={ui.whatsappHref} />;
       break;
     case "documents": {
       const [products, catalogue] = await Promise.all([collectDemoProducts(experience, getDemoExperience), getDemoCatalogue(courseId)]);
@@ -97,19 +117,6 @@ export default async function DemoViewPage({ params, searchParams }: Props) {
       body = <DemoDocuments experience={experience} products={products} catalogue={completeCatalogue(catalogue)} />;
       break;
     }
-    case "progress":
-      body = <DemoCourseProgress experience={experience} />;
-      break;
-    case "overview": {
-      const catalogue = await getDemoCatalogue(courseId);
-      if (!catalogue) notFound();
-      body = <DemoCourseOverview experience={experience} catalogue={completeCatalogue(catalogue)} />;
-      break;
-    }
-    case "history":
-    case "results":
-      body = <DemoResults experience={experience} />;
-      break;
     case "article":
       body = <DemoArticleView article={content.article} course={content.course} />;
       break;
@@ -120,7 +127,7 @@ export default async function DemoViewPage({ params, searchParams }: Props) {
       const products = await collectDemoProducts(experience, getDemoExperience);
       const cards = products ? await collectDemoFlashcards(experience, products, getDemoExperience) : null;
       if (!cards) notFound();
-      body = <DemoFlashcards key={`${snapshot.courseId}:${snapshot.revision}`} cards={cards} course={content.course} />;
+      body = content.selected.flashcardSetId ? <DemoReviewScope setId={content.selected.flashcardSetId} offset={content.collections.flashcards.offset}><DemoFlashcards key={`${snapshot.courseId}:${snapshot.revision}`} cards={cards} course={content.course} /></DemoReviewScope> : <DemoFlashcards key={`${snapshot.courseId}:${snapshot.revision}`} cards={cards} course={content.course} />;
       break;
     }
     case "quiz-review":
@@ -131,20 +138,8 @@ export default async function DemoViewPage({ params, searchParams }: Props) {
       body = <DemoQuiz key={`${snapshot.courseId}:${snapshot.revision}`} view={view} courseId={snapshot.courseId} pages={pages} />;
       break;
     }
-    case "tryout":
-      body = <DemoTryout key={`${snapshot.courseId}:${snapshot.revision}`} courseId={snapshot.courseId} />;
-      break;
-    case "zyra": {
-      const catalogue = await getDemoCatalogue(courseId);
-      if (!catalogue) notFound();
-      body = <DemoZyra><DemoCourseOverview experience={experience} catalogue={completeCatalogue(catalogue)} /></DemoZyra>;
-      break;
-    }
+
   }
 
-  return (
-    <DemoShell showLive={ui.showLive} experiences={experiences} selected={{ snapshot, content: { course: content.course, article: { id: content.article.id, title: content.article.title } } }} activeView={view as DemoView} selection={parsed.selection} reviewScope={content.selected.flashcardSetId ? { setId: content.selected.flashcardSetId, offset: content.collections.flashcards.offset } : undefined}>
-      {body}
-    </DemoShell>
-  );
+  return body;
 }
