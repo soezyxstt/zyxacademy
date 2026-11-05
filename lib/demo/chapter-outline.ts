@@ -1,19 +1,20 @@
-import type { PublicDemoSnapshot } from "@/lib/demo/snapshot";
+import type { DemoCatalogue } from "@/lib/demo/catalogue";
+import { fictionalMaterialCompleted } from "@/lib/demo/catalogue";
 import type { DemoOverlay } from "@/lib/demo/session-overlay";
 import type { ChapterOutlineRow } from "@/components/course/chapter-outline-list";
 
-/** Only the first chapter receives a destination; mock metadata is never resolved as content. */
-export function demoChapterOutline({ snapshot, chapterTitle, articleId, overlay, articleHref, availableLabel, mockLabel }: {
-  snapshot: PublicDemoSnapshot;
-  chapterTitle: string;
-  articleId: string;
-  overlay: DemoOverlay;
-  articleHref: string;
-  availableLabel: string;
-  mockLabel: (percent: number) => string;
+export function demoChapterOutline({ courseId, catalogue, articleId, overlay, articleHref, progressLabel, partialPercent = 0 }: {
+  courseId: string; catalogue: DemoCatalogue; articleId: string; overlay: DemoOverlay;
+  articleHref: string; progressLabel: (percent: number) => string; partialPercent?: number;
 }): ChapterOutlineRow[] {
-  const completed = overlay.events.some((event) => event.kind === "article" && event.id === `demo-article-${articleId}`.slice(0, 128));
-  const first: ChapterOutlineRow = { id: "demo-first-chapter", title: chapterTitle, number: 1, completionPercent: completed ? 100 : 0, completed, hasMaterial: true, href: articleHref, statusLabel: completed ? undefined : availableLabel };
-  const mocked = [...(snapshot.mockChapters ?? [])].sort((a, b) => a.orderIndex - b.orderIndex || a.id.localeCompare(b.id));
-  return [first, ...mocked.map((chapter, index) => ({ id: `mock-${chapter.id}`, title: chapter.title, number: index + 2, completed: chapter.completionPercent === 100, completionPercent: chapter.completionPercent, hasMaterial: false, statusLabel: mockLabel(chapter.completionPercent) }))];
+  return catalogue.chapters.map((chapter, index) => {
+    const locallyCompleted = index === 0 && overlay.events.some(event => event.kind === "article" && event.id === `demo-article-${articleId}`.slice(0, 128));
+    const items = catalogue.materials.filter(material => material.chapterId === chapter.id);
+    const completedCount = items.filter(material => fictionalMaterialCompleted(courseId, material, index) || (locallyCompleted && material.id === articleId)).length;
+    const partial = index === 0 && !locallyCompleted && items.some(item => item.id === articleId) ? partialPercent / 100 : 0;
+    const completionPercent = items.length ? Math.round((completedCount + partial) / items.length * 100) : 0;
+    return { id: chapter.id, title: chapter.title, number: chapter.orderIndex, completionPercent,
+      completed: completionPercent === 100, hasMaterial: index === 0,
+      href: index === 0 ? articleHref : undefined, statusLabel: progressLabel(completionPercent) };
+  });
 }

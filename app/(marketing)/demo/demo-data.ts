@@ -16,6 +16,11 @@ export type DemoContent = { collections: { articles: { id: string; title: string
 export type DemoExperience = { content: DemoContent; snapshot: PublicDemoSnapshot };
 export type { DemoEligibility, DemoEligibilityCheck } from "@/lib/demo/legacy-eligibility";
 
+export async function getDemoCatalogue(courseId: string) {
+  const { getDemoCatalogue: load } = await import("@/lib/demo/catalogue-repository");
+  return load(courseId);
+}
+
 /** Administrative eligibility remains separate from all public demo reads. */
 export async function getDemoCourseEligibility(courseId: string) {
   const legacy = await import("@/lib/demo/legacy-eligibility");

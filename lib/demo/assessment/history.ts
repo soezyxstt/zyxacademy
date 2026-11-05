@@ -2,10 +2,14 @@ import type { PublicDemoSnapshot } from "@/lib/demo/snapshot";
 import type { DemoOverlay } from "@/lib/demo/session-overlay";
 import { demoQuizEventKey, parseDemoQuizAttempt } from "./quiz";
 export type DemoQuizHistoryRow = { id: string; templateId: string; status: "completed"; score: number; submittedAt: Date; durationSeconds: number | null };
+export function fictionalQuizCorrectCount(courseId: string, attemptId: string): number {
+ const seed = [...`${courseId}:${attemptId}`].reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) >>> 0, 0);
+ return 2 + seed % 3;
+}
 export function fictionalQuizHistory(snapshot: PublicDemoSnapshot): DemoQuizHistoryRow[] {
  const templateId = snapshot.availableAssessments.find(item => item.type === "quiz")?.id;
  if (!templateId) return [];
- return snapshot.history.filter(day => day.quizzesCompleted > 0).map((day, index) => ({ id: `fictional-result-${day.date}`, templateId, status: "completed" as const, score: 75, submittedAt: new Date(`${day.date}T12:00:00Z`), durationSeconds: 240 + index * 30 })).sort((a,b) => b.submittedAt.getTime() - a.submittedAt.getTime());
+ return snapshot.history.filter(day => day.quizzesCompleted > 0).map((day, index) => ({ id: `fictional-result-${day.date}`, templateId, status: "completed" as const, score: fictionalQuizCorrectCount(snapshot.courseId, `fictional-result-${day.date}`) * 25, submittedAt: new Date(`${day.date}T12:00:00Z`), durationSeconds: 240 + index * 30 })).sort((a,b) => b.submittedAt.getTime() - a.submittedAt.getTime());
 }
 export function localQuizHistory(snapshot: PublicDemoSnapshot, overlay: DemoOverlay, read: (key: string) => string | null): DemoQuizHistoryRow[] {
  const templateId = snapshot.availableAssessments.find(item => item.type === "quiz")?.id;

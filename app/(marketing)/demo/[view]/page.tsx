@@ -1,6 +1,7 @@
 import { DemoTryoutReview } from "@/components/demo/assessment/demo-tryout-review";
 import { collectDemoProducts, collectDemoFlashcards } from "@/lib/demo/product-pages";
 import { collectDemoQuizPages } from "@/lib/demo/quiz-pages";
+import { addSelectedFallback } from "@/lib/demo/catalogue";
 import { DemoStudentPage } from "@/components/demo/demo-student-pages";
 import { env } from "@/lib/env";
 import { getWhatsAppAdminChatHref } from "@/lib/whatsapp-admin";
@@ -22,7 +23,7 @@ import { DemoTryout } from "@/components/demo/assessment/demo-tryout";
 import { DemoQuiz } from "@/components/demo/demo-quiz";
 import { DemoShell, type DemoView } from "@/components/demo/demo-shell";
 import { DemoZyra } from "@/components/demo/demo-zyra";
-import { getDemoExperience, getDemoExperiences } from "../demo-data";
+import { getDemoCatalogue, getDemoExperience, getDemoExperiences } from "../demo-data";
 
 import { createLocalizedMetadata } from "@/lib/site-metadata";
 
@@ -68,6 +69,7 @@ export default async function DemoViewPage({ params, searchParams }: Props) {
   const experiences = defaults.map(({ snapshot, content }) => ({ snapshot, content: { course: content.course, article: { id: content.article.id, title: content.article.title } } }));
 
   const { content, snapshot } = experience;
+  const completeCatalogue = (catalogue: NonNullable<Awaited<ReturnType<typeof getDemoCatalogue>>>) => addSelectedFallback(catalogue, content.selected, { article: content.article.title, diktat: content.diktat.title });
 
   let body: React.ReactNode;
   switch (view) {
@@ -90,17 +92,20 @@ export default async function DemoViewPage({ params, searchParams }: Props) {
       body = <DemoCourseCatalog experiences={experiences} whatsappHref={ui.whatsappHref} />;
       break;
     case "documents": {
-      const products = await collectDemoProducts(experience, getDemoExperience);
-      if (!products) notFound();
-      body = <DemoDocuments experience={experience} products={products} />;
+      const [products, catalogue] = await Promise.all([collectDemoProducts(experience, getDemoExperience), getDemoCatalogue(courseId)]);
+      if (!products || !catalogue) notFound();
+      body = <DemoDocuments experience={experience} products={products} catalogue={completeCatalogue(catalogue)} />;
       break;
     }
     case "progress":
       body = <DemoCourseProgress experience={experience} />;
       break;
-    case "overview":
-      body = <DemoCourseOverview experience={experience} />;
+    case "overview": {
+      const catalogue = await getDemoCatalogue(courseId);
+      if (!catalogue) notFound();
+      body = <DemoCourseOverview experience={experience} catalogue={completeCatalogue(catalogue)} />;
       break;
+    }
     case "history":
     case "results":
       body = <DemoResults experience={experience} />;
@@ -129,9 +134,12 @@ export default async function DemoViewPage({ params, searchParams }: Props) {
     case "tryout":
       body = <DemoTryout key={`${snapshot.courseId}:${snapshot.revision}`} courseId={snapshot.courseId} />;
       break;
-    case "zyra":
-      body = <DemoZyra><DemoCourseOverview experience={experience} /></DemoZyra>;
+    case "zyra": {
+      const catalogue = await getDemoCatalogue(courseId);
+      if (!catalogue) notFound();
+      body = <DemoZyra><DemoCourseOverview experience={experience} catalogue={completeCatalogue(catalogue)} /></DemoZyra>;
       break;
+    }
   }
 
   return (

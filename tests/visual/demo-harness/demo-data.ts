@@ -1,6 +1,8 @@
 import "server-only";
 import { publicDemoSnapshotSchema } from "@/lib/demo/snapshot";
 import type { PublicArticleReadModel } from "@/lib/articles/structured-read-model";
+import { padDemoCatalogue, type DemoCatalogue } from "@/lib/demo/catalogue";
+import { fictionalDemoSnapshot } from "@/lib/demo/fictional-snapshot";
 
 export type DemoDiktatSection = { title: string; content: string };
 export type DemoFlashcard = { front: string; back: string; explanation: string | null };
@@ -70,7 +72,7 @@ function makeExperience(item: FixtureCourse, selection: DemoProductSelection = {
   if (!articleItem || !diktatItem || !setItem) return null;
   const questions: DemoQuizQuestion[] = [1, 2, 3, 4].map((n) => ({ id: `${item.id}-question-${n}`, prompt: `Pertanyaan konsep ${n}?`, options: ["Pilihan pertama", "Pilihan kedua"], multiple: false }));
   return {
-    snapshot: publicDemoSnapshotSchema.parse({ ...snapshot, courseId: item.id }),
+    snapshot: publicDemoSnapshotSchema.parse({ ...fictionalDemoSnapshot(item.id, item.title), revision: snapshot.revision }),
     content: {
       course: { ...course, id: item.id, title: item.title },
       collections: { articles, diktats, flashcardSets, page: { offset: 0, pageSize: 500, hasMore: false, nextOffset: null }, flashcards: { offset: 0, pageSize: 100, nextOffset: null }, quiz: { offset: quizOffset, total: questions.length, pageSize: 3, previousOffset: quizOffset ? 0 : null, nextOffset: quizOffset ? null : 3 } },
@@ -83,6 +85,12 @@ function makeExperience(item: FixtureCourse, selection: DemoProductSelection = {
   };
 }
 export async function getDemoExperiences(): Promise<DemoExperience[]> { return fixtureCourses.map((item) => makeExperience(item)).filter((item): item is DemoExperience => item !== null); }
+export async function getDemoCatalogue(courseId: string): Promise<DemoCatalogue | null> {
+  const item = fixtureCourses.find(course => course.id === courseId);
+  if (!item) return null;
+  const chapters = Array.from({ length: item.id === "fictional-berpikir" ? 1 : 4 }, (_, index) => ({ id: `${item.id}-chapter-${index + 1}`, title: index ? `Bab ${index + 1}: Penerapan ${item.title}` : "Konsep dasar", orderIndex: index + 1 }));
+  return padDemoCatalogue(item.title, chapters, chapters.slice(1).map((chapter, index) => ({ id: `${item.id}-later-${index}`, title: `Materi ${chapter.title}`, chapterId: chapter.id, kind: index % 2 ? "diktat" : "article" })));
+}
 export async function getDemoExperience(courseId?: string, selection?: DemoProductSelection): Promise<DemoExperience | null> {
   const item = courseId === undefined ? (fixtureCourses.length === 1 ? fixtureCourses[0] : undefined) : fixtureCourses.find((entry) => entry.id === courseId);
   return item ? makeExperience(item, selection) : null;
