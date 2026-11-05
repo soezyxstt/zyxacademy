@@ -65,16 +65,11 @@ export async function POST(request: Request) {
   }
   const questionIds = rawQuestionIds.map((id) => (id as string).trim());
 
-  const answers = rawAnswers.map((answer) => {
-    if (Array.isArray(answer)) {
-      return [...new Set(answer.filter(isInteger))];
-    }
-    return isInteger(answer) ? [answer] : [];
-  });
+  if (rawAnswers.some(answer => Array.isArray(answer)
+    ? answer.length < 1 || answer.length > 21 || answer.some(value => !isInteger(value)) || new Set(answer).size !== answer.length
+    : !isInteger(answer))) return response({ error: "Pilihan jawaban tidak valid." }, 400);
+  const answers = rawAnswers.map(answer => Array.isArray(answer) ? answer as number[] : [answer as number]);
 
-  if (answers.some((answer) => answer.some((value) => value < 0 || value > 20))) {
-    return response({ error: "Pilihan jawaban tidak valid." }, 400);
-  }
 
   const quizSet = await getDemoQuizSet(courseId, quizOffset);
   if (!quizSet) {
@@ -95,6 +90,10 @@ export async function POST(request: Request) {
     return response({ error: "Sesi kuis demo sudah tidak valid. Muat ulang halaman." }, 409);
   }
 
+  if (answers.some((answer, index) => answer.some(value => value < 0 || value >= quizSet.questions[index].options.length) || (!quizSet.questions[index].multiple && answer.length !== 1))) {
+    return response({ error: "Pilihan jawaban tidak valid." }, 400);
+  }
+
   const result = gradeDemoAnswers(quizSet.questions, answers);
   return response({
     score: result.score,
@@ -102,6 +101,7 @@ export async function POST(request: Request) {
     results: result.results.map(({ index, isCorrect, explanation }) => ({
       index,
       isCorrect,
+      correctIndices: quizSet.questions[index].correctIndices,
       explanation,
     })),
   });

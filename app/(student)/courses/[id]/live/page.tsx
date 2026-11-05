@@ -29,14 +29,19 @@ interface JoinResponse {
 
 type ViewPhase = "join" | "live";
 
+import { useStudentExperience } from "@/components/student-experience-provider";
+
 export default function LiveStudentPage() {
+  const experience = useStudentExperience();
   const t = useTranslations("studentExtras.live");
-  const { id: courseId } = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>();
+  const courseId = experience.mode === "demo" ? experience.selectedCourseId! : id;
   const [course, setCourse] = useState<any>(undefined);
 
   useEffect(() => {
+    if (experience.mode === "demo") { setCourse(experience.courses?.find(course => course.id === courseId)); return; }
     getCourseAction(courseId).then(setCourse).catch(console.error);
-  }, [courseId]);
+  }, [courseId, experience.mode, experience.courses]);
 
   const title = course ? t("courseLiveTitle", { course: course.title }) : t("title");
 
@@ -50,6 +55,7 @@ export default function LiveStudentPage() {
   // reconnect instead of replaying the expired one.
   const refreshConnectionUrl = useCallback(async () => {
     try {
+      if (experience.mode === "demo") return null;
       const res = await fetch("/api/live/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -61,7 +67,7 @@ export default function LiveStudentPage() {
     } catch {
       throw new Error(t("connectionFailed"));
     }
-  }, [code, courseId, t]);
+  }, [code, courseId, t, experience.mode]);
 
   const { state, sendAnswer } = useLiveQuizSocket(
     phase === "live" ? wsFullUrl : null,
@@ -74,6 +80,7 @@ export default function LiveStudentPage() {
       toast.error(t("invalidCode"));
       return;
     }
+    if (experience.mode === "demo") { toast.error(t("joinFailed")); return; }
     setJoining(true);
     try {
       const res = await fetch("/api/live/join", {
@@ -92,7 +99,7 @@ export default function LiveStudentPage() {
     } finally {
       setJoining(false);
     }
-  }, [code, courseId, t]);
+  }, [code, courseId, t, experience.mode]);
 
   if (!process.env.NEXT_PUBLIC_REALTIME_URL) {
     return (
@@ -106,7 +113,7 @@ export default function LiveStudentPage() {
             {t("noSessionDescription")}
           </p>
           <Button asChild size="sm" variant="outline" className="mt-5 rounded-md text-body-xs">
-            <Link href={`/courses/${courseId}`}>
+            <Link href={experience.href?.(`/courses/${courseId}`) ?? `/courses/${courseId}`}>
               {t("backToCourse")}
             </Link>
           </Button>

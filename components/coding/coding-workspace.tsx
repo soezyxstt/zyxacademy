@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
-import { useSession } from "@/lib/auth-client";
+import { StudentAccountBoundary, type StudentAccountState } from "@/components/student-account-boundary";
+import { useStudentExperience } from "@/components/student-experience-provider";
 import { useTutor } from "@/components/course/tutor-drawer";
 import { PythonPresets } from "./python-presets";
 import { PythonEditor } from "./python-editor";
@@ -30,17 +31,22 @@ const statusLabels: Record<ExecutionResult["status"], string> = { completed: "Ek
 const clampSplit = (value: number) => Math.min(75, Math.max(25, value));
 const useRemoteTerminal = ["https://staging.zyxacademy.com", "https://www.zyxacademy.com", "https://zyxacademy.com"].includes(process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ?? "");
 
-export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialStdin = "", problem, surface, allowHelp = true, learnerId, playgroundLink = false, disabled = false, interactive = false }: {
-  courseId: string; draftKey: string; initialCode?: string; initialStdin?: string; problem?: CodingProblemPublic;
+export function CodingWorkspace(props: Omit<Parameters<typeof CodingWorkspaceContent>[0], "account">) {
+  return <StudentAccountBoundary>{({ data }) => <CodingWorkspaceContent {...props} account={data} />}</StudentAccountBoundary>;
+}
+function CodingWorkspaceContent({ account, courseId, draftKey, initialCode = "", initialStdin = "", problem, surface, allowHelp = true, learnerId, playgroundLink = false, disabled = false, interactive = false }: {
+  account: StudentAccountState["data"]; courseId: string; draftKey: string; initialCode?: string; initialStdin?: string; problem?: CodingProblemPublic;
   surface?: z.infer<typeof codingSurfaceSchema>; allowHelp?: boolean; learnerId?: string;
   playgroundLink?: boolean; disabled?: boolean; interactive?: boolean;
 }) {
   const { openChatWithQuestion } = useTutor();
   const explainSelection = (snippet: string) => openChatWithQuestion("Jelaskan bagian kode Python ini.", { title: "Kode Python", snippet, blockType: "code", intent: "define" });
-  const { data: session } = useSession();
+  const experience = useStudentExperience();
+  const localOnly = experience.mode === "demo";
+  const session = account;
   const router = useRouter();
   const owner = learnerId ?? session?.user?.id;
-  const draft = useCodingDraft({ courseId, draftKey, learnerId: owner, initialCode: problem?.starterCode ?? initialCode, initialStdin });
+  const draft = useCodingDraft({ courseId, localOnly, draftKey: localOnly ? `demo:${experience.baseline.find(row => row.courseId === courseId)?.revision}:${draftKey}` : draftKey, learnerId: owner, initialCode: problem?.starterCode ?? initialCode, initialStdin });
   const [phase, setPhase] = useState<"idle" | "loading" | "running">("idle");
   const [executedInput, setExecutedInput] = useState<string | null>(null);
   const [execution, setExecution] = useState<ExecutionResult | null>(null), [executedCode, setExecutedCode] = useState<string | null>(null);
@@ -76,13 +82,13 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
   }
   useEffect(() => {
     if (!interactive) return;
-    if (useRemoteTerminal) return owner ? warmRemotePython(courseId) : undefined;
+    if (useRemoteTerminal && !localOnly) return owner ? warmRemotePython(courseId) : undefined;
     return preloadPythonAssets();
-  }, [interactive, owner, courseId]);
+  }, [interactive, owner, courseId, localOnly]);
   const surfaceKey = surface ? JSON.stringify(surface) : "";
   useEffect(() => () => { active.current?.abort(); submitAbort.current?.abort(); }, []);
   useEffect(() => {
-    if (!problem || !owner) return;
+    if (localOnly || !problem || !owner) return;
     const abort = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     async function refresh() {
@@ -96,7 +102,7 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
     }
     void refresh();
     return () => { abort.abort(); clearTimeout(timer); };
-  }, [courseId, problem, owner, surfaceKey]);
+  }, [courseId, problem, owner, surfaceKey, localOnly]);
   async function run() {
     if (phase !== "idle" || submitting) return;
     const controller = new AbortController(); active.current = controller;
@@ -107,12 +113,12 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
       output: (text: string) => setTerminalOutput((value) => (value + text).slice(0, 8000)),
       input: (send: (value: string) => void) => { sendInput.current = send; setWaitingInput(true); },
     } : undefined;
-    const runtime = callbacks && useRemoteTerminal ? createRemotePythonRuntime(courseId, setPhase, callbacks) : createBrowserPythonRuntime(setPhase, callbacks);
+    const runtime = callbacks && useRemoteTerminal && !localOnly ? createRemotePythonRuntime(courseId, setPhase, callbacks) : createBrowserPythonRuntime(setPhase, callbacks);
     try { setExecution(await executePython(runtime, { code, stdin: draft.stdin, limits: problem?.limits ?? { timeoutMs: 5000, maxOutputChars: 8000 }, signal: controller.signal })); }
     finally { sendInput.current = null; setWaitingInput(false); setPhase("idle"); }
   }
   async function submit() {
-    if (!problem || !surface || submitting || disabled) return;
+    if (localOnly || !problem || !surface || submitting || disabled) return;
     const controller = new AbortController(); submitAbort.current = controller;
     setSubmitting(true); setError("");
     const code = draft.code, stdin = draft.stdin;

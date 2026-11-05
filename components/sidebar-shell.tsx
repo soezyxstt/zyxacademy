@@ -31,7 +31,9 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
 import { useCommandMenu } from "@/components/command-menu";
 import { NotificationBell } from "@/components/notifications/notification-bell";
-import { signOut, useSession } from "@/lib/auth-client";
+import { signOut } from "@/lib/auth-client";
+import { StudentAccountBoundary, type StudentAccountState } from "@/components/student-account-boundary";
+import { useStudentExperience } from "@/components/student-experience-provider";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { useSwipe } from "@/hooks/use-swipe";
 import { useZyraPetVisibility } from "@/hooks/use-zyra-pet-visibility";
@@ -410,9 +412,14 @@ export function NavGroup({ label, collapsed }: { label: string; collapsed: boole
 }
 
 function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
+  return <StudentAccountBoundary>{({data}) => <SidebarUserMenuContent collapsed={collapsed} session={data} />}</StudentAccountBoundary>;
+}
+
+function SidebarUserMenuContent({ collapsed, session }: { collapsed: boolean; session: StudentAccountState["data"] }) {
   const t = useTranslations("common");
   const { locale, setLocale, isPending, error } = useAppLocale();
-  const { data: session } = useSession();
+  const experience = useStudentExperience();
+  const href = experience.href ?? ((path: string) => path);
   const { theme, setTheme } = useTheme();
   const { visible: petVisible, toggleVisible: togglePetVisibility } = useZyraPetVisibility();
 
@@ -427,6 +434,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
   const isAdmin = role === "admin" || roles.includes("admin");
 
   const handleLogout = async () => {
+    if (experience.mode === "demo") { experience.reset?.(); window.location.assign(href("/dashboard")); return; }
     await signOut();
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = "/";
@@ -502,7 +510,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
         >
           <DropdownMenu.Item asChild>
             <Link
-              href="/profile"
+              href={href("/profile")}
               className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
             >
               <User className="size-4 shrink-0 text-muted-foreground" />
@@ -512,7 +520,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
 
           <DropdownMenu.Item asChild>
             <Link
-              href="/dashboard"
+              href={href("/dashboard")}
               className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
             >
               <LayoutDashboard className="size-4 shrink-0 text-muted-foreground" />
@@ -523,7 +531,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
           {(isTutor || isAdmin) && (
             <DropdownMenu.Item asChild>
               <Link
-                href="/tutor"
+                href={href("/tutor")}
                 className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
               >
                 <GraduationCap className="size-4 shrink-0 text-muted-foreground" />
@@ -535,7 +543,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
           {isAdmin && (
             <DropdownMenu.Item asChild>
               <Link
-                href="/admin"
+                href={href("/admin")}
                 className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
               >
                 <ShieldCheck className="size-4 shrink-0 text-muted-foreground" />
@@ -619,7 +627,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
               <Languages className="size-3.5" aria-hidden />
               {t("language.label")}
             </p>
-            <DropdownMenu.RadioGroup value={locale} onValueChange={(value) => { if (!isPending && (value === "id" || value === "en")) void setLocale(value); }} className="flex flex-col gap-0.5">
+            <DropdownMenu.RadioGroup value={locale} onValueChange={(value) => { if (!isPending && (value === "id" || value === "en")) { if (experience.mode === "demo") experience.changeLocale?.(value); else void setLocale(value); } }} className="flex flex-col gap-0.5">
               <DropdownMenu.RadioItem value="id" disabled={isPending} className="flex w-full cursor-pointer items-center rounded-md px-2 py-2 text-body-sm text-muted-foreground outline-none hover:bg-muted focus:bg-muted data-[state=checked]:text-brand-primary">
                 {t("language.indonesian")}
               </DropdownMenu.RadioItem>
@@ -667,7 +675,9 @@ export function SidebarShell({
   showAccountTools = true,
 }: SidebarShellProps) {
   const t = useTranslations("common");
-  const pathname = usePathname();
+  const actualPathname = usePathname();
+  const experience = useStudentExperience();
+  const pathname = experience.pathname ?? actualPathname;
   const { setOpen: setSearchOpen } = useCommandMenu();
 
   const [collapsed, setCollapsed] = useState(false);

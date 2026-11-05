@@ -1,39 +1,26 @@
-import { describe, expect, test } from "bun:test";
+import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { demoRoute } from "@/lib/demo/routes";
-
 const read = (path: string) => readFileSync(path, "utf8");
-describe("demo shared student presentation", () => {
-  test("dashboard and demo use the same course section and row", () => {
-    for (const component of ["StudentDashboardSection", "StudentCourseProgressRow"]) {
-      expect(read("app/(student)/dashboard/page.tsx")).toContain(`<${component}`);
-      expect(read("components/demo/demo-dashboard.tsx")).toContain(`<${component}`);
-    }
-    expect(read("app/(student)/courses/page.tsx")).toContain("<CourseCatalogClient");
-    expect(read("components/demo/demo-dashboard.tsx")).toContain("<CourseCatalogClient");
-  });
-  test("course selection remains on localized demo routes", () => {
-    expect(demoRoute("en", "quiz", "course/a")).toBe("/en/demo/quiz?course=course%2Fa");
-    expect(demoRoute("id", "dashboard", "one")).toBe("/id/demo?course=one");
-    expect(demoRoute("en", "tryout", "one")).toBe("/en/demo/tryout?course=one");
-  });
+test("live student and demo routes use the same page renderers", () => {
+ const surfaces = [
+  ["app/(student)/dashboard/page.tsx", "components/demo/demo-dashboard.tsx", "StudentDashboardContent"],
+  ["app/(student)/courses/page.tsx", "components/demo/demo-course-catalog.tsx", "StudentCourseCatalogView"],
+  ["app/(student)/courses/[id]/page.tsx", "components/demo/demo-course-overview.tsx", "StudentCourseOverviewView"],
+  ["app/(student)/courses/[id]/progress/page.tsx", "components/demo/demo-course-progress.tsx", "StudentCourseProgressView"],
+  ["app/(student)/courses/[id]/material/page.tsx", "components/demo/demo-documents.tsx", "StudentDocumentsView"],
+  ["app/(student)/courses/[id]/quiz/[quizId]/page.tsx", "components/demo/demo-quiz-list.tsx", "StudentQuizGateway"],
+  ["app/(student)/courses/[id]/quiz/[quizId]/page.tsx", "components/demo/demo-quiz.tsx", "StudentQuizReview"],
+  ["app/(student)/profile/page.tsx", "components/demo/demo-student-pages.tsx", "StudentProfileView"],
+  ["app/(student)/leaderboard/page.tsx", "components/demo/demo-student-pages.tsx", "StudentLeaderboardView"],
+ ];
+ for (const [student, demo, renderer] of surfaces) {
+  expect(read(student)).toContain(`<${renderer}`);
+  expect(read(demo)).toContain(`<${renderer}`);
+ }
+ for (const file of ["app/(student)/layout.tsx", "components/demo/demo-shell.tsx"]) expect(read(file)).toContain("<StudentApplicationShell");
 });
-
-test("student and demo share statistics and activity presentations", () => {
-  for (const component of ["StudyStatisticsCard", "RecentActivityCard"]) {
-    expect(read("app/(student)/courses/[id]/progress/page.tsx")).toContain(`<${component}`);
-    expect(read("components/demo/demo-dashboard.tsx")).toContain(`<${component}`);
-  }
-});
-
-test("Zyra message presentation is shared without mounting its private tutor client", () => {
-  expect(read("components/course/tutor-drawer-view.tsx")).toContain("<TutorStudentMessage");
-  expect(read("components/demo/demo-zyra.tsx")).toContain("<TutorStudentMessage");
-  expect(read("components/demo/demo-zyra.tsx")).not.toContain("<TutorProvider");
-});
-
-test("student and demo use the same chapter outline list", () => {
-  expect(read("components/course/chapter-outline.tsx")).toContain("<ChapterOutlineList");
-  expect(read("components/demo/demo-dashboard.tsx")).toContain("<ChapterOutlineList");
-  expect(read("lib/demo/chapter-outline.ts")).not.toMatch(/fetch\s*\(|\/api\/|\/courses\//);
+test("demo Zyra opens the actual student drawer with a local conversation transport", () => {
+ expect(read("components/demo/demo-zyra.tsx")).toContain("useTutor");
+ expect(read("components/course/tutor-drawer-view.tsx")).toContain("<StudentAccountBoundary");
+ expect(read("components/course/tutor-drawer-view.tsx")).toContain("fictionalHistory");
 });

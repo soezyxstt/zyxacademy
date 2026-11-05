@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/dialog";
 import { ScientificInput } from "@/components/ui/scientific-input";
 import { useTranslations } from "@/lib/i18n/client";
-import { AssessmentResult } from "@/components/demo/assessment/assessment-result";
 
 import { submitTryoutAction } from "@/app/actions/tutor-management";
 
@@ -46,7 +45,7 @@ function emptyAnswer(q: PublicQuestion): AnswerState {
 type TryoutFormProps = {
   courseId: string;
   exam: TryoutPresentationExam;
-  transport?: { submit: (answers: Record<string, AnswerState>) => Promise<void>; initialSubmitted?: boolean; successTitle?: string };
+  transport?: { submit: (answers: Record<string, AnswerState>) => Promise<void>; afterSubmitHref?: string };
 };
 
 export function TryoutForm({ courseId, exam, transport }: TryoutFormProps) {
@@ -65,7 +64,7 @@ export function TryoutForm({ courseId, exam, transport }: TryoutFormProps) {
     return (exam.settings?.timeLimitMinutes ?? 90) * 60;
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(transport?.initialSubmitted ?? false);
+  const [submitted, setSubmitted] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Real Cloudflare R2 upload for essay attachments
@@ -79,6 +78,7 @@ export function TryoutForm({ courseId, exam, transport }: TryoutFormProps) {
       if (transport) {
         await transport.submit(answers);
         setSubmitted(true);
+        if (transport.afterSubmitHref) { toast.success(t("tryout.submitted")); router.push(transport.afterSubmitHref); }
         return;
       }
       // Save to Database
@@ -247,7 +247,7 @@ export function TryoutForm({ courseId, exam, transport }: TryoutFormProps) {
   const ans = answers[q.id];
   const currentFlagged = !!flags[q.id];
 
-  if (submitted) return <AssessmentResult title={transport?.successTitle ?? t("tryout.submitted")} />;
+  if (submitted) return null;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start font-sans">

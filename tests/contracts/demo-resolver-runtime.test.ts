@@ -23,6 +23,7 @@ beforeAll(async () => {
   await db.insert(s.pengguna).values({ id: "author" });
   await db.insert(s.courses).values({ id: "legacy", title: "Matematika I", category: "Matematika" });
   await db.insert(s.mataKuliah).values({ id: "course", code: "M", title: "Matematika I", legacyCourseId: "legacy" });
+  await db.insert(s.courseMaterials).values({ id: "generic-pdf", courseId: "legacy", title: "Private generic PDF", type: "materi", chapterIds: ["chapter-1"], fileUrl: "paid/generic.pdf" });
   await db.insert(s.publicDemoSnapshots).values({ id: "snapshot", courseId: "course", snapshot: fictionalDemoSnapshot("course") });
   await db.insert(s.bab).values([1, 2].map(n => ({ id: `chapter-${n}`, mataKuliahId: "course", code: `B${n}`, title: `Bab ${n}`, orderIndex: n })));
   const common = { mataKuliahId: "course", creatorId: "author", sourceHash: "fixture", generationHash: "fixture", status: "published" as const };
@@ -51,6 +52,7 @@ test("reads actual Free products, excludes later chapters and storage keys", asy
   expect(result?.quiz.map(x => x.id)).toEqual(["q1", "q2", "q3"]);
   expect(JSON.stringify(result)).not.toContain("PRIVATE LATER BODY");
   expect(JSON.stringify(result)).not.toContain("paid/private.pdf");
+  expect(JSON.stringify(result)).not.toMatch(/generic-pdf|paid\/generic.pdf|Private generic PDF/);
   for (const selection of [{ articleId: "foreign" }, { diktatId: "diktat-2" }, { flashcardSetId: "set-2" }, { quizOffset: 3 }, { flashcardOffset: 100 }]) {
     expect(await resolvePublicFreeFirstChapter("course", selection)).toBeNull();
   }
@@ -64,8 +66,11 @@ test("initial public payload redacts answers and grading enforces the issued sco
   const submit = (value: unknown) => POST(new Request("http://localhost/api/demo/quiz", { method: "POST", body: JSON.stringify(value) }));
   const response = await submit(body);
   expect(response.status).toBe(200);
-  expect((await response.json()).score).toBe(3);
+  const graded = await response.json();
+  expect(graded.score).toBe(3);
+  expect(graded.results.map((item: { correctIndices: number[] }) => item.correctIndices)).toEqual([[0], [0], [0]]);
   expect(response.headers.get("Cache-Control")).toBe("no-store");
+  for (const invalid of [[[0, 0], [0], [0]], [[], [0], [0]], [[2], [0], [0]], [["0"], [0], [0]]]) expect((await submit({ ...body, answers: invalid })).status).toBe(400);
   expect((await submit({ ...body, questionIds: ["q1", "q2", "q4"] })).status).toBe(409);
   expect((await submit({ ...body, questionSetToken: `${body.questionSetToken}tampered` })).status).toBe(409);
   expect((await submit({ ...body, courseId: "foreign" })).status).not.toBe(200);

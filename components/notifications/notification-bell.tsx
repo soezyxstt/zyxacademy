@@ -25,7 +25,8 @@ import {
   ClipboardList,
   Inbox,
 } from "lucide-react";
-import { useSession } from "@/lib/auth-client";
+import { StudentAccountBoundary, type StudentAccountState } from "@/components/student-account-boundary";
+import { useStudentExperience } from "@/components/student-experience-provider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
@@ -94,10 +95,16 @@ interface NotificationBellProps {
   variant?: "navbar" | "sidebar";
 }
 
-export function NotificationBell({ variant = "sidebar" }: NotificationBellProps) {
+export function NotificationBell(props: NotificationBellProps) {
+  return <StudentAccountBoundary>{state => <NotificationBellContent {...props} account={state} />}</StudentAccountBoundary>;
+}
+
+function NotificationBellContent({ variant = "sidebar", account }: NotificationBellProps & { account: StudentAccountState }) {
   const t = useTranslations("notifications");
   const { locale } = useAppLocale();
-  const { data: session, isPending } = useSession();
+  const { data: session, isPending } = account;
+  const experience = useStudentExperience();
+  const demo = experience.mode === "demo";
   const router = useRouter();
 
   const [open, setOpen] = useState(false);
@@ -106,6 +113,7 @@ export function NotificationBell({ variant = "sidebar" }: NotificationBellProps)
   const [loading, setLoading] = useState(false);
 
   const fetchHistory = useCallback(async () => {
+    if (demo) return;
     try {
       setLoading(true);
       const res = await fetch("/api/notifications/history?limit=20", {
@@ -120,9 +128,10 @@ export function NotificationBell({ variant = "sidebar" }: NotificationBellProps)
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [demo]);
 
   const fetchUnreadCount = useCallback(async () => {
+    if (demo) return;
     try {
       const res = await fetch("/api/notifications/history?countOnly=true", {
         credentials: "include",
@@ -133,17 +142,17 @@ export function NotificationBell({ variant = "sidebar" }: NotificationBellProps)
     } catch {
       // Silent; the bell is an enhancement.
     }
-  }, []);
+  }, [demo]);
 
   // Fetch only unread count once on initial mount
   useEffect(() => {
-    if (!session?.user) return;
+    if (demo || !session?.user) return;
     void fetchUnreadCount();
-  }, [session?.user, fetchUnreadCount]);
+  }, [session?.user, fetchUnreadCount, demo]);
 
   // Foreground FCM messages refresh the inbox if open, or refresh unread count and show a toast.
   useEffect(() => {
-    if (!session?.user) return;
+    if (demo || !session?.user) return;
     let unsubscribe: (() => void) | undefined;
     let disposed = false;
     (async () => {
@@ -165,13 +174,14 @@ export function NotificationBell({ variant = "sidebar" }: NotificationBellProps)
       disposed = true;
       unsubscribe?.();
     };
-  }, [session?.user, open, fetchHistory, fetchUnreadCount]);
+  }, [session?.user, open, fetchHistory, fetchUnreadCount, demo]);
 
   if (isPending || !session?.user) return null;
 
   const badge = unread > 0 ? (unread > 99 ? "99+" : String(unread)) : null;
 
   const markRead = async (ids: string[]) => {
+    if (demo) return;
     try {
       await fetch("/api/notifications/read", {
         method: "PATCH",
@@ -199,7 +209,7 @@ export function NotificationBell({ variant = "sidebar" }: NotificationBellProps)
     }
     const url = resolveLink(row);
     if (url && url.startsWith("/")) {
-      router.push(url);
+      router.push(experience.href?.(url) ?? url);
     }
     setOpen(false);
   };

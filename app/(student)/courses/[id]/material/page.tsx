@@ -1,11 +1,9 @@
+import { StudentDocumentsView } from "@/components/course/student-documents-view";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { FileText } from "lucide-react";
-import { CoursePageShell } from "@/components/course/course-page-shell";
 import { CourseMaterialListSkeleton } from "@/components/course/course-skeletons";
 import { createMetadata } from "@/lib/site";
-import { Reveal } from "@/components/ui/reveal";
 import {
   getCourse,
   getCourseChapterOutline,
@@ -420,8 +418,7 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
   materialDataPromise.catch(() => {});
 
   return (
-    <CoursePageShell title={<TranslatedText namespace="learning" messageKey="materialPage.title" values={{ course: course.title }} />} icon={FileText}>
-      <Reveal>
+    <StudentDocumentsView courseTitle={course.title}>
         <Suspense fallback={<CourseMaterialListSkeleton />}>
           <CourseMaterialListContent
             courseId={id}
@@ -429,7 +426,6 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
             dataPromise={materialDataPromise}
           />
         </Suspense>
-      </Reveal>
-    </CoursePageShell>
+    </StudentDocumentsView>
   );
 }

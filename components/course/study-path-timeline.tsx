@@ -10,7 +10,9 @@ import { CourseStudyPathSkeleton } from "@/components/course/course-skeletons";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
 
-interface StudyPathStep {
+import { useStudentExperience } from "@/components/student-experience-provider";
+
+export interface StudyPathStep {
   stepId: string;
   ideaId: string | null;
   chapterId: string;
@@ -36,7 +38,9 @@ function primaryHref(step: StudyPathStep, courseId: string): string | null {
 
 function StepRow({ step, courseId }: { step: StudyPathStep; courseId: string }) {
   const t = useTranslations("studentCourse");
-  const href = primaryHref(step, courseId);
+  const experience = useStudentExperience();
+  const studentHref = primaryHref(step, courseId);
+  const href = studentHref ? experience.href?.(studentHref) ?? studentHref : null;
   const isLocked = step.status === "locked";
 
   const statusIndicator = (() => {
@@ -105,7 +109,9 @@ function StepRow({ step, courseId }: { step: StudyPathStep; courseId: string }) 
   return <div>{content}</div>;
 }
 
-export function StudyPathTimeline({ courseId }: { courseId: string }) {
+export function StudyPathTimeline({ courseId, initialSteps }: { courseId: string; initialSteps?: StudyPathStep[] }) {
+  const experience = useStudentExperience();
+  const href = (path: string) => experience.href?.(path) ?? path;
   const t = useTranslations("studentCourse");
   const [steps, setSteps] = useState<StudyPathStep[]>([]);
   const [dayPlan, setDayPlan] = useState<StudyDayPlan[] | null>(null);
@@ -119,6 +125,14 @@ export function StudyPathTimeline({ courseId }: { courseId: string }) {
     if (planningRequest) setPlanning(true); else setLoading(true);
     setError(null);
     try {
+      if (initialSteps) {
+        setSteps(initialSteps);
+        setDayPlan(planningRequest ? Array.from({ length: Math.min(days!, initialSteps.length) }, (_, index) => {
+          const dailySteps = initialSteps.filter((_, stepIndex) => stepIndex % days! === index);
+          return { day: index + 1, steps: dailySteps, totalMinutes: dailySteps.reduce((total, step) => total + step.estimatedMinutes, 0) };
+        }) : null);
+        return;
+      }
       const response = await fetch(`/api/student/study-path?courseId=${courseId}${planningRequest ? `&days=${days}` : ""}`);
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(t("course.studyPath.loadFailed"));
@@ -129,7 +143,7 @@ export function StudyPathTimeline({ courseId }: { courseId: string }) {
     } finally {
       setLoading(false); setPlanning(false);
     }
-  }, [courseId, t]);
+  }, [courseId, t, initialSteps]);
 
   useEffect(() => { void fetchStudyPath(); }, [fetchStudyPath]);
   const groups = useMemo(() => {
@@ -188,7 +202,7 @@ export function StudyPathTimeline({ courseId }: { courseId: string }) {
               </div>
               {primaryHref(nextStep, courseId) ? (
                 <Button asChild size="sm" className="rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/90">
-                  <Link href={primaryHref(nextStep, courseId)!}>
+                  <Link href={href(primaryHref(nextStep, courseId)!)}>
                     <Play className="mr-1.5 size-3.5 fill-white" />{t("course.studyPath.start")}
                   </Link>
                 </Button>

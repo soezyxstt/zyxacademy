@@ -1,3 +1,5 @@
+import { env } from "@/lib/env";
+import { getWhatsAppAdminChatHref } from "@/lib/whatsapp-admin";
 import { notFound } from "next/navigation";
 import { parseDemoSelection, type DemoSearchParams } from "@/lib/demo/selection";
 import { getDemoExperience } from "./demo-data";
@@ -17,6 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export const dynamic = "force-dynamic";
 
 export default async function DemoPage({ searchParams }: { searchParams: Promise<DemoSearchParams> }) {
+  const ui = { showLive: env.FEATURE_LIVE === "1", whatsappHref: getWhatsAppAdminChatHref() };
   const experiences = await getDemoExperiences();
   if (!experiences.length) return <DemoEmptyState />;
   const parsed = parseDemoSelection(await searchParams);
@@ -27,9 +30,9 @@ export default async function DemoPage({ searchParams }: { searchParams: Promise
   if (!experience) notFound();
   const { page, articles, diktats, flashcardSets } = experience.content.collections;
   if (page.offset > 0 && !articles.length && !diktats.length && !flashcardSets.length) notFound();
-  const summaries = experiences.map(({ snapshot, content }) => ({ snapshot, content: { course: content.course } }));
+  const summaries = experiences.map(({ snapshot, content }) => ({ snapshot, content: { course: content.course, article: { id: content.article.id, title: content.article.title } } }));
   return (
-    <DemoShell experiences={summaries} selected={{ snapshot: experience.snapshot, content: { course: experience.content.course } }} activeView="dashboard" selection={parsed.selection}>
+    <DemoShell showLive={ui.showLive} experiences={summaries} selected={{ snapshot: experience.snapshot, content: { course: experience.content.course } }} activeView="dashboard" selection={parsed.selection}>
       <DemoDashboard experiences={summaries} selected={experience} />
     </DemoShell>
   );

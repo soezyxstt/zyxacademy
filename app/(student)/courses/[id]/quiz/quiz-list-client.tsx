@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useStudentExperience } from "@/components/student-experience-provider";
 import { Lock, ClipboardList } from "lucide-react";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import type { quizTemplates, studentQuizAttempts } from "@/db/schema";
 
-type TemplateType = typeof quizTemplates.$inferSelect;
-type AttemptType = typeof studentQuizAttempts.$inferSelect;
+type TemplateType = Pick<typeof quizTemplates.$inferSelect, "id" | "title" | "visibility" | "category" | "selectionRules" | "timeLimitSeconds" | "manualStatus" | "openAt" | "closeAt">;
+type AttemptType = Pick<typeof studentQuizAttempts.$inferSelect, "id" | "templateId" | "status" | "score">;
 
 type QuizListClientProps = {
   courseId: string;
@@ -22,6 +23,7 @@ type QuizListClientProps = {
 
 export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ? "standard" : "anonymous", freeEligibleTemplateIds = [], templates, attempts }: QuizListClientProps) {
   const t = useTranslations("learning");
+  const experience = useStudentExperience();
   const freeEligibleIds = new Set(freeEligibleTemplateIds);
 
   return (
@@ -109,7 +111,7 @@ export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ?
           return (
             <li key={template.id}>
               <Link
-                href={targetHref}
+                href={experience.href?.(targetHref) ?? targetHref}
                 className={cn(
                   "group flex items-center justify-between gap-3 px-4 py-3 transition-colors",
                   accessible && isOpen ? "hover:bg-muted/30 active:bg-muted/50" : "hover:bg-muted/30",

@@ -1,8 +1,8 @@
+import { StudentFlashcardsView } from "@/components/course/student-flashcards-view";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 
-import { Brain, Lock } from "lucide-react";
-import { CoursePageShell } from "@/components/course/course-page-shell";
+import { Lock } from "lucide-react";
 import { CourseFlashcardSkeleton } from "@/components/course/course-skeletons";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { createMetadata } from "@/lib/site";
@@ -92,13 +92,10 @@ export default async function CourseFlashcardPage({ params }: Props) {
   }
 
   return (
-    <CoursePageShell
-      title={<TranslatedText namespace="learning" messageKey="flashcards.pageTitle" values={{ course: course.title }} />}
-      icon={Brain}
-    >
+    <StudentFlashcardsView courseTitle={course.title}>
       <Suspense fallback={<CourseFlashcardSkeleton />}>
         <CourseFlashcardContent id={id} studentId={studentId} />
       </Suspense>
-    </CoursePageShell>
+    </StudentFlashcardsView>
   );
 }

@@ -24,24 +24,27 @@ import { MathText } from "@/components/course/math-text";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { useTranslations } from "@/lib/i18n/client";
 
+import { useStudentExperience } from "@/components/student-experience-provider";
+
+export type QuizAnalyticsData = { status: string; computedMetrics?: ComputedQuizMetrics; aiDiagnosis?: StudentQuizDiagnosis; errorMessage?: string };
+
 interface QuizAnalyticsViewProps {
+  initialData?: QuizAnalyticsData;
   attemptId: string;
   courseId: string;
 }
 
-export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProps) {
+export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnalyticsViewProps) {
   const t = useTranslations("studentCourse");
-  const [data, setData] = useState<{
-    status: string;
-    computedMetrics?: ComputedQuizMetrics;
-    aiDiagnosis?: StudentQuizDiagnosis;
-    errorMessage?: string;
-  } | null>(null);
+  const experience = useStudentExperience();
+  const href = (path: string) => experience.href?.(path) ?? path;
+  const [data, setData] = useState<QuizAnalyticsData | null>(initialData ?? null);
   const [loading, setLoading] = useState(true);
   const [recomputing, setRecomputing] = useState(false);
 
   const fetchAnalytics = useCallback(async () => {
     try {
+      if (initialData) { setData(initialData); return; }
       setLoading(true);
       const res = await fetch(`/api/quiz/attempts/${attemptId}/analytics`);
       if (res.ok) {
@@ -53,10 +56,11 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
     } finally {
       setLoading(false);
     }
-  }, [attemptId]);
+  }, [attemptId, initialData]);
 
   async function handleRecompute() {
     try {
+      if (initialData) { setData(initialData); return; }
       setRecomputing(true);
       await fetch(`/api/quiz/attempts/${attemptId}/analytics`, { method: "POST" });
       await fetchAnalytics();
@@ -475,7 +479,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
 
                 <div className="pt-4 mt-4 border-t border-border/60">
                   <Button asChild className="w-full">
-                    <Link href={`/courses/${courseId}`}>
+                    <Link href={href(`/courses/${courseId}`)}>
                       {t("quizAnalytics.startLearning")}
                       <ArrowUpRight className="ml-1.5 size-3.5" />
                     </Link>
@@ -490,7 +494,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
               {t("quizAnalytics.keepGoing")}
             </p>
             <Button asChild variant="outline" size="sm" className="rounded-md border-border">
-              <Link href={`/courses/${courseId}`}>{t("quizAnalytics.backToCourse")}</Link>
+              <Link href={href(`/courses/${courseId}`)}>{t("quizAnalytics.backToCourse")}</Link>
             </Button>
           </div>
         )}

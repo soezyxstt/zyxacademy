@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useStudentExperience } from "@/components/student-experience-provider";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
@@ -23,9 +24,11 @@ type QuizStartButtonProps = {
 export function QuizStartButton({ courseId, templateId, label, className, getRedirectPath, redirectBasePath }: QuizStartButtonProps) {
   const t = useTranslations("learning");
   const router = useRouter();
+  const experience = useStudentExperience();
   const [loading, setLoading] = useState(false);
 
   const handleStart = async () => {
+    if (experience.mode === "demo") { router.push(`${experience.route("quiz", courseId)}&attempt=${crypto.randomUUID()}`); return; }
     try {
       setLoading(true);
       const res = await fetch("/api/quiz/attempts", {

@@ -35,14 +35,14 @@ describe("public demo course contract", () => {
     expect(JSON.parse(source("messages/id/marketing.json")).demo.emptyTitle).toBe("Demo belum tersedia");
   });
 
-  test("keeps quiz submission stateless and answer keys server-only", () => {
+  test("keeps initial quiz data redacted and grading stateless and scoped", () => {
     const api = source("app/api/demo/quiz/route.ts");
     const quiz = source("components/demo/demo-quiz.tsx");
     const data = source("app/(marketing)/demo/demo-data.ts");
     expect(api).toContain("export async function POST");
     expect(api).toContain('"Cache-Control": "no-store"');
     expect(api).not.toContain("db.insert");
-    expect(api).not.toContain("correctIndices");
+    expect(api).toContain("correctIndices: quizSet.questions[index].correctIndices");
     expect(api).toContain("questionIds");
     expect(api).toContain("questionSetToken");
     expect(api).toContain("verifyDemoQuestionSetToken");
@@ -91,21 +91,10 @@ describe("public demo course contract", () => {
     expect(JSON.parse(source("messages/id/marketing.json")).faq.preview.question).toBe("Bisa melihat fitur sebelum membuat akun?");
   });
 
-  test("returns demo visitors to the selected course after sign-in", () => {
+  test("demo navigation uses the student shell with the selected course context", () => {
     const shell = source("components/demo/demo-shell.tsx");
-    const detail = source("app/(marketing)/demo/[view]/page.tsx");
-    expect(source("lib/demo/routes.ts")).toContain("return `/courses/${encodeURIComponent(courseId)}`");
-    expect(shell).not.toContain("Mode demo");
-    expect(shell).toContain("demoSignInHref(nextPath)");
-    expect(detail).toContain("const nextPath = demoCoursePath(content.course.id)");
-    for (const component of [
-      "components/demo/demo-article-view.tsx",
-      "components/demo/demo-diktat-view.tsx",
-      "components/demo/demo-flashcards.tsx",
-      "components/demo/demo-quiz.tsx",
-      "components/demo/demo-zyra.tsx",
-    ]) {
-      expect(source(component)).not.toMatch(/DemoAuthCta nextPath="\/demo/);
-    }
+    expect(shell).toContain("<StudentApplicationShell");
+    expect(shell).toContain("demoStudentHref(locale, path, selected.snapshot.courseId)");
+    expect(shell).not.toContain("DemoAuthCta");
   });
 });

@@ -20,8 +20,8 @@ describe("admin course reader mode contract", () => {
 
   test("gates every learner mutation in MaterialViewer", () => {
     const content = source("components/course/material-viewer.tsx");
-    expect(content).toContain('if (!learnerMode) return;\n    updateMaterialProgress(material.id, "in_progress")');
-    expect(content).toContain('if (!learnerMode) return;\n    let secondsSinceLastSave = 0');
+    expect(content).toContain('if (!learnerMode || demo) return;\n    updateMaterialProgress(material.id, "in_progress")');
+    expect(content).toContain('if (!learnerMode || demo) return;\n    let secondsSinceLastSave = 0');
     expect(content).toContain('if (!learnerMode) return;\n    try {\n      const storedNotes');
     expect(content).toContain('async function markDone() {\n    if (!learnerMode) return;');
     expect(content).toContain('learnerMode && accessTier !== "free" && ragEnabled && chapterId');

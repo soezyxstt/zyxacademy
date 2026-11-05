@@ -19,7 +19,7 @@ describe("public quiz adapter", () => {
           return Response.json(result(count));
         }, { preconnect: original.preconnect });
         const page = questions.slice(0, count);
-        expect((await gradeDemoQuiz("course", page, "token", {}, 3)).total).toBe(count);
+        expect((await gradeDemoQuiz("course", page, "token", Object.fromEntries(page.map(question => [question.id, [0]])), 3)).total).toBe(count);
         expect(payloads[0]?.quizOffset).toBe(3);
         expect(payloads[0]?.questionIds).toEqual(page.map((question) => question.id));
       }
@@ -32,7 +32,7 @@ describe("public quiz adapter", () => {
     const original = globalThis.fetch;
     try {
       globalThis.fetch = Object.assign(async () => Response.json(result(2)), { preconnect: original.preconnect });
-      await expect(gradeDemoQuiz("course", questions.slice(0, 1), "token", {}, 3)).rejects.toThrow();
+      await expect(gradeDemoQuiz("course", questions.slice(0, 1), "token", { "question-0": [0] }, 3)).rejects.toThrow("Invalid result count");
     } finally { globalThis.fetch = original; }
   });
   test("binds stored results to the complete page and revision", () => {

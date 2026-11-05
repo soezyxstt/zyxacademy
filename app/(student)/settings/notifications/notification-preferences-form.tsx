@@ -10,6 +10,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/components/ui/toast";
 import { useTranslations } from "@/lib/i18n/client";
 
+import { useStudentExperience } from "@/components/student-experience-provider";
+
 const INITIAL_ACTION_STATE: NotificationPreferencesActionState = {
   success: false,
   message: "",
@@ -51,9 +53,13 @@ export function NotificationPreferencesForm({
   initialPreferences: EmailNotificationPreferences;
 }) {
   const t = useTranslations("student");
+  const experience = useStudentExperience();
   const shownSubmission = useRef(0);
   const [preferences, setPreferences] = useState(initialPreferences);
-  const [state, formAction, pending] = useActionState(updateNotificationPreferencesAction, INITIAL_ACTION_STATE);
+  const [state, formAction, pending] = useActionState(async (previous: NotificationPreferencesActionState, form: FormData) => {
+    if (experience?.mode === "demo") return { success: true, message: "", submittedAt: Date.now() };
+    return updateNotificationPreferencesAction(previous, form);
+  }, INITIAL_ACTION_STATE);
 
   useEffect(() => {
     if (!state.submittedAt || shownSubmission.current === state.submittedAt) return;

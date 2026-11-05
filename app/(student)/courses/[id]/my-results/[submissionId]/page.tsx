@@ -9,7 +9,7 @@ import { db } from "@/db";
 import { studentQuizAttempts, submissions, exams } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { AttemptReview } from "@/components/course/attempt-review";
-import { ReviewClient } from "./review-client";
+import { StudentSubmissionReviewView } from "@/components/course/student-submission-review-view";
 import { getCourse } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
 import { TranslatedText } from "@/components/i18n/translated-text";
@@ -173,21 +173,5 @@ export default async function SubmissionReviewPage({ params }: Props) {
 
   if (!listItem || !review) notFound();
 
-  return (
-    <CoursePageShell title={<TranslatedText namespace="learning" messageKey="reviewPage.answerTitle" />} description={review.examTitle} hideHeader>
-      <Reveal>
-        <div className="mb-4">
-          <Button
-            asChild
-            variant="outline"
-            className="interactive rounded-md border-border/80 text-muted-foreground hover:text-foreground"
-          >
-            <Link href={`/courses/${id}/my-results`}><TranslatedText namespace="learning" messageKey="reviewPage.backToResults" /></Link>
-          </Button>
-        </div>
-
-        <ReviewClient courseId={id} listItem={listItem} review={review} />
-      </Reveal>
-    </CoursePageShell>
-  );
+  return <StudentSubmissionReviewView courseId={id} backHref={`/courses/${id}/my-results`} listItem={listItem} review={review} />;
 }
