@@ -1,5 +1,7 @@
 "use client";
 
+import { VoucherListSkeleton } from "@/components/admin/content-loading-skeletons";
+
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import {
@@ -312,9 +314,7 @@ export function VoucherManagementTab({
       {error ? (
         <AdminErrorState message={error} onRetry={fetchVouchers} />
       ) : loading ? (
-        <div className="flex items-center justify-center py-12 text-muted-foreground">
-          <Loader2 className="size-6 animate-spin" />
-        </div>
+        <VoucherListSkeleton />
       ) : vouchers.length === 0 ? (
         <AdminEmptyState
           icon={Ticket}

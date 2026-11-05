@@ -1,5 +1,7 @@
 "use client";
 
+import { ReviewDetailSkeleton } from "@/components/admin/content-loading-skeletons";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -326,7 +328,7 @@ function DetailStatus({ status }: { status: string }) {
 
 function DetailLoading() {
   const t = useTranslations("adminAcademic");
-  return <div className="rounded-xl border border-border bg-card p-8 text-center text-body-sm text-muted-foreground">{t("materials.loadingDetail")}</div>;
+  return <ReviewDetailSkeleton label={t("materials.loadingDetail")} />;
 }
 
 // ---------------------------------------------------------------------------

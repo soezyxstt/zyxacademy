@@ -1,5 +1,7 @@
 "use client";
 
+import { FormListSkeleton } from "@/components/admin/content-loading-skeletons";
+
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -1872,9 +1874,7 @@ export default function AdminFormsBuilder({
           </div>
 
           {loadingForms ? (
-            <div className="flex h-40 items-center justify-center rounded-2xl border border-border bg-card">
-              <RefreshCw className="size-6 animate-spin text-muted-foreground" />
-            </div>
+            <FormListSkeleton />
           ) : forms.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-12 text-center">
               <FileText className="size-10 text-muted-foreground/60" />

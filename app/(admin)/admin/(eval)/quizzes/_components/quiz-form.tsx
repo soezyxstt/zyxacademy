@@ -1,5 +1,7 @@
 "use client";
 
+import { QuestionPickerSkeleton } from "@/components/admin/content-loading-skeletons";
+
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -1468,10 +1470,7 @@ export function QuizForm({
 
               {/* Questions List */}
               {loadingQuestions ? (
-                <div className="rounded-xl border border-border bg-card p-8 text-center">
-                  <Loader2 className="mx-auto size-5 animate-spin text-brand-primary" />
-                  <p className="mt-2 text-body-xs text-muted-foreground">{tr("loadingQuestionBank")}</p>
-                </div>
+                <QuestionPickerSkeleton label={tr("loadingQuestionBank")} />
               ) : filteredQuestions.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center">
                   <HelpCircle className="mx-auto size-7 text-muted-foreground mb-1.5" />

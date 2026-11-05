@@ -1,6 +1,7 @@
 "use client";
 
-import { Skeleton } from "@/components/ui/skeleton";
+import { KeysSkeleton } from "@/components/admin/content-loading-skeletons";
+
 
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -84,14 +85,7 @@ export function KeysClient() {
     staleTime: 25_000,
   });
 
-  if (isLoading) {
-    return (
-      <div role="status" aria-label="Memuat" className="max-w-5xl space-y-6">
-        <div className="flex justify-between gap-3"><Skeleton className="h-4 w-48" /><Skeleton className="h-9 w-24" /></div>
-        {[0, 1].map((group) => <div key={group} className="overflow-hidden rounded-xl border border-border bg-card"><div className="flex justify-between border-b border-border bg-muted/50 px-5 py-3"><Skeleton className="h-5 w-40" /><Skeleton className="h-4 w-24" /></div><div className="divide-y divide-border">{[0, 1, 2].map((row) => <div key={row} className="flex gap-4 px-5 py-3"><Skeleton className="h-4 flex-1" /><Skeleton className="h-4 w-16" /><Skeleton className="h-4 w-16" /><Skeleton className="hidden h-4 w-20 sm:block" /></div>)}</div></div>)}
-      </div>
-    );
-  }
+  if (isLoading) return <KeysSkeleton />;
 
   if (error) {
     return (

@@ -1,5 +1,7 @@
 "use client";
 
+import { MediaItemsSkeleton } from "@/components/admin/content-loading-skeletons";
+
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
@@ -473,7 +475,7 @@ export function StorageBrowser() {
       {selectionActions}
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1">{renderBreadcrumb}</div>
+        <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">{renderBreadcrumb}</div>
         {headerActions}
       </div>
 
@@ -510,14 +512,7 @@ export function StorageBrowser() {
 
         <div className="min-w-0 flex-1">
           {loading ? (
-            <div className="space-y-3">
-              <div className="h-8 animate-pulse rounded-lg bg-muted" />
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="h-44 animate-pulse rounded-xl bg-muted" />
-                ))}
-              </div>
-            </div>
+            <MediaItemsSkeleton />
           ) : error ? (
             <div className="border-border rounded-xl border bg-card p-6 shadow-sm">
               <p className="text-body-sm text-status-error">{error}</p>

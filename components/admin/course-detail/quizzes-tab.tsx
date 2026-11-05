@@ -1,5 +1,7 @@
 "use client";
 
+import { QuizPreviewSkeleton } from "@/components/admin/content-loading-skeletons";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -35,7 +37,6 @@ import {
   Edit2,
   Eye,
   BarChart3,
-  Loader2,
   Check,
 } from "lucide-react";
 import { FormattedDate } from "@/components/ui/formatted-date";
@@ -407,10 +408,7 @@ export function QuizzesTab({
 
           <div className="flex-1 overflow-y-auto p-6 space-y-6 text-left">
             {previewLoading ? (
-              <div className="py-12 flex flex-col items-center justify-center gap-3">
-                <Loader2 className="size-8 animate-spin text-brand-primary" />
-                <p className="text-body-sm text-muted-foreground">{t("courseDetail.quizzes.loadingPreview")}</p>
-              </div>
+              <QuizPreviewSkeleton label={t("courseDetail.quizzes.loadingPreview")} />
             ) : previewQuestions.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground text-body-sm">
                 {t("courseDetail.quizzes.noQuestions")}

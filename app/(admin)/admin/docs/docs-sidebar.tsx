@@ -68,7 +68,7 @@ export function DocsSidebar({ children }: { children: ReactNode }) {
   const t = useTranslations("admin.docs");
   const [open, setOpen] = useState(false);
   return (
-    <div className="flex min-w-0 gap-6">
+    <div className="flex min-w-0 max-w-6xl gap-6">
       <div className="min-w-0 flex-1">
         <div className="mb-4 flex justify-end xl:hidden">
           <Sheet open={open} onOpenChange={setOpen}>

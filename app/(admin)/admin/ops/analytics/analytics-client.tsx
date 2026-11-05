@@ -1,6 +1,7 @@
 "use client";
 
-import { Skeleton } from "@/components/ui/skeleton";
+import { AiAnalyticsSkeleton } from "@/components/admin/content-loading-skeletons";
+
 
 import { useEffect, useState, useCallback } from "react";
 import type { AiStats, AiRequestLog } from "@/lib/ai/analytics";
@@ -90,16 +91,7 @@ export function AiAnalyticsClient() {
         : "direct";
 
   // ── Render ──────────────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div role="status" aria-label={t("analyticsUI.loading")} className="space-y-5">
-        <div className="flex justify-between gap-3"><Skeleton className="h-8 w-48" /><Skeleton className="h-8 w-24" /></div>
-        <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-4">{[0, 1, 2, 3].map((i) => <div key={i} className="space-y-2 border-border p-4"><Skeleton className="h-4 w-24" /><Skeleton className="h-6 w-16" /></div>)}</div>
-        <div className="grid gap-4 sm:grid-cols-2">{[0, 1].map((i) => <div key={i} className="space-y-3 rounded-xl border border-border bg-card p-4"><Skeleton className="h-5 w-40" />{[0, 1, 2].map((row) => <Skeleton key={row} className="h-4 w-full" />)}</div>)}</div>
-        <Skeleton className="h-48 w-full rounded-xl" />
-      </div>
-    );
-  }
+  if (loading) return <AiAnalyticsSkeleton label={t("analyticsUI.loading")} />;
 
   if (error) {
     return (
