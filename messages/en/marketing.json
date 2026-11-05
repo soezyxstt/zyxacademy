@@ -1,4 +1,10 @@
 {
+  "discounts": {
+    "unavailable": "Pricing is unavailable. Try again.",
+    "platform": "Platform",
+    "tutorial": "Tutorial",
+    "schedule": "{component}: {percent}% off, {start} through {end} WIB."
+  },
   "nav": {
     "plans": "Plans",
     "about": "About us",

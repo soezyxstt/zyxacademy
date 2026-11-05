@@ -1,4 +1,10 @@
 {
+  "discounts": {
+    "unavailable": "Harga belum tersedia. Coba lagi.",
+    "platform": "Platform",
+    "tutorial": "Tutorial",
+    "schedule": "{component}: {percent}% off, {start} sampai {end} WIB."
+  },
   "nav": {
     "plans": "Paket",
     "about": "Tentang kami",

@@ -4,9 +4,25 @@ import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { discountVouchers } from "@/db/schema";
+import { discountVouchers, pricingSettings } from "@/db/schema";
+import { pricingDiscountsSchema, type PricingDiscounts } from "@/lib/pricing-discounts";
+
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { calendarDateToJakartaInstant, isCalendarDate, normalizeDate } from "@/lib/date-utils";
+
+export async function savePricingDiscounts(input: PricingDiscounts): Promise<ActionResult<PricingDiscounts>> {
+  try {
+    await assertAdmin();
+    const parsed = pricingDiscountsSchema.safeParse(input);
+    if (!parsed.success) return { success: false, error: "Periksa persentase 0 sampai 100 dan urutan tanggal diskon." };
+    await db.insert(pricingSettings).values({ id: "default", discounts: parsed.data })
+      .onConflictDoUpdate({ target: pricingSettings.id, set: { discounts: parsed.data, updatedAt: new Date() } });
+    revalidatePath("/admin/pricing");
+    return { success: true, data: parsed.data };
+  } catch {
+    return { success: false, error: "Gagal menyimpan diskon. Coba lagi." };
+  }
+}
 
 export type DiscountVoucherItem = {
   id: string;

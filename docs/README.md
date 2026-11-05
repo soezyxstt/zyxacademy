@@ -29,6 +29,8 @@ The `ACTIVE` feature catalog records the mobile Article selection action and sav
 
 ---
 
+The `ACTIVE` feature catalog and schema reference document permanent admin-managed platform and tutorial discount schedules, shared public pricing, and the singleton `pricing_settings` table. Local verification does not establish a deployed migration or production pricing change.
+
 ## 1. Documentation Taxonomy & Hierarchy
 
 The documentation is organized into clear functional layers:

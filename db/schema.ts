@@ -13,6 +13,13 @@ import {
  uniqueIndex,
   primaryKey,
 } from "drizzle-orm/pg-core";
+import type { PricingDiscounts } from "@/lib/pricing-discounts";
+
+export const pricingSettings = pgTable("pricing_settings", {
+ id: text("id").primaryKey(),
+ discounts: jsonb("discounts").$type<PricingDiscounts>().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [check("pricing_settings_singleton", sql`${table.id} = 'default'`)]);
 
 // Enums
 /** Admin drive ; folder tree + file pointers to UploadThing. */

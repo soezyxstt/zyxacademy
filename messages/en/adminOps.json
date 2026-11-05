@@ -1,4 +1,18 @@
 {
+  "discountSettings": {
+    "title": "Discounts",
+    "scheduleHelp": "Dates use WIB and include the end date. Set 0% to disable a discount.",
+    "platform": "Platform fee",
+    "tutorial": "Tutorial session fee",
+    "percent": "Discount (%)",
+    "startsOn": "Starts",
+    "endsOn": "Ends",
+    "save": "Save discounts",
+    "saving": "Saving...",
+    "invalid": "Check percentages from 0 to 100 and the discount date order.",
+    "saved": "Discounts saved and applied across the site.",
+    "failed": "Could not save discounts. Try again."
+  },
   "groups": {
     "title": "Study groups",
     "description": "Manage study groups, semester session allowances, and student members."
