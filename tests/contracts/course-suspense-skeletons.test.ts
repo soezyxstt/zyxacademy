@@ -80,12 +80,22 @@ describe("student course Suspense boundary and tailored skeleton contracts", () 
 
     for (const { path, skeleton } of pageContracts) {
       const src = readSource(path);
-      expect(src).toContain("<CoursePageShell");
+      const sharedViews: Record<string, [string, string]> = {
+        "app/(student)/courses/[id]/page.tsx": ["StudentCourseOverviewView", "student-course-overview-view"],
+        "app/(student)/courses/[id]/material/page.tsx": ["StudentDocumentsView", "student-documents-view"],
+        "app/(student)/courses/[id]/quiz/page.tsx": ["StudentQuizListView", "student-quiz-list-view"],
+        "app/(student)/courses/[id]/tryout/page.tsx": ["StudentTryoutsView", "student-tryouts-view"],
+        "app/(student)/courses/[id]/flashcard/page.tsx": ["StudentFlashcardsView", "student-flashcards-view"],
+      };
+      const shared = sharedViews[path];
+      if (shared) expect(readSource(`components/course/${shared[1]}.tsx`)).toContain("<CoursePageShell");
+      const shellTag = shared ? `<${shared[0]}` : "<CoursePageShell";
+      expect(src).toContain(shellTag);
       expect(src).toContain("<Suspense");
       expect(src).toContain(skeleton);
 
       // Ensure CoursePageShell opens before the Suspense boundary in the page JSX
-      const shellIndex = src.indexOf("<CoursePageShell");
+      const shellIndex = src.indexOf(shellTag);
       const suspenseIndex = src.lastIndexOf("<Suspense");
       expect(shellIndex).toBeGreaterThan(-1);
       expect(suspenseIndex).toBeGreaterThan(shellIndex);

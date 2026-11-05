@@ -110,6 +110,7 @@ test("four-question student quiz grades the signed three-question and one-questi
  await expect(page.getByText("Soal yang Anda Kerjakan", { exact: true })).toBeVisible();
  expect(requests.at(-2)?.quizOffset).toBe(0); expect(requests.at(-2)?.questionIds).toHaveLength(3);
  expect(requests.at(-1)?.quizOffset).toBe(3); expect(requests.at(-1)?.questionIds).toHaveLength(1);
+ await expect(page.getByText(/Gagal mengumpulkan kuis/).first()).not.toBeVisible();
  await capture(page, info, "quiz-reviewed");
  await page.getByRole("link", { name: "Lihat Diagnosis & Rencana Belajar", exact: true }).click();
  await expect(page).toHaveURL(/\/demo\/quiz-summary/);
@@ -215,7 +216,8 @@ test("student catalogue selects four courses with isolated local progress", asyn
  for (const item of courses) {
    await visit(page, "courses");
    await page.locator("#main-content").getByRole("link", { name: new RegExp(item.title, "i") }).first().click();
-   await expect(page).toHaveURL(new RegExp(`course=${item.id}`)); await capture(page, info, `selected-${item.id}`);
+   await expect(page).toHaveURL(new RegExp(`/demo/overview\\?course=${item.id}`));
+   await expect(page.locator("#main-content").getByText("Silabus kelas", { exact: true })).toBeVisible(); await capture(page, info, `selected-${item.id}`);
  }
  await page.goto(withCourse("/id/demo/article", courses[0].id), { waitUntil: "networkidle" });
  await page.getByRole("button", { name: "Kembali ke daftar materi", exact: true }).click();
