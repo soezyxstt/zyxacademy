@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { ApplicationPage } from "@/components/application-page";
+import { PageHeader } from "@/components/page-header";
 import { CourseFlashcardSkeleton, CourseMaterialListSkeleton, CourseMasteryContentSkeleton, CourseOverviewContentSkeleton, CourseProgressContentSkeleton, CourseQuizListSkeleton, CourseTryoutListSkeleton, MaterialReaderContentSkeleton } from "@/components/course/course-skeletons";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -14,7 +15,13 @@ function DashboardSkeleton() {
 }
 
 export function DemoTodayPlanSkeleton() {
-  return <section className="space-y-3" data-testid="demo-today-plan-skeleton" aria-busy="true"><Skeleton className="h-7 w-48" /><Skeleton className="h-5 w-40" />{[0, 1, 2].map(i => <Skeleton key={i} className="h-12 w-full" />)}</section>;
+  return <div className="mb-4 sm:mb-6" data-testid="demo-today-plan-skeleton" aria-busy="true">
+    <PageHeader title={<Skeleton className="h-7 w-40" />} actions={<Skeleton className="hidden h-7 w-20 sm:block" />} />
+    <section className="mt-4 sm:mt-6">
+      <div className="mb-3 flex items-center justify-between gap-2 border-b border-border/50 pb-2.5"><Skeleton className="h-5 w-40" /><Skeleton className="h-5 w-20" /></div>
+      <div className="divide-y divide-border/30">{[0, 1, 2].map(i => <div key={i} className="flex items-center gap-2 py-3 sm:gap-3"><Skeleton className="size-8 shrink-0" /><Skeleton className="size-8 shrink-0" /><Skeleton className="h-4 w-40 max-w-[40%]" /><Skeleton className="ml-auto h-8 w-9 shrink-0" /></div>)}</div>
+    </section>
+  </div>;
 }
 
 export function DemoMasterySkeleton() {
