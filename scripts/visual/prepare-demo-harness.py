@@ -42,6 +42,8 @@ for fixture, destination in [
     ('mastery-repository.ts', 'lib/demo/mastery-repository.ts'),
 ]:
     shutil.copy2(root / 'tests/visual/demo-harness' / fixture, target / destination)
+# The production sitemap reads the database, which this isolated harness never has.
+(target / 'app/sitemap.ts').write_text('export default function sitemap() { return []; }\n', encoding='utf-8')
 # Keep Tailwind's source scan inside the credential-free copy.
 (target / 'postcss.config.mjs').write_text('export default { plugins: { "@tailwindcss/postcss": { base: import.meta.dirname } } };\n')
 css = target / 'app/globals.css'
