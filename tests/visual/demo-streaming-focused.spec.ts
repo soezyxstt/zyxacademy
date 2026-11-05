@@ -82,6 +82,9 @@ for (const [view, skeleton] of [
     await expect(loading).toBeVisible({ timeout: 60000 });
     await capture(page, info, `${view}-loading`, loading);
     await expect(loading).toBeHidden({ timeout: 90000 });
-    await capture(page, info, `${view}-ready`, page.locator("#main-content > div"));
+    const ready = view === "flashcards"
+      ? page.getByText("Pertanyaan kartu 1?", { exact: true })
+      : page.locator("#main-content > div");
+    await capture(page, info, `${view}-ready`, ready);
   });
 }

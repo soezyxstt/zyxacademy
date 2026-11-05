@@ -63,7 +63,7 @@ jobs:
   demo-visual:
     if: github.event_name == 'workflow_dispatch' && inputs.demo_visual
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -80,7 +80,8 @@ jobs:
         run: |
           python3 scripts/visual/prepare-demo-harness.py
           cd artifacts/visual-quality/demo-harness
-          env -i PATH="$PATH" HOME="$HOME" DEMO_VISUAL_DELAY_MS=6000 SKIP_ENV_VALIDATION=1 DATABASE_URL=postgresql://localhost:1/fixture BETTER_AUTH_SECRET=fixture-only-secret-not-used-for-auth NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000 bun run dev -- --hostname 127.0.0.1 > /tmp/demo-visual-server.log 2>&1 &
+          env -i PATH="$PATH" HOME="$HOME" NODE_OPTIONS=--max-old-space-size=4096 NEXT_TELEMETRY_DISABLED=1 SKIP_ENV_VALIDATION=1 DATABASE_URL=postgresql://localhost:1/fixture BETTER_AUTH_SECRET=fixture-only-secret-not-used-for-auth NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000 node node_modules/next/dist/bin/next build
+          env -i PATH="$PATH" HOME="$HOME" NODE_OPTIONS=--max-old-space-size=4096 NEXT_TELEMETRY_DISABLED=1 DEMO_VISUAL_DELAY_MS=6000 SKIP_ENV_VALIDATION=1 DATABASE_URL=postgresql://localhost:1/fixture BETTER_AUTH_SECRET=fixture-only-secret-not-used-for-auth NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000 bun run start -- --hostname 127.0.0.1 > /tmp/demo-visual-server.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           cd ../../..
