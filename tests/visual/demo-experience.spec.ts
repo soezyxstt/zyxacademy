@@ -296,7 +296,7 @@ test("Diktat summary and completion use fictional account state", async ({ page 
  await expect(page.getByRole("dialog")).toBeVisible(); await capture(page, info, "diktat-summary");
  await page.keyboard.press("Escape");
  await page.getByRole("button", { name: "Tandai selesai", exact: true }).click();
- await expect(page.getByRole("button", { name: "Selesai", exact: true })).toBeDisabled();
+ await expect(page.getByRole("button", { name: "Selesai", exact: true }).first()).toBeDisabled();
  await capture(page, info, "diktat-completed");
  await visit(page, "documents"); await capture(page, info, "diktat-list-completed");
  expect(failures).toEqual([]);

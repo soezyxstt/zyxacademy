@@ -1482,6 +1482,7 @@ toast.success(t("reader.markedComplete"));
                   variant="outline"
                   size="sm"
                   onClick={markDone}
+                  aria-label={done ? t("reader.complete") : t("reader.markComplete")}
                   disabled={done}
                   className="interactive gap-1.5 text-body-xs font-semibold"
                 >
@@ -1691,6 +1692,7 @@ toast.success(t("reader.markedComplete"));
                 variant="outline"
                 size="sm"
                 onClick={markDone}
+                aria-label={done ? t("reader.complete") : t("reader.markComplete")}
                 disabled={done}
                 className="h-7 text-body-sm font-semibold flex items-center gap-1.5 rounded-md interactive"
               >

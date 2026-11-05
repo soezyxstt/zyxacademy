@@ -5,7 +5,7 @@ export type DemoQuizHistoryRow = { id: string; templateId: string; status: "comp
 export function fictionalQuizHistory(snapshot: PublicDemoSnapshot): DemoQuizHistoryRow[] {
  const templateId = snapshot.availableAssessments.find(item => item.type === "quiz")?.id;
  if (!templateId) return [];
- return snapshot.history.filter(day => day.quizzesCompleted > 0).map((day, index) => ({ id: `fictional-result-${day.date}`, templateId, status: "completed" as const, score: 72 + (index % 3) * 8, submittedAt: new Date(`${day.date}T12:00:00Z`), durationSeconds: 240 + index * 30 })).sort((a,b) => b.submittedAt.getTime() - a.submittedAt.getTime());
+ return snapshot.history.filter(day => day.quizzesCompleted > 0).map((day, index) => ({ id: `fictional-result-${day.date}`, templateId, status: "completed" as const, score: 75, submittedAt: new Date(`${day.date}T12:00:00Z`), durationSeconds: 240 + index * 30 })).sort((a,b) => b.submittedAt.getTime() - a.submittedAt.getTime());
 }
 export function localQuizHistory(snapshot: PublicDemoSnapshot, overlay: DemoOverlay, read: (key: string) => string | null): DemoQuizHistoryRow[] {
  const templateId = snapshot.availableAssessments.find(item => item.type === "quiz")?.id;

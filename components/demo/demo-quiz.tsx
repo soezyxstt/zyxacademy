@@ -13,7 +13,15 @@ import { useTranslations } from "@/lib/i18n/client";
 import { useDemoSession } from "./demo-session";
 import { useStudentExperience } from "@/components/student-experience-provider";
 
-/** Uses only the server-provided, redacted question set. */
+// Fictional historical attempts never invent answers for real course questions.
+const historicalQuestions: DemoQuizQuestion[] = [
+ { id: "fictional-history-plan", prompt: "Apa langkah awal saat menyiapkan ujian?", options: ["Membuat rencana belajar", "Menghindari latihan"], multiple: false },
+ { id: "fictional-history-recall", prompt: "Bagaimana cara melatih ingatan konsep?", options: ["Mengingat kembali tanpa melihat catatan", "Hanya menyalin catatan"], multiple: false },
+ { id: "fictional-history-review", prompt: "Apa yang membantu setelah salah menjawab?", options: ["Meninjau alasan kesalahan", "Melewati pembahasan"], multiple: false },
+ { id: "fictional-history-practice", prompt: "Apa yang membantu memahami penerapan konsep?", options: ["Mengerjakan contoh dan memeriksa langkahnya", "Menghafal jawaban saja"], multiple: false },
+];
+
+/** Uses only the server-provided, redacted question set for new attempts. */
 export function DemoQuiz({ pages, courseId, view = "quiz" }: {
   view?: "quiz" | "quiz-review" | "quiz-summary";
   pages: DemoQuizPage[];
@@ -69,7 +77,7 @@ export function DemoQuiz({ pages, courseId, view = "quiz" }: {
   if (!ready || !revision || experience.mode !== "demo" || experience.selectedCourseId !== courseId || (loaded?.identity !== identity || loaded.key !== resultKey || loaded.generation !== generation)) return null;
   if (view === "quiz-summary") {
     const result = loaded.result;
-    const total = result?.total ?? questions.length, correct = result?.score ?? Math.min(3, total);
+    const total = result?.total ?? historicalQuestions.length, correct = result?.score ?? 3;
     const title = experience.baseline.find(row => row.courseId === courseId)?.availableAssessments[0]?.title ?? "Kuis";
     const id = attempt ?? "latest";
     return <StudentQuizSummaryView title={title} reviewHref={`${experience.route("quiz-review")}&attempt=${encodeURIComponent(id)}`} historyHref={experience.route("results")} retryHref={experience.route("quiz-start")} pending={false}>
@@ -81,8 +89,8 @@ export function DemoQuiz({ pages, courseId, view = "quiz" }: {
     </StudentQuizSummaryView>;
   }
   if (view === "quiz-review" && !loaded.result) {
-    const baselineResult: DemoQuizResult = { score: questions.length - 1, total: questions.length, results: questions.map((_, index) => ({ index, isCorrect: index > 0, explanation: null })) };
-    return <DemoQuizResults result={baselineResult} questions={questions} answers={Object.fromEntries(questions.map(question => [question.id, [0]]))} courseId={courseId} />;
+    const baselineResult: DemoQuizResult = { score: 3, total: historicalQuestions.length, results: historicalQuestions.map((_, index) => ({ index, isCorrect: index > 0, correctIndices: [0], explanation: null })) };
+    return <DemoQuizResults result={baselineResult} questions={historicalQuestions} answers={Object.fromEntries(historicalQuestions.map((question, index) => [question.id, [index === 0 ? 1 : 0]]))} courseId={courseId} />;
   }
   if (loaded.result) return <DemoQuizResults result={loaded.result} questions={questions} answers={loaded.answers} courseId={courseId} />;
   return <QuizPlayer key={`${questionKey}:${generation}`} courseId={courseId} exam={exam} attemptId={`demo:${questionKey}:${generation}`} transport={transport} />;
