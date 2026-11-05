@@ -1,3 +1,4 @@
+import { configuredModelChain } from "@/lib/ai/model-settings-store";
 import { createHash, randomUUID } from "node:crypto";
 import { UsageBudgetService, type AllowanceReserveResult } from "@/lib/usage-budget-service";
 import {
@@ -82,6 +83,7 @@ export type RequestLifecycleDependencies = {
     readonly cacheTtlSeconds?: number;
   }) => Promise<ProviderGenerationResult>;
   readonly requestIdFactory?: () => string;
+  readonly resolveModelChain?: typeof configuredModelChain;
 };
 
 function hashUserCohort(userId: string): string {
@@ -234,11 +236,13 @@ export class RequestLifecycle {
   private readonly allowance: NonNullable<RequestLifecycleDependencies["allowance"]>;
   private readonly controlPlane: ControlPlaneClient;
   private readonly requestIdFactory: () => string;
+  private readonly resolveModelChain: typeof configuredModelChain;
 
   constructor(private readonly dependencies: RequestLifecycleDependencies) {
     this.allowance = dependencies.allowance ?? UsageBudgetService;
     this.controlPlane = dependencies.controlPlane ?? new ControlPlaneClient();
     this.requestIdFactory = dependencies.requestIdFactory ?? randomUUID;
+    this.resolveModelChain = dependencies.resolveModelChain ?? configuredModelChain;
   }
 
   execute(input: RequestLifecycleInput): Promise<RequestLifecycleResult> {
@@ -275,15 +279,31 @@ export class RequestLifecycle {
     }
 
     const requestId = input.idempotencyKey?.trim() || this.requestIdFactory();
-    const requestedRoute = getProviderRoutePlan({ ...input.route, useCase: input.route?.useCase ?? input.useCase });
     const hasImage = input.parts.some((part) => part.type === "image");
+    const isVisual = Boolean(hasImage || input.route?.visualMode || input.route?.multimodal);
+    const defaultRoute = getProviderRoutePlan({
+      ...input.route,
+      useCase: input.route?.useCase ?? input.useCase,
+      ...(hasImage ? { multimodal: true, visualMode: true } : {}),
+    });
+    const resolvedModels = await this.resolveModelChain(
+      {
+        feature: input.feature,
+        useCase: input.route?.useCase ?? input.useCase,
+        visual: isVisual,
+      },
+      defaultRoute.models,
+    );
     const route = hasImage
       ? {
-          ...requestedRoute,
-          models: requestedRoute.models.filter((model) => getModelEntry(model).input.image),
+          ...defaultRoute,
+          models: resolvedModels.filter((model) => getModelEntry(model).input.image),
           premium: true,
         }
-      : requestedRoute;
+      : {
+          ...defaultRoute,
+          models: resolvedModels,
+        };
     if (route.models.length === 0) {
       throw new RequestLifecycleError("PROVIDER_CAPACITY_UNAVAILABLE", "no multimodal model is available");
     }

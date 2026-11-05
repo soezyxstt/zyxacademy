@@ -51,6 +51,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Accesses Tutor Quiz Attempt Spreadsheet portal (`/tutor/[courseId]/quizzes/[templateId]/attempts`) for detailed student answer inspection and CSV exports
 - Monitors real-time tutor mutations, rejections, and failures with cursor pagination, stats aggregation, and sanitized snapshot inspection (`/admin/ops/tutor-activity`)
 - Monitors real-time statuses for the approved optional feature flags (`/admin/ops/flags`) with status badges, category filters, and env key helpers
+- Configures live AI primary and two fallback models per feature (`/admin/ops/models`) across Zyra, Python Playground, Ops AI, and background learning or generation tasks, with optimistic concurrency checks, per-feature capability validation, and instant reset to built-in defaults
 - Manages course-scoped leaderboard (`/admin/courses/[slug]/leaderboard`) for per-student ranking within a single course, with backward compatibility redirects from `/admin/leaderboard`
 - Operates inside unified course workspaces (`/admin/courses/[slug]`) with contextual navigation across Bab, Dokumen, Kuis, Soal, Flashcard, Hasil, Papan Peringkat, Analitik, Review Materi, and Pengaturan
 
@@ -618,6 +619,8 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
 
 - The admin-only privacy-safe operations dashboard is always-on and guarded by admin authorization. It separates Zyx-recorded usage from configured limits and marks external provider usage unknown when no authoritative balance exists.
 - Metrics use the Asia/Jakarta day boundary and expose deduplicated quota, provider, cache, image, assessment, telemetry, and proposal alerts. Each alert carries a rollback flag and a versioned runbook reference; no raw learner or provider payload is shown.
+- `/admin/ops/models` lets admins assign one primary and two distinct fallback models per AI feature (`ai_model_settings`) without redeploying. Features without a custom row preserve their exact built-in runtime chains. `admin-ops-ai` restricts selectable models to the `generate-content` family required for native streaming tool calls, while multimodal turns retain image-capable fallback safety (`gemini-3.6-flash` and `gemini-2.5-flash`).
+- `/admin/ops/analytics` polls gateway and token usage through deduplicated foreground React Query queries, enforces canonical tutor/admin authorization, orders cross-course user usage alphabetically without truncating totals, and paginates recent gateway logs and user usage tables.
 
 ### Student Feature Usage Monitor
 

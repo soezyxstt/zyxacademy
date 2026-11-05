@@ -1838,3 +1838,9 @@ The code defines `id` text primary key, `course_id` text unique not null with ca
 ## Pricing settings
 
 `pricing_settings` stores a single `default` row with `discounts` JSONB and `updated_at`. JSON contains independent `platform` and `tutorial` schedules: integer `percent` from 0 to 100, `startsOn`, and inclusive `endsOn` calendar dates in WIB. Admin writes validate the complete payload before an atomic upsert. A database check restricts the singleton key. A missing row uses the expired original campaign; database read failures do not silently substitute defaults.
+
+## AI model settings
+
+Status: `ACTIVE`
+
+`ai_model_settings` is defined in `db/schema.ts` with generated PostgreSQL migration `drizzle-postgres/0006_large_rocket_racer.sql`. Columns: `feature` text primary key matching a registered `ModelFeature` identifier; JSONB `models` storing an ordered three-element array of distinct ordinary-routing `ModelId` values (`[primary, fallback1, fallback2]`); non-null `updated_by` text recording the saving admin identifier; `updated_at` non-null timestamp with time zone. Absence of a row preserves the exact built-in runtime default chain for that feature. The generated migration is pending on external environments and is applied only with explicit target authorization via `bun run db:migrate`.

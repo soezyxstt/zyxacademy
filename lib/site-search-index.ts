@@ -405,6 +405,14 @@ export const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
     content: "Pengaturan sakelar fitur eksperimental dan rollout pengguna",
   },
   {
+    title: "Model AI",
+    subtitle: "Admin",
+    href: "/admin/ops/models",
+    group: "Halaman",
+    keywords: "model ai gemini gemma fallback zyra playground ops ai prioritas konfigurasi",
+    content: "Pengaturan model utama dan model cadangan AI per fitur operasional dan pembelajaran",
+  },
+  {
     title: "Analitik AI Zyra",
     subtitle: "Admin",
     href: "/admin/ops/analytics",
