@@ -44,3 +44,32 @@ test("student document and flashcard adapters cover both eligible sets without t
  expect(await collectDemoProducts(badCursor, getDemoExperience)).toBeNull();
  expect(await collectDemoFlashcards(first, products!, async () => foreign)).toBeNull();
 });
+
+test("collects metadata after 500 items and cards after 100 without accepting invalid cursors", async () => {
+ const first = structuredClone((await getDemoExperience(courseId))!);
+ const setId = first.content.selected.flashcardSetId!;
+ first.content.collections.articles = Array.from({ length: 500 }, (_, i) => ({ id: `article-${i}`, title: `Article ${i}` }));
+ first.content.collections.diktats = [];
+ first.content.collections.flashcardSets = [{ id: setId, title: "Set" }];
+ first.content.collections.page = { offset: 0, pageSize: 500, hasMore: true, nextOffset: 500 };
+ const next = structuredClone(first);
+ next.content.collections.articles = [{ id: "article-500", title: "Article 500" }];
+ next.content.collections.flashcardSets = [];
+ next.content.collections.page = { offset: 500, pageSize: 500, hasMore: false, nextOffset: null };
+ const products = await collectDemoProducts(first, async () => next);
+ expect(products?.articles).toHaveLength(501);
+ expect(products?.articles[500].collectionOffset).toBe(500);
+ const loadCards = async (_id: string, selection: { flashcardOffset?: number }) => {
+   const page = structuredClone(first);
+   const offset = selection.flashcardOffset ?? 0;
+   page.content.collections.flashcards = { offset, pageSize: 100, nextOffset: offset === 0 ? 100 : null };
+   page.content.flashcards = Array.from({ length: offset === 0 ? 100 : 1 }, (_, i) => ({ front: `Front ${offset + i}`, back: "Back", explanation: null }));
+   return page;
+ };
+ expect(await collectDemoFlashcards(first, products!, loadCards)).toHaveLength(101);
+ expect(await collectDemoFlashcards(first, products!, async (id, selection) => {
+   const page = await loadCards(id, selection);
+   page.content.collections.flashcards.nextOffset = 99;
+   return page;
+ })).toBeNull();
+});

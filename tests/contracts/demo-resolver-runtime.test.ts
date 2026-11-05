@@ -77,6 +77,26 @@ test("initial public payload redacts answers and grading enforces the issued sco
   expect(await fixture.testDb.select().from(s.studentQuizAttempts)).toHaveLength(0);
 });
 
+test("metadata and cards cross their page boundaries without admitting later or unpublished content", async () => {
+  const db = fixture.testDb;
+  const common = { mataKuliahId: "course", creatorId: "author", sourceHash: "fixture", generationHash: "fixture", status: "published" as const };
+  await db.insert(s.artikel).values(Array.from({ length: 500 }, (_, i) => ({ ...common, id: `z-article-${String(i).padStart(3, "0")}`, babId: "chapter-1", slug: `z-article-${i}`, title: `Article ${i}`, structureStatus: "structured" as const, contentMarkdown: "" })));
+  await db.insert(s.artikel).values({ ...common, id: "z-later", babId: "chapter-2", slug: "z-later", title: "Later", structureStatus: "structured", contentMarkdown: "" });
+  await db.insert(s.artikel).values({ ...common, status: "draft", id: "z-draft", babId: "chapter-1", slug: "z-draft", title: "Draft", structureStatus: "structured", contentMarkdown: "" });
+  await db.insert(s.flashcard).values(Array.from({ length: 100 }, (_, i) => ({ id: `z-card-${String(i).padStart(3, "0")}`, setFlashcardId: "set-1", front: `Front ${i}`, back: `Back ${i}`, status: "published" as const, generationHash: "fixture" })));
+  const first = await resolvePublicFreeFirstChapter("course");
+  const second = await resolvePublicFreeFirstChapter("course", { collectionOffset: 500, flashcardOffset: 100 });
+  expect(first?.collections.articles).toHaveLength(500);
+  expect(first?.collections.page.nextOffset).toBe(500);
+  expect(first?.flashcards).toHaveLength(100);
+  expect(first?.collections.flashcards.nextOffset).toBe(100);
+  expect(second?.collections.articles.map(item => item.id)).toEqual(["z-article-499"]);
+  expect(second?.collections.page.nextOffset).toBeNull();
+  expect(second?.flashcards).toHaveLength(1);
+  expect(second?.collections.flashcards.nextOffset).toBeNull();
+  expect(JSON.stringify([first, second])).not.toMatch(/z-later|z-draft/);
+});
+
 test("unavailable real quiz uses only authored fictional questions, never a paid question", async () => {
   await fixture.testDb.update(s.quizTemplates).set({ visibility: "paid" }).where(eq(s.quizTemplates.id, "quiz"));
   const result = await resolvePublicFreeFirstChapter("course");
