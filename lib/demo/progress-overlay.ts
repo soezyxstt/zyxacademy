@@ -1,5 +1,6 @@
 import type { PublicDemoSnapshot } from "@/lib/demo/snapshot";
 import type { DemoOverlay } from "@/lib/demo/session-overlay";
+import { addCalendarDays, getCalendarWeekRange } from "@/lib/date-utils";
 
 /** Combine distinct session actions with a synthetic, immutable course baseline. */
 export function demoProgress(snapshot: PublicDemoSnapshot, overlay: DemoOverlay) {
@@ -18,4 +19,10 @@ export function demoProgress(snapshot: PublicDemoSnapshot, overlay: DemoOverlay)
     dueCount: Math.max(0, snapshot.flashcards.dueCount - reviews),
     history: [...history.values()].sort((a, b) => b.date.localeCompare(a.date)),
   };
+}
+
+export function demoWeeklyActivity(snapshot: PublicDemoSnapshot, overlay: DemoOverlay, today: string): boolean[] {
+  const start = getCalendarWeekRange(today).startIso;
+  const active = new Set(demoProgress(snapshot, overlay).history.filter(day => day.materialsCompleted > 0 || day.flashcardsReviewed > 0 || day.quizzesCompleted > 0).map(day => day.date));
+  return Array.from({ length: 7 }, (_, index) => active.has(addCalendarDays(start, index)));
 }

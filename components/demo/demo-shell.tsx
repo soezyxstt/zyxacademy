@@ -1,11 +1,13 @@
 "use client";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { StudentApplicationShell } from "@/components/student-application-shell";
 import { MobileNavTitle } from "@/components/mobile-nav-title";
 import { StudentExperienceProvider } from "@/components/student-experience-provider";
 import { useAppLocale } from "@/lib/i18n/client";
 import { demoRoute, demoStudentHref, demoStudentPath, type DemoRouteView } from "@/lib/demo/routes";
 import { overlayKey } from "@/lib/demo/session-overlay";
+import { demoWeeklyActivity } from "@/lib/demo/progress-overlay";
+import { formatIsoDate } from "@/lib/date-utils";
 import type { DemoExperience, DemoProductSelection } from "@/app/(marketing)/demo/demo-data";
 import { demoSelectionHref } from "@/lib/demo/selection";
 import { DemoSession, useDemoSession } from "./demo-session";
@@ -18,6 +20,8 @@ export function DemoShell({ experiences, selected, activeView, children, selecti
 function Shell({ experiences, selected, activeView, children, selection = {}, showLive }: { experiences: DemoSummary[]; selected: DemoSummary; activeView: DemoView; children: ReactNode; selection?: DemoProductSelection; showLive: boolean }) {
   const { locale } = useAppLocale();
   const { reset, record, generation, ready, overlay } = useDemoSession();
+  const [today, setToday] = useState(selected.snapshot.asOf);
+  useEffect(() => setToday(formatIsoDate(new Date())), []);
   const route = (view: string, courseId = selected.snapshot.courseId) => {
     const base = demoRoute(locale, view as DemoRouteView, courseId);
     return courseId === selected.snapshot.courseId ? demoSelectionHref(base, selection) : base;
@@ -28,7 +32,7 @@ function Shell({ experiences, selected, activeView, children, selection = {}, sh
     mode: "demo", route, href, pathname: demoStudentPath(activeView, selected.snapshot.courseId),
     account: { name: selected.snapshot.displayName, email: "pelajar@example.test" },
     courses: experiences.map(item => item.content.course),
-    streak: { current: selected.snapshot.streakDays, weeklyActivity: [false, false, false, false, true, true, true] },
+    streak: { current: selected.snapshot.streakDays, weeklyActivity: demoWeeklyActivity(selected.snapshot, overlay, today) },
     courseHref: id => route("overview", id), baseline: experiences.map(item => item.snapshot),
     selectedCourseId: selected.snapshot.courseId, overlay, ready, record, reset,
   }}><StudentApplicationShell showLive={showLive}><div key={generation}>{!["dashboard", "courses", "groups", "leaderboard", "profile", "profile-edit", "reflections", "settings", "notifications", "feedback", "schedule"].includes(activeView) && <MobileNavTitle title={selected.content.course.title} />}{children}</div></StudentApplicationShell></StudentExperienceProvider>;
