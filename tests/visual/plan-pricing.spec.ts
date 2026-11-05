@@ -2,6 +2,13 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 test.setTimeout(90_000);
 
+test.beforeEach(async ({ page }) => {
+  await page.route("**/api/pricing", (route) => route.fulfill({ json: {
+    platform: { percent: 40, startsOn: "2026-09-12", endsOn: "2026-10-31" },
+    tutorial: { percent: 40, startsOn: "2026-09-12", endsOn: "2026-10-31" },
+  } }));
+});
+
 async function capture(page: Page, info: TestInfo, name: string) {
   await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
   await page.evaluate(async () => { await document.fonts.ready; });
@@ -32,9 +39,12 @@ for (const [name, route] of [
     page.on("response", (response) => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
     await page.clock.install({ time: new Date("2026-10-31T23:59:50+07:00") });
     await page.clock.pauseAt(new Date("2026-10-31T23:59:50+07:00"));
+    const pricingResponse = page.waitForResponse("**/api/pricing");
     const response = await page.goto(route, { waitUntil: "domcontentloaded" });
+    await pricingResponse;
     expect(response?.status()).toBe(200);
     expect(new URL(page.url()).pathname).toBe(new URL(route, "http://local").pathname);
+    await page.clock.runFor(1000);
     const prices = page.locator("[data-plan-price]");
     await expect(prices).toHaveCount(3, { timeout: 15_000 });
     await page.emulateMedia({ reducedMotion: "reduce" });
@@ -43,7 +53,7 @@ for (const [name, route] of [
     await expect(page.getByText("40% off", { exact: true })).toHaveCount(3);
     await expect(prices.first()).toContainText(
       name === "onboarding"
-        ? "Total Rp 1.000.000"
+        ? "Total Rp 1.170.000"
         : name === "plans"
           ? "Total Rp 1.170.000"
           : name === "landing"
@@ -52,7 +62,7 @@ for (const [name, route] of [
     );
     await expect(prices.first().locator("s")).toHaveText(
       name === "onboarding"
-        ? "Rp 333.333"
+        ? "Rp 650.000"
         : name === "plans"
           ? "Rp 650.000"
           : name === "landing"
@@ -72,7 +82,7 @@ for (const [name, route] of [
     await expect(page.getByText("40% off", { exact: true })).toHaveCount(0);
     await expect(page.getByText(/Harga perkenalan sampai/)).toHaveCount(0);
     await expect(prices.locator("s")).toHaveCount(0);
-    await expect(prices.first()).toContainText(name === "onboarding" ? "Total Rp 1.666.667" : name === "plans" ? "Total Rp 1.950.000" : "Rp 1.950.000");
+    await expect(prices.first()).toContainText(name === "onboarding" ? "Total Rp 1.950.000" : name === "plans" ? "Total Rp 1.950.000" : "Rp 1.950.000");
     await capture(page, info, `${name}-regular`);
 
     if (name === "plans") {

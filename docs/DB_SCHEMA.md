@@ -1828,3 +1828,7 @@ remote migration is a separate operation.
 ### `public_demo_snapshots`
 
 The code defines `id` text primary key, `course_id` text unique not null with cascading foreign key to `mata_kuliah.id`, `snapshot` jsonb not null, and `updated_at` timestamptz not null default now. Each row opts in one canonical course for the intended demo; the V2 JSON requires `contentPolicy` equal to `free-first-chapter` and supports fictional `mockChapters`; V1 fails validation. The JSONB shape change alone requires no new schema migration; see [seeding handoff](operations/public-demo-seeding.md). Migration and seed application remain unverified.
+
+## Pricing settings
+
+`pricing_settings` stores a single `default` row with `discounts` JSONB and `updated_at`. JSON contains independent `platform` and `tutorial` schedules: integer `percent` from 0 to 100, `startsOn`, and inclusive `endsOn` calendar dates in WIB. Admin writes validate the complete payload before an atomic upsert. A database check restricts the singleton key. A missing row uses the expired original campaign; database read failures do not silently substitute defaults.
