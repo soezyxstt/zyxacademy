@@ -89,7 +89,7 @@ export interface StructuredArticleReaderProps {
   isMobileSheetOpen?: boolean;
   onToggleMobileSheet?: (open: boolean) => void;
   /** Isolated reader actions, used when private student services are unavailable. */
-  adapter?: { onComplete: () => void; completed: boolean; ready: boolean; completeLabel: string; completedLabel: string };
+  adapter?: { onComplete: () => void; completed: boolean; ready: boolean };
 }
 
 interface BlockMetadata {
@@ -515,7 +515,7 @@ export function StructuredArticleReader({
 
   // Zyra selection hooks & state
   const { openExplain, openChatWithQuestion, isOpen: isTutorOpen } = useTutor();
-  const selectionAskEnabled = !adapter && isZyraSelectionAskEnabled();
+  const selectionAskEnabled = isZyraSelectionAskEnabled();
   const [selectionContext, setSelectionContext] = useState<ZyraSelectionContext | null>(null);
   const [selectionCoords, setSelectionCoords] = useState<{
     top: number;
@@ -948,7 +948,7 @@ export function StructuredArticleReader({
   const overallPercent = Math.min(100, Math.round((completedCount / totalSections) * 100));
 
   const handleFinishArticle = () => {
-    if (adapter) { if (adapter.ready) adapter.onComplete(); return; }
+    if (adapter) { if (adapter.ready) { adapter.onComplete(); router.push(backHref ?? `/courses/${article.courseId}/material`); } return; }
     if (learnerMode) {
       for (const sec of article.sections) {
         if (!completedSectionsSentRef.current.has(sec.id)) {
@@ -1337,7 +1337,7 @@ export function StructuredArticleReader({
                         articleId={article.id}
                         articleVersion={article.version}
                         completed={adapter ? adapter.completed : isSecDone}
-                        interactiveChecks={!adapter}
+                        interactiveChecks
                       />
                     </article>
 
@@ -1394,10 +1394,10 @@ export function StructuredArticleReader({
                       variant="default"
                       size="default"
                       onClick={handleFinishArticle}
-                      disabled={adapter ? !adapter.ready || adapter.completed : false}
+                      disabled={adapter ? !adapter.ready : false}
                       className="rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground font-semibold gap-1.5"
                     >
-                      <span>{adapter ? (adapter.completed ? adapter.completedLabel : adapter.completeLabel) : t("articleReader.backToMaterials")}</span>
+                      <span>{t("articleReader.backToMaterials")}</span>
                       <ChevronRight className="size-4" />
                     </Button>
                   )}

@@ -19,16 +19,19 @@ describe("demo learning adapters", () => {
     expect(source("app/(student)/courses/[id]/flashcard/page.tsx")).toContain("<FlashcardClient");
     expect(source("components/demo/demo-flashcards.tsx")).toContain("<FlashcardClient");
   });
-  test("demo adapters bypass student writes and disable private reader features", () => {
+  test("demo adapters preserve the learner presentation while blocking private services", () => {
     const flashcard = source("app/(student)/courses/[id]/flashcard/flashcard-client.tsx");
     expect(flashcard).toContain("if (adapter) await adapter.onReview");
     expect(flashcard).toContain("if (!adapter) emitActivityUpdated");
     const article = source("components/course/structured-article-reader.tsx");
     expect(article).toContain("if (!learnerMode || adapter) return;");
     expect(article).toContain("enabled: learnerMode && !adapter");
-    expect(article).toContain("interactiveChecks={!adapter}");
+    expect(article).toContain("interactiveChecks");
+    const checks = source("components/course/product-learning-blocks.tsx");
+    expect(checks).toContain('if (experience.mode === "demo") { setError(');
     const diktat = source("components/demo/demo-diktat-view.tsx");
-    expect(diktat).toContain('mode="admin-preview"');
+    expect(diktat).not.toContain('mode="admin-preview"');
+    expect(source("components/course/material-viewer.tsx")).toContain("if (!learnerMode || demo) return;");
     expect(diktat).toContain("canDownload={false}");
   });
 });

@@ -2,9 +2,16 @@
 import { createContext, useContext, type ReactNode } from "react";
 import type { PublicDemoSnapshot } from "@/lib/demo/snapshot";
 import type { DemoEvent, DemoOverlay } from "@/lib/demo/session-overlay";
+import type { Locale } from "@/lib/i18n/locale";
 
 export type StudentExperienceAdapter = {
   mode: "student" | "demo";
+  href?: (studentPath: string) => string;
+  pathname?: string;
+  courses?: { id: string; title: string; category?: string | null }[];
+  account?: { name: string; email: string };
+  streak?: { current: number; weeklyActivity: boolean[] };
+  changeLocale?: (locale: Locale) => void;
   courseHref: (courseId: string) => string;
   route: (view: string, courseId?: string) => string;
   baseline: readonly PublicDemoSnapshot[];

@@ -38,10 +38,19 @@ export function DemoSession({ courseId, revision, scopes, reviewScope, children 
     const next = emptyOverlay();
     current.current = next;
     setOverlay(next);
-    setOverlays((currentOverlays) => ({ ...currentOverlays, [courseId]: next }));
-    setGeneration((n) => n + 1);
-    try { sessionStorage.removeItem(key); } catch {}
-    clearDemoTryoutCompletions(courseId);
+    const cleared: Record<string, DemoOverlay> = {};
+    for (const [id, rev] of JSON.parse(scopeKey) as [string, string][]) {
+      cleared[id] = emptyOverlay();
+      try { sessionStorage.removeItem(overlayKey(id, rev)); } catch {}
+      clearDemoTryoutCompletions(id);
+    }
+    setOverlays(cleared);
+    setGeneration(n => n + 1);
+    try {
+      const owned = ["zyx-demo-quiz-result:v2:", "zyx-demo-profile:", "zyx-quiz-answers-demo:", "zyx-quiz-flags-demo:", "zyx-quiz-timer-deadline-demo:"];
+      const keys = Array.from({ length: sessionStorage.length }, (_, index) => sessionStorage.key(index)).filter((item): item is string => Boolean(item && owned.some(prefix => item.startsWith(prefix))));
+      keys.forEach(item => sessionStorage.removeItem(item));
+    } catch { /* Reset also works when browser storage is unavailable. */ }
   };
   return <Context.Provider value={{ overlay, overlays, record, reset, generation, ready }}>{children}</Context.Provider>;
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { useStudentExperience } from "@/components/student-experience-provider";
+
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -145,6 +147,7 @@ function ChapterSummarySheet({
   chapterTitle: string;
 }) {
   const t = useTranslations("learning");
+  const experience = useStudentExperience();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<ChapterSummary | null>(null);
@@ -153,6 +156,10 @@ function ChapterSummarySheet({
   async function loadSummary() {
     setOpen(true);
     if (summary || loading) return;
+    if (experience.mode === "demo") {
+      setSummary({ keyConcepts: [chapterTitle], commonMistakes: ["Melewatkan definisi dan syarat penggunaan konsep."], importantFormulas: [], practiceRecommendations: ["Kerjakan contoh, lalu periksa setiap langkah."] });
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -600,6 +607,17 @@ export function MaterialViewer({
 }: MaterialViewerProps) {
   const t = useTranslations("learning");
   const learnerMode = isLearnerReaderMode(mode);
+  const experience = useStudentExperience();
+  const demo = experience.mode === "demo";
+  const revision = experience.baseline.find(item => item.courseId === material.courseId)?.revision ?? "fictional";
+  const storage = useMemo(() => {
+    const fallback = new Map<string,string>();
+    const prefix = demo ? `demo:${material.courseId}:${revision}:` : "";
+    return {
+      getItem: (key: string) => { try { return (demo ? window.sessionStorage : window.localStorage).getItem(prefix + key); } catch { return fallback.get(key) ?? null; } },
+      setItem: (key: string, value: string) => { try { (demo ? window.sessionStorage : window.localStorage).setItem(prefix + key,value); } catch { fallback.set(key,value); } },
+    };
+  }, [demo, material.courseId, revision]);
   const [done, setDone] = useState(material.completed);
   const doneRef = useRef(material.completed);
   useEffect(() => {
@@ -809,7 +827,7 @@ export function MaterialViewer({
   const runTutorExplain = (query: string) => {
     if (!learnerMode) return;
     dismissPopover();
-    if (selectionAskEnabled) {
+    if (demo || selectionAskEnabled) {
       const selection = normalizeZyraSelection(query);
       if (selection.length >= 3) {
         openChatWithQuestion(t("reader.askSelection", { title: material.title, selection }));
@@ -897,11 +915,11 @@ export function MaterialViewer({
 
   // Set document as in progress on mount
   useEffect(() => {
-    if (!learnerMode) return;
+    if (!learnerMode || demo) return;
     updateMaterialProgress(material.id, "in_progress").catch((err) =>
       console.error("Error updating progress to in_progress:", err)
     );
-  }, [learnerMode, material.id]);
+  }, [learnerMode, material.id, demo]);
 
   const lastSavedCompletionPercentRef = useRef<number | null>(null);
   const lastSavedSectionIdxRef = useRef<number | null>(null);
@@ -909,7 +927,7 @@ export function MaterialViewer({
 
   // Periodic tracking of material reading progress
   useEffect(() => {
-    if (!learnerMode) return;
+    if (!learnerMode || demo) return;
     let secondsSinceLastSave = 0;
     const interval = setInterval(() => {
       secondsSinceLastSave += 1;
@@ -1018,16 +1036,16 @@ export function MaterialViewer({
         }
       }
     };
-  }, [learnerMode, material.id, material.kind, articleSections, activeSectionIdx, visitedPages, page]);
+  }, [learnerMode, material.id, material.kind, articleSections, activeSectionIdx, visitedPages, page, demo]);
 
   // Load personalization states from localStorage
   useEffect(() => {
     if (!learnerMode) return;
     try {
-      const storedNotes = localStorage.getItem(`zyx-notes-${material.id}`);
-      const storedBookmarks = localStorage.getItem(`zyx-bookmarks-${material.id}`);
-      const storedTheme = localStorage.getItem(`zyx-reader-theme`);
-      const storedSidebar = localStorage.getItem(`zyx-reader-sidebar`);
+      const storedNotes = storage.getItem(`zyx-notes-${material.id}`);
+      const storedBookmarks = storage.getItem(`zyx-bookmarks-${material.id}`);
+      const storedTheme = storage.getItem(`zyx-reader-theme`);
+      const storedSidebar = storage.getItem(`zyx-reader-sidebar`);
 
       if (storedNotes) setNotes(JSON.parse(storedNotes));
       if (storedBookmarks) setBookmarks(JSON.parse(storedBookmarks));
@@ -1036,7 +1054,7 @@ export function MaterialViewer({
     } catch (e) {
       console.error("Could not load reader configurations from localStorage", e);
     }
-  }, [learnerMode, material.id]);
+  }, [learnerMode, material.id, storage]);
 
   // Handle active note loading when page changes
   useEffect(() => {
@@ -1072,6 +1090,7 @@ export function MaterialViewer({
 
   async function markDone() {
     if (!learnerMode) return;
+    if (demo) { if (!experience.ready) return; experience.record?.("article", material.id); setDone(true); toast.success(t("reader.markedComplete")); return; }
     try {
       const res = await updateMaterialProgress(material.id, "completed");
       if (res.success) {
@@ -1125,7 +1144,7 @@ toast.success(t("reader.markedComplete"));
       toast.success(t("reader.bookmarkAdded", { page: pNum }));
     }
     setBookmarks(newBookmarks);
-    localStorage.setItem(`zyx-bookmarks-${material.id}`, JSON.stringify(newBookmarks));
+    storage.setItem(`zyx-bookmarks-${material.id}`, JSON.stringify(newBookmarks));
   };
 
   // Save Personal Note
@@ -1139,7 +1158,7 @@ toast.success(t("reader.markedComplete"));
       newNotes[page] = noteText;
     }
     setNotes(newNotes);
-    localStorage.setItem(`zyx-notes-${material.id}`, JSON.stringify(newNotes));
+    storage.setItem(`zyx-notes-${material.id}`, JSON.stringify(newNotes));
     
     // Simulate minor network/disk delay for a smooth "saving..." feedback
     if (noteSaveTimerRef.current) clearTimeout(noteSaveTimerRef.current);
@@ -1153,7 +1172,7 @@ toast.success(t("reader.markedComplete"));
     const newNotes = { ...notes };
     delete newNotes[pNum];
     setNotes(newNotes);
-    localStorage.setItem(`zyx-notes-${material.id}`, JSON.stringify(newNotes));
+    storage.setItem(`zyx-notes-${material.id}`, JSON.stringify(newNotes));
     if (pNum === page) setActiveNoteText("");
     toast.success(t("reader.noteRemoved", { page: pNum }));
   };
@@ -1162,12 +1181,12 @@ toast.success(t("reader.markedComplete"));
   const handleSidebarToggle = () => {
     const nextState = !showSidebar;
     setShowSidebar(nextState);
-    if (learnerMode) localStorage.setItem(`zyx-reader-sidebar`, String(nextState));
+    if (learnerMode) storage.setItem(`zyx-reader-sidebar`, String(nextState));
   };
 
   const _handleThemeChange = (newTheme: ThemeMode) => {
     setTheme(newTheme);
-    if (learnerMode) localStorage.setItem(`zyx-reader-theme`, newTheme);
+    if (learnerMode) storage.setItem(`zyx-reader-theme`, newTheme);
   };
 
   // Search filter

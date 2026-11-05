@@ -81,7 +81,8 @@ import {
 } from "@/lib/zyra/chat-language-contract";
 import { useTranslations } from "@/lib/i18n/client";
 import { useAppLocale } from "@/lib/i18n/client";
-import { useSession } from "@/lib/auth-client";
+import { StudentAccountBoundary } from "@/components/student-account-boundary";
+import { useStudentExperience } from "@/components/student-experience-provider";
 
 export type TutorMode = "explain" | "mistake" | "study-plan" | "chat" | null;
 type ActiveAction = "none" | "flashcards" | "practice-quiz";
@@ -193,7 +194,12 @@ export interface TutorDrawerViewProps {
   onClearQuotedContext?: () => void;
 }
 
-export function TutorDrawerView({
+export function TutorDrawerView(props: TutorDrawerViewProps) {
+  return <StudentAccountBoundary>{({ data }) => <TutorDrawerContent {...props} accountId={data?.user.id ?? null} />}</StudentAccountBoundary>;
+}
+
+function TutorDrawerContent({
+  accountId,
   isOpen,
   onClose,
   activeMode,
@@ -206,11 +212,13 @@ export function TutorDrawerView({
   onClearInitialQuestion,
   quotedContext,
   onClearQuotedContext,
-}: TutorDrawerViewProps) {
+}: TutorDrawerViewProps & { accountId: string | null }) {
   const t = useTranslations("studentCourse");
   const { locale } = useAppLocale();
-  const { data: authSession } = useSession();
-  const accountId = authSession?.user?.id ?? null;
+  const experience = useStudentExperience();
+  const demo = experience.mode === "demo";
+  const demoT = useTranslations("marketing");
+  const fictionalHistory = React.useRef(new Map<string, ChatMessage[]>());
   const [conversationKey, setConversationKey] = React.useState("draft:0");
   const conversationKeyRef = React.useRef(conversationKey);
   const draftSequenceRef = React.useRef(0);
@@ -230,7 +238,8 @@ export function TutorDrawerView({
     responseLanguageStateRef.current = nextState;
     setResponseLanguageState(nextState);
   }, [locale]);
-  const pathname = usePathname();
+  const realPathname = usePathname();
+  const pathname = experience.pathname ?? realPathname;
   const registeredBridge = React.useSyncExternalStore(subscribePlaygroundBridge, getPlaygroundBridge, () => null);
   const codingBridge = pathname?.startsWith("/courses/") && pathname.split("/")[2] !== registeredBridge?.courseId ? null : registeredBridge;
   const [assistantMode, setAssistantMode] = React.useState<"python" | "tutor">(() => codingBridge ? "python" : "tutor");
@@ -307,14 +316,14 @@ export function TutorDrawerView({
     if (!courseId) return;
     setSessionsLoading(true);
     try {
-      const list = await listTutorSessionsAction(courseId);
+      const list = demo ? [...fictionalHistory.current].map(([id, messages]) => ({ id, title: messages.find(message => message.role === "student")?.content ?? "Zyra", lastMessageAt: null, messageCount: messages.length })) : await listTutorSessionsAction(courseId);
       setSessions(list);
     } catch {
       // silent
     } finally {
       setSessionsLoading(false);
     }
-  }, [courseIdFromPath]);
+  }, [courseIdFromPath, demo]);
 
   const attachmentComposerRef = React.useRef<ZyraAttachmentComposerHandle>(null);
   const textareaRef = React.useRef<ZyraComposerInputHandle>(null);
@@ -461,7 +470,7 @@ export function TutorDrawerView({
       setCourseLabel(null);
       return;
     }
-    getTutorCourseContextAction(courseIdFromPath)
+    (demo ? Promise.resolve(experience.courses?.find(course => course.id === courseIdFromPath)?.title ?? null) : getTutorCourseContextAction(courseIdFromPath))
       .then((title) => {
         if (!cancelled) setCourseLabel(title);
       })
@@ -469,7 +478,7 @@ export function TutorDrawerView({
         if (!cancelled) setCourseLabel(null);
       });
     return () => { cancelled = true; };
-  }, [courseIdFromPath]);
+  }, [courseIdFromPath, demo, experience.courses]);
 
   // Dynamic header title matching Zyx Ops AI style
   const currentTitle = React.useMemo(() => {
@@ -517,7 +526,7 @@ export function TutorDrawerView({
     const initialEpoch = conversationEpochRef.current;
     let active = true;
 
-    if (courseId) {
+    if (courseId && !demo) {
       loadTutorHistoryAction(courseId)
         .then((result) => {
           if (
@@ -538,7 +547,7 @@ export function TutorDrawerView({
         .catch(() => {});
     }
     return () => { active = false; };
-  }, [activeMode, courseIdFromPath, activateConversation, conversationKeyForSession]);
+  }, [activeMode, courseIdFromPath, activateConversation, conversationKeyForSession, demo]);
 
   // Handle initial question if passed
   React.useEffect(() => {
@@ -563,6 +572,7 @@ export function TutorDrawerView({
   // Sync execution from backend services on mode triggers
   React.useEffect(() => {
     if (!activeMode) return;
+    if (demo && activeMode !== "chat") { setActiveMode("chat"); return; }
     if (activeMode === "chat") return;
     if (!advancedModesEnabled) return;
     if (activeMode === "explain" && explainMode !== "content") return;
@@ -598,7 +608,7 @@ export function TutorDrawerView({
     }
 
     loadData();
-  }, [activeMode, koId, questionId, userAnswer, explainMode, advancedModesEnabled, t]);
+  }, [activeMode, koId, questionId, userAnswer, explainMode, advancedModesEnabled, t, demo, setActiveMode]);
 
   // Free accounts only receive the text chat lane. Reset a mode that may have
   // been selected before the allowance tier finished loading, and keep the
@@ -674,14 +684,14 @@ export function TutorDrawerView({
       setMessages(newMessages);
       savedDataRef.current = data;
 
-      if (courseId) {
+      if (courseId && !demo) {
         saveTutorMessagesAction(courseId, newMessages.map(m => ({
           role: m.role,
           content: m.content,
         })), sessionId).catch(() => {});
       }
     }
-  }, [data, activeMode, courseIdFromPath, sessionId, advancedModesEnabled, zyraAccessTier, t]);
+  }, [data, activeMode, courseIdFromPath, sessionId, advancedModesEnabled, zyraAccessTier, t, demo]);
 
   // Resize Pointer Handlers
   const handlePointerDownResize = React.useCallback(
@@ -889,6 +899,16 @@ export function TutorDrawerView({
       onClearQuotedContext?.();
       resetComposerAttachments();
     }
+    if (demo) {
+      const id = sessionId ?? `fictional-chat-${crypto.randomUUID()}`;
+      const reply: ChatMessage = { id: `fictional-reply-${crypto.randomUUID()}`, role: "ai", content: demoT("demo.zyra.reply"), sessionId: id };
+      const nextMessages = [...messages, studentMsg, reply];
+      fictionalHistory.current.set(id, nextMessages);
+      setSessionId(id);
+      setMessages(nextMessages);
+      setSessions([...fictionalHistory.current].map(([key, history]) => ({ id: key, title: history.find(message => message.role === "student")?.content ?? "Zyra", lastMessageAt: null, messageCount: history.length })));
+      return;
+    }
     setChatLoading(true);
 
     const abortController = new AbortController();
@@ -1080,6 +1100,7 @@ export function TutorDrawerView({
     }
 
     if (
+      !demo &&
       courseId &&
       accumulatedContent &&
       !codingRequest &&
@@ -1134,7 +1155,7 @@ export function TutorDrawerView({
     setChatLoading(true);
     setShowMenu(false);
     try {
-      const res = await loadTutorHistoryAction(courseId, targetSessionId);
+      const res = demo ? { sessionId: targetSessionId, messages: fictionalHistory.current.get(targetSessionId) ?? [] } : await loadTutorHistoryAction(courseId, targetSessionId);
       if (loadEpoch !== conversationEpochRef.current) return;
       activateConversation(conversationKeyForSession(res.sessionId), { invalidate: false });
       setSessionId(res.sessionId);
@@ -1154,7 +1175,7 @@ export function TutorDrawerView({
     } finally {
       if (loadEpoch === conversationEpochRef.current) setChatLoading(false);
     }
-  }, [courseIdFromPath, sessionId, t, activateConversation, invalidateConversationRequests, conversationKeyForSession, resetComposerAttachments]);
+  }, [courseIdFromPath, sessionId, t, activateConversation, invalidateConversationRequests, conversationKeyForSession, resetComposerAttachments, demo]);
 
   const handleDeleteSession = React.useCallback(async (targetSessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1164,7 +1185,8 @@ export function TutorDrawerView({
     const isCurrentConversation = conversationKeyRef.current === targetConversationKey;
     if (isCurrentConversation) invalidateConversationRequests();
     try {
-      await clearTutorHistoryAction(courseId, targetSessionId);
+      if (demo) fictionalHistory.current.delete(targetSessionId);
+      else await clearTutorHistoryAction(courseId, targetSessionId);
       setSessions((prev) => prev.filter((s) => s.id !== targetSessionId));
       responseLanguageByConversationRef.current.delete(targetConversationKey);
       if (isCurrentConversation && conversationKeyRef.current === targetConversationKey) {
@@ -1183,7 +1205,7 @@ export function TutorDrawerView({
     } catch {
       toast.error(t("tutorDrawer.sessionDeleteFailed"));
     }
-  }, [courseIdFromPath, t, startNewConversation, invalidateConversationRequests, conversationKeyForSession, resetComposerAttachments]);
+  }, [courseIdFromPath, t, startNewConversation, invalidateConversationRequests, conversationKeyForSession, resetComposerAttachments, demo]);
 
   const handleNewChat = React.useCallback(() => {
     startNewConversation();
@@ -1215,11 +1237,12 @@ export function TutorDrawerView({
       },
     ]);
     responseLanguageByConversationRef.current.clear();
-    if (courseId) {
+    fictionalHistory.current.clear();
+    if (courseId && !demo) {
       await clearTutorHistoryAction(courseId).catch(() => {});
     }
     toast.success(t("tutorDrawer.historyCleared"));
-  }, [courseIdFromPath, t, startNewConversation, resetComposerAttachments]);
+  }, [courseIdFromPath, t, startNewConversation, resetComposerAttachments, demo]);
 
   const handleInsertSnippet = (snippet: string) => {
     let start = textareaRef.current?.selectionStart ?? inputVal.length;

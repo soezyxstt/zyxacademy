@@ -12,7 +12,10 @@ import { consumeZyraStream } from "@/lib/zyra/stream-consumer";
 import type { z } from "zod";
 import type { codingHelpRequestSchema } from "@/lib/coding/http-contracts";
 
+import { useStudentExperience } from "@/components/student-experience-provider";
+
 export function CodingHelp({ courseId, context, disabled = false, problemDescription = "" }: { courseId: string; context: z.infer<typeof codingHelpRequestSchema>; disabled?: boolean; problemDescription?: string }) {
+  const experience = useStudentExperience();
   const [question, setQuestion] = useState(""), [answer, setAnswer] = useState(""), [error, setError] = useState("");
   const [busy, setBusy] = useState(false), [snapshot, setSnapshot] = useState<string | null>(null);
   const [activeIntent, setActiveIntent] = useState<z.infer<typeof codingHelpRequestSchema>["intent"]>("review");
@@ -33,6 +36,7 @@ export function CodingHelp({ courseId, context, disabled = false, problemDescrip
     const abort = new AbortController(); controller.current = abort;
     setActiveIntent(intent); setBusy(true); setError(""); setAnswer(""); setCanvas(null); setSnapshot(contextKey);
     try {
+      if (experience.mode === "demo") { setAnswer("Periksa nilai awal dan ikuti perubahan variabel pada setiap langkah. Prediksikan hasilnya, lalu jalankan kode untuk membandingkan."); return; }
       const response = await fetch("/api/zyra/chat", { method: "POST", signal: abort.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ courseId, sessionId: sessionId.current, question: problemDescription ? `Masalah yang sedang dikerjakan: ${problemDescription}
 
 ${message}` : message, requestId: crypto.randomUUID(), codingContext: { ...context, intent } }) });

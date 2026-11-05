@@ -30,7 +30,8 @@ import {
   Bell,
 } from "lucide-react";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
-import { useSession } from "@/lib/auth-client";
+import { StudentAccountBoundary } from "@/components/student-account-boundary";
+import { useStudentExperience } from "@/components/student-experience-provider";
 import { getStudentEnrollments, getCourseAction } from "@/app/(student)/dashboard/actions";
 import { cn } from "@/lib/utils";
 import { StudentNavigationItems } from "@/components/student-navigation-items";
@@ -57,14 +58,22 @@ interface StudentSidebarProps {
   showLive?: boolean;
 }
 
-export function StudentSidebar({
+export function StudentSidebar(props: StudentSidebarProps) {
+  return <StudentAccountBoundary>{({data}) => <StudentSidebarContent {...props} session={data} />}</StudentAccountBoundary>;
+}
+
+function StudentSidebarContent({
   showStudyPath = false,
   showMastery = false,
   showLive = false,
-}: StudentSidebarProps) {
+  session,
+}: StudentSidebarProps & { session: {user: {id: string; role?: string | null}} | null }) {
   const t = useTranslations("student");
-  const { data: session } = useSession();
-  const pathname = usePathname();
+  const experience = useStudentExperience();
+  const actualPathname = usePathname();
+  const pathname = experience.pathname ?? actualPathname;
+  const href = experience.href ?? ((path: string) => path);
+  const demo = experience.mode === "demo";
   const router = useRouter();
   const courseIdFromPath = pathname.startsWith("/courses/")
     ? pathname.split("/")[2]
@@ -94,9 +103,13 @@ export function StudentSidebar({
 
   const [activeCourse, setActiveCourse] = useState<any>(undefined);
   const [coursesOpen, setCoursesOpen] = useState(true);
-  const [enrolledCourses, setEnrolledCourses] = useState<StudentEnrollment[]>([]);
-  const [streakCurrent, setStreakCurrent] = useState<number | null>(null);
-  const [weeklyActivity, setWeeklyActivity] = useState<boolean[]>([]);
+  const [liveEnrollments, setEnrolledCourses] = useState<StudentEnrollment[]>([]);
+  const enrolledCourses = useMemo(() => demo ? experience.courses ?? [] : liveEnrollments, [demo, experience.courses, liveEnrollments]);
+  const [liveStreak, setStreakCurrent] = useState<number | null>(null);
+  const streakCurrent = demo ? experience.streak?.current ?? 0 : liveStreak;
+  const [liveWeeklyActivity, setWeeklyActivity] = useState<boolean[]>([]);
+
+  const weeklyActivity = demo ? experience.streak?.weeklyActivity ?? [] : liveWeeklyActivity;
 
   const enrolledActiveCourse = activeCourseId
     ? enrolledCourses.find((course) => course.id === activeCourseId)
@@ -105,6 +118,7 @@ export function StudentSidebar({
     ?? (activeCourse?.id === activeCourseId ? activeCourse : undefined);
 
   useEffect(() => {
+    if (demo) return;
     if (!activeCourseId) {
       setActiveCourse(undefined);
       return;
@@ -127,15 +141,17 @@ export function StudentSidebar({
     return () => {
       cancelled = true;
     };
-  }, [activeCourseId, enrolledCourses]);
+  }, [activeCourseId, enrolledCourses, demo]);
 
   useEffect(() => {
+    if (demo) return;
     if (session?.user?.id) {
       getStudentEnrollments().then(setEnrolledCourses).catch(console.error);
     }
-  }, [session?.user?.id]);
+  }, [session?.user?.id, demo]);
 
   useEffect(() => {
+    if (demo) return;
     setStreakCurrent(null);
     setWeeklyActivity([]);
     if (!session?.user?.id) return;
@@ -163,7 +179,7 @@ export function StudentSidebar({
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener(ZYX_ACTIVITY_UPDATED_EVENT, handleMutation);
     };
-  }, [session?.user?.id]);
+  }, [session?.user?.id, demo]);
 
   const coursesToDisplay = useMemo(() => {
     const list: Array<{ id: string; title: string }> = [];
@@ -191,7 +207,7 @@ export function StudentSidebar({
 
     if (pathname === "/dashboard/schedule") {
       setCourseIdFromSchedule(targetCourseId);
-      router.push(`/dashboard/schedule?course=${targetCourseId}`);
+      router.push(href(`/dashboard/schedule?course=${targetCourseId}`));
       return;
     }
 
@@ -207,13 +223,13 @@ export function StudentSidebar({
           (commonSegments.includes(segment) ||
             (targetCourseId !== PKA_COURSE_ID && normalCourseSegments.includes(segment)))
         ) {
-          router.push(`/courses/${targetCourseId}/${segment}`);
+          router.push(href(`/courses/${targetCourseId}/${segment}`));
           return;
         }
       }
     }
 
-    router.push(`/courses/${targetCourseId}`);
+    router.push(href(`/courses/${targetCourseId}`));
   };
 
   const topSection = (c: boolean) => {
@@ -302,7 +318,7 @@ export function StudentSidebar({
         )}>
           <SidebarTooltip label={t("navigation.backToDashboard")} collapsed={c}>
             <Link
-              href="/dashboard"
+              href={href("/dashboard")}
               title={c ? t("navigation.backToDashboard") : undefined}
               className={cn(
                 "flex items-center gap-2.5 rounded-xl px-3 py-2 text-body-xs font-semibold text-brand-secondary hover:bg-muted/40 transition-colors mb-3",
@@ -394,7 +410,7 @@ export function StudentSidebar({
           )}
 
           <div className={cn("space-y-1", c && "w-full flex flex-col items-center")}>
-            <StudentNavigationItems collapsed={c} items={primaryItems.map((item) => ({ ...item, active: item.customActive ?? (item.exact ? pathname === item.href : pathname.startsWith(item.href)) }))} />
+            <StudentNavigationItems collapsed={c} items={primaryItems.map((item) => ({ ...item, href: href(item.href), active: item.customActive ?? (item.exact ? pathname === item.href : pathname.startsWith(item.href)) }))} />
 
             {secondaryItems.length > 0 && (
               <>
@@ -407,7 +423,7 @@ export function StudentSidebar({
                 )}
                 {c && <div className="my-3 w-5 border-t border-border/60" />}
 
-                <StudentNavigationItems collapsed={c} items={secondaryItems.map((item) => ({ ...item, active: item.exact ? pathname === item.href : pathname.startsWith(item.href) }))} />
+                <StudentNavigationItems collapsed={c} items={secondaryItems.map((item) => ({ ...item, href: href(item.href), active: item.exact ? pathname === item.href : pathname.startsWith(item.href) }))} />
               </>
             )}
           </div>
@@ -427,7 +443,7 @@ export function StudentSidebar({
           : "px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
       )}>
         <NavItem
-          href="/dashboard"
+          href={href("/dashboard")}
           icon={LayoutDashboard}
           label={t("navigation.dashboard")}
           active={pathname === "/dashboard"}
@@ -435,7 +451,7 @@ export function StudentSidebar({
         />
 
         <NavItem
-          href="/dashboard/schedule"
+          href={href("/dashboard/schedule")}
           icon={CalendarRange}
           label={userRole === "teacher" || userRole === "tutor" ? t("navigation.tutorialSchedule") : t("navigation.schedule")}
           active={pathname === "/dashboard/schedule"}
@@ -444,7 +460,7 @@ export function StudentSidebar({
 
         {(userRole === "teacher" || userRole === "tutor" || userRole === "admin") && (
           <NavItem
-            href="/tutor"
+            href={href("/tutor")}
             icon={GraduationCap}
             label={t("navigation.teaching")}
             active={pathname === "/tutor" || pathname.startsWith("/tutor/")}
@@ -453,7 +469,7 @@ export function StudentSidebar({
         )}
 
         <NavItem
-          href="/dashboard/groups"
+          href={href("/dashboard/groups")}
           icon={Users}
           label={t("navigation.groups")}
           active={pathname === "/dashboard/groups" || pathname.startsWith("/dashboard/groups")}
@@ -461,7 +477,7 @@ export function StudentSidebar({
         />
 
         <NavItem
-          href="/leaderboard"
+          href={href("/leaderboard")}
           icon={Trophy}
           label={t("navigation.leaderboard")}
           active={pathname === "/leaderboard" || pathname.startsWith("/leaderboard")}
@@ -475,7 +491,7 @@ export function StudentSidebar({
               onClick={(e) => {
                 e.preventDefault();
                 if (c) {
-                  router.push("/courses");
+                  router.push(href("/courses"));
                 } else {
                   setCoursesOpen((v) => !v);
                 }
@@ -509,7 +525,7 @@ export function StudentSidebar({
                 return (
                   <Link
                     key={course.id}
-                    href={`/courses/${course.id}`}
+                    href={href(`/courses/${course.id}`)}
                     className={cn(
                       "block truncate rounded-lg px-2.5 py-1.5 text-body-xs font-medium transition-colors",
                       active
@@ -522,7 +538,7 @@ export function StudentSidebar({
                 );
               })}
               <Link
-                href="/courses"
+                href={href("/courses")}
                 className={cn(
                   "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-body-xs font-medium text-brand-secondary hover:underline transition-colors",
                   pathname === "/courses" && "font-semibold underline"
@@ -536,7 +552,7 @@ export function StudentSidebar({
         </div>
 
         <NavItem
-          href="/profile"
+          href={href("/profile")}
           icon={User}
           label={t("settings.profile")}
           active={pathname === "/profile"}
@@ -544,7 +560,7 @@ export function StudentSidebar({
         />
 
         <NavItem
-          href="/settings/notifications"
+          href={href("/settings/notifications")}
           icon={Bell}
           label={t("settings.emailNotifications")}
           active={pathname === "/settings/notifications"}
@@ -558,8 +574,8 @@ export function StudentSidebar({
 
   return (
     <SidebarShell
-      collapsedKey="sidebar-collapsed"
-      logoHref="/dashboard"
+      collapsedKey={demo ? "demo-sidebar-collapsed" : "sidebar-collapsed"}
+      logoHref={href("/dashboard")}
       logoLabel={t("navigation.dashboard") + " Zyx Academy"}
       nav={navContent}
       topSection={topSection}

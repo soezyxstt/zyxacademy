@@ -19,7 +19,7 @@ interface PlanItem {
   done: boolean;
 }
 
-interface TodayData {
+export interface TodayData {
   streak: { current: number; longest: number };
   items: PlanItem[];
 }
@@ -30,18 +30,21 @@ const KIND_ICON: Record<PlanItem["kind"], React.ComponentType<{ className?: stri
   module: BookOpen,
 };
 
-export function TodayPlan({ firstName }: { firstName: string }) {
+export function TodayPlan({ firstName, adapter }: { firstName: string; adapter?: { data: TodayData; complete: (itemId: string) => void } }) {
   const t = useTranslations("student");
-  const [data, setData] = useState<TodayData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [remoteData, setData] = useState<TodayData | null>(null);
+  const [remoteLoading, setLoading] = useState(true);
+  const data = adapter?.data ?? remoteData;
+  const loading = adapter ? false : remoteLoading;
 
   useEffect(() => {
+    if (adapter) return;
     fetch("/api/student/today")
       .then((r) => (r.ok ? r.json() : null))
       .then(setData)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [adapter]);
 
   if (!loading && !data) return null;
 
@@ -50,6 +53,7 @@ export function TodayPlan({ firstName }: { firstName: string }) {
   const allDone = total > 0 && doneCount === total;
 
   const markDone = async (itemId: string) => {
+    if (adapter) { adapter.complete(itemId); return; }
     setData((d) =>
       d ? { ...d, items: d.items.map((i) => (i.id === itemId ? { ...i, done: true } : i)) } : d
     );

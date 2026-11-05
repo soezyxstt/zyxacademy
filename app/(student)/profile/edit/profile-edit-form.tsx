@@ -13,6 +13,9 @@ import { SelectField } from "@/components/ui/select-field";
 import { toast } from "@/components/ui/toast";
 import { useTranslations } from "@/lib/i18n/client";
 
+import { useStudentExperience } from "@/components/student-experience-provider";
+import { validateAcademicProfile } from "@/lib/student/academic-profile";
+
 const INITIAL_STATE: StudentProfileActionState = {
   success: false,
   message: "",
@@ -37,6 +40,8 @@ interface ProfileEditFormProps {
  */
 export function ProfileEditForm({ user }: ProfileEditFormProps) {
   const t = useTranslations("student");
+  const experience = useStudentExperience();
+  const href = (path: string) => experience.href?.(path) ?? path;
   const router = useRouter();
   const [selectedFaculty, setSelectedFaculty] = useState(user.faculty || "");
   const [selectedMajor, setSelectedMajor] = useState(user.major || "");
@@ -44,7 +49,13 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
     user.entryYear ? String(user.entryYear) : ""
   );
 
-  const [state, formAction, isPending] = useActionState(updateStudentProfileAction, INITIAL_STATE);
+  const [state, formAction, isPending] = useActionState(async (previous: StudentProfileActionState, form: FormData) => {
+    if (experience.mode !== "demo") return updateStudentProfileAction(previous, form);
+    const validated = validateAcademicProfile({ faculty: String(form.get("faculty") ?? ""), major: String(form.get("major") ?? ""), entryYear: String(form.get("entryYear") ?? "") });
+    if (validated.errorCode) return { success: false, message: "Periksa profil akademis.", errorCode: validated.errorCode, submittedAt: Date.now() };
+    try { sessionStorage.setItem(`zyx-demo-profile:${experience.baseline.map(row => row.revision).join(":")}`, JSON.stringify(validated.profile)); } catch { /* The fictional form remains usable without storage. */ }
+    return { success: true, message: "", submittedAt: Date.now() };
+  }, INITIAL_STATE);
   const shownSubmission = useRef(0);
 
   const availableMajors = selectedFaculty ? getMajorsForFaculty(selectedFaculty) : [];
@@ -60,11 +71,11 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
     shownSubmission.current = state.submittedAt;
     if (state.success) {
       toast.success(t("profile.saved"));
-      router.push("/profile");
+      router.push(experience.href?.("/profile") ?? "/profile");
     } else {
       toast.error(t("profile.saveFailed"));
     }
-  }, [state, router, t]);
+  }, [state, router, t, experience]);
 
   const facultyOptions = ITB_FACULTIES.map((f) => ({
     value: f.code,
@@ -170,7 +181,7 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
               asChild
               className="text-body-sm font-semibold"
             >
-              <Link href="/profile">
+              <Link href={href("/profile")}>
                 {t("profile.cancel")}
               </Link>
             </Button>
