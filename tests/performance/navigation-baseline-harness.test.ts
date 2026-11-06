@@ -102,16 +102,37 @@ describe("staging-env-loader fail-closed guards", () => {
   });
 
   test("verifies .env.neon staging target against production without exposing secrets", () => {
-    const verification = loadVerifiedStagingEnvironment();
-    expect(verification.verified).toBe(true);
-    expect(verification.branchId).toBe("br-gentle-scene-azq0gp91");
-    expect(verification.productionBranchId).toBe("br-wandering-butterfly-azi11h8r");
-    expect(verification.projectId).toBe("muddy-sky-44104897");
-    expect(verification.storageBucket).toBe("zyx-staging");
-    expect(verification.hostHash).toBe("f7ce8b408360");
-    expect(verification.distinctFromProduction).toBe(true);
-    expect(verification.readOnlyEnforced).toBe(true);
-    expect(process.env.DATABASE_URL).toContain("default_transaction_read_only");
+    const root = mkdtempSync(resolve(tmpdir(), "zyx-env-loader-test-"));
+    const originalEnv = { ...process.env };
+    try {
+      // Exercise dotenv parsing with synthetic values, never the workspace secrets.
+      const fixture = {
+        NEON_PROJECT_ID: "muddy-sky-44104897",
+        NEON_STAGING_BRANCH_ID: "br-gentle-scene-azq0gp91",
+        NEON_PRODUCTION_BRANCH_ID: "br-wandering-butterfly-azi11h8r",
+        NEON_STAGING_DATABASE_URL: "postgresql://unit:fake-password@ep-sparkling-lab-azrp3ymj-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require",
+        NEON_PRODUCTION_DATABASE_URL: "postgresql://unit:fake-password@ep-quiet-math-azyey0mb-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require",
+        NEON_STAGING_STORAGE_BUCKET: "zyx-staging",
+        NEON_PRODUCTION_STORAGE_BUCKET: "zyx-production",
+      };
+      const envFilePath = resolve(root, ".env.neon");
+      writeFileSync(envFilePath, Object.entries(fixture).map(([key, value]) => `${key}="${value}"`).join("\n"));
+      const verification = loadVerifiedStagingEnvironment({ envFilePath });
+      expect(verification.verified).toBe(true);
+      expect(verification.branchId).toBe("br-gentle-scene-azq0gp91");
+      expect(verification.productionBranchId).toBe("br-wandering-butterfly-azi11h8r");
+      expect(verification.projectId).toBe("muddy-sky-44104897");
+      expect(verification.storageBucket).toBe("zyx-staging");
+      expect(verification.hostHash).toBe("f7ce8b408360");
+      expect(verification.distinctFromProduction).toBe(true);
+      expect(verification.readOnlyEnforced).toBe(true);
+      expect(process.env.DATABASE_URL).toContain("default_transaction_read_only");
+      expect(JSON.stringify(verification)).not.toContain("fake-password");
+    } finally {
+      for (const key of Object.keys(process.env)) if (!(key in originalEnv)) delete process.env[key];
+      Object.assign(process.env, originalEnv);
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   test("fails closed when required .env.neon bindings or production comparison keys are missing or collide", () => {
