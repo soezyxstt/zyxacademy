@@ -1,7 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { cache } from "react";
 import { getTranslations as nextGetTranslations } from "next-intl/server";
-import { getAuthSession, type AuthSession } from "@/lib/auth-session";
+import type { AuthSession } from "@/lib/auth-session";
 import { LOCALE_COOKIE_NAME } from "@/lib/i18n/shared";
 import { loadMessages } from "@/lib/i18n/catalogs";
 import { getUserLocalePreference } from "@/lib/i18n/preferences";
@@ -15,6 +15,7 @@ const resolveRequestLocale = cache(async (): Promise<{ locale: Locale; accountPr
   let accountPreference: Locale | null = null;
   let session: AuthSession = null;
   try {
+    const { getAuthSession } = await import("@/lib/auth-session");
     session = await getAuthSession();
   } catch {
     // An expired or unavailable session falls through to cookie/browser preference.
