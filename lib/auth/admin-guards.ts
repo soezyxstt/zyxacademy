@@ -1,5 +1,4 @@
 import { eq } from "drizzle-orm";
-import { getAuthSession } from "@/lib/auth-session";
 import { db } from "@/db";
 import { pengguna, penggunaPeran } from "@/db/schema";
 import {
@@ -98,7 +97,10 @@ export async function hasAdminAuthorization(
  * `pengguna_peran`. The legacy `user.role` projection is only used for users
  * without a canonical identity or membership.
  */
+// Explicit-actor checks are also used by MCP without an RSC session context.
+// Load the server-only session helper only when a session guard is invoked.
 export async function assertAdmin() {
+  const { getAuthSession } = await import("@/lib/auth-session");
   const session = await getAuthSession();
   const user = session?.user as UserWithRole | undefined;
 
@@ -120,6 +122,7 @@ export async function assertAdmin() {
  * for users without a canonical identity or membership.
  */
 export async function assertTutorOrAdmin() {
+  const { getAuthSession } = await import("@/lib/auth-session");
   const session = await getAuthSession();
   const user = session?.user as UserWithRole | undefined;
 

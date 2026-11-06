@@ -638,7 +638,7 @@ describe("WP4 dashboard materials and assessments batch parity", () => {
       "ai-c1-keep",
       "web-c1-keep",
     ]);
-    expect(c1Materials[0]?.fileSize).toBe("10 menit baca");
+    expect(c1Materials[0] && "fileSize" in c1Materials[0] ? c1Materials[0].fileSize : undefined).toBe("10 menit baca");
 
     // Verify no large content projections in batch SQL
     for (const q of queries) {
@@ -665,11 +665,11 @@ describe("WP4 dashboard materials and assessments batch parity", () => {
     expect(batchStudentQueries).toBeLessThan(oldStudentQueries);
 
     const c1StudentArt = batchStudent[0]?.materials[0];
-    expect(c1StudentArt?.completionPercent).toBe(40);
+    expect(c1StudentArt && "completionPercent" in c1StudentArt ? c1StudentArt.completionPercent : undefined).toBe(40);
     expect(c1StudentArt?.completed).toBe(false);
     const c2StudentArt = batchStudent[1]?.materials[0];
     expect(c2StudentArt?.completed).toBe(true);
-    expect(c2StudentArt?.completionPercent).toBe(100);
+    expect(c2StudentArt && "completionPercent" in c2StudentArt ? c2StudentArt.completionPercent : undefined).toBe(100);
 
     // 3. Free tier filtering and denied course access
     courseAccessMap.set("c1", {

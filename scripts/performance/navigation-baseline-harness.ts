@@ -3,7 +3,7 @@ import { parseBuildKind, verifyBuild, type BuildKind } from "./build-provenance"
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync, renameSync, unlinkSync } from "node:fs";
 import { resolve } from "node:path";
-import { chromium, type BrowserContext, type Cookie, type Page } from "@playwright/test";
+import { chromium, type BrowserContext, type Page } from "@playwright/test";
 import {
   fetchFreshSignedSessionCookie,
   loadVerifiedStagingEnvironment,
@@ -833,7 +833,7 @@ async function installPageTelemetryInitScript(page: Page): Promise<void> {
     }
 
     const originalFetch = window.fetch.bind(window);
-    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    window.fetch = Object.assign(async (input: RequestInfo | URL, init?: RequestInit) => {
       const urlStr =
         typeof input === "string"
           ? input
@@ -914,7 +914,7 @@ async function installPageTelemetryInitScript(page: Page): Promise<void> {
       }
 
       return response;
-    };
+    }, window.fetch);
   });
 }
 
@@ -1901,7 +1901,7 @@ export function buildVerifiedAuthCookies(
   baseUrl: string,
   cookieName: "better-auth.session_token" | "__Secure-better-auth.session_token",
   signedCookieValue: string
-): Cookie[] {
+): Parameters<BrowserContext["addCookies"]>[0] {
   const url = validateLoopbackBaseUrl(baseUrl);
   const isSecureCookie = cookieName.startsWith("__Secure-") || url.protocol === "https:";
   return [

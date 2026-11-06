@@ -52,6 +52,7 @@ function createDeferred<T>() {
 
 function createMockRouter(onRefresh?: () => void): AppRouterInstance {
   return {
+    bfcacheId: "test-dashboard",
     back: () => {},
     forward: () => {},
     refresh: () => onRefresh?.(),
@@ -91,17 +92,16 @@ type TryoutList = Awaited<ReturnType<DashboardSectionDeps["getCourseTryouts"]>>;
 type SubmissionList = Awaited<ReturnType<DashboardSectionDeps["getStudentSubmissions"]>>;
 type ChapterOutlineList = Awaited<ReturnType<DashboardSectionDeps["getCourseChapterOutline"]>>;
 
-const sampleMaterials: MaterialList = [
+const sampleMaterials: (MaterialList[number] & { completionPercent: number })[] = [
   {
     id: "mat-1",
     courseId: "ma1101",
-    chapterId: "bab-1",
     title: "Artikel Limit",
     kind: "article",
     docCategory: "materi",
     fileSize: "10 menit baca",
-    completed: false,
     completionPercent: 45,
+    completed: false,
     isPastYear: false,
     isPreview: false,
     chapterIds: ["bab-1"],
@@ -109,13 +109,12 @@ const sampleMaterials: MaterialList = [
   {
     id: "mat-2",
     courseId: "ma1101",
-    chapterId: "bab-2",
     title: "Artikel Turunan",
     kind: "article",
     docCategory: "materi",
     fileSize: "12 menit baca",
-    completed: true,
     completionPercent: 100,
+    completed: true,
     isPastYear: false,
     isPreview: false,
     chapterIds: ["bab-2"],
@@ -240,7 +239,7 @@ describe("WP3 dashboard streaming orchestration and error recovery", () => {
           </DashboardSectionErrorBoundary>
         </ApplicationPage>,
       ),
-      { onError: (err) => capturedErrors.push(err) },
+      { onError: (err) => { capturedErrors.push(err); } },
     );
 
     await stream.allReady;

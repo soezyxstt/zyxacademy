@@ -42,6 +42,8 @@ try {
   process.env.BETTER_AUTH_SECRET = randomBytes(32).toString("hex");
   mock.module("@/db", () => ({ db }));
   mock.module("@/lib/db", () => ({ db }));
+  // This integration renders an RSC page outside the Next.js module loader.
+  mock.module("server-only", () => ({}));
   mock.module("next/headers", () => ({
     headers: async () => new Headers(proxyHeaders), cookies: async () => new Map(),
   }));

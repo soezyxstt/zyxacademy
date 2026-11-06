@@ -31,7 +31,7 @@ mock.module("@/lib/study-path-service", () => ({ getOrComputeStudyPath: async ()
 mock.module("@/lib/mastery-store", () => ({ getMastery: async () => [] }));
 
 const { getOrBuildTodayRecommendation } = await import("@/lib/recommendation-service");
-const item = { id: "flashcards", kind: "flashcards", title: "Review flashcards", count: 1, href: "/courses/course/flashcard", done: false };
+const item = { id: "flashcards", kind: "flashcards" as const, title: "Review flashcards", count: 1, href: "/courses/course/flashcard", done: false };
 
 beforeEach(() => {
   rows = [[], [{ cardId: "card", courseId: "course" }], [], [], [], []];

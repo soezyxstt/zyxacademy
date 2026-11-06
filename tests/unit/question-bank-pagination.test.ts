@@ -224,7 +224,7 @@ describe("behavioral parity for active and historical pagination", () => {
     expect(allCourseMatch.map(row => row.id)).toEqual(["h-1", "h-2"]);
     expect(allCourseMatch.map(({ id, reviewStatus, quizEligible }) => ({ id, reviewStatus, quizEligible }))).toEqual([
       { id: "h-1", reviewStatus: "flagged", quizEligible: true },
-      { id: "h-2", reviewStatus: "reviewed", quizEligible: true },
+      { id: "h-2", reviewStatus: "reviewed" as const, quizEligible: true },
     ]);
 
     // Fallback source title ("Sumber tidak diketahui") and category ("other") are searchable and filterable
@@ -252,14 +252,14 @@ describe("cross-page question selection", () => {
   });
 
   test("merges and removes historical selection items across pages while preserving review bucket metadata", () => {
-    const outside = { id: "outside-h", reviewStatus: "generated", quizEligible: true };
-    const p1 = { id: "h-page-1", reviewStatus: "reviewed", quizEligible: true };
-    const p2 = { id: "h-page-2", reviewStatus: "reviewed", quizEligible: false };
+    const outside = { id: "outside-h", reviewStatus: "generated" as const, quizEligible: true };
+    const p1 = { id: "h-page-1", reviewStatus: "reviewed" as const, quizEligible: true };
+    const p2 = { id: "h-page-2", reviewStatus: "reviewed" as const, quizEligible: false };
 
     expect(historicalReviewActionFor(outside)).toBe("reviewed");
     expect(historicalReviewActionFor(p1)).toBe("published");
     expect(historicalReviewActionFor(p2)).toBe("flagged");
-    expect(historicalReviewActionFor({ id: "h-pub", reviewStatus: "published", quizEligible: true })).toBeNull();
+    expect(historicalReviewActionFor({ reviewStatus: "published", quizEligible: true })).toBeNull();
 
     const initial = new Map([[outside.id, outside]]);
     const withPage1 = toggleHistoricalQuestionEntries(initial, [p1]);

@@ -52,10 +52,10 @@ describe("FCM client effects and configuration guards (WP6)", () => {
     let requests = 0;
     let ok = false;
     let current = true;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = Object.assign(async () => {
       requests++;
       return new Response("", { status: ok ? 200 : 503 });
-    }) as typeof fetch;
+    }, originalFetch);
     expect(await registerTokenToServer("token", "a")).toBe(false);
     ok = true;
     expect(await registerTokenToServer("token", "a")).toBe(true);
@@ -64,11 +64,11 @@ describe("FCM client effects and configuration guards (WP6)", () => {
     expect(await registerTokenToServer("token", "b")).toBe(true);
     expect(requests).toBe(3);
     clearRegisteredPushTokenIdentity();
-    globalThis.fetch = (async () => {
+    globalThis.fetch = Object.assign(async () => {
       requests++;
       current = false;
       return new Response("");
-    }) as typeof fetch;
+    }, originalFetch);
     await registerTokenToServer("token", "a", () => current);
     expect(shouldRegisterPushToken({ userId: "a", token: "token" })).toBe(true);
     expect(await registerTokenToServer("token", "a", () => current)).toBe(false);
