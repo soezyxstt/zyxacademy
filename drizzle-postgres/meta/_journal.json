@@ -43,6 +43,13 @@
       "when": 1793899854102,
       "tag": "0005_violet_maelstrom",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793908326585,
+      "tag": "0006_large_rocket_racer",
+      "breakpoints": true
     }
   ]
 }

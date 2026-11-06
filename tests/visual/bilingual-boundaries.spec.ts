@@ -62,7 +62,6 @@ async function assertBoundaryGuards(page: Page) {
 }
 
 test.setTimeout(90_000);
-test.use({ reducedMotion: "reduce" });
 
 test.beforeEach(async ({ page }) => {
   installBoundaryGuards(page);

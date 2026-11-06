@@ -1,3 +1,4 @@
+import { configuredModelChain } from "@/lib/ai/model-settings-store";
 import { GoogleGenAI } from "@google/genai";
 import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import { logAiRequest } from "@/lib/ai/analytics";
@@ -295,6 +296,10 @@ export async function generateContentWithFallback(
     return { response: { text: mockText }, modelUsed: "mock-model", viaGateway: false };
   }
 
+  const providerParts = toProviderParts(params.contents);
+  const hasImage = providerParts.some((part) => part.type === "image");
+  const isVisual = Boolean(hasImage || params.route?.multimodal || params.route?.visualMode);
+
   if (providerRouterV2Enabled()) {
     if (!params.userId) {
       throw new Error("ZYRA_PROVIDER_ROUTER_USER_ID_REQUIRED");
@@ -307,7 +312,7 @@ export async function generateContentWithFallback(
         userId: params.userId,
         idempotencyKey: params.requestId,
         feature: params.feature ?? params.useCase ?? "zyra-provider-request",
-        parts: toProviderParts(params.contents),
+        parts: providerParts,
         config: params.config,
         route: params.route,
         useCase: params.useCase,
@@ -332,9 +337,17 @@ export async function generateContentWithFallback(
     }
   }
 
-  const modelPriority = params.route?.multimodal || params.route?.visualMode
-    ? getProviderRoutePlan(params.route).models.filter((model) => getModelEntry(model).input.image)
+  const defaultPriority = isVisual
+    ? getProviderRoutePlan({ ...params.route, multimodal: true, visualMode: true }).models.filter((model) => getModelEntry(model).input.image)
     : getModelChain(params.useCase);
+  const modelPriority = await configuredModelChain(
+    {
+      feature: params.feature,
+      useCase: params.useCase,
+      visual: isVisual,
+    },
+    defaultPriority as import("@/lib/ai/provider/model-registry").ModelId[],
+  );
   if (modelPriority.length === 0) throw new Error("No healthy multimodal model is available");
   let lastError: unknown = null;
 
@@ -355,7 +368,7 @@ export async function generateContentWithFallback(
             : createGeminiGenerateAdapter(client);
           const result = await withGeminiRetry(() => adapter.generate({
             modelId: model,
-            parts: toProviderParts(params.contents),
+            parts: providerParts,
             config: params.config,
           }));
           const response = makeCompatibilityResponse(result);

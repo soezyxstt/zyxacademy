@@ -3,7 +3,6 @@ import { stubVisualTelemetry } from "@/tests/visual/telemetry-stubs";
 import { waitForVisualReadiness } from "@/tests/visual/visual-readiness";
 
 test.setTimeout(90_000);
-test.use({ reducedMotion: "reduce" });
 
 test.beforeEach(async ({ page }) => {
   await stubVisualTelemetry(page);

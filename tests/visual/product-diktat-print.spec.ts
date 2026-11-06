@@ -34,10 +34,10 @@ test("Diktat math uses embedded KaTeX fonts and bounded radicals", async ({page}
     }
     const sourcePath=process.env.DIKTAT_PRINT_SOURCE;
     if(sourcePath){
-      const document = compile(JSON.parse(readFileSync(sourcePath,"utf8")));
-      await page.setContent(document.html);
+      const compiledDocument = compile(JSON.parse(readFileSync(sourcePath,"utf8")));
+      await page.setContent(compiledDocument.html);
       await page.evaluate(()=>document.fonts.ready);
-      const pdf=await page.pdf({format:"A4",printBackground:true,preferCSSPageSize:true,displayHeaderFooter:true,headerTemplate:"<span></span>",footerTemplate:document.footer,margin:{top:"9mm",bottom:"15mm",left:"12mm",right:"12mm"}});
+      const pdf=await page.pdf({format:"A4",printBackground:true,preferCSSPageSize:true,displayHeaderFooter:true,headerTemplate:"<span></span>",footerTemplate:compiledDocument.footer,margin:{top:"9mm",bottom:"15mm",left:"12mm",right:"12mm"}});
       writeFileSync("artifacts/diktat-print/corrected-local.pdf",pdf);
     }
   }

@@ -28,7 +28,7 @@ for (const key of ["PATH", "Path", "SystemRoot", "WINDIR", "TEMP", "TMP", "COMSP
 }
 const results: Array<{file:string;exitCode:number;passed:number;failed:number;skipped:number;log:string}> = [];
 const databaseIntegrationFiles = new Set([
-  "admin-course-canonical-sync.test.ts", "assessment-canonical-sync.test.ts",
+  "admin-course-canonical-sync.test.ts", "ai-model-settings-db.test.ts", "assessment-canonical-sync.test.ts",
   "authoring-mcp-source-persistence.test.ts", "admin-ops-ai-lifecycle-integration.test.ts",
   "admin-ops-ai-runtime.test.ts", "prompt-executor.test.ts", "zyra-pedagogy-shadow.test.ts",
 ]);

@@ -15,7 +15,7 @@ let changeReport = false;
 let transactions = 0;
 await local.insert(schema.user).values({ id: "local-test-author", name: "PDF fixture", email: "pdf-fixture@example.invalid" });
 await local.insert(schema.pengguna).values({ id: "local-test-author", status: "active" });
-await local.insert(schema.courses).values({ id: "course", title: "PDF fixture", category: "Test" });
+await local.insert(schema.courses).values({ id: "course", title: "PDF fixture", category: "Matematika" });
 await local.insert(schema.imporBundle).values({ id: "import", bundleId: input.snapshot.bundle.manifest.bundleId, checksum: input.snapshot.checksum, bundleType: "product", courseId: "course", sourceUriOrKey: input.snapshot.sourceUriOrKey, version: 4, status: "draft", validationReport: {}, requestedBy: "local-test-author" });
 const objects = new Map<string, Uint8Array>();
 mock.module("@/db", () => ({ db: new Proxy(local, { get(target, property) {

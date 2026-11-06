@@ -492,6 +492,7 @@ Tutor access resolution (`lib/auth/tutor-access.ts`) is a pure boundary that doe
 | `question_option_stats` | Per-option selection counters for distractor analytics |
 | `ai_usage_events` | Token usage per user per feature per model |
 | `ai_generation_traces` | Privacy-safe AI execution provenance traces (hashes, versions, tokens, violations, latency, terminal outcome) |
+| `ai_model_settings` | Admin-configured ordered 3-model chains (primary + 2 fallbacks) per AI feature with actor audit and optimistic concurrency timestamp |
 
 #### Quiz System
 | Table | Purpose |
@@ -1032,6 +1033,8 @@ Plan 002 keeps Gemini model identity, project-level limits, deadlines, capabilit
 Tutor math presentation is enforced at two boundaries. Versioned grounded, ungrounded, and image prompts require equation-first Markdown with valid `$...$` and `$$...$$` delimiters. The pure `lib/tutor/math-markdown.ts` normalizer adds delimiters only to bounded common raw equation shapes and is applied before persistence output composition and drawer rendering, including restored history. Existing LaTeX, inline code, and fenced code are protected from rewriting.
 
 The canonical `canonical-content-v2` profile and the separate `zyra-semantic-cache-v1` profile both use Gemini Embedding 2 at exactly 768 dimensions, but use different task instruction versions and index aliases. Neither profile can access the other index, and Embedding 001 is legacy provenance only. Preserved 1024-dimensional vectors remain rollback-only. The model registry is the default provider route; route selection is controlled only by the retained provider-router capability flag.
+
+Admin-editable per-feature model chains live in `ai_model_settings` (`lib/ai/model-settings.ts` and `lib/ai/model-settings-store.ts`) with always-on defaults and no feature flag. Each override stores three distinct ordinary-routing generation models (`ordinaryRoutingAllowed: true` and `generate` operation, excluding quarantined and embedding entries). `configuredModelChain` reads the committed row per request across `RequestLifecycle`, direct `generateContentWithFallback`, `PromptExecutor`, Python Playground (`stageId: "playground"` while keeping semantic cache identity separate), and `ZyxLanguageModel` for Ops AI. `admin-ops-ai` enforces the `generate-content` family boundary for native streaming tool declarations, falls back across the configured trio only before visible text or tool output and when not aborted, and records the actual winning model in allowance commits and operational telemetry. On inline-image turns, `compatibleModelChain` preserves admin priority among image-capable selections and appends remaining `ROUTE_POLICY.premiumVisual` fallbacks so multimodal turns remain routable.
 
 ### Zyra distributed quota coordinator
 

@@ -4,6 +4,7 @@ import { selectTeachingPlan } from "@/lib/zyra/pedagogy/state-machine";
 import type { PedagogyContext, ZyraTeachingResponse } from "@/lib/zyra/pedagogy/contracts";
 
 const context: PedagogyContext = {
+  responseLanguage: "id",
   courseId: "course-a",
   chapterId: null,
   action: "new_topic",
