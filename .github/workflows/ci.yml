@@ -187,13 +187,13 @@ jobs:
 
   deploy-web:
     needs: [impact, gate]
-    if: github.event_name == 'push' && needs.impact.outputs.web == 'true'
+    if: ${{ !cancelled() && needs.impact.result == 'success' && needs.gate.result == 'success' && github.event_name == 'push' && needs.impact.outputs.web == 'true' }}
     uses: ./.github/workflows/deploy-web.yml
     secrets: inherit
 
   deploy-worker:
     needs: [impact, gate]
-    if: github.event_name == 'push' && (needs.impact.outputs.worker == 'true' || needs.impact.outputs.v4 == 'true')
+    if: ${{ !cancelled() && needs.impact.result == 'success' && needs.gate.result == 'success' && github.event_name == 'push' && (needs.impact.outputs.worker == 'true' || needs.impact.outputs.v4 == 'true') }}
     uses: ./.github/workflows/deploy.yml
     with:
       check_worker: ${{ needs.impact.outputs.worker == 'true' }}

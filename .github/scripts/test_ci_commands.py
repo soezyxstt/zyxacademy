@@ -1,6 +1,7 @@
 """Verify selection and argv handling without running package managers or compilers."""
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -93,6 +94,46 @@ class GateTest(unittest.TestCase):
     def test_push_worker_is_checked_by_deployment(self):
         self.assertEqual(self.gate({'worker-check': 'skipped'}, {'worker': 'true'}, 'push'), 0)
 
+
+
+class DeploymentGateTest(unittest.TestCase):
+    def expression(self, job):
+        text = (ROOT / '.github/workflows/ci.yml').read_text()
+        block = text.split(f'  {job}:\n', 1)[1]
+        return re.search(r'^    if: (.+)$', block, re.MULTILINE).group(1)
+
+    def allowed(self, job, gate='success', impact='success', event='push', cancelled=False, **outputs):
+        expression = self.expression(job)
+        # An explicit status function prevents implicit success() from suppressing
+        # releases when an optional ancestor was skipped. Keep the gate authoritative.
+        self.assertIn('!cancelled()', expression)
+        expression = expression.removeprefix('${{').removesuffix('}}').strip()
+        values = {'needs.gate.result': gate, 'needs.impact.result': impact,
+                  'github.event_name': event, **{f'needs.impact.outputs.{k}': v for k, v in outputs.items()}}
+        expression = re.sub(r'(?:needs|github)\.[a-zA-Z0-9_.]+', lambda m: repr(values.get(m.group(), '')), expression)
+        expression = expression.replace('!cancelled()', repr(not cancelled)).replace('&&', 'and').replace('||', 'or')
+        return eval(expression, {'__builtins__': {}})
+
+    def test_optional_skips_do_not_suppress_selected_releases_after_successful_gate(self):
+        # Optional job results have already been accepted by the gate, and must
+        # not become an implicit second release gate.
+        self.assertTrue(self.allowed('deploy-web', web='true'))
+        self.assertTrue(self.allowed('deploy-worker', worker='true'))
+        self.assertTrue(self.allowed('deploy-worker', worker='false', v4='true'))
+
+    def test_failed_skipped_or_cancelled_gate_never_releases(self):
+        for job in ['deploy-web', 'deploy-worker']:
+            for result in ['failure', 'skipped', 'cancelled', '']:
+                with self.subTest(job=job, gate=result):
+                    self.assertFalse(self.allowed(job, gate=result, web='true', worker='true'))
+            self.assertFalse(self.allowed(job, impact='failure', web='true', worker='true'))
+            self.assertFalse(self.allowed(job, cancelled=True, web='true', worker='true'))
+
+    def test_prs_and_unselected_surfaces_never_release(self):
+        self.assertFalse(self.allowed('deploy-web', event='pull_request', web='true'))
+        self.assertFalse(self.allowed('deploy-worker', event='pull_request', worker='true'))
+        self.assertFalse(self.allowed('deploy-web', web='false'))
+        self.assertFalse(self.allowed('deploy-worker', worker='false', v4='false'))
 
 if __name__ == '__main__':
     unittest.main()
