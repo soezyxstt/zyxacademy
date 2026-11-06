@@ -1,5 +1,7 @@
 "use client";
 
+import { ProductCatalogSkeleton } from "@/components/admin/content-loading-skeletons";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "@/lib/i18n/client";
 import {
@@ -9,7 +11,6 @@ import {
   HelpCircle,
   Layers,
   LayoutGrid,
-  Loader2,
   RefreshCw,
   Eye,
 } from "lucide-react";
@@ -197,10 +198,7 @@ export function ProductCatalogPanel({ courseLabels = {}, lockedCourse }: Props) 
 
       {/* Product List Content */}
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-muted-foreground">
-          <Loader2 className="size-6 animate-spin mr-2" />
-          <span className="text-body-sm">Memuat katalog produk...</span>
-        </div>
+        <ProductCatalogSkeleton />
       ) : error ? (
         <AdminErrorState message={error} onRetry={() => void fetchProducts()} />
       ) : items.length === 0 ? (

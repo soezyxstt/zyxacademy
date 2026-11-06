@@ -1,5 +1,7 @@
 "use client";
 
+import { ParticipantPickerSkeleton } from "@/components/admin/content-loading-skeletons";
+
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -474,7 +476,7 @@ export default function AdminMeetPage() {
                       </div>
                       <div className="max-h-64 overflow-y-auto rounded-xl border border-border bg-background">
                         {usersLoading ? (
-                          <p className="p-4 text-body-sm text-muted-foreground">{t("meetMainUI.loadingParticipants")}</p>
+                          <ParticipantPickerSkeleton label={t("meetMainUI.loadingParticipants")} />
                         ) : filteredUsers.length === 0 ? (
                           <p className="p-4 text-body-sm text-muted-foreground">{t("meetMainUI.noMatchingParticipants")}</p>
                         ) : (

@@ -1,6 +1,7 @@
 "use client";
 
-import { Skeleton } from "@/components/ui/skeleton";
+import { FlagsSkeleton } from "@/components/admin/content-loading-skeletons";
+
 
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -111,15 +112,7 @@ export function FlagsClient() {
     setTimeout(() => setCopiedEnvSnippet(false), 2500);
   };
 
-  if (isLoading) {
-    return (
-      <div role="status" aria-label="Memuat" className="space-y-6">
-        <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-4">{[0, 1, 2, 3].map((i) => <div key={i} className="space-y-2 p-4"><Skeleton className="h-4 w-24" /><Skeleton className="h-6 w-12" /></div>)}</div>
-        <div className="flex flex-wrap gap-2"><Skeleton className="h-9 min-w-[140px] flex-1" /><Skeleton className="h-9 w-32" /></div>
-        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="flex items-center gap-3 p-4"><div className="flex-1 space-y-2"><Skeleton className="h-4 w-48 max-w-full" /><Skeleton className="h-3 w-2/3" /></div><Skeleton className="h-6 w-12" /></div>)}</div>
-      </div>
-    );
-  }
+  if (isLoading) return <FlagsSkeleton />;
 
   if (error || !data) {
     return (

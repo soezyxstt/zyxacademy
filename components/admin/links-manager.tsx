@@ -1,5 +1,7 @@
 "use client";
 
+import { PublicLinksSkeleton } from "@/components/admin/content-loading-skeletons";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "@/lib/i18n/client";
 import {
@@ -475,14 +477,7 @@ export function LinksManager() {
       </div>
 
       {loading ? (
-        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-20 animate-pulse bg-muted/40"
-            />
-          ))}
-        </div>
+        <PublicLinksSkeleton />
       ) : error ? (
         <AdminErrorState message={error} onRetry={fetchLinks} />
       ) : links.length === 0 ? (

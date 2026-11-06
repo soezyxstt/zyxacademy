@@ -5,7 +5,7 @@ import { useTranslations } from "@/lib/i18n/client";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AdminErrorState } from "@/components/admin/state-panels";
-import { RefreshCw } from "lucide-react";
+import { ZyraUsageSkeleton } from "@/components/admin/content-loading-skeletons";
 
 type UserUsage = {
   userId: string;
@@ -125,10 +125,7 @@ export function ZyraUsageCharts() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-24 text-muted-foreground text-body-sm">
-          <RefreshCw className="size-4 animate-spin mr-2" />
-          Memuat data penggunaan Zyra...
-        </div>
+        <ZyraUsageSkeleton />
       ) : (
         <>
           <div className="min-w-0 space-y-3">

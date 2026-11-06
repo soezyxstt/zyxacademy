@@ -1,5 +1,7 @@
 "use client";
 
+import { ZyraOpsSkeleton } from "@/components/admin/content-loading-skeletons";
+
 import * as React from "react";
 import { Activity, RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,7 +32,7 @@ export function ZyraOpsPanel() {
   if (error) {
     return <p className="flex items-center gap-2 text-body-sm text-status-warning"><TriangleAlert className="size-4" /> Zyra ops belum tersedia.</p>;
   }
-  if (!metrics) return <p className="text-body-sm text-muted-foreground">Memuat Zyra ops...</p>;
+  if (!metrics) return <ZyraOpsSkeleton />;
 
   return (
     <section className="space-y-4 border-y border-border py-6" aria-labelledby="zyra-ops-title">
