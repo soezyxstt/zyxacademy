@@ -1,147 +1,47 @@
-# Prosedur Visual Capture Halaman dengan Sesi Staging
+# Visual capture dengan sesi staging
 
-Prosedur ini menghasilkan screenshot halaman aplikasi yang terhubung ke database staging, termasuk halaman terproteksi seperti `/admin`, tanpa mutasi data dan tanpa membocorkan rahasia. Dipakai untuk audit kualitas visual; contoh hasil pemakaian: `docs/audit/admin-visual-quality-audit.md`.
+Gunakan prosedur ini hanya untuk capture lokal terhadap staging yang telah diotorisasi. Adapter saat ini memakai Neon PostgreSQL. Dokumen ini tidak menetapkan status deployment produksi; verifikasi target saat menjalankan prosedur.
 
-## Aturan keselamatan
+## Batasan
 
-- Read-only terhadap database dan storage. Tidak ada INSERT, UPDATE, DELETE.
-- Jangan pernah mencetak isi `.env.staging`, token sesi, tanda tangan cookie, atau nilai koneksi ke log, laporan, atau chat. Cetak hanya boolean dan metrik.
-- Screenshot memuat data staging asli (nama, email). Simpan di `artifacts/` yang diabaikan git dan jangan dibagikan.
-- Matikan server lokal setelah selesai.
+- `loadVerifiedStagingEnvironment` membaca `.env.neon`, memeriksa project, branch, host dan bucket staging serta pemisahannya dari target produksi, lalu memasang `default_transaction_read_only=on` pada koneksi PostgreSQL. Jangan melewati pemeriksaan atau mematikan read-only ketika terjadi error.
+- Read-only dapat menolak penulisan insidental saat navigasi. Cache rekomendasi terbaru bersifat best effort, tetapi pembuatan streak masih melakukan penulisan dan dapat gagal. Catat kegagalan dan batas cakupan; jangan menyimpulkan seluruh database tidak berubah. Hindari tindakan yang menulis ke storage atau layanan eksternal.
+- Jangan cetak isi env, URL koneksi, token, tanda tangan, cookie, atau data pribadi ke terminal, log, laporan, atau chat. Screenshot dapat memuat PII staging; simpan hanya di `artifacts/` yang diabaikan git dan jangan bagikan.
+- Hanya primary agent yang menjalankan pemeriksaan visual dan membuka setiap screenshot. Gunakan viewport 380 x 844 dan 1536 x 864, serta breakpoint tambahan bila relevan.
 
-## Fakta lingkungan yang menentukan pendekatan
+## Build dan server
 
-1. Koneksi database bergantung `NODE_ENV`. `lib/db/index.ts` memakai `TURSO_DATABASE_URL`/`TURSO_CONNECTION_URL` + `TURSO_AUTH_TOKEN` hanya saat `NODE_ENV=production`. Saat `next dev`, koneksi memakai `DATABASE_URL` tanpa token sehingga Turso menjawab 401. Karena itu gunakan build produksi (`next build` lalu `next start`), bukan `next dev`.
-2. `bun` belum tentu ada dan `node --env-file` bisa ditolak oleh `NODE_OPTIONS` lingkungan. Gunakan launcher yang mem-parse `.env.staging` sendiri.
-3. Nama cookie sesi Better Auth terobservasi punya dua mode: `better-auth.session_token` (http) dan `__Secure-better-auth.session_token` (produksi/https). Mekanisme internalnya bergantung kombinasi `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, dan `NODE_ENV`. Jangan ditebak; probe seperti pada Langkah 3.
-4. Sesi admin staging dipakai manusia yang aktif berdevelop. Token bisa invalid sewaktu-waktu karena rotasi atau relogin. Ambil token segar dari database tepat sebelum setiap navigasi dan pakai sekali per navigasi.
-5. Memulai server baru tanpa mematikan server lama membuat proses lama menyajikan manifest build campuran; gejalanya `ChunkLoadError` dan HTTP 500 pada `/_next/static/chunks/*`.
-
-## Langkah 1: Launcher env
-
-Simpan di luar repo, misal `/tmp/run-next-staging.mjs`. Parser sederhana ini tidak pernah menampilkan nilai.
-
-```js
-import { readFileSync } from "node:fs";
-for (const line of readFileSync("/workspaces/zyx-edu/.env.staging", "utf8").split("\n")) {
-  const m = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
-  if (!m) continue;
-  let v = m[2].trim();
-  if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
-  if (!(m[1] in process.env)) process.env[m[1]] = v;
-}
-// build dan start butuh production agar lib/db memakai TURSO_* + token
-process.env.NODE_ENV = process.argv.includes("dev") ? "development" : "production";
-process.argv = [process.argv[0], "next", ...process.argv.slice(2)];
-await import("/workspaces/zyx-edu/node_modules/next/dist/bin/next");
-```
-
-## Langkah 2: Build dan start
+Dari root repository, pastikan `.env.neon` tersedia dan port 3100 bebas. Jangan hentikan proses milik pihak lain. Loader gagal tertutup jika identitas target tidak sesuai. Build candidate sekali, lalu start dari build yang sama:
 
 ```bash
-# pastikan tidak ada server lama; lihat PID dari ss, bukan pkill -f
-ss -ltnp | grep 3100          # catat PID bila ada, lalu kill -9 <PID>
-setsid nohup node /tmp/run-next-staging.mjs build > /tmp/next-build.log 2>&1 &
-# tunggu hingga selesai, lalu:
-setsid nohup node /tmp/run-next-staging.mjs start --port 3100 > /tmp/next-start.log 2>&1 &
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3100/sign-in   # harapan: 200
-grep -c EADDRINUSE /tmp/next-start.log                                   # harapan: 0
+mkdir -p artifacts/visual-quality
+bun scripts/performance/run-next-staging.ts build --build-kind candidate
+setsid bun scripts/performance/run-next-staging.ts start --build-kind candidate --port 3100 --server-record artifacts/visual-quality/staging-server.json > artifacts/visual-quality/staging-server.log 2>&1 &
+staging_pid=$!
 ```
 
-Override runtime opsional: `BETTER_AUTH_URL=http://localhost:3100` dan `NEXT_PUBLIC_APP_URL=http://localhost:3100` membuat fetch sesi sisi klien same-origin sehingga tidak ada noise CORS. Jangan lupa build ulang bila mengubah `NEXT_PUBLIC_APP_URL` karena nilai itu di-inline saat build.
+Build candidate memerlukan baseline asli atau arsip baseline valid; jika prasyarat tidak ada, berhenti dan catat kegagalannya. Launcher memverifikasi build ID, hash sumber dan identitas target saat start, serta menolak port yang sudah digunakan atau record yang sudah ada. Hash sumber mengecualikan `docs/`, `plans/`, env dan artifacts; perubahan sumber lain setelah build memerlukan build candidate baru. Jangan mengganti build saat server masih berjalan. Log dapat berisi informasi sensitif, jangan bagikan.
 
-## Langkah 3: Cookie sesi read-only
+## Autentikasi dan capture
 
-Pola sama dengan `scripts/staging/smoke-auth.ts`: ambil satu token sesi admin aktif, tandatangani lokal dengan HMAC, pakai sebagai cookie.
+`tests/visual/staging-readonly-auth.ts` memanggil loader, mengambil sesi admin aktif yang segar melalui query read-only, menandatangani cookie lokal, lalu mencoba kedua nama cookie pada `/api/auth/get-session`. Probe harus mengembalikan user ID yang hash-nya cocok dengan sesi terpilih. Jika gagal atau sesi berotasi, hentikan atau ulangi navigasi dengan sesi segar; jangan menebak nama cookie. Helper dipanggil sebelum navigasi pada pemeriksaan visual standar. Untuk spec interaksi, panggil `prepareReadOnlyStagingCapture(page, baseUrl)` tepat sebelum setiap navigasi terproteksi dan gunakan sesi segar untuk setiap navigasi.
 
-```js
-import { createClient } from "@libsql/client";
-import { createHash, createHmac } from "node:crypto";
+Dengan server milik sendiri yang sudah siap, jalankan rute yang relevan:
 
-// ENV sudah dimuat launcher; ulangi parse bila skrip berdiri sendiri
-const client = createClient({
-  url: ENV.TURSO_DATABASE_URL?.trim() || ENV.TURSO_CONNECTION_URL?.trim() || ENV.DATABASE_URL?.trim(),
-  authToken: ENV.TURSO_AUTH_TOKEN?.trim() || undefined,
-});
-
-async function freshSignedCookie() {
-  const r = await client.execute({
-    sql: `SELECT s.token FROM pengguna p
-          INNER JOIN pengguna_peran pp ON pp.pengguna_id = p.id
-          INNER JOIN peran r ON r.id = pp.peran_id
-          INNER JOIN session s ON s.user_id = p.id
-          WHERE p.status = 'active' AND r.code = 'admin'
-            AND (s.expires_at > ? OR s.expires_at > ?)
-          ORDER BY s.updated_at DESC LIMIT 1`,
-    args: [Date.now(), Math.floor(Date.now() / 1000)],
-  });
-  const token = String(r.rows[0].token);
-  const secret = rawSecret().length >= 32 ? rawSecret()
-    : createHash("sha256").update(`zyx-edu:better-auth:secret-stretch:v1:${rawSecret()}`, "utf8").digest("base64url");
-  const sig = createHmac("sha256", secret).update(token, "utf8").digest("base64");
-  return encodeURIComponent(`${token}.${sig}`);
-}
-function rawSecret() { return ENV.BETTER_AUTH_SECRET; }
+```bash
+VISUAL_CHECK_STAGING_SESSION=1 PLAYWRIGHT_BASE_URL=http://localhost:3100 VISUAL_CHECK_PATHS=/admin bun run test:visual
 ```
 
-Tentukan nama cookie dengan probe, sekali per sesi server, dan probe ulang setelah restart server atau perubahan env:
-
-```js
-for (const name of ["better-auth.session_token", "__Secure-better-auth.session_token"]) {
-  const res = await fetch("http://localhost:3100/api/auth/get-session", { headers: { cookie: `${name}=${value}` } });
-  if ((await res.text()).includes('"user"')) console.log(JSON.stringify({ mode: name.includes("Secure") ? "secure" : "plain" }));
-}
-```
-
-Saat memasang di Puppeteer, varian `__Secure-` butuh `secure: true`; localhost dipercaya Chrome sehingga tetap bisa dipasang di http.
-
-## Langkah 4: Crawl Puppeteer
-
-Prinsip yang terbukti benar; menyimpang dari salah satu poin ini berpotensi mengulang eksperimen panjang:
-
-1. Satu `page` baru per rute. Cookie segar dari `freshSignedCookie()` tepat sebelum navigasi, dipakai tepat satu kali.
-2. Tema gelap lewat emulasi media, bukan priming `localStorage`. `ThemeProvider` memakai `attribute="class"` dengan `defaultTheme="system"`, jadi `prefers-color-scheme: dark` sudah cukup. Priming ke `/sign-in` sebelum navigasi target terbukti memicu kegagalan sesi.
-3. `waitUntil: "domcontentloaded"` + jeda tetap (3 sampai 4 detik) + satu pass scroll untuk memicu konten lazy. Hindari `networkidle2`: halaman berat (analytics, jobs) tidak pernah idle dan selalu timeout.
-4. Jangan pakai `page.setRequestInterception`. Pada pengujian kami, mengaktifkannya berkorelasi kuat dengan kegagalan sesi masif.
-5. Validasi lingkungan di halaman pertama: bila muncul `ChunkLoadError`, hentikan crawl; itu tanda server lama menyajikan artefak build campuran, bukan masalah halaman.
-6. Metrik per muatan: status HTTP, URL akhir (deteksi redirect ke `/sign-in`), `scrollWidth > clientWidth` (overflow), jumlah dan teks H1, error konsol, respons >= 400. Simpan screenshot `fullPage`.
-
-Kerangka inti:
-
-```js
-const page = await browser.newPage();
-if (variant === "desktop-dark") {
-  await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "dark" }]);
-}
-await page.setViewport(variant === "mobile-light"
-  ? { width: 380, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
-  : { width: 1440, height: 900, deviceScaleFactor: 1 });
-await page.setCookie({ name: cookieName, value: await freshSignedCookie(), domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax", secure: cookieName.includes("Secure") });
-const resp = await page.goto("http://localhost:3100" + path, { waitUntil: "domcontentloaded", timeout: 60000 });
-// bila finalUrl diawali /sign-in: ulangi sekali dengan token segar baru; bila tetap gagal, tandai gagal
-await new Promise((r) => setTimeout(r, 3500));
-// scroll pass, evaluasi metrik, lalu:
-await page.screenshot({ path: `artifacts/manual/${tanggal}/${slug(path)}/${variant}.png`, fullPage: true });
-await page.close();
-```
-
-Varian standar agar hasil sebanding dengan audit sebelumnya: `desktop-light`, `desktop-dark`, `mobile-light` pada seluruh rute `app/(admin)/admin/**/page.tsx`. Rute dinamis memakai satu ID nyata per entitas lewat SELECT read-only (`courses`, `quiz_templates`, `blog_articles`, `google_meet_sessions`, `custom_forms`, `assessment_sources`, `impor_bundle` dengan filter `bundle_type`).
-
-## Jebakan yang sudah terbukti
-
-| Gejala | Penyebab | Penanganan |
-|---|---|---|
-| `get-session` 500 dengan `LibsqlError 401` | `next dev` memakai `DATABASE_URL` tanpa token | Gunakan `next build` + `next start` sehingga `NODE_ENV=production` |
-| 500 pada `/_next/static/chunks/*`, `ChunkLoadError` | Server lama masih hidup saat artefak build diganti | Kill PID lama dari `ss -ltnp` sebelum start; abort crawl bila ChunkLoadError muncul |
-| Redirect ke `/sign-in` meski cookie tampak benar | Nama cookie salah mode, atau token sudah pernah dipakai | Probe nama cookie; token segar sekali pakai per navigasi; tanpa priming |
-| `EADDRINUSE` saat start | Server sebelumnya belum mati | Kill PID dari `ss -ltnp`; proses `next-server` terpisah dari launcher |
-| `pkill -f` menggantung atau membunuh shell sendiri | Pola cocok dengan baris perintah shell yang menjalankannya | Pakai kurung untuk memecah pola (`run-next-[s]taging`) atau kill PID langsung; jangan gabungkan pkill dengan perintah yang memuat pola polosnya |
-| 404 `/_vercel/insights`, `/_vercel/speed-insights` | Skrip Vercel tidak ada di server lokal | Noise; abaikan, jangan laporkan sebagai defect |
-| PostHog/Sentry terkirim ke proyek staging | Telemetri klien aktif | Blokir di level jaringan bila perlu; jangan pakai request interception Puppeteer |
-| `assessment_sources` kosong | Data staging belum ada | Lewati rute detail terkait dan catat di laporan |
+Ganti daftar rute sesuai perubahan. Untuk state interaktif, gunakan spec terfokus yang menangkap setiap state pada kedua viewport. `VISUAL_CHECK_STUB_VERCEL=1` secara opsional mengganti skrip analytics lokal dengan respons kosong; itu tidak memverifikasi pengiriman analytics. Periksa setiap screenshot langsung di `artifacts/visual-quality/results/`, termasuk overflow, clipping, hierarki dan focus. Catat command, exit status, matriks rute dan state, viewport, path screenshot, respons HTTP gagal, redirect tak terduga, error halaman atau konsol, serta batas yang belum terverifikasi. Jangan menganggap screenshot default cukup untuk state interaktif.
 
 ## Pembersihan
 
-1. `kill -9 <PID>` server dari `ss -ltnp | grep <port>`.
-2. `git status --short`: hanya berkas yang memang disengaja (laporan audit, dokumen prosedur). `artifacts/` diabaikan git.
-3. Skrip bantu di `/tmp` tidak perlu di-commit; dokumen ini memuat semua yang dibutuhkan untuk membangunnya ulang.
+Hentikan hanya process group yang dibuat oleh perintah `setsid` di atas. Pastikan `$staging_pid` masih menunjuk launcher yang dimiliki sesi ini dan merupakan pemimpin process group sebelum mengirim sinyal; jika identitas tidak cocok, jangan kirim sinyal. Jangan gunakan `pkill -f` atau mematikan proses berdasarkan port saja.
+
+```bash
+ps -o pid,pgid,args -p "$staging_pid"
+kill -TERM -- "-$staging_pid"
+wait "$staging_pid" 2>/dev/null || true
+```
+
+Pastikan proses berhenti dan record server dihapus oleh launcher. Jika proses sudah tidak ada tetapi record tertinggal, verifikasi record tersebut milik sesi ini sebelum menghapusnya. Simpan artifacts secara lokal dan periksa status worktree tanpa membuang perubahan lain.

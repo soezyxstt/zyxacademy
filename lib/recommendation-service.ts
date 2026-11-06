@@ -294,14 +294,18 @@ export async function getOrBuildTodayRecommendation(
   const planItems = await buildPlan(studentId, enrolledCourseIds);
   const payload: Payload = { items: planItems };
 
-  await db.insert(dailyRecommendations).values({
-    id: randomUUID(),
-    studentId,
-    date: today,
-    payload,
-    completedItems: [],
-    generatedAt: new Date(),
-  });
+  try {
+    await db.insert(dailyRecommendations).values({
+      id: randomUUID(),
+      studentId,
+      date: today,
+      payload,
+      completedItems: [],
+      generatedAt: new Date(),
+    });
+  } catch {
+    console.error("[recommendations] Daily cache persistence failed");
+  }
 
   return {
     items: planItems.map((item) => ({ ...item, done: false })),

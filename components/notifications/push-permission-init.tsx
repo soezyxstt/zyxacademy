@@ -18,7 +18,7 @@
  *
  * Placed in the root layout so it runs on every page for authenticated users.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   Dialog,
@@ -36,25 +36,115 @@ const CONSENT_KEY = "fcm_consent";
 const LATER_AT_KEY = "fcm_later_at";
 const LATER_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
+function isPushEnvironmentSupported(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    "Notification" in window &&
+    "serviceWorker" in navigator
+  );
+}
+
 export function PushPermissionInit() {
   const pathname = usePathname();
   const { data: session, isPending } = useSession();
   const [showPrompt, setShowPrompt] = useState(false);
 
-  useEffect(() => {
-    if (isPending || !session?.user) return;
+  const userId = session?.user?.id ?? null;
+  const userRole = (session?.user as { role?: string } | undefined)?.role;
+  const isAdminSurface = pathname.startsWith("/admin") || userRole === "admin";
+  const activeIdentityRef = useRef({ userId: null as string | null });
+  const eligibleUserId = !isPending && !isAdminSurface ? userId : null;
+  if (activeIdentityRef.current.userId !== eligibleUserId) {
+    activeIdentityRef.current = { userId: eligibleUserId };
+  }
+  const inFlightUserRef = useRef<{ userId: string | null } | null>(null);
 
-    // Student-facing modal must never mount on admin surfaces or for admin users
-    if (pathname.startsWith("/admin") || (session.user as { role?: string }).role === "admin") {
+  const syncGrantedTokenForUser = useCallback(
+    async (activeUserId: string, requestPermission: boolean) => {
+      const identity = activeIdentityRef.current;
+      const isCurrent = () => activeIdentityRef.current === identity && identity.userId === activeUserId;
+      if (!activeUserId || !isCurrent()) return;
+      if (!requestPermission && inFlightUserRef.current === identity) return;
+
+      inFlightUserRef.current = identity;
+      try {
+        // Lazy-import the client FCM helpers to avoid bundling them in the
+        // server-side render path. These modules use browser APIs.
+        const {
+          requestNotificationPermission,
+          getFCMToken,
+          registerTokenToServer,
+          shouldRegisterPushToken,
+        } = await import("@/lib/firebase/messaging");
+
+        if (!isCurrent()) return;
+        let permission = Notification.permission;
+        if (requestPermission) {
+          permission = await requestNotificationPermission();
+          if (!isCurrent()) return;
+          if (permission === "denied") {
+            localStorage.setItem(CONSENT_KEY, "denied");
+            return;
+          }
+          if (permission === "granted") {
+            localStorage.setItem(CONSENT_KEY, "granted");
+          }
+        }
+
+        if (permission !== "granted") return;
+
+        const token = await getFCMToken();
+        if (!token || !isCurrent()) return;
+
+        if (!shouldRegisterPushToken({ userId: activeUserId, token })) {
+          return;
+        }
+
+        await registerTokenToServer(token, activeUserId, isCurrent);
+      } catch (err) {
+        // Non-fatal ; push notifications are enhancement, not core functionality
+        console.warn("[FCM] Init error:", err);
+      } finally {
+        if (inFlightUserRef.current === identity) {
+          inFlightUserRef.current = null;
+        }
+      }
+    },
+    []
+  );
+
+  // 1. Granted token registration effect: depends on session identity & admin gating, NOT pathname.
+  useEffect(() => {
+    if (isPending) return;
+
+    if (!userId) {
+      inFlightUserRef.current = null;
+      void import("@/lib/firebase/messaging")
+        .then(({ clearRegisteredPushTokenIdentity }) => {
+          clearRegisteredPushTokenIdentity();
+        })
+        .catch(() => {});
       return;
     }
 
-    // Only run in a real browser with service worker support
-    if (
-      typeof window === "undefined" ||
-      !("Notification" in window) ||
-      !("serviceWorker" in navigator)
-    ) {
+    if (isAdminSurface || !isPushEnvironmentSupported()) {
+      return;
+    }
+
+    if (Notification.permission === "granted") {
+      localStorage.setItem(CONSENT_KEY, "granted");
+      void syncGrantedTokenForUser(userId, false);
+    }
+  }, [isPending, userId, isAdminSurface, syncGrantedTokenForUser]);
+
+  // 2. Permission prompt scheduling effect: route-aware delay for "default" permission only.
+  useEffect(() => {
+    if (isPending || !userId || isAdminSurface) {
+      setShowPrompt(false);
+      return;
+    }
+
+    if (!isPushEnvironmentSupported()) {
       return;
     }
 
@@ -62,19 +152,18 @@ export function PushPermissionInit() {
 
     if (currentPermission === "denied") {
       localStorage.setItem(CONSENT_KEY, "denied");
+      setShowPrompt(false);
       return;
     }
 
-    const storedConsent = localStorage.getItem(CONSENT_KEY);
-
     if (currentPermission === "granted") {
-      // Returning user who already allowed it (or localStorage was cleared).
       localStorage.setItem(CONSENT_KEY, "granted");
-      void initFCM(false);
+      setShowPrompt(false);
       return;
     }
 
     // Permission is "default": only prompt if not in the "later" cooldown.
+    const storedConsent = localStorage.getItem(CONSENT_KEY);
     if (storedConsent === "denied") return;
 
     if (storedConsent === "later") {
@@ -89,42 +178,12 @@ export function PushPermissionInit() {
       setShowPrompt(true);
     }, delayMs);
     return () => clearTimeout(timer);
-  }, [isPending, session?.user, pathname]);
-
-  const initFCM = async (requestPermission: boolean) => {
-    try {
-      // Lazy-import the client FCM helpers to avoid bundling them in the
-      // server-side render path. These modules use browser APIs.
-      const { requestNotificationPermission, getFCMToken, registerTokenToServer } =
-        await import("@/lib/firebase/messaging");
-
-      let permission = Notification.permission;
-      if (requestPermission) {
-        permission = await requestNotificationPermission();
-        if (permission === "denied") {
-          localStorage.setItem(CONSENT_KEY, "denied");
-          return;
-        }
-        if (permission === "granted") {
-          localStorage.setItem(CONSENT_KEY, "granted");
-        }
-      }
-
-      if (permission !== "granted") return;
-
-      const token = await getFCMToken();
-      if (!token) return;
-
-      await registerTokenToServer(token);
-    } catch (err) {
-      // Non-fatal ; push notifications are enhancement, not core functionality
-      console.warn("[FCM] Init error:", err);
-    }
-  };
+  }, [isPending, userId, isAdminSurface, pathname]);
 
   const handleAccept = async () => {
     setShowPrompt(false);
-    await initFCM(true);
+    if (!userId || isAdminSurface) return;
+    await syncGrantedTokenForUser(userId, true);
   };
 
   const handleLater = () => {
@@ -133,7 +192,7 @@ export function PushPermissionInit() {
     localStorage.setItem(LATER_AT_KEY, String(Date.now()));
   };
 
-  if (!showPrompt) return null;
+  if (!showPrompt || isPending || !userId || isAdminSurface) return null;
 
   return (
     <Dialog

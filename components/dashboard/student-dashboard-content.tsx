@@ -26,7 +26,22 @@ export type StudentDashboardContentProps = {
   activateClassAction: ReactNode;
 };
 
-export function StudentDashboardContent({ href = (path: string) => path,  enrollments, courseProgress, inProgressDocuments, recommendedUnenrolledCourses, studentTargetCategory, totalDueFlashcards, firstCourseWithQueue, recentReviews, masteryConcepts, availableExams, activateClassAction }: StudentDashboardContentProps) {
+export type StreamedStudentDashboardContentProps = {
+  sections: { primary: ReactNode; secondary: ReactNode };
+};
+
+export function StudentDashboardContent(props: StudentDashboardContentProps | StreamedStudentDashboardContentProps) {
+  if ("sections" in props) {
+    return (
+      <Reveal duration="duration-700" className="w-full min-w-0">
+        <div className="grid gap-6 lg:grid-cols-12 w-full min-w-0">
+          <div className="space-y-6 lg:col-span-7 min-w-0">{props.sections.primary}</div>
+          <div className="space-y-6 lg:col-span-5 min-w-0">{props.sections.secondary}</div>
+        </div>
+      </Reveal>
+    );
+  }
+  const { href = (path: string) => path,  enrollments, courseProgress, inProgressDocuments, recommendedUnenrolledCourses, studentTargetCategory, totalDueFlashcards, firstCourseWithQueue, recentReviews, masteryConcepts, availableExams, activateClassAction } = props;
 
   return (
             <Reveal duration="duration-700" className="w-full min-w-0">

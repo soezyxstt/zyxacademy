@@ -61,6 +61,68 @@ export function toConciseConceptName(statement: string, displayName?: string | n
   return words.slice(0, 5).join(" ");
 }
 
+type CanonicalIdea = { id: string; name: string; conceptDisplayName: string | null; chapterId: string; chapterOrder: number; chapterTitle: string; code: string; score: number | null; confidence: number | null };
+type CanonicalRelation = { sourceIdeaId: string; targetIdeaId: string };
+
+/** Shared ordering and prerequisites for canonical study path projections. */
+export function orderCanonicalIdeas(ideas: CanonicalIdea[], relations: CanonicalRelation[]) {
+  const byId = new Map(ideas.map((idea) => [idea.id, idea]));
+  const incoming = new Map(ideas.map((idea) => [idea.id, 0]));
+  const outgoing = new Map(ideas.map((idea) => [idea.id, [] as string[]]));
+  const prerequisites = new Map(ideas.map((idea) => [idea.id, [] as string[]]));
+  for (const relation of relations) {
+    if (!byId.has(relation.sourceIdeaId) || !byId.has(relation.targetIdeaId)) continue;
+    outgoing.get(relation.sourceIdeaId)!.push(relation.targetIdeaId);
+    incoming.set(relation.targetIdeaId, (incoming.get(relation.targetIdeaId) ?? 0) + 1);
+    prerequisites.get(relation.targetIdeaId)!.push(relation.sourceIdeaId);
+  }
+
+  const compareIdeas = (leftId: string, rightId: string) => {
+    const left = byId.get(leftId)!;
+    const right = byId.get(rightId)!;
+    return left.chapterOrder - right.chapterOrder || left.code.localeCompare(right.code, "id");
+  };
+  const ready = ideas.filter((idea) => incoming.get(idea.id) === 0).map((idea) => idea.id).sort(compareIdeas);
+  const orderedIds: string[] = [];
+  while (ready.length > 0) {
+    const current = ready.shift()!;
+    orderedIds.push(current);
+    for (const target of outgoing.get(current) ?? []) {
+      const next = (incoming.get(target) ?? 1) - 1;
+      incoming.set(target, next);
+      if (next === 0) ready.push(target);
+    }
+    ready.sort(compareIdeas);
+  }
+  if (orderedIds.length < ideas.length) {
+    orderedIds.push(...ideas.map((idea) => idea.id).filter((id) => !orderedIds.includes(id)).sort(compareIdeas));
+  }
+
+  return { byId, prerequisites, orderedIds };
+}
+
+export function selectCanonicalLearningSteps(ideas: CanonicalIdea[], relations: CanonicalRelation[]) {
+  const { byId, prerequisites, orderedIds } = orderCanonicalIdeas(ideas, relations);
+  const seen = new Set<string>();
+  return orderedIds.flatMap((id) => {
+    const current = byId.get(id)!;
+    const conciseName = toConciseConceptName(current.name, current.conceptDisplayName);
+    const key = `${current.chapterId}::${conciseName.toLowerCase()}`;
+    if (seen.has(key)) return [];
+    seen.add(key);
+    const prerequisiteIds = prerequisites.get(id) ?? [];
+    const prerequisiteNames = prerequisiteIds.map((prerequisiteId) => {
+      const idea = byId.get(prerequisiteId)!;
+      return toConciseConceptName(idea.name, idea.conceptDisplayName);
+    });
+    const score = current.score ?? 0;
+    const locked = prerequisiteIds.some((prerequisiteId) => (byId.get(prerequisiteId)?.score ?? 0) < 40);
+    const status: StudyPathStep["status"] = score >= 70 && (current.confidence ?? 0) >= 50
+      ? "mastered" : locked ? "locked" : current.score === null ? "available" : "in_progress";
+    return [{ current, conciseName, prerequisiteNames, score, status }];
+  });
+}
+
 async function computeCanonicalStudyPath(
   studentId: string,
   courseId: string,
@@ -128,37 +190,7 @@ async function computeCanonicalStudyPath(
       ),
   ]);
 
-  const byId = new Map(ideas.map((idea) => [idea.id, idea]));
-  const incoming = new Map(ideas.map((idea) => [idea.id, 0]));
-  const outgoing = new Map(ideas.map((idea) => [idea.id, [] as string[]]));
-  const prerequisites = new Map(ideas.map((idea) => [idea.id, [] as string[]]));
-  for (const relation of relations) {
-    if (!byId.has(relation.sourceIdeaId) || !byId.has(relation.targetIdeaId)) continue;
-    outgoing.get(relation.sourceIdeaId)!.push(relation.targetIdeaId);
-    incoming.set(relation.targetIdeaId, (incoming.get(relation.targetIdeaId) ?? 0) + 1);
-    prerequisites.get(relation.targetIdeaId)!.push(relation.sourceIdeaId);
-  }
-
-  const compareIdeas = (leftId: string, rightId: string) => {
-    const left = byId.get(leftId)!;
-    const right = byId.get(rightId)!;
-    return left.chapterOrder - right.chapterOrder || left.code.localeCompare(right.code, "id");
-  };
-  const ready = ideas.filter((idea) => incoming.get(idea.id) === 0).map((idea) => idea.id).sort(compareIdeas);
-  const orderedIds: string[] = [];
-  while (ready.length > 0) {
-    const current = ready.shift()!;
-    orderedIds.push(current);
-    for (const target of outgoing.get(current) ?? []) {
-      const next = (incoming.get(target) ?? 1) - 1;
-      incoming.set(target, next);
-      if (next === 0) ready.push(target);
-    }
-    ready.sort(compareIdeas);
-  }
-  if (orderedIds.length < ideas.length) {
-    orderedIds.push(...ideas.map((idea) => idea.id).filter((id) => !orderedIds.includes(id)).sort(compareIdeas));
-  }
+  const selected = selectCanonicalLearningSteps(ideas, relations);
 
   const articleByChapter = new Map<string, (typeof articles)[number]>();
   for (const article of articles) {
@@ -167,33 +199,10 @@ async function computeCanonicalStudyPath(
   const cardCountByIdea = new Map<string, number>();
   for (const link of cardLinks) cardCountByIdea.set(link.ideaId, (cardCountByIdea.get(link.ideaId) ?? 0) + 1);
 
-  const seenConceptsPerChapter = new Set<string>();
   const steps: StudyPathStep[] = [];
-
-  for (const ideaId of orderedIds) {
-    const current = byId.get(ideaId)!;
-    const conciseName = toConciseConceptName(current.name, current.conceptDisplayName);
-    const dedupKey = `${current.chapterId}::${conciseName.toLowerCase()}`;
-    if (seenConceptsPerChapter.has(dedupKey)) continue;
-    seenConceptsPerChapter.add(dedupKey);
-
-    const prerequisiteIds = prerequisites.get(ideaId) ?? [];
-    const prerequisiteNames = prerequisiteIds.map((id) => {
-      const p = byId.get(id)!;
-      return toConciseConceptName(p.name, p.conceptDisplayName);
-    });
-    const locked = prerequisiteIds.some((id) => (byId.get(id)?.score ?? 0) < 40);
-    const score = current.score ?? 0;
-    const confidence = current.confidence ?? 0;
+  for (const { current, conciseName, prerequisiteNames, score, status } of selected) {
     const article = articleByChapter.get(current.chapterId);
-    const flashcardCount = cardCountByIdea.get(ideaId) ?? 0;
-    const status: StudyPathStep["status"] = score >= 70 && confidence >= 50
-      ? "mastered"
-      : locked
-        ? "locked"
-        : current.score === null
-          ? "available"
-          : "in_progress";
+    const flashcardCount = cardCountByIdea.get(current.id) ?? 0;
 
     steps.push({
       stepId: current.id,
@@ -215,6 +224,35 @@ async function computeCanonicalStudyPath(
   }
 
   return steps;
+}
+
+export async function getNextConceptsForCourses(studentId: string, courseIds: readonly string[]): Promise<Record<string, string>> {
+  const resolved = await Promise.all(courseIds.map(async (id) => ({ id, course: await resolveStudentCourse(id) })));
+  const canonicalIds = [...new Set(resolved.flatMap(({ course }) => course?.canonicalId ? [course.canonicalId] : []))];
+  const chunks = <T,>(values: T[]) => Array.from({ length: Math.ceil(values.length / 400) }, (_, i) => values.slice(i * 400, (i + 1) * 400));
+  const ideas = (await Promise.all(chunks(canonicalIds).map((ids) => db.select({
+    courseId: ide.mataKuliahId, id: ide.id, name: ide.canonicalStatement,
+    conceptDisplayName: conceptLocalizations.displayName, chapterId: ide.babId,
+    chapterOrder: bab.orderIndex, chapterTitle: bab.title, code: ide.code,
+    score: pemahamanIde.skor, confidence: pemahamanIde.keyakinan,
+  }).from(ide).innerJoin(bab, eq(ide.babId, bab.id))
+    .leftJoin(concepts, eq(ide.conceptId, concepts.id))
+    .leftJoin(conceptLocalizations, and(eq(conceptLocalizations.conceptId, concepts.id), eq(conceptLocalizations.lang, "id")))
+    .leftJoin(pemahamanIde, and(eq(pemahamanIde.ideId, ide.id), eq(pemahamanIde.penggunaId, studentId)))
+    .where(and(inArray(ide.mataKuliahId, ids), eq(ide.status, "published"), eq(bab.status, "active")))))).flat();
+  const ideaIds = ideas.map((idea) => idea.id);
+  const allIds = new Set(ideaIds);
+  const relations = (await Promise.all(chunks(ideaIds).map((ids) => db.select({
+    sourceIdeaId: relasiIde.sourceIdeaId, targetIdeaId: relasiIde.targetIdeaId,
+  }).from(relasiIde).where(and(eq(relasiIde.status, "active"), eq(relasiIde.relationType, "prerequisite"), inArray(relasiIde.sourceIdeaId, ids)))))).flat().filter((relation) => allIds.has(relation.targetIdeaId));
+  const result: Record<string, string> = {};
+  await Promise.all(resolved.map(async ({ id, course }) => {
+    const courseIdeas = ideas.filter((idea) => idea.courseId === course?.canonicalId);
+    const steps = courseIdeas.length ? selectCanonicalLearningSteps(courseIdeas, relations).map((step) => ({ status: step.status, conceptName: step.conciseName })) : await getOrComputeStudyPath(studentId, id);
+    const active = steps.find((step) => step.status === "available" || step.status === "in_progress");
+    if (active) result[id] = active.conceptName;
+  }));
+  return result;
 }
 
 /**

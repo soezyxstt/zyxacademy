@@ -680,3 +680,15 @@ Zyra preserves LaTeX spacing commands during answer cleanup and renders standalo
 Admin MCP adds scoped admin tools to the existing authoring endpoint, without a new feature flag. Supported operations include form and short link management, isolated form preview and simulation, aggregate response visuals and exports, academic metadata, users, groups, access tokens, schedules, blog, links, notifications and durable provider jobs. Writes require a signed plan and replay-safe request key; existing tokens do not acquire new permissions automatically. The exact catalog, limits, incomplete admin parity and deployment boundaries are recorded in [Admin MCP operations](operations/admin-mcp.md).
 
 Admin MCP distinguishes its application environment from the hosting deployment tier. Before data operations, discover `admin.environment` and pass the user-intended `expectedEnvironment` and `expectedOrigin`; mismatched targets are denied. This local implementation does not establish live database/storage separation. See [Admin MCP isolation](operations/admin-mcp.md#staging-and-production-isolation).
+
+## Navigation and question bank pilot
+
+The student dashboard streams independent learning sections after its session/enrollment gate, with section loading and failure states. It preserves onboarding and free-access behavior. Weekly streak uses one range query; review batching shares individual semantics, and next-concept batching shares its selector with fallback coverage. Material and assessment batching is integrated.
+
+`/admin/questions` uses server filtering and pagination for both active/AI and historical tabs. Only the selected tab is loaded, with hydration bounded to the requested page. Active page sizes are 10, 20, 50, and 100. Stable ordering uses newest createdAt first, then ID ascending.
+
+Deep links use `tab=ai-generated` or `tab=historical`, `qPage`, `qPageSize`, `qSearch`, `qStatus`, `qCourse`, `qOrigin`, `qType`, and `qDifficulty`. Filters and page size reset to page 1. Nonempty search waits 300 ms; clearing search navigates immediately. Browser back/forward cancels pending search and restores URL state. Selection retains IDs across pages while mounted. Select all resolves all matching IDs through an authorized action; bulk mutations recheck permissions and those IDs.
+
+Admin forms load the builder lazily and offer explicit retry after a load failure. Notification initialization includes race guards and safely does nothing when Firebase is not configured. Configured FCM permission and account-switch behavior still requires real-service verification. CodeMirror and PageTransition remain unchanged pending profiling.
+
+These are local implementation contracts. Local candidate and responsive checks are documented in the [validation audit](audit/navigation-performance-validation.md), including unverified historical detail, real-fixture states, configured FCM, and Cloud Run capacity. The streak GET workflow is unchanged. The [performance plan](../plans/navigation-performance-plan.md) remains open and does not establish causal savings.

@@ -116,6 +116,8 @@ export function NavProfileOrSignIn({
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
             <Button
+              aria-label={t("nav.account")}
+              data-testid="nav-profile-trigger"
               variant="ghost"
               className={cn(
                 "text-foreground gap-2 rounded-lg hover:bg-muted cursor-pointer",

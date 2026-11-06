@@ -4,6 +4,7 @@ import { pageTitle } from "@/lib/site";
 import { getTranslations } from "@/lib/i18n/server";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { getCourseDetailData } from "../actions";
+import { getCourseTitleOnly } from "./metadata";
 import { CourseDetailHeader } from "@/components/admin/course-detail/course-detail-header";
 import { ChaptersTab } from "@/components/admin/course-detail/chapters-tab";
 
@@ -16,13 +17,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const t = await getTranslations("adminAcademic");
   const { slug } = await params;
   try {
-    const data = await getCourseDetailData(slug);
-    if (!data?.course) {
+    const course = await getCourseTitleOnly(slug);
+    if (!course) {
       return { title: pageTitle(t("metadata.pages.courseNotFound")) };
     }
     return {
-      title: pageTitle(t("metadata.pages.manageCourseTitle", { course: data.course.title })),
-      description: t("metadata.pages.manageCourseDescription", { course: data.course.title }),
+      title: pageTitle(t("metadata.pages.manageCourseTitle", { course: course.title })),
+      description: t("metadata.pages.manageCourseDescription", { course: course.title }),
     };
   } catch {
     return { title: pageTitle(t("metadata.pages.manageCourseFallbackTitle")) };
