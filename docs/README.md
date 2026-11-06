@@ -224,3 +224,5 @@ The `ACTIVE` deployment, development, and feature guides document shared staging
 | Production Playground CSS | [audit/production-playground-css-20261102.md](audit/production-playground-css-20261102.md) | `OPEN / IN PROGRESS` | Missing served editor tokens confirmed; cache hypothesis awaits a fresh production build and authenticated visual verification. |
 
 Navigation staging release preparation integrates the current staging dashboard presentation with streamed sections. Deployment and post-release timing remain pending until the staging workflow completes.
+
+The `ACTIVE` [deployment guide](DEPLOYMENT.md) records explicit release status conditions after optional CI jobs skip. Staging release `73d465d5` passed checks but its deployment jobs were skipped; hosted rollout remains pending a successful deployment job.
