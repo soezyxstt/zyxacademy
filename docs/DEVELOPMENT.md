@@ -1,10 +1,10 @@
 # Development Guide
 
-Staging and production use Neon PostgreSQL according to user confirmation and the supplied live read-only database query report. This branch requires PostgreSQL for development and CI, with no SQLite/Turso fallback. Verify runtime identity independently before external work. Staging storage uses private Neon object storage; database confirmation does not establish a production storage cutover. Preserve legacy rollback resources in the [migration runbook](operations/neon-migration.md). SQLite/Turso setup below is legacy context.
+Staging and production use separate guarded Neon PostgreSQL targets, and `bun run db:migrate` applies `drizzle-postgres/`. The legacy production push and canonical backfill are disabled. Both serving environments explicitly use private Neon S3-compatible buckets with `STORAGE_PROVIDER_MODE=neon`. Use [.env.neon.example](../.env.neon.example), the [staging migration runbook](operations/neon-migration.md) and [production cutover runbook](operations/neon-production-cutover.md). Do not reuse production sessions or integration credentials for development. SQLite and R2 setup instructions below are legacy compatibility references.
 
 The staging importer can consume a signed local source snapshot using `NEON_SOURCE_SNAPSHOT` and `NEON_SOURCE_FREEZE_ACK=staging-writes-frozen`. The snapshot exporter requires the dedicated ignored `.env.neon-staging-cutover-source` file and independently verified staging write freeze. Snapshots and their manifests stay under ignored `.tmp`, with local access restricted to the operator. They contain business data and must not enter CI uploads. `scripts/neon/source-snapshot.test.ts` exercises only synthetic data.
 
-The serving staging target uses ignored `.env.neon-staging-cutover`; guarded source and import settings use `.env.neon-staging-cutover-source`. The earlier `.env.neon-staging` and `.env.neon-staging-source` refer to the separate preparation target. Do not substitute the production rehearsal environment. Apply generated migrations only to an independently verified target, and reconcile a frozen source before importing. The copy tool accepts only the exact rehearsal and staging host/bucket pairs. Use forward slashes in Windows snapshot paths stored in dotenv files. Never upload environment files or real snapshots in deployment source archives.
+The serving staging target uses ignored `.env.neon-staging-cutover`; guarded source and import settings use `.env.neon-staging-cutover-source`. The earlier `.env.neon-staging` and `.env.neon-staging-source` refer to the separate preparation target. Do not substitute the production rehearsal environment. Apply generated migrations only to an independently verified target, and reconcile a frozen source before importing. The copy tool accepts only the pinned rehearsal, staging and production host/bucket pairs. Use forward slashes in Windows snapshot paths stored in dotenv files. Never upload environment files or real snapshots in deployment source archives.
 
 ## Quick Start
 
@@ -550,9 +550,9 @@ Build the private renderer with `bun scripts/authoring/build-local-verification-
 
 ## Python coding runtime
 
-Install pinned dependencies with Bun. Staging interactive Playground and Article
+Install pinned dependencies with Bun. Public staging and production Playground and Article
 examples use the Python worker and require the server-only
-`PYTHON_RUNTIME_TOKEN_SECRET` shared with the staging worker. Other browser
+`PYTHON_RUNTIME_TOKEN_SECRET` shared with the Render worker for staging and production. Other browser
 Python assets are served locally from the Pyodide package. Local Submit
 requires Playwright Chromium with a functioning kernel sandbox. Run
 `bun run test:visual:install` when browsers are missing. Production Submit reuses

@@ -94,6 +94,7 @@ export async function runPedagogicalTurn(params: RunPedagogicalTurnParams): Prom
 
   const contract = {
     ...ZYRA_PEDAGOGY_V3_CONTRACT,
+    stageId: params.evidence.some((source) => source.id.startsWith("coding:")) ? "playground" : ZYRA_PEDAGOGY_V3_CONTRACT.stageId,
     ...(params.evidence.some((source) => source.id.startsWith("coding:"))
       ? { responseSchema: params.context.responseModifiers.includes("flowchart") ? codingProviderResponseSchema : codingTextProviderResponseSchema } : {}),
     validators: [createTeachingResponseValidator(params.context, plan, allowedSources, params.protectedAnswers)],

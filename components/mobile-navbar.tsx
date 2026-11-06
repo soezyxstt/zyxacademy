@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { openMobileSidebar } from "@/components/sidebar-shell";
 import { useCommandMenu } from "@/components/command-menu";
 import { useTranslations } from "@/lib/i18n/client";
+import { useStudentExperience } from "@/components/student-experience-provider";
 
 export function getRouteTitle(
   pathname: string,
@@ -56,6 +57,7 @@ export function getRouteTitle(
   if (pathname.startsWith("/admin/groups")) return roleTitle("admin", "groups", "Study groups");
   if (pathname.startsWith("/admin/tokens")) return roleTitle("admin", "tokens", "Activation tokens");
   if (pathname.startsWith("/admin/notifications")) return roleTitle("admin", "notifications", "Notifications");
+  if (pathname.startsWith("/admin/ops/models")) return roleTitle("admin", "aiModels", "AI models");
   if (pathname.startsWith("/admin/ops/analytics")) return roleTitle("admin", "zyraAnalytics", "Zyra analytics");
   if (pathname.startsWith("/admin/ops/feature-usage")) return roleTitle("admin", "featureUsage", "Feature usage");
   if (pathname.startsWith("/admin/ops/flags")) return roleTitle("admin", "featureFlags", "Feature flags");
@@ -133,7 +135,9 @@ function isMobileSidebarBackdrop(target: EventTarget | null): target is HTMLElem
 }
 
 export function MobileNavbar({ surface, className }: MobileNavbarProps) {
-  const pathname = usePathname();
+  const actualPathname = usePathname();
+  const experience = useStudentExperience();
+  const pathname = experience.pathname ?? actualPathname;
   const t = useTranslations("student");
   const tAdmin = useTranslations("admin");
   const tTutor = useTranslations("tutor");

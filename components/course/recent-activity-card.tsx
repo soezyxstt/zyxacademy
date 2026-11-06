@@ -49,8 +49,9 @@ export function RecentActivitySkeleton() {
   );
 }
 
+type DailyActivity = { id: string; type: "daily_summary"; title: string; timestamp: string; description?: string };
 interface RecentActivityCardProps {
-  data: RecentActivityData[] | null;
+  data: (RecentActivityData | DailyActivity)[] | null;
   isLoading?: boolean;
 }
 
@@ -66,8 +67,10 @@ export function RecentActivityCard({
 
   const isEmpty = !data || data.length === 0;
 
-  const getIcon = (type: RecentActivityData["type"]) => {
+  const getIcon = (type: RecentActivityData["type"] | "daily_summary") => {
     switch (type) {
+      case "daily_summary":
+        return <History className="size-4 text-brand-primary" aria-hidden="true" />;
       case "flashcard_review":
         return <CheckCircle2 className="size-4 text-tertiary-3" aria-hidden="true" />;
       case "material_completion":
@@ -106,7 +109,7 @@ export function RecentActivityCard({
                 </div>
               </div>
               <span className="text-body-xs text-muted-foreground shrink-0 mt-0.5">
-                {formatRelativeTime(activity.timestamp, locale, t)}
+                {activity.type === "daily_summary" ? activity.timestamp : formatRelativeTime(activity.timestamp, locale, t)}
               </span>
             </div>
           ))}

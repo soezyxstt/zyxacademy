@@ -8,8 +8,11 @@ import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/client";
 import { localizedPublicPath, stripPublicLocalePrefix } from "@/lib/public-locale-routes";
 
+import { useStudentExperience } from "@/components/student-experience-provider";
+
 export function LanguageMenu({ className }: { className?: string }) {
   const t = useTranslations("core");
+  const experience = useStudentExperience();
   const { locale, setLocale, isPending, error } = useAppLocale();
   const pathname = usePathname();
   const router = useRouter();
@@ -20,6 +23,7 @@ export function LanguageMenu({ className }: { className?: string }) {
 
   const handleLocaleChange = async () => {
     const nextLocale = locale === "en" ? "id" : "en";
+    if (experience?.mode === "demo") { experience.changeLocale?.(nextLocale); return; }
     const saved = await setLocale(nextLocale);
     if (!saved) return;
 

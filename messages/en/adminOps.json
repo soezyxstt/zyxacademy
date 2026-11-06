@@ -1,4 +1,18 @@
 {
+  "discountSettings": {
+    "title": "Discounts",
+    "scheduleHelp": "Dates use WIB and include the end date. Set 0% to disable a discount.",
+    "platform": "Platform fee",
+    "tutorial": "Tutorial session fee",
+    "percent": "Discount (%)",
+    "startsOn": "Starts",
+    "endsOn": "Ends",
+    "save": "Save discounts",
+    "saving": "Saving...",
+    "invalid": "Check percentages from 0 to 100 and the discount date order.",
+    "saved": "Discounts saved and applied across the site.",
+    "failed": "Could not save discounts. Try again."
+  },
   "groups": {
     "title": "Study groups",
     "description": "Manage study groups, semester session allowances, and student members."
@@ -620,7 +634,59 @@
     "latency": "Latency",
     "status": "Status",
     "emptyTitle": "No model requests recorded yet",
-    "emptyDescription": "Stats accumulate while the server process is running. Trigger an inference operation (quiz generation, KO extraction, etc.) to see data here."
+    "emptyDescription": "Stats accumulate while the server process is running. Trigger an inference operation (quiz generation, KO extraction, etc.) to see data here.",
+    "previous": "Previous",
+    "next": "Next",
+    "logPageSummary": "Showing {start} to {end} of {total} requests"
+  },
+  "models": {
+    "title": "AI models",
+    "description": "Configure primary and fallback model priorities for each AI feature."
+  },
+  "modelsUI": {
+    "totalFeatures": "AI features",
+    "customChains": "Custom chains",
+    "defaultChains": "Default chains",
+    "availableModels": "Active models",
+    "registryCaption": "Verified routing registry",
+    "dismissAlert": "Dismiss alert",
+    "search": "Search feature or model...",
+    "allGroups": "All groups",
+    "filterAll": "All",
+    "filterCustom": "Custom",
+    "filterDefault": "Default",
+    "refresh": "Refresh",
+    "noMatchTitle": "No matching features",
+    "noMatchDescription": "Adjust your search query or reset the group and status filters.",
+    "clearFilters": "Reset filters",
+    "featureCount": "{count} features",
+    "statusCustom": "Custom",
+    "statusDefault": "Default",
+    "tagVisual": "Images",
+    "tagStreamingTools": "Tool streaming",
+    "runtimeDefaultPrefix": "Default:",
+    "updatedMeta": "Updated {time}",
+    "visualFallbackHint": "Image requests still append built-in visual fallback models.",
+    "primaryModel": "Primary",
+    "fallback1": "Fallback 1",
+    "fallback2": "Fallback 2",
+    "discard": "Discard",
+    "resetDefault": "Reset",
+    "save": "Save",
+    "savedState": "Saved",
+    "distinctRequired": "Choose three distinct models for primary and fallback priorities.",
+    "savedToast": "Updated model priorities for {feature}.",
+    "resetToast": "Reset {feature} to default model priorities.",
+    "capabilityHeading": "Registry capability rules",
+    "capabilityDistinct": "Each custom chain requires one primary model and two distinct fallback models approved for ordinary routing.",
+    "capabilityOpsAi": "Ops AI requires streaming tool calls and therefore only allows generate-content models.",
+    "capabilityVisual": "Only Gemini 3.6 Flash and Gemini 2.5 Flash accept image input; image turns in Zyra and Playground keep built-in visual fallbacks.",
+    "groups": {
+      "interactive": "Core interactive",
+      "learning": "Learning and evaluation",
+      "generation": "Material and content generation",
+      "documents": "Diktat and document audits"
+    }
   },
   "groupsUI": {
     "missingName": "Study group name is required.",

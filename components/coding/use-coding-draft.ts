@@ -2,7 +2,7 @@
 import { reconcileCodingDraft, type CodingDraftSnapshot } from "@/lib/coding/draft-reconciliation";
 import { useEffect, useRef, useState } from "react";
 
-export function useCodingDraft({ courseId, draftKey, learnerId, initialCode, initialStdin = "" }: { courseId: string; draftKey: string; learnerId?: string; initialCode: string; initialStdin?: string }) {
+export function useCodingDraft({ courseId, draftKey, learnerId, initialCode, initialStdin = "", localOnly = false }: { courseId: string; draftKey: string; learnerId?: string; initialCode: string; initialStdin?: string; localOnly?: boolean }) {
   const [code, setCode] = useState(initialCode), [stdin, setStdin] = useState(initialStdin);
   const [saved, setSaved] = useState(""), [ready, setReady] = useState(false);
   const latest = useRef({ code, stdin });
@@ -27,7 +27,7 @@ export function useCodingDraft({ courseId, draftKey, learnerId, initialCode, ini
       try { if (localKey) local = JSON.parse(localStorage.getItem(localKey) ?? "null"); } catch { /* Storage can be disabled. */ }
       if (local && (typeof local.code !== "string" || local.code.length > 64000 || typeof local.stdin !== "string" || local.stdin.length > 8000)) local = null;
       if (local && typeof local.code === "string" && local.code.length <= 64_000 && typeof local.stdin === "string" && !changed.current) { setCode(local.code); setStdin(local.stdin); }
-      if (learnerId) {
+      if (learnerId && !localOnly) {
         try {
           const response = await fetch(`/api/coding/drafts?${new URLSearchParams({ courseId, draftKey })}`);
           if (response.ok) {
@@ -47,11 +47,11 @@ export function useCodingDraft({ courseId, draftKey, learnerId, initialCode, ini
     }
     void restore();
     return () => { cancelled = true; active.current = false; };
-  }, [courseId, draftKey, learnerId, localKey]);
+  }, [courseId, draftKey, learnerId, localKey, localOnly]);
   useEffect(() => {
     if (!ready || !changed.current) return;
     try { if (localKey) { localStorage.setItem(localKey, JSON.stringify({ code, stdin, revision: revision.current })); if (!conflict.current) setSaved("Tersimpan di perangkat"); } } catch { setSaved("Penyimpanan perangkat tidak tersedia"); }
-    if (!learnerId || conflict.current) return;
+    if (localOnly || !learnerId || conflict.current) return;
     const timer = setTimeout(() => {
       queue.current = queue.current.then(async () => {
         if (conflict.current || identity.current !== localKey || !active.current) return;
@@ -71,9 +71,9 @@ export function useCodingDraft({ courseId, draftKey, learnerId, initialCode, ini
       });
     }, 1000);
     return () => clearTimeout(timer);
-  }, [code, stdin, ready, learnerId, courseId, draftKey, localKey, syncTick]);
+  }, [code, stdin, ready, learnerId, courseId, draftKey, localKey, syncTick, localOnly]);
   async function keepLocal() {
-    if (!learnerId || !localKey) return;
+    if (localOnly || !learnerId || !localKey) return;
     try {
       const response = await fetch(`/api/coding/drafts?${new URLSearchParams({ courseId, draftKey })}`);
       if (!response.ok || identity.current !== localKey || !active.current) return;

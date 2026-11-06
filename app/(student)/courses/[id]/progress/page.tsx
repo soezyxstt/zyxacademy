@@ -1,7 +1,7 @@
+import { StudentCourseProgressView } from "@/components/course/student-course-progress-view";
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
-import { BarChart3, Target, History, ArrowRight } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
@@ -12,8 +12,6 @@ import { createMetadata } from "@/lib/site";
 import { getCourse } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
 import { getCourseLearningSummary } from "@/lib/learning-analytics";
-import { StudyStatisticsCard } from "@/components/course/study-statistics-card";
-import { RecentActivityCard } from "@/components/course/recent-activity-card";
 import { TranslatedText } from "@/components/i18n/translated-text";
 import { getTranslations } from "@/lib/i18n/server";
 
@@ -58,53 +56,7 @@ async function CourseProgressSummarySection({
 
   const learningSummary = studentId ? await getCourseLearningSummary(courseId, studentId) : null;
 
-  return (
-    <div className="space-y-6">
-      <StudyStatisticsCard data={learningSummary?.studyStatistics ?? null} />
-      <RecentActivityCard data={learningSummary?.recentActivities ?? null} />
-
-      <section className="text-left">
-        <h3 className="mb-3 font-heading text-body-base font-bold text-foreground">
-          <TranslatedText namespace="learning" messageKey="progress.moreAnalysis" />
-        </h3>
-        <div className="divide-y divide-border/40">
-          <Link
-            href={`/courses/${courseId}/mastery`}
-            className="group flex items-center justify-between py-3 transition-colors hover:text-brand-primary"
-          >
-            <div className="flex items-center gap-3">
-              <span className="flex size-8 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
-                <Target className="size-4" aria-hidden="true" />
-              </span>
-              <div>
-                <p className="text-body-sm font-semibold text-foreground group-hover:text-brand-primary">
-                  <TranslatedText namespace="learning" messageKey="progress.masteryMap" />
-                </p>
-              </div>
-            </div>
-            <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-brand-primary" />
-          </Link>
-
-          <Link
-            href={`/courses/${courseId}/my-results`}
-            className="group flex items-center justify-between py-3 transition-colors hover:text-brand-primary"
-          >
-            <div className="flex items-center gap-3">
-              <span className="flex size-8 items-center justify-center rounded-lg bg-brand-secondary/10 text-brand-secondary">
-                <History className="size-4" aria-hidden="true" />
-              </span>
-              <div>
-                <p className="text-body-sm font-semibold text-foreground group-hover:text-brand-primary">
-                  <TranslatedText namespace="learning" messageKey="progress.quizResults" />
-                </p>
-              </div>
-            </div>
-            <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-brand-primary" />
-          </Link>
-        </div>
-      </section>
-    </div>
-  );
+  return <StudentCourseProgressView courseId={courseId} statistics={learningSummary?.studyStatistics ?? null} activities={learningSummary?.recentActivities ?? null} />;
 }
 
 export default async function CourseProgressPage({ params }: Props) {

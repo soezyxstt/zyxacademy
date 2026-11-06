@@ -1,6 +1,6 @@
 # Navigation performance validation
 
-Status: `OPEN / IN PROGRESS`  
+Status: `OPEN / IN PROGRESS`
 Date: 2026-11-06
 
 This is local candidate evidence reported by the parent agent. It does not establish deployment or causal improvement. The original 40-run baseline was invalid; only original R3 and R5 smoke at N=2 was valid.

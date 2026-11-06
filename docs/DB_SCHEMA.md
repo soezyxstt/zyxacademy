@@ -371,7 +371,7 @@ Plan 003 adds these tables without changing legacy courses, chapters, enrollment
 ### mata_kuliah
 * `id`, `code`, `title`, `status`, `isDemo`
 * `legacyCourseId`: Optional compatibility reference to `courses.id`.
-* `isDemo`: Boolean marker for the single active public demo course. A partial unique index allows at most one row with `isDemo = true`; archived or incomplete courses are not eligible for selection.
+* `isDemo`: Boolean marker for the legacy singleton admin demo selection, separate from the public snapshot allowlist. A partial unique index allows at most one row with `isDemo = true`; archived or incomplete courses are not eligible for selection.
 * `createdAt`, `updatedAt`
 * Admin course create and update mirror `courses` and `mata_kuliah` transactionally. Admin delete removes the legacy projection and archives the canonical row.
 * Admin demo selection validates the first active `bab` and its published Article, Diktat, Flashcard, and Kuis requirements before clearing and setting the marker in one transaction.
@@ -1829,4 +1829,18 @@ remote migration is a separate operation.
 
 Status: `ACTIVE`
 
-`admin_operation_jobs` is defined in `db/schema.ts`, migration `drizzle-postgres/0003_white_echo.sql`. Columns: `id` primary key; `actor_id` references `pengguna` with restricted deletion; `session_id`; `kind`; `required_scope`; `environment`; JSON `payload`; `status` (`queued`, `running`, `succeeded`, `failed`, `unknown`, `cancelled`); JSON `result`; sanitized `error_code`; `created_at`; `updated_at`. Queue and actor indexes order by creation time. Payloads may contain private recipient or response metadata and must never be returned by generic job reads. Successful media uploads clear stored file bytes. This PostgreSQL migration has not been applied to a remote environment. See [Admin MCP operations](operations/admin-mcp.md).
+`admin_operation_jobs` is defined in `db/schema.ts`, migration `drizzle-postgres/0005_violet_maelstrom.sql`. Columns: `id` primary key; `actor_id` references `pengguna` with restricted deletion; `session_id`; `kind`; `required_scope`; `environment`; JSON `payload`; `status` (`queued`, `running`, `succeeded`, `failed`, `unknown`, `cancelled`); JSON `result`; sanitized `error_code`; `created_at`; `updated_at`. Queue and actor indexes order by creation time. Payloads may contain private recipient or response metadata and must never be returned by generic job reads. Successful media uploads clear stored file bytes. This PostgreSQL migration was applied to staging on 2026-11-05; production application is unverified. See [Admin MCP operations](operations/admin-mcp.md).
+
+### `public_demo_snapshots`
+
+The code defines `id` text primary key, `course_id` text unique not null with cascading foreign key to `mata_kuliah.id`, `snapshot` jsonb not null, and `updated_at` timestamptz not null default now. Each row opts in one canonical course for the intended demo; the V2 JSON requires `contentPolicy` equal to `free-first-chapter` and supports fictional `mockChapters`; V1 fails validation. The JSONB shape change alone requires no new schema migration; see [seeding handoff](operations/public-demo-seeding.md). Migration was applied to staging on 2026-11-05; seed application remains unverified.
+
+## Pricing settings
+
+`pricing_settings` stores a single `default` row with `discounts` JSONB and `updated_at`. JSON contains independent `platform` and `tutorial` schedules: integer `percent` from 0 to 100, `startsOn`, and inclusive `endsOn` calendar dates in WIB. Admin writes validate the complete payload before an atomic upsert. A database check restricts the singleton key. A missing row uses the expired original campaign; database read failures do not silently substitute defaults.
+
+## AI model settings
+
+Status: `ACTIVE`
+
+`ai_model_settings` is defined in `db/schema.ts` with generated PostgreSQL migration `drizzle-postgres/0006_large_rocket_racer.sql`. Columns: `feature` text primary key matching a registered `ModelFeature` identifier; JSONB `models` storing an ordered three-element array of distinct ordinary-routing `ModelId` values (`[primary, fallback1, fallback2]`); non-null `updated_by` text recording the saving admin identifier; `updated_at` non-null timestamp with time zone. Absence of a row preserves the exact built-in runtime default chain for that feature. Migration `0006` was applied with the guarded `bun run db:migrate` runner to staging branch `br-gentle-scene-azq0gp91` on 2026-11-06. Read-back verified the table, matching migration ledger, and zero configured rows. Read-only staging checks verified all 21 default model views and chains plus local request orchestration with stubbed provider and allowance services. Authenticated hosted-page and live-provider behavior remain unverified. Production migration remains unverified and requires its own authorized target check before rollout.

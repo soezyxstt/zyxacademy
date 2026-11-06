@@ -55,4 +55,3 @@ export async function matchingHistoricalQuestionItems(rendered: HistoricalQuesti
   ).selectionItems();
   return rows.filter((row) => historicalReviewActionFor(row) !== null);
 }
-

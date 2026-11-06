@@ -289,4 +289,3 @@ export function evaluateHistoricalParityRows(
       return a.id.localeCompare(b.id);
     });
 }
-

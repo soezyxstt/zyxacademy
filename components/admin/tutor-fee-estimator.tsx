@@ -1,5 +1,6 @@
 "use client";
 
+import { usePricingDiscounts } from "@/hooks/use-pricing-discounts";
 import { useMemo, useState } from "react";
 import {
   AlertCircle,
@@ -128,6 +129,7 @@ function FeeTierCard({
 }
 
 export function TutorFeeEstimator() {
+  const { settings, now, error: pricingError } = usePricingDiscounts();
   const [values, setValues] = useState<QuantityValues>(initialValues);
 
   const parsed = useMemo(
@@ -156,6 +158,7 @@ export function TutorFeeEstimator() {
 
   const quote = useMemo(() => {
     if (
+      !settings || !now ||
       errors.meetings ||
       errors.courses ||
       errors.persons ||
@@ -172,8 +175,10 @@ export function TutorFeeEstimator() {
       parsed.persons,
       parsed.courses,
       parsed.customPrice ?? undefined,
+      settings,
+      now,
     );
-  }, [errors, parsed]);
+  }, [errors, parsed, settings, now]);
 
   const updateValue = (key: QuantityKey, value: string) => {
     setValues((current) => ({ ...current, [key]: value }));
@@ -361,19 +366,18 @@ export function TutorFeeEstimator() {
                   badgeText="Manual"
                 />
                 <div className="grid gap-3 sm:grid-cols-2 opacity-75">
-                  <FeeTierCard title="Referensi promo (setelah diskon)" tier={quote.introductory} />
-                  <FeeTierCard title="Referensi reguler (sebelum diskon)" tier={quote.regular} />
+                  <FeeTierCard title="Referensi harga berlaku" tier={quote.introductory} />
+                  {quote.introductory.packagePrice < quote.regular.packagePrice && <FeeTierCard title="Referensi reguler (sebelum diskon)" tier={quote.regular} />}
                 </div>
               </div>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className={`grid gap-3 ${quote.introductory.packagePrice < quote.regular.packagePrice ? "sm:grid-cols-2" : ""}`}>
                 <FeeTierCard
-                  title="Skema promo (setelah diskon)"
+                  title="Skema harga berlaku"
                   tier={quote.introductory}
                   isHighlighted
-                  badgeText="Diskon 40%"
                 />
-                <FeeTierCard title="Skema reguler (sebelum diskon)" tier={quote.regular} />
+                {quote.introductory.packagePrice < quote.regular.packagePrice && <FeeTierCard title="Skema reguler (sebelum diskon)" tier={quote.regular} />}
               </div>
             )}
 
@@ -443,10 +447,10 @@ export function TutorFeeEstimator() {
           >
             <AlertCircle className="mt-0.5 size-5 shrink-0 text-status-warning" aria-hidden="true" />
             <div className="space-y-1">
-              <p className="text-body-sm font-semibold text-foreground">Lengkapi konfigurasi</p>
-              <p className="text-body-xs leading-relaxed text-muted-foreground">
+              <p className="text-body-sm font-semibold text-foreground">{pricingError ? "Gagal memuat harga. Coba muat ulang." : !settings ? "Memuat harga..." : "Lengkapi konfigurasi"}</p>
+              {settings && !pricingError && <p className="text-body-xs leading-relaxed text-muted-foreground">
                 Periksa jumlah pertemuan, mata kuliah, dan anggota kelompok untuk menampilkan estimasi fee tutor.
-              </p>
+              </p>}
             </div>
           </div>
         )}

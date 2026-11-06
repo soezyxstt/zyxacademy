@@ -13,6 +13,13 @@ import {
  uniqueIndex,
   primaryKey,
 } from "drizzle-orm/pg-core";
+import type { PricingDiscounts } from "@/lib/pricing-discounts";
+
+export const pricingSettings = pgTable("pricing_settings", {
+ id: text("id").primaryKey(),
+ discounts: jsonb("discounts").$type<PricingDiscounts>().notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [check("pricing_settings_singleton", sql`${table.id} = 'default'`)]);
 
 // Enums
 /** Admin drive ; folder tree + file pointers to UploadThing. */
@@ -1665,6 +1672,13 @@ export const mataKuliah = pgTable(
   check("mata_kuliah_status_check", sql`${table.status} IN ('draft', 'active', 'archived')`),
  ],
 );
+
+export const publicDemoSnapshots = pgTable("public_demo_snapshots", {
+ id: text("id").primaryKey(),
+ courseId: text("course_id").notNull().unique().references(() => mataKuliah.id, { onDelete: "cascade" }),
+ snapshot: jsonb("snapshot").notNull(),
+ updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
+});
 
 export const bab = pgTable(
  "bab",
@@ -6174,3 +6188,11 @@ export const adminOperationJobs = pgTable("admin_operation_jobs", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 }, table => [index("admin_operation_jobs_queue_idx").on(table.status, table.createdAt), index("admin_operation_jobs_actor_idx").on(table.actorId, table.createdAt)]);
+
+/** Per-feature generation priorities, shared by web and background jobs. */
+export const aiModelSettings = pgTable("ai_model_settings", {
+  feature: text("feature").primaryKey(),
+  models: jsonb("models").$type<string[]>().notNull(),
+  updatedBy: text("updated_by").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});

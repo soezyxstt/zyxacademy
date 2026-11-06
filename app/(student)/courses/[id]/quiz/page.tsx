@@ -1,14 +1,11 @@
+import { StudentQuizListView } from "@/components/course/student-quiz-list-view";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 
-import { ClipboardList } from "lucide-react";
-import Link from "next/link";
-import { CoursePageShell } from "@/components/course/course-page-shell";
 import { CourseQuizListSkeleton } from "@/components/course/course-skeletons";
 import { pageTitle } from "@/lib/site";
 import { QuizListClient } from "./quiz-list-client";
 import { Reveal } from "@/components/ui/reveal";
-import { tabListClassName, tabTriggerClassName, tabTriggerActiveClassName } from "@/components/ui/tab-styles";
 import { db } from "@/db";
 import { studentQuizAttempts } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -16,7 +13,6 @@ import { notFound, redirect } from "next/navigation";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { getCourse, getStudentCourseAccess, getStudentVisibleCourseQuizzes, isFreeQuizTemplate } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
-import { cn } from "@/lib/utils";
 import { TranslatedText } from "@/components/i18n/translated-text";
 import { getTranslations } from "@/lib/i18n/server";
 
@@ -54,7 +50,7 @@ async function CourseQuizListContent({
     getStudentCourseAccess(studentId, id),
     getStudentVisibleCourseQuizzes(id, studentId),
     db
-      .select()
+      .select({ id: studentQuizAttempts.id, templateId: studentQuizAttempts.templateId, status: studentQuizAttempts.status, score: studentQuizAttempts.score })
       .from(studentQuizAttempts)
       .where(eq(studentQuizAttempts.studentId, studentId)),
   ]);
@@ -96,7 +92,7 @@ async function CourseQuizListContent({
         accessTier={accessTier}
         freeEligibleTemplateIds={freeEligibleTemplateIds}
         templates={filteredTemplates}
-        attempts={attempts}
+        attempts={attempts.map(({id,templateId,status,score}) => ({id,templateId,status,score}))}
       />
     </Reveal>
   );
@@ -122,38 +118,7 @@ export default async function CourseQuizListPage({ params, searchParams }: Props
     redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/quiz`)}`);
   }
 
-  const filters: Array<{ value: QuizAccessFilter; label: string }> = [
-    { value: "all", label: "all" },
-    { value: "free", label: "free" },
-    { value: "premium", label: "premium" },
-  ];
-
-  return (
-    <CoursePageShell
-      title={<TranslatedText namespace="learning" messageKey="quizPage.title" values={{ course: course.title }} />}
-      icon={ClipboardList}
-      actions={(
-        <nav className={tabListClassName} aria-labelledby="quiz-access-filter-label">
-          <span id="quiz-access-filter-label" className="sr-only"><TranslatedText namespace="learning" messageKey="quizPage.filterLabel" /></span>
-          {filters.map((filter) => (
-            <Link
-              key={filter.value}
-              href={filter.value === "all" ? `/courses/${id}/quiz` : `/courses/${id}/quiz?access=${filter.value}`}
-              className={cn(
-                tabTriggerClassName,
-                access === filter.value && tabTriggerActiveClassName,
-              )}
-              aria-current={access === filter.value ? "page" : undefined}
-            >
-              <TranslatedText namespace="learning" messageKey={`quizPage.filters.${filter.label}`} />
-            </Link>
-          ))}
-        </nav>
-      )}
-    >
-      <Suspense fallback={<CourseQuizListSkeleton />}>
-        <CourseQuizListContent id={id} studentId={studentId} access={access} />
-      </Suspense>
-    </CoursePageShell>
-  );
+  return <StudentQuizListView id={id} courseTitle={course.title} access={access}>
+    <Suspense fallback={<CourseQuizListSkeleton />}><CourseQuizListContent id={id} studentId={studentId} access={access} /></Suspense>
+  </StudentQuizListView>;
 }

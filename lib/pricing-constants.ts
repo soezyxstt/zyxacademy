@@ -1,3 +1,4 @@
+import { getComponentPriceQuote, type PricingDiscounts } from "@/lib/pricing-discounts";
 import { env } from "@/lib/env";
 import { getJakartaCalendarDate } from "@/lib/date-utils";
 import type { PlanKey } from "@/lib/plan-tiers";
@@ -78,6 +79,12 @@ function roundPlanTotal(rawPrice: number, persons: number): number {
   return roundedInThousands * 1000;
 }
 
+function getRegularComponents(platform: number, tutorial: number, persons: number) {
+  const total = Math.ceil(roundPlanTotal(platform + tutorial, persons) * 100 / (100 - INTRO_DISCOUNT_PERCENT));
+  const regularPlatform = tutorial ? Math.ceil(platform * 100 / (100 - INTRO_DISCOUNT_PERCENT)) : total;
+  return { platform: regularPlatform, tutorial: total - regularPlatform };
+}
+
 /**
  * Calculates the total price for a given plan reactively.
  */
@@ -142,6 +149,8 @@ export function getCustomPlanPriceQuote(
   persons: number,
   courses: number,
   voucherDiscountPercent?: number,
+  settings?: PricingDiscounts,
+  now = new Date(),
 ): CustomPlanPriceQuote {
   const quantities = [meetings, persons, courses];
   if (!quantities.every((value) => Number.isInteger(value) && value > 0)) {
@@ -158,8 +167,13 @@ export function getCustomPlanPriceQuote(
 
   const platformComponent = getPlatformCost(250, courses, persons);
   const tutorialComponent = getTutorialCost(meetings, 155, persons);
-  const afterDiscount = roundPlanTotal(platformComponent + tutorialComponent, persons);
-  const beforeDiscount = Math.ceil((afterDiscount * 100) / (100 - INTRO_DISCOUNT_PERCENT));
+  const legacyTotal = roundPlanTotal(platformComponent + tutorialComponent, persons);
+  const regular = getRegularComponents(platformComponent, tutorialComponent, persons);
+  const componentQuote = settings ? getComponentPriceQuote(
+    regular.platform, regular.tutorial, settings, now,
+  ) : undefined;
+  const afterDiscount = componentQuote?.price ?? legacyTotal;
+  const beforeDiscount = componentQuote?.regularPrice ?? Math.ceil((legacyTotal * 100) / (100 - INTRO_DISCOUNT_PERCENT));
   const beforeDiscountPerPerson = Math.round(beforeDiscount / persons);
   const afterDiscountPerPerson = Math.round(afterDiscount / persons);
   const discountAmount = beforeDiscount - afterDiscount;
@@ -186,7 +200,7 @@ export function getCustomPlanPriceQuote(
     afterDiscountPerPerson,
     discountAmount,
     discountAmountPerPerson,
-    discountPercent: INTRO_DISCOUNT_PERCENT,
+    discountPercent: componentQuote?.discountPercent ?? INTRO_DISCOUNT_PERCENT,
     voucherDiscountPercent,
     voucherDiscountAmount,
     voucherDiscountAmountPerPerson,
@@ -248,6 +262,8 @@ export function getTutorFeeQuote(
   persons: number,
   courses: number,
   customPackagePrice?: number,
+  settings?: PricingDiscounts,
+  now = new Date(),
 ): TutorFeeQuote {
   const quantities = [meetings, persons, courses];
   if (!quantities.every((value) => Number.isInteger(value) && value > 0)) {
@@ -261,19 +277,23 @@ export function getTutorFeeQuote(
 
   const platformCost = getPlatformCost(250, courses, persons);
   const tutorialComponent = getTutorialCost(meetings, 155, persons);
-  const afterDiscount = roundPlanTotal(platformCost + tutorialComponent, persons);
-  const beforeDiscount = Math.ceil((afterDiscount * 100) / (100 - INTRO_DISCOUNT_PERCENT));
+  const regular = getRegularComponents(platformCost, tutorialComponent, persons);
+  const componentQuote = settings ? getComponentPriceQuote(regular.platform, regular.tutorial, settings, now) : undefined;
+  const afterDiscount = componentQuote?.price ?? roundPlanTotal(platformCost + tutorialComponent, persons);
+  const beforeDiscount = componentQuote?.regularPrice ?? Math.ceil((afterDiscount * 100) / (100 - INTRO_DISCOUNT_PERCENT));
+  const currentPlatform = componentQuote?.platformPrice ?? platformCost;
+  const regularPlatform = settings ? regular.platform : platformCost;
 
   return {
     meetings,
     persons,
     courses,
-    platformCost,
-    introductory: buildTutorFeeQuoteTier(afterDiscount, platformCost, meetings, persons),
-    regular: buildTutorFeeQuoteTier(beforeDiscount, platformCost, meetings, persons),
+    platformCost: currentPlatform,
+    introductory: buildTutorFeeQuoteTier(afterDiscount, currentPlatform, meetings, persons),
+    regular: buildTutorFeeQuoteTier(beforeDiscount, regularPlatform, meetings, persons),
     custom:
       customPackagePrice !== undefined
-        ? buildTutorFeeQuoteTier(customPackagePrice, platformCost, meetings, persons)
+        ? buildTutorFeeQuoteTier(customPackagePrice, currentPlatform, meetings, persons)
         : undefined,
   };
 }
@@ -284,19 +304,30 @@ export function getPlanPriceQuote(
   persons: number,
   courses: number,
   phase: PlanPricingPhase = getPlanPricingPhase(),
+  settings?: PricingDiscounts,
+  now = new Date(),
 ) {
+  if (settings) {
+    const paid = plan !== "free" && plan !== "custom";
+    const platform = paid ? getPlatformCost(plan === "premium" ? 285 : 250, courses, persons) : 0;
+    const meetings = plan === "essential" ? 15 : plan === "premium" ? 30 : 0;
+    const tutorial = getTutorialCost(meetings, 155, persons);
+    const regular = getRegularComponents(platform, tutorial, persons);
+    return getComponentPriceQuote(regular.platform, regular.tutorial, settings, now);
+  }
   const introductoryPrice = calculateIntroductoryPrice(plan, persons, courses);
   // Whole Rupiah, rounded up so the advertised saving is at least 40%.
   const regularPrice = Math.ceil(introductoryPrice * 100 / (100 - INTRO_DISCOUNT_PERCENT));
   return {
     price: phase === "regular" ? regularPrice : introductoryPrice,
     regularPrice,
+    discountPercent: phase === "intro" && introductoryPrice > 0 ? INTRO_DISCOUNT_PERCENT : 0,
     isIntroductory: phase === "intro" && introductoryPrice > 0,
   };
 }
 
-export function calculatePlanPrice(plan: PlanKey, persons: number, courses: number, now: Date = new Date()): number {
-  return getPlanPriceQuote(plan, persons, courses, getPlanPricingPhase(now)).price;
+export function calculatePlanPrice(plan: PlanKey, persons: number, courses: number, now: Date = new Date(), settings?: PricingDiscounts): number {
+  return getPlanPriceQuote(plan, persons, courses, getPlanPricingPhase(now), settings, now).price;
 }
 
 // ==========================================
@@ -313,12 +344,13 @@ export const getWhatsAppPlanUrl = (
   courses: number,
   selectedCourses?: string[],
   phase: PlanPricingPhase = getPlanPricingPhase(),
+  settings?: PricingDiscounts,
 ): string | null => {
   const rawNumber = env.NEXT_PUBLIC_WHATSAPP_NUMBER?.trim();
   const digits = rawNumber?.replace(/\D/g, "") ?? "";
   if (digits.length < 8) return null;
 
-  return buildWhatsAppPlanUrl(digits, planKey, planName, persons, courses, selectedCourses, phase);
+  return buildWhatsAppPlanUrl(digits, planKey, planName, persons, courses, selectedCourses, phase, settings);
 };
 
 /** Builds a plan-specific WhatsApp URL from an already verified public number. */
@@ -330,6 +362,7 @@ export const buildWhatsAppPlanUrl = (
   courses: number,
   selectedCourses?: string[],
   phase: PlanPricingPhase = getPlanPricingPhase(),
+  settings?: PricingDiscounts,
 ): string => {
   const digits = rawNumber.replace(/\D/g, "");
   if (digits.length < 8) {
@@ -349,9 +382,11 @@ export const buildWhatsAppPlanUrl = (
   }
   
   if (planKey !== "custom" && planKey !== "free") {
-    const quote = getPlanPriceQuote(planKey, persons, courses, phase);
+    const quote = getPlanPriceQuote(planKey, persons, courses, phase, settings);
     message += ` Total paket per semester: ${formatPlanPrice(quote.price)}.`;
-    if (quote.isIntroductory) {
+    if (settings && quote.isIntroductory) {
+      message += ` Harga reguler: ${formatPlanPrice(quote.regularPrice)}. Mohon konfirmasi harga saat pembayaran.`;
+    } else if (quote.isIntroductory) {
       message += ` Harga perkenalan hemat 40% berlaku sampai 31 Oktober 2026 pukul 23.59 WIB. Harga reguler mulai 1 November 2026: ${formatPlanPrice(quote.regularPrice)}. Mohon konfirmasi harga saat pembayaran.`;
     }
   }

@@ -9,8 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
 import { useTranslations } from "@/lib/i18n/client";
 
+import { useStudentExperience } from "@/components/student-experience-provider";
+
 export function SettingsClient({ userName, userEmail }: { userName: string | null; userEmail: string | null }) {
   const t = useTranslations("student");
+  const experience = useStudentExperience();
+  const href = (path: string) => experience?.href?.(path) ?? path;
 
   return (
     <ApplicationPage>
@@ -25,7 +29,7 @@ export function SettingsClient({ userName, userEmail }: { userName: string | nul
             </div>
           </div>
           <Button asChild variant="outline" size="sm">
-            <Link href="/profile">{t("settings.viewProfile")}<ChevronRight className="size-3.5" /></Link>
+            <Link href={href("/profile")}>{t("settings.viewProfile")}<ChevronRight className="size-3.5" /></Link>
           </Button>
         </section>
         <section className="flex flex-wrap items-center justify-between gap-3 py-3">
@@ -38,13 +42,13 @@ export function SettingsClient({ userName, userEmail }: { userName: string | nul
         <section className="flex flex-wrap items-center justify-between gap-3 py-3">
           <h2 className="flex items-center gap-3 font-heading text-body-sm font-bold"><Bell className="size-5 text-primary" />{t("settings.emailNotifications")}</h2>
           <Button asChild variant="outline" size="sm">
-            <Link href="/settings/notifications">{t("settings.manageNotifications")}<ChevronRight className="size-3.5" /></Link>
+            <Link href={href("/settings/notifications")}>{t("settings.manageNotifications")}<ChevronRight className="size-3.5" /></Link>
           </Button>
         </section>
         <section className="flex flex-wrap items-center justify-between gap-3 py-3">
           <h2 className="flex items-center gap-3 font-heading text-body-sm font-bold"><MessageSquareHeart className="size-5 text-primary" />{t("settings.feedback")}</h2>
           <Button asChild variant="outline" size="sm">
-            <Link href="/feedback">{t("settings.sendFeedback")}<ChevronRight className="size-3.5" /></Link>
+            <Link href={href("/feedback")}>{t("settings.sendFeedback")}<ChevronRight className="size-3.5" /></Link>
           </Button>
         </section>
       </Reveal>

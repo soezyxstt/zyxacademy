@@ -155,4 +155,3 @@ export function questionParamsFromUrl(params: URLSearchParams): QuestionSearchPa
 export function questionTagSearchText(tags: unknown): string {
   return Array.isArray(tags) ? tags.filter(Boolean).join(" ") : "";
 }
-

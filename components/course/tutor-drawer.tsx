@@ -8,6 +8,8 @@ import { ZyraFloatingPet } from "@/components/course/zyra-floating-pet";
 import { getTutorCapabilities } from "@/lib/tutor-capabilities";
 import type { TutorMode } from "./tutor-drawer-view";
 
+import { useStudentExperience } from "@/components/student-experience-provider";
+
 export type { TutorMode };
 
 export interface ZyraQuotedContext {
@@ -93,7 +95,9 @@ function ZyraWelcomeCopyGuard({ children }: { children: React.ReactNode }) {
 }
 
 export function TutorProvider({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const realPathname = usePathname();
+  const experience = useStudentExperience();
+  const pathname = experience.pathname ?? realPathname;
   const courseIdFromPath = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
   const caps = getTutorCapabilities(courseIdFromPath);
 

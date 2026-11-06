@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { stripPublicLocalePrefix } from "@/lib/public-locale-routes";
-import { normalizeLocale } from "@/lib/i18n/locale";
+import { LOCALE_COOKIE_NAME } from "@/lib/i18n/shared";
+import { normalizeLocale, resolveLocale } from "@/lib/i18n/locale";
 
 export function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const requestHeaders = new Headers(request.headers);
 
   // Never trust a caller-provided locale header. Only a finite public URL
-  // prefix below can set it for the rendered page.
+  // routing below can set it for the rendered page.
   requestHeaders.delete("x-app-locale");
 
   const explicitPublicLocale = stripPublicLocalePrefix(pathname);
@@ -19,6 +20,12 @@ export function proxy(request: NextRequest) {
     const destination = new URL(request.url);
     destination.pathname = explicitPublicLocale.path;
     return NextResponse.rewrite(destination, { request: { headers: requestHeaders } });
+  }
+
+  // Demo language comes from the browser, without loading a visitor's real account.
+  if (pathname === "/demo" || pathname.startsWith("/demo/")) {
+    requestHeaders.set("x-app-locale", resolveLocale({ cookieLocale: request.cookies.get(LOCALE_COOKIE_NAME)?.value, acceptLanguage: request.headers.get("accept-language") }));
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   // Paths that require a user session (protected paths)

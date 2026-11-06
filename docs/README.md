@@ -29,42 +29,45 @@ The `ACTIVE` feature catalog records the mobile Article selection action and sav
 
 ---
 
+The `ACTIVE` feature catalog and schema reference document permanent admin-managed platform and tutorial discount schedules, shared public pricing, and the singleton `pricing_settings` table. Local verification does not establish a deployed migration or production pricing change.
+
 ## 1. Documentation Taxonomy & Hierarchy
 
 The documentation is organized into clear functional layers:
 
 ```text
 docs/
-├── README.md                                 # Master Index and Status Authority (this file)
-├── ARCHITECTURE.md                           # System Architecture, Data Flow, and Boundaries
-├── DATABASE.md                               # Database Setup, Environments, and Adapters
-├── DB_SCHEMA.md                              # Schema Definition, Tables, and Relations
-├── DEPLOYMENT.md                             # Production and Staging Deployment Topology
-├── DEVELOPMENT.md                            # Local Development, Tooling, and Feature Flags
-├── FILE_NAMING_CONVENTIONS.md                # Official File Naming and Directory Taxonomy
-├── features.md                               # Product Feature Catalog and Workflows
-│
-├── bundle/                                   # Bundle Specifications and Authoring Contracts
-│   ├── authoring-context-pack-v1.md          # Authoring Context Pack V1 Contract
-│   ├── authoring-job-pack-v1.md              # Authoring Job Pack V1 Contract
-│   ├── idea-bundle-v2.md                     # Transitional Idea Bundle V2 Contract
-│   ├── idea-bundle-v3.md                     # Structured Idea Bundle V3 Contract
-│   ├── product-bundle-v2.md                  # Transitional Product Bundle V2 Contract
-│   ├── product-bundle-v3.md                  # Structured Product Bundle V3 Contract
-│   └── product-bundle-v4.md                  # Default V4 authoring contract, legacy compatibility and generated JSON Schema delivery
-│
-├── operations/                               # Operational Runbooks, Checklists, and Allowances
-│   ├── authoring-mcp-skills.md                # Pinned MCP Skills Build and Import Acceptance
-│   ├── legacy-vector-contract-allowlist.md   # Allowed Legacy Vector References during Cutover
-│   ├── manual-test-plan-bundles-v2.md       # Human-driven Verification for Bundle Ingestion
-│   ├── neon-migration.md                    # Neon rehearsal and live staging cutover evidence
-│   ├── production-readiness-checklist.md     # Pre-deployment Gates and Plan Checkpoints
-│   ├── structured-article-v3-rollout.md       # Structured Article V3 Migration and Rollout
-│   ├── visual-audit-capture.md               # Procedure for Staging Visual Capture Audits
-│   └── zyra-ops-runbooks.md                  # Zyra AI Alert Runbooks and Incident Handling
-│
-└── handoffs/                                 # Milestone Handoff Records and Checkpoints
-    └── zyra-ai-plans-001-007.md              # Zyra AI Plans 001-007 Staging Checkpoint
+â”œâ”€â”€ README.md                                 # Master Index and Status Authority (this file)
+â”œâ”€â”€ ARCHITECTURE.md                           # System Architecture, Data Flow, and Boundaries
+â”œâ”€â”€ DATABASE.md                               # Database Setup, Environments, and Adapters
+â”œâ”€â”€ DB_SCHEMA.md                              # Schema Definition, Tables, and Relations
+â”œâ”€â”€ DEPLOYMENT.md                             # Production and Staging Deployment Topology
+â”œâ”€â”€ DEVELOPMENT.md                            # Local Development, Tooling, and Feature Flags
+â”œâ”€â”€ FILE_NAMING_CONVENTIONS.md                # Official File Naming and Directory Taxonomy
+â”œâ”€â”€ features.md                               # Product Feature Catalog and Workflows
+â”‚
+â”œâ”€â”€ bundle/                                   # Bundle Specifications and Authoring Contracts
+â”‚   â”œâ”€â”€ authoring-context-pack-v1.md          # Authoring Context Pack V1 Contract
+â”‚   â”œâ”€â”€ authoring-job-pack-v1.md              # Authoring Job Pack V1 Contract
+â”‚   â”œâ”€â”€ idea-bundle-v2.md                     # Transitional Idea Bundle V2 Contract
+â”‚   â”œâ”€â”€ idea-bundle-v3.md                     # Structured Idea Bundle V3 Contract
+â”‚   â”œâ”€â”€ product-bundle-v2.md                  # Transitional Product Bundle V2 Contract
+â”‚   â”œâ”€â”€ product-bundle-v3.md                  # Structured Product Bundle V3 Contract
+â”‚   â””â”€â”€ product-bundle-v4.md                  # Default V4 authoring contract, legacy compatibility and generated JSON Schema delivery
+â”‚
+â”œâ”€â”€ operations/                               # Operational Runbooks, Checklists, and Allowances
+â”‚   â”œâ”€â”€ authoring-mcp-skills.md                # Pinned MCP Skills Build and Import Acceptance
+â”‚   â”œâ”€â”€ legacy-vector-contract-allowlist.md   # Allowed Legacy Vector References during Cutover
+â”‚   â”œâ”€â”€ manual-test-plan-bundles-v2.md       # Human-driven Verification for Bundle Ingestion
+â”‚   â”œâ”€â”€ neon-migration.md                    # Neon rehearsal and live staging cutover evidence
+â”‚   â”œâ”€â”€ neon-production-cutover.md           # Production rehearsal and guarded maintenance cutover
+â”‚   â”œâ”€â”€ production-readiness-checklist.md     # Pre-deployment Gates and Plan Checkpoints
+â”‚   â”œâ”€â”€ structured-article-v3-rollout.md       # Structured Article V3 Migration and Rollout
+â”‚   â”œâ”€â”€ visual-audit-capture.md               # Procedure for Staging Visual Capture Audits
+â”‚   â””â”€â”€ zyra-ops-runbooks.md                  # Zyra AI Alert Runbooks and Incident Handling
+â”‚
+â””â”€â”€ handoffs/                                 # Milestone Handoff Records and Checkpoints
+    â””â”€â”€ zyra-ai-plans-001-007.md              # Zyra AI Plans 001-007 Staging Checkpoint
 ```
 
 ---
@@ -88,17 +91,17 @@ Every document in this repository has one of the following explicit statuses:
 | Document | Category | Status | Updated / Date | Purpose and Scope |
 |---|---|---|---|---|
 | [operations/cloud-run-staging.md](operations/cloud-run-staging.md) | Operations | `ACTIVE` | 2026-11-02 | Verified Taiwan Cloud Run staging deployment with shared Neon web/worker target guards, GitHub Actions image publication and automatic revision/traffic rollout, runtime configuration sync, direct readiness checks, IAM preservation and coordinated Turso-compatible rollback. |
-| [README.md](README.md) | Index | `ACTIVE` | 2026-11-05 | Master documentation index, hierarchy map and lifecycle status ledger, including Neon staging and production database targets, runtime verification boundaries, bilingual evidence and open gates. |
+| [README.md](README.md) | Index | `ACTIVE` | 2026-11-05 | Master documentation index, hierarchy map and lifecycle status ledger, including live Neon staging topology, per-feature AI model routing, production boundaries, bilingual evidence and open gates. |
 | [coding-foundation.md](coding-foundation.md) | Coding | `ACTIVE` | 2026-10-30 | Python contextual help sheet and viewport-aware Playground editor, Article/Playground/Live Quiz contract, staging WASI terminal and bounded editor prewarming, browser runtime outside staging, explicit Submit provider and fail-closed session cleanup. |
 | [coding-verification.md](coding-verification.md) | Coding verification | `ACTIVE` | 2026-10-24 | PR #217: real Steel Python matrix, Article/Live correct and incorrect grading, deadline retries with zero Live score, authenticated Playground Run at both viewports, browser harness and cleanup. CI remains blocked by Sonar authorization and inherited bilingual Schedule assertions; earlier evidence is historical. |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-11-05 | Request-scoped read deduplication, catalogue projections, first-content streaming, V4 authoring default, canonical MCP admin access, OAuth consent grants, verification and publication boundaries, bilingual request locale and preference precedence, finite public rewrites, worker-safe communications, Zyra override memory limits, source figures, and publication gates, and isolated Python provider execution. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-11-02 | Separate live Neon PostgreSQL/storage targets, request-scoped read deduplication, catalogue projections, first-content streaming, V4 authoring default, canonical MCP admin access, OAuth consent grants, verification and publication boundaries, bilingual request locale and preference precedence, finite public rewrites, worker-safe communications, Zyra override memory limits, per-feature AI model routing and Ops AI fallback, source figures, and publication gates, and isolated Python provider execution. |
 | [operations/authoring-mcp-skills.md](operations/authoring-mcp-skills.md) | Operations | `ACTIVE` | 2026-10-23 | Pinned external snapshots, 0.4.1 V4 defaults, browser deadlines and 2-slice checkpoints, early remote cleanup, backoff-aware leases, canonical CDP validation, scoped diagnostics and exact-revision recovery/cancellation, attested renderer and separate installed-host acceptance. |
-| [DATABASE.md](DATABASE.md) | Core Database | `ACTIVE` | 2026-11-02 | Live Neon staging target, PostgreSQL development/CI, production Turso boundary, signed import settings, Drizzle workflows and coordinated rollback. |
-| [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | 2026-11-02 | PostgreSQL staging schema authority and retained legacy catalog, including locale preferences, coding, tutorial occupancy/refunds, historical assessments, Product Bundle review and PDF evidence. |
-| [DEPLOYMENT.md](DEPLOYMENT.md) | Core Infrastructure | `ACTIVE` | 2026-11-02 | Dependency-scoped CI release gates; live Neon staging on Taiwan Cloud Run and its shared Deno target, verified frozen import, production Vercel/Turso/R2 boundary, GitHub runtime sync, image deployment and coordinated rollback. |
-| [DEVELOPMENT.md](DEVELOPMENT.md) | Core Development | `ACTIVE` | 2026-11-05 | Dependency-aware CI, successful-release baselines, PostgreSQL contract runner compatibility, incremental compiler caches, and local development, signed staging-source snapshot import, pinned scientific dependencies, i18n catalogs, staging Python terminal configuration, and provider/runtime probe commands. |
+| [DATABASE.md](DATABASE.md) | Core Database | `ACTIVE` | 2026-11-02 | Live Neon staging target, PostgreSQL development/CI, separate protected production Neon target, signed import settings, Drizzle workflows and coordinated rollback. |
+| [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | 2026-11-06 | PostgreSQL staging schema authority and retained legacy catalog, including staging-verified `ai_model_settings` migration, locale preferences, coding, tutorial occupancy/refunds, historical assessments, Product Bundle review and PDF evidence. |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Core Infrastructure | `ACTIVE` | 2026-11-02 | Dependency-scoped CI release gates; live Neon staging on Taiwan Cloud Run and its shared Deno target, verified frozen import, production Vercel/Neon boundary, GitHub runtime sync, image deployment and coordinated rollback. |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Core Development | `ACTIVE` | 2026-11-02 | Dependency-aware CI, successful-release baselines, and local development with separate live Neon targets and signed source snapshot imports, pinned scientific dependencies, i18n catalogs, staging Python terminal configuration, and provider/runtime probe commands. |
 | [FILE_NAMING_CONVENTIONS.md](FILE_NAMING_CONVENTIONS.md) | Standards | `ACTIVE` | Current | Standard file naming formula, taxonomy, and directory hierarchy for academic assets. |
-| [features.md](features.md) | Product | `ACTIVE` | 2026-11-05 | Student, tutor, admin and public workflows; tutorial booking deadlines and cancellation refunds, bilingual application interface and search boundaries, Zyra language persistence limits, Idea-linked quizzes, Authoring MCP consent and admin access, V4 authoring defaults, scientific rendering and review gates, including Python Playground code generation and automatic editor insertion, problem assistance, editor shortcuts and guided error recovery. |
+| [features.md](features.md) | Product | `ACTIVE` | 2026-11-05 | Student, tutor, admin and public workflows; live per-feature AI model configuration (`/admin/ops/models`) and deduplicated AI analytics (`/admin/ops/analytics`), tutorial booking deadlines and cancellation refunds, bilingual application interface and search boundaries, Zyra language persistence limits, Idea-linked quizzes, Authoring MCP consent and admin access, V4 authoring defaults, scientific rendering and review gates, including Python Playground code generation and automatic editor insertion, problem assistance, editor shortcuts and guided error recovery. |
 | [bundle/authoring-context-pack-v1.md](bundle/authoring-context-pack-v1.md) | Bundle Contract | `ACTIVE` | Current | Specification for authoring context pack export format and security boundaries. |
 | [bundle/authoring-job-pack-v1.md](bundle/authoring-job-pack-v1.md) | Bundle Contract | `ACTIVE` | 2026-10-11 | Specification for authoring job packs, Source Pack provenance, and local or stored-original ingestion and persistence. |
 | [bundle/idea-bundle-v2.md](bundle/idea-bundle-v2.md) | Bundle Contract | `TRANSITIONAL / LEGACY` | Current | Read and rollback submission contract for Idea Bundle V2. |
@@ -106,8 +109,10 @@ Every document in this repository has one of the following explicit statuses:
 | [bundle/product-bundle-v2.md](bundle/product-bundle-v2.md) | Bundle Contract | `TRANSITIONAL / LEGACY` | Current | Read compatibility and Article block review adapter for Product Bundle V2. |
 | [bundle/product-bundle-v3.md](bundle/product-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-10-11 | Structured Article, fixed readable Diktat typography, pagination, and numbered contact footer, typed visuals with geometric axis scaling and domain boundaries, simplified revision-bound review, publication, and student reads. |
 | [bundle/product-bundle-v4.md](bundle/product-bundle-v4.md) | Bundle Contract | `ACTIVE` | 2026-10-22 | Default V4 authoring contract with legacy compatibility: scientific parts, authored graphical Diktat with fixed readable typography, source figures, trusted verification, unmarked scientific prose blockers, current explicit review and checksum-pinned schema delivery. Operational rollout is separate. |
+| [operations/public-demo-seeding.md](operations/public-demo-seeding.md) | Operations | `OPEN / IN PROGRESS` | Current | First-chapter learning access and authorized fictional fallbacks; active chapter and student-visible product metadata catalogue update and replacement baseline are under verification. |
 | [operations/production-readiness-checklist.md](operations/production-readiness-checklist.md) | Operations | `ACTIVE` | Current | Pre-deployment gates, quality criteria, staging validation checklist, and mandatory Idea links with exactly one primary for MCP quiz drafts and edits. |
-| [operations/neon-migration.md](operations/neon-migration.md) | Operations | `COMPLETED / RESOLVED` | 2026-11-02 | Verified staging cutover with 21,273 business rows, 124 source objects, Google login, 14 hosted routes, booking recovery, worker PDF integration and six concurrency regressions. CI passed 2,038 contracts across 313 files; hosted authoring passed 22 checks through review, publication and PDF download. Production is unchanged. |
+| [operations/neon-migration.md](operations/neon-migration.md) | Operations | `COMPLETED / RESOLVED` | 2026-11-02 | Verified staging cutover with 21,273 business rows, 124 source objects, Google login, 14 hosted routes, booking recovery, worker PDF integration and six concurrency regressions. CI passed 2,038 contracts across 313 files; hosted authoring passed 22 checks through review, publication and PDF download. Production cutover is recorded separately. |
+| [operations/neon-production-cutover.md](operations/neon-production-cutover.md) | Operations | `ACTIVE` | 2026-11-02 | Production serves Neon: 78,918 rows in 193 reconciled tables, 1,005 objects with metadata and SHA-256 proofs, existing role sessions, private storage proxy and signed worker acceptance. Maintenance removed, jobs restored, seven-day snapshot and compute-free storage backup retained. Fresh browser Google login awaits owner confirmation. |
 | [operations/zyra-ops-runbooks.md](operations/zyra-ops-runbooks.md) | Operations | `ACTIVE` | 2026-09-02 | Operational runbooks, health metrics, alert responses, and Admin Ops AI v2 operational procedures (Vectorize sync, rollback without flag, provider mitigation, proposal retention). |
 | [operations/visual-audit-capture.md](operations/visual-audit-capture.md) | Operations | `ACTIVE` | Current | Verified Neon staging target, read-only session capture, candidate build provenance, visual checks and owned server cleanup. |
 | [operations/structured-article-v3-rollout.md](operations/structured-article-v3-rollout.md) | Operations | `ACTIVE` | 2026-09-01 | Additive migration, authoring rollout gates, rollback, and published student visibility for structured Articles. |
@@ -116,6 +121,8 @@ Every document in this repository has one of the following explicit statuses:
 | [handoffs/zyra-ai-plans-001-007.md](handoffs/zyra-ai-plans-001-007.md) | Milestone Handoff | `HISTORICAL CHECKPOINT` | 2026-08-11 | Staging checkpoint and test evidence summary for Zyra AI system Plans 001 through 007. |
 
 ---
+
+| [audit/production-playground-css-20261102.md](audit/production-playground-css-20261102.md) | Audit | `OPEN / IN PROGRESS` | 2026-11-02 | Production lacks editor color tokens despite matching source; clean local CSS probes pass, Vercel cache diagnosis and fresh deployed verification remain open. |
 
 ## 4. Plans Cross-Reference
 
@@ -163,8 +170,8 @@ To prevent confusion when navigating code or documentation, the active vs legacy
 | System Area | Canonical / Active Standard | Legacy / Transitional Mechanism | Boundary Rules |
 |---|---|---|---|
 | **Retrieval & Vector Store** | Cloudflare Vectorize 768-dimensional (`text-embedding-004`) | Pinecone, 1024-dimensional Vectorize indexes | New retrieval queries use 768d Vectorize only. Legacy indexes are preserved for rollback only. |
-| **Object Storage** | Private Neon object storage in staging; Cloudflare R2 in production | UploadThing; preserved source R2 objects | Keys use `lib/storage/keys.ts`; staging bucket credentials are scoped to its final Neon branch. |
-| **Database** | Neon PostgreSQL in staging and production | Earlier Neon preparation/rehearsal branches and legacy local SQLite | The PostgreSQL adapter has no Turso fallback. Preserve the prior image, runtime settings and worker together for rollback. |
+| **Object Storage** | Separate private Neon buckets in staging and production | Preserved source R2 objects; UploadThing compatibility | Keys use `lib/storage/keys.ts`; credentials and endpoints remain branch-scoped. |
+| **Database** | Separate Neon PostgreSQL branches in staging and production | Preserved Turso source and legacy SQLite artifacts | No Turso fallback. After accepting writes, freeze and reconcile before restoring the prior runtime unit. |
 | **Roles & Permissions** | Canonical `pengguna_peran` table with role assignments | Flat string role column on user | All new authorization checks use canonical `pengguna_peran`. |
 | **Course Ingestion** | Bundle V3 behind `FEATURE_STRUCTURED_ARTICLE_READER_V1` | Bundle V2 submission and legacy readers | Published V2 and V3 remain readable. New submissions require V3 only while the flag is enabled. |
 | **AI Harness & Quota** | Zyra Control Plane with Durable Object Quota Coordinator | Uncoordinated direct provider calls | Tutoring and generation route through Zyra quota coordinator and allowance ledger. |
@@ -211,3 +218,9 @@ Admin MCP CI compatibility follow-up is `OPEN / IN PROGRESS` pending remote chec
 Rancangan navigasi di `plans/navigation-performance-plan.md` membedakan target usulan dari baseline, memakai Neon untuk staging dan produksi sesuai konfirmasi pengguna, serta menetapkan batas payload soal dan deduplikasi sesi pada route pilot. Status tetap `OPEN / IN PROGRESS`.
 
 The `ACTIVE` [architecture](ARCHITECTURE.md), [feature catalog](features.md), and [development guide](DEVELOPMENT.md) describe local navigation changes. The [performance plan](../plans/navigation-performance-plan.md) and [validation audit](audit/navigation-performance-validation.md) remain `OPEN / IN PROGRESS`; local measurements do not establish causal savings or actual Cloud Run capacity.
+
+The `ACTIVE` deployment, development, and feature guides document shared staging and production Python terminal access, environment-bound tickets, and coordinated ticket-key rotation.
+
+| Production Playground CSS | [audit/production-playground-css-20261102.md](audit/production-playground-css-20261102.md) | `OPEN / IN PROGRESS` | Missing served editor tokens confirmed; cache hypothesis awaits a fresh production build and authenticated visual verification. |
+
+Navigation staging release preparation integrates the current staging dashboard presentation with streamed sections. Deployment and post-release timing remain pending until the staging workflow completes.

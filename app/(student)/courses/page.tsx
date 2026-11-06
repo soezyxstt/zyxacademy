@@ -1,11 +1,6 @@
+import { StudentCourseCatalogView } from "@/components/course/student-course-catalog-view";
 import type { Metadata } from "next";
-import Link from "next/link";
-import { BookOpen, MessageCircle } from "lucide-react";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
-import { ApplicationPage } from "@/components/application-page";
-import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
-import { studentCardClass } from "@/components/course/course-surfaces";
 import { env } from "@/lib/env";
 import { createMetadata} from "@/lib/site";
 import { getAuthSession } from "@/lib/auth-session";
@@ -20,8 +15,7 @@ import {
 import { attachCourseCatalogStats } from "@/lib/student/course-catalog-stats";
 import { listStudentCourses } from "@/lib/student/course-catalog";
 import { getWhatsAppAdminChatHref } from "@/lib/whatsapp-admin";
-import { CourseCatalogClient, type CourseGroup } from "./course-catalog-client";
-import { TranslatedText } from "@/components/i18n/translated-text";
+import { type CourseGroup } from "./course-catalog-client";
 import { getTranslations } from "@/lib/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -116,65 +110,5 @@ export default async function CoursesPage() {
 
   const whatsappHref = getWhatsAppAdminChatHref();
 
-  return (
-    <ApplicationPage className="pb-16">
-      <PageHeader
-        title={<TranslatedText namespace="learning" messageKey="catalog.pageTitle" />}
-        icon={BookOpen}
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            {whatsappHref && (
-              <Button asChild variant="outline" size="sm" className="rounded-lg text-body-sm gap-1.5">
-                <a href={whatsappHref} target="_blank" rel="noopener noreferrer">
-                  <MessageCircle className="size-3.5 text-status-success" />
-                  <TranslatedText namespace="learning" messageKey="catalog.contactAdmin" />
-                </a>
-              </Button>
-            )}
-            <Button asChild size="sm" className="rounded-lg text-body-sm">
-              <Link href="/plans"><TranslatedText namespace="learning" messageKey="catalog.viewPlans" /></Link>
-            </Button>
-          </div>
-        }
-      />
-
-      {groups.length > 0 ? (
-        <CourseCatalogClient
-          groups={groups}
-          studentTargetCategory={studentTargetCategory}
-        />
-      ) : (
-        <div className={studentCardClass("py-12 text-center max-w-md mx-auto")}>
-          <BookOpen className="mx-auto size-10 text-muted-foreground/40 mb-3" />
-          <h2 className="font-heading text-body-base font-bold text-foreground">
-            <TranslatedText namespace="learning" messageKey="catalog.emptyTitle" />
-          </h2>
-          <p className="mt-1 text-body-xs text-muted-foreground">
-            <TranslatedText namespace="learning" messageKey="catalog.emptyDescription" />
-          </p>
-        </div>
-      )}
-
-        <p className="mt-8 text-body-sm text-muted-foreground">
-          <TranslatedText namespace="learning" messageKey="catalog.needMoreAccess" />{" "}
-          <Link href="/plans" className="font-semibold text-primary underline-offset-4 hover:underline">
-            <TranslatedText namespace="learning" messageKey="catalog.viewPlans" />
-          </Link>
-          {whatsappHref && (
-            <>
-              {" "}<TranslatedText namespace="learning" messageKey="catalog.or" />{" "}
-              <a
-                href={whatsappHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-primary underline-offset-4 hover:underline"
-              >
-                <TranslatedText namespace="learning" messageKey="catalog.contactWhatsApp" />
-              </a>
-            </>
-          )}
-          .
-        </p>
-    </ApplicationPage>
-  );
+  return <StudentCourseCatalogView groups={groups} studentTargetCategory={studentTargetCategory} whatsappHref={whatsappHref} />;
 }

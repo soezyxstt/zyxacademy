@@ -17,8 +17,8 @@ describe("Structured Article Reader Contracts", () => {
       functionModel: { kind: "quadratic", a: 1, b: 0, c: -1 },
     };
     const article = buildPublicArticleReadModel(
-      { id: "article", title: "Limit", visuals: [visual] },
-      [{ id: "section", title: "Limit", status: "published", pedagogy: { visualRequirement: { status: "required", visualIds: [visual.id] } } }],
+      { id: "article", slug: "limit", version: 1, title: "Limit", visuals: [visual] },
+      [{ id: "section", slug: "limit", title: "Limit", status: "published", pedagogy: { visualRequirement: { status: "required", visualIds: [visual.id] } } }],
       [{ id: "block", bagianArtikelId: "section", status: "published", content: "Limit", blockType: "verbal_representation", visualIds: [visual.id] }],
       [], "chapter",
     );

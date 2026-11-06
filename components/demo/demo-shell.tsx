@@ -1,128 +1,39 @@
 "use client";
+import { useEffect, useState, type ReactNode } from "react";
+import { StudentApplicationShell } from "@/components/student-application-shell";
+import { MobileNavTitle } from "@/components/mobile-nav-title";
+import { StudentExperienceProvider } from "@/components/student-experience-provider";
+import { useAppLocale } from "@/lib/i18n/client";
+import { demoRoute, demoStudentHref, demoStudentPath, type DemoRouteView } from "@/lib/demo/routes";
+import { overlayKey } from "@/lib/demo/session-overlay";
+import { demoWeeklyActivity } from "@/lib/demo/progress-overlay";
+import { formatIsoDate } from "@/lib/date-utils";
+import type { DemoExperience, DemoProductSelection } from "@/app/(marketing)/demo/demo-data";
+import { demoSelectionHref } from "@/lib/demo/selection";
+import { DemoSession, useDemoSession } from "./demo-session";
 
-import type { ReactNode } from "react";
-import Link from "next/link";
-import {
-  ArrowRight,
-  BookOpen,
-  Brain,
-  CheckSquare,
-  FileText,
-  Layers3,
-  MessageCircle,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { PageOrnaments } from "@/components/ui/page-ornaments";
-import { cn } from "@/lib/utils";
-import type { DemoCourseSummary } from "@/app/(marketing)/demo/demo-data";
-import { useTranslations } from "@/lib/i18n/client";
-import { LocalizedPublicLink } from "@/components/localized-public-link";
-
-export type DemoView = "dashboard" | "article" | "diktat" | "flashcards" | "quiz" | "zyra";
-
-const demoNav: Array<{ view: Exclude<DemoView, "dashboard">; key: string; icon: typeof BookOpen }> = [
-  { view: "article", key: "demo.views.article", icon: BookOpen },
-  { view: "diktat", key: "demo.views.diktat", icon: FileText },
-  { view: "flashcards", key: "demo.views.flashcards", icon: Layers3 },
-  { view: "quiz", key: "demo.views.quiz", icon: CheckSquare },
-  { view: "zyra", key: "demo.views.zyra", icon: MessageCircle },
-];
-
-export function demoSignInHref(nextPath: string): string {
-  const safeNextPath = nextPath.startsWith("/") && !nextPath.startsWith("//")
-    ? nextPath
-    : "/dashboard";
-  return `/sign-in?next=${encodeURIComponent(safeNextPath)}`;
+export type DemoSummary = { snapshot: DemoExperience["snapshot"]; content: Pick<DemoExperience["content"], "course"> & { article?: Pick<DemoExperience["content"]["article"], "id" | "title"> } };
+export type DemoView = DemoRouteView;
+export function DemoShell({ experiences, selected, activeView, children, selection = {}, reviewScope, showLive = false }: { experiences: DemoSummary[]; selected: DemoSummary; activeView: DemoView; children: ReactNode; selection?: DemoProductSelection; reviewScope?: { setId: string; offset: number }; showLive?: boolean }) {
+  return <DemoSession key={overlayKey(selected.snapshot.courseId, selected.snapshot.revision)} courseId={selected.snapshot.courseId} revision={selected.snapshot.revision} reviewScope={reviewScope} scopes={experiences.map(({ snapshot }) => ({ courseId: snapshot.courseId, revision: snapshot.revision }))}><Shell experiences={experiences} selected={selected} activeView={activeView} selection={selection} showLive={showLive}>{children}</Shell></DemoSession>;
 }
-
-export function demoCoursePath(courseId: string): string {
-  return `/courses/${encodeURIComponent(courseId)}`;
-}
-
-export function DemoAuthCta({
-  nextPath,
-  label,
-}: {
-  nextPath: string;
-  label?: string;
-}) {
-  const t = useTranslations("marketing");
-  return (
-    <Button asChild size="sm" className="gap-1.5 rounded-lg">
-      <Link href={demoSignInHref(nextPath)}>
-        {label ?? t("demo.authCta")}
-        <ArrowRight className="size-3.5" aria-hidden="true" />
-      </Link>
-    </Button>
-  );
-}
-
-export function DemoShell({
-  course,
-  activeView,
-  children,
-}: {
-  course: DemoCourseSummary;
-  activeView: DemoView;
-  children: ReactNode;
-}) {
-  const t = useTranslations("marketing");
-  return (
-    <div className="relative overflow-hidden bg-muted/20">
-      <PageOrnaments variant="about" />
-      <div className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 md:pb-24 md:pt-14 lg:px-8">
-        <div className="flex flex-col gap-5 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
-          <div className="min-w-0">
-            <p className="text-body-xs font-semibold text-muted-foreground">{course.category}</p>
-            <h1 className="mt-3 max-w-3xl font-heading text-h5 font-bold tracking-tight text-foreground sm:text-h4">
-              {course.title}
-            </h1>
-            <p className="mt-1 text-body-sm text-muted-foreground">
-              {t("demo.chapter", { number: course.chapterNumber, title: course.chapterTitle })}
-            </p>
-          </div>
-          <div className="shrink-0">
-            <DemoAuthCta nextPath={demoCoursePath(course.id)} />
-          </div>
-        </div>
-
-        <nav
-          aria-label={t("demo.navLabel")}
-          className="mt-5 flex flex-wrap gap-2 rounded-xl border border-border bg-card/70 p-2 shadow-xs"
-        >
-          <LocalizedPublicLink
-            href="/demo"
-            aria-current={activeView === "dashboard" ? "page" : undefined}
-            className={cn(
-              "inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-body-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--zx-accent)]",
-              activeView === "dashboard"
-                ? "bg-card text-foreground shadow-xs"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
-            )}
-          >
-            <Brain className="size-4" aria-hidden="true" />
-            {t("demo.views.dashboard")}
-          </LocalizedPublicLink>
-          {demoNav.map(({ view, key, icon: Icon }) => (
-            <LocalizedPublicLink
-              key={view}
-              href={`/demo/${view}`}
-              aria-current={activeView === view ? "page" : undefined}
-              className={cn(
-                "inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-body-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--zx-accent)]",
-                activeView === view
-                  ? "bg-card text-foreground shadow-xs"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              <Icon className="size-4" aria-hidden="true" />
-              {t(key)}
-            </LocalizedPublicLink>
-          ))}
-        </nav>
-
-        <main className="mt-8">{children}</main>
-      </div>
-    </div>
-  );
+function Shell({ experiences, selected, activeView, children, selection = {}, showLive }: { experiences: DemoSummary[]; selected: DemoSummary; activeView: DemoView; children: ReactNode; selection?: DemoProductSelection; showLive: boolean }) {
+  const { locale } = useAppLocale();
+  const { reset, record, generation, ready, overlay } = useDemoSession();
+  const [today, setToday] = useState(selected.snapshot.asOf);
+  useEffect(() => setToday(formatIsoDate(new Date())), []);
+  const route = (view: string, courseId = selected.snapshot.courseId) => {
+    const base = demoRoute(locale, view as DemoRouteView, courseId);
+    return courseId === selected.snapshot.courseId ? demoSelectionHref(base, selection) : base;
+  };
+  const href = (path: string) => demoStudentHref(locale, path, selected.snapshot.courseId);
+  return <StudentExperienceProvider value={{
+    changeLocale: nextLocale => window.location.assign(demoSelectionHref(demoRoute(nextLocale, activeView, selected.snapshot.courseId), selection)),
+    mode: "demo", route, href, pathname: demoStudentPath(activeView, selected.snapshot.courseId),
+    account: { name: selected.snapshot.displayName, email: "pelajar@example.test" },
+    courses: experiences.map(item => item.content.course),
+    streak: { current: selected.snapshot.streakDays, weeklyActivity: demoWeeklyActivity(selected.snapshot, overlay, today) },
+    courseHref: id => route("overview", id), baseline: experiences.map(item => item.snapshot),
+    selectedCourseId: selected.snapshot.courseId, overlay, ready, record, reset,
+  }}><StudentApplicationShell showLive={showLive}><div key={generation}>{!["dashboard", "courses", "groups", "leaderboard", "profile", "profile-edit", "reflections", "settings", "notifications", "feedback", "schedule"].includes(activeView) && <MobileNavTitle title={selected.content.course.title} />}{children}</div></StudentApplicationShell></StudentExperienceProvider>;
 }

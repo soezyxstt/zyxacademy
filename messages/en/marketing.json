@@ -1,4 +1,10 @@
 {
+  "discounts": {
+    "unavailable": "Pricing is unavailable. Try again.",
+    "platform": "Platform",
+    "tutorial": "Tutorial",
+    "schedule": "{component}: {percent}% off, {start} through {end} WIB."
+  },
   "nav": {
     "plans": "Plans",
     "about": "About us",
@@ -576,7 +582,11 @@
       "diktat": "Diktat",
       "flashcards": "Flashcards",
       "quiz": "Quiz",
-      "zyra": "Zyra"
+      "zyra": "Zyra",
+      "courses": "Courses",
+      "progress": "Progress",
+      "history": "History",
+      "tryout": "Tryout"
     },
     "authCta": "Sign in to continue",
     "chapter": "Chapter {number}, {title}",
@@ -620,7 +630,13 @@
       "question": "Question",
       "flipBack": "Flip back to question",
       "saveTitle": "Save your study cards",
-      "saveDescription": "Sign in to save your flashcard progress."
+      "saveDescription": "Sign in to save your flashcard progress.",
+      "grades": {
+        "again": "Again",
+        "hard": "Hard",
+        "good": "Good",
+        "easy": "Easy"
+      }
     },
     "quiz": {
       "title": "Quiz",
@@ -649,6 +665,47 @@
       "conversationLabel": "Sample AI tutor conversation",
       "ctaTitle": "Study with an AI tutor",
       "ctaDescription": "Sign in to continue the conversation and save your progress."
+    },
+    "session": {
+      "reset": "Reset demo",
+      "completed": "Completed",
+      "markComplete": "Mark complete",
+      "greeting": "Hello, {name}",
+      "materialProgress": "{completed} of {total} materials completed",
+      "nextConcept": "Next: {title}",
+      "streak": "Day streak",
+      "due": "Flashcards due",
+      "inProgress": "Materials in progress",
+      "noDocuments": "No materials in progress.",
+      "weakConcepts": "Concepts to study",
+      "noConcepts": "No mastery data yet.",
+      "assessments": "Available quizzes",
+      "openQuiz": "Open quiz",
+      "noAssessments": "No quizzes available.",
+      "dailyActivity": "Daily activity",
+      "dailyCounts": "{materials} materials, {reviews} flashcard reviews, {quizzes} quizzes",
+      "noActivity": "No activity yet.",
+      "recentReviews": "Recent flashcard reviews",
+      "noReviews": "No flashcard reviews yet.",
+      "overview": "Overview",
+      "event": {
+        "article": "Material completed",
+        "review": "Flashcard reviewed",
+        "quiz": "Quiz completed"
+      },
+      "scoresUnavailable": "Previous individual attempt scores are unavailable.",
+      "practiceQuiz": "Practice quiz",
+      "dueCount": "{count} flashcards due",
+      "chapterAvailable": "Material available",
+      "mockChapterProgress": "Sample progress: {percent}%",
+      "monthlyActivity": "Monthly activity"
+    },
+    "products": {
+      "choose": "Choose material",
+      "previousProducts": "Previous products",
+      "nextProducts": "Next products",
+      "previousPage": "Previous page",
+      "nextPage": "Next page"
     }
   },
   "support": {

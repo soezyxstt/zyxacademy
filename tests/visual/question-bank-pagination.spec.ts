@@ -110,4 +110,3 @@ test("historical reference question pagination, filter popover, detail view, emp
 
   expect(errors).toEqual([]);
 });
-

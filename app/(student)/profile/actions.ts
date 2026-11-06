@@ -6,7 +6,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { user as userTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { ITB_FACULTIES, getMajorsForFaculty } from "@/lib/student/itb-academic-data";
+import { validateAcademicProfile } from "@/lib/student/academic-profile";
 
 export interface StudentProfileActionState {
   success: boolean;
@@ -38,34 +38,9 @@ export async function updateStudentProfileAction(
     const major = (formData.get("major") as string | null)?.trim() ?? "";
     const entryYearStr = (formData.get("entryYear") as string | null)?.trim() ?? "";
 
-    if (!ITB_FACULTIES.some((item) => item.code === faculty)) {
-      return {
-        success: false,
-        message: "Pilih fakultas atau sekolah ITB Anda.",
-        errorCode: "facultyRequired",
-        submittedAt: Date.now(),
-      };
-    }
-
-    if (!getMajorsForFaculty(faculty).includes(major)) {
-      return {
-        success: false,
-        message: "Pilih jurusan atau program studi Anda.",
-        errorCode: "majorRequired",
-        submittedAt: Date.now(),
-      };
-    }
-
-    const entryYear = Number.parseInt(entryYearStr, 10);
-    const currentYear = new Date().getFullYear();
-    if (Number.isNaN(entryYear) || entryYear < 2000 || entryYear > currentYear + 1) {
-      return {
-        success: false,
-        message: "Pilih tahun masuk ITB yang valid.",
-        errorCode: "entryYearInvalid",
-        submittedAt: Date.now(),
-      };
-    }
+    const validated = validateAcademicProfile({ faculty, major, entryYear: entryYearStr });
+    if (validated.errorCode) return { success: false, message: "Periksa profil akademis.", errorCode: validated.errorCode, submittedAt: Date.now() };
+    const { entryYear } = validated.profile;
 
     await db
       .update(userTable)

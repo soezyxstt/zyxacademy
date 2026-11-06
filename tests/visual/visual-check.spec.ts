@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mockTerminal } from "./terminal-fixture";
 import { prepareReadOnlyStagingCapture } from "./staging-readonly-auth";
+import { DEFAULT_PRICING_DISCOUNTS } from "../../lib/pricing-discounts";
 
 test.setTimeout(120_000);
 
@@ -47,6 +48,9 @@ for (const route of routes) {
     const runtimeErrors: string[] = [];
     const failedResponses: string[] = [];
     if (routePathname(route) === "/visual-fixtures/coding") await mockTerminal(page);
+    if (routePathname(route) === "/visual-fixtures/pricing-discounts") {
+      await page.route("**/api/pricing", (request) => request.fulfill({ json: DEFAULT_PRICING_DISCOUNTS }));
+    }
 
     // Local visual fixtures do not provision Firebase or request push permission.
     if (process.env.VISUAL_CHECK_DISABLE_PUSH === "1") {

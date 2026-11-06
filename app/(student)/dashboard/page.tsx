@@ -4,7 +4,7 @@ import { getStudentEnrollments } from "@/app/(student)/dashboard/actions";
 import { ApplicationPage } from "@/components/application-page";
 import { InterventionBanner } from "@/components/dashboard/intervention-banner";
 import { TranslatedText } from "@/components/i18n/translated-text";
-import { Reveal } from "@/components/ui/reveal";
+import { StudentDashboardContent } from "@/components/dashboard/student-dashboard-content";
 import { getAuthSession, type AuthUser } from "@/lib/auth-session";
 import { getTranslations } from "@/lib/i18n/server";
 import { createMetadata } from "@/lib/site";
@@ -107,9 +107,8 @@ export default async function DashboardPage() {
             <DashboardHeaderShell firstName={firstName} />
           )}
 
-          <Reveal duration="duration-700" className="w-full min-w-0">
-            <div className="grid gap-6 lg:grid-cols-12 w-full min-w-0">
-              <div className="space-y-6 lg:col-span-7 min-w-0">
+          <StudentDashboardContent sections={{
+            primary: <>
                 <DashboardSectionErrorBoundary
                   variant="primary"
                   sectionTitle={<TranslatedText namespace="student" messageKey="dashboard.classesActive" />}
@@ -129,9 +128,8 @@ export default async function DashboardPage() {
                     </Suspense>
                   </DashboardSectionErrorBoundary>
                 )}
-              </div>
-
-              <div className="space-y-6 lg:col-span-5 min-w-0">
+            </>,
+            secondary: <>
                 <DashboardSectionErrorBoundary
                   variant="secondary"
                   sectionTitle={<TranslatedText namespace="student" messageKey="dashboard.spacedRepetition" />}
@@ -155,9 +153,8 @@ export default async function DashboardPage() {
                     <AvailableAssessmentsSection enrollments={enrollments} />
                   </Suspense>
                 </DashboardSectionErrorBoundary>
-              </div>
-            </div>
-          </Reveal>
+            </>,
+          }} />
         </>
       )}
     </ApplicationPage>

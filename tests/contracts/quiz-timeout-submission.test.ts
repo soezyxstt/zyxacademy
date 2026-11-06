@@ -26,12 +26,12 @@ describe("Quiz Timeout and Submission Invariant Contracts", () => {
     );
   });
 
-  it("ensures QuizPlayer preserves draft in localStorage until POST succeeds", () => {
-    // In handleSubmit, localStorage.removeItem must only happen AFTER res.ok check
+  it("ensures QuizPlayer preserves draft in its selected storage until submission succeeds", () => {
+    // The default student POST must succeed before the selected storage is cleared.
     const handleSubmitIndex = quizPlayerCode.indexOf("const handleSubmit = useCallback(");
     const fetchIndex = quizPlayerCode.indexOf("const res = await fetch(`/api/quiz/attempts/${attemptId}`", handleSubmitIndex);
     const resOkIndex = quizPlayerCode.indexOf("if (!res.ok)", fetchIndex);
-    const answersRemoveIndex = quizPlayerCode.indexOf("window.localStorage.removeItem(`zyx-quiz-answers-${attemptId}`)", handleSubmitIndex);
+    const answersRemoveIndex = quizPlayerCode.indexOf("storage.removeItem(`zyx-quiz-answers-${attemptId}`)", handleSubmitIndex);
 
     expect(handleSubmitIndex).toBeGreaterThan(0);
     expect(fetchIndex).toBeGreaterThan(handleSubmitIndex);

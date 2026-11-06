@@ -48,7 +48,7 @@ describe("scheduled introductory pricing", () => {
   test("free and custom never advertise savings", () => {
     for (const plan of ["free", "custom"] as const) {
       for (const phase of ["before", "intro", "regular"] as const) {
-        expect(getPlanPriceQuote(plan, 3, 3, phase)).toEqual({ price: 0, regularPrice: 0, isIntroductory: false });
+        expect(getPlanPriceQuote(plan, 3, 3, phase)).toEqual({ price: 0, regularPrice: 0, isIntroductory: false, discountPercent: 0 });
         expect(new URL(getTestWhatsAppPlanUrl(plan, plan, 3, 3, [], phase)).searchParams.get("text")).not.toContain("40%");
       }
     }

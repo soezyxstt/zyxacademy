@@ -16,6 +16,8 @@ import { MathText } from "@/components/course/math-text";
 import { getConceptPopover, type ConceptPopoverData } from "@/lib/learning-context-actions";
 import { useTranslations } from "@/lib/i18n/client";
 
+import { useStudentExperience } from "@/components/student-experience-provider";
+
 type Tab = "explain" | "analogy" | "example" | "mistake";
 
 export function TermPopover({
@@ -28,12 +30,14 @@ export function TermPopover({
   onAskTutor: () => void;
 }) {
   const t = useTranslations("studentCourse");
+  const experience = useStudentExperience();
   const [data, setData] = useState<ConceptPopoverData | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("explain");
 
   useEffect(() => {
     let active = true;
+    if (experience.mode === "demo") { setData(null); setLoading(false); return; }
     getConceptPopover(courseId, conceptName)
       .then((res) => {
         if (active) setData(res);
@@ -44,7 +48,7 @@ export function TermPopover({
     return () => {
       active = false;
     };
-  }, [courseId, conceptName]);
+  }, [courseId, conceptName, experience.mode]);
 
   if (loading) {
     return (

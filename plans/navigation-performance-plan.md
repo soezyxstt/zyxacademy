@@ -1,9 +1,9 @@
 # Rencana Teknis Peningkatan Performa Navigasi Aplikasi Zyx
 
-Status: `OPEN / IN PROGRESS`  
-Tanggal: 2026-11-05  
-Versi Target: Next.js 16.3, React 19, Neon PostgreSQL, Cloud Run Staging / Vercel Production  
-Penanggung Jawab: Tech Lead / Performance Specialist  
+Status: `OPEN / IN PROGRESS`
+Tanggal: 2026-11-05
+Versi Target: Next.js 16.3, React 19, Neon PostgreSQL, Cloud Run Staging / Vercel Production
+Penanggung Jawab: Tech Lead / Performance Specialist
 
 ---
 
@@ -12,7 +12,7 @@ Penanggung Jawab: Tech Lead / Performance Specialist
 ### 1.1 Latar Belakang dan Masalah Nyata
 Pengguna dan tim internal melaporkan keluhan latensi navigasi, terutama saat berpindah dari halaman pemasaran publik ke halaman terotentikasi seperti `/dashboard` (student) dan `/admin`, serta kelambatan saat berpindah antar-tab pada modul evaluasi dan materi.
 
-Namun, baseline navigasi terotentikasi saat ini **belum diukur secara formal**. Sampel kueri ringan HTTP SQL Neon dari lingkungan sandbox menunjukkan angka 14 sampai 37 ms, namun angka ini merupakan sampel kueri tunggal kecil melalui HTTP gateway, bukan bukti kesehatan menyeluruh untuk koneksi stateful `pg.Pool`, jaringan kontainer aplikasi, atau kondisi basis data dingin (*cold DB suspension*). 
+Namun, baseline navigasi terotentikasi saat ini **belum diukur secara formal**. Sampel kueri ringan HTTP SQL Neon dari lingkungan sandbox menunjukkan angka 14 sampai 37 ms, namun angka ini merupakan sampel kueri tunggal kecil melalui HTTP gateway, bukan bukti kesehatan menyeluruh untuk koneksi stateful `pg.Pool`, jaringan kontainer aplikasi, atau kondisi basis data dingin (*cold DB suspension*).
 
 Staging dan produksi menggunakan Neon PostgreSQL, sesuai konfirmasi pengguna dan pengukuran baca-saja melalui target database terverifikasi. Kredensial Turso lama adalah legacy dan tidak menjadi target aktif. Identitas runtime web yang benar-benar terpasang tetap harus diverifikasi sebelum baseline; keberhasilan akses database tidak membuktikan konfigurasi deployment web. Seluruh usulan angka di bawah ini berstatus *anggaran usulan* (*proposed budgets*) yang wajib divalidasi terhadap baseline terukur pada Fase 0 sebelum gerbang evaluasi diberlakukan.
 
@@ -43,7 +43,7 @@ Untuk mencegah salah tafsir antara metrik Core Web Vitals (muat dokumen penuh / 
 
 ### 2.1 Koreksi Definisi: INP vs Umpan Balik Klik vs Latensi Navigasi SPA
 
-Umpan balik klik $\le 100\text{ ms}$ **bukan definisi INP**. 
+Umpan balik klik $\le 100\text{ ms}$ **bukan definisi INP**.
 - **Interaction to Next Paint (INP)** adalah metrik Core Web Vitals pada level dokumen browser yang mengukur latensi interaksi secara menyeluruh: durasi sejak pengguna menekan tombol/layar (*input delay*), eksekusi event handler JavaScript (*processing time*), hingga browser benar-benar menggambar frame visual berikutnya (*presentation delay*). Ambang batas "Good" pada standar Core Web Vitals adalah $\le 200\text{ ms}$.
 - **Umpan Balik Visual Instan ($T_{\text{feedback}} \le 100\text{ ms}$)** pada elemen yang diklik (misalnya status tombol aktif, indikator progress bar navigasi, atau spinner) merupakan teknik rekayasa antarmuka untuk memastikan frame visual berikutnya langsung terlukis dengan cepat, sehingga interaksi klik tersebut memenuhi anggaran INP yang prima.
 - **Latensi Navigasi SPA ($T_{\text{primary}}$)** adalah durasi transisi rute internal aplikasi pada Next.js App Router (dari klik $T_0$ hingga komponen data utama rute tujuan selesai dirender dan siap dipakai di DOM). Ini adalah metrik transisi rute tingkat aplikasi (*soft navigation duration*), bukan metrik INP browser, dan bukan metrik muat dokumen penuh (*full page hard reload* seperti FCP atau LCP dokumen).
@@ -331,16 +331,16 @@ Sesuai panduan di `AGENTS.md` dan `DEVELOPMENT.md`:
 Implementasi teknis dibagi menjadi 5 fase berurutan dengan gerbang evaluasi ketat (*gates*):
 
 ```text
-[Fase 0: Baseline & Telemetri] 
+[Fase 0: Baseline & Telemetri]
              │
              ▼ (Gate: Baseline Tervalidasi Sebelum Kode Diubah)
-[Fase 1: Deduplikasi Sesi & Metadata Ringan] 
+[Fase 1: Deduplikasi Sesi & Metadata Ringan]
              │
              ▼ (Gate: Regresi Auth Nol & Metadata p95 <= 50ms)
-[Fase 2: Streaming Dashboard Siswa & Batch Data Belajar] 
+[Fase 2: Streaming Dashboard Siswa & Batch Data Belajar]
              │
              ▼ (Gate: Paritas Data Belajar 100% & p95 <= 1200ms)
-[Fase 3: Paginasi Server Bank Soal & Rendering Asesmen] 
+[Fase 3: Paginasi Server Bank Soal & Rendering Asesmen]
              │
              ▼ (Gate: Seleksi Lintas Halaman Sempurna & DOM Stabil)
 [Fase 4: Optimasi Klien & Profiling Staging Cloud Run]

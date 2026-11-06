@@ -1,6 +1,7 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 const ROUTE = "/visual-fixtures/custom-price-estimator";
+test.setTimeout(90_000);
 
 async function assertNoOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
@@ -21,18 +22,26 @@ async function captureEstimator(page: Page, info: TestInfo, name: string) {
 }
 
 test("renders valid, invalid, and updated custom price states", async ({ page }, info) => {
+  await page.clock.install({ time: new Date("2026-10-01T12:00:00+07:00") });
+  await page.route("**/api/pricing", (route) => route.fulfill({ json: {
+    platform: { percent: 40, startsOn: "2026-09-12", endsOn: "2026-10-31" },
+    tutorial: { percent: 40, startsOn: "2026-09-12", endsOn: "2026-10-31" },
+  } }));
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
   page.on("response", (response) => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
 
+  const pricingResponse = page.waitForResponse("**/api/pricing");
   const response = await page.goto(ROUTE, { waitUntil: "domcontentloaded" });
+  await pricingResponse;
   expect(response?.status()).toBe(200);
   expect(new URL(page.url()).pathname).toBe(ROUTE);
   await page.emulateMedia({ reducedMotion: "reduce" });
 
   await expect(page.getByLabel("Jumlah pertemuan")).toHaveValue("15");
-  await expect(page.locator("[data-price-before]")).toContainText("Rp 8.325.000");
+  await page.clock.runFor(1000);
+  await expect(page.locator("[data-price-before]")).toContainText("Rp 8.325.000", { timeout: 30_000 });
   await expect(page.locator("[data-price-before-per-person]")).toContainText("Rp 2.775.000");
   await expect(page.locator("[data-price-after]")).toContainText("Rp 4.995.000");
   await expect(page.locator("[data-price-after-per-person]")).toContainText("Rp 1.665.000");
