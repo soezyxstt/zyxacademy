@@ -1,12 +1,12 @@
 # Zyx Academy Architecture (vNext)
 
-This document describes the existing deployed architecture. The isolated migration branch replaces its database adapter and storage target with Neon PostgreSQL and Neon S3-compatible storage for a separate rehearsal. The [migration runbook](operations/neon-migration.md) records the boundary and unverified integrations; it does not establish a staging or production cutover.
+Staging and production use Neon PostgreSQL, according to user confirmation and the supplied live read-only database query report. Deployment identity still requires runtime verification. Turso and SQLite references below are legacy context, not active database targets. Preserve rollback resources described in the [migration runbook](operations/neon-migration.md).
 
 PDF reader repair: image dimensions come from PNG IHDR integers, and renderer revision v2 isolates previous failed jobs. Start a fresh `source.read_file` request after rollout. Page citations explicitly identify `pdfPage`; `printedPage` is only an unverified boundary-text candidate (`printedPageVerified: false`). Control characters and empty extraction set `textQuality.status: needs_visual_review`; preserve source text and verify formulas through page images. This does not reconstruct formulas or run OCR.
 
 Page workers persist SHA-256 and byte size in private R2 metadata bound to source key and version. Downloads reuse this checksum; when absent, stage-authorized callers receive `checksumStatus: pending` and `checksumJobId` while a text-page job prepares it. Read-only callers can still download without starting jobs. `workflow.list.sourceReader` advertises reader options and polling fallback; host connector catalog refresh remains a separate host operation.
 
-**Stack:** Next.js 16 (App Router), Deno Deploy (background worker), Drizzle ORM + SQLite (dev) / Turso (prod), Better Auth, Gemini AI via Cloudflare AI Gateway, canonical Cloudflare Vectorize (vector search), Cloudflare R2 with UploadThing as a compatibility fallback (storage abstraction), Inngest (background orchestration), Firebase Cloud Messaging (push notifs), Cloudflare Workers (vector API, realtime, diktat renderer)
+**Stack:** Next.js 16 (App Router), Deno Deploy (background worker), Drizzle ORM + Neon PostgreSQL, Better Auth, Gemini AI via Cloudflare AI Gateway, canonical Cloudflare Vectorize (vector search), Cloudflare R2 with UploadThing as a compatibility fallback (storage abstraction), Inngest (background orchestration), Firebase Cloud Messaging (push notifs), Cloudflare Workers (vector API, realtime, diktat renderer)
 
 ---
 
@@ -759,7 +759,7 @@ Mastery System (background, Inngest cron):
 | Service | Usage |
 |---|---|
 | **Next.js 16** | App Router, Server Actions, React Server Components |
-| **Drizzle ORM** | SQLite (dev via `file:dev.db`) / Turso (prod via `@libsql/client`), schema in `db/schema.ts` |
+| **Drizzle ORM** | PostgreSQL adapter, Neon in staging and production; schema in `db/schema.ts` |
 | **Better-Auth** | Auth: credentials + Google OAuth, role-based (admin/teacher/student) |
 | **Gemini** (`@google/genai`) | Text generation plus the fixed Gemini Embedding 2 canonical-content-v2 profile at 768 dimensions |
 | **Cloudflare AI Gateway** | All Gemini requests routed through gateway for caching, rate limiting, observability |
@@ -945,7 +945,7 @@ Cloudflare Workers (deployed via wrangler):
 
 | Aspect | Development | Production |
 |---|---|---|
-| **Database** | SQLite file (`dev.db`) | Turso (libsql, distributed SQLite) |
+| **Database** | PostgreSQL | Neon PostgreSQL |
 | **Object Storage** | R2 via `lib/storage/index.ts` (`STORAGE_PROVIDER_MODE`) | UploadThing compatibility fallback |
 | **Vector Store** | Cloudflare Vectorize | canonical-content-v2, 768 dimensions |
 | **AI Gateway** | Direct Gemini API | Cloudflare AI Gateway (rate limit, caching, observability) |
@@ -1202,6 +1202,20 @@ The compute PDF page reader caches extracted text and PNG bytes by current docum
 4. **Worker and Cross-Runtime Boundary (`lib/course-utils.ts` and `lib/auth-session.ts`):**
    - Core data resolvers in `lib/` (including `lib/term-index.ts`, `lib/student/course-catalog.ts`, `lib/student/course-access.ts`, and `lib/articles/structured-repository.ts`) are reachable from Deno background jobs (`workers/deno-background/main.ts`) and must remain strictly framework-neutral with zero React imports to pass `worker:deno:audit`.
    - Request-scoped memoization via React `cache()` is isolated exclusively in Next.js web consumer wrappers (`lib/course-utils.ts` and `lib/auth-session.ts`), which cache-decorate public resolvers for RSC renders while keeping worker modules React-free.
+
+### Navigation pilot contracts
+
+Admin layout, admin/tutor guards, request locale resolution, and the student course catalogue share `getAuthSession()`. Canonical role checks remain authoritative; session memoization does not cache role decisions across requests or promise reuse across Server Actions.
+
+Admin course metadata uses the authorized title-only projection in `courses/[slug]/metadata.ts`, preserving canonical-active lookup, legacy fallback, normalized identifiers, and existing title/description behavior without loading curriculum details.
+
+The student dashboard parent resolves session and enrollments. Async sections use Suspense and error boundaries. Weekly streak uses one range query; review batching shares individual semantics with PGlite tests, and next-concept batching uses a shared selector with fallback tests. Material and assessment batching is integrated. Daily recommendation cache inserts are best effort with sanitized errors; read and compute failures propagate. The streak GET mutation workflow remains unchanged.
+
+The `/admin/questions` active/AI and historical tabs filter and paginate on the server, hydrate bounded page content, and load only the selected tab dataset. Selection uses authorized actions and mutations recheck access. URL and selection behavior is documented in [features](features.md#navigation-and-question-bank-pilot). No measured latency or payload savings are established; see the open [performance plan](../plans/navigation-performance-plan.md).
+
+WP6 integrates notification initialization, Firebase messaging, and lazy admin forms behavior across 4 implementation files. Race guards protect stale asynchronous work; absent Firebase configuration is a safe no-op. Forms load lazily with an explicit retry path. CodeMirror prefetch and PageTransition remain unchanged pending profiling. Configured FCM permission/account-switch behavior on the real service remains unverified.
+
+The candidate build and local browser measurements passed with the limitations in the [validation audit](audit/navigation-performance-validation.md). They do not establish deployment, external analytics delivery, Cloud Run capacity, or causal latency savings. WP7 remains open.
 
 ### Catalogue Count and Metric Projections
 

@@ -1,6 +1,5 @@
 import { eq } from "drizzle-orm";
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { getAuthSession } from "@/lib/auth-session";
 import { db } from "@/db";
 import { pengguna, penggunaPeran } from "@/db/schema";
 import {
@@ -100,10 +99,7 @@ export async function hasAdminAuthorization(
  * without a canonical identity or membership.
  */
 export async function assertAdmin() {
-  const h = await headers();
-  const session = await auth.api.getSession({
-    headers: h,
-  });
+  const session = await getAuthSession();
   const user = session?.user as UserWithRole | undefined;
 
   if (!user?.id) {
@@ -124,10 +120,7 @@ export async function assertAdmin() {
  * for users without a canonical identity or membership.
  */
 export async function assertTutorOrAdmin() {
-  const h = await headers();
-  const session = await auth.api.getSession({
-    headers: h,
-  });
+  const session = await getAuthSession();
   const user = session?.user as UserWithRole | undefined;
 
   if (!user?.id) {

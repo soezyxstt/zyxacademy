@@ -1,6 +1,6 @@
 # Development Guide
 
-Staging now uses the guarded Neon PostgreSQL target, and `bun run db:migrate` applies `drizzle-postgres/`. The legacy production push and canonical backfill are disabled here. Staging storage uses its private Neon S3-compatible bucket with `STORAGE_PROVIDER_MODE=neon`. Use [.env.neon.example](../.env.neon.example) and the [migration runbook](operations/neon-migration.md); do not reuse production sessions or integration credentials. Other SQLite and R2 instructions below describe legacy or production deployments unless noted.
+Staging and production use Neon PostgreSQL according to user confirmation and the supplied live read-only database query report. This branch requires PostgreSQL for development and CI, with no SQLite/Turso fallback. Verify runtime identity independently before external work. Staging storage uses private Neon object storage; database confirmation does not establish a production storage cutover. Preserve legacy rollback resources in the [migration runbook](operations/neon-migration.md). SQLite/Turso setup below is legacy context.
 
 The staging importer can consume a signed local source snapshot using `NEON_SOURCE_SNAPSHOT` and `NEON_SOURCE_FREEZE_ACK=staging-writes-frozen`. The snapshot exporter requires the dedicated ignored `.env.neon-staging-cutover-source` file and independently verified staging write freeze. Snapshots and their manifests stay under ignored `.tmp`, with local access restricted to the operator. They contain business data and must not enter CI uploads. `scripts/neon/source-snapshot.test.ts` exercises only synthetic data.
 
@@ -213,7 +213,7 @@ Background dispatch imports must remain server-safe for Deno compute. Do not add
 Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (`@t3-oss/env-nextjs`).
 
 ### Required
-- `DATABASE_URL` ; PostgreSQL connection URL on this isolated branch; existing deployments use local SQLite or Turso
+- `DATABASE_URL` ; PostgreSQL connection URL; staging and production use Neon
 - `BETTER_AUTH_SECRET` ; 32+ char high-entropy secret (`openssl rand -base64 32`)
 - `BETTER_AUTH_URL` ; app origin for OAuth callbacks
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` ; Google OAuth
@@ -617,3 +617,37 @@ Status: `ACTIVE`
 Run focused `tests/contracts/admin-mcp-*.test.ts` files in separate Bun processes because their database mocks are process-global. PostgreSQL integration fixtures use the local PGlite helper and generated PostgreSQL migrations. The existing `authoring-skills.test.ts` also requires `bun run build:authoring-skills` to produce its locked snapshot. Keep TypeScript incremental checking enabled. Provider test doubles do not verify credentials or remote delivery. See [Admin MCP operations](operations/admin-mcp.md) for scope and job contracts.
 
 Admin MCP data tools require explicit `expectedEnvironment` and `expectedOrigin` from the intended connection identity, discovered through `admin.environment`. Do not infer application environment from `VERCEL_ENV`; a staging app can use the production deployment tier. Conflicting auth/public origins or declared environment and known hostname stop MCP initialization. See [Admin MCP isolation](operations/admin-mcp.md#staging-and-production-isolation).
+
+## Navigation performance harness
+
+Status: `OPEN / IN PROGRESS`. Selected candidate runs provide 40 valid warm and 3 valid browser-context cold observations per route and viewport for R1 through R5. The original 40-run baseline is invalid and only R3/R5 N=2 smoke is valid, so there is no causal comparison. See the [validation audit](audit/navigation-performance-validation.md) for selected artifacts, gates, and provenance. Commands below are follow-up procedures, not runs performed by this documentation update.
+```sh
+# Baseline requires the verified original build, not a rebuilt candidate.
+bun scripts/performance/navigation-baseline-harness.ts --build-kind baseline --warm-samples 2 --cold-samples 0 --output-dir artifacts/performance/baseline
+
+# Preserve original baseline provenance, then build the candidate.
+bun scripts/performance/run-next-staging.ts build --build-kind candidate
+bun scripts/performance/navigation-baseline-harness.ts --build-kind candidate --warm-samples 2 --cold-samples 1 --output-dir artifacts/performance/candidate-smoke
+
+# After valid smoke, collect a separate candidate lab batch.
+bun scripts/performance/navigation-baseline-harness.ts --build-kind candidate --viewport mobile --warm-samples 40 --cold-samples 3
+bun scripts/performance/navigation-baseline-harness.ts --build-kind candidate --viewport desktop --warm-samples 40 --cold-samples 3
+```
+
+The harness can launch the verified server itself. An already running server must be launched with matching provenance and `--server-record`, then supplied to the harness with `--base-url` and the same `--server-record`. Use `run-next-staging.ts start --build-kind candidate` for candidate servers. A candidate cannot overwrite baseline directories. Original reports and their manifest are preserved separately; an invalid run does not become valid by archiving it.
+
+The environment loader restricts the base URL to loopback, checks staging against production identity, enforces PostgreSQL read-only sessions, probes cookie naming, and signs a fresh existing session locally. Do not print credentials, session values, account data, or secret-file locations in reports. Before/after checks cover sampled counts in 9 reference tables and session-user streak existence only. They are not a full database integrity assertion. Read-only failures must not be bypassed to exercise dashboard writes.
+
+Report blocked routes separately and classify router prefetch separately. Interception disables HTTP cache, so these local results are not field or RUM measurements. Browser-context cold does not establish cold database or container behavior. Server RSC spans and actual Cloud Run capacity remain unmeasured. WP4 material and assessment batching is integrated; the streak GET workflow is unchanged. See the audit for remaining gates.
+
+### Navigation visual checks and provenance
+
+The primary agent ran and inspected the latest standard route checks and interaction states at 380 x 844 and 1536 x 864. The exact captured-state matrix and limitations are in the [validation audit](audit/navigation-performance-validation.md). Reproduce only against a verified loopback staging production server:
+```sh
+PLAYWRIGHT_BASE_URL=http://localhost:3100 VISUAL_CHECK_STAGING_SESSION=1 VISUAL_CHECK_STUB_VERCEL=1 VISUAL_CHECK_PATHS=/dashboard,/admin/questions,/admin/forms bun run test:visual -- tests/visual/visual-check.spec.ts
+PLAYWRIGHT_BASE_URL=http://localhost:3100 VISUAL_CHECK_STAGING_SESSION=1 VISUAL_CHECK_STUB_VERCEL=1 VISUAL_CHECK_PATHS=/dashboard,/admin/questions,/admin/forms bun run test:visual -- tests/visual/question-bank-pagination.spec.ts --output artifacts/visual-quality/results/pagination-contract
+```
+
+`tests/visual/staging-readonly-auth.ts` is opt-in via `VISUAL_CHECK_STAGING_SESSION=1`. It uses the read-only loader, probes the cookie name, and obtains a fresh authentic session for each navigation. Never record real session/database IDs or cookie values. `VISUAL_CHECK_STUB_VERCEL=1` substitutes only Vercel analytics script URLs with empty HTTP 200 responses to avoid local 404s; external analytics delivery is unverified. No database/storage writes were performed; equal sampled counts are limited evidence, not proof that the entire database was unchanged.
+
+The candidate build passed before subsequent test selector and animation changes; application source remained unchanged. A full source manifest would require a different hash if the harness were rerun. Preserve the original manifest. Screenshot directories contain staging PII and must not be embedded or shared.

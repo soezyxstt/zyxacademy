@@ -625,7 +625,7 @@ function AdminSidebarInner() {
                   key={item.id}
                   href={item.href}
                   icon={item.icon}
-                  label={t(item.id)}
+                  label={t(item.id === "review" ? "materialReview" : item.id)}
                   active={active}
                   collapsed={c}
                 />

@@ -13,17 +13,24 @@ import {
   soal,
   soalIde,
 } from "@/db/schema";
-import { asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
 import { canonicalQuestionStatus } from "@/lib/question-authoring-contract";
-import { normalizeDate } from "@/lib/date-utils";
 import { QuestionBankClient } from "./questions-client";
 import { HistoricalQuestionsClient } from "./historical-questions-client";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Library, Target, Zap } from "lucide-react";
+import { QuestionBankTabs } from "./question-bank-tabs";
+import { activeQuestionQuery, historicalQuestionQuery } from "./active-question-query";
+import {
+  clampQuestionPage,
+  normalizeHistoricalQuery,
+  normalizeQuestionQuery,
+  type QuestionSearchParams,
+} from "./question-query-state";
 import { TranslatedText } from "@/components/i18n/translated-text";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -83,45 +90,20 @@ function extractOptionsAndCorrect(optionsSnapshot: unknown): { options: string[]
  * Fetches canonical and compatibility question entries across active courses,
  * prepares facets, and mounts the active and historical evaluation views.
  */
-export default async function AIQuestionsPage() {
+export default async function AIQuestionsPage({ searchParams }: { searchParams: Promise<QuestionSearchParams> }) {
   await assertTutorOrAdmin();
 
+  const resolvedSearchParams = await searchParams;
+  const query = normalizeQuestionQuery(resolvedSearchParams);
+  const historicalQuery = normalizeHistoricalQuery(resolvedSearchParams);
+  const isActiveTab = query.tab === "ai-generated";
+
   const [
-    rawAiQuestions,
-    canonicalQuestionsAll,
     authoringCourses,
     legacyCoursesList,
-    historicalRows,
     authoringChapters,
     authoringIdeas,
   ] = await Promise.all([
-    // All active and compatibility questions in aiQuestionBank
-    db
-      .select()
-      .from(aiQuestionBank)
-      .where(sql`${aiQuestionBank.status} != 'retired'`)
-      .orderBy(desc(aiQuestionBank.createdAt)),
-    // All questions in canonical soal table
-    db
-      .select({
-        id: soal.id,
-        mataKuliahId: soal.mataKuliahId,
-        chapterId: soal.babId,
-        questionType: soal.questionType,
-        prompt: soal.prompt,
-        optionsSnapshot: soal.optionsSnapshot,
-        origin: soal.origin,
-        sourceEventName: soal.sourceEventName,
-        sourceReferenceId: soal.sourceReferenceId,
-        canonicalStatus: soal.status,
-        difficulty: soal.difficulty,
-        cognitiveLevel: soal.cognitiveLevel,
-        reasoningPattern: soal.reasoningPattern,
-        createdAt: soal.createdAt,
-      })
-      .from(soal)
-      .where(sql`${soal.status} != 'retired'`)
-      .orderBy(desc(soal.createdAt)),
     // Canonical mata kuliah
     db
       .select({
@@ -138,44 +120,22 @@ export default async function AIQuestionsPage() {
       .select({ id: courses.id, title: courses.title })
       .from(courses)
       .orderBy(asc(courses.title)),
-    // Historical reference questions
-    db
-      .select({
-        id: soal.id,
-        difficulty: soal.difficulty,
-        questionMarkdown: soal.prompt,
-        options: soal.optionsSnapshot,
-        questionType: soal.questionType,
-        sourceTitle: assessmentSources.title,
-        sourceCategory: assessmentSources.category,
-        sourceYear: assessmentSources.year,
-        courseId: sql<string>`coalesce(${soal.mataKuliahId}, ${assessmentSources.courseId})`,
-        reviewStatus: aiQuestionBank.reviewStatus,
-        canonicalStatus: soal.status,
-        quizEligible: soal.quizEligible,
-        sourceQuestionNumber: soal.sourceQuestionNumber,
-        sourceQuestionPart: soal.sourceQuestionPart,
-        sourcePage: soal.sourcePage,
-        answerProvenance: soal.answerProvenance,
-        solutionProvenance: soal.solutionProvenance,
-      })
-      .from(soal)
-      .leftJoin(assessmentSources, eq(soal.assessmentSourceId, assessmentSources.id))
-      .leftJoin(aiQuestionBank, eq(aiQuestionBank.id, soal.id))
-      .where(eq(soal.origin, "historical_reference"))
-      .orderBy(desc(soal.createdAt)),
-    // Chapters
-    db
-      .select({ id: bab.id, mataKuliahId: bab.mataKuliahId, code: bab.code, title: bab.title, orderIndex: bab.orderIndex })
-      .from(bab)
-      .where(eq(bab.status, "active"))
-      .orderBy(asc(bab.orderIndex)),
-    // Ideas
-    db
-      .select({ id: ide.id, mataKuliahId: ide.mataKuliahId, babId: ide.babId, code: ide.code, statement: ide.canonicalStatement })
-      .from(ide)
-      .where(eq(ide.status, "published"))
-      .orderBy(asc(ide.code)),
+    // Chapters (only needed for authoring on the active tab)
+    isActiveTab
+      ? db
+          .select({ id: bab.id, mataKuliahId: bab.mataKuliahId, code: bab.code, title: bab.title, orderIndex: bab.orderIndex })
+          .from(bab)
+          .where(eq(bab.status, "active"))
+          .orderBy(asc(bab.orderIndex))
+      : Promise.resolve([]),
+    // Ideas (only needed for authoring on the active tab)
+    isActiveTab
+      ? db
+          .select({ id: ide.id, mataKuliahId: ide.mataKuliahId, babId: ide.babId, code: ide.code, statement: ide.canonicalStatement })
+          .from(ide)
+          .where(eq(ide.status, "published"))
+          .orderBy(asc(ide.code))
+      : Promise.resolve([]),
   ]);
 
   // Build unified course map and canonical ID resolver
@@ -215,6 +175,100 @@ export default async function AIQuestionsPage() {
     }
   }
 
+  const activeQuery = activeQuestionQuery(db, query, courseMap, canonicalCourseMap);
+  const total = isActiveTab ? (await activeQuery.count())[0].total : 0;
+  const pageSize = Number(query.pageSize);
+  const { page: currentPage } = clampQuestionPage(query.page, total, pageSize);
+  const pageIds = isActiveTab
+    ? (await activeQuery.ids().limit(pageSize).offset((currentPage - 1) * pageSize)).map((row) => row.id)
+    : [];
+
+  const histQuery = historicalQuestionQuery(db, historicalQuery, courseMap, canonicalCourseMap);
+  const historicalTotal = !isActiveTab ? (await histQuery.count())[0].total : 0;
+  const historicalPageSize = Number(historicalQuery.pageSize);
+  const { page: currentHistoricalPage } = clampQuestionPage(historicalQuery.page, historicalTotal, historicalPageSize);
+  const historicalPageIds = !isActiveTab
+    ? (await histQuery.ids().limit(historicalPageSize).offset((currentHistoricalPage - 1) * historicalPageSize)).map((row) => row.id)
+    : [];
+
+  const [rawAiQuestions, canonicalQuestionsAll, historicalRows] = await Promise.all([
+    // Page-scoped active and compatibility questions in aiQuestionBank
+    pageIds.length > 0
+      ? db
+          .select({
+            id: aiQuestionBank.id,
+            courseId: aiQuestionBank.courseId,
+            origin: aiQuestionBank.origin,
+            sourceEventName: aiQuestionBank.sourceEventName,
+            sourceReferenceId: aiQuestionBank.sourceReferenceId,
+            difficulty: aiQuestionBank.difficulty,
+            questionType: aiQuestionBank.questionType,
+            tags: aiQuestionBank.tags,
+            prompt: aiQuestionBank.prompt,
+            options: aiQuestionBank.options,
+            correctIndices: aiQuestionBank.correctIndices,
+            acceptableAnswers: aiQuestionBank.acceptableAnswers,
+            explanation: aiQuestionBank.explanation,
+            reviewStatus: aiQuestionBank.reviewStatus,
+            useCount: aiQuestionBank.useCount,
+            createdAt: aiQuestionBank.createdAt,
+          })
+          .from(aiQuestionBank)
+          .where(and(sql`${aiQuestionBank.status} != 'retired'`, inArray(aiQuestionBank.id, pageIds)))
+          .orderBy(desc(aiQuestionBank.createdAt))
+      : Promise.resolve([]),
+    // Page-scoped questions in canonical soal table
+    pageIds.length > 0
+      ? db
+          .select({
+            id: soal.id,
+            mataKuliahId: soal.mataKuliahId,
+            chapterId: soal.babId,
+            questionType: soal.questionType,
+            prompt: soal.prompt,
+            optionsSnapshot: soal.optionsSnapshot,
+            origin: soal.origin,
+            sourceEventName: soal.sourceEventName,
+            sourceReferenceId: soal.sourceReferenceId,
+            canonicalStatus: soal.status,
+            difficulty: soal.difficulty,
+            cognitiveLevel: soal.cognitiveLevel,
+            reasoningPattern: soal.reasoningPattern,
+            createdAt: soal.createdAt,
+          })
+          .from(soal)
+          .where(and(sql`${soal.status} != 'retired'`, inArray(soal.id, pageIds)))
+          .orderBy(desc(soal.createdAt))
+      : Promise.resolve([]),
+    // Page-scoped historical reference questions
+    historicalPageIds.length > 0
+      ? db
+          .select({
+            id: soal.id,
+            difficulty: soal.difficulty,
+            questionMarkdown: soal.prompt,
+            options: soal.optionsSnapshot,
+            questionType: soal.questionType,
+            sourceTitle: assessmentSources.title,
+            sourceCategory: assessmentSources.category,
+            sourceYear: assessmentSources.year,
+            courseId: sql<string>`coalesce(${soal.mataKuliahId}, ${assessmentSources.courseId})`,
+            reviewStatus: aiQuestionBank.reviewStatus,
+            canonicalStatus: soal.status,
+            quizEligible: soal.quizEligible,
+            sourceQuestionNumber: soal.sourceQuestionNumber,
+            sourceQuestionPart: soal.sourceQuestionPart,
+            sourcePage: soal.sourcePage,
+            answerProvenance: soal.answerProvenance,
+            solutionProvenance: soal.solutionProvenance,
+          })
+          .from(soal)
+          .leftJoin(assessmentSources, eq(soal.assessmentSourceId, assessmentSources.id))
+          .leftJoin(aiQuestionBank, eq(aiQuestionBank.id, soal.id))
+          .where(and(eq(soal.origin, "historical_reference"), inArray(soal.id, historicalPageIds)))
+      : Promise.resolve([]),
+  ]);
+
   // Distinct set of IDs for all active (non-historical) questions from BOTH tables:
   const activeQuestionIds = new Set<string>();
   for (const q of rawAiQuestions) {
@@ -228,36 +282,38 @@ export default async function AIQuestionsPage() {
   const renderedQuestionIds = Array.from(new Set([...activeQuestionIds, ...historicalIds]));
 
   // Scope idea links and solution text only to questions rendered on this page
-  const [canonicalLinkRows, historicalSolutions] = await Promise.all([
-    renderedQuestionIds.length > 0
+  const [canonicalLinkRows, renderedSolutions] = await Promise.all([
+    activeQuestionIds.size > 0
       ? db
           .select({ questionId: soalIde.soalId, ideaId: soalIde.ideId, weight: soalIde.weight, role: soalIde.role })
           .from(soalIde)
-          .where(inArray(soalIde.soalId, renderedQuestionIds))
+          .where(inArray(soalIde.soalId, Array.from(activeQuestionIds)))
       : Promise.resolve([]),
-    historicalIds.length > 0
+    renderedQuestionIds.length > 0
       ? db
           .select({ soalId: pembahasanSoal.soalId, content: pembahasanSoal.content, version: pembahasanSoal.version })
           .from(pembahasanSoal)
-          .where(inArray(pembahasanSoal.soalId, historicalIds))
+          .where(inArray(pembahasanSoal.soalId, renderedQuestionIds))
           .orderBy(desc(pembahasanSoal.version))
       : Promise.resolve([]),
   ]);
 
-  const latestHistoricalSolution = new Map<string, string>();
-  for (const solution of historicalSolutions) {
-    if (!latestHistoricalSolution.has(solution.soalId)) {
-      latestHistoricalSolution.set(solution.soalId, solution.content);
+  const latestSolutionByQuestionId = new Map<string, string>();
+  for (const solution of renderedSolutions) {
+    if (!latestSolutionByQuestionId.has(solution.soalId)) {
+      latestSolutionByQuestionId.set(solution.soalId, solution.content);
     }
   }
 
-  const historicalQuestions = historicalRows.map((question) => ({
-    ...question,
-    sourceTitle: question.sourceTitle ?? "Sumber tidak diketahui",
-    sourceCategory: question.sourceCategory ?? "other",
-    answerMarkdown: latestHistoricalSolution.get(question.id) ?? null,
-    reviewStatus: question.reviewStatus ?? reviewStatusFromCanonical(question.canonicalStatus),
-  }));
+  const historicalQuestions = historicalRows
+    .map((question) => ({
+      ...question,
+      sourceTitle: question.sourceTitle ?? "Sumber tidak diketahui",
+      sourceCategory: question.sourceCategory ?? "other",
+      answerMarkdown: latestSolutionByQuestionId.get(question.id) ?? null,
+      reviewStatus: question.reviewStatus ?? reviewStatusFromCanonical(question.canonicalStatus),
+    }))
+    .sort((a, b) => historicalPageIds.indexOf(a.id) - historicalPageIds.indexOf(b.id));
 
   const canonicalIdeaLinks = new Map<string, (typeof canonicalLinkRows)[number][]>();
   for (const link of canonicalLinkRows) {
@@ -298,7 +354,7 @@ export default async function AIQuestionsPage() {
       options,
       correctIndices,
       acceptableAnswers: ai?.acceptableAnswers ?? [],
-      explanation: ai?.explanation || latestHistoricalSolution.get(id) || "",
+      explanation: ai?.explanation || latestSolutionByQuestionId.get(id) || "",
       reviewStatus,
       useCount: ai?.useCount ?? 0,
       createdAt: ai?.createdAt ?? canonical?.createdAt ?? new Date(),
@@ -308,7 +364,7 @@ export default async function AIQuestionsPage() {
       reasoningPattern: canonical?.reasoningPattern ?? null,
       ideaLinks: canonicalIdeaLinks.get(id) ?? [],
     };
-  }).sort((a, b) => normalizeDate(b.createdAt).getTime() - normalizeDate(a.createdAt).getTime());
+  }).sort((a, b) => pageIds.indexOf(a.id) - pageIds.indexOf(b.id));
 
   return (
     <div className="space-y-5">
@@ -326,14 +382,16 @@ export default async function AIQuestionsPage() {
           </>
         }
       />
-      <Tabs defaultValue="ai-generated" className="w-full space-y-4">
+      <QuestionBankTabs value={query.tab}>
         <TabsList>
           <TabsTrigger value="ai-generated"><TranslatedText namespace="adminEval" messageKey="routes.activeQuestions" /></TabsTrigger>
           <TabsTrigger value="historical"><TranslatedText namespace="adminEval" messageKey="routes.historicalQuestions" /></TabsTrigger>
         </TabsList>
 
         <TabsContent value="ai-generated" className="w-full space-y-4">
-          <QuestionBankClient
+          {query.tab === "ai-generated" && <QuestionBankClient
+            query={{ ...query, page: currentPage }}
+            total={total}
             questions={questions}
             courses={allCourses}
             courseMap={courseMap}
@@ -341,18 +399,20 @@ export default async function AIQuestionsPage() {
             authoringCourses={authoringCourses}
             authoringChapters={authoringChapters}
             authoringIdeas={authoringIdeas}
-          />
+          />}
         </TabsContent>
 
         <TabsContent value="historical" className="w-full space-y-4">
-          <HistoricalQuestionsClient
+          {query.tab === "historical" && <HistoricalQuestionsClient
+            query={{ ...historicalQuery, tab: "historical", page: currentHistoricalPage }}
+            total={historicalTotal}
             questions={historicalQuestions}
             courses={allCourses}
             courseMap={courseMap}
             canonicalCourseMap={canonicalCourseMap}
-          />
+          />}
         </TabsContent>
-      </Tabs>
+      </QuestionBankTabs>
     </div>
   );
 }
