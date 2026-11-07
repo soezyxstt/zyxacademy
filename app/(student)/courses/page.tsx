@@ -1,10 +1,9 @@
 import { StudentCourseCatalogView } from "@/components/course/student-course-catalog-view";
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { env } from "@/lib/env";
 import { createMetadata} from "@/lib/site";
-import { auth } from "@/lib/auth";
+import { getAuthSession } from "@/lib/auth-session";
 import { db } from "@/db";
 import { user as userTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -43,7 +42,7 @@ function formatCategoryName(raw: string): string {
  * Server component page for browsing course catalog grouped by academic major.
  */
 export default async function CoursesPage() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   let studentMajor: string | null = null;
   let studentEntryYear: number | null = null;
 

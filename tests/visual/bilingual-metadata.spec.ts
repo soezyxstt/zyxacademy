@@ -19,7 +19,6 @@ const adminFixtureReady = localBase
   && existsSync(adminStatePath);
 
 test.setTimeout(90_000);
-test.use({ reducedMotion: "reduce" });
 
 test.beforeEach(async ({ page }) => {
   await stubVisualTelemetry(page);

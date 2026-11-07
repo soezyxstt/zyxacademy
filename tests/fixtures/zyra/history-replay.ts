@@ -9,7 +9,7 @@ test("history replay preserves one pair and one image link, including after expi
   const { client, testDb } = await createPostgresTestDb();
   try {
     await testDb.insert(user).values({ id: "student", name: "Student", email: "student@example.test" });
-    await testDb.insert(courses).values({ id: "course", title: "Course", category: "Test" });
+    await testDb.insert(courses).values({ id: "course", title: "Course", category: "Matematika" });
     await testDb.insert(chatSessions).values({ id: "session", studentId: "student", courseId: "course", title: "Session" });
     await testDb.insert(zyraMessageAttachments).values({ id: "image", studentId: "student", courseId: "course", sessionId: "session", objectKey: "image", mimeType: "image/png", byteSize: 1, width: 1, height: 1, sanitizedSha256: "hash", sanitizerVersion: "test", expiresAt: new Date("2100-01-01T00:00:00Z") });
     const source = await Bun.file("app/actions/tutor.ts").text();

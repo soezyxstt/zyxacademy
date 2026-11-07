@@ -492,6 +492,7 @@ Tutor access resolution (`lib/auth/tutor-access.ts`) is a pure boundary that doe
 | `question_option_stats` | Per-option selection counters for distractor analytics |
 | `ai_usage_events` | Token usage per user per feature per model |
 | `ai_generation_traces` | Privacy-safe AI execution provenance traces (hashes, versions, tokens, violations, latency, terminal outcome) |
+| `ai_model_settings` | Admin-configured ordered 3-model chains (primary + 2 fallbacks) per AI feature with actor audit and optimistic concurrency timestamp |
 
 #### Quiz System
 | Table | Purpose |
@@ -757,7 +758,7 @@ Mastery System (background, Inngest cron):
 | Service | Usage |
 |---|---|
 | **Next.js 16** | App Router, Server Actions, React Server Components |
-| **Drizzle ORM** | SQLite (dev via `file:dev.db`) / Turso (prod via `@libsql/client`), schema in `db/schema.ts` |
+| **Drizzle ORM** | PostgreSQL adapter, Neon in staging and production; schema in `db/schema.ts` |
 | **Better-Auth** | Auth: credentials + Google OAuth, role-based (admin/teacher/student) |
 | **Gemini** (`@google/genai`) | Text generation plus the fixed Gemini Embedding 2 canonical-content-v2 profile at 768 dimensions |
 | **Cloudflare AI Gateway** | All Gemini requests routed through gateway for caching, rate limiting, observability |
@@ -943,7 +944,7 @@ Cloudflare Workers (deployed via wrangler):
 
 | Aspect | Development | Production |
 |---|---|---|
-| **Database** | SQLite file (`dev.db`) | Turso (libsql, distributed SQLite) |
+| **Database** | PostgreSQL | Neon PostgreSQL |
 | **Object Storage** | R2 via `lib/storage/index.ts` (`STORAGE_PROVIDER_MODE`) | UploadThing compatibility fallback |
 | **Vector Store** | Cloudflare Vectorize | canonical-content-v2, 768 dimensions |
 | **AI Gateway** | Direct Gemini API | Cloudflare AI Gateway (rate limit, caching, observability) |
@@ -1033,11 +1034,13 @@ Tutor math presentation is enforced at two boundaries. Versioned grounded, ungro
 
 The canonical `canonical-content-v2` profile and the separate `zyra-semantic-cache-v1` profile both use Gemini Embedding 2 at exactly 768 dimensions, but use different task instruction versions and index aliases. Neither profile can access the other index, and Embedding 001 is legacy provenance only. Preserved 1024-dimensional vectors remain rollback-only. The model registry is the default provider route; route selection is controlled only by the retained provider-router capability flag.
 
+Admin-editable per-feature model chains live in `ai_model_settings` (`lib/ai/model-settings.ts` and `lib/ai/model-settings-store.ts`) with always-on defaults and no feature flag. Each override stores three distinct ordinary-routing generation models (`ordinaryRoutingAllowed: true` and `generate` operation, excluding quarantined and embedding entries). `configuredModelChain` reads the committed row per request across `RequestLifecycle`, direct `generateContentWithFallback`, `PromptExecutor`, Python Playground (`stageId: "playground"` while keeping semantic cache identity separate), and `ZyxLanguageModel` for Ops AI. `admin-ops-ai` enforces the `generate-content` family boundary for native streaming tool declarations, falls back across the configured trio only before visible text or tool output and when not aborted, and records the actual winning model in allowance commits and operational telemetry. On inline-image turns, `compatibleModelChain` preserves admin priority among image-capable selections and appends remaining `ROUTE_POLICY.premiumVisual` fallbacks so multimodal turns remain routable.
+
 ### Zyra distributed quota coordinator
 
 Plan 003 keeps the four project aliases and model limits in the Plan 002 registry contract, then generates the Worker-facing serializable model contract from it. A single SQLite-backed `ZyraQuotaCoordinator` Durable Object owns daily project-model counters, minute buckets, lease transitions, circuit state, health samples, idempotency, and privacy-safe transition telemetry. The lease lifecycle is `reserved`, `dispatched`, then exactly one terminal result: `committed`, `refunded`, `expired_refunded`, or `expired_committed`.
 
-Reservation and counter updates occur in one Durable Object SQLite transaction. A reserved lease is the only state that can be refunded; a dispatched lease is conservatively committed when it expires because the provider may have received the request. Project selection filters quarantine, circuit, RPM, and effective per-project daily ceilings, then uses deterministic utilization and least-recent-use ordering. Stored records contain no prompt, answer, API key, raw project number, or raw user ID. Only a SHA-256 user hash and bounded telemetry dimensions are persisted.
+Reservation and counter updates occur in one Durable Object PostgreSQL transaction. A reserved lease is the only state that can be refunded; a dispatched lease is conservatively committed when it expires because the provider may have received the request. Project selection filters quarantine, circuit, RPM, and effective per-project daily ceilings, then uses deterministic utilization and least-recent-use ordering. Stored records contain no prompt, answer, API key, raw project number, or raw user ID. Only a SHA-256 user hash and bounded telemetry dimensions are persisted.
 
 ### Zyra application allowance ledger
 
@@ -1201,6 +1204,20 @@ The compute PDF page reader caches extracted text and PNG bytes by current docum
    - Core data resolvers in `lib/` (including `lib/term-index.ts`, `lib/student/course-catalog.ts`, `lib/student/course-access.ts`, and `lib/articles/structured-repository.ts`) are reachable from Deno background jobs (`workers/deno-background/main.ts`) and must remain strictly framework-neutral with zero React imports to pass `worker:deno:audit`.
    - Request-scoped memoization via React `cache()` is isolated exclusively in Next.js web consumer wrappers (`lib/course-utils.ts` and `lib/auth-session.ts`), which cache-decorate public resolvers for RSC renders while keeping worker modules React-free.
 
+### Navigation pilot contracts
+
+Admin layout, admin/tutor guards, request locale resolution, and the student course catalogue share `getAuthSession()`. Canonical role checks remain authoritative; session memoization does not cache role decisions across requests or promise reuse across Server Actions.
+
+Admin course metadata uses the authorized title-only projection in `courses/[slug]/metadata.ts`, preserving canonical-active lookup, legacy fallback, normalized identifiers, and existing title/description behavior without loading curriculum details.
+
+The student dashboard parent resolves session and enrollments. Async sections use Suspense and error boundaries. Weekly streak uses one range query; review batching shares individual semantics with PGlite tests, and next-concept batching uses a shared selector with fallback tests. Material and assessment batching is integrated. Daily recommendation cache inserts are best effort with sanitized errors; read and compute failures propagate. The streak GET mutation workflow remains unchanged.
+
+The `/admin/questions` active/AI and historical tabs filter and paginate on the server, hydrate bounded page content, and load only the selected tab dataset. Selection uses authorized actions and mutations recheck access. URL and selection behavior is documented in [features](features.md#navigation-and-question-bank-pilot). No measured latency or payload savings are established; see the open [performance plan](../plans/navigation-performance-plan.md).
+
+WP6 integrates notification initialization, Firebase messaging, and lazy admin forms behavior across 4 implementation files. Race guards protect stale asynchronous work; absent Firebase configuration is a safe no-op. Forms load lazily with an explicit retry path. CodeMirror prefetch and PageTransition remain unchanged pending profiling. Configured FCM permission/account-switch behavior on the real service remains unverified.
+
+The candidate build and local browser measurements passed with the limitations in the [validation audit](audit/navigation-performance-validation.md). They do not establish deployment, external analytics delivery, Cloud Run capacity, or causal latency savings. WP7 remains open.
+
 ### Catalogue Count and Metric Projections
 
 1. **Bounded Batch Projections**:
@@ -1274,3 +1291,9 @@ separation, realtime deployment pairing and validation limits.
 Zyra response language is an allowlisted `id`/`en` value. Explicit language modifiers override the request value, and recent student history supplies a fallback when the request omits it. Exact and semantic cache identities include the response language plus prompt, policy, and schema versions. The tutor drawer passes its interface locale as `responseLanguage` through the shared chat-request builder for typed, retry, image, and selection requests; sticky state uses an epoch guard. Account interface locale persists across visits, while conversation-specific overrides are held in memory for at most 32 sessions and cleared on drawer remount, reload, account change, course change, or interface-locale change. Zyra contract and request-language tests pass; the full role/route/state matrix remains incomplete under CP7. Cache keys must be versioned when the response contract changes; existing source-language summaries must not be treated as translations.
 
 System email and push templates resolve each recipient's saved preference at dispatch, with Indonesian as the fallback when no account preference exists. New generated notification payloads carry locale metadata. Delivery accounting, unsubscribe signatures, authored broadcasts, existing notification history, and previously sent messages keep their original contracts and content. Deno workers use server-safe locale/template modules and must not import Next.js or React.
+
+Admin MCP domain registrars share the authoring endpoint and enforce their own scopes. OAuth accepts the admin catalog independently of legacy authoring defaults. Each request resolves the live admin and session before creating its server.
+
+Admin mutations use strict scoped handlers, signed ten-minute plans, revision checks and transactional audit/idempotency receipts. External effects use the additive `admin_operation_jobs` outbox and existing Inngest worker. Uncertain effects require manual reconciliation rather than automatic replay. MCP Apps resources coexist with authoring skill resources and retain text fallbacks. See [Admin MCP operations](operations/admin-mcp.md) for contracts and verification limits.
+
+Staging release integration preserves `StudentDashboardContent` for live and demo dashboards. Live rendering supplies independently suspended primary and secondary sections; demo data continues using the existing populated renderer.

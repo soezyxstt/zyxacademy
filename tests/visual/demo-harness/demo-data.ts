@@ -42,12 +42,12 @@ const article: PublicArticleReadModel = {
   }],
 };
 const snapshot = publicDemoSnapshotSchema.parse({ version: 2, contentPolicy: "free-first-chapter", courseId: course.id, revision: "fixture-v1", displayName: "Pelajar Demo", asOf: "2026-06-30", streakDays: 3, mockChapters: [{ id: "later-fictional", title: "Bab berikutnya", orderIndex: 2, completionPercent: 25 }], course: { completedMaterials: 6, totalMaterials: 12, nextConcept: "Penerapan konsep" }, inProgressDocuments: [{ id: "doc-1", title: "Konsep dasar", completionPercent: 60 }], flashcards: { dueCount: 3, recentReviews: [{ id: "review-1", front: "Apa itu konsep?", grade: 3, reviewedOn: "2026-06-30" }] }, weakConcepts: [{ id: "concept-1", title: "Penerapan konsep", masteryPercent: 45 }], availableAssessments: [{ id: "assessment-1", title: "Latihan konsep", type: "quiz" }], history: ["2026-02-12", "2026-03-10", "2026-04-16", "2026-05-20", "2026-06-28", "2026-06-29", "2026-06-30"].map((date, index) => ({ date, materialsCompleted: index < 6 ? 1 : 0, flashcardsReviewed: 2, quizzesCompleted: index === 1 ? 1 : 0 })) });
-const fixtureCourses = [
+const fixtureCourses: ReadonlyArray<{ id: string; title: string }> = [
   { id: "fictional-berpikir", title: "Berpikir Komputasional" },
   { id: "fictional-fisika", title: "Fisika Dasar I" },
   { id: "fictional-kimia", title: "Kimia Dasar I" },
   { id: "fictional-matematika", title: "Matematika I" },
-] as const;
+];
 
 export type DemoProductSelection = { articleId?: string; diktatId?: string; flashcardSetId?: string; quizOffset?: number; collectionOffset?: number; flashcardOffset?: number };
 export async function fixtureDelay(multiplier = 1) {

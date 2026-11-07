@@ -6,10 +6,13 @@ import type {
   LanguageModelV3StreamPart,
   LanguageModelV3Content,
 } from "@ai-sdk/provider";
-import { MODEL_IDS } from "@/lib/ai/provider/model-registry";
+import { MODEL_IDS, type ModelId } from "@/lib/ai/provider/model-registry";
+import { configuredModelChain } from "@/lib/ai/model-settings-store";
 import {
+  getOpsAiModelStreamMock,
   streamOpsAiModel,
   type OpsAiModelMessage,
+  type OpsAiModelStreamProvider,
   type OpsAiModelToolDeclaration,
 } from "./model-factory";
 import { OPS_AI_POLICY_BOUNDS } from "./contracts";
@@ -25,6 +28,8 @@ export interface ZyxLanguageModelOptions {
   modelId?: string;
   actorId?: string;
   feature?: string;
+  resolveModelChain?: typeof configuredModelChain;
+  streamMock?: OpsAiModelStreamProvider | null;
 }
 
 /**
@@ -38,15 +43,27 @@ export class ZyxLanguageModel implements LanguageModelV3 {
   readonly actorId?: string;
   readonly feature: string;
   readonly supportedUrls = {};
+  private readonly explicitModelId?: string;
+  private readonly resolveModelChain: typeof configuredModelChain;
+  private readonly streamMock: OpsAiModelStreamProvider | null;
 
-  constructor(modelOrOptions: string | ZyxLanguageModelOptions = MODEL_IDS.stableFlash) {
+  constructor(modelOrOptions?: string | ZyxLanguageModelOptions) {
     if (typeof modelOrOptions === "string") {
+      this.explicitModelId = modelOrOptions;
       this.modelId = modelOrOptions;
       this.feature = "admin-ops-ai";
+      this.resolveModelChain = configuredModelChain;
+      this.streamMock = getOpsAiModelStreamMock();
     } else {
-      this.modelId = modelOrOptions.modelId || MODEL_IDS.stableFlash;
-      this.actorId = modelOrOptions.actorId;
-      this.feature = modelOrOptions.feature || "admin-ops-ai";
+      this.explicitModelId = modelOrOptions?.modelId;
+      this.modelId = modelOrOptions?.modelId || MODEL_IDS.stableFlash;
+      this.actorId = modelOrOptions?.actorId;
+      this.feature = modelOrOptions?.feature || "admin-ops-ai";
+      this.resolveModelChain = modelOrOptions?.resolveModelChain ?? configuredModelChain;
+      this.streamMock =
+        modelOrOptions?.streamMock !== undefined
+          ? modelOrOptions.streamMock
+          : getOpsAiModelStreamMock();
     }
   }
 
@@ -167,13 +184,29 @@ export class ZyxLanguageModel implements LanguageModelV3 {
     const runId = `ops-turn-${randomUUID().slice(0, 8)}`;
     const startedAt = Date.now();
 
+    const candidateModels: readonly string[] = this.explicitModelId
+      ? [this.explicitModelId]
+      : await (async () => {
+          const resolved = await this.resolveModelChain(
+            { feature: this.feature, requireGenerateContent: true },
+            [this.modelId as ModelId],
+          );
+          return resolved.length > 0 ? resolved : [this.modelId];
+        })();
+
+    let activeModelId = candidateModels[0] || this.modelId;
+    const maxRetryIndex = Math.max(
+      candidateModels.length - 1,
+      OPS_AI_POLICY_BOUNDS.maxRetryAttempts,
+    );
+
     let leaseId: string | null = null;
     try {
       const reservation = await UsageBudgetService.reserve({
         userId: actorId,
         idempotencyKey: runId,
         feature: this.feature,
-        model: this.modelId,
+        model: activeModelId,
         mode: "provider",
         units: 1,
         requestType: "provider:ops-ai:stream",
@@ -198,7 +231,7 @@ export class ZyxLanguageModel implements LanguageModelV3 {
         eventType: "provider_attempt",
         actorRole: "admin",
         routeClass: "fast",
-        modelClass: this.modelId,
+        modelClass: activeModelId,
         resultCode: "ABORTED",
         latencyMs: Date.now() - startedAt,
         sizeBytes: 0,
@@ -227,13 +260,17 @@ export class ZyxLanguageModel implements LanguageModelV3 {
         });
 
         try {
-          while (providerAttempt <= OPS_AI_POLICY_BOUNDS.maxRetryAttempts) {
+          while (providerAttempt <= maxRetryIndex) {
             if (options.abortSignal?.aborted) {
               await abortHandler();
               controller.error(new Error("Stream aborted by caller."));
               return;
             }
 
+            activeModelId =
+              candidateModels[Math.min(providerAttempt, candidateModels.length - 1)] ||
+              this.modelId;
+            const attemptStartedAt = Date.now();
             let sawFinish = false;
 
             try {
@@ -241,9 +278,10 @@ export class ZyxLanguageModel implements LanguageModelV3 {
                 systemPrompt,
                 messages,
                 tools: tools.length > 0 ? tools : undefined,
-                modelId: this.modelId,
+                modelId: activeModelId,
                 signal: options.abortSignal,
                 timeoutMs: OPS_AI_POLICY_BOUNDS.providerTimeoutMs,
+                streamMock: this.streamMock,
               });
 
               for await (const chunk of generator) {
@@ -318,7 +356,7 @@ export class ZyxLanguageModel implements LanguageModelV3 {
                     const idToCommit = leaseId;
                     leaseId = null;
                     await UsageBudgetService.commit(idToCommit, {
-                      model: this.modelId,
+                      model: activeModelId,
                       inputTokens: chunk.usage?.promptTokens ?? 0,
                       outputTokens: chunk.usage?.completionTokens ?? 0,
                       requestType: "provider:success",
@@ -329,9 +367,9 @@ export class ZyxLanguageModel implements LanguageModelV3 {
                     eventType: "provider_attempt",
                     actorRole: "admin",
                     routeClass: "fast",
-                    modelClass: this.modelId,
+                    modelClass: activeModelId,
                     resultCode: "PROVIDER_SUCCESS",
-                    latencyMs: Date.now() - startedAt,
+                    latencyMs: Date.now() - attemptStartedAt,
                     sizeBytes: 0,
                     cacheResult: "bypass",
                     attachmentCount: 0,
@@ -357,7 +395,20 @@ export class ZyxLanguageModel implements LanguageModelV3 {
 
               const canRetry =
                 !emittedVisibleOutput &&
-                providerAttempt < OPS_AI_POLICY_BOUNDS.maxRetryAttempts;
+                providerAttempt < maxRetryIndex;
+
+              void recordZyraOperationalEventSafe({
+                version: "zyra-ops-event-v1",
+                eventType: "provider_attempt",
+                actorRole: "admin",
+                routeClass: "fast",
+                modelClass: activeModelId,
+                resultCode: canRetry ? "PROVIDER_FALLBACK" : "PROVIDER_ERROR",
+                latencyMs: Date.now() - attemptStartedAt,
+                sizeBytes: 0,
+                cacheResult: "bypass",
+                attachmentCount: 0,
+              });
 
               if (!canRetry) {
                 if (leaseId) {
@@ -369,12 +420,19 @@ export class ZyxLanguageModel implements LanguageModelV3 {
                 return;
               }
 
+              const failedModelId = activeModelId;
               providerAttempt += 1;
-              const backoffMs = Math.min(
-                OPS_AI_POLICY_BOUNDS.retryInitialDelayMs * Math.pow(2, providerAttempt - 1),
-                OPS_AI_POLICY_BOUNDS.retryMaxDelayMs
-              );
-              await new Promise((resolve) => setTimeout(resolve, backoffMs));
+              const nextModelId =
+                candidateModels[Math.min(providerAttempt, candidateModels.length - 1)] ||
+                this.modelId;
+
+              if (nextModelId === failedModelId) {
+                const backoffMs = Math.min(
+                  OPS_AI_POLICY_BOUNDS.retryInitialDelayMs * Math.pow(2, providerAttempt - 1),
+                  OPS_AI_POLICY_BOUNDS.retryMaxDelayMs
+                );
+                await new Promise((resolve) => setTimeout(resolve, backoffMs));
+              }
             }
           }
         } finally {
@@ -387,7 +445,7 @@ export class ZyxLanguageModel implements LanguageModelV3 {
 
     return {
       stream,
-      request: { body: { model: this.modelId } },
+      request: { body: { model: activeModelId } },
       response: { headers: {} },
     };
   }

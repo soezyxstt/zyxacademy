@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FollowupParser, validateFollowups, FOLLOWUPS_OPEN, FOLLOWUPS_CLOSE, parseFollowupAnswer, followupEvent } from '../../lib/zyra/followups.ts';
+import { FollowupParser, validateFollowups, FOLLOWUPS_OPEN, FOLLOWUPS_CLOSE, parseFollowupAnswer, followupEvent } from '../../lib/zyra/followups';
 
 const item = { label: 'Try an example', prompt: 'Can we try another example?', icon: 'example', intent: 'practice' };
 test('split delimiters never leak and valid metadata is parsed', () => {

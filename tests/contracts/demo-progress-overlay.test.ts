@@ -1,15 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import type { PublicDemoSnapshot } from "@/lib/demo/snapshot";
+import { fictionalDemoSnapshot } from "@/lib/demo/fictional-snapshot";
 import { demoProgress } from "@/lib/demo/progress-overlay";
 import { emptyOverlay } from "@/lib/demo/session-overlay";
 
 describe("demo progress overlay", () => {
   test("combines daily activity and caps progress without changing the baseline", () => {
     const snapshot = {
+      ...fictionalDemoSnapshot("fixture-course"),
       course: { completedMaterials: 2, totalMaterials: 3, nextConcept: null },
       flashcards: { dueCount: 1, recentReviews: [] },
       history: [{ date: "2026-01-01", materialsCompleted: 2, flashcardsReviewed: 1, quizzesCompleted: 0 }],
-    } as PublicDemoSnapshot;
+    };
     const original = JSON.stringify(snapshot);
     const progress = demoProgress(snapshot, { version: 1, events: [
       { kind: "article", id: "a", date: "2026-01-01" },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,8 @@ import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminTable } from "@/components/admin/table";
+import { matchingActiveQuestionIds } from "./selection-actions";
+import { createQuestionQueryCoordinator, normalizeQuestionQuery, questionParamsFromUrl, questionQueryUrl, toggleQuestionIds, type QuestionQuery } from "./question-query-state";
 import { QuestionFilterField, QuestionFilterPopover } from "./question-filter-popover";
 
 type ReviewStatus = "generated" | "reviewed" | "published" | "flagged" | "retired";
@@ -88,6 +90,8 @@ interface AuthoringIdea {
 }
 
 interface Props {
+  query: QuestionQuery;
+  total: number;
   questions: Question[];
   courses: Course[];
   courseMap: Record<string, string>;
@@ -156,7 +160,7 @@ function hasValidIdeaWeights(links: IdeaLink[]): boolean {
  *
  * @param props - Component properties containing questions list, courses, chapters, and ideas.
  */
-export function QuestionBankClient({ questions, courses, courseMap, canonicalCourseMap, authoringCourses, authoringChapters, authoringIdeas }: Props) {
+export function QuestionBankClient({ query, total, questions, courses, courseMap, authoringCourses, authoringChapters, authoringIdeas }: Props) {
   const router = useRouter();
   const t = useTranslations("adminEval.questionBank");
 
@@ -172,12 +176,38 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
   const [bulkMarkdown, setBulkMarkdown] = useState("");
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState<ReviewStatus | "all">("all");
-  const [filterCourse, setFilterCourse] = useState("all");
-  const [filterOrigin, setFilterOrigin] = useState<QuestionOrigin | "all">("all");
-  const [filterQuestionType, setFilterQuestionType] = useState<QuestionType | "all">("all");
-  const [filterDifficulty, setFilterDifficulty] = useState<Difficulty | "all">("all");
+  const coordinator = useRef(createQuestionQueryCoordinator(query));
+  const [draft, setDraft] = useState(query);
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelSearch = () => { if (debounce.current !== null) clearTimeout(debounce.current); debounce.current = null; };
+  const pushIntent = () => router.push(questionQueryUrl(window.location.href, coordinator.current.current), { scroll: false });
+  useEffect(() => { setDraft(coordinator.current.acknowledge(query)); }, [query]);
+  useEffect(() => {
+    const restore = () => {
+      cancelSearch();
+      setDraft(coordinator.current.restore(normalizeQuestionQuery(questionParamsFromUrl(new URLSearchParams(window.location.search)))));
+    };
+    window.addEventListener("popstate", restore);
+    return () => { cancelSearch(); window.removeEventListener("popstate", restore); };
+  }, []);
+  const navigate = (changes: Partial<QuestionQuery>, resetPage = true, delayed = false) => {
+    cancelSearch();
+    setDraft(coordinator.current.change(changes, resetPage));
+    if (delayed) debounce.current = setTimeout(pushIntent, 300);
+    else pushIntent();
+  };
+  const searchQuery = draft.search;
+  const filterStatus = draft.status;
+  const filterCourse = draft.course;
+  const filterOrigin = draft.origin;
+  const filterQuestionType = draft.type;
+  const filterDifficulty = draft.difficulty;
+  const setSearchQuery = (value: string) => navigate({ search: value }, true, value !== "");
+  const setFilterStatus = (value: QuestionQuery["status"]) => navigate({ status: value });
+  const setFilterCourse = (value: string) => navigate({ course: value });
+  const setFilterOrigin = (value: QuestionQuery["origin"]) => navigate({ origin: value });
+  const setFilterQuestionType = (value: QuestionQuery["type"]) => navigate({ type: value });
+  const setFilterDifficulty = (value: QuestionQuery["difficulty"]) => navigate({ difficulty: value });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [updating, setUpdating] = useState(false);
   const [localQuestions, setLocalQuestions] = useState(() => questions.filter((question) => question.origin !== "historical_reference"));
@@ -222,60 +252,25 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
   const [submittingEdit, setSubmittingEdit] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const filtered = useMemo(() => {
-    const normalizedSearch = searchQuery.trim().toLowerCase();
-
-    return localQuestions.filter((q) => {
-      const tagsList = Array.isArray(q.tags) ? (q.tags as string[]) : [];
-      if (normalizedSearch) {
-        const searchableText = [
-          q.prompt,
-          q.sourceEventName,
-          q.sourceReferenceId,
-          courseMap[q.courseId],
-          ...tagsList,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-
-        if (!searchableText.includes(normalizedSearch)) return false;
-      }
-      if (filterStatus !== "all" && q.reviewStatus !== filterStatus) return false;
-      if (filterCourse !== "all") {
-        const resolveCourseId = (id: string | null | undefined) => {
-          if (!id) return "";
-          return canonicalCourseMap?.[id] ?? authoringCourses.find((course) => course.legacyCourseId === id)?.id ?? id;
-        };
-        if (resolveCourseId(q.courseId) !== resolveCourseId(filterCourse)) return false;
-      }
-      if (filterOrigin !== "all" && q.origin !== filterOrigin) return false;
-      if (filterQuestionType !== "all" && q.questionType !== filterQuestionType) return false;
-      if (filterDifficulty !== "all" && q.difficulty !== filterDifficulty) return false;
-
-      return true;
-    });
-  }, [localQuestions, searchQuery, filterStatus, filterCourse, filterOrigin, filterQuestionType, filterDifficulty, courseMap, authoringCourses, canonicalCourseMap]);
-
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
+  useEffect(() => { setLocalQuestions(questions); }, [questions]);
+  const pageSize = Number(query.pageSize);
+  const setPageSize = (value: number) => navigate({ pageSize: String(value) as QuestionQuery["pageSize"] });
+  const currentPage = query.page;
+  const setCurrentPage = (value: number) => navigate({ page: value }, false);
   const tableRef = useRef<HTMLDivElement>(null);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
-
-  const paginatedQuestions = useMemo(() => {
-    const start = (safeCurrentPage - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, safeCurrentPage, pageSize]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, filterStatus, filterCourse, filterOrigin, filterQuestionType, filterDifficulty, pageSize]);
-
+  const paginatedQuestions = localQuestions;
+  const [allMatchingIds, setAllMatchingIds] = useState<string[] | null>(null);
+  const filterKey = JSON.stringify({ ...query, page: 1 });
+  const filterKeyRef = useRef(filterKey);
+  filterKeyRef.current = filterKey;
+  useEffect(() => { setAllMatchingIds(null); }, [filterKey, total]);
+  const allSelected = allMatchingIds !== null
+    ? allMatchingIds.length > 0 && allMatchingIds.every((id) => selected.has(id))
+    : total > 0 && total === localQuestions.length && localQuestions.every((question) => selected.has(question.id));
   const goToPage = (page: number) => {
-    const target = Math.max(1, Math.min(totalPages, page));
-    setCurrentPage(target);
+    setCurrentPage(Math.max(1, Math.min(totalPages, page)));
     tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
@@ -283,12 +278,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
     .filter((value) => value !== "all").length;
 
   function resetFilters() {
-    setFilterStatus("all");
-    setFilterCourse("all");
-    setFilterOrigin("all");
-    setFilterQuestionType("all");
-    setFilterDifficulty("all");
-    setCurrentPage(1);
+    navigate({ status: "all", course: "all", origin: "all", type: "all", difficulty: "all" });
   }
 
   function toggleSelect(id: string) {
@@ -302,17 +292,18 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
     });
   }
 
-  function toggleAll() {
-    const selectableQuestions = filtered.filter((question) => question.origin !== "historical_reference");
-    const allVisibleSelected = selectableQuestions.length > 0 && selectableQuestions.every((q) => selected.has(q.id));
-    if (allVisibleSelected) {
-      setSelected((current) => {
-        const next = new Set(current);
-        selectableQuestions.forEach((question) => next.delete(question.id));
-        return next;
-      });
-    } else {
-      setSelected((current) => new Set([...current, ...selectableQuestions.map((question) => question.id)]));
+  async function toggleAll() {
+    setUpdating(true);
+    try {
+      const requestedFilter = filterKeyRef.current;
+      const ids = await matchingActiveQuestionIds(query);
+      if (requestedFilter !== filterKeyRef.current) return;
+      setAllMatchingIds(ids);
+      setSelected((current) => toggleQuestionIds(current, ids));
+    } catch {
+      toast.error(t("connectionError"));
+    } finally {
+      setUpdating(false);
     }
   }
 
@@ -342,6 +333,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
         prev.map((q) => (selected.has(q.id) ? { ...q, reviewStatus: status } : q)),
       );
       setSelected(new Set());
+      router.refresh();
     } finally {
       setUpdating(false);
     }
@@ -446,8 +438,9 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
         ideaLinks: createIdeaLinks,
       };
 
-      setLocalQuestions(prev => [createdQuestion, ...prev]);
+      setLocalQuestions(prev => [createdQuestion, ...prev].slice(0, pageSize));
       setCreateOpen(false);
+      router.refresh();
 
       setCreatePrompt("");
       setCreateOptions(["", "", "", ""]);
@@ -590,6 +583,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
         )
       );
       setEditOpen(false);
+      router.refresh();
     } catch {
       toast.error(t("saveFailed"));
     } finally {
@@ -608,6 +602,8 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
         toast.success(t("questionDeleted"));
         setLocalQuestions((prev) => prev.filter((item) => item.id !== deletingQuestion.id));
         setDeleteOpen(false);
+        setSelected((current) => { const next = new Set(current); next.delete(deletingQuestion.id); return next; });
+        router.refresh();
       } else {
         toast.error(t("deleteFailed"));
       }
@@ -627,7 +623,6 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
           placeholder={t("search")}
           value={searchQuery}
           onSearch={setSearchQuery}
-          onClear={() => setSearchQuery("")}
           containerClassName="min-w-[140px] flex-1"
         />
 
@@ -661,7 +656,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
             </Select>
           </QuestionFilterField>
           <QuestionFilterField label={t("origin")}>
-            <Select value={filterOrigin} onValueChange={(value) => setFilterOrigin(value as QuestionOrigin | "all")}>
+            <Select value={filterOrigin} onValueChange={(value) => setFilterOrigin(value as typeof filterOrigin)}>
               <SelectTrigger aria-label={t("filterOrigin")} className="h-9 w-full rounded-lg text-body-sm">
                 <SelectValue placeholder={t("origin")} />
               </SelectTrigger>
@@ -764,18 +759,18 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={toggleAll}
-              aria-label={filtered.filter((q) => q.origin !== "historical_reference").length > 0 && filtered.filter((q) => q.origin !== "historical_reference").every((q) => selected.has(q.id)) ? t("clearAllSelection") : t("selectAllQuestions")}
+              onClick={toggleAll} disabled={updating}
+              aria-label={allSelected ? t("clearAllSelection") : t("selectAllQuestions")}
               className="shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-foreground"
             >
-              {filtered.filter((q) => q.origin !== "historical_reference").length > 0 && filtered.filter((q) => q.origin !== "historical_reference").every((q) => selected.has(q.id)) ? (
+              {allSelected ? (
                 <CheckSquare className="size-4 text-brand-primary" />
               ) : (
                 <Square className="size-4" />
               )}
             </button>
             <span className="text-body-xs font-semibold text-muted-foreground">
-              Daftar soal ({filtered.length})
+              Daftar soal ({total})
             </span>
           </div>
 
@@ -783,10 +778,9 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
             <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground">
               <span className="hidden sm:inline">{t("perPage")}</span>
               <Select
-                value={String(pageSize)}
+                value={draft.pageSize}
                 onValueChange={(value) => {
                   setPageSize(Number(value));
-                  setCurrentPage(1);
                 }}
               >
                 <SelectTrigger aria-label={t("pageSize")} className="h-7 w-[68px] rounded-md text-body-sm px-2">
@@ -833,7 +827,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
           </div>
         </div>
 
-        {filtered.length === 0 ? (
+        {total === 0 ? (
           <AdminEmptyState icon={FileQuestion} title={t("empty")} className="py-6" />
         ) : (
           <div className="divide-y divide-border/60 overflow-hidden">
@@ -854,7 +848,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-border bg-muted/30 px-4 py-3 text-body-sm">
             <span className="text-body-xs text-muted-foreground">
-              {t("showingQuestions", { start: (safeCurrentPage - 1) * pageSize + 1, end: Math.min(safeCurrentPage * pageSize, filtered.length), count: filtered.length })}
+              {t("showingQuestions", { start: (safeCurrentPage - 1) * pageSize + 1, end: Math.min(safeCurrentPage * pageSize, total), count: total })}
             </span>
             <div className="flex items-center gap-1.5">
               <Button

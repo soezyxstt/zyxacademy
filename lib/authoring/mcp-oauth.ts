@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { ADMIN_MCP_SCOPES } from "@/lib/admin-mcp/registry";
 import { and, eq, gt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
@@ -12,7 +13,7 @@ import {
   type McpClientPayload,
 } from "@/lib/authoring/mcp-workflows";
 
-export const MCP_OAUTH_SCOPES = MCP_AUTHORING_SCOPES;
+export const MCP_OAUTH_SCOPES: readonly string[] = [...MCP_AUTHORING_SCOPES, ...ADMIN_MCP_SCOPES];
 export const MCP_OAUTH_RESOURCE_PATH = "/api/mcp/authoring";
 export const MCP_OAUTH_CODE_TTL_MS = 5 * 60 * 1000;
 
@@ -55,8 +56,8 @@ export function requestedScopes(raw: string | null): string[] {
 }
 
 export function approvedScopes(raw: string | null, selected: FormDataEntryValue[]): string[] {
-  requestedScopes(raw);
-  if (selected.length === 0 || selected.some((scope) => typeof scope !== "string" || !MCP_OAUTH_SCOPES.includes(scope as typeof MCP_OAUTH_SCOPES[number]))) {
+  const requested = requestedScopes(raw);
+  if (selected.length === 0 || selected.some((scope) => typeof scope !== "string" || !requested.includes(scope))) {
     throw new Error("invalid_scope");
   }
   return MCP_OAUTH_SCOPES.filter((scope) => selected.includes(scope));

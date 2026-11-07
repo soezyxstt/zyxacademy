@@ -49,6 +49,7 @@ describe("Diktat deterministic static visuals", () => {
     const geometry = visualSpecSchema.parse({ id: "g", kind: "geometry_2d", label: "$A$", description: "A circle around $A$.", bounds: { xMin: -2, xMax: 2, yMin: -2, yMax: 2 }, staticFallback: { type: "text", summary: "Circle.", content: "Radius one." }, geometry: { points: [{ id: "a", x: 0, y: 0, labelLatex: "A" }], circles: [{ id: "c", center: "a", radius: 1, labelLatex: "r=1" }] } });
     expect(renderDiktatStaticVisual(geometry)).toContain('<circle cx="260" cy="160" r="65"');
     const figure = visualSpecSchema.parse({ id: "figure", kind: "source_figure", label: "Figure", description: "Source figure.", assetId: "a".repeat(64), materialId: "material", sourceChecksum: "b".repeat(64), staticFallback: { type: "text", summary: "Figure.", content: "Original figure." } });
+    if (figure.kind !== "source_figure") throw new Error("Expected source figure fixture");
     expect(() => renderDiktatStaticVisual(figure)).toThrow("DIKTAT_SOURCE_FIGURE_ASSET_REQUIRED");
     expect(() => renderDiktatStaticVisual(figure, { [figure.assetId]: { bytes: new TextEncoder().encode("<svg/>"), mimeType: "image/png", sourceChecksum: figure.sourceChecksum } })).toThrow("DIKTAT_SOURCE_FIGURE_FORMAT_INVALID");
     const printed = renderDiktatStaticVisual(figure, { [figure.assetId]: { bytes: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64"), mimeType: "image/png", sourceChecksum: figure.sourceChecksum, attribution: "Author <script>" } });

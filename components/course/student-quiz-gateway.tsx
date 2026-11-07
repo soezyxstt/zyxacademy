@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { TranslatedText } from "@/components/i18n/translated-text";
 
 export type QuizGatewayTemplate = { id: string; title: string; selectionRules: { count?: number }; timeLimitSeconds: number | null; maxAttempts: number | null };
-export function StudentQuizGateway({ href = (path: string) => path,  id, courseTitle, template, completedAttempts, inProgressAttempt, questionsCount, startAction }: { href?: (path: string) => string; 
+export function StudentQuizGateway({ href = (path: string) => path,  id, courseTitle, template, completedAttempts, inProgressAttempt, questionsCount, startAction }: { href?: (path: string) => string;
   id: string;
   courseTitle: string;
   template: QuizGatewayTemplate;

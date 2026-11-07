@@ -1,5 +1,7 @@
 "use client";
 
+import { ADMIN_MCP_SCOPE_DESCRIPTIONS } from "@/lib/admin-mcp/registry";
+
 import { useState, useTransition } from "react";
 import { useTranslations } from "@/lib/i18n/client";
 import Link from "next/link";
@@ -96,6 +98,8 @@ export function McpAuthorizeView({
   const [isPending, startTransition] = useTransition();
   const [selectedScopes, setSelectedScopes] = useState(defaultScopes);
 
+  const requestsAdminAccess = scopes.some(scope => scope in ADMIN_MCP_SCOPE_DESCRIPTIONS);
+
   const redirectHostname = (() => {
     try {
       return new URL(client.redirectUri).host;
@@ -165,9 +169,6 @@ export function McpAuthorizeView({
         <h1 className="font-heading text-h5 font-bold text-foreground">
           {t("title", { client: client.clientName })}
         </h1>
-        <p className="mt-1.5 text-body-sm text-muted-foreground max-w-md">
-          {t("description")}
-        </p>
       </div>
 
       {/* Account Info Pill */}
@@ -268,6 +269,8 @@ export function McpAuthorizeView({
                   icon: Lock,
                 };
                 const IconComponent = detail.icon;
+                const adminDescription = ADMIN_MCP_SCOPE_DESCRIPTIONS[scope as keyof typeof ADMIN_MCP_SCOPE_DESCRIPTIONS];
+                const title = adminDescription ?? t(detail.titleKey);
 
                 return (
                   <label key={scope} htmlFor={`scope-${scope}`} className="flex cursor-pointer items-start gap-3 p-3.5">
@@ -277,19 +280,16 @@ export function McpAuthorizeView({
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-body-sm font-medium text-foreground">
-                          {t(detail.titleKey)}
+                          {title}
                         </p>
-                        <code className="text-body-2xs font-mono rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
-                          {detail.key}
-                        </code>
                       </div>
-                      <p className="mt-0.5 text-body-xs text-muted-foreground leading-normal">
+                      {!adminDescription && <p className="mt-0.5 text-body-xs text-muted-foreground leading-normal">
                         {t(detail.descriptionKey)}
-                      </p>
+                      </p>}
                     </div>
                     <Checkbox
                       id={`scope-${scope}`}
-                      aria-label={t(detail.titleKey)}
+                      aria-label={title}
                       checked={selectedScopes.includes(scope)}
                       disabled={isPending}
                       onCheckedChange={(checked) => setSelectedScopes((current) =>
@@ -316,7 +316,7 @@ export function McpAuthorizeView({
               </li>
               <li className="flex items-center gap-2">
                 <span className="size-1 rounded-full bg-muted-foreground shrink-0" />
-                <span>{t("noStudentData")}</span>
+                <span>{t(requestsAdminAccess ? "adminData" : "noStudentData")}</span>
               </li>
               <li className="flex items-center gap-2">
                 <span className="size-1 rounded-full bg-muted-foreground shrink-0" />
@@ -392,7 +392,7 @@ export function McpAuthorizeView({
           </form>
 
           {/* Footnote */}
-          <p className="text-center text-body-2xs text-muted-foreground leading-normal">
+          <p className="text-center text-body-xs text-muted-foreground leading-normal">
             {t("revoke")}
           </p>
         </div>

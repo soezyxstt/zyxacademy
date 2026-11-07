@@ -1,3 +1,4 @@
+import { contractChromiumPath } from "../helpers/chromium";
 import { describe, expect, test, beforeEach, afterAll } from "bun:test";
 import { mock } from "bun:test";
 import type { ArticleDocument } from "@/lib/materials/article-contract";
@@ -1304,8 +1305,7 @@ describe("CP2 Publication Integration Contract", () => {
   });
 
   test("runs four tracked fixture rehearsals through stage, review, real PDF, publish, and download gates", async () => {
-    const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
-    const browser = await chromium.launch(executablePath ? { executablePath } : {});
+    const browser = await chromium.launch({ executablePath: contractChromiumPath(), args: ["--no-sandbox"] });
 
     try {
       for (const runName of ["limit-a", "limit-b", "eigen", "tcp"]) {

@@ -2,6 +2,8 @@
 
 ## Cloud Run staging
 
+Release jobs explicitly evaluate cancellation and the successful impact/gate results. Optional skipped ancestors must not suppress a selected push deployment after the CI gate passes. Pull requests, failed gates, cancellation, and unselected surfaces remain blocked. A successful CI run alone is not proof of deployment; verify the deployment job and ready revision traffic.
+
 The [Cloud Run staging runbook](operations/cloud-run-staging.md) is `ACTIVE` for project `zyx-academy` in Taiwan (`asia-east1`). Staging serves Neon PostgreSQL and private Neon object storage following a verified frozen import. Its Deno worker uses the same guarded target. Target identity, hosted acceptance and rollback evidence are in the [migration runbook](operations/neon-migration.md).
 The separate Vercel migration project is paused after rehearsal. Production Vercel now serves its own Neon PostgreSQL branch and private Neon object storage.
 
@@ -37,7 +39,16 @@ Background execution is handled by Deno Deploy, orchestrated via Inngest. Deploy
 
 ### Automated Pipeline Capabilities
 
-The deployment workflow performs the following actions automatically on push (filtered to worker-relevant paths) or manual `workflow_dispatch`:
+The central `.github/workflows/ci.yml` planner calls the reusable deployment
+workflow only for worker dependencies or V4 fingerprint inputs on push, after
+selected checks pass. Direct manual `workflow_dispatch` remains available on
+`main` and `staging`. For a V4-only release, worker import/typecheck/asset checks
+are skipped because the worker import graph is unchanged; its build identity is
+still regenerated and deployed. A worker-code release retains those checks.
+Push impact is measured from the last successful CI release, so replacing a
+pending run does not lose its worker changes. The gate rejects a superseded
+branch head before deployment. See [CI scope and incremental checks](DEVELOPMENT.md#ci-scope-and-incremental-checks).
+The deployment workflow performs the following actions:
 1. **Pre-deploy Verification**: Runs `worker:deno:audit` (dependency tree guard) and `worker:deno:check` (typecheck). Before deployment, `workers/deno-background/diktat-assets-smoke.ts` also verifies embedded KaTeX fonts and the contact footer with the worker import map, a dummy database URL, and no network permission.
 2. **Dynamic Provisioning**: Automatically provisions the Deno Deploy app via `deno deploy create` if it does not already exist.
 3. **Environment Sync**: Synchronizes all repository and environment secrets to Deno Deploy via `deno deploy env load --replace`.
@@ -80,7 +91,9 @@ The read-only `/v4` page presents a version-specific Article preview and its ins
 
 ### Web builds in GitHub Actions
 
-`.github/workflows/deploy-web.yml` retains the production Vercel prebuilt job for
+The central CI planner calls `.github/workflows/deploy-web.yml` only for web
+inputs on push, after the selected checks pass. The reusable workflow also keeps
+manual dispatch and retains the production Vercel prebuilt job for
 `main`. Its `staging-image` job builds branch `staging` with Node 24 and Bun 1.3.14,
 then packages the standalone output in `Dockerfile.cloud-run`, smoke tests it,
 and pushes an immutable commit-tagged image to
@@ -562,3 +575,9 @@ falls back automatically, and provider release failures remain ungradable.
 Runtime package assets and Worker/frame files
 are included in Next output tracing. See [coding contract](coding-foundation.md).
 Local implementation/testing does not establish remote rollout or credentials.
+
+## Admin MCP deployment boundary
+
+Status: `OPEN / IN PROGRESS`
+
+The local Admin MCP expansion has not been deployed. Inspect the exact target before an authorized PostgreSQL migration 0003. Deploy web and Deno worker from the same revision; the worker registers the admin outbox through the existing Inngest registry. Provider jobs require the matching environment identity and existing Google, Firebase and storage credentials. Do not introduce a separate feature flag: new permissions require explicit OAuth scope consent, and old tokens retain their grants. The local admin plugin skill is a candidate; promoting the separate pinned skills repository and verifying host import are separate release steps. See [Admin MCP operations](operations/admin-mcp.md) for remaining parity and verification.

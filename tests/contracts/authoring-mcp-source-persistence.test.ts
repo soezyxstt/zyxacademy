@@ -74,6 +74,7 @@ import {
   listMcpCourseChoices,
   readMcpCatalogScope,
   readMcpSourcePackBinding,
+  readMcpSourcePackToken,
   startAuthoringWorkflow,
 } from "@/lib/authoring/mcp-workflows";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
@@ -690,7 +691,7 @@ describe("Source Pack Storage & Persistence", () => {
       checksum: stagedA.checksum,
       packId: sharedPackId,
       name: "Kimia Bab 5 Revisi A",
-      summary: parsedA.summary,
+      summary: readMcpSourcePackToken(tokenA).summary,
       courseId: "mk-ki1101-rev",
       chapterId: "bab-ki1101-rev-05",
     });
@@ -709,20 +710,11 @@ describe("Source Pack Storage & Persistence", () => {
     const legacyRunTokenAWithoutImportId = issueMcpRunToken({
       workflow: "idea_product",
       courseId: "mk-ki1101-rev",
-      legacyCourseId: "legacy-ki1101-rev",
-      courseCode: "KI1101-REV",
-      courseTitle: "Kimia Dasar I",
       chapterId: "bab-ki1101-rev-05",
-      legacyChapterId: null,
-      chapterCode: "BAB-05",
-      chapterTitle: "Energi dan Perubahannya",
-      chapterOrder: 5,
       sourcePackImportId: null,
       sourcePackId: sharedPackId,
       sourcePackChecksum: stagedA.checksum,
       sourcePackName: "Kimia Bab 5 Revisi A",
-      sourceDocumentCount: 1,
-      sourceUnitCount: 6,
     });
     const conflictNewTokenBVsLegacyRunA = await callTool("source.get_pack", {
       packId: sharedPackId,

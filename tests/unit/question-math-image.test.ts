@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import React from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderWithMessages as renderToStaticMarkup } from "../helpers/render-with-messages";
 import { MathText } from "@/components/course/math-text";
 
 describe("MathText with markdown images", () => {

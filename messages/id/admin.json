@@ -27,6 +27,7 @@
     "tokens": "Token aktivasi",
     "notifications": "Notifikasi",
     "opsMonitor": "Monitor Ops",
+    "aiModels": "Model AI",
     "tutorActivity": "Aktivitas tutor",
     "featureFlags": "Feature Flags",
     "zyraAnalytics": "Analitik Zyra",
@@ -100,6 +101,7 @@
     "groups": "Kelompok belajar",
     "tokens": "Token aktivasi",
     "notifications": "Notifikasi",
+    "aiModels": "Model AI",
     "zyraAnalytics": "Analitik Zyra",
     "featureUsage": "Fitur",
     "featureFlags": "Feature Flags",
@@ -393,7 +395,10 @@
     "loadFailed": "Gagal memuat katalog produk."
   },
   "usageCharts": {
-    "loadFailed": "Gagal memuat data penggunaan AI."
+    "loadFailed": "Gagal memuat data penggunaan AI.",
+    "previous": "Sebelumnya",
+    "next": "Berikutnya",
+    "pageSummary": "Menampilkan {start} sampai {end} dari {total} pengguna"
   },
   "metadata": {
     "homeTitle": "Dasbor admin",

@@ -23,7 +23,7 @@ import { dualWriteFlashcardReview, dualWriteLearningEvent } from "@/lib/migrasi/
 import { recordLearningEvidence } from "@/lib/pemahaman/evidence";
 import { resolveStudentCourse } from "@/lib/student/course-catalog";
 import { getStudentCourseAccess, isFreeChapterScoped } from "@/lib/course-utils";
-import { rankFlashcardQueue, type FlashcardQueuePriorityInput } from "@/lib/flashcard-ranking";
+import { rankFlashcardQueue, isReviewDue, weakestFlashcardIdea, type FlashcardQueuePriorityInput } from "@/lib/flashcard-ranking";
 
 export interface FlashcardHistoryItem {
   reviewedAt: string;
@@ -138,14 +138,7 @@ export async function getReviewQueue(studentId: string, courseId: string) {
         .where(inArray(flashcardIde.flashcardId, canonicalCards.map((card) => card.id)));
       const ideaByCard = new Map<string, (typeof ideaRows)[number]>();
       for (const row of ideaRows) {
-        const current = ideaByCard.get(row.flashcardId);
-        if (
-          !current
-          || (row.masteryScore ?? 0) < (current.masteryScore ?? 0)
-          || ((row.masteryScore ?? 0) === (current.masteryScore ?? 0) && row.ideaId.localeCompare(current.ideaId) < 0)
-        ) {
-          ideaByCard.set(row.flashcardId, row);
-        }
+        ideaByCard.set(row.flashcardId, weakestFlashcardIdea([...(ideaByCard.has(row.flashcardId) ? [ideaByCard.get(row.flashcardId)!] : []), row])!);
       }
       const now = Date.now();
       const eligible = canonicalCards
@@ -155,7 +148,7 @@ export async function getReviewQueue(studentId: string, courseId: string) {
             && !isFreeChapterScoped([card.chapterId, card.legacyChapterId], freeChapterIds)
           ) return [];
           const progress = progressByCard.get(card.id);
-          if (progress && (progress.status !== "active" || progress.dueAt.getTime() > now)) return [];
+          if (!isReviewDue(progress && { due: progress.dueAt, status: progress.status }, now)) return [];
           const idea = ideaByCard.get(card.id);
           const priority = {
             cardId: card.id,
@@ -239,7 +232,7 @@ export async function getReviewQueue(studentId: string, courseId: string) {
       });
     } else {
       // Review Card: check if due date has passed
-      const isDue = progress.dueDate.getTime() <= Date.now();
+      const isDue = isReviewDue({ due: progress.dueDate }, Date.now());
       if (isDue) {
         queue.push({
           card,

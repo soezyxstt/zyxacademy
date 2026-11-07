@@ -21,3 +21,11 @@ export function rankFlashcardQueue<T extends FlashcardQueuePriorityInput>(items:
       return dueDelta !== 0 ? dueDelta : left.cardId.localeCompare(right.cardId);
     });
 }
+
+export function isReviewDue(progress: { due: Date; status?: string } | null | undefined, now: number): boolean {
+  return !progress || ((progress.status === undefined || progress.status === "active") && progress.due.getTime() <= now);
+}
+
+export function weakestFlashcardIdea<T extends { ideaId: string; masteryScore: number | null }>(rows: readonly T[]): T | undefined {
+  return rows.reduce<T | undefined>((current, row) => !current || (row.masteryScore ?? 0) < (current.masteryScore ?? 0) || ((row.masteryScore ?? 0) === (current.masteryScore ?? 0) && row.ideaId.localeCompare(current.ideaId) < 0) ? row : current, undefined);
+}

@@ -30,7 +30,8 @@ test("executor runs actual structure and polynomial model checks locally", async
   const invalid = structuredClone(structural);
   if (invalid.bundle.products[0].productType === "article") invalid.bundle.products[0].sections[0].blocks[0].parts = undefined;
   await expect(executeProductV4VerificationCheck(invalid)).rejects.toThrow();
-  const missingSource = input("structure"); missingSource.bundle.products = [{ productType: "diktat", sourceArticleId: "missing" }] as typeof missingSource.bundle.products;
+  // This partial diktat deliberately exercises the missing source boundary.
+  const missingSource = input("structure"); missingSource.bundle.products = [{ productType: "diktat", sourceArticleId: "missing" }] as unknown as typeof missingSource.bundle.products;
   expect((await executeProductV4VerificationCheck(missingSource)).status).toBe("FAIL");
   const model = { ...structural, requirement: { ...input("model").requirement, target: `${structural.bundle.products[0].id}/${LIMIT_EPSILON_DELTA_GRAPH.id}` } };
   const calculated = await executeProductV4VerificationCheck(model);
@@ -77,6 +78,6 @@ test("executor uses configured trust boundary and validates check identity and b
     payload = response({ artifacts: [{ id: "screen", mediaType: "image/png", base64 }] });
     await expect(executeProductV4VerificationCheck(input())).rejects.toThrow("ARTIFACT_INVALID");
   }
-  globalThis.fetch = (async () => new Response("internal details", { status: 500 })) as typeof fetch;
+  globalThis.fetch = Object.assign(async () => new Response("internal details", { status: 500 }), { preconnect: originalFetch.preconnect });
   await expect(executeProductV4VerificationCheck(input())).rejects.toThrow("REJECTED:500");
 });

@@ -6,7 +6,7 @@
  * Worker boundary, and deterministic fake adapters.
  */
 
-import { EMBEDDING_PROFILES } from "@/lib/ai/provider/model-registry";
+import { EMBEDDING_PROFILES } from "../ai/provider/model-registry";
 
 export const CANONICAL_VECTOR_PROFILE = EMBEDDING_PROFILES["canonical-content-v2"];
 

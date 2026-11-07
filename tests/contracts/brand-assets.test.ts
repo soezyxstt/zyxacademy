@@ -2,6 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
+type BrandExport = { path: string; format: string; widthPx: number; heightPx: number };
+
 const brandDir = path.resolve(process.cwd(), "public/brand");
 const manifest = JSON.parse(readFileSync(path.join(brandDir, "asset-manifest.json"), "utf8"));
 
@@ -25,11 +27,11 @@ describe("Figma brand asset exports", () => {
     expect(manifest.source.figmaFileKey).toBe("NvOC7gydMjFVA1uivfNvJz");
     expect(manifest.frames).toHaveLength(27);
 
-    const exports = manifest.frames.flatMap((frame: { exports: unknown[] }) => frame.exports);
+    const exports: BrandExport[] = manifest.frames.flatMap((frame: { exports: BrandExport[] }) => frame.exports);
     expect(exports).toHaveLength(41);
     expect(new Set(exports.map((item: { path: string }) => item.path)).size).toBe(41);
 
-    for (const item of exports as Array<{ path: string; format: string; widthPx: number; heightPx: number }>) {
+    for (const item of exports) {
       const filePath = path.resolve(process.cwd(), "public", item.path.slice(1));
       expect(path.dirname(filePath)).toBe(brandDir);
       expect(existsSync(filePath)).toBe(true);

@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { TranslatedText } from "@/components/i18n/translated-text";
-export function StudentLeaderboardView({ href = (path: string) => path,  allCourses, leaderboardByCourse }: { href?: (path: string) => string; 
+export function StudentLeaderboardView({ href = (path: string) => path,  allCourses, leaderboardByCourse }: { href?: (path: string) => string;
  allCourses: { id: string; title: string }[];
  leaderboardByCourse: Record<string, { rank: number; name: string; avgScore: number; attempts: number }[]>;
 }) {
