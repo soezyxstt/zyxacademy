@@ -121,6 +121,7 @@ describe("Markdown Table Row Scanner Contract", () => {
       const blocks = parseCanonicalMarkdown(text);
       expect(blocks).toHaveLength(1);
       expect(blocks[0].type).toBe("p");
+      if (blocks[0].type !== "p") throw new Error("Expected paragraph block");
       expect(blocks[0].content).toBe(text);
       expect(compileMarkdown(text).ast.blocks.some(block => block.type === "table")).toBe(false);
     });

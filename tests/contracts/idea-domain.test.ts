@@ -270,7 +270,7 @@ describe("Plan 003 source and Idea domain contracts", () => {
     const { client, testDb } = await createPostgresTestDb();
     try {
 
-      const tableResult = await client.query(
+      const tableResult = await client.query<{ name: string }>(
         "SELECT table_name AS name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('mata_kuliah', 'bab', 'pendaftaran_murid', 'penugasan_tutor', 'sumber_materi', 'potongan_sumber', 'ide', 'asal_ide', 'relasi_ide', 'ketergantungan_produk', 'peta_id_legacy') ORDER BY table_name",
       );
       expect(tableResult.rows.map((row) => String(row.name))).toEqual([

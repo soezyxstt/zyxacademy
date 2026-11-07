@@ -228,7 +228,7 @@ export const FREE_QUIZ_CATEGORIES: ReadonlySet<string> = new Set([
   "chapter",
 ]);
 
-function parseQuizSelectionRules(raw: unknown): Record<string, unknown> {
+export function parseQuizSelectionRules(raw: unknown): Record<string, unknown> {
   if (typeof raw === "string") {
     try {
       const parsed = JSON.parse(raw);
@@ -267,7 +267,7 @@ type FreeQuizTemplate = Pick<
   "category" | "visibility" | "status" | "selectionRules"
 >;
 
-function normalizeChapterIds(raw: unknown): string[] {
+export function normalizeChapterIds(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   return raw
     .filter((chapterId): chapterId is string => typeof chapterId === "string")
@@ -416,93 +416,58 @@ export async function getCourse(id: string) {
   return getCourseCached(id);
 }
 
-export async function getCourseMaterials(courseId: string, studentId?: string, preloadedCompletedSet?: Set<string>) {
-  const course = await resolveStudentCourse(courseId);
-  const legacyCourseId = course?.legacyId ?? courseId;
-  const canonicalCourseId = course?.canonicalId;
-  const canonicalArticles = await getCachedCanonicalPublishedArticlesForCourse(courseId, studentId);
+export type AssembleCourseMaterialsInput = {
+  courseId: string;
+  canonicalArticles: ReadonlyArray<{
+    id: string;
+    title: string;
+    babId: string | null;
+    chapterId: string | null;
+    legacyChapterId: string | null;
+    totalEstimatedReadingMinutes: number;
+    completed: boolean;
+    completionPercent: number;
+  }>;
+  canonicalDiktats: ReadonlyArray<{
+    id: string;
+    title: string;
+    fileKey: string | null;
+    babId: string | null;
+    legacyChapterId: string | null;
+    updatedAt?: Date | null;
+  }>;
+  courseDiktats: ReadonlyArray<{
+    id: string;
+    title: string;
+    fileUrl: string | null;
+    updatedAt?: Date | null;
+    chapterIds: unknown;
+  }>;
+  dbMaterials: ReadonlyArray<{
+    id: string;
+    title: string;
+    chapterIds: unknown;
+  }>;
+  webMaterials: ReadonlyArray<{
+    id: string;
+    title: string;
+    chapterId: string;
+  }>;
+  completedSet: ReadonlySet<string>;
+  studentAccess: StudentCourseAccess | null;
+};
 
-  // AI material instances (active only ; drafts and archived stay hidden)
-  const dbMaterials = await db
-    .select({
-      id: aiMaterialInstances.id,
-      title: aiMaterialInstances.title,
-      chapterIds: aiMaterialInstances.chapterIds,
-    })
-    .from(aiMaterialInstances)
-    .where(and(eq(aiMaterialInstances.courseId, legacyCourseId), notLike(aiMaterialInstances.title, "[DRAF]%")));
-
-  // Website materials (published AST articles, linked 1:1 with chapters)
-  const webMaterials = await db
-    .select({
-      id: websiteMaterials.id,
-      title: websiteMaterials.title,
-      chapterId: websiteMaterials.chapterId,
-    })
-    .from(websiteMaterials)
-    .where(and(eq(websiteMaterials.courseId, legacyCourseId), eq(websiteMaterials.status, "published")));
-
-  // Diktats
-  const courseDiktats = await db
-    .select({
-      id: diktats.id,
-      title: diktats.title,
-      fileUrl: diktats.fileUrl,
-      updatedAt: diktats.updatedAt,
-      chapterIds: diktats.chapterIds,
-    })
-    .from(diktats)
-    .where(and(eq(diktats.courseId, legacyCourseId), eq(diktats.status, "ready")));
-
-  const canonicalDiktats = canonicalCourseId
-    ? await db
-        .select({
-          id: diktatMateri.id,
-          title: diktatMateri.title,
-          fileKey: diktatMateri.fileKey,
-          babId: diktatMateri.babId,
-          legacyChapterId: bab.legacyChapterId,
-          updatedAt: diktatMateri.updatedAt,
-        })
-        .from(diktatMateri)
-        .innerJoin(bab, eq(diktatMateri.babId, bab.id))
-        .where(and(eq(diktatMateri.mataKuliahId, canonicalCourseId), eq(diktatMateri.status, "published")))
-    : [];
-
-  const studentAccess = studentId ? await getStudentCourseAccess(studentId, courseId) : null;
-  if (studentId && !studentAccess) return [];
+export function assembleCourseMaterialRows({
+  courseId,
+  canonicalArticles,
+  canonicalDiktats,
+  courseDiktats,
+  dbMaterials,
+  webMaterials,
+  completedSet,
+  studentAccess,
+}: AssembleCourseMaterialsInput) {
   const canDownloadDiktat = Boolean(studentAccess?.policy.capabilities.canDownloadDiktat);
-
-  // User progress - bounded to course material IDs or preloaded set to eliminate full table scans (P1-10)
-  let completedSet = new Set<string>();
-  if (preloadedCompletedSet) {
-    completedSet = preloadedCompletedSet;
-  } else if (studentId) {
-    const courseMaterialIds = [
-      ...dbMaterials.map((m) => m.id),
-      ...webMaterials.map((m) => m.id),
-      ...courseDiktats.map((d) => d.id),
-      ...canonicalDiktats.map((d) => d.id),
-      ...canonicalArticles.map((a) => a.id),
-    ];
-    if (courseMaterialIds.length > 0) {
-      const progressRecords = await db
-        .select({ materialId: progressTable.materialId })
-        .from(progressTable)
-        .where(
-          and(
-            eq(progressTable.userId, studentId),
-            eq(progressTable.status, "completed"),
-            inArray(progressTable.materialId, courseMaterialIds)
-          )
-        );
-      completedSet = new Set(
-        progressRecords
-          .map((p) => p.materialId)
-          .filter((id): id is string => id !== null)
-      );
-    }
-  }
 
   const canonicalChapterIds = new Set(
     canonicalArticles.flatMap((article) => [article.babId, article.chapterId, article.legacyChapterId].filter((id): id is string => Boolean(id))),
@@ -600,6 +565,105 @@ export async function getCourseMaterials(courseId: string, studentId?: string, p
     });
   }
   return allMaterials;
+}
+
+export async function getCourseMaterials(courseId: string, studentId?: string, preloadedCompletedSet?: Set<string>) {
+  const course = await resolveStudentCourse(courseId);
+  const legacyCourseId = course?.legacyId ?? courseId;
+  const canonicalCourseId = course?.canonicalId;
+  const canonicalArticles = await getCachedCanonicalPublishedArticlesForCourse(courseId, studentId);
+
+  // AI material instances (active only ; drafts and archived stay hidden)
+  const dbMaterials = await db
+    .select({
+      id: aiMaterialInstances.id,
+      title: aiMaterialInstances.title,
+      chapterIds: aiMaterialInstances.chapterIds,
+    })
+    .from(aiMaterialInstances)
+    .where(and(eq(aiMaterialInstances.courseId, legacyCourseId), notLike(aiMaterialInstances.title, "[DRAF]%")));
+
+  // Website materials (published AST articles, linked 1:1 with chapters)
+  const webMaterials = await db
+    .select({
+      id: websiteMaterials.id,
+      title: websiteMaterials.title,
+      chapterId: websiteMaterials.chapterId,
+    })
+    .from(websiteMaterials)
+    .where(and(eq(websiteMaterials.courseId, legacyCourseId), eq(websiteMaterials.status, "published")));
+
+  // Diktats
+  const courseDiktats = await db
+    .select({
+      id: diktats.id,
+      title: diktats.title,
+      fileUrl: diktats.fileUrl,
+      updatedAt: diktats.updatedAt,
+      chapterIds: diktats.chapterIds,
+    })
+    .from(diktats)
+    .where(and(eq(diktats.courseId, legacyCourseId), eq(diktats.status, "ready")));
+
+  const canonicalDiktats = canonicalCourseId
+    ? await db
+        .select({
+          id: diktatMateri.id,
+          title: diktatMateri.title,
+          fileKey: diktatMateri.fileKey,
+          babId: diktatMateri.babId,
+          legacyChapterId: bab.legacyChapterId,
+          updatedAt: diktatMateri.updatedAt,
+        })
+        .from(diktatMateri)
+        .innerJoin(bab, eq(diktatMateri.babId, bab.id))
+        .where(and(eq(diktatMateri.mataKuliahId, canonicalCourseId), eq(diktatMateri.status, "published")))
+    : [];
+
+  const studentAccess = studentId ? await getStudentCourseAccess(studentId, courseId) : null;
+  if (studentId && !studentAccess) return [];
+
+  // User progress - bounded to course material IDs or preloaded set to eliminate full table scans (P1-10)
+  let completedSet = new Set<string>();
+  if (preloadedCompletedSet) {
+    completedSet = preloadedCompletedSet;
+  } else if (studentId) {
+    const courseMaterialIds = [
+      ...dbMaterials.map((m) => m.id),
+      ...webMaterials.map((m) => m.id),
+      ...courseDiktats.map((d) => d.id),
+      ...canonicalDiktats.map((d) => d.id),
+      ...canonicalArticles.map((a) => a.id),
+    ];
+    if (courseMaterialIds.length > 0) {
+      const progressRecords = await db
+        .select({ materialId: progressTable.materialId })
+        .from(progressTable)
+        .where(
+          and(
+            eq(progressTable.userId, studentId),
+            eq(progressTable.status, "completed"),
+            inArray(progressTable.materialId, courseMaterialIds)
+          )
+        );
+      completedSet = new Set(
+        progressRecords
+          .map((p) => p.materialId)
+          .filter((id): id is string => id !== null)
+      );
+    }
+  }
+
+  return assembleCourseMaterialRows({
+    courseId,
+    canonicalArticles,
+    canonicalDiktats,
+    courseDiktats,
+    dbMaterials,
+    webMaterials,
+    completedSet,
+    studentAccess,
+  });
 }
 
 export type ChapterOutlineItem = {
@@ -797,45 +861,120 @@ function extractChapterNumberFromTitle(title: string): number | null {
  * 3. Title alphabetical comparison
  * 4. Created date ascending
  */
+export type QuizChapterSortData = {
+  canonicalBabs: ReadonlyArray<{
+    id: string;
+    legacyChapterId: string | null;
+    title: string;
+    orderIndex: number;
+  }>;
+  legacyChapters: ReadonlyArray<{
+    id: string;
+    title: string;
+    orderIndex: number;
+  }>;
+  cakupanMap: ReadonlyMap<string, string>;
+  soalBabMap: ReadonlyMap<string, string>;
+};
+
 export async function sortQuizTemplatesByChapter<T extends SortableQuizTemplate>(
   templates: T[],
   courseId: string,
+  preloadedData?: QuizChapterSortData,
 ): Promise<T[]> {
   if (templates.length <= 1) return templates;
 
-  const course = await resolveStudentCourse(courseId);
-  const canonicalCourseId = course?.canonicalId;
-  const legacyCourseId = course?.legacyId ?? courseId;
+  let canonicalBabs: QuizChapterSortData["canonicalBabs"];
+  let legacyChapters: QuizChapterSortData["legacyChapters"];
+  let cakupanMap: ReadonlyMap<string, string>;
+  let soalBabMap: ReadonlyMap<string, string>;
 
-  // 1. Fetch all chapters for the course
-  const [canonicalBabs, legacyChapters] = await Promise.all([
-    canonicalCourseId
-      ? db
+  if (preloadedData) {
+    canonicalBabs = preloadedData.canonicalBabs;
+    legacyChapters = preloadedData.legacyChapters;
+    cakupanMap = preloadedData.cakupanMap;
+    soalBabMap = preloadedData.soalBabMap;
+  } else {
+    const course = await resolveStudentCourse(courseId);
+    const canonicalCourseId = course?.canonicalId;
+    const legacyCourseId = course?.legacyId ?? courseId;
+
+    // 1. Fetch all chapters for the course
+    [canonicalBabs, legacyChapters] = await Promise.all([
+      canonicalCourseId
+        ? db
+            .select({
+              id: bab.id,
+              legacyChapterId: bab.legacyChapterId,
+              title: bab.title,
+              orderIndex: bab.orderIndex,
+            })
+            .from(bab)
+            .where(and(eq(bab.mataKuliahId, canonicalCourseId), eq(bab.status, "active")))
+            .orderBy(asc(bab.orderIndex))
+        : Promise.resolve([]),
+      db
+        .select({
+          id: chaptersTable.id,
+          title: chaptersTable.title,
+          orderIndex: chaptersTable.orderIndex,
+        })
+        .from(chaptersTable)
+        .where(
+          or(
+            eq(chaptersTable.courseId, legacyCourseId),
+            canonicalCourseId ? eq(chaptersTable.courseId, canonicalCourseId) : undefined,
+          ),
+        )
+        .orderBy(asc(chaptersTable.orderIndex)),
+    ]);
+
+    // 2. Query cakupanAsesmen for explicit quiz-to-bab mappings
+    const templateIds = templates.map((t) => t.id);
+    const cakupanRows = templateIds.length > 0
+      ? await db
           .select({
-            id: bab.id,
-            legacyChapterId: bab.legacyChapterId,
-            title: bab.title,
-            orderIndex: bab.orderIndex,
+            asesmenId: cakupanAsesmen.asesmenId,
+            babId: cakupanAsesmen.babId,
           })
-          .from(bab)
-          .where(and(eq(bab.mataKuliahId, canonicalCourseId), eq(bab.status, "active")))
-          .orderBy(asc(bab.orderIndex))
-      : Promise.resolve([]),
-    db
-      .select({
-        id: chaptersTable.id,
-        title: chaptersTable.title,
-        orderIndex: chaptersTable.orderIndex,
-      })
-      .from(chaptersTable)
-      .where(
-        or(
-          eq(chaptersTable.courseId, legacyCourseId),
-          canonicalCourseId ? eq(chaptersTable.courseId, canonicalCourseId) : undefined,
-        ),
-      )
-      .orderBy(asc(chaptersTable.orderIndex)),
-  ]);
+          .from(cakupanAsesmen)
+          .where(inArray(cakupanAsesmen.asesmenId, templateIds))
+      : [];
+
+    const fetchedCakupanMap = new Map<string, string>();
+    for (const row of cakupanRows) {
+      if (!fetchedCakupanMap.has(row.asesmenId)) {
+        fetchedCakupanMap.set(row.asesmenId, row.babId);
+      }
+    }
+    cakupanMap = fetchedCakupanMap;
+
+    // 3. Collect fixedQuestionIds to check questions in `soal` table
+    const allFixedQuestionIds = new Set<string>();
+    for (const t of templates) {
+      const rules = parseQuizSelectionRules(t.selectionRules);
+      const fixedIds = (rules.fixedQuestionIds ?? rules.fixed_question_ids) as unknown;
+      if (Array.isArray(fixedIds)) {
+        for (const id of fixedIds) {
+          if (typeof id === "string" && id.trim()) {
+            allFixedQuestionIds.add(id.trim());
+          }
+        }
+      }
+    }
+
+    const fetchedSoalBabMap = new Map<string, string>();
+    if (allFixedQuestionIds.size > 0) {
+      const soalRows = await db
+        .select({ id: soal.id, babId: soal.babId })
+        .from(soal)
+        .where(inArray(soal.id, Array.from(allFixedQuestionIds)));
+      for (const s of soalRows) {
+        if (s.babId) fetchedSoalBabMap.set(s.id, s.babId);
+      }
+    }
+    soalBabMap = fetchedSoalBabMap;
+  }
 
   type ChapterLookup = {
     orderIndex: number;
@@ -882,50 +1021,6 @@ export async function sortQuizTemplatesByChapter<T extends SortableQuizTemplate>
 
   // Chapters sorted by orderIndex for 1-based "Bab X" positional resolution
   const chapterListByOrder = [...chapterList].sort((a, b) => a.orderIndex - b.orderIndex);
-
-  // 2. Query cakupanAsesmen for explicit quiz-to-bab mappings
-  const templateIds = templates.map((t) => t.id);
-  const cakupanRows = templateIds.length > 0
-    ? await db
-        .select({
-          asesmenId: cakupanAsesmen.asesmenId,
-          babId: cakupanAsesmen.babId,
-        })
-        .from(cakupanAsesmen)
-        .where(inArray(cakupanAsesmen.asesmenId, templateIds))
-    : [];
-
-  const cakupanMap = new Map<string, string>();
-  for (const row of cakupanRows) {
-    if (!cakupanMap.has(row.asesmenId)) {
-      cakupanMap.set(row.asesmenId, row.babId);
-    }
-  }
-
-  // 3. Collect fixedQuestionIds to check questions in `soal` table
-  const allFixedQuestionIds = new Set<string>();
-  for (const t of templates) {
-    const rules = parseQuizSelectionRules(t.selectionRules);
-    const fixedIds = (rules.fixedQuestionIds ?? rules.fixed_question_ids) as unknown;
-    if (Array.isArray(fixedIds)) {
-      for (const id of fixedIds) {
-        if (typeof id === "string" && id.trim()) {
-          allFixedQuestionIds.add(id.trim());
-        }
-      }
-    }
-  }
-
-  const soalBabMap = new Map<string, string>();
-  if (allFixedQuestionIds.size > 0) {
-    const soalRows = await db
-      .select({ id: soal.id, babId: soal.babId })
-      .from(soal)
-      .where(inArray(soal.id, Array.from(allFixedQuestionIds)));
-    for (const s of soalRows) {
-      if (s.babId) soalBabMap.set(s.id, s.babId);
-    }
-  }
 
   function resolveQuizChapterOrder(template: T): number {
     // A. Direct canonical coverage

@@ -6,14 +6,16 @@ const source = (path: string) => readFileSync(path, "utf8");
 describe("Free dashboard and Zyra surface contract", () => {
   test("builds the no-enrollment dashboard from the first two Free chapters", () => {
     const page = source("app/(student)/dashboard/page.tsx");
+    const sections = source("app/(student)/dashboard/dashboard-sections.tsx");
+    expect(page).toContain("<DashboardOnboardingSection");
     const view = source("components/dashboard/student-onboarding-view.tsx");
 
-    expect(page).toContain("getCourseChapterOutline");
-    expect(page).toContain("getCourseMaterials(course.id, user.id)");
-    expect(page).toContain("getCourseQuizzes(course.id, user.id)");
-    expect(page).toContain("freeChapters: chapterOutline.map");
-    expect(page).toContain("firstIncompleteMaterialId");
-    expect(page).toContain("completedFreeMaterialCount: completedMaterialCount");
+    expect(sections).toContain("getCourseChapterOutline");
+    expect(sections).toContain("getCourseMaterials(course.id, userId)");
+    expect(sections).toContain("getCourseQuizzes(course.id, userId)");
+    expect(sections).toContain("freeChapters: chapterOutline.map");
+    expect(sections).toContain("firstIncompleteMaterialId");
+    expect(sections).toContain("completedFreeMaterialCount: completedMaterialCount");
     expect(view).toContain('t("dashboard.firstChapterFree")');
     const dashboardMessages = JSON.parse(source("messages/id/student.json")).dashboard;
     expect(dashboardMessages.firstChapterFree).toBe("Bab pertama gratis di setiap mata kuliah.");

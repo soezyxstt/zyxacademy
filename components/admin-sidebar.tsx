@@ -43,6 +43,7 @@ import {
   Calculator,
   Check,
   ChevronDown,
+  Cpu,
   Search,
 } from "lucide-react";
 import {
@@ -159,6 +160,7 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
 
   // Sistem & Ops
   { id: "ops-monitor", label: "Monitor Ops", href: "/admin/ops", icon: Gauge, group: "ops", exact: true },
+  { id: "ai-models", label: "Model AI", href: "/admin/ops/models", icon: Cpu, group: "ops" },
   { id: "tutor-activity", label: "Aktivitas Tutor", href: "/admin/ops/tutor-activity", icon: Activity, group: "ops" },
   { id: "feature-flags", label: "Feature Flags", href: "/admin/ops/flags", icon: Flag, group: "ops" },
   { id: "ai-analytics", label: "Analitik Zyra", href: "/admin/ops/analytics", icon: LineChart, group: "ops" },
@@ -179,11 +181,12 @@ const ADMIN_TAB_MESSAGE_KEYS: Record<string, string> = {
   dashboard: "dashboard", blog: "blog", courses: "courses", schedules: "schedules",
   "bank-soal": "questionBank", pricing: "pricing", docs: "docs", forms: "forms", meet: "meet",
   media: "media", tautan: "publicLinks", users: "users", groups: "groups", tokens: "tokens",
-  notifications: "notifications", "ops-monitor": "opsMonitor", "tutor-activity": "tutorActivity",
-  "feature-flags": "featureFlags", "ai-analytics": "zyraAnalytics", "feature-usage": "featureUsage",
-  "api-keys": "apiKeys", "short-links": "shortLinks", "web-analytics": "webAnalytics",
-  "pka-registrations": "pkaRegistrations", "pka-announcements": "pkaAnnouncements",
-  "pka-schedules": "pkaSchedules", "pka-quizzes": "pkaQuizzes", "pka-materials": "pkaMaterials",
+  notifications: "notifications", "ops-monitor": "opsMonitor", "ai-models": "aiModels",
+  "tutor-activity": "tutorActivity", "feature-flags": "featureFlags", "ai-analytics": "zyraAnalytics",
+  "feature-usage": "featureUsage", "api-keys": "apiKeys", "short-links": "shortLinks",
+  "web-analytics": "webAnalytics", "pka-registrations": "pkaRegistrations",
+  "pka-announcements": "pkaAnnouncements", "pka-schedules": "pkaSchedules",
+  "pka-quizzes": "pkaQuizzes", "pka-materials": "pkaMaterials",
 };
 
 function AdminSidebarInner() {
@@ -625,7 +628,7 @@ function AdminSidebarInner() {
                   key={item.id}
                   href={item.href}
                   icon={item.icon}
-                  label={t(item.id)}
+                  label={t(item.id === "review" ? "materialReview" : item.id)}
                   active={active}
                   collapsed={c}
                 />

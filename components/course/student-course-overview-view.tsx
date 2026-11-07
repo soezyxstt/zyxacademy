@@ -7,7 +7,7 @@ import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { TranslatedText } from "@/components/i18n/translated-text";
 
-export function StudentCourseOverviewView({ href = (path: string) => path,  course, isEnrolled, highlights, chapterOutline }: { href?: (path: string) => string; 
+export function StudentCourseOverviewView({ href = (path: string) => path,  course, isEnrolled, highlights, chapterOutline }: { href?: (path: string) => string;
   course: { id: string; title: string; description: string | null };
   isEnrolled: boolean;
   highlights: ReactNode;

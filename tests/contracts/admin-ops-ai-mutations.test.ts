@@ -96,9 +96,10 @@ describe("Admin Ops AI Mutations - CP5 Server-Stored Proposal & Hardened Executo
     const testDb = fixture.testDb;
     const now = new Date();
     const actors = ["admin", "admin-1", "admin-101", "admin-user-42", "user-admin-1", "super-admin-777", "admin-actor-42", "admin-academic-1"];
-    await testDb.insert(schema.user).values(actors.map((id) => ({ id, name: id, email: `${id}@example.test`, role: "admin", createdAt: now, updatedAt: now })));
+    await testDb.insert(schema.user).values(actors.map((id) => ({ id, name: id, email: `${id}@example.test`, role: "admin" as const, createdAt: now, updatedAt: now })));
     await testDb.insert(schema.pengguna).values(actors.map(id => ({ id, status: "active" as const })));
-    await testDb.insert(schema.courses).values(["kalkulus-1", "kalk-1", "fisika-dasar"].map((id) => ({ id, title: id, category: "Test" })));
+    // Preserve the legacy category value used by this fixture.
+    await testDb.insert(schema.courses).values(["kalkulus-1", "kalk-1", "fisika-dasar"].map((id) => ({ id, title: id, category: "Test" as typeof schema.courses.$inferInsert.category })));
     mock.module("@/db", () => ({ db: testDb }));
     ({ proposalStore, computeProposalDiffHash, VALID_PROPOSAL_TRANSITIONS } = await import("@/lib/admin-ops-ai/proposal-store"));
     ({ executeOpsAiTool, createOpsAiTools } = await import("@/lib/admin-ops-ai/runtime-tools"));

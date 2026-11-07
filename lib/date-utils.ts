@@ -15,7 +15,7 @@
  * - For UTC date strings in DB columns (streaks, recommendations), use `todayUtc()`.
  */
 
-import { addDays, format, getISODay, subDays, subWeeks, startOfDay as fnsStartOfDay, startOfWeek as fnsStartOfWeek } from "date-fns";
+import { addDays, format, getUnixTime, getISODay, subMinutes, subDays, subWeeks, startOfDay as fnsStartOfDay, startOfWeek as fnsStartOfWeek } from "date-fns";
 
 /** Monday is index 0, using the local calendar day. */
 export function localWeekdayIndex(date: Date): number { return getISODay(date) - 1; }
@@ -464,3 +464,10 @@ export function getWeekScheduleDays(anchorDate?: Date | string): {
     days,
   };
 }
+
+/** Minute-based lease boundaries for background work. */
+export function minutesAgo(minutes: number, from: Date = new Date()): Date { return subMinutes(from, minutes); }
+
+export const SQLITE_MILLISECOND_THRESHOLD = 100_000_000_000;
+/** Normalize legacy SQLite milliseconds before comparing timestamp-second columns. */
+export function toUnixSeconds(value: Date | string | number): number { return getUnixTime(normalizeDate(value)); }

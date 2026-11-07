@@ -1,4 +1,6 @@
 import { expect, test, mock } from "bun:test";
+
+const testEnv: Record<string, string | undefined> = process.env;
 mock.module("server-only", () => ({}));
 const calls: string[] = [];
 let sandbox: boolean | undefined;
@@ -28,13 +30,13 @@ test("Submit selects only its provider and retains session release", async () =>
     await expect(failedRelease.close()).rejects.toThrow("CODING_RUNTIME_RELEASE_FAILED");
     expect(calls).toEqual(["steel", "release"]); failRelease = false;
     calls.length = 0; delete process.env.CODING_BROWSER_PROVIDER;
-    process.env.NODE_ENV = "production";
+    testEnv.NODE_ENV = "production";
     const production = await createTrustedPythonRuntime(); await production.close();
     expect(calls).toEqual(["cloudflare", "release"]);
     calls.length = 0; process.env.CODING_BROWSER_PROVIDER = "local";
     await expect(createTrustedPythonRuntime()).rejects.toThrow("CODING_RUNTIME_UNAVAILABLE");
     expect(calls).toEqual([]);
-    process.env.NODE_ENV = "development"; delete process.env.CODING_BROWSER_PROVIDER;
+    testEnv.NODE_ENV = "development"; delete process.env.CODING_BROWSER_PROVIDER;
     const local = await createTrustedPythonRuntime(); await local.close();
     expect(sandbox).toBe(true); expect(calls).toEqual(["launch", "disconnect"]);
     calls.length = 0; process.env.CODING_BROWSER_PROVIDER = "invalid";

@@ -225,6 +225,13 @@ export class R2Provider implements StorageProvider {
     }
   }
 
+  async listPage(prefix: string, limit: number, cursor?: string): Promise<{ objects: { key: string; size: number; lastModified: Date }[]; cursor: string | null }> {
+    assertSafeKey(prefix.endsWith("/") ? prefix.slice(0, -1) : prefix);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 1000) throw new Error("INVALID_LIST_LIMIT");
+    const response = await this.s3.send(new ListObjectsV2Command({ Bucket: this.bucket, Prefix: prefix, MaxKeys: Math.min(1000, Math.max(1, limit)), ContinuationToken: cursor }));
+    return { objects: (response.Contents || []).filter(obj => obj.Key).map(obj => ({ key: obj.Key!, size: obj.Size || 0, lastModified: obj.LastModified || new Date(0) })), cursor: response.IsTruncated ? response.NextContinuationToken ?? null : null };
+  }
+
   async list(prefix: string): Promise<{ key: string; size: number; lastModified: Date }[]> {
     const objects: _Object[] = [];
     let continuationToken: string | undefined;

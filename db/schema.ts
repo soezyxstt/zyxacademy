@@ -6172,3 +6172,27 @@ export const codingDrafts = pgTable("coding_drafts", {
  revision: bigint("revision", { mode: "number" }).notNull().default(1),
  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [primaryKey({ columns: [table.learnerId, table.courseId, table.draftKey] })]);
+
+/** Durable admin external-operation outbox. Running attempts are never automatically replayed. */
+export const adminOperationJobs = pgTable("admin_operation_jobs", {
+  id: text("id").primaryKey(),
+  actorId: text("actor_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  sessionId: text("session_id").notNull(),
+  kind: text("kind").$type<"notification_send" | "form_sheet" | "meet_create" | "meet_end" | "generation_start" | "media_upload">().notNull(),
+  requiredScope: text("required_scope").notNull(),
+  environment: text("environment").notNull(),
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+  status: text("status").$type<"queued" | "running" | "succeeded" | "failed" | "unknown" | "cancelled">().default("queued").notNull(),
+  result: jsonb("result").$type<Record<string, unknown>>(),
+  errorCode: text("error_code"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+}, table => [index("admin_operation_jobs_queue_idx").on(table.status, table.createdAt), index("admin_operation_jobs_actor_idx").on(table.actorId, table.createdAt)]);
+
+/** Per-feature generation priorities, shared by web and background jobs. */
+export const aiModelSettings = pgTable("ai_model_settings", {
+  feature: text("feature").primaryKey(),
+  models: jsonb("models").$type<string[]>().notNull(),
+  updatedBy: text("updated_by").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});

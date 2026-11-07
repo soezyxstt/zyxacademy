@@ -186,31 +186,36 @@ export default function AdminFormsBuilder({
   const [zoomImageUri, setZoomImageUri] = useState<{ url: string; title: string } | null>(null);
 
   const [forms, setForms] = useState<StoredNativeForm[]>([]);
-  const [loadingForms, setLoadingForms] = useState(true);
+  const [formsLoadError, setFormsLoadError] = useState(false);
+  const [hasLoadedForms, setHasLoadedForms] = useState(false);
+  const [loadingForms, setLoadingForms] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchForms = useCallback(async () => {
     setLoadingForms(true);
+    setFormsLoadError(false);
     try {
       const res = await fetch("/api/admin/custom-forms");
       const data = await res.json();
-      if (data.success && Array.isArray(data.forms)) {
+      if (res.ok && data.success && Array.isArray(data.forms)) {
         setForms(data.forms);
       } else {
-        setForms([]);
+        setFormsLoadError(true);
       }
     } catch {
-      setForms([]);
+      setFormsLoadError(true);
     } finally {
+      setHasLoadedForms(true);
       setLoadingForms(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchForms();
-  }, [fetchForms]);
+    if (activeTab !== "forms" || hasLoadedForms) return;
+    void fetchForms();
+  }, [activeTab, hasLoadedForms, fetchForms]);
 
   const loadFormIntoEditor = useCallback((formToLoad: StoredNativeForm) => {
     setEditingFormId(formToLoad.id);
@@ -276,11 +281,14 @@ export default function AdminFormsBuilder({
     router.replace("/admin/forms");
   }, [router]);
 
+  const formsRef = useRef<StoredNativeForm[]>(forms);
+  formsRef.current = forms;
+
   useEffect(() => {
     if (!editIdParam) return;
     if (editIdParam === editingFormId) return;
 
-    const existing = forms.find((f) => f.id === editIdParam);
+    const existing = formsRef.current.find((f) => f.id === editIdParam);
     if (existing) {
       loadFormIntoEditor(existing);
     } else {
@@ -300,7 +308,7 @@ export default function AdminFormsBuilder({
         isSubscribed = false;
       };
     }
-  }, [editIdParam, editingFormId, forms, loadFormIntoEditor]);
+  }, [editIdParam, editingFormId, loadFormIntoEditor]);
 
   const moveQuestion = (fromIdx: number, toIdx: number) => {
     if (toIdx < 0 || toIdx >= questions.length || fromIdx === toIdx) return;
@@ -1875,6 +1883,10 @@ export default function AdminFormsBuilder({
 
           {loadingForms ? (
             <FormListSkeleton />
+          ) : formsLoadError ? (
+            <div role="alert" className="rounded-xl border border-status-error/30 bg-status-error/10 p-4 text-body-sm text-status-error">
+              Gagal memuat formulir. Muat ulang untuk mencoba lagi.
+            </div>
           ) : forms.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-12 text-center">
               <FileText className="size-10 text-muted-foreground/60" />

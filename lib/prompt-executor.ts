@@ -74,6 +74,7 @@ export interface RunParams<TVars, TOutput> {
   schema: z.ZodType<TOutput>;
   quotaLimit?: number;
   useCase?: string;
+  feature?: string;
   evidenceContext?: Record<string, any>;
   premium?: boolean;
   idempotencyKey?: string;
@@ -130,6 +131,7 @@ export class PromptExecutor {
 
     return await this.executeContract(params.userId, contract, params.variables, params.schema, {
       quotaLimit: params.quotaLimit,
+      feature: params.feature,
       evidenceContext: params.evidenceContext,
       premium: params.premium,
       idempotencyKey: params.idempotencyKey,
@@ -153,6 +155,7 @@ export class PromptExecutor {
     schema: z.ZodType<TOutput>,
     options?: {
       quotaLimit?: number;
+      feature?: string;
       evidenceContext?: Record<string, any>;
       premium?: boolean;
       idempotencyKey?: string;
@@ -167,6 +170,7 @@ export class PromptExecutor {
     const t0 = Date.now();
     const violationCodes: string[] = [];
     const errors: string[] = [];
+    const effectiveFeature = options?.feature ?? contract.stageId;
 
     // 2. Compose Policies and System Instruction
     const { composedText: policyText, combinedVersion: policyVersion } = composePolicies(
@@ -193,7 +197,7 @@ export class PromptExecutor {
       const reservation = await UsageBudgetService.reserve({
         userId,
         idempotencyKey: options?.idempotencyKey ?? `prompt:${randomUUID()}`,
-        feature: contract.stageId,
+        feature: effectiveFeature,
         requestType: `${contract.stageId}:${contract.promptVersion}`,
         premium: options?.premium ?? false,
         mode: "provider",
@@ -322,7 +326,7 @@ export class PromptExecutor {
         useCase: contract.useCase,
         userId,
         requestId: options?.idempotencyKey,
-        feature: contract.stageId,
+        feature: effectiveFeature,
         route: options?.providerRoute ?? (options?.providerParts?.length ? { multimodal: true, visualMode: true } : undefined),
         cachePolicy: options?.providerParts?.length ? "bypass" : options?.cachePolicy,
         cacheKey: options?.providerParts?.length ? undefined : options?.cacheKey,
@@ -498,7 +502,7 @@ export class PromptExecutor {
       } else {
         await UsageBudgetService.recordUsage({
           userId,
-          feature: contract.stageId,
+          feature: effectiveFeature,
           model: modelUsedName,
           tokens: inputTokens + outputTokens,
           inputTokens,
@@ -586,6 +590,8 @@ export class PromptExecutor {
     // Perform 1x Bounded Repair
     return await this.performBoundedRepair({
       userId,
+      feature: effectiveFeature,
+      idempotencyKey: options?.idempotencyKey,
       contract,
       variables,
       schema,
@@ -612,6 +618,8 @@ export class PromptExecutor {
    */
   private static async performBoundedRepair<TVars, TOutput>(params: {
     userId: string;
+    feature: string;
+    idempotencyKey?: string;
     contract: PromptContract<TVars, TOutput>;
     variables: TVars;
     schema: z.ZodType<TOutput>;
@@ -699,6 +707,9 @@ Instructions:
         contents: repairPrompt,
         config: modelConfig,
         useCase: params.contract.useCase,
+        userId: params.userId,
+        feature: params.feature,
+        requestId: params.idempotencyKey ? `${params.idempotencyKey}:repair` : undefined,
       });
 
       repairModelUsed = result.modelUsed;
@@ -859,7 +870,7 @@ Instructions:
       } else {
         await UsageBudgetService.recordUsage({
           userId: params.userId,
-          feature: params.contract.stageId,
+          feature: params.feature,
           model: repairModelUsed,
           tokens: cumulativeInputTokens + cumulativeOutputTokens,
           inputTokens: cumulativeInputTokens,

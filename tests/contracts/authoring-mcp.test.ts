@@ -104,12 +104,9 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     expect(requestedScopes("")).toEqual([...MCP_AUTHORING_DEFAULT_SCOPES]);
     expect(requestedScopes("   ")).toEqual([...MCP_AUTHORING_DEFAULT_SCOPES]);
     expect(requestedScopes("authoring:read")).toEqual(["authoring:read"]);
-    expect(MCP_OAUTH_SCOPES).toEqual([
-      "authoring:read",
-      "authoring:stage",
-      "authoring:review",
-      "authoring:withdraw",
-    ]);
+    expect(MCP_OAUTH_SCOPES).toEqual(expect.arrayContaining([...MCP_AUTHORING_DEFAULT_SCOPES, "forms:read"]));
+    expect(requestedScopes("forms:read")).toEqual(["forms:read"]);
+    expect(() => approvedScopes("authoring:read", ["forms:read"])).toThrow("invalid_scope");
     expect(requestedScopes("authoring:read authoring:review authoring:withdraw")).toEqual([
       "authoring:read",
       "authoring:review",
@@ -118,12 +115,12 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     expect(() => requestedScopes("authoring:publish")).toThrow("invalid_scope");
   });
 
-  it("grants selected supported scopes including explicit additions and rejects invalid consent", () => {
+  it("grants only requested scopes and rejects invalid consent", () => {
     expect(approvedScopes(null, ["authoring:read", "authoring:withdraw"])).toEqual(["authoring:read", "authoring:withdraw"]);
     expect(approvedScopes(null, ["authoring:read", "authoring:read"])).toEqual(["authoring:read"]);
     expect(() => approvedScopes(null, [])).toThrow("invalid_scope");
-    expect(approvedScopes("authoring:read authoring:stage authoring:review", ["authoring:read", "authoring:stage", "authoring:review", "authoring:withdraw"])).toEqual([...MCP_OAUTH_SCOPES]);
-    expect(approvedScopes("authoring:read", ["authoring:withdraw"])).toEqual(["authoring:withdraw"]);
+    expect(() => approvedScopes("authoring:read authoring:stage authoring:review", ["authoring:read", "authoring:stage", "authoring:review", "authoring:withdraw"])).toThrow("invalid_scope");
+    expect(() => approvedScopes("authoring:read", ["authoring:withdraw"])).toThrow("invalid_scope");
     expect(() => approvedScopes("authoring:publish", ["authoring:read"])).toThrow("invalid_scope");
     expect(() => approvedScopes(null, ["authoring:publish"])).toThrow("invalid_scope");
     expect(() => approvedScopes(null, [new File(["authoring:read"], "scope.txt")])).toThrow("invalid_scope");
@@ -239,7 +236,7 @@ describe("provider-neutral authoring MCP workflow registry", () => {
       }),
     }));
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ result: { serverInfo: { name: "zyx-authoring" } } });
+    expect(await response.json()).toMatchObject({ result: { serverInfo: { name: "zyx-authoring-local" } } });
   });
 
   it("rejects GET and DELETE with 405 Method Not Allowed to prevent persistent SSE compute drain", async () => {

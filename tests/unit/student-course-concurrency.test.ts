@@ -357,9 +357,11 @@ describe("student course navigation concurrency and streaming invariants", () =>
       expect(pageResult).toBeDefined();
       expect(mockGetCourseOverviewData).not.toHaveBeenCalled();
 
-      // Find Suspense element in the returned JSX tree
-      const suspenseElement = findElement(pageResult, (node) => node.type === Suspense);
-      expect(suspenseElement).toBeDefined();
+      // The shared overview receives the streaming boundary through its highlights prop.
+      const overviewElement = findElement(pageResult, (node) => node.props?.highlights);
+      expect(overviewElement).toBeDefined();
+      const suspenseElement = overviewElement.props.highlights;
+      expect(suspenseElement.type).toBe(Suspense);
       expect(suspenseElement.props.fallback).toBeDefined();
 
       // The child of Suspense is the async CourseOverviewHighlights component

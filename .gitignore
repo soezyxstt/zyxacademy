@@ -75,3 +75,7 @@ tmp*
 # python
 __pycache__/
 *.py[cod]
+
+# Local incremental typecheck metadata
+/.cache/typecheck/
+/.cache/eslint/

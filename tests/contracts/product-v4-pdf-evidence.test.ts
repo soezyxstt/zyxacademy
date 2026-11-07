@@ -11,7 +11,7 @@ test("promotes the exact verified PDF artifact with existing lineage/profile met
   expect(rows[0].articleHash).toBe(hash);
   expect(rows[0].pageCount).toBe(1);
   expect(rows[0].storageKey).toContain(`/artifact-${attemptId}-`);
-  expect(rows[0].storageKey.endsWith(".pdf")).toBe(true);
+  expect(rows[0].storageKey!.endsWith(".pdf")).toBe(true);
 });
 
 test("rejects stale attempts, untrusted reports, failed checks, wrong targets and changed bytes", async () => {

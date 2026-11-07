@@ -63,7 +63,8 @@ async function createResourceDb() {
     sessionDate: "2026-08-26",
     createdAt: now,
   });
-  await testDb.insert(schema.courses).values({ id: "course-1", title: "Course", category: "Test" });
+  // Preserve the legacy category value used by this fixture.
+  await testDb.insert(schema.courses).values({ id: "course-1", title: "Course", category: "Test" as typeof schema.courses.$inferInsert.category });
   await testDb.insert(schema.bookings).values({
     id: "booking-1",
     slotId: "slot-1",

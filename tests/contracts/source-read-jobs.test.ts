@@ -37,7 +37,7 @@ function fixture() {
     type: "materi" as const, subcategory: null, year: null, checksum, chapterIds: ["chapter"], updatedAt: new Date(0) };
   const fileKey = issueMcpSourceFileKey({ materialId: row.id, storageKey: row.fileUrl, courseId: "canonical-course",
     chapterId: "canonical-chapter", legacyCourseId: row.courseId, legacyChapterId: "chapter", updatedAtMs: 0, checksum });
-  const objects = new Map([[row.fileUrl, bytes]]);
+  const objects = new Map<string, Uint8Array>([[row.fileUrl, bytes]]);
   const events: any[] = [];
   storage.exists = async (key) => objects.has(key);
   storage.download = async (key) => { const value = objects.get(key); if (!value) throw new Error("missing"); return value.slice(); };

@@ -1,4 +1,4 @@
-import { ProviderAdapterError } from "@/lib/ai/provider/errors";
+import { ProviderAdapterError } from "./errors";
 
 export const MODEL_IDS = {
   default: "gemini-3.5-flash-lite",

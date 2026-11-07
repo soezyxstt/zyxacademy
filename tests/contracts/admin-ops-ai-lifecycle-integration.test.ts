@@ -22,7 +22,8 @@ describe("Admin Ops AI Lifecycle and Mutation Boundary Integration Tests", () =>
   beforeAll(async () => {
     const [existingCourse] = await db.select({ id: courses.id }).from(courses).limit(1);
     testCourseId = existingCourse?.id ?? "calc-1";
-    if (!existingCourse) await db.insert(courses).values({ id: testCourseId, title: "Lifecycle fixture", category: "Test" });
+    // Preserve the legacy category value used by this fixture.
+    if (!existingCourse) await db.insert(courses).values({ id: testCourseId, title: "Lifecycle fixture", category: "Test" as typeof courses.$inferInsert.category });
 
     const [existing] = await db.select({ id: user.id }).from(user).limit(1);
     if (existing) {
@@ -76,7 +77,7 @@ describe("Admin Ops AI Lifecycle and Mutation Boundary Integration Tests", () =>
       description: "Pengujian eksekusi proposal secara paralel",
       preview: {
         summary: "Buat token kelas paralel",
-        affectedEntities: [testCourseId],
+        ...{ affectedEntities: [testCourseId] },
       },
       payload: { courseIds: [testCourseId], capacity: 10 },
       actorId: testAdminId,
@@ -136,7 +137,7 @@ describe("Admin Ops AI Lifecycle and Mutation Boundary Integration Tests", () =>
       description: "Pengujian reload proposal dari tabel zyra_proposals",
       preview: {
         summary: "Buat token ujian dari DB",
-        affectedEntities: [testCourseId],
+        ...{ affectedEntities: [testCourseId] },
       },
       payload: { courseIds: [testCourseId], capacity: 25 },
       actorId: testAdminId,

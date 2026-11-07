@@ -6,7 +6,7 @@ import { StudyStatisticsCard } from "@/components/course/study-statistics-card";
 import { RecentActivityCard } from "@/components/course/recent-activity-card";
 import { TranslatedText } from "@/components/i18n/translated-text";
 
-export function StudentCourseProgressView({ href = (path: string) => path,  courseId, statistics, activities }: { href?: (path: string) => string; 
+export function StudentCourseProgressView({ href = (path: string) => path,  courseId, statistics, activities }: { href?: (path: string) => string;
   courseId: string;
   statistics: ComponentProps<typeof StudyStatisticsCard>["data"];
   activities: ComponentProps<typeof RecentActivityCard>["data"];

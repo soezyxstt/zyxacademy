@@ -1,9 +1,11 @@
 import { geminiKeyPool, type GeminiKey } from "@/lib/gemini-keys";
 import {
   MODEL_IDS,
+  assertOrdinaryRoutingAllowed,
   modelSupportsAiGateway,
 } from "@/lib/ai/provider/model-registry";
 import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
+import { logAiRequest } from "@/lib/ai/analytics";
 import { ProviderAdapterError } from "@/lib/ai/provider/errors";
 import { type GoogleGenAI } from "@google/genai";
 import { randomUUID } from "node:crypto";
@@ -48,6 +50,7 @@ export interface OpsAiModelGenerateStreamOptions {
   modelId?: string;
   signal?: AbortSignal;
   timeoutMs?: number;
+  streamMock?: OpsAiModelStreamProvider | null;
 }
 
 export type OpsAiModelStreamProvider = (
@@ -90,34 +93,12 @@ export function getOpsAiModelKey(
   const bestKey = geminiKeyPool.getBestKey(modelId);
 
   if (!bestKey) {
-    const healthyKeys = geminiKeyPool.getHealthyKeys();
-    const fallbackKey =
-      healthyKeys[0] ||
-      geminiKeyPool.getKeyByProjectAlias("zyx-main") ||
-      geminiKeyPool.getKeyByProjectAlias("default");
-
-    if (!fallbackKey) {
-      throw new ProviderAdapterError({
-        code: "PROVIDER_ERROR",
-        message: `Tidak ada API key Gemini yang tersedia untuk model ${modelId} (semua key kuota penuh atau circuit breaker OPEN).`,
-        retryClassification: "rate_limited",
-        modelId,
-      });
-    }
-
-    const viaGateway = Boolean(
-      zyraRuntimeEnv.CF_AI_GATEWAY_URL && modelSupportsAiGateway(modelId)
-    );
-    const client = viaGateway && fallbackKey.clientGateway
-      ? fallbackKey.clientGateway
-      : fallbackKey.client;
-
-    return {
-      key: fallbackKey,
+    throw new ProviderAdapterError({
+      code: "PROVIDER_ERROR",
+      message: "Tidak ada kapasitas Gemini yang tersedia untuk model ini.",
+      retryClassification: "rate_limited",
       modelId,
-      viaGateway,
-      client,
-    };
+    });
   }
 
   const viaGateway = Boolean(
@@ -154,14 +135,26 @@ export function recordModelFailure(keyId: string, modelId: string, error: Error)
 export async function* streamOpsAiModel(
   options: OpsAiModelGenerateStreamOptions
 ): AsyncGenerator<OpsAiModelStreamChunk, void, unknown> {
-  // If a test mock is configured, use it
-  if (testMockProvider) {
-    yield* testMockProvider(options);
+  // If a test mock is configured, use the request-captured snapshot first
+  const activeMock = options.streamMock !== undefined ? options.streamMock : testMockProvider;
+  if (activeMock) {
+    yield* activeMock(options);
     return;
   }
 
+  if (options.signal?.aborted) throw new Error("Aborted before starting model request");
   const modelId = options.modelId || MODEL_IDS.stableFlash;
-  const { key, client } = getOpsAiModelKey(modelId);
+  const entry = assertOrdinaryRoutingAllowed(modelId);
+  if (entry.family !== "generate-content") {
+    throw new ProviderAdapterError({
+      code: "CAPABILITY_REJECTED",
+      message: `Model ${modelId} tidak mendukung streaming tool generateContentStream untuk Ops AI.`,
+      retryClassification: "invalid_request",
+      modelId: entry.id,
+    });
+  }
+  const { key, client, viaGateway } = getOpsAiModelKey(entry.id);
+  const startedAt = Date.now();
 
   // 1. Build Gemini contents
   const contents: Array<{ role: "user" | "model"; parts: Array<Record<string, unknown>> }> = [];
@@ -205,7 +198,7 @@ export async function* streamOpsAiModel(
     }
 
     const responseStream = await client.models.generateContentStream({
-      model: modelId,
+      model: entry.id,
       contents,
       config: config as any,
     });
@@ -270,7 +263,14 @@ export async function* streamOpsAiModel(
       }
     }
 
-    recordModelSuccess(key.id, modelId);
+    recordModelSuccess(key.id, entry.id);
+    logAiRequest({
+      operation: "generateContent",
+      model: entry.id,
+      viaGateway,
+      latencyMs: Date.now() - startedAt,
+      success: true,
+    });
 
     yield {
       type: "finish",
@@ -283,7 +283,15 @@ export async function* streamOpsAiModel(
     };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    recordModelFailure(key.id, modelId, err);
+    recordModelFailure(key.id, entry.id, err);
+    logAiRequest({
+      operation: "generateContent",
+      model: entry.id,
+      viaGateway,
+      latencyMs: Date.now() - startedAt,
+      success: false,
+      error: err.message,
+    });
     throw err;
   }
 }

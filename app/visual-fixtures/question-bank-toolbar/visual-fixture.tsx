@@ -6,6 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HistoricalQuestionsClient } from "@/app/(admin)/admin/(eval)/questions/historical-questions-client";
 import { QuestionBankClient } from "@/app/(admin)/admin/(eval)/questions/questions-client";
 
+import { normalizeQuestionQuery } from "@/app/(admin)/admin/(eval)/questions/question-query-state";
+
 const courses = [{ id: "course-1", title: "Matematika I" }];
 const courseMap = { "course-1": "Matematika I" };
 
@@ -79,6 +81,8 @@ export function QuestionBankToolbarVisualFixture({ initialTab }: { initialTab: "
           <TabsContent value="ai-generated" className="w-full space-y-6">
             <QuestionBankClient
               questions={questions}
+              query={normalizeQuestionQuery({})}
+              total={questions.length}
               courses={courses}
               courseMap={courseMap}
               authoringCourses={[{ id: "course-1", legacyCourseId: "course-1", code: "MA101", title: "Matematika I" }]}

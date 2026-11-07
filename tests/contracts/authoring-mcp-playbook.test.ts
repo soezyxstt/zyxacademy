@@ -446,7 +446,7 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
       const response = await callMcpTool(testPrincipal, "workflow.get_contract", { runToken: oldToken, bootstrapToken: playbook.bootstrapToken });
       expect(response.result?.isError).toBeUndefined();
       const after = readMcpRunToken(response.result?.structuredContent?.runToken);
-      expect({ ...after, issuedAt: before.issuedAt, bootstrap: before.bootstrap, ttlMs: before.ttlMs }).toEqual(before);
+      expect<unknown>({ ...after, issuedAt: before.issuedAt, bootstrap: before.bootstrap, ttlMs: before.ttlMs }).toEqual(before);
       expect(after.bootstrap).toEqual(fresh);
       expect(after.expiresAt).toBe(before.expiresAt);
       expect(verifyMcpExecutionBootstrap({ ...testPrincipal, run: after, requiredStage: "idea" }).mode).toBe("verified");
@@ -494,7 +494,8 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
     expect(snapshot.validation.schemas).toHaveProperty("referenceDraft");
     const original = computeAuthoringContractDigest(snapshot);
     const schemaChange = structuredClone(snapshot);
-    schemaChange.validation.schemas.article = { type: "string" };
+    // The digest must detect even a deliberately invalid replacement schema.
+    Reflect.set(schemaChange.validation.schemas, "article", { type: "string" });
     expect(computeAuthoringContractDigest(schemaChange)).not.toEqual(original);
     const policyChange = structuredClone(snapshot);
     policyChange.validation.qualityPolicyVersion = "new-policy";

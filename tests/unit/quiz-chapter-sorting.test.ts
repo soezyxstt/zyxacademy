@@ -1,5 +1,9 @@
-import { describe, it, expect, beforeEach } from "bun:test";
-import { db } from "@/db";
+import { describe, it, expect, beforeEach, mock, afterAll } from "bun:test";
+import { createPostgresTestDb } from "../helpers/postgres";
+const { client, testDb: db } = await createPostgresTestDb();
+mock.module("@/db", () => ({ db }));
+mock.module("@/lib/db", () => ({ db }));
+afterAll(async () => { await client.close(); });
 import {
   courses,
   mataKuliah,
@@ -7,7 +11,7 @@ import {
   chapters,
   quizTemplates,
 } from "@/db/schema";
-import { sortQuizTemplatesByChapter } from "@/lib/course-utils";
+const { sortQuizTemplatesByChapter } = await import("@/lib/course-utils");
 import { eq } from "drizzle-orm";
 
 describe("sortQuizTemplatesByChapter", () => {

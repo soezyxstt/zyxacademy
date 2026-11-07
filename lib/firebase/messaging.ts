@@ -20,15 +20,59 @@ import { getFirebaseApp } from "@/lib/firebase/client";
 
 /** Lazy singleton ; only initialise Messaging once per page load. */
 let _messaging: Messaging | null = null;
+let _lastRegisteredIdentity: { userId: string; token: string } | null = null;
+
+function hasRequiredFirebaseMessagingConfig(env: Record<string, string | undefined>): boolean {
+ return Boolean(
+  env.NEXT_PUBLIC_FIREBASE_API_KEY?.trim() &&
+  env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim() &&
+  env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID?.trim() &&
+  env.NEXT_PUBLIC_FIREBASE_APP_ID?.trim()
+ );
+}
+
+export function isFirebaseMessagingConfigured(): boolean {
+ return hasRequiredFirebaseMessagingConfig({
+  NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  NEXT_PUBLIC_FIREBASE_APP_ID: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+ });
+}
+
+export function shouldRegisterPushToken(
+ current: { userId: string; token: string },
+ previous: { userId: string; token: string } | null = _lastRegisteredIdentity
+): boolean {
+ if (typeof window === "undefined" || !current.userId || !current.token) return false;
+ if (!previous) return true;
+ return previous.userId !== current.userId || previous.token !== current.token;
+}
+
+export function markPushTokenRegistered(userId: string, token: string): void {
+ if (typeof window !== "undefined") _lastRegisteredIdentity = { userId, token };
+}
+
+export function clearRegisteredPushTokenIdentity(): void {
+ _lastRegisteredIdentity = null;
+}
 
 function getMessagingInstance(): Messaging | null {
  // Messaging is only available in browser environments with service worker support
  if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
- return null;
+  return null;
+ }
+ if (!isFirebaseMessagingConfigured()) {
+  return null;
  }
  if (!_messaging) {
- const app = getFirebaseApp();
- _messaging = getMessaging(app);
+  try {
+   const app = getFirebaseApp();
+   _messaging = getMessaging(app);
+  } catch (err) {
+   console.warn("[FCM] Messaging unavailable:", err);
+   return null;
+  }
  }
  return _messaging;
 }
@@ -60,6 +104,11 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
  * Generate it at: Firebase Console → Project Settings → Cloud Messaging → Web Push certificates.
  */
 export async function getFCMToken(): Promise<string | null> {
+ const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim();
+ if (!vapidKey || !isFirebaseMessagingConfigured()) {
+ return null;
+ }
+
  const messaging = getMessagingInstance();
  if (!messaging) return null;
 
@@ -75,12 +124,6 @@ export async function getFCMToken(): Promise<string | null> {
  "/firebase-messaging-sw.js",
  { scope: "/" }
  );
-
- const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
- if (!vapidKey) {
- console.error("[FCM] NEXT_PUBLIC_FIREBASE_VAPID_KEY is not set.");
- return null;
- }
 
  const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration });
 
@@ -102,7 +145,16 @@ export async function getFCMToken(): Promise<string | null> {
  *
  * Uses the browser's userAgent as a human-readable device label.
  */
-export async function registerTokenToServer(token: string): Promise<boolean> {
+export async function registerTokenToServer(
+ token: string,
+ userId?: string,
+ isCurrent: () => boolean = () => true
+): Promise<boolean> {
+ if (typeof window === "undefined" || !isCurrent()) return false;
+ if (userId && !shouldRegisterPushToken({ userId, token })) {
+ return true;
+ }
+
  try {
  const device = navigator.userAgent.slice(0, 200); // cap to 200 chars
  const res = await fetch("/api/notifications/register-token", {
@@ -117,6 +169,9 @@ export async function registerTokenToServer(token: string): Promise<boolean> {
  return false;
  }
 
+ if (userId && isCurrent()) {
+ markPushTokenRegistered(userId, token);
+ }
  return true;
  } catch (err) {
  console.error("[FCM] Token registration error:", err);
@@ -135,6 +190,11 @@ export function onForegroundMessage(
  const messaging = getMessagingInstance();
  if (!messaging) return () => {};
 
+ try {
  // `onMessage` returns an unsubscribe function
  return onMessage(messaging, handler);
+ } catch (err) {
+ console.warn("[FCM] Foreground listener unavailable:", err);
+ return () => {};
+ }
 }

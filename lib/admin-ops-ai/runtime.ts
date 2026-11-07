@@ -7,6 +7,10 @@ import {
 } from "ai";
 import { ZyxLanguageModel } from "./zyx-language-model-adapter";
 import {
+  getOpsAiModelStreamMock,
+  type OpsAiModelStreamProvider,
+} from "./model-factory";
+import {
   ALL_OPS_AI_TOOL_SECURITY_REGISTRY,
   OPS_AI_POLICY_BOUNDS,
   validateOpsAiCitation,
@@ -184,6 +188,7 @@ export interface CreateOpsAiAgentOptions {
   maxToolSteps?: number;
   maxConsecutiveToolCalls?: number;
   executionBudget?: ToolExecutionBudget;
+  streamMock?: OpsAiModelStreamProvider | null;
 }
 
 /**
@@ -209,6 +214,7 @@ export function createOpsAiAgent(options: CreateOpsAiAgentOptions = {}): ToolLoo
     modelId: options.modelId,
     actorId: options.toolContext?.actorId,
     feature: "admin-ops-ai",
+    streamMock: options.streamMock,
   });
   const tools = createBudgetedTools(options.toolContext ?? {}, executionBudget);
 
@@ -344,6 +350,8 @@ export function createOpsAiRuntimeStream(
     maxConsecutiveToolCalls = OPS_AI_POLICY_BOUNDS.maxConsecutiveToolCalls,
     runId = `run-${randomUUID()}`,
   } = options;
+
+  const streamMockSnapshot = getOpsAiModelStreamMock();
 
   return createUIMessageStream({
     execute: async ({ writer }) => {
@@ -575,6 +583,7 @@ export function createOpsAiRuntimeStream(
             maxToolSteps,
             maxConsecutiveToolCalls,
             executionBudget,
+            streamMock: streamMockSnapshot,
           });
 
           const result = await agent.stream({

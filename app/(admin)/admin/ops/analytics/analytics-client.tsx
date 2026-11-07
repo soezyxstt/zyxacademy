@@ -1,25 +1,19 @@
 "use client";
 
 import { AiAnalyticsSkeleton } from "@/components/admin/content-loading-skeletons";
-
-
-import { useEffect, useState, useCallback } from "react";
-import type { AiStats, AiRequestLog } from "@/lib/ai/analytics";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { RefreshCw } from "lucide-react";
+import type { AiRequestLog, AiStats } from "@/lib/ai/analytics";
 import { ZyraUsageCharts } from "@/components/admin/zyra-usage-charts";
-import { Button } from "@/components/ui/button";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
-import { useTranslations, useAppLocale } from "@/lib/i18n/client";
-
-// ────────────────────────────────────────────────────────────────────────────
-// Types
-// ────────────────────────────────────────────────────────────────────────────
+import { Button } from "@/components/ui/button";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 
 type GatewayMode = "gateway" | "direct" | "unknown";
 
-// ────────────────────────────────────────────────────────────────────────────
-// Small helpers
-// ────────────────────────────────────────────────────────────────────────────
+const LOGS_PER_PAGE = 15;
 
 function Badge({ via, label }: { via: boolean; label: string }) {
   return (
@@ -47,70 +41,79 @@ function formatLatency(ms: number) {
   return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Component
-// ────────────────────────────────────────────────────────────────────────────
-
-const REFRESH_INTERVAL = 10_000; // 10 s
+async function fetchAiAnalytics(): Promise<AiStats> {
+  const res = await fetch("/api/admin/ai-analytics");
+  if (!res.ok) {
+    throw new Error("analytics load failed");
+  }
+  return res.json();
+}
 
 export function AiAnalyticsClient() {
   const t = useTranslations("adminOps");
   const { locale } = useAppLocale();
-  const [stats, setStats] = useState<AiStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [logPage, setLogPage] = useState(1);
 
-  const fetchStats = useCallback(async () => {
-    try {
-      const res = await fetch("/api/admin/ai-analytics");
-      if (!res.ok) throw new Error("analytics load failed");
-      const data: AiStats = await res.json();
-      setStats(data);
-      setError(null);
-      setLastRefreshed(new Date());
-    } catch {
-      setError("loadError");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const {
+    data: stats,
+    dataUpdatedAt,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+  } = useQuery<AiStats>({
+    queryKey: ["admin-ai-analytics"],
+    queryFn: fetchAiAnalytics,
+    refetchInterval: 30_000,
+    staleTime: 25_000,
+    refetchIntervalInBackground: false,
+  });
 
-  useEffect(() => {
-    fetchStats();
-    const id = setInterval(fetchStats, REFRESH_INTERVAL);
-    return () => clearInterval(id);
-  }, [fetchStats]);
+  const gatewayMode: GatewayMode = !stats
+    ? "unknown"
+    : stats.gatewayRequests > 0
+      ? "gateway"
+      : "direct";
 
-  // ── Derived values ──────────────────────────────────────────────────────
-  const gatewayMode: GatewayMode =
-    !stats
-      ? "unknown"
-      : stats.gatewayRequests > 0
-        ? "gateway"
-        : "direct";
-
-  // ── Render ──────────────────────────────────────────────────────────────
-  if (loading) return <AiAnalyticsSkeleton label={t("analyticsUI.loading")} />;
+  if (isLoading) return <AiAnalyticsSkeleton label={t("analyticsUI.loading")} />;
 
   if (error) {
     return (
-      <AdminErrorState message={t(`analyticsUI.${error}`)} onRetry={fetchStats} />
+      <AdminErrorState
+        message={t("analyticsUI.loadError")}
+        onRetry={() => refetch()}
+      />
     );
   }
 
   if (!stats || stats.totalRequests === 0) {
     return (
       <div className="space-y-5">
-        <AdminEmptyState title={t("analyticsUI.emptyTitle")} description={t("analyticsUI.emptyDescription")} />
+        <AdminEmptyState
+          title={t("analyticsUI.emptyTitle")}
+          description={t("analyticsUI.emptyDescription")}
+        />
         <ZyraUsageCharts />
       </div>
     );
   }
 
+  const totalLogs = stats.recentLogs.length;
+  const totalPages = Math.max(1, Math.ceil(totalLogs / LOGS_PER_PAGE));
+  const safePage = Math.min(logPage, totalPages);
+  const startIndex = (safePage - 1) * LOGS_PER_PAGE;
+  const endIndex = Math.min(startIndex + LOGS_PER_PAGE, totalLogs);
+  const pagedLogs = stats.recentLogs.slice(startIndex, endIndex);
+
+  const refreshedLabel =
+    dataUpdatedAt > 0
+      ? new Date(dataUpdatedAt).toLocaleTimeString(
+          locale === "id" ? "id-ID" : "en-US",
+        )
+      : null;
+
   return (
     <div className="space-y-5">
-      {/* Header row ─────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-body-sm text-muted-foreground">
@@ -120,35 +123,33 @@ export function AiAnalyticsClient() {
             className={`rounded-md px-3 py-1 text-body-sm font-semibold ${
               gatewayMode === "gateway"
                 ? "bg-brand-primary/10 text-brand-primary"
-                : gatewayMode === "direct"
-                  ? "bg-muted text-muted-foreground"
-                  : "bg-muted text-muted-foreground"
+                : "bg-muted text-muted-foreground"
             }`}
           >
-            {gatewayMode === "gateway"
-              ? "Cloudflare AI Gateway"
-              : "Direct API"}
+            {gatewayMode === "gateway" ? "Cloudflare AI Gateway" : "Direct API"}
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {lastRefreshed && (
+          {refreshedLabel && (
             <span className="text-body-sm text-muted-foreground">
-              {t("analyticsUI.refreshed", { time: lastRefreshed.toLocaleTimeString(locale === "id" ? "id-ID" : "en-US") })}
+              {t("analyticsUI.refreshed", { time: refreshedLabel })}
             </span>
           )}
           <Button
+            type="button"
             variant="outline"
             size="sm"
             id="ai-analytics-refresh"
-            onClick={fetchStats}
+            disabled={isFetching}
+            onClick={() => refetch()}
           >
-            {t("analyticsUI.refresh")}
+            <RefreshCw className={`size-3.5 ${isFetching ? "animate-spin text-brand-primary" : ""}`} />
+            <span>{t("analyticsUI.refresh")}</span>
           </Button>
         </div>
       </div>
 
-      {/* Summary strip */}
-      <AdminStatStrip className="lg:grid-cols-4">
+      <AdminStatStrip className="lg:grid-cols-3">
         <AdminStatStripItem
           label={t("analyticsUI.totalRequests")}
           value={stats.totalRequests}
@@ -169,58 +170,24 @@ export function AiAnalyticsClient() {
           label={t("analyticsUI.avgLatency")}
           value={formatLatency(stats.averageLatencyMs)}
         />
+        <AdminStatStripItem
+          label="Cloudflare AI Gateway"
+          value={stats.gatewayRequests}
+          caption={`${t("analyticsUI.successRate")}: ${stats.gatewaySuccessRate}%`}
+        />
+        <AdminStatStripItem
+          label="Direct API"
+          value={stats.directRequests}
+          caption={`${t("analyticsUI.successRate")}: ${stats.directSuccessRate}%`}
+        />
       </AdminStatStrip>
 
-      {/* Gateway vs Direct breakdown ─────────────────────────────────────── */}
-      <div className="grid grid-cols-1 divide-y divide-border overflow-hidden rounded-xl border border-border bg-card sm:grid-cols-2 sm:divide-x sm:divide-y-0">
-        <div className="p-4">
-          <p className="text-body-sm font-semibold text-foreground mb-3">
-            Cloudflare AI Gateway
-          </p>
-          <div className="space-y-2 text-body-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{t("analyticsUI.requests")}</span>
-              <span className="font-medium text-foreground">
-                {stats.gatewayRequests}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{t("analyticsUI.successRate")}</span>
-              <span className="font-medium text-status-success">
-                {stats.gatewaySuccessRate}%
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-4">
-          <p className="text-body-sm font-semibold text-foreground mb-3">
-            Direct API
-          </p>
-          <div className="space-y-2 text-body-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{t("analyticsUI.requests")}</span>
-              <span className="font-medium text-foreground">
-                {stats.directRequests}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{t("analyticsUI.successRate")}</span>
-              <span className="font-medium text-status-success">
-                {stats.directSuccessRate}%
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent request log ───────────────────────────────────────────────── */}
-      <div>
-        <h2 className="font-heading text-body-base font-semibold text-foreground mb-4">
+      <div className="space-y-3">
+        <h2 className="font-heading text-body-base font-semibold text-foreground">
           {t("analyticsUI.recentRequests")}
         </h2>
-        <div className="overflow-x-auto rounded-xl border border-border">
-          <table className="w-full text-body-sm">
+        <div className="relative overflow-x-auto rounded-lg border border-border">
+          <table className="w-full min-w-[640px] text-body-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 <th className="px-4 py-3 text-left font-semibold text-muted-foreground">
@@ -244,22 +211,31 @@ export function AiAnalyticsClient() {
               </tr>
             </thead>
             <tbody>
-              {stats.recentLogs.map((log: AiRequestLog, i: number) => (
+              {pagedLogs.map((log: AiRequestLog, index: number) => (
                 <tr
-                  key={i}
+                  key={`${log.timestamp}-${log.operation}-${log.model}-${startIndex + index}`}
                   className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors"
                 >
                   <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                    {new Date(log.timestamp).toLocaleTimeString()}
+                    {new Date(log.timestamp).toLocaleTimeString(
+                      locale === "id" ? "id-ID" : "en-US",
+                    )}
                   </td>
                   <td className="px-4 py-3 font-medium text-foreground">
                     {log.operation}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                     {log.model}
                   </td>
                   <td className="px-4 py-3">
-                    <Badge via={log.viaGateway} label={log.viaGateway ? t("analyticsUI.gateway") : t("analyticsUI.direct")} />
+                    <Badge
+                      via={log.viaGateway}
+                      label={
+                        log.viaGateway
+                          ? t("analyticsUI.gateway")
+                          : t("analyticsUI.direct")
+                      }
+                    />
                   </td>
                   <td className="px-4 py-3 text-right text-foreground">
                     {formatLatency(log.latencyMs)}
@@ -267,13 +243,17 @@ export function AiAnalyticsClient() {
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-1.5">
                       <StatusDot ok={log.success} />
-                      <span className="sr-only">{log.success ? t("analyticsUI.successful") : t("analyticsUI.failed")}</span>
+                      <span className="sr-only">
+                        {log.success
+                          ? t("analyticsUI.successful")
+                          : t("analyticsUI.failed")}
+                      </span>
                       {!log.success && log.error && (
                         <span
-                          className="text-status-error text-body-sm truncate max-w-[120px]"
-                          title={log.error}
+                          className="max-w-[140px] truncate text-body-sm text-status-error"
+                          title={t("analyticsUI.failed")}
                         >
-                          {log.error.slice(0, 30)}…
+                          {t("analyticsUI.failed")}
                         </span>
                       )}
                     </div>
@@ -283,9 +263,42 @@ export function AiAnalyticsClient() {
             </tbody>
           </table>
         </div>
+
+        {totalLogs > LOGS_PER_PAGE && (
+          <div className="flex flex-wrap items-center justify-between gap-2 text-body-xs text-muted-foreground">
+            <span>
+              {t("analyticsUI.logPageSummary", {
+                start: startIndex + 1,
+                end: endIndex,
+                total: totalLogs,
+              })}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={safePage <= 1}
+                onClick={() => setLogPage((prev) => Math.max(1, prev - 1))}
+              >
+                {t("analyticsUI.previous")}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={safePage >= totalPages}
+                onClick={() =>
+                  setLogPage((prev) => Math.min(totalPages, prev + 1))
+                }
+              >
+                {t("analyticsUI.next")}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
-      
-      {/* Zyra Usage per User Charts ────────────────────────────────────────── */}
+
       <ZyraUsageCharts />
     </div>
   );

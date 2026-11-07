@@ -15,7 +15,7 @@ describe("explicit V4 admin pedagogic review", () => {
  test("binds each explicit decision to the current semantic hash and verification signature", () => {
   const input = buildProductV4AdminReviewInput(context, complete());
   expect(input.ready).toBe(true);
-  expect(input.request.verificationReceiptSignature).toBe(context.verificationReceiptSignature);
+  expect(input.request.verificationReceiptSignature).toBe(context.verificationReceiptSignature!);
   expect(input.request.sectionDecisions).toEqual(context.sections.map((section) => ({ sectionId: section.sectionId, semanticHash: section.semanticHash, decision: "approved" })));
   expect(input.request.criteria).toHaveLength(8);
  });

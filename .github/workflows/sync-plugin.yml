@@ -1,22 +1,7 @@
 name: Sync Zyx Authoring MCP Plugin
 
 on:
-  pull_request:
-    paths:
-      - 'plugins/zyx-authoring-mcp/**'
-      - 'lib/authoring/**'
-      - 'app/api/mcp/authoring/**'
-      - 'tests/contracts/authoring-mcp*.ts'
-      - '.github/workflows/sync-plugin.yml'
-  push:
-    branches:
-      - staging
-      - main
-    paths:
-      - 'plugins/zyx-authoring-mcp/**'
-      - 'lib/authoring/**'
-      - 'app/api/mcp/authoring/**'
-      - '.github/workflows/sync-plugin.yml'
+  workflow_call:
   workflow_dispatch:
     inputs:
       target_env:
@@ -31,6 +16,11 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: sync-plugin-${{ github.event_name == 'workflow_dispatch' && inputs.target_env != '' && 'mirror' || 'validate' }}-${{ github.event.pull_request.number || github.ref }}
+  # Never interrupt an explicitly requested mirror push.
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
   validate-and-resolve:
@@ -79,7 +69,7 @@ jobs:
           FULL_REF="${{ github.ref }}"
           INPUT_ENV="${{ github.event.inputs.target_env }}"
 
-          if [ "$EVENT_NAME" != "workflow_dispatch" ]; then
+          if [ "$EVENT_NAME" != "workflow_dispatch" ] || [ -z "$INPUT_ENV" ]; then
             echo "should_mirror=false" >> "$GITHUB_OUTPUT"
             echo "target_env=staging" >> "$GITHUB_OUTPUT"
             echo "target_branch=staging" >> "$GITHUB_OUTPUT"

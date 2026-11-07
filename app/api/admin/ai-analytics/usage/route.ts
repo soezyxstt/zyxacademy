@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
 import { db } from "@/db";
 import { aiUsageEvents, user } from "@/db/schema";
-import { eq, sql, desc } from "drizzle-orm";
+import { daysAgo, daysFrom, startOfDayUtc } from "@/lib/date-utils";
+import { eq, sql, asc } from "drizzle-orm";
 
 export async function GET(req: Request) {
   try {
@@ -21,15 +22,16 @@ export async function GET(req: Request) {
     } else {
       // Default to last 30 days
       endDate = new Date();
-      startDate = new Date();
-      startDate.setDate(startDate.getDate() - 30);
+      startDate = daysAgo(30);
     }
     
-    // Ensure end date includes the full day
-    endDate.setHours(23, 59, 59, 999);
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || startDate > endDate) {
+      return NextResponse.json({ success: false, error: "Rentang tanggal tidak valid." }, { status: 400 });
+    }
+    endDate = daysFrom(1, startOfDayUtc(endDate));
 
     const conditions = sql`${aiUsageEvents.createdAt} >= ${startDate.toISOString()}::timestamptz
-      AND ${aiUsageEvents.createdAt} <= ${endDate.toISOString()}::timestamptz`;
+      AND ${aiUsageEvents.createdAt} < ${endDate.toISOString()}::timestamptz`;
 
     // 1. Group by user
     const usersUsage = await db
@@ -46,7 +48,7 @@ export async function GET(req: Request) {
       .leftJoin(user, eq(aiUsageEvents.userId, user.id))
       .where(conditions)
       .groupBy(aiUsageEvents.userId, user.name, user.email)
-      .orderBy(desc(sql`count(${aiUsageEvents.id})`));
+      .orderBy(asc(user.name), asc(aiUsageEvents.userId));
 
     // 2. Group by day for the chart
     const dateExpr = sql<string>`to_char(${aiUsageEvents.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`;
@@ -81,10 +83,16 @@ export async function GET(req: Request) {
         })),
       },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === "Unauthorized") {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+    if (err instanceof Error && err.message.startsWith("Forbidden")) {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+    }
     console.error("Failed to fetch AI usage analytics:", err);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: "Gagal memuat data penggunaan AI." },
       { status: 500 }
     );
   }

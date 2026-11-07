@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mockTerminal } from "./terminal-fixture";
+import { prepareReadOnlyStagingCapture } from "./staging-readonly-auth";
 import { DEFAULT_PRICING_DISCOUNTS } from "../../lib/pricing-discounts";
 
 test.setTimeout(120_000);
@@ -72,6 +73,7 @@ for (const route of routes) {
       }
     });
 
+    await prepareReadOnlyStagingCapture(page, process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000");
     await page.emulateMedia({ reducedMotion: "reduce" });
     const response = await page.goto(route, { waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toBeVisible();
@@ -100,6 +102,15 @@ for (const route of routes) {
         await expect(figure.locator('svg[role="img"]')).toBeVisible();
       }
       await page.evaluate(() => window.scrollTo(0, 0));
+    }
+    if (process.env.VISUAL_CHECK_STAGING_SESSION === "1") {
+      await expect(page.locator('main [data-slot="skeleton"]')).toHaveCount(0, { timeout: 45000 });
+      if (routePathname(route) === "/dashboard") {
+        await page.locator('main a[href^="/courses/"]').first().waitFor({ state: "visible" });
+        await page.waitForTimeout(1200);
+        const later = page.getByRole("dialog").getByRole("button", { name: /^(Later|Nanti)$/ });
+        if (await later.isVisible()) await later.click();
+      }
     }
     await prepareForScreenshot(page);
 

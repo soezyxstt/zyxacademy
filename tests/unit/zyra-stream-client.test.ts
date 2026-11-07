@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { CanvasSpec } from "@/lib/zyra/canvas";
 import { consumeZyraStream } from "@/lib/zyra/stream-consumer";
 
 describe("Zyra Stream Consumer", () => {
@@ -36,17 +37,18 @@ describe("Zyra Stream Consumer", () => {
     const mockSources = [
       { type: "course_material", id: "mat-1", label: "Slide Bab 1", href: "/courses/mat-1" },
     ];
-    const mockCanvasSpec = {
-      specVersion: 1 as const,
-      rootId: "root",
-      elements: {
-        root: {
-          id: "root",
-          type: "container" as const,
-          direction: "vertical" as const,
-          children: [],
-        },
-      },
+    const mockCanvasSpec: CanvasSpec = {
+      version: "zyra-learning-canvas-v1",
+      type: "function_plot",
+      title: "Grafik linear",
+      purpose: "Menguji pengiriman spesifikasi grafik melalui stream.",
+      variables: [],
+      controls: [],
+      claimRefs: [],
+      altText: "Grafik y sama dengan x.",
+      fallback: { summary: "Nilai fungsi linear.", columns: [{ id: "x", label: "x" }], rows: [["0"]] },
+      domain: { min: 0, max: 2, sampleCount: 5 },
+      series: [{ id: "f", label: "f(x)", expression: "x", lineStyle: "solid", role: "primary" }],
     };
 
     const stream = createMockStream([

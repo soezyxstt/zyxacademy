@@ -29,9 +29,103 @@ and Variables during deployment, using the explicit runtime allowlist and a
 private temporary environment file. They are not embedded in the image. Existing
 unmanaged settings and unreplaced Secret Manager references remain available. Follow the
 [Cloud Run staging runbook](operations/cloud-run-staging.md) before running the
-workflow or changing the staging origin. After one-time service/secret setup, each staging push deploys the exact
+workflow or changing the staging origin. After one-time service/secret setup, each eligible staging push deploys the exact
 published digest and switches traffic only after readiness checks. Cloud Build
 is not used.
+
+## CI scope and incremental checks
+
+`.github/workflows/ci.yml` owns general automatic runs: pull requests, and pushes to
+`main` or `staging`. Other validation and deployment workflows expose
+`workflow_call` and their existing manual operations. They no longer start a
+second automatic run for the same event. No branch protection settings are
+modified by the repository change. Configure `CI gate` as the universally required
+check; individual conditional jobs may legitimately be skipped. The specialized
+Authoring access security checks and migration-only Neon validation from staging
+retain their existing triggers and environment boundaries.
+
+The first job runs `scripts/ci/plan.py` with Python's standard library. It installs
+no application packages. Checkout uses two commits; a multi-commit push fetches
+only the exact base SHA when needed. PR comparisons use the target base and the
+checked-out merge commit. Push comparisons use the last successful `ci.yml` push
+run on the same branch and the pushed SHA. A cancelled pending run or a failed
+release cannot advance this baseline, so its undeployed changes remain in the
+next plan. The planner reads GitHub Actions history with read-only permissions;
+missing or inaccessible history selects all checks. Reruns never use their own
+SHA as an empty baseline. The
+planner uses a NUL-separated Git diff with rename detection disabled, so both
+old and new names are considered without GitHub path filters' file-count limits.
+It combines dependency graphs from both revisions, including removed imports.
+Missing history selects all checks. An unreadable current V4 manifest fails the
+planner instead of returning an empty plan.
+
+| Changed input | Selected work |
+| --- | --- |
+| Ordinary frontend component | Application typecheck, lint changed files, tests and test compilation affected through imports; web release on push |
+| Worker-only entry or module | Deno dependency audit, typecheck and asset smoke on PR; worker release on push; no web release unless the file is also a web dependency |
+| V4 renderer or fingerprinted CSS | V4 binding/verification contracts; coordinated web and worker releases on push; worker import checks only if worker code is also affected |
+| Schedule implementation or dependency | Schedule contracts and booking integration, including dependencies such as tutor audit helpers |
+| Authoring implementation or dependency | Both locked skills distributions and authoring contracts |
+| Plugin distribution | Python distribution checks; mirroring still requires the explicit manual plugin operation |
+| Another worker project | Its own TypeScript configuration and local Bun tests; Python runtime gets Node syntax checks; no background-worker or web deployment by directory alone |
+| Documentation | Web release for operations knowledge; no compiler checks from prose alone |
+| Plans or Android files | Planner and gate only, unless a code graph actually references the changed file |
+| Root dependency locks or planner implementation | All checks, conservatively |
+
+Scopes overlap intentionally for shared dependencies. The scanner follows literal
+static/dynamic imports, exports and `require`. Literal repository references in
+source-inspection tests are leaves: changing an inspected file selects its test,
+but changing an import inside that file does not execute a text-only contract.
+Runtime-discovered worker jobs, schedule and authoring areas have explicit
+directory guards. Prompts are selected through their import graph; a web-only
+prompt does not trigger Deno. V4 byte inputs come from `PRODUCT_V4_RUNTIME_FILES`
+and playbooks. Keep that manifest current when extending renderer fingerprints.
+The web scope deliberately includes all `lib/` and documentation because runtime
+discovery and operations knowledge are not fully described by imports. This is
+conservative impact selection, not a claim to resolve arbitrary computed imports.
+New computed loading mechanisms need a matching directory guard and regression case.
+
+The plan is saved as the short-lived `ci-plan` artifact, with changed files,
+matching dependencies, selected tests and compiler inputs. Run locally with:
+
+```bash
+bun run ci:plan --base <base-sha> --head HEAD
+python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
+```
+
+The quality job installs dependencies once with a frozen lockfile. It lints only
+changed surviving files using a content-based cache; ESLint configuration or planner changes select full lint.
+Bun tests are selected through dependency closures and run in separate processes
+to isolate `mock.module`. Contract files use `scripts/test-contracts.ts`, preserving
+staging's PostgreSQL preload, isolated environment and database fixtures. Other
+test files continue to run directly with Bun. Schedule and authoring tests stay in their established
+workflows and are excluded from the generic runner. Test compilation uses a
+generated configuration containing affected tests and their complete import
+closure. A test-config change selects all tests for compilation. The explicit
+`bun run typecheck:tests` command remains the full test-project check.
+
+`bun run typegen` generates Next.js route types without building. Application,
+test, affected-test and structured Article checks keep isolated incremental
+metadata under `.cache/typecheck/`, separate from Next.js build metadata.
+Other worker projects also get their own metadata file. CI restores compiler and
+ESLint metadata with keys tied to the lockfile/configuration and commit, with a
+compatible prefix fallback. Compiler checks still validate their full selected
+project; a cache hit never skips a command. Delete `.cache/typecheck/` for a fresh
+standalone check. Changing `tsconfig.structured-articles.json`, its configured
+source dependency closure, or the base TypeScript config selects
+`typecheck:structured-articles`; a specialized-config-only change runs that
+compiler and type generation without deployments.
+
+Bun downloads and Deno caches are reused. `node_modules`, credentials, environment
+files and deployment outputs are not cached by these changes. Authoring validates
+staging and production sequentially with one install, running shared quiz contracts
+once. PR runs may cancel superseded checks. Push releases and explicit plugin
+mirrors are not interrupted. Deployment jobs wait for the gate and run only on
+push; PRs and manual CI runs cannot deploy. Immediately before deployment, the
+gate reads the branch ref and fails if it advanced. That superseded run cannot
+become a successful release baseline. Concurrency still serializes active
+releases; pending runs may be replaced without losing their undeployed changes. Direct manual deployment workflows
+remain available. The historical PR 36 code-writing repair is manual-only.
 
 ## Available Commands
 
@@ -41,7 +135,9 @@ is not used.
 | `bun run build` | Production build |
 | `bun run start` | Start production server |
 | `bun run lint` | Run ESLint |
-| `bun run typecheck` | bunx tsc --noEmit |
+| `bun run typegen` | Generate route types without a production build |
+| `bun run typecheck` | Incremental application typecheck with isolated metadata |
+| `bun run typecheck:tests` | Check the complete test project |
 | `bun run typecheck:structured-articles` | Type check the structured Article contracts and compiler core only |
 | `bun run test` | Run all Bun test suites |
 | `bun run test:ai-contracts` | Run deterministic AI contract tests (`tests/contracts`) |
@@ -117,7 +213,7 @@ Background dispatch imports must remain server-safe for Deno compute. Do not add
 Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (`@t3-oss/env-nextjs`).
 
 ### Required
-- `DATABASE_URL` ; PostgreSQL connection URL on this isolated branch; existing deployments use local SQLite or Turso
+- `DATABASE_URL` ; PostgreSQL connection URL; staging and production use Neon
 - `BETTER_AUTH_SECRET` ; 32+ char high-entropy secret (`openssl rand -base64 32`)
 - `BETTER_AUTH_URL` ; app origin for OAuth callbacks
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` ; Google OAuth
@@ -512,3 +608,46 @@ Keep push consent denied in synthetic UI probes; do not register a remote token.
 ### Isolated hosted workflow checks
 
 Use only the guarded migration environment for `scripts/neon/smoke-booking-workflow.ts` and `scripts/neon/smoke-authoring-workflow.ts`. The booking script invokes deployed server actions and removes its synthetic records. The authoring script stages a synthetic V4 bundle, checks stale-edit and publication gates, requests real worker verification, and exercises review/publication/PDF download. It retains fixture metadata while a worker job is in flight; `--resume` continues that exact import and attempt rather than enqueuing a duplicate. `--cleanup-only` verifies saved workflow proof and terminal Inngest completion before removing its exact owned records and objects. Never delete its retained fixture while Inngest is still executing. Real Google sessions are not test fixtures and must be preserved.
+
+
+## Admin MCP local checks
+
+Status: `ACTIVE`
+
+Run focused `tests/contracts/admin-mcp-*.test.ts` files in separate Bun processes because their database mocks are process-global. PostgreSQL integration fixtures use the local PGlite helper and generated PostgreSQL migrations. The existing `authoring-skills.test.ts` also requires `bun run build:authoring-skills` to produce its locked snapshot. Keep TypeScript incremental checking enabled. Provider test doubles do not verify credentials or remote delivery. See [Admin MCP operations](operations/admin-mcp.md) for scope and job contracts.
+
+Admin MCP data tools require explicit `expectedEnvironment` and `expectedOrigin` from the intended connection identity, discovered through `admin.environment`. Do not infer application environment from `VERCEL_ENV`; a staging app can use the production deployment tier. Conflicting auth/public origins or declared environment and known hostname stop MCP initialization. See [Admin MCP isolation](operations/admin-mcp.md#staging-and-production-isolation).
+
+## Navigation performance harness
+
+Status: `OPEN / IN PROGRESS`. Selected candidate runs provide 40 valid warm and 3 valid browser-context cold observations per route and viewport for R1 through R5. The original 40-run baseline is invalid and only R3/R5 N=2 smoke is valid, so there is no causal comparison. See the [validation audit](audit/navigation-performance-validation.md) for selected artifacts, gates, and provenance. Commands below are follow-up procedures, not runs performed by this documentation update.
+```sh
+# Baseline requires the verified original build, not a rebuilt candidate.
+bun scripts/performance/navigation-baseline-harness.ts --build-kind baseline --warm-samples 2 --cold-samples 0 --output-dir artifacts/performance/baseline
+
+# Preserve original baseline provenance, then build the candidate.
+bun scripts/performance/run-next-staging.ts build --build-kind candidate
+bun scripts/performance/navigation-baseline-harness.ts --build-kind candidate --warm-samples 2 --cold-samples 1 --output-dir artifacts/performance/candidate-smoke
+
+# After valid smoke, collect a separate candidate lab batch.
+bun scripts/performance/navigation-baseline-harness.ts --build-kind candidate --viewport mobile --warm-samples 40 --cold-samples 3
+bun scripts/performance/navigation-baseline-harness.ts --build-kind candidate --viewport desktop --warm-samples 40 --cold-samples 3
+```
+
+The harness can launch the verified server itself. An already running server must be launched with matching provenance and `--server-record`, then supplied to the harness with `--base-url` and the same `--server-record`. Use `run-next-staging.ts start --build-kind candidate` for candidate servers. A candidate cannot overwrite baseline directories. Original reports and their manifest are preserved separately; an invalid run does not become valid by archiving it.
+
+The environment loader restricts the base URL to loopback, checks staging against production identity, enforces PostgreSQL read-only sessions, probes cookie naming, and signs a fresh existing session locally. Do not print credentials, session values, account data, or secret-file locations in reports. Before/after checks cover sampled counts in 9 reference tables and session-user streak existence only. They are not a full database integrity assertion. Read-only failures must not be bypassed to exercise dashboard writes.
+
+Report blocked routes separately and classify router prefetch separately. Interception disables HTTP cache, so these local results are not field or RUM measurements. Browser-context cold does not establish cold database or container behavior. Server RSC spans and actual Cloud Run capacity remain unmeasured. WP4 material and assessment batching is integrated; the streak GET workflow is unchanged. See the audit for remaining gates.
+
+### Navigation visual checks and provenance
+
+The primary agent ran and inspected the latest standard route checks and interaction states at 380 x 844 and 1536 x 864. The exact captured-state matrix and limitations are in the [validation audit](audit/navigation-performance-validation.md). Reproduce only against a verified loopback staging production server:
+```sh
+PLAYWRIGHT_BASE_URL=http://localhost:3100 VISUAL_CHECK_STAGING_SESSION=1 VISUAL_CHECK_STUB_VERCEL=1 VISUAL_CHECK_PATHS=/dashboard,/admin/questions,/admin/forms bun run test:visual -- tests/visual/visual-check.spec.ts
+PLAYWRIGHT_BASE_URL=http://localhost:3100 VISUAL_CHECK_STAGING_SESSION=1 VISUAL_CHECK_STUB_VERCEL=1 VISUAL_CHECK_PATHS=/dashboard,/admin/questions,/admin/forms bun run test:visual -- tests/visual/question-bank-pagination.spec.ts --output artifacts/visual-quality/results/pagination-contract
+```
+
+`tests/visual/staging-readonly-auth.ts` is opt-in via `VISUAL_CHECK_STAGING_SESSION=1`. It uses the read-only loader, probes the cookie name, and obtains a fresh authentic session for each navigation. Never record real session/database IDs or cookie values. `VISUAL_CHECK_STUB_VERCEL=1` substitutes only Vercel analytics script URLs with empty HTTP 200 responses to avoid local 404s; external analytics delivery is unverified. No database/storage writes were performed; equal sampled counts are limited evidence, not proof that the entire database was unchanged.
+
+The candidate build passed before subsequent test selector and animation changes; application source remained unchanged. A full source manifest would require a different hash if the harness were rerun. Preserve the original manifest. Screenshot directories contain staging PII and must not be embedded or shared.

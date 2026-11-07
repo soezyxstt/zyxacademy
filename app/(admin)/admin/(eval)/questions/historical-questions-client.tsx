@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -24,11 +24,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { QuestionFilterField, QuestionFilterPopover } from "./question-filter-popover";
+import { matchingHistoricalQuestionItems } from "./selection-actions";
+import {
+  createHistoricalQueryCoordinator,
+  historicalQueryUrl,
+  historicalReviewActionFor,
+  normalizeHistoricalQuery,
+  questionParamsFromUrl,
+  toggleHistoricalQuestionEntries,
+  type HistoricalQuestionQuery,
+  type HistoricalReviewActionStatus,
+  type HistoricalReviewStatus,
+  type HistoricalSelectionItem,
+} from "./question-query-state";
 
-type ReviewStatus = "generated" | "reviewed" | "published" | "flagged" | "retired";
+type ReviewStatus = HistoricalReviewStatus;
 type Difficulty = "easy" | "medium" | "hard";
 type CanonicalStatus = "draft" | "in_review" | "published" | "retired";
-type ReviewActionStatus = "reviewed" | "published" | "flagged";
+type ReviewActionStatus = HistoricalReviewActionStatus;
 
 interface HistoricalOption {
   id?: string;
@@ -63,6 +76,8 @@ interface Course {
 }
 
 interface Props {
+  query?: HistoricalQuestionQuery;
+  total?: number;
   questions: HistoricalQuestion[];
   courses: Course[];
   courseMap: Record<string, string>;
@@ -102,14 +117,8 @@ function normalizeOptions(value: unknown): HistoricalOption[] {
  * @param question - The historical question item to inspect.
  * @returns The target review action status and display label, or null if no transition applies.
  */
-function reviewActionFor(question: HistoricalQuestion): ReviewActionStatus | null {
-  if (question.reviewStatus === "generated" || question.reviewStatus === "flagged") {
-    return "reviewed";
-  }
-  if (question.reviewStatus === "reviewed") {
-    return question.quizEligible ? "published" : "flagged";
-  }
-  return null;
+function reviewActionFor(question: Pick<HistoricalSelectionItem, "reviewStatus" | "quizEligible">): ReviewActionStatus | null {
+  return historicalReviewActionFor(question);
 }
 
 /**
@@ -119,76 +128,150 @@ function reviewActionFor(question: HistoricalQuestion): ReviewActionStatus | nul
  *
  * @param props - Component properties containing questions list, courses, and course map.
  */
-export function HistoricalQuestionsClient({ questions, courses, courseMap, canonicalCourseMap }: Props) {
+export function HistoricalQuestionsClient({
+  query: providedQuery,
+  total: providedTotal,
+  questions,
+  courses,
+  courseMap,
+}: Props) {
   const t = useTranslations("adminEval.historicalQuestions");
   const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterCourse, setFilterCourse] = useState("all");
-  const [filterCategory, setFilterCategory] = useState("all");
-  const [filterDifficulty, setFilterDifficulty] = useState("all");
+  const query = providedQuery ?? normalizeHistoricalQuery({ tab: "historical" });
+  const total = providedTotal ?? questions.length;
+
+  const coordinator = useRef(createHistoricalQueryCoordinator(query));
+  const [draft, setDraft] = useState(query);
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelSearch = () => {
+    if (debounce.current !== null) clearTimeout(debounce.current);
+    debounce.current = null;
+  };
+  const pushIntent = () => router.push(historicalQueryUrl(window.location.href, coordinator.current.current), { scroll: false });
+
+  useEffect(() => {
+    setDraft(coordinator.current.acknowledge(query));
+  }, [query]);
+
+  useEffect(() => {
+    const restore = () => {
+      cancelSearch();
+      setDraft(coordinator.current.restore(normalizeHistoricalQuery(questionParamsFromUrl(new URLSearchParams(window.location.search)))));
+    };
+    window.addEventListener("popstate", restore);
+    return () => {
+      cancelSearch();
+      window.removeEventListener("popstate", restore);
+    };
+  }, []);
+
+  const navigate = (changes: Partial<HistoricalQuestionQuery>, resetPage = true, delayed = false) => {
+    cancelSearch();
+    setDraft(coordinator.current.change(changes, resetPage));
+    if (delayed) debounce.current = setTimeout(pushIntent, 300);
+    else pushIntent();
+  };
+
+  const searchTerm = draft.search;
+  const filterCourse = draft.course;
+  const filterCategory = draft.category;
+  const filterDifficulty = draft.difficulty;
+
+  const setSearchTerm = (value: string) => navigate({ search: value }, true, value !== "");
+  const setFilterCourse = (value: string) => navigate({ course: value });
+  const setFilterCategory = (value: string) => navigate({ category: value as HistoricalQuestionQuery["category"] });
+  const setFilterDifficulty = (value: string) => navigate({ difficulty: value as HistoricalQuestionQuery["difficulty"] });
+
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selectedEntries, setSelectedEntries] = useState<Map<string, HistoricalSelectionItem>>(new Map());
   const [localQuestions, setLocalQuestions] = useState(questions);
   const [updating, setUpdating] = useState(false);
 
-  const filteredQuestions = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-    return localQuestions.filter((question) => {
-      const searchableText = [
-        question.questionMarkdown,
-        question.sourceTitle,
-        question.sourceQuestionNumber,
-        question.sourceQuestionPart,
-        courseMap[question.courseId],
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      const matchSearch = !normalizedSearch || searchableText.includes(normalizedSearch);
-      const resolveCourse = (id: string | null | undefined) => {
-        if (!id) return "";
-        return canonicalCourseMap?.[id] ?? id;
-      };
-      const matchCourse =
-        filterCourse === "all" ||
-        resolveCourse(question.courseId) === resolveCourse(filterCourse);
-      const matchCategory = filterCategory === "all" || question.sourceCategory === filterCategory;
-      const matchDifficulty = filterDifficulty === "all" || question.difficulty === filterDifficulty;
-      return matchSearch && matchCourse && matchCategory && matchDifficulty;
+  useEffect(() => {
+    setLocalQuestions(questions);
+    setSelectedEntries((current) => {
+      if (current.size === 0) return current;
+      const next = new Map(current);
+      let changed = false;
+      for (const q of questions) {
+        if (next.has(q.id)) {
+          if (!reviewActionFor(q)) {
+            next.delete(q.id);
+            changed = true;
+          } else {
+            const existing = next.get(q.id);
+            if (existing?.reviewStatus !== q.reviewStatus || existing?.quizEligible !== q.quizEligible) {
+              next.set(q.id, { id: q.id, reviewStatus: q.reviewStatus, quizEligible: q.quizEligible });
+              changed = true;
+            }
+          }
+        }
+      }
+      return changed ? next : current;
     });
-  }, [canonicalCourseMap, courseMap, filterCategory, filterCourse, filterDifficulty, localQuestions, searchTerm]);
+  }, [questions]);
 
-  const reviewableQuestions = filteredQuestions.filter((question) => reviewActionFor(question));
-  const allReviewableSelected = reviewableQuestions.length > 0 && reviewableQuestions.every((question) => selected.has(question.id));
-  const selectedQuestions = localQuestions.filter((question) => selected.has(question.id));
-  const selectedForReview = selectedQuestions
+  const pageSize = Number(query.pageSize);
+  const setPageSize = (value: number) => navigate({ pageSize: String(value) as HistoricalQuestionQuery["pageSize"] });
+  const currentPage = query.page;
+  const setCurrentPage = (value: number) => navigate({ page: value }, false);
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedQuestions = localQuestions;
+
+  const [allMatchingItems, setAllMatchingItems] = useState<HistoricalSelectionItem[] | null>(null);
+  const filterKey = JSON.stringify({ ...query, page: 1 });
+  const filterKeyRef = useRef(filterKey);
+  filterKeyRef.current = filterKey;
+
+  useEffect(() => {
+    setAllMatchingItems(null);
+  }, [filterKey, total]);
+
+  const reviewableOnPage = localQuestions.filter((question) => reviewActionFor(question));
+  const allReviewableSelected = allMatchingItems !== null
+    ? allMatchingItems.length > 0 && allMatchingItems.every((item) => selectedEntries.has(item.id))
+    : total > 0 &&
+      total === localQuestions.length &&
+      reviewableOnPage.length > 0 &&
+      reviewableOnPage.every((question) => selectedEntries.has(question.id));
+
+  const selectedItems = Array.from(selectedEntries.values());
+  const selectedForReview = selectedItems
     .filter((question) => reviewActionFor(question) === "reviewed")
     .map((question) => question.id);
-  const selectedForPublish = selectedQuestions
+  const selectedForPublish = selectedItems
     .filter((question) => reviewActionFor(question) === "published")
     .map((question) => question.id);
-  const selectedForFlag = selectedQuestions
+  const selectedForFlag = selectedItems
     .filter((question) => reviewActionFor(question) === "flagged")
     .map((question) => question.id);
 
   function toggleSelect(id: string) {
     const question = localQuestions.find((item) => item.id === id);
     if (!question || !reviewActionFor(question)) return;
-    setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    setSelectedEntries((current) =>
+      toggleHistoricalQuestionEntries(current, [
+        { id: question.id, reviewStatus: question.reviewStatus, quizEligible: question.quizEligible },
+      ]),
+    );
   }
 
-  function toggleAll() {
-    setSelected((current) => {
-      const next = new Set(current);
-      if (allReviewableSelected) reviewableQuestions.forEach((question) => next.delete(question.id));
-      else reviewableQuestions.forEach((question) => next.add(question.id));
-      return next;
-    });
+  async function toggleAll() {
+    setUpdating(true);
+    try {
+      const requestedFilter = filterKeyRef.current;
+      const items = await matchingHistoricalQuestionItems(query);
+      if (requestedFilter !== filterKeyRef.current) return;
+      setAllMatchingItems(items);
+      setSelectedEntries((current) => toggleHistoricalQuestionEntries(current, items));
+    } catch {
+      toast.error(t("connectionError"));
+    } finally {
+      setUpdating(false);
+    }
   }
 
   async function updateReviewStatus(ids: string[], reviewStatus: ReviewActionStatus) {
@@ -211,7 +294,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
       setLocalQuestions((current) => current.map((question) => ids.includes(question.id)
         ? { ...question, reviewStatus, canonicalStatus }
         : question));
-      setSelected(new Set());
+      setSelectedEntries(new Map());
       toast.success(
         reviewStatus === "published"
           ? t("publishedToast")
@@ -227,22 +310,6 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
     }
   }
 
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
-  const tableRef = useRef<HTMLDivElement>(null);
-
-  const totalPages = Math.max(1, Math.ceil(filteredQuestions.length / pageSize));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-
-  const paginatedQuestions = useMemo(() => {
-    const start = (safeCurrentPage - 1) * pageSize;
-    return filteredQuestions.slice(start, start + pageSize);
-  }, [filteredQuestions, safeCurrentPage, pageSize]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filterCourse, filterCategory, filterDifficulty, pageSize]);
-
   const goToPage = (page: number) => {
     const target = Math.max(1, Math.min(totalPages, page));
     setCurrentPage(target);
@@ -253,13 +320,9 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
     .filter((value) => value !== "all").length;
 
   function resetFilters() {
-    setSearchTerm("");
-    setFilterCourse("all");
-    setFilterCategory("all");
-    setFilterDifficulty("all");
-    setSelected(new Set());
-    setCurrentPage(1);
+    navigate({ course: "all", category: "all", difficulty: "all" });
   }
+
 
   return (
     <div className="w-full space-y-6">
@@ -269,7 +332,6 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
           placeholder={t("search")}
           value={searchTerm}
           onSearch={setSearchTerm}
-          onClear={() => setSearchTerm("")}
           containerClassName="min-w-[140px] flex-1"
         />
         <QuestionFilterPopover activeCount={activeFilterCount} onReset={resetFilters}>
@@ -311,9 +373,9 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
         </QuestionFilterPopover>
       </div>
 
-      {selected.size > 0 ? (
+      {selectedEntries.size > 0 ? (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/80 bg-background/90 px-4 py-3 shadow-sm">
-          <span className="text-body-sm font-semibold text-foreground">{selected.size} {t("selectedCount")}</span>
+          <span className="text-body-sm font-semibold text-foreground">{selectedEntries.size} {t("selectedCount")}</span>
           <div className="flex flex-wrap gap-2 sm:ml-auto">
             {selectedForReview.length > 0 ? (
               <Button type="button" size="sm" variant="outline" className="rounded-lg text-body-sm" onClick={() => updateReviewStatus(selectedForReview, "reviewed")} disabled={updating}>
@@ -339,17 +401,16 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
       <AdminTable className="w-full">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/50 px-4 py-3">
           <span className="text-body-xs font-semibold text-muted-foreground">
-            {t("questionCountList", { count: filteredQuestions.length })}
+            {t("questionCountList", { count: total })}
           </span>
 
           <div className="flex items-center gap-3 ml-auto flex-wrap">
             <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground">
               <span className="hidden sm:inline">{t("perPage")}</span>
               <Select
-                value={String(pageSize)}
+                value={draft.pageSize}
                 onValueChange={(value) => {
                   setPageSize(Number(value));
-                  setCurrentPage(1);
                 }}
               >
                 <SelectTrigger aria-label={t("pageSize")} className="h-8 w-[68px] rounded-md text-body-sm px-2">
@@ -396,7 +457,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
           </div>
         </div>
 
-        {filteredQuestions.length === 0 ? (
+        {total === 0 ? (
           <AdminEmptyState compact title={t("empty")} />
         ) : (
           <div className="overflow-x-auto">
@@ -404,7 +465,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
               <AdminTableHead>
                 <tr>
                   <th className="w-10 px-4 py-3 text-center text-body-sm font-medium text-muted-foreground">
-                    <button type="button" onClick={toggleAll} aria-label={allReviewableSelected ? t("clearSelection") : t("selectAllReviewable")} className="text-muted-foreground hover:text-foreground">
+                    <button type="button" onClick={toggleAll} disabled={updating} aria-label={allReviewableSelected ? t("clearSelection") : t("selectAllReviewable")} className="text-muted-foreground hover:text-foreground">
                       {allReviewableSelected ? <CheckSquare className="size-4 text-brand-primary" /> : <Square className="size-4" />}
                     </button>
                   </th>
@@ -427,7 +488,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
                       <td className="px-4 py-3 text-center align-top">
                         {reviewAction ? (
                           <button type="button" onClick={() => toggleSelect(question.id)} aria-label={t("selectQuestion", { question: question.sourceQuestionNumber || question.id })} className="mt-1 text-muted-foreground hover:text-foreground">
-                            {selected.has(question.id) ? <CheckSquare className="size-4 text-brand-primary" /> : <Square className="size-4" />}
+                            {selectedEntries.has(question.id) ? <CheckSquare className="size-4 text-brand-primary" /> : <Square className="size-4" />}
                           </button>
                         ) : <span className="text-body-xs text-muted-foreground">-</span>}
                       </td>
@@ -474,7 +535,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-border bg-muted/30 px-4 py-3 text-body-sm">
             <span className="text-body-xs text-muted-foreground">
-              Menampilkan {(safeCurrentPage - 1) * pageSize + 1} - {Math.min(safeCurrentPage * pageSize, filteredQuestions.length)} dari {filteredQuestions.length} soal
+              Menampilkan {(safeCurrentPage - 1) * pageSize + 1} - {Math.min(safeCurrentPage * pageSize, total)} dari {total} soal
             </span>
             <div className="flex items-center gap-1.5">
               <Button
@@ -508,7 +569,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
       </AdminTable>
       </div>
 
-      {filteredQuestions.map((question) => {
+      {paginatedQuestions.map((question) => {
         if (expandedId !== question.id) return null;
         const options = normalizeOptions(question.options);
         const reviewAction = reviewActionFor(question);

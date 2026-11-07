@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
+
+const testEnv: Record<string, string | undefined> = process.env;
 import { GET } from "@/app/coding/runtime-frame/route";
 
 const originalUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -6,8 +8,8 @@ const originalNodeEnv = process.env.NODE_ENV;
 afterEach(() => {
   if (originalUrl === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
   else process.env.NEXT_PUBLIC_APP_URL = originalUrl;
-  if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
-  else process.env.NODE_ENV = originalNodeEnv;
+  if (originalNodeEnv === undefined) delete testEnv.NODE_ENV;
+  else testEnv.NODE_ENV = originalNodeEnv;
 });
 
 describe("Python runtime frame CSP", () => {
@@ -23,14 +25,14 @@ describe("Python runtime frame CSP", () => {
 
   it("uses the request origin locally when no public URL is configured", async () => {
     delete process.env.NEXT_PUBLIC_APP_URL;
-    process.env.NODE_ENV = "development";
+    testEnv.NODE_ENV = "development";
     const response = await GET(new Request("http://localhost:3100/coding/runtime-frame"));
     expect(response.headers.get("content-security-policy")).toContain("connect-src http://localhost:3100/api/coding/runtime/");
   });
 
   it("fails closed when production has no public URL", async () => {
     delete process.env.NEXT_PUBLIC_APP_URL;
-    process.env.NODE_ENV = "production";
+    testEnv.NODE_ENV = "production";
     await expect(GET(new Request("https://example.com/coding/runtime-frame"))).rejects.toThrow("NEXT_PUBLIC_APP_URL is required");
   });
 });

@@ -1,3 +1,4 @@
+import { contractChromiumPath } from "../helpers/chromium";
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
 import { chromium } from "playwright-core";
 mock.module("server-only", () => ({}));
@@ -5,7 +6,7 @@ const { createIsolatedBrowserPythonRuntime } = await import("@/lib/coding/server
 let runtime: Awaited<ReturnType<typeof createIsolatedBrowserPythonRuntime>>;
 beforeAll(async () => {
   // Synthetic fixture execution only. Service launch still requires the kernel sandbox.
-  runtime = await createIsolatedBrowserPythonRuntime(await chromium.launch({ headless: true }));
+  runtime = await createIsolatedBrowserPythonRuntime(await chromium.launch({ headless: true, executablePath: contractChromiumPath() }));
 });
 afterAll(async () => { await runtime?.close(); });
 const limits = { timeoutMs: 1000, maxOutputChars: 1000 };

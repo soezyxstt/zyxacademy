@@ -133,6 +133,7 @@ describe("overhaul artifact keys", () => {
 
 
 test("storage key helpers bundle for client callers without Node builtins", async () => {
-  const result = await Bun.build({ entrypoints: ["./lib/storage/keys.ts"], target: "browser", write: false });
+  const config = { entrypoints: ["./lib/storage/keys.ts"], target: "browser" as const, write: false };
+  const result = await Bun.build(config);
   expect(result.success).toBe(true);
 });
