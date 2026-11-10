@@ -49,16 +49,18 @@ form.set("environment", JSON.stringify(environment));
 form.set("runtime", "nodejs24");
 await api(`/projects/${project}/branches/${branch}/functions/${slug}/deployments`, { method: "POST", body: form });
 console.log(JSON.stringify({ deploymentRequested: true, project, branch, slug, archiveChecksum: environment.ZYX_COMPUTE_REVISION }));
+let healthyProbes = 0;
 for (let attempt = 0; attempt < 90; attempt++) {
   const result = await api(`/projects/${project}/branches/${branch}/functions/${slug}`);
   const current = result.function ?? result;
   if (current.current_deployment?.status === "failed") throw new Error("NEON_DEPLOYMENT_FAILED");
   if (current.current_deployment?.status === "completed" && current.active_deployment?.id === current.current_deployment.id) {
     if (new URL(current.invocation_url).origin !== environment.INNGEST_SERVE_ORIGIN) throw new Error("NEON_INVOCATION_URL_MISMATCH");
-    const response = await fetch(`${environment.INNGEST_SERVE_ORIGIN}/health`, { signal: AbortSignal.timeout(30_000) });
+    const response = await fetch(`${environment.INNGEST_SERVE_ORIGIN}/health?probe=${crypto.randomUUID()}`, { cache: "no-store", signal: AbortSignal.timeout(30_000) });
     if (!response.ok) throw new Error(`NEON_HEALTH_FAILED:${response.status}:${(await response.text()).slice(0, 300)}`);
     const health = await response.json();
-    if (health.version === environment.ZYX_COMPUTE_REVISION && health.functions === 22) {
+    healthyProbes = health.version === environment.ZYX_COMPUTE_REVISION && health.functions === 22 ? healthyProbes + 1 : 0;
+    if (healthyProbes >= 3) {
       const after = { project, branch, slug, deploymentId: current.active_deployment.id, url: current.invocation_url, checksum: health.version, functions: health.functions };
       await writeFile(`${target.output}/after.json`, JSON.stringify(after, null, 2));
       console.log(JSON.stringify({ ready: true, ...after }));

@@ -6,6 +6,7 @@ import { computeFunctions } from "@/jobs/compute";
  * Returns minimal operational information without leaking internal memory or architecture details.
  */
 export function healthHandler(c: Context) {
+  c.header("Cache-Control", "no-store");
   const version =
     process.env.ZYX_COMPUTE_REVISION ||
     (typeof process !== "undefined" && process.env?.DENO_DEPLOYMENT_ID) ||

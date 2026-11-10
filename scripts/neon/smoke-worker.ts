@@ -38,8 +38,15 @@ async function rpc(key: string, representation: "text" | "image" | "both", image
 }
 try {
   await check("health and all function registration", async () => {
-    const response = await fetch(`${config.INNGEST_SERVE_ORIGIN}/health`);
-    assert.equal(response.status, 200); const health = await response.json(); assert.equal(health.functions, 22); assert.equal(health.version, config.ZYX_COMPUTE_REVISION);
+    for (let attempt = 0; attempt < 15; attempt++) {
+      const response = await fetch(`${config.INNGEST_SERVE_ORIGIN}/health?probe=${crypto.randomUUID()}`, { cache: "no-store", signal: AbortSignal.timeout(30_000) });
+      assert.equal(response.status, 200);
+      const health = await response.json();
+      assert.equal(health.functions, 22);
+      if (health.version === config.ZYX_COMPUTE_REVISION) return;
+      if (attempt === 14) assert.equal(health.version, config.ZYX_COMPUTE_REVISION);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
   });
   await check("internal and Inngest authentication", async () => {
     for (const path of ["/internal/pdf/pages", "/internal/authoring/source-pack/resolve", "/api/inngest"]) {
