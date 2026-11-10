@@ -30,7 +30,8 @@ export async function readRemainingRun(
   if (summary?.output !== undefined) return summary;
   // The single-run beta API can briefly return 404 after invoke succeeds.
   const listed = await read(`/apps/zyx-academy/functions/${encodeURIComponent(functionId)}/runs?include=output&limit=100`);
-  return (Array.isArray(listed?.data) ? listed.data.find(run => run.id === runId) : undefined) ?? summary;
+  const candidate = (Array.isArray(listed?.data) ? listed.data.find(run => run.id === runId) : undefined) ?? summary;
+  return candidate?.status.toUpperCase() === "COMPLETED" && candidate.output === undefined ? undefined : candidate;
 }
 
 export async function waitForOwnedSearchVector(
@@ -111,12 +112,12 @@ async function main() {
       // Inngest rejects direct invocation of debounced functions.
       if (functionId === "mastery-recompute-worker") {
         const { inngest } = await import("../../jobs/client");
-        const sent = await inngest.send({ id: `${id}-${functionId}-${process.env.GITHUB_RUN_ID ?? "ops"}`, name: "mastery/recompute.requested", data });
+        const sent = await inngest.send({ id: `${id}-${functionId}`, name: "mastery/recompute.requested", data });
         assert.equal(sent.ids.length, 1, "REMAINING_MASTERY_EVENT_MISSING");
         item = { functionId, runId: "", eventId: sent.ids[0], status: "pending" };
       } else {
         const response = await api(`/apps/zyx-academy/functions/${encodeURIComponent(functionId)}/invoke`, {
-          method: "POST", body: JSON.stringify({ data, idempotencyKey: `${id}-${functionId}-${process.env.GITHUB_RUN_ID ?? "ops"}` }),
+          method: "POST", body: JSON.stringify({ data, idempotencyKey: `${id}-${functionId}` }),
         });
         assert.equal(typeof response.data?.runId, "string", "REMAINING_INVOKE_RUN_MISSING");
         item = { functionId, runId: response.data.runId as string, status: "pending" };

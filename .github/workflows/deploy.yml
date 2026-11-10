@@ -157,7 +157,13 @@ jobs:
         run: bun scripts/neon/smoke-admin-knowledge.ts production
       - name: Verify assessment extraction and vectors
         if: inputs.maintenance == 'assessment'
-        run: bun scripts/neon/smoke-assessment-worker.ts production
+        env:
+          RESUME_FIXTURE: ${{ inputs.recovery_id }}
+          ASSESSMENT_RUN: ${{ inputs.resume_run_id }}
+        run: |
+          args=(production)
+          if [ -n "$RESUME_FIXTURE" ]; then args+=(--resume "$RESUME_FIXTURE" --run-id "$ASSESSMENT_RUN"); fi
+          bun scripts/neon/smoke-assessment-worker.ts "${args[@]}"
       - name: Inspect worker output metadata
         if: inputs.maintenance == 'inspect'
         run: bun scripts/neon/inspect-final-workers.ts
