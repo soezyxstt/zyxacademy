@@ -84,8 +84,8 @@ async function main() {
   const deterministic = prior ? prior.deterministic === true : requestedDeterministic;
   const id = resume ?? `neon-remaining-${randomUUID()}`;
   const conceptName = id;
-  const evidence: Array<{ functionId: string; runId: string; status: string }> = prior?.evidence ?? [];
-  assert.ok(evidence.every(item => typeof item.runId === "string" && item.runId.length > 0
+  const evidence: Array<{ functionId: string; runId: string; eventId?: string; status: string }> = prior?.evidence ?? [];
+  assert.ok(evidence.every(item => typeof item.runId === "string" && (item.runId.length > 0 || typeof item.eventId === "string" && item.eventId.length > 0)
     && ["sync-search-documents", "mastery-recompute-worker", "mastery-snapshot-cron", "course-analytics-snapshot-cron", "content-quality-audit-cron"].includes(item.functionId)), "REMAINING_SMOKE_RESUME_RUNS_INVALID");
   const checks: Record<string, unknown> = prior?.checks ?? {};
   let fixturesCreated = false, accepted = false, independentAccepted = false, cleanupComplete = false, stage = "preflight";
@@ -107,17 +107,28 @@ async function main() {
     await save();
     let item = evidence.find(entry => entry.functionId === functionId);
     if (!item) {
-      const response = await api(`/apps/zyx-academy/functions/${encodeURIComponent(functionId)}/invoke`, {
-      method: "POST", body: JSON.stringify({ data, idempotencyKey: `${id}-${functionId}` }),
-      });
-      assert.equal(typeof response.data?.runId, "string", "REMAINING_INVOKE_RUN_MISSING");
-      item = { functionId, runId: response.data.runId as string, status: "pending" };
+      // Inngest rejects direct invocation of debounced functions.
+      if (functionId === "mastery-recompute-worker") {
+        const { inngest } = await import("../../jobs/client");
+        const sent = await inngest.send({ id: `${id}-${functionId}`, name: "mastery/recompute.requested", data });
+        assert.equal(sent.ids.length, 1, "REMAINING_MASTERY_EVENT_MISSING");
+        item = { functionId, runId: "", eventId: sent.ids[0], status: "pending" };
+      } else {
+        const response = await api(`/apps/zyx-academy/functions/${encodeURIComponent(functionId)}/invoke`, {
+          method: "POST", body: JSON.stringify({ data, idempotencyKey: `${id}-${functionId}` }),
+        });
+        assert.equal(typeof response.data?.runId, "string", "REMAINING_INVOKE_RUN_MISSING");
+        item = { functionId, runId: response.data.runId as string, status: "pending" };
+      }
       evidence.push(item);
     }
     await save();
     for (let attempt = 0; attempt < 220; attempt++) {
-      const execution = await readRemainingRun(path => api(path, {}, true), functionId, item.runId);
+      const execution = item.eventId
+        ? (await api(`/events/${encodeURIComponent(item.eventId)}/runs?include=output`)).data?.find((run: RunSummary) => run.function?.id === functionId)
+        : await readRemainingRun(path => api(path, {}, true), functionId, item.runId);
       if (!execution) { await pause(); continue; }
+      item.runId = execution.id;
       assert.equal(execution?.function?.id, functionId, "REMAINING_RUN_FUNCTION_MISMATCH");
       item.status = String(execution.status).toUpperCase();
       if (["COMPLETED", "FAILED", "CANCELLED", "SKIPPED"].includes(item.status)) {
