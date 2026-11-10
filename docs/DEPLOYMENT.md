@@ -1,8 +1,8 @@
 # Deployment Guide
 
-## Neon Functions staging transition
+## Neon Functions background execution
 
-The [worker cutover runbook](operations/neon-functions-cutover.md) is OPEN / IN PROGRESS. Production Inngest execution was restored on Neon Functions on 2026-11-10 through `.github/workflows/deploy-neon-worker.yml`, using Cloudflare Browser Run for PDFs. The worker-only recovery registered 22 functions and passed 10 HTTP/PDF checks including a completed durable job. No web rebuild or Vercel configuration change was made; Zyra chat and Playground were unchanged. Existing source-figure v1, V4 verification and direct web RPC compatibility limits remain in the runbook. The Deno deployment instructions below describe the previous path; the migration workflow is still on its release branch. Staging web/DNS work is deferred.
+The [worker cutover runbook](operations/neon-functions-cutover.md) is OPEN / IN PROGRESS. Production Inngest execution was restored on Neon Functions on 2026-11-10 through `.github/workflows/deploy-neon-worker.yml`, using Cloudflare Browser Run for PDFs. The worker-only recovery registered 22 functions and passed 10 HTTP/PDF checks including a completed durable job. No web rebuild or Vercel configuration change was made; Zyra chat and Playground were unchanged. Existing source-figure v1, V4 verification and direct web RPC compatibility limits remain in the runbook. PR 309 integrated the production workflow into main. Main CI run 42845350696 released deployment 3 successfully while skipping web deployment. The Deno instructions below are retained legacy references. Staging web/DNS work is deferred.
 
 ## Cloud Run staging
 
@@ -11,26 +11,26 @@ Release jobs explicitly evaluate cancellation and the successful impact/gate res
 The [Cloud Run staging runbook](operations/cloud-run-staging.md) is `ACTIVE` for project `zyx-academy` in Taiwan (`asia-east1`). Staging serves Neon PostgreSQL and private Neon object storage following a verified frozen import. Its Deno worker uses the same guarded target. Target identity, hosted acceptance and rollback evidence are in the [migration runbook](operations/neon-migration.md).
 The separate Vercel migration project is paused after rehearsal. Production Vercel now serves its own Neon PostgreSQL branch and private Neon object storage.
 
-The production cutover is complete; follow [the active production runbook](operations/neon-production-cutover.md) for targets, evidence and recovery boundaries. Vercel and Deno use the protected production root and private `zyx-production` bucket. Both deployment paths reject a mismatched target. Source Turso/R2 and the old deployment unit remain available for recovery, subject to reconciliation of any Neon writes.
+The production cutover is complete; follow [the active production runbook](operations/neon-production-cutover.md) for targets, evidence and recovery boundaries. Vercel and Neon Functions use the protected production root and private `zyx-production` bucket. Both deployment paths reject a mismatched target. Source Turso/R2 and the old deployment unit remain available for recovery, subject to reconciliation of any Neon writes.
 
 ## Architecture
 
-Production runs on Vercel (Next.js) + Neon PostgreSQL and Object Storage, with Deno Deploy (background compute) and supporting Cloudflare services. Vercel builds remotely so existing sensitive environment variables remain available without downloading their values.
+Production runs on Vercel (Next.js) + Neon PostgreSQL and Object Storage, with Neon Functions (background compute) and supporting Cloudflare services. Vercel builds remotely so existing sensitive environment variables remain available without downloading their values.
 
 ```
 Vercel (Next.js App Router)
  â”œâ”€â”€ Neon PostgreSQL (production root)
  â”œâ”€â”€ Inngest Cloud (background orchestration)
- â”‚    â””â”€â”€ Deno Deploy (background worker: zyx-background / zyx-background-staging)
+ â”‚    â””â”€â”€ Neon Functions (background worker: zyxcompute)
  â”œâ”€â”€ Neon Object Storage (private production bucket)
  â”œâ”€â”€ Cloudflare AI Gateway (Gemini proxy)
  â”œâ”€â”€ Cloudflare Vectorize (canonical 768-dimensional vector store)
- â””â”€â”€ Cloudflare Workers (3 production services plus the staging-only Zyra control plane)
+ â””â”€â”€ Cloudflare Workers (vector APIs, Zyra control plane, realtime, PDF renderer)
 ```
 
-## Deno Deploy Background Worker Deployment
+## Legacy Deno worker deployment, TRANSITIONAL / LEGACY
 
-Background execution is handled by Deno Deploy, orchestrated via Inngest. Deployment is 100% automated through GitHub Actions (`.github/workflows/deploy.yml`):
+The following records the previous Deno deployment path. Current production releases use the Neon workflow described above; exhausted Deno quota makes the old endpoint unavailable.
 
 - **Staging (`staging` branch)**:
   - App Name: `zyx-background-staging`
