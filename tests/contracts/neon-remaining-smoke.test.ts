@@ -28,6 +28,11 @@ test("run polling recovers missing single-run summaries from exact function run 
   expect(run).toEqual(owned);
   expect(seen).toEqual(["/runs/owned-run?include=output", "/apps/zyx-academy/functions/function/runs?include=output&limit=100"]);
   expect(await readRemainingRun(async () => undefined, "function", "missing")).toBeUndefined();
+  expect(await readRemainingRun(async () => ({ data: { id: "owned-run", status: "COMPLETED", function: { id: "function" } } }), "function", "owned-run")).toBeUndefined();
+  let calls = 0;
+  expect(await readRemainingRun(async () => ++calls === 1
+    ? { data: { id: "owned-run", status: "COMPLETED", function: { id: "function" } } }
+    : { data: [owned] }, "function", "owned-run")).toEqual(owned);
   await expect(readRemainingRun(async () => { throw new Error("HTTP_401"); }, "function", "owned-run")).rejects.toThrow("HTTP_401");
 });
 
@@ -72,7 +77,7 @@ test("production identity and queue guards precede fixture writes, cleanup follo
     expect(source.indexOf(guard)).toBeGreaterThan(-1);
     expect(source.indexOf(guard)).toBeLessThan(firstWrite);
   }
-  expect(source).toContain('idempotencyKey: `${id}-${functionId}-${process.env.GITHUB_RUN_ID');
+  expect(source).toContain('body: JSON.stringify({ data, idempotencyKey: `${id}-${functionId}` })');
   expect(source.indexOf("await waitForOwnedSearchVector(readMatches, id, true)")).toBeLessThan(source.indexOf('searchPost("/v2/search/delete"'));
   expect(source.indexOf("await waitForOwnedSearchVector(readMatches, id, false)")).toBeLessThan(source.indexOf("accepted = true"));
   expect(source.indexOf("accepted = true")).toBeLessThan(source.indexOf("await tx.delete("));
