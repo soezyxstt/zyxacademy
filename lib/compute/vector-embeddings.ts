@@ -8,6 +8,10 @@ import {
 export const WORKER_VECTOR_EMBEDDING_BATCH_SIZE = 50;
 const ATTEMPT_INTERVAL_MS = 5_000;
 const HTTP_TIMEOUT_MS = 60_000;
+const REQUEST_DOCUMENTS = 25;
+const PROJECT_DOCUMENTS_PER_MINUTE = 75;
+const QUOTA_WINDOW_MS = 60_000;
+const MAX_PROJECT_ATTEMPTS = 3;
 
 export interface WorkerVectorDocument {
   title: string;
@@ -42,15 +46,40 @@ export function createWorkerVectorEmbedder(
   let preferredIndex = 0;
   let nextAttemptAt = 0;
   let pacing = Promise.resolve();
+  const quotas = clients.map(() => ({ disabled: false, cooldownUntil: 0, reservations: [] as Array<{ at: number; count: number }> }));
 
-  // Serialize attempt starts, including project failover, leaving gateway capacity for web traffic.
-  function paceAttempt(): Promise<void> {
+  // Gemini counts individual documents, while the shared gateway counts HTTP requests.
+  function reserveAttempt(count: number, attempts: number[]): Promise<number | undefined> {
     const turn = pacing.then(async () => {
-      const delay = nextAttemptAt - clock.now();
-      if (delay > 0) await clock.sleep(delay);
-      nextAttemptAt = clock.now() + ATTEMPT_INTERVAL_MS;
+      for (;;) {
+        const now = clock.now();
+        const order = [preferredIndex, ...clients.map((_, index) => index).filter(index => index !== preferredIndex)]
+          .filter(index => !quotas[index].disabled && attempts[index] < MAX_PROJECT_ATTEMPTS);
+        if (!order.length) return undefined;
+        const readyAt = order.map(index => {
+          const quota = quotas[index];
+          quota.reservations = quota.reservations.filter(item => item.at + QUOTA_WINDOW_MS > now);
+          let reserved = quota.reservations.reduce((sum, item) => sum + item.count, 0);
+          let available = Math.max(now, quota.cooldownUntil, nextAttemptAt);
+          for (const item of quota.reservations) {
+            if (reserved + count <= PROJECT_DOCUMENTS_PER_MINUTE) break;
+            reserved -= item.count;
+            available = Math.max(available, item.at + QUOTA_WINDOW_MS);
+          }
+          return { index, available };
+        });
+        const ready = readyAt.find(item => item.available <= now);
+        if (!ready) {
+          await clock.sleep(Math.min(...readyAt.map(item => item.available)) - now);
+          continue;
+        }
+        quotas[ready.index].reservations.push({ at: now, count });
+        attempts[ready.index]++;
+        nextAttemptAt = now + ATTEMPT_INTERVAL_MS;
+        return ready.index;
+      }
     });
-    pacing = turn.catch(() => undefined);
+    pacing = turn.then(() => undefined, () => undefined);
     return turn;
   }
 
@@ -69,39 +98,50 @@ export function createWorkerVectorEmbedder(
       })),
       config: { outputDimensionality: CANONICAL_VECTOR_PROFILE.dimensions },
     };
-    const failures: string[] = [];
-    const order = [preferredIndex, ...clients.map((_, index) => index).filter((index) => index !== preferredIndex)];
-
-    for (const index of order) {
-      const client = clients[index];
-      await paceAttempt();
-      try {
-        const response = await client.embedContent(request);
-        if (response.embeddings?.length !== documents.length) {
-          throw new VectorizeContractError(
-            "EMBEDDING_COUNT_MISMATCH",
-            `expected ${documents.length} embeddings, received ${response.embeddings?.length ?? 0}`,
-          );
-        }
-        const vectors = response.embeddings.map((embedding, position) => {
-          if (!embedding.values) {
-            throw new VectorizeContractError("EMPTY_EMBEDDING", `embedding ${position} has no values`);
+    const result: number[][] = [];
+    for (let offset = 0; offset < request.contents.length; offset += REQUEST_DOCUMENTS) {
+      const contents = request.contents.slice(offset, offset + REQUEST_DOCUMENTS);
+      const attempts = clients.map(() => 0);
+      const failures: string[] = [];
+      let completed = false;
+      for (let index = await reserveAttempt(contents.length, attempts); index !== undefined; index = await reserveAttempt(contents.length, attempts)) {
+        const client = clients[index];
+        try {
+          const response = await client.embedContent({ ...request, contents });
+          if (response.embeddings?.length !== contents.length) {
+            throw new VectorizeContractError(
+              "EMBEDDING_COUNT_MISMATCH",
+              `expected ${contents.length} embeddings, received ${response.embeddings?.length ?? 0}`,
+            );
           }
-          assertCanonicalDimensions(embedding.values, `Gemini project ${client.projectId} embedding ${position}`);
-          return embedding.values;
-        });
-        preferredIndex = index;
-        return vectors;
-      } catch (error) {
-        // Malformed responses cannot be paired with outbox rows safely. Stop without a partial result.
-        if (error instanceof VectorizeContractError) throw error;
-        failures.push(`${client.projectId}: transport failure`);
+          const vectors = response.embeddings.map((embedding, position) => {
+            if (!embedding.values) throw new VectorizeContractError("EMPTY_EMBEDDING", `embedding ${position} has no values`);
+            assertCanonicalDimensions(embedding.values, `Gemini project ${client.projectId} embedding ${position}`);
+            return embedding.values;
+          });
+          preferredIndex = index;
+          result.push(...vectors);
+          completed = true;
+          break;
+        } catch (error) {
+          // Malformed responses cannot be paired with outbox rows safely. Stop without a partial result.
+          if (error instanceof VectorizeContractError) throw error;
+          const rawStatus = error && typeof error === "object" && "status" in error ? error.status : undefined;
+          const status = typeof rawStatus === "number" && Number.isInteger(rawStatus) ? rawStatus : undefined;
+          if (status === 401 || status === 402 || status === 403) quotas[index].disabled = true;
+          if (status === 429) quotas[index].cooldownUntil = Math.max(quotas[index].cooldownUntil, clock.now() + QUOTA_WINDOW_MS);
+          else attempts[index] = MAX_PROJECT_ATTEMPTS;
+          failures.push(`${client.projectId}: ${status === undefined ? "transport failure" : `HTTP ${status}`}`);
+        }
+      }
+      if (!completed) {
+        throw new VectorizeContractError(
+          "EMBEDDING_FAILED",
+          `${CANONICAL_VECTOR_PROFILE.model} failed for configured project clients (${failures.join("; ") || "no enabled clients"})`,
+        );
       }
     }
-    throw new VectorizeContractError(
-      "EMBEDDING_FAILED",
-      `${CANONICAL_VECTOR_PROFILE.model} failed for all configured project clients (${failures.join("; ")})`,
-    );
+    return result;
   };
 }
 
