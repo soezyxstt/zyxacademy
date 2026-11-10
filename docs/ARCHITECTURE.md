@@ -1,6 +1,6 @@
 # Zyx Academy Architecture (vNext)
 
-Background execution is migrating from suspended Deno to Neon Functions on the corresponding database branch, with Inngest orchestration and Cloudflare Browser Run PDF parsing/rendering. Production recovery is authorized; staging web/DNS work is deferred. See the OPEN / IN PROGRESS [worker cutover runbook](operations/neon-functions-cutover.md) for compatibility, verification and rollout boundaries.
+Production background execution runs on Neon Functions on its corresponding database branch, with Inngest orchestration and Cloudflare Browser Run PDF parsing/rendering. PR 309 integrated the workflow into main; the worker-only release preserves the live web, Zyra and Playground. Staging web/DNS work is deferred. See the OPEN / IN PROGRESS [worker cutover runbook](operations/neon-functions-cutover.md) for compatibility, verification and rollout boundaries.
 
 Staging and production serve separate Neon PostgreSQL branches and private Neon S3-compatible buckets. The [staging migration runbook](operations/neon-migration.md) and [production cutover runbook](operations/neon-production-cutover.md) record verified targets and recovery boundaries. R2 terminology in feature descriptions below refers to the storage abstraction and retained compatibility paths; the serving provider is explicitly Neon. Turso/R2 source resources remain recovery artifacts.
 
@@ -8,7 +8,7 @@ PDF reader repair: image dimensions come from PNG IHDR integers, and renderer re
 
 Page workers persist SHA-256 and byte size in private R2 metadata bound to source key and version. Downloads reuse this checksum; when absent, stage-authorized callers receive `checksumStatus: pending` and `checksumJobId` while a text-page job prepares it. Read-only callers can still download without starting jobs. `workflow.list.sourceReader` advertises reader options and polling fallback; host connector catalog refresh remains a separate host operation.
 
-**Stack:** Next.js 16 (App Router), Deno Deploy (background worker), Drizzle ORM + PostgreSQL (Neon in staging and production), Better Auth, Gemini AI via Cloudflare AI Gateway, canonical Cloudflare Vectorize (vector search), private Neon Object Storage with retained R2/UploadThing compatibility paths, Inngest (background orchestration), Firebase Cloud Messaging (push notifs), Cloudflare Workers (vector API, realtime, diktat renderer)
+**Stack:** Next.js 16 (App Router), Neon Functions (background worker), Drizzle ORM + PostgreSQL (Neon in staging and production), Better Auth, Gemini AI via Cloudflare AI Gateway, canonical Cloudflare Vectorize (vector search), private Neon Object Storage with retained R2/UploadThing compatibility paths, Inngest (background orchestration), Firebase Cloud Messaging (push notifs), Cloudflare Workers (vector API, realtime, diktat renderer)
 
 ---
 
@@ -1124,9 +1124,13 @@ Plan 014 is a masked verifier that inventories predecessor artifacts, approved o
 
 ---
 
-## 16. Background Compute and Deno Worker Architecture
+## 16. Background compute architecture
 
-To eliminate heavy compute and long-running execution limits on Vercel Fluid Compute, background execution is decoupled into a dedicated lightweight Deno Deploy service (`workers/deno-background`), orchestrated by Inngest.
+Production runs the shared Hono application through `workers/neon-background/main.ts`, orchestrated by Inngest. It reuses the framework-neutral application under `workers/deno-background`; the directory name does not identify the active host. PDF operations use Cloudflare Browser Run and the existing HTML renderer. Exact targets, acceptance and unchanged-web compatibility limits are in the worker cutover runbook.
+
+### Legacy Deno reference, TRANSITIONAL / LEGACY
+
+The following diagram and decisions record the previous Deno execution model. They are not the current production deployment target.
 
 ```
 Browser / Client
