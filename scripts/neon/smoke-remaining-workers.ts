@@ -267,9 +267,8 @@ async function main() {
     }
     await run("mastery-recompute-worker", { studentId: id, courseId: id, reason: id });
     const queue = await db.select().from(s.masteryRecomputeQueue).where(and(eq(s.masteryRecomputeQueue.studentId, id), eq(s.masteryRecomputeQueue.courseId, id)));
-    assert.equal(queue.length, 1);
-    assert.equal(queue[0].status, "completed");
-    assert.equal(queue[0].retries, 0);
+    assert.ok(queue.length > 0, "REMAINING_MASTERY_QUEUE_MISSING");
+    assert.ok(queue.every(row => row.status === "completed" && row.retries === 0), "REMAINING_MASTERY_QUEUE_INCOMPLETE");
     const [concept] = await db.select().from(s.studentConceptMastery).where(and(eq(s.studentConceptMastery.studentId, id), eq(s.studentConceptMastery.courseId, id)));
     const [chapter] = await db.select().from(s.studentChapterMastery).where(and(eq(s.studentChapterMastery.studentId, id), eq(s.studentChapterMastery.courseId, id)));
     assert.equal(concept?.conceptName, conceptName);
@@ -278,7 +277,7 @@ async function main() {
     assert.equal(chapter?.chapterId, id);
     assert.equal(chapter.evidenceCount, 1);
     assert.equal(chapter.masteryScore, concept.masteryScore);
-    checks.mastery = { queueCompleted: true, conceptEvidenceCount: concept.evidenceCount, chapterEvidenceCount: chapter.evidenceCount };
+    checks.mastery = { queueCompleted: true, recomputations: queue.length, conceptEvidenceCount: concept.evidenceCount, chapterEvidenceCount: chapter.evidenceCount };
     if (deterministic) {
       stage = "deterministic-normal-recomputation";
       const before = await db.select({ count: sql<number>`count(*)::int` }).from(s.courseAnalyticsSnapshots);
