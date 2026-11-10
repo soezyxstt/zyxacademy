@@ -25,6 +25,22 @@ export function assertAdminKnowledgeVector(chunk: AdminKnowledgeChunk, vector?: 
   })) assert.equal(vector.metadata[key as keyof typeof vector.metadata], value, "ADMIN_KNOWLEDGE_VECTOR_METADATA_MISMATCH");
 }
 
+export async function verifyObsoleteAdminVectors(
+  read: (ids: string[]) => Promise<Array<{ id: string }>>, ids: string[],
+  pause: () => Promise<void> = () => new Promise(resolve => setTimeout(resolve, 3000)),
+) {
+  for (let offset = 0; offset < ids.length; offset += 20) {
+    const batch = ids.slice(offset, offset + 20);
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const found = await read(batch);
+      assert.ok(found.every(vector => batch.includes(vector.id)), "ADMIN_KNOWLEDGE_FOREIGN_VECTOR");
+      if (!found.length) break;
+      assert.ok(attempt < 29, "ADMIN_KNOWLEDGE_OBSOLETE_VECTOR_RETAINED");
+      await pause();
+    }
+  }
+}
+
 async function main() {
   const { target, dryRunOnly } = adminKnowledgeSmokeArguments(process.argv.slice(2));
   const config = JSON.parse(await readFile(`${target.output}/.env.production.json`, "utf8"));
@@ -150,22 +166,17 @@ async function main() {
       }
       assert.ok(verified, "ADMIN_KNOWLEDGE_VECTORS_PENDING");
     }
-    const listed = new Set<string>();
-    let cursor: string | undefined;
-    do {
-      const page = await vectors.list({ profileId: CANONICAL_VECTOR_PROFILE.id, prefix: "v2:admin_document:", limit: 1000, ...(cursor ? { cursor } : {}) });
-      for (const id of page.ids) assert.ok(!listed.has(id) && listed.add(id), "ADMIN_KNOWLEDGE_DUPLICATE_VECTOR_PAGE");
-      assert.ok(!page.isTruncated || page.nextCursor, "ADMIN_KNOWLEDGE_VECTOR_CURSOR_MISSING");
-      cursor = page.nextCursor;
-    } while (cursor);
-    assert.deepEqual([...listed].sort(), [...expectedIds].sort(), "ADMIN_KNOWLEDGE_NAMESPACE_VECTOR_SET_MISMATCH");
+    // Vectorize bindings do not provide list; verify deletions from the durable pre-sync catalog.
+    const obsoleteIds = [...new Set(beforeChunks.map(chunk => chunk.vectorId))].filter(id => !expectedIds.has(id));
+    await verifyObsoleteAdminVectors(async ids => (await vectors.get({ profileId: CANONICAL_VECTOR_PROFILE.id, ids })).vectors, obsoleteIds);
     report.accepted = true;
     report.stage = "complete";
     report.verifiedSources = activeSources.length;
     report.verifiedChunks = activeChunks.length;
-    report.verifiedVectors = listed.size;
+    report.verifiedVectors = expectedIds.size;
+    report.verifiedObsoleteVectorDeletions = obsoleteIds.length;
     await save();
-    console.log(JSON.stringify({ fixtureId, runId, accepted: true, sources: activeSources.length, chunks: activeChunks.length, vectors: listed.size }));
+    console.log(JSON.stringify({ fixtureId, runId, accepted: true, sources: activeSources.length, chunks: activeChunks.length, vectors: expectedIds.size }));
   } finally { await pool.end(); }
 }
 
