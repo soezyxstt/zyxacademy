@@ -7,10 +7,23 @@ import { traceNativePackages, zipFunctionBundle } from "@neon/config-runtime/v1"
 import { build } from "esbuild";
 import { gzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 
 const require = createRequire(import.meta.url);
 const output = resolve(process.argv[2] || "artifacts/neon-worker");
 const packages = ["katex", "playwright-core"];
+const compatibilityPath = "lib/compute/product-v4-web-compatibility.json";
+const compatibility = JSON.parse(await readFile(compatibilityPath, "utf8"));
+const runtimeSource = await readFile("lib/compute/product-v4-runtime-binding.ts", "utf8");
+const closure = [...runtimeSource.match(/export const PRODUCT_V4_RUNTIME_FILES = \[([\s\S]*?)\] as const/)[1].matchAll(/"([^"]+)"/g)].map(match => match[1]);
+const required = [...new Set([...closure.filter(path => path !== compatibilityPath), "package.json", "bun.lock", "scripts/neon/deploy-worker.mjs"])].sort();
+if (JSON.stringify(compatibility.sourceFiles.map(file => file.path).sort()) !== JSON.stringify(required)) throw new Error("V4_COMPATIBILITY_SOURCE_SET_CHANGED");
+for (const file of compatibility.sourceFiles) {
+  const checksum = createHash("sha256").update((await readFile(file.path, "utf8")).replace(/\r\n/g, "\n")).digest("hex");
+  if (checksum !== file.executorChecksum) throw new Error(`V4_COMPATIBILITY_SOURCE_CHANGED:${file.path}`);
+}
+const fingerprint = JSON.parse(await readFile("artifacts/authoring-verification/web-runtime.json", "utf8"));
+const chromium = JSON.parse(await readFile(join(dirname(require.resolve("playwright-core/package.json")), "browsers.json"), "utf8")).browsers.find(browser => browser.name === "chromium");
 const nativeDeps = process.platform === "win32" ? {
   async install(cwd, specs) {
     const npm = process.env.NPM_CLI_PATH;
@@ -18,7 +31,7 @@ const nativeDeps = process.platform === "win32" ? {
     await promisify(execFile)(process.execPath, [npm, "install", "--cpu=arm64", "--os=linux", "--libc=glibc", "--ignore-scripts", "--no-audit", "--no-fund", ...specs], { cwd, maxBuffer: 4 * 1024 * 1024 });
   },
 } : undefined;
-const bundled = await build({ entryPoints: ["workers/neon-background/main.ts"], bundle: true, write: false, minify: true, format: "esm", platform: "node", target: "node24", outfile: "index.mjs", external: [...packages, "@napi-rs/canvas", "pdf-parse", "pdfjs-dist"], define: { "process.env.ZYX_COMPUTE_RUNTIME": JSON.stringify("neon") },
+const bundled = await build({ entryPoints: ["workers/neon-background/main.ts"], bundle: true, write: false, minify: true, format: "esm", platform: "node", target: "node24", outfile: "index.mjs", external: [...packages, "@napi-rs/canvas", "pdf-parse", "pdfjs-dist"], define: { "process.env.ZYX_COMPUTE_RUNTIME": JSON.stringify("neon"), "__ZYX_VERIFICATION_BUILD_RUNTIME__": JSON.stringify({ fingerprint, chromium: { browserVersion: chromium.browserVersion, revision: chromium.revision } }) },
   // Deno's nested npm cache must not contribute a second SDK with different internal Symbols.
   plugins: [{ name: "shared-worker-sdk", setup(build) { build.onResolve({ filter: /^(inngest|hono)(\/.*)?$/ }, args => ({ path: fileURLToPath(import.meta.resolve(args.path)) })); } }],
   banner: { js: "import{createRequire as ___cr}from'node:module';const require=___cr(import.meta.url);" } });

@@ -10,6 +10,9 @@ import type { getProductBundleImport } from "@/lib/bundle/product-staging";
 import type { DiktatSourceFigureAssets } from "@/lib/materials/diktat-static-visual";
 import type { SourceFigureVisualSpec } from "@/lib/materials/visual-contract";
 import type { resolveSourceFigureForCourse } from "@/lib/authoring/source-figures";
+import { productV4TargetRuntime } from "./product-v4-web-compatibility";
+
+declare const __ZYX_VERIFICATION_BUILD_RUNTIME__: { fingerprint: ProductV4RuntimeFingerprint } | undefined;
 
 type Bundle = ProductV4VerificationSnapshot["bundle"];
 type ImportRow = Pick<NonNullable<Awaited<ReturnType<typeof getProductBundleImport>>>, "id" | "bundleType" | "bundleId" | "courseId" | "checksum">;
@@ -35,6 +38,7 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "next.config.ts", "scripts/authoring/prepare-web-verification.ts",
   "deno.json", "workers/deno-background/deno.json", "lib/compute/runtime.ts", "lib/compute/pdf-pages.ts", "lib/compute/pdf-worker.ts",
   "lib/compute/browser-pdf.ts", "lib/compute/pdf-inspection.ts", "scripts/neon/build-worker.mjs",
+  "lib/compute/product-v4-web-compatibility.ts", "lib/compute/product-v4-web-compatibility.json",
   "app/globals.css", "app/layout.tsx", "app/authoring-verification/page.tsx",
   "components/providers/telemetry-boundary.tsx", "components/providers/posthog-provider.tsx", "lib/env.ts",
   "components/coding/article-coding.tsx", "components/coding/coding-workspace.tsx", "components/coding/coding-help.tsx", "components/coding/python-editor.tsx", "components/coding/use-coding-draft.ts",
@@ -134,7 +138,7 @@ export async function buildProductV4RuntimeBinding(input: { row: ImportRow; bund
   const [rows, figures, runtime] = await Promise.all([ports.dependencies(bundle), verifiedFigures(bundle, ports), ports.runtime()]);
   return { importId: row.id, courseId: course.id, runId, revision: Number.parseInt(row.checksum.slice(0, 8), 16) + 1,
     ...(process.env.NODE_ENV === "production" || typeof (globalThis as { Deno?: unknown }).Deno !== "undefined" || process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER ? verificationBrowserIdentity() : {}),
-    ...runtime, policyRevision: PRODUCT_V4_VERIFICATION_POLICY, dependencyChecksum: productV4DependencyChecksum(bundle, rows),
+    ...productV4TargetRuntime(runtime, { importId: row.id, bundleId: bundle.manifest.bundleId, courseId: course.id, sourceFigureCount: figures.length }), policyRevision: PRODUCT_V4_VERIFICATION_POLICY, dependencyChecksum: productV4DependencyChecksum(bundle, rows),
     assetChecksum: hash(figures.map(figure => ({ metadata: figure.metadata, variants: figure.variants.map(({ bytes, ...variant }) => ({ ...variant, byteLength: bytes.length, readbackChecksum: bytesHash(bytes) })) }))),
   };
 }
@@ -157,6 +161,11 @@ export async function resolveProductV4LoadedRuntime(embedded: ProductV4RuntimeFi
   const actual = await readCurrent();
   if (embedded) assertProductV4RuntimeFingerprint(embedded, actual);
   return embedded ?? actual;
+}
+
+export async function readProductV4ExecutorRuntime(): Promise<ProductV4RuntimeFingerprint> {
+  const embedded = typeof __ZYX_VERIFICATION_BUILD_RUNTIME__ === "undefined" ? undefined : __ZYX_VERIFICATION_BUILD_RUNTIME__.fingerprint;
+  return resolveProductV4LoadedRuntime(embedded);
 }
 
 function runtimePackageManifest(name: string): string {
@@ -203,7 +212,7 @@ async function defaultPorts(): Promise<RuntimePorts> {
     },
     figure: resolveSourceFigureForCourse,
     async download(key) { if (!storage.download) throw new Error("STORAGE_DOWNLOAD_UNSUPPORTED"); return storage.download(key); },
-    runtime: readProductV4RuntimeFingerprint,
+    runtime: readProductV4ExecutorRuntime,
     async dependencies(bundle) {
       const rows: ProductV4LiveDependency[] = [];
       const ids = (type: ProductV4LiveDependency["type"]) => bundle.dependencies.filter(item => item.upstreamEntityType === type).map(item => item.upstreamEntityId);

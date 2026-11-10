@@ -1,0 +1,558 @@
+{
+  "origin": "https://www.zyxacademy.com",
+  "scope": {
+    "importId": "impor-product-8dfff98711df6d78cef7858a6e75e5dc",
+    "bundleId": "product-bundle-ma1101-bab1-v4-migration-20261110",
+    "courseId": "ma1101"
+  },
+  "webSourceRevision": "75e27c0b265eb4f364efc413d9d5bd40c468dcaa",
+  "observedWebDeploymentId": "dpl_6q9mwweTtbdtUnUvkcUozowGFaPf",
+  "webRuntime": {
+    "rendererChecksum": "c9f69cd9afde464cf297fab8c6e55c4506cf271071fc374025bdf14b2cea5556",
+    "fontChecksum": "86ec83f35768518c72452f03ab78dca92f1648d3332c7cb09dc963ceed4eb7f9",
+    "contractChecksum": "b5c04d8fc7a41840c19eef59a83cda01186d44963a25941da6593c8f59d5bd86",
+    "playbookChecksum": "4a16b15dc7faf62f6eefa97622d075f83c7331a9eafef752a38655bee5cab486",
+    "printProfile": "a4-self-study-readable-v3"
+  },
+  "asset": {
+    "path": "/_next/static/immutable/chunks/2m9i0p94ljee_.js",
+    "checksum": "31ef82b1001ce52f258ca40db80d2198ea76b46b458e5ef02f8bf5b12297027b"
+  },
+  "sourceFiles": [
+    {
+      "path": "app/api/courses/[id]/articles/[articleId]/source-figures/[visualId]/route.ts",
+      "webChecksum": "a0252ca3bb922889cce17d3bec5b85f7a928834b79345ea4d03d95dd74d3c55f",
+      "executorChecksum": "a0252ca3bb922889cce17d3bec5b85f7a928834b79345ea4d03d95dd74d3c55f"
+    },
+    {
+      "path": "app/authoring-verification/page.tsx",
+      "webChecksum": "f67004d4d71ccf5effa0108d9b5bb78591dc68b6594359c47335600942599278",
+      "executorChecksum": "f67004d4d71ccf5effa0108d9b5bb78591dc68b6594359c47335600942599278"
+    },
+    {
+      "path": "app/globals.css",
+      "webChecksum": "fb5fb4049d719ecf0b37f065654dc0aaa06079e4ff5fb006691ad4d3a41ff193",
+      "executorChecksum": "fb5fb4049d719ecf0b37f065654dc0aaa06079e4ff5fb006691ad4d3a41ff193"
+    },
+    {
+      "path": "app/layout.tsx",
+      "webChecksum": "0424aa1465c53ede9fa7e12055102e1ae0a77a19ad6c9f3585c8ef01604afc9c",
+      "executorChecksum": "0424aa1465c53ede9fa7e12055102e1ae0a77a19ad6c9f3585c8ef01604afc9c"
+    },
+    {
+      "path": "bun.lock",
+      "webChecksum": "50a9901f30cccfb16c13ef05941fc2a35eae488ea9661b598f74c842bd39ec65",
+      "executorChecksum": "6c46f4a398db6abe5438fdac75dbca5cff8c243847a126e55fe3ec6459400965"
+    },
+    {
+      "path": "components/coding/article-coding.tsx",
+      "webChecksum": "a91cb03376e50d28c839b3291a368cf2aa7d0a3ba604afbdf373f2d7da72dcf9",
+      "executorChecksum": "a91cb03376e50d28c839b3291a368cf2aa7d0a3ba604afbdf373f2d7da72dcf9"
+    },
+    {
+      "path": "components/coding/coding-help.tsx",
+      "webChecksum": "3e9043b01c4f7c6e41acc98f98f522cbcf8a15f1ab5f1a363c462ae8aff4ffe8",
+      "executorChecksum": "3e9043b01c4f7c6e41acc98f98f522cbcf8a15f1ab5f1a363c462ae8aff4ffe8"
+    },
+    {
+      "path": "components/coding/coding-workspace.tsx",
+      "webChecksum": "46be5162b0784294362910e7d57d2e4aae3f7cad6511d6da0bb1ed1aaf4dd3d6",
+      "executorChecksum": "46be5162b0784294362910e7d57d2e4aae3f7cad6511d6da0bb1ed1aaf4dd3d6"
+    },
+    {
+      "path": "components/coding/python-editor.tsx",
+      "webChecksum": "138b547989c460c77cc2e5729ee5ed9002cb7fc7f4927fa926a3a74e442f7ad3",
+      "executorChecksum": "138b547989c460c77cc2e5729ee5ed9002cb7fc7f4927fa926a3a74e442f7ad3"
+    },
+    {
+      "path": "components/coding/use-coding-draft.ts",
+      "webChecksum": "c542fdd49857885a11518b4e05ea5ada3bdbc103dacaacfb3c940c2868bfcb83",
+      "executorChecksum": "c542fdd49857885a11518b4e05ea5ada3bdbc103dacaacfb3c940c2868bfcb83"
+    },
+    {
+      "path": "components/course/article-parts.tsx",
+      "webChecksum": "5f82f71b501c554eacf06a0670387a38a9b62dbd6b8ae1c15fe38a278a84c71e",
+      "executorChecksum": "5f82f71b501c554eacf06a0670387a38a9b62dbd6b8ae1c15fe38a278a84c71e"
+    },
+    {
+      "path": "components/course/article-reading-canvas.tsx",
+      "webChecksum": "a38378d5c09aefeb009be926ff2d7f840c3f1c03a605b1dcda31890546ee4e64",
+      "executorChecksum": "a38378d5c09aefeb009be926ff2d7f840c3f1c03a605b1dcda31890546ee4e64"
+    },
+    {
+      "path": "components/course/epsilon-delta-board.tsx",
+      "webChecksum": "90b32c5885be90156bf2df855f75315d1e8c7da27ab739a490861416c6256dba",
+      "executorChecksum": "90b32c5885be90156bf2df855f75315d1e8c7da27ab739a490861416c6256dba"
+    },
+    {
+      "path": "components/course/geometry-2d-visual.tsx",
+      "webChecksum": "d3db93e24d5b6731a485e38412872cca37af783a3757e8cf6e16a902b3129adf",
+      "executorChecksum": "d3db93e24d5b6731a485e38412872cca37af783a3757e8cf6e16a902b3129adf"
+    },
+    {
+      "path": "components/course/learning-canvas/learning-canvas-renderer.tsx",
+      "webChecksum": "96cd4ced2a1bfc643c3e82c1eef20de09bb31d40f582ebba80e85c04355b6d9a",
+      "executorChecksum": "96cd4ced2a1bfc643c3e82c1eef20de09bb31d40f582ebba80e85c04355b6d9a"
+    },
+    {
+      "path": "components/course/markdown-renderer.tsx",
+      "webChecksum": "2db2e8255e60269600adc87fe9b59c6a495171c3a4b7d7d219c08a4ab51e2122",
+      "executorChecksum": "2db2e8255e60269600adc87fe9b59c6a495171c3a4b7d7d219c08a4ab51e2122"
+    },
+    {
+      "path": "components/course/markdown/flowchart-diagram-renderer.tsx",
+      "webChecksum": "1d0cb2a4154e084240bdf787f6b5268bddbd9447b0ec5c59e064ae26a5b804e7",
+      "executorChecksum": "1d0cb2a4154e084240bdf787f6b5268bddbd9447b0ec5c59e064ae26a5b804e7"
+    },
+    {
+      "path": "components/course/markdown/flowchart-node.tsx",
+      "webChecksum": "e94f7f02e3957883a564f36c5843c6976c9c0828f3882217d973ff8c27cc2c51",
+      "executorChecksum": "e94f7f02e3957883a564f36c5843c6976c9c0828f3882217d973ff8c27cc2c51"
+    },
+    {
+      "path": "components/course/math-text.tsx",
+      "webChecksum": "e57e849ee64c40eeed991970c0d9570a064b3d4a424fcd6d25279ff7ef7a4e68",
+      "executorChecksum": "e57e849ee64c40eeed991970c0d9570a064b3d4a424fcd6d25279ff7ef7a4e68"
+    },
+    {
+      "path": "components/course/product-learning-blocks.tsx",
+      "webChecksum": "41be203ffab21a996cce1dc9cb0f88e872d19fdecb3def42d384eb31f801374a",
+      "executorChecksum": "41be203ffab21a996cce1dc9cb0f88e872d19fdecb3def42d384eb31f801374a"
+    },
+    {
+      "path": "components/course/product-learning-visual.tsx",
+      "webChecksum": "6eca54f8d5f44ad43f14557a6227e4b53dcb20a84ec70c050337580ae11c3aa7",
+      "executorChecksum": "6eca54f8d5f44ad43f14557a6227e4b53dcb20a84ec70c050337580ae11c3aa7"
+    },
+    {
+      "path": "components/course/question-image.tsx",
+      "webChecksum": "f2e73001744e791e14a8c4172f1461be6e5a2f65fc85b03b5f67f3945b0b316c",
+      "executorChecksum": "f2e73001744e791e14a8c4172f1461be6e5a2f65fc85b03b5f67f3945b0b316c"
+    },
+    {
+      "path": "components/course/structured-article-reader.tsx",
+      "webChecksum": "e3c5554364838bc0e8c8c60d670c537070d24cb707991fc3d5924de991464dfb",
+      "executorChecksum": "e3c5554364838bc0e8c8c60d670c537070d24cb707991fc3d5924de991464dfb"
+    },
+    {
+      "path": "components/providers/posthog-provider.tsx",
+      "webChecksum": "7831b07fc4caec593bf6d9abd9e04f9c5a4aea183370c583ffdef660ce29260d",
+      "executorChecksum": "7831b07fc4caec593bf6d9abd9e04f9c5a4aea183370c583ffdef660ce29260d"
+    },
+    {
+      "path": "components/providers/telemetry-boundary.tsx",
+      "webChecksum": "44611a48719b401c9e0beebd4f4716b4e3cb8472244985e778a42f0448e877af",
+      "executorChecksum": "44611a48719b401c9e0beebd4f4716b4e3cb8472244985e778a42f0448e877af"
+    },
+    {
+      "path": "components/ui/slider.tsx",
+      "webChecksum": "4f0486e57ae45435adb96bbe86b8d6d69c006df291c4ea67615e6342d84b2af7",
+      "executorChecksum": "4f0486e57ae45435adb96bbe86b8d6d69c006df291c4ea67615e6342d84b2af7"
+    },
+    {
+      "path": "deno.json",
+      "webChecksum": "25c7e9b4e5a16b4daf105154cfb81ca12377cdd1166b3525650737c27614e96c",
+      "executorChecksum": "25c7e9b4e5a16b4daf105154cfb81ca12377cdd1166b3525650737c27614e96c"
+    },
+    {
+      "path": "jobs/product-verification.ts",
+      "webChecksum": "c760dc25e09661522dc93f2b9d7eea3d649b8b9e023dbca02099a3bd528d76aa",
+      "executorChecksum": "c760dc25e09661522dc93f2b9d7eea3d649b8b9e023dbca02099a3bd528d76aa"
+    },
+    {
+      "path": "lib/articles/source-figure-resolver.ts",
+      "webChecksum": "3e5f4ac5f6311022abd65832b031f090f6565a850cb891cd781644102b5a814e",
+      "executorChecksum": "3e5f4ac5f6311022abd65832b031f090f6565a850cb891cd781644102b5a814e"
+    },
+    {
+      "path": "lib/articles/structured-read-model.ts",
+      "webChecksum": "d51f033290bcb499a38a8c632de990a4babbdba3c8388ec52099b53794a38957",
+      "executorChecksum": "d51f033290bcb499a38a8c632de990a4babbdba3c8388ec52099b53794a38957"
+    },
+    {
+      "path": "lib/articles/structured-repository.ts",
+      "webChecksum": "cdfee3b237b854ff76812e486e165f29a7d284f7e0b6c1ee5437afcc308733bd",
+      "executorChecksum": "cdfee3b237b854ff76812e486e165f29a7d284f7e0b6c1ee5437afcc308733bd"
+    },
+    {
+      "path": "lib/authoring/mcp-contract-revision.ts",
+      "webChecksum": "7c0a17c31f30154a21c503feae67c657744ac957b8ff054d6fd9f092157c3f91",
+      "executorChecksum": "7c0a17c31f30154a21c503feae67c657744ac957b8ff054d6fd9f092157c3f91"
+    },
+    {
+      "path": "lib/authoring/mcp-playbook.ts",
+      "webChecksum": "54d979b0ccc5c2d95b323ef551997c25d9f891a8159ac8134a80b0207c040807",
+      "executorChecksum": "54d979b0ccc5c2d95b323ef551997c25d9f891a8159ac8134a80b0207c040807"
+    },
+    {
+      "path": "lib/authoring/mcp-workflows.ts",
+      "webChecksum": "068da6a2ce05ea82890284b27bfc1c70ad9c8b851bad0eb3e85bfedb811f84eb",
+      "executorChecksum": "068da6a2ce05ea82890284b27bfc1c70ad9c8b851bad0eb3e85bfedb811f84eb"
+    },
+    {
+      "path": "lib/authoring/question-bank-draft.ts",
+      "webChecksum": "25cb753e3cd6137c9f36b353d3754e2165b807433b8e4c1e9c13328182a2d060",
+      "executorChecksum": "25cb753e3cd6137c9f36b353d3754e2165b807433b8e4c1e9c13328182a2d060"
+    },
+    {
+      "path": "lib/authoring/reference-question-draft.ts",
+      "webChecksum": "528615d3649f353a14032082190e2419ea3242457425ddb992817ec7ef5d3c4e",
+      "executorChecksum": "528615d3649f353a14032082190e2419ea3242457425ddb992817ec7ef5d3c4e"
+    },
+    {
+      "path": "lib/authoring/source-figures.ts",
+      "webChecksum": "12e789781b5d16ccfa65126bc481ff6fc977a708930a45a65a4644e6e13dcd76",
+      "executorChecksum": "d76189029bb628f6c0c5a86718602bc32623e8027cf1466dbb41eaa30407d640"
+    },
+    {
+      "path": "lib/authoring/source-pack.ts",
+      "webChecksum": "47d6d967714f445d4df442f81fedbbad6c0351d067903bf0fdff5bfcd4b5c5d3",
+      "executorChecksum": "47d6d967714f445d4df442f81fedbbad6c0351d067903bf0fdff5bfcd4b5c5d3"
+    },
+    {
+      "path": "lib/bundle/idea-bundle-v2.ts",
+      "webChecksum": "0f4d09ddd36b0ec0659a51caeacc382ef52c8e430091a688d01f4169a3384994",
+      "executorChecksum": "0f4d09ddd36b0ec0659a51caeacc382ef52c8e430091a688d01f4169a3384994"
+    },
+    {
+      "path": "lib/bundle/product-diktat-pdf.ts",
+      "webChecksum": "da3ac625ba373b145d817b9d35b5052f8e573c894f88b8ec53f47fd3d4151ef0",
+      "executorChecksum": "da3ac625ba373b145d817b9d35b5052f8e573c894f88b8ec53f47fd3d4151ef0"
+    },
+    {
+      "path": "lib/bundle/product-review-gate.ts",
+      "webChecksum": "658757959f5037eb7cfbfebd3df3baaaabe182045c69e6251cb54d78d01fa07e",
+      "executorChecksum": "658757959f5037eb7cfbfebd3df3baaaabe182045c69e6251cb54d78d01fa07e"
+    },
+    {
+      "path": "lib/bundle/product-v4-verification-service.ts",
+      "webChecksum": "0d4e61d6afdf06d0ba268f453f8d53bfcf132c982d753b426bad3732f0fce878",
+      "executorChecksum": "0d4e61d6afdf06d0ba268f453f8d53bfcf132c982d753b426bad3732f0fce878"
+    },
+    {
+      "path": "lib/bundle/product-v4-verification.ts",
+      "webChecksum": "3b649939c80c2bfd44c8dac46c9a96a720cec70f7ada3fde4cd9a33cc4ce8d93",
+      "executorChecksum": "3b649939c80c2bfd44c8dac46c9a96a720cec70f7ada3fde4cd9a33cc4ce8d93"
+    },
+    {
+      "path": "lib/bundle/product-validator.ts",
+      "webChecksum": "3fceb1eb94356ead4a4be1af23133ebf3de9a873fc30b7413f337db0d9cb8985",
+      "executorChecksum": "3fceb1eb94356ead4a4be1af23133ebf3de9a873fc30b7413f337db0d9cb8985"
+    },
+    {
+      "path": "lib/bundle/validator.ts",
+      "webChecksum": "f93c39048f41c18fd5089ce596ea84140d4ef07e318bb2aaf60bd521e90cb8ba",
+      "executorChecksum": "f93c39048f41c18fd5089ce596ea84140d4ef07e318bb2aaf60bd521e90cb8ba"
+    },
+    {
+      "path": "lib/bundle/zip-reader.ts",
+      "webChecksum": "3859e883baaeeed011a7ee59e19f9a4291c4dfb1f788f15b3ada4cea3d5d1950",
+      "executorChecksum": "3859e883baaeeed011a7ee59e19f9a4291c4dfb1f788f15b3ada4cea3d5d1950"
+    },
+    {
+      "path": "lib/coding/browser-runtime.ts",
+      "webChecksum": "7a7136982d9a36c21b9c2e8e26eb7c3aabc93501ae454c20c3addd609390c0af",
+      "executorChecksum": "7a7136982d9a36c21b9c2e8e26eb7c3aabc93501ae454c20c3addd609390c0af"
+    },
+    {
+      "path": "lib/coding/contracts.ts",
+      "webChecksum": "85ca5de374e1fc810552babcba3715ddf578f603215aa48d097f088cec473857",
+      "executorChecksum": "85ca5de374e1fc810552babcba3715ddf578f603215aa48d097f088cec473857"
+    },
+    {
+      "path": "lib/coding/draft-reconciliation.ts",
+      "webChecksum": "c26ec316f17b5e221f9af1e86044db531e96a055e395f7d7e271a8c4c20f69b8",
+      "executorChecksum": "c26ec316f17b5e221f9af1e86044db531e96a055e395f7d7e271a8c4c20f69b8"
+    },
+    {
+      "path": "lib/coding/frame.html",
+      "webChecksum": "0cb6836cf7b07c03ac0ffa7fd7911d3815c9043cd3e9f2d547716c186aa0d2de",
+      "executorChecksum": "0cb6836cf7b07c03ac0ffa7fd7911d3815c9043cd3e9f2d547716c186aa0d2de"
+    },
+    {
+      "path": "lib/coding/http-contracts.ts",
+      "webChecksum": "a0820f2a62d24c61aeff0f1fe420c300093606e76817095234eeeb9a556b3990",
+      "executorChecksum": "a0820f2a62d24c61aeff0f1fe420c300093606e76817095234eeeb9a556b3990"
+    },
+    {
+      "path": "lib/coding/runtime-assets.ts",
+      "webChecksum": "5546d3946e3a0aa1aacd5fd35a8ae0aa49c63c4c2c7e16bfe62aaef70d685d01",
+      "executorChecksum": "5546d3946e3a0aa1aacd5fd35a8ae0aa49c63c4c2c7e16bfe62aaef70d685d01"
+    },
+    {
+      "path": "lib/coding/runtime.ts",
+      "webChecksum": "a2f6953e6ba651b283b1ca993acefb3adc8d0f96d0009cd9d6f3027d5b3eb0e8",
+      "executorChecksum": "a2f6953e6ba651b283b1ca993acefb3adc8d0f96d0009cd9d6f3027d5b3eb0e8"
+    },
+    {
+      "path": "lib/coding/zyra.ts",
+      "webChecksum": "acba38a8c353c48955883169d8850dd99784f4a0eb1ec4ed98a1fc5efc935ef8",
+      "executorChecksum": "acba38a8c353c48955883169d8850dd99784f4a0eb1ec4ed98a1fc5efc935ef8"
+    },
+    {
+      "path": "lib/compute/browser-pdf.ts",
+      "webChecksum": null,
+      "executorChecksum": "6e2311fe72169bb7c83f2b888091b1417aa5fd52f0ae0b9ee6e0d21d0e7b0cfb"
+    },
+    {
+      "path": "lib/compute/pdf-inspection.ts",
+      "webChecksum": null,
+      "executorChecksum": "b1e221cfe2297220115c0947e191b03ee6c109622e33653bab208b78c3ed543a"
+    },
+    {
+      "path": "lib/compute/pdf-pages.ts",
+      "webChecksum": "e6f151688f9e0b897eee9b10b838de0a074de351e78a43f069f061b2732bf3d9",
+      "executorChecksum": "4b2bace310de5a28bb2165838674e1dfaee43052af1e63dd63b2d3f93b53a6ac"
+    },
+    {
+      "path": "lib/compute/pdf-worker.ts",
+      "webChecksum": "954318e2d98b23ee2af504943355d57367b4b1ad9b200f073ce1c1f7e4852e0a",
+      "executorChecksum": "954318e2d98b23ee2af504943355d57367b4b1ad9b200f073ce1c1f7e4852e0a"
+    },
+    {
+      "path": "lib/compute/product-v4-browser-config.ts",
+      "webChecksum": "797e4cba6cb5298a1d44e348c34d2883e42b1a2e8e509262f7cf97c0f47d3540",
+      "executorChecksum": "797e4cba6cb5298a1d44e348c34d2883e42b1a2e8e509262f7cf97c0f47d3540"
+    },
+    {
+      "path": "lib/compute/product-v4-browser-runner.ts",
+      "webChecksum": "80e2271029f8be87a6986fec0ef177c3c25b85ad131cb5f8b6e16eca80124d5a",
+      "executorChecksum": "74d13ffdef73cb1e000013c2b19f9fda28daa33c599c3914316bb67afa63c1de"
+    },
+    {
+      "path": "lib/compute/product-v4-browser-session.ts",
+      "webChecksum": "2726f33330d3f8817629b6b0159c9dccd24f83da641de58db4e65a2654a968af",
+      "executorChecksum": "2726f33330d3f8817629b6b0159c9dccd24f83da641de58db4e65a2654a968af"
+    },
+    {
+      "path": "lib/compute/product-v4-pdf-evidence.ts",
+      "webChecksum": "4cd3c8cfc7efa9f85e3ab0ee7420fbaca2263a8002f02ae3b346affd8074df70",
+      "executorChecksum": "4cd3c8cfc7efa9f85e3ab0ee7420fbaca2263a8002f02ae3b346affd8074df70"
+    },
+    {
+      "path": "lib/compute/product-v4-runtime-binding.ts",
+      "webChecksum": "ef8fb5cbcd9cabef029e5162867e43069c1f331f9292485261026d16e124275b",
+      "executorChecksum": "5832fbd22bc146b465554947777e14c9295e18a5642e61d8eed968495620d433"
+    },
+    {
+      "path": "lib/compute/product-v4-verification-executor.ts",
+      "webChecksum": "f2ffa6c22347dc9a71f65a386b2e06aafd9a46e42bda678cf41406964cdfe161",
+      "executorChecksum": "c6c860e85469de14dcbe2e3fd2c40c70cab83b54a337f28619c6d7eb1374dc71"
+    },
+    {
+      "path": "lib/compute/product-v4-web-compatibility.ts",
+      "webChecksum": null,
+      "executorChecksum": "002551a09d895cb4d1873ffe8b47d9d15db953725890879aad77f9dba7b0312b"
+    },
+    {
+      "path": "lib/compute/runtime.ts",
+      "webChecksum": null,
+      "executorChecksum": "d7b877758e4f840cf37c5f987034e8dde5311619d569f274bced978ade332bbe"
+    },
+    {
+      "path": "lib/compute/source-figure.ts",
+      "webChecksum": "bc78824ca6abd45838cf7bbd1c0d005d111bcacf1e6c89dcefb2a2482e371af7",
+      "executorChecksum": "8e36d7786c78123d378bfccbfa5cd73a1961c8e1b130e91061f7104f31d223bc"
+    },
+    {
+      "path": "lib/env.ts",
+      "webChecksum": "bfe42a2d71577d9caa6326b9309fffd549bfccc9bdc2f08aa51f01a503f7d23f",
+      "executorChecksum": "bfe42a2d71577d9caa6326b9309fffd549bfccc9bdc2f08aa51f01a503f7d23f"
+    },
+    {
+      "path": "lib/flowchart.ts",
+      "webChecksum": "b180ea374e845ece1627a899b7e3d0b2b7ddbfc3af16c69b2fc321965d415f3e",
+      "executorChecksum": "b180ea374e845ece1627a899b7e3d0b2b7ddbfc3af16c69b2fc321965d415f3e"
+    },
+    {
+      "path": "lib/ide/contracts.ts",
+      "webChecksum": "fee0c7010cb598bfc3fa2c9aafb62b0bac63636eb365223e00185df73ae7c2fe",
+      "executorChecksum": "fee0c7010cb598bfc3fa2c9aafb62b0bac63636eb365223e00185df73ae7c2fe"
+    },
+    {
+      "path": "lib/materials/article-contract.ts",
+      "webChecksum": "3fc25162371b4c8eb7afc275a04c2a9effdcfa0662991181ef8b59104dcdbb59",
+      "executorChecksum": "3fc25162371b4c8eb7afc275a04c2a9effdcfa0662991181ef8b59104dcdbb59"
+    },
+    {
+      "path": "lib/materials/article-parts.ts",
+      "webChecksum": "c26a744fe519ab730ec3d56d6eb7a4d00032828292efed5c768680f0e83c5a04",
+      "executorChecksum": "c26a744fe519ab730ec3d56d6eb7a4d00032828292efed5c768680f0e83c5a04"
+    },
+    {
+      "path": "lib/materials/compiler.ts",
+      "webChecksum": "4448e498cc6322ce639b37f4e15ef7e2e34b692f56e44cf208349ed5cf007b50",
+      "executorChecksum": "4448e498cc6322ce639b37f4e15ef7e2e34b692f56e44cf208349ed5cf007b50"
+    },
+    {
+      "path": "lib/materials/diktat-print-readiness.ts",
+      "webChecksum": "c03c483e48aacf2a172872016a3427befc0db0ce245b1e728cdbe5d42cd1cf81",
+      "executorChecksum": "c03c483e48aacf2a172872016a3427befc0db0ce245b1e728cdbe5d42cd1cf81"
+    },
+    {
+      "path": "lib/materials/diktat-static-visual.ts",
+      "webChecksum": "7d96ddb84e720d1f24b4b5ec32bf9b9d3536b1ba5941d7800db3dc1471eecf69",
+      "executorChecksum": "7d96ddb84e720d1f24b4b5ec32bf9b9d3536b1ba5941d7800db3dc1471eecf69"
+    },
+    {
+      "path": "lib/materials/diktat-v4.ts",
+      "webChecksum": "2a2d8d09bad8e76699bea226771c0afd942252b582c49854d7d0a09cba89e814",
+      "executorChecksum": "2a2d8d09bad8e76699bea226771c0afd942252b582c49854d7d0a09cba89e814"
+    },
+    {
+      "path": "lib/materials/epsilon-delta.ts",
+      "webChecksum": "9d2f017fab1f62f2b7bf94ef0c615736c976a089017b994246371e91d4ae1bc1",
+      "executorChecksum": "9d2f017fab1f62f2b7bf94ef0c615736c976a089017b994246371e91d4ae1bc1"
+    },
+    {
+      "path": "lib/materials/pdf-artifact-contract.ts",
+      "webChecksum": "1f60d865d3cd56e5b98a338e85f3b78e728cca5157b027909c638b4b1f67c0f2",
+      "executorChecksum": "1f60d865d3cd56e5b98a338e85f3b78e728cca5157b027909c638b4b1f67c0f2"
+    },
+    {
+      "path": "lib/materials/pedagogy-contract.ts",
+      "webChecksum": "fe17f9a7dc0760aed5c1cd8bd98dfc61e1026054712efa1516e60e1ff133a5e0",
+      "executorChecksum": "fe17f9a7dc0760aed5c1cd8bd98dfc61e1026054712efa1516e60e1ff133a5e0"
+    },
+    {
+      "path": "lib/materials/quality-policy-constants.ts",
+      "webChecksum": "012eb29a16cce8790f52b43fa3d22b94b0491ef676ec58019ebb365969a616de",
+      "executorChecksum": "012eb29a16cce8790f52b43fa3d22b94b0491ef676ec58019ebb365969a616de"
+    },
+    {
+      "path": "lib/materials/quality-policy.ts",
+      "webChecksum": "74093934188396e75ab96f0f8339bc25079d1e4f4c73964e82ad91a9d2a61723",
+      "executorChecksum": "74093934188396e75ab96f0f8339bc25079d1e4f4c73964e82ad91a9d2a61723"
+    },
+    {
+      "path": "lib/materials/verification-preview.ts",
+      "webChecksum": "958a47f22fcc07fb549274466f09edd3db116fa5bb92591070e622ebf3c29eae",
+      "executorChecksum": "958a47f22fcc07fb549274466f09edd3db116fa5bb92591070e622ebf3c29eae"
+    },
+    {
+      "path": "lib/materials/visual-contract.ts",
+      "webChecksum": "792e49455c985c89318bf35b26ca62a90c542deb6cd4be465cc99d1ea8f52480",
+      "executorChecksum": "792e49455c985c89318bf35b26ca62a90c542deb6cd4be465cc99d1ea8f52480"
+    },
+    {
+      "path": "lib/math/katex-render.ts",
+      "webChecksum": "1dd2ce09dbc908adf97c0f3d246550df55830da0eb7f35f7875a4baecc0f6808",
+      "executorChecksum": "1dd2ce09dbc908adf97c0f3d246550df55830da0eb7f35f7875a4baecc0f6808"
+    },
+    {
+      "path": "lib/math/katex.ts",
+      "webChecksum": "63d200c411fd2e113624421c8207fdbd692e543f777675495d5b5968c7d4aee9",
+      "executorChecksum": "63d200c411fd2e113624421c8207fdbd692e543f777675495d5b5968c7d4aee9"
+    },
+    {
+      "path": "lib/math/math-normalizer.ts",
+      "webChecksum": "d972633a1a4553dc56b6c0e03d44b045047f25832677e13772496f44076e711f",
+      "executorChecksum": "d972633a1a4553dc56b6c0e03d44b045047f25832677e13772496f44076e711f"
+    },
+    {
+      "path": "lib/math/scientific-answer-normalizer.ts",
+      "webChecksum": "60aaa63061e8c1997537261067aa724fcd323e68df36670172c2e09043395d9e",
+      "executorChecksum": "60aaa63061e8c1997537261067aa724fcd323e68df36670172c2e09043395d9e"
+    },
+    {
+      "path": "lib/math/scientific-format.ts",
+      "webChecksum": "699ebb6f90dc493c60325863a46dd35e41994c1ed263cfd31541c32eed75b17f",
+      "executorChecksum": "699ebb6f90dc493c60325863a46dd35e41994c1ed263cfd31541c32eed75b17f"
+    },
+    {
+      "path": "lib/math/text-segments.ts",
+      "webChecksum": "44ce16a9ec94649134f0dbc7d3bbd16549892b71f4f5f783b21f888f6cd5616e",
+      "executorChecksum": "44ce16a9ec94649134f0dbc7d3bbd16549892b71f4f5f783b21f888f6cd5616e"
+    },
+    {
+      "path": "lib/math/unmarked-scientific.ts",
+      "webChecksum": "89da0c5d982b6cb177587a2fe53c4a74fa14ae9d4d87ad96cb500384a7634826",
+      "executorChecksum": "89da0c5d982b6cb177587a2fe53c4a74fa14ae9d4d87ad96cb500384a7634826"
+    },
+    {
+      "path": "lib/math/visual-function-latex.ts",
+      "webChecksum": "b4d2a9cd234fee8212c310ef63489a087a9b83603540f8da60d4ae69aee7d3a9",
+      "executorChecksum": "b4d2a9cd234fee8212c310ef63489a087a9b83603540f8da60d4ae69aee7d3a9"
+    },
+    {
+      "path": "lib/question-authoring-contract.ts",
+      "webChecksum": "c1fd4d31b9fe9c670f411b437f1ee91abd042249e10b87fbad29ea73c32166cb",
+      "executorChecksum": "c1fd4d31b9fe9c670f411b437f1ee91abd042249e10b87fbad29ea73c32166cb"
+    },
+    {
+      "path": "lib/sumber/contracts.ts",
+      "webChecksum": "7ae2ac6ccf8d7bb9cbc35505dac1ab2b6045e687e041a064bf910b5e2525c62a",
+      "executorChecksum": "7ae2ac6ccf8d7bb9cbc35505dac1ab2b6045e687e041a064bf910b5e2525c62a"
+    },
+    {
+      "path": "lib/visual-layout-service.ts",
+      "webChecksum": "313e483e4f5330edc7bb8ab290b8ab18da9c9ec8889e5882e91c1bc8f0ff8cc4",
+      "executorChecksum": "313e483e4f5330edc7bb8ab290b8ab18da9c9ec8889e5882e91c1bc8f0ff8cc4"
+    },
+    {
+      "path": "lib/zyra/canvas/contracts.ts",
+      "webChecksum": "b581ece7b753a0b9f970c691e016e0df516fc9bd8ee95c9ebd2a3327af5a7a7d",
+      "executorChecksum": "b581ece7b753a0b9f970c691e016e0df516fc9bd8ee95c9ebd2a3327af5a7a7d"
+    },
+    {
+      "path": "lib/zyra/canvas/evaluator.ts",
+      "webChecksum": "97d7bc3d7e4047b6e5ab53bb5f2194da127e20b3782972674b3a7ed0ea5f3bc0",
+      "executorChecksum": "97d7bc3d7e4047b6e5ab53bb5f2194da127e20b3782972674b3a7ed0ea5f3bc0"
+    },
+    {
+      "path": "lib/zyra/canvas/expression.ts",
+      "webChecksum": "02dd41cdd809cbaaa0352a4ddb52a27d8e369d040cf77e6d9eca9c7cb3a824b3",
+      "executorChecksum": "02dd41cdd809cbaaa0352a4ddb52a27d8e369d040cf77e6d9eca9c7cb3a824b3"
+    },
+    {
+      "path": "lib/zyra/canvas/viewport.ts",
+      "webChecksum": "2024cbdaee016d0be1d51d9e083ca2d7c932da4e312748a2281a5489e405c252",
+      "executorChecksum": "2024cbdaee016d0be1d51d9e083ca2d7c932da4e312748a2281a5489e405c252"
+    },
+    {
+      "path": "next.config.ts",
+      "webChecksum": "36174690838a017693b20caaf85af28fcee38f7ed38f601a60668886e4032822",
+      "executorChecksum": "36174690838a017693b20caaf85af28fcee38f7ed38f601a60668886e4032822"
+    },
+    {
+      "path": "package.json",
+      "webChecksum": "ada7e562557536059817d000fb00032d80b4f9a372a335f013bf1f5794fab5ae",
+      "executorChecksum": "ffa06a81575152486c181e84eed0afc53a0e1248fe84ab25804b66fb1348df41"
+    },
+    {
+      "path": "public/coding/worker.js",
+      "webChecksum": "928d48b33f99952e8abb9552ef7ed43260daf6a684376272510d38aa82733613",
+      "executorChecksum": "928d48b33f99952e8abb9552ef7ed43260daf6a684376272510d38aa82733613"
+    },
+    {
+      "path": "scripts/authoring/build-local-verification-renderer.ts",
+      "webChecksum": "6392ebc9b9a6edd46dc25dfeeb52661c1abfd1a6d2c33a9355908adf4a31f673",
+      "executorChecksum": "6392ebc9b9a6edd46dc25dfeeb52661c1abfd1a6d2c33a9355908adf4a31f673"
+    },
+    {
+      "path": "scripts/authoring/prepare-web-verification.ts",
+      "webChecksum": "c662b2e10dec74625e4cea5896c47df752210779e26903a8024f50fd81c1852b",
+      "executorChecksum": "c662b2e10dec74625e4cea5896c47df752210779e26903a8024f50fd81c1852b"
+    },
+    {
+      "path": "scripts/authoring/verification-renderer.ts",
+      "webChecksum": "7e14c17d162112192c593c176878a55dc88d4c7f6cab62e09ccabb1f8c6880f9",
+      "executorChecksum": "7e14c17d162112192c593c176878a55dc88d4c7f6cab62e09ccabb1f8c6880f9"
+    },
+    {
+      "path": "scripts/neon/build-worker.mjs",
+      "webChecksum": null,
+      "executorChecksum": "39541c4585eb52dc31f6594b7472a72b4a6664ffe9963031437c102edc2df441"
+    },
+    {
+      "path": "scripts/neon/deploy-worker.mjs",
+      "webChecksum": null,
+      "executorChecksum": "060463ae89df90788257aa4f0d5f6bcbbf9b3ef4cd1d459a3d5e0c291c442929"
+    },
+    {
+      "path": "workers/deno-background/deno.json",
+      "webChecksum": "a246680d412e46d0eed5df3e2ceea4a119ae35e35ad514f3d310a738583dbb19",
+      "executorChecksum": "a246680d412e46d0eed5df3e2ceea4a119ae35e35ad514f3d310a738583dbb19"
+    }
+  ]
+}

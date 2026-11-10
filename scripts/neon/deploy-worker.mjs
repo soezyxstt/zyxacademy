@@ -37,6 +37,12 @@ const environment = Object.fromEntries(Object.entries(raw).filter(([name]) => al
 environment.ZYX_COMPUTE_RUNTIME = "neon";
 environment.ZYX_COMPUTE_BUILD_RUNTIME = await readFile("artifacts/authoring-verification/web-runtime.json", "utf8");
 environment.AUTHORING_VERIFICATION_BROWSER_PROVIDER = "cloudflare";
+if (target.name === "production") {
+  const compatibility = JSON.parse(await readFile("lib/compute/product-v4-web-compatibility.json", "utf8"));
+  if (compatibility.origin !== target.appOrigin) throw new Error("V4_COMPATIBILITY_WEB_ORIGIN_MISMATCH");
+  const response = await fetch(`${compatibility.origin}${compatibility.asset.path}`, { redirect: "error", signal: AbortSignal.timeout(30_000) });
+  if (!response.ok || createHash("sha256").update(new Uint8Array(await response.arrayBuffer())).digest("hex") !== compatibility.asset.checksum) throw new Error("V4_COMPATIBILITY_WEB_ASSET_CHANGED");
+}
 // No scheduler is registered until the returned URL is independently read back and tested.
 environment.INNGEST_SERVE_ORIGIN = target.origin;
 environment.INNGEST_SERVE_PATH = "/api/inngest";
