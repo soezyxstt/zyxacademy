@@ -118,6 +118,102 @@ describe("worker vector batch embeddings", () => {
     }
   });
 
+  it("splits concurrent 50-document calls and reserves at most 75 documents per rolling minute", async () => {
+    const clock = fakeClock();
+    const calls: Array<{ at: number; count: number }> = [];
+    const input = Array.from({ length: 100 }, (_, index) => ({ title: `Document ${index}`, content: `Document ${index}` }));
+    const embed = createWorkerVectorEmbedder([{
+      projectId: "first",
+      embedContent: async request => {
+        calls.push({ at: clock.now(), count: request.contents.length });
+        return { embeddings: request.contents.map(content => ({ values: vector(Number(content.parts[0].text.match(/Document (\d+)$/)![1])) })) };
+      },
+    }], clock);
+    const results = await Promise.all([embed(input.slice(0, 50)), embed(input.slice(50))]);
+    expect(results.flat().map(values => values[0])).toEqual(Array.from({ length: 100 }, (_, index) => index));
+    expect(calls.map(call => call.count)).toEqual([25, 25, 25, 25]);
+    expect(calls.at(-1)!.at - calls[0].at).toBeGreaterThanOrEqual(60_000);
+    for (const call of calls) {
+      expect(calls.filter(item => item.at >= call.at && item.at < call.at + 60_000)
+        .reduce((sum, item) => sum + item.count, 0)).toBeLessThanOrEqual(75);
+    }
+  });
+
+  it("uses another ready project when the preferred project has reserved its document quota", async () => {
+    const clock = fakeClock();
+    const calls: Array<{ project: string; at: number; count: number }> = [];
+    const clients = ["first", "second"].map(project => ({
+      projectId: project,
+      embedContent: async (request: Parameters<WorkerVectorEmbeddingClient["embedContent"]>[0]) => {
+        calls.push({ project, at: clock.now(), count: request.contents.length });
+        return { embeddings: request.contents.map(() => ({ values: vector(1) })) };
+      },
+    }));
+    const embed = createWorkerVectorEmbedder(clients, clock);
+    const input = Array.from({ length: 50 }, () => documents[0]);
+    await embed(input);
+    await embed(input);
+    await embed(documents.slice(0, 1));
+    expect(calls.map(call => call.project)).toEqual(["first", "first", "first", "second", "second"]);
+    expect(clock.now()).toBe(20_000);
+    for (const project of ["first", "second"]) {
+      expect(calls.filter(call => call.project === project).reduce((sum, call) => sum + call.count, 0)).toBeLessThanOrEqual(75);
+    }
+  });
+
+  it("disables 401, 402 and 403 clients for subsequent calls in the process", async () => {
+    for (const status of [401, 402, 403]) {
+      let blockedCalls = 0, healthyCalls = 0;
+      const embed = createWorkerVectorEmbedder([
+        { projectId: "blocked", embedContent: async () => { blockedCalls++; throw Object.assign(new Error("private credential detail"), { status }); } },
+        { projectId: "healthy", embedContent: async request => { healthyCalls++; return { embeddings: request.contents.map(() => ({ values: vector(1) })) }; } },
+      ], fakeClock());
+      const input = Array.from({ length: 50 }, () => documents[0]);
+      await embed(input);
+      await embed(input);
+      expect(blockedCalls).toBe(1);
+      expect(healthyCalls).toBe(4);
+    }
+  });
+
+  it("backs off 429 for a full minute and stops after three attempts without exposing SDK details", async () => {
+    const clock = fakeClock();
+    const starts: number[] = [];
+    const embed = createWorkerVectorEmbedder([{
+      projectId: "limited", embedContent: async () => {
+        starts.push(clock.now());
+        throw Object.assign(new Error("https://provider.test?key=private-test-token"), { status: 429 });
+      },
+    }], clock);
+    try {
+      await embed(documents);
+      throw new Error("Expected quota failure");
+    } catch (error) {
+      expect(String(error)).toContain("EMBEDDING_FAILED");
+      expect(String(error)).toContain("limited: HTTP 429");
+      expect(String(error)).not.toContain("private-test-token");
+    }
+    expect(starts).toEqual([0, 60_000, 120_000]);
+  });
+
+  it("skips a cooling-down project while another project can accept the request", async () => {
+    const clock = fakeClock();
+    const starts: Array<{ project: string; at: number }> = [];
+    const embed = createWorkerVectorEmbedder([
+      { projectId: "limited", embedContent: async () => {
+        starts.push({ project: "limited", at: clock.now() });
+        throw Object.assign(new Error("quota"), { status: 429 });
+      } },
+      { projectId: "healthy", embedContent: async request => {
+        starts.push({ project: "healthy", at: clock.now() });
+        return { embeddings: request.contents.map(() => ({ values: vector(1) })) };
+      } },
+    ], clock);
+    await embed(documents);
+    await embed(documents);
+    expect(starts).toEqual([{ project: "limited", at: 0 }, { project: "healthy", at: 5_000 }, { project: "healthy", at: 10_000 }]);
+  });
+
   it("skips empty batches and rejects oversized batches or blank content before spending quota", async () => {
     let calls = 0;
     const embed = createWorkerVectorEmbedder([{
