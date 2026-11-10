@@ -23,6 +23,9 @@ for (const functionId of ids) {
   const body = await response.json();
   const runs = (body.data ?? []).map(run => ({
     id: run.id, status: run.status, startedAt: run.startedAt, endedAt: run.endedAt,
+    outputPresent: Object.hasOwn(run, "output"), outputType: typeof run.output,
+    outputKeys: run.output && typeof run.output === "object" ? Object.keys(run.output) : [],
+    outputNumbers: Object.fromEntries(Object.entries(run.output ?? {}).filter(([,value]) => typeof value === "number")),
     businessFailures: Object.fromEntries(Object.entries(run.output ?? {})
       .filter(([key, value]) => /^(failed|failedCount|errors|errorCount)$/.test(key))
       .map(([key, value]) => [key, typeof value === "number" ? value : Array.isArray(value) ? value.length : value ? 1 : 0])),

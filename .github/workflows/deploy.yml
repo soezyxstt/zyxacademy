@@ -38,7 +38,7 @@ on:
       maintenance:
         description: Production worker maintenance without deployment or web build
         type: choice
-        options: [none, vector-plan, vector-apply, vector-apply-short, vector-stage-short, vector-verify, remaining, remaining-independent, product-pdf, admin-knowledge, assessment]
+        options: [none, vector-plan, vector-apply, vector-apply-short, vector-stage-short, vector-verify, remaining, remaining-independent, product-pdf, admin-knowledge, assessment, inspect]
         default: none
       recovery_id:
         description: Private snapshot identity for vector recovery
@@ -144,6 +144,9 @@ jobs:
       - name: Verify assessment extraction and vectors
         if: inputs.maintenance == 'assessment'
         run: bun scripts/neon/smoke-assessment-worker.ts production
+      - name: Inspect worker output metadata
+        if: inputs.maintenance == 'inspect'
+        run: node scripts/neon/inspect-worker-runs.mjs production
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -157,6 +160,7 @@ jobs:
             artifacts/neon-worker/production/admin-knowledge-smoke.json
             artifacts/neon-worker/production/assessment-smoke.json
             artifacts/neon-worker/production/assessment-retained.json
+            artifacts/neon-worker/production/worker-runs.json
           retention-days: 7
 
   runtime-diagnostics:
