@@ -165,7 +165,7 @@ try {
     assert.ok(Array.isArray(question.correctIndices) && question.correctIndices.length > 0);
   }
   // Durable runs can interleave between steps despite concurrency=1; await actual owned row completion.
-  if (!resume) await run("vector-sync-worker", "vector.sync.dispatch", { courseId: id }, "owned-vector-finalize");
+  await run("vector-sync-worker", "vector.sync.dispatch", { courseId: id }, resume ? `owned-vector-resume-${randomUUID()}` : "owned-vector-finalize");
   let outbox: Array<typeof s.vectorSyncQueue.$inferSelect> = [];
   for (let poll = 0; poll < 160; poll++) {
     outbox = await db.select().from(s.vectorSyncQueue).where(eq(s.vectorSyncQueue.courseId, id));
