@@ -26,10 +26,11 @@ export async function readRemainingRun(
   read: (path: string) => Promise<{ data?: RunSummary | RunSummary[] } | undefined>, functionId: string, runId: string,
 ) {
   const direct = await read(`/runs/${encodeURIComponent(runId)}?include=output`);
-  if (direct?.data && !Array.isArray(direct.data)) return direct.data;
+  const summary = direct?.data && !Array.isArray(direct.data) ? direct.data : undefined;
+  if (summary?.output !== undefined) return summary;
   // The single-run beta API can briefly return 404 after invoke succeeds.
   const listed = await read(`/apps/zyx-academy/functions/${encodeURIComponent(functionId)}/runs?include=output&limit=100`);
-  return Array.isArray(listed?.data) ? listed.data.find(run => run.id === runId) : undefined;
+  return (Array.isArray(listed?.data) ? listed.data.find(run => run.id === runId) : undefined) ?? summary;
 }
 
 export async function waitForOwnedSearchVector(
@@ -124,7 +125,7 @@ async function main() {
     }
     await save();
     for (let attempt = 0; attempt < 220; attempt++) {
-      const execution = item.eventId
+      const execution: RunSummary | undefined = item.eventId
         ? (await api(`/events/${encodeURIComponent(item.eventId)}/runs?include=output`)).data?.find((run: RunSummary) => run.function?.id === functionId)
         : await readRemainingRun(path => api(path, {}, true), functionId, item.runId);
       if (!execution) { await pause(); continue; }
@@ -135,6 +136,7 @@ async function main() {
         await save();
         assert.equal(item.status, "COMPLETED", "REMAINING_RUN_NOT_COMPLETED");
         const output = typeof execution.output === "string" ? JSON.parse(execution.output) : execution.output;
+        if (output === undefined || output === null) { await pause(); continue; }
         assert.ok(output && typeof output === "object", "REMAINING_RUN_OUTPUT_MISSING");
         return output as Record<string, unknown>;
       }
