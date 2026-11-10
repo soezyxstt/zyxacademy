@@ -41,6 +41,8 @@ For the authorized production recovery, verify the exact protected production br
 
 ## Cost and recovery
 
+Production background Vectorize writes use the existing vector API code in the separate `zyx-vector-api-background` Worker. It binds only `zyx-vectors-production-v2` and `zyx-site-search-production`, with a separate encrypted secret installed atomically. The existing web endpoint and credential are unchanged. GitHub production `BACKGROUND_VECTORIZE_WORKER_URL` and `BACKGROUND_VECTORIZE_SHARED_SECRET` map only into the prepared background runtime; neither is a web setting. The original background credential failed authenticated writes with HTTP 401. Anonymous reads on the new endpoint return 401, and authenticated reads return 200. Do not replay the historical failed outbox without checking cause and current source versions.
+
 Neon and Cloudflare retain metered usage and limits. Reported Neon credit does not establish Cloudflare credit. No plan upgrade is included. The minute outbox cron is retained, so low website traffic does not imply zero invocations. compute.request logs record wall duration and process CPU; overlapping process CPU cannot provide per-job billing attribution.
 
 For staging regression, restore the previous successful Neon archive and matching build identity, then resync Inngest. Preserve pending fixtures until terminal state or explicit cancellation. Suspended Deno is not a verified recovery target. Production requires its own working rollback target before cutover.

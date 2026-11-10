@@ -29,6 +29,26 @@ def fixture(environment):
 
 
 class WorkerRuntimeTest(unittest.TestCase):
+    def test_background_vector_writer_does_not_change_web_settings(self):
+        source = fixture("production") | {"VECTORIZE_SHARED_SECRET": "existing-web-key",
+            "BACKGROUND_VECTORIZE_SHARED_SECRET": "synthetic-background-key"}
+        result = prepare_worker_runtime("production", source,
+            {"BACKGROUND_VECTORIZE_WORKER_URL": "https://zyx-vector-api-background.16922204.workers.dev"})
+        self.assertEqual(result["VECTORIZE_SHARED_SECRET"], "synthetic-background-key")
+        self.assertEqual(source["VECTORIZE_SHARED_SECRET"], "existing-web-key")
+        self.assertNotIn("BACKGROUND_VECTORIZE_SHARED_SECRET", result)
+
+    def test_background_vector_writer_requires_exact_production_pair(self):
+        for environment, url, key in [
+            ("staging", "https://zyx-vector-api-background.16922204.workers.dev", "synthetic"),
+            ("production", "https://other.workers.dev", "synthetic"),
+            ("production", "https://zyx-vector-api-background.16922204.workers.dev", ""),
+            ("production", "", "synthetic"),
+        ]:
+            with self.subTest(environment=environment, url=url), self.assertRaisesRegex(ValueError, "WORKER_VECTOR_WRITER_TARGET_MISMATCH"):
+                prepare_worker_runtime(environment, fixture(environment) | {"BACKGROUND_VECTORIZE_SHARED_SECRET": key},
+                    {"BACKGROUND_VECTORIZE_WORKER_URL": url})
+
     def test_explicit_environment_is_required(self):
         for name in (None, "", "Production", "preview", "development"):
             with self.subTest(name=name), self.assertRaisesRegex(ValueError, "WORKER_ENVIRONMENT_REQUIRED"):

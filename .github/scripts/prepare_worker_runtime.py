@@ -80,6 +80,14 @@ def prepare_worker_runtime(environment, secrets, variables):
             raise ValueError("WORKER_SETTING_REQUIRED:" + name)
     if not settings.get("CF_BROWSER_API_TOKEN") and not settings.get("CF_API_TOKEN"):
         raise ValueError("WORKER_BROWSER_TOKEN_REQUIRED")
+    writer_url = variables.get("BACKGROUND_VECTORIZE_WORKER_URL") or secrets.get("BACKGROUND_VECTORIZE_WORKER_URL")
+    writer_secret = secrets.get("BACKGROUND_VECTORIZE_SHARED_SECRET")
+    if writer_url or writer_secret:
+        if (environment != "production"
+                or writer_url != "https://zyx-vector-api-background.16922204.workers.dev"
+                or not isinstance(writer_secret, str) or not writer_secret.strip() or writer_secret == "[SENSITIVE]"):
+            raise ValueError("WORKER_VECTOR_WRITER_TARGET_MISMATCH")
+        settings.update(VECTORIZE_WORKER_URL=writer_url, VECTORIZE_SHARED_SECRET=writer_secret)
     settings.update(NODE_ENV="production", ZYX_ENVIRONMENT=environment, ZYX_MCP_ENVIRONMENT=environment,
                     NEXT_PUBLIC_APP_URL=target["origin"], BETTER_AUTH_URL=target["origin"],
                     COMPUTE_SERVICE_URL=f"https://{target['branch']}-zyxcompute.compute.c-3.ap-southeast-1.aws.neon.tech",

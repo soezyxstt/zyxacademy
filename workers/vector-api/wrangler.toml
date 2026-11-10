@@ -36,3 +36,16 @@ index_name = "zyx-vectors-staging-v2"
 [[env.staging.vectorize]]
 binding = "VECTORIZE_SEARCH"
 index_name = "zyx-site-search-staging"
+
+# Background execution uses a separate credential; the live web endpoint is unchanged.
+[env.background]
+name = "zyx-vector-api-background"
+account_id = "06d62d8a9335fed189a6a59fda0a4f48"
+
+[[env.background.vectorize]]
+binding = "VECTORIZE_V2"
+index_name = "zyx-vectors-production-v2"
+
+[[env.background.vectorize]]
+binding = "VECTORIZE_SEARCH"
+index_name = "zyx-site-search-production"
