@@ -12,6 +12,7 @@ import { inspectDiktatPrintReadiness } from "@/lib/materials/diktat-print-readin
 import type { DiktatSourceFigureAssets } from "@/lib/materials/diktat-static-visual";
 import { z } from "zod";
 import { acquireConfiguredVerificationBrowser, type VerificationBrowserSession } from "./product-v4-browser-session";
+import { productV4TargetRuntime } from "./product-v4-web-compatibility";
 import { assertProductV4RuntimeFingerprint, expectedChromiumRuntime, resolveProductV4LoadedRuntime, type ProductV4RuntimeFingerprint } from "./product-v4-runtime-binding";
 
 declare const __ZYX_VERIFICATION_BUILD_RUNTIME__: { fingerprint: ProductV4RuntimeFingerprint; chromium: { browserVersion: string; revision: string } } | undefined;
@@ -214,7 +215,10 @@ export async function executeBrowserProductV4Check(input: {
   signal?: AbortSignal;
 }): Promise<ProductV4ObservedCheck> {
   const bundle = bundleSchema.parse(input.bundle);
-  assertProductV4RuntimeFingerprint(input.plan.binding, await loadedRuntime);
+  assertProductV4RuntimeFingerprint(input.plan.binding, productV4TargetRuntime(await loadedRuntime, {
+    importId: input.plan.binding.importId, bundleId: bundle.manifest.bundleId, courseId: bundle.manifest.courseId,
+    sourceFigureCount: bundle.products.flatMap(product => product.productType === "article" ? product.visuals ?? [] : []).filter(visual => visual.kind === "source_figure").length,
+  }));
   const derived = deriveProductV4VerificationPlan({ bundle, binding: input.plan.binding });
   assertProductV4VerificationCurrent(input.plan, derived);
   const requirement = derived.requirements.find((check) => check.id === input.requirement.id);

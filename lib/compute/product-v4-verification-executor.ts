@@ -2,7 +2,8 @@ import { findUnmarkedScientificProse } from "@/lib/math/unmarked-scientific";
 import { z } from "zod";
 import type { ProductV4VerificationPorts } from "@/lib/bundle/product-v4-verification-service";
 import type { ProductV4ObservedCheck } from "@/lib/bundle/product-v4-verification";
-import { loadProductV4StaticFigureAssets } from "./product-v4-runtime-binding";
+import { loadProductV4StaticFigureAssets, readProductV4ExecutorRuntime, assertProductV4RuntimeFingerprint } from "./product-v4-runtime-binding";
+import { productV4CompatibilityEvidence, productV4TargetRuntime } from "./product-v4-web-compatibility";
 import { articlePartsSchema, validateArticlePartReferences } from "@/lib/materials/article-parts";
 import { visualSpecSchema } from "@/lib/materials/visual-contract";
 import { deriveEpsilonDelta } from "@/lib/materials/epsilon-delta";
@@ -30,6 +31,14 @@ export const executeProductV4VerificationCheck: ProductV4VerificationPorts["exec
     const findings: string[] = [];
     const observations: unknown[] = [];
     if (input.requirement.layer === "structure") {
+      if (isHostedComputeRuntime()) {
+        const actual = await readProductV4ExecutorRuntime();
+        const scope = { importId: input.plan.binding.importId, bundleId: input.bundle.manifest.bundleId, courseId: input.bundle.manifest.courseId,
+          sourceFigureCount: input.bundle.products.flatMap(product => product.productType === "article" ? product.visuals ?? [] : []).filter(visual => visual.kind === "source_figure").length };
+        assertProductV4RuntimeFingerprint(input.plan.binding, productV4TargetRuntime(actual, scope));
+        const compatibility = productV4CompatibilityEvidence(actual, scope);
+        if (compatibility) observations.push(compatibility);
+      }
       for (const product of input.bundle.products) {
         if (input.bundle.manifest.schemaVersion === "product-bundle.v4" || product.schemaVersion === "article.v4" || product.schemaVersion === "diktat.v4") findings.push(...findUnmarkedScientificProse(product).map((finding) => `UNMARKED_SCIENTIFIC_NOTATION:${product.id}:${finding.path}:${finding.notation}`));
         if (product.productType === "article") {
