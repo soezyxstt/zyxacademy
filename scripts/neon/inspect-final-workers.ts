@@ -23,7 +23,7 @@ function safeFacts(value: unknown, ownedAssessment: boolean, facts: unknown[] = 
       const patterns = [/\b[A-Za-z_$][\w.$]* is not defined\b/, /\b[A-Za-z_$][\w.$]* is not a function\b/,
         /column "?[a-zA-Z0-9_]+"?(?: of relation "[a-zA-Z0-9_]+")? does not exist/,
         /relation "[a-zA-Z0-9_]+" does not exist/, /violates (?:foreign key|unique|check) constraint "[a-zA-Z0-9_]+"/,
-        /Vectorize canonical worker \/v2\/\w+ failed \(\d+\)/, /EMBEDDING_FAILED|DIMENSION_MISMATCH|StepExecutionTimeout|FUNCTION_INVOCATION_TIMEOUT/];
+        /Vectorize canonical worker \/v2\/\w+ failed \(\d+\)/, /SOURCE_READ_FAILED|FORBIDDEN_SOURCE_PATH|UNREGISTERED_SOURCE_PATH|UNKNOWN_VIRTUAL_SOURCE|ENOENT|EACCES|EMBEDDING_FAILED|DIMENSION_MISMATCH|StepExecutionTimeout|FUNCTION_INVOCATION_TIMEOUT/];
       const diagnostic = patterns.map(pattern => object.message.match(pattern)?.[0]).find(Boolean);
       facts.push({ errorName: typeof object.name === "string" && /^[\w.-]{1,80}$/.test(object.name) ? object.name : undefined,
         errorCode: typeof object.code === "string" && /^[\w.-]{1,80}$/.test(object.code) ? object.code : undefined, diagnostic: diagnostic ?? "message withheld" });
