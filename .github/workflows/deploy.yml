@@ -35,32 +35,40 @@ on:
       resume_run_id:
         description: Optional prior acceptance run with retained owned fixtures
         type: string
+      maintenance:
+        description: Production worker maintenance without deployment or web build
+        type: choice
+        options: [none, vector-plan, vector-apply, vector-apply-short, vector-verify, remaining, remaining-independent, product-pdf, admin-knowledge, assessment]
+        default: none
+      recovery_id:
+        description: Private snapshot identity for vector recovery
+        type: string
 
 permissions:
   contents: read
   actions: read
 
 concurrency:
-  group: deploy-deno-${{ github.ref }}
+  group: deploy-deno-${{ github.ref }}-${{ inputs.maintenance || 'none' }}
   cancel-in-progress: false
 
 jobs:
   deploy-neon-staging:
-    if: github.event_name != 'pull_request' && !inputs.business_acceptance && !inputs.browser_diagnostics && !inputs.runtime_diagnostics && !inputs.restore_turso_worker && github.ref_name == 'staging'
+    if: github.event_name != 'pull_request' && (!inputs.maintenance || inputs.maintenance == 'none') && !inputs.business_acceptance && !inputs.browser_diagnostics && !inputs.runtime_diagnostics && !inputs.restore_turso_worker && github.ref_name == 'staging'
     uses: ./.github/workflows/deploy-neon-worker.yml
     with:
       environment: staging
     secrets: inherit
 
   deploy-neon-production:
-    if: github.event_name != 'pull_request' && !inputs.business_acceptance && !inputs.browser_diagnostics && !inputs.runtime_diagnostics && !inputs.restore_turso_worker && (github.ref_name == 'main' || (github.event_name == 'workflow_dispatch' && inputs.diagnostic_environment == 'production'))
+    if: github.event_name != 'pull_request' && (!inputs.maintenance || inputs.maintenance == 'none') && !inputs.business_acceptance && !inputs.browser_diagnostics && !inputs.runtime_diagnostics && !inputs.restore_turso_worker && (github.ref_name == 'main' || (github.event_name == 'workflow_dispatch' && inputs.diagnostic_environment == 'production'))
     uses: ./.github/workflows/deploy-neon-worker.yml
     with:
       environment: production
     secrets: inherit
 
   verify-existing-worker:
-    if: github.event_name == 'workflow_dispatch' && inputs.business_acceptance
+    if: github.event_name == 'workflow_dispatch' && (!inputs.maintenance || inputs.maintenance == 'none') && inputs.business_acceptance
     uses: ./.github/workflows/worker-acceptance.yml
     with:
       environment: ${{ inputs.diagnostic_environment }}
@@ -68,8 +76,91 @@ jobs:
       resume_run_id: ${{ inputs.resume_run_id }}
     secrets: inherit
 
+  maintain-existing-worker:
+    if: github.event_name == 'workflow_dispatch' && inputs.maintenance && inputs.maintenance != 'none'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 60
+    concurrency:
+      group: production-worker-maintenance-${{ (startsWith(inputs.maintenance, 'remaining') || inputs.maintenance == 'product-pdf') && inputs.maintenance || 'ai' }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@v4
+        with:
+          name: neon-production-worker
+          path: artifacts/worker-deployment/
+          run-id: ${{ inputs.deployment_run_id }}
+          github-token: ${{ github.token }}
+      - name: Prepare private production maintenance settings
+        env:
+          GITHUB_ENVIRONMENT_NAME: production
+          GITHUB_RUNTIME_SECRETS: ${{ toJSON(secrets) }}
+          GITHUB_RUNTIME_VARS: ${{ toJSON(vars) }}
+        run: |
+          python3 .github/scripts/prepare_worker_runtime.py artifacts/neon-worker/.env.runtime.json
+          node scripts/neon/prepare-acceptance.mjs production
+      - uses: actions/download-artifact@v4
+        if: startsWith(inputs.maintenance, 'remaining') && inputs.resume_run_id != ''
+        with:
+          name: production-worker-maintenance
+          path: artifacts/worker-resume/
+          run-id: ${{ inputs.resume_run_id }}
+          github-token: ${{ github.token }}
+      - name: Restore owned acceptance evidence
+        if: startsWith(inputs.maintenance, 'remaining') && inputs.resume_run_id != ''
+        run: cp artifacts/worker-resume/remaining-smoke.json artifacts/neon-worker/production/remaining-smoke.json
+      - name: Recover the verified historical vector backlog
+        if: startsWith(inputs.maintenance, 'vector-')
+        env:
+          RECOVERY_MODE: ${{ inputs.maintenance }}
+          RECOVERY_ID: ${{ inputs.recovery_id }}
+        run: bun scripts/neon/recover-vector-backlog.ts "${RECOVERY_MODE#vector-}" "$RECOVERY_ID"
+      - name: Verify remaining production worker paths
+        if: startsWith(inputs.maintenance, 'remaining')
+        env:
+          RESUME_FIXTURE: ${{ inputs.recovery_id }}
+          SKIP_SEARCH: ${{ inputs.maintenance == 'remaining-independent' }}
+        run: |
+          args=(production --deterministic)
+          if [ "$SKIP_SEARCH" = true ]; then args+=(--skip-search); fi
+          if [ -n "$RESUME_FIXTURE" ]; then args+=(--resume "$RESUME_FIXTURE"); fi
+          bun scripts/neon/smoke-remaining-workers.ts "${args[@]}"
+      - name: Verify product-bundle PDF
+        if: inputs.maintenance == 'product-pdf'
+        run: bun scripts/neon/smoke-product-pdf.ts production
+      - name: Verify Admin Knowledge catalog and vectors
+        if: inputs.maintenance == 'admin-knowledge'
+        run: bun scripts/neon/smoke-admin-knowledge.ts production
+      - name: Verify assessment extraction and vectors
+        if: inputs.maintenance == 'assessment'
+        run: bun scripts/neon/smoke-assessment-worker.ts production
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: production-worker-maintenance
+          path: |
+            artifacts/neon-worker/production/vector-recovery.json
+            artifacts/neon-worker/production/remaining-smoke.json
+            artifacts/neon-worker/production/remaining-retained.json
+            artifacts/neon-worker/production/product-pdf-smoke.json
+            artifacts/neon-worker/production/product-pdf-retained.json
+            artifacts/neon-worker/production/admin-knowledge-smoke.json
+            artifacts/neon-worker/production/assessment-smoke.json
+            artifacts/neon-worker/production/assessment-retained.json
+          retention-days: 7
+
   runtime-diagnostics:
-    if: github.event_name == 'workflow_dispatch' && (inputs.runtime_diagnostics || inputs.restore_turso_worker)
+    if: github.event_name == 'workflow_dispatch' && (!inputs.maintenance || inputs.maintenance == 'none') && (inputs.runtime_diagnostics || inputs.restore_turso_worker)
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -89,7 +180,7 @@ jobs:
           retention-days: 7
 
   browser-diagnostics:
-    if: github.event_name == 'workflow_dispatch' && inputs.browser_diagnostics
+    if: github.event_name == 'workflow_dispatch' && (!inputs.maintenance || inputs.maintenance == 'none') && inputs.browser_diagnostics
     runs-on: ubuntu-latest
     environment: ${{ inputs.diagnostic_environment }}
     env:

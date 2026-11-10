@@ -29,6 +29,10 @@ import { parseFrontmatter } from "./assessment-frontmatter";
 
 export { parseFrontmatter } from "./assessment-frontmatter";
 
+export interface AssessmentExtractionResult extends ExtractionResult {
+  createdConcepts: Array<{ conceptId: string; localizationId: string }>;
+}
+
 const AssessmentObjectExtractionSchema = z.object({
   questionType: z.string().min(1),
   difficulty: z.union([z.number(), z.string()]),
@@ -110,7 +114,7 @@ export function parseAssessmentMarkdownIntoBlocks(markdown: string): string[] {
   return blocks;
 }
 
-async function resolveConceptId(conceptName: string): Promise<string> {
+async function resolveConceptId(conceptName: string, createdConcepts: AssessmentExtractionResult["createdConcepts"]): Promise<string> {
   const normName = normalizeConceptName(conceptName);
 
   const registeredLocalizations = await db
@@ -163,12 +167,6 @@ async function resolveConceptId(conceptName: string): Promise<string> {
   const newConceptId = randomUUID();
   const slug = slugify(conceptName);
 
-  await db.insert(concepts).values({
-    id: newConceptId,
-    canonicalSlug: slug || `concept-${newConceptId.slice(0, 8)}`,
-    isVerified: false,
-  });
-
   let newEmbedding: number[] | null = null;
   if (process.env.MOCK_GEMINI !== "true" && !embedding) {
     try {
@@ -178,15 +176,24 @@ async function resolveConceptId(conceptName: string): Promise<string> {
     newEmbedding = embedding;
   }
 
-  await db.insert(conceptLocalizations).values({
-    id: `cl-${randomUUID()}`,
-    conceptId: newConceptId,
-    lang: "id",
-    displayName: conceptName,
-    aliases: [],
-    technicalStandardTerm: "id",
-    embedding: newEmbedding,
+  const localizationId = `cl-${randomUUID()}`;
+  await db.transaction(async tx => {
+    await tx.insert(concepts).values({
+      id: newConceptId,
+      canonicalSlug: slug || `concept-${newConceptId.slice(0, 8)}`,
+      isVerified: false,
+    });
+    await tx.insert(conceptLocalizations).values({
+      id: localizationId,
+      conceptId: newConceptId,
+      lang: "id",
+      displayName: conceptName,
+      aliases: [],
+      technicalStandardTerm: "id",
+      embedding: newEmbedding,
+    });
   });
+  createdConcepts.push({ conceptId: newConceptId, localizationId });
 
   return newConceptId;
 }
@@ -224,8 +231,9 @@ async function resolveChapterId(courseId: string, chapterName: string): Promise<
 export async function extractAssessmentObjectsForSource(
   sourceId: string,
   isMockOverride?: boolean
-): Promise<ExtractionResult> {
+): Promise<AssessmentExtractionResult> {
   const isMock = isMockOverride ?? (process.env.MOCK_GEMINI === "true");
+  const createdConcepts: AssessmentExtractionResult["createdConcepts"] = [];
 
   const [source] = await db
     .select()
@@ -237,6 +245,7 @@ export async function extractAssessmentObjectsForSource(
       status: "failed",
       objects: [],
       errors: [`Assessment source with ID "${sourceId}" not found.`],
+      createdConcepts,
     };
   }
 
@@ -419,7 +428,7 @@ Ensure all fields are fully populated and valid JSON is returned. Do not wrap in
       let resolvedChapterId: string | null = null;
       for (const conceptName of conceptList) {
         try {
-          const conceptId = await resolveConceptId(conceptName);
+          const conceptId = await resolveConceptId(conceptName, createdConcepts);
 
           await db.insert(assessmentObjectConcepts).values({
             id: `aoc-${randomUUID()}`,
@@ -432,6 +441,7 @@ Ensure all fields are fully populated and valid JSON is returned. Do not wrap in
             .from(knowledgeObjects)
             .where(
               and(
+                eq(knowledgeObjects.courseId, source.courseId),
                 eq(knowledgeObjects.conceptId, conceptId),
                 eq(knowledgeObjects.status, "active")
               )
@@ -448,6 +458,7 @@ Ensure all fields are fully populated and valid JSON is returned. Do not wrap in
             }
           }
         } catch (err) {
+          diagnostics.push(`Failed to resolve concept "${conceptName}".`);
           console.error(`[Assessment Ingest] Failed to resolve concept "${conceptName}":`, err);
         }
       }
@@ -509,6 +520,7 @@ Ensure all fields are fully populated and valid JSON is returned. Do not wrap in
       objects: extractedObjects,
       errors: extractionErrors,
       diagnostics,
+      createdConcepts,
     };
   } catch (error: any) {
     console.error(`[Assessment Ingest] Critical failure during ingestion of source ${sourceId}:`, error);
@@ -525,6 +537,7 @@ Ensure all fields are fully populated and valid JSON is returned. Do not wrap in
       status: "failed",
       objects: [],
       errors: [error.message || String(error)],
+      createdConcepts,
     };
   }
 }

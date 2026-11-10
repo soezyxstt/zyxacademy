@@ -9,11 +9,13 @@ export const assessmentIngestWorker = inngest.createFunction(
   async ({ event, step }) => {
     const { sourceId } = event.data as { sourceId: string };
 
-    await step.run("extract-assessment-objects", async () => {
+    const result = await step.run("extract-assessment-objects", async () => {
       const { extractAssessmentObjectsForSource } = await import("@/lib/assessment-extractor");
-      await extractAssessmentObjectsForSource(sourceId);
+      const extraction = await extractAssessmentObjectsForSource(sourceId);
+      return { status: extraction.status, objectIds: extraction.objects.map(object => object.id), createdConcepts: extraction.createdConcepts };
     });
 
-    return { sourceId };
+    if (result.status === "failed") throw new Error(`ASSESSMENT_EXTRACTION_FAILED:${sourceId}`);
+    return { sourceId, ...result };
   }
 );

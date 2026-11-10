@@ -6,7 +6,7 @@ import {
   vectorizeCanonicalUpsert,
 } from "@/lib/vectorize-client";
 import { eq, and, or, lt, sql, inArray } from "drizzle-orm";
-import { getCanonicalContentV2EmbeddingAdapter } from "@/lib/vectorize/runtime";
+import { embedWorkerVectorDocuments } from "@/lib/compute/vector-embeddings";
 import { canonicalOutboxPayload, canonicalOutboxTitle } from "@/lib/vectorize/outbox";
 import { CANONICAL_VECTOR_PROFILE } from "@/lib/vectorize/contracts";
 
@@ -31,67 +31,37 @@ export async function mapConcurrent<T, R>(
   return results;
 }
 
-// Retrieve configurable batch size from environment or config, defaulting to 50
-const BATCH_SIZE = process.env.VECTOR_SYNC_BATCH_SIZE
-  ? parseInt(process.env.VECTOR_SYNC_BATCH_SIZE, 10)
-  : 50;
+const BATCH_SIZE = Number(process.env.VECTOR_SYNC_BATCH_SIZE ?? 50);
+if (!Number.isInteger(BATCH_SIZE) || BATCH_SIZE < 1 || BATCH_SIZE > 50) {
+  throw new Error("VECTOR_SYNC_BATCH_SIZE_MUST_BE_1_TO_50");
+}
+
+function ownedLease(row: VectorSyncRow) {
+  if (!row.leaseId) throw new Error("VECTOR_SYNC_LEASE_MISSING");
+  return and(eq(vectorSyncQueue.id, row.id), eq(vectorSyncQueue.leaseId, row.leaseId), eq(vectorSyncQueue.status, "processing"));
+}
 
 async function processCanonicalBatch(step: any, rows: VectorSyncRow[]) {
-  const operations = rows.map((row) => ({
-    rowId: row.id,
-    title: canonicalOutboxTitle(row),
-    outbox: canonicalOutboxPayload(row as {
-      id: string;
-      koId?: string | null;
-      action: "upsert" | "delete";
-      namespace: string;
-      courseId: string;
-      payload: unknown;
-    }),
-  }));
-
   try {
+    const operations = rows.map((row) => ({ row, title: canonicalOutboxTitle(row), outbox: canonicalOutboxPayload(row) }));
+    const toEmbed = operations.flatMap(operation => operation.outbox.operation === "upsert"
+      ? [{ title: operation.title, ...operation.outbox }] : []);
+    const values = await step.run("canonical-vectorize-embeddings", () => embedWorkerVectorDocuments(toEmbed.map(({ title, content }) => ({ title, content }))));
+
     await step.run("canonical-vectorize-upsert", async () => {
-      const adapter = await getCanonicalContentV2EmbeddingAdapter();
-      const deletes: string[] = [];
-      const toEmbed: Array<{
-        title: string;
-        vectorId: string;
-        content: string;
-        metadata: any;
-      }> = [];
-
-      for (const operation of operations) {
-        if (operation.outbox.operation === "delete") {
-          deletes.push(operation.outbox.vectorId);
-        } else if (operation.outbox.operation === "upsert") {
-          toEmbed.push({
-            title: operation.title,
-            vectorId: operation.outbox.vectorId,
-            content: operation.outbox.content,
-            metadata: operation.outbox.metadata,
-          });
-        }
-      }
-
-      // Bounded concurrency embedding (concurrency = 5) prevents serial latency while respecting Gemini quota
-      const upserts = await mapConcurrent(toEmbed, 5, async (item) => {
-        const values = await adapter.embedDocument(item.title, item.content);
-        return {
-          id: item.vectorId,
-          values,
-          metadata: item.metadata,
-        };
-      });
-
+      // A replay can retain the claim step after a different run has taken its lease.
+      const owned = await db.select({ id: vectorSyncQueue.id }).from(vectorSyncQueue).where(or(...rows.map(ownedLease)));
+      if (owned.length !== rows.length) throw new Error("VECTOR_SYNC_LEASE_LOST");
+      const upserts = toEmbed.map((operation, index) => ({
+        id: operation.vectorId,
+        values: values[index],
+        metadata: operation.metadata,
+      }));
+      const deletes = operations.filter(operation => operation.outbox.operation === "delete").map(operation => operation.outbox.vectorId);
       if (upserts.length > 0) {
         await vectorizeCanonicalUpsert({
           profileId: CANONICAL_VECTOR_PROFILE.id,
-          vectors: upserts.map((vector) => ({
-            id: vector.id,
-            values: vector.values,
-            metadata: vector.metadata,
-          })),
+          vectors: upserts,
         });
       }
       if (deletes.length > 0) {
@@ -115,25 +85,27 @@ async function processCanonicalBatch(step: any, rows: VectorSyncRow[]) {
               dimensions: 768,
               indexedContentHash: null,
             };
-          const existingPayload = rowPayload(rows.find((row) => row.id === operation.rowId)?.payload);
-          await tx
+          const existingPayload = rowPayload(operation.row.payload);
+          const finalized = await tx
             .update(vectorSyncQueue)
             .set({
               status: "completed",
+              lastError: null,
               leaseId: null,
               leaseExpiresAt: null,
               payload: { ...existingPayload, providerNeutralOutbox: operation.outbox, vectorizeCompletion: completion },
               updatedAt: new Date(),
             })
-            .where(eq(vectorSyncQueue.id, operation.rowId));
+            .where(ownedLease(operation.row))
+            .returning({ id: vectorSyncQueue.id });
+          if (finalized.length !== 1) throw new Error("VECTOR_SYNC_LEASE_LOST");
         }
       });
     });
     return { processed: rows.length, success: rows.length, failed: 0, provider: "canonical-content-v2" as const };
   } catch (error: any) {
     await step.run("canonical-vectorize-failure", async () => {
-      const rowIds = rows.map((r) => r.id);
-      await db
+      for (const row of rows) await db
         .update(vectorSyncQueue)
         .set({
           status: "failed",
@@ -143,9 +115,9 @@ async function processCanonicalBatch(step: any, rows: VectorSyncRow[]) {
           leaseExpiresAt: null,
           updatedAt: new Date(),
         })
-        .where(inArray(vectorSyncQueue.id, rowIds));
+        .where(ownedLease(row));
     });
-    return { processed: rows.length, success: 0, failed: rows.length, provider: "canonical-content-v2" as const };
+    throw error;
   }
 }
 
@@ -193,7 +165,7 @@ export async function processBatch(step: any, courseId?: string) {
           inArray(vectorSyncQueue.id, candidateIds),
           or(
             eq(vectorSyncQueue.status, "pending"),
-            eq(vectorSyncQueue.status, "failed"),
+            and(eq(vectorSyncQueue.status, "failed"), lt(vectorSyncQueue.attempts, 10)),
             and(eq(vectorSyncQueue.status, "processing"), lt(vectorSyncQueue.leaseExpiresAt, now))
           )
         )

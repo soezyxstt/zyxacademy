@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import {
+  assertCanonicalDimensions,
   CANONICAL_VECTOR_PROFILE,
   parseVersionedVectorId,
   type CanonicalVectorProvider,
@@ -219,6 +220,7 @@ export interface ExecuteSyncOptions {
   readonly dryRun?: boolean;
   readonly vectorProvider?: CanonicalVectorProvider;
   readonly embeddingAdapter?: CanonicalContentV2EmbeddingAdapter;
+  readonly embedDocuments?: (documents: readonly { title: string; content: string }[]) => Promise<number[][]>;
   readonly customSources?: CuratedSourceContent[];
   readonly existingSources?: AdminKnowledgeSourceRecord[];
   readonly existingChunks?: AdminKnowledgeChunk[];
@@ -280,7 +282,7 @@ export async function executeAdminKnowledgeSync(
     const sourceMap = new Map(sources.map((s) => [s.id, s]));
 
     // Commit external vectors before catalog hashes can make retries retain chunks.
-    if (options.vectorProvider && options.embeddingAdapter) {
+    if (options.vectorProvider && (options.embedDocuments || options.embeddingAdapter)) {
       if (plan.chunkIdsToRetain.length > 0) {
         const retainedIds = new Set(plan.chunkIdsToRetain);
         const retained = manifests.flatMap(manifest => manifest.chunks).filter(chunk => retainedIds.has(chunk.id));
@@ -306,33 +308,40 @@ export async function executeAdminKnowledgeSync(
 
       // 5a. Upsert vectors
       if (plan.chunksToUpsert.length > 0) {
-        const vectorRecords: CanonicalVectorRecord[] = [];
-        for (const chunk of plan.chunksToUpsert) {
-          const values = await options.embeddingAdapter.embedDocument(
-            chunk.locator,
-            chunk.content
-          );
-          const parsedVectorId = parseVersionedVectorId(chunk.vectorId);
-          vectorRecords.push({
-            id: chunk.vectorId,
-            values,
-            metadata: {
-              namespace: ADMIN_OPS_KNOWLEDGE_NAMESPACE,
-              entityType: ADMIN_DOCUMENT_ENTITY_TYPE,
-              entityId: parsedVectorId.entityId,
-              version: chunk.version,
-              status: "active",
-              accessClass: ADMIN_ACCESS_CLASS,
-              language: "id",
-              profileId: CANONICAL_VECTOR_PROFILE.id,
-              contentHash: chunk.contentHash,
-            },
+        for (let offset = 0; offset < plan.chunksToUpsert.length; offset += 50) {
+          const batch = plan.chunksToUpsert.slice(offset, offset + 50);
+          const embeddings: number[][] = [];
+          if (options.embedDocuments) {
+            embeddings.push(...await options.embedDocuments(batch.map(chunk => ({ title: chunk.locator, content: chunk.content }))));
+          } else {
+            for (const chunk of batch) embeddings.push(await options.embeddingAdapter!.embedDocument(chunk.locator, chunk.content));
+          }
+          if (embeddings.length !== batch.length) throw new Error("ADMIN_KNOWLEDGE_EMBEDDING_COUNT_MISMATCH");
+          const vectorRecords: CanonicalVectorRecord[] = batch.map((chunk, index) => {
+            const values = embeddings[index];
+            assertCanonicalDimensions(values, `Admin knowledge chunk ${chunk.id}`);
+            const parsedVectorId = parseVersionedVectorId(chunk.vectorId);
+            return {
+              id: chunk.vectorId,
+              values,
+              metadata: {
+                namespace: ADMIN_OPS_KNOWLEDGE_NAMESPACE,
+                entityType: ADMIN_DOCUMENT_ENTITY_TYPE,
+                entityId: parsedVectorId.entityId,
+                version: chunk.version,
+                status: "active",
+                accessClass: ADMIN_ACCESS_CLASS,
+                language: "id",
+                profileId: CANONICAL_VECTOR_PROFILE.id,
+                contentHash: chunk.contentHash,
+              },
+            };
+          });
+          await options.vectorProvider.upsert({
+            profileId: CANONICAL_VECTOR_PROFILE.id,
+            vectors: vectorRecords,
           });
         }
-        await options.vectorProvider.upsert({
-          profileId: CANONICAL_VECTOR_PROFILE.id,
-          vectors: vectorRecords,
-        });
       }
 
       // 5b. Delete vectors
