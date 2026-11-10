@@ -146,7 +146,7 @@ jobs:
         run: bun scripts/neon/smoke-assessment-worker.ts production
       - name: Inspect worker output metadata
         if: inputs.maintenance == 'inspect'
-        run: node scripts/neon/inspect-worker-runs.mjs production
+        run: bun scripts/neon/inspect-final-workers.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:
