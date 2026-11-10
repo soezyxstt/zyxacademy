@@ -82,7 +82,7 @@ jobs:
     environment: production
     timeout-minutes: 60
     concurrency:
-      group: production-worker-maintenance-${{ (startsWith(inputs.maintenance, 'remaining') || inputs.maintenance == 'product-pdf') && inputs.maintenance || 'ai' }}
+      group: production-worker-maintenance-${{ (startsWith(inputs.maintenance, 'remaining') || inputs.maintenance == 'product-pdf' || inputs.maintenance == 'inspect') && inputs.maintenance || 'ai' }}
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4

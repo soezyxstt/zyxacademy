@@ -21,15 +21,24 @@ for (const functionId of ids) {
   });
   assert.equal(response.status, 200, `Run inspection failed: ${functionId}`);
   const body = await response.json();
-  const runs = (body.data ?? []).map(run => ({
+  const runs = await Promise.all((body.data ?? []).map(async run => {
+    const detail = await fetch(`https://api.inngest.com/v2/runs/${encodeURIComponent(run.id)}?include=output`, { headers, signal: AbortSignal.timeout(30_000) });
+    const data = detail.ok ? (await detail.json()).data : undefined;
+    const output = data?.output;
+    return ({
     id: run.id, status: run.status, startedAt: run.startedAt, endedAt: run.endedAt,
     outputPresent: Object.hasOwn(run, "output"), outputType: typeof run.output,
     outputKeys: run.output && typeof run.output === "object" ? Object.keys(run.output) : [],
     outputNumbers: Object.fromEntries(Object.entries(run.output ?? {}).filter(([,value]) => typeof value === "number")),
+    detailStatus: detail.status, detailOutputType: typeof output,
+    detailOutputKeys: output && typeof output === "object" ? Object.keys(output) : [],
+    detailOutputNumbers: output && typeof output === "object" ? Object.fromEntries(Object.entries(output).filter(([,value]) => typeof value === "number")) : {},
+    detailArray: Array.isArray(output),
+    detailStringJsonKeys: typeof output === "string" && output.startsWith("{") ? Object.keys(JSON.parse(output)) : [],
     businessFailures: Object.fromEntries(Object.entries(run.output ?? {})
       .filter(([key, value]) => /^(failed|failedCount|errors|errorCount)$/.test(key))
       .map(([key, value]) => [key, typeof value === "number" ? value : Array.isArray(value) ? value.length : value ? 1 : 0])),
-  }));
+  }); }));
   result.push({ functionId, runs });
 }
 await writeFile(`${target.output}/worker-runs.json`, JSON.stringify(result, null, 2));
