@@ -1,5 +1,7 @@
 # Development Guide
 
+The [Neon Functions worker runbook](operations/neon-functions-cutover.md) documents archive building, guarded deployment, Inngest synchronization and synthetic PDF tests. Supply an explicit environment and use its verified Neon target. Legacy local environment files must not supply production Inngest settings.
+
 Staging and production use separate guarded Neon PostgreSQL targets, and `bun run db:migrate` applies `drizzle-postgres/`. The legacy production push and canonical backfill are disabled. Both serving environments explicitly use private Neon S3-compatible buckets with `STORAGE_PROVIDER_MODE=neon`. Use [.env.neon.example](../.env.neon.example), the [staging migration runbook](operations/neon-migration.md) and [production cutover runbook](operations/neon-production-cutover.md). Do not reuse production sessions or integration credentials for development. SQLite and R2 setup instructions below are legacy compatibility references.
 
 The staging importer can consume a signed local source snapshot using `NEON_SOURCE_SNAPSHOT` and `NEON_SOURCE_FREEZE_ACK=staging-writes-frozen`. The snapshot exporter requires the dedicated ignored `.env.neon-staging-cutover-source` file and independently verified staging write freeze. Snapshots and their manifests stay under ignored `.tmp`, with local access restricted to the operator. They contain business data and must not enter CI uploads. `scripts/neon/source-snapshot.test.ts` exercises only synthetic data.

@@ -1,10 +1,10 @@
 // @ts-ignore -- Deno worker dependency is resolved through deno.json; web builds never load this module.
-import * as canvas from "@napi-rs/canvas";
 import { buildCourseThumbnailKey } from "@/lib/storage/keys";
 import { storage } from "@/lib/storage";
 import { setupPdfWorker } from "./pdf-worker";
 
-function installPdfCanvasGlobals() {
+async function installPdfCanvasGlobals() {
+  const canvas = await import("@napi-rs/canvas");
   const globals = globalThis as unknown as Record<string, unknown>;
   const canvasExports = canvas as unknown as Record<string, unknown>;
   for (const name of ["DOMMatrix", "ImageData", "Path2D"] as const) {
@@ -23,10 +23,15 @@ async function readPdfBytes(params: { pdfBuffer?: Buffer | Uint8Array | null; fi
 
 /** Compute-only PDF page rasterizer. The screenshot bytes returned by pdf-parse are PNG. */
 export async function renderPdfFirstPagePng(bytes: Uint8Array): Promise<Buffer> {
+  if (process.env.ZYX_COMPUTE_RUNTIME === "neon") {
+    const { parseBrowserPdfPages } = await import("./browser-pdf");
+    const result = await parseBrowserPdfPages(bytes, [1], "image", 720);
+    return Buffer.from(result.pages[0].png);
+  } else {
   let parser: { destroy(): Promise<void> } | null = null;
   try {
     if (!bytes.byteLength) throw new Error("PDF_BYTES_EMPTY");
-    installPdfCanvasGlobals();
+    await installPdfCanvasGlobals();
     const { PDFParse } = await import("pdf-parse");
     await setupPdfWorker(PDFParse);
     const pdfParser = new PDFParse({ data: bytes });
@@ -42,6 +47,7 @@ export async function renderPdfFirstPagePng(bytes: Uint8Array): Promise<Buffer> 
     return Buffer.from(page.data);
   } finally {
     await parser?.destroy().catch(() => undefined);
+  }
   }
 }
 

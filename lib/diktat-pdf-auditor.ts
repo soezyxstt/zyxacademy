@@ -1,6 +1,7 @@
 import { DiktatStructure } from "./diktat-generator";
 import { generateContentWithFallback } from "./gemini";
 import { USE_CASES } from "@/lib/ai-router";
+import { inspectPdfText } from "@/lib/compute/pdf-inspection";
 
 export interface PDFAuditResult {
   status: "pass" | "warn" | "fail" | "unavailable";
@@ -16,13 +17,7 @@ export async function auditRenderedPDF(
 
   let extractedText = "";
   try {
-    const { PDFParse } = await import("pdf-parse");
-    const { setupPdfWorker } = await import("@/lib/compute/pdf-worker");
-    await setupPdfWorker(PDFParse);
-
-    const parser = new PDFParse({ data: new Uint8Array(pdfBuffer) });
-    const result = await parser.getText();
-    extractedText = result.text;
+    extractedText = (await inspectPdfText(new Uint8Array(pdfBuffer))).text;
   } catch (err) {
     console.warn("[diktat-pdf-auditor] pdf-parse extraction failed:", err);
     return { status: "warn", warnings: ["PDF text extraction failed; skipping AI audit."] };

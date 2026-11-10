@@ -1,5 +1,9 @@
 # Deployment Guide
 
+## Neon Functions staging transition
+
+The [worker cutover runbook](operations/neon-functions-cutover.md) is OPEN / IN PROGRESS. The owner authorized production recovery on Neon Functions through `.github/workflows/deploy-neon-worker.yml`, retaining Inngest and using Cloudflare Browser Run for PDFs. The worker deploys before the coordinated Vercel web release. Staging web/DNS work is deferred.
+
 ## Cloud Run staging
 
 Release jobs explicitly evaluate cancellation and the successful impact/gate results. Optional skipped ancestors must not suppress a selected push deployment after the CI gate passes. Pull requests, failed gates, cancellation, and unselected surfaces remain blocked. A successful CI run alone is not proof of deployment; verify the deployment job and ready revision traffic.

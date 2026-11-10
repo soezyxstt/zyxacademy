@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { setupPdfWorker } from "./pdf-worker";
+import { inspectPdfText } from "./pdf-inspection";
 import { db } from "@/db";
 import { buktiPdfBundle, imporBundle, user } from "@/db/schema";
 import { storage, type StorageProvider } from "@/lib/storage";
@@ -25,22 +25,14 @@ type ArticleProduct = Extract<ProductEntity, { productType: "article" }>;
 type DiktatProduct = Extract<ProductEntity, { productType: "diktat" }>;
 
 export async function inspectProductDiktatPdf(bytes: Uint8Array): Promise<InspectedPdf> {
-  const { PDFParse } = await import("pdf-parse");
-  await setupPdfWorker(PDFParse);
-  // PDF.js transfers its input buffer to a worker. Keep the upload bytes owned here.
-  const parser = new PDFParse({ data: bytes.slice() });
   try {
-    const info = await parser.getInfo();
-    const textResult = await parser.getText();
-    const text = textResult.text;
+    const { pageCount, text } = await inspectPdfText(bytes);
     if (!text.trim() || text.includes("[object Object]") || text.includes("\\undefined") || text.includes("\uFFFD")) {
       throw new Error("PRODUCT_DIKTAT_PDF_CONTENT_INVALID");
     }
-    return { pageCount: info.total, text };
+    return { pageCount, text };
   } catch (error) {
     throw new Error("PRODUCT_DIKTAT_PDF_CONTENT_INSPECTION_FAILED", { cause: error });
-  } finally {
-    await parser.destroy();
   }
 }
 

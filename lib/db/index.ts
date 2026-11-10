@@ -21,4 +21,7 @@ const { Pool, types } = pg;
 types.setTypeParser(20, "text", parsePostgresNumber);
 types.setTypeParser(1700, "text", parsePostgresNumber);
 
-export const db = drizzle(new Pool({ connectionString: url }), { schema });
+export const pool = new Pool({ connectionString: url, ...(process.env.ZYX_COMPUTE_RUNTIME === "neon" ? {
+  max: 5, connectionTimeoutMillis: 10_000, idleTimeoutMillis: 30_000,
+} : {}) });
+export const db = drizzle(pool, { schema });

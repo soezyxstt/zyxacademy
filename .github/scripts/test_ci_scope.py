@@ -42,8 +42,13 @@ class ScopeTest(unittest.TestCase):
             self.assertFalse(result[key], key)
 
     def test_new_worker_and_shared_job_are_worker_inputs(self):
-        for path in ['workers/deno-background/new.ts', 'jobs/new.ts']:
+        for path in ['workers/deno-background/new.ts', 'workers/neon-background/new.ts', 'scripts/neon/build-worker.mjs', 'jobs/new.ts']:
             self.assertTrue(self.plan(path)['worker'])
+
+    def test_neon_deployment_workflow_selects_worker_validation(self):
+        result = self.plan('.github/workflows/deploy-neon-worker.yml')
+        self.assertTrue(result['worker'])
+        self.assertTrue(result['ci'])
 
     def test_other_worker_is_not_a_web_or_deno_background_change(self):
         result = self.plan('workers/zyra-control-plane/index.ts')

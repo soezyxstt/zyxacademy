@@ -33,7 +33,8 @@ const unique = (values: string[]) => [...new Set(values)].sort();
 // Keep this closure in Next output tracing; missing source bytes must invalidate verification.
 export const PRODUCT_V4_RUNTIME_FILES = [
   "next.config.ts", "scripts/authoring/prepare-web-verification.ts",
-  "deno.json", "workers/deno-background/deno.json", "lib/compute/pdf-pages.ts", "lib/compute/pdf-worker.ts",
+  "deno.json", "workers/deno-background/deno.json", "lib/compute/runtime.ts", "lib/compute/pdf-pages.ts", "lib/compute/pdf-worker.ts",
+  "lib/compute/browser-pdf.ts", "lib/compute/pdf-inspection.ts", "scripts/neon/build-worker.mjs",
   "app/globals.css", "app/layout.tsx", "app/authoring-verification/page.tsx",
   "components/providers/telemetry-boundary.tsx", "components/providers/posthog-provider.tsx", "lib/env.ts",
   "components/coding/article-coding.tsx", "components/coding/coding-workspace.tsx", "components/coding/coding-help.tsx", "components/coding/python-editor.tsx", "components/coding/use-coding-draft.ts",
@@ -164,11 +165,11 @@ function runtimePackageManifest(name: string): string {
 }
 
 export async function readProductV4RuntimeFingerprint(): Promise<ProductV4RuntimeFingerprint> {
-  if (typeof (globalThis as { Deno?: unknown }).Deno !== "undefined" || process.env.NEXT_PUBLIC_V4_WEB_RUNTIME) {
+  if (typeof (globalThis as { Deno?: unknown }).Deno !== "undefined" || process.env.ZYX_COMPUTE_RUNTIME === "neon" || process.env.NEXT_PUBLIC_V4_WEB_RUNTIME) {
     // Next embeds the build identity; serverless bundles do not retain source module URLs.
     const fingerprint = JSON.parse(typeof (globalThis as { Deno?: unknown }).Deno !== "undefined"
       ? readFileSync(new URL("./product-v4-build-runtime.json", import.meta.url), "utf8")
-      : process.env.NEXT_PUBLIC_V4_WEB_RUNTIME!);
+      : process.env.ZYX_COMPUTE_RUNTIME === "neon" ? process.env.ZYX_COMPUTE_BUILD_RUNTIME! : process.env.NEXT_PUBLIC_V4_WEB_RUNTIME!);
     for (const key of ["rendererChecksum", "fontChecksum", "contractChecksum", "playbookChecksum"]) if (!/^[a-f0-9]{64}$/.test(fingerprint[key] ?? "")) throw new Error("PRODUCT_V4_BUILD_RUNTIME_INVALID");
     if (!fingerprint.printProfile) throw new Error("PRODUCT_V4_BUILD_RUNTIME_INVALID");
     return fingerprint;

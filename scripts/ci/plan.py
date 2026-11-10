@@ -68,7 +68,7 @@ class Snapshot:
         if specifier.startswith('@/'):
             target = specifier[2:]
         elif specifier.startswith('.'):
-            target = os.path.normpath(str(PurePosixPath(source).parent / specifier))
+            target = os.path.normpath(str(PurePosixPath(source).parent / specifier)).replace('\\', '/')
         elif specifier.split('/')[0] in {'app', 'lib', 'db', 'components', 'scripts', 'tests', 'messages', 'public', 'workers', 'prompts'}:
             target = specifier
         else:
@@ -120,8 +120,8 @@ class Snapshot:
 
 def scope_paths(snapshot):
     runtime = snapshot.runtime()
-    worker = snapshot.closure({'workers/deno-background/main.ts'})
-    worker |= snapshot.under('workers/deno-background/', 'jobs/')
+    worker = snapshot.closure({'workers/deno-background/main.ts', 'workers/neon-background/main.ts'})
+    worker |= snapshot.under('workers/deno-background/', 'workers/neon-background/', 'jobs/', 'scripts/neon/')
     worker |= {'deno.json', 'deno.lock', 'scripts/audit-worker-dependencies.ts'} | LOCKS
     # Keep lib/ conservative: server actions may discover modules dynamically.
     # Other workers are excluded unless explicitly fingerprinted or imported.
@@ -160,7 +160,7 @@ def plan(changed, head, base=None, force=False):
     for path in changed:
         if path.startswith(('app/', 'components/', 'lib/', 'hooks/', 'i18n/', 'messages/', 'public/', 'styles/', 'types/', 'docs/')):
             result['web'] = True
-        if path.startswith(('workers/deno-background/', 'jobs/')):
+        if path.startswith(('workers/deno-background/', 'workers/neon-background/', 'jobs/', 'scripts/neon/')):
             result['worker'] = True
         if path == 'tsconfig.structured-articles.json':
             result['structured_typecheck'] = True
@@ -180,7 +180,7 @@ def plan(changed, head, base=None, force=False):
         if path.startswith('tests/') and suffix in CODE or path == 'tsconfig.test.json':
             result['test_typecheck'] = True
     # Changing a reusable workflow explicitly revalidates its own surface.
-    workflows = {'deploy-web.yml': 'web', 'deploy.yml': 'worker', 'authoring-skills.yml': 'authoring',
+    workflows = {'deploy-web.yml': 'web', 'deploy.yml': 'worker', 'deploy-neon-worker.yml': 'worker', 'authoring-skills.yml': 'authoring',
                  'schedule-regressions.yml': 'schedule', 'sync-plugin.yml': 'plugin'}
     for file, scope in workflows.items():
         if '.github/workflows/' + file in changed:
