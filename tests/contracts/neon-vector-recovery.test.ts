@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { combineRecoveryItems, matchesRecoveryVector, recoveryItem } from "../../scripts/neon/recover-vector-backlog";
+import { combineRecoveryItems, matchesRecoveryVector, recoveryItem, runRecoveryBatches } from "../../scripts/neon/recover-vector-backlog";
 
 function fixture(namespace = "canonical_ideas", action: "upsert" | "delete" = "upsert") {
   const row = { id: "row-1", namespace, action, courseId: "course-1", status: "failed", attempts: 10, leaseId: null,
@@ -9,6 +9,18 @@ function fixture(namespace = "canonical_ideas", action: "upsert" | "delete" = "u
 }
 
 describe("production vector recovery planning", () => {
+  test("overlaps at most four batches and settles every started batch before failing", async () => {
+    let active = 0, maximum = 0, settled = 0;
+    const offsets: number[] = [];
+    await expect(runRecoveryBatches(250, async offset => {
+      offsets.push(offset); active++; maximum = Math.max(maximum, active);
+      await Promise.resolve();
+      active--; settled++;
+      if (offset === 50) throw new Error("controlled failure");
+    })).rejects.toThrow("controlled failure");
+    expect(maximum).toBe(4); expect(active).toBe(0); expect(settled).toBe(4);
+    expect(offsets).toEqual([0, 50, 100, 150]);
+  });
   test("uses current source content and retains the original failed row", () => {
     const { row, source } = fixture();
     const item = recoveryItem(row, source);

@@ -48,6 +48,16 @@ export function matchesRecoveryVector(item: Item, vector?: CanonicalVectorRecord
     && Object.entries(item.outbox.metadata).every(([key, value]) => vector.metadata[key as keyof typeof vector.metadata] === value));
 }
 
+export async function runRecoveryBatches(total: number, recover: (offset: number) => Promise<void>) {
+  // Overlap visibility waits; one shared embedder still paces every HTTP attempt.
+  for (let offset = 0; offset < total; offset += 200) {
+    const offsets = [offset, offset + 50, offset + 100, offset + 150].filter(value => value < total);
+    const results = await Promise.allSettled(offsets.map(recover));
+    const failure = results.find(result => result.status === "rejected");
+    if (failure?.status === "rejected") throw failure.reason;
+  }
+}
+
 async function main() {
   const [phase, runId] = process.argv.slice(2);
   assert.ok(["plan", "apply", "apply-short", "verify"].includes(phase), "RECOVERY_PHASE_REQUIRED");
@@ -159,15 +169,15 @@ async function main() {
         }
         await save("embedding-canary.json", { documents: 2, dimensions: canary.map(value => value.length), distinct: true, singletonOrderSimilarities: similarities });
       }
-      for (let offset = 0; offset < snapshot.items.length; offset += 50) {
+      async function recoverBatch(offset: number) {
         let batch: Item[] = snapshot.items.slice(offset, offset + 50).filter(item => phase !== "apply-short" || Buffer.byteLength(item.outbox.vectorId) <= 64);
-        if (!batch.length) continue;
+        if (!batch.length) return;
         let ids: string[] = batch.flatMap(item => item.rows.map(row => row.id));
         let current = await readRows(ids);
         assert.equal(current.length, ids.length);
         const completed = new Set(current.filter(row => row.status === "completed" && (row.payload as Record<string, any>).vectorizeRecovery?.runId === runId).map(row => row.id));
         batch = batch.filter(item => !item.rows.every(row => completed.has(row.id)));
-        if (!batch.length) continue;
+        if (!batch.length) return;
         ids = batch.flatMap(item => item.rows.map(row => row.id));
         const leaseId = `${runId}-${offset}`;
         // A cancelled maintenance runner may leave its own expired lease behind.
@@ -244,6 +254,7 @@ async function main() {
           throw error;
         }
       }
+      await runRecoveryBatches(snapshot.items.length, recoverBatch);
     }
     await assertSources(snapshot.items);
     const current = await readRows(snapshot.rows.map(row => row.id));
