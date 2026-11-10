@@ -6,15 +6,21 @@ Owner: Zyx engineering. On 2026-11-10 the owner explicitly prioritized productio
 
 ## Boundaries
 
-The staging worker is `zyxcompute` on project `muddy-sky-44104897`, branch `br-gentle-scene-azq0gp91` in Singapore. The protected production branch is excluded by the deployment script. Inngest retains orchestration, retries, durable steps and schedules. Neon replaces HTTP execution. The 22 primary functions register 25 handlers including three failure handlers.
+The worker is `zyxcompute` on project `muddy-sky-44104897` in Singapore. Staging uses `br-gentle-scene-azq0gp91`; production uses the protected branch `br-wandering-butterfly-azi11h8r`. Deployment requires an explicit environment and checks its exact branch protection and service identities. Inngest retains orchestration, retries, durable steps and schedules. Neon replaces HTTP execution. The 22 primary functions register 25 handlers including three failure handlers.
 
-Web staging remains deferred. Its Cloud Run service has disabled billing; a Vercel staging domain association was prepared but DNS was not changed. Production recovery replaces suspended Deno with a guarded Neon worker and a coordinated Vercel web release. Exhausted Deno quota prevents treating it as a working rollback destination.
+Web staging remains deferred. Its Cloud Run service has disabled billing; a Vercel staging domain association was prepared but DNS was not changed. The owner explicitly requested production Inngest worker recovery without a web rebuild on 2026-11-10. Do not change Vercel configuration, Zyra chat or Playground for this recovery. Exhausted Deno quota prevents treating it as a working rollback destination.
+
+Worker-only recovery has three compatibility limits. The unchanged web emits source-figure v1 requests; completed v1 assets remain readable, but unfinished requests require the original native renderer or a later producer release. V4 verification requires matching real web and worker runtime identities and remains fail-closed. The deployed web's direct compute RPC still points to its existing endpoint; Inngest registration does not reroute it. Do not copy an old fingerprint onto changed renderer code or claim these paths recovered.
 
 PDF.js extraction, page images, thumbnails and source crops run in Cloudflare Browser Run through Playwright CDP. HTML to PDF reuses the environment's existing diktat renderer and its BROWSER binding. Closing the remote browser session releases its contexts. Browser operations have a 120-second deadline. PDF inputs are limited to 50 MiB. Crops retain rotation handling and the 16-million-pixel guard. Browser version mismatches fail closed. Packaged PDF.js WASM/JavaScript decoders preserve JPEG2000 images; a red-pixel fixture catches silent blank rendering.
 
 Native canvas alone exceeds Neon's 10 MiB compressed archive limit. The build packages Node 24 ESM, Playwright, KaTeX and browser PDF assets, rejects leaked native PDF imports and enforces Neon SDK archive limits. The tested archive is approximately 6 MiB. The module-scoped PostgreSQL pool has at most five connections and is attached to the Neon runtime for idle disconnect handling.
 
 ## Guarded deployment
+
+GitHub repository variable `HOLD_WEB_DEPLOYMENT=true` pauses the CI web release and both direct web workflow jobs during worker-only recovery. Owner: Zyx engineering, at the owner's explicit request. Keep it set until an explicitly authorized coordinated web release; remove the hold only for that release. It does not bypass worker checks or change a product feature flag. Vercel Git auto-deployment remains disabled.
+
+The manual `worker-acceptance.yml` workflow takes an explicit environment and a successful worker deployment run ID. It prepares private GitHub environment settings, verifies the downloaded archive identity against live health, and exercises only uniquely owned temporary fixtures. It does not deploy or build the web. Temporary test courses may be visible until cleanup because the schema has no hidden course state. Pending fixtures retain their evidence and are not deleted while jobs may still consume them.
 
 1. Install the frozen Bun lockfile. Run `bun scripts/authoring/prepare-web-verification.ts` with the existing build-placeholder environment, then `node scripts/neon/build-worker.mjs`. Windows needs `NPM_CLI_PATH` pointing to the official npm CLI entry file for Linux ARM64 package staging.
 2. Prepare a private runtime JSON with `.github/scripts/prepare_worker_runtime.py`, explicit GITHUB_ENVIRONMENT_NAME, and the selected GitHub environment's secret/variable JSON. The allowlist excludes CI credentials. Local .env.prod has stale Turso/Inngest routing and must not supply production settings.
@@ -40,6 +46,10 @@ Neon and Cloudflare retain metered usage and limits. Reported Neon credit does n
 For staging regression, restore the previous successful Neon archive and matching build identity, then resync Inngest. Preserve pending fixtures until terminal state or explicit cancellation. Suspended Deno is not a verified recovery target. Production requires its own working rollback target before cutover.
 
 ## Acceptance checkpoint, 2026-11-10
+
+Production worker-only recovery completed through [workflow run 42828349104](https://github.com/soezyxstt/zyxacademy/actions/runs/42828349104) from revision `ce5ebb7cdc5cce79f1a41e5f45083b0eee64c885`. Neon production `zyxcompute` deployment 1 is active, archive SHA-256 `5a40bcf935062563723b84fb4bcb8cc2ad9c2513f0a599764af17b0a7cdd2d0a`, with 22 primary functions. Production Inngest sync returned HTTP 200. All 10 deployed HTTP/PDF checks passed. The synthetic source-read event `01M72VV54B2ZFSSXQYFRMCWVZ7` completed as run `01M72VV5FEXXP4HMG3HM4D4G2V`; the stored state and extracted text were checked, and owned source/state fixtures were cleaned. This verifies real signed execution, not every business path. Evidence is retained locally under `artifacts/neon-production-recovery-42828349104/production/`.
+
+No web build, Vercel configuration change, Playground change or Zyra chat change was performed. GitHub production received the approved worker RPC secret; the added credentials are retained in the ignored release checkout `.env.prod`, with explicit worker-only scope. The existing web's direct compute RPC, unfinished source-figure v1 requests and V4 verification remain subject to the compatibility limits above. The migration branch remains separate from main; this recovery does not establish that future main releases use the new workflow.
 
 Seven primary functions completed real Inngest runs on Neon staging, including the vector cron. This is a partial business-path checkpoint. Eight initial HTTP/PDF integration checks passed. Separate Browser Run tests passed PDF inspection and crop geometry for rotations 0, 90, 180 and 270. The preview PNGs were inspected directly. The all-correct feedback fixture intentionally makes no AI call.
 

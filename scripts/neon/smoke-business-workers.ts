@@ -4,13 +4,28 @@ import { randomUUID, createHash } from "node:crypto";
 import { zipSync, strToU8 } from "fflate";
 import { eq, sql } from "drizzle-orm";
 import { sourcePdf } from "../../tests/helpers/source-pdf";
+import { workerTarget, assertWorkerEnvironment } from "./worker-targets.mjs";
 
-const config = JSON.parse(await readFile("artifacts/neon-worker/.env.staging.json", "utf8"));
-assert.equal(new URL(config.DATABASE_URL).hostname, "ep-sparkling-lab-azrp3ymj-pooler.c-3.ap-southeast-1.aws.neon.tech");
-assert.equal(config.NEON_STORAGE_BUCKET, "zyx-staging");
-assert.equal(config.INNGEST_ENV, "staging-40f1da25");
+const target = workerTarget(process.argv[2]);
+const config = JSON.parse(await readFile(`${target.output}/.env.${target.name}.json`, "utf8"));
+assertWorkerEnvironment(target, config);
+assert.equal(config.INNGEST_SERVE_ORIGIN, target.origin);
+const inngestHeaders = { Authorization: `Bearer ${config.INNGEST_SIGNING_KEY}`, "X-Inngest-Env": config.INNGEST_ENV };
+const identity = await fetch("https://api.inngest.com/v2/envs?limit=250", { headers: inngestHeaders, signal: AbortSignal.timeout(30_000) });
+assert.equal(identity.status, 200, "Inngest identity preflight failed");
+const environments = await identity.json();
+assert.equal(environments.data?.length, 1);
+assert.equal(environments.data[0].id, target.inngestEnvironment);
+const eventKeys = await fetch("https://api.inngest.com/v2/keys/events?limit=100", { headers: inngestHeaders, signal: AbortSignal.timeout(30_000) });
+assert.equal(eventKeys.status, 200, "Inngest event key preflight failed");
+assert.ok((await eventKeys.json()).data?.some((entry: { key: string }) => entry.key === config.INNGEST_EVENT_KEY), "Inngest event key target mismatch");
+const health = await fetch(`${target.origin}/health`, { signal: AbortSignal.timeout(30_000) });
+assert.equal(health.status, 200, "Worker health preflight failed");
+const worker = await health.json();
+assert.equal(worker.functions, 22);
+assert.equal(worker.version, config.ZYX_COMPUTE_REVISION);
 Object.assign(process.env, config);
-const [{ db, pool }, schema, { storage }, { joinKey, buildCourseThumbnailKey, buildSourceFigureKey, extractStorageKey }, { inngest }] = await Promise.all([
+const [{ db, pool }, schema, { storage }, { joinKey, slugifySegment, buildCourseThumbnailKey, buildSourceFigureKey, extractStorageKey }, { inngest }] = await Promise.all([
   import("../../lib/db"), import("../../db/schema"), import("../../lib/storage"), import("../../lib/storage/keys"), import("../../jobs/client"),
 ]);
 const id = `neon-worker-${randomUUID()}`;
@@ -22,14 +37,15 @@ const digest = (bytes: Uint8Array | string) => createHash("sha256").update(bytes
 const pdf = sourcePdf(), checksum = digest(pdf);
 let sourceImportId: string | undefined;
 let pending = false;
+let fixturesCreated = false;
 async function run(functionId: string, name: string, data: Record<string, unknown>) {
   pending = true;
   const sent = await inngest.send({ id: `${id}-${functionId}`, name, data });
   assert.equal(sent.ids.length, 1);
-  await writeFile("artifacts/neon-worker/business-pending.json", JSON.stringify({ fixtureId: id, functionId, eventId: sent.ids[0], key, thumbnailKey }));
+  await writeFile(`${target.output}/business-pending.json`, JSON.stringify({ environment: target.name, fixtureId: id, functionId, eventId: sent.ids[0], key, thumbnailKey }));
   for (let attempt = 0; attempt < 80; attempt++) {
     const response = await fetch(`https://api.inngest.com/v2/events/${encodeURIComponent(sent.ids[0])}/runs?include=output`, {
-      headers: { Authorization: `Bearer ${config.INNGEST_SIGNING_KEY}`, "X-Inngest-Env": config.INNGEST_ENV }, signal: AbortSignal.timeout(20_000),
+      headers: inngestHeaders, signal: AbortSignal.timeout(20_000),
     });
     assert.equal(response.status, 200);
     const result = await response.json();
@@ -37,7 +53,7 @@ async function run(functionId: string, name: string, data: Record<string, unknow
     if (execution && ["COMPLETED", "FAILED", "CANCELLED"].includes(execution.status.toUpperCase())) {
       pending = false;
       evidence.push({ functionId, eventId: sent.ids[0], runId: execution.id, status: execution.status });
-      await writeFile("artifacts/neon-worker/business-smoke.json", JSON.stringify(evidence, null, 2));
+      await writeFile(`${target.output}/business-smoke.json`, JSON.stringify(evidence, null, 2));
       assert.equal(execution.status.toUpperCase(), "COMPLETED");
       console.log(JSON.stringify(evidence.at(-1)));
       return;
@@ -47,12 +63,12 @@ async function run(functionId: string, name: string, data: Record<string, unknow
   throw new Error(`WORKER_SMOKE_PENDING:${functionId}`);
 }
 try {
-  const target = await db.execute(sql`select current_database() as name`);
-  assert.equal(target.rows[0].name, new URL(config.DATABASE_URL).pathname.slice(1));
+  const database = await db.execute(sql`select current_database() as name`);
+  assert.equal(database.rows[0].name, "neondb");
   await db.transaction(async tx => {
     await tx.insert(schema.user).values({ id, name: "Neon worker fixture", email: `${id}@example.invalid` });
     await tx.insert(schema.pengguna).values({ id, status: "active" });
-    await tx.insert(schema.courses).values({ id, title: "Neon worker fixture", category: "Test" });
+    await tx.insert(schema.courses).values({ id, title: "Neon worker fixture", category: "Matematika" });
     await tx.insert(schema.chapters).values({ id, courseId: id, title: "Penjumlahan", orderIndex: 1 });
     await tx.insert(schema.masterTeachingDocuments).values({ id, courseId: id, title: "Penjumlahan", markdownContent: "Penjumlahan menggabungkan nilai dua bilangan. Jika a=2 dan b=3, jumlahnya adalah 5.", createdById: id, status: "active" });
     await tx.insert(schema.concepts).values({ id, canonicalSlug: id });
@@ -68,6 +84,7 @@ try {
     await tx.insert(schema.studentQuizAttempts).values({ id, studentId: id, templateId: id, status: "completed", score: 100,
       questionsSnapshot: [{ id: "synthetic-question", correct_indices: [0] }], answersSnapshot: { "synthetic-question": [0] }, submittedAt: new Date() });
   });
+  fixturesCreated = true;
   await storage.upload(pdf, "synthetic.pdf", "application/pdf", { key });
   await run("pdf-thumbnail-worker", "pdf/thumbnail.requested", { materialId: id, sourceType: "course_material", sourceVersion: key });
   const [material] = await db.select().from(schema.courseMaterials).where(eq(schema.courseMaterials.id, id));
@@ -106,6 +123,8 @@ try {
   const { generateDiktatStructure } = await import("../../lib/diktat-generator");
   const structure = await generateDiktatStructure(id, [id]);
   const diktatId = `${id}-diktat`;
+  const expectedPdfKey = joinKey("courses", id, "diktats", `${slugifySegment(structure.title)}.pdf`);
+  ownedObjects.push(expectedPdfKey, buildCourseThumbnailKey({ courseSlug: id, materialId: diktatId, extension: "png" }));
   await db.insert(schema.diktats).values({ id: diktatId, courseId: id, sourceMtdId: id, sourceMtdVersion: 1, generationHash: structure.generationHash,
     title: structure.title, chapterIds: [id], settings: { compiledStructure: structure }, status: "generating" });
   await run("diktat-pdf-worker", "diktat/pdf.generate.requested", { diktatId });
@@ -113,8 +132,7 @@ try {
   assert.equal(diktat.status, "ready");
   assert.ok(diktat.fileUrl);
   const pdfKey = extractStorageKey(diktat.fileUrl);
-  assert.ok(pdfKey?.startsWith(`courses/${id}/`));
-  ownedObjects.push(pdfKey);
+  assert.equal(pdfKey, expectedPdfKey);
   assert.equal(Buffer.from(await storage.download!(pdfKey)).subarray(0, 5).toString(), "%PDF-");
   pending = true;
   for (let attempt = 0; attempt < 60; attempt++) {
@@ -129,8 +147,9 @@ try {
   }
   assert.equal(pending, false, "Diktat thumbnail follow-up still pending; retain fixtures");
 } finally {
-  if (!pending) {
-    for (const object of ownedObjects) await storage.delete(object);
+  try {
+  if (fixturesCreated && !pending) {
+    for (const object of new Set(ownedObjects)) await storage.delete(object);
     await db.transaction(async tx => {
       await tx.delete(schema.auditMutasi).where(eq(schema.auditMutasi.actorId, id));
       if (sourceImportId) {
@@ -150,6 +169,9 @@ try {
       await tx.delete(schema.user).where(eq(schema.user.id, id));
     });
     console.log("Owned fixture cleanup complete");
+  } else if (pending) {
+    await writeFile(`${target.output}/business-retained.json`, JSON.stringify({ environment: target.name, fixtureId: id, sourceImportId, ownedObjects, evidence }, null, 2));
+    console.log(JSON.stringify({ status: "PENDING", environment: target.name, fixtureId: id, retained: true }));
   }
-  await pool.end();
+  } finally { await pool.end(); }
 }

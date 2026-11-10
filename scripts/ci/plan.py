@@ -122,7 +122,8 @@ def scope_paths(snapshot):
     runtime = snapshot.runtime()
     worker = snapshot.closure({'workers/deno-background/main.ts', 'workers/neon-background/main.ts'})
     worker |= snapshot.under('workers/deno-background/', 'workers/neon-background/', 'jobs/', 'scripts/neon/')
-    worker |= {'deno.json', 'deno.lock', 'scripts/audit-worker-dependencies.ts'} | LOCKS
+    worker |= {'deno.json', 'deno.lock', 'scripts/audit-worker-dependencies.ts',
+               '.github/scripts/prepare_worker_runtime.py', '.github/scripts/cloud_run_runtime.py'} | LOCKS
     # Keep lib/ conservative: server actions may discover modules dynamically.
     # Other workers are excluded unless explicitly fingerprinted or imported.
     web = snapshot.under('app/', 'components/', 'lib/', 'hooks/', 'i18n/', 'messages/', 'public/', 'styles/', 'types/', 'docs/')

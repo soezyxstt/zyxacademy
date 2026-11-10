@@ -72,7 +72,7 @@ jobs:
         run: bun scripts/neon/smoke-worker.ts "$COMPUTE_ENVIRONMENT"
       - name: Exercise remote thumbnail persistence and quiz feedback
         if: inputs.environment == 'staging'
-        run: bun scripts/neon/smoke-business-workers.ts
+        run: bun scripts/neon/smoke-business-workers.ts staging
       - name: Inspect PDF text and source figure geometry in Browser Run
         if: inputs.environment == 'staging'
         run: |

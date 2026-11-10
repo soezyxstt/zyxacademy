@@ -1,0 +1,89 @@
+name: Verify deployed background workers
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [production, staging]
+        required: true
+        default: production
+      deployment_run_id:
+        description: Successful worker deployment run supplying the exact active archive identity
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: worker-acceptance-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@v4
+        with:
+          name: neon-${{ inputs.environment }}-worker
+          path: artifacts/worker-deployment/
+          run-id: ${{ inputs.deployment_run_id }}
+          github-token: ${{ github.token }}
+      - name: Prepare verified private runtime
+        id: prepare
+        env:
+          GITHUB_ENVIRONMENT_NAME: ${{ inputs.environment }}
+          GITHUB_RUNTIME_SECRETS: ${{ toJSON(secrets) }}
+          GITHUB_RUNTIME_VARS: ${{ toJSON(vars) }}
+          COMPUTE_ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          python3 .github/scripts/prepare_worker_runtime.py artifacts/neon-worker/.env.runtime.json
+          node scripts/neon/prepare-acceptance.mjs "$COMPUTE_ENVIRONMENT"
+      - name: Verify thumbnail, feedback, source figure and Diktat outputs
+        env:
+          COMPUTE_ENVIRONMENT: ${{ inputs.environment }}
+        run: bun scripts/neon/smoke-business-workers.ts "$COMPUTE_ENVIRONMENT"
+      - name: Verify mastery, quiz analytics and question generation
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+        env:
+          COMPUTE_ENVIRONMENT: ${{ inputs.environment }}
+        run: bun scripts/neon/smoke-learning-workers.ts "$COMPUTE_ENVIRONMENT"
+      - name: Inspect scheduled and other worker runs without invoking global jobs
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+        env:
+          COMPUTE_ENVIRONMENT: ${{ inputs.environment }}
+        run: node scripts/neon/inspect-worker-runs.mjs "$COMPUTE_ENVIRONMENT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: worker-acceptance-${{ inputs.environment }}
+          path: |
+            artifacts/neon-worker/business-smoke.json
+            artifacts/neon-worker/business-pending.json
+            artifacts/neon-worker/learning-smoke.json
+            artifacts/neon-worker/learning-pending.json
+            artifacts/neon-worker/business-retained.json
+            artifacts/neon-worker/learning-retained.json
+            artifacts/neon-worker/worker-runs.json
+            artifacts/neon-worker/production/business-smoke.json
+            artifacts/neon-worker/production/business-pending.json
+            artifacts/neon-worker/production/learning-smoke.json
+            artifacts/neon-worker/production/learning-pending.json
+            artifacts/neon-worker/production/business-retained.json
+            artifacts/neon-worker/production/learning-retained.json
+            artifacts/neon-worker/production/worker-runs.json
+          retention-days: 7
