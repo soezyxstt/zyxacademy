@@ -38,7 +38,7 @@ on:
       maintenance:
         description: Production worker maintenance without deployment or web build
         type: choice
-        options: [none, vector-plan, vector-apply, vector-apply-short, vector-stage-short, vector-verify, remaining, remaining-independent, product-pdf, admin-knowledge, assessment, inspect]
+        options: [none, vector-plan, vector-apply, vector-apply-short, vector-stage-short, vector-verify, remaining, remaining-independent, remaining-recheck, product-pdf, admin-knowledge, assessment, inspect]
         default: none
       recovery_id:
         description: Private snapshot identity for vector recovery
@@ -119,6 +119,20 @@ jobs:
       - name: Restore owned acceptance evidence
         if: startsWith(inputs.maintenance, 'remaining') && inputs.resume_run_id != ''
         run: cp artifacts/worker-resume/remaining-smoke.json artifacts/neon-worker/production/remaining-smoke.json
+      - name: Preserve earlier runs before testing the repaired runtime
+        if: inputs.maintenance == 'remaining-recheck'
+        env:
+          RESUME_FIXTURE: ${{ inputs.recovery_id }}
+        run: |
+          node --input-type=module -e '
+          import assert from "node:assert/strict";
+          import {readFile,writeFile,copyFile} from "node:fs/promises";
+          const path="artifacts/neon-worker/production/remaining-smoke.json";
+          const prior=JSON.parse(await readFile(path,"utf8"));
+          assert.equal(prior.fixtureId,process.env.RESUME_FIXTURE);
+          assert.equal(prior.cleanupComplete,false);
+          await copyFile(path,"artifacts/neon-worker/production/remaining-before-fix.json");
+          await writeFile(path,JSON.stringify({...prior,evidence:[]}));'
       - name: Recover the verified historical vector backlog
         if: startsWith(inputs.maintenance, 'vector-')
         env:
@@ -155,6 +169,7 @@ jobs:
             artifacts/neon-worker/production/vector-recovery.json
             artifacts/neon-worker/production/remaining-smoke.json
             artifacts/neon-worker/production/remaining-retained.json
+            artifacts/neon-worker/production/remaining-before-fix.json
             artifacts/neon-worker/production/product-pdf-smoke.json
             artifacts/neon-worker/production/product-pdf-retained.json
             artifacts/neon-worker/production/admin-knowledge-smoke.json

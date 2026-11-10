@@ -26,10 +26,11 @@ export async function readRemainingRun(
   read: (path: string) => Promise<{ data?: RunSummary | RunSummary[] } | undefined>, functionId: string, runId: string,
 ) {
   const direct = await read(`/runs/${encodeURIComponent(runId)}?include=output`);
-  if (direct?.data && !Array.isArray(direct.data)) return direct.data;
+  const summary = direct?.data && !Array.isArray(direct.data) ? direct.data : undefined;
+  if (summary?.output !== undefined) return summary;
   // The single-run beta API can briefly return 404 after invoke succeeds.
   const listed = await read(`/apps/zyx-academy/functions/${encodeURIComponent(functionId)}/runs?include=output&limit=100`);
-  return Array.isArray(listed?.data) ? listed.data.find(run => run.id === runId) : undefined;
+  return (Array.isArray(listed?.data) ? listed.data.find(run => run.id === runId) : undefined) ?? summary;
 }
 
 export async function waitForOwnedSearchVector(
@@ -110,12 +111,12 @@ async function main() {
       // Inngest rejects direct invocation of debounced functions.
       if (functionId === "mastery-recompute-worker") {
         const { inngest } = await import("../../jobs/client");
-        const sent = await inngest.send({ id: `${id}-${functionId}`, name: "mastery/recompute.requested", data });
+        const sent = await inngest.send({ id: `${id}-${functionId}-${process.env.GITHUB_RUN_ID ?? "ops"}`, name: "mastery/recompute.requested", data });
         assert.equal(sent.ids.length, 1, "REMAINING_MASTERY_EVENT_MISSING");
         item = { functionId, runId: "", eventId: sent.ids[0], status: "pending" };
       } else {
         const response = await api(`/apps/zyx-academy/functions/${encodeURIComponent(functionId)}/invoke`, {
-          method: "POST", body: JSON.stringify({ data, idempotencyKey: `${id}-${functionId}` }),
+          method: "POST", body: JSON.stringify({ data, idempotencyKey: `${id}-${functionId}-${process.env.GITHUB_RUN_ID ?? "ops"}` }),
         });
         assert.equal(typeof response.data?.runId, "string", "REMAINING_INVOKE_RUN_MISSING");
         item = { functionId, runId: response.data.runId as string, status: "pending" };
@@ -124,7 +125,7 @@ async function main() {
     }
     await save();
     for (let attempt = 0; attempt < 220; attempt++) {
-      const execution = item.eventId
+      const execution: RunSummary | undefined = item.eventId
         ? (await api(`/events/${encodeURIComponent(item.eventId)}/runs?include=output`)).data?.find((run: RunSummary) => run.function?.id === functionId)
         : await readRemainingRun(path => api(path, {}, true), functionId, item.runId);
       if (!execution) { await pause(); continue; }
@@ -135,6 +136,7 @@ async function main() {
         await save();
         assert.equal(item.status, "COMPLETED", "REMAINING_RUN_NOT_COMPLETED");
         const output = typeof execution.output === "string" ? JSON.parse(execution.output) : execution.output;
+        if (output === undefined || output === null) { await pause(); continue; }
         assert.ok(output && typeof output === "object", "REMAINING_RUN_OUTPUT_MISSING");
         return output as Record<string, unknown>;
       }
