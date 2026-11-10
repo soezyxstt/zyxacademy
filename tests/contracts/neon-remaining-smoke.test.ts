@@ -72,7 +72,7 @@ test("production identity and queue guards precede fixture writes, cleanup follo
     expect(source.indexOf(guard)).toBeGreaterThan(-1);
     expect(source.indexOf(guard)).toBeLessThan(firstWrite);
   }
-  expect(source).toContain('body: JSON.stringify({ data, idempotencyKey: `${id}-${functionId}` })');
+  expect(source).toContain('idempotencyKey: `${id}-${functionId}-${process.env.GITHUB_RUN_ID');
   expect(source.indexOf("await waitForOwnedSearchVector(readMatches, id, true)")).toBeLessThan(source.indexOf('searchPost("/v2/search/delete"'));
   expect(source.indexOf("await waitForOwnedSearchVector(readMatches, id, false)")).toBeLessThan(source.indexOf("accepted = true"));
   expect(source.indexOf("accepted = true")).toBeLessThan(source.indexOf("await tx.delete("));
