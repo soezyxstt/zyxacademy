@@ -38,7 +38,7 @@ on:
       maintenance:
         description: Production worker maintenance without deployment or web build
         type: choice
-        options: [none, vector-plan, vector-apply, vector-verify, remaining]
+        options: [none, vector-plan, vector-apply, vector-apply-short, vector-verify, remaining, product-pdf, admin-knowledge, assessment]
         default: none
       recovery_id:
         description: Private snapshot identity for vector recovery
@@ -109,6 +109,16 @@ jobs:
         run: |
           python3 .github/scripts/prepare_worker_runtime.py artifacts/neon-worker/.env.runtime.json
           node scripts/neon/prepare-acceptance.mjs production
+      - uses: actions/download-artifact@v4
+        if: inputs.maintenance == 'remaining' && inputs.resume_run_id != ''
+        with:
+          name: production-worker-maintenance
+          path: artifacts/worker-resume/
+          run-id: ${{ inputs.resume_run_id }}
+          github-token: ${{ github.token }}
+      - name: Restore owned acceptance evidence
+        if: inputs.maintenance == 'remaining' && inputs.resume_run_id != ''
+        run: cp artifacts/worker-resume/remaining-smoke.json artifacts/neon-worker/production/remaining-smoke.json
       - name: Recover the verified historical vector backlog
         if: startsWith(inputs.maintenance, 'vector-')
         env:
@@ -117,7 +127,21 @@ jobs:
         run: bun scripts/neon/recover-vector-backlog.ts "${RECOVERY_MODE#vector-}" "$RECOVERY_ID"
       - name: Verify remaining production worker paths
         if: inputs.maintenance == 'remaining'
-        run: bun scripts/neon/smoke-remaining-workers.ts production --deterministic
+        env:
+          RESUME_FIXTURE: ${{ inputs.recovery_id }}
+        run: |
+          args=(production --deterministic)
+          if [ -n "$RESUME_FIXTURE" ]; then args+=(--resume "$RESUME_FIXTURE"); fi
+          bun scripts/neon/smoke-remaining-workers.ts "${args[@]}"
+      - name: Verify product-bundle PDF
+        if: inputs.maintenance == 'product-pdf'
+        run: bun scripts/neon/smoke-product-pdf.ts production
+      - name: Verify Admin Knowledge catalog and vectors
+        if: inputs.maintenance == 'admin-knowledge'
+        run: bun scripts/neon/smoke-admin-knowledge.ts production
+      - name: Verify assessment extraction and vectors
+        if: inputs.maintenance == 'assessment'
+        run: bun scripts/neon/smoke-assessment-worker.ts production
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -126,6 +150,11 @@ jobs:
             artifacts/neon-worker/production/vector-recovery.json
             artifacts/neon-worker/production/remaining-smoke.json
             artifacts/neon-worker/production/remaining-retained.json
+            artifacts/neon-worker/production/product-pdf-smoke.json
+            artifacts/neon-worker/production/product-pdf-retained.json
+            artifacts/neon-worker/production/admin-knowledge-smoke.json
+            artifacts/neon-worker/production/assessment-smoke.json
+            artifacts/neon-worker/production/assessment-retained.json
           retention-days: 7
 
   runtime-diagnostics:

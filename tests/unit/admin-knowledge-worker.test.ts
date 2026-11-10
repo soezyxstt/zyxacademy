@@ -8,15 +8,15 @@ const upsert = mock(async () => {
   return { count: 1 };
 });
 const provider = { upsert };
-const adapter = {};
+const embedDocuments = mock(async () => []);
 const createProvider = mock(() => provider);
 const executeSync = mock(async (options: {
   dryRun: boolean;
-  embeddingAdapter: unknown;
+  embedDocuments: unknown;
   vectorProvider: typeof provider;
 }) => {
   expect(options.dryRun).toBe(false);
-  expect(options.embeddingAdapter).toBe(adapter);
+  expect(options.embedDocuments).toBe(embedDocuments);
   expect(options.vectorProvider).toBe(provider);
   await options.vectorProvider.upsert();
   return { sources: { total: 1 }, chunks: { total: 2 }, manifestHash: "fixture-manifest" };
@@ -26,7 +26,7 @@ mock.module("@/jobs/client", () => ({
   inngest: { createFunction: (_config: unknown, callback: typeof handler) => { handler = callback; return {}; } },
 }));
 mock.module("@/lib/admin-ops-ai/admin-knowledge-sync", () => ({ executeAdminKnowledgeSync: executeSync }));
-mock.module("@/lib/vectorize/runtime", () => ({ getCanonicalContentV2EmbeddingAdapter: async () => adapter }));
+mock.module("@/lib/compute/vector-embeddings", () => ({ embedWorkerVectorDocuments: embedDocuments }));
 mock.module("@/lib/vectorize-client", () => ({ createCanonicalVectorClient: createProvider }));
 await import("@/jobs/admin-knowledge");
 afterAll(() => mock.restore());

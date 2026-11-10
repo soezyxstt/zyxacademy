@@ -28,6 +28,8 @@ import {
   assertCanonicalQuery,
   assertCanonicalProfile,
   assertCanonicalVector,
+  createVersionedVectorId,
+  type CanonicalEntityType,
   type CanonicalDeleteRequest,
   type CanonicalGetRequest,
   type CanonicalListRequest,
@@ -42,6 +44,24 @@ interface Env {
 	VECTORIZE_SEARCH?: VectorizeIndex;
 	SHARED_SECRET: string;
 	RESTRICTED_SOLUTION_CAPABILITY?: string;
+}
+
+// Vectorize limits physical IDs to 64 bytes; callers keep the complete canonical identity.
+export async function physicalVectorId(id: string): Promise<string> {
+  if (new TextEncoder().encode(id).length <= 64) return id;
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(id));
+  return `h:${btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}`;
+}
+
+async function logicalVectorId(vector: { id: string; metadata?: Record<string, unknown> }): Promise<string> {
+  if (!vector.id.startsWith('h:')) return vector.id;
+  const metadata = vector.metadata;
+  if (!metadata || typeof metadata.entityType !== 'string' || typeof metadata.entityId !== 'string' || typeof metadata.version !== 'number') {
+    throw new Error('VECTOR_ID_METADATA_MISSING');
+  }
+  const logical = createVersionedVectorId(metadata.entityType as CanonicalEntityType, metadata.entityId, metadata.version);
+  if (await physicalVectorId(logical) !== vector.id) throw new Error('VECTOR_ID_METADATA_MISMATCH');
+  return logical;
 }
 
 // ---------------------------------------------------------------------------
@@ -316,12 +336,14 @@ const worker = {
 		// Every route uses the explicitly selected canonical binding.
 		if (pathname === '/v2/upsert') {
 			const requestBody = parseCanonicalUpsert(body);
+      for (const vector of requestBody.vectors) if (await physicalVectorId(vector.id) !== vector.id
+        && vector.id !== createVersionedVectorId(vector.metadata.entityType, vector.metadata.entityId, vector.metadata.version)) throw new Error('VECTOR_ID_NOT_CANONICAL');
 			const result = await requireCanonicalIndex(env).upsert(
-				requestBody.vectors.map((vector) => ({
-					id: vector.id,
+        await Promise.all(requestBody.vectors.map(async (vector) => ({
+          id: await physicalVectorId(vector.id),
 					values: vector.values,
 					metadata: { ...vector.metadata },
-				})),
+        }))),
 			);
 			return json({ ok: true, count: result.count, mutationId: result.mutationId });
 		}
@@ -345,30 +367,36 @@ const worker = {
 					namespace: { $eq: requestBody.namespace },
 				},
 			});
-			return json(result);
+      return json({ ...result, matches: await Promise.all(result.matches.map(async match => ({ ...match, id: await logicalVectorId(match) }))) });
 		}
 
 		if (pathname === '/v2/delete') {
 			const requestBody = parseCanonicalDelete(body);
-			const result = await requireCanonicalIndex(env).deleteByIds(requestBody.ids);
+      const result = await requireCanonicalIndex(env).deleteByIds(await Promise.all(requestBody.ids.map(physicalVectorId)));
 			return json({ ok: true, count: result.count, mutationId: result.mutationId });
 		}
 
 		if (pathname === '/v2/list') {
 			const requestBody = parseCanonicalList(body);
-			const list = requireCanonicalIndex(env).list;
+			const index = requireCanonicalIndex(env);
+			const list = index.list?.bind(index);
 			if (!list) {
 				return json({ ok: false, error: { code: 'V2_LIST_UNAVAILABLE', message: 'Vectorize list is unavailable on this binding' } }, 503);
 			}
 			const result = await list({
 				...(requestBody.limit !== undefined ? { limit: requestBody.limit } : {}),
 				...(requestBody.cursor !== undefined ? { cursor: requestBody.cursor } : {}),
-				...(requestBody.prefix !== undefined ? { prefix: requestBody.prefix } : {}),
 			});
+      const hashed = result.vectors.filter(vector => vector.id.startsWith('h:'));
+      const records = [];
+      for (let offset = 0; offset < hashed.length; offset += 20) records.push(...await index.getByIds(hashed.slice(offset, offset + 20).map(vector => vector.id)));
+      const restored = new Map(await Promise.all(records.map(async vector => [vector.id, await logicalVectorId(vector)] as const)));
+      if (restored.size !== hashed.length) throw new Error('VECTOR_LIST_IDENTITY_MISSING');
+      const ids = result.vectors.map(vector => restored.get(vector.id) ?? vector.id).filter(id => !requestBody.prefix || id.startsWith(requestBody.prefix));
 			return json({
-				ids: result.vectors.map((vector) => vector.id),
-				count: result.count ?? result.vectors.length,
-				totalCount: result.totalCount,
+        ids,
+        count: ids.length,
+        ...(requestBody.prefix ? {} : { totalCount: result.totalCount }),
 				isTruncated: result.isTruncated ?? Boolean(result.nextCursor),
 				...(result.nextCursor ? { nextCursor: result.nextCursor } : {}),
 			});
@@ -376,9 +404,9 @@ const worker = {
 
 		if (pathname === '/v2/get') {
 			const requestBody = parseCanonicalGet(body);
-			const vectors = await requireCanonicalIndex(env).getByIds(requestBody.ids);
+      const vectors = await requireCanonicalIndex(env).getByIds(await Promise.all(requestBody.ids.map(physicalVectorId)));
 			return json({
-				vectors,
+        vectors: await Promise.all(vectors.map(async vector => ({ ...vector, id: await logicalVectorId(vector) }))),
 			});
 		}
 

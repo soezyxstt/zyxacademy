@@ -9,8 +9,24 @@ import { todayUtc, daysFrom } from "../../lib/date-utils";
 export function remainingSmokeArguments(args: string[]) {
   const target = workerTarget(args[0]);
   assert.equal(target.name, "production", "REMAINING_SMOKE_PRODUCTION_REQUIRED");
-  assert.ok(args.length === 1 || (args.length === 2 && args[1] === "--deterministic"), "REMAINING_SMOKE_ARGUMENTS_INVALID");
-  return { target, deterministic: args[1] === "--deterministic" };
+  const tail = args.slice(1);
+  const deterministic = tail[0] === "--deterministic";
+  if (deterministic) tail.shift();
+  const resume = tail[0] === "--resume" ? tail[1] : undefined;
+  assert.ok(tail.length === 0 || (tail.length === 2 && resume
+    && /^neon-remaining-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(resume)), "REMAINING_SMOKE_ARGUMENTS_INVALID");
+  return { target, deterministic, resume };
+}
+
+type RunSummary = { id: string; status: string; function?: { id: string }; output?: unknown };
+export async function readRemainingRun(
+  read: (path: string) => Promise<{ data?: RunSummary | RunSummary[] } | undefined>, functionId: string, runId: string,
+) {
+  const direct = await read(`/runs/${encodeURIComponent(runId)}?include=output`);
+  if (direct?.data && !Array.isArray(direct.data)) return direct.data;
+  // The single-run beta API can briefly return 404 after invoke succeeds.
+  const listed = await read(`/apps/zyx-academy/functions/${encodeURIComponent(functionId)}/runs?include=output&limit=100`);
+  return Array.isArray(listed?.data) ? listed.data.find(run => run.id === runId) : undefined;
 }
 
 export async function waitForOwnedSearchVector(
@@ -47,7 +63,7 @@ export function assertDeterministicOutput(functionId: string, output: Record<str
 }
 
 async function main() {
-  const { target, deterministic } = remainingSmokeArguments(process.argv.slice(2));
+  const { target, deterministic: requestedDeterministic, resume } = remainingSmokeArguments(process.argv.slice(2));
   const config = JSON.parse(await readFile(`${target.output}/.env.${target.name}.json`, "utf8"));
   assertWorkerEnvironment(target, config);
   assert.equal(config.INNGEST_SERVE_ORIGIN, target.origin);
@@ -55,10 +71,20 @@ async function main() {
   const [{ db, pool }, s, search] = await Promise.all([
     import("../../lib/db"), import("../../db/schema"), import("../../lib/search/service"),
   ]);
-  const id = `neon-remaining-${randomUUID()}`;
+  const prior = resume ? JSON.parse(await readFile(`${target.output}/remaining-smoke.json`, "utf8")) : undefined;
+  if (prior) {
+    assert.equal(prior.fixtureId, resume, "REMAINING_SMOKE_RESUME_EVIDENCE_MISMATCH");
+    assert.equal(prior.cleanupComplete, false, "REMAINING_SMOKE_ALREADY_CLEANED");
+    assert.ok(Array.isArray(prior.evidence), "REMAINING_SMOKE_RESUME_RUNS_MISSING");
+    assert.ok(!requestedDeterministic || prior.deterministic, "REMAINING_SMOKE_RESUME_SCOPE_MISMATCH");
+  }
+  const deterministic = prior ? prior.deterministic === true : requestedDeterministic;
+  const id = resume ?? `neon-remaining-${randomUUID()}`;
   const conceptName = id;
-  const evidence: Array<{ functionId: string; runId: string; status: string }> = [];
-  const checks: Record<string, unknown> = {};
+  const evidence: Array<{ functionId: string; runId: string; status: string }> = prior?.evidence ?? [];
+  assert.ok(evidence.every(item => typeof item.runId === "string" && item.runId.length > 0
+    && ["sync-search-documents", "mastery-recompute-worker", "mastery-snapshot-cron", "course-analytics-snapshot-cron", "content-quality-audit-cron"].includes(item.functionId)), "REMAINING_SMOKE_RESUME_RUNS_INVALID");
+  const checks: Record<string, unknown> = prior?.checks ?? {};
   let fixturesCreated = false, accepted = false, cleanupComplete = false, stage = "preflight";
   const headers = { Authorization: `Bearer ${config.INNGEST_SIGNING_KEY}`, "X-Inngest-Env": config.INNGEST_ENV };
   const pause = () => new Promise(resolve => setTimeout(resolve, 3000));
@@ -66,24 +92,29 @@ async function main() {
     await writeFile(`${target.output}/remaining-smoke.json`, JSON.stringify({ fixtureId: id, deterministic, accepted, cleanupComplete, stage, checks, evidence,
       excluded: ["weekly-reflection-cron: sends emails", "assessment-ingest-worker: global catalog ownership", "product-diktat-pdf-worker: separate acceptance"] }, null, 2));
   }
-  async function api(path: string, init: RequestInit = {}) {
+  async function api(path: string, init: RequestInit = {}, allowMissing = false) {
     const response = await fetch(`https://api.inngest.com/v2${path}`, { ...init,
       headers: { ...headers, "Content-Type": "application/json" }, signal: AbortSignal.timeout(30_000) });
+    if (allowMissing && response.status === 404) return undefined;
     assert.ok(response.ok, `REMAINING_INNGEST_HTTP_${response.status}`);
     return response.json();
   }
   async function run(functionId: string, data: Record<string, unknown>) {
     stage = `invoke:${functionId}`;
     await save();
-    const response = await api(`/apps/zyx-academy/functions/${encodeURIComponent(functionId)}/invoke`, {
+    let item = evidence.find(entry => entry.functionId === functionId);
+    if (!item) {
+      const response = await api(`/apps/zyx-academy/functions/${encodeURIComponent(functionId)}/invoke`, {
       method: "POST", body: JSON.stringify({ data, idempotencyKey: `${id}-${functionId}` }),
-    });
-    assert.equal(typeof response.data?.runId, "string", "REMAINING_INVOKE_RUN_MISSING");
-    const item = { functionId, runId: response.data.runId as string, status: "pending" };
-    evidence.push(item);
+      });
+      assert.equal(typeof response.data?.runId, "string", "REMAINING_INVOKE_RUN_MISSING");
+      item = { functionId, runId: response.data.runId as string, status: "pending" };
+      evidence.push(item);
+    }
     await save();
     for (let attempt = 0; attempt < 220; attempt++) {
-      const execution = (await api(`/runs/${encodeURIComponent(item.runId)}?include=output`)).data;
+      const execution = await readRemainingRun(path => api(path, {}, true), functionId, item.runId);
+      if (!execution) { await pause(); continue; }
       assert.equal(execution?.function?.id, functionId, "REMAINING_RUN_FUNCTION_MISMATCH");
       item.status = String(execution.status).toUpperCase();
       if (["COMPLETED", "FAILED", "CANCELLED", "SKIPPED"].includes(item.status)) {
@@ -124,12 +155,56 @@ async function main() {
     assert.ok(config.VECTORIZE_SHARED_SECRET, "REMAINING_SEARCH_SECRET_MISSING");
     // Both handlers drain a global queue. Refuse any existing pending/processing work.
     const searchPending = await db.select({ id: s.searchDocuments.id }).from(s.searchDocuments)
-      .where(or(eq(s.searchDocuments.isSynced, false), ne(s.searchDocuments.syncStatus, "completed"))).limit(1);
+      .where(and(ne(s.searchDocuments.id, id), or(eq(s.searchDocuments.isSynced, false), ne(s.searchDocuments.syncStatus, "completed")))).limit(1);
     const masteryPending = await db.select({ id: s.masteryRecomputeQueue.id }).from(s.masteryRecomputeQueue)
-      .where(inArray(s.masteryRecomputeQueue.status, ["pending", "processing", "failed"])).limit(1);
+      .where(and(ne(s.masteryRecomputeQueue.studentId, id), inArray(s.masteryRecomputeQueue.status, ["pending", "processing", "failed"]))).limit(1);
     assert.equal(searchPending.length, 0, "REMAINING_SEARCH_GLOBAL_QUEUE_NOT_EMPTY");
     assert.equal(masteryPending.length, 0, "REMAINING_MASTERY_GLOBAL_QUEUE_NOT_EMPTY");
     checks.preflight = { database: "neondb", workerRevision: worker.version, searchQueueEmpty: true, masteryQueueEmpty: true };
+    if (resume) {
+      stage = "verify-retained-owned-fixtures";
+      const [owner] = await db.select().from(s.user).where(eq(s.user.id, id));
+      const [course] = await db.select().from(s.courses).where(eq(s.courses.id, id));
+      const [chapter] = await db.select().from(s.chapters).where(eq(s.chapters.id, id));
+      const [mtd] = await db.select().from(s.masterTeachingDocuments).where(eq(s.masterTeachingDocuments.id, id));
+      const [ko] = await db.select().from(s.knowledgeObjects).where(eq(s.knowledgeObjects.id, id));
+      const [event] = await db.select().from(s.learningEvents).where(eq(s.learningEvents.id, id));
+      const [document] = await db.select().from(s.searchDocuments).where(eq(s.searchDocuments.id, id));
+      assert.equal(owner?.email, `${id}@example.invalid`, "REMAINING_SMOKE_RESUME_OWNER_MISMATCH");
+      assert.equal(owner.name, "Neon remaining worker fixture");
+      assert.equal(owner.role, "student");
+      assert.equal(course?.title, "Neon remaining worker fixture", "REMAINING_SMOKE_RESUME_COURSE_MISMATCH");
+      assert.equal(chapter?.courseId, id);
+      assert.equal(mtd?.courseId, id);
+      assert.equal(mtd.createdById, id);
+      assert.equal(ko?.courseId, id);
+      assert.equal(ko.chapterId, id);
+      assert.equal(ko.mtdId, id);
+      assert.equal(ko.conceptId, id);
+      assert.equal(ko.conceptName, conceptName);
+      assert.equal(event?.studentId, id);
+      assert.equal(event.courseId, id);
+      assert.equal(event.koId, id);
+      assert.equal(event.correctness, 1);
+      assert.equal(event.weight, 1);
+      assert.equal(document?.courseId, id);
+      assert.equal(document.entityId, id);
+      assert.equal(document.minRole, 3);
+      assert.equal(document.path, `/admin/courses/${id}`);
+      if (deterministic) {
+        const [enrollment] = await db.select().from(s.enrollments).where(eq(s.enrollments.id, id));
+        const [question] = await db.select().from(s.aiQuestionBank).where(eq(s.aiQuestionBank.id, id));
+        assert.equal(enrollment?.userId, id);
+        assert.equal(enrollment.courseId, id);
+        assert.ok(enrollment.expiresAt > new Date(), "REMAINING_SMOKE_RESUME_ENROLLMENT_EXPIRED");
+        assert.equal(question?.courseId, id);
+        assert.equal(question.quizEligible, false);
+        assert.equal(question.prompt, "Berapakah 2+3?");
+        const stats = await db.select().from(s.questionOptionStats).where(eq(s.questionOptionStats.questionId, id));
+        assert.deepEqual(stats.map(row => row.id).sort(), [`${id}-correct`, `${id}-total`, `${id}-wrong`]);
+        assert.ok(stats.every(row => row.courseId === id && row.totalAttempts === 10));
+      }
+    } else {
     stage = "create-owned-fixtures";
     await save();
     await db.transaction(async tx => {
@@ -155,6 +230,7 @@ async function main() {
         ]);
       }
     });
+    }
     fixturesCreated = true;
     await run("sync-search-documents", {});
     const [document] = await db.select().from(s.searchDocuments).where(eq(s.searchDocuments.id, id));

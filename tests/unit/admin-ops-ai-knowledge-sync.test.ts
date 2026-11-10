@@ -226,6 +226,44 @@ describe("Admin Ops Knowledge Pipeline - Sync Execution with Hermetic Store", ()
     embedQuery: async () => new Array(768).fill(0.2),
   };
 
+  test("optional worker embedder batches at most 50 documents and preserves vector positions", async () => {
+    const fakeProvider = new FakeCanonicalVectorProvider();
+    const { store, sources } = createInMemoryCatalogStore();
+    const customSources = Array.from({ length: 51 }, (_, index) => ({
+      ...retrySources[0], id: `doc:batch-${index}`, sourcePath: `docs/batch-${index}.md`,
+      normalizedContent: `# Batch ${index}\n\nCanonical document ${index}.`,
+    }));
+    const batches: Array<readonly { title: string; content: string }[]> = [];
+    const result = await executeAdminKnowledgeSync({
+      customSources, catalogStore: store, vectorProvider: fakeProvider,
+      embeddingAdapter: { ...retryAdapter, embedDocument: async () => { throw new Error("single adapter must not run"); } },
+      embedDocuments: async (documents) => {
+        batches.push(documents);
+        return documents.map((_, index) => new Array(768).fill(index / 100));
+      },
+    });
+    expect(batches.map(batch => batch.length)).toEqual([50, 1]);
+    expect(fakeProvider.calls.upsert.map(call => call.vectors.length)).toEqual([50, 1]);
+    expect(result.chunks.upserted).toBe(51);
+    expect(sources).toHaveLength(51);
+    expect(fakeProvider.calls.upsert[0].vectors[1].values[0]).toBe(0.01);
+    expect(batches[0][1]).toEqual({ title: "docs/batch-1.md#batch-1:0", content: "# Batch 1\n\nCanonical document 1." });
+  });
+
+  test("malformed batch embedding responses cannot advance catalog hashes", async () => {
+    for (const response of [[], [new Array(767).fill(0.2)]]) {
+      const fakeProvider = new FakeCanonicalVectorProvider();
+      const { store, sources, chunks } = createInMemoryCatalogStore();
+      await expect(executeAdminKnowledgeSync({
+        customSources: retrySources, catalogStore: store, vectorProvider: fakeProvider,
+        embedDocuments: async () => response,
+      })).rejects.toThrow();
+      expect(fakeProvider.calls.upsert).toHaveLength(0);
+      expect(sources).toHaveLength(0);
+      expect(chunks).toHaveLength(0);
+    }
+  });
+
   test("vector failure leaves the catalog retryable and missing retained vectors are repaired by exact ID", async () => {
     const fakeProvider = new FakeCanonicalVectorProvider();
     const { store, sources, chunks } = createInMemoryCatalogStore();

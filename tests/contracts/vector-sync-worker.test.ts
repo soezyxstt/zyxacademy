@@ -12,7 +12,7 @@ function matching(condition: SQL) {
   return stored.filter(row => query.params.some((value, index) => value === row.id
     && query.params[index + 1] === row.leaseId && query.params[index + 2] === row.status));
 }
-const database = {
+const queries = {
   select: () => ({ from: () => ({ where: async (condition: SQL) => matching(condition).map(row => ({ id: row.id })) }) }),
   update: () => ({ set: (values: Partial<Row>) => ({ where: (condition: SQL) => {
     updates.push({ values, query: dialect.sqlToQuery(condition) });
@@ -21,7 +21,10 @@ const database = {
     const result = Promise.resolve(matches.map(row => ({ id: row.id })));
     return Object.assign(result, { returning: () => result });
   } }) }),
-  transaction: async (callback: (tx: Pick<typeof database, "select" | "update">) => Promise<void>): Promise<void> => {
+};
+const database = {
+  ...queries,
+  transaction: async (callback: (tx: typeof queries) => Promise<void>): Promise<void> => {
     const before = structuredClone(stored);
     try { await callback(database); } catch (error) { stored = before; throw error; }
   },

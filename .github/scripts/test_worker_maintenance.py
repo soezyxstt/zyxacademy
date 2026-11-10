@@ -7,7 +7,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = (ROOT / ".github/workflows/deploy.yml").read_text()
 JOBS = dict(re.findall(r"(?ms)^  ([\w-]+):\n(.*?)(?=^  [\w-]+:\n|\Z)", WORKFLOW.split("\njobs:\n", 1)[1]))
-MODES = ("vector-plan", "vector-apply", "vector-verify", "remaining")
+MODES = ("vector-plan", "vector-apply", "vector-apply-short", "vector-verify", "remaining", "product-pdf", "admin-knowledge", "assessment")
 FLAGS = ("business_acceptance", "browser_diagnostics", "runtime_diagnostics", "restore_turso_worker")
 
 
@@ -57,6 +57,11 @@ class WorkerMaintenanceTest(unittest.TestCase):
             "artifacts/neon-worker/production/vector-recovery.json",
             "artifacts/neon-worker/production/remaining-smoke.json",
             "artifacts/neon-worker/production/remaining-retained.json",
+            "artifacts/neon-worker/production/product-pdf-smoke.json",
+            "artifacts/neon-worker/production/product-pdf-retained.json",
+            "artifacts/neon-worker/production/admin-knowledge-smoke.json",
+            "artifacts/neon-worker/production/assessment-smoke.json",
+            "artifacts/neon-worker/production/assessment-retained.json",
         ])
         self.assertNotRegex(paths, r"[?*]|\.env|snapshot|before-vectors|batch-")
 

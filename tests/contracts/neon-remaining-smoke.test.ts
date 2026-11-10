@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { remainingSmokeArguments, waitForOwnedSearchVector, assertDeterministicOutput } from "../../scripts/neon/smoke-remaining-workers";
+import { remainingSmokeArguments, readRemainingRun, waitForOwnedSearchVector, assertDeterministicOutput } from "../../scripts/neon/smoke-remaining-workers";
 
 test("remaining acceptance accepts only explicit production and optional deterministic recomputation", () => {
   for (const args of [[], ["prod"], ["staging"], ["production", "--all"], ["production", "--deterministic", "extra"]]) {
@@ -8,6 +8,22 @@ test("remaining acceptance accepts only explicit production and optional determi
   }
   expect(remainingSmokeArguments(["production"]).deterministic).toBe(false);
   expect(remainingSmokeArguments(["production", "--deterministic"]).deterministic).toBe(true);
+  const id = "neon-remaining-715cf391-a6bd-40a6-ab58-9e3fe98bab14";
+  expect(remainingSmokeArguments(["production", "--deterministic", "--resume", id]).resume).toBe(id);
+  expect(() => remainingSmokeArguments(["production", "--resume", "foreign-fixture"])).toThrow();
+});
+
+test("run polling recovers missing single-run summaries from exact function run list", async () => {
+  const seen: string[] = [];
+  const owned = { id: "owned-run", status: "COMPLETED", function: { id: "function" }, output: { synced: 1 } };
+  const run = await readRemainingRun(async path => {
+    seen.push(path);
+    return seen.length === 1 ? undefined : { data: [{ ...owned, id: "foreign-run" }, owned] };
+  }, "function", "owned-run");
+  expect(run).toEqual(owned);
+  expect(seen).toEqual(["/runs/owned-run?include=output", "/apps/zyx-academy/functions/function/runs?include=output&limit=100"]);
+  expect(await readRemainingRun(async () => undefined, "function", "missing")).toBeUndefined();
+  await expect(readRemainingRun(async () => { throw new Error("HTTP_401"); }, "function", "owned-run")).rejects.toThrow("HTTP_401");
 });
 
 test("search acceptance waits for exact owned vector and validates access metadata", async () => {
@@ -57,6 +73,12 @@ test("production identity and queue guards precede fixture writes, cleanup follo
   expect(source.indexOf("accepted = true")).toBeLessThan(source.indexOf("await tx.delete("));
   expect(source).toContain("if (fixturesCreated && !cleanupComplete)");
   expect(source).toContain("remaining-retained.json");
+  expect(source).toContain("REMAINING_SMOKE_RESUME_EVIDENCE_MISMATCH");
+  expect(source).toContain("REMAINING_SMOKE_RESUME_OWNER_MISMATCH");
+  expect(source).toContain("REMAINING_SMOKE_RESUME_COURSE_MISMATCH");
+  expect(source).toContain("let item = evidence.find(entry => entry.functionId === functionId)");
+  expect(source).toContain("if (!item)");
+  expect(source).toContain("if (resume)");
   expect(source).not.toContain('run("weekly-reflection-cron"');
   expect(source).not.toContain("sendOptionalEmail");
   expect(source).not.toContain("bun run build");

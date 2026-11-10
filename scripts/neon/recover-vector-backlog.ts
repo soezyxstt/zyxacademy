@@ -50,7 +50,7 @@ export function matchesRecoveryVector(item: Item, vector?: CanonicalVectorRecord
 
 async function main() {
   const [phase, runId] = process.argv.slice(2);
-  assert.ok(["plan", "apply", "verify"].includes(phase), "RECOVERY_PHASE_REQUIRED");
+  assert.ok(["plan", "apply", "apply-short", "verify"].includes(phase), "RECOVERY_PHASE_REQUIRED");
   assert.match(runId ?? "", /^vector-recovery-[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/);
   const target = workerTarget("production");
   const config = JSON.parse(await readFile(`${target.output}/.env.production.json`, "utf8"));
@@ -142,7 +142,7 @@ async function main() {
     const snapshot = await load<Snapshot>("snapshot.json");
     assert.equal(snapshot.runId, runId);
     assert.equal(hash({ rows: snapshot.rows, items: snapshot.items }), snapshot.hash);
-    if (phase === "apply") {
+    if (phase === "apply" || phase === "apply-short") {
       if (!await storage.exists(key("embedding-canary.json"))) {
         const documents = [{ title: "Addition", content: "Two plus three equals five." }, { title: "Geometry", content: "A triangle has three sides." }];
         const canary = await embedWorkerVectorDocuments(documents);
@@ -160,11 +160,15 @@ async function main() {
         await save("embedding-canary.json", { documents: 2, dimensions: canary.map(value => value.length), distinct: true, singletonOrderSimilarities: similarities });
       }
       for (let offset = 0; offset < snapshot.items.length; offset += 50) {
-        const batch = snapshot.items.slice(offset, offset + 50);
-        const ids = batch.flatMap(item => item.rows.map(row => row.id));
+        let batch = snapshot.items.slice(offset, offset + 50).filter(item => phase !== "apply-short" || Buffer.byteLength(item.outbox.vectorId) <= 64);
+        if (!batch.length) continue;
+        let ids = batch.flatMap(item => item.rows.map(row => row.id));
         let current = await readRows(ids);
         assert.equal(current.length, ids.length);
-        if (current.every(row => row.status === "completed" && (row.payload as Record<string, any>).vectorizeRecovery?.runId === runId)) continue;
+        const completed = new Set(current.filter(row => row.status === "completed" && (row.payload as Record<string, any>).vectorizeRecovery?.runId === runId).map(row => row.id));
+        batch = batch.filter(item => !item.rows.every(row => completed.has(row.id)));
+        if (!batch.length) continue;
+        ids = batch.flatMap(item => item.rows.map(row => row.id));
         const leaseId = `${runId}-${offset}`;
         // A cancelled maintenance runner may leave its own expired lease behind.
         await pool.query(`UPDATE vector_sync_queue SET status='failed',lease_id=NULL,lease_expires_at=NULL,updated_at=now()
@@ -185,11 +189,12 @@ async function main() {
             WHERE q.id=ANY($1::text[]) AND q.id=expected.id AND q.status='failed' AND q.payload=expected.payload AND q.attempts=expected.attempts RETURNING q.id`, [ids, leaseId, JSON.stringify(expected)]);
           assert.equal(claimed.rowCount, ids.length, "RECOVERY_LEASE_CONFLICT");
           const missing = await inspect(batch);
-          const backupLeaf = `before-vectors-${offset}.json`;
+          const batchHash = hash(batch);
+          const backupLeaf = `before-vectors-${batchHash}.json`;
           if (!await storage.exists(key(backupLeaf))) await save(backupLeaf, await vectors.get({ profileId, ids: batch.map(item => item.outbox.vectorId) }));
           // The title participates in embedding but has no Vectorize metadata hash.
           const upserts = batch.filter(item => item.outbox.operation === "upsert");
-          const leaf = `batch-${offset}.json`;
+          const leaf = `batch-${batchHash}.json`;
           let records: CanonicalVectorRecord[] = [];
           if (await storage.exists(key(leaf))) {
             const cache = await load<{ planHash: string; records: CanonicalVectorRecord[] }>(leaf);
@@ -223,7 +228,7 @@ async function main() {
               const payload = { ...(original.payload as object), providerNeutralOutbox: item.outbox,
                 vectorizeCompletion: { vectorId: item.outbox.vectorId, profileId, dimensions: 768, indexedContentHash: item.outbox.operation === "upsert" ? item.outbox.metadata.contentHash : null },
                 vectorizeRecovery: { runId, snapshotHash: snapshot.hash, effectiveOperation: item.outbox.operation, reason: item.reason,
-                  originalAction: original.action, currentSourceHash: hash(item.source), verified: true } };
+                  originalAction: original.action, currentSourceHash: hash(item.source), checkpoint: leaf, verified: true } };
               const finalized = await client.query(`UPDATE vector_sync_queue SET status='completed',payload=$3::jsonb,lease_id=NULL,lease_expires_at=NULL,updated_at=now()
                 WHERE id=$1 AND status='processing' AND lease_id=$2 AND payload=$4::jsonb RETURNING id`, [original.id, leaseId, JSON.stringify(payload), JSON.stringify(original.payload)]);
               assert.equal(finalized.rowCount, 1, "RECOVERY_FINALIZE_CONFLICT");
@@ -241,13 +246,26 @@ async function main() {
     await assertSources(snapshot.items);
     const current = await readRows(snapshot.rows.map(row => row.id));
     assert.equal(current.length, 2083);
+    if (phase === "apply-short") {
+      const resolved = current.filter(row => row.status === "completed" && (row.payload as Record<string, any>).vectorizeRecovery?.runId === runId).length;
+      const report = { runId, accepted: false, partial: true, resolvedRows: resolved, remainingRows: current.length - resolved, reason: "Long logical IDs require approved shared Vector API compatibility" };
+      await writeFile(`${target.output}/vector-recovery.json`, JSON.stringify(report, null, 2));
+      console.log(JSON.stringify(report));
+      return;
+    }
     assert.ok(current.every(row => row.status === "completed" && (row.payload as Record<string, any>).vectorizeRecovery?.runId === runId));
+    const records = new Map<string, CanonicalVectorRecord>();
+    const leaves = new Set(current.map(row => (row.payload as Record<string, any>).vectorizeRecovery.checkpoint as string));
+    for (const leaf of leaves) {
+      assert.match(leaf, /^batch-[a-f0-9]{64}\.json$/);
+      const cache = await load<{ planHash: string; records: CanonicalVectorRecord[] }>(leaf);
+      assert.equal(leaf, `batch-${cache.planHash}.json`);
+      for (const record of cache.records) records.set(record.id, record);
+    }
     for (let offset = 0; offset < snapshot.items.length; offset += 50) {
       const batch = snapshot.items.slice(offset, offset + 50);
-      const cached = await load<{ planHash: string; records: CanonicalVectorRecord[] }>(`batch-${offset}.json`);
-      assert.equal(cached.planHash, hash(batch));
-      assert.equal(cached.records.length, batch.filter(item => item.outbox.operation === "upsert").length);
-      assert.equal((await inspect(batch, cached.records)).length, 0);
+      const expected = batch.filter(item => item.outbox.operation === "upsert").map(item => { const record = records.get(item.outbox.vectorId); assert.ok(record, "RECOVERY_CHECKPOINT_MISSING"); assert.ok(matchesRecoveryVector(item, record)); return record; });
+      assert.equal((await inspect(batch, expected)).length, 0);
     }
     const totals = await pool.query("SELECT status,count(*)::int AS count FROM vector_sync_queue GROUP BY status ORDER BY status");
     const report = { runId, accepted: true, resolvedRows: current.length, verifiedLiveUpserts: 2042, verifiedDeletes: 26, queue: totals.rows, snapshotHash: snapshot.hash };
