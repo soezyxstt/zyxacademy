@@ -9,7 +9,7 @@ Object.assign(process.env, config);
 const headers = { Authorization: `Bearer ${config.INNGEST_SIGNING_KEY}`, "X-Inngest-Env": config.INNGEST_ENV };
 const report: unknown[] = [];
 function shape(value: unknown, depth = 0): unknown {
-  if (depth > 3 || value === null || typeof value !== "object") return { type: typeof value, length: typeof value === "string" ? value.length : undefined };
+  if (depth > 6 || value === null || typeof value !== "object") return { type: typeof value, length: typeof value === "string" ? value.length : undefined };
   return Array.isArray(value) ? { array: value.length, first: shape(value[0], depth + 1) }
     : Object.fromEntries(Object.entries(value).slice(0, 20).map(([key, item]) => [key, shape(item, depth + 1)]));
 }
@@ -48,7 +48,10 @@ for (const { id: runId } of listed.data) {
     try {
       const response = await fetch(`https://api.inngest.com/${path}`, { headers, signal: AbortSignal.timeout(20_000) });
       const body = await response.json();
-      report.push({ functionId, runId, path, status: response.status, shape: shape(body), facts: safeFacts(body, functionId === "assessment-ingest-worker") });
+      const spans = (body?.data?.rootSpan?.children ?? []).map((span: Record<string, unknown>) => ({ id: span.id, status: span.status,
+        name: typeof span.name === "string" && /^(verify-[a-f0-9]{64}-\d+|prepare-verification|run)$/.test(span.name) ? span.name : "withheld",
+        keys: Object.keys(span), outputShape: shape(span.output), outputFacts: safeFacts(span.output, false) }));
+      report.push({ functionId, runId, path, status: response.status, shape: shape(body), spans, facts: safeFacts(body, false) });
     } catch (error) { report.push({ functionId, runId, path, errorName: error instanceof Error ? error.name : "unknown" }); }
     await writeFile(`${target.output}/worker-runs.json`, JSON.stringify(report, null, 2));
   }
