@@ -10,6 +10,14 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class BackgroundDeployTriggersTest(unittest.TestCase):
+    def test_worker_checks_use_the_neon_runtime_toolchain(self):
+        text = (ROOT / '.github/workflows/ci.yml').read_text()
+        block = text.split('  worker-check:\n', 1)[1].split('  gate:\n', 1)[0]
+        self.assertNotIn('denoland/setup-deno', block)
+        self.assertNotIn('deno check', block)
+        self.assertIn('node scripts/neon/build-worker.mjs', block)
+        self.assertIn('bun workers/deno-background/diktat-assets-smoke.ts', block)
+
     def test_archive_build_uses_placeholder_and_prepares_matching_verification_identity(self):
         text = (ROOT / '.github/workflows/deploy-neon-worker.yml').read_text()
         preparation = text.split("- name: Build bounded worker archive", 1)[1].split("- name:", 1)[0]

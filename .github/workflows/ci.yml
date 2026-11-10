@@ -135,19 +135,6 @@ jobs:
           node-version: '24'
       - name: Audit worker imports without installing packages
         run: node --experimental-strip-types scripts/audit-worker-dependencies.ts
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/deno
-          key: ${{ runner.os }}-deno-v2-${{ hashFiles('deno.lock', 'deno.json', 'workers/deno-background/deno.json') }}-${{ github.sha }}
-          restore-keys: ${{ runner.os }}-deno-v2-${{ hashFiles('deno.lock', 'deno.json', 'workers/deno-background/deno.json') }}-
-      - run: deno check workers/deno-background/main.ts
-      - name: Verify Diktat runtime assets
-        env:
-          DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
-        run: deno run --allow-read --allow-env --config workers/deno-background/deno.json workers/deno-background/diktat-assets-smoke.ts
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: '1.3.14'
@@ -158,6 +145,10 @@ jobs:
           bun install --frozen-lockfile --ignore-scripts
           bun scripts/authoring/prepare-web-verification.ts
           node scripts/neon/build-worker.mjs
+      - name: Verify packaged Diktat font inputs and footer
+        env:
+          DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
+        run: bun workers/deno-background/diktat-assets-smoke.ts
 
   gate:
     name: CI gate
