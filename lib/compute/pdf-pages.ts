@@ -31,6 +31,16 @@ export function classifyStoredPdfError(error: unknown): "AUTHORING_MCP_SOURCE_PD
 
 export async function parseStoredPdfPages(bytes: Uint8Array, pages: number[], options?: Partial<PdfReadOptions>, requestId: string = crypto.randomUUID()): Promise<{ totalPages: number; pages: SourceFilePage[] }> {
   const { representation, imageWidth } = pdfReadOptionsSchema.parse(options ?? {});
+  if (process.env.ZYX_COMPUTE_RUNTIME === "neon") {
+    const { parseBrowserPdfPages } = await import("./browser-pdf");
+    try { return await parseBrowserPdfPages(bytes, pages, representation, imageWidth); }
+    catch (error) {
+      if (isSourceReadTimeout(error)) throw new Error("SOURCE_READ_TIMEOUT");
+      if (error instanceof Error && /\b(?:VERIFICATION_|PRODUCT_V4_BROWSER_)/.test(error.message)) throw error;
+      const code = error instanceof Error ? error.message.match(/\b(?:AUTHORING_MCP_|SOURCE_PAGE_)[A-Z_]+\b/)?.[0] : undefined;
+      throw new Error(code ?? classifyStoredPdfError(error));
+    }
+  } else {
   const parser = await timePdfStage(requestId, "parse.setup", async () => {
     const { PDFParse } = await import("pdf-parse");
     await setupPdfWorker(PDFParse);
@@ -70,5 +80,6 @@ export async function parseStoredPdfPages(bytes: Uint8Array, pages: number[], op
     throw new Error(classifyStoredPdfError(error));
   } finally {
     await parser.destroy().catch(() => undefined);
+  }
   }
 }

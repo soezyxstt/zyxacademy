@@ -1,4 +1,4 @@
-name: Deploy Deno Background Worker
+name: Deploy background worker
 
 on:
   workflow_call:
@@ -21,7 +21,7 @@ on:
         type: boolean
         default: false
       diagnostic_environment:
-        description: "Environment for the read-only Browser Run probe"
+        description: "Environment for manual worker actions and browser diagnostics"
         type: choice
         options: [staging, production]
         default: staging
@@ -34,6 +34,20 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  deploy-neon-staging:
+    if: github.event_name != 'pull_request' && !inputs.browser_diagnostics && !inputs.runtime_diagnostics && !inputs.restore_turso_worker && github.ref_name == 'staging'
+    uses: ./.github/workflows/deploy-neon-worker.yml
+    with:
+      environment: staging
+    secrets: inherit
+
+  deploy-neon-production:
+    if: github.event_name != 'pull_request' && !inputs.browser_diagnostics && !inputs.runtime_diagnostics && !inputs.restore_turso_worker && (github.ref_name == 'main' || (github.event_name == 'workflow_dispatch' && inputs.diagnostic_environment == 'production'))
+    uses: ./.github/workflows/deploy-neon-worker.yml
+    with:
+      environment: production
+    secrets: inherit
+
   runtime-diagnostics:
     if: github.event_name == 'workflow_dispatch' && (inputs.runtime_diagnostics || inputs.restore_turso_worker)
     runs-on: ubuntu-24.04
@@ -88,290 +102,3 @@ jobs:
         run: |
           bun build scripts/authoring/probe-v4-browser.ts --target=node --packages=external --outfile=artifacts/authoring-verification/browser-probe.mjs
           node artifacts/authoring-verification/browser-probe.mjs
-
-  deploy:
-    name: Deploy Background Worker (${{ github.ref_name }})
-    if: github.event_name != 'pull_request' && !inputs.browser_diagnostics && !inputs.runtime_diagnostics && !inputs.restore_turso_worker && (github.ref_name == 'main' || github.ref_name == 'staging')
-    runs-on: ubuntu-latest
-    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/deno
-          key: ${{ runner.os }}-deno-v2-${{ hashFiles('deno.lock', 'deno.json', 'workers/deno-background/deno.json') }}-${{ github.sha }}
-          restore-keys: ${{ runner.os }}-deno-v2-${{ hashFiles('deno.lock', 'deno.json', 'workers/deno-background/deno.json') }}-
-
-      - name: Worker Dependency Audit
-        if: github.event_name == 'workflow_dispatch' || inputs.check_worker
-        run: >-
-          deno run -A scripts/audit-worker-dependencies.ts
-          --dependency-output=artifacts/deno-worker-dependencies.txt
-          --impact-output=artifacts/deno-worker-impact.txt
-
-      - name: Worker Typecheck
-        if: github.event_name == 'workflow_dispatch' || inputs.check_worker
-        run: deno check workers/deno-background/main.ts
-
-      - name: Verify Diktat Runtime Assets
-        if: github.event_name == 'workflow_dispatch' || inputs.check_worker
-        env:
-          DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
-        run: deno run --allow-read --allow-env --config workers/deno-background/deno.json workers/deno-background/diktat-assets-smoke.ts
-
-      - name: Configure Target Environment
-        run: |
-          if [ "${{ github.ref_name }}" = "main" ]; then
-            echo "APP_NAME=zyx-background" >> $GITHUB_ENV
-            echo "APP_URL=https://zyx-background.soezyxst.deno.net" >> $GITHUB_ENV
-          else
-            echo "APP_NAME=zyx-background-staging" >> $GITHUB_ENV
-            echo "APP_URL=https://zyx-background-staging.soezyxst.deno.net" >> $GITHUB_ENV
-          fi
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: '1.3.14'
-
-      - uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-1.3.14-${{ hashFiles('bun.lock') }}
-          restore-keys: ${{ runner.os }}-bun-1.3.14-
-
-      - name: Prepare V4 build identity for Deno
-        env:
-          ZYX_POSTGRES_BUILD_PLACEHOLDER: '1'
-        run: |
-          bun install --frozen-lockfile --ignore-scripts
-          bun scripts/authoring/prepare-web-verification.ts
-
-      - name: Validate staging Neon target before Deno mutation
-        if: github.ref_name == 'staging'
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          STORAGE_PROVIDER_MODE: ${{ vars.STORAGE_PROVIDER_MODE || secrets.STORAGE_PROVIDER_MODE }}
-          NEON_STORAGE_BUCKET: ${{ vars.NEON_STORAGE_BUCKET || secrets.NEON_STORAGE_BUCKET }}
-          AWS_ENDPOINT_URL_S3: ${{ vars.AWS_ENDPOINT_URL_S3 || secrets.AWS_ENDPOINT_URL_S3 }}
-          AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
-          NEON_EXPECTED_HOST: ${{ vars.NEON_EXPECTED_HOST }}
-          NEON_EXPECTED_STORAGE_ENDPOINT: ${{ vars.NEON_EXPECTED_STORAGE_ENDPOINT }}
-          NEON_EXPECTED_STORAGE_BUCKET: ${{ vars.NEON_EXPECTED_STORAGE_BUCKET }}
-        run: |
-          PYTHONPATH=.github/scripts python3 - <<'PY'
-          import os
-          from cloud_run_runtime import validate_staging_target
-          validate_staging_target(dict(os.environ), dict(os.environ))
-          print("Staging Neon database and storage targets verified.")
-          PY
-
-      - name: Validate production Neon target before Deno mutation
-        if: (github.event_name == 'workflow_dispatch' || inputs.check_worker) && github.ref_name == 'main'
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          STORAGE_PROVIDER_MODE: ${{ vars.STORAGE_PROVIDER_MODE || secrets.STORAGE_PROVIDER_MODE }}
-          NEON_STORAGE_BUCKET: ${{ vars.NEON_STORAGE_BUCKET || secrets.NEON_STORAGE_BUCKET }}
-          AWS_ENDPOINT_URL_S3: ${{ vars.AWS_ENDPOINT_URL_S3 || secrets.AWS_ENDPOINT_URL_S3 }}
-          AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
-          AWS_ACCESS_KEY_ID: ${{ vars.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ vars.AWS_SECRET_ACCESS_KEY || secrets.AWS_SECRET_ACCESS_KEY }}
-        run: bun scripts/neon/validate-production-target.ts
-
-      - name: Provision Deno Deploy App (if not exists)
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-        run: |
-          deno run -A jsr:@deno/deploy@0.0.9904 create --non-interactive \
-            --org soezyxst \
-            --app $APP_NAME \
-            --source local \
-            --do-not-use-detected-build-config \
-            --runtime-mode dynamic \
-            --entrypoint workers/deno-background/main.ts \
-            --region us \
-            || echo "App $APP_NAME already exists or initialized."
-
-      - name: Sync Environment Variables to Deno Deploy
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-          SECRET_DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          SECRET_TURSO_CONNECTION_URL: ${{ secrets.TURSO_CONNECTION_URL }}
-          SECRET_TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-          SECRET_INNGEST_EVENT_KEY: ${{ secrets.INNGEST_EVENT_KEY }}
-          SECRET_INNGEST_SIGNING_KEY: ${{ secrets.INNGEST_SIGNING_KEY }}
-          SECRET_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          SECRET_GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
-          SECRET_GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
-          SECRET_GEMINI_API_KEY_4: ${{ secrets.GEMINI_API_KEY_4 }}
-          SECRET_CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-          SECRET_CF_AI_GATEWAY_URL: ${{ secrets.CF_AI_GATEWAY_URL }}
-          SECRET_CF_AI_GATEWAY_TOKEN: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
-          SECRET_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-          SECRET_R2_BUCKET: ${{ secrets.R2_BUCKET }}
-          SECRET_R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
-          SECRET_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          SECRET_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          SECRET_LEGACY_CF_R2_BUCKET: ${{ secrets.CF_R2_BUCKET }}
-          SECRET_LEGACY_CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-          SECRET_LEGACY_CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-          SECRET_VECTORIZE_WORKER_URL: ${{ secrets.VECTORIZE_WORKER_URL }}
-          SECRET_VECTORIZE_SHARED_SECRET: ${{ secrets.VECTORIZE_SHARED_SECRET }}
-          SECRET_LEGACY_VECTORIZE_WORKER_SECRET: ${{ secrets.VECTORIZE_WORKER_SECRET }}
-          SECRET_COMPUTE_SERVICE_SECRET: ${{ secrets.COMPUTE_SERVICE_SECRET }}
-          SECRET_RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          SECRET_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          SECRET_GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          SECRET_GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
-          SECRET_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-          SECRET_NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
-          ADMIN_DRIVE_EDITOR_SYNC: ${{ vars.FEATURE_DRIVE_EDITOR_SYNC || secrets.FEATURE_DRIVE_EDITOR_SYNC }}
-          SECRET_DIKTAT_RENDERER_URL: ${{ secrets.DIKTAT_RENDERER_URL }}
-          SECRET_DIKTAT_RENDERER_SECRET: ${{ secrets.DIKTAT_RENDERER_SECRET }}
-          SECRET_BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-          SECRET_STEEL_API_KEY: ${{ secrets.STEEL_API_KEY }}
-          VERIFICATION_BROWSER_PROVIDER: ${{ vars.AUTHORING_VERIFICATION_BROWSER_PROVIDER || secrets.AUTHORING_VERIFICATION_BROWSER_PROVIDER || 'cloudflare' }}
-          VERIFICATION_STEEL_BROWSER_VERSION: ${{ vars.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION || secrets.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION }}
-          SECRET_CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          SECRET_NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
-          TARGET_STORAGE_PROVIDER_MODE: ${{ vars.STORAGE_PROVIDER_MODE || secrets.STORAGE_PROVIDER_MODE }}
-          TARGET_NEON_STORAGE_BUCKET: ${{ vars.NEON_STORAGE_BUCKET || secrets.NEON_STORAGE_BUCKET }}
-          TARGET_AWS_ENDPOINT_URL_S3: ${{ vars.AWS_ENDPOINT_URL_S3 || secrets.AWS_ENDPOINT_URL_S3 }}
-          TARGET_AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
-          TARGET_AWS_ACCESS_KEY_ID: ${{ vars.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY_ID }}
-          TARGET_AWS_SECRET_ACCESS_KEY: ${{ vars.AWS_SECRET_ACCESS_KEY || secrets.AWS_SECRET_ACCESS_KEY }}
-          TARGET_INNGEST_ENV: ${{ vars.INNGEST_ENV || secrets.INNGEST_ENV }}
-          TARGET_CF_BROWSER_API_TOKEN: ${{ vars.CF_BROWSER_API_TOKEN || secrets.CF_BROWSER_API_TOKEN }}
-          TARGET_AUTHORING_VERIFICATION_ACCESS_URL: ${{ vars.AUTHORING_VERIFICATION_ACCESS_URL || secrets.AUTHORING_VERIFICATION_ACCESS_URL }}
-        run: |
-          R2_BUCKET_RESOLVED="${SECRET_R2_BUCKET:-$SECRET_LEGACY_CF_R2_BUCKET}"
-          R2_ACCESS_KEY_ID_RESOLVED="${SECRET_R2_ACCESS_KEY_ID:-$SECRET_LEGACY_CF_R2_ACCESS_KEY_ID}"
-          R2_SECRET_ACCESS_KEY_RESOLVED="${SECRET_R2_SECRET_ACCESS_KEY:-$SECRET_LEGACY_CF_R2_SECRET_ACCESS_KEY}"
-          VECTORIZE_SHARED_SECRET_RESOLVED="${SECRET_VECTORIZE_SHARED_SECRET:-$SECRET_LEGACY_VECTORIZE_WORKER_SECRET}"
-          cat << EOF > .env.deploy
-          DATABASE_URL=${SECRET_DATABASE_URL}
-          TURSO_CONNECTION_URL=${SECRET_TURSO_CONNECTION_URL}
-          TURSO_AUTH_TOKEN=${SECRET_TURSO_AUTH_TOKEN}
-          INNGEST_EVENT_KEY=${SECRET_INNGEST_EVENT_KEY}
-          INNGEST_SIGNING_KEY=${SECRET_INNGEST_SIGNING_KEY}
-          INNGEST_SERVE_ORIGIN=${APP_URL}
-          INNGEST_SERVE_PATH=/api/inngest
-          GEMINI_API_KEY=${SECRET_GEMINI_API_KEY}
-          GEMINI_API_KEY_2=${SECRET_GEMINI_API_KEY_2}
-          GEMINI_API_KEY_3=${SECRET_GEMINI_API_KEY_3}
-          GEMINI_API_KEY_4=${SECRET_GEMINI_API_KEY_4}
-          CF_ACCOUNT_ID=${SECRET_CF_ACCOUNT_ID}
-          CF_AI_GATEWAY_URL=${SECRET_CF_AI_GATEWAY_URL}
-          CF_AI_GATEWAY_TOKEN=${SECRET_CF_AI_GATEWAY_TOKEN}
-          R2_ENDPOINT=${SECRET_R2_ENDPOINT}
-          R2_BUCKET=${R2_BUCKET_RESOLVED}
-          R2_PUBLIC_URL=${SECRET_R2_PUBLIC_URL}
-          R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID_RESOLVED}
-          R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY_RESOLVED}
-          VECTORIZE_WORKER_URL=${SECRET_VECTORIZE_WORKER_URL}
-          VECTORIZE_SHARED_SECRET=${VECTORIZE_SHARED_SECRET_RESOLVED}
-          COMPUTE_SERVICE_SECRET=${SECRET_COMPUTE_SERVICE_SECRET}
-          RESEND_API_KEY=${SECRET_RESEND_API_KEY}
-          GOOGLE_CLIENT_ID=${SECRET_GOOGLE_CLIENT_ID}
-          GOOGLE_CLIENT_SECRET=${SECRET_GOOGLE_CLIENT_SECRET}
-          GOOGLE_REFRESH_TOKEN=${SECRET_GOOGLE_REFRESH_TOKEN}
-          FIREBASE_SERVICE_ACCOUNT_JSON=${SECRET_FIREBASE_SERVICE_ACCOUNT_JSON}
-          NEXT_PUBLIC_FIREBASE_PROJECT_ID=${SECRET_NEXT_PUBLIC_FIREBASE_PROJECT_ID}
-          FEATURE_DRIVE_EDITOR_SYNC=${ADMIN_DRIVE_EDITOR_SYNC}
-          DIKTAT_RENDERER_URL=${SECRET_DIKTAT_RENDERER_URL}
-          BETTER_AUTH_SECRET=${SECRET_BETTER_AUTH_SECRET}
-          AUTHORING_VERIFICATION_BROWSER_PROVIDER=${VERIFICATION_BROWSER_PROVIDER}
-          AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION=${VERIFICATION_STEEL_BROWSER_VERSION}
-          STEEL_API_KEY=${SECRET_STEEL_API_KEY}
-          CF_API_TOKEN=${SECRET_CF_API_TOKEN}
-          NEXT_PUBLIC_APP_URL=${SECRET_NEXT_PUBLIC_APP_URL}
-          DIKTAT_RENDERER_SECRET=${SECRET_DIKTAT_RENDERER_SECRET}
-          EOF
-
-          cat << EOF >> .env.deploy
-          STORAGE_PROVIDER_MODE=${TARGET_STORAGE_PROVIDER_MODE}
-          NEON_STORAGE_BUCKET=${TARGET_NEON_STORAGE_BUCKET}
-          AWS_ENDPOINT_URL_S3=${TARGET_AWS_ENDPOINT_URL_S3}
-          AWS_REGION=${TARGET_AWS_REGION}
-          AWS_ACCESS_KEY_ID=${TARGET_AWS_ACCESS_KEY_ID}
-          AWS_SECRET_ACCESS_KEY=${TARGET_AWS_SECRET_ACCESS_KEY}
-          INNGEST_ENV=${TARGET_INNGEST_ENV}
-          CF_BROWSER_API_TOKEN=${TARGET_CF_BROWSER_API_TOKEN}
-          AUTHORING_VERIFICATION_ACCESS_URL=${TARGET_AUTHORING_VERIFICATION_ACCESS_URL}
-          EOF
-
-          # Remove empty assignments while preserving Base64 padding and embedded '='.
-          grep -v '^[A-Za-z_][A-Za-z0-9_]*=$' .env.deploy > .env.deploy.filtered || true
-
-          if [ -s .env.deploy.filtered ]; then
-            deno run -A jsr:@deno/deploy@0.0.9904 env load --replace .env.deploy.filtered --org soezyxst --app $APP_NAME --non-interactive
-            echo "Environment variables successfully synced to $APP_NAME."
-          else
-            echo "No secrets found in repository/environment to sync."
-          fi
-          rm -f .env.deploy .env.deploy.filtered
-
-      - name: Deploy Worker to Deno Deploy
-        timeout-minutes: 10
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-        run: |
-          deno run -A jsr:@deno/deploy@0.0.9904 --non-interactive --org soezyxst --app $APP_NAME --prod
-
-      - name: Deploy Handshake Diagnostics (on failure)
-        if: failure()
-        shell: bash
-        run: |
-          echo "Deploy step failed. Collecting upload manifest diagnostics."
-          echo "Tracked files: $(git ls-files | wc -l)"
-          echo "Tracked bytes: $(git ls-files -z | xargs -0 wc -c 2>/dev/null | tail -n 1)"
-          echo "Largest tracked files:"
-          git ls-files -z | xargs -0 du -b 2>/dev/null | sort -rn | head -n 20
-          echo "Worker import graph size:"
-          deno run -A scripts/audit-worker-dependencies.ts --list 2>/dev/null | tail -n 3 || true
-          echo "If the log above shows a revision URL but no 'Loaded previously uploaded files',"
-          echo "the CLI never received missing_hashes from the server. Open the revision in the"
-          echo "Deno dashboard and check whether the build is stuck at 'Awaiting for N files'."
-
-      - name: Verify Worker Health Check
-        run: |
-          echo "Verifying healthcheck at $APP_URL/health..."
-          for i in {1..12}; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL/health" || true)
-            if [ "$STATUS" = "200" ]; then
-              echo "Healthcheck passed: $APP_URL is live and healthy."
-              exit 0
-            fi
-            echo "Attempt $i: Status is $STATUS, waiting 5 seconds..."
-            sleep 5
-          done
-          echo "Worker healthcheck failed with status $STATUS"
-          exit 1
-
-      - name: Automated Inngest App Sync
-        env:
-          INNGEST_API_KEY: ${{ secrets.INNGEST_API_KEY }}
-        run: |
-          # App ID matches the Inngest client id in jobs/client.ts (zyx-academy).
-          # Staging and production stay isolated via their Inngest environment
-          # API keys stored per GitHub Environment. Signing key is still used
-          # by the worker to verify requests, it is not used for sync.
-          if [ -n "$INNGEST_API_KEY" ]; then
-            echo "Triggering automated Inngest App Sync for $APP_URL/api/inngest..."
-            RESPONSE=$(curl -fsS -w "\nHTTP_STATUS:%{http_code}" -X POST "https://api.inngest.com/v2/apps/zyx-academy/syncs" \
-              -H "Authorization: Bearer ${INNGEST_API_KEY}" \
-              -H "Content-Type: application/json" \
-              -d "{\"url\": \"${APP_URL}/api/inngest\"}")
-            echo "$RESPONSE"
-          else
-            echo "INNGEST_API_KEY not provided, skipping automated sync."
-          fi

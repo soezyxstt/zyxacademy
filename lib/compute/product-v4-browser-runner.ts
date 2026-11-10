@@ -1,4 +1,5 @@
 import { assertVerificationBrowserIdentity } from "./product-v4-browser-config";
+import { isHostedComputeRuntime } from "./runtime";
 import { chromium, type Page } from "playwright-core";
 import type { BrowserContext } from "playwright-core";
 import { parseStoredPdfPages } from "./pdf-pages";
@@ -15,7 +16,7 @@ import { assertProductV4RuntimeFingerprint, expectedChromiumRuntime, resolveProd
 
 declare const __ZYX_VERIFICATION_BUILD_RUNTIME__: { fingerprint: ProductV4RuntimeFingerprint; chromium: { browserVersion: string; revision: string } } | undefined;
 
-const deployed = typeof (globalThis as { Deno?: unknown }).Deno !== "undefined";
+const deployed = isHostedComputeRuntime();
 const embeddedRuntime = typeof __ZYX_VERIFICATION_BUILD_RUNTIME__ === "undefined" ? undefined : __ZYX_VERIFICATION_BUILD_RUNTIME__;
 const loadedRuntime = resolveProductV4LoadedRuntime(embeddedRuntime?.fingerprint);
 const loadedBrowserRuntime = embeddedRuntime?.chromium ?? (deployed ? undefined : expectedChromiumRuntime());

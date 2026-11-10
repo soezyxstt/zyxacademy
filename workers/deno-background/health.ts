@@ -7,6 +7,7 @@ import { computeFunctions } from "@/jobs/compute";
  */
 export function healthHandler(c: Context) {
   const version =
+    process.env.ZYX_COMPUTE_REVISION ||
     (typeof process !== "undefined" && process.env?.DENO_DEPLOYMENT_ID) ||
     (typeof (globalThis as any).Deno !== "undefined" && (globalThis as any).Deno.env.get("DENO_DEPLOYMENT_ID")) ||
     "dev";

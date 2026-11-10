@@ -1,5 +1,7 @@
 # Zyx Academy Architecture (vNext)
 
+Background execution is migrating from suspended Deno to Neon Functions on the corresponding database branch, with Inngest orchestration and Cloudflare Browser Run PDF parsing/rendering. Production recovery is authorized; staging web/DNS work is deferred. See the OPEN / IN PROGRESS [worker cutover runbook](operations/neon-functions-cutover.md) for compatibility, verification and rollout boundaries.
+
 Staging and production serve separate Neon PostgreSQL branches and private Neon S3-compatible buckets. The [staging migration runbook](operations/neon-migration.md) and [production cutover runbook](operations/neon-production-cutover.md) record verified targets and recovery boundaries. R2 terminology in feature descriptions below refers to the storage abstraction and retained compatibility paths; the serving provider is explicitly Neon. Turso/R2 source resources remain recovery artifacts.
 
 PDF reader repair: image dimensions come from PNG IHDR integers, and renderer revision v2 isolates previous failed jobs. Start a fresh `source.read_file` request after rollout. Page citations explicitly identify `pdfPage`; `printedPage` is only an unverified boundary-text candidate (`printedPageVerified: false`). Control characters and empty extraction set `textQuality.status: needs_visual_review`; preserve source text and verify formulas through page images. This does not reconstruct formulas or run OCR.

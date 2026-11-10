@@ -9,6 +9,7 @@ import { deriveEpsilonDelta } from "@/lib/materials/epsilon-delta";
 import { validateAuthoredDiktat } from "@/lib/materials/diktat-v4";
 import { compileArticleProduct } from "@/lib/materials/compiler";
 import { runVerificationBrowserOperation } from "./product-v4-browser-session";
+import { isHostedComputeRuntime } from "./runtime";
 
 export { buildProductV4RuntimeBinding } from "./product-v4-runtime-binding";
 
@@ -63,7 +64,7 @@ export const executeProductV4VerificationCheck: ProductV4VerificationPorts["exec
       observed: findings.length ? "Reference or model constraints failed" : "Application structural and supported model constraints passed; semantic review remains separate",
       artifacts: [{ id: `${input.requirement.id}.json`, mediaType: "application/json", bytes: new TextEncoder().encode(JSON.stringify({ findings, observations })) }] };
   }
-  if (typeof (globalThis as { Deno?: unknown }).Deno !== "undefined") {
+  if (isHostedComputeRuntime()) {
     const { executeBrowserProductV4Check, closeProductV4BrowserRunner } = await import("./product-v4-browser-runner");
     return runVerificationBrowserOperation(async (signal) => {
       const staticFigureAssets = await loadProductV4StaticFigureAssets(input.bundle);

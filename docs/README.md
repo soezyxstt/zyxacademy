@@ -1,5 +1,7 @@
 # Zyx Academy Documentation Index
 
+`OPEN / IN PROGRESS`: [Neon Functions worker cutover](operations/neon-functions-cutover.md) records the authorized production recovery, Cloudflare Browser Run PDF handling, exact environment guards and partial staging evidence. Staging web/DNS work is deferred. The `ACTIVE` architecture, deployment and development guides link this transition.
+
 The `ACTIVE` [Product Bundle V4 contract](bundle/product-bundle-v4.md) includes optional function-plot vertical display bounds shared by the reader and static export, with automatic fitting preserved when omitted.
 
 The `ACTIVE` [feature catalog](features.md) and [coding contract](coding-foundation.md) record one Zyra composer with Python/Tutor modes, inline editable math with keyboard, deletion and palette behavior, accurate session counts, and guarded placement of final Python in the editor. The `ACTIVE` architecture guide records the editor context bridge and scoped message-count query, and single-owner coding history persistence with replay protection, save acknowledgements, persisted-only counts, and recovery for malformed Python replies.
