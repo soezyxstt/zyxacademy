@@ -6,7 +6,7 @@ import { productV4TargetRuntime, productV4CompatibilityEvidence } from "../../li
 import { assertProductV4RuntimeFingerprint, resolveProductV4LoadedRuntime, PRODUCT_V4_RUNTIME_FILES } from "../../lib/compute/product-v4-runtime-binding";
 
 const executor = { ...manifest.webRuntime, rendererChecksum: "a".repeat(64), contractChecksum: "b".repeat(64) };
-const environment = { ZYX_COMPUTE_RUNTIME: "neon", NEXT_PUBLIC_APP_URL: manifest.origin,
+const environment: NodeJS.ProcessEnv = { NODE_ENV: "production", ZYX_COMPUTE_RUNTIME: "neon", NEXT_PUBLIC_APP_URL: manifest.origin,
   AUTHORING_VERIFICATION_BROWSER_PROVIDER: "cloudflare", ZYX_COMPUTE_REVISION: "c".repeat(64) };
 const scope = { ...manifest.scope, sourceFigureCount: 0 };
 
