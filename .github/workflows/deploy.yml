@@ -38,7 +38,7 @@ on:
       maintenance:
         description: Production worker maintenance without deployment or web build
         type: choice
-        options: [none, vector-plan, vector-apply, vector-apply-short, vector-verify, remaining, remaining-independent, product-pdf, admin-knowledge, assessment]
+        options: [none, vector-plan, vector-apply, vector-apply-short, vector-stage-short, vector-verify, remaining, remaining-independent, product-pdf, admin-knowledge, assessment]
         default: none
       recovery_id:
         description: Private snapshot identity for vector recovery

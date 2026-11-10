@@ -60,7 +60,7 @@ export async function runRecoveryBatches(total: number, recover: (offset: number
 
 async function main() {
   const [phase, runId] = process.argv.slice(2);
-  assert.ok(["plan", "apply", "apply-short", "verify"].includes(phase), "RECOVERY_PHASE_REQUIRED");
+  assert.ok(["plan", "apply", "apply-short", "stage-short", "verify"].includes(phase), "RECOVERY_PHASE_REQUIRED");
   assert.match(runId ?? "", /^vector-recovery-[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/);
   const target = workerTarget("production");
   const config = JSON.parse(await readFile(`${target.output}/.env.production.json`, "utf8"));
@@ -152,7 +152,7 @@ async function main() {
     const snapshot = await load<Snapshot>("snapshot.json");
     assert.equal(snapshot.runId, runId);
     assert.equal(hash({ rows: snapshot.rows, items: snapshot.items }), snapshot.hash);
-    if (phase === "apply" || phase === "apply-short") {
+    if (phase === "apply" || phase === "apply-short" || phase === "stage-short") {
       if (!await storage.exists(key("embedding-canary.json"))) {
         const documents = [{ title: "Addition", content: "Two plus three equals five." }, { title: "Geometry", content: "A triangle has three sides." }];
         const canary = await embedWorkerVectorDocuments(documents);
@@ -170,7 +170,7 @@ async function main() {
         await save("embedding-canary.json", { documents: 2, dimensions: canary.map(value => value.length), distinct: true, singletonOrderSimilarities: similarities });
       }
       async function recoverBatch(offset: number) {
-        let batch: Item[] = snapshot.items.slice(offset, offset + 50).filter(item => phase !== "apply-short" || Buffer.byteLength(item.outbox.vectorId) <= 64);
+        let batch: Item[] = snapshot.items.slice(offset, offset + 50).filter(item => !phase.endsWith("-short") || Buffer.byteLength(item.outbox.vectorId) <= 64);
         if (!batch.length) return;
         let ids: string[] = batch.flatMap(item => item.rows.map(row => row.id));
         let current = await readRows(ids);
@@ -225,6 +225,14 @@ async function main() {
           if (changed.length) await vectors.upsert({ profileId, vectors: changed });
           const deletes = missing.filter(item => item.outbox.operation === "delete").map(item => item.outbox.vectorId);
           if (deletes.length) await vectors.delete({ profileId, ids: deletes });
+          if (phase === "stage-short") {
+            await save(`staged-${batchHash}.json`, { runId, batchHash, rows: ids, indexWriteAccepted: true, independentlyVerified: false });
+            const released = await pool.query(`UPDATE vector_sync_queue SET status='failed',lease_id=NULL,lease_expires_at=NULL,updated_at=now()
+              WHERE id=ANY($1::text[]) AND status='processing' AND lease_id=$2 RETURNING id`, [ids, leaseId]);
+            assert.equal(released.rowCount, ids.length, "RECOVERY_STAGE_LEASE_LOST");
+            console.log(JSON.stringify({ runId, batchOffset: offset, operations: batch.length, stage: "awaiting-independent-readback" }));
+            return;
+          }
           let remaining = batch;
           for (let attempt = 0; attempt < 90; attempt++) {
             remaining = await inspect(batch, records);
@@ -259,9 +267,9 @@ async function main() {
     await assertSources(snapshot.items);
     const current = await readRows(snapshot.rows.map(row => row.id));
     assert.equal(current.length, 2083);
-    if (phase === "apply-short") {
+    if (phase.endsWith("-short")) {
       const resolved = current.filter(row => row.status === "completed" && (row.payload as Record<string, any>).vectorizeRecovery?.runId === runId).length;
-      const report = { runId, accepted: false, partial: true, resolvedRows: resolved, remainingRows: current.length - resolved, reason: "Long logical IDs require approved shared Vector API compatibility" };
+      const report = { runId, accepted: false, partial: true, staged: phase === "stage-short", resolvedRows: resolved, remainingRows: current.length - resolved, reason: phase === "stage-short" ? "Index writes await independent readback; long IDs remain excluded" : "Long logical IDs require approved shared Vector API compatibility" };
       await writeFile(`${target.output}/vector-recovery.json`, JSON.stringify(report, null, 2));
       console.log(JSON.stringify(report));
       return;
