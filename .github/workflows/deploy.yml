@@ -32,6 +32,9 @@ on:
       deployment_run_id:
         description: Successful worker deployment run for business acceptance
         type: string
+      resume_run_id:
+        description: Optional prior acceptance run with retained owned fixtures
+        type: string
 
 permissions:
   contents: read
@@ -62,6 +65,7 @@ jobs:
     with:
       environment: ${{ inputs.diagnostic_environment }}
       deployment_run_id: ${{ inputs.deployment_run_id }}
+      resume_run_id: ${{ inputs.resume_run_id }}
     secrets: inherit
 
   runtime-diagnostics:

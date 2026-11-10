@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFile, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { workerTarget, assertWorkerEnvironment } from "./worker-targets.mjs";
 
 const target = workerTarget(process.argv[2]);
@@ -20,3 +20,13 @@ await writeFile(`${target.output}/.env.${target.name}.json`, JSON.stringify({
   ZYX_COMPUTE_REVISION: proof.checksum,
 }), { mode: 0o600 });
 console.log("Verified acceptance configuration prepared; credential values omitted.");
+if (process.env.RESUME_FIXTURES === "true") {
+  for (const [kind, prefix] of [["learning", "neon-learning"], ["content", "neon-content"]]) {
+    const folder = target.name === "production" ? "production/" : "";
+    const path = `artifacts/worker-resume/${folder}${kind}-retained.json`;
+    const retained = JSON.parse(await readFile(path, "utf8"));
+    assert.match(retained.fixtureId, new RegExp(`^${prefix}-[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$`));
+    await copyFile(path, `${target.output}/${kind}-retained.json`);
+    await appendFile(process.env.GITHUB_OUTPUT, `${kind}_fixture_id=${retained.fixtureId}\n`);
+  }
+}

@@ -6,6 +6,9 @@ import { workerTarget, assertWorkerEnvironment } from "./worker-targets.mjs";
 import { canonicalOutboxPayload } from "../../lib/vectorize/outbox";
 
 const target = workerTarget(process.argv[2]);
+const resume = process.argv[3] === "--resume";
+assert.equal(process.argv.length, resume ? 5 : 3, "LEARNING_SMOKE_ARGUMENTS_INVALID");
+if (resume) assert.match(process.argv[4], /^neon-learning-[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/, "LEARNING_FIXTURE_ID_INVALID");
 const config = JSON.parse(await readFile(`${target.output}/.env.${target.name}.json`, "utf8"));
 assertWorkerEnvironment(target, config);
 assert.equal(config.INNGEST_SERVE_ORIGIN, target.origin);
@@ -14,7 +17,7 @@ const [{ db, pool }, s, { inngest }, { vectorizeCanonicalDelete }, { CANONICAL_V
   import("../../lib/db"), import("../../db/schema"), import("../../jobs/client"),
   import("../../lib/vectorize-client"), import("../../lib/vectorize/contracts"),
 ]);
-const id = `neon-learning-${randomUUID()}`;
+const id = resume ? process.argv[4] : `neon-learning-${randomUUID()}`;
 const evidence: Array<{ functionId: string; eventId: string; runId: string; status: string }> = [];
 let fixturesCreated = false, accepted = false;
 const headers = { Authorization: `Bearer ${config.INNGEST_SIGNING_KEY}`, "X-Inngest-Env": config.INNGEST_ENV };
@@ -58,7 +61,51 @@ try {
   assert.match(config.ZYX_COMPUTE_REVISION, /^[a-f0-9]{64}$/);
   assert.equal(worker.version, config.ZYX_COMPUTE_REVISION);
 
-  await db.transaction(async tx => {
+  if (resume) {
+    const [account] = await db.select().from(s.user).where(eq(s.user.id, id));
+    const [course] = await db.select().from(s.courses).where(eq(s.courses.id, id));
+    const [chapter] = await db.select().from(s.chapters).where(eq(s.chapters.id, id));
+    const [mtd] = await db.select().from(s.masterTeachingDocuments).where(eq(s.masterTeachingDocuments.id, id));
+    const [ko] = await db.select().from(s.knowledgeObjects).where(eq(s.knowledgeObjects.id, id));
+    const [ideaCourse] = await db.select().from(s.mataKuliah).where(eq(s.mataKuliah.id, id));
+    const [idea] = await db.select().from(s.ide).where(eq(s.ide.id, id));
+    const [learning] = await db.select().from(s.buktiPembelajaran).where(eq(s.buktiPembelajaran.id, id));
+    const [template] = await db.select().from(s.quizTemplates).where(eq(s.quizTemplates.id, id));
+    const [attempt] = await db.select().from(s.studentQuizAttempts).where(eq(s.studentQuizAttempts.id, id));
+    const [generation] = await db.select().from(s.aiGenerationJobs).where(eq(s.aiGenerationJobs.id, id));
+    assert.equal(account?.email, `${id}@example.invalid`, "LEARNING_FIXTURE_OWNERSHIP_INVALID");
+    assert.equal(account.name, "Neon learning fixture");
+    assert.equal(account.role, "teacher");
+    assert.equal(course?.title, "Neon learning fixture");
+    assert.equal(course.category, "Matematika");
+    assert.equal(chapter?.courseId, id);
+    assert.equal(chapter.title, "Penjumlahan");
+    assert.equal(mtd?.courseId, id);
+    assert.equal(mtd.createdById, id);
+    assert.equal(ko?.courseId, id);
+    assert.equal(ko.mtdId, id);
+    assert.equal(ko.chapterId, id);
+    assert.equal(ideaCourse?.legacyCourseId, id);
+    assert.equal(ideaCourse.code, id);
+    assert.equal(ideaCourse.status, "draft");
+    assert.equal(idea?.creatorId, id);
+    assert.equal(idea.mataKuliahId, id);
+    assert.equal(idea.babId, id);
+    assert.equal(idea.status, "draft");
+    assert.equal(learning?.penggunaId, id);
+    assert.equal(learning.ideId, id);
+    assert.equal(learning.sourceId, id);
+    assert.equal(template?.courseId, id);
+    assert.equal(attempt?.studentId, id);
+    assert.equal(attempt.templateId, id);
+    assert.equal(generation?.tutorId, id);
+    assert.equal(generation.courseId, id);
+    try {
+      const retained = JSON.parse(await readFile(`${target.output}/learning-retained.json`, "utf8"));
+      assert.equal(retained.fixtureId, id);
+      evidence.push(...retained.evidence);
+    } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  } else await db.transaction(async tx => {
     await tx.insert(s.user).values({ id, name: "Neon learning fixture", email: `${id}@example.invalid`, role: "teacher" });
     await tx.insert(s.pengguna).values({ id, status: "active" });
     await tx.insert(s.courses).values({ id, title: "Neon learning fixture", category: "Matematika" });
@@ -81,7 +128,7 @@ try {
     await tx.insert(s.aiGenerationJobs).values({ id, tutorId: id, courseId: id, status: "pending", promptParameters: { chapterId: id, koId: id }, targetCount: 1 });
   });
   fixturesCreated = true;
-  await run("idea-mastery-recompute-v1", "mastery/idea-recompute.requested.v1", { studentId: id, ideaId: id, idempotencyKey: `${id}-initial` });
+  if (!resume) await run("idea-mastery-recompute-v1", "mastery/idea-recompute.requested.v1", { studentId: id, ideaId: id, idempotencyKey: `${id}-initial` });
   const [first] = await db.select().from(s.pemahamanIde).where(and(eq(s.pemahamanIde.penggunaId, id), eq(s.pemahamanIde.ideId, id)));
   assert.ok(first);
   assert.equal(first.skor, 100);
@@ -89,13 +136,14 @@ try {
   assert.ok(first.keyakinan > 0);
   const changes = await db.select().from(s.perubahanPemahaman).where(eq(s.perubahanPemahaman.pemahamanIdeId, first.id));
   assert.equal(changes.length, 1);
-  await run("idea-mastery-recompute-v1", "mastery/idea-recompute.requested.v1", { studentId: id, ideaId: id, idempotencyKey: `${id}-replay` }, "mastery-replay");
+  const replayKey = resume ? `resume-replay-${randomUUID()}` : "mastery-replay";
+  await run("idea-mastery-recompute-v1", "mastery/idea-recompute.requested.v1", { studentId: id, ideaId: id, idempotencyKey: `${id}-${replayKey}` }, replayKey);
   const [replay] = await db.select().from(s.pemahamanIde).where(eq(s.pemahamanIde.id, first.id));
   assert.equal(replay.version, first.version);
   assert.equal(replay.inputWatermark, first.inputWatermark);
   assert.equal((await db.select().from(s.perubahanPemahaman).where(eq(s.perubahanPemahaman.pemahamanIdeId, first.id))).length, changes.length);
 
-  await run("student-quiz-analytics-worker", "quiz/analytics.requested", { attemptId: id, studentId: id, courseId: id });
+  if (!resume) await run("student-quiz-analytics-worker", "quiz/analytics.requested", { attemptId: id, studentId: id, courseId: id });
   const [analytics] = await db.select().from(s.studentQuizAnalytics).where(eq(s.studentQuizAnalytics.attemptId, id));
   assert.equal(analytics?.status, "completed");
   const metrics = analytics.computedMetrics as { correctCount: number; totalQuestions: number };
@@ -105,7 +153,7 @@ try {
   assert.ok(diagnosis.headline?.trim());
   assert.ok(diagnosis.overall_summary?.trim());
 
-  await run("question-generation-worker", "ai.generation.job.start", { jobId: id, params: { courseId: id, tutorId: id, chapterId: id, koId: id, targetCount: 1 } });
+  if (!resume) await run("question-generation-worker", "ai.generation.job.start", { jobId: id, params: { courseId: id, tutorId: id, chapterId: id, koId: id, targetCount: 1 } });
   const [job] = await db.select().from(s.aiGenerationJobs).where(eq(s.aiGenerationJobs.id, id));
   assert.equal(job?.status, "completed");
   assert.ok(job.generatedCount > 0);
@@ -116,9 +164,16 @@ try {
     assert.ok(Array.isArray(question.options) && question.options.length >= 2);
     assert.ok(Array.isArray(question.correctIndices) && question.correctIndices.length > 0);
   }
-  // The same concurrency-1 worker serializes this check with generation's automatic follow-up.
-  await run("vector-sync-worker", "vector.sync.dispatch", { courseId: id }, "owned-vector-finalize");
-  const outbox = await db.select().from(s.vectorSyncQueue).where(eq(s.vectorSyncQueue.courseId, id));
+  // Durable runs can interleave between steps despite concurrency=1; await actual owned row completion.
+  if (!resume) await run("vector-sync-worker", "vector.sync.dispatch", { courseId: id }, "owned-vector-finalize");
+  let outbox: Array<typeof s.vectorSyncQueue.$inferSelect> = [];
+  for (let poll = 0; poll < 160; poll++) {
+    outbox = await db.select().from(s.vectorSyncQueue).where(eq(s.vectorSyncQueue.courseId, id));
+    if (outbox.some(row => row.status === "failed")) throw new Error("LEARNING_VECTOR_SYNC_FAILED");
+    if (outbox.length > 0 && outbox.every(row => row.status === "completed")) break;
+    if (poll === 159) throw new Error("WORKER_SMOKE_PENDING:owned-question-vectors");
+    await new Promise(resolve => setTimeout(resolve, 3000));
+  }
   assert.ok(outbox.length > 0);
   const vectorIds = outbox.map(row => {
     assert.equal(row.courseId, id);

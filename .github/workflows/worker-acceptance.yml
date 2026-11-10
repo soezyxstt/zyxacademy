@@ -9,6 +9,9 @@ on:
       deployment_run_id:
         type: string
         required: true
+      resume_run_id:
+        type: string
+        default: ''
   workflow_dispatch:
     inputs:
       environment:
@@ -20,6 +23,10 @@ on:
         description: Successful worker deployment run supplying the exact active archive identity
         type: string
         required: true
+      resume_run_id:
+        description: Optional prior acceptance run with retained owned fixtures
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -51,6 +58,13 @@ jobs:
           path: artifacts/worker-deployment/
           run-id: ${{ inputs.deployment_run_id }}
           github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        if: inputs.resume_run_id != ''
+        with:
+          name: worker-acceptance-${{ inputs.environment }}
+          path: artifacts/worker-resume/
+          run-id: ${{ inputs.resume_run_id }}
+          github-token: ${{ github.token }}
       - name: Prepare verified private runtime
         id: prepare
         env:
@@ -58,10 +72,12 @@ jobs:
           GITHUB_RUNTIME_SECRETS: ${{ toJSON(secrets) }}
           GITHUB_RUNTIME_VARS: ${{ toJSON(vars) }}
           COMPUTE_ENVIRONMENT: ${{ inputs.environment }}
+          RESUME_FIXTURES: ${{ inputs.resume_run_id != '' }}
         run: |
           python3 .github/scripts/prepare_worker_runtime.py artifacts/neon-worker/.env.runtime.json
           node scripts/neon/prepare-acceptance.mjs "$COMPUTE_ENVIRONMENT"
       - name: Verify thumbnail, feedback, source figure and Diktat outputs
+        if: inputs.resume_run_id == ''
         env:
           COMPUTE_ENVIRONMENT: ${{ inputs.environment }}
         run: bun scripts/neon/smoke-business-workers.ts "$COMPUTE_ENVIRONMENT"
@@ -69,12 +85,20 @@ jobs:
         if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
         env:
           COMPUTE_ENVIRONMENT: ${{ inputs.environment }}
-        run: bun scripts/neon/smoke-learning-workers.ts "$COMPUTE_ENVIRONMENT"
+          RESUME_ID: ${{ steps.prepare.outputs.learning_fixture_id }}
+        run: |
+          args=("$COMPUTE_ENVIRONMENT")
+          if [ -n "$RESUME_ID" ]; then args+=(--resume "$RESUME_ID"); fi
+          bun scripts/neon/smoke-learning-workers.ts "${args[@]}"
       - name: Verify one-KO bulk generation and persisted draft
         if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
         env:
           COMPUTE_ENVIRONMENT: ${{ inputs.environment }}
-        run: bun scripts/neon/smoke-content-workers.ts "$COMPUTE_ENVIRONMENT"
+          RESUME_ID: ${{ steps.prepare.outputs.content_fixture_id }}
+        run: |
+          args=("$COMPUTE_ENVIRONMENT")
+          if [ -n "$RESUME_ID" ]; then args+=(--resume "$RESUME_ID"); fi
+          bun scripts/neon/smoke-content-workers.ts "${args[@]}"
       - name: Inspect scheduled and other worker runs without invoking global jobs
         if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
         env:

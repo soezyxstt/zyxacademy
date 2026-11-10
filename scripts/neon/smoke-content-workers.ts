@@ -5,7 +5,26 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { workerTarget, assertWorkerEnvironment } from "./worker-targets.mjs";
 import { canonicalOutboxPayload } from "../../lib/vectorize/outbox";
 
+export async function waitForContentOutbox<T extends { status: string }>(
+  read: () => Promise<T[]>,
+  pause: () => Promise<void> = () => new Promise(resolve => setTimeout(resolve, 3000)),
+): Promise<T[]> {
+  for (let attempt = 0; attempt < 160; attempt++) {
+    const rows = await read();
+    assert.ok(rows.length > 0, "CONTENT_SMOKE_VECTOR_OUTBOX_MISSING");
+    assert.ok(!rows.some(row => row.status === "failed"), "CONTENT_SMOKE_VECTOR_OUTBOX_FAILED");
+    if (rows.every(row => row.status === "completed")) return rows;
+    if (attempt < 159) await pause();
+  }
+  throw new Error("CONTENT_SMOKE_VECTOR_OUTBOX_PENDING");
+}
+
+async function main() {
 const target = workerTarget(process.argv[2]);
+const args = process.argv.slice(3);
+assert.ok(args.length === 0 || (args.length === 2 && args[0] === "--resume"
+  && /^neon-content-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(args[1])), "CONTENT_SMOKE_ARGUMENTS_INVALID");
+const resume = args[1];
 const config = JSON.parse(await readFile(`${target.output}/.env.${target.name}.json`, "utf8"));
 assertWorkerEnvironment(target, config);
 assert.equal(config.INNGEST_SERVE_ORIGIN, target.origin);
@@ -14,7 +33,7 @@ const [{ db, pool }, s, { inngest }, { vectorizeCanonicalDelete }, { CANONICAL_V
   import("../../lib/db"), import("../../db/schema"), import("../../jobs/client"),
   import("../../lib/vectorize-client"), import("../../lib/vectorize/contracts"),
 ]);
-const id = `neon-content-${randomUUID()}`;
+const id = resume ?? `neon-content-${randomUUID()}`;
 const evidence: Array<{ functionId: string; eventId: string; runId: string; status: string }> = [];
 let fixturesCreated = false, accepted = false;
 const headers = { Authorization: `Bearer ${config.INNGEST_SIGNING_KEY}`, "X-Inngest-Env": config.INNGEST_ENV };
@@ -24,7 +43,7 @@ async function api(path: string) {
   return response.json();
 }
 async function run(functionId: string, name: string, data: Record<string, unknown>) {
-  const sent = await inngest.send({ id: `${id}-${functionId}`, name, data });
+  const sent = await inngest.send({ id: `${id}-${functionId}${resume ? `-resume-${randomUUID()}` : ""}`, name, data });
   assert.equal(sent.ids.length, 1);
   await writeFile(`${target.output}/content-pending.json`, JSON.stringify({ fixtureId: id, functionId, eventId: sent.ids[0] }));
   for (let attempt = 0; attempt < 200; attempt++) {
@@ -55,6 +74,24 @@ try {
   assert.equal(worker.functions, 22);
   assert.match(config.ZYX_COMPUTE_REVISION, /^[a-f0-9]{64}$/);
   assert.equal(worker.version, config.ZYX_COMPUTE_REVISION);
+  if (resume) {
+    const [owner] = await db.select().from(s.user).where(eq(s.user.id, id));
+    const [course] = await db.select().from(s.courses).where(eq(s.courses.id, id));
+    const [chapter] = await db.select().from(s.chapters).where(eq(s.chapters.id, id));
+    const [mtd] = await db.select().from(s.masterTeachingDocuments).where(eq(s.masterTeachingDocuments.id, id));
+    const [ko] = await db.select().from(s.knowledgeObjects).where(eq(s.knowledgeObjects.id, id));
+    assert.equal(owner?.email, `${id}@example.invalid`, "CONTENT_SMOKE_RESUME_OWNER_MISMATCH");
+    assert.equal(owner.name, "Neon content fixture");
+    assert.equal(owner.role, "teacher");
+    assert.equal(course?.title, "Neon content fixture", "CONTENT_SMOKE_RESUME_COURSE_MISMATCH");
+    assert.equal(course.category, "Matematika");
+    assert.equal(chapter?.courseId, id);
+    assert.equal(mtd?.courseId, id);
+    assert.equal(mtd.createdById, id);
+    assert.equal(ko?.courseId, id);
+    assert.equal(ko.chapterId, id);
+    assert.equal(ko.mtdId, id);
+  } else {
   await db.transaction(async tx => {
     await tx.insert(s.user).values({ id, name: "Neon content fixture", email: `${id}@example.invalid`, role: "teacher" });
     await tx.insert(s.pengguna).values({ id, status: "active" });
@@ -67,8 +104,9 @@ try {
       content: "Penjumlahan menggabungkan nilai dua bilangan menjadi jumlah. $$s=a+b$$ Jumlah s diperoleh dengan menambahkan a dan b. Jika a=2 dan b=3, s=2+3=5. Gunakan operasi ini untuk menghitung total dua kelompok dengan satuan yang sama.",
       metadata: { latex: "s=a+b", parameters: [{ symbol: "s", name: "Jumlah", unit: "1" }, { symbol: "a", name: "Bilangan pertama", unit: "1" }, { symbol: "b", name: "Bilangan kedua", unit: "1" }], assumptions: ["Bilangan memiliki satuan yang sama."], whenToUse: ["Menghitung total dua bilangan."] } });
   });
+  }
   fixturesCreated = true;
-  await run("bulk-chapter-generator", "ai.bulk.chapter.generate", { chapterId: id });
+  if (!resume) await run("bulk-chapter-generator", "ai.bulk.chapter.generate", { chapterId: id });
   const [chapter] = await db.select().from(s.chapters).where(eq(s.chapters.id, id));
   assert.equal(chapter.assetGenStatus, "completed");
   assert.ok(chapter.assetGenFlashcardsCurrent > 0);
@@ -93,10 +131,9 @@ try {
   assert.equal(compiled.compilerResult?.diagnostics?.filter(entry => entry.severity === "error").length ?? 0, 0);
   const versions = await db.select().from(s.websiteMaterialVersions).where(eq(s.websiteMaterialVersions.materialId, materials[0].id));
   assert.equal(versions.length, 1);
-  // Same concurrency-1 worker drains the automatic question follow-up before owned vector deletion.
+  // Inngest concurrency applies to steps, so a completed finalizer can overlap an automatic run.
   await run("vector-sync-worker", "vector.sync.dispatch", { courseId: id });
-  const outbox = await db.select().from(s.vectorSyncQueue).where(eq(s.vectorSyncQueue.courseId, id));
-  assert.ok(outbox.length > 0);
+  const outbox = await waitForContentOutbox(() => db.select().from(s.vectorSyncQueue).where(eq(s.vectorSyncQueue.courseId, id)));
   const vectorIds = outbox.map(row => {
     assert.equal(row.courseId, id);
     assert.equal(row.status, "completed");
@@ -108,7 +145,7 @@ try {
   });
   await vectorizeCanonicalDelete({ profileId: CANONICAL_VECTOR_PROFILE.id, ids: vectorIds });
   accepted = true;
-  await writeFile(`${target.output}/content-smoke.json`, JSON.stringify({ fixtureId: id, accepted, generatedQuestions: questions.length,
+  await writeFile(`${target.output}/content-smoke.json`, JSON.stringify({ fixtureId: id, resumed: Boolean(resume), accepted, generatedQuestions: questions.length,
     generatedFlashcards: cards.length, generatedDraftMaterials: materials.length, deletedOwnedVectors: vectorIds.length,
     assessment: "Not invoked: global concept creation has no fixture ownership boundary", evidence }, null, 2));
 } finally {
@@ -137,3 +174,6 @@ try {
     }
   } finally { await pool.end(); }
 }
+}
+
+if (import.meta.main) await main();
