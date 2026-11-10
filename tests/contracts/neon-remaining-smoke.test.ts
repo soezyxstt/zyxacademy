@@ -28,6 +28,7 @@ test("run polling recovers missing single-run summaries from exact function run 
   expect(run).toEqual(owned);
   expect(seen).toEqual(["/runs/owned-run?include=output", "/apps/zyx-academy/functions/function/runs?include=output&limit=100"]);
   expect(await readRemainingRun(async () => undefined, "function", "missing")).toBeUndefined();
+  expect(await readRemainingRun(async () => ({ data: { id: "owned-run", status: "COMPLETED", function: { id: "function" } } }), "function", "owned-run")).toBeUndefined();
   let calls = 0;
   expect(await readRemainingRun(async () => ++calls === 1
     ? { data: { id: "owned-run", status: "COMPLETED", function: { id: "function" } } }

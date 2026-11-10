@@ -1,10 +1,30 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { assessmentSmokeArguments, assessmentProvenance, waitForAssessmentVectors } from "../../scripts/neon/smoke-assessment-worker";
+import { assessmentSmokeArguments, assessmentProvenance, assessmentRunOutput, waitForAssessmentVectors } from "../../scripts/neon/smoke-assessment-worker";
+
+const fixtureId = "neon-assessment-9a113ea0-b0ea-458e-aa22-3436f0230016";
+const runId = "01M739D273Q2ZPN9N1MGB6XW67";
 
 test("assessment smoke requires an explicit production target before private config", () => {
   for (const args of [[], ["prod"], ["staging"], ["production", "extra"]]) expect(() => assessmentSmokeArguments(args)).toThrow();
-  expect(assessmentSmokeArguments(["production"]).name).toBe("production");
+  expect(assessmentSmokeArguments(["production"]).target.name).toBe("production");
+});
+test("assessment resume requires the exact fixture prefix, UUIDv4 and paired ULID", () => {
+  const args = ["production", "--resume", fixtureId, "--run-id", runId];
+  expect(assessmentSmokeArguments(args)).toMatchObject({ resume: fixtureId, runId });
+  for (const invalid of [args.slice(0, 3), ["production", "--run-id", runId], [...args, "extra"],
+    ["production", "--resume", "other-fixture", "--run-id", runId],
+    ["production", "--resume", fixtureId, "--run-id", "not-a-run"],
+    ["production", "--resume", fixtureId.replace("458e", "358e"), "--run-id", runId],
+    ["production", "--resume", fixtureId, "--run-id", runId.toLowerCase()]]) {
+    expect(() => assessmentSmokeArguments(invalid)).toThrow("ASSESSMENT_SMOKE_ARGUMENTS_INVALID");
+  }
+});
+test("a completed run without persisted nonempty output cannot finish acceptance", () => {
+  for (const value of [undefined, null, "", " ", "null", "{}", {}, []]) expect(assessmentRunOutput(value)).toBeUndefined();
+  const output = { sourceId: fixtureId, status: "accepted", objectIds: ["owned-object"], createdConcepts: [] };
+  expect(assessmentRunOutput(output)).toEqual(output);
+  expect(assessmentRunOutput(JSON.stringify(output))).toEqual(output);
 });
 test("assessment provenance rejects missing, malformed, or duplicate ownership IDs", () => {
   const created = { conceptId: "12345678-1234-4234-8234-123456789abc", localizationId: "cl-12345678-1234-4234-8234-123456789abc" };
@@ -38,4 +58,19 @@ test("assessment smoke guards production identity and preserves uncertain catalo
   expect(source).toContain("for update");
   expect(source.indexOf("await waitForAssessmentVectors(readVectors, expected, false)")).toBeLessThan(source.indexOf("await tx.delete(s.assessmentSources)"));
   expect(source).not.toContain("tx.delete(s.concepts).where(inArray");
+});
+test("resume validates the owned graph and source hash before reusing a run without creating or invoking workers", () => {
+  const source = readFileSync("scripts/neon/smoke-assessment-worker.ts", "utf8");
+  const ready = source.indexOf("fixturesCreated = true");
+  for (const guard of ["ASSESSMENT_SMOKE_RESUME_OWNER_MISMATCH", "ASSESSMENT_SMOKE_RESUME_COURSE_MISMATCH",
+    "ASSESSMENT_SMOKE_RESUME_OBJECT_MISMATCH", "assert.equal(mtd.createdById, id)", "assert.equal(ko.conceptId, id)",
+    "assert.equal(source.sourceHash, sourceHash)", "assert.equal(objects[0].canonicalQuestionHash, generateCanonicalHash(question))"]) {
+    expect(source.indexOf(guard)).toBeGreaterThan(-1); expect(source.indexOf(guard)).toBeLessThan(ready);
+  }
+  expect(source).toMatch(/}\s*else\s*{\s*await db\.transaction\(/);
+  expect(source).toContain('await run("assessment-ingest-worker", { sourceId: id }, runId)');
+  expect(source).toContain("if (!executionId) {");
+  expect(source).toContain('if (!resume) await run("vector-sync-worker"');
+  expect(source).toContain("const output = assessmentRunOutput(execution.output)");
+  expect(source).toContain("if (!output) {");
 });
