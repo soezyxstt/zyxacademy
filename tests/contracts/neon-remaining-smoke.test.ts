@@ -10,6 +10,11 @@ test("remaining acceptance accepts only explicit production and optional determi
   expect(remainingSmokeArguments(["production", "--deterministic"]).deterministic).toBe(true);
   const id = "neon-remaining-715cf391-a6bd-40a6-ab58-9e3fe98bab14";
   expect(remainingSmokeArguments(["production", "--deterministic", "--resume", id]).resume).toBe(id);
+  expect(remainingSmokeArguments(["production", "--deterministic", "--skip-search", "--resume", id])).toMatchObject({ resume: id, deterministic: true, skipSearch: true });
+  for (const args of [["production", "--skip-search"], ["production", "--deterministic", "--skip-search"],
+    ["production", "--skip-search", "--resume", id], ["production", "--deterministic", "--resume", id, "--skip-search"]]) {
+    expect(() => remainingSmokeArguments(args)).toThrow();
+  }
   expect(() => remainingSmokeArguments(["production", "--resume", "foreign-fixture"])).toThrow();
 });
 
@@ -79,6 +84,12 @@ test("production identity and queue guards precede fixture writes, cleanup follo
   expect(source).toContain("let item = evidence.find(entry => entry.functionId === functionId)");
   expect(source).toContain("if (!item)");
   expect(source).toContain("if (resume)");
+  expect(source).toContain("if (!skipSearch)");
+  expect(source).toContain('checks.search = { status: "not_verified"');
+  const independent = source.indexOf("independentAccepted = true");
+  expect(independent).toBeGreaterThan(source.indexOf("checks.deterministic ="));
+  expect(source.slice(independent, source.indexOf('stage = "delete-exact-owned-search-vector"'))).toContain("return;");
+  expect(source.slice(independent, source.indexOf('stage = "delete-exact-owned-search-vector"'))).toContain('stage = "search-blocked"');
   expect(source).not.toContain('run("weekly-reflection-cron"');
   expect(source).not.toContain("sendOptionalEmail");
   expect(source).not.toContain("bun run build");

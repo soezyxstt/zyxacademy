@@ -38,7 +38,7 @@ on:
       maintenance:
         description: Production worker maintenance without deployment or web build
         type: choice
-        options: [none, vector-plan, vector-apply, vector-apply-short, vector-verify, remaining, product-pdf, admin-knowledge, assessment]
+        options: [none, vector-plan, vector-apply, vector-apply-short, vector-verify, remaining, remaining-independent, product-pdf, admin-knowledge, assessment]
         default: none
       recovery_id:
         description: Private snapshot identity for vector recovery
@@ -82,7 +82,7 @@ jobs:
     environment: production
     timeout-minutes: 60
     concurrency:
-      group: production-worker-maintenance-${{ (inputs.maintenance == 'remaining' || inputs.maintenance == 'product-pdf') && inputs.maintenance || 'ai' }}
+      group: production-worker-maintenance-${{ (startsWith(inputs.maintenance, 'remaining') || inputs.maintenance == 'product-pdf') && inputs.maintenance || 'ai' }}
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
@@ -110,14 +110,14 @@ jobs:
           python3 .github/scripts/prepare_worker_runtime.py artifacts/neon-worker/.env.runtime.json
           node scripts/neon/prepare-acceptance.mjs production
       - uses: actions/download-artifact@v4
-        if: inputs.maintenance == 'remaining' && inputs.resume_run_id != ''
+        if: startsWith(inputs.maintenance, 'remaining') && inputs.resume_run_id != ''
         with:
           name: production-worker-maintenance
           path: artifacts/worker-resume/
           run-id: ${{ inputs.resume_run_id }}
           github-token: ${{ github.token }}
       - name: Restore owned acceptance evidence
-        if: inputs.maintenance == 'remaining' && inputs.resume_run_id != ''
+        if: startsWith(inputs.maintenance, 'remaining') && inputs.resume_run_id != ''
         run: cp artifacts/worker-resume/remaining-smoke.json artifacts/neon-worker/production/remaining-smoke.json
       - name: Recover the verified historical vector backlog
         if: startsWith(inputs.maintenance, 'vector-')
@@ -126,11 +126,13 @@ jobs:
           RECOVERY_ID: ${{ inputs.recovery_id }}
         run: bun scripts/neon/recover-vector-backlog.ts "${RECOVERY_MODE#vector-}" "$RECOVERY_ID"
       - name: Verify remaining production worker paths
-        if: inputs.maintenance == 'remaining'
+        if: startsWith(inputs.maintenance, 'remaining')
         env:
           RESUME_FIXTURE: ${{ inputs.recovery_id }}
+          SKIP_SEARCH: ${{ inputs.maintenance == 'remaining-independent' }}
         run: |
           args=(production --deterministic)
+          if [ "$SKIP_SEARCH" = true ]; then args+=(--skip-search); fi
           if [ -n "$RESUME_FIXTURE" ]; then args+=(--resume "$RESUME_FIXTURE"); fi
           bun scripts/neon/smoke-remaining-workers.ts "${args[@]}"
       - name: Verify product-bundle PDF

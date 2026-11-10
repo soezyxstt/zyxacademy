@@ -12,10 +12,13 @@ export function remainingSmokeArguments(args: string[]) {
   const tail = args.slice(1);
   const deterministic = tail[0] === "--deterministic";
   if (deterministic) tail.shift();
+  const skipSearch = tail[0] === "--skip-search";
+  if (skipSearch) tail.shift();
   const resume = tail[0] === "--resume" ? tail[1] : undefined;
   assert.ok(tail.length === 0 || (tail.length === 2 && resume
     && /^neon-remaining-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(resume)), "REMAINING_SMOKE_ARGUMENTS_INVALID");
-  return { target, deterministic, resume };
+  assert.ok(!skipSearch || (deterministic && resume), "REMAINING_SMOKE_SKIP_SEARCH_REQUIRES_DETERMINISTIC_RESUME");
+  return { target, deterministic, skipSearch, resume };
 }
 
 type RunSummary = { id: string; status: string; function?: { id: string }; output?: unknown };
@@ -63,7 +66,7 @@ export function assertDeterministicOutput(functionId: string, output: Record<str
 }
 
 async function main() {
-  const { target, deterministic: requestedDeterministic, resume } = remainingSmokeArguments(process.argv.slice(2));
+  const { target, deterministic: requestedDeterministic, skipSearch, resume } = remainingSmokeArguments(process.argv.slice(2));
   const config = JSON.parse(await readFile(`${target.output}/.env.${target.name}.json`, "utf8"));
   assertWorkerEnvironment(target, config);
   assert.equal(config.INNGEST_SERVE_ORIGIN, target.origin);
@@ -85,11 +88,11 @@ async function main() {
   assert.ok(evidence.every(item => typeof item.runId === "string" && item.runId.length > 0
     && ["sync-search-documents", "mastery-recompute-worker", "mastery-snapshot-cron", "course-analytics-snapshot-cron", "content-quality-audit-cron"].includes(item.functionId)), "REMAINING_SMOKE_RESUME_RUNS_INVALID");
   const checks: Record<string, unknown> = prior?.checks ?? {};
-  let fixturesCreated = false, accepted = false, cleanupComplete = false, stage = "preflight";
+  let fixturesCreated = false, accepted = false, independentAccepted = false, cleanupComplete = false, stage = "preflight";
   const headers = { Authorization: `Bearer ${config.INNGEST_SIGNING_KEY}`, "X-Inngest-Env": config.INNGEST_ENV };
   const pause = () => new Promise(resolve => setTimeout(resolve, 3000));
   async function save() {
-    await writeFile(`${target.output}/remaining-smoke.json`, JSON.stringify({ fixtureId: id, deterministic, accepted, cleanupComplete, stage, checks, evidence,
+    await writeFile(`${target.output}/remaining-smoke.json`, JSON.stringify({ fixtureId: id, deterministic, skipSearch, accepted, independentAccepted, cleanupComplete, stage, checks, evidence,
       excluded: ["weekly-reflection-cron: sends emails", "assessment-ingest-worker: global catalog ownership", "product-diktat-pdf-worker: separate acceptance"] }, null, 2));
   }
   async function api(path: string, init: RequestInit = {}, allowMissing = false) {
@@ -232,19 +235,25 @@ async function main() {
     });
     }
     fixturesCreated = true;
-    await run("sync-search-documents", {});
-    const [document] = await db.select().from(s.searchDocuments).where(eq(s.searchDocuments.id, id));
-    assert.equal(document.isSynced, true);
-    assert.equal(document.syncStatus, "completed");
-    stage = "verify-owned-search-vector";
-    const vector = await search.embedSearchDocument(id, `Penjumlahan dua bilangan. ${id}`);
+    let vector: number[] | undefined;
     const readMatches = async () => {
+      assert.ok(vector, "REMAINING_SEARCH_QUERY_VECTOR_MISSING");
       const result = await searchPost("/v2/search/query", { vector, topK: 1, course_id: id, min_role: 3 });
       assert.ok(Array.isArray(result.matches), "REMAINING_SEARCH_INVALID_RESPONSE");
       return result.matches;
     };
-    await waitForOwnedSearchVector(readMatches, id, true);
-    checks.search = { rowCompleted: true, exactOwnedVector: true, adminOnly: true };
+    if (!skipSearch) {
+      await run("sync-search-documents", {});
+      const [document] = await db.select().from(s.searchDocuments).where(eq(s.searchDocuments.id, id));
+      assert.equal(document.isSynced, true);
+      assert.equal(document.syncStatus, "completed");
+      stage = "verify-owned-search-vector";
+      vector = await search.embedSearchDocument(id, `Penjumlahan dua bilangan. ${id}`);
+      await waitForOwnedSearchVector(readMatches, id, true);
+      checks.search = { rowCompleted: true, exactOwnedVector: true, adminOnly: true };
+    } else {
+      checks.search = { status: "not_verified", reason: "Physical search acceptance deferred; owned fixture retained" };
+    }
     await run("mastery-recompute-worker", { studentId: id, courseId: id, reason: id });
     const queue = await db.select().from(s.masteryRecomputeQueue).where(and(eq(s.masteryRecomputeQueue.studentId, id), eq(s.masteryRecomputeQueue.courseId, id)));
     assert.equal(queue.length, 1);
@@ -281,6 +290,14 @@ async function main() {
       const after = await db.select({ count: sql<number>`count(*)::int` }).from(s.courseAnalyticsSnapshots);
       checks.deterministic = { snapshotsBefore: before[0].count, snapshotsAfter: after[0].count,
         ownedHistory: 1, ownedAnalyticsSnapshot: 1, ownedQualityFlags: flags.length, ownedQuestionScore: question.qualityScore };
+    }
+    if (skipSearch) {
+      independentAccepted = true;
+      stage = "search-blocked";
+      await save();
+      console.log(JSON.stringify({ fixtureId: id, independentAccepted, accepted, cleanupComplete, stage,
+        functions: evidence.filter(item => item.functionId !== "sync-search-documents").map(item => item.functionId) }));
+      return;
     }
     stage = "delete-exact-owned-search-vector";
     await save();
@@ -319,7 +336,7 @@ async function main() {
     try {
       if (fixturesCreated && !cleanupComplete) {
         await save();
-        await writeFile(`${target.output}/remaining-retained.json`, JSON.stringify({ fixtureId: id, stage, accepted, reason: "Incomplete acceptance or cleanup. Preserve exact owned fixture graph and run IDs for diagnosis.", evidence }, null, 2));
+        await writeFile(`${target.output}/remaining-retained.json`, JSON.stringify({ fixtureId: id, stage, accepted, independentAccepted, cleanupComplete, reason: "Incomplete acceptance or cleanup. Preserve exact owned fixture graph and run IDs for diagnosis.", evidence }, null, 2));
         console.log(JSON.stringify({ fixtureId: id, cleanup: "retained", stage }));
       }
     } finally { await pool.end(); }

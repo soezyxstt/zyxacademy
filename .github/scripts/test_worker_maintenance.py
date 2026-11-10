@@ -7,7 +7,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = (ROOT / ".github/workflows/deploy.yml").read_text()
 JOBS = dict(re.findall(r"(?ms)^  ([\w-]+):\n(.*?)(?=^  [\w-]+:\n|\Z)", WORKFLOW.split("\njobs:\n", 1)[1]))
-MODES = ("vector-plan", "vector-apply", "vector-apply-short", "vector-verify", "remaining", "product-pdf", "admin-knowledge", "assessment")
+MODES = ("vector-plan", "vector-apply", "vector-apply-short", "vector-verify", "remaining", "remaining-independent", "product-pdf", "admin-knowledge", "assessment")
 FLAGS = ("business_acceptance", "browser_diagnostics", "runtime_diagnostics", "restore_turso_worker")
 
 
