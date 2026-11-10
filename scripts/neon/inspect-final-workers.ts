@@ -19,6 +19,10 @@ function safeFacts(value: unknown, ownedAssessment: boolean, facts: unknown[] = 
   if (Array.isArray(value)) for (const item of value) safeFacts(item, ownedAssessment, facts, depth + 1);
   else if (typeof value === "object") {
     const object = value as Record<string, unknown>;
+    if (typeof object.checkId === "string" && /^[a-f0-9]{64}$/.test(object.checkId)) facts.push({ checkId: object.checkId,
+      status: typeof object.status === "string" && /^(PASS|FAIL|NOT_TESTED)$/.test(object.status) ? object.status : undefined,
+      artifactCount: Array.isArray(object.artifacts) ? object.artifacts.length : undefined,
+      diagnostic: typeof object.observed === "string" ? object.observed.match(/\b(?:VERIFICATION|PRODUCT_V4|HTTP|MATH|PAGE|CONTENT|IMAGE|UNEXPECTED)_[A-Z0-9_:]+\b/g) : undefined });
     if (typeof object.message === "string") {
       const patterns = [/\b[A-Za-z_$][\w.$]* is not defined\b/, /\b[A-Za-z_$][\w.$]* is not a function\b/,
         /column "?[a-zA-Z0-9_]+"?(?: of relation "[a-zA-Z0-9_]+")? does not exist/,
@@ -34,7 +38,12 @@ function safeFacts(value: unknown, ownedAssessment: boolean, facts: unknown[] = 
   }
   return facts;
 }
-for (const [functionId, runId] of [["assessment-ingest-worker", "01M739D273Q2ZPN9N1MGB6XW67"], ["admin-ops-knowledge-sync-worker", "01M73AKHPQSVA4NH7PPMZBXW2Z"]]) {
+const functionId = "product-v4-verification";
+const listing = await fetch(`https://api.inngest.com/v2/apps/zyx-academy/functions/${functionId}/runs?limit=3&include=output`, { headers, signal: AbortSignal.timeout(20_000) });
+assert.equal(listing.status, 200, "V4_INSPECT_LIST_FAILED");
+const listed = await listing.json();
+assert.ok(Array.isArray(listed.data) && listed.data.every((run: { id: string }) => /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(run.id)), "V4_INSPECT_RUNS_INVALID");
+for (const { id: runId } of listed.data) {
   for (const path of [`v2/runs/${runId}?include=output`, `v1/runs/${runId}`, `v2/runs/${runId}/trace?include=output`]) {
     try {
       const response = await fetch(`https://api.inngest.com/${path}`, { headers, signal: AbortSignal.timeout(20_000) });
