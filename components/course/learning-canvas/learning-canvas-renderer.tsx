@@ -359,7 +359,7 @@ function tickValues(min: number, max: number, step: number): number[] {
 function fitFunctionViewport(spec: FunctionPlotCanvas): Viewport | null {
   const allY = evaluateFunctionPlot(spec).flatMap(series => series.points.flatMap(point => point.y === null ? [] : [point.y]));
   const x = fitNumericRange([spec.domain.min, spec.domain.max], 0.05);
-  const y = fitNumericRange(allY, 0.12);
+  const y = spec.yBounds ?? fitNumericRange(allY, 0.12);
   if (!x || !y) return null;
   if (spec.equalAxisScale) {
     const scale = Math.max((x.max - x.min) / PLOT_W, (y.max - y.min) / PLOT_H);

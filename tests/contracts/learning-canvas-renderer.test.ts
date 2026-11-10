@@ -25,6 +25,16 @@ const spec: FunctionPlotCanvas = {
 };
 
 describe("Learning Canvas renderer contracts", () => {
+  test("accepts explicit vertical display bounds without changing the function domain", () => {
+    const bounded = parseCanvasSpec({ ...spec, yBounds: { min: -4, max: 4 } });
+    expect(bounded?.type).toBe("function_plot");
+    if (bounded?.type !== "function_plot") throw new Error("Bounded plot rejected");
+    expect(bounded.yBounds).toEqual({ min: -4, max: 4 });
+    expect(bounded.domain).toEqual(spec.domain);
+    for (const yBounds of [{ min: 4, max: -4 }, { min: 4, max: 4 }, { min: -Infinity, max: 4 }, { min: -1e308, max: 1e308 }, { min: 0, max: Number.MIN_VALUE }]) {
+      expect(parseCanvasSpec({ ...spec, yBounds })).toBeNull();
+    }
+  });
   test("samples the viewport intersection without changing the authored domain", () => {
     const originalDomain = { ...spec.domain };
     const result = evaluateFunctionPlot(spec, {}, {}, { min: -1, max: 1, sampleCount: 3 });

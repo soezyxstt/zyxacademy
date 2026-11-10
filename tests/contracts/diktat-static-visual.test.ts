@@ -6,6 +6,16 @@ import { LIMIT_EPSILON_DELTA_GRAPH } from "../fixtures/product-learning/limit-ep
 const base = { version: "zyra-learning-canvas-v1", title: "Scientific plot", purpose: "Scientific quantities.", variables: [], controls: [], claimRefs: [], altText: "Scientific plot.", fallback: { summary: "Scientific values.", columns: [{ id: "x", label: "$x$" }], rows: [["1"]] } };
 function render(canvas: object) { return renderDiktatStaticVisual(visualSpecSchema.parse({ id: "v", kind: "learning_canvas", label: "Scientific", description: "Mathematical quantities.", interactive: false, canvas: { ...base, ...canvas } })); }
 describe("Diktat deterministic static visuals", () => {
+  test("keeps rational asymptotes from flattening the authored vertical window", () => {
+    const canvas = { type: "function_plot", domain: { min: -5, max: 5, sampleCount: 160 }, yBounds: { min: -4, max: 4 }, series: [{ id: "f", label: "$f$", expression: "1/x", excludedX: [0] }] };
+    const html = render(canvas);
+    expect(html).toContain("<annotation encoding=\"application/x-tex\">-4</annotation>");
+    expect(html).toContain("<annotation encoding=\"application/x-tex\">4</annotation>");
+    expect(html).not.toMatch(/(?:NaN|Infinity)/);
+    expect(canvas.yBounds).toEqual({ min: -4, max: 4 });
+    render({ ...canvas, equalAxisScale: true });
+    expect(canvas.yBounds).toEqual({ min: -4, max: 4 });
+  });
   test("renders analytic epsilon/delta bands and pinned state without authored assets", () => {
     const html = renderDiktatStaticVisual(LIMIT_EPSILON_DELTA_GRAPH);
     expect(html).toContain("<svg"); expect(html).toContain("foreignObject"); expect(html).toContain("\\delta"); expect(html).toContain("data-state-hash");

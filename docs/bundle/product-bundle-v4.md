@@ -6,6 +6,8 @@ New Article/Diktat authoring uses `product-bundle.v4`, `article.v4` and `diktat.
 
 ## Machine-readable schema delivery
 
+Function plots support optional `yBounds: { min, max }` for the initial and reset vertical display range in the reader and static export. Bounds must be finite, increasing and numerically representable. Mathematical domains and exclusions remain unchanged. Equal-axis scaling may expand the view to preserve physical scale. Omission preserves automatic fitting.
+
 `workflow.get_contract` exposes primary `productBundle.schemaDocuments` and retains `productBundle.pilot.schemaDocuments` as a compatibility alias, with exact same-origin GET paths, SHA-256 checksums and byte lengths. `/api/authoring/contracts/product-v4` lists those documents. Each `?schema=<name>` returns the full JSON Schema generated from the running Zod validator, including Product envelopes, dependencies, ordered parts, Diktat units, visual controls and bindings, review context and PDF evidence. The public endpoint contains type definitions only; it does not return any run or course data and requires no credential.
 
 Use the checksum-pinned path returned by MCP and verify the response bytes. A stale pin returns HTTP 409; refresh the playbook and contract before continuing. `product` is the shared structural schema, so apply the explicit V4 `semanticRules` as well. JSON Schema cannot encode every cross-reference, lineage, security, model or readiness refinement. Complete validation still uses `authoring.validate_product_bundle`; validation success alone does not establish visual quality or publication readiness.

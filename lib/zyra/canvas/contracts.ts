@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isRepresentableRange } from "./viewport";
 import { FlowchartNodeKindSchema } from "@/lib/flowchart";
 
 export const LEARNING_CANVAS_VERSION = "zyra-learning-canvas-v1";
@@ -83,6 +84,8 @@ const DomainSchema = z.object({
 export const FunctionPlotCanvasSchema = CanvasBaseSchema.extend({
   type: z.literal("function_plot"),
   domain: DomainSchema,
+  yBounds: z.object({ min: FiniteNumberSchema, max: FiniteNumberSchema }).strict()
+    .refine(isRepresentableRange, "Vertical bounds must define a representable increasing range.").optional(),
   equalAxisScale: z.boolean().optional(),
   pointMarkers: z.array(z.object({
     seriesId: IdentifierSchema,

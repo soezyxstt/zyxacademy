@@ -34,7 +34,7 @@ const colors = ["#164e87", "#af4510", "#146b43", "#7b3158", "#514900", "#334155"
 function plot(groups: { label: string; points: { x: number; y: number | null }[] }[], xLabel = math("x"), yLabel = math("y"), bounds?: { xMin: number; xMax: number; yMin: number; yMax: number }, bands?: { c: number; l: number; delta: number; epsilon: number }, functionSpec?: FunctionPlotCanvas): string {
   const points = [...groups.flatMap(group => group.points.filter((point): point is { x: number; y: number } => point.y !== null)), ...(functionSpec?.pointMarkers ?? [])];
   const xr = bounds ? { min: bounds.xMin, max: bounds.xMax } : fitNumericRange(points.map(point => point.x));
-  const yr = bounds ? { min: bounds.yMin, max: bounds.yMax } : fitNumericRange(points.map(point => point.y));
+  const yr = bounds ? { min: bounds.yMin, max: bounds.yMax } : functionSpec?.yBounds ? { ...functionSpec.yBounds } : fitNumericRange(points.map(point => point.y));
   if (!xr || !yr) throw new Error("DIKTAT_VISUAL_DOMAIN_EMPTY");
   if (functionSpec?.equalAxisScale) {
     const xSpan = xr.max - xr.min, ySpan = yr.max - yr.min;
