@@ -1,4 +1,6 @@
 import { inngest } from "./client";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 /**
  * Inngest Worker for Admin Ops Knowledge synchronization.
@@ -21,6 +23,8 @@ export const adminOpsKnowledgeSyncWorker = inngest.createFunction(
 
       return await executeAdminKnowledgeSync({
         dryRun: false,
+        // The Neon archive places index.mjs beside docs/, independent of the host cwd.
+        ...(process.env.ZYX_COMPUTE_RUNTIME === "neon" ? { baseDir: dirname(fileURLToPath(import.meta.url)) } : {}),
         embedDocuments: embedWorkerVectorDocuments,
         vectorProvider: createCanonicalVectorClient(),
       });

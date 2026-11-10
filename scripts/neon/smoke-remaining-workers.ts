@@ -30,7 +30,8 @@ export async function readRemainingRun(
   if (summary?.output !== undefined) return summary;
   // The single-run beta API can briefly return 404 after invoke succeeds.
   const listed = await read(`/apps/zyx-academy/functions/${encodeURIComponent(functionId)}/runs?include=output&limit=100`);
-  return (Array.isArray(listed?.data) ? listed.data.find(run => run.id === runId) : undefined) ?? summary;
+  const candidate = (Array.isArray(listed?.data) ? listed.data.find(run => run.id === runId) : undefined) ?? summary;
+  return candidate?.status.toUpperCase() === "COMPLETED" && candidate.output === undefined ? undefined : candidate;
 }
 
 export async function waitForOwnedSearchVector(
