@@ -69,6 +69,7 @@ def prepare_worker_runtime(environment, secrets, variables):
             or settings.get("NEON_STORAGE_BUCKET") != target["bucket"]
             or settings.get("AWS_ENDPOINT_URL_S3") not in (endpoint, endpoint + "/")):
         raise ValueError("WORKER_STORAGE_TARGET_MISMATCH")
+    settings.setdefault("INNGEST_ENV", target["inngest"])
     if settings.get("INNGEST_ENV") != target["inngest"]:
         raise ValueError("WORKER_INNGEST_ENV_MISMATCH")
     if settings.get("DIKTAT_RENDERER_URL") not in (target["renderer"], target["renderer"] + "/"):

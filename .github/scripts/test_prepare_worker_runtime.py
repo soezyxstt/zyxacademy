@@ -55,6 +55,13 @@ class WorkerRuntimeTest(unittest.TestCase):
         self.assertFalse(result.keys() & CI_KEYS)
         self.assertNotIn("UNRECOGNIZED_SECRET", result)
 
+    def test_missing_environment_label_uses_the_explicit_target(self):
+        for environment in ("production", "staging"):
+            source = fixture(environment)
+            del source["INNGEST_ENV"]
+            result = prepare_worker_runtime(environment, source, {})
+            self.assertEqual(result["INNGEST_ENV"], TARGETS[environment]["inngest"])
+
     def test_cross_environment_targets_fail_closed(self):
         for environment, other in (("production", "staging"), ("staging", "production")):
             for key in ("DATABASE_URL", "NEON_STORAGE_BUCKET", "AWS_ENDPOINT_URL_S3", "INNGEST_ENV", "DIKTAT_RENDERER_URL", "NEXT_PUBLIC_APP_URL"):
