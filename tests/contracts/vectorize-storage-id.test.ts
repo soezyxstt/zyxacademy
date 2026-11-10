@@ -25,7 +25,7 @@ test("long canonical identities round trip through every canonical provider rout
       return { vectors: page.map(id => ({ id })), count: page.length, totalCount: rows.size, isTruncated: !options.cursor, nextCursor: options.cursor ? undefined : "next" };
     },
   };
-  const env = { SHARED_SECRET: "fixture", VECTORIZE_V2: index };
+  const env: Parameters<typeof worker.fetch>[1] = { SHARED_SECRET: "fixture", VECTORIZE_V2: index as unknown as NonNullable<Parameters<typeof worker.fetch>[1]["VECTORIZE_V2"]> };
   async function call(path: string, body: object) {
     const response = await worker.fetch(new Request(`https://fixture${path}`, { method: "POST", headers: { Authorization: "Bearer fixture", "Content-Type": "application/json" }, body: JSON.stringify({ profileId: CANONICAL_VECTOR_PROFILE.id, ...body }) }), env);
     return { status: response.status, body: await response.json() as any };

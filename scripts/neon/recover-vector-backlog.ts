@@ -160,9 +160,9 @@ async function main() {
         await save("embedding-canary.json", { documents: 2, dimensions: canary.map(value => value.length), distinct: true, singletonOrderSimilarities: similarities });
       }
       for (let offset = 0; offset < snapshot.items.length; offset += 50) {
-        let batch = snapshot.items.slice(offset, offset + 50).filter(item => phase !== "apply-short" || Buffer.byteLength(item.outbox.vectorId) <= 64);
+        let batch: Item[] = snapshot.items.slice(offset, offset + 50).filter(item => phase !== "apply-short" || Buffer.byteLength(item.outbox.vectorId) <= 64);
         if (!batch.length) continue;
-        let ids = batch.flatMap(item => item.rows.map(row => row.id));
+        let ids: string[] = batch.flatMap(item => item.rows.map(row => row.id));
         let current = await readRows(ids);
         assert.equal(current.length, ids.length);
         const completed = new Set(current.filter(row => row.status === "completed" && (row.payload as Record<string, any>).vectorizeRecovery?.runId === runId).map(row => row.id));
@@ -210,11 +210,13 @@ async function main() {
           await assertSources(batch);
           const owner = await pool.query("SELECT count(*)::int AS count FROM vector_sync_queue WHERE id=ANY($1::text[]) AND status='processing' AND lease_id=$2 AND lease_expires_at>now()", [ids, leaseId]);
           assert.equal(owner.rows[0].count, ids.length, "RECOVERY_LEASE_LOST");
-          if (records.length) await vectors.upsert({ profileId, vectors: records });
+          const existing = records.length ? await vectors.get({ profileId, ids: records.map(record => record.id) }) : { vectors: [] };
+          const changed = records.filter(record => !matchesRecoveryVector(batch.find(item => item.outbox.vectorId === record.id)!, existing.vectors.find(vector => vector.id === record.id), record));
+          if (changed.length) await vectors.upsert({ profileId, vectors: changed });
           const deletes = missing.filter(item => item.outbox.operation === "delete").map(item => item.outbox.vectorId);
           if (deletes.length) await vectors.delete({ profileId, ids: deletes });
           let remaining = batch;
-          for (let attempt = 0; attempt < 30; attempt++) {
+          for (let attempt = 0; attempt < 90; attempt++) {
             remaining = await inspect(batch, records);
             if (!remaining.length) break;
             await new Promise(resolve => setTimeout(resolve, 2000));

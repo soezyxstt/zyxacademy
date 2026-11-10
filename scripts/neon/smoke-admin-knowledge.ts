@@ -128,7 +128,8 @@ async function main() {
       const chunk = activeChunks.find(chunk => chunk.id === expected.id)!;
       for (const key of ["sourceId", "chunkIndex", "locator", "content", "contentHash", "version", "vectorId"] as const) assert.equal(chunk[key], expected[key], "ADMIN_KNOWLEDGE_CATALOG_CHUNK_MISMATCH");
     }
-    const vectors = vectorClient.createCanonicalVectorClient({ fetcher: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(30_000) }) });
+    const boundedFetch: typeof fetch = Object.assign((input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => fetch(input, { ...init, signal: AbortSignal.timeout(30_000) }), { preconnect: fetch.preconnect });
+    const vectors = vectorClient.createCanonicalVectorClient({ fetcher: boundedFetch });
     for (let offset = 0; offset < expectedChunks.length; offset += 20) {
       const batch = expectedChunks.slice(offset, offset + 20);
       let verified = false;
