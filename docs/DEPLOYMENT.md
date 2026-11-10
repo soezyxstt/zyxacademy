@@ -1,5 +1,9 @@
 # Deployment Guide
 
+## Neon Functions staging transition
+
+The [worker cutover runbook](operations/neon-functions-cutover.md) is OPEN / IN PROGRESS. Production Inngest execution was restored on Neon Functions on 2026-11-10 through `.github/workflows/deploy-neon-worker.yml`, using Cloudflare Browser Run for PDFs. The worker-only recovery registered 22 functions and passed 10 HTTP/PDF checks including a completed durable job. No web rebuild or Vercel configuration change was made; Zyra chat and Playground were unchanged. Existing source-figure v1, V4 verification and direct web RPC compatibility limits remain in the runbook. The Deno deployment instructions below describe the previous path; the migration workflow is still on its release branch. Staging web/DNS work is deferred.
+
 ## Cloud Run staging
 
 Release jobs explicitly evaluate cancellation and the successful impact/gate results. Optional skipped ancestors must not suppress a selected push deployment after the CI gate passes. Pull requests, failed gates, cancellation, and unselected surfaces remain blocked. A successful CI run alone is not proof of deployment; verify the deployment job and ready revision traffic.

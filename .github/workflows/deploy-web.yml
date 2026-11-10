@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && vars.HOLD_WEB_DEPLOYMENT != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
@@ -77,7 +77,7 @@ jobs:
 
   staging-image:
     name: Build and deploy staging to Cloud Run
-    if: github.ref == 'refs/heads/staging'
+    if: github.ref == 'refs/heads/staging' && vars.HOLD_WEB_DEPLOYMENT != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: staging

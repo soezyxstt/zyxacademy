@@ -279,58 +279,31 @@ export async function executeAdminKnowledgeSync(
   if (!dryRun) {
     const sourceMap = new Map(sources.map((s) => [s.id, s]));
 
-    // Update sources in catalog
-    for (const manifest of manifests) {
-      const source = sourceMap.get(manifest.sourceId);
-      if (source) {
-        const record: AdminKnowledgeSourceRecord = {
-          id: manifest.sourceId,
-          sourcePath: manifest.sourcePath,
-          sourceType: source.sourceType,
-          title: source.title,
-          version: manifest.version,
-          contentHash: manifest.contentHash,
-          manifestHash: manifest.manifestHash,
-          chunkCount: manifest.chunkCount,
-          status: "active",
-        };
-        if (store) {
-          await store.upsertSource(record);
-        } else {
-          await upsertKnowledgeSource(record);
+    // Commit external vectors before catalog hashes can make retries retain chunks.
+    if (options.vectorProvider && options.embeddingAdapter) {
+      if (plan.chunkIdsToRetain.length > 0) {
+        const retainedIds = new Set(plan.chunkIdsToRetain);
+        const retained = manifests.flatMap(manifest => manifest.chunks).filter(chunk => retainedIds.has(chunk.id));
+        const vectorIds = new Set<string>();
+        for (let offset = 0; offset < retained.length; offset += 1000) {
+          const existing = await options.vectorProvider.get({ profileId: CANONICAL_VECTOR_PROFILE.id, ids: retained.slice(offset, offset + 1000).map(chunk => chunk.vectorId) });
+          existing.vectors.forEach(vector => vectorIds.add(vector.id));
+        }
+        const catalogById = new Map(existingChunks.map(chunk => [chunk.id, chunk]));
+        const missing = retained.filter(chunk => !vectorIds.has(chunk.vectorId)
+          || catalogById.get(chunk.id)?.status !== "active" || catalogById.get(chunk.id)?.contentHash !== chunk.contentHash);
+        if (missing.length > 0) {
+          const missingIds = new Set(missing.map(chunk => chunk.id));
+          plan.chunksToUpsert.push(...missing);
+          plan.chunkIdsToRetain = plan.chunkIdsToRetain.filter(id => !missingIds.has(id));
+          plan.operations = plan.operations.map(operation => missingIds.has(operation.chunkId)
+            ? { ...operation, action: "upsert" as const, reason: "Missing retained vector or catalog chunk" } : operation)
+            .sort((a, b) => `${a.action}:${a.vectorId}`.localeCompare(`${b.action}:${b.vectorId}`));
+          plan.manifestHash = createHash("sha256").update(plan.operations
+            .map(operation => `${operation.action}:${operation.sourceId}:${operation.chunkId}:${operation.vectorId}`).join("\n"), "utf-8").digest("hex");
         }
       }
-    }
 
-    // Mark archived sources as stale
-    for (const sourceId of plan.sourcesToArchive) {
-      if (store) {
-        await store.markSourceStale(sourceId);
-      } else {
-        await markSourceStale(sourceId);
-      }
-    }
-
-    // Upsert chunks in catalog
-    if (plan.chunksToUpsert.length > 0) {
-      if (store) {
-        await store.upsertChunks(plan.chunksToUpsert);
-      } else {
-        await upsertKnowledgeChunks(plan.chunksToUpsert);
-      }
-    }
-
-    // Mark deleted chunks as stale in catalog
-    if (plan.chunkIdsToDelete.length > 0) {
-      if (store) {
-        await store.markChunksStale(plan.chunkIdsToDelete);
-      } else {
-        await markChunksStale(plan.chunkIdsToDelete);
-      }
-    }
-
-    // Vector operations
-    if (options.vectorProvider && options.embeddingAdapter) {
       // 5a. Upsert vectors
       if (plan.chunksToUpsert.length > 0) {
         const vectorRecords: CanonicalVectorRecord[] = [];
@@ -366,8 +339,58 @@ export async function executeAdminKnowledgeSync(
       if (plan.chunkIdsToDelete.length > 0) {
         await options.vectorProvider.delete({
           profileId: CANONICAL_VECTOR_PROFILE.id,
-          ids: plan.chunkIdsToDelete,
+          ids: plan.operations.filter(operation => operation.action === "delete").map(operation => operation.vectorId),
         });
+      }
+    }
+
+    // Update sources in catalog
+    for (const manifest of manifests) {
+      const source = sourceMap.get(manifest.sourceId);
+      if (source) {
+        const record: AdminKnowledgeSourceRecord = {
+          id: manifest.sourceId,
+          sourcePath: manifest.sourcePath,
+          sourceType: source.sourceType,
+          title: source.title,
+          version: manifest.version,
+          contentHash: manifest.contentHash,
+          manifestHash: manifest.manifestHash,
+          chunkCount: manifest.chunkCount,
+          status: "active",
+        };
+        if (store) {
+          await store.upsertSource(record);
+        } else {
+          await upsertKnowledgeSource(record);
+        }
+      }
+    }
+
+    // Upsert chunks in catalog
+    if (plan.chunksToUpsert.length > 0) {
+      if (store) {
+        await store.upsertChunks(plan.chunksToUpsert);
+      } else {
+        await upsertKnowledgeChunks(plan.chunksToUpsert);
+      }
+    }
+
+    // Mark deleted chunks as stale in catalog
+    if (plan.chunkIdsToDelete.length > 0) {
+      if (store) {
+        await store.markChunksStale(plan.chunkIdsToDelete);
+      } else {
+        await markChunksStale(plan.chunkIdsToDelete);
+      }
+    }
+
+    // Mark archived sources as stale
+    for (const sourceId of plan.sourcesToArchive) {
+      if (store) {
+        await store.markSourceStale(sourceId);
+      } else {
+        await markSourceStale(sourceId);
       }
     }
   }

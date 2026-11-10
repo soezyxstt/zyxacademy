@@ -17,11 +17,13 @@ export const adminOpsKnowledgeSyncWorker = inngest.createFunction(
     const result = await step.run("execute-knowledge-sync", async () => {
       const { executeAdminKnowledgeSync } = await import("@/lib/admin-ops-ai/admin-knowledge-sync");
       const { getCanonicalContentV2EmbeddingAdapter } = await import("@/lib/vectorize/runtime");
+      const { createCanonicalVectorClient } = await import("@/lib/vectorize-client");
       const adapter = await getCanonicalContentV2EmbeddingAdapter();
 
       return await executeAdminKnowledgeSync({
         dryRun: false,
         embeddingAdapter: adapter,
+        vectorProvider: createCanonicalVectorClient(),
       });
     });
 

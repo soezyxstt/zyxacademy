@@ -5,7 +5,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { z } from "zod";
 import { getPdfWorkerSrc } from "./pdf-worker";
 
-export const SOURCE_FIGURE_RENDERER = "pdfjs-5.4.296-pdf-parse-worker-2.4.5-napi-canvas-0.1.80-figure-v1";
+export const SOURCE_FIGURE_RENDERER = "pdfjs-5.4.296-pdf-parse-2.4.5-figure-v2";
+export const LEGACY_SOURCE_FIGURE_RENDERER = "pdfjs-5.4.296-pdf-parse-worker-2.4.5-napi-canvas-0.1.80-figure-v1";
 export const normalizedCropSchema = z.tuple([z.number().finite().min(0).max(1), z.number().finite().min(0).max(1), z.number().finite().min(0).max(1), z.number().finite().min(0).max(1)])
   .refine(([x0, y0, x1, y1]) => x1 > x0 && y1 > y0, "SOURCE_FIGURE_CROP_INVALID");
 export type NormalizedCrop = z.infer<typeof normalizedCropSchema>;
@@ -22,6 +23,16 @@ export function figurePixelCrop(crop: NormalizedCrop, width: number, height: num
 export async function renderSourceFigure(bytes: Uint8Array, pageNumber: number, crop: NormalizedCrop) {
   if (!Number.isInteger(pageNumber) || pageNumber < 1 || bytes.byteLength === 0 || bytes.byteLength > 50 * 1024 * 1024) throw new Error("SOURCE_FIGURE_INPUT_INVALID");
   normalizedCropSchema.parse(crop);
+  if (process.env.ZYX_COMPUTE_RUNTIME === "neon") {
+    const { runBrowserPdf } = await import("./browser-pdf");
+    const result = z.object({ pageNumber: z.literal(pageNumber), crop: normalizedCropSchema,
+      pdfPointBbox: z.array(z.number()).length(4), cropBox: z.array(z.number()).length(4), rotation: z.number(), transform: z.array(z.number()).length(6),
+      variants: z.array(z.object({ name: z.enum(["preview", "print"]), image: z.string().min(1), width: z.number().int().positive(), height: z.number().int().positive(),
+        pixels: z.object({ left: z.number().int().nonnegative(), top: z.number().int().nonnegative(), width: z.number().int().positive(), height: z.number().int().positive() }) })).length(2),
+    }).parse(await runBrowserPdf(bytes, { mode: "figure", page: pageNumber, crop }));
+    return { ...result, rounding: "floor-start-ceil-end" as const, renderer: SOURCE_FIGURE_RENDERER,
+      variants: result.variants.map(({ image, ...variant }) => { const png = Buffer.from(image, "base64"); return { ...variant, png, checksum: figureChecksum(png) }; }) };
+  } else {
   const require = createRequire(import.meta.url);
   const standardFonts = pathToFileURL(resolve(dirname(require.resolve("pdfjs-dist/package.json")), "standard_fonts") + sep);
   if (require("pdfjs-dist/package.json").version !== "5.4.296" || require("@napi-rs/canvas/package.json").version !== "0.1.80") throw new Error("SOURCE_FIGURE_RENDERER_UNPINNED");
@@ -58,4 +69,5 @@ export async function renderSourceFigure(bytes: Uint8Array, pageNumber: number, 
     }
     return { pageNumber, crop, pdfPointBbox, cropBox: page.view, rotation: page.rotate, transform: base.transform, rounding: "floor-start-ceil-end" as const, renderer: SOURCE_FIGURE_RENDERER, variants };
   } finally { await task.destroy(); }
+  }
 }

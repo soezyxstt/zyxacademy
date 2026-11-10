@@ -1,0 +1,98 @@
+name: Deploy Neon worker
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [production, staging]
+        default: production
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-neon-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || (github.ref_name == 'main' && inputs.environment == 'production') || (github.ref_name == 'staging' && inputs.environment == 'staging')
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - name: Build bounded worker archive
+        env:
+          ZYX_POSTGRES_BUILD_PLACEHOLDER: '1'
+        run: |
+          bun scripts/authoring/prepare-web-verification.ts
+          node scripts/neon/build-worker.mjs
+      - name: Prepare verified environment configuration
+        env:
+          GITHUB_ENVIRONMENT_NAME: ${{ inputs.environment }}
+          GITHUB_RUNTIME_SECRETS: ${{ toJSON(secrets) }}
+          GITHUB_RUNTIME_VARS: ${{ toJSON(vars) }}
+        run: python3 .github/scripts/prepare_worker_runtime.py artifacts/neon-worker/.env.runtime.json
+      - name: Deploy to the verified Neon branch
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          COMPUTE_ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          umask 077
+          node --input-type=module -e 'import fs from "node:fs"; if (!process.env.NEON_API_KEY) throw new Error("NEON_API_KEY_REQUIRED"); fs.writeFileSync("artifacts/neon-worker/.env.credentials", "NEON_API_KEY=" + process.env.NEON_API_KEY + "\n", {mode: 0o600});'
+          node scripts/neon/deploy-worker.mjs artifacts/neon-worker/.env.runtime.json artifacts/neon-worker/.env.credentials "$COMPUTE_ENVIRONMENT"
+      - name: Verify PDF and authentication before routing Inngest
+        env:
+          COMPUTE_ENVIRONMENT: ${{ inputs.environment }}
+        run: bun scripts/neon/smoke-worker.ts "$COMPUTE_ENVIRONMENT" --preflight
+      - name: Route the verified Inngest environment
+        env:
+          COMPUTE_ENVIRONMENT: ${{ inputs.environment }}
+        run: node scripts/neon/sync-worker.mjs "$COMPUTE_ENVIRONMENT"
+      - name: Exercise deployed PDF and authentication boundaries
+        env:
+          COMPUTE_ENVIRONMENT: ${{ inputs.environment }}
+        run: bun scripts/neon/smoke-worker.ts "$COMPUTE_ENVIRONMENT"
+      - name: Exercise remote thumbnail persistence and quiz feedback
+        if: inputs.environment == 'staging'
+        run: bun scripts/neon/smoke-business-workers.ts staging
+      - name: Inspect PDF text and source figure geometry in Browser Run
+        if: inputs.environment == 'staging'
+        run: |
+          bun build scripts/neon/smoke-browser-pdf.ts --target=node --packages=external --outfile=artifacts/neon-worker/browser-pdf-smoke.mjs
+          node artifacts/neon-worker/browser-pdf-smoke.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: neon-${{ inputs.environment }}-worker
+          path: |
+            artifacts/neon-worker/inventory.json
+            artifacts/neon-worker/before.json
+            artifacts/neon-worker/after.json
+            artifacts/neon-worker/sync.json
+            artifacts/neon-worker/http-smoke.json
+            artifacts/neon-worker/inngest-smoke.json
+            artifacts/neon-worker/business-smoke.json
+            artifacts/neon-worker/production/before.json
+            artifacts/neon-worker/production/after.json
+            artifacts/neon-worker/production/sync.json
+            artifacts/neon-worker/production/http-smoke.json
+            artifacts/neon-worker/production/inngest-smoke.json
+          retention-days: 7
