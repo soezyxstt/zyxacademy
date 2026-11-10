@@ -70,7 +70,8 @@ async function main() {
     assert.equal(hash(JSON.parse(Buffer.from(await storage.download!(key(leaf))).toString())), hash(value), "RECOVERY_BACKUP_READBACK_FAILED");
   };
   const load = async <T>(leaf: string): Promise<T> => JSON.parse(Buffer.from(await storage.download!(key(leaf))).toString());
-  const vectors = createCanonicalVectorClient({ fetcher: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(30_000) }) });
+  const boundedFetch: typeof fetch = Object.assign((input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => fetch(input, { ...init, signal: AbortSignal.timeout(30_000) }), { preconnect: fetch.preconnect });
+  const vectors = createCanonicalVectorClient({ fetcher: boundedFetch });
   const profileId = "canonical-content-v2" as const;
   async function readRows(ids?: string[]): Promise<Row[]> {
     const result = await pool.query(`SELECT id, course_id AS "courseId", ko_id AS "koId", action, namespace, payload, status, attempts,
@@ -253,6 +254,13 @@ async function main() {
     await save("verified.json", report);
     await writeFile(`${target.output}/vector-recovery.json`, JSON.stringify(report, null, 2));
     console.log(JSON.stringify(report));
+  } catch (error) {
+    const failure = error as { name?: string; code?: string; message?: string };
+    let message = String(failure.message ?? "Unknown failure");
+    for (const value of Object.values(config)) if (typeof value === "string" && value.length > 8) message = message.replaceAll(value, "[redacted]");
+    await save("failure.json", { name: failure.name, code: failure.code, message });
+    console.error(JSON.stringify({ errorName: failure.name, errorCode: /^[A-Z0-9_]+$/.test(failure.code ?? "") ? failure.code : "unclassified" }));
+    throw error;
   } finally { await pool.end(); }
 }
 

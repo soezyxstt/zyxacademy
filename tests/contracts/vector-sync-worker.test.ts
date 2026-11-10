@@ -21,7 +21,7 @@ const database = {
     const result = Promise.resolve(matches.map(row => ({ id: row.id })));
     return Object.assign(result, { returning: () => result });
   } }) }),
-  transaction: async (callback: (tx: typeof database) => Promise<void>) => {
+  transaction: async (callback: (tx: Pick<typeof database, "select" | "update">) => Promise<void>): Promise<void> => {
     const before = structuredClone(stored);
     try { await callback(database); } catch (error) { stored = before; throw error; }
   },
