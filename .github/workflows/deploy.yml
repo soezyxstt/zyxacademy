@@ -25,9 +25,17 @@ on:
         type: choice
         options: [staging, production]
         default: staging
+      business_acceptance:
+        description: Test the existing worker without deployment
+        type: boolean
+        default: false
+      deployment_run_id:
+        description: Successful worker deployment run for business acceptance
+        type: string
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: deploy-deno-${{ github.ref }}
@@ -35,17 +43,25 @@ concurrency:
 
 jobs:
   deploy-neon-staging:
-    if: github.event_name != 'pull_request' && !inputs.browser_diagnostics && !inputs.runtime_diagnostics && !inputs.restore_turso_worker && github.ref_name == 'staging'
+    if: github.event_name != 'pull_request' && !inputs.business_acceptance && !inputs.browser_diagnostics && !inputs.runtime_diagnostics && !inputs.restore_turso_worker && github.ref_name == 'staging'
     uses: ./.github/workflows/deploy-neon-worker.yml
     with:
       environment: staging
     secrets: inherit
 
   deploy-neon-production:
-    if: github.event_name != 'pull_request' && !inputs.browser_diagnostics && !inputs.runtime_diagnostics && !inputs.restore_turso_worker && (github.ref_name == 'main' || (github.event_name == 'workflow_dispatch' && inputs.diagnostic_environment == 'production'))
+    if: github.event_name != 'pull_request' && !inputs.business_acceptance && !inputs.browser_diagnostics && !inputs.runtime_diagnostics && !inputs.restore_turso_worker && (github.ref_name == 'main' || (github.event_name == 'workflow_dispatch' && inputs.diagnostic_environment == 'production'))
     uses: ./.github/workflows/deploy-neon-worker.yml
     with:
       environment: production
+    secrets: inherit
+
+  verify-existing-worker:
+    if: github.event_name == 'workflow_dispatch' && inputs.business_acceptance
+    uses: ./.github/workflows/worker-acceptance.yml
+    with:
+      environment: ${{ inputs.diagnostic_environment }}
+      deployment_run_id: ${{ inputs.deployment_run_id }}
     secrets: inherit
 
   runtime-diagnostics:

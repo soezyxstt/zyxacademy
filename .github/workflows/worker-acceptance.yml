@@ -1,6 +1,14 @@
 name: Verify deployed background workers
 
 on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      deployment_run_id:
+        type: string
+        required: true
   workflow_dispatch:
     inputs:
       environment:
@@ -62,6 +70,11 @@ jobs:
         env:
           COMPUTE_ENVIRONMENT: ${{ inputs.environment }}
         run: bun scripts/neon/smoke-learning-workers.ts "$COMPUTE_ENVIRONMENT"
+      - name: Verify one-KO bulk generation and persisted draft
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+        env:
+          COMPUTE_ENVIRONMENT: ${{ inputs.environment }}
+        run: bun scripts/neon/smoke-content-workers.ts "$COMPUTE_ENVIRONMENT"
       - name: Inspect scheduled and other worker runs without invoking global jobs
         if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
         env:
@@ -79,6 +92,9 @@ jobs:
             artifacts/neon-worker/business-retained.json
             artifacts/neon-worker/learning-retained.json
             artifacts/neon-worker/worker-runs.json
+            artifacts/neon-worker/content-smoke.json
+            artifacts/neon-worker/content-pending.json
+            artifacts/neon-worker/content-retained.json
             artifacts/neon-worker/production/business-smoke.json
             artifacts/neon-worker/production/business-pending.json
             artifacts/neon-worker/production/learning-smoke.json
@@ -86,4 +102,7 @@ jobs:
             artifacts/neon-worker/production/business-retained.json
             artifacts/neon-worker/production/learning-retained.json
             artifacts/neon-worker/production/worker-runs.json
+            artifacts/neon-worker/production/content-smoke.json
+            artifacts/neon-worker/production/content-pending.json
+            artifacts/neon-worker/production/content-retained.json
           retention-days: 7
