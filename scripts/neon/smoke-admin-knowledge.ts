@@ -4,6 +4,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { workerTarget, assertWorkerEnvironment } from "./worker-targets.mjs";
 import { assertCanonicalDimensions, CANONICAL_VECTOR_PROFILE, parseVersionedVectorId, type CanonicalVectorRecord } from "../../lib/vectorize/contracts";
 import type { AdminKnowledgeChunk } from "../../lib/admin-ops-ai/admin-knowledge-contracts";
+import { readRemainingRun } from "./smoke-remaining-workers";
 
 export function adminKnowledgeSmokeArguments(args: string[]) {
   const target = workerTarget(args[0]);
@@ -42,11 +43,12 @@ async function main() {
   const report: Record<string, unknown> = { fixtureId, dryRunOnly, accepted: false, stage: "preflight", functionId };
   const save = () => writeFile(`${target.output}/admin-knowledge-smoke.json`, JSON.stringify(report, null, 2));
   const pause = () => new Promise(resolve => setTimeout(resolve, 3000));
-  async function api(path: string, init: RequestInit = {}) {
+  async function api(path: string, init: RequestInit = {}, allowMissing = false) {
     const response = await fetch(`https://api.inngest.com/v2${path}`, { ...init,
       headers: { Authorization: `Bearer ${config.INNGEST_SIGNING_KEY}`, "X-Inngest-Env": config.INNGEST_ENV, "Content-Type": "application/json" },
       signal: AbortSignal.timeout(30_000),
     });
+    if (allowMissing && response.status === 404) return undefined;
     assert.ok(response.ok, `ADMIN_KNOWLEDGE_INNGEST_HTTP_${response.status}`);
     return response.json();
   }
@@ -97,7 +99,8 @@ async function main() {
     await save();
     let completed = false;
     for (let attempt = 0; attempt < 300; attempt++) {
-      const execution = (await api(`/runs/${encodeURIComponent(runId)}?include=output`)).data;
+      const execution = await readRemainingRun(path => api(path, {}, true), functionId, runId);
+      if (!execution) { await pause(); continue; }
       assert.equal(execution?.function?.id, functionId, "ADMIN_KNOWLEDGE_RUN_FUNCTION_MISMATCH");
       const status = String(execution.status).toUpperCase();
       if (["COMPLETED", "FAILED", "CANCELLED", "SKIPPED"].includes(status)) {

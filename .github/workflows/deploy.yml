@@ -49,7 +49,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: deploy-deno-${{ github.ref }}
+  group: deploy-deno-${{ github.ref }}-${{ inputs.maintenance || 'none' }}
   cancel-in-progress: false
 
 jobs:
@@ -82,7 +82,7 @@ jobs:
     environment: production
     timeout-minutes: 60
     concurrency:
-      group: production-vector-maintenance
+      group: production-worker-maintenance-${{ (inputs.maintenance == 'remaining' || inputs.maintenance == 'product-pdf') && inputs.maintenance || 'ai' }}
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
