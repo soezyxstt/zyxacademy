@@ -59,6 +59,8 @@ The private `scripts/authoring/verify-product-v4-local.ts` operator command repl
 
 V4 approval requires the exact revision, quality-policy fingerprint, current verification plan and receipt signature, a complete criterion rubric, and an explicit current semantic decision for every section. Legacy whole-bundle approval cannot silently approve V4 sections. Publication repeats these checks and claims the unchanged import snapshot inside the transaction; stale content, evidence or concurrent replacement must not receive approval or publication from an earlier snapshot.
 
+Admin detail evaluates the complete stored bundle, including its manifest, with the current trusted verification result. The quality status and review context reuse that result so the Publish button agrees with the publication gate. Missing or invalid verification, PDF evidence or review still blocks publication.
+
 ## Validation and operational boundaries
 
 The test suite contains contract, model, lineage, HMAC/receipt, artifact-readback, dependency, explicit-review and local SQLite compare-and-swap checks. Primary-agent browser and PDF inspection remains separate evidence. Static-family fixtures generate small compiled documents for numerical plots, derivations, tables, chemistry, diagrams, vectors, geometry and a real PDF-derived source figure. Exact current command outcomes and screenshot/PDF paths belong in the local verification report, not this contract.

@@ -44,10 +44,19 @@ async function currentPlan() {
   return deriveProductV4VerificationPlan({ bundle, binding });
 }
 let trustedReceipt: Awaited<ReturnType<typeof runProductV4Verification>>;
+let verificationUnavailable = false;
 mock.module("@/db", () => ({ db: testDb }));
-mock.module("@/lib/bundle/product-staging", () => ({ getProductBundleImport: getRow, parseStagedProductBundle: async () => bundle, productBundleLifecycleStatus: (status: string) => status }));
+mock.module("@/lib/bundle/product-staging", () => ({
+  getProductBundleImport: async () => ({ ...await getRow(), reviews: await testDb.select().from(schema.reviewBundle).where(eq(schema.reviewBundle.imporBundleId, importId)) }),
+  parseStagedProductBundle: async () => bundle,
+  productBundleLifecycleStatus: (status: string) => status,
+  listProductBlockReviews: async () => testDb.select().from(schema.reviewItemBundle).where(eq(schema.reviewItemBundle.imporBundleId, importId)),
+  stageProductBundle: async () => { throw new Error("GET must not stage a bundle"); },
+  discardProductBundleDraft: async () => { throw new Error("GET must not discard a bundle"); },
+}));
 mock.module("@/lib/vector-sync-dispatch", () => ({ dispatchVectorSync: () => undefined }));
 mock.module("@/lib/bundle/product-v4-verification-service", () => ({ ...originalVerificationExports, async getProductV4VerificationReadiness() {
+  if (verificationUnavailable) throw new Error("Fixture verification unavailable");
   const plan = await currentPlan();
   return { jobId: plan.planHash, plan, receipt: trustedReceipt, state: { status: "complete" }, evaluation: evaluateProductV4Verification(plan, [trustedReceipt], authority) };
 } }));
@@ -57,6 +66,7 @@ const { provisionPenggunaForNewUser } = await import("@/lib/auth/authorization")
 afterAll(async () => { mock.module("@/lib/bundle/product-v4-verification-service", () => originalVerificationExports); await client.close(); });
 
 async function seedReady() {
+  verificationUnavailable = false;
   await client.exec('TRUNCATE TABLE "user", courses, mata_kuliah, peran CASCADE');
   for (const id of new Set([publisherId, bundle.manifest.creatorId, bundle.manifest.curatorId!])) {
     await testDb.insert(schema.user).values({ id, name: "Fixture admin", email: `${id}@example.test`, emailVerified: true, role: "admin", createdAt: new Date(0), updatedAt: new Date(0) });
@@ -103,5 +113,39 @@ test("real V4 PostgreSQL publication requires a current receipt, explicit review
     expect(await testDb.select().from(schema.artikel)).toHaveLength(0);
     expect((await getRow()).status).toBe("draft");
     expect(await testDb.select().from(schema.auditMutasi).where(eq(schema.auditMutasi.action, "published"))).toHaveLength(0);
+  }
+}, 30000);
+
+test("Admin detail enables publication for the verified bundle and preserves failed evidence gates", async () => {
+  mock.module("next/headers", () => ({ headers: async () => new Headers() }));
+  mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => ({ user: { id: publisherId, role: "admin" } }) } } }));
+  const { GET } = await import("../../app/api/admin/bundles/product/[id]/route");
+  const detail = async () => {
+    const response = await GET(new Request("https://example.test/api/admin/bundles/product/" + importId), { params: Promise.resolve({ id: importId }) });
+    expect(response.status).toBe(200);
+    return response.json();
+  };
+  await seedReady();
+  await testDb.insert(schema.reviewBundle).values({ id: "v4-bundle-review", imporBundleId: importId, reviewerId: publisherId, status: "approved" });
+  const ready = await detail();
+  expect(ready.bundle.currentReview.status).toBe("approved");
+  expect(ready.qualityEvaluation.publicationReady).toBe(true);
+  expect(ready.blockingIssues).toEqual([]);
+  expect(ready.v4ReviewContext.verificationReady).toBe(true);
+  expect(ready.revisionFreshness.isFresh).toBe(true);
+  expect(ready.pdfStatus.status).toBe("ready");
+  expect((await publishProductBundle({ importId, publishedBy: publisherId })).published).toBe(true);
+  for (const failure of ["unavailable", "stale", "pdf", "review", "reviewer"] as const) {
+    await seedReady();
+    if (failure === "unavailable") verificationUnavailable = true;
+    if (failure === "stale") trustedReceipt = { ...trustedReceipt, signature: "0".repeat(64) };
+    if (failure === "pdf") await testDb.update(schema.buktiPdfBundle).set({ status: "stale" }).where(eq(schema.buktiPdfBundle.imporBundleId, importId));
+    if (failure === "review") await testDb.update(schema.reviewPedagogiBundle).set({ status: "pending" }).where(eq(schema.reviewPedagogiBundle.id, "v4-pedagogic-review"));
+    if (failure === "reviewer") await testDb.update(schema.reviewPedagogiBundle).set({ reviewerId: bundle.manifest.creatorId }).where(eq(schema.reviewPedagogiBundle.id, "v4-pedagogic-review"));
+    const blocked = await detail();
+    expect(blocked.qualityEvaluation.publicationReady).toBe(false);
+    expect(blocked.blockingIssues.length).toBeGreaterThan(0);
+    if (failure === "unavailable" || failure === "stale") expect(blocked.v4ReviewContext.verificationReady).toBe(false);
+    expect((await getRow()).status).toBe("draft");
   }
 }, 30000);
