@@ -34,7 +34,6 @@ async function main() {
     process.env[key] = value;
   }
   process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER = "github_actions";
-  process.env.NODE_ENV = "production";
   assertProductV4CiTarget(process.env);
 
   // Environment-sensitive application modules are loaded only after the private settings.

@@ -50,12 +50,12 @@ export async function authenticateVerificationBrowser(context: BrowserContext, a
   } catch { await context.close().catch(() => {}); throw new Error("VERIFICATION_BROWSER_ACCESS_FAILED"); }
 }
 
-export function isGithubActionsVerification(env = process.env): boolean {
+export function isGithubActionsVerification(env: Record<string, string | undefined> = process.env): boolean {
   if (env.AUTHORING_VERIFICATION_BROWSER_PROVIDER !== "github_actions") return false;
   if (env.GITHUB_ACTIONS !== "true" || env.GITHUB_REPOSITORY !== "soezyxstt/zyxacademy") throw new Error("VERIFICATION_CI_CONTEXT_INVALID");
   return true;
 }
-export function resolveVerificationBaseUrl(value: string, env = process.env, isDeployed = deployed): string {
+export function resolveVerificationBaseUrl(value: string, env: Record<string, string | undefined> = process.env, isDeployed = deployed): string {
   const ci = isGithubActionsVerification(env);
   if (ci && isDeployed) throw new Error("VERIFICATION_CI_CONTEXT_INVALID");
   return isDeployed || env.AUTHORING_VERIFICATION_BROWSER_PROVIDER ? validateDeployedVerificationBaseUrl(value) : validateVerificationBaseUrl(value);
