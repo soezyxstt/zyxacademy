@@ -30,11 +30,14 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const changesRequested = blockReviews.filter((review) => review.status === "changes_requested").length;
     const currentReview = row.reviews.find((review) => review.reviewerId === session.user.id) ?? null;
 
-    const qualityEvaluation = await evaluateProductBundleQualityPolicy({
-      products: bundle.products,
-      dependencies: bundle.dependencies,
-    }, {
+    const verificationRef = row.validationReport.productV4Verification as { runId?: unknown } | undefined;
+    const v4Verification = bundle.manifest.schemaVersion === "product-bundle.v4" && typeof verificationRef?.runId === "string"
+      ? await getProductV4VerificationReadiness(id, verificationRef.runId).catch(() => null)
+      : null;
+    const qualityEvaluation = await evaluateProductBundleQualityPolicy({ bundle }, {
       imporBundleId: id,
+      publisherId: session.user.id,
+      v4Verification,
     });
 
     let pedagogicReview = null;
@@ -128,7 +131,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     let v4ReviewContext = null;
     if (bundle.manifest.schemaVersion === "product-bundle.v4" && article?.productType === "article") {
       const ref = row.validationReport.productV4Verification as { runId?: unknown; planHash?: unknown } | undefined;
-      const verification = typeof ref?.runId === "string" ? await getProductV4VerificationReadiness(id, ref.runId).catch(() => null) : null;
+      const verification = v4Verification;
       v4ReviewContext = {
         expectedRevision: row.checksum, policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: currentFingerprint,
         verificationReady: Boolean(verification?.evaluation.ready && ref?.planHash === verification.plan.planHash),

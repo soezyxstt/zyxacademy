@@ -2,7 +2,7 @@
 
 The `ACTIVE` [feature catalog](features.md#embedded-learning-visuals) documents always-on typed `zyx-visual` Markdown embeds across compatible learning readers, question prompts, options, explanations and previews, including the payload limit and fence-preserving question import behavior.
 
-`ACTIVE`: The [development guide](DEVELOPMENT.md) documents the `github_actions` V4 provider and the exact-draft workflow. It reuses a pinned browser, bounds screenshot volume and preserves signed evidence, PDF lineage and explicit publication review.
+`ACTIVE`: The [deployment guide](DEPLOYMENT.md) documents the `local_playwright` V4 provider and exact-draft operator command. The [V4 contract](bundle/product-bundle-v4.md) records the shared Admin quality and verification context so UI Publish readiness agrees with the backend gate. Signed evidence, PDF lineage and explicit publication review remain required.
 
 `HISTORICAL CHECKPOINT`: The Matematika I Bab 1 V4 compatibility bridge in the [Neon cutover runbook](operations/neon-functions-cutover.md) described verification against the previously unchanged web. The coordinated V4 release removes that temporary source bridge and binds the actual web and executor runtime. The `ACTIVE` [V4 contract](bundle/product-bundle-v4.md) and [deployment guide](DEPLOYMENT.md) describe the private local Playwright operator command, replacing GitHub Actions verification with pinned Chromium, signed observed evidence and unchanged review/publication gates. Source changes and local tests do not establish deployment or publication completion.
 
