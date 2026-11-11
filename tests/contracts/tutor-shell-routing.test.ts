@@ -76,8 +76,8 @@ mock.module("next-themes", () => ({
 
 import { TutorSidebar } from "@/components/tutor/tutor-sidebar";
 import { TutorCourseSwitcher } from "@/components/tutor/tutor-course-switcher";
-import TutorMaterialsPage from "@/app/(tutor)/tutor/[courseId]/materials/page";
-import TutorTryoutsPage from "@/app/(tutor)/tutor/[courseId]/tryouts/page";
+const { default: TutorMaterialsPage } = await import("@/app/(tutor)/tutor/[courseId]/materials/page");
+const { default: TutorTryoutsPage } = await import("@/app/(tutor)/tutor/[courseId]/tryouts/page");
 
 beforeAll(preparePostgresTestDb, 60_000);
 const clients: Array<Awaited<ReturnType<typeof createPostgresTestDb>>["client"]> = [];
