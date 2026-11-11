@@ -3,7 +3,7 @@ import { RetryAfterError } from "inngest";
 import { productBundleManifestSchema, productEntitySchema } from "@/lib/bundle/product-validator";
 import { readProductVerificationObject, createProductV4VerificationService, type ProductV4VerificationPorts, type ProductV4VerificationSnapshot } from "@/lib/bundle/product-v4-verification-service";
 import { buildProductVerificationKey } from "@/lib/storage/keys";
-import { assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, evaluateProductV4Verification, PRODUCT_V4_VERIFICATION_POLICY, recordProductV4VerificationReport, runProductV4Verification, type ProductV4ObservedCheck, type ProductV4VerificationResult, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
+import { assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, evaluateProductV4Verification, PRODUCT_V4_VERIFICATION_POLICY, PRODUCT_V4_VIEWPORTS, recordProductV4VerificationReport, runProductV4Verification, type ProductV4ObservedCheck, type ProductV4VerificationResult, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
 
 const hash = "a".repeat(64);
 const authority = { signingKey: "test-only-secret-with-at-least-32-bytes", executorId: "server-test-runner" };
@@ -14,12 +14,44 @@ const bundle = { manifest, products: [article], dependencies: [] };
 const plan = () => deriveProductV4VerificationPlan({ bundle, binding });
 const observe = (requirement: ProductV4VerificationRequirement): ProductV4ObservedCheck => ({ checkId: requirement.id, status: "PASS", expected: "Expected behavior", observed: "Observed behavior", artifacts: [{ id: `artifact-${requirement.id}`, mediaType: requirement.artifactType, bytes: requirement.artifactType === "image/png" ? Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64") : new TextEncoder().encode(requirement.artifactType === "application/pdf" ? "%PDF-1.7\n%%EOF" : "{}") }] });
 
-test("derives exact full state and viewport matrix rather than accepting a requested subset", () => {
+test("derives the complete v2 smoke matrix at both viewports without repeated state checks", () => {
   const value = plan();
-  expect(value.requirements).toHaveLength(20);
-  expect(value.requirements.filter((requirement) => requirement.state === "resolution-limited")).toHaveLength(0);
+  expect(PRODUCT_V4_VERIFICATION_POLICY).toBe("product-v4-verification.v2");
+  expect(value.requirements).toHaveLength(8);
+  expect(value.requirements.filter(check => check.layer === "structure")).toHaveLength(1);
+  expect(value.requirements.filter(check => check.layer === "model").map(check => check.state)).toEqual(["domain-units-and-model"]);
+  for (const state of ["reading-order-and-math", "keyboard-and-text-zoom", "visual-smoke"]) {
+    expect(value.requirements.filter(check => check.state === state).map(check => check.viewport)).toEqual([...PRODUCT_V4_VIEWPORTS]);
+  }
+  expect(value.requirements.filter(check => ["default", "fallback", "changed", "reset", "keyboard", "epsilon-minimum", "epsilon-maximum", "resolution-limited"].includes(check.state))).toHaveLength(0);
   expect(plan()).toEqual(value);
   expect(evaluateProductV4Verification(value, [], authority).ready).toBe(false);
+});
+
+test("eight visuals retain eight model checks, sixteen viewport smokes and both PDF checks", () => {
+  if (article.productType !== "article") throw new Error("ARTICLE_FIXTURE_REQUIRED");
+  const chapter = productEntitySchema.parse({ ...article, visuals: Array.from({ length: 8 }, (_, index) => ({ ...article.visuals![0], id: `graph-${index}` })) });
+  if (chapter.productType !== "article") throw new Error("ARTICLE_FIXTURE_REQUIRED");
+  const diktat = productEntitySchema.parse({ id: "diktat", productType: "diktat", courseId: article.courseId, version: 1, status: "draft", ideaLinks: article.ideaLinks, sourceRefs: article.sourceRefs, schemaVersion: "diktat.v4", sourceHash: hash, generationHash: hash, creatorId: "creator", title: "Summary", contentMarkdown: "Summary", sourceArticleId: article.id, sourceArticleVersion: 1, sourceArticleHash: hash });
+  const value = deriveProductV4VerificationPlan({ bundle: { ...bundle, products: [chapter, diktat] }, binding });
+  expect(value.requirements).toHaveLength(31);
+  expect(value.requirements.filter(check => check.layer === "model")).toHaveLength(8);
+  for (const visual of chapter.visuals!) {
+    const checks = value.requirements.filter(check => check.target === `${article.id}/${visual.id}`);
+    expect(checks.map(check => check.state)).toEqual(["domain-units-and-model", "visual-smoke", "visual-smoke"]);
+    expect(checks.filter(check => check.layer === "web").map(check => check.viewport)).toEqual([...PRODUCT_V4_VIEWPORTS]);
+  }
+  expect(value.requirements.filter(check => check.layer === "print").map(({ state, viewport, artifactType }) => ({ state, viewport, artifactType }))).toEqual([
+    { state: "pdf-fonts-assets-lineage-and-pages", viewport: null, artifactType: "application/pdf" },
+    { state: "every-page-rendering-and-overflow", viewport: null, artifactType: "image/png" },
+  ]);
+});
+
+test("previous policy receipts cannot satisfy the v2 plan", async () => {
+  const previous = deriveProductV4VerificationPlan({ bundle, binding: { ...binding, policyRevision: "product-v4-verification.v1" } });
+  const receipt = await runProductV4Verification(previous, authority, async requirement => observe(requirement));
+  expect(evaluateProductV4Verification(plan(), [receipt], authority).ready).toBe(false);
+  expect(() => assertProductV4VerificationCurrent(previous, plan())).toThrow("CONFLICT");
 });
 
 test("only application-executed checks can produce a trusted passing receipt", async () => {
@@ -124,10 +156,10 @@ test("persisted job only becomes ready after actual execution and intact artifac
   const input = { importId: "import", runId: "run", planHash: requested.jobId };
   const result = await service.process(input);
   expect(result.evaluation.ready).toBe(true);
-  expect(mutable.executeCount).toBe(20);
+  expect(mutable.executeCount).toBe(8);
   await service.get(input);
   await service.process(input);
-  expect(mutable.executeCount).toBe(20);
+  expect(mutable.executeCount).toBe(8);
   const artifact = result.receipt.results[0].artifacts[0];
   objects.set(buildProductVerificationKey(input.planHash, artifact.id), new TextEncoder().encode("changed bytes"));
   await expect(service.get(input)).rejects.toThrow("ARTIFACT_MISSING_OR_CHANGED");

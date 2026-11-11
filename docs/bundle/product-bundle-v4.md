@@ -1,6 +1,6 @@
 # Product Bundle V4
 
-Status: `ACTIVE`, source contract. Updated: 2026-10-22.
+Status: `ACTIVE`, source contract. Updated: 2026-11-11.
 
 New Article/Diktat authoring uses `product-bundle.v4`, `article.v4` and `diktat.v4` by default. Existing V3 bundles keep their version during legacy revisions unless a reviewed V4 conversion is requested. V2/V3 retain their readers and strict contracts. There is no additional feature flag or database migration. This document describes the local implementation, not deployment, installation on every host, or permission to publish a particular bundle.
 
@@ -50,6 +50,8 @@ Diktat parts reuse Article Markdown, math units and worked examples. A top-level
 V4 verification and publication reject obvious unmarked mathematical notation in learner prose, including absolute-value expressions, equations, caret exponents, scientific e notation and Unicode mathematical glyphs. Authors must supply explicit math delimiters. Numeric e notation is rejected even inside math delimiters or authored LaTeX; use explicit multiplication by a power of ten. Valid unit macros that normalize scientific input remain supported. Correctly formatted math, code, currency, function-expression models and typed numeric table data are preserved; the guard does not rewrite prose or replace semantic review.
 
 Structural validity allows a draft to be staged. It is not publication readiness. The server derives the complete requirement matrix from the stored bundle and dependency closure, including structure, model, web states at 380 by 844 and 1536 by 864, and printable pages. An agent cannot remove checks by submitting its own matrix or declaring a check not applicable.
+
+Policy `product-v4-verification.v2` requires one structure check, Article reading-order/math and keyboard/text-zoom checks at both viewports, one model check per visual, and one combined `visual-smoke` per visual at each viewport. The smoke combines applicable default, fallback, interaction, reset, keyboard and boundary behavior in one observed check rather than repeating separate state captures. Diktat retains both print checks, including every PDF page at the fixed A4 profile. One Article with eight visuals and one Diktat therefore has 31 requirements. The policy revision changes the exact plan hash and invalidates earlier receipts; HMAC signatures, server-observed origin, scope and dependency bindings, artifact readback, stale-revision rejection, PDF evidence and explicit review remain required. This policy contract does not establish deployment or publication success.
 
 The plan binds the configured remote browser provider and exact Chromium version, exact content, import and run scope, live Idea/source/product dependencies, renderer source and package versions, fonts, contract, playbook, assets, print profile and policy. Any applicable change invalidates the old plan. Application-owned execution persists actual artifacts before issuing an HMAC-authenticated receipt. Artifact bytes are read back and checked. Local or agent reports remain reported evidence and cannot satisfy trusted readiness. Missing, failed, untested, stale or contradictory evidence blocks readiness.
 
