@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MarkdownRenderer, type MarkdownDensity } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
+import { ArticleMarkdownScope } from "@/components/coding/article-coding";
 import { useFormativeCheckEndpointBase } from "@/components/course/formative-check-endpoint-context";
 import type {
   PublicFormativeCheckPayload,
@@ -67,7 +68,7 @@ export function ProductWorkedExample({
       {/* Problem Prompt */}
       {contentNode || content ? (
         <div className="rounded-lg border border-border/60 bg-muted/20 p-3.5 text-body-base leading-relaxed text-foreground">
-          {contentNode ?? <MarkdownRenderer content={content} density={density} />}
+          {contentNode ?? <ArticleMarkdownScope id="content"><MarkdownRenderer content={content} density={density} /></ArticleMarkdownScope>}
         </div>
       ) : null}
 
@@ -86,12 +87,12 @@ export function ProductWorkedExample({
               </h4>
 
               <div className="text-body-sm leading-relaxed text-foreground">
-                <MarkdownRenderer content={step.explanation} density={density} />
+                <ArticleMarkdownScope id={`step:${step.stepIndex}:explanation`}><MarkdownRenderer content={step.explanation} density={density} /></ArticleMarkdownScope>
               </div>
 
               {step.reason ? (
                 <div className="text-body-sm leading-relaxed text-muted-foreground">
-                  <MarkdownRenderer content={step.reason} density={density} />
+                  <ArticleMarkdownScope id={`step:${step.stepIndex}:reason`}><MarkdownRenderer content={step.reason} density={density} /></ArticleMarkdownScope>
                 </div>
               ) : null}
             </div>
@@ -107,7 +108,7 @@ export function ProductWorkedExample({
             <span className="mb-0.5 block text-body-xs font-semibold text-status-success">
               Kesimpulan dan Verifikasi
             </span>
-            <MarkdownRenderer content={workedExample.verification} density={density} />
+            <ArticleMarkdownScope id="verification"><MarkdownRenderer content={workedExample.verification} density={density} /></ArticleMarkdownScope>
           </div>
         </div>
       ) : null}
@@ -317,7 +318,7 @@ export function ProductFormativeCheck({
       {/* Question prompt */}
       {contentNode || content ? (
         <div className="text-body-base leading-relaxed text-foreground">
-          {contentNode ?? <MarkdownRenderer content={content} />}
+          {contentNode ?? <ArticleMarkdownScope id="content"><MarkdownRenderer content={content} /></ArticleMarkdownScope>}
         </div>
       ) : null}
 
@@ -467,7 +468,7 @@ export function ProductFormativeCheck({
           </div>
           <div className="border-t border-border/60 pt-2.5">
             <span className="mb-1 block text-body-2xs font-bold uppercase tracking-wider text-muted-foreground">Penjelasan dan pembahasan</span>
-            <div className="text-body-sm leading-relaxed text-foreground"><MarkdownRenderer content={reveal.explanation} /></div>
+            <div className="text-body-sm leading-relaxed text-foreground"><ArticleMarkdownScope id="reveal"><MarkdownRenderer content={reveal.explanation} /></ArticleMarkdownScope></div>
           </div>
         </div>
       ) : null}

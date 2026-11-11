@@ -341,7 +341,7 @@ async function MaterialDetailContent({
       );
     }
 
-    return <StructuredArticleReader article={canonicalArticle} course={course} />;
+    return <StructuredArticleReader article={canonicalArticle} course={course} pythonBrowserOnly={isFreeChapter} />;
   }
 
   // 2. Untouched legacy fallback

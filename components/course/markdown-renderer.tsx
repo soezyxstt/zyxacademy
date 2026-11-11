@@ -23,6 +23,8 @@ import { splitScientificText } from "@/lib/math/text-segments";
 import { scientificValueToMathText } from "@/lib/math/scientific-format";
 import { MathText } from "@/components/course/math-text";
 import { ArticleParts } from "@/components/course/article-parts";
+import { ArticleCodeExample, ArticleMarkdownScope, useArticleMarkdownScope } from "@/components/coding/article-coding";
+import { markdownPythonId } from "@/lib/coding/article-markdown-scope";
 import { extractEmbeddedArticleParts } from "@/lib/tutor/answer-sanitizer";
 import { EMBEDDED_VISUAL_LANGUAGE, parseEmbeddedVisual } from "@/lib/materials/embedded-visuals";
 import { ProductLearningVisual } from "@/components/course/product-learning-visual";
@@ -887,6 +889,7 @@ function parseMermaidToDiagramData(content: string) {
 /** Renders a parsed Markdown block, including standalone formulas and formula lists. */
 function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: MarkdownDensity }) {
   const isCompact = density === "compact";
+  const pythonScope = useArticleMarkdownScope();
 
   switch (block.type) {
     case "p":
@@ -1176,6 +1179,9 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
     }
 
     case "code":
+      if (pythonScope && ["python", "py"].includes(block.language?.toLowerCase() ?? "")) {
+        return <ArticleCodeExample draftNamespace="markdown-example" part={{ id: markdownPythonId(pythonScope, block.id), kind: "code_example", language: "python", code: block.content, runnable: true }} />;
+      }
       if (block.language === EMBEDDED_VISUAL_LANGUAGE) {
         return <EmbeddedLearningVisual source={block.content} />;
       }
@@ -1217,7 +1223,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
           isCompact ? "p-3.5 rounded-lg my-3" : "p-5 rounded-xl my-6"
         )}>
           <h3 className={cn("text-body-base font-heading font-bold text-foreground", isCompact ? "mb-2" : "mb-3")}>{renderRichText(block.content.title)}</h3>
-          <MarkdownRenderer content={block.content.bodyMarkdown} density={density} />
+          <ArticleMarkdownScope id="body"><MarkdownRenderer content={block.content.bodyMarkdown} density={density} /></ArticleMarkdownScope>
         </div>
       );
 
@@ -1239,7 +1245,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
           />
           {block.content.interpretation && (
             <div className={cn("text-body-xs text-muted-foreground leading-relaxed", isCompact ? "mt-1.5" : "mt-2")}>
-              <MarkdownRenderer content={block.content.interpretation} density={density} />
+              <ArticleMarkdownScope id="interpretation"><MarkdownRenderer content={block.content.interpretation} density={density} /></ArticleMarkdownScope>
             </div>
           )}
           {block.content.symbols && block.content.symbols.length > 0 && (
@@ -1293,7 +1299,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
             <span>Wawasan Teknik ({block.metadata.discipline})</span>
           </div>
           <h4 className={cn("text-body-base font-bold text-foreground", isCompact ? "mb-1.5" : "mb-2")}>{renderRichText(block.content.title)}</h4>
-          <MarkdownRenderer content={block.content.applicationMarkdown} density={density} />
+          <ArticleMarkdownScope id="application"><MarkdownRenderer content={block.content.applicationMarkdown} density={density} /></ArticleMarkdownScope>
         </div>
       );
 
@@ -1305,7 +1311,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
         )}>
           <div className={cn("text-body-xs font-bold font-heading uppercase tracking-wider text-brand-primary", isCompact ? "mb-1.5" : "mb-2")}>Contoh Soal ({block.metadata.difficulty})</div>
           <div className={cn("text-body-base text-foreground", isCompact ? "mb-2.5" : "mb-4")}>
-            <MarkdownRenderer content={block.content.problemStatement} density={density} />
+            <ArticleMarkdownScope id="problem"><MarkdownRenderer content={block.content.problemStatement} density={density} /></ArticleMarkdownScope>
           </div>
           <div className={cn(
             "border-t border-border/45",
@@ -1318,7 +1324,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
                 <div className="flex-1">
                   <div className="font-semibold text-body-sm mb-1">{renderRichText(step.label)}</div>
                   <div className="text-body-sm text-foreground/80">
-                    <MarkdownRenderer content={step.explanationMarkdown} density={density} />
+                    <ArticleMarkdownScope id={`step:${idx}`}><MarkdownRenderer content={step.explanationMarkdown} density={density} /></ArticleMarkdownScope>
                   </div>
                 </div>
               </div>
@@ -1347,7 +1353,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
             <div className={cn("bg-emerald-500/5 text-left", isCompact ? "p-3.5" : "p-5")}>
               <strong className="text-emerald-600 dark:text-emerald-400 font-heading text-body-xs uppercase tracking-wider block mb-2">Koreksi ilmiah:</strong>
               <div className="text-body-sm text-foreground/90 font-medium leading-relaxed">
-                <MarkdownRenderer content={block.content.correctionMarkdown} density={density} />
+                <ArticleMarkdownScope id="correction"><MarkdownRenderer content={block.content.correctionMarkdown} density={density} /></ArticleMarkdownScope>
               </div>
             </div>
           </div>
@@ -1355,7 +1361,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
             <div className={cn("bg-muted/10 text-left border-t border-border", isCompact ? "p-3.5" : "p-5")}>
               <strong className="text-muted-foreground font-heading text-body-xs uppercase tracking-wider block mb-2">Rasionalisasi Fisika:</strong>
               <div className="text-body-sm text-muted-foreground leading-relaxed">
-                <MarkdownRenderer content={block.content.physicalRationaleMarkdown} density={density} />
+                <ArticleMarkdownScope id="rationale"><MarkdownRenderer content={block.content.physicalRationaleMarkdown} density={density} /></ArticleMarkdownScope>
               </div>
             </div>
           )}
@@ -1370,7 +1376,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
         )}>
           <div className={cn("text-body-xs font-bold font-heading uppercase tracking-wider text-brand-secondary", isCompact ? "mb-1.5" : "mb-2")}>Latihan Mandiri</div>
           <div className={cn("text-body-base text-foreground leading-relaxed", isCompact ? "mb-2.5" : "mb-4")}>
-            <MarkdownRenderer content={block.content.questionMarkdown} density={density} />
+            <ArticleMarkdownScope id="question"><MarkdownRenderer content={block.content.questionMarkdown} density={density} /></ArticleMarkdownScope>
           </div>
         </div>
       );
@@ -1385,7 +1391,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
           <ul className={cn("list-disc pl-5 text-body-sm text-foreground/80 leading-relaxed", isCompact ? "space-y-1.5" : "space-y-2")}>
             {block.content.bullets.map((bullet, idx) => (
               <li key={idx} className="pl-1">
-                <MarkdownRenderer content={bullet} density={density} />
+                <ArticleMarkdownScope id={`bullet:${idx}`}><MarkdownRenderer content={bullet} density={density} /></ArticleMarkdownScope>
               </li>
             ))}
           </ul>
@@ -1507,7 +1513,7 @@ export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
               </div>
             );
           }
-          return <ASTBlockRenderer key={item.block.id || idx} block={item.block} density={activeDensity} />;
+          return <ArticleMarkdownScope key={item.block.id || idx} id={item.block.id || String(idx)}><ASTBlockRenderer block={item.block} density={activeDensity} /></ArticleMarkdownScope>;
         })}
       </div>
     </MarkdownDensityContext.Provider>

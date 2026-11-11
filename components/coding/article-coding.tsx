@@ -5,19 +5,30 @@ import { Button } from "@/components/ui/button";
 import type { CodingProblemPublic } from "@/lib/coding/contracts";
 import type { ArticlePart } from "@/lib/materials/article-parts";
 import { codingProblemPublicSchema } from "@/lib/coding/contracts";
+import { appendArticleMarkdownScope } from "@/lib/coding/article-markdown-scope";
 
-type ArticleCodingContext = { courseId: string; articleId: string; articleVersion: number; enabled: boolean };
+type ArticleCodingContext = { courseId: string; articleId: string; articleVersion: number; enabled: boolean; browserOnly?: boolean };
 const Context = createContext<ArticleCodingContext | null>(null);
+const MarkdownScope = createContext<string | null>(null);
+export function ArticleMarkdownScope({ id, children }: { id: string; children: ReactNode }) {
+  const parent = useContext(MarkdownScope);
+  return <MarkdownScope.Provider value={appendArticleMarkdownScope(parent, id)}>{children}</MarkdownScope.Provider>;
+}
+export function useArticleMarkdownScope() {
+  const context = useContext(Context);
+  const scope = useContext(MarkdownScope);
+  return context?.enabled ? scope : null;
+}
 export function ArticleCodingProvider({ value, children }: { value: ArticleCodingContext; children: ReactNode }) {
-  const { courseId, articleId, articleVersion, enabled } = value;
-  const stable = useMemo(() => ({ courseId, articleId, articleVersion, enabled }), [courseId, articleId, articleVersion, enabled]);
+  const { courseId, articleId, articleVersion, enabled, browserOnly = false } = value;
+  const stable = useMemo(() => ({ courseId, articleId, articleVersion, enabled, browserOnly }), [courseId, articleId, articleVersion, enabled, browserOnly]);
   return <Context.Provider value={stable}>{children}</Context.Provider>;
 }
 
-export function ArticleCodeExample({ part }: { part: Extract<ArticlePart, { kind: "code_example" }> }) {
+export function ArticleCodeExample({ part, draftNamespace = "example" }: { part: Extract<ArticlePart, { kind: "code_example" }>; draftNamespace?: "example" | "markdown-example" }) {
   const context = useContext(Context);
   if (!part.runnable || !context?.enabled) return <pre className="overflow-x-auto rounded-lg border border-border bg-muted p-3 font-mono text-body-sm"><code>{part.code}</code></pre>;
-  return <CodingWorkspace key={`${context.articleId}:${context.articleVersion}:${part.id}`} courseId={context.courseId} draftKey={`example:${context.articleId}:${context.articleVersion}:${part.id}`} initialCode={part.code} allowHelp={false} playgroundLink interactive />;
+  return <CodingWorkspace key={`${draftNamespace}:${context.articleId}:${context.articleVersion}:${part.id}`} courseId={context.courseId} draftKey={`${draftNamespace}:${context.articleId}:${context.articleVersion}:${part.id}`} initialCode={part.code} allowHelp={false} browserOnly={context.browserOnly} playgroundLink interactive />;
 }
 export function ArticleCodingExercise({ part }: { part: Extract<ArticlePart, { kind: "coding_exercise" }> }) {
   const context = useContext(Context);
