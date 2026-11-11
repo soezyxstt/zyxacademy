@@ -26,13 +26,15 @@ let queries = 0;
 function select() {
   queries++;
   const result = Object.assign(Promise.resolve([]), {
-    from: () => result, where: () => result, limit: () => result, orderBy: () => result,
+    from: () => result, innerJoin: () => result, where: () => result, limit: () => result, orderBy: () => result,
   });
   return result;
 }
 mock.module("@/db", () => ({ db: { select } }));
 
 const { getAuthSession, getAuthUser, requireAuthUser } = await import("@/lib/auth-session");
+const { getPeranCodes } = await import("@/lib/auth/authorization");
+const { resolveTutorCourseAccess, listTutorAccessibleCourses } = await import("@/lib/auth/tutor-access");
 const { getCourse, resolveStudentCourse, getCachedCourseAccess } = await import("@/lib/course-utils");
 
 beforeEach(() => { store = new Map(); queries = 0; sessionCalls = 0; actor = "alice"; });
@@ -72,4 +74,39 @@ test("access cache keys include user, course, role, and explicit time", async ()
   store = new Map();
   await getCachedCourseAccess(input);
   expect(queries).toBeGreaterThan(before);
+});
+
+test("role and tutor reads deduplicate per render and isolate access keys and executors", async () => {
+  await Promise.all([getPeranCodes("alice"), getPeranCodes("alice")]);
+  expect(queries).toBe(1);
+  await getPeranCodes("bob");
+  expect(queries).toBe(2);
+
+  const input = { penggunaId: "alice", courseId: "course", allowAdmin: false };
+  await Promise.all([resolveTutorCourseAccess(input), resolveTutorCourseAccess({ ...input })]);
+  expect(queries).toBe(3);
+  await resolveTutorCourseAccess({ ...input, allowAdmin: true });
+  await resolveTutorCourseAccess({ ...input, courseId: "other" });
+  await resolveTutorCourseAccess({ ...input, penggunaId: "bob" });
+  expect(queries).toBe(6);
+  await Promise.all([listTutorAccessibleCourses("alice"), listTutorAccessibleCourses("alice")]);
+  expect(queries).toBe(7);
+  await listTutorAccessibleCourses("alice", { allowAdmin: true });
+  expect(queries).toBe(8);
+
+  let customQueries = 0;
+  const executor = { select: () => {
+    customQueries++;
+    const result = Object.assign(Promise.resolve([]), { from: () => result, where: () => result, limit: () => result });
+    return result;
+  } };
+  await resolveTutorCourseAccess(input, executor);
+  await resolveTutorCourseAccess(input, executor);
+  await listTutorAccessibleCourses("alice", undefined, executor);
+  expect(customQueries).toBe(3);
+  store = new Map();
+  await getPeranCodes("alice");
+  await resolveTutorCourseAccess(input);
+  await listTutorAccessibleCourses("alice");
+  expect(queries).toBe(11);
 });

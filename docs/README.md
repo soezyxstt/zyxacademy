@@ -1,5 +1,7 @@
 # Zyx Academy Documentation Index
 
+The `ACTIVE` [deployment guide](DEPLOYMENT.md) records the local Singapore web-function region correction, the production region observed on 2026-11-11, and the pending deployment and authenticated latency verification.
+
 The `ACTIVE` [feature catalog](features.md#embedded-learning-visuals) documents always-on typed `zyx-visual` Markdown embeds across compatible learning readers, question prompts, options, explanations and previews, including the payload limit and fence-preserving question import behavior.
 
 `ACTIVE`: The [deployment guide](DEPLOYMENT.md) documents the `local_playwright` V4 provider and exact-draft operator command. The [V4 contract](bundle/product-bundle-v4.md) records the shared Admin quality and verification context so UI Publish readiness agrees with the backend gate. Signed evidence, PDF lineage and explicit publication review remain required.

@@ -285,11 +285,9 @@ export async function loadOnboardingData(
       isCourseMatchingMajor(c.category, profile.major, profile.entryYear),
   );
 
-  const summaries = await d.getCatalogCourseSummaries(activeCourses);
-  const summaryById = new Map(summaries.map((summary) => [summary.id, summary]));
-
-  const catalogCourses = await Promise.all(
-    activeCourses.map(async (course) => {
+  const [summaries, courseDetails] = await Promise.all([
+    d.getCatalogCourseSummaries(activeCourses),
+    Promise.all(activeCourses.map(async (course) => {
       const [chapterOutline, freeMaterials, freeQuizzes] = await Promise.all([
         d.getCourseChapterOutline(course.id, userId),
         d.getCourseMaterials(course.id, userId),
@@ -305,18 +303,7 @@ export async function loadOnboardingData(
       const firstIncompleteChapter = chapterOutline.find(
         (chapter) => chapter.hasMaterial && !chapter.completed,
       );
-      const summary = summaryById.get(course.id);
-
       return {
-        ...(summary ?? {
-          id: course.id,
-          title: course.title,
-          category: course.category,
-          description: course.description,
-          materialsCount: 0,
-          quizzesCount: 0,
-          tryoutsCount: 0,
-        }),
         freeChapters: chapterOutline.map((chapter) => ({
           id: chapter.id,
           title: chapter.title,
@@ -329,8 +316,21 @@ export async function loadOnboardingData(
         freeQuizCount: freeQuizzes.length,
         firstIncompleteMaterialId: firstIncompleteChapter?.materialId ?? null,
       };
+    })),
+  ]);
+  const summaryById = new Map(summaries.map((summary) => [summary.id, summary]));
+  const catalogCourses = activeCourses.map((course, index) => ({
+    ...(summaryById.get(course.id) ?? {
+      id: course.id,
+      title: course.title,
+      category: course.category,
+      description: course.description,
+      materialsCount: 0,
+      quizzesCount: 0,
+      tryoutsCount: 0,
     }),
-  );
+    ...courseDetails[index],
+  }));
 
   return { catalogCourses, studentTargetCategory: profile.targetCategory };
 }

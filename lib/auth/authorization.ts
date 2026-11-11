@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { pengguna, penggunaPeran, peran } from "@/db/schema";
@@ -34,7 +35,7 @@ export function hasAnyPeranFromCodes(
   || (options.allowAdmin === true && normalized.includes("admin"));
 }
 
-export async function getPeranCodes(penggunaId: string): Promise<PeranCode[]> {
+export const getPeranCodes = cache(async (penggunaId: string): Promise<PeranCode[]> => {
  const rows = await db
   .select({ code: peran.code })
   .from(penggunaPeran)
@@ -47,7 +48,7 @@ export async function getPeranCodes(penggunaId: string): Promise<PeranCode[]> {
   ));
 
  return normalizePeranCodes(rows.map((row) => row.code));
-}
+});
 
 export async function hasPeran(
  penggunaId: string,

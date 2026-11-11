@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { createPostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
+import { getTutorDashboardReadModel } from "@/lib/schedule/tutor-dashboard-read-model";
 import { getTutorScheduleReadModel } from "@/lib/schedule/tutor-read-model";
 
 const clients: Array<Awaited<ReturnType<typeof createPostgresTestDb>>["client"]> = [];
@@ -102,6 +103,18 @@ describe("Tutor Schedule Read-Model Contracts", () => {
 
     const result = await getTutorScheduleReadModel("tutor-1", testDb);
 
+    const dashboard = await getTutorDashboardReadModel("tutor-1", "2025-01-01", { startIso: "2025-01-01", endIso: "2025-12-31" }, testDb);
+    expect(dashboard.assignedActiveCourses).toEqual(result.assignedActiveCourses);
+    expect(dashboard.eligibleGroups.map((group) => group.id).sort()).toEqual(result.eligibleGroups.map((group) => group.id).sort());
+    for (const group of dashboard.eligibleGroups) {
+      expect(group.matchedCourseIds.sort()).toEqual(result.eligibleGroups.find((item) => item.id === group.id)!.matchedCourseIds.sort());
+    }
+    expect(dashboard.sessionsThisWeek).toBe(result.ownedBookings.filter((booking) => booking.sessionDate && booking.sessionDate >= "2025-01-01" && booking.sessionDate <= "2025-12-31" && booking.status !== "cancelled").length);
+    expect(dashboard.pendingTicketCount).toBe(result.ownedTickets.filter((ticket) => ticket.status === "pending").length);
+    expect(dashboard.pendingTickets.map((ticket) => ticket.id)).toEqual(result.ownedTickets.filter((ticket) => ticket.status === "pending").slice(0, 5).map((ticket) => ticket.id));
+    expect(dashboard.upcomingSessions.map((booking) => booking.id)).toEqual(result.ownedBookings.filter((booking) => booking.sessionDate && booking.sessionDate >= "2025-01-01" && !["cancelled", "completed"].includes(booking.status)).sort((a, b) => `${a.sessionDate}-${a.startTime || "00:00"}`.localeCompare(`${b.sessionDate}-${b.startTime || "00:00"}`)).slice(0, 5).map((booking) => booking.id));
+
+
     expect(result.tutor.id).toBe("tutor-1");
     expect(result.tutor.name).toBe("Tutor Satu");
     expect(result.assignedActiveCourses).toHaveLength(1);
@@ -153,6 +166,18 @@ describe("Tutor Schedule Read-Model Contracts", () => {
     });
 
     const result = await getTutorScheduleReadModel("tutor-legacy", testDb);
+
+    const dashboard = await getTutorDashboardReadModel("tutor-legacy", "2025-01-01", { startIso: "2025-01-01", endIso: "2025-12-31" }, testDb);
+    expect(dashboard.assignedActiveCourses).toEqual(result.assignedActiveCourses);
+    expect(dashboard.eligibleGroups.map((group) => group.id).sort()).toEqual(result.eligibleGroups.map((group) => group.id).sort());
+    for (const group of dashboard.eligibleGroups) {
+      expect(group.matchedCourseIds.sort()).toEqual(result.eligibleGroups.find((item) => item.id === group.id)!.matchedCourseIds.sort());
+    }
+    expect(dashboard.sessionsThisWeek).toBe(result.ownedBookings.filter((booking) => booking.sessionDate && booking.sessionDate >= "2025-01-01" && booking.sessionDate <= "2025-12-31" && booking.status !== "cancelled").length);
+    expect(dashboard.pendingTicketCount).toBe(result.ownedTickets.filter((ticket) => ticket.status === "pending").length);
+    expect(dashboard.pendingTickets.map((ticket) => ticket.id)).toEqual(result.ownedTickets.filter((ticket) => ticket.status === "pending").slice(0, 5).map((ticket) => ticket.id));
+    expect(dashboard.upcomingSessions.map((booking) => booking.id)).toEqual(result.ownedBookings.filter((booking) => booking.sessionDate && booking.sessionDate >= "2025-01-01" && !["cancelled", "completed"].includes(booking.status)).sort((a, b) => `${a.sessionDate}-${a.startTime || "00:00"}`.localeCompare(`${b.sessionDate}-${b.startTime || "00:00"}`)).slice(0, 5).map((booking) => booking.id));
+
 
     expect(result.assignedActiveCourses).toHaveLength(1);
     expect(result.assignedActiveCourses[0].courseId).toBe("crs-chem");
@@ -221,6 +246,18 @@ describe("Tutor Schedule Read-Model Contracts", () => {
     });
 
     const result = await getTutorScheduleReadModel("tutor-inactive-canon", testDb);
+
+    const dashboard = await getTutorDashboardReadModel("tutor-inactive-canon", "2025-01-01", { startIso: "2025-01-01", endIso: "2025-12-31" }, testDb);
+    expect(dashboard.assignedActiveCourses).toEqual(result.assignedActiveCourses);
+    expect(dashboard.eligibleGroups.map((group) => group.id).sort()).toEqual(result.eligibleGroups.map((group) => group.id).sort());
+    for (const group of dashboard.eligibleGroups) {
+      expect(group.matchedCourseIds.sort()).toEqual(result.eligibleGroups.find((item) => item.id === group.id)!.matchedCourseIds.sort());
+    }
+    expect(dashboard.sessionsThisWeek).toBe(result.ownedBookings.filter((booking) => booking.sessionDate && booking.sessionDate >= "2025-01-01" && booking.sessionDate <= "2025-12-31" && booking.status !== "cancelled").length);
+    expect(dashboard.pendingTicketCount).toBe(result.ownedTickets.filter((ticket) => ticket.status === "pending").length);
+    expect(dashboard.pendingTickets.map((ticket) => ticket.id)).toEqual(result.ownedTickets.filter((ticket) => ticket.status === "pending").slice(0, 5).map((ticket) => ticket.id));
+    expect(dashboard.upcomingSessions.map((booking) => booking.id)).toEqual(result.ownedBookings.filter((booking) => booking.sessionDate && booking.sessionDate >= "2025-01-01" && !["cancelled", "completed"].includes(booking.status)).sort((a, b) => `${a.sessionDate}-${a.startTime || "00:00"}`.localeCompare(`${b.sessionDate}-${b.startTime || "00:00"}`)).slice(0, 5).map((booking) => booking.id));
+
 
     // Canonical row exists, so fallback is blocked. Suspended canonical row means 0 assigned active courses.
     expect(result.assignedActiveCourses).toHaveLength(0);
@@ -351,6 +388,18 @@ describe("Tutor Schedule Read-Model Contracts", () => {
     ]);
 
     const result = await getTutorScheduleReadModel("tutor-group-test", testDb);
+
+    const dashboard = await getTutorDashboardReadModel("tutor-group-test", "2025-01-01", { startIso: "2025-01-01", endIso: "2025-12-31" }, testDb);
+    expect(dashboard.assignedActiveCourses).toEqual(result.assignedActiveCourses);
+    expect(dashboard.eligibleGroups.map((group) => group.id).sort()).toEqual(result.eligibleGroups.map((group) => group.id).sort());
+    for (const group of dashboard.eligibleGroups) {
+      expect(group.matchedCourseIds.sort()).toEqual(result.eligibleGroups.find((item) => item.id === group.id)!.matchedCourseIds.sort());
+    }
+    expect(dashboard.sessionsThisWeek).toBe(result.ownedBookings.filter((booking) => booking.sessionDate && booking.sessionDate >= "2025-01-01" && booking.sessionDate <= "2025-12-31" && booking.status !== "cancelled").length);
+    expect(dashboard.pendingTicketCount).toBe(result.ownedTickets.filter((ticket) => ticket.status === "pending").length);
+    expect(dashboard.pendingTickets.map((ticket) => ticket.id)).toEqual(result.ownedTickets.filter((ticket) => ticket.status === "pending").slice(0, 5).map((ticket) => ticket.id));
+    expect(dashboard.upcomingSessions.map((booking) => booking.id)).toEqual(result.ownedBookings.filter((booking) => booking.sessionDate && booking.sessionDate >= "2025-01-01" && !["cancelled", "completed"].includes(booking.status)).sort((a, b) => `${a.sessionDate}-${a.startTime || "00:00"}`.localeCompare(`${b.sessionDate}-${b.startTime || "00:00"}`)).slice(0, 5).map((booking) => booking.id));
+
 
     expect(result.eligibleGroups).toHaveLength(1);
     expect(result.eligibleGroups[0].id).toBe("grp-eligible");
@@ -623,6 +672,18 @@ describe("Tutor Schedule Read-Model Contracts", () => {
     ]);
 
     const result = await getTutorScheduleReadModel("tutor-main", testDb);
+
+    const dashboard = await getTutorDashboardReadModel("tutor-main", "2025-01-01", { startIso: "2025-01-01", endIso: "2025-12-31" }, testDb);
+    expect(dashboard.assignedActiveCourses).toEqual(result.assignedActiveCourses);
+    expect(dashboard.eligibleGroups.map((group) => group.id).sort()).toEqual(result.eligibleGroups.map((group) => group.id).sort());
+    for (const group of dashboard.eligibleGroups) {
+      expect(group.matchedCourseIds.sort()).toEqual(result.eligibleGroups.find((item) => item.id === group.id)!.matchedCourseIds.sort());
+    }
+    expect(dashboard.sessionsThisWeek).toBe(result.ownedBookings.filter((booking) => booking.sessionDate && booking.sessionDate >= "2025-01-01" && booking.sessionDate <= "2025-12-31" && booking.status !== "cancelled").length);
+    expect(dashboard.pendingTicketCount).toBe(result.ownedTickets.filter((ticket) => ticket.status === "pending").length);
+    expect(dashboard.pendingTickets.map((ticket) => ticket.id)).toEqual(result.ownedTickets.filter((ticket) => ticket.status === "pending").slice(0, 5).map((ticket) => ticket.id));
+    expect(dashboard.upcomingSessions.map((booking) => booking.id)).toEqual(result.ownedBookings.filter((booking) => booking.sessionDate && booking.sessionDate >= "2025-01-01" && !["cancelled", "completed"].includes(booking.status)).sort((a, b) => `${a.sessionDate}-${a.startTime || "00:00"}`.localeCompare(`${b.sessionDate}-${b.startTime || "00:00"}`)).slice(0, 5).map((booking) => booking.id));
+
 
     // Verify ownedSlots
     expect(result.ownedSlots).toHaveLength(2);

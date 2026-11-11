@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { StudentAccountBoundary } from "@/components/student-account-boundary";
+import { studentTodayQuery, type TodayData } from "@/lib/student/today-query";
 import Link from "next/link";
 import { Layers, ListChecks, BookOpen, Check, ArrowRight, CalendarCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,19 +12,8 @@ import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
 
-interface PlanItem {
-  id: string;
-  kind: "flashcards" | "quiz" | "module";
-  title: string;
-  count?: number;
-  href: string;
-  done: boolean;
-}
-
-export interface TodayData {
-  streak: { current: number; longest: number };
-  items: PlanItem[];
-}
+export type { TodayData } from "@/lib/student/today-query";
+type PlanItem = TodayData["items"][number];
 
 const KIND_ICON: Record<PlanItem["kind"], React.ComponentType<{ className?: string }>> = {
   flashcards: Layers,
@@ -30,32 +21,22 @@ const KIND_ICON: Record<PlanItem["kind"], React.ComponentType<{ className?: stri
   module: BookOpen,
 };
 
-export function TodayPlan({ firstName, adapter }: { firstName: string; adapter?: { data: TodayData; complete: (itemId: string) => void } }) {
-  const t = useTranslations("student");
-  const [remoteData, setData] = useState<TodayData | null>(null);
-  const [remoteLoading, setLoading] = useState(true);
-  const data = adapter?.data ?? remoteData;
-  const loading = adapter ? false : remoteLoading;
+type TodayAdapter = { data: TodayData; complete: (itemId: string) => void };
 
-  useEffect(() => {
-    if (adapter) return;
-    fetch("/api/student/today")
-      .then((r) => (r.ok ? r.json() : null))
-      .then(setData)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [adapter]);
+export function TodayPlan({ firstName, adapter }: { firstName: string; adapter?: TodayAdapter }) {
+  if (adapter) return <TodayPlanView firstName={firstName} data={adapter.data} loading={false} complete={adapter.complete} />;
+  return <StudentAccountBoundary>{({ data, isPending }) => data?.user.id
+    ? <LiveTodayPlan firstName={firstName} userId={data.user.id} />
+    : <TodayPlanView firstName={firstName} data={null} loading={isPending} complete={() => {}} />}</StudentAccountBoundary>;
+}
 
-  if (!loading && !data) return null;
-
-  const doneCount = data?.items.filter((i) => i.done).length ?? 0;
-  const total = data?.items.length ?? 0;
-  const allDone = total > 0 && doneCount === total;
-
-  const markDone = async (itemId: string) => {
-    if (adapter) { adapter.complete(itemId); return; }
-    setData((d) =>
-      d ? { ...d, items: d.items.map((i) => (i.id === itemId ? { ...i, done: true } : i)) } : d
+function LiveTodayPlan({ firstName, userId }: { firstName: string; userId: string }) {
+  const options = studentTodayQuery(userId);
+  const query = useQuery(options);
+  const queryClient = useQueryClient();
+  const complete = async (itemId: string) => {
+    queryClient.setQueryData<TodayData>(options.queryKey, (data) =>
+      data ? { ...data, items: data.items.map((item) => item.id === itemId ? { ...item, done: true } : item) } : data
     );
     await fetch("/api/student/today/complete", {
       method: "POST",
@@ -63,6 +44,17 @@ export function TodayPlan({ firstName, adapter }: { firstName: string; adapter?:
       headers: { "Content-Type": "application/json" },
     });
   };
+  return <TodayPlanView firstName={firstName} data={query.data ?? null} loading={query.isLoading} complete={complete} />;
+}
+
+function TodayPlanView({ firstName, data, loading, complete }: { firstName: string; data: TodayData | null; loading: boolean; complete: (itemId: string) => void }) {
+  const t = useTranslations("student");
+  if (!loading && !data) return null;
+
+  const doneCount = data?.items.filter((i) => i.done).length ?? 0;
+  const total = data?.items.length ?? 0;
+  const allDone = total > 0 && doneCount === total;
+
 
   return (
     <div className="mb-4 sm:mb-6">
@@ -122,7 +114,7 @@ export function TodayPlan({ firstName, adapter }: { firstName: string; adapter?:
                     <button
                       type="button"
                       aria-label={item.done ? t("dashboard.done") : t("dashboard.markDone")}
-                      onClick={() => !item.done && markDone(item.id)}
+                      onClick={() => !item.done && complete(item.id)}
                       className={cn(
                         "flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         item.done
