@@ -7,12 +7,12 @@ import { deriveProductV4VerificationPlan, assertProductV4VerificationCurrent, ty
 import { productBundleManifestSchema, productEntitySchema, productDependencySchema, deterministicProductSerialization, type ProductEntity } from "@/lib/bundle/product-validator";
 import { verificationPreviewSchema } from "@/lib/materials/verification-preview";
 import type { ArticlePart } from "@/lib/materials/article-parts";
+import type { VisualSpec } from "@/lib/materials/visual-contract";
 import { compileProductDiktatHtml, PRODUCT_DIKTAT_FOOTER_TEMPLATE } from "@/lib/bundle/product-diktat-pdf";
 import { inspectDiktatPrintReadiness } from "@/lib/materials/diktat-print-readiness";
 import type { DiktatSourceFigureAssets } from "@/lib/materials/diktat-static-visual";
 import { z } from "zod";
 import { acquireConfiguredVerificationBrowser, type VerificationBrowserSession } from "./product-v4-browser-session";
-import { productV4TargetRuntime } from "./product-v4-web-compatibility";
 import { assertProductV4RuntimeFingerprint, expectedChromiumRuntime, resolveProductV4LoadedRuntime, type ProductV4RuntimeFingerprint } from "./product-v4-runtime-binding";
 
 declare const __ZYX_VERIFICATION_BUILD_RUNTIME__: { fingerprint: ProductV4RuntimeFingerprint; chromium: { browserVersion: string; revision: string } } | undefined;
@@ -49,8 +49,18 @@ export async function authenticateVerificationBrowser(context: BrowserContext, a
   } catch { await context.close().catch(() => {}); throw new Error("VERIFICATION_BROWSER_ACCESS_FAILED"); }
 }
 
+export function isGithubActionsVerification(env = process.env): boolean {
+  if (env.AUTHORING_VERIFICATION_BROWSER_PROVIDER !== "github_actions") return false;
+  if (env.GITHUB_ACTIONS !== "true" || env.GITHUB_REPOSITORY !== "soezyxstt/zyxacademy") throw new Error("VERIFICATION_CI_CONTEXT_INVALID");
+  return true;
+}
+export function resolveVerificationBaseUrl(value: string, env = process.env, isDeployed = deployed): string {
+  const ci = isGithubActionsVerification(env);
+  if (ci && isDeployed) throw new Error("VERIFICATION_CI_CONTEXT_INVALID");
+  return isDeployed || env.AUTHORING_VERIFICATION_BROWSER_PROVIDER ? validateDeployedVerificationBaseUrl(value) : validateVerificationBaseUrl(value);
+}
 async function launchVerificationBrowser() {
-  if (!deployed && !process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER) {
+  if (!deployed && (isGithubActionsVerification() || !process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER)) {
     const browser = await chromium.launch({ headless: true });
     return { browser, close: () => browser.close() };
   }
@@ -78,15 +88,17 @@ export async function fontsReady(page: Page) {
     }));
   });
 }
-export async function captureProductV4WebState(page: Page, checkId: string, offset = 0, limit = 300) {
+export async function captureProductV4WebState(page: Page, checkId: string, count: 1 | 3 = 3) {
   const height = await page.evaluate(() => Math.max(document.documentElement.scrollHeight, document.body.scrollHeight));
   const viewport = page.viewportSize();
-  if (!viewport || height <= 0 || Math.ceil(height / viewport.height) > 300) throw new Error("VERIFICATION_CAPTURE_HEIGHT_INVALID");
+  if (!viewport || !Number.isFinite(height) || height <= 0) throw new Error("VERIFICATION_CAPTURE_HEIGHT_INVALID");
+  const end = Math.max(0, height - viewport.height);
+  const positions = [...new Set(count === 1 ? [0] : [0, Math.floor(end / 2), end])];
   const artifacts: ProductV4ObservedCheck["artifacts"] = [];
   const session = await page.context().newCDPSession(page);
   try {
-    // Capture exact viewport slices, including long chapters with 200 percent text.
-    for (let y = offset * viewport.height; y < Math.min(height, (offset + limit) * viewport.height); y += viewport.height) {
+    // Full DOM is inspected separately; PNGs are bounded representative evidence.
+    for (const y of positions) {
       await page.evaluate(top => window.scrollTo(0, top), y);
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
@@ -170,6 +182,50 @@ export async function exerciseProductV4WebState(page: Page, state: string): Prom
   return true;
 }
 
+export function inspectProductV4WebDocument() {
+  const issues: string[] = [];
+  if (document.querySelector(".katex-error")) issues.push("MATH_RENDER_ERROR");
+  if (document.documentElement.scrollWidth > document.documentElement.clientWidth) issues.push("PAGE_OVERFLOW");
+  const width = document.documentElement.clientWidth;
+  const elements = [...document.querySelectorAll("main [data-article-parts], main [data-part-id], main .markdown-article, main p, main dl, main dd")];
+  if (elements.some(element => {
+    const box = element.getBoundingClientRect();
+    return box.width > 0 && (box.left < -1 || box.right > width + 1);
+  })) issues.push("CONTENT_CLIPPED_BY_VIEWPORT");
+  if ([...document.images].some(image => !image.complete || image.naturalWidth === 0)) issues.push("IMAGE_NOT_READY");
+  return { issues, inspectedElements: elements.length, partCount: document.querySelectorAll("main [data-part-id]").length, mathCount: document.querySelectorAll("main .katex").length, imageCount: document.images.length };
+}
+
+export interface VisualSmokeObservation { state: string; exercised: true; document: ReturnType<typeof inspectProductV4WebDocument> }
+export async function exerciseProductV4VisualSmoke(page: Page, visual: VisualSpec, ports = {
+  exercise: exerciseProductV4WebState,
+  inspect: async (page: Page) => {
+    await fontsReady(page);
+    const math = await page.evaluate(inspectProductV4DisplayMath, "visual-smoke");
+    const document = await page.evaluate(inspectProductV4WebDocument);
+    if (math.length || document.issues.length) throw new Error([...math, ...document.issues].join(","));
+    return document;
+  },
+  restore: async (page: Page) => {
+    const reset = page.getByRole("button", { name: /^Reset$|^Reset parameter$|^Reset visual$/ }).first();
+    if (await reset.count()) await reset.click();
+    else {
+      const plot = page.locator("main svg[tabindex='0']").first();
+      if (!await plot.count()) throw new Error("VERIFICATION_RESET_UNSUPPORTED");
+      await plot.focus(); await plot.press("0");
+    }
+  },
+}) {
+  const states = ["default", ...(visual.interactive ? ["changed", "reset", "keyboard"] : []), ...(visual.kind === "epsilon_delta_graph" ? ["epsilon-minimum", "epsilon-maximum", "resolution-limited"] : []), "fallback"];
+  const observations: VisualSmokeObservation[] = [];
+  for (const state of states) {
+    if (!await ports.exercise(page, state)) throw new Error(`VERIFICATION_VISUAL_STATE_UNSUPPORTED:${state}`);
+    observations.push({ state, exercised: true, document: await ports.inspect(page) });
+    if (!["default", "fallback"].includes(state)) await ports.restore(page);
+  }
+  return observations;
+}
+
 export function inspectProductV4DisplayMath(state: string): string[] {
   for (const formula of document.querySelectorAll<HTMLElement>("main .katex-display, main .katex-display .katex-html")) {
     for (let element: HTMLElement | null = formula; element && element.tagName !== "MAIN"; element = element.parentElement) {
@@ -215,15 +271,12 @@ export async function executeBrowserProductV4Check(input: {
   signal?: AbortSignal;
 }): Promise<ProductV4ObservedCheck> {
   const bundle = bundleSchema.parse(input.bundle);
-  assertProductV4RuntimeFingerprint(input.plan.binding, productV4TargetRuntime(await loadedRuntime, {
-    importId: input.plan.binding.importId, bundleId: bundle.manifest.bundleId, courseId: bundle.manifest.courseId,
-    sourceFigureCount: bundle.products.flatMap(product => product.productType === "article" ? product.visuals ?? [] : []).filter(visual => visual.kind === "source_figure").length,
-  }));
+  assertProductV4RuntimeFingerprint(input.plan.binding, await loadedRuntime);
   const derived = deriveProductV4VerificationPlan({ bundle, binding: input.plan.binding });
   assertProductV4VerificationCurrent(input.plan, derived);
   const requirement = derived.requirements.find((check) => check.id === input.requirement.id);
   if (!requirement || deterministicProductSerialization(requirement) !== deterministicProductSerialization(input.requirement)) throw new Error("VERIFICATION_REQUIREMENT_INVALID");
-  const baseUrl = deployed || process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER ? validateDeployedVerificationBaseUrl(input.baseUrl) : validateVerificationBaseUrl(input.baseUrl);
+  const baseUrl = resolveVerificationBaseUrl(input.baseUrl);
   const result: ProductV4ObservedCheck = { checkId: requirement.id, status: "NOT_TESTED", expected: `${requirement.layer}:${requirement.state}`, observed: "The requested state has no supported browser executor.", artifacts: [] };
   if (!["web", "print"].includes(requirement.layer)) return result;
   if (deployed || process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER) {
@@ -278,7 +331,13 @@ export async function executeBrowserProductV4Check(input: {
       await page.locator("main").scrollIntoViewIfNeeded();
       await page.waitForFunction(() => ![...document.querySelectorAll("main p")].some((element) => element.textContent?.startsWith("Memuat grafik")));
       await fontsReady(page);
-      if (!await exerciseProductV4WebState(page, requirement.state)) return result;
+      const observations: unknown[] = [];
+      if (requirement.state === "visual-smoke") {
+        if (!selected) throw new Error("VERIFICATION_VISUAL_MISSING");
+        // Capture the initial state before exercising later states.
+        result.artifacts = await captureProductV4WebState(page, requirement.id, 1);
+        observations.push(...await exerciseProductV4VisualSmoke(page, selected));
+      } else if (!await exerciseProductV4WebState(page, requirement.state)) return result;
       await fontsReady(page);
       if (!selected) {
         const anchors = (parts: readonly ArticlePart[]): string[] => parts.flatMap((part) => [part.id, ...(part.kind === "worked_example" ? part.steps.flatMap((step) => anchors(step.parts)) : [])]);
@@ -289,21 +348,12 @@ export async function executeBrowserProductV4Check(input: {
       const mathFailures = await page.evaluate(inspectProductV4DisplayMath, requirement.state);
       if (mathFailures.length) throw new Error(mathFailures.join(","));
       if (requirement.state === "keyboard-and-text-zoom") await exerciseProductV4MathScroll(page);
-      const failures = await page.evaluate(() => {
-        const issues: string[] = [];
-        if (document.querySelector(".katex-error")) issues.push("MATH_RENDER_ERROR");
-        if (document.documentElement.scrollWidth > document.documentElement.clientWidth) issues.push("PAGE_OVERFLOW");
-        const width = document.documentElement.clientWidth;
-        if ([...document.querySelectorAll("main [data-article-parts], main [data-part-id], main .markdown-article, main p, main dl, main dd")].some(element => {
-          const box = element.getBoundingClientRect();
-          return box.width > 0 && (box.left < -1 || box.right > width + 1);
-        })) issues.push("CONTENT_CLIPPED_BY_VIEWPORT");
-        if ([...document.images].some((image) => !image.complete || image.naturalWidth === 0)) issues.push("IMAGE_NOT_READY");
-        return issues;
-      });
-      if (failures.length || errors.length) throw new Error([...failures, ...errors].join(","));
-      result.artifacts = await captureProductV4WebState(page, requirement.id, input.captureOffset, input.captureLimit);
-      result.captureTotal = await page.evaluate(() => Math.ceil(Math.max(document.documentElement.scrollHeight, document.body.scrollHeight) / window.innerHeight));
+      const documentObservation = await page.evaluate(inspectProductV4WebDocument);
+      if (documentObservation.issues.length || errors.length) throw new Error([...documentObservation.issues, ...errors].join(","));
+      if (!selected) result.artifacts = await captureProductV4WebState(page, requirement.id);
+      if (errors.length) throw new Error(errors.join(","));
+      observations.push({ state: requirement.state, document: documentObservation, readingOrderChecked: !selected, runtimeErrors: errors.length });
+      result.artifacts.push({ id: `observations-${requirement.id}.json`, mediaType: "application/json", bytes: Buffer.from(JSON.stringify({ observations })) });
     } else {
       const diktat = bundle.products.find((product) => product.productType === "diktat" && product.id === requirement.target);
       const article = diktat?.productType === "diktat" ? bundle.products.find((product) => product.productType === "article" && product.id === diktat.sourceArticleId) : undefined;
