@@ -34,3 +34,5 @@ View loaders now select metadata, documents, article, Diktat, flashcards or quiz
 Before merge, CI must verify application types, worker import boundaries and affected tests. Local lint/typecheck/build/test/browser remain prohibited. Review and checks do not replace responsive screenshots or authenticated/nonproduction runtime acceptance.
 
 CI on `fbc361a6` passed the application type stage but failed selected test types and the worker import audit. Local follow-up corrects fixture literal/spy/mock typing and separates framework-neutral auth cores from server-only RSC cache wrappers. CI must be rerun on the updated head; no local heavy checks were run.
+
+Independent review of `fbc361a6` found obsolete context-path source assertions and a metadata placeholder being inserted as a nonexistent document. Local corrections follow the context resolver explicitly and add catalogue fallbacks only for products present in the validated collection. A regression test was added but not executed.

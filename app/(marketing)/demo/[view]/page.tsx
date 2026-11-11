@@ -113,7 +113,10 @@ async function DemoViewBody({ view, summary, selection, experiences, whatsappHre
   if (page.offset > 0 && !articles.length && !diktats.length && !flashcardSets.length) notFound();
   const { content, snapshot } = experience;
   const course = { id: content.course.id, title: content.course.title };
-  const completeCatalogue = (catalogue: NonNullable<Awaited<ReturnType<typeof getDemoCatalogue>>>) => addSelectedFallback(catalogue, content.selected, { article: content.article.title, diktat: content.diktat.title });
+  const completeCatalogue = (catalogue: NonNullable<Awaited<ReturnType<typeof getDemoCatalogue>>>) => addSelectedFallback(catalogue, {
+    articleId: articles.find(item => item.id === content.selected.articleId)?.id,
+    diktatId: diktats.find(item => item.id === content.selected.diktatId)?.id,
+  }, { article: content.article.title, diktat: content.diktat.title });
   // These list adapters consume only course, snapshot, and quiz count; their
   // shared experience type also contains reader bodies and question pages.
   const listExperience = {

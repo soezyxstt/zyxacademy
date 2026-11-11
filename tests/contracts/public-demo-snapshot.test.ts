@@ -105,7 +105,7 @@ describe("public demo sanitizer integration", () => {
     expect(load).toContain("cleanItems(pieces.collections.diktats)");
     expect(load).toContain("cleanItems(pieces.collections.flashcardSets)");
     expect(load).toContain("catch { return null; }");
-    expect(data).toContain('loadPieces(row, { quizOffset: offset }, "quiz", true)');
+    expect(data).toContain('loadPieces(context.row, { quizOffset: offset }, "quiz", true, context)');
     const legacy = readFileSync("lib/demo/legacy-eligibility.ts", "utf8");
     const publicResolver = legacy.slice(legacy.indexOf("export async function resolvePublicFreeFirstChapter"));
     expect(publicResolver).not.toContain("JSON.stringify({ article");
