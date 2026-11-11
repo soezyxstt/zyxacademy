@@ -1,5 +1,11 @@
 # Zyx Academy ; Features & Workflows
 
+The public demo loads products for the selected view, reuses scoped reading/card state, and limits exercise-page collection and grading concurrency. Quiz results are saved only after all page submissions succeed. Demo transitions show ready content immediately, with visible loading states for optional feature modules. Runtime and visual acceptance remain open in the [demo performance audit](audit/demo-performance-20261111.md).
+
+Quiz scores remain available when discussion is locked. Solutions and diagnosis follow the template release policy on both learner pages and direct student APIs. Failed admin list requests show retry rather than actionable results for an old filter; sidebar enrollment falls back to a fresh account-scoped read when Today refresh fails. These local corrections await runtime validation in the [open audit](audit/web-performance-follow-up-20261111.md).
+
+Local performance follow-up keeps student material lists metadata-only, loads quiz snapshots only for the selected attempt, and shares Today activity and enrollment between sidebar and plan. Admin user and group lists use server-side search, filtering and pagination; heavy group details load on demand. Question authoring loads published Idea choices for the selected course and chapter when needed. Video player and management dialogs load on demand. The `OPEN / IN PROGRESS` [follow-up audit](audit/web-performance-follow-up-20261111.md) records unverified runtime, access, visual and performance boundaries.
+
 ## What It Is
 
 Zyx Academy is an AI-powered learning management platform. It takes expert teaching documents, breaks them into atomic concepts, and uses that structure to power personalized learning paths, adaptive flashcards, quizzes, PDF study guides, and one-on-one tutoring.

@@ -58,20 +58,23 @@ const catalogLoaders: Record<Locale, Record<string, CatalogLoader>> = {
   },
 };
 
-const defaultNamespaces = [
+export const DEFAULT_NAMESPACES = [
   "core", "common", "auth", "student", "studentCourse", "studentExtras",
   "learning", "zyra", "admin", "adminAcademic", "adminReviewProduct", "adminOps", "adminEval",
   "adminForms", "adminMedia", "tutor", "consent", "notifications", "search",
   "publicForms", "marketing", "schedule", "ui",
-];
+] as const;
+
+export async function loadCatalog(locale: Locale, namespace: string): Promise<MessageCatalog> {
+  const load = catalogLoaders[locale][namespace];
+  if (!load) throw new Error(`Unknown i18n namespace: ${namespace}`);
+  return (await load()).default;
+}
 
 export async function loadMessages(locale: Locale, namespaces?: string[]): Promise<Record<string, MessageCatalog>> {
-  const selectedNamespaces = namespaces ?? defaultNamespaces;
+  const selectedNamespaces = namespaces ?? DEFAULT_NAMESPACES;
   const entries = await Promise.all(selectedNamespaces.map(async (namespace) => {
-    const load = catalogLoaders[locale][namespace];
-    if (!load) throw new Error(`Unknown i18n namespace: ${namespace}`);
-    const catalog = await load();
-    return [namespace, catalog.default] as const;
+    return [namespace, await loadCatalog(locale, namespace)] as const;
   }));
   return Object.fromEntries(entries);
 }

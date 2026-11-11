@@ -12,10 +12,12 @@ import {
   chapters,
   studentChapterProgress,
   knowledgeObjects,
+  artikel,
 } from "@/db/schema";
 import { getMastery } from "@/lib/mastery-store";
 import { getOrComputeStudyPath } from "@/lib/study-path-service";
-import { eq, and, or, lte, isNull, gt, gte, notInArray, asc, inArray } from "drizzle-orm";
+import { eq, and, or, lte, isNull, gt, gte, notInArray, asc, inArray, sql } from "drizzle-orm";
+import { resolveStudentCourse } from "@/lib/student/course-catalog";
 
 export interface PlanItem {
   id: string;
@@ -122,11 +124,21 @@ async function buildPlan(
           if (!modulePicked && activeStep.actions.moduleHref) {
             const materialId = activeStep.actions.moduleHref.split("/").pop();
             if (materialId) {
-              const [material] = await db
+              let [material] = await db
                 .select({ id: websiteMaterials.id, title: websiteMaterials.title })
                 .from(websiteMaterials)
                 .where(eq(websiteMaterials.id, materialId))
                 .limit(1);
+
+              if (!material) {
+                const course = await resolveStudentCourse(courseId);
+                if (course?.canonicalId) {
+                  [material] = await db.select({ id: artikel.id, title: artikel.title })
+                    .from(artikel)
+                    .where(and(eq(artikel.id, materialId), eq(artikel.mataKuliahId, course.canonicalId), eq(artikel.status, "published")))
+                    .limit(1);
+                }
+              }
 
               if (material) {
                 moduleItem = {
@@ -318,26 +330,14 @@ export async function markRecommendationDone(
 ): Promise<void> {
   const today = todayUtc();
 
-  const [rec] = await db
-    .select({ id: dailyRecommendations.id, completedItems: dailyRecommendations.completedItems })
-    .from(dailyRecommendations)
-    .where(
-      and(
-        eq(dailyRecommendations.studentId, studentId),
-        eq(dailyRecommendations.date, today)
-      )
-    )
-    .limit(1);
-
-  if (!rec) return;
-
-  const completed = (rec.completedItems as string[]) ?? [];
-  if (completed.includes(itemId)) return;
-
   await db
     .update(dailyRecommendations)
-    .set({ completedItems: [...completed, itemId] })
-    .where(eq(dailyRecommendations.id, rec.id));
+    .set({ completedItems: sql`coalesce(${dailyRecommendations.completedItems}, '[]'::jsonb) || jsonb_build_array(${itemId}::text)` })
+    .where(and(
+      eq(dailyRecommendations.studentId, studentId),
+      eq(dailyRecommendations.date, today),
+      sql`not (coalesce(${dailyRecommendations.completedItems}, '[]'::jsonb) @> jsonb_build_array(${itemId}::text))`,
+    ));
 }
 
 export async function buildPlanForConcepts(

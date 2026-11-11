@@ -1,5 +1,11 @@
 # Zyx Academy Documentation Index
 
+The `OPEN / IN PROGRESS` [demo performance audit](audit/demo-performance-20261111.md) tracks redundant server resolution, payloads, exercise collection, client imports and transitions, with local implementation and runtime acceptance kept separate.
+
+The `OPEN / IN PROGRESS` [web performance follow-up](audit/web-performance-follow-up-20261111.md) tracks the Terra max reviews, local optimizations, feature and architecture updates, intentionally retained behavior and unverified runtime, visual and performance boundaries.
+
+The `ACTIVE` [deployment guide](DEPLOYMENT.md) records the local Singapore web-function region correction, the production region observed on 2026-11-11, and the pending deployment and authenticated latency verification.
+
 The `ACTIVE` [feature catalog](features.md#embedded-learning-visuals) documents always-on typed `zyx-visual` Markdown embeds across compatible learning readers, question prompts, options, explanations and previews, including the payload limit and fence-preserving question import behavior.
 
 `ACTIVE`: The [deployment guide](DEPLOYMENT.md) documents the `local_playwright` V4 provider and exact-draft operator command. The [V4 contract](bundle/product-bundle-v4.md) records the shared Admin quality and verification context so UI Publish readiness agrees with the backend gate. Signed evidence, PDF lineage and explicit publication review remain required.
@@ -157,6 +163,8 @@ Audits are created to systematically identify architectural, quality, or securit
 | Audit | Date Logged | Resolution Status | Resolution Details |
 |---|---|---|---|
 | `heavy-api-routes-audit.md` | 2026-09-06 | `COMPLETED / RESOLVED` | Resolved by decoupling heavy compute into Deno background worker tier: Inngest physical entrypoint separation (jobs/web vs jobs/compute), asynchronous thumbnail generation via pdf/thumbnail.requested, async Diktat compilation via diktat/pdf.generate.requested, compute RPC endpoints (/internal/pdf/pages and /internal/authoring/source-pack/resolve), and static web tier boundary guards (audit:web-boundaries). |
+| Demo performance | [demo-performance-20261111.md](audit/demo-performance-20261111.md) | `OPEN / IN PROGRESS` | Source audit and local integration, including bounded exercise concurrency, worker-safe auth wrappers and catalogue placeholder, submission settlement/deadline and storage revalidation review fixes; measured runtime and visual acceptance remain open. |
+| Web performance follow-up | [web-performance-follow-up-20261111.md](audit/web-performance-follow-up-20261111.md) | `OPEN / IN PROGRESS` | Local integration and repeat-audit corrections, including quiz API release gates, stale-result handling and Diktat rollback storage protection; runtime, visual and measured performance acceptance remain open. |
 | Navigation performance validation | [navigation-performance-validation.md](audit/navigation-performance-validation.md) | `OPEN / IN PROGRESS` | Selected local candidate evidence, authenticated staging dashboard delay with explicit browser User-Agent, retained measurement evidence after cache cleanup, and unresolved performance and visual gates. |
 | `student-deep-ui-ux-audit.md` | 2026-09-03 | `COMPLETED / RESOLVED` | All 8 student UI/UX findings (AUD-STU-01 through AUD-STU-08) resolved: functional `/feedback` server action and `/calendar` agenda, normalized `CoursePageShell` and `PageHeader` navigation, Indonesian copy across settings and reflections, structured empty states with CTAs, `FormattedDate` and `lib/date-utils.ts` standardization, parallelized leaderboard queries, post-quiz review navigation alignment, and mobile bottom navigation. |
 | `admin-visual-quality-audit.md` | 2026-08-24 | `COMPLETED / RESOLVED` | All 14 visual findings resolved: F1 (push notification dialog gated from admin surfaces), F2 (normalizeDate applied to prevent year 58604 bug), F3 (defensive image error fallbacks for PKA and blog thumbnails), F4 (error sanitization and explainBundleError mapping), F5 (instant top scroll on quiz form mount), F6 (persistent AdminPageHeader on all data states), F7 (standardized AdminEmptyState and Indonesian copy), F8 (sentence-case table headers without all-caps), F9 (DOM pagination for question bank), F10 (concise sidebar labels without truncation), F11 (semantic status tokens instead of raw Tailwind palettes), F12 (Lucide icons replacing emojis in notifications), F13 (styled file upload dropzone), F14 (--text-body-2xs declared for 10px micro UI). |
@@ -234,3 +242,7 @@ The `ACTIVE` deployment, development, and feature guides document shared staging
 Navigation staging release preparation integrates the current staging dashboard presentation with streamed sections. Deployment and post-release timing remain pending until the staging workflow completes.
 
 The `ACTIVE` [deployment guide](DEPLOYMENT.md) records explicit release status conditions after optional CI jobs skip. Staging release `73d465d5` passed checks but its deployment jobs were skipped; hosted rollout remains pending a successful deployment job.
+
+Web performance follow-up remains `OPEN / IN PROGRESS`; see [audit record](audit/web-performance-follow-up-20261111.md). No production speedup or visual acceptance is claimed.
+
+Demo performance remains `OPEN / IN PROGRESS`; see [audit/demo-performance-20261111.md](audit/demo-performance-20261111.md).

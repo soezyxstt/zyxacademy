@@ -26,18 +26,38 @@ export async function collectDemoProducts(initial: DemoExperience, load: Load): 
  }
  return null;
 }
-export async function collectDemoFlashcards(initial: DemoExperience, products: DemoProductCollections, load: Load): Promise<DemoFlashcard[] | null> {
- const cards: DemoFlashcard[] = [];
- for (const set of products.flashcardSets) {
-   for (let offset = 0; offset < 10000; offset += 100) {
-     const next = await load(initial.snapshot.courseId, { collectionOffset: set.collectionOffset, flashcardSetId: set.id, flashcardOffset: offset });
-     if (!next || !sameScope(initial, next) || next.content.selected.flashcardSetId !== set.id || next.content.collections.flashcards.pageSize !== 100 || next.content.collections.flashcards.offset !== offset || next.content.flashcards.length > 100) return null;
-     cards.push(...next.content.flashcards);
-     if (cards.length > 10000) return null;
-     const cursor = next.content.collections.flashcards.nextOffset;
-     if (cursor === null) break;
-     if (cursor !== offset + 100 || next.content.flashcards.length !== 100 || offset === 9900) return null;
+export async function collectDemoFlashcards(initial: DemoExperience, products: DemoProductCollections, load: Load, initialPage?: DemoExperience): Promise<DemoFlashcard[] | null> {
+ if (!sameScope(initial, initial)) return null;
+ const sets = products.flashcardSets;
+ const pages: DemoFlashcard[][] = new Array(sets.length);
+ let nextSet = 0;
+ let cardCount = 0;
+ let failed = false;
+
+ // Cursors within a set are dependent. Independent sets can be read concurrently.
+ async function collectSet() {
+   while (!failed && nextSet < sets.length) {
+     const index = nextSet++;
+     const set = sets[index];
+     const cards: DemoFlashcard[] = [];
+     for (let offset = 0; offset < 10000 && !failed; offset += 100) {
+       const reuse = initialPage?.content.selected.flashcardSetId === set.id
+         && initialPage.content.collections.page.offset === set.collectionOffset
+         && initialPage.content.collections.flashcards.offset === offset;
+       const next = reuse ? initialPage : await load(initial.snapshot.courseId, { collectionOffset: set.collectionOffset, flashcardSetId: set.id, flashcardOffset: offset });
+       if (failed) return;
+       if (!next || !sameScope(initial, next) || next.content.selected.flashcardSetId !== set.id || next.content.collections.flashcards.pageSize !== 100 || next.content.collections.flashcards.offset !== offset || next.content.flashcards.length > 100) { failed = true; return; }
+       cardCount += next.content.flashcards.length;
+       if (cardCount > 10000) { failed = true; return; }
+       cards.push(...next.content.flashcards);
+       const cursor = next.content.collections.flashcards.nextOffset;
+       if (cursor === null) break;
+       if (cursor !== offset + 100 || next.content.flashcards.length !== 100 || offset === 9900) { failed = true; return; }
+     }
+     pages[index] = cards;
    }
  }
- return cards;
+
+ await Promise.all(Array.from({ length: Math.min(2, sets.length) }, () => collectSet()));
+ return failed ? null : pages.flat();
 }

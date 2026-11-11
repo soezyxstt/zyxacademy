@@ -1,6 +1,7 @@
 import { StudentQuizSummaryView } from "@/components/course/student-quiz-summary-view";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { canViewAttemptDiscussion } from "@/lib/quiz/review-release";
+import { notFound, redirect } from "next/navigation";
 import { createMetadata} from "@/lib/site";
 import { db } from "@/db";
 import { studentQuizAttempts, quizTemplates } from "@/db/schema";
@@ -59,6 +60,9 @@ export default async function QuizSummaryPage({ params }: Props) {
     .from(quizTemplates)
     .where(eq(quizTemplates.id, quizId))
     .limit(1);
+
+  if (!template || attempt.templateId !== quizId || ![course.id, course.canonicalId, course.legacyId, id].includes(template.courseId)) notFound();
+  if (!canViewAttemptDiscussion(template, attempt.status)) redirect(`/courses/${id}/quiz/${quizId}?attemptId=${encodeURIComponent(attemptId)}`);
 
   return <StudentQuizSummaryView title={template?.title || course.title} reviewHref={`/courses/${id}/quiz/${quizId}?attemptId=${attemptId}`} historyHref={`/courses/${id}/my-results`} retryHref={`/courses/${id}/quiz/${quizId}`} pending={attempt.gradingStatus === "pending"}><QuizAnalyticsView attemptId={attemptId} courseId={course.legacyId ?? id} /></StudentQuizSummaryView>;
 }

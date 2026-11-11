@@ -57,7 +57,7 @@ export function NavProfileOrSignIn({
           <SheetClose asChild>
             <Link
               href="/dashboard"
-              prefetch={true}
+              prefetch={false}
               title={email ?? label}
               aria-label={t("nav.dashboardFor", { name: label })}
               onClick={onNavigate}
@@ -155,7 +155,7 @@ export function NavProfileOrSignIn({
                 asChild
                 className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
               >
-                <Link href="/profile" prefetch={true} onClick={onNavigate}>
+                <Link href="/profile" prefetch={false} onClick={onNavigate}>
                   <User className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   <span>{t("nav.profile")}</span>
                 </Link>
@@ -164,7 +164,7 @@ export function NavProfileOrSignIn({
                 asChild
                 className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
               >
-                <Link href="/dashboard" prefetch={true} onClick={onNavigate}>
+                <Link href="/dashboard" prefetch={false} onClick={onNavigate}>
                   <LayoutDashboard className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   <span>{t("nav.learningDashboard")}</span>
                 </Link>
@@ -174,7 +174,7 @@ export function NavProfileOrSignIn({
                   asChild
                   className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
                 >
-                  <Link href="/tutor" prefetch={true} onClick={onNavigate}>
+                  <Link href="/tutor" prefetch={false} onClick={onNavigate}>
                     <GraduationCap className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                     <span>{t("nav.tutorPanel")}</span>
                   </Link>
@@ -185,7 +185,7 @@ export function NavProfileOrSignIn({
                   asChild
                   className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
                 >
-                  <Link href="/admin" prefetch={true} onClick={onNavigate}>
+                  <Link href="/admin" prefetch={false} onClick={onNavigate}>
                     <ShieldCheck className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                     <span>{t("nav.adminPanel")}</span>
                   </Link>

@@ -1,19 +1,18 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
-import { hasAnyPeran } from "@/lib/auth/authorization";
+import { getAuthSession } from "@/lib/auth-session";
+import { hasAnyPeran } from "@/lib/auth/request-cache";
 import type { ReactNode } from "react";
 import { TutorSidebar, type AssignedTutorCourse } from "@/components/tutor/tutor-sidebar";
 import { ApplicationShell } from "@/components/application-shell";
 import { MobileNavbar } from "@/components/mobile-navbar";
-import { listTutorAccessibleCourses } from "@/lib/auth/tutor-access";
+import { listTutorAccessibleCourses } from "@/lib/auth/request-cache";
 import { db } from "@/db";
 import { mataKuliah, courses } from "@/db/schema";
 import { inArray } from "drizzle-orm";
 import { CommandMenuProvider } from "@/components/command-menu";
 
 export default async function TutorLayout({ children }: { children: ReactNode }) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   if (!session?.user) redirect("/");
 
   const isAuthorized = await hasAnyPeran(session.user.id, ["tutor"], { allowAdmin: false });

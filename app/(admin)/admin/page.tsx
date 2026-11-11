@@ -17,7 +17,7 @@ import {
   blogArticles,
   studentQuizAttempts,
 } from "@/db/schema";
-import { sql, eq, gte, ne } from "drizzle-orm";
+import { sql, eq, gte, ne, and, exists } from "drizzle-orm";
 import { pageTitle } from "@/lib/site";
 import { getTranslations } from "@/lib/i18n/server";
 import {
@@ -57,7 +57,6 @@ export async function generateMetadata(): Promise<Metadata> {
 async function AdminHomeContent() {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
-  const todayStartMs = todayStart.getTime();
 
   const [
     courseCountRes,
@@ -77,18 +76,19 @@ async function AdminHomeContent() {
 
     Promise.all([
       db.select({ count: sql<number>`count(*)` }).from(enrollmentTokens),
-      db.select({ groupId: enrollmentTokens.groupId }).from(enrollmentTokens),
-      db
-        .select({
-          groupId: groupMembers.groupId,
-          joinedAt: groupMembers.joinedAt,
-        })
-        .from(groupMembers),
+      db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(groupMembers).where(and(
+        gte(groupMembers.joinedAt, todayStart),
+        exists(db.select({ one: sql`1` }).from(enrollmentTokens).where(eq(enrollmentTokens.groupId, groupMembers.groupId))),
+      )),
     ]),
 
-    db.select({ status: aiGenerationJobs.status }).from(aiGenerationJobs),
+    db.select({
+      running: sql<number>`count(*) filter (where ${aiGenerationJobs.status} in ('pending', 'processing'))`.mapWith(Number),
+      failed: sql<number>`count(*) filter (where ${aiGenerationJobs.status} = 'failed')`.mapWith(Number),
+    }).from(aiGenerationJobs),
 
-    db.select({ reviewStatus: aiQuestionBank.reviewStatus }).from(aiQuestionBank),
+    db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(aiQuestionBank)
+      .where(eq(aiQuestionBank.reviewStatus, "generated")),
 
     Promise.all([
       db
@@ -120,24 +120,16 @@ async function AdminHomeContent() {
   const totalCourses = courseCountRes[0]?.count ?? 0;
   const courseStat = `${totalCourses} mata kuliah aktif`;
 
-  const [tokensCountRes, tokensList, membersList] = tokenStatsRes;
+  const [tokensCountRes, redeemedCountRes] = tokenStatsRes;
   const totalTokens = tokensCountRes[0]?.count ?? 0;
-  const tokenGroupIds = new Set(tokensList.map((t) => t.groupId));
-  const tokenMembers = membersList.filter((m) => tokenGroupIds.has(m.groupId));
-  const redeemedTodayCount = tokenMembers.filter(
-    (m) => new Date(m.joinedAt).getTime() >= todayStartMs
-  ).length;
+  const redeemedTodayCount = redeemedCountRes[0]?.count ?? 0;
   const tokenStat = `${totalTokens} dibuat, ${redeemedTodayCount} diklaim hari ini`;
 
-  const runningJobs = jobStatsRes.filter(
-    (j) => j.status === "pending" || j.status === "processing"
-  ).length;
-  const failedJobs = jobStatsRes.filter((j) => j.status === "failed").length;
+  const runningJobs = jobStatsRes[0]?.running ?? 0;
+  const failedJobs = jobStatsRes[0]?.failed ?? 0;
   const jobStat = `${runningJobs} berjalan, ${failedJobs} gagal`;
 
-  const pendingQuestions = questionStatsRes.filter(
-    (q) => q.reviewStatus === "generated"
-  ).length;
+  const pendingQuestions = questionStatsRes[0]?.count ?? 0;
   const questionStat = `${pendingQuestions} menunggu tinjauan`;
 
   const totalAttempts = attemptCountRes[0]?.count ?? 0;

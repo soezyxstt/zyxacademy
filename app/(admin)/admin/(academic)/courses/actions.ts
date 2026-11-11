@@ -300,6 +300,38 @@ export async function setDemoCourse(courseId: string, enabled: boolean) {
 // Detailed Course Hub Server Action
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Loads the course projection needed by settings without the course hub lists. */
+export async function getCourseSettingsData(courseId: string) {
+  await assertAdmin();
+
+  const cleanCourseId = courseId.trim().toLowerCase();
+  const [canonicalCourse, legacyCourse] = await Promise.all([
+    db
+      .select({ id: mataKuliah.id, title: mataKuliah.title, isDemo: mataKuliah.isDemo })
+      .from(mataKuliah)
+      .where(and(eq(mataKuliah.status, "active"), or(eq(mataKuliah.id, cleanCourseId), eq(mataKuliah.legacyCourseId, cleanCourseId))))
+      .limit(1)
+      .then((rows) => rows[0] ?? null),
+    db
+      .select({ id: courses.id, title: courses.title, category: courses.category, description: courses.description })
+      .from(courses)
+      .where(eq(courses.id, cleanCourseId))
+      .limit(1)
+      .then((rows) => rows[0] ?? null),
+  ]);
+
+  if (!canonicalCourse && !legacyCourse) return null;
+
+  return {
+    id: canonicalCourse?.id ?? legacyCourse!.id,
+    title: canonicalCourse?.title ?? legacyCourse!.title,
+    category: legacyCourse?.category ?? "Umum",
+    description: legacyCourse?.description ?? null,
+    isDemo: canonicalCourse?.isDemo ?? false,
+    demoEligibility: canonicalCourse ? await getDemoCourseEligibility(canonicalCourse.id) : null,
+  };
+}
+
 /**
  * Retrieves full course detail data including chapters, materials, quiz templates, and active question bank records.
  *

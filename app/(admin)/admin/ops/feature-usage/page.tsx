@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { pageTitle } from "@/lib/site";
-import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
+import { assertTutorOrAdmin } from "@/lib/auth/admin-guards-server";
 import {
   getFeatureUsageMetrics,
   resolveFeatureUsageRange,

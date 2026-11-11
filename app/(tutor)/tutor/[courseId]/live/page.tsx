@@ -7,7 +7,7 @@ import { ApplicationPage } from "@/components/application-page";
 import { pageTitle } from "@/lib/site";
 import { getTranslations } from "@/lib/i18n/server";
 import { TranslatedText } from "@/components/i18n/translated-text";
-import { requireTutorCourseAccess } from "@/lib/auth/tutor-access";
+import { requireTutorCourseAccess } from "@/lib/auth/request-cache";
 import { TutorLiveConsole } from "@/components/tutor/tutor-live-console";
 import { db } from "@/db";
 import { courses, mataKuliah } from "@/db/schema";

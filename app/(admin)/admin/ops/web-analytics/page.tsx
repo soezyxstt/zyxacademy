@@ -1,5 +1,5 @@
 import { pageTitle } from "@/lib/site";
-import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
+import { assertTutorOrAdmin } from "@/lib/auth/admin-guards-server";
 import { getDashboardMetrics } from "@/lib/analytics-dashboard";
 import { WebAnalyticsCharts } from "@/components/admin/web-analytics-charts";
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";

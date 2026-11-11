@@ -1,8 +1,8 @@
 "use server";
 
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { courses, mataKuliah } from "@/db/schema";
+import { bab, courses, ide, mataKuliah } from "@/db/schema";
 import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
 import {
   historicalReviewActionFor,
@@ -13,6 +13,32 @@ import {
   type QuestionQuery,
 } from "./question-query-state";
 import { activeQuestionQuery, historicalQuestionQuery } from "./active-question-query";
+
+// These authoring options are fetched only for the chosen course and chapter.
+// Each action rechecks the same role required by the question bank page.
+export async function getAuthoringChapters(courseId: string) {
+  await assertTutorOrAdmin();
+  if (typeof courseId !== "string" || !courseId) return [];
+  return db
+    .select({ id: bab.id, code: bab.code, title: bab.title })
+    .from(bab)
+    .where(and(eq(bab.mataKuliahId, courseId), eq(bab.status, "active")))
+    .orderBy(asc(bab.orderIndex));
+}
+
+export async function getAuthoringIdeas(courseId: string, chapterId: string) {
+  await assertTutorOrAdmin();
+  if (typeof courseId !== "string" || !courseId || typeof chapterId !== "string") return [];
+  return db
+    .select({ id: ide.id, code: ide.code, statement: ide.canonicalStatement })
+    .from(ide)
+    .where(and(
+      eq(ide.mataKuliahId, courseId),
+      eq(ide.status, "published"),
+      chapterId ? eq(ide.babId, chapterId) : undefined,
+    ))
+    .orderBy(asc(ide.code));
+}
 
 async function loadQuestionCourseMaps() {
   const [legacy, canonical] = await Promise.all([

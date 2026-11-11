@@ -40,10 +40,11 @@ export function Reveal({
   const [visible, setVisible] = useState(false);
 
   const isAdmin = pathname !== null && pathname.startsWith("/admin");
+  const isDemo = pathname !== null && /^(?:\/(?:en|id))?\/demo(?:\/|$)/.test(pathname);
 
   useEffect(() => {
     setMounted(true);
-    if (isAdmin) {
+    if (isAdmin || isDemo) {
       setVisible(true);
       return;
     }
@@ -71,10 +72,10 @@ export function Reveal({
       mq.removeEventListener("change", onMq);
       ob.disconnect();
     };
-  }, [rootMargin, threshold, isAdmin]);
+  }, [rootMargin, threshold, isAdmin, isDemo]);
 
   // Once mounted, bypass animation completely on admin pages to prevent viewport lock on tall pages
-  if (isAdmin && mounted) {
+  if (isDemo || (isAdmin && mounted)) {
     return <div className={className}>{children}</div>;
   }
 

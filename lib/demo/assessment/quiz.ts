@@ -38,7 +38,7 @@ export function demoQuizExam(questions: DemoQuizQuestion[], title: string): Quiz
   };
 }
 
-export async function gradeDemoQuiz(courseId: string, questions: DemoQuizQuestion[], token: string, answers: Record<string, unknown>, quizOffset = 0): Promise<DemoQuizResult> {
+export async function gradeDemoQuiz(courseId: string, questions: DemoQuizQuestion[], token: string, answers: Record<string, unknown>, quizOffset = 0, signal?: AbortSignal): Promise<DemoQuizResult> {
   if (questions.length < 1 || questions.length > 3 || new Set(questions.map((question) => question.id)).size !== questions.length || !Number.isSafeInteger(quizOffset) || quizOffset < 0 || quizOffset % 3 !== 0) throw new Error("Invalid quiz");
   const orderedAnswers = questions.map((question) => {
     const value = answers[question.id];
@@ -46,7 +46,7 @@ export async function gradeDemoQuiz(courseId: string, questions: DemoQuizQuestio
     if (selected.length === 0 || new Set(selected).size !== selected.length || selected.some((index) => !Number.isInteger(index) || index < 0 || index >= question.options.length) || (!question.multiple && selected.length > 1)) throw new Error("Invalid answer");
     return selected;
   });
-  const response = await fetch("/api/demo/quiz", { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify({ courseId, quizOffset, questionIds: questions.map((question) => question.id), questionSetToken: token, answers: orderedAnswers }) });
+  const response = await fetch("/api/demo/quiz", { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", signal, body: JSON.stringify({ courseId, quizOffset, questionIds: questions.map((question) => question.id), questionSetToken: token, answers: orderedAnswers }) });
   if (!response.ok) throw new Error("Quiz unavailable");
   const result = resultSchema.parse(await response.json());
   if (result.total !== questions.length || result.results.some(item => item.correctIndices?.some(index => index >= questions[item.index].options.length))) throw new Error("Invalid result count");

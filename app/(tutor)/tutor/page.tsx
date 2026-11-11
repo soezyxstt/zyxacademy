@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import {
   ArrowRight,
   BookOpen,
@@ -11,9 +10,9 @@ import {
   Plus,
   Users,
 } from "lucide-react";
-import { auth } from "@/lib/auth";
-import { hasAnyPeran } from "@/lib/auth/authorization";
-import { getTutorScheduleReadModel } from "@/lib/schedule/tutor-read-model";
+import { getAuthSession } from "@/lib/auth-session";
+import { hasAnyPeran, listTutorAccessibleCourses } from "@/lib/auth/request-cache";
+import { getTutorDashboardReadModel } from "@/lib/schedule/tutor-dashboard-read-model";
 import { getCalendarWeekRange, getJakartaCalendarDate } from "@/lib/schedule/calendar-date";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
@@ -39,7 +38,7 @@ function formatSessionDate(dateIso: string, locale: "id" | "en") {
 
 export default async function TutorPage() {
   const [locale, t] = await Promise.all([getAppLocale(), getTranslations("tutor.dashboard")]);
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   if (!session?.user) redirect("/");
 
   const isAuthorized = await hasAnyPeran(session.user.id, ["tutor"], { allowAdmin: false });
@@ -47,25 +46,14 @@ export default async function TutorPage() {
 
   const today = getJakartaCalendarDate();
   const week = getCalendarWeekRange(today);
-  const schedule = await getTutorScheduleReadModel({
-    tutorId: session.user.id,
-    allowAdmin: false,
-  });
-
-  const currentWeekBookings = schedule.ownedBookings.filter(
-    (booking) => booking.sessionDate && booking.sessionDate >= week.startIso && booking.sessionDate <= week.endIso && booking.status !== "cancelled",
-  );
-  const pendingTickets = schedule.ownedTickets.filter((ticket) => ticket.status === "pending");
-  const upcomingSessions = schedule.ownedBookings
-    .filter((booking) => booking.sessionDate && booking.sessionDate >= today && !["cancelled", "completed"].includes(booking.status))
-    .sort((left, right) => `${left.sessionDate}-${left.startTime || "00:00"}`.localeCompare(`${right.sessionDate}-${right.startTime || "00:00"}`))
-    .slice(0, 5);
+  const schedule = await getTutorDashboardReadModel(session.user.id, today, week, undefined, listTutorAccessibleCourses);
+  const { pendingTickets, upcomingSessions } = schedule;
 
   const statItems = [
     { label: t("courses"), value: schedule.assignedActiveCourses.length, icon: BookOpen },
     { label: t("activeGroups"), value: schedule.eligibleGroups.length, icon: Users },
-    { label: t("sessionsThisWeek"), value: currentWeekBookings.length, icon: CalendarDays },
-    { label: t("ticketsWaiting"), value: pendingTickets.length, icon: MessageSquareWarning },
+    { label: t("sessionsThisWeek"), value: schedule.sessionsThisWeek, icon: CalendarDays },
+    { label: t("ticketsWaiting"), value: schedule.pendingTicketCount, icon: MessageSquareWarning },
   ];
 
   return (
@@ -138,14 +126,14 @@ export default async function TutorPage() {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block break-words text-body-sm font-semibold text-foreground">
-                      {booking.course?.title || booking.topic || t("tutorialSession")}
+                      {booking.courseTitle || booking.topic || t("tutorialSession")}
                     </span>
                     <span className="mt-0.5 block break-words text-body-xs text-muted-foreground">
                       {booking.sessionDate ? formatSessionDate(booking.sessionDate, locale) : t("dateUnspecified")}
                       {booking.startTime ? ` · ${booking.startTime}${booking.endTime ? `-${booking.endTime}` : ""}` : ""}
                     </span>
                     <span className="mt-0.5 block break-words text-body-xs text-muted-foreground">
-                      {booking.group?.name || t("group")}{booking.mode ? ` · ${booking.mode === "online" ? t("online") : t("inPerson")}` : ""}
+                      {booking.groupName || t("group")}{booking.mode ? ` · ${booking.mode === "online" ? t("online") : t("inPerson")}` : ""}
                     </span>
                   </span>
                   <ArrowRight className="mt-2 size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-brand-primary" aria-hidden />

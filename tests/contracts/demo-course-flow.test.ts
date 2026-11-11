@@ -7,8 +7,10 @@ describe("public demo course contract", () => {
   test("resolves allowlisted active courses and published first-chapter products", () => {
     const resolver = source("lib/demo/legacy-eligibility.ts");
     const publicData = source("app/(marketing)/demo/demo-data.ts");
-    expect(publicData).toContain("getPublicDemoSnapshots()");
-    expect(publicData).toContain("resolvePublicFreeFirstChapter(row.snapshot.courseId, selection)");
+    expect(publicData).toContain("getPublicDemoContexts()");
+    const contexts = source("lib/demo/context-repository.ts");
+    expect(contexts).toContain("getPublicDemoSnapshots()");
+    expect(publicData).toContain("resolvePublicFreeFirstChapter(row.snapshot.courseId, selection, kind, includeSolutions, context)");
     expect(resolver).toContain('eq(mataKuliah.status, "active")');
     expect(resolver).toContain("if (rows.length !== 1) return null");
     expect(resolver).toContain("if (mappedRows.length !== 1 || mappedRows[0]?.id !== row.id) return null");

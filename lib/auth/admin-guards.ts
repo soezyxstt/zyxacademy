@@ -63,10 +63,11 @@ async function resolveCanonicalRoleAuthorization(
   legacyRole: string | null | undefined,
   legacyRoles: readonly string[],
   required: "admin" | "tutorOrAdmin",
+  readPeranCodes: typeof getPeranCodes = getPeranCodes,
 ): Promise<boolean> {
   const canonicalSource = await getCanonicalRoleSource(userId);
   const canonicalRecordExists = canonicalSource.identityExists || canonicalSource.membershipExists;
-  const canonicalRoleCodes = canonicalRecordExists ? await getPeranCodes(userId) : [];
+  const canonicalRoleCodes = canonicalRecordExists ? await readPeranCodes(userId) : [];
   const canonicalRoleAllowed = required === "admin"
     ? hasPeranFromCodes(canonicalRoleCodes, "admin")
     : hasAnyPeranFromCodes(canonicalRoleCodes, ["admin", "tutor"], { allowAdmin: true });
@@ -88,8 +89,9 @@ async function resolveCanonicalRoleAuthorization(
 export async function hasAdminAuthorization(
   userId: string,
   legacyRole?: string | null,
+  readPeranCodes: typeof getPeranCodes = getPeranCodes,
 ): Promise<boolean> {
-  return resolveCanonicalRoleAuthorization(userId, legacyRole, ["admin"], "admin");
+  return resolveCanonicalRoleAuthorization(userId, legacyRole, ["admin"], "admin", readPeranCodes);
 }
 
 /**
@@ -99,7 +101,7 @@ export async function hasAdminAuthorization(
  */
 // Explicit-actor checks are also used by MCP without an RSC session context.
 // Load the server-only session helper only when a session guard is invoked.
-export async function assertAdmin() {
+export async function assertAdmin(readPeranCodes: typeof getPeranCodes = getPeranCodes) {
   const { getAuthSession } = await import("@/lib/auth-session");
   const session = await getAuthSession();
   const user = session?.user as UserWithRole | undefined;
@@ -108,7 +110,7 @@ export async function assertAdmin() {
     throw new Error("Unauthorized");
   }
 
-  const isAdmin = await hasAdminAuthorization(user.id, user.role);
+  const isAdmin = await hasAdminAuthorization(user.id, user.role, readPeranCodes);
   if (!isAdmin) {
     throw new Error("Forbidden, admin role required.");
   }
@@ -121,7 +123,7 @@ export async function assertAdmin() {
  * canonical `pengguna_peran`. The legacy `user.role` projection is only used
  * for users without a canonical identity or membership.
  */
-export async function assertTutorOrAdmin() {
+export async function assertTutorOrAdmin(readPeranCodes: typeof getPeranCodes = getPeranCodes) {
   const { getAuthSession } = await import("@/lib/auth-session");
   const session = await getAuthSession();
   const user = session?.user as UserWithRole | undefined;
@@ -135,6 +137,7 @@ export async function assertTutorOrAdmin() {
     user.role,
     ["admin", "teacher"],
     "tutorOrAdmin",
+    readPeranCodes,
   );
   if (!isAuthorized) {
     throw new Error("Forbidden, teacher or admin role required.");

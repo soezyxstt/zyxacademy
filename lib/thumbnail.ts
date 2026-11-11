@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { inngest } from "@/lib/inngest";
+import { buildCourseThumbnailKey, joinKey, slugifySegment } from "@/lib/storage/keys";
 
 export type PdfThumbnailSourceType = "course_material" | "diktat";
 
@@ -8,6 +9,8 @@ export interface PdfThumbnailRequest {
   sourceType: PdfThumbnailSourceType;
   /** Storage key of the source PDF the thumbnail must render. */
   sourceVersion: string;
+  /** Content revision where available, including when a PDF key is reused. */
+  sourceRevision?: string;
 }
 
 type ThumbnailEventSender = (event: {
@@ -24,8 +27,10 @@ type ThumbnailEventSender = (event: {
  * initial dispatch so retries of one sender operation share one id.
  */
 export function buildThumbnailEventId(params: PdfThumbnailRequest & { attemptId?: string }): string {
+  const identity = [params.sourceType, params.materialId, params.sourceVersion, params.attemptId ?? "initial"];
+  if (params.sourceRevision) identity.push(params.sourceRevision);
   const fingerprint = createHash("sha256")
-    .update(JSON.stringify([params.sourceType, params.materialId, params.sourceVersion, params.attemptId ?? "initial"]))
+    .update(JSON.stringify(identity))
     .digest("hex");
   return `thumbnail-${fingerprint}`;
 }
@@ -33,6 +38,52 @@ export function buildThumbnailEventId(params: PdfThumbnailRequest & { attemptId?
 /** Returns a fresh token for one explicit thumbnail recovery requeue. */
 export function newThumbnailAttemptId(): string {
   return randomUUID();
+}
+
+/** Deduplicate automatic recovery per source version in fixed 10-second windows. */
+export function thumbnailRecoveryAttemptId(now = Date.now()): string {
+  return `recovery-${Math.floor(now / 10_000)}`;
+}
+
+/** Identifies the exact rendered bytes without overwriting a previous PDF. */
+export function buildDiktatPdfStorageKey(params: {
+  courseId: string;
+  diktatId: string;
+  title: string;
+  pdfBytes: Uint8Array;
+}): string {
+  const diktatHash = createHash("sha256").update(params.diktatId).digest("hex");
+  const contentHash = createHash("sha256").update(params.pdfBytes).digest("hex");
+  return joinKey(
+    "courses",
+    slugifySegment(params.courseId),
+    "diktats",
+    "versions",
+    diktatHash,
+    contentHash,
+    `${slugifySegment(params.title)}.pdf`,
+  );
+}
+
+/** Old unversioned covers cannot prove which content-addressed PDF they depict. */
+export function canUseLegacyThumbnail(request: PdfThumbnailRequest): boolean {
+  return request.sourceType !== "diktat" ||
+    !/^courses\/[^/]+\/diktats\/versions\/[a-f0-9]{64}\/[a-f0-9]{64}\/[^/]+\.pdf$/.test(request.sourceVersion);
+}
+
+/** New thumbnails have source-specific keys so old workers cannot overwrite a replacement PDF's cover. */
+export function buildVersionedThumbnailKey(params: PdfThumbnailRequest & {
+  courseSlug: string;
+  extension?: "png" | "webp";
+}): string {
+  const version = createHash("sha256")
+    .update(JSON.stringify([params.sourceType, params.sourceVersion, params.sourceRevision ?? null]))
+    .digest("hex");
+  return buildCourseThumbnailKey({
+    courseSlug: params.courseSlug,
+    materialId: `${params.materialId}-${version}`,
+    extension: params.extension,
+  });
 }
 
 /**

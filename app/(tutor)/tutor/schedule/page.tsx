@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { hasAnyPeran } from "@/lib/auth/authorization";
+import { hasAnyPeran, listTutorAccessibleCourses } from "@/lib/auth/request-cache";
 import { getTutorScheduleReadModel } from "@/lib/schedule/tutor-read-model";
 import { getJakartaNow, daysFrom } from "@/lib/date-utils";
 import { getWeekScheduleDays } from "@/lib/schedule-lock";
@@ -49,7 +49,7 @@ export default async function TutorSchedulePage({
     allowAdmin: isAdmin,
     fromDate: weekRange.startIso,
     toDate: weekRange.endIso,
-  });
+  }, undefined, listTutorAccessibleCourses);
 
   return (
     <ApplicationPage>

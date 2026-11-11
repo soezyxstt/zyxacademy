@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { studentTodayQuery } from "@/lib/student/today-query";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -37,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { StudentNavigationItems } from "@/components/student-navigation-items";
 import { SidebarShell, NavItem } from "@/components/sidebar-shell";
 import { createActivityRefresh } from "@/lib/student/activity-refresh";
+import { selectSidebarCourses, type SidebarFallbackCourses } from "@/lib/student/sidebar-courses";
 import { ZYX_ACTIVITY_UPDATED_EVENT } from "@/lib/activity-signal";
 import { StreakCalendarStrip } from "@/components/dashboard/streak-calendar-strip";
 import { SidebarTooltip } from "@/components/sidebar-shell";
@@ -49,8 +52,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-
-type StudentEnrollment = Awaited<ReturnType<typeof getStudentEnrollments>>[number];
 
 interface StudentSidebarProps {
   showStudyPath?: boolean;
@@ -99,33 +100,48 @@ function StudentSidebarContent({
 
   // Route context is authoritative for the sidebar mode. Course metadata may load later,
   // but the shell must switch on the same render as the route itself.
-  const activeCourseId = courseIdFromPath ?? courseIdFromSchedule;
+  const activeCourseId = courseIdFromPath ?? (pathname === "/dashboard/schedule" ? courseIdFromSchedule : undefined);
 
-  const [activeCourse, setActiveCourse] = useState<any>(undefined);
+  const [activeCourse, setActiveCourse] = useState<{ userId: string; course: { id: string; title: string } }>();
+  const [fallbackCourses, setFallbackCourses] = useState<SidebarFallbackCourses>();
   const [coursesOpen, setCoursesOpen] = useState(true);
-  const [liveEnrollments, setEnrolledCourses] = useState<StudentEnrollment[]>([]);
-  const enrolledCourses = useMemo(() => demo ? experience.courses ?? [] : liveEnrollments, [demo, experience.courses, liveEnrollments]);
-  const [liveStreak, setStreakCurrent] = useState<number | null>(null);
-  const streakCurrent = demo ? experience.streak?.current ?? 0 : liveStreak;
-  const [liveWeeklyActivity, setWeeklyActivity] = useState<boolean[]>([]);
+  const queryClient = useQueryClient();
+  const userId = session?.user?.id;
+  const today = useQuery({ ...studentTodayQuery(userId ?? ""), enabled: !demo && !!userId });
+  const enrolledCourses = useMemo(() => demo ? experience.courses ?? [] : selectSidebarCourses(
+    userId ? { userId, pathname, activeCourseId, errorUpdateCount: today.errorUpdateCount } : undefined,
+    today.isError,
+    today.data?.enrollments,
+    fallbackCourses,
+  ), [demo, experience.courses, userId, pathname, activeCourseId, today.errorUpdateCount, today.isError, today.data?.enrollments, fallbackCourses]);
+  const streakCurrent = demo ? experience.streak?.current ?? 0 : today.data?.streak.current ?? null;
+  const weeklyActivity = demo ? experience.streak?.weeklyActivity ?? [] : today.data?.weeklyActivity ?? [];
 
-  const weeklyActivity = demo ? experience.streak?.weeklyActivity ?? [] : liveWeeklyActivity;
+  useEffect(() => {
+    if (demo || !userId || !today.isError) return;
+    let cancelled = false;
+    const scope = { userId, pathname, activeCourseId, errorUpdateCount: today.errorUpdateCount };
+    getStudentEnrollments(userId).then((courses) => {
+      if (!cancelled) setFallbackCourses({ ...scope, courses });
+    }).catch((error) => { if (!cancelled) console.error(error); });
+    return () => { cancelled = true; };
+  }, [demo, userId, pathname, activeCourseId, today.isError, today.errorUpdateCount]);
 
   const enrolledActiveCourse = activeCourseId
     ? enrolledCourses.find((course) => course.id === activeCourseId)
     : undefined;
   const activeCourseMetadata = enrolledActiveCourse
-    ?? (activeCourse?.id === activeCourseId ? activeCourse : undefined);
+    ?? (activeCourse && activeCourse.userId === userId && activeCourse.course.id === activeCourseId ? activeCourse.course : undefined);
 
   useEffect(() => {
-    if (demo) return;
+    if (demo || !userId) return;
     if (!activeCourseId) {
       setActiveCourse(undefined);
       return;
     }
     const enrolled = enrolledCourses.find((c) => c.id === activeCourseId);
     if (enrolled) {
-      setActiveCourse(enrolled);
+      setActiveCourse({ userId, course: enrolled });
       return;
     }
 
@@ -135,36 +151,22 @@ function StudentSidebarContent({
     let cancelled = false;
     getCourseAction(activeCourseId)
       .then((course) => {
-        if (!cancelled && course) setActiveCourse(course);
+        if (!cancelled && course) setActiveCourse({ userId, course });
       })
       .catch(console.error);
     return () => {
       cancelled = true;
     };
-  }, [activeCourseId, enrolledCourses, demo]);
+  }, [activeCourseId, enrolledCourses, demo, userId]);
 
   useEffect(() => {
-    if (demo) return;
-    if (session?.user?.id) {
-      getStudentEnrollments().then(setEnrolledCourses).catch(console.error);
-    }
-  }, [session?.user?.id, demo]);
-
-  useEffect(() => {
-    if (demo) return;
-    setStreakCurrent(null);
-    setWeeklyActivity([]);
-    if (!session?.user?.id) return;
-
+    if (demo || !userId) return;
+    const options = studentTodayQuery(userId);
     const activity = createActivityRefresh(async (signal) => {
-      const response = await fetch("/api/student/today", { signal });
-      if (!response.ok) throw new Error("Activity request failed");
-      const data = await response.json();
+      await queryClient.invalidateQueries({ queryKey: options.queryKey, exact: true, refetchType: "none" });
       if (signal.aborted) return;
-      if (data?.streak?.current != null) setStreakCurrent(data.streak.current);
-      if (data?.weeklyActivity != null) setWeeklyActivity(data.weeklyActivity);
+      await queryClient.fetchQuery(options);
     });
-    void activity.refresh(true);
     const handleFocus = () => { void activity.refresh(); };
     const handleVisibility = () => {
       if (document.visibilityState === "visible") handleFocus();
@@ -175,11 +177,12 @@ function StudentSidebarContent({
     window.addEventListener(ZYX_ACTIVITY_UPDATED_EVENT, handleMutation);
     return () => {
       activity.dispose();
+      void queryClient.cancelQueries({ queryKey: options.queryKey, exact: true });
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener(ZYX_ACTIVITY_UPDATED_EVENT, handleMutation);
     };
-  }, [session?.user?.id, demo]);
+  }, [userId, demo, queryClient]);
 
   const coursesToDisplay = useMemo(() => {
     const list: Array<{ id: string; title: string }> = [];

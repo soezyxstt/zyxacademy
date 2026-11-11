@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { quizTemplates, courses, mataKuliah } from "@/db/schema";
 import { eq, or } from "drizzle-orm";
-import { verifyTutorAccess } from "@/app/actions/tutor-management";
+import { verifyTutorAccess } from "@/lib/auth/tutor-session-access";
 import { checkCourseMatch } from "@/lib/tutor/assessment-policy";
 import { QuizAttemptsSpreadsheet } from "@/app/(admin)/admin/(eval)/quiz-insights/[id]/_components/quiz-attempts-spreadsheet";
 import { PageHeader } from "@/components/page-header";

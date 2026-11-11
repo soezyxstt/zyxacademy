@@ -35,8 +35,9 @@ async function requireUser() {
 /**
  * Get active enrollments for the logged in student
  */
-export async function getStudentEnrollments() {
+export async function getStudentEnrollments(expectedUserId?: string) {
   const user = await requireUser();
+  if (expectedUserId && expectedUserId !== user.id) throw new Error("ACCOUNT_CHANGED");
   return listStudentEnrollments(user.id);
 }
 

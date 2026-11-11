@@ -44,6 +44,7 @@ await Promise.all(Array.from({ length: 1 }, async () => {
     const [stdout, stderr, exitCode] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
     clearTimeout(timeout);
     const output = `${stdout}${stderr}`;
+    if (exitCode !== 0) console.error(`Contract failure: ${file} (exit ${exitCode})\n${output}`);
     const log = `${directory}/${index}.log`;
     writeFileSync(log, output);
     const count = (label: string) => Number(output.match(new RegExp(`(?:^|\\n)\\s*(\\d+) ${label}\\b`))?.[1] || 0);

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import dynamic from "next/dynamic";
 
 import { useState } from "react";
 import {
@@ -22,13 +23,26 @@ import {
 } from "lucide-react";
 import { FaYoutube } from "react-icons/fa6";
 import type { VideoItem, VideoPlaylistItem } from "@/app/actions/video-actions";
-import { ZyxVideoPlayer } from "./zyx-video-player";
 import {
   extractYouTubeVideoId,
   getCanonicalYouTubeUrl,
 } from "@/lib/video/youtube";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
+
+function VideoPlayerLoading() {
+  const t = useTranslations("studentCourse");
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-black text-body-xs text-white" role="status">
+      {t("courseVideos.loadingPlayer")}
+    </div>
+  );
+}
+
+const ZyxVideoPlayer = dynamic(
+  () => import("./zyx-video-player").then((mod) => mod.ZyxVideoPlayer),
+  { loading: VideoPlayerLoading }
+);
 
 type VideoPlayerModalProps = {
   video: VideoItem | null;
@@ -359,7 +373,7 @@ export function VideoPlayerModal({
                       {/* Thumbnail with duration */}
                       <div className="relative aspect-video w-24 sm:w-28 shrink-0 overflow-hidden rounded-lg bg-black/20 border border-border/40">
                         {item.thumbnailUrl ? (
-                          <Image unoptimized loading="eager" width={160} height={90}
+                          <Image unoptimized loading="lazy" width={160} height={90}
                             src={item.thumbnailUrl}
                             alt=""
                             className="h-full w-full object-cover"

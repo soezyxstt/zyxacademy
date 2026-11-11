@@ -2,8 +2,7 @@
 
 import Image from "next/image";
 
-import { useState, useMemo, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, useTransition } from "react";
 import {
   Users,
   ShieldCheck,
@@ -21,7 +20,8 @@ import {
 } from "@/components/admin/stat-card";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { StatusBadge } from "@/components/admin/status-badges";
-import { AdminEmptyState } from "@/components/admin/state-panels";
+import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
+import { adminListRequestState, scheduleAdminListRequest } from "@/lib/admin/list-request";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,7 @@ import { FormattedDate } from "@/components/ui/formatted-date";
 import {
   type AdminUserItem,
   type AdminUserStats,
+  getAdminUsersData,
   updateUserRolesAction,
   updateUserStatusAction,
 } from "@/app/(admin)/admin/(academic)/users/actions";
@@ -55,6 +56,7 @@ import { type PeranCode } from "@/lib/auth/peran";
 interface UsersDashboardProps {
   initialUsers: AdminUserItem[];
   initialStats: AdminUserStats;
+  initialTotal: number;
   currentUserId: string;
 }
 
@@ -91,15 +93,46 @@ function UserAvatar({ name, image }: { name: string; image: string | null }) {
 export function UsersDashboard({
   initialUsers,
   initialStats,
+  initialTotal,
   currentUserId,
 }: UsersDashboardProps) {
   const t = useTranslations("adminOps");
-  const router = useRouter();
   const [users, setUsers] = useState<AdminUserItem[]>(initialUsers);
   const [stats, setStats] = useState<AdminUserStats>(initialStats);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(initialTotal);
+  const [revision, setRevision] = useState(0);
+  const [fetching, setFetching] = useState(false);
+  const [loadedKey, setLoadedKey] = useState(() => JSON.stringify([1, "", "all", "all", 0]));
+  const [failedKey, setFailedKey] = useState<string | null>(null);
+  const requestKey = JSON.stringify([page, searchQuery, roleFilter, statusFilter, revision]);
+  const { failed, stale, loading } = adminListRequestState(loadedKey, requestKey, failedKey, fetching);
+  const initial = useRef(true);
+  useEffect(() => {
+    if (initial.current) { initial.current = false; return; }
+    setFetching(true);
+    setFailedKey(null);
+    return scheduleAdminListRequest(
+      () => getAdminUsersData({ page, search: searchQuery, role: roleFilter, status: statusFilter }),
+      {
+        onSuccess: (result) => {
+          if (page > 1 && result.users.length === 0 && result.total > 0) {
+            setPage(Math.ceil(result.total / 30));
+            return;
+          }
+          setUsers(result.users);
+          setStats(result.stats);
+          setTotal(result.total);
+          setLoadedKey(requestKey);
+        },
+        onError: () => setFailedKey(requestKey),
+        onSettled: () => setFetching(false),
+      },
+    );
+  }, [page, searchQuery, roleFilter, statusFilter, revision, requestKey]);
 
   // Edit Roles State
   const [editingUser, setEditingUser] = useState<AdminUserItem | null>(null);
@@ -110,27 +143,7 @@ export function UsersDashboard({
   const [statusTargetUser, setStatusTargetUser] = useState<AdminUserItem | null>(null);
   const [isUpdatingStatus, startUpdateStatus] = useTransition();
 
-  // Filtered Users
-  const filteredUsers = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    return users.filter((u) => {
-      if (query) {
-        const matchName = u.name.toLowerCase().includes(query);
-        const matchEmail = u.email.toLowerCase().includes(query);
-        if (!matchName && !matchEmail) return false;
-      }
-
-      if (roleFilter !== "all") {
-        if (!u.roles.includes(roleFilter as PeranCode)) return false;
-      }
-
-      if (statusFilter !== "all") {
-        if (u.status !== statusFilter) return false;
-      }
-
-      return true;
-    });
-  }, [users, searchQuery, roleFilter, statusFilter]);
+  const filteredUsers = users;
 
   const handleOpenRoleModal = (userItem: AdminUserItem) => {
     setEditingUser(userItem);
@@ -160,19 +173,8 @@ export function UsersDashboard({
       const res = await updateUserRolesAction(editingUser.id, selectedRoles);
       if (res.success) {
         toast.success(t("usersUI.rolesSaved", { name: editingUser.name }));
-        setUsers((prev) =>
-          prev.map((u) =>
-            u.id === editingUser.id ? { ...u, roles: selectedRoles } : u
-          )
-        );
-        // Update stats
-        recomputeStats(
-          users.map((u) =>
-            u.id === editingUser.id ? { ...u, roles: selectedRoles } : u
-          )
-        );
         setEditingUser(null);
-        router.refresh();
+        setRevision((value) => value + 1);
       } else {
         toast.error(t("usersUI.updateRoleFailure"));
       }
@@ -189,46 +191,11 @@ export function UsersDashboard({
       if (res.success) {
         const label = nextStatus === "active" ? t("usersUI.accountActivated") : t("usersUI.accountSuspended");
         toast.success(t("usersUI.statusUpdated", { name: statusTargetUser.name, status: label }));
-        setUsers((prev) =>
-          prev.map((u) =>
-            u.id === statusTargetUser.id ? { ...u, status: nextStatus } : u
-          )
-        );
-        recomputeStats(
-          users.map((u) =>
-            u.id === statusTargetUser.id ? { ...u, status: nextStatus } : u
-          )
-        );
         setStatusTargetUser(null);
-        router.refresh();
+        setRevision((value) => value + 1);
       } else {
         toast.error(t("usersUI.updateStatusFailure"));
       }
-    });
-  };
-
-  const recomputeStats = (updatedList: AdminUserItem[]) => {
-    let adminCount = 0;
-    let tutorCount = 0;
-    let muridCount = 0;
-    let activeCount = 0;
-    let suspendedCount = 0;
-
-    for (const u of updatedList) {
-      if (u.roles.includes("admin")) adminCount++;
-      if (u.roles.includes("tutor")) tutorCount++;
-      if (u.roles.includes("murid")) muridCount++;
-      if (u.status === "active") activeCount++;
-      else suspendedCount++;
-    }
-
-    setStats({
-      totalUsers: updatedList.length,
-      adminCount,
-      tutorCount,
-      muridCount,
-      activeCount,
-      suspendedCount,
     });
   };
 
@@ -236,6 +203,7 @@ export function UsersDashboard({
     searchQuery.trim().length > 0 || roleFilter !== "all" || statusFilter !== "all";
 
   const handleResetFilters = () => {
+    setPage(1);
     setSearchQuery("");
     setRoleFilter("all");
     setStatusFilter("all");
@@ -283,13 +251,14 @@ export function UsersDashboard({
           <SearchBar
             size="sm"
             value={searchQuery}
-            onSearch={setSearchQuery}
-            onClear={() => setSearchQuery("")}
+            onSearch={(value) => { setPage(1); setSearchQuery(value); }}
+            onClear={() => { setPage(1); setSearchQuery(""); }}
+            isLoading={loading}
             placeholder={t("usersUI.search")}
           />
         </div>
 
-        <Select value={roleFilter} onValueChange={setRoleFilter}>
+        <Select value={roleFilter} onValueChange={(value) => { setPage(1); setRoleFilter(value); }}>
           <SelectTrigger className="h-9 w-[130px] shrink-0 text-body-sm bg-card rounded-lg border-border">
             <SelectValue placeholder={t("usersUI.allRoles")} />
           </SelectTrigger>
@@ -301,7 +270,7 @@ export function UsersDashboard({
           </SelectContent>
         </Select>
 
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={(value) => { setPage(1); setStatusFilter(value); }}>
           <SelectTrigger className="h-9 w-[140px] shrink-0 text-body-sm bg-card rounded-lg border-border">
             <SelectValue placeholder={t("usersUI.allStatuses")} />
           </SelectTrigger>
@@ -324,13 +293,17 @@ export function UsersDashboard({
           </Button>
         )}
 
-        <div className="ml-auto text-body-xs text-muted-foreground self-center">
-          {t("usersUI.resultCount", { shown: filteredUsers.length, total: users.length })}
+        <div className={`ml-auto text-body-xs text-muted-foreground self-center ${stale || failed ? "invisible" : ""}`}>
+          {t("usersUI.resultCount", { shown: filteredUsers.length, total })}
         </div>
       </div>
 
       {/* Users Table */}
-      {filteredUsers.length === 0 ? (
+      {failed ? (
+        <AdminErrorState message={t("groupsUI.systemError")} onRetry={() => setRevision((value) => value + 1)} />
+      ) : filteredUsers.length === 0 && stale ? (
+        <div role="status" className="py-12 text-center text-body-sm text-muted-foreground">{t("shortLinksUI.loading")}</div>
+      ) : filteredUsers.length === 0 ? (
         <AdminEmptyState
           title={t("usersUI.emptyTitle")}
           description={
@@ -340,8 +313,8 @@ export function UsersDashboard({
           }
         />
       ) : (
-        <AdminTable>
-          <table className="w-full min-w-[640px] text-left text-body-sm border-collapse">
+        <AdminTable className={stale ? "opacity-60" : undefined}>
+          <table aria-busy={loading} className="w-full min-w-[640px] text-left text-body-sm border-collapse">
             <AdminTableHead>
               <tr>
                 <th className="px-4 py-3 font-semibold text-foreground">{t("usersUI.user")}</th>
@@ -428,6 +401,7 @@ export function UsersDashboard({
                           variant="outline"
                           size="sm"
                           onClick={() => handleOpenRoleModal(userItem)}
+                          disabled={stale}
                           className="h-8 px-2.5 rounded-lg text-body-sm gap-1.5"
                         >
                           <UserCog className="size-3.5" />
@@ -437,7 +411,7 @@ export function UsersDashboard({
                         <Button
                           variant={userItem.status === "active" ? "ghost" : "outline"}
                           size="sm"
-                          disabled={isSelf}
+                          disabled={isSelf || stale}
                           onClick={() => setStatusTargetUser(userItem)}
                           className={`h-8 px-2.5 rounded-lg text-body-sm gap-1.5 ${
                             userItem.status === "active"
@@ -472,6 +446,14 @@ export function UsersDashboard({
             </tbody>
           </table>
         </AdminTable>
+      )}
+
+      {!failed && total > 30 && (
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage(page - 1)}>{t("notificationUI.previous")}</Button>
+          <span className={`text-body-xs ${stale ? "invisible" : ""}`}>{page} / {Math.ceil(total / 30)}</span>
+          <Button variant="outline" size="sm" disabled={page * 30 >= total || loading} onClick={() => setPage(page + 1)}>{t("notificationUI.next")}</Button>
+        </div>
       )}
 
       {/* Edit Roles Dialog */}

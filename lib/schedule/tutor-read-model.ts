@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   academicSchedules,
@@ -340,6 +340,7 @@ function storedResource(row: typeof bookingResources.$inferSelect): SessionResou
 export async function getTutorScheduleReadModel(
   input: string | GetTutorScheduleReadModelInput,
   executor?: DbExecutor,
+  readAccessibleCourses: typeof listTutorAccessibleCourses = listTutorAccessibleCourses,
 ): Promise<TutorScheduleReadModel> {
   const client = (executor ?? db) as typeof db;
   const tutorId =
@@ -390,10 +391,10 @@ export async function getTutorScheduleReadModel(
   }
 
   // 2. Fetch assigned active courses via centralized helper with canonical fallback semantics
-  const accessibleCoursesList = await listTutorAccessibleCourses(
+  const accessibleCoursesList = await (executor ? listTutorAccessibleCourses : readAccessibleCourses)(
     tutorId,
     { allowAdmin },
-    client,
+    executor,
   );
 
   const assignedActiveCourses: AssignedActiveCourseItem[] = [];
@@ -991,13 +992,15 @@ export async function getTutorScheduleReadModel(
     );
   }
 
+  const scheduleRangeConditions = [];
   if (fromDate || toDate) {
     const rangeStart = fromDate ? new Date(`${fromDate}T00:00:00.000+07:00`) : undefined;
     const rangeEnd = toDate ? new Date(`${toDate}T23:59:59.999+07:00`) : undefined;
-    if (rangeEnd) scheduleConditions.push(lte(academicSchedules.startDate, rangeEnd));
+    if (rangeEnd) scheduleRangeConditions.push(lte(academicSchedules.startDate, rangeEnd));
     if (rangeStart) {
-      scheduleConditions.push(
-        or(isNull(academicSchedules.endDate), gte(academicSchedules.endDate, rangeStart))!,
+      // A schedule without an end is a single event at its start.
+      scheduleRangeConditions.push(
+        gte(sql`coalesce(${academicSchedules.endDate}, ${academicSchedules.startDate})`, rangeStart),
       );
     }
   }
@@ -1019,6 +1022,7 @@ export async function getTutorScheduleReadModel(
       and(
         eq(academicSchedules.status, "published"),
         or(...scheduleConditions),
+        ...scheduleRangeConditions,
       ),
     )
     .orderBy(desc(academicSchedules.startDate));

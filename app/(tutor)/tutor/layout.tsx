@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { hasAnyPeran } from "@/lib/auth/authorization";
+import { hasAnyPeran } from "@/lib/auth/request-cache";
 
 export default async function TutorLayout({ children }: { children: React.ReactNode }) {
 

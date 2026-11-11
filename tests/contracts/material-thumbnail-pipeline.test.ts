@@ -8,7 +8,7 @@ describe("student sidebar course context", () => {
   test("route context switches the sidebar before course metadata resolves", () => {
     const sidebar = source("components/student-sidebar.tsx");
     expect(sidebar).toContain("if (activeCourseId)");
-    expect(sidebar).toContain("activeCourse?.id === activeCourseId");
+    expect(sidebar).toContain("activeCourse && activeCourse.userId === userId && activeCourse.course.id === activeCourseId");
     expect(sidebar).toContain("const base = `/courses/${activeCourseId}`");
     expect(sidebar).not.toContain("if (activeCourse) {");
   });
@@ -44,13 +44,16 @@ describe("PDF thumbnail compute boundary", () => {
     expect(compute).toMatch(/computeFunctions\s*=\s*\[[\s\S]*pdfThumbnailWorker[\s\S]*\]/);
   });
 
-  test("material cards retry transient queued thumbnails without Next image caching", () => {
+  test("queued thumbnails retry a bounded number of times without server polling", () => {
     const list = source("app/(student)/courses/[id]/material/document-list-client.tsx");
-    expect(list).toContain("MAX_THUMBNAIL_RETRIES");
-    expect(list).toContain('baseThumbnailUrl.includes("/thumbnail")');
-    expect(list).toContain("unoptimized={isRetryableThumbnail}");
-    expect(list).toContain("retry=${retryAttempt}");
-    expect(list).toContain("handleThumbnailError");
+    const route = source("app/api/courses/[id]/material/[materialId]/thumbnail/route.ts");
+    expect(list).toContain('baseUrl.includes("/thumbnail")');
+    expect(list).toContain("unoptimized={thumbnail.isEndpoint}");
+    expect(list).toContain("MAX_THUMBNAIL_RETRIES = 4");
+    expect(list).toContain("retry=${current.attempt}");
+    expect(list).toContain("onError={thumbnail.onError}");
+    expect(route).toContain("status: 202");
+    expect(route).not.toContain("setTimeout");
   });
 
   test("pdf thumbnail compute does not hardcode cwd node_modules worker path", () => {

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { pageTitle } from "@/lib/site";
-import { assertAdmin } from "@/lib/auth/admin-guards";
+import { assertAdmin } from "@/lib/auth/admin-guards-server";
 import { getAdminScheduleData } from "./actions";
 import { AcademicSchedulesDashboard } from "@/components/admin/academic-schedules-dashboard";
 import { PageHeader } from "@/components/page-header";

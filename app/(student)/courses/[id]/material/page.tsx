@@ -11,9 +11,9 @@ import {
   extractFreeQuizChapterScope,
   isFreeChapterScoped,
   isFreeQuizTemplate,
-  getCachedCanonicalPublishedArticlesForCourse,
 } from "@/lib/course-utils";
 import { CourseDocumentsClient } from "./course-documents-client";
+import { getMaterialArticleSummaries } from "./canonical-summaries";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { db } from "@/db";
 import { aiMaterialInstances, websiteMaterials, diktats, diktatMateri, bab, courseMaterials, progress, studentMaterialProgress, quizTemplates, studentQuizAttempts, exams } from "@/db/schema";
@@ -109,7 +109,7 @@ async function loadCourseMaterialData({
   ] = await Promise.all([
     getStudentCourseAccess(studentId, id),
     progressPromise,
-    getCachedCanonicalPublishedArticlesForCourse(id, studentId),
+    getMaterialArticleSummaries(id, studentId),
     getCourseChapterOutline(id),
     db
       .select({ id: aiMaterialInstances.id, title: aiMaterialInstances.title, chapterIds: aiMaterialInstances.chapterIds, thumbnailUrl: aiMaterialInstances.thumbnailUrl })
@@ -127,7 +127,7 @@ async function loadCourseMaterialData({
           .where(and(eq(diktatMateri.mataKuliahId, course.canonicalId), eq(diktatMateri.status, "published")))
       : Promise.resolve([]),
     db
-      .select({ id: websiteMaterials.id, title: websiteMaterials.title, chapterId: websiteMaterials.chapterId, canonicalMarkdown: websiteMaterials.canonicalMarkdown, thumbnailUrl: websiteMaterials.thumbnailUrl })
+      .select({ id: websiteMaterials.id, title: websiteMaterials.title, chapterId: websiteMaterials.chapterId, thumbnailUrl: websiteMaterials.thumbnailUrl })
       .from(websiteMaterials)
       .where(and(eq(websiteMaterials.courseId, compatibilityCourseId), eq(websiteMaterials.status, "published"))),
     db
@@ -266,7 +266,7 @@ async function loadCourseMaterialData({
 
   const mappedWeb = webMaterials.filter((m) => !canonicalMappedChapterIds.has(m.chapterId)).map((m) => ({
     id: m.id, courseId: id, title: sanitizeMaterialTitle(m.title), kind: "article" as const, docCategory: "materi" as const, tabGroup: "materi" as const,
-    fileSize: undefined, body: m.canonicalMarkdown, completed: completedMaterialIds.has(m.id), isPastYear: false, isPreview: true,
+    fileSize: undefined, completed: completedMaterialIds.has(m.id), isPastYear: false, isPreview: true,
     thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined, chapterId: m.chapterId, chapterIds: m.chapterId ? [m.chapterId] : [], href: `/courses/${id}/material/${m.id}`,
   }));
 

@@ -1,5 +1,9 @@
 # Deployment Guide
 
+## Web function region
+
+The main `vercel.json` pins web functions to `sin1`, near the Zyx Neon project in `aws-ap-southeast-1`. Read-only inspection on 2026-11-11 found the production deployment `dpl_BfnxeAy7T4TWojtcnNaH52fxNtkQ` (commit `04b9b61e5290b6c3c3013cd4ef5f38ed6bb70ce8`) reporting `iad1`. The local region correction requires a new authorized deployment; it does not relocate the existing deployment. After release, verify the serving deployment region and authenticated dashboard latency. Roll back through the previous deployment if required; that also restores its original region. No production latency improvement has been measured for this change.
+
 ## Neon Functions background execution
 
 The [worker cutover runbook](operations/neon-functions-cutover.md) is OPEN / IN PROGRESS. Production Inngest execution was restored on Neon Functions on 2026-11-10 through `.github/workflows/deploy-neon-worker.yml`, using Cloudflare Browser Run for PDFs. The worker-only recovery registered 22 functions and passed 10 HTTP/PDF checks including a completed durable job. No web rebuild or Vercel configuration change was made; Zyra chat and Playground were unchanged. Existing source-figure v1, V4 verification and direct web RPC compatibility limits remain in the runbook. PR 309 integrated the production workflow into main. Main CI run 42845350696 released deployment 3 successfully while skipping web deployment. The Deno instructions below are retained legacy references. Staging web/DNS work is deferred.

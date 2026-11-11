@@ -88,8 +88,6 @@ const categoryLabel: Record<string, string> = {
   diktat: "handbook",
 };
 
-const MAX_THUMBNAIL_RETRIES = 8;
-
 function displayFileSizeLabel(value: string, t: (key: string) => string): string {
   const labels: Record<string, string> = {
     "PDF Diktat": "diktatPdf",
@@ -233,45 +231,40 @@ function DocumentPlaceholder({
   );
 }
 
+const MAX_THUMBNAIL_RETRIES = 4;
+
+function useDocumentThumbnail(baseUrl: string) {
+  const [state, setState] = useState({ baseUrl, attempt: 0, failed: false });
+  const current = state.baseUrl === baseUrl ? state : { baseUrl, attempt: 0, failed: false };
+  const isEndpoint = baseUrl.includes("/thumbnail");
+
+  useEffect(() => {
+    if (!isEndpoint || !current.failed || current.attempt >= MAX_THUMBNAIL_RETRIES) return;
+    const timer = setTimeout(() => {
+      setState((previous) => previous.baseUrl === baseUrl
+        ? { baseUrl, attempt: previous.attempt + 1, failed: false }
+        : previous);
+    }, 2000 * 2 ** current.attempt);
+    return () => clearTimeout(timer);
+  }, [baseUrl, isEndpoint, current.failed, current.attempt]);
+
+  return {
+    src: current.attempt > 0 ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}retry=${current.attempt}` : baseUrl,
+    failed: current.failed,
+    isEndpoint,
+    onError: () => setState({ ...current, failed: true }),
+  };
+}
+
 function DocumentPreview({ material }: { material: CourseMaterial }) {
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const [retryAttempt, setRetryAttempt] = useState(0);
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const baseThumbnailUrl = material.thumbnailUrl ?? "";
-  const isRetryableThumbnail = baseThumbnailUrl.includes("/thumbnail");
-  const thumbnailSrc =
-    baseThumbnailUrl && retryAttempt > 0
-      ? `${baseThumbnailUrl}${baseThumbnailUrl.includes("?") ? "&" : "?"}retry=${retryAttempt}`
-      : baseThumbnailUrl;
-  const hasThumbnail = Boolean(baseThumbnailUrl) && !imageError;
+  const thumbnail = useDocumentThumbnail(baseThumbnailUrl);
+  const hasThumbnail = Boolean(baseThumbnailUrl) && !thumbnail.failed;
 
   useEffect(() => {
     setImageLoaded(false);
-    setImageError(false);
-    setRetryAttempt(0);
-  }, [baseThumbnailUrl]);
-
-  useEffect(() => {
-    return () => {
-      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-    };
-  }, []);
-
-  const handleThumbnailError = () => {
-    if (!isRetryableThumbnail || retryAttempt >= MAX_THUMBNAIL_RETRIES) {
-      setImageError(true);
-      return;
-    }
-
-    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-    const delayMs = Math.min(750 * 2 ** retryAttempt, 5000);
-    retryTimerRef.current = setTimeout(() => {
-      setImageLoaded(false);
-      setRetryAttempt((current) => current + 1);
-    }, delayMs);
-  };
+  }, [thumbnail.src]);
 
   return (
     <div className="relative flex aspect-[16/10] w-full items-center justify-center overflow-hidden bg-muted/15 select-none sm:aspect-[4/3]">
@@ -295,18 +288,18 @@ function DocumentPreview({ material }: { material: CourseMaterial }) {
         <div className="relative z-10 size-full p-2.5">
           <div className="relative size-full overflow-hidden rounded-xs bg-white shadow-xs ring-1 ring-black/5 dark:ring-white/10">
             <Image
-              key={thumbnailSrc}
-              src={thumbnailSrc}
+              key={thumbnail.src}
+              src={thumbnail.src}
               alt={`Pratinjau ${material.title}`}
               fill
-              unoptimized={isRetryableThumbnail}
+              unoptimized={thumbnail.isEndpoint}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
               className={cn(
                 "object-contain object-center transition-all duration-200 group-hover:scale-[1.015]",
                 imageLoaded ? "opacity-100" : "opacity-0"
               )}
               onLoad={() => setImageLoaded(true)}
-              onError={handleThumbnailError}
+              onError={thumbnail.onError}
             />
           </div>
         </div>
@@ -316,9 +309,9 @@ function DocumentPreview({ material }: { material: CourseMaterial }) {
 }
 
 function CompactDocumentRowThumbnail({ material }: { material: CourseMaterial }) {
-  const [failedThumbnail, setFailedThumbnail] = useState<string | null>(null);
   const baseThumbnailUrl = material.thumbnailUrl ?? "";
-  if (!baseThumbnailUrl || failedThumbnail === baseThumbnailUrl) {
+  const thumbnail = useDocumentThumbnail(baseThumbnailUrl);
+  if (!baseThumbnailUrl || thumbnail.failed) {
     return (
       <div className="flex size-full items-center justify-center bg-muted/40 text-muted-foreground">
         <DocumentHeaderIcon
@@ -332,10 +325,12 @@ function CompactDocumentRowThumbnail({ material }: { material: CourseMaterial })
   return (
     <div className="relative size-full overflow-hidden bg-white dark:bg-zinc-900">
       <Image
-        src={baseThumbnailUrl}
+        key={thumbnail.src}
+        src={thumbnail.src}
         alt=""
-        onError={() => setFailedThumbnail(baseThumbnailUrl)}
+        onError={thumbnail.onError}
         fill
+        unoptimized={thumbnail.isEndpoint}
         sizes="(max-width: 640px) 96px, 128px"
         className="object-cover object-top"
       />

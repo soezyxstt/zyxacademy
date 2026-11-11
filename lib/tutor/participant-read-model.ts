@@ -93,11 +93,12 @@ export async function getTutorCourseParticipants(
   courseId: string,
   options?: GetTutorCourseParticipantsOptions,
   executor?: DbExecutor,
+  readCourseAccess: typeof requireTutorCourseAccess = requireTutorCourseAccess,
 ): Promise<TutorCourseParticipantsPayload> {
   const client = (executor ?? db) as typeof db;
 
   // 1. Enforce tutor course access boundary
-  const access = await requireTutorCourseAccess(
+  const access = await (executor ? requireTutorCourseAccess : readCourseAccess)(
     penggunaId,
     courseId,
     { allowAdmin: options?.allowAdmin },

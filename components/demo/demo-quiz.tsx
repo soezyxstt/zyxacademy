@@ -8,7 +8,8 @@ import { StudentQuizReview } from "@/components/course/student-quiz-review";
 import { QuizPlayer } from "@/components/course/quiz-player";
 import type { DemoQuizPage } from "@/lib/demo/quiz-pages";
 import type { DemoQuizQuestion } from "@/app/(marketing)/demo/demo-data";
-import { demoQuizEventKey, demoQuizExam, demoQuizIdentity, gradeDemoQuiz, parseDemoQuizAttempt, serializeDemoQuizResult, type DemoQuizResult } from "@/lib/demo/assessment/quiz";
+import { demoQuizEventKey, demoQuizExam, demoQuizIdentity, parseDemoQuizAttempt, serializeDemoQuizResult, type DemoQuizResult } from "@/lib/demo/assessment/quiz";
+import { gradeDemoQuizPages } from "@/lib/demo/quiz-submission";
 import { fictionalQuizCorrectCount } from "@/lib/demo/assessment/history";
 import { useTranslations } from "@/lib/i18n/client";
 import { useDemoSession } from "./demo-session";
@@ -57,14 +58,7 @@ export function DemoQuiz({ pages, courseId, view = "quiz" }: {
   }, [ready, revision, generation, overlay, questionKey, resultKey, identity, questions.length, experience.mode, experience.selectedCourseId, courseId]);
   const submit = useCallback(async (answers: Record<string, unknown>) => {
     if (!ready || !revision || experience.mode !== "demo" || experience.selectedCourseId !== courseId) throw new Error("Session unavailable");
-    const results: DemoQuizResult["results"] = [];
-    let score = 0;
-    for (const page of pages) {
-      const gradedPage = await gradeDemoQuiz(courseId, page.questions, page.token, answers, page.offset);
-      score += gradedPage.score;
-      results.push(...gradedPage.results.map(item => ({ ...item, index: page.offset + item.index })));
-    }
-    const graded: DemoQuizResult = { score, total: questions.length, results };
+    const graded = await gradeDemoQuizPages(courseId, pages, answers);
     const submitted = Object.fromEntries(questions.map(question => {
       const value = answers[question.id];
       return [question.id, Array.isArray(value) ? value.filter((index): index is number => typeof index === "number") : typeof value === "number" ? [value] : []];

@@ -12,7 +12,8 @@ describe("assessment answer leak hardening", () => {
 
     expect(clientBlock).toContain("options: publicOptionTexts(q.options)");
     expect(clientBlock).not.toContain("options: q.options");
-    expect(route).toContain("const serializedAttempts = serializeStudentQuizAttemptList(visibleAttempts)");
+    expect(route).toContain("visibleAttempts.map((attempt) => serializeStudentQuizAttempt(attempt");
+    expect(route).toContain("canViewAttemptDiscussion(templateById.get(attempt.templateId), attempt.status) ? 'released' : 'hidden'");
     expect(route).toContain("serializedAttempts.map(stripAnswerMarkers)");
   });
 

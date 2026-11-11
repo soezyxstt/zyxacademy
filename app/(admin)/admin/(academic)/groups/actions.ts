@@ -9,120 +9,87 @@ import {
   groupCourses,
   user,
   enrollments,
+  bookings,
+  courses,
+  enrollmentTokens,
+  enrollmentTokenCourses,
 } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards";
-import { eq, desc, and, ilike, or } from "drizzle-orm";
+import { eq, desc, asc, and, ilike, or, inArray, lte, sql } from "drizzle-orm";
 import { getSemesterEndDate } from "@/lib/utils";
 import { dualWriteEnrollment } from "@/lib/migrasi/repository-kompatibilitas";
 import { PACKAGE_PRESETS, type PackageType } from "@/lib/group-constants";
 import { computeWeeklySessionStats } from "@/lib/schedule-lock";
 
-/**
- * Get all study groups for admin dashboard with summary metrics
- */
-export async function getAdminStudyGroups() {
+export type AdminGroupsQuery = { page?: number; search?: string; status?: string; packageType?: string; courseId?: string };
+const GROUPS_PAGE_SIZE = 25;
+
+export async function getAdminStudyGroups(input: AdminGroupsQuery = {}) {
   await assertAdmin();
-
-  const groupRows = await db.query.groups.findMany({
-    with: {
-      courses: {
-        with: {
-          course: true,
-        },
-      },
-      members: {
-        with: {
-          user: true,
-        },
-      },
-      tokens: {
-        with: {
-          tokenCourses: {
-            with: {
-              course: true,
-            },
-          },
-        },
-      },
-      bookings: {
-        with: {
-          student: true,
-          course: true,
-        },
-      },
-    },
-    orderBy: [desc(groups.createdAt)],
-  });
-
-  return groupRows.map((g) => {
-    // Collect courses from direct groupCourses or fallback to tokens
-    const directCourses = g.courses.map((gc) => ({
-      id: gc.course.id,
-      title: gc.course.title,
-      category: gc.course.category,
-    }));
-
-    const tokenCourses = g.tokens.flatMap((t) =>
-      t.tokenCourses.map((tc) => ({
-        id: tc.course.id,
-        title: tc.course.title,
-        category: tc.course.category,
-      }))
-    );
-
-    // Merge unique courses
+  const page = Number.isSafeInteger(input.page) ? Math.max(1, Math.min(input.page!, 100000)) : 1;
+  const query = (typeof input.search === "string" ? input.search : "").trim().slice(0, 200).replace(/[\\%_]/g, "\\$&");
+  const pattern = `%${query}%`;
+  const courseMatch = (courseCondition: ReturnType<typeof sql>) => sql`(
+    exists (select 1 from ${groupCourses} inner join ${courses} on ${groupCourses.courseId} = ${courses.id}
+      where ${groupCourses.groupId} = ${groups.id} and ${courseCondition})
+    or exists (select 1 from ${enrollmentTokens} inner join ${enrollmentTokenCourses} on ${enrollmentTokenCourses.tokenId} = ${enrollmentTokens.id}
+      inner join ${courses} on ${enrollmentTokenCourses.courseId} = ${courses.id}
+      where ${enrollmentTokens.groupId} = ${groups.id} and ${courseCondition})
+  )`;
+  const condition = and(
+    query ? or(ilike(groups.name, pattern), sql`exists (select 1 from ${groupMembers} inner join ${user} on ${groupMembers.userId} = ${user.id}
+      where ${groupMembers.groupId} = ${groups.id} and (${user.name} ilike ${pattern} or ${user.email} ilike ${pattern}))`,
+      courseMatch(sql`${courses.title} ilike ${pattern}`)) : undefined,
+    input.status && input.status !== "all" ? sql`${groups.status} = ${input.status}` : undefined,
+    input.packageType && input.packageType !== "all" ? sql`${groups.packageType} = ${input.packageType}` : undefined,
+    input.courseId && input.courseId !== "all" ? courseMatch(sql`${courses.id} = ${input.courseId}`) : undefined,
+  );
+  const bookingCount = sql<number>`(select count(*) from ${bookings} where ${bookings.groupId} = ${groups.id})`;
+  const [rows, [countRow], [summary], [membersSummary]] = await Promise.all([
+    db.select({ group: groups, bookingsCount: bookingCount,
+      memberCount: sql<number>`(select count(*) from ${groupMembers} where ${groupMembers.groupId} = ${groups.id})`,
+    }).from(groups).where(condition).orderBy(desc(groups.createdAt), asc(groups.id)).limit(GROUPS_PAGE_SIZE).offset((page - 1) * GROUPS_PAGE_SIZE),
+    db.select({ count: sql<number>`count(*)` }).from(groups).where(condition),
+    db.select({ totalGroups: sql<number>`count(*)`, activeGroups: sql<number>`count(*) filter (where ${groups.status} = 'active')`,
+      totalUsed: sql<number>`coalesce(sum(greatest(${groups.usedQuotaSessions}, ${bookingCount})), 0)`,
+      totalQuota: sql<number>`coalesce(sum(${groups.totalQuotaSessions}), 0)`,
+    }).from(groups),
+    db.select({ totalMembers: sql<number>`count(distinct ${groupMembers.userId})` }).from(groupMembers),
+  ]);
+  const groupIds = rows.map((row) => row.group.id);
+  const rankedMembers = db.select({ id: groupMembers.id, groupId: groupMembers.groupId, userId: groupMembers.userId,
+    role: groupMembers.role, joinedAt: groupMembers.joinedAt,
+    position: sql<number>`row_number() over (partition by ${groupMembers.groupId} order by ${groupMembers.joinedAt}, ${groupMembers.id})`.as("position"),
+  }).from(groupMembers).where(inArray(groupMembers.groupId, groupIds)).as("ranked_members");
+  const [relations, previews] = groupIds.length ? await Promise.all([
+    db.query.groups.findMany({ where: inArray(groups.id, groupIds), columns: { id: true }, with: {
+      courses: { with: { course: { columns: { id: true, title: true, category: true } } } },
+      tokens: { columns: { id: true }, with: { tokenCourses: { with: { course: { columns: { id: true, title: true, category: true } } } } } },
+    } }),
+    db.select({ id: rankedMembers.id, groupId: rankedMembers.groupId, userId: rankedMembers.userId,
+      role: rankedMembers.role, joinedAt: rankedMembers.joinedAt,
+      user: { id: user.id, name: user.name, email: user.email, image: user.image, role: user.role },
+    }).from(rankedMembers).innerJoin(user, eq(rankedMembers.userId, user.id)).where(lte(rankedMembers.position, 4)),
+  ]) : [[], []] as const;
+  const relationById = new Map(relations.map((row) => [row.id, row]));
+  const result = rows.map(({ group: g, bookingsCount, memberCount }) => {
+    const relation = relationById.get(g.id);
     const courseMap = new Map<string, { id: string; title: string; category: string }>();
-    for (const c of [...directCourses, ...tokenCourses]) {
-      if (!courseMap.has(c.id)) {
-        courseMap.set(c.id, c);
-      }
+    for (const course of [...(relation?.courses.map((entry) => entry.course) ?? []),
+      ...(relation?.tokens.flatMap((token) => token.tokenCourses.map((entry) => entry.course)) ?? [])]) {
+      if (!courseMap.has(course.id)) courseMap.set(course.id, course);
     }
-    const combinedCourses = Array.from(courseMap.values());
-
-    const bookingCount = g.bookings?.length || 0;
-    const effectiveUsedQuota = Math.max(g.usedQuotaSessions || 0, bookingCount);
-    const remainingQuota = Math.max(0, g.totalQuotaSessions - effectiveUsedQuota);
-
-    return {
-      id: g.id,
-      name: g.name,
-      packageType: g.packageType,
-      packageName: g.packageName,
-      totalQuotaSessions: g.totalQuotaSessions,
-      weeklyQuotaSessions: g.weeklyQuotaSessions,
-      usedQuotaSessions: effectiveUsedQuota,
-      remainingQuota,
-      academicYear: g.academicYear,
-      semester: g.semester,
-      startDate: g.startDate,
-      endDate: g.endDate,
-      status: g.status,
-      notes: g.notes,
-      createdAt: g.createdAt,
-      updatedAt: g.updatedAt,
-      courses: combinedCourses,
-      members: g.members.map((m) => ({
-        id: m.id,
-        userId: m.userId,
-        role: m.role,
-        joinedAt: m.joinedAt,
-        user: {
-          id: m.user.id,
-          name: m.user.name,
-          email: m.user.email,
-          image: m.user.image,
-          role: m.user.role,
-        },
-      })),
-      tokens: g.tokens.map((t) => ({
-        id: t.id,
-        token: t.token,
-        capacity: t.capacity,
-        expiresAt: t.expiresAt,
-      })),
-      bookingsCount: bookingCount,
+    const usedQuotaSessions = Math.max(g.usedQuotaSessions || 0, Number(bookingsCount));
+    return { ...g, usedQuotaSessions, remainingQuota: Math.max(0, g.totalQuotaSessions - usedQuotaSessions),
+      bookingsCount: Number(bookingsCount), memberCount: Number(memberCount), courses: [...courseMap.values()],
+      members: previews.filter((member) => member.groupId === g.id).map(({ groupId: _groupId, ...member }) => member),
     };
   });
+  const quota = Number(summary.totalQuota);
+  return { groups: result, total: Number(countRow.count), page, stats: {
+    totalGroups: Number(summary.totalGroups), activeGroups: Number(summary.activeGroups), totalMembers: Number(membersSummary.totalMembers),
+    avgQuotaUsed: quota > 0 ? Math.round(Number(summary.totalUsed) / quota * 100) : 0,
+  } };
 }
 
 /**

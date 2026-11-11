@@ -4,7 +4,7 @@ import { submissions, exams, user, courses, mataKuliah } from "@/db/schema";
 import { eq, and, desc, or, inArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { requireTutorCourseAccess } from "@/lib/auth/tutor-access";
+import { requireTutorCourseAccess } from "@/lib/auth/request-cache";
 import { GradingClient } from "./grading-client";
 import { Reveal } from "@/components/ui/reveal";
 import { PageHeader } from "@/components/page-header";

@@ -1,15 +1,19 @@
 import "server-only";
+import { cache } from "react";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { artikel, bab, chapters as legacyChapters, courseMaterials, diktatMateri, mataKuliah, websiteMaterials } from "@/db/schema";
 import { db } from "@/lib/db";
 import { sanitizeDemoMarkdown } from "@/lib/demo/public-content-sanitizer";
 import { padDemoCatalogue, type DemoCatalogue } from "@/lib/demo/catalogue";
+import { getPublicDemoContext } from "@/lib/demo/context-repository";
 
 /** Metadata only. Body, storage and answer fields are never selected. */
-export async function getDemoCatalogue(courseId: string): Promise<DemoCatalogue | null> {
-  const [course] = await db.select({ id: mataKuliah.id, title: mataKuliah.title, legacyId: mataKuliah.legacyCourseId }).from(mataKuliah).where(and(eq(mataKuliah.id, courseId), eq(mataKuliah.status, "active"))).limit(1);
+export const getDemoCatalogue = cache(async (courseId: string): Promise<DemoCatalogue | null> => {
+  const context = await getPublicDemoContext(courseId);
+  if (context === null) return null;
+  const [course] = context ? [{ id: context.row.course.id, title: context.row.course.title, legacyId: context.row.course.legacyCourseId }] : await db.select({ id: mataKuliah.id, title: mataKuliah.title, legacyId: mataKuliah.legacyCourseId }).from(mataKuliah).where(and(eq(mataKuliah.id, courseId), eq(mataKuliah.status, "active"))).limit(1);
   if (!course) return null;
-  const chapters = await db.select({ id: bab.id, title: bab.title, orderIndex: bab.orderIndex, legacyId: bab.legacyChapterId }).from(bab).where(and(eq(bab.mataKuliahId, courseId), eq(bab.status, "active"))).orderBy(asc(bab.orderIndex), asc(bab.id));
+  const chapters = context ? context.chapters.map((chapter) => ({ id: chapter.id, title: chapter.title, orderIndex: chapter.orderIndex, legacyId: chapter.legacyChapterId })) : await db.select({ id: bab.id, title: bab.title, orderIndex: bab.orderIndex, legacyId: bab.legacyChapterId }).from(bab).where(and(eq(bab.mataKuliahId, courseId), eq(bab.status, "active"))).orderBy(asc(bab.orderIndex), asc(bab.id));
   if (!chapters.length) return null;
   const legacyIds = chapters.flatMap(chapter => chapter.legacyId ? [chapter.legacyId] : []);
   const [articles, diktats, websites, uploads, legacyRows, legacyMappings] = await Promise.all([
@@ -45,4 +49,4 @@ export async function getDemoCatalogue(courseId: string): Promise<DemoCatalogue 
     materials.push({ id: row.id, title, chapterId: mapped[0] ?? "", chapterIds: mapped, kind: "pdf", category: row.type === "soal" ? "soal" : row.type === "pembahasan_soal" ? "solusi" : "materi", subcategory: row.subcategory, year: row.year });
   }
   return padDemoCatalogue(course.title, chapters.map(({ id, title, orderIndex }) => ({ id, title: sanitizeDemoMarkdown(title), orderIndex })), materials);
-}
+});

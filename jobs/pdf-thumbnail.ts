@@ -1,10 +1,11 @@
 import { inngest } from "./client";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { courseMaterials, diktats } from "@/db/schema";
 import { storage } from "@/lib/storage";
 import { buildCourseThumbnailKey, extractStorageKey } from "@/lib/storage/keys";
 import { generateAndSavePdfThumbnailCompute } from "@/lib/compute/pdf-thumbnail";
+import { buildVersionedThumbnailKey, canUseLegacyThumbnail } from "@/lib/thumbnail";
 
 export const pdfThumbnailWorker = inngest.createFunction(
   {
@@ -12,13 +13,17 @@ export const pdfThumbnailWorker = inngest.createFunction(
     name: "PDF Thumbnail Worker",
     triggers: [{ event: "pdf/thumbnail.requested" }],
     retries: 3,
-    concurrency: { limit: 2 },
+    concurrency: [{ limit: 2 }, { limit: 1, key: "event.data.materialId" }],
+    // Discard overlapping recovery events instead of accumulating a backlog
+    // while a slow or failing run is still consuming its own retries.
+    singleton: { key: "event.data.sourceType + ':' + event.data.materialId", mode: "skip" },
   },
   async ({ event, step }) => {
-    const { materialId, sourceType, sourceVersion } = event.data as {
+    const { materialId, sourceType, sourceVersion, sourceRevision } = event.data as {
       materialId: string;
       sourceType: "course_material" | "diktat";
       sourceVersion?: string;
+      sourceRevision?: string;
     };
 
     return step.run("generate-thumbnail", async () => {
@@ -26,6 +31,7 @@ export const pdfThumbnailWorker = inngest.createFunction(
       let courseSlug = "";
       let fileUrl = "";
       let existingThumb: string | null = null;
+      let currentRevision: string | null = null;
 
       if (isManual) {
         const [row] = await db
@@ -34,6 +40,7 @@ export const pdfThumbnailWorker = inngest.createFunction(
             courseId: courseMaterials.courseId,
             fileUrl: courseMaterials.fileUrl,
             thumbnailUrl: courseMaterials.thumbnailUrl,
+            checksum: courseMaterials.checksum,
           })
           .from(courseMaterials)
           .where(eq(courseMaterials.id, materialId))
@@ -43,6 +50,7 @@ export const pdfThumbnailWorker = inngest.createFunction(
         courseSlug = row.courseId;
         fileUrl = row.fileUrl;
         existingThumb = row.thumbnailUrl;
+        currentRevision = row.checksum;
       } else {
         const [row] = await db
           .select({
@@ -50,6 +58,7 @@ export const pdfThumbnailWorker = inngest.createFunction(
             courseId: diktats.courseId,
             fileUrl: diktats.fileUrl,
             thumbnailUrl: diktats.thumbnailUrl,
+            generationHash: diktats.generationHash,
           })
           .from(diktats)
           .where(eq(diktats.id, materialId))
@@ -59,10 +68,7 @@ export const pdfThumbnailWorker = inngest.createFunction(
         courseSlug = row.courseId;
         fileUrl = row.fileUrl;
         existingThumb = row.thumbnailUrl;
-      }
-
-      if (existingThumb) {
-        return { success: true, thumbnailUrl: existingThumb, skipped: true };
+        currentRevision = row.generationHash;
       }
 
       const fileKey = extractStorageKey(fileUrl);
@@ -70,6 +76,31 @@ export const pdfThumbnailWorker = inngest.createFunction(
       if (sourceVersion && sourceVersion !== fileKey) {
         return { skipped: true, reason: "STALE_SOURCE_VERSION" };
       }
+      if (sourceRevision && sourceRevision !== currentRevision) {
+        return { skipped: true, reason: "STALE_SOURCE_REVISION" };
+      }
+      const request = {
+        materialId,
+        sourceType,
+        sourceVersion: fileKey,
+        sourceRevision: currentRevision ?? undefined,
+      };
+      const versionedKey = buildVersionedThumbnailKey({
+        ...request,
+        courseSlug,
+        extension: "png",
+      });
+      const existingThumbKey = extractStorageKey(existingThumb);
+      const currentWebpKey = buildVersionedThumbnailKey({ ...request, courseSlug, extension: "webp" });
+      if (existingThumb && (canUseLegacyThumbnail(request) || existingThumbKey === versionedKey || existingThumbKey === currentWebpKey)) {
+        return { success: true, thumbnailUrl: existingThumb, skipped: true };
+      }
+
+      // A content-addressed PDF may never inherit a cover from an older source.
+      // Compare the observed value on write so another worker cannot be overwritten.
+      const thumbnailUnchanged = isManual
+        ? existingThumb === null ? isNull(courseMaterials.thumbnailUrl) : eq(courseMaterials.thumbnailUrl, existingThumb)
+        : existingThumb === null ? isNull(diktats.thumbnailUrl) : eq(diktats.thumbnailUrl, existingThumb);
 
       const expectedPngKey = buildCourseThumbnailKey({
         courseSlug,
@@ -77,27 +108,33 @@ export const pdfThumbnailWorker = inngest.createFunction(
         extension: "png",
       });
 
-      if (await storage.exists(expectedPngKey)) {
+      const [hasVersioned, hasLegacy] = await Promise.all([
+        storage.exists(versionedKey),
+        canUseLegacyThumbnail(request) ? storage.exists(expectedPngKey) : Promise.resolve(false),
+      ]);
+      const storedKey = hasVersioned ? versionedKey : hasLegacy ? expectedPngKey : null;
+      if (storedKey) {
         if (isManual) {
-          await db.update(courseMaterials).set({ thumbnailUrl: expectedPngKey }).where(eq(courseMaterials.id, materialId));
+          await db.update(courseMaterials).set({ thumbnailUrl: storedKey }).where(and(eq(courseMaterials.id, materialId), eq(courseMaterials.fileUrl, fileUrl), currentRevision === null ? isNull(courseMaterials.checksum) : eq(courseMaterials.checksum, currentRevision), thumbnailUnchanged));
         } else {
-          await db.update(diktats).set({ thumbnailUrl: expectedPngKey, updatedAt: new Date() }).where(eq(diktats.id, materialId));
+          await db.update(diktats).set({ thumbnailUrl: storedKey, updatedAt: new Date() }).where(and(eq(diktats.id, materialId), eq(diktats.fileUrl, fileUrl), currentRevision === null ? isNull(diktats.generationHash) : eq(diktats.generationHash, currentRevision), thumbnailUnchanged));
         }
-        return { success: true, thumbnailUrl: expectedPngKey, existedInStorage: true };
+        return { success: true, thumbnailUrl: storedKey, existedInStorage: true };
       }
 
       const generatedKey = await generateAndSavePdfThumbnailCompute({
         courseSlug,
         materialId,
         fileKey,
+        thumbnailKey: versionedKey,
       });
 
       if (!generatedKey) throw new Error(`THUMBNAIL_GENERATION_FAILED_${materialId}`);
 
       if (isManual) {
-        await db.update(courseMaterials).set({ thumbnailUrl: generatedKey }).where(eq(courseMaterials.id, materialId));
+        await db.update(courseMaterials).set({ thumbnailUrl: generatedKey }).where(and(eq(courseMaterials.id, materialId), eq(courseMaterials.fileUrl, fileUrl), currentRevision === null ? isNull(courseMaterials.checksum) : eq(courseMaterials.checksum, currentRevision), thumbnailUnchanged));
       } else {
-        await db.update(diktats).set({ thumbnailUrl: generatedKey, updatedAt: new Date() }).where(eq(diktats.id, materialId));
+        await db.update(diktats).set({ thumbnailUrl: generatedKey, updatedAt: new Date() }).where(and(eq(diktats.id, materialId), eq(diktats.fileUrl, fileUrl), currentRevision === null ? isNull(diktats.generationHash) : eq(diktats.generationHash, currentRevision), thumbnailUnchanged));
       }
 
       return { success: true, thumbnailUrl: generatedKey };

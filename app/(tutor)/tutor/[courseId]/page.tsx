@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { requireTutorCourseAccess } from "@/lib/auth/tutor-access";
+import { requireTutorCourseAccess } from "@/lib/auth/request-cache";
 import {
   readCourseSnapshot,
   getCohortAnalytics,

@@ -27,7 +27,7 @@ import { DemoTryout } from "@/components/demo/assessment/demo-tryout";
 import { DemoQuiz } from "@/components/demo/demo-quiz";
 import { DemoShell, type DemoView } from "@/components/demo/demo-shell";
 import { DemoZyra } from "@/components/demo/demo-zyra";
-import { getDemoCatalogue, getDemoExperience } from "../demo-data";
+import { getDemoCatalogue, getDemoExperience as loadDemoExperience } from "../demo-data";
 import { getDemoSummaries } from "@/lib/demo/summary-repository";
 import type { DemoProductSelection } from "../demo-data";
 import type { DemoSummary } from "@/components/demo/demo-shell";
@@ -96,44 +96,71 @@ async function DemoViewBody({ view, summary, selection, experiences, whatsappHre
     case "tryout-review": return <DemoTryoutReview courseId={courseId} />;
     case "tryout": return <DemoTryout key={`${courseId}:${summary.snapshot.revision}`} courseId={courseId} />;
   }
-  const experience = await getDemoExperience(courseId, selection);
+  const kind = view === "documents" ? "documents" : view === "article" ? "article" : view === "diktat" ? "diktat" : view === "flashcards" ? "flashcards" : "quiz";
+  // The fixture resolver accepts the older two-argument form as well.
+  const loadForKind: (id: string, selected: DemoProductSelection, kind: "all" | "documents" | "article" | "diktat" | "flashcards" | "quiz") => ReturnType<typeof loadDemoExperience> = loadDemoExperience;
+  // A nonzero collection cursor must still be checked against the collection.
+  const getDemoExperience = (id: string, selected: DemoProductSelection) => loadForKind(id, selected, selected.collectionOffset && kind !== "documents" && kind !== "flashcards" ? "all" : kind);
+  const loadProducts = (id: string, selected: DemoProductSelection) => loadForKind(id, selected, "documents");
+  const loadFlashcards = (id: string, selected: DemoProductSelection) => loadForKind(id, selected, "flashcards");
+  const loadQuiz = (id: string, selected: DemoProductSelection) => loadForKind(id, selected, "quiz");
+  const [experience, documentsCatalogue] = await Promise.all([
+    getDemoExperience(courseId, selection),
+    view === "documents" ? getDemoCatalogue(courseId) : Promise.resolve(null),
+  ]);
   if (!experience) notFound();
   const { page, articles, diktats, flashcardSets } = experience.content.collections;
   if (page.offset > 0 && !articles.length && !diktats.length && !flashcardSets.length) notFound();
   const { content, snapshot } = experience;
-  const completeCatalogue = (catalogue: NonNullable<Awaited<ReturnType<typeof getDemoCatalogue>>>) => addSelectedFallback(catalogue, content.selected, { article: content.article.title, diktat: content.diktat.title });
+  const course = { id: content.course.id, title: content.course.title };
+  const completeCatalogue = (catalogue: NonNullable<Awaited<ReturnType<typeof getDemoCatalogue>>>) => addSelectedFallback(catalogue, {
+    articleId: articles.find(item => item.id === content.selected.articleId)?.id,
+    diktatId: diktats.find(item => item.id === content.selected.diktatId)?.id,
+  }, { article: content.article.title, diktat: content.diktat.title });
+  // These list adapters consume only course, snapshot, and quiz count; their
+  // shared experience type also contains reader bodies and question pages.
+  const listExperience = {
+    snapshot,
+    content: {
+      ...content,
+      article: { ...content.article, sections: [] },
+      diktat: { ...content.diktat, sections: [] },
+      flashcards: [], quiz: [], quizSetToken: "",
+      collections: { ...content.collections, articles: [], diktats: [], flashcardSets: [] },
+    },
+  };
 
   let body: React.ReactNode;
   switch (view) {
     case "quiz-list":
-      body = <DemoQuizList experience={experience} />;
+      body = <DemoQuizList experience={listExperience} />;
       break;
     case "quiz-start":
-      body = <DemoQuizGateway experience={experience} />;
+      body = <DemoQuizGateway experience={listExperience} />;
       break;
     case "documents": {
-      const [products, catalogue] = await Promise.all([collectDemoProducts(experience, getDemoExperience), getDemoCatalogue(courseId)]);
-      if (!products || !catalogue) notFound();
-      body = <DemoDocuments experience={experience} products={products} catalogue={completeCatalogue(catalogue)} />;
+      const products = await collectDemoProducts(experience, loadProducts);
+      if (!products || !documentsCatalogue) notFound();
+      body = <DemoDocuments experience={listExperience} products={products} catalogue={completeCatalogue(documentsCatalogue)} />;
       break;
     }
     case "article":
-      body = <DemoArticleView article={content.article} course={content.course} />;
+      body = <DemoArticleView article={content.article} course={course} />;
       break;
     case "diktat":
-      body = <DemoDiktatView chapterId={content.article.chapterId} id={content.selected.diktatId} course={content.course} title={content.diktat.title} sections={content.diktat.sections} />;
+      body = <DemoDiktatView chapterId={content.article.chapterId} id={content.selected.diktatId} course={course} title={content.diktat.title} sections={content.diktat.sections} />;
       break;
     case "flashcards": {
-      const products = await collectDemoProducts(experience, getDemoExperience);
-      const cards = products ? await collectDemoFlashcards(experience, products, getDemoExperience) : null;
+      const products = await collectDemoProducts(experience, loadProducts);
+      const cards = products ? await collectDemoFlashcards(experience, products, loadFlashcards, experience) : null;
       if (!cards) notFound();
-      body = content.selected.flashcardSetId ? <DemoReviewScope setId={content.selected.flashcardSetId} offset={content.collections.flashcards.offset}><DemoFlashcards key={`${snapshot.courseId}:${snapshot.revision}`} cards={cards} course={content.course} /></DemoReviewScope> : <DemoFlashcards key={`${snapshot.courseId}:${snapshot.revision}`} cards={cards} course={content.course} />;
+      body = content.selected.flashcardSetId ? <DemoReviewScope setId={content.selected.flashcardSetId} offset={content.collections.flashcards.offset}><DemoFlashcards key={`${snapshot.courseId}:${snapshot.revision}`} cards={cards} course={course} /></DemoReviewScope> : <DemoFlashcards key={`${snapshot.courseId}:${snapshot.revision}`} cards={cards} course={course} />;
       break;
     }
     case "quiz-review":
     case "quiz-summary":
     case "quiz": {
-      const pages = await collectDemoQuizPages(experience, getDemoExperience);
+      const pages = await collectDemoQuizPages(experience, loadQuiz);
       if (!pages) notFound();
       body = <DemoQuiz key={`${snapshot.courseId}:${snapshot.revision}`} view={view} courseId={snapshot.courseId} pages={pages} />;
       break;

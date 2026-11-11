@@ -103,6 +103,11 @@ export function buildSourceFileMetadataKey(fingerprint: string): string {
   return joinKey("overhaul", "source-file-metadata", `${fingerprint}.json`);
 }
 
+/** Historical and content-addressed Diktat PDFs require a current authorized record. */
+export function isProtectedCourseDiktatPdfKey(key: string): boolean {
+  return /^courses\/[^/]+\/diktats\/.+\.pdf$/.test(key);
+}
+
 export function isProtectedProductDiktatPdfKey(key: string): boolean {
   return /^overhaul\/[^/]+\/diktat-pdf\/[^/]+\.pdf$/.test(key);
 }

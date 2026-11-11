@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { pageTitle } from "@/lib/site";
 import { getTutorCourseParticipants } from "@/lib/tutor/participant-read-model";
+import { requireTutorCourseAccess } from "@/lib/auth/request-cache";
 import { ParticipantsClient } from "./participants-client";
 import { getTranslations } from "@/lib/i18n/server";
 import { TranslatedText } from "@/components/i18n/translated-text";
@@ -31,7 +32,7 @@ export default async function TutorParticipantsPage({ params }: Props) {
   try {
     payload = await getTutorCourseParticipants(session.user.id, courseId, {
       allowAdmin: false,
-    });
+    }, undefined, requireTutorCourseAccess);
   } catch (error) {
     if (error instanceof Error && error.message.startsWith("TUTOR_ACCESS_DENIED")) {
       redirect("/tutor");

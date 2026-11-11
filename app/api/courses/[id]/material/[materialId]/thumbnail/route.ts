@@ -5,23 +5,20 @@ import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { storage } from "@/lib/storage";
 import { buildCourseThumbnailKey, extractStorageKey } from "@/lib/storage/keys";
 import { inngest } from "@/lib/inngest";
-import { buildThumbnailEventId, newThumbnailAttemptId } from "@/lib/thumbnail";
+import { buildThumbnailEventId, buildVersionedThumbnailKey, canUseLegacyThumbnail, thumbnailRecoveryAttemptId, type PdfThumbnailRequest } from "@/lib/thumbnail";
 
-const THUMBNAIL_POLL_ATTEMPTS = 4;
-const THUMBNAIL_POLL_INTERVAL_MS = 500;
+function legacyThumbnailKeys(courseIds: readonly string[], materialId: string): string[] {
+  return [...new Set(courseIds)].flatMap((courseSlug) => (["png", "webp"] as const).map((extension) =>
+    buildCourseThumbnailKey({ courseSlug, materialId, extension })));
+}
 
-async function findStoredThumbnail(courseIds: readonly string[], materialId: string): Promise<string | null> {
-  for (const courseId of [...new Set(courseIds)]) {
-    for (const extension of ["png", "webp"] as const) {
-      const expectedKey = buildCourseThumbnailKey({
-        courseSlug: courseId,
-        materialId,
-        extension,
-      });
-      if (await storage.exists(expectedKey)) return expectedKey;
-    }
-  }
-  return null;
+function thumbnailKeys(courseIds: readonly string[], request: PdfThumbnailRequest): string[] {
+  const ids = [...new Set(courseIds)];
+  return [
+    ...ids.flatMap((courseSlug) => (["png", "webp"] as const).map((extension) =>
+      buildVersionedThumbnailKey({ ...request, courseSlug, extension }))),
+    ...(canUseLegacyThumbnail(request) ? legacyThumbnailKeys(ids, request.materialId) : []),
+  ];
 }
 
 export async function GET(
@@ -35,11 +32,10 @@ export async function GET(
     const identity = await resolveCourseIdentity(courseId);
     if (!identity || identity.status !== "active") return new Response("Course not found", { status: 404 });
     const courseIds = identity.allIds;
+    const lookupIds = [...new Set([courseId, ...courseIds])];
 
-    // Keep the direct lookup for the common request shape, but always perform
-    // the alias lookup as well so a duplicate material ID cannot be hidden by
-    // selecting the first canonical/legacy row.
-    const [manual] = await db
+    // Query all aliases for each source, and reject ambiguous results.
+    const [manualAliases, compiledAliases] = await Promise.all([db
       .select({
         id: courseMaterials.id,
         courseId: courseMaterials.courseId,
@@ -48,43 +44,8 @@ export async function GET(
         checksum: courseMaterials.checksum,
       })
       .from(courseMaterials)
-      .where(and(eq(courseMaterials.id, materialId), eq(courseMaterials.courseId, courseId)))
-      .limit(1);
-
-    const manualAliases = await db
-      .select({
-        id: courseMaterials.id,
-        courseId: courseMaterials.courseId,
-        fileUrl: courseMaterials.fileUrl,
-        thumbnailUrl: courseMaterials.thumbnailUrl,
-        checksum: courseMaterials.checksum,
-      })
-      .from(courseMaterials)
-      .where(and(eq(courseMaterials.id, materialId), inArray(courseMaterials.courseId, courseIds)))
-      .limit(2);
-    if (manualAliases.length > 1) return new Response("Material not found", { status: 404 });
-    const resolvedManual = manualAliases[0] ?? manual ?? null;
-
-    const [compiled] = await db
-      .select({
-        id: diktats.id,
-        courseId: diktats.courseId,
-        fileUrl: diktats.fileUrl,
-        thumbnailUrl: diktats.thumbnailUrl,
-        generationHash: diktats.generationHash,
-      })
-      .from(diktats)
-      .where(
-        and(
-          eq(diktats.id, materialId),
-          eq(diktats.courseId, courseId),
-          eq(diktats.status, "ready"),
-          eq(diktats.isStale, false),
-        ),
-      )
-      .limit(1);
-
-    const compiledAliases = await db
+      .where(and(eq(courseMaterials.id, materialId), inArray(courseMaterials.courseId, lookupIds)))
+      .limit(2), db
       .select({
         id: diktats.id,
         courseId: diktats.courseId,
@@ -95,13 +56,14 @@ export async function GET(
       .from(diktats)
       .where(and(
         eq(diktats.id, materialId),
-        inArray(diktats.courseId, courseIds),
+        inArray(diktats.courseId, lookupIds),
         eq(diktats.status, "ready"),
         eq(diktats.isStale, false),
       ))
-      .limit(2);
-    if (compiledAliases.length > 1) return new Response("Material not found", { status: 404 });
-    const resolvedCompiled = compiledAliases[0] ?? compiled ?? null;
+      .limit(2)]);
+    if (manualAliases.length > 1 || compiledAliases.length > 1) return new Response("Material not found", { status: 404 });
+    const resolvedManual = manualAliases[0] ?? null;
+    const resolvedCompiled = compiledAliases[0] ?? null;
 
     // The same material ID must not resolve to both legacy source tables.
     // Otherwise the thumbnail key could be selected from the wrong product.
@@ -110,13 +72,12 @@ export async function GET(
     const target = resolvedManual ?? resolvedCompiled;
     if (!target) return new Response("Material not found", { status: 404 });
 
-    const expectedThumbnailKeys = new Set(courseIds.flatMap((candidateCourseId) =>
-      (["png", "webp"] as const).map((extension) => buildCourseThumbnailKey({
-        courseSlug: candidateCourseId,
-        materialId: target.id,
-        extension,
-      })),
-    ));
+    const fileKey = extractStorageKey(target.fileUrl);
+    const sourceType = resolvedManual ? "course_material" as const : "diktat" as const;
+    const sourceRevision = resolvedManual?.checksum ?? resolvedCompiled?.generationHash ?? undefined;
+    const thumbnailRequest = fileKey ? { materialId: target.id, sourceType, sourceVersion: fileKey, sourceRevision } : null;
+    const keys = thumbnailRequest ? thumbnailKeys(courseIds, thumbnailRequest) : legacyThumbnailKeys(courseIds, target.id);
+    const expectedThumbnailKeys = new Set(keys);
     const storedThumbnailKey = extractStorageKey(target.thumbnailUrl);
     if (storedThumbnailKey && expectedThumbnailKeys.has(storedThumbnailKey)) {
       return Response.redirect(storage.getUrl(storedThumbnailKey), 307);
@@ -125,45 +86,24 @@ export async function GET(
     // A public thumbnail GET may discover an already-generated object, but it
     // must not repair the database record. Persisting a discovered key from an
     // unauthenticated request would turn this read endpoint into a mutation.
-    const findReadyThumbnailResponse = async (): Promise<Response | null> => {
-      const expectedKey = await findStoredThumbnail(courseIds, target.id);
-      if (!expectedKey) return null;
-      return Response.redirect(storage.getUrl(expectedKey), 307);
-    };
+    const existence = await Promise.all(keys.map((key) => storage.exists(key)));
+    const existingKey = keys.find((_, index) => existence[index]);
+    if (existingKey) return Response.redirect(storage.getUrl(existingKey), 307);
+    if (!thumbnailRequest) return new Response("Source file not found", { status: 404 });
 
-    const existing = await findReadyThumbnailResponse();
-    if (existing) return existing;
-
-    const fileKey = extractStorageKey(target.fileUrl);
-    if (!fileKey) return new Response("Source file not found", { status: 404 });
-
-    const sourceType = resolvedManual ? "course_material" as const : "diktat" as const;
-    const sourceVersion = fileKey;
     await inngest.send({
       id: buildThumbnailEventId({
-        materialId: target.id,
-        sourceType,
-        sourceVersion,
-        attemptId: newThumbnailAttemptId(),
+        ...thumbnailRequest,
+        attemptId: thumbnailRecoveryAttemptId(),
       }),
       name: "pdf/thumbnail.requested",
-      data: { materialId: target.id, sourceType, sourceVersion },
+      data: thumbnailRequest,
     });
-
-    // The client retries transient 202 responses with a cache-busted URL. Keep a
-    // short server-side poll so fast jobs can complete within the first request,
-    // while the web tier remains read/repair/queue only.
-    for (let attempt = 0; attempt < THUMBNAIL_POLL_ATTEMPTS; attempt += 1) {
-      await new Promise((resolve) => setTimeout(resolve, THUMBNAIL_POLL_INTERVAL_MS));
-      const ready = await findReadyThumbnailResponse();
-      if (ready) return ready;
-    }
 
     return new Response("Thumbnail still processing", {
       status: 202,
       headers: {
         "Cache-Control": "no-store",
-        "Retry-After": "2",
       },
     });
   } catch (error) {

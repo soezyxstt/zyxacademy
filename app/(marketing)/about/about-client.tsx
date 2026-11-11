@@ -63,18 +63,16 @@ export function AboutClient() {
     <div className="relative flex flex-col overflow-hidden">
       <PageOrnaments variant="about" />
 
-      <Reveal>
-        <header className="relative z-10 border-b border-border bg-background py-16 text-center md:py-24">
-          <div className="marketing-container space-y-4">
-            <h1 className="mx-auto max-w-4xl font-heading text-h2 font-extrabold tracking-tight text-foreground md:text-h1">
-              {t("about.title")}
-            </h1>
-            <p className="mx-auto max-w-2xl text-body-base leading-relaxed text-muted-foreground">
-              {t("about.intro")}
-            </p>
-          </div>
-        </header>
-      </Reveal>
+      <header className="relative z-10 border-b border-border bg-background py-16 text-center md:py-24">
+        <div className="marketing-container space-y-4">
+          <h1 className="mx-auto max-w-4xl font-heading text-h2 font-extrabold tracking-tight text-foreground md:text-h1">
+            {t("about.title")}
+          </h1>
+          <p className="mx-auto max-w-2xl text-body-base leading-relaxed text-muted-foreground">
+            {t("about.intro")}
+          </p>
+        </div>
+      </header>
 
       <Reveal>
         <SectionContainer className="relative z-10 border-b border-border bg-background py-16 md:py-24">

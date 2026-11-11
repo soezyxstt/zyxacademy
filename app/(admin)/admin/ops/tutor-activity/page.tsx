@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { pageTitle } from "@/lib/site";
 import { auth } from "@/lib/auth";
-import { hasPeran } from "@/lib/auth/authorization";
+import { hasPeran } from "@/lib/auth/request-cache";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { Activity, CheckCircle2, AlertTriangle, XCircle, ScrollText } from "lucide-react";
