@@ -72,7 +72,7 @@ describe("student course access surface contract", () => {
   test("does not serialize answer keys into an active quiz player", () => {
     const page = source("app/(student)/courses/[id]/quiz/[quizId]/page.tsx");
     const activeBlock = page.slice(page.indexOf("if (targetAttempt?.status === \"in_progress\")"), page.indexOf("// Unified State"));
-    expect(activeBlock).toContain("questions: (targetAttempt.questionsSnapshot");
+    expect(activeBlock).toContain("questions: (targetAttemptSnapshot!.questionsSnapshot");
     expect(activeBlock).not.toContain("correct_indices");
     expect(activeBlock).not.toContain("correctIndex");
   });

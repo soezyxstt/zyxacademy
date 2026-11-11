@@ -47,7 +47,8 @@ test("Free quiz attempts stay published and first-two-chapter scoped", () => {
   expect(route).toContain("Sebagian soal tetap kuis sudah tidak tersedia.");
   expect(route).toContain("eq(studentQuizAttempts.studentId, session.user.id)");
   expect(route).toContain("const visibleAttempts = attempts.filter");
-  expect(route).toContain("serializeStudentQuizAttemptList(visibleAttempts)");
+  expect(route).toContain("visibleAttempts.map((attempt) => serializeStudentQuizAttempt(attempt");
+  expect(route).toContain("canViewAttemptDiscussion(templateById.get(attempt.templateId), attempt.status) ? 'released' : 'hidden'");
   expect(route).toContain("questions WITHOUT correct_indices");
 });
 
