@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Flag, Timer, BookOpen, AlertCircle, FileText, Trash2, ArrowLeft, ArrowRight, UploadCloud } from "lucide-react";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
-import { MathText } from "@/components/course/math-text";
 import type { ExamFixture, QuestionSpec } from "@/lib/student-course-fixtures";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import {
@@ -302,21 +301,25 @@ export function TryoutForm({ courseId, exam, transport }: TryoutFormProps) {
               {q.options.map((opt, i) => {
                 const selected = ans.index === i;
                 return (
-                  <label
+                  <div
                     key={i}
+                    onClick={(event) => {
+                      if ((event.target as Element).closest("button, input, select, textarea, a, figure, [data-learning-visual]")) return;
+                      setAnswerFor(q.id, { type: "multiple_choice", index: i });
+                    }}
                     className={cn(
-                      "flex cursor-pointer items-center gap-3.5 rounded-lg border px-3 py-2.5 transition-all duration-200",
+                      "flex cursor-pointer items-start gap-3.5 rounded-lg border px-3 py-2.5 transition-all duration-200",
                       selected
                         ? "border-brand-primary bg-brand-primary/10 shadow-sm"
                         : "border-border/70 bg-muted/10 hover:border-brand-primary/45"
                     )}
                   >
-                    <RadioGroupItem value={String(i)} className="shrink-0" />
-                    <span className="text-body-sm font-semibold text-foreground mr-1">
+                    <RadioGroupItem value={String(i)} aria-labelledby={`tryout-letter-${q.id}-${i} tryout-option-${q.id}-${i}`} className="mt-1 shrink-0" />
+                    <span id={`tryout-letter-${q.id}-${i}`} className="text-body-sm font-semibold text-foreground mr-1">
                       {String.fromCharCode(65 + i)}.
                     </span>
-                    <MathText className="min-w-0 break-words text-body-sm text-foreground leading-normal">{opt}</MathText>
-                  </label>
+                    <div id={`tryout-option-${q.id}-${i}`} className="min-w-0 flex-1 break-words text-body-sm text-foreground leading-normal"><MarkdownRenderer content={opt} density="compact" /></div>
+                  </div>
                 );
               })}
               </RadioGroup>
@@ -330,10 +333,15 @@ export function TryoutForm({ courseId, exam, transport }: TryoutFormProps) {
               {q.options.map((opt, i) => {
                 const checked = ans.indices.includes(i);
                 return (
-                  <label
+                  <div
                     key={i}
+                    onClick={(event) => {
+                      if ((event.target as Element).closest("button, input, select, textarea, a, figure, [data-learning-visual]")) return;
+                      const indices = checked ? ans.indices.filter((index) => index !== i) : [...ans.indices, i].sort((a, b) => a - b);
+                      setAnswerFor(q.id, { type: "multiple_choices", indices });
+                    }}
                     className={cn(
-                      "flex cursor-pointer items-center gap-3.5 rounded-lg border px-3 py-2.5 transition-all duration-200",
+                      "flex cursor-pointer items-start gap-3.5 rounded-lg border px-3 py-2.5 transition-all duration-200",
                       checked
                         ? "border-tertiary-1 bg-tertiary-1/10 shadow-sm"
                         : "border-border/70 bg-muted/10 hover:border-tertiary-1/45"
@@ -341,19 +349,20 @@ export function TryoutForm({ courseId, exam, transport }: TryoutFormProps) {
                   >
                     <Checkbox
                       checked={checked}
+                      aria-labelledby={`tryout-letter-${q.id}-${i} tryout-option-${q.id}-${i}`}
                       onCheckedChange={() => {
                         const next = checked
                           ? ans.indices.filter((x) => x !== i)
                           : [...ans.indices, i].sort((a, b) => a - b);
                         setAnswerFor(q.id, { type: "multiple_choices", indices: next });
                       }}
-                      className="shrink-0"
+                      className="mt-1 shrink-0"
                     />
-                    <span className="text-body-sm font-semibold text-foreground mr-1">
+                    <span id={`tryout-letter-${q.id}-${i}`} className="text-body-sm font-semibold text-foreground mr-1">
                       {String.fromCharCode(65 + i)}.
                     </span>
-                    <MathText className="min-w-0 break-words text-body-sm text-foreground leading-normal">{opt}</MathText>
-                  </label>
+                    <div id={`tryout-option-${q.id}-${i}`} className="min-w-0 flex-1 break-words text-body-sm text-foreground leading-normal"><MarkdownRenderer content={opt} density="compact" /></div>
+                  </div>
                 );
               })}
             </fieldset>

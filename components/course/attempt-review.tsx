@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MathText } from "@/components/course/math-text";
+import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { cn } from "@/lib/utils";
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
 import { isShortAnswerCorrect, deduplicateAcceptableAnswers } from "@/lib/quiz/short-answer";
@@ -330,6 +331,13 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  const hasFb = !!fbItem;
 
  const qType = (q as any).question_type || (q as any).questionType || (q as any).type;
+ const submittedOptions = qType !== "short_answer" && qType !== "essay" && Array.isArray(submitted)
+   ? submitted.map((index: number) => q.options?.[index] ?? `Opsi ${index}`)
+   : null;
+ const correctOptionIndices: number[] = Array.isArray(q.correct_indices) ? q.correct_indices : (q as any).correctIndices || [];
+ const correctOptions = qType !== "short_answer" && qType !== "essay"
+   ? correctOptionIndices.map((index) => q.options?.[index] ?? `Opsi ${index}`)
+   : null;
  let submittedLabel = "";
  if (qType === "short_answer" || qType === "essay") {
    submittedLabel = typeof submitted === "string" ? submitted : Array.isArray(submitted) ? String(submitted[0] ?? "") : "";
@@ -356,7 +364,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  return (
  <div key={q.id} className="py-6 first:pt-0">
  <div className="flex items-start justify-between gap-4">
- <div>
+ <div className="min-w-0 flex-1">
   <div className="flex items-center gap-2">
    <span className="text-body-sm font-semibold text-muted-foreground">Soal {idx + 1}</span>
    {isQuestionMultiple ? (
@@ -372,7 +380,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
    ) : null}
   </div>
  <div className="mt-2 text-body-base font-medium text-foreground">
- <MathText>{q.prompt}</MathText>
+ <MarkdownRenderer content={q.prompt} />
  </div>
  </div>
  <span
@@ -389,10 +397,10 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
 
  {/* Answers */}
  <div className="mt-4 space-y-1.5 pl-4 border-l-2 border-muted text-body-sm">
- <p>
+ <div>
  <span className="text-muted-foreground">{t("attemptReview.yourAnswer")} </span>
- <MathText className="font-medium" as="span">{submittedLabel || "-"}</MathText>
- </p>
+ {submittedOptions ? submittedOptions.length ? submittedOptions.map((option, index) => <MarkdownRenderer key={index} content={option} density="compact" className="font-medium" />) : "-" : <MathText className="font-medium" as="span">{submittedLabel || "-"}</MathText>}
+ </div>
  {qType === "short_answer" && acceptableArray.length > 0 ? (
  <div className="pt-1">
  <span className="text-muted-foreground block mb-1 text-body-xs font-semibold uppercase tracking-wider text-status-success">
@@ -411,10 +419,10 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  </div>
  </div>
  ) : (
- <p>
+ <div>
  <span className="text-muted-foreground">{t("attemptReview.correctAnswer")} </span>
- <MathText className="text-status-success font-semibold" as="span">{correctLabel}</MathText>
- </p>
+ {correctOptions ? correctOptions.map((option, index) => <MarkdownRenderer key={index} content={option} density="compact" className="text-status-success font-semibold" />) : <MarkdownRenderer content={correctLabel} density="compact" className="text-status-success font-semibold" />}
+ </div>
  )}
  </div>
 

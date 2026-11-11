@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Check, HelpCircle, X, Lock, Video, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MathText } from "@/components/course/math-text";
+import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { getYoutubeEmbedUrl } from "@/lib/youtube";
 import { useTutor } from "@/components/course/tutor-drawer";
 import type { SubmissionReviewFixture, SubmissionListItem } from "@/lib/student-course-fixtures";
@@ -81,10 +82,10 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
               className="p-4 sm:p-5"
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <h3 className="font-heading text-body-base font-bold text-foreground max-w-xl leading-snug">
-                  <span className="text-muted-foreground mr-1">{idx + 1}.</span>
-                  <MathText>{item.prompt}</MathText>
-                </h3>
+                <div className="min-w-0 flex-1 text-body-base font-medium text-foreground leading-snug">
+                  <h3 className="font-heading text-body-sm font-bold text-muted-foreground">{idx + 1}.</h3>
+                  <MarkdownRenderer content={item.prompt} />
+                </div>
 
                 {/* Answer Correctness Badges */}
                 {item.correct === true ? (
@@ -141,9 +142,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
 
                   {/* Text-based explanation */}
                   {item.explanationText && (
-                    <MathText as="p" className="text-body-sm text-muted-foreground leading-relaxed">
-                      {item.explanationText}
-                    </MathText>
+                    <MarkdownRenderer content={item.explanationText} className="text-body-sm text-muted-foreground leading-relaxed" />
                   )}
 
                   {/* Image/Diagram explanation */}
