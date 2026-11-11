@@ -10,7 +10,6 @@ import type { getProductBundleImport } from "@/lib/bundle/product-staging";
 import type { DiktatSourceFigureAssets } from "@/lib/materials/diktat-static-visual";
 import type { SourceFigureVisualSpec } from "@/lib/materials/visual-contract";
 import type { resolveSourceFigureForCourse } from "@/lib/authoring/source-figures";
-import { productV4TargetRuntime } from "./product-v4-web-compatibility";
 
 declare const __ZYX_VERIFICATION_BUILD_RUNTIME__: { fingerprint: ProductV4RuntimeFingerprint } | undefined;
 
@@ -36,9 +35,9 @@ const unique = (values: string[]) => [...new Set(values)].sort();
 // Keep this closure in Next output tracing; missing source bytes must invalidate verification.
 export const PRODUCT_V4_RUNTIME_FILES = [
   "next.config.ts", "scripts/authoring/prepare-web-verification.ts",
+  "scripts/authoring/verify-product-v4-ci.ts", ".github/workflows/verify-product-v4.yml",
   "deno.json", "workers/deno-background/deno.json", "lib/compute/runtime.ts", "lib/compute/pdf-pages.ts", "lib/compute/pdf-worker.ts",
   "lib/compute/browser-pdf.ts", "lib/compute/pdf-inspection.ts", "scripts/neon/build-worker.mjs",
-  "lib/compute/product-v4-web-compatibility.ts", "lib/compute/product-v4-web-compatibility.json",
   "app/globals.css", "app/layout.tsx", "app/authoring-verification/page.tsx",
   "components/providers/telemetry-boundary.tsx", "components/providers/posthog-provider.tsx", "lib/env.ts",
   "components/coding/article-coding.tsx", "components/coding/coding-workspace.tsx", "components/coding/coding-help.tsx", "components/coding/python-editor.tsx", "components/coding/use-coding-draft.ts",
@@ -139,7 +138,7 @@ export async function buildProductV4RuntimeBinding(input: { row: ImportRow; bund
   const [rows, figures, runtime] = await Promise.all([ports.dependencies(bundle), verifiedFigures(bundle, ports), ports.runtime()]);
   return { importId: row.id, courseId: course.id, runId, revision: Number.parseInt(row.checksum.slice(0, 8), 16) + 1,
     ...(process.env.NODE_ENV === "production" || typeof (globalThis as { Deno?: unknown }).Deno !== "undefined" || process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER ? verificationBrowserIdentity() : {}),
-    ...productV4TargetRuntime(runtime, { importId: row.id, bundleId: bundle.manifest.bundleId, courseId: course.id, sourceFigureCount: figures.length }), policyRevision: PRODUCT_V4_VERIFICATION_POLICY, dependencyChecksum: productV4DependencyChecksum(bundle, rows),
+    ...runtime, policyRevision: PRODUCT_V4_VERIFICATION_POLICY, dependencyChecksum: productV4DependencyChecksum(bundle, rows),
     assetChecksum: hash(figures.map(figure => ({ metadata: figure.metadata, variants: figure.variants.map(({ bytes, ...variant }) => ({ ...variant, byteLength: bytes.length, readbackChecksum: bytesHash(bytes) })) }))),
   };
 }

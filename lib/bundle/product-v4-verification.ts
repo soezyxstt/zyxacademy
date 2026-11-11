@@ -1,9 +1,8 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
-import { deriveEpsilonDelta } from "@/lib/materials/epsilon-delta";
 import { deterministicProductSerialization, type ProductBundleManifest, type ProductDependency, type ProductEntity } from "./product-validator";
 
-export const PRODUCT_V4_VERIFICATION_POLICY = "product-v4-verification.v1";
+export const PRODUCT_V4_VERIFICATION_POLICY = "product-v4-verification.v2";
 export { CLOUDFLARE_VERIFICATION_BROWSER_VERSION as PRODUCT_V4_DEPLOYED_BROWSER_VERSION } from "@/lib/compute/product-v4-browser-config";
 export const PRODUCT_V4_VIEWPORTS = [{ width: 380, height: 844 }, { width: 1536, height: 864 }] as const;
 const digest = (value: unknown) => createHash("sha256").update(deterministicProductSerialization(value)).digest("hex");
@@ -24,7 +23,7 @@ export interface ProductV4VerificationBinding {
   printProfile: string;
   policyRevision: string;
   browserVersion?: string;
-  browserProvider?: "cloudflare" | "steel";
+  browserProvider?: "cloudflare" | "steel" | "github_actions";
 }
 export interface ProductV4VerificationRequirement {
   id: string;
@@ -56,7 +55,7 @@ export function deriveProductV4VerificationPlan(input: {
   const { bundle, binding } = input;
   if (bundle.manifest.schemaVersion !== "product-bundle.v4") throw new Error("PRODUCT_V4_REQUIRED");
   if (bundle.manifest.courseId !== binding.courseId) throw new Error("PRODUCT_V4_VERIFICATION_SCOPE_MISMATCH");
-  z.object({ importId: name, courseId: name, runId: name, revision: z.number().int().positive(), rendererChecksum: sha256, dependencyChecksum: sha256, contractChecksum: sha256, playbookChecksum: sha256, fontChecksum: sha256, assetChecksum: sha256, printProfile: name, policyRevision: name, browserProvider: z.enum(["cloudflare", "steel"]).optional(), browserVersion: z.string().regex(/^\d+\.\d+\.\d+\.\d+$/).optional() }).strict().parse(binding);
+  z.object({ importId: name, courseId: name, runId: name, revision: z.number().int().positive(), rendererChecksum: sha256, dependencyChecksum: sha256, contractChecksum: sha256, playbookChecksum: sha256, fontChecksum: sha256, assetChecksum: sha256, printProfile: name, policyRevision: name, browserProvider: z.enum(["cloudflare", "steel", "github_actions"]).optional(), browserVersion: z.string().regex(/^\d+\.\d+\.\d+\.\d+$/).optional() }).strict().parse(binding);
   const requirements: ProductV4VerificationRequirement[] = [];
   const add = (target: string, layer: ProductV4VerificationRequirement["layer"], state: string, viewport: ProductV4VerificationRequirement["viewport"], artifactType: ProductV4VerificationRequirement["artifactType"]) => {
     const check = { target, layer, state, viewport, artifactType };
@@ -71,16 +70,8 @@ export function deriveProductV4VerificationPlan(input: {
       }
       for (const visual of product.visuals ?? []) {
         add(`${product.id}/${visual.id}`, "model", "domain-units-and-model", null, "application/json");
-        const interactive = visual.kind === "epsilon_delta_graph" || (visual.kind === "learning_canvas" && ["function_plot", "data_plot"].includes(visual.canvas.type));
-        const states = ["default", "fallback", ...(interactive ? ["changed", "reset", "keyboard"] : [])];
-        if (visual.kind === "epsilon_delta_graph") {
-          states.push("epsilon-minimum", "epsilon-maximum");
-          const minimum = visual.defaultEpsilon * 0.1 || visual.defaultEpsilon;
-          const maximum = Math.min(visual.bounds.yMax - visual.limitValue, visual.limitValue - visual.bounds.yMin, visual.defaultEpsilon * 2.2);
-          if ([minimum, visual.defaultEpsilon, maximum].some((epsilon) => deriveEpsilonDelta(visual, epsilon).status === "resolution_limited")) states.push("resolution-limited");
-        }
         for (const viewport of PRODUCT_V4_VIEWPORTS) {
-          for (const state of states) add(`${product.id}/${visual.id}`, "web", state, viewport, "image/png");
+          add(`${product.id}/${visual.id}`, "web", "visual-smoke", viewport, "image/png");
         }
       }
     }

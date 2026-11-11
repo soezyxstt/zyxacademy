@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { authenticateVerificationBrowser, captureProductV4WebState, exerciseProductV4WebState, inspectProductV4DisplayMath, exerciseProductV4MathScroll, validateVerificationBaseUrl, validateDeployedVerificationBaseUrl } from "@/lib/compute/product-v4-browser-runner";
+import { authenticateVerificationBrowser, captureProductV4WebState, exerciseProductV4WebState, exerciseProductV4VisualSmoke, inspectProductV4WebDocument, inspectProductV4DisplayMath, exerciseProductV4MathScroll, validateVerificationBaseUrl, validateDeployedVerificationBaseUrl, resolveVerificationBaseUrl, isGithubActionsVerification } from "@/lib/compute/product-v4-browser-runner";
 import type { Page } from "@playwright/test";
 import { verificationPreviewSchema } from "@/lib/materials/verification-preview";
 
@@ -93,21 +93,105 @@ test("verification opens parameter panels before changing and resetting a graph"
   expect(value).toBe(2);
 });
 
-test("long chapter captures cover every row at the required viewport", async () => {
+test("chapter evidence captures top middle and end with bounded cost even for very long pages", async () => {
   const offsets: number[] = [];
   const options: unknown[] = [];
   let detached = false;
   const session = { send: async (method: string, input: unknown) => { expect(method).toBe("Page.captureScreenshot"); options.push(input); return { data: Buffer.from("png").toString("base64") }; }, detach: async () => { detached = true; } };
-  const page = { context: () => ({ newCDPSession: async () => session }), viewportSize: () => ({ width: 380, height: 4000 }), evaluate: async (_callback: unknown, top?: number) => { if (top !== undefined) offsets.push(top); return 9000; } } as unknown as Page;
+  let height = 9000;
+  const page = { context: () => ({ newCDPSession: async () => session }), viewportSize: () => ({ width: 380, height: 4000 }), evaluate: async (_callback: unknown, top?: number) => { if (top !== undefined) offsets.push(top); return height; } } as unknown as Page;
   const artifacts = await captureProductV4WebState(page, "chapter");
-  expect(offsets).toEqual([0, 4000, 8000]);
+  expect(offsets).toEqual([0, 2500, 5000]);
   expect(options).toEqual(Array(3).fill({ format: "png", captureBeyondViewport: false }));
   expect(new Set(artifacts.map(artifact => artifact.id)).size).toBe(3);
   expect(detached).toBe(true);
   offsets.length = 0;
-  const batch = await captureProductV4WebState(page, "chapter", 1, 1);
-  expect(offsets).toEqual([4000]);
-  expect(batch.map(artifact => artifact.id)).toEqual(["web-chapter-4000"]);
+  height = 2_000_000;
+  const long = await captureProductV4WebState(page, "chapter");
+  expect(offsets).toEqual([0, 998000, 1996000]);
+  expect(long).toHaveLength(3);
+  offsets.length = 0;
+  const visual = await captureProductV4WebState(page, "visual", 1);
+  expect(offsets).toEqual([0]);
+  expect(visual.map(artifact => artifact.id)).toEqual(["web-visual-0"]);
+  height = 100;
+  expect(await captureProductV4WebState(page, "short")).toHaveLength(1);
+});
+
+test("CI production browser targets require the actual allowed Actions context", () => {
+  const env = { AUTHORING_VERIFICATION_BROWSER_PROVIDER: "github_actions", GITHUB_ACTIONS: "true", GITHUB_REPOSITORY: "soezyxstt/zyxacademy" };
+  expect(isGithubActionsVerification(env)).toBe(true);
+  expect(resolveVerificationBaseUrl("https://www.zyxacademy.com", env, false)).toBe("https://www.zyxacademy.com");
+  for (const bad of [{ ...env, GITHUB_ACTIONS: undefined }, { ...env, GITHUB_ACTIONS: "false" }, { ...env, GITHUB_REPOSITORY: "other/repository" }]) {
+    expect(() => resolveVerificationBaseUrl("https://www.zyxacademy.com", bad, false)).toThrow("VERIFICATION_CI_CONTEXT_INVALID");
+  }
+  expect(() => resolveVerificationBaseUrl("https://www.zyxacademy.com", env, true)).toThrow("VERIFICATION_CI_CONTEXT_INVALID");
+  expect(() => resolveVerificationBaseUrl("https://example.com", env, false)).toThrow();
+  expect(() => resolveVerificationBaseUrl("https://www.zyxacademy.com", {}, false)).toThrow();
+});
+
+test("visual smoke actually exercises each supported state from the restored baseline", async () => {
+  let value = 1;
+  let restored = 0;
+  const exercised: string[] = [];
+  const page = {} as Page;
+  const observation = () => ({ issues: [] as string[], inspectedElements: 3, partCount: 0, mathCount: 2, imageCount: 0 });
+  const visual = { id: "limit", kind: "epsilon_delta_graph", label: "Limit", description: "A deliberately false limit claim", bounds: { xMin: -2, xMax: 2, yMin: -2, yMax: 5 }, limitPoint: 0, limitValue: 1, defaultEpsilon: 1, defaultDelta: 0.5, functionModel: { kind: "linear", m: 1, b: 0 }, staticFallback: { type: "text", summary: "Limit", content: "Compare the claimed limit with the curve." } } as import("@/lib/materials/visual-contract").VisualSpec;
+  const results = await exerciseProductV4VisualSmoke(page, visual, {
+    exercise: async (_page, state) => {
+      expect(value).toBe(1); exercised.push(state);
+      if (!["default", "fallback"].includes(state)) value = 2;
+      return true;
+    },
+    inspect: async () => observation(),
+    restore: async () => { value = 1; restored++; },
+  });
+  expect(exercised).toEqual(["default", "changed", "reset", "keyboard", "epsilon-minimum", "epsilon-maximum", "resolution-limited", "fallback"]);
+  expect(restored).toBe(6);
+  expect(results.every(result => result.exercised && result.document.mathCount === 2)).toBe(true);
+  if (visual.kind !== "epsilon_delta_graph") throw new Error("epsilon fixture required");
+  const guaranteed = await exerciseProductV4VisualSmoke(page, { ...visual, limitValue: 0 }, {
+    exercise: async () => true, inspect: async () => observation(), restore: async () => {},
+  });
+  expect(guaranteed.map(result => result.state)).not.toContain("resolution-limited");
+  expect(guaranteed.map(result => result.state)).toContain("changed");
+});
+
+test("static visual smoke requires fallback evidence and never accepts an unsupported state as PASS", async () => {
+  const attempted: string[] = [];
+  const visual = { kind: "geometry_2d", interactive: false } as import("@/lib/materials/visual-contract").VisualSpec;
+  const ports = {
+    exercise: async (_page: Page, state: string) => { attempted.push(state); return state !== "fallback"; },
+    inspect: async () => ({ issues: [] as string[], inspectedElements: 2, partCount: 0, mathCount: 1, imageCount: 0 }),
+    restore: async () => { throw new Error("Static visual must not have interactive states"); },
+  };
+  await expect(exerciseProductV4VisualSmoke({} as Page, visual, ports)).rejects.toThrow("VERIFICATION_VISUAL_STATE_UNSUPPORTED:fallback");
+  expect(attempted).toEqual(["default", "fallback"]);
+  attempted.length = 0;
+  ports.exercise = async (_page, state) => { attempted.push(state); return true; };
+  expect(await exerciseProductV4VisualSmoke({} as Page, visual, ports)).toHaveLength(2);
+});
+
+test("bounded screenshots do not limit DOM checks to visible or sampled content", () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "document");
+  const paragraphs = Array.from({ length: 1000 }, (_, index) => ({ getBoundingClientRect: () => ({ width: index === 999 ? 500 : 300, left: 0, right: index === 999 ? 500 : 300, top: index * 100 }) }));
+  Object.defineProperty(globalThis, "document", { configurable: true, value: {
+    documentElement: { scrollWidth: 380, clientWidth: 380 },
+    images: [{ complete: true, naturalWidth: 0 }],
+    querySelector: () => null,
+    querySelectorAll: (selector: string) => selector.includes("main p") ? paragraphs : selector.includes("data-part-id") ? Array(1000).fill({}) : Array(20).fill({}),
+  } });
+  try {
+    const result = inspectProductV4WebDocument();
+    expect(result.inspectedElements).toBe(1000);
+    expect(result.partCount).toBe(1000);
+    expect(result.mathCount).toBe(20);
+    expect(result.issues).toEqual(["CONTENT_CLIPPED_BY_VIEWPORT", "IMAGE_NOT_READY"]);
+    paragraphs[999].getBoundingClientRect = () => ({ width: 300, left: 0, right: 300, top: 99900 });
+    expect(inspectProductV4WebDocument().issues).toEqual(["IMAGE_NOT_READY"]);
+  } finally {
+    if (original) Object.defineProperty(globalThis, "document", original); else Reflect.deleteProperty(globalThis, "document");
+  }
 });
 
 

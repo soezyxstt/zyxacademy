@@ -29,7 +29,7 @@ export const WorkerEnvSchema = z.object({
   BETTER_AUTH_SECRET: optionalString,
   CF_API_TOKEN: optionalString,
   CF_ACCOUNT_ID: optionalString,
-  AUTHORING_VERIFICATION_BROWSER_PROVIDER: z.enum(["cloudflare", "steel"]).optional(),
+  AUTHORING_VERIFICATION_BROWSER_PROVIDER: z.enum(["cloudflare", "steel", "github_actions"]).optional(),
   AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION: z.string().regex(/^\d+\.\d+\.\d+\.\d+$/).optional(),
   STEEL_API_KEY: optionalString,
   NEXT_PUBLIC_APP_URL: optionalUrl,

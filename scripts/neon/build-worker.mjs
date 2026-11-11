@@ -7,21 +7,10 @@ import { traceNativePackages, zipFunctionBundle } from "@neon/config-runtime/v1"
 import { build } from "esbuild";
 import { gzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
-import { createHash } from "node:crypto";
 
 const require = createRequire(import.meta.url);
 const output = resolve(process.argv[2] || "artifacts/neon-worker");
 const packages = ["katex", "playwright-core"];
-const compatibilityPath = "lib/compute/product-v4-web-compatibility.json";
-const compatibility = JSON.parse(await readFile(compatibilityPath, "utf8"));
-const runtimeSource = await readFile("lib/compute/product-v4-runtime-binding.ts", "utf8");
-const closure = [...runtimeSource.match(/export const PRODUCT_V4_RUNTIME_FILES = \[([\s\S]*?)\] as const/)[1].matchAll(/"([^"]+)"/g)].map(match => match[1]);
-const required = [...new Set([...closure.filter(path => path !== compatibilityPath), "package.json", "bun.lock", "scripts/neon/deploy-worker.mjs"])].sort();
-if (JSON.stringify(compatibility.sourceFiles.map(file => file.path).sort()) !== JSON.stringify(required)) throw new Error("V4_COMPATIBILITY_SOURCE_SET_CHANGED");
-for (const file of compatibility.sourceFiles) {
-  const checksum = createHash("sha256").update((await readFile(file.path, "utf8")).replace(/\r\n/g, "\n")).digest("hex");
-  if (checksum !== file.executorChecksum) throw new Error(`V4_COMPATIBILITY_SOURCE_CHANGED:${file.path}`);
-}
 const fingerprint = JSON.parse(await readFile("artifacts/authoring-verification/web-runtime.json", "utf8"));
 const chromium = JSON.parse(await readFile(join(dirname(require.resolve("playwright-core/package.json")), "browsers.json"), "utf8")).browsers.find(browser => browser.name === "chromium");
 const nativeDeps = process.platform === "win32" ? {

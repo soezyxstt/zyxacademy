@@ -2,6 +2,8 @@
 
 Status: OPEN / IN PROGRESS
 
+V4 release exception, 2026-11-11: the owner authorized one coordinated web release for simplified verification and publication of Matematika I Bab 1. That release retires the temporary web/worker source bridge and uses exact-draft GitHub Actions verification with pinned Chromium, bounded screenshots and the existing signed-evidence/publication gates. Playground and Zyra code/configuration remain outside scope. This source record does not establish deployment or publication completion.
+
 Owner: Zyx engineering. On 2026-11-10 the owner explicitly prioritized production worker recovery and deferred staging web/DNS work. Production deployment requires exact target checks, signed Inngest delivery and representative PDF acceptance; registration alone does not establish all 22 business paths.
 
 ## Boundaries
