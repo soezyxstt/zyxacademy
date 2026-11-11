@@ -1,14 +1,10 @@
 # Zyx Academy Documentation Index
 
-<<<<<<< HEAD
 The `ACTIVE` [feature catalog](features.md#embedded-learning-visuals) documents always-on typed `zyx-visual` Markdown embeds across compatible learning readers, question prompts, options, explanations and previews, including the payload limit and fence-preserving question import behavior.
 
-`OPEN / IN PROGRESS`: The [Neon cutover runbook](operations/neon-functions-cutover.md) describes a narrowly scoped Matematika I Bab 1 V4 compatibility bridge under validation. It independently binds the unchanged production web and current executor, rejects source figures, pins reviewed source/asset bytes and preserves signed verification and publication gates. It does not build or deploy the web.
-=======
 `ACTIVE`: The [development guide](DEVELOPMENT.md) documents the `github_actions` V4 provider and the exact-draft workflow. It reuses a pinned browser, bounds screenshot volume and preserves signed evidence, PDF lineage and explicit publication review.
 
 `HISTORICAL CHECKPOINT`: The Matematika I Bab 1 V4 compatibility bridge in the [Neon cutover runbook](operations/neon-functions-cutover.md) described verification against the previously unchanged web. The coordinated V4 release removes that temporary source bridge and binds the actual web/CI runtime. The `ACTIVE` [V4 contract](bundle/product-bundle-v4.md) records manual GitHub Actions verification of an exact production draft with pinned local Chromium, signed evidence and unchanged review/publication gates. Source changes and local tests do not establish deployment or publication completion.
->>>>>>> c39c48ce (Simplify V4 verification and run exact draft checks in CI)
 
 `OPEN / IN PROGRESS`: [Neon Functions worker cutover](operations/neon-functions-cutover.md) records production worker-only recovery without a web rebuild, 22 registered functions and 10 passing HTTP/PDF checks on deployment 6. All 2,083 historical vector rows are completed with independent verification and original history retained. Approved shared Vector API and search metadata repairs are applied. Search, mastery, analytics for 7/7 active courses, quality auditing, product PDFs and assessment passed business checks; fixtures were cleaned. Admin Knowledge passed portable production acceptance for 15 sources and 275 chunks/vectors, including unchanged replay without new embeddings. Main workflow integration and runtime fixes are merged through PR 313. Email delivery, untested branches and the unchanged web's V4, source-figure v1 and direct RPC compatibility limits keep the cutover open. Staging web/DNS work is deferred. The `ACTIVE` architecture, deployment and development guides link this transition.
 
