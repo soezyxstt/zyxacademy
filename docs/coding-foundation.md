@@ -1,13 +1,24 @@
 # Python learning
 
-Status: `ACTIVE`, local implementation contract. Updated: 2026-10-29.
+Status: `ACTIVE`, local implementation contract. Updated: 2026-11-12.
 
 ## Student surfaces
 
 Python is always available without a new feature flag. Existing Live Quiz still
 uses its established FEATURE_LIVE gate. Each course has `/courses/[id]/playground`
 with CodeMirror 6 autocomplete, interactive stdin, Run/Stop, stdout, Python errors and Zyra.
-Runnable Article examples use the same terminal. On staging, the application issues a short-lived course-authorized WebSocket ticket for the isolated WASI Python worker; its compute fuel limit does not count time waiting for input. Interactive editors can prepare one shared idle terminal per page before Run. The worker limits idle warm sessions, expires them after 60 seconds, and falls back to a fresh session when preparation is unavailable. Source code is sent only when Run is pressed. Other environments retain the pinned, self-hosted Pyodide 314.0.7 runtime and its existing hard deadline.
+Runnable Article examples use the same terminal. In the student Article reader,
+fenced Markdown blocks labelled `python` or `py` also open as editable, runnable
+examples. Drafts are scoped by learner, course, article version and example, subject
+to the storage and course-access conditions below. Admin review and Diktat output
+keep these blocks static. On public staging and production origins, the application
+issues a short-lived course-authorized WebSocket ticket for the isolated WASI Python
+worker; its compute fuel limit does not count time waiting for input. Interactive
+editors can prepare one shared idle terminal per page before Run. The worker limits
+idle warm sessions, expires them after 60 seconds, and falls back to a fresh session
+when preparation is unavailable. Code is sent to the runtime when Run is pressed;
+draft synchronization can send edits to the application before Run. Other environments
+retain the pinned, self-hosted Pyodide 314.0.7 runtime and its existing hard deadline.
 The initial implementation supports standard-library Python programs and
 stdin/stdout tests, not notebooks, external packages or graphical output.
 
@@ -26,10 +37,11 @@ in Playground with code, stdin and an article return link. Exercises load only a
 published public problem snapshot, permit repeated Submit, retain attempt history,
 and mark results or feedback as stale when code changes. Publishing an Article
 rejects unavailable, wrong-course or unpublished coding problem references.
-V3 Markdown and existing V4 part kinds retain their behavior. Authoring contract
-schema delivery derives the new kinds from the same V4 Zod contract.
+Other Markdown code blocks and existing V4 part kinds retain their behavior.
+Authoring contract schema delivery derives the new kinds from the same V4 Zod contract.
 
 Course access remains enforced. The Playground follows the existing course gate;
+examples in a free chapter run in the browser and keep drafts on the device. Full Playground access,
 server-synced drafts, published problems and graded exercises require enrolled or
 staff access. Drafts are user/course scoped, save locally, sync with optimistic
 revisions and preserve local changes if another device wins a write. A stored

@@ -41,7 +41,7 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "app/globals.css", "app/layout.tsx", "app/authoring-verification/page.tsx",
   "components/providers/telemetry-boundary.tsx", "components/providers/posthog-provider.tsx", "lib/env.ts",
   "components/coding/article-coding.tsx", "components/coding/coding-workspace.tsx", "components/coding/coding-help.tsx", "components/coding/python-editor.tsx", "components/coding/use-coding-draft.ts",
-  "lib/coding/draft-reconciliation.ts", "lib/coding/contracts.ts", "lib/coding/browser-runtime.ts", "lib/coding/runtime.ts", "lib/coding/runtime-assets.ts", "lib/coding/frame.html", "public/coding/worker.js", "lib/coding/http-contracts.ts", "lib/coding/zyra.ts",
+  "lib/coding/article-markdown-scope.ts", "lib/coding/runtime-selection.ts", "lib/coding/draft-reconciliation.ts", "lib/coding/contracts.ts", "lib/coding/browser-runtime.ts", "lib/coding/runtime.ts", "lib/coding/runtime-assets.ts", "lib/coding/frame.html", "public/coding/worker.js", "lib/coding/http-contracts.ts", "lib/coding/zyra.ts",
   "components/course/markdown/flowchart-diagram-renderer.tsx", "lib/visual-layout-service.ts",
   "components/course/article-parts.tsx", "components/course/math-text.tsx", "components/course/markdown-renderer.tsx",
   "lib/markdown-compiler.ts", "lib/materials/embedded-visuals.ts",
