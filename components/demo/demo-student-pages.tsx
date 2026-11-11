@@ -23,23 +23,22 @@ import type { DemoMastery } from "@/lib/demo/mastery";
 function DemoFeatureLoading() {
  return <div role="status" aria-busy="true" aria-label="Loading" className="space-y-4 py-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-12 w-full" /><Skeleton className="h-40 w-full" /></div>;
 }
-const loading = { loading: DemoFeatureLoading };
-const FeedbackForm = dynamic(() => import("@/app/(student)/feedback/feedback-form").then(module => module.FeedbackForm), loading);
-const CourseVideosClient = dynamic(() => import("@/components/course/video/course-videos-client").then(module => module.CourseVideosClient), loading);
-const ProfileEditForm = dynamic(() => import("@/app/(student)/profile/edit/profile-edit-form").then(module => module.ProfileEditForm), loading);
-const StudentReflectionsView = dynamic(() => import("@/components/student-reflections-view").then(module => module.StudentReflectionsView), loading);
-const StudentLeaderboardView = dynamic(() => import("@/components/student-leaderboard-view").then(module => module.StudentLeaderboardView), loading);
-const StudentCourseLeaderboardContent = dynamic(() => import("@/components/course/student-course-leaderboard-content").then(module => module.StudentCourseLeaderboardContent), loading);
-const LiveStudentPage = dynamic(() => import("@/app/(student)/courses/[id]/live/page"), loading);
-const StudentProfileView = dynamic(() => import("@/components/student-profile-view").then(module => module.StudentProfileView), loading);
-const StudentGroupsCompactClient = dynamic(() => import("@/components/dashboard/student-groups-compact-client").then(module => module.StudentGroupsCompactClient), loading);
-const SettingsClient = dynamic(() => import("@/app/(student)/settings/settings-client").then(module => module.SettingsClient), loading);
-const NotificationPreferencesForm = dynamic(() => import("@/app/(student)/settings/notifications/notification-preferences-form").then(module => module.NotificationPreferencesForm), loading);
-const StudyPathTimeline = dynamic(() => import("@/components/course/study-path-timeline").then(module => module.StudyPathTimeline), loading);
-const ConceptMap = dynamic(() => import("@/components/course/concept-map").then(module => module.ConceptMap), loading);
-const ConceptGraphView = dynamic(() => import("@/components/course/concept-graph-view").then(module => module.ConceptGraphView), loading);
-const Playground = dynamic(() => import("@/components/coding/playground").then(module => module.Playground), loading);
-const StudentScheduleClient = dynamic(() => import("@/app/(student)/dashboard/schedule/schedule-client").then(module => module.StudentScheduleClient), loading);
+const FeedbackForm = dynamic(() => import("@/app/(student)/feedback/feedback-form").then(module => module.FeedbackForm), { loading: DemoFeatureLoading });
+const CourseVideosClient = dynamic(() => import("@/components/course/video/course-videos-client").then(module => module.CourseVideosClient), { loading: DemoFeatureLoading });
+const ProfileEditForm = dynamic(() => import("@/app/(student)/profile/edit/profile-edit-form").then(module => module.ProfileEditForm), { loading: DemoFeatureLoading });
+const StudentReflectionsView = dynamic(() => import("@/components/student-reflections-view").then(module => module.StudentReflectionsView), { loading: DemoFeatureLoading });
+const StudentLeaderboardView = dynamic(() => import("@/components/student-leaderboard-view").then(module => module.StudentLeaderboardView), { loading: DemoFeatureLoading });
+const StudentCourseLeaderboardContent = dynamic(() => import("@/components/course/student-course-leaderboard-content").then(module => module.StudentCourseLeaderboardContent), { loading: DemoFeatureLoading });
+const LiveStudentPage = dynamic(() => import("@/app/(student)/courses/[id]/live/page"), { loading: DemoFeatureLoading });
+const StudentProfileView = dynamic(() => import("@/components/student-profile-view").then(module => module.StudentProfileView), { loading: DemoFeatureLoading });
+const StudentGroupsCompactClient = dynamic(() => import("@/components/dashboard/student-groups-compact-client").then(module => module.StudentGroupsCompactClient), { loading: DemoFeatureLoading });
+const SettingsClient = dynamic(() => import("@/app/(student)/settings/settings-client").then(module => module.SettingsClient), { loading: DemoFeatureLoading });
+const NotificationPreferencesForm = dynamic(() => import("@/app/(student)/settings/notifications/notification-preferences-form").then(module => module.NotificationPreferencesForm), { loading: DemoFeatureLoading });
+const StudyPathTimeline = dynamic(() => import("@/components/course/study-path-timeline").then(module => module.StudyPathTimeline), { loading: DemoFeatureLoading });
+const ConceptMap = dynamic(() => import("@/components/course/concept-map").then(module => module.ConceptMap), { loading: DemoFeatureLoading });
+const ConceptGraphView = dynamic(() => import("@/components/course/concept-graph-view").then(module => module.ConceptGraphView), { loading: DemoFeatureLoading });
+const Playground = dynamic(() => import("@/components/coding/playground").then(module => module.Playground), { loading: DemoFeatureLoading });
+const StudentScheduleClient = dynamic(() => import("@/app/(student)/dashboard/schedule/schedule-client").then(module => module.StudentScheduleClient), { loading: DemoFeatureLoading });
 
 export function DemoStudentPage({ view, experience: { content, snapshot }, mastery }: { view: string; experience: DemoSummary; mastery?: DemoMastery }) {
  const experience = useStudentExperience();
