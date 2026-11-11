@@ -29,7 +29,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { MathText } from "@/components/course/math-text";
+import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { AdminOptionLetter } from "@/components/admin/option-letter";
 import { DifficultyBadge } from "@/components/admin/status-badges";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
@@ -334,7 +334,7 @@ export function QuestionsTab({
 
                   {/* Question Prompt */}
                   <div className="text-body-base text-foreground leading-relaxed">
-                    <MathText>{q.prompt}</MathText>
+                    <MarkdownRenderer content={q.prompt} />
                   </div>
 
                   {/* Options */}
@@ -353,7 +353,7 @@ export function QuestionsTab({
                           >
                             <AdminOptionLetter index={optIdx} isCorrect={isCorrect} />
                             <div className="flex-1 min-w-0">
-                              <MathText>{opt}</MathText>
+                              <MarkdownRenderer content={opt} density="compact" />
                             </div>
                             {isCorrect && (
                               <span className="text-body-xs font-bold text-status-success shrink-0">
@@ -370,7 +370,7 @@ export function QuestionsTab({
                   {q.explanation && (
                     <div className="p-3 rounded-lg bg-muted/20 border border-border/40 text-body-sm text-muted-foreground space-y-1">
                       <strong className="text-foreground text-body-xs block">{t("courseDetail.questions.explanation")}</strong>
-                      <MathText>{q.explanation}</MathText>
+                      <MarkdownRenderer content={q.explanation} density="compact" />
                     </div>
                   )}
                 </div>

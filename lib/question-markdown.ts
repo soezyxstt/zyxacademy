@@ -70,6 +70,22 @@ function metadataValue(line: string, keys: string[]): string | null {
   return match?.[2]?.trim() ?? null;
 }
 
+interface MarkdownFence {
+  marker: string;
+  length: number;
+}
+
+function openingFence(line: string): MarkdownFence | null {
+  const match = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+  if (!match || (match[1][0] === "`" && match[2].includes("`"))) return null;
+  return { marker: match[1][0], length: match[1].length };
+}
+
+function closesFence(line: string, fence: MarkdownFence): boolean {
+  const match = line.match(/^ {0,3}(`{3,}|~{3,})\s*$/);
+  return Boolean(match && match[1][0] === fence.marker && match[1].length >= fence.length);
+}
+
 export function validateExtractedQuestion(question: ExtractedQuestion, index: number): string | null {
   const label = `Soal nomor ${index}`;
   if (!question.prompt.trim()) return `${label} tidak memiliki teks pertanyaan yang valid.`;
@@ -104,8 +120,19 @@ export function parseQuestionsMarkdown(markdown: string): ExtractedQuestion[] {
   const lines = normalized.split("\n");
   const blocks: string[][] = [];
   let currentBlock: string[] = [];
+  let blockFence: MarkdownFence | null = null;
 
   for (const line of lines) {
+    if (blockFence) {
+      currentBlock.push(line);
+      if (closesFence(line, blockFence)) blockFence = null;
+      continue;
+    }
+    blockFence = openingFence(line);
+    if (blockFence) {
+      currentBlock.push(line);
+      continue;
+    }
     if (line.trim().startsWith("## ")) {
       if (currentBlock.length > 0) blocks.push(currentBlock);
       currentBlock = [line];
@@ -133,10 +160,31 @@ export function parseQuestionsMarkdown(markdown: string): ExtractedQuestion[] {
     let tags: string[] = [];
     let parsingExplanation = false;
     let answerTextRaw = "";
+    let contentFence: MarkdownFence | null = null;
+    let activeOption: number | null = null;
+
+    const appendContent = (line: string) => {
+      if (parsingExplanation) explanationLines.push(line);
+      else if (activeOption !== null) optionSlots[activeOption] += `\n${line}`;
+      else promptLines.push(line);
+    };
 
     for (let lineIndex = 1; lineIndex < blockLines.length; lineIndex++) {
       const line = blockLines[lineIndex];
       const trimmed = line.trim();
+
+      // Visual and code payloads are content, even when a line resembles
+      // question metadata, an option, or a new question heading.
+      if (contentFence) {
+        appendContent(line);
+        if (closesFence(line, contentFence)) contentFence = null;
+        continue;
+      }
+      contentFence = openingFence(line);
+      if (contentFence) {
+        appendContent(line);
+        continue;
+      }
 
       const typeValue = metadataValue(trimmed, ["tipe", "tipe soal", "jenis", "type"]);
       if (typeValue !== null) {
@@ -186,11 +234,11 @@ export function parseQuestionsMarkdown(markdown: string): ExtractedQuestion[] {
       if (optionMatch && !parsingExplanation) {
         const optionIndex = optionMatch[1].toUpperCase().charCodeAt(0) - 65;
         optionSlots[optionIndex] = optionMatch[2].trim();
+        activeOption = optionIndex;
         continue;
       }
 
-      if (parsingExplanation) explanationLines.push(line);
-      else promptLines.push(line);
+      appendContent(line);
     }
 
     const highestOptionIndex = optionSlots.reduce((highest, option, index) => option !== undefined ? Math.max(highest, index) : highest, -1);

@@ -628,6 +628,38 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
 - It aggregates existing domain tables only (`student_material_progress`, `flashcard_reviews`, `student_quiz_attempts`, `percobaan_asesmen`, `live_quiz_results`, `tutor_chat_messages`/`chat_sessions`); it writes no new events. Unique active students are the union of distinct student ids across those sources.
 - The page lists measurement gaps explicitly: daily pop-up quiz stays in localStorage, Cmd+K search records no server events, and diktat download counts are cumulative only. Page traffic remains in Web Analytics; AI token usage remains in Analitik Zyra.
 
+## Embedded learning visuals
+
+Learning Markdown supports typed visuals directly in question prompts, answer options, explanations, quiz reviews, flashcards, material readers and shared admin previews. This support is always on wherever the shared `MarkdownRenderer` is used. Insert a triple-backtick code fence with the language `zyx-visual` and one JSON visual spec at the intended reading position. Surrounding prose and formulas remain in order; each visual has its own interaction state.
+
+````markdown
+Perhatikan perubahan nilai epsilon pada grafik berikut.
+
+```zyx-visual
+{
+  "id": "limit-linear",
+  "kind": "epsilon_delta_graph",
+  "label": "Limit fungsi linear",
+  "description": "Fungsi f(x) = x mendekati 0 ketika x mendekati 0.",
+  "bounds": { "xMin": -2, "xMax": 2, "yMin": -2, "yMax": 2 },
+  "limitPoint": 0,
+  "limitValue": 0,
+  "defaultEpsilon": 1,
+  "defaultDelta": 1,
+  "functionModel": { "kind": "linear", "m": 1, "b": 0 },
+  "staticFallback": {
+    "type": "text",
+    "summary": "Limit f(x) = x di x = 0 adalah 0.",
+    "content": "Untuk setiap epsilon positif, pilih delta = epsilon."
+  }
+}
+```
+
+Jelaskan hubungan epsilon dan delta.
+````
+
+Specs reuse the Article visual contract and renderer: `epsilon_delta_graph`, `learning_canvas`, `geometry_2d` and `source_figure`. Only supported models provide controls; geometry and source figures remain static. Source figures retain their existing scoped asset delivery and access checks. Each payload is limited to 131072 characters, validated for supported structure and unsafe content, and rendered without executing author-supplied JavaScript or HTML. Invalid payloads show a local error while surrounding content stays readable. Question Markdown imports preserve visual fences in prompts, multiline options and explanations, including lines resembling metadata inside ordinary code fences. This format does not replace the structured Article/Diktat bundle contracts or their review and publication gates.
+
 ## Structured Article authoring and reading
 
 Student Article headings use the catalogue chapter number and title, for example `Bab 2: Fungsi dan Limit`, in both normal and focus mode. Catalogue numbering already starts at 1. Verbose authoring titles remain available in the bundle without adding course names or duplicate chapter prefixes to the student heading.

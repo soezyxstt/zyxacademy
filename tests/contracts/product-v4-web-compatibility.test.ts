@@ -43,3 +43,14 @@ test("compatibility pins the complete reviewed source closure and both deploymen
   expect(manifest.asset.path).toMatch(/^\/_next\/static\/immutable\/chunks\/[\w.-]+\.js$/);
   expect(manifest.asset.checksum).toMatch(/^[a-f0-9]{64}$/);
 });
+
+test("shared Markdown visual dependencies are pinned without claiming a new deployed web helper", () => {
+  expect(PRODUCT_V4_RUNTIME_FILES).toContain("lib/markdown-compiler.ts");
+  expect(PRODUCT_V4_RUNTIME_FILES).toContain("lib/materials/embedded-visuals.ts");
+  const helper = manifest.sourceFiles.find(file => file.path === "lib/materials/embedded-visuals.ts");
+  expect(helper?.webChecksum).toBeNull();
+  expect(helper?.executorChecksum).toMatch(/^[a-f0-9]{64}$/);
+  const compiler = manifest.sourceFiles.find(file => file.path === "lib/markdown-compiler.ts");
+  expect(compiler?.webChecksum).toMatch(/^[a-f0-9]{64}$/);
+  expect(compiler?.executorChecksum).not.toBe(compiler?.webChecksum);
+});

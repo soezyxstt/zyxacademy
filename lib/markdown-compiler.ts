@@ -938,7 +938,7 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
         content: cleanContent,
       };
     } else if (type === "code") {
-      const langMatch = contentLines[0].match(/^```(\w*)/);
+      const langMatch = contentLines[0].match(/^```([\w-]*)/);
       const language = langMatch ? langMatch[1] : undefined;
       const hasClosing = contentLines.length > 1 && contentLines[contentLines.length - 1].trim().startsWith("```");
       const codeLines = hasClosing ? contentLines.slice(1, -1) : contentLines.slice(1);

@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MathText } from "@/components/course/math-text";
+import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { toast } from "@/components/ui/toast";
 import {
   deleteQuizTemplateAction,
@@ -854,9 +855,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       </div>
                     </div>
 
-                    <MathText className="text-body-sm font-semibold text-foreground whitespace-pre-wrap leading-relaxed" as="p">
-                      {q.prompt}
-                    </MathText>
+                    <MarkdownRenderer content={q.prompt} className="text-body-sm font-semibold text-foreground leading-relaxed" />
 
                     <div className="grid gap-2">
                       {q.options.map((opt: string, optIdx: number) => {
@@ -881,9 +880,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                             >
                               {String.fromCharCode(65 + optIdx)}
                             </span>
-                            <span className="truncate">
-                              <MathText as="span">{opt}</MathText>
-                            </span>
+                            <div className="min-w-0 flex-1">
+                              <MarkdownRenderer content={opt} density="compact" />
+                            </div>
                           </div>
                         );
                       })}
@@ -892,7 +891,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                     {q.explanation && (
                       <div className="mt-2 text-body-xs bg-muted/50 p-3 rounded-lg border border-border/50 text-muted-foreground space-y-1">
                         <span className="font-semibold text-foreground block">{tr("explanation")}</span>
-                        <MathText as="p">{q.explanation}</MathText>
+                        <MarkdownRenderer content={q.explanation} density="compact" />
                       </div>
                     )}
                   </div>

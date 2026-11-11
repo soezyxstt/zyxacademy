@@ -24,6 +24,21 @@ import { scientificValueToMathText } from "@/lib/math/scientific-format";
 import { MathText } from "@/components/course/math-text";
 import { ArticleParts } from "@/components/course/article-parts";
 import { extractEmbeddedArticleParts } from "@/lib/tutor/answer-sanitizer";
+import { EMBEDDED_VISUAL_LANGUAGE, parseEmbeddedVisual } from "@/lib/materials/embedded-visuals";
+import { ProductLearningVisual } from "@/components/course/product-learning-visual";
+
+function EmbeddedLearningVisual({ source }: { source: string }) {
+  const spec = React.useMemo(() => parseEmbeddedVisual(source), [source]);
+  return (
+    <div className="min-w-0 max-w-full" data-learning-visual>
+      {spec ? <ProductLearningVisual spec={spec} /> : (
+        <p role="status" data-content-visual-error className="rounded-md border border-border bg-muted/30 p-3 text-body-sm text-muted-foreground">
+          Visual tidak dapat ditampilkan. Periksa format data visual.
+        </p>
+      )}
+    </div>
+  );
+}
 
 function CanvasLoading({ labelKey }: { labelKey: "chartLoading" | "diagramLoading" | "interactiveGraphLoading" }) {
   const t = useTranslations("studentCourse");
@@ -1161,6 +1176,9 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
     }
 
     case "code":
+      if (block.language === EMBEDDED_VISUAL_LANGUAGE) {
+        return <EmbeddedLearningVisual source={block.content} />;
+      }
       if (block.language === "desmos" || block.language === "desmos-graph") {
         return (
           <InteractiveGraphWidget

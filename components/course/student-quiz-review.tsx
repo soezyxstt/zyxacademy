@@ -324,7 +324,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, quizId, 
                                 )}>
                                   {String.fromCharCode(65 + i)}
                                 </span>
-                                <div className="flex-1">
+                                <div className="min-w-0 flex-1">
                                   <MarkdownRenderer content={opt} className="space-y-3" />
                                 </div>
                               </li>
@@ -417,14 +417,14 @@ export function StudentQuizReview({ href = (path: string) => path,  id, quizId, 
                               >
                                 {String.fromCharCode(65 + i)}
                               </span>
-                              <span
+                              <div
                                 className={cn(
-                                  "text-body-sm font-medium",
+                                  "min-w-0 flex-1 text-body-sm font-medium",
                                   isCorrectChoice ? "text-foreground" : "text-muted-foreground"
                                 )}
                               >
-                                <MarkdownRenderer content={opt} className="inline-block" />
-                              </span>
+                                <MarkdownRenderer content={opt} />
+                              </div>
                               {isCorrectChoice && (
                                   <div className="ml-auto flex items-center text-status-success text-body-xs font-bold gap-1 uppercase tracking-wider">
                                   <CheckCircle2 className="size-4" />

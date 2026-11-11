@@ -45,6 +45,7 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "lib/coding/draft-reconciliation.ts", "lib/coding/contracts.ts", "lib/coding/browser-runtime.ts", "lib/coding/runtime.ts", "lib/coding/runtime-assets.ts", "lib/coding/frame.html", "public/coding/worker.js", "lib/coding/http-contracts.ts", "lib/coding/zyra.ts",
   "components/course/markdown/flowchart-diagram-renderer.tsx", "lib/visual-layout-service.ts",
   "components/course/article-parts.tsx", "components/course/math-text.tsx", "components/course/markdown-renderer.tsx",
+  "lib/markdown-compiler.ts", "lib/materials/embedded-visuals.ts",
   "components/course/product-learning-visual.tsx", "components/course/epsilon-delta-board.tsx", "components/course/geometry-2d-visual.tsx",
   "components/course/learning-canvas/learning-canvas-renderer.tsx", "components/ui/slider.tsx",
   "components/course/markdown/flowchart-node.tsx", "lib/flowchart.ts",

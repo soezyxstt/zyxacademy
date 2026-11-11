@@ -826,14 +826,28 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
 
                   return (
                     <li key={i}>
-                      <button
-                        type="button"
-                        role={isMultiple ? "checkbox" : "radio"}
-                        aria-checked={selected}
-                        disabled={submitting || isSubmitted}
-                        onClick={() => selectOption(q.id, i, isMultiple)}
+                      <div
+                        data-question-option
                         className={quizOptionClasses(selected ? "selected" : "idle")}
+                        onClick={(event) => {
+                          if (submitting || isSubmitted) return;
+                          // Visual controls and plot gestures must not select an answer.
+                          if ((event.target as Element).closest("button, input, select, textarea, a, figure, [data-learning-visual]")) return;
+                          selectOption(q.id, i, isMultiple);
+                        }}
                       >
+                        <button
+                          type="button"
+                          role={isMultiple ? "checkbox" : "radio"}
+                          aria-checked={selected}
+                          aria-labelledby={`quiz-letter-${q.id}-${i} quiz-option-${q.id}-${i}`}
+                          disabled={submitting || isSubmitted}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            selectOption(q.id, i, isMultiple);
+                          }}
+                          className="flex shrink-0 items-center gap-2.5 self-start rounded-md py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed md:gap-3"
+                        >
                         {/* Circle (Radio) vs Boxie (Checkbox) Option Indicator */}
                         <span
                           aria-hidden="true"
@@ -851,6 +865,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
 
                         {/* Letter Badge */}
                         <span
+                          id={`quiz-letter-${q.id}-${i}`}
                           className={quizOptionLetterClasses(
                             selected ? "selected" : "idle",
                             isMultiple ? "rounded-md" : "rounded-full",
@@ -859,10 +874,11 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                           {String.fromCharCode(65 + i)}
                         </span>
 
-                        <div className="min-w-0 flex-1 break-words leading-normal text-foreground">
+                        </button>
+                        <div id={`quiz-option-${q.id}-${i}`} className="min-w-0 flex-1 break-words leading-normal text-foreground">
                           <MarkdownRenderer content={opt} className="space-y-3" />
                         </div>
-                      </button>
+                      </div>
                     </li>
                   );
                 })}

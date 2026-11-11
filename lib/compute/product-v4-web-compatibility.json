@@ -97,7 +97,7 @@
     {
       "path": "components/course/markdown-renderer.tsx",
       "webChecksum": "2db2e8255e60269600adc87fe9b59c6a495171c3a4b7d7d219c08a4ab51e2122",
-      "executorChecksum": "2db2e8255e60269600adc87fe9b59c6a495171c3a4b7d7d219c08a4ab51e2122"
+      "executorChecksum": "97e74811e997434f8a848a71dd2aa46750c061d0f7942484b4a4602dba12bded"
     },
     {
       "path": "components/course/markdown/flowchart-diagram-renderer.tsx",
@@ -332,7 +332,7 @@
     {
       "path": "lib/compute/product-v4-runtime-binding.ts",
       "webChecksum": "ef8fb5cbcd9cabef029e5162867e43069c1f331f9292485261026d16e124275b",
-      "executorChecksum": "5832fbd22bc146b465554947777e14c9295e18a5642e61d8eed968495620d433"
+      "executorChecksum": "dc7af12e6e78e78fd99931181657f8ec080cfa4334c324848769179bb6954eec"
     },
     {
       "path": "lib/compute/product-v4-verification-executor.ts",
@@ -370,6 +370,11 @@
       "executorChecksum": "fee0c7010cb598bfc3fa2c9aafb62b0bac63636eb365223e00185df73ae7c2fe"
     },
     {
+      "path": "lib/markdown-compiler.ts",
+      "webChecksum": "2e887b82b83f05d954cc59124b823e9011d3b23482c85fd42b3f0312acc285d0",
+      "executorChecksum": "f56eb54f0f12399ec3678571483cca964b8f7f16e9a36576e5367833dbdf7504"
+    },
+    {
       "path": "lib/materials/article-contract.ts",
       "webChecksum": "3fc25162371b4c8eb7afc275a04c2a9effdcfa0662991181ef8b59104dcdbb59",
       "executorChecksum": "3fc25162371b4c8eb7afc275a04c2a9effdcfa0662991181ef8b59104dcdbb59"
@@ -398,6 +403,11 @@
       "path": "lib/materials/diktat-v4.ts",
       "webChecksum": "2a2d8d09bad8e76699bea226771c0afd942252b582c49854d7d0a09cba89e814",
       "executorChecksum": "2a2d8d09bad8e76699bea226771c0afd942252b582c49854d7d0a09cba89e814"
+    },
+    {
+      "path": "lib/materials/embedded-visuals.ts",
+      "webChecksum": null,
+      "executorChecksum": "2e1fc9b54e3b41837fa25b7ab6da8862c986f4ce9aa42fafa8974d1bf3a827d7"
     },
     {
       "path": "lib/materials/epsilon-delta.ts",
