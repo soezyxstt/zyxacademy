@@ -136,7 +136,7 @@ test("visual smoke actually exercises each supported state from the restored bas
   const exercised: string[] = [];
   const page = {} as Page;
   const observation = () => ({ issues: [] as string[], inspectedElements: 3, partCount: 0, mathCount: 2, imageCount: 0 });
-  const visual = { kind: "epsilon_delta_graph", interactive: true } as import("@/lib/materials/visual-contract").VisualSpec;
+  const visual = { id: "limit", kind: "epsilon_delta_graph", label: "Limit", description: "A deliberately false limit claim", bounds: { xMin: -2, xMax: 2, yMin: -2, yMax: 5 }, limitPoint: 0, limitValue: 1, defaultEpsilon: 1, defaultDelta: 0.5, functionModel: { kind: "linear", m: 1, b: 0 }, staticFallback: { type: "text", summary: "Limit", content: "Compare the claimed limit with the curve." } } as import("@/lib/materials/visual-contract").VisualSpec;
   const results = await exerciseProductV4VisualSmoke(page, visual, {
     exercise: async (_page, state) => {
       expect(value).toBe(1); exercised.push(state);
@@ -149,6 +149,12 @@ test("visual smoke actually exercises each supported state from the restored bas
   expect(exercised).toEqual(["default", "changed", "reset", "keyboard", "epsilon-minimum", "epsilon-maximum", "resolution-limited", "fallback"]);
   expect(restored).toBe(6);
   expect(results.every(result => result.exercised && result.document.mathCount === 2)).toBe(true);
+  if (visual.kind !== "epsilon_delta_graph") throw new Error("epsilon fixture required");
+  const guaranteed = await exerciseProductV4VisualSmoke(page, { ...visual, limitValue: 0 }, {
+    exercise: async () => true, inspect: async () => observation(), restore: async () => {},
+  });
+  expect(guaranteed.map(result => result.state)).not.toContain("resolution-limited");
+  expect(guaranteed.map(result => result.state)).toContain("changed");
 });
 
 test("static visual smoke requires fallback evidence and never accepts an unsupported state as PASS", async () => {

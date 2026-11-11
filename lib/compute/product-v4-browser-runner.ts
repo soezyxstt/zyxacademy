@@ -8,6 +8,7 @@ import { productBundleManifestSchema, productEntitySchema, productDependencySche
 import { verificationPreviewSchema } from "@/lib/materials/verification-preview";
 import type { ArticlePart } from "@/lib/materials/article-parts";
 import type { VisualSpec } from "@/lib/materials/visual-contract";
+import { deriveEpsilonDelta } from "@/lib/materials/epsilon-delta";
 import { compileProductDiktatHtml, PRODUCT_DIKTAT_FOOTER_TEMPLATE } from "@/lib/bundle/product-diktat-pdf";
 import { inspectDiktatPrintReadiness } from "@/lib/materials/diktat-print-readiness";
 import type { DiktatSourceFigureAssets } from "@/lib/materials/diktat-static-visual";
@@ -216,7 +217,9 @@ export async function exerciseProductV4VisualSmoke(page: Page, visual: VisualSpe
     }
   },
 }) {
-  const states = ["default", ...(visual.interactive ? ["changed", "reset", "keyboard"] : []), ...(visual.kind === "epsilon_delta_graph" ? ["epsilon-minimum", "epsilon-maximum", "resolution-limited"] : []), "fallback"];
+  const interactive = visual.kind === "epsilon_delta_graph" || ("interactive" in visual && visual.interactive);
+  const epsilonStates = visual.kind === "epsilon_delta_graph" ? ["epsilon-minimum", "epsilon-maximum", ...([visual.defaultEpsilon * 0.1 || visual.defaultEpsilon, visual.defaultEpsilon, Math.min(visual.bounds.yMax - visual.limitValue, visual.limitValue - visual.bounds.yMin, visual.defaultEpsilon * 2.2)].some(value => deriveEpsilonDelta(visual, value).status === "resolution_limited") ? ["resolution-limited"] : [])] : [];
+  const states = ["default", ...(interactive ? ["changed", "reset", "keyboard"] : []), ...epsilonStates, "fallback"];
   const observations: VisualSmokeObservation[] = [];
   for (const state of states) {
     if (!await ports.exercise(page, state)) throw new Error(`VERIFICATION_VISUAL_STATE_UNSUPPORTED:${state}`);
