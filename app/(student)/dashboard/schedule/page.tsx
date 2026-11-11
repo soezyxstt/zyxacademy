@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { CalendarDays } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { hasAnyPeran } from "@/lib/auth/authorization";
+import { hasAnyPeran } from "@/lib/auth/request-cache";
 import { ApplicationPage } from "@/components/application-page";
 import { PageHeader } from "@/components/page-header";
 import { StudentScheduleClient, ScheduleCalendarSkeleton } from "./schedule-client";

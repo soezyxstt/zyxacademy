@@ -1,5 +1,7 @@
 # Zyx Academy Architecture (vNext)
 
+Authorization and tutor-access cores remain framework-neutral for API and background-worker imports. Next.js RSC consumers use server-only request-cache and guard wrappers, with primitive cache keys and uncached explicit executor reads. This preserves Deno boundaries while sharing render-local authorization reads.
+
 Demo reads batch allowlisted course context and share request-scoped resolution using primitive keys. View-specific loaders avoid reading unrelated product bodies; quiz/card collectors and grading use bounded concurrency while preserving cursor, revision, scope and token checks. Browser overlays reuse validated course/revision state within a tab and resynchronize after reset or restored history. See the `OPEN / IN PROGRESS` [demo performance audit](audit/demo-performance-20261111.md) for verification limits.
 
 Quiz review release is checked at the learner page, attempt detail/list APIs and student analytics endpoints before exposing solutions or diagnosis. Content-addressed legacy Diktat PDFs retain historical objects for rollback; the generic storage proxy denies unreferenced Diktat PDF keys. See the open [performance follow-up audit](audit/web-performance-follow-up-20261111.md) for verification limits.

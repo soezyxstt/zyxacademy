@@ -4,7 +4,7 @@ import { AdminDocumentWorkspace } from "@/components/admin/course-detail/admin-d
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { getAdminCourseMaterialPreview } from "@/lib/admin/course-material-preview";
 import { getCourseDetailData } from "../../../actions";
-import { assertAdmin } from "@/lib/auth/admin-guards";
+import { assertAdmin } from "@/lib/auth/admin-guards-server";
 import { pageTitle } from "@/lib/site";
 import { getTranslations } from "@/lib/i18n/server";
 

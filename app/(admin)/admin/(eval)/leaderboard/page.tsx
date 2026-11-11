@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { assertAdmin } from "@/lib/auth/admin-guards";
+import { assertAdmin } from "@/lib/auth/admin-guards-server";
 import { resolveCourseIdentity, getCanonicalCourseSlug } from "@/lib/admin/course-identity";
 
 type Props = {

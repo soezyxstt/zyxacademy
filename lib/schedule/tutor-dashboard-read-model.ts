@@ -4,7 +4,13 @@ import { bookingRescheduleTickets, bookings, courses, groupCourses, groups, mata
 import { listTutorAccessibleCourses, type DbExecutor } from "@/lib/auth/tutor-access";
 import type { AssignedActiveCourseItem } from "./tutor-read-model";
 
-export async function getTutorDashboardReadModel(tutorId: string, today: string, week: { startIso: string; endIso: string }, executor?: DbExecutor) {
+export async function getTutorDashboardReadModel(
+  tutorId: string,
+  today: string,
+  week: { startIso: string; endIso: string },
+  executor?: DbExecutor,
+  readAccessibleCourses: typeof listTutorAccessibleCourses = listTutorAccessibleCourses,
+) {
   const client = (executor ?? db) as typeof db;
   tutorId = tutorId.trim();
   if (!tutorId) throw new Error("TUTOR_ID_REQUIRED");
@@ -40,7 +46,7 @@ export async function getTutorDashboardReadModel(tutorId: string, today: string,
   }
 
   // 2. Fetch assigned active courses via centralized helper with canonical fallback semantics
-  const accessibleCoursesList = await listTutorAccessibleCourses(
+  const accessibleCoursesList = await (executor ? listTutorAccessibleCourses : readAccessibleCourses)(
     tutorId,
     { allowAdmin },
     executor,

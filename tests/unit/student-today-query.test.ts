@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import { QueryClient } from "@tanstack/react-query";
-import { studentTodayQuery } from "../../lib/student/today-query";
+import { studentTodayQuery, type TodayData } from "../../lib/student/today-query";
 
 const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
@@ -10,7 +10,7 @@ test("shares concurrent requests for one account and isolates other accounts", a
   globalThis.fetch = (async () => {
     calls++;
     return new Response(JSON.stringify({ streak: { current: calls, longest: calls }, items: [] }));
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const [sidebar, plan] = await Promise.all([
     client.fetchQuery(studentTodayQuery("student-a")),
@@ -22,6 +22,6 @@ test("shares concurrent requests for one account and isolates other accounts", a
   await client.invalidateQueries({ queryKey: studentTodayQuery("student-a").queryKey, exact: true });
   await client.fetchQuery(studentTodayQuery("student-a"));
   expect(calls).toBe(3);
-  expect(client.getQueryData(studentTodayQuery("student-b").queryKey)).toEqual({ streak: { current: 2, longest: 2 }, items: [] });
+  expect(client.getQueryData<TodayData>(studentTodayQuery("student-b").queryKey)).toEqual({ streak: { current: 2, longest: 2 }, items: [] });
   client.clear();
 });

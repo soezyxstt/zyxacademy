@@ -340,6 +340,7 @@ function storedResource(row: typeof bookingResources.$inferSelect): SessionResou
 export async function getTutorScheduleReadModel(
   input: string | GetTutorScheduleReadModelInput,
   executor?: DbExecutor,
+  readAccessibleCourses: typeof listTutorAccessibleCourses = listTutorAccessibleCourses,
 ): Promise<TutorScheduleReadModel> {
   const client = (executor ?? db) as typeof db;
   const tutorId =
@@ -390,10 +391,10 @@ export async function getTutorScheduleReadModel(
   }
 
   // 2. Fetch assigned active courses via centralized helper with canonical fallback semantics
-  const accessibleCoursesList = await listTutorAccessibleCourses(
+  const accessibleCoursesList = await (executor ? listTutorAccessibleCourses : readAccessibleCourses)(
     tutorId,
     { allowAdmin },
-    client,
+    executor,
   );
 
   const assignedActiveCourses: AssignedActiveCourseItem[] = [];

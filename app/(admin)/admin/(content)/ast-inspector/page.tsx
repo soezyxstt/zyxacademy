@@ -1,4 +1,4 @@
-import { assertAdmin } from "@/lib/auth/admin-guards";
+import { assertAdmin } from "@/lib/auth/admin-guards-server";
 import { ASTInspectorClient } from "./ast-inspector-client";
 import { pageTitle } from "@/lib/site";
 import { AdminPageHeader } from "@/components/admin/page-header";

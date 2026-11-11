@@ -1,4 +1,3 @@
-import { cache } from "react";
 import { getPeranCodes } from "@/lib/auth/authorization";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
@@ -48,9 +47,10 @@ export type DbExecutor = {
   select: (...args: any[]) => any;
 };
 
-async function resolveTutorCourseAccessUncached(
+export async function resolveTutorCourseAccess(
   input: TutorCourseAccessInput,
   executor?: DbExecutor,
+  readPeranCodes: typeof getPeranCodes = getPeranCodes,
 ): Promise<TutorCourseAccessResult> {
   const client = (executor ?? db) as typeof db;
   const rawPenggunaId = typeof input.penggunaId === "string" ? input.penggunaId.trim() : "";
@@ -204,7 +204,7 @@ async function resolveTutorCourseAccessUncached(
         .innerJoin(peran, eq(penggunaPeran.peranId, peran.id))
         .where(eq(penggunaPeran.penggunaId, rawPenggunaId)))
         .map((r: { code: string }) => r.code)
-    : await getPeranCodes(rawPenggunaId);
+    : await readPeranCodes(rawPenggunaId);
   const isTutor = roleCodes.includes("tutor");
   const isAdmin = roleCodes.includes("admin");
 
@@ -319,16 +319,6 @@ async function resolveTutorCourseAccessUncached(
   };
 }
 
-// Primitive keys keep independently created inputs equivalent within an RSC render.
-const cachedTutorCourseAccess = cache((penggunaId: string, courseId: string, allowAdmin: boolean) =>
-  resolveTutorCourseAccessUncached({ penggunaId, courseId, allowAdmin }),
-);
-
-export function resolveTutorCourseAccess(input: TutorCourseAccessInput, executor?: DbExecutor): Promise<TutorCourseAccessResult> {
-  if (executor) return resolveTutorCourseAccessUncached(input, executor);
-  return cachedTutorCourseAccess(input.penggunaId, input.courseId, input.allowAdmin === true);
-}
-
 export async function checkTutorCourseAccess(
   penggunaId: string,
   courseId: string,
@@ -358,10 +348,11 @@ export async function requireTutorCourseAccess(
   return result;
 }
 
-async function listTutorAccessibleCoursesUncached(
+export async function listTutorAccessibleCourses(
   penggunaId: string,
   options?: TutorCourseAccessOptions,
   executor?: DbExecutor,
+  readPeranCodes: typeof getPeranCodes = getPeranCodes,
 ): Promise<
   Array<{
     courseId: string;
@@ -391,7 +382,7 @@ async function listTutorAccessibleCoursesUncached(
         .innerJoin(peran, eq(penggunaPeran.peranId, peran.id))
         .where(eq(penggunaPeran.penggunaId, rawPenggunaId)))
         .map((r: { code: string }) => r.code)
-    : await getPeranCodes(rawPenggunaId);
+    : await readPeranCodes(rawPenggunaId);
   const isTutor = roleCodes.includes("tutor");
   const isAdmin = roleCodes.includes("admin");
 
@@ -519,17 +510,4 @@ async function listTutorAccessibleCoursesUncached(
   }
 
   return Array.from(results.values());
-}
-
-const cachedTutorAccessibleCourses = cache((penggunaId: string, allowAdmin: boolean) =>
-  listTutorAccessibleCoursesUncached(penggunaId, { allowAdmin }),
-);
-
-export function listTutorAccessibleCourses(
-  penggunaId: string,
-  options?: TutorCourseAccessOptions,
-  executor?: DbExecutor,
-): ReturnType<typeof listTutorAccessibleCoursesUncached> {
-  if (executor) return listTutorAccessibleCoursesUncached(penggunaId, options, executor);
-  return cachedTutorAccessibleCourses(penggunaId, options?.allowAdmin === true);
 }

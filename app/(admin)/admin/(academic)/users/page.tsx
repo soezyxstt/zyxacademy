@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { pageTitle } from "@/lib/site";
-import { assertAdmin } from "@/lib/auth/admin-guards";
+import { assertAdmin } from "@/lib/auth/admin-guards-server";
 import { getAdminUsersData } from "./actions";
 import { UsersDashboard } from "@/components/admin/users-dashboard";
 import { PageHeader } from "@/components/page-header";

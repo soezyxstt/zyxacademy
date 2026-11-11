@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
 import { getAuthSession } from "@/lib/auth-session";
-import { hasAnyPeran } from "@/lib/auth/authorization";
+import { hasAnyPeran } from "@/lib/auth/request-cache";
 import type { ReactNode } from "react";
 import { TutorSidebar, type AssignedTutorCourse } from "@/components/tutor/tutor-sidebar";
 import { ApplicationShell } from "@/components/application-shell";
 import { MobileNavbar } from "@/components/mobile-navbar";
-import { listTutorAccessibleCourses } from "@/lib/auth/tutor-access";
+import { listTutorAccessibleCourses } from "@/lib/auth/request-cache";
 import { db } from "@/db";
 import { mataKuliah, courses } from "@/db/schema";
 import { inArray } from "drizzle-orm";

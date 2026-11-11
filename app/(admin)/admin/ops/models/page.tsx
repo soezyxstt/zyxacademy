@@ -1,7 +1,7 @@
 import { Cpu } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { TranslatedText } from "@/components/i18n/translated-text";
-import { assertAdmin } from "@/lib/auth/admin-guards";
+import { assertAdmin } from "@/lib/auth/admin-guards-server";
 import { listModelSettingViews } from "@/lib/ai/model-settings-store";
 import { getTranslations } from "@/lib/i18n/server";
 import { pageTitle } from "@/lib/site";

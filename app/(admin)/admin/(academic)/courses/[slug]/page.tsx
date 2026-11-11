@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { pageTitle } from "@/lib/site";
 import { getTranslations } from "@/lib/i18n/server";
-import { assertAdmin } from "@/lib/auth/admin-guards";
+import { assertAdmin } from "@/lib/auth/admin-guards-server";
 import { getCourseDetailData } from "../actions";
 import { getCourseTitleOnly } from "./metadata";
 import { CourseDetailHeader } from "@/components/admin/course-detail/course-detail-header";

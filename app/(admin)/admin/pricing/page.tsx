@@ -5,7 +5,7 @@ import { TutorFeeEstimator } from "@/components/admin/tutor-fee-estimator";
 import { VoucherManagementTab } from "@/components/admin/voucher-management-tab";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { assertAdmin } from "@/lib/auth/admin-guards";
+import { assertAdmin } from "@/lib/auth/admin-guards-server";
 import { pageTitle } from "@/lib/site";
 import { getTranslations } from "@/lib/i18n/server";
 import { TranslatedText } from "@/components/i18n/translated-text";

@@ -22,7 +22,7 @@ beforeAll(async () => {
   await db.insert(s.user).values({ id: "author", name: "Author", email: "demo-scoped@example.test" });
   await db.insert(s.pengguna).values({ id: "author" });
   const titles = ["Matematika I", "Fisika Dasar I", "Kimia Dasar I", "Berpikir Komputasional"];
-  await db.insert(s.courses).values(titles.map((title, i) => ({ id: `legacy-${i}`, title, category: "Matematika" })));
+  await db.insert(s.courses).values(titles.map((title, i) => ({ id: `legacy-${i}`, title, category: "Matematika" as const })));
   await db.insert(s.mataKuliah).values(titles.map((title, i) => ({ id: `course-${i}`, code: `C${i}`, title, legacyCourseId: `legacy-${i}` })));
   await db.insert(s.publicDemoSnapshots).values(titles.map((_, i) => ({ id: `snapshot-${i}`, courseId: `course-${i}`, snapshot: fictionalDemoSnapshot(`course-${i}`) })));
   await db.insert(s.bab).values(titles.flatMap((_, i) => [1, 2].map(n => ({ id: `chapter-${i}-${n}`, mataKuliahId: `course-${i}`, code: `B${n}`, title: `Chapter ${n}`, orderIndex: n }))));
@@ -83,7 +83,7 @@ test("view-specific loaders return only the requested body while default remains
 test("collection and reader views do not select unrelated body or answer columns", async () => {
   const select = spyOn(fixture.testDb, "select");
   const distinct = spyOn(fixture.testDb, "selectDistinctOn");
-  const selected = (column: unknown) => select.mock.calls.some(([fields]) => fields && Object.values(fields).includes(column));
+  const selected = (column: unknown) => select.mock.calls.some(([fields]) => fields && Object.values(fields).some((field) => field === column));
   try {
     await getDemoExperience("course-0", {}, "documents");
     expect(selected(s.diktatMateri.contentMarkdown)).toBe(false);

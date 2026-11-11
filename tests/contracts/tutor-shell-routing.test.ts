@@ -19,6 +19,7 @@ function renderWithMessages(node: React.ReactNode) {
 }
 
 let currentPathname = "/tutor";
+mock.module("server-only", () => ({}));
 mock.module("next/headers", () => ({ headers: async () => new Headers() }));
 mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => null } } }));
 

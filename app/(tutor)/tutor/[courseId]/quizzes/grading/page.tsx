@@ -4,7 +4,7 @@ import { courses, mataKuliah } from "@/db/schema";
 import { eq, or } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { requireTutorCourseAccess } from "@/lib/auth/tutor-access";
+import { requireTutorCourseAccess } from "@/lib/auth/request-cache";
 import { getCoursePendingQuizAttempts } from "@/lib/tutor/quiz-grading";
 import { TutorQuizGradingClient } from "./grading-client";
 import { PageHeader } from "@/components/page-header";

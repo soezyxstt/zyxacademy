@@ -11,7 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { getAuthSession } from "@/lib/auth-session";
-import { hasAnyPeran } from "@/lib/auth/authorization";
+import { hasAnyPeran, listTutorAccessibleCourses } from "@/lib/auth/request-cache";
 import { getTutorDashboardReadModel } from "@/lib/schedule/tutor-dashboard-read-model";
 import { getCalendarWeekRange, getJakartaCalendarDate } from "@/lib/schedule/calendar-date";
 import { PageHeader } from "@/components/page-header";
@@ -46,7 +46,7 @@ export default async function TutorPage() {
 
   const today = getJakartaCalendarDate();
   const week = getCalendarWeekRange(today);
-  const schedule = await getTutorDashboardReadModel(session.user.id, today, week);
+  const schedule = await getTutorDashboardReadModel(session.user.id, today, week, undefined, listTutorAccessibleCourses);
   const { pendingTickets, upcomingSessions } = schedule;
 
   const statItems = [
