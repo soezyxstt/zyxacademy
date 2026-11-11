@@ -23,7 +23,7 @@ export interface ProductV4VerificationBinding {
   printProfile: string;
   policyRevision: string;
   browserVersion?: string;
-  browserProvider?: "cloudflare" | "steel" | "github_actions";
+  browserProvider?: "cloudflare" | "steel" | "local_playwright";
 }
 export interface ProductV4VerificationRequirement {
   id: string;
@@ -55,7 +55,7 @@ export function deriveProductV4VerificationPlan(input: {
   const { bundle, binding } = input;
   if (bundle.manifest.schemaVersion !== "product-bundle.v4") throw new Error("PRODUCT_V4_REQUIRED");
   if (bundle.manifest.courseId !== binding.courseId) throw new Error("PRODUCT_V4_VERIFICATION_SCOPE_MISMATCH");
-  z.object({ importId: name, courseId: name, runId: name, revision: z.number().int().positive(), rendererChecksum: sha256, dependencyChecksum: sha256, contractChecksum: sha256, playbookChecksum: sha256, fontChecksum: sha256, assetChecksum: sha256, printProfile: name, policyRevision: name, browserProvider: z.enum(["cloudflare", "steel", "github_actions"]).optional(), browserVersion: z.string().regex(/^\d+\.\d+\.\d+\.\d+$/).optional() }).strict().parse(binding);
+  z.object({ importId: name, courseId: name, runId: name, revision: z.number().int().positive(), rendererChecksum: sha256, dependencyChecksum: sha256, contractChecksum: sha256, playbookChecksum: sha256, fontChecksum: sha256, assetChecksum: sha256, printProfile: name, policyRevision: name, browserProvider: z.enum(["cloudflare", "steel", "local_playwright"]).optional(), browserVersion: z.string().regex(/^\d+\.\d+\.\d+\.\d+$/).optional() }).strict().parse(binding);
   const requirements: ProductV4VerificationRequirement[] = [];
   const add = (target: string, layer: ProductV4VerificationRequirement["layer"], state: string, viewport: ProductV4VerificationRequirement["viewport"], artifactType: ProductV4VerificationRequirement["artifactType"]) => {
     const check = { target, layer, state, viewport, artifactType };

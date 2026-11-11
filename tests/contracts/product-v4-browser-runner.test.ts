@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { authenticateVerificationBrowser, captureProductV4WebState, exerciseProductV4WebState, exerciseProductV4VisualSmoke, inspectProductV4WebDocument, inspectProductV4DisplayMath, exerciseProductV4MathScroll, validateVerificationBaseUrl, validateDeployedVerificationBaseUrl, resolveVerificationBaseUrl, isGithubActionsVerification } from "@/lib/compute/product-v4-browser-runner";
+import { authenticateVerificationBrowser, captureProductV4WebState, exerciseProductV4WebState, exerciseProductV4VisualSmoke, inspectProductV4WebDocument, inspectProductV4DisplayMath, exerciseProductV4MathScroll, validateVerificationBaseUrl, validateDeployedVerificationBaseUrl, resolveVerificationBaseUrl, isLocalPlaywrightVerification } from "@/lib/compute/product-v4-browser-runner";
 import type { Page } from "@playwright/test";
 import { verificationPreviewSchema } from "@/lib/materials/verification-preview";
 
@@ -60,7 +60,7 @@ test("epsilon states operate the named tolerance slider rather than the earlier 
       tolerance = key === "Home" ? 0.1 : key === "End" ? 2.2 : tolerance + 0.01;
     } });
   const page = { getByRole: (role: string, options?: { name?: string | RegExp }) => role === "button"
-    ? { count: async () => options?.name === "Parameter" ? 0 : 1, first() { return this; }, click: async () => { tolerance = 1; } }
+    ? { count: async () => (options?.name instanceof RegExp && options.name.test("Parameter")) ? 0 : 1, first() { return this; }, click: async () => { tolerance = 1; } }
     : slider(options?.name === "Toleransi epsilon") } as unknown as Page;
   expect(await exerciseProductV4WebState(page, "changed")).toBe(true);
   expect(tolerance).toBe(1.01);
@@ -82,7 +82,7 @@ test("verification opens parameter panels before changing and resetting a graph"
   const page = { getByRole: (role: string, options?: { name?: string | RegExp }) => {
     if (role === "slider" && options?.name === "Toleransi epsilon") return { count: async () => 0 };
     if (role === "slider") return slider;
-    if (options?.name === "Parameter") return { count: async () => 1, getAttribute: async () => String(open), click: async () => { open = true; } };
+    if ((options?.name instanceof RegExp && options.name.test("Parameter"))) return { count: async () => 1, getAttribute: async () => String(open), click: async () => { open = true; } };
     return { count: async () => 1, first() { return this; }, click: async () => { value = 2; } };
   } } as unknown as Page;
   expect(await exerciseProductV4WebState(page, "changed")).toBe(true);
@@ -118,18 +118,15 @@ test("chapter evidence captures top middle and end with bounded cost even for ve
   expect(await captureProductV4WebState(page, "short")).toHaveLength(1);
 });
 
-test("CI production browser targets require the actual allowed Actions context", () => {
-  const env = { AUTHORING_VERIFICATION_BROWSER_PROVIDER: "github_actions", GITHUB_ACTIONS: "true", GITHUB_REPOSITORY: "soezyxstt/zyxacademy" };
-  expect(isGithubActionsVerification(env)).toBe(true);
+test("local Playwright targets require a nonhosted operator and cannot masquerade as Actions", () => {
+  const env = { AUTHORING_VERIFICATION_BROWSER_PROVIDER: "local_playwright" };
+  expect(isLocalPlaywrightVerification(env, false)).toBe(true);
   expect(resolveVerificationBaseUrl("https://www.zyxacademy.com", env, false)).toBe("https://www.zyxacademy.com");
-  for (const bad of [{ ...env, GITHUB_ACTIONS: undefined }, { ...env, GITHUB_ACTIONS: "false" }, { ...env, GITHUB_REPOSITORY: "other/repository" }]) {
-    expect(() => resolveVerificationBaseUrl("https://www.zyxacademy.com", bad, false)).toThrow("VERIFICATION_CI_CONTEXT_INVALID");
-  }
-  expect(() => resolveVerificationBaseUrl("https://www.zyxacademy.com", env, true)).toThrow("VERIFICATION_CI_CONTEXT_INVALID");
+  for (const bad of [{ ...env, GITHUB_ACTIONS: "true" }, { ...env, VERCEL: "1" }, { ...env, K_SERVICE: "worker" }, { ...env, ZYX_COMPUTE_RUNTIME: "neon" }]) expect(() => resolveVerificationBaseUrl("https://www.zyxacademy.com", bad, false)).toThrow("VERIFICATION_LOCAL_OPERATOR_REQUIRED");
+  expect(() => resolveVerificationBaseUrl("https://www.zyxacademy.com", env, true)).toThrow("VERIFICATION_LOCAL_OPERATOR_REQUIRED");
   expect(() => resolveVerificationBaseUrl("https://example.com", env, false)).toThrow();
   expect(() => resolveVerificationBaseUrl("https://www.zyxacademy.com", {}, false)).toThrow();
 });
-
 test("visual smoke actually exercises each supported state from the restored baseline", async () => {
   let value = 1;
   let restored = 0;

@@ -50,18 +50,17 @@ export async function authenticateVerificationBrowser(context: BrowserContext, a
   } catch { await context.close().catch(() => {}); throw new Error("VERIFICATION_BROWSER_ACCESS_FAILED"); }
 }
 
-export function isGithubActionsVerification(env: Record<string, string | undefined> = process.env): boolean {
-  if (env.AUTHORING_VERIFICATION_BROWSER_PROVIDER !== "github_actions") return false;
-  if (env.GITHUB_ACTIONS !== "true" || env.GITHUB_REPOSITORY !== "soezyxstt/zyxacademy") throw new Error("VERIFICATION_CI_CONTEXT_INVALID");
+export function isLocalPlaywrightVerification(env: Record<string, string | undefined> = process.env, isHosted = deployed): boolean {
+  if (env.AUTHORING_VERIFICATION_BROWSER_PROVIDER !== "local_playwright") return false;
+  if (isHosted || env.ZYX_COMPUTE_RUNTIME || env.VERCEL || env.K_SERVICE || env.GITHUB_ACTIONS === "true") throw new Error("VERIFICATION_LOCAL_OPERATOR_REQUIRED");
   return true;
 }
 export function resolveVerificationBaseUrl(value: string, env: Record<string, string | undefined> = process.env, isDeployed = deployed): string {
-  const ci = isGithubActionsVerification(env);
-  if (ci && isDeployed) throw new Error("VERIFICATION_CI_CONTEXT_INVALID");
+  isLocalPlaywrightVerification(env, isDeployed);
   return isDeployed || env.AUTHORING_VERIFICATION_BROWSER_PROVIDER ? validateDeployedVerificationBaseUrl(value) : validateVerificationBaseUrl(value);
 }
 async function launchVerificationBrowser() {
-  if (!deployed && (isGithubActionsVerification() || !process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER)) {
+  if (isLocalPlaywrightVerification() || (!deployed && !process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER)) {
     const browser = await chromium.launch({ headless: true });
     return { browser, close: () => browser.close() };
   }
@@ -113,10 +112,10 @@ export async function captureProductV4WebState(page: Page, checkId: string, coun
 export async function exerciseProductV4WebState(page: Page, state: string): Promise<boolean> {
   const interactiveStates = ["changed", "reset", "keyboard"];
   if (interactiveStates.includes(state)) {
-    const parameters = page.getByRole("button", { name: "Parameter", exact: true });
+    const parameters = page.getByRole("button", { name: /^Parameters?$/ });
     if (await parameters.count() && await parameters.getAttribute("aria-expanded") !== "true") await parameters.click();
     if (!await page.getByRole("slider").count()) {
-      const activate = page.getByRole("button", { name: "Interaksi grafik", exact: true });
+      const activate = page.getByRole("button", { name: /^(Interaksi grafik|Graph interaction)$/ });
       if (await activate.count()) await activate.click();
     }
   }
@@ -145,7 +144,7 @@ export async function exerciseProductV4WebState(page: Page, state: string): Prom
     const changed = await slider.inputValue().catch(async () => await slider.getAttribute("aria-valuenow") ?? "");
     if (["changed", "keyboard", "reset"].includes(state) && changed === original) return false;
     if (state === "reset") {
-      const reset = page.getByRole("button", { name: /^Reset$|^Reset parameter$|^Reset visual$/ }).first();
+      const reset = page.getByRole("button", { name: /^Reset(?: parameters?| visual(?:ization)?)?$/ }).first();
       if (!await reset.count()) return false;
       await reset.click();
       const restored = await slider.inputValue().catch(async () => await slider.getAttribute("aria-valuenow") ?? "");
@@ -208,7 +207,7 @@ export async function exerciseProductV4VisualSmoke(page: Page, visual: VisualSpe
     return document;
   },
   restore: async (page: Page) => {
-    const reset = page.getByRole("button", { name: /^Reset$|^Reset parameter$|^Reset visual$/ }).first();
+    const reset = page.getByRole("button", { name: /^Reset(?: parameters?| visual(?:ization)?)?$/ }).first();
     if (await reset.count()) await reset.click();
     else {
       const plot = page.locator("main svg[tabindex='0']").first();
@@ -331,6 +330,11 @@ export async function executeBrowserProductV4Check(input: {
       await page.evaluate((preview) => window.postMessage(preview, window.location.origin), payload);
       await page.waitForSelector("[data-verification-loaded]");
       for (const figure of await page.locator("main figure").all()) { await figure.scrollIntoViewIfNeeded(); }
+      for (const visual of selected ? [selected] : visualArticle.visuals ?? []) {
+        if (visual.kind === "learning_canvas" && ["function_plot", "data_plot"].includes(visual.canvas.type)) {
+          await page.waitForFunction(id => [...document.querySelectorAll("main figure")].some(figure => figure.id === id && figure.querySelector("svg[role='img']")), visual.id);
+        }
+      }
       await page.locator("main").scrollIntoViewIfNeeded();
       await page.waitForFunction(() => ![...document.querySelectorAll("main p")].some((element) => element.textContent?.startsWith("Memuat grafik")));
       await fontsReady(page);

@@ -234,7 +234,10 @@ async function applicationService(execute?: ProductV4VerificationPorts["execute"
     },
     read: key => readProductVerificationObject(storage, key),
     async write(key, bytes, mediaType) { await storage.upload(bytes, key.split("/").pop()!, mediaType, { key }); },
-    enqueue: enqueue ?? (async data => { await inngest.send({ id: `product-verification-${data.planHash}-${data.attemptId}`, name: "product.verification.requested", data }); }),
+    enqueue: enqueue ?? (async data => {
+      if (process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER === "local_playwright") return;
+      await inngest.send({ id: `product-verification-${data.planHash}-${data.attemptId}`, name: "product.verification.requested", data });
+    }),
     async attach(snapshot, planHash, attemptId, expectedAttemptId) {
       const row = await staged.getProductBundleImport(snapshot.importId);
       if (!row || row.checksum !== snapshot.checksum || row.sourceUriOrKey !== snapshot.sourceUriOrKey) return false;
@@ -256,21 +259,22 @@ async function applicationService(execute?: ProductV4VerificationPorts["execute"
 export async function requestProductV4Verification(input: { importId: string; runId: string; expectedPlanHash?: string; retry?: boolean }) {
   return (await applicationService()).request(input);
 }
-/** Private CI command path; publication and review remain separate application operations. */
-export async function requestProductV4VerificationInGithubActions(input: { importId: string; runId: string; expectedChecksum: string }) {
-  if (process.env.GITHUB_ACTIONS !== "true" || process.env.GITHUB_REPOSITORY !== "soezyxstt/zyxacademy" || process.env.GITHUB_REF !== "refs/heads/main" || process.env.GITHUB_EVENT_NAME !== "workflow_dispatch" || process.env.NODE_ENV !== "production" || process.env.ZYX_ENVIRONMENT !== "production" || process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER !== "github_actions") throw new Error("PRODUCT_V4_CI_CONTEXT_REQUIRED");
+/** Private local operator path; publication and review remain separate operations. */
+export async function requestProductV4VerificationLocally(input: { importId: string; runId: string; expectedChecksum: string }) {
+  const { assertProductV4LocalTarget, assertProductV4LocalDraft } = await import("@/lib/compute/product-v4-local-operator");
+  assertProductV4LocalTarget(process.env);
   z.object({ importId: z.string().min(1), runId: z.string().min(1), expectedChecksum: hash }).strict().parse(input);
   const { getProductBundleImport } = await import("./product-staging");
   const row = await getProductBundleImport(input.importId);
-  const previous = row?.validationReport.productV4Verification as { runId?: unknown } | undefined;
-  if (!row || row.bundleType !== "product" || row.version !== 4 || row.status !== "draft" || row.checksum !== input.expectedChecksum || previous?.runId !== input.runId) throw new Error("PRODUCT_V4_CI_EXACT_DRAFT_REQUIRED");
+  assertProductV4LocalDraft(row, input);
   const service = await applicationService(undefined, async () => {});
   const selected = await service.current(input.importId, input.runId);
-  if (selected.snapshot.checksum !== input.expectedChecksum) throw new Error("PRODUCT_V4_CI_EXACT_DRAFT_REQUIRED");
+  if (selected.snapshot.checksum !== input.expectedChecksum) throw new Error("PRODUCT_V4_LOCAL_EXACT_DRAFT_REQUIRED");
   const current = await service.readiness(input.importId, input.runId);
   assertProductV4VerificationCurrent(selected.plan, current.plan);
-  if (current.plan.binding.browserProvider !== "github_actions") throw new Error("PRODUCT_V4_CI_BROWSER_REQUIRED");
-  if (current.evaluation.ready || (current.jobId && ["pending", "running"].includes(current.state.status))) return service.request({ importId: input.importId, runId: input.runId, expectedPlanHash: current.plan.planHash });
+  if (current.plan.binding.browserProvider !== "local_playwright") throw new Error("PRODUCT_V4_LOCAL_BROWSER_REQUIRED");
+  if (current.state.status === "running") throw new Error("PRODUCT_V4_LOCAL_ATTEMPT_RUNNING");
+  if (current.evaluation.ready || (current.jobId && current.state.status === "pending")) return service.request({ importId: input.importId, runId: input.runId, expectedPlanHash: current.plan.planHash });
   return service.request({ importId: input.importId, runId: input.runId, expectedPlanHash: current.plan.planHash, retry: true });
 }
 export async function getProductV4Verification(input: { importId: string; runId: string; planHash: string }) {
