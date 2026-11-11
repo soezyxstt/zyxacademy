@@ -72,3 +72,29 @@ test("failure does not allow resubmission until the in-flight peer has settled",
   await expect(submission).rejects.toThrow("early failure");
   expect(settled).toBe(true);
 });
+
+
+test("a failed page aborts its peer and no later batch starts", async () => {
+  let aborted = false;
+  const first = deferred<DemoQuizResult>();
+  const started: number[] = [];
+  const submission = gradeDemoQuizPages("course", pages, {}, async (_course, _questions, _token, _answers, offset = 0, signal) => {
+    started.push(offset);
+    if (offset === 0) return first.promise;
+    return new Promise<DemoQuizResult>((_resolve, reject) => {
+      signal!.addEventListener("abort", () => { aborted = true; reject(signal!.reason); }, { once: true });
+    });
+  });
+  first.reject(new Error("peer failed"));
+  await expect(submission).rejects.toThrow("peer failed");
+  expect(aborted).toBe(true);
+  expect(started).toEqual([0, 3]);
+});
+
+test("a stalled request is aborted at the batch deadline", async () => {
+  const submission = gradeDemoQuizPages("course", pages, {}, async (_course, _questions, _token, _answers, _offset, signal) =>
+    new Promise<DemoQuizResult>((_resolve, reject) => {
+      signal!.addEventListener("abort", () => reject(signal!.reason), { once: true });
+    }), 1);
+  await expect(submission).rejects.toThrow("Quiz submission timed out");
+});
