@@ -162,6 +162,10 @@ export type ProductValidationIssue = { code: string; message: string; path?: str
 export type ProductBundleFiles = ReadonlyMap<string, Uint8Array>;
 export type ProductBundleValidation = { success: true; data: { manifest: ProductBundleManifest; products: readonly ProductEntity[]; dependencies: readonly ProductDependency[]; files: ProductBundleFiles; checksum: string; publicationBlocked: boolean; issues: readonly ProductValidationIssue[] } } | { success: false; issues: readonly ProductValidationIssue[] };
 
+export function hasProductBundleDependencyBlock(bundle: Pick<Extract<ProductBundleValidation, { success: true }>["data"], "manifest" | "dependencies" | "publicationBlocked">): boolean {
+  return bundle.publicationBlocked && (bundle.manifest.schemaVersion !== "product-bundle.v4" || bundle.dependencies.some((dependency) => dependency.freshness !== "UP_TO_DATE"));
+}
+
 class ProductValidationError extends Error {
   readonly issue: ProductValidationIssue;
 

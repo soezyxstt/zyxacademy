@@ -10,10 +10,16 @@ import { computeProductV4SectionSemanticHash } from "@/lib/bundle/product-v4-rev
 import { computePedagogyContentFingerprint, PEDAGOGIC_CRITERION_IDS, QUALITY_POLICY_VERSION } from "@/lib/materials/quality-policy";
 import { PRODUCT_DIKTAT_PRINT_PROFILE } from "@/lib/bundle/product-diktat-pdf";
 import * as originalVerificationService from "@/lib/bundle/product-v4-verification-service";
+import { createProductBundleDraft, finalizeProductBundleDraft } from "@/lib/bundle/product-draft";
+import { validateProductBundle } from "@/lib/bundle/product-validator";
 
 const originalVerificationExports = { ...originalVerificationService };
 const { client, testDb } = await createPostgresTestDb();
-const { bundle } = buildLocalVerificationFixture();
+const fixture = buildLocalVerificationFixture();
+const parsed = validateProductBundle(fixture.bytes);
+if (!parsed.success) throw new Error("V4_TEST_BUNDLE_INVALID");
+const readyBundle = parsed.data;
+let bundle = readyBundle;
 const article = bundle.products.find(product => product.productType === "article")!;
 const diktat = bundle.products.find(product => product.productType === "diktat")!;
 if (article.productType !== "article" || diktat.productType !== "diktat") throw new Error("V4_TEST_PRODUCTS_REQUIRED");
@@ -66,6 +72,7 @@ const { provisionPenggunaForNewUser } = await import("@/lib/auth/authorization")
 afterAll(async () => { mock.module("@/lib/bundle/product-v4-verification-service", () => originalVerificationExports); await client.close(); });
 
 async function seedReady() {
+  bundle = readyBundle;
   verificationUnavailable = false;
   await client.exec('TRUNCATE TABLE "user", courses, mata_kuliah, peran CASCADE');
   for (const id of new Set([publisherId, bundle.manifest.creatorId, bundle.manifest.curatorId!])) {
@@ -128,7 +135,9 @@ test("Admin detail enables publication for the verified bundle and preserves fai
   await seedReady();
   await testDb.insert(schema.reviewBundle).values({ id: "v4-bundle-review", imporBundleId: importId, reviewerId: publisherId, status: "approved" });
   const ready = await detail();
+  expect(readyBundle.publicationBlocked).toBe(true);
   expect(ready.bundle.currentReview.status).toBe("approved");
+  expect(ready.publicationBlocked).toBe(false);
   expect(ready.qualityEvaluation.publicationReady).toBe(true);
   expect(ready.blockingIssues).toEqual([]);
   expect(ready.v4ReviewContext.verificationReady).toBe(true);
@@ -143,9 +152,20 @@ test("Admin detail enables publication for the verified bundle and preserves fai
     if (failure === "review") await testDb.update(schema.reviewPedagogiBundle).set({ status: "pending" }).where(eq(schema.reviewPedagogiBundle.id, "v4-pedagogic-review"));
     if (failure === "reviewer") await testDb.update(schema.reviewPedagogiBundle).set({ reviewerId: bundle.manifest.creatorId }).where(eq(schema.reviewPedagogiBundle.id, "v4-pedagogic-review"));
     const blocked = await detail();
+    expect(blocked.publicationBlocked).toBe(false);
     expect(blocked.qualityEvaluation.publicationReady).toBe(false);
     expect(blocked.blockingIssues.length).toBeGreaterThan(0);
     if (failure === "unavailable" || failure === "stale") expect(blocked.v4ReviewContext.verificationReady).toBe(false);
     expect((await getRow()).status).toBe("draft");
+  }
+  for (const freshness of ["STALE", "NEEDS_REVIEW"] as const) {
+    await seedReady();
+    const stale = { ...bundle, dependencies: bundle.dependencies.map((dependency) => ({ ...dependency, freshness })) };
+    bundle = finalizeProductBundleDraft(stale, createProductBundleDraft(stale)).bundle;
+    expect(bundle.publicationBlocked).toBe(true);
+    const blocked = await detail();
+    expect(blocked.publicationBlocked).toBe(true);
+    expect(blocked.qualityEvaluation.publicationReady).toBe(false);
+    await expect(publishProductBundle({ importId, publishedBy: publisherId })).rejects.toThrow("PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW");
   }
 }, 30000);
