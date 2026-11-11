@@ -36,3 +36,5 @@ Before merge, CI must verify application types, worker import boundaries and aff
 CI on `fbc361a6` passed the application type stage but failed selected test types and the worker import audit. Local follow-up corrects fixture literal/spy/mock typing and separates framework-neutral auth cores from server-only RSC cache wrappers. CI must be rerun on the updated head; no local heavy checks were run.
 
 Independent review of `fbc361a6` found obsolete context-path source assertions and a metadata placeholder being inserted as a nonexistent document. Local corrections follow the context resolver explicitly and add catalogue fallbacks only for products present in the validated collection. A regression test was added but not executed.
+
+Independent client review found early submission rejection while a peer remained in flight and loss of cached progress after failed storage revalidation. The grading helper now waits for all batch outcomes before rejecting, and overlay invalidation marks values stale without deleting the last known state. Added regression cases are not executed locally.

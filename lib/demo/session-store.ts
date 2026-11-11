@@ -9,15 +9,17 @@ export function createDemoOverlayStore(storage: StorageAccess) {
   const overlays = new Map<string, DemoOverlay>();
   // Keep local changes if storage is unavailable, including a failed reset.
   const dirty = new Set<string>();
+  const stale = new Set<string>();
   const listeners = new Set<(change: Change) => void>();
   const notify = (change: Change) => listeners.forEach(listener => listener(change));
 
   function read(scope: Scope): DemoOverlay {
     const key = overlayKey(scope.courseId, scope.revision);
     const cached = overlays.get(key);
-    if (cached) return cached;
+    if (cached && (dirty.has(key) || !stale.has(key))) return cached;
     let value: DemoOverlay;
-    try { value = parseOverlay(storage().getItem(key)); } catch { return emptyOverlay(); }
+    try { value = parseOverlay(storage().getItem(key)); } catch { return cached ?? emptyOverlay(); }
+    stale.delete(key);
     overlays.set(key, value);
     return value;
   }
@@ -27,6 +29,7 @@ export function createDemoOverlayStore(storage: StorageAccess) {
     const current = read(scope);
     const next = addDemoEvent(current, event);
     if (next === current) return;
+    stale.delete(key);
     overlays.set(key, next);
     try { storage().setItem(key, JSON.stringify(next)); dirty.delete(key); } catch { dirty.add(key); }
     notify({ kind: "update", keys: [key] });
@@ -35,6 +38,7 @@ export function createDemoOverlayStore(storage: StorageAccess) {
   function reset(scopes: readonly Scope[]): void {
     const keys = scopes.map(scope => overlayKey(scope.courseId, scope.revision));
     for (const key of keys) {
+      stale.delete(key);
       overlays.set(key, emptyOverlay());
       try { storage().removeItem(key); dirty.delete(key); } catch { dirty.add(key); }
     }
@@ -43,7 +47,7 @@ export function createDemoOverlayStore(storage: StorageAccess) {
 
   function invalidate(key: string | null): void {
     const keys = key === null ? [...overlays.keys()] : [key];
-    for (const item of keys) if (!dirty.has(item)) overlays.delete(item);
+    for (const item of keys) if (!dirty.has(item)) stale.add(item);
     notify({ kind: "invalidate", keys: key === null ? null : [key] });
   }
 

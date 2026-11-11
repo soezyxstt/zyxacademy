@@ -82,3 +82,32 @@ describe("demo overlay tab store", () => {
     expect(store.read(first).events).toHaveLength(2);
   });
 });
+
+
+test("history invalidation retains cached progress until storage revalidation succeeds", () => {
+  const { values, store, setUnavailable } = fixture();
+  const key = overlayKey(first.courseId, first.revision);
+  store.record(first, article);
+  setUnavailable(true);
+  store.invalidate(null);
+  expect(store.read(first).events).toEqual([article]);
+  store.record(first, { kind: "quiz", id: "quiz", date: "2026-01-02" });
+  expect(store.read(first).events).toHaveLength(2);
+  setUnavailable(false);
+  store.record(first, { kind: "article", id: "another", date: "2026-01-03" });
+  store.invalidate(key);
+  expect(store.read(first).events).toHaveLength(3);
+  expect(JSON.parse(values.get(key)!).events).toHaveLength(3);
+});
+
+test("a clean invalidated cache revalidates after a failed read without losing the last value", () => {
+  const { values, store, setUnavailable } = fixture();
+  const key = overlayKey(first.courseId, first.revision);
+  store.record(first, article);
+  store.invalidate(key);
+  setUnavailable(true);
+  expect(store.read(first).events).toEqual([article]);
+  setUnavailable(false);
+  values.delete(key);
+  expect(store.read(first)).toEqual(emptyOverlay());
+});

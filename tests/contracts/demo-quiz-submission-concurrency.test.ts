@@ -56,3 +56,19 @@ test("a failed page rejects the whole submission and does not start the next bat
   await rejected;
   expect([...requests.keys()]).toEqual([0, 3]);
 });
+
+
+test("failure does not allow resubmission until the in-flight peer has settled", async () => {
+  const first = deferred<DemoQuizResult>();
+  const peer = deferred<DemoQuizResult>();
+  let settled = false;
+  const submission = gradeDemoQuizPages("course", pages, {}, async (_course, _questions, _token, _answers, offset = 0) => offset === 0 ? first.promise : peer.promise);
+  void submission.then(() => { settled = true; }, () => { settled = true; });
+  first.reject(new Error("early failure"));
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(settled).toBe(false);
+  peer.resolve(pageResult(pages[1]));
+  await expect(submission).rejects.toThrow("early failure");
+  expect(settled).toBe(true);
+});

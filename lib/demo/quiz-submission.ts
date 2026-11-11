@@ -13,8 +13,11 @@ export async function gradeDemoQuizPages(
   let total = 0;
   for (let start = 0; start < pages.length; start += 2) {
     const batch = pages.slice(start, start + 2);
-    const gradedPages = await Promise.all(batch.map(page => grade(courseId, page.questions, page.token, answers, page.offset)));
-    for (const [index, graded] of gradedPages.entries()) {
+    // Keep the caller busy until every peer settles, even if one page fails.
+    const gradedPages = await Promise.allSettled(batch.map(async page => grade(courseId, page.questions, page.token, answers, page.offset)));
+    for (const [index, outcome] of gradedPages.entries()) {
+      if (outcome.status === "rejected") throw outcome.reason;
+      const graded = outcome.value;
       score += graded.score;
       total += graded.total;
       results.push(...graded.results.map(item => ({ ...item, index: batch[index].offset + item.index })));
