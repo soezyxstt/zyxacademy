@@ -50,10 +50,9 @@ test("a failed page rejects the whole submission and does not start the next bat
     requests.set(offset, request);
     return request.promise;
   });
-  const rejected = expect(result).rejects.toThrow("failed");
   requests.get(0)!.resolve(pageResult(pages[0]));
   requests.get(3)!.reject(new Error("failed"));
-  await rejected;
+  await expect(result).rejects.toThrow("failed");
   expect([...requests.keys()]).toEqual([0, 3]);
 });
 
