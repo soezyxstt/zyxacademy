@@ -12,6 +12,7 @@ import { discardProductBundleDraft, getProductBundleImport, listProductBlockRevi
 import { createProductBundleDraft, finalizeProductBundleDraft, type ProductBundleDraft } from "@/lib/bundle/product-draft";
 import { isStructuredArticleReaderEnabled } from "@/lib/articles/feature";
 import { evaluateProductBundleQualityPolicy } from "@/lib/bundle/product-review-gate";
+import { hasProductBundleDependencyBlock } from "@/lib/bundle/product-validator";
 import { QUALITY_POLICY_VERSION, computePedagogyContentFingerprint } from "@/lib/materials/quality-policy";
 
 export const runtime = "nodejs";
@@ -158,7 +159,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         reviews: row.reviews.map((review) => ({ id: review.id, reviewerId: review.reviewerId, status: review.status, notes: review.notes, reviewedAt: review.reviewedAt })),
       },
       manifest: bundle.manifest,
-      publicationBlocked: bundle.publicationBlocked,
+      publicationBlocked: hasProductBundleDependencyBlock(bundle),
       issues: bundle.issues,
       dependencies: bundle.dependencies,
       blockReviews,

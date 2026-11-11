@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { zipSync } from "fflate";
-import { computeProductBundleChecksum, deterministicProductSerialization, validateProductBundle, type ProductDependency, type ProductEntity } from "@/lib/bundle/product-validator";
+import { computeProductBundleChecksum, deterministicProductSerialization, hasProductBundleDependencyBlock, validateProductBundle, type ProductDependency, type ProductEntity } from "@/lib/bundle/product-validator";
 import { createProductBundleDraft, finalizeProductBundleDraft } from "@/lib/bundle/product-draft";
 import { productBundleLifecycleStatus } from "@/lib/bundle/product-staging";
 
@@ -303,6 +303,10 @@ describe("Product Bundle V3 assessment boundary", () => {
     const learningProducts = validProducts().filter((product) => !["question", "solution", "assessment_blueprint"].includes(String(product.productType)));
     const result = validateProductBundle(archive(buildFiles(learningProducts, validDependencies(), "product-bundle.v3")));
     expect(result.success).toBe(true);
+    if (result.success) expect(hasProductBundleDependencyBlock(result.data)).toBe(false);
+    const stale = validateProductBundle(archive(buildFiles(learningProducts, validDependencies().map((dependency) => ({ ...dependency, freshness: "STALE" })), "product-bundle.v3")));
+    expect(stale.success).toBe(true);
+    if (stale.success) expect(hasProductBundleDependencyBlock(stale.data)).toBe(true);
   });
 
   test("rejects question, solution, and assessment blueprint writes", () => {

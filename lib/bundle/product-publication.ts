@@ -49,7 +49,7 @@ import type { CanonicalEntityType, CanonicalNamespace } from "@/lib/vectorize/co
 import { resolveBundleIdentity } from "./attribution";
 import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 import { parseStagedProductBundle, getProductBundleImport, productBundleLifecycleStatus } from "./product-staging";
-import { deterministicProductSerialization, type ProductDependency, type ProductEntity } from "./product-validator";
+import { deterministicProductSerialization, hasProductBundleDependencyBlock, type ProductDependency, type ProductEntity } from "./product-validator";
 import { z } from "zod";
 import { productV4ReviewContextShape, validateProductV4ReviewContext } from "./product-v4-review";
 import { QUALITY_POLICY_VERSION, pedagogicRubricItemSchema } from "@/lib/materials/quality-policy";
@@ -514,7 +514,7 @@ export async function publishProductBundle(input: { importId: string; publishedB
   if (snapshot.status !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
   const bundle = await parseStagedProductBundle(input.importId);
   const isV4 = bundle.manifest.schemaVersion === "product-bundle.v4";
-  if (bundle.publicationBlocked && (!isV4 || bundle.dependencies.some(dependency => dependency.freshness !== "UP_TO_DATE"))) throw new Error("PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW");
+  if (hasProductBundleDependencyBlock(bundle)) throw new Error("PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW");
   let v4Verification: Awaited<ReturnType<typeof getProductV4VerificationReadiness>> | undefined;
   if (isV4) {
     const ref = snapshot.validationReport.productV4Verification as { runId?: unknown; planHash?: unknown } | undefined;
