@@ -3,10 +3,10 @@ import { verificationBrowserIdentity, verificationBrowserProvider } from "@/lib/
 import { acquireConfiguredVerificationBrowser } from "@/lib/compute/product-v4-browser-session";
 import { expectedChromiumRuntime } from "@/lib/compute/product-v4-runtime-binding";
 
-test("CI identity matches the installed pinned browser and cannot acquire a remote browser", async () => {
-  const env: NodeJS.ProcessEnv = { NODE_ENV: "test", AUTHORING_VERIFICATION_BROWSER_PROVIDER: "github_actions", CF_ACCOUNT_ID: "a".repeat(32), CF_API_TOKEN: "unused" };
-  expect(verificationBrowserIdentity(env)).toEqual({ browserProvider: "github_actions", browserVersion: expectedChromiumRuntime().browserVersion });
-  await expect(acquireConfiguredVerificationBrowser(env)).rejects.toThrow("CI_RUNNER_REQUIRED");
+test("Local operator identity matches the installed pinned browser and cannot acquire a remote browser", async () => {
+  const env: NodeJS.ProcessEnv = { NODE_ENV: "test", AUTHORING_VERIFICATION_BROWSER_PROVIDER: "local_playwright", CF_ACCOUNT_ID: "a".repeat(32), CF_API_TOKEN: "unused" };
+  expect(verificationBrowserIdentity(env)).toEqual({ browserProvider: "local_playwright", browserVersion: expectedChromiumRuntime().browserVersion });
+  await expect(acquireConfiguredVerificationBrowser(env)).rejects.toThrow("LOCAL_OPERATOR_REQUIRED");
 });
 
 test("provider defaults retain Cloudflare and reject typos and unreviewed Steel versions", () => {

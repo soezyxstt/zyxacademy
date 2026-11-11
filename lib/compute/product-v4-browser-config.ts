@@ -1,17 +1,17 @@
-export type VerificationBrowserProvider = "cloudflare" | "steel" | "github_actions";
+export type VerificationBrowserProvider = "cloudflare" | "steel" | "local_playwright";
 export const CLOUDFLARE_VERIFICATION_BROWSER_VERSION = "152.0.7977.64";
-export const CI_VERIFICATION_BROWSER_VERSION = "151.0.7922.34";
+export const LOCAL_PLAYWRIGHT_BROWSER_VERSION = "151.0.7922.34";
 
 export function verificationBrowserProvider(env = process.env): VerificationBrowserProvider {
   const provider = env.AUTHORING_VERIFICATION_BROWSER_PROVIDER ?? "cloudflare";
-  if (!["cloudflare", "steel", "github_actions"].includes(provider)) throw new Error("VERIFICATION_BROWSER_PROVIDER_INVALID");
+  if (!["cloudflare", "steel", "local_playwright"].includes(provider)) throw new Error("VERIFICATION_BROWSER_PROVIDER_INVALID");
   return provider as VerificationBrowserProvider;
 }
 
 /** An operator-reviewed exact version, never an automatically accepted remote version. */
 export function verificationBrowserIdentity(env = process.env) {
   const browserProvider = verificationBrowserProvider(env);
-  const browserVersion = browserProvider === "cloudflare" ? CLOUDFLARE_VERIFICATION_BROWSER_VERSION : browserProvider === "github_actions" ? CI_VERIFICATION_BROWSER_VERSION : env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION;
+  const browserVersion = browserProvider === "cloudflare" ? CLOUDFLARE_VERIFICATION_BROWSER_VERSION : browserProvider === "local_playwright" ? LOCAL_PLAYWRIGHT_BROWSER_VERSION : env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION;
   if (!browserVersion || !/^\d+\.\d+\.\d+\.\d+$/.test(browserVersion)) throw new Error("VERIFICATION_BROWSER_VERSION_CONFIGURATION_REQUIRED");
   return { browserProvider, browserVersion };
 }

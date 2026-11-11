@@ -35,7 +35,7 @@ const unique = (values: string[]) => [...new Set(values)].sort();
 // Keep this closure in Next output tracing; missing source bytes must invalidate verification.
 export const PRODUCT_V4_RUNTIME_FILES = [
   "next.config.ts", "scripts/authoring/prepare-web-verification.ts",
-  "scripts/authoring/verify-product-v4-ci.ts", ".github/workflows/verify-product-v4.yml",
+  "scripts/authoring/verify-product-v4-local.ts", "scripts/authoring/run-product-v4-local.mjs", "lib/compute/product-v4-local-operator.ts", "scripts/neon/validate-production-target.ts", "scripts/neon/import-core.ts",
   "deno.json", "workers/deno-background/deno.json", "lib/compute/runtime.ts", "lib/compute/pdf-pages.ts", "lib/compute/pdf-worker.ts",
   "lib/compute/browser-pdf.ts", "lib/compute/pdf-inspection.ts", "scripts/neon/build-worker.mjs",
   "app/globals.css", "app/layout.tsx", "app/authoring-verification/page.tsx",
