@@ -39,7 +39,8 @@ describe("admin course workspace routes", () => {
     for (const [path, component] of pages) {
       const page = source(`${courseRoot}/${path}`);
       expect(page).toContain("assertAdmin");
-      expect(page).toContain("getCourseDetailData");
+      expect(page).toContain(path === "settings/page.tsx" ? "getCourseSettingsData(slug)" : "getCourseDetailData");
+      if (path === "settings/page.tsx") expect(page).not.toContain("getCourseDetailData");
       expect(page).toContain("notFound()");
       expect(page).toContain(`<${component}`);
       expect(page).toContain("CourseDetailHeader");
