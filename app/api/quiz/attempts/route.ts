@@ -12,7 +12,8 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { and, or, eq, inArray, sql, desc, notInArray } from 'drizzle-orm';
 import { getAdaptiveDifficultyProportions } from '@/lib/adaptive-quiz';
-import { serializeStudentQuizAttemptList } from '@/lib/assessment-serialization';
+import { canViewAttemptDiscussion } from '@/lib/quiz/review-release';
+import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
 import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
 import { buildStableOptionIds } from '@/lib/asesmen/attempt';
 import { questionProvenanceSnapshot } from '@/lib/asesmen/question-provenance';
@@ -675,6 +676,9 @@ export async function GET(req: NextRequest) {
     return policy?.allowed === true;
   });
 
- const serializedAttempts = serializeStudentQuizAttemptList(visibleAttempts);
+ const templateById = new Map(templates.map((template) => [template.id, template]));
+ const serializedAttempts = visibleAttempts.map((attempt) => serializeStudentQuizAttempt(attempt, {
+   releaseState: canViewAttemptDiscussion(templateById.get(attempt.templateId), attempt.status) ? 'released' : 'hidden',
+ }));
  return NextResponse.json(serializedAttempts.map(stripAnswerMarkers));
 }

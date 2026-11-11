@@ -26,6 +26,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toast";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
+import { AdminErrorState } from "@/components/admin/state-panels";
+import { adminListRequestState, scheduleAdminListRequest } from "@/lib/admin/list-request";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { SearchBar } from "@/components/ui/search-bar";
@@ -167,16 +169,20 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
   const [total, setTotal] = useState(initialTotal);
   const [page, setPage] = useState(1);
   const [revision, setRevision] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const [loadedKey, setLoadedKey] = useState(() => JSON.stringify([1, "", "all", "all", "all", 0]));
+  const [failedKey, setFailedKey] = useState<string | null>(null);
+  const requestKey = JSON.stringify([page, searchQuery, statusFilter, packageFilter, courseFilter, revision]);
+  const { failed, stale, loading } = adminListRequestState(loadedKey, requestKey, failedKey, fetching);
   const initial = useRef(true);
   useEffect(() => {
     if (initial.current) { initial.current = false; return; }
-    let cancelled = false;
-    setLoading(true);
-    const timer = setTimeout(() => {
-      void getAdminStudyGroups({ page, search: searchQuery, status: statusFilter, packageType: packageFilter, courseId: courseFilter })
-        .then((result) => {
-          if (cancelled) return;
+    setFetching(true);
+    setFailedKey(null);
+    return scheduleAdminListRequest(
+      () => getAdminStudyGroups({ page, search: searchQuery, status: statusFilter, packageType: packageFilter, courseId: courseFilter }),
+      {
+        onSuccess: (result) => {
           if (page > 1 && result.groups.length === 0 && result.total > 0) {
             setPage(Math.ceil(result.total / 25));
             return;
@@ -184,11 +190,16 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
           setGroups(result.groups);
           setStats(result.stats);
           setTotal(result.total);
-        }).catch(() => { if (!cancelled) toast.error(translate("groupsUI.systemError")); })
-        .finally(() => { if (!cancelled) setLoading(false); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [page, searchQuery, statusFilter, packageFilter, courseFilter, revision, translate]);
+          setLoadedKey(requestKey);
+        },
+        onError: () => setFailedKey(requestKey),
+        onSettled: () => setFetching(false),
+      },
+    );
+  }, [page, searchQuery, statusFilter, packageFilter, courseFilter, revision, requestKey]);
+  useEffect(() => {
+    detailRequest.current += 1;
+  }, [requestKey]);
   const filteredGroups = groups;
   const { totalGroups, activeGroups, totalMembers, avgQuotaUsed } = stats;
   const refreshGroups = () => setRevision((value) => value + 1);
@@ -520,10 +531,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => {
-                  refreshGroups();
-                  toast.success(translate("groupsUI.refreshed"));
-                }}
+                onClick={refreshGroups}
                 className="size-9 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
                 aria-label={translate("groupsUI.refresh")}
               >
@@ -554,8 +562,11 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
       </div>
 
       {/* 3. Table of Study Groups */}
-      <AdminTable>
-        <table className="w-full min-w-4xl text-left text-body-sm">
+      {failed ? (
+        <AdminErrorState message={translate("groupsUI.systemError")} onRetry={refreshGroups} />
+      ) : (
+      <AdminTable className={stale ? "opacity-60" : undefined}>
+        <table aria-busy={loading} className="w-full min-w-4xl text-left text-body-sm">
           <AdminTableHead>
             <tr>
               <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold text-muted-foreground">
@@ -585,7 +596,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
             {filteredGroups.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-5 py-12 text-center text-muted-foreground text-body-sm">
-                  {translate("groupsUI.noGroups")}
+                  {stale ? translate("shortLinksUI.loading") : translate("groupsUI.noGroups")}
                 </td>
               </tr>
             ) : (
@@ -621,6 +632,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
                         <Button variant="ghost"
                           type="button"
                           onClick={() => void handleOpenDetail(g)}
+                          disabled={stale}
                           className="h-auto justify-start whitespace-normal px-0 py-0 font-heading font-bold text-foreground hover:text-primary text-left text-body-sm"
                         >
                           {g.name}
@@ -734,6 +746,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
                           variant="ghost"
                           size="xs"
                           onClick={() => void handleOpenDetail(g)}
+                          disabled={stale}
                           className="h-8 w-8 p-0 rounded-md text-muted-foreground hover:text-foreground"
                           title={translate("groupsUI.viewDetails")}
                         >
@@ -743,6 +756,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
                           variant="ghost"
                           size="xs"
                           onClick={() => handleOpenEdit(g)}
+                          disabled={stale}
                           className="h-8 w-8 p-0 rounded-md text-muted-foreground hover:text-foreground"
                           title={translate("groupsUI.editGroup")}
                         >
@@ -752,6 +766,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
                           variant="ghost"
                           size="xs"
                           onClick={() => setPendingDeleteGroup(g)}
+                          disabled={stale}
                           className="h-8 w-8 p-0 rounded-md text-red-500 hover:text-red-600 hover:bg-red-500/10"
                           title={translate("groupsUI.deleteGroup")}
                         >
@@ -766,6 +781,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
           </tbody>
         </table>
       </AdminTable>
+      )}
 
       {/* 4. Dialog: Buat Kelompok Baru */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -1400,10 +1416,10 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
         </DialogContent>
       </Dialog>
 
-      {total > 25 && (
+      {!failed && total > 25 && (
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage(page - 1)}>{translate("notificationUI.previous")}</Button>
-          <span className="text-body-xs">{page} / {Math.ceil(total / 25)}</span>
+          <span className={`text-body-xs ${stale ? "invisible" : ""}`}>{page} / {Math.ceil(total / 25)}</span>
           <Button variant="outline" size="sm" disabled={page * 25 >= total || loading} onClick={() => setPage(page + 1)}>{translate("notificationUI.next")}</Button>
         </div>
       )}

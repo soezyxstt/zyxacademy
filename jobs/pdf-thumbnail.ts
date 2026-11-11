@@ -5,7 +5,7 @@ import { courseMaterials, diktats } from "@/db/schema";
 import { storage } from "@/lib/storage";
 import { buildCourseThumbnailKey, extractStorageKey } from "@/lib/storage/keys";
 import { generateAndSavePdfThumbnailCompute } from "@/lib/compute/pdf-thumbnail";
-import { buildVersionedThumbnailKey } from "@/lib/thumbnail";
+import { buildVersionedThumbnailKey, canUseLegacyThumbnail } from "@/lib/thumbnail";
 
 export const pdfThumbnailWorker = inngest.createFunction(
   {
@@ -14,6 +14,9 @@ export const pdfThumbnailWorker = inngest.createFunction(
     triggers: [{ event: "pdf/thumbnail.requested" }],
     retries: 3,
     concurrency: [{ limit: 2 }, { limit: 1, key: "event.data.materialId" }],
+    // Discard overlapping recovery events instead of accumulating a backlog
+    // while a slow or failing run is still consuming its own retries.
+    singleton: { key: "event.data.sourceType + ':' + event.data.materialId", mode: "skip" },
   },
   async ({ event, step }) => {
     const { materialId, sourceType, sourceVersion, sourceRevision } = event.data as {
@@ -76,18 +79,28 @@ export const pdfThumbnailWorker = inngest.createFunction(
       if (sourceRevision && sourceRevision !== currentRevision) {
         return { skipped: true, reason: "STALE_SOURCE_REVISION" };
       }
-      if (existingThumb) {
-        return { success: true, thumbnailUrl: existingThumb, skipped: true };
-      }
-
-      const versionedKey = buildVersionedThumbnailKey({
-        courseSlug,
+      const request = {
         materialId,
         sourceType,
         sourceVersion: fileKey,
         sourceRevision: currentRevision ?? undefined,
+      };
+      const versionedKey = buildVersionedThumbnailKey({
+        ...request,
+        courseSlug,
         extension: "png",
       });
+      const existingThumbKey = extractStorageKey(existingThumb);
+      const currentWebpKey = buildVersionedThumbnailKey({ ...request, courseSlug, extension: "webp" });
+      if (existingThumb && (canUseLegacyThumbnail(request) || existingThumbKey === versionedKey || existingThumbKey === currentWebpKey)) {
+        return { success: true, thumbnailUrl: existingThumb, skipped: true };
+      }
+
+      // A content-addressed PDF may never inherit a cover from an older source.
+      // Compare the observed value on write so another worker cannot be overwritten.
+      const thumbnailUnchanged = isManual
+        ? existingThumb === null ? isNull(courseMaterials.thumbnailUrl) : eq(courseMaterials.thumbnailUrl, existingThumb)
+        : existingThumb === null ? isNull(diktats.thumbnailUrl) : eq(diktats.thumbnailUrl, existingThumb);
 
       const expectedPngKey = buildCourseThumbnailKey({
         courseSlug,
@@ -97,14 +110,14 @@ export const pdfThumbnailWorker = inngest.createFunction(
 
       const [hasVersioned, hasLegacy] = await Promise.all([
         storage.exists(versionedKey),
-        storage.exists(expectedPngKey),
+        canUseLegacyThumbnail(request) ? storage.exists(expectedPngKey) : Promise.resolve(false),
       ]);
       const storedKey = hasVersioned ? versionedKey : hasLegacy ? expectedPngKey : null;
       if (storedKey) {
         if (isManual) {
-          await db.update(courseMaterials).set({ thumbnailUrl: storedKey }).where(and(eq(courseMaterials.id, materialId), eq(courseMaterials.fileUrl, fileUrl), currentRevision === null ? isNull(courseMaterials.checksum) : eq(courseMaterials.checksum, currentRevision), isNull(courseMaterials.thumbnailUrl)));
+          await db.update(courseMaterials).set({ thumbnailUrl: storedKey }).where(and(eq(courseMaterials.id, materialId), eq(courseMaterials.fileUrl, fileUrl), currentRevision === null ? isNull(courseMaterials.checksum) : eq(courseMaterials.checksum, currentRevision), thumbnailUnchanged));
         } else {
-          await db.update(diktats).set({ thumbnailUrl: storedKey, updatedAt: new Date() }).where(and(eq(diktats.id, materialId), eq(diktats.fileUrl, fileUrl), currentRevision === null ? isNull(diktats.generationHash) : eq(diktats.generationHash, currentRevision), isNull(diktats.thumbnailUrl)));
+          await db.update(diktats).set({ thumbnailUrl: storedKey, updatedAt: new Date() }).where(and(eq(diktats.id, materialId), eq(diktats.fileUrl, fileUrl), currentRevision === null ? isNull(diktats.generationHash) : eq(diktats.generationHash, currentRevision), thumbnailUnchanged));
         }
         return { success: true, thumbnailUrl: storedKey, existedInStorage: true };
       }
@@ -119,9 +132,9 @@ export const pdfThumbnailWorker = inngest.createFunction(
       if (!generatedKey) throw new Error(`THUMBNAIL_GENERATION_FAILED_${materialId}`);
 
       if (isManual) {
-        await db.update(courseMaterials).set({ thumbnailUrl: generatedKey }).where(and(eq(courseMaterials.id, materialId), eq(courseMaterials.fileUrl, fileUrl), currentRevision === null ? isNull(courseMaterials.checksum) : eq(courseMaterials.checksum, currentRevision), isNull(courseMaterials.thumbnailUrl)));
+        await db.update(courseMaterials).set({ thumbnailUrl: generatedKey }).where(and(eq(courseMaterials.id, materialId), eq(courseMaterials.fileUrl, fileUrl), currentRevision === null ? isNull(courseMaterials.checksum) : eq(courseMaterials.checksum, currentRevision), thumbnailUnchanged));
       } else {
-        await db.update(diktats).set({ thumbnailUrl: generatedKey, updatedAt: new Date() }).where(and(eq(diktats.id, materialId), eq(diktats.fileUrl, fileUrl), currentRevision === null ? isNull(diktats.generationHash) : eq(diktats.generationHash, currentRevision), isNull(diktats.thumbnailUrl)));
+        await db.update(diktats).set({ thumbnailUrl: generatedKey, updatedAt: new Date() }).where(and(eq(diktats.id, materialId), eq(diktats.fileUrl, fileUrl), currentRevision === null ? isNull(diktats.generationHash) : eq(diktats.generationHash, currentRevision), thumbnailUnchanged));
       }
 
       return { success: true, thumbnailUrl: generatedKey };

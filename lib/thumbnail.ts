@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { inngest } from "@/lib/inngest";
-import { buildCourseThumbnailKey } from "@/lib/storage/keys";
+import { buildCourseThumbnailKey, joinKey, slugifySegment } from "@/lib/storage/keys";
 
 export type PdfThumbnailSourceType = "course_material" | "diktat";
 
@@ -40,9 +40,35 @@ export function newThumbnailAttemptId(): string {
   return randomUUID();
 }
 
-/** Bound automatic recovery to one event per source version and time window. */
+/** Deduplicate automatic recovery per source version in fixed 10-second windows. */
 export function thumbnailRecoveryAttemptId(now = Date.now()): string {
-  return `recovery-${Math.floor(now / (30 * 60 * 1000))}`;
+  return `recovery-${Math.floor(now / 10_000)}`;
+}
+
+/** Identifies the exact rendered bytes without overwriting a previous PDF. */
+export function buildDiktatPdfStorageKey(params: {
+  courseId: string;
+  diktatId: string;
+  title: string;
+  pdfBytes: Uint8Array;
+}): string {
+  const diktatHash = createHash("sha256").update(params.diktatId).digest("hex");
+  const contentHash = createHash("sha256").update(params.pdfBytes).digest("hex");
+  return joinKey(
+    "courses",
+    slugifySegment(params.courseId),
+    "diktats",
+    "versions",
+    diktatHash,
+    contentHash,
+    `${slugifySegment(params.title)}.pdf`,
+  );
+}
+
+/** Old unversioned covers cannot prove which content-addressed PDF they depict. */
+export function canUseLegacyThumbnail(request: PdfThumbnailRequest): boolean {
+  return request.sourceType !== "diktat" ||
+    !/^courses\/[^/]+\/diktats\/versions\/[a-f0-9]{64}\/[a-f0-9]{64}\/[^/]+\.pdf$/.test(request.sourceVersion);
 }
 
 /** New thumbnails have source-specific keys so old workers cannot overwrite a replacement PDF's cover. */

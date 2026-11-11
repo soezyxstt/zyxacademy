@@ -1,5 +1,7 @@
 # Zyx Academy ; Features & Workflows
 
+Quiz scores remain available when discussion is locked. Solutions and diagnosis follow the template release policy on both learner pages and direct student APIs. Failed admin list requests show retry rather than actionable results for an old filter; sidebar enrollment falls back to a fresh account-scoped read when Today refresh fails. These local corrections await runtime validation in the [open audit](audit/web-performance-follow-up-20261111.md).
+
 Local performance follow-up keeps student material lists metadata-only, loads quiz snapshots only for the selected attempt, and shares Today activity and enrollment between sidebar and plan. Admin user and group lists use server-side search, filtering and pagination; heavy group details load on demand. Question authoring loads published Idea choices for the selected course and chapter when needed. Video player and management dialogs load on demand. The `OPEN / IN PROGRESS` [follow-up audit](audit/web-performance-follow-up-20261111.md) records unverified runtime, access, visual and performance boundaries.
 
 ## What It Is

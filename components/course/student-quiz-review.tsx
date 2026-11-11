@@ -19,10 +19,11 @@ function formatDuration(seconds: number | null) {
   const s = seconds % 60;
   return m > 0 ? `${m} menit ${s} detik` : `${s} detik`;
 }
-export function StudentQuizReview({ href = (path: string) => path,  id, quizId, template, targetAttempt, snapshot, answers, unseenSnapshot = [] }: { href?: (path: string) => string;
+export function StudentQuizReview({ href = (path: string) => path,  id, quizId, template, targetAttempt, snapshot, answers, unseenSnapshot = [], discussionAvailable = true }: { href?: (path: string) => string;
  id: string; quizId: string; template: { title: string };
  targetAttempt: { id: string; score: number | null; durationSeconds: number | null; submittedAt: Date | string | null; gradingStatus?: string | null } | null;
  snapshot: StudentReviewQuestion[]; answers: Record<string, any>; unseenSnapshot?: StudentReviewQuestion[];
+ discussionAvailable?: boolean;
 }) {
 
     return (
@@ -41,7 +42,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, quizId, 
                 </Link>
               </Button>
 
-              {targetAttempt && (
+              {targetAttempt && discussionAvailable && (
                 <Button asChild size="sm" className="rounded-md bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 font-semibold shadow-xs">
                   <Link href={href(`/courses/${id}/quiz/${quizId}/summary/${targetAttempt.id}`)}>
                     Lihat Diagnosis & Rencana Belajar
@@ -52,7 +53,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, quizId, 
 
             {targetAttempt && (
               <AdminStatStrip className="sm:grid-cols-3">
-                <AdminStatStripItem icon={Award} label={<TranslatedText namespace="learning" messageKey="quizTake.finalScore" />} value={`${targetAttempt.score}%`} tone="brand" />
+                <AdminStatStripItem icon={Award} label={<TranslatedText namespace="learning" messageKey="quizTake.finalScore" />} value={targetAttempt.score == null ? "-" : `${targetAttempt.score}%`} tone="brand" />
                 <AdminStatStripItem icon={Clock} label={<TranslatedText namespace="learning" messageKey="quizTake.duration" />} value={formatDuration(targetAttempt.durationSeconds)} tone="info" />
                 <AdminStatStripItem
                   icon={Calendar}
@@ -66,6 +67,10 @@ export function StudentQuizReview({ href = (path: string) => path,  id, quizId, 
                   tone="brand-secondary"
                 />
               </AdminStatStrip>
+            )}
+
+            {targetAttempt && !discussionAvailable && (
+              <p className="text-body-sm text-muted-foreground">Pembahasan tidak tersedia saat ini.</p>
             )}
 
             {!targetAttempt && (

@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { hasAnyPeran } from "@/lib/auth/authorization";
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
+import { canViewAttemptDiscussion } from "@/lib/quiz/review-release";
 import { inngest } from "@/lib/inngest";
 
 type Context = { params: Promise<{ id: string }> };
@@ -48,6 +49,15 @@ export async function GET(_req: NextRequest, { params }: Context) {
     return NextResponse.json({ status: "not_available", message: "Analytics are only accessible after quiz completion" });
   }
 
+  const [template] = await db.select({
+    courseId: quizTemplates.courseId, selectionRules: quizTemplates.selectionRules,
+    showDiscussion: quizTemplates.showDiscussion, manualStatus: quizTemplates.manualStatus,
+    closeAt: quizTemplates.closeAt,
+  }).from(quizTemplates).where(eq(quizTemplates.id, attempt.templateId)).limit(1);
+  if (!isAdminOrTeacher && !canViewAttemptDiscussion(template, attempt.status)) {
+    return NextResponse.json({ status: "not_available", message: "Pembahasan kuis belum tersedia." }, { status: 403 });
+  }
+
   // Look up existing analytics
   const [analytics] = await db
     .select()
@@ -59,11 +69,6 @@ export async function GET(_req: NextRequest, { params }: Context) {
     return NextResponse.json(analytics);
   }
 
-  const [template] = await db
-    .select({ courseId: quizTemplates.courseId })
-    .from(quizTemplates)
-    .where(eq(quizTemplates.id, attempt.templateId))
-    .limit(1);
 
   const courseId = template?.courseId || "calc-1";
 
@@ -139,11 +144,14 @@ export async function POST(_req: NextRequest, { params }: Context) {
     return NextResponse.json({ error: "Cannot generate analytics for an active attempt" }, { status: 400 });
   }
 
-  const [template] = await db
-    .select({ courseId: quizTemplates.courseId })
-    .from(quizTemplates)
-    .where(eq(quizTemplates.id, attempt.templateId))
-    .limit(1);
+  const [template] = await db.select({
+    courseId: quizTemplates.courseId, selectionRules: quizTemplates.selectionRules,
+    showDiscussion: quizTemplates.showDiscussion, manualStatus: quizTemplates.manualStatus,
+    closeAt: quizTemplates.closeAt,
+  }).from(quizTemplates).where(eq(quizTemplates.id, attempt.templateId)).limit(1);
+  if (!isAdminOrTeacher && !canViewAttemptDiscussion(template, attempt.status)) {
+    return NextResponse.json({ status: "not_available", message: "Pembahasan kuis belum tersedia." }, { status: 403 });
+  }
 
   const courseId = template?.courseId || "calc-1";
 

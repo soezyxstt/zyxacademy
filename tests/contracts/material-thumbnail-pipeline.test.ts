@@ -8,7 +8,7 @@ describe("student sidebar course context", () => {
   test("route context switches the sidebar before course metadata resolves", () => {
     const sidebar = source("components/student-sidebar.tsx");
     expect(sidebar).toContain("if (activeCourseId)");
-    expect(sidebar).toContain("activeCourse?.id === activeCourseId");
+    expect(sidebar).toContain("activeCourse?.userId === userId && activeCourse.course.id === activeCourseId");
     expect(sidebar).toContain("const base = `/courses/${activeCourseId}`");
     expect(sidebar).not.toContain("if (activeCourse) {");
   });

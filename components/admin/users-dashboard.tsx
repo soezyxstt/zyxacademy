@@ -20,7 +20,8 @@ import {
 } from "@/components/admin/stat-card";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { StatusBadge } from "@/components/admin/status-badges";
-import { AdminEmptyState } from "@/components/admin/state-panels";
+import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
+import { adminListRequestState, scheduleAdminListRequest } from "@/lib/admin/list-request";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Button } from "@/components/ui/button";
@@ -104,27 +105,34 @@ export function UsersDashboard({
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(initialTotal);
   const [revision, setRevision] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const [loadedKey, setLoadedKey] = useState(() => JSON.stringify([1, "", "all", "all", 0]));
+  const [failedKey, setFailedKey] = useState<string | null>(null);
+  const requestKey = JSON.stringify([page, searchQuery, roleFilter, statusFilter, revision]);
+  const { failed, stale, loading } = adminListRequestState(loadedKey, requestKey, failedKey, fetching);
   const initial = useRef(true);
   useEffect(() => {
     if (initial.current) { initial.current = false; return; }
-    let cancelled = false;
-    setLoading(true);
-    const timer = setTimeout(() => {
-      void getAdminUsersData({ page, search: searchQuery, role: roleFilter, status: statusFilter }).then((result) => {
-        if (cancelled) return;
-        if (page > 1 && result.users.length === 0 && result.total > 0) {
-          setPage(Math.ceil(result.total / 30));
-          return;
-        }
-        setUsers(result.users);
-        setStats(result.stats);
-        setTotal(result.total);
-      }).catch(() => { if (!cancelled) toast.error(t("usersUI.updateStatusFailure")); })
-        .finally(() => { if (!cancelled) setLoading(false); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [page, searchQuery, roleFilter, statusFilter, revision, t]);
+    setFetching(true);
+    setFailedKey(null);
+    return scheduleAdminListRequest(
+      () => getAdminUsersData({ page, search: searchQuery, role: roleFilter, status: statusFilter }),
+      {
+        onSuccess: (result) => {
+          if (page > 1 && result.users.length === 0 && result.total > 0) {
+            setPage(Math.ceil(result.total / 30));
+            return;
+          }
+          setUsers(result.users);
+          setStats(result.stats);
+          setTotal(result.total);
+          setLoadedKey(requestKey);
+        },
+        onError: () => setFailedKey(requestKey),
+        onSettled: () => setFetching(false),
+      },
+    );
+  }, [page, searchQuery, roleFilter, statusFilter, revision, requestKey]);
 
   // Edit Roles State
   const [editingUser, setEditingUser] = useState<AdminUserItem | null>(null);
@@ -285,13 +293,17 @@ export function UsersDashboard({
           </Button>
         )}
 
-        <div className="ml-auto text-body-xs text-muted-foreground self-center">
+        <div className={`ml-auto text-body-xs text-muted-foreground self-center ${stale || failed ? "invisible" : ""}`}>
           {t("usersUI.resultCount", { shown: filteredUsers.length, total })}
         </div>
       </div>
 
       {/* Users Table */}
-      {filteredUsers.length === 0 ? (
+      {failed ? (
+        <AdminErrorState message={t("groupsUI.systemError")} onRetry={() => setRevision((value) => value + 1)} />
+      ) : filteredUsers.length === 0 && stale ? (
+        <div role="status" className="py-12 text-center text-body-sm text-muted-foreground">{t("shortLinksUI.loading")}</div>
+      ) : filteredUsers.length === 0 ? (
         <AdminEmptyState
           title={t("usersUI.emptyTitle")}
           description={
@@ -301,8 +313,8 @@ export function UsersDashboard({
           }
         />
       ) : (
-        <AdminTable>
-          <table className="w-full min-w-[640px] text-left text-body-sm border-collapse">
+        <AdminTable className={stale ? "opacity-60" : undefined}>
+          <table aria-busy={loading} className="w-full min-w-[640px] text-left text-body-sm border-collapse">
             <AdminTableHead>
               <tr>
                 <th className="px-4 py-3 font-semibold text-foreground">{t("usersUI.user")}</th>
@@ -389,6 +401,7 @@ export function UsersDashboard({
                           variant="outline"
                           size="sm"
                           onClick={() => handleOpenRoleModal(userItem)}
+                          disabled={stale}
                           className="h-8 px-2.5 rounded-lg text-body-sm gap-1.5"
                         >
                           <UserCog className="size-3.5" />
@@ -398,7 +411,7 @@ export function UsersDashboard({
                         <Button
                           variant={userItem.status === "active" ? "ghost" : "outline"}
                           size="sm"
-                          disabled={isSelf}
+                          disabled={isSelf || stale}
                           onClick={() => setStatusTargetUser(userItem)}
                           className={`h-8 px-2.5 rounded-lg text-body-sm gap-1.5 ${
                             userItem.status === "active"
@@ -435,10 +448,10 @@ export function UsersDashboard({
         </AdminTable>
       )}
 
-      {total > 30 && (
+      {!failed && total > 30 && (
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage(page - 1)}>{t("notificationUI.previous")}</Button>
-          <span className="text-body-xs">{page} / {Math.ceil(total / 30)}</span>
+          <span className={`text-body-xs ${stale ? "invisible" : ""}`}>{page} / {Math.ceil(total / 30)}</span>
           <Button variant="outline" size="sm" disabled={page * 30 >= total || loading} onClick={() => setPage(page + 1)}>{t("notificationUI.next")}</Button>
         </div>
       )}

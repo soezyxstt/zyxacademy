@@ -20,6 +20,7 @@ import { normalizeDate } from "@/lib/date-utils";
 import { extractFreeQuizChapterScope, getCourse, isFreeQuizTemplate } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
 import { resolveCourseAccess } from "@/lib/student/course-access";
+import { canViewQuizDiscussion, isQuizDiscussionClosed, projectQuizReviewSnapshot, publicQuizOptionTexts as publicOptionTexts } from "@/lib/quiz/review-release";
 
 type Props = {
   params: Promise<{ id: string; quizId: string }>;
@@ -52,40 +53,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
-
-/**
- * Formats a duration in seconds into human-readable Indonesian minutes and seconds.
- */
-
-/**
- * Extracts display text strings from option structures.
- */
-function publicOptionTexts(value: unknown): string[] {
-  const options = Array.isArray(value)
-    ? value
-    : typeof value === "string"
-      ? (() => {
-          try {
-            const parsed = JSON.parse(value);
-            return Array.isArray(parsed) ? parsed : [];
-          } catch {
-            return [];
-          }
-        })()
-      : [];
-
-  return options
-    .map((option) => {
-      if (typeof option === "string") return option;
-      if (!option || typeof option !== "object" || Array.isArray(option)) return null;
-      const record = option as Record<string, unknown>;
-      for (const key of ["text", "label", "value", "content"]) {
-        if (typeof record[key] === "string") return record[key];
-      }
-      return null;
-    })
-    .filter((option): option is string => option !== null);
-}
 
 /**
  * Server component page for taking a quiz or reviewing completed quiz attempts.
@@ -233,38 +200,74 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     );
   }
 
-  // Check if they are reviewing a completed attempt
-  let isReview = false;
-  if (attemptId) {
-    const [att] = await db
-      .select({ status: studentQuizAttempts.status })
-      .from(studentQuizAttempts)
+  const now = new Date();
+  const openDate = template.openAt ? new Date(template.openAt) : null;
+  const closeDate = template.closeAt ? new Date(template.closeAt) : null;
+  const isClosedManually = template.manualStatus === "closed";
+  const isOpenManually = template.manualStatus === "open";
+  const isQuizClosed = isQuizDiscussionClosed({ manualStatus: template.manualStatus, closeAt: closeDate, now });
+
+  const loadQuestionsCount = async () => {
+    const [row] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(aiQuestionBank)
       .where(and(
-        eq(studentQuizAttempts.id, attemptId),
-        eq(studentQuizAttempts.studentId, studentId),
-        eq(studentQuizAttempts.templateId, quizId),
-      ))
-      .limit(1);
-    if (att?.status === "completed") {
-      isReview = true;
-    }
-  }
+        eq(aiQuestionBank.courseId, template.courseId),
+        eq(aiQuestionBank.reviewStatus, 'published'),
+        quizEligibilityCondition,
+        questionStateCondition,
+        availabilityTagCondition,
+        chapterScopeCondition,
+        fixedQuestionCondition,
+      ));
+    const availableQuestionCount = row?.count ?? 0;
+    return hasMalformedFixedQuestionIds
+      ? 0
+      : fixedQuestionIds.length > 0
+      ? availableQuestionCount === fixedQuestionIds.length ? availableQuestionCount : 0
+      : availableQuestionCount;
+  };
+  // Start the gateway's count alongside attempt summaries only when this
+  // request can reach the gateway without a review or schedule gate.
+  const canReachGateway = !attemptId && viewDiscussion !== "true" && !isClosedManually
+    && (isOpenManually || ((!openDate || now >= openDate) && (!closeDate || now <= closeDate)));
+  const questionsCountPromise = canReachGateway ? loadQuestionsCount() : null;
+  questionsCountPromise?.catch(() => {});
+
+  // Bind both the requested attempt and the submission gate to this student
+  // and template. A different student's attempt cannot unlock discussion.
+  const previousAttempts = await db
+    .select({
+      id: studentQuizAttempts.id,
+      status: studentQuizAttempts.status,
+      score: studentQuizAttempts.score,
+      durationSeconds: studentQuizAttempts.durationSeconds,
+      submittedAt: studentQuizAttempts.submittedAt,
+      startedAt: studentQuizAttempts.startedAt,
+      gradingStatus: studentQuizAttempts.gradingStatus,
+    })
+    .from(studentQuizAttempts)
+    .where(and(
+      eq(studentQuizAttempts.studentId, studentId),
+      eq(studentQuizAttempts.templateId, quizId),
+    ))
+    .orderBy(desc(studentQuizAttempts.startedAt));
+  const completedAttempts = previousAttempts.filter((attempt) => attempt.status === "completed");
+  const requestedAttempt = attemptId ? previousAttempts.find((attempt) => attempt.id === attemptId) : null;
+  if (attemptId && !requestedAttempt) notFound();
+  const isReview = requestedAttempt?.status === "completed";
 
   const parsedRules = typeof template.selectionRules === "string"
     ? (() => { try { return JSON.parse(template.selectionRules); } catch { return {}; } })()
     : (template.selectionRules as Record<string, any>) || {};
 
-  const now = new Date();
-  const openDate = template.openAt ? new Date(template.openAt) : null;
-  const closeDate = template.closeAt ? new Date(template.closeAt) : null;
-
-  const isClosedManually = template.manualStatus === "closed";
-  const isOpenManually = template.manualStatus === "open";
-  const isQuizClosed = isClosedManually || (!isOpenManually && closeDate && now > closeDate);
-
-  const explanationRelease = parsedRules?.explanationRelease || ((template as any).showDiscussion === false ? "never" : "after_close");
-  const canViewDiscussion = explanationRelease === "immediate" || (explanationRelease === "after_close" && isQuizClosed);
-  const isViewDiscussion = viewDiscussion === "true" && canViewDiscussion && explanationRelease !== "never";
+  const canViewDiscussion = canViewQuizDiscussion({
+    explanationRelease: parsedRules?.explanationRelease,
+    showDiscussion: template.showDiscussion,
+    isQuizClosed,
+    hasCompletedAttempt: completedAttempts.length > 0,
+  });
+  const isViewDiscussion = viewDiscussion === "true" && canViewDiscussion;
 
   if (!isReview && !isViewDiscussion) {
     if (isClosedManually) {
@@ -342,70 +345,22 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     }
   }
 
-  const loadQuestionsCount = async () => {
-    const [row] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(aiQuestionBank)
-      .where(and(
-        eq(aiQuestionBank.courseId, template.courseId),
-        eq(aiQuestionBank.reviewStatus, 'published'),
-        quizEligibilityCondition,
-        questionStateCondition,
-        availabilityTagCondition,
-        chapterScopeCondition,
-        fixedQuestionCondition,
-      ));
-    const availableQuestionCount = row?.count ?? 0;
-    return hasMalformedFixedQuestionIds
-      ? 0
-      : fixedQuestionIds.length > 0
-      ? availableQuestionCount === fixedQuestionIds.length ? availableQuestionCount : 0
-      : availableQuestionCount;
-  };
-  // Only the gateway needs the count. Start it with attempt summaries when
-  // the request is known to lead there, without delaying review or the player.
-  const questionsCountPromise = !attemptId && !isViewDiscussion ? loadQuestionsCount() : null;
-  questionsCountPromise?.catch(() => {});
-
-  // Fetch previous attempts for list
-  const previousAttempts = await db
-    .select({
-      id: studentQuizAttempts.id,
-      status: studentQuizAttempts.status,
-      score: studentQuizAttempts.score,
-      durationSeconds: studentQuizAttempts.durationSeconds,
-      submittedAt: studentQuizAttempts.submittedAt,
-      startedAt: studentQuizAttempts.startedAt,
-      gradingStatus: studentQuizAttempts.gradingStatus,
-    })
-    .from(studentQuizAttempts)
-    .where(
-      and(
-        eq(studentQuizAttempts.studentId, studentId),
-        eq(studentQuizAttempts.templateId, quizId)
-      )
-    )
-    .orderBy(desc(studentQuizAttempts.startedAt));
-
   // Determine active in-progress attempt
   const inProgressAttempt = previousAttempts.find((a) => a.status === "in_progress");
 
   // ───────────────────────────────────────────────────────────────────────────
   // STATE A, B, C: Unified Discussion & Review
   // ───────────────────────────────────────────────────────────────────────────
-  const completedAttempts = previousAttempts.filter((a) => a.status === "completed");
-
   let targetAttempt = null;
   if (attemptId) {
-    targetAttempt = previousAttempts.find((a) => a.id === attemptId);
-    if (!targetAttempt) notFound();
+    targetAttempt = requestedAttempt;
   } else if (isViewDiscussion) {
     targetAttempt = completedAttempts[0] || null;
   }
 
-  const isDiscussionOpen = canViewDiscussion && explanationRelease !== "never";
+  const isDiscussionOpen = canViewDiscussion;
   const shouldShowUnifiedView = (targetAttempt?.status === "completed") || isViewDiscussion;
-  const needsSnapshot = targetAttempt && (targetAttempt.status === "in_progress" || shouldShowUnifiedView);
+  const needsSnapshot = targetAttempt && (targetAttempt.status === "in_progress" || (targetAttempt.status === "completed" && isDiscussionOpen));
   const [targetAttemptSnapshot] = targetAttempt && needsSnapshot
     ? await db
         .select({
@@ -417,6 +372,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
           eq(studentQuizAttempts.id, targetAttempt.id),
           eq(studentQuizAttempts.studentId, studentId),
           eq(studentQuizAttempts.templateId, quizId),
+          eq(studentQuizAttempts.status, targetAttempt.status),
         ))
         .limit(1)
     : [];
@@ -505,22 +461,10 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
   // Unified State
   if (shouldShowUnifiedView) {
-    const rawSnapshot = (targetAttemptSnapshot?.questionsSnapshot as Array<{
-      id: string;
-      prompt: string;
-      options: string[];
-      correct_indices: number[];
-      explanation: string;
-      difficulty: string;
-      origin?: "zyx_original" | "historical_reference" | "itb_example";
-      sourceEventName?: string | null;
-      sourceReferenceId?: string | null;
-    }>) ?? [];
-    const snapshot = rawSnapshot.map((question) => ({
-      ...question,
-      options: publicOptionTexts(question.options),
-    }));
-    const answers = (targetAttemptSnapshot?.answersSnapshot as Record<string, number[]>) ?? {};
+    const snapshot = projectQuizReviewSnapshot(targetAttemptSnapshot?.questionsSnapshot, isDiscussionOpen);
+    const answers = isDiscussionOpen
+      ? (targetAttemptSnapshot?.answersSnapshot as Record<string, number[]>) ?? {}
+      : {};
 
     let unseenSnapshot: Array<{
       id: string;
@@ -614,7 +558,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       });
     }
 
-    return <StudentQuizReview id={id} quizId={quizId} template={{ title: template.title }} targetAttempt={targetAttempt ? { id: targetAttempt.id, score: targetAttempt.score, durationSeconds: targetAttempt.durationSeconds, submittedAt: targetAttempt.submittedAt, gradingStatus: targetAttempt.gradingStatus } : null} snapshot={snapshot} answers={answers} unseenSnapshot={unseenSnapshot} />;
+    return <StudentQuizReview id={id} quizId={quizId} template={{ title: template.title }} targetAttempt={targetAttempt ? { id: targetAttempt.id, score: targetAttempt.score, durationSeconds: targetAttempt.durationSeconds, submittedAt: targetAttempt.submittedAt, gradingStatus: targetAttempt.gradingStatus } : null} snapshot={snapshot} answers={answers} unseenSnapshot={unseenSnapshot} discussionAvailable={isDiscussionOpen} />;
   }
 
   // ───────────────────────────────────────────────────────────────────────────

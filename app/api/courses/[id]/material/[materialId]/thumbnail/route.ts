@@ -5,7 +5,7 @@ import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { storage } from "@/lib/storage";
 import { buildCourseThumbnailKey, extractStorageKey } from "@/lib/storage/keys";
 import { inngest } from "@/lib/inngest";
-import { buildThumbnailEventId, buildVersionedThumbnailKey, thumbnailRecoveryAttemptId, type PdfThumbnailRequest } from "@/lib/thumbnail";
+import { buildThumbnailEventId, buildVersionedThumbnailKey, canUseLegacyThumbnail, thumbnailRecoveryAttemptId, type PdfThumbnailRequest } from "@/lib/thumbnail";
 
 function legacyThumbnailKeys(courseIds: readonly string[], materialId: string): string[] {
   return [...new Set(courseIds)].flatMap((courseSlug) => (["png", "webp"] as const).map((extension) =>
@@ -17,7 +17,7 @@ function thumbnailKeys(courseIds: readonly string[], request: PdfThumbnailReques
   return [
     ...ids.flatMap((courseSlug) => (["png", "webp"] as const).map((extension) =>
       buildVersionedThumbnailKey({ ...request, courseSlug, extension }))),
-    ...legacyThumbnailKeys(ids, request.materialId),
+    ...(canUseLegacyThumbnail(request) ? legacyThumbnailKeys(ids, request.materialId) : []),
   ];
 }
 

@@ -9,25 +9,12 @@ import { auditRenderedPDF } from "@/lib/diktat-pdf-auditor";
 import { eq, and, inArray } from "drizzle-orm";
 import { storage } from "@/lib/storage";
 import { canPublishDiktat } from "@/lib/diktat/audit-contracts";
-import { joinKey, slugifySegment } from "@/lib/storage/keys";
-import { enqueuePdfThumbnail } from "@/lib/thumbnail";
-
-/**
- * Extracts the unique file key from an UploadThing CDN URL.
- */
-function extractFileKeyFromUrl(url: string): string | null {
-  if (!url) return null;
-  if (url.includes("/api/storage/file/")) {
-    const parts = url.split("/api/storage/file/");
-    return parts[parts.length - 1];
-  }
-  const parts = url.split("/f/");
-  return parts.length > 1 ? parts[1] : url;
-}
+import { leafFilename } from "@/lib/storage/keys";
+import { buildDiktatPdfStorageKey, enqueuePdfThumbnail } from "@/lib/thumbnail";
 
 /**
  * Compiles HTML to PDF using Puppeteer and uploads it to storage.
- * Handles old file deletion, PDF quality gates, and thumbnail event dispatch.
+ * Handles PDF quality gates, versioned storage, and thumbnail event dispatch.
  */
 export async function executeDiktatPDFGeneration(
   diktatId: string
@@ -173,27 +160,16 @@ export async function executeDiktatPDFGeneration(
     throw new Error(`Diktat PDF audit failed with status "${pdfAudit.status}": ${(pdfAudit.warnings || []).join("; ")}`);
   }
 
-  // 8. Long-Term PDF Storage Strategy: Upload new and clean up old CDN files
+  // 8. Keep previous PDFs for rollback and give each rendered byte sequence its own key.
   try {
-    const oldUrl = diktat.fileUrl;
-
-    const leaf = `${slugifySegment(diktat.title)}.pdf`;
-    const objectKey = joinKey("courses", slugifySegment(diktat.courseId), "diktats", leaf);
-    const uploadedData = await storage.upload(pdfBuffer, leaf, "application/pdf", { key: objectKey });
+    const objectKey = buildDiktatPdfStorageKey({
+      courseId: diktat.courseId,
+      diktatId: diktat.id,
+      title: diktat.title,
+      pdfBytes: pdfBuffer,
+    });
+    const uploadedData = await storage.upload(pdfBuffer, leafFilename(objectKey), "application/pdf", { key: objectKey });
     const fileUrl = uploadedData.url;
-
-    // Trigger cleanup of the old file
-    if (oldUrl) {
-      const oldKey = extractFileKeyFromUrl(oldUrl);
-      if (oldKey && oldKey !== objectKey) {
-        try {
-          await storage.delete(oldKey);
-          console.log(`[Storage Cleanup] Deleted obsolete Diktat file with key ${oldKey}.`);
-        } catch (delErr: any) {
-          console.warn(`[Storage Warning] Failed to delete obsolete file ${oldKey}: ${delErr.message}`);
-        }
-      }
-    }
 
     // Save final location to DB with thumbnailUrl: null (fresh on-demand thumbnail generation via web tier)
     await db
@@ -211,7 +187,8 @@ export async function executeDiktatPDFGeneration(
     await enqueuePdfThumbnail({
       materialId: diktat.id,
       sourceType: "diktat",
-      sourceVersion: fileUrl,
+      sourceVersion: objectKey,
+      sourceRevision: diktat.generationHash,
     });
 
     return { success: true, fileUrl };

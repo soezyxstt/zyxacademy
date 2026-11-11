@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { StudentNavigationItems } from "@/components/student-navigation-items";
 import { SidebarShell, NavItem } from "@/components/sidebar-shell";
 import { createActivityRefresh } from "@/lib/student/activity-refresh";
+import { selectSidebarCourses, type SidebarFallbackCourses } from "@/lib/student/sidebar-courses";
 import { ZYX_ACTIVITY_UPDATED_EVENT } from "@/lib/activity-signal";
 import { StreakCalendarStrip } from "@/components/dashboard/streak-calendar-strip";
 import { SidebarTooltip } from "@/components/sidebar-shell";
@@ -99,27 +100,32 @@ function StudentSidebarContent({
 
   // Route context is authoritative for the sidebar mode. Course metadata may load later,
   // but the shell must switch on the same render as the route itself.
-  const activeCourseId = courseIdFromPath ?? courseIdFromSchedule;
+  const activeCourseId = courseIdFromPath ?? (pathname === "/dashboard/schedule" ? courseIdFromSchedule : undefined);
 
   const [activeCourse, setActiveCourse] = useState<{ userId: string; course: { id: string; title: string } }>();
-  const [fallbackCourses, setFallbackCourses] = useState<{ userId: string; courses: Array<{ id: string; title: string }> }>();
+  const [fallbackCourses, setFallbackCourses] = useState<SidebarFallbackCourses>();
   const [coursesOpen, setCoursesOpen] = useState(true);
   const queryClient = useQueryClient();
   const userId = session?.user?.id;
   const today = useQuery({ ...studentTodayQuery(userId ?? ""), enabled: !demo && !!userId });
-  const enrolledCourses = useMemo(() => demo ? experience.courses ?? [] : today.data?.enrollments
-    ?? (fallbackCourses?.userId === userId ? fallbackCourses.courses : []), [demo, experience.courses, today.data?.enrollments, fallbackCourses, userId]);
+  const enrolledCourses = useMemo(() => demo ? experience.courses ?? [] : selectSidebarCourses(
+    userId ? { userId, pathname, activeCourseId, errorUpdateCount: today.errorUpdateCount } : undefined,
+    today.isError,
+    today.data?.enrollments,
+    fallbackCourses,
+  ), [demo, experience.courses, userId, pathname, activeCourseId, today.errorUpdateCount, today.isError, today.data?.enrollments, fallbackCourses]);
   const streakCurrent = demo ? experience.streak?.current ?? 0 : today.data?.streak.current ?? null;
   const weeklyActivity = demo ? experience.streak?.weeklyActivity ?? [] : today.data?.weeklyActivity ?? [];
 
   useEffect(() => {
     if (demo || !userId || !today.isError) return;
     let cancelled = false;
+    const scope = { userId, pathname, activeCourseId, errorUpdateCount: today.errorUpdateCount };
     getStudentEnrollments(userId).then((courses) => {
-      if (!cancelled) setFallbackCourses({ userId, courses });
-    }).catch(console.error);
+      if (!cancelled) setFallbackCourses({ ...scope, courses });
+    }).catch((error) => { if (!cancelled) console.error(error); });
     return () => { cancelled = true; };
-  }, [demo, userId, today.isError]);
+  }, [demo, userId, pathname, activeCourseId, today.isError, today.errorUpdateCount]);
 
   const enrolledActiveCourse = activeCourseId
     ? enrolledCourses.find((course) => course.id === activeCourseId)

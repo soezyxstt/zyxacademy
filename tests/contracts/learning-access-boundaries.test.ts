@@ -58,18 +58,21 @@ describe("student learning access boundaries", () => {
     const quizPage = source("app/(student)/courses/[id]/quiz/[quizId]/page.tsx");
     expect(quizPage).toContain("fixedQuestionCondition");
     expect(quizPage).toContain("const fixedQuestionCondition = fixedQuestionIds.length > 0");
-    expect(quizPage).toContain("const questionsCount = hasMalformedFixedQuestionIds");
+    expect(quizPage).toContain("const loadQuestionsCount = async () =>");
+    expect(quizPage).toContain("return hasMalformedFixedQuestionIds");
     expect(quizPage).toContain("inArray(aiQuestionBank.id, fixedQuestionIds)");
     expect(quizPage).toContain("availableQuestionCount === fixedQuestionIds.length");
   });
 
   test("thumbnail reads bind material to the requested course without DB repair", () => {
     const route = source("app/api/courses/[id]/material/[materialId]/thumbnail/route.ts");
-    expect(route).toContain("and(eq(courseMaterials.id, materialId), eq(courseMaterials.courseId, courseId))");
+    expect(route).toContain("and(eq(courseMaterials.id, materialId), inArray(courseMaterials.courseId, lookupIds))");
     expect(route).toContain("eq(diktats.id, materialId)");
-    expect(route).toContain("eq(diktats.courseId, courseId)");
+    expect(route).toContain("inArray(diktats.courseId, lookupIds)");
     expect(route).toContain('eq(diktats.status, "ready")');
-    expect(route).toContain("findReadyThumbnailResponse");
+    expect(route).toContain("manualAliases.length > 1 || compiledAliases.length > 1");
+    expect(route).toContain("if (resolvedManual && resolvedCompiled)");
+    expect(route).toContain("expectedThumbnailKeys.has(storedThumbnailKey)");
     expect(route).not.toContain("db.update");
   });
 });

@@ -31,3 +31,13 @@ Read-only Terra max reviews inspected baseline `0a7f6eb8` and a changing shared 
 ## Acceptance before release
 
 When resource-intensive verification is authorized, use deterministic nonproduction accounts and the same dataset and deployment for comparisons. Verify material payload redaction and access, assessment answer release and ownership, account switches and concurrent Today completion, query/payload bounds, locale navigation, thumbnail recovery, video dialogs and playback, and all affected responsive states. Record before/after measurements separately from code findings. Keep this audit open until these boundaries are exercised.
+
+
+## Audit corrections after commit 1e284f0f
+
+A second static review identified six issues: attempt review bypassing discussion release, stale versioned Diktat thumbnails, recovery event suppression, actionable stale admin search results, sidebar fallback hidden by stale Today data, and obsolete static test assertions. Local fixes have been integrated through static review without running test suites or external effects.
+
+Diktat output keys now identify rendered PDF bytes; retained old PDFs are rollback artifacts, not public downloads. The generic storage proxy fails closed for unreferenced `courses/{course}/diktats/...pdf` keys. Restoring a historical artifact requires restoring its authorized active reference. Static contracts were updated for alias-scoped thumbnail lookups, queue responses, gateway counts and account-scoped sidebar context. Acceptance remains open until runtime access, queue recovery and UI error behavior are exercised.
+
+
+Attempt review release now gates the page, direct detail/list APIs and student analytics GET/POST. Locked review retains scores and basic summary while withholding snapshots and diagnosis; the summary route redirects to the authorized review state. Diktat PDFs use content-addressed keys and new covers do not reuse unverifiable legacy thumbnails. Recovery IDs advance every 10 seconds with singleton worker suppression while a run is active; later recovery still requires another request. Admin result actions are disabled for stale query identities and failed requests show retry; sidebar fallback takes precedence on Today errors within its account/route/error scope. These changes are code-reviewed only, not verified at runtime.

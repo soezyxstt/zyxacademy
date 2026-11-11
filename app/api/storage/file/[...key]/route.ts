@@ -6,7 +6,7 @@ import { diktatMateri, diktats, mataKuliah, studentQuizAttempts, quizTemplates }
 import { auth } from "@/lib/auth";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { resolveCourseAccess } from "@/lib/student/course-access";
-import { isProtectedProductDiktatPdfKey, leafFilename, quizAttachmentPrefix } from "@/lib/storage/keys";
+import { isProtectedCourseDiktatPdfKey, isProtectedProductDiktatPdfKey, leafFilename, quizAttachmentPrefix } from "@/lib/storage/keys";
 import { getS3StorageConfig } from "@/lib/storage/r2";
 
 const config = getS3StorageConfig(process.env.STORAGE_PROVIDER_MODE === "neon" ? "neon" : "r2");
@@ -88,7 +88,11 @@ async function resolveDiktatAuthorization(key: string): Promise<DiktatAuthorizat
     ].filter(
       (row): row is { key: string; courseId: string; source: "canonical" | "legacy" } => normalizeStorageKey(row.key) === key,
     );
-    if (matches.length === 0) return { matched: false, allowed: true };
+    if (matches.length === 0) {
+      // Rollback artifacts must not become public when no active row references them.
+      const protectedKey = isProtectedCourseDiktatPdfKey(key);
+      return { matched: protectedKey, allowed: !protectedKey };
+    }
 
     const identities = await Promise.all(
       [...new Set(matches.map((row) => row.courseId))].map((courseId) => resolveCourseIdentity(courseId)),
