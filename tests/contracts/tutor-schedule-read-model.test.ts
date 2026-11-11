@@ -724,5 +724,16 @@ describe("Tutor Schedule Read-Model Contracts", () => {
     expect(result.ownedSchedules).toHaveLength(1);
     expect(result.ownedSchedules[0].id).toBe("sched-pub-stat");
     expect(result.ownedSchedules[0].title).toBe("UTS Statistika");
+
+    await testDb.insert(schema.academicSchedules).values([
+      { id: "range-owned", type: "quiz", title: "In range", courseId: "crs-stat", startDate: new Date("2030-01-09T05:00:00Z"), status: "published", createdById: "tutor-main", createdAt: now, updatedAt: now },
+      { id: "range-unrelated", type: "quiz", title: "Other course", courseId: "crs-unrelated", startDate: new Date("2030-01-09T05:00:00Z"), status: "published", createdById: "tutor-other", createdAt: now, updatedAt: now },
+      { id: "range-before", type: "quiz", title: "Before range", courseId: "crs-stat", startDate: new Date("2030-01-01T05:00:00Z"), status: "published", createdById: "tutor-main", createdAt: now, updatedAt: now },
+      { id: "range-after", type: "quiz", title: "After range", courseId: "crs-stat", startDate: new Date("2030-02-01T05:00:00Z"), status: "published", createdById: "tutor-main", createdAt: now, updatedAt: now },
+      { id: "range-overlap", type: "quiz", title: "Overlaps range", courseId: "crs-stat", startDate: new Date("2030-01-01T05:00:00Z"), endDate: new Date("2030-01-10T05:00:00Z"), status: "published", createdById: "tutor-main", createdAt: now, updatedAt: now },
+    ]);
+    const ranged = await getTutorScheduleReadModel({ tutorId: "tutor-main", fromDate: "2030-01-07", toDate: "2030-01-13" }, testDb);
+    expect(ranged.ownedSchedules.map((schedule) => schedule.id).sort()).toEqual(["range-overlap", "range-owned"]);
+
   });
 });

@@ -480,7 +480,7 @@ export function AdminVideoDialog({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(nextOpen) => { if (nextOpen || !saving) onOpenChange(nextOpen); }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading text-body-base font-bold flex items-center gap-2">

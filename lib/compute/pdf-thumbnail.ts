@@ -56,13 +56,14 @@ export async function generateAndSavePdfThumbnailCompute(params: {
   materialId: string;
   pdfBuffer?: Buffer | Uint8Array | null;
   fileKey?: string | null;
+  thumbnailKey?: string;
 }): Promise<string | null> {
   if (!params.courseSlug || !params.materialId) return null;
   try {
     const bytes = await readPdfBytes(params);
     if (!bytes?.byteLength) return null;
     const png = await renderPdfFirstPagePng(bytes);
-    const thumbnailKey = buildCourseThumbnailKey({
+    const thumbnailKey = params.thumbnailKey ?? buildCourseThumbnailKey({
       courseSlug: params.courseSlug,
       materialId: params.materialId,
       extension: "png",

@@ -8,6 +8,7 @@ import { env } from "@/lib/env";
 
 const isDev = process.env.NODE_ENV === "development";
 const enableInDev = process.env.NEXT_PUBLIC_POSTHOG_DEV === "true";
+let initialized = false;
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   const verification = ["/authoring-verification", "/v4"].includes(usePathname() ?? "");
@@ -15,7 +16,7 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     const posthogKey = env.NEXT_PUBLIC_POSTHOG_KEY;
     const posthogHost = env.NEXT_PUBLIC_POSTHOG_HOST;
 
-    if (verification || !posthogKey || (isDev && !enableInDev)) {
+    if (initialized || verification || !posthogKey || (isDev && !enableInDev)) {
       return;
     }
 
@@ -29,6 +30,7 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
         }
       },
     });
+    initialized = true;
   }, [verification]);
 
   if (verification || !env.NEXT_PUBLIC_POSTHOG_KEY || (isDev && !enableInDev)) {

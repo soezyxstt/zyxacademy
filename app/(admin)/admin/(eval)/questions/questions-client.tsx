@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { CheckSquare, Square, ChevronDown, ChevronUp, Plus, Edit2, Trash2, Upload, ChevronLeft, ChevronRight, FileQuestion } from "lucide-react";
+import { CheckSquare, Square, ChevronDown, ChevronUp, Plus, Edit2, Trash2, Upload, ChevronLeft, ChevronRight, FileQuestion, Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { DifficultyBadge, StatusBadge } from "@/components/admin/status-badges";
@@ -20,7 +20,7 @@ import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminTable } from "@/components/admin/table";
-import { matchingActiveQuestionIds } from "./selection-actions";
+import { getAuthoringChapters, getAuthoringIdeas, matchingActiveQuestionIds } from "./selection-actions";
 import { createQuestionQueryCoordinator, normalizeQuestionQuery, questionParamsFromUrl, questionQueryUrl, toggleQuestionIds, type QuestionQuery } from "./question-query-state";
 import { QuestionFilterField, QuestionFilterPopover } from "./question-filter-popover";
 
@@ -75,16 +75,12 @@ interface AuthoringCourse {
 
 interface AuthoringChapter {
   id: string;
-  mataKuliahId: string;
   code: string;
   title: string;
-  orderIndex: number;
 }
 
 interface AuthoringIdea {
   id: string;
-  mataKuliahId: string;
-  babId: string;
   code: string;
   statement: string;
 }
@@ -97,8 +93,6 @@ interface Props {
   courseMap: Record<string, string>;
   canonicalCourseMap?: Record<string, string>;
   authoringCourses: AuthoringCourse[];
-  authoringChapters: AuthoringChapter[];
-  authoringIdeas: AuthoringIdea[];
 }
 
 const statusTone: Record<ReviewStatus, "muted" | "info" | "success" | "warning" | "error"> = {
@@ -160,12 +154,10 @@ function hasValidIdeaWeights(links: IdeaLink[]): boolean {
  *
  * @param props - Component properties containing questions list, courses, chapters, and ideas.
  */
-export function QuestionBankClient({ query, total, questions, courses, courseMap, authoringCourses, authoringChapters, authoringIdeas }: Props) {
+export function QuestionBankClient({ query, total, questions, courses, courseMap, authoringCourses }: Props) {
   const router = useRouter();
   const t = useTranslations("adminEval.questionBank");
 
-  const chaptersForCourse = (courseId: string) => authoringChapters.filter((chapter) => chapter.mataKuliahId === courseId);
-  const ideasForSelection = (courseId: string, chapterId: string) => authoringIdeas.filter((idea) => idea.mataKuliahId === courseId && (!chapterId || idea.babId === chapterId));
   const canonicalCourseForLegacy = (legacyCourseId: string) => authoringCourses.find((course) => course.legacyCourseId === legacyCourseId)?.id ?? legacyCourseId;
 
   // Bulk Upload State
@@ -908,22 +900,7 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
                   </Select>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-body-sm font-semibold text-foreground">{t("chapter")}</label>
-                  <Select value={createChapterId || "all"} onValueChange={(value) => { setCreateChapterId(value === "all" ? "" : value); setCreateIdeaLinks([]); }}>
-                    <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
-                      <SelectValue placeholder={t("allChaptersLabel")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t("allChaptersLabel")}</SelectItem>
-                      {chaptersForCourse(createCourseId).map((chapter) => (
-                        <SelectItem key={chapter.id} value={chapter.id}>
-                          {chapter.code} · {chapter.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <AuthoringChapterSelect open={createOpen} courseId={createCourseId} value={createChapterId} onChange={(value) => { setCreateChapterId(value); setCreateIdeaLinks([]); }} />
 
                 <div className="space-y-1.5">
                   <label className="text-body-sm font-semibold text-foreground">{t("typeLabel")}</label>
@@ -973,7 +950,9 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
 
               <IdeaAssignmentFields
                 idPrefix="create"
-                ideas={ideasForSelection(createCourseId, createChapterId)}
+                open={createOpen}
+                courseId={createCourseId}
+                chapterId={createChapterId}
                 links={createIdeaLinks}
                 onChange={setCreateIdeaLinks}
               />
@@ -1104,16 +1083,7 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-body-sm font-semibold text-foreground">{t("chapter")}</label>
-                    <Select value={editChapterId || "all"} onValueChange={(value) => { setEditChapterId(value === "all" ? "" : value); setEditIdeaLinks([]); }}>
-                      <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder={t("allChaptersLabel")} /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">{t("allChaptersLabel")}</SelectItem>
-                        {chaptersForCourse(editCourseId).map((chapter) => <SelectItem key={chapter.id} value={chapter.id}>{chapter.code} · {chapter.title}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <AuthoringChapterSelect open={editOpen} courseId={editCourseId} value={editChapterId} onChange={(value) => { setEditChapterId(value); setEditIdeaLinks([]); }} />
                   <div className="space-y-1.5">
                     <label className="text-body-sm font-semibold text-foreground">{t("typeLabel")}</label>
                     <Select value={editQuestionType} onValueChange={(val) => setEditQuestionType(val as any)}>
@@ -1162,7 +1132,9 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
 
                 <IdeaAssignmentFields
                   idPrefix="edit"
-                  ideas={ideasForSelection(editCourseId, editChapterId)}
+                  open={editOpen}
+                  courseId={editCourseId}
+                  chapterId={editChapterId}
                   links={editIdeaLinks}
                   onChange={setEditIdeaLinks}
                 />
@@ -1306,21 +1278,14 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-body-sm font-semibold text-foreground">{t("chapter")}</label>
-                  <Select value={bulkChapterId || "all"} onValueChange={(value) => { setBulkChapterId(value === "all" ? "" : value); setBulkIdeaLinks([]); }}>
-                    <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder={t("allChaptersLabel")} /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t("allChaptersLabel")}</SelectItem>
-                      {chaptersForCourse(bulkCourseId).map((chapter) => <SelectItem key={chapter.id} value={chapter.id}>{chapter.code} · {chapter.title}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <AuthoringChapterSelect open={bulkOpen} courseId={bulkCourseId} value={bulkChapterId} onChange={(value) => { setBulkChapterId(value); setBulkIdeaLinks([]); }} />
               </div>
 
               <IdeaAssignmentFields
                 idPrefix="bulk"
-                ideas={ideasForSelection(bulkCourseId, bulkChapterId)}
+                open={bulkOpen}
+                courseId={bulkCourseId}
+                chapterId={bulkChapterId}
                 links={bulkIdeaLinks}
                 onChange={setBulkIdeaLinks}
               />
@@ -1367,19 +1332,83 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
   );
 }
 
+function AuthoringChapterSelect({ open, courseId, value, onChange }: {
+  open: boolean;
+  courseId: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const t = useTranslations("adminEval.questionBank");
+  const common = useTranslations("core.error");
+  const [retry, setRetry] = useState(0);
+  const [result, setResult] = useState<{ courseId: string; status: "loading" | "ready" | "error"; chapters: AuthoringChapter[] } | null>(null);
+
+  useEffect(() => {
+    if (!open || !courseId) return;
+    let current = true;
+    setResult({ courseId, status: "loading", chapters: [] });
+    getAuthoringChapters(courseId).then(
+      (chapters) => { if (current) setResult({ courseId, status: "ready", chapters }); },
+      () => { if (current) setResult({ courseId, status: "error", chapters: [] }); },
+    );
+    return () => { current = false; };
+  }, [open, courseId, retry]);
+
+  const scoped = result?.courseId === courseId ? result : null;
+  const loading = Boolean(open && courseId && (!scoped || scoped.status === "loading"));
+  const error = scoped?.status === "error";
+
+  return (
+    <div className="space-y-1.5" aria-busy={loading}>
+      <label className="text-body-sm font-semibold text-foreground">{t("chapter")}</label>
+      <Select value={value || "all"} onValueChange={(next) => onChange(next === "all" ? "" : next)} disabled={!courseId || loading || error}>
+        <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder={t("allChaptersLabel")} /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">{t("allChaptersLabel")}</SelectItem>
+          {scoped?.chapters.map((chapter) => <SelectItem key={chapter.id} value={chapter.id}>{chapter.code} · {chapter.title}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      {loading && <Loader2 className="size-4 animate-spin text-muted-foreground" aria-label={t("chapter")} />}
+      {error && <div role="alert" className="flex flex-wrap items-center gap-2 text-body-xs text-muted-foreground">{t("connectionError")} <Button type="button" variant="outline" size="sm" onClick={() => setRetry((n) => n + 1)}>{common("retry")}</Button></div>}
+    </div>
+  );
+}
+
 function IdeaAssignmentFields({
   idPrefix,
-  ideas,
+  open,
+  courseId,
+  chapterId,
   links,
   onChange,
 }: {
   idPrefix: string;
-  ideas: AuthoringIdea[];
+  open: boolean;
+  courseId: string;
+  chapterId: string;
   links: IdeaLink[];
   onChange: (links: IdeaLink[]) => void;
 }) {
   const t = useTranslations("adminEval.questionBank");
+  const common = useTranslations("core.error");
   const [expanded, setExpanded] = useState(links.length > 0);
+  const [retry, setRetry] = useState(0);
+  const [result, setResult] = useState<{ courseId: string; chapterId: string; status: "loading" | "ready" | "error"; ideas: AuthoringIdea[] } | null>(null);
+
+  useEffect(() => {
+    if (!open || !expanded || !courseId) return;
+    let current = true;
+    setResult({ courseId, chapterId, status: "loading", ideas: [] });
+    getAuthoringIdeas(courseId, chapterId).then(
+      (ideas) => { if (current) setResult({ courseId, chapterId, status: "ready", ideas }); },
+      () => { if (current) setResult({ courseId, chapterId, status: "error", ideas: [] }); },
+    );
+    return () => { current = false; };
+  }, [open, expanded, courseId, chapterId, retry]);
+
+  const scoped = result?.courseId === courseId && result.chapterId === chapterId ? result : null;
+  const loading = Boolean(open && expanded && courseId && (!scoped || scoped.status === "loading"));
+  const ideas = scoped?.status === "ready" ? scoped.ideas : [];
   const selected = new Map(links.map((link) => [link.ideaId, link]));
   const totalWeight = links.reduce((sum, link) => sum + link.weight, 0);
   const valid = hasValidIdeaWeights(links);
@@ -1411,13 +1440,20 @@ function IdeaAssignmentFields({
       </div>
 
       {expanded ? (
-        <div id={`${idPrefix}-idea-options`} className="space-y-3">
+        <div id={`${idPrefix}-idea-options`} className="space-y-3" aria-busy={loading}>
           {links.length > 0 ? (
             <p className={cn("text-body-xs font-semibold", valid ? "text-status-success" : "text-status-warning")}>
               {t("totalWeight")}: {Math.round(totalWeight * 100)}%. {valid ? t("readyToSave") : t("weightMustBe100")}
             </p>
           ) : null}
-          {ideas.length === 0 ? (
+          {loading ? (
+            <Loader2 className="size-4 animate-spin text-muted-foreground" aria-label={t("manageIdeas")} />
+          ) : scoped?.status === "error" ? (
+            <div role="alert" className="flex flex-wrap items-center gap-2 text-body-xs text-muted-foreground">
+              {t("connectionError")}
+              <Button type="button" variant="outline" size="sm" onClick={() => setRetry((n) => n + 1)}>{common("retry")}</Button>
+            </div>
+          ) : ideas.length === 0 ? (
             <p className="text-body-xs text-muted-foreground">
               {t("noPublishedIdeas")}
             </p>

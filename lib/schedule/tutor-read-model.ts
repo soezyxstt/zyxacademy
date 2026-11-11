@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   academicSchedules,
@@ -991,13 +991,15 @@ export async function getTutorScheduleReadModel(
     );
   }
 
+  const scheduleRangeConditions = [];
   if (fromDate || toDate) {
     const rangeStart = fromDate ? new Date(`${fromDate}T00:00:00.000+07:00`) : undefined;
     const rangeEnd = toDate ? new Date(`${toDate}T23:59:59.999+07:00`) : undefined;
-    if (rangeEnd) scheduleConditions.push(lte(academicSchedules.startDate, rangeEnd));
+    if (rangeEnd) scheduleRangeConditions.push(lte(academicSchedules.startDate, rangeEnd));
     if (rangeStart) {
-      scheduleConditions.push(
-        or(isNull(academicSchedules.endDate), gte(academicSchedules.endDate, rangeStart))!,
+      // A schedule without an end is a single event at its start.
+      scheduleRangeConditions.push(
+        gte(sql`coalesce(${academicSchedules.endDate}, ${academicSchedules.startDate})`, rangeStart),
       );
     }
   }
@@ -1019,6 +1021,7 @@ export async function getTutorScheduleReadModel(
       and(
         eq(academicSchedules.status, "published"),
         or(...scheduleConditions),
+        ...scheduleRangeConditions,
       ),
     )
     .orderBy(desc(academicSchedules.startDate));

@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
 import {
   Users,
   Search,
@@ -53,6 +52,8 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import {
+  getAdminStudyGroups,
+  getAdminGroupDetail,
   createStudyGroup,
   updateStudyGroup,
   deleteStudyGroup,
@@ -108,12 +109,7 @@ type GroupItem = {
       role: string | null;
     };
   }[];
-  tokens: {
-    id: string;
-    token: string;
-    capacity: number;
-    expiresAt: Date;
-  }[];
+  memberCount: number;
   bookingsCount: number;
 };
 
@@ -126,11 +122,12 @@ type CourseOption = {
 type Props = {
   initialGroups: GroupItem[];
   coursesList: CourseOption[];
+  initialTotal: number;
+  initialStats: { totalGroups: number; activeGroups: number; totalMembers: number; avgQuotaUsed: number };
 };
 
-export function GroupsDashboard({ initialGroups, coursesList }: Props) {
+export function GroupsDashboard({ initialGroups, coursesList, initialTotal, initialStats }: Props) {
   const translate = useTranslations("adminOps");
-  const router = useRouter();
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState("");
@@ -141,7 +138,8 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
   // Modal States
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<GroupItem | null>(null);
-  const [detailGroup, setDetailGroup] = useState<GroupItem | null>(null);
+  const [detailGroup, setDetailGroup] = useState<NonNullable<Awaited<ReturnType<typeof getAdminGroupDetail>>> | null>(null);
+  const detailRequest = useRef(0);
   const [pendingDeleteGroup, setPendingDeleteGroup] = useState<GroupItem | null>(null);
   const [isDeletingGroup, setIsDeletingGroup] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
@@ -164,39 +162,47 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
   const [searchedUsers, setSearchedUsers] = useState<any[]>([]);
   const [addingMemberId, setAddingMemberId] = useState<string | null>(null);
 
-  // Filtered Groups
-  const filteredGroups = useMemo(() => {
-    return initialGroups.filter((g) => {
-      const q = searchQuery.toLowerCase().trim();
-      const matchSearch =
-        !q ||
-        g.name.toLowerCase().includes(q) ||
-        g.members.some((m) => m.user.name.toLowerCase().includes(q) || m.user.email.toLowerCase().includes(q)) ||
-        g.courses.some((c) => c.title.toLowerCase().includes(q));
-
-      const matchStatus = statusFilter === "all" || g.status === statusFilter;
-      const matchPackage = packageFilter === "all" || g.packageType === packageFilter;
-      const matchCourse = courseFilter === "all" || g.courses.some((c) => c.id === courseFilter);
-
-      return matchSearch && matchStatus && matchPackage && matchCourse;
-    });
-  }, [initialGroups, searchQuery, statusFilter, packageFilter, courseFilter]);
-
-  // Summary Metrics
-  const totalGroups = initialGroups.length;
-  const activeGroups = initialGroups.filter((g) => g.status === "active").length;
-  const totalMembers = useMemo(() => {
-    const userIds = new Set<string>();
-    initialGroups.forEach((g) => g.members.forEach((m) => userIds.add(m.userId)));
-    return userIds.size;
-  }, [initialGroups]);
-
-  const avgQuotaUsed = useMemo(() => {
-    if (initialGroups.length === 0) return 0;
-    const totalUsed = initialGroups.reduce((acc, g) => acc + g.usedQuotaSessions, 0);
-    const totalMax = initialGroups.reduce((acc, g) => acc + g.totalQuotaSessions, 0);
-    return totalMax > 0 ? Math.round((totalUsed / totalMax) * 100) : 0;
-  }, [initialGroups]);
+  const [groups, setGroups] = useState(initialGroups);
+  const [stats, setStats] = useState(initialStats);
+  const [total, setTotal] = useState(initialTotal);
+  const [page, setPage] = useState(1);
+  const [revision, setRevision] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const initial = useRef(true);
+  useEffect(() => {
+    if (initial.current) { initial.current = false; return; }
+    let cancelled = false;
+    setLoading(true);
+    const timer = setTimeout(() => {
+      void getAdminStudyGroups({ page, search: searchQuery, status: statusFilter, packageType: packageFilter, courseId: courseFilter })
+        .then((result) => {
+          if (cancelled) return;
+          if (page > 1 && result.groups.length === 0 && result.total > 0) {
+            setPage(Math.ceil(result.total / 25));
+            return;
+          }
+          setGroups(result.groups);
+          setStats(result.stats);
+          setTotal(result.total);
+        }).catch(() => { if (!cancelled) toast.error(translate("groupsUI.systemError")); })
+        .finally(() => { if (!cancelled) setLoading(false); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [page, searchQuery, statusFilter, packageFilter, courseFilter, revision, translate]);
+  const filteredGroups = groups;
+  const { totalGroups, activeGroups, totalMembers, avgQuotaUsed } = stats;
+  const refreshGroups = () => setRevision((value) => value + 1);
+  const handleOpenDetail = async (group: GroupItem) => {
+    const request = ++detailRequest.current;
+    try {
+      const detail = await getAdminGroupDetail(group.id);
+      if (request !== detailRequest.current) return;
+      if (detail) setDetailGroup(detail);
+      else toast.error(translate("groupsUI.systemError"));
+    } catch {
+      if (request === detailRequest.current) toast.error(translate("groupsUI.systemError"));
+    }
+  };
 
   // Handlers
   const handleOpenCreate = () => {
@@ -244,7 +250,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
       if (res.success) {
         toast.success(translate("groupsUI.created"));
         setIsCreateOpen(false);
-        router.refresh();
+        refreshGroups();
       } else {
         toast.error(translate("groupsUI.createFailure"));
       }
@@ -298,7 +304,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
       if (res.success) {
         toast.success(translate("groupsUI.updated"));
         setEditingGroup(null);
-        router.refresh();
+        refreshGroups();
       } else {
         toast.error(translate("groupsUI.updateFailure"));
       }
@@ -321,7 +327,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
         if (detailGroup?.id === pendingDeleteGroup.id) {
           setDetailGroup(null);
         }
-        router.refresh();
+        refreshGroups();
       } else {
         toast.error(translate("groupsUI.deleteFailure"));
       }
@@ -357,7 +363,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
         toast.success(`${userObj.name} berhasil ditambahkan`);
         setMemberSearchQuery("");
         setSearchedUsers([]);
-        router.refresh();
+        refreshGroups();
         // Update local detailGroup state
         setDetailGroup((prev) =>
           prev
@@ -368,7 +374,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                   {
                     id: `temp-${Date.now()}`,
                     userId: userObj.id,
-                    role: "member",
+                    role: "member" as const,
                     joinedAt: new Date(),
                     user: userObj,
                   },
@@ -393,7 +399,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
       const res = await removeGroupMember(detailGroup.id, userId);
       if (res.success) {
         toast.success(`${userName} telah dikeluarkan dari kelompok`);
-        router.refresh();
+        refreshGroups();
         setDetailGroup((prev) =>
           prev
             ? {
@@ -457,15 +463,16 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
         <div className="flex-1 min-w-[140px]">
           <SearchBar
             size="sm"
+            isLoading={loading}
             placeholder={translate("groupsUI.search")}
             value={searchQuery}
-            onSearch={setSearchQuery}
-            onClear={() => setSearchQuery("")}
+            onSearch={(value) => { setPage(1); setSearchQuery(value); }}
+            onClear={() => { setPage(1); setSearchQuery(""); }}
           />
         </div>
 
         {/* Status Filter */}
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={(value) => { setPage(1); setStatusFilter(value); }}>
           <SelectTrigger className="h-9 w-[130px] shrink-0 rounded-lg text-body-sm bg-card border-border">
             <SelectValue placeholder={translate("groupsUI.allStatus")} />
           </SelectTrigger>
@@ -478,7 +485,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
         </Select>
 
         {/* Package Filter */}
-        <Select value={packageFilter} onValueChange={setPackageFilter}>
+        <Select value={packageFilter} onValueChange={(value) => { setPage(1); setPackageFilter(value); }}>
           <SelectTrigger className="h-9 w-[140px] shrink-0 rounded-lg text-body-sm bg-card border-border">
             <SelectValue placeholder={translate("groupsUI.allPackages")} />
           </SelectTrigger>
@@ -492,7 +499,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
         </Select>
 
         {/* Course Filter */}
-        <Select value={courseFilter} onValueChange={setCourseFilter}>
+        <Select value={courseFilter} onValueChange={(value) => { setPage(1); setCourseFilter(value); }}>
           <SelectTrigger className="h-9 w-[160px] sm:w-[180px] shrink-0 rounded-lg text-body-sm bg-card border-border truncate">
             <SelectValue placeholder={translate("groupsUI.allCourses")} />
           </SelectTrigger>
@@ -514,7 +521,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                 variant="outline"
                 size="icon"
                 onClick={() => {
-                  router.refresh();
+                  refreshGroups();
                   toast.success(translate("groupsUI.refreshed"));
                 }}
                 className="size-9 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
@@ -613,7 +620,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                       <div className="flex flex-col">
                         <Button variant="ghost"
                           type="button"
-                          onClick={() => setDetailGroup(g)}
+                          onClick={() => void handleOpenDetail(g)}
                           className="h-auto justify-start whitespace-normal px-0 py-0 font-heading font-bold text-foreground hover:text-primary text-left text-body-sm"
                         >
                           {g.name}
@@ -677,7 +684,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-1">
                           <span className="font-semibold text-foreground text-body-xs">
-                            {translate("groupsUI.studentCount", { count: g.members.length })}
+                            {translate("groupsUI.studentCount", { count: g.memberCount })}
                           </span>
                         </div>
                         {g.members.length > 0 && (
@@ -691,9 +698,9 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                                 {m.user.name.charAt(0)}
                               </div>
                             ))}
-                            {g.members.length > 4 && (
+                            {g.memberCount > 4 && (
                               <div className="size-6 rounded-full bg-muted/80 border-2 border-card flex items-center justify-center text-[9px] font-semibold text-muted-foreground shrink-0">
-                                +{g.members.length - 4}
+                                +{g.memberCount - 4}
                               </div>
                             )}
                           </div>
@@ -726,7 +733,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                         <Button
                           variant="ghost"
                           size="xs"
-                          onClick={() => setDetailGroup(g)}
+                          onClick={() => void handleOpenDetail(g)}
                           className="h-8 w-8 p-0 rounded-md text-muted-foreground hover:text-foreground"
                           title={translate("groupsUI.viewDetails")}
                         >
@@ -1169,7 +1176,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
       </Dialog>
 
       {/* 6. Modal Detail & Kelola Anggota */}
-      <Dialog open={!!detailGroup} onOpenChange={(open) => !open && setDetailGroup(null)}>
+      <Dialog open={!!detailGroup} onOpenChange={(open) => { if (!open) { detailRequest.current++; setDetailGroup(null); } }}>
         <DialogContent className="max-w-2xl rounded-xl border border-border p-6 shadow-2xl max-h-[85vh] overflow-y-auto">
           {detailGroup && (
             <div className="space-y-4">
@@ -1392,6 +1399,14 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
           )}
         </DialogContent>
       </Dialog>
+
+      {total > 25 && (
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage(page - 1)}>{translate("notificationUI.previous")}</Button>
+          <span className="text-body-xs">{page} / {Math.ceil(total / 25)}</span>
+          <Button variant="outline" size="sm" disabled={page * 25 >= total || loading} onClick={() => setPage(page + 1)}>{translate("notificationUI.next")}</Button>
+        </div>
+      )}
 
       {/* 7. Confirm Delete Dialog */}
       <AdminConfirmDialog

@@ -79,7 +79,7 @@ export function Navbar() {
  <div className="relative mx-auto flex min-h-14 min-w-0 w-full max-w-7xl items-center gap-2 px-4 py-3 sm:px-6 md:min-h-16 md:gap-3 md:py-3.5 lg:px-8">
  <Link
  href={navHref("/")}
- prefetch={true}
+ prefetch={false}
  className="relative z-10 -m-px flex shrink-0 items-center p-px"
  >
  <Logo variant="symbol" className="lg:hidden [--logo-height:2rem]" />
@@ -96,7 +96,7 @@ export function Navbar() {
  <li key={link.href} className="flex shrink-0 items-center">
  <Link
  href={navHref(link.href)}
- prefetch={true}
+ prefetch={false}
  className="text-foreground/90 hover:text-brand-primary inline-flex items-center justify-center px-px py-0 transition-colors lg:min-h-10"
  >
  {t(link.key)}
@@ -162,7 +162,7 @@ export function Navbar() {
  {/* Header: logo + close button ; mirrors student sidebar */}
  <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-3">
  <SheetClose asChild>
- <Link href={navHref("/")} prefetch={true} className="flex items-center" aria-label={t("nav.home")}>
+ <Link href={navHref("/")} prefetch={false} className="flex items-center" aria-label={t("nav.home")}>
  <Logo variant="horizontal" className="[--logo-height:1.25rem]" />
  </Link>
  </SheetClose>
@@ -201,7 +201,7 @@ export function Navbar() {
  <SheetClose key={href} asChild>
  <Link
  href={navHref(href)}
- prefetch={true}
+ prefetch={false}
  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-body-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
  >
  <Icon className="size-5 shrink-0" aria-hidden />

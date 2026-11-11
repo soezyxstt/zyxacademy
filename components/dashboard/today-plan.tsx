@@ -11,6 +11,7 @@ import { StreakTag } from "@/components/dashboard/streak-tag";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
+import { useEffect, useRef } from "react";
 
 export type { TodayData } from "@/lib/student/today-query";
 type PlanItem = TodayData["items"][number];
@@ -23,10 +24,10 @@ const KIND_ICON: Record<PlanItem["kind"], React.ComponentType<{ className?: stri
 
 type TodayAdapter = { data: TodayData; complete: (itemId: string) => void };
 
-export function TodayPlan({ firstName, adapter }: { firstName: string; adapter?: TodayAdapter }) {
+export function TodayPlan({ firstName, serverUserId, adapter }: { firstName: string; serverUserId?: string; adapter?: TodayAdapter }) {
   if (adapter) return <TodayPlanView firstName={firstName} data={adapter.data} loading={false} complete={adapter.complete} />;
   return <StudentAccountBoundary>{({ data, isPending }) => data?.user.id
-    ? <LiveTodayPlan firstName={firstName} userId={data.user.id} />
+    ? <LiveTodayPlan key={data.user.id} firstName={serverUserId && serverUserId !== data.user.id ? data.user.name.split(" ")[0] ?? "" : firstName} userId={data.user.id} />
     : <TodayPlanView firstName={firstName} data={null} loading={isPending} complete={() => {}} />}</StudentAccountBoundary>;
 }
 
@@ -34,15 +35,46 @@ function LiveTodayPlan({ firstName, userId }: { firstName: string; userId: strin
   const options = studentTodayQuery(userId);
   const query = useQuery(options);
   const queryClient = useQueryClient();
+  const pending = useRef(new Map<string, AbortController>());
+  useEffect(() => {
+    const requests = pending.current;
+    return () => {
+      for (const controller of requests.values()) controller.abort();
+      requests.clear();
+    };
+  }, [userId]);
   const complete = async (itemId: string) => {
+    if (pending.current.has(itemId)) return;
+    const controller = new AbortController();
+    pending.current.set(itemId, controller);
+    await queryClient.cancelQueries({ queryKey: options.queryKey, exact: true });
+    if (controller.signal.aborted) return;
+    const previousDone = queryClient.getQueryData<TodayData>(options.queryKey)?.items.find((item) => item.id === itemId)?.done;
     queryClient.setQueryData<TodayData>(options.queryKey, (data) =>
       data ? { ...data, items: data.items.map((item) => item.id === itemId ? { ...item, done: true } : item) } : data
     );
-    await fetch("/api/student/today/complete", {
-      method: "POST",
-      body: JSON.stringify({ itemId }),
-      headers: { "Content-Type": "application/json" },
-    });
+    try {
+      const response = await fetch("/api/student/today/complete", {
+        method: "POST",
+        body: JSON.stringify({ itemId }),
+        headers: { "Content-Type": "application/json", "x-student-id": userId },
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error("Activity update failed");
+    } catch {
+      if (previousDone !== undefined) {
+        queryClient.setQueryData<TodayData>(options.queryKey, (data) =>
+          data ? { ...data, items: data.items.map((item) => item.id === itemId ? { ...item, done: previousDone } : item) } : data,
+        );
+      }
+    } finally {
+      pending.current.delete(itemId);
+      if (controller.signal.aborted) {
+        void queryClient.invalidateQueries({ queryKey: options.queryKey, exact: true, refetchType: "none" });
+      } else if (pending.current.size === 0) {
+        void queryClient.invalidateQueries({ queryKey: options.queryKey, exact: true });
+      }
+    }
   };
   return <TodayPlanView firstName={firstName} data={query.data ?? null} loading={query.isLoading} complete={complete} />;
 }

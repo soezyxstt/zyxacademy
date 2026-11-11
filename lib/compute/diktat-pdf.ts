@@ -185,7 +185,7 @@ export async function executeDiktatPDFGeneration(
     // Trigger cleanup of the old file
     if (oldUrl) {
       const oldKey = extractFileKeyFromUrl(oldUrl);
-      if (oldKey) {
+      if (oldKey && oldKey !== objectKey) {
         try {
           await storage.delete(oldKey);
           console.log(`[Storage Cleanup] Deleted obsolete Diktat file with key ${oldKey}.`);

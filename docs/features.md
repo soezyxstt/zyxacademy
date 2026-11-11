@@ -1,5 +1,7 @@
 # Zyx Academy ; Features & Workflows
 
+Local performance follow-up keeps student material lists metadata-only, loads quiz snapshots only for the selected attempt, and shares Today activity and enrollment between sidebar and plan. Admin user and group lists use server-side search, filtering and pagination; heavy group details load on demand. Question authoring loads published Idea choices for the selected course and chapter when needed. Video player and management dialogs load on demand. The `OPEN / IN PROGRESS` [follow-up audit](audit/web-performance-follow-up-20261111.md) records unverified runtime, access, visual and performance boundaries.
+
 ## What It Is
 
 Zyx Academy is an AI-powered learning management platform. It takes expert teaching documents, breaks them into atomic concepts, and uses that structure to power personalized learning paths, adaptive flashcards, quizzes, PDF study guides, and one-on-one tutoring.

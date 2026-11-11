@@ -101,7 +101,7 @@ export function PlaylistDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(nextOpen) => { if (nextOpen || !loading) onOpenChange(nextOpen); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-heading text-body-base font-bold">

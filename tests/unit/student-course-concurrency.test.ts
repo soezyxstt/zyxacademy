@@ -76,6 +76,11 @@ mock.module("@/lib/course-utils", () => ({
   getCanonicalPublishedArticlesForCourse: mockGetCanonicalPublishedArticlesForCourse,
 }));
 
+// Metadata-only list projection replaces the full article reader.
+mock.module("@/app/(student)/courses/[id]/material/canonical-summaries", () => ({
+  getMaterialArticleSummaries: mockGetCanonicalPublishedArticlesForCourse,
+}));
+
 // Mock learning analytics
 const mockGetCourseOverviewData = mock();
 mock.module("@/lib/learning-analytics", () => ({
@@ -374,6 +379,8 @@ describe("student course navigation concurrency and streaming invariants", () =>
 
       // Executing the Suspense-owned component triggers the analytics query
       const highlightsPromise = highlightsElement.type(highlightsElement.props);
+      // The async section first awaits the shared outline promise.
+      await Promise.resolve();
       expect(mockGetCourseOverviewData).toHaveBeenCalledTimes(1);
       expect(mockGetCourseOverviewData).toHaveBeenCalledWith("std_1", "math-1", expect.any(Array));
 

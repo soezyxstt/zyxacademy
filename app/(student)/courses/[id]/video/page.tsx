@@ -13,7 +13,6 @@ import { Reveal } from "@/components/ui/reveal";
 
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
-import { resolveCourseAccess } from "@/lib/student/course-access";
 import { TranslatedText } from "@/components/i18n/translated-text";
 import { getTranslations } from "@/lib/i18n/server";
 
@@ -39,24 +38,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 async function CourseVideosContent({
   id,
-  userId,
-  roleHint,
 }: {
   id: string;
-  userId: string;
-  roleHint?: string | null;
 }) {
-  const [access, data] = await Promise.all([
-    resolveCourseAccess({
-      courseId: id,
-      userId,
-      roleHint,
-    }),
-    getCourseVideosData(id),
-  ]);
+  const data = await getCourseVideosData(id);
 
   if (!data) notFound();
-  const isEnrolled = access.isEnrolled || access.tier === "staff";
+  const { isEnrolled } = data;
 
   return (
     <Reveal>
@@ -111,11 +99,7 @@ export default async function StudentCourseVideosPage({ params }: Props) {
       backLabel={<TranslatedText namespace="learning" messageKey="videoPage.backToCourse" />}
     >
       <Suspense fallback={<CourseVideoListSkeleton />}>
-        <CourseVideosContent
-          id={id}
-          userId={session.user.id}
-          roleHint={(session.user as { role?: string | null }).role}
-        />
+        <CourseVideosContent id={id} />
       </Suspense>
     </CoursePageShell>
   );

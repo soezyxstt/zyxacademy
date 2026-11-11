@@ -2,8 +2,7 @@
 
 import Image from "next/image";
 
-import { useState, useMemo, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, useTransition } from "react";
 import {
   Users,
   ShieldCheck,
@@ -47,6 +46,7 @@ import { FormattedDate } from "@/components/ui/formatted-date";
 import {
   type AdminUserItem,
   type AdminUserStats,
+  getAdminUsersData,
   updateUserRolesAction,
   updateUserStatusAction,
 } from "@/app/(admin)/admin/(academic)/users/actions";
@@ -55,6 +55,7 @@ import { type PeranCode } from "@/lib/auth/peran";
 interface UsersDashboardProps {
   initialUsers: AdminUserItem[];
   initialStats: AdminUserStats;
+  initialTotal: number;
   currentUserId: string;
 }
 
@@ -91,15 +92,39 @@ function UserAvatar({ name, image }: { name: string; image: string | null }) {
 export function UsersDashboard({
   initialUsers,
   initialStats,
+  initialTotal,
   currentUserId,
 }: UsersDashboardProps) {
   const t = useTranslations("adminOps");
-  const router = useRouter();
   const [users, setUsers] = useState<AdminUserItem[]>(initialUsers);
   const [stats, setStats] = useState<AdminUserStats>(initialStats);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(initialTotal);
+  const [revision, setRevision] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const initial = useRef(true);
+  useEffect(() => {
+    if (initial.current) { initial.current = false; return; }
+    let cancelled = false;
+    setLoading(true);
+    const timer = setTimeout(() => {
+      void getAdminUsersData({ page, search: searchQuery, role: roleFilter, status: statusFilter }).then((result) => {
+        if (cancelled) return;
+        if (page > 1 && result.users.length === 0 && result.total > 0) {
+          setPage(Math.ceil(result.total / 30));
+          return;
+        }
+        setUsers(result.users);
+        setStats(result.stats);
+        setTotal(result.total);
+      }).catch(() => { if (!cancelled) toast.error(t("usersUI.updateStatusFailure")); })
+        .finally(() => { if (!cancelled) setLoading(false); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [page, searchQuery, roleFilter, statusFilter, revision, t]);
 
   // Edit Roles State
   const [editingUser, setEditingUser] = useState<AdminUserItem | null>(null);
@@ -110,27 +135,7 @@ export function UsersDashboard({
   const [statusTargetUser, setStatusTargetUser] = useState<AdminUserItem | null>(null);
   const [isUpdatingStatus, startUpdateStatus] = useTransition();
 
-  // Filtered Users
-  const filteredUsers = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    return users.filter((u) => {
-      if (query) {
-        const matchName = u.name.toLowerCase().includes(query);
-        const matchEmail = u.email.toLowerCase().includes(query);
-        if (!matchName && !matchEmail) return false;
-      }
-
-      if (roleFilter !== "all") {
-        if (!u.roles.includes(roleFilter as PeranCode)) return false;
-      }
-
-      if (statusFilter !== "all") {
-        if (u.status !== statusFilter) return false;
-      }
-
-      return true;
-    });
-  }, [users, searchQuery, roleFilter, statusFilter]);
+  const filteredUsers = users;
 
   const handleOpenRoleModal = (userItem: AdminUserItem) => {
     setEditingUser(userItem);
@@ -160,19 +165,8 @@ export function UsersDashboard({
       const res = await updateUserRolesAction(editingUser.id, selectedRoles);
       if (res.success) {
         toast.success(t("usersUI.rolesSaved", { name: editingUser.name }));
-        setUsers((prev) =>
-          prev.map((u) =>
-            u.id === editingUser.id ? { ...u, roles: selectedRoles } : u
-          )
-        );
-        // Update stats
-        recomputeStats(
-          users.map((u) =>
-            u.id === editingUser.id ? { ...u, roles: selectedRoles } : u
-          )
-        );
         setEditingUser(null);
-        router.refresh();
+        setRevision((value) => value + 1);
       } else {
         toast.error(t("usersUI.updateRoleFailure"));
       }
@@ -189,46 +183,11 @@ export function UsersDashboard({
       if (res.success) {
         const label = nextStatus === "active" ? t("usersUI.accountActivated") : t("usersUI.accountSuspended");
         toast.success(t("usersUI.statusUpdated", { name: statusTargetUser.name, status: label }));
-        setUsers((prev) =>
-          prev.map((u) =>
-            u.id === statusTargetUser.id ? { ...u, status: nextStatus } : u
-          )
-        );
-        recomputeStats(
-          users.map((u) =>
-            u.id === statusTargetUser.id ? { ...u, status: nextStatus } : u
-          )
-        );
         setStatusTargetUser(null);
-        router.refresh();
+        setRevision((value) => value + 1);
       } else {
         toast.error(t("usersUI.updateStatusFailure"));
       }
-    });
-  };
-
-  const recomputeStats = (updatedList: AdminUserItem[]) => {
-    let adminCount = 0;
-    let tutorCount = 0;
-    let muridCount = 0;
-    let activeCount = 0;
-    let suspendedCount = 0;
-
-    for (const u of updatedList) {
-      if (u.roles.includes("admin")) adminCount++;
-      if (u.roles.includes("tutor")) tutorCount++;
-      if (u.roles.includes("murid")) muridCount++;
-      if (u.status === "active") activeCount++;
-      else suspendedCount++;
-    }
-
-    setStats({
-      totalUsers: updatedList.length,
-      adminCount,
-      tutorCount,
-      muridCount,
-      activeCount,
-      suspendedCount,
     });
   };
 
@@ -236,6 +195,7 @@ export function UsersDashboard({
     searchQuery.trim().length > 0 || roleFilter !== "all" || statusFilter !== "all";
 
   const handleResetFilters = () => {
+    setPage(1);
     setSearchQuery("");
     setRoleFilter("all");
     setStatusFilter("all");
@@ -283,13 +243,14 @@ export function UsersDashboard({
           <SearchBar
             size="sm"
             value={searchQuery}
-            onSearch={setSearchQuery}
-            onClear={() => setSearchQuery("")}
+            onSearch={(value) => { setPage(1); setSearchQuery(value); }}
+            onClear={() => { setPage(1); setSearchQuery(""); }}
+            isLoading={loading}
             placeholder={t("usersUI.search")}
           />
         </div>
 
-        <Select value={roleFilter} onValueChange={setRoleFilter}>
+        <Select value={roleFilter} onValueChange={(value) => { setPage(1); setRoleFilter(value); }}>
           <SelectTrigger className="h-9 w-[130px] shrink-0 text-body-sm bg-card rounded-lg border-border">
             <SelectValue placeholder={t("usersUI.allRoles")} />
           </SelectTrigger>
@@ -301,7 +262,7 @@ export function UsersDashboard({
           </SelectContent>
         </Select>
 
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={(value) => { setPage(1); setStatusFilter(value); }}>
           <SelectTrigger className="h-9 w-[140px] shrink-0 text-body-sm bg-card rounded-lg border-border">
             <SelectValue placeholder={t("usersUI.allStatuses")} />
           </SelectTrigger>
@@ -325,7 +286,7 @@ export function UsersDashboard({
         )}
 
         <div className="ml-auto text-body-xs text-muted-foreground self-center">
-          {t("usersUI.resultCount", { shown: filteredUsers.length, total: users.length })}
+          {t("usersUI.resultCount", { shown: filteredUsers.length, total })}
         </div>
       </div>
 
@@ -472,6 +433,14 @@ export function UsersDashboard({
             </tbody>
           </table>
         </AdminTable>
+      )}
+
+      {total > 30 && (
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage(page - 1)}>{t("notificationUI.previous")}</Button>
+          <span className="text-body-xs">{page} / {Math.ceil(total / 30)}</span>
+          <Button variant="outline" size="sm" disabled={page * 30 >= total || loading} onClick={() => setPage(page + 1)}>{t("notificationUI.next")}</Button>
+        </div>
       )}
 
       {/* Edit Roles Dialog */}

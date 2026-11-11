@@ -1,6 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { cache } from "react";
-import { getTranslations as nextGetTranslations } from "next-intl/server";
+import { createTranslator } from "next-intl";
+import type { getTranslations as nextGetTranslations } from "next-intl/server";
 import type { AuthSession } from "@/lib/auth-session";
 import { LOCALE_COOKIE_NAME } from "@/lib/i18n/shared";
 import { loadMessages } from "@/lib/i18n/catalogs";
@@ -40,9 +41,18 @@ export async function getAppLocaleResolution() {
   return resolveRequestLocale();
 }
 
+const getNamespaceTranslator = cache(async (locale: Locale, namespace: string) => {
+  const messages = await loadMessages(locale, [namespace.split(".")[0]]);
+  return createTranslator({
+    locale,
+    messages,
+    namespace,
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  }) as unknown as Awaited<ReturnType<typeof nextGetTranslations>>;
+});
+
 export async function getTranslations(namespace: string) {
-  const locale = await getAppLocale();
-  return nextGetTranslations({ locale, namespace });
+  return getNamespaceTranslator(await getAppLocale(), namespace);
 }
 
 export async function getAppMessages(locale: Locale) {

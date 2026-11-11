@@ -5,7 +5,7 @@ import { pageTitle } from "@/lib/site";
 import { getTranslations } from "@/lib/i18n/server";
 import { CourseDetailHeader } from "@/components/admin/course-detail/course-detail-header";
 import { SettingsTab } from "@/components/admin/course-detail/settings-tab";
-import { getCourseDetailData } from "../../actions";
+import { getCourseSettingsData } from "../../actions";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -24,13 +24,13 @@ export default async function AdminCourseSettingsPage({ params }: Props) {
   }
 
   const { slug } = await params;
-  const data = await getCourseDetailData(slug);
-  if (!data) notFound();
+  const course = await getCourseSettingsData(slug);
+  if (!course) notFound();
 
   return (
     <div className="space-y-4 font-sans">
-      <CourseDetailHeader course={data.course} />
-      <SettingsTab course={data.course} />
+      <CourseDetailHeader course={course} />
+      <SettingsTab course={course} />
     </div>
   );
 }

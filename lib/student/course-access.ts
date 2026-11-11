@@ -267,6 +267,14 @@ async function resolveCourseIdentity(
       .limit(2),
   ]);
 
+  return projectCourseIdentity(requestedCourseId, canonicalRows, legacyRows);
+}
+
+function projectCourseIdentity(
+  requestedCourseId: string,
+  canonicalRows: Array<{ id: string; title: string; status: string; legacyCourseId: string | null; isDemo: boolean }>,
+  legacyRows: Array<{ id: string; title: string }>,
+): CourseIdentity {
   // A public course identifier is an authorization boundary. Do not choose
   // an arbitrary row when canonical aliases or legacy IDs collide.
   if (canonicalRows.length > 1 || legacyRows.length > 1) {
@@ -721,6 +729,18 @@ export async function resolveCourseAccess(
 
   const isEnrolled = await resolveEnrollment(userId, identity, input.now ?? new Date(), client);
   const isStaff = await resolveStaffCourseAccess(actor, userId, identity.courseId, client);
+  const activeRows = await resolveActiveChapters(identity, client);
+  return projectCourseAccess(requestedCourseId, identity, actor, isEnrolled, isStaff, activeRows);
+}
+
+function projectCourseAccess(
+  requestedCourseId: string,
+  identity: CourseIdentity,
+  actor: ActorState,
+  isEnrolled: boolean,
+  isStaff: boolean,
+  activeRows: CourseChapterCandidate[],
+): CourseAccessResult {
   // Enrollment is a student entitlement only. A tutor may have a stale or
   // accidental student enrollment row, but it must never turn into course
   // staff access without the canonical active course assignment above.
@@ -737,7 +757,6 @@ export async function resolveCourseAccess(
           ? "free"
           : "anonymous"
       : "anonymous";
-  const activeRows = await resolveActiveChapters(identity, client);
   const freeChapters = selectFreeChapters(activeRows);
   const freeChapterIds = chapterIdsFromRows(freeChapters);
   const scopedChapterIds = chapterIdsFromRows(activeRows);
@@ -760,6 +779,56 @@ export async function resolveCourseAccess(
     scopedChapterIds,
     capabilities: capabilitiesForTier(tier, actor.role, hasCourseAccess && actor.isAuthenticated),
   };
+}
+
+/** Batch course policy for an already authenticated request. All identity,
+ * actor, enrollment and chapter decisions use the same rules as the single reader. */
+export async function resolveCourseAccessBatch(userId: string, courseIds: readonly string[]): Promise<Map<string, CourseAccessResult>> {
+  const ids = [...new Set(courseIds.map(normalizeId).filter(Boolean))];
+  if (!ids.length) return new Map();
+  const [actor, canonical, legacy] = await Promise.all([
+    resolveActor(normalizeId(userId), db),
+    db.select({ id: mataKuliah.id, title: mataKuliah.title, status: mataKuliah.status,
+      legacyCourseId: mataKuliah.legacyCourseId, isDemo: mataKuliah.isDemo }).from(mataKuliah)
+      .where(or(inArray(mataKuliah.id, ids), inArray(mataKuliah.legacyCourseId, ids))),
+    db.select({ id: courses.id, title: courses.title }).from(courses).where(inArray(courses.id, ids)),
+  ]);
+  const identities = ids.map((id) => ({ id, identity: projectCourseIdentity(id,
+    canonical.filter((row) => row.id === id || row.legacyCourseId === id), legacy.filter((row) => row.id === id)) }));
+  const canonicalIds = [...new Set(identities.flatMap(({ identity }) => identity.status === "active" && identity.canonicalCourseId ? [identity.canonicalCourseId] : []))];
+  const legacyIds = [...new Set(identities.flatMap(({ identity }) => identity.status === "active" ? [identity.legacyCourseId ?? identity.courseId] : []))];
+  const now = new Date();
+  const [canonicalEnrollments, legacyEnrollments, canonicalChapters, legacyChapters] = await Promise.all([
+    canonicalIds.length ? db.select({ id: pendaftaranMurid.mataKuliahId }).from(pendaftaranMurid).where(and(
+      eq(pendaftaranMurid.penggunaId, userId), inArray(pendaftaranMurid.mataKuliahId, canonicalIds),
+      inArray(pendaftaranMurid.status, ["active", "completed"]), or(isNull(pendaftaranMurid.endAt), gt(pendaftaranMurid.endAt, now)),
+    )) : [],
+    legacyIds.length ? db.select({ id: enrollments.courseId }).from(enrollments).where(and(
+      eq(enrollments.userId, userId), inArray(enrollments.courseId, legacyIds), gt(enrollments.expiresAt, now),
+    )) : [],
+    canonicalIds.length ? db.select({ courseId: bab.mataKuliahId, id: bab.id, title: bab.title,
+      orderIndex: bab.orderIndex, legacyId: bab.legacyChapterId }).from(bab)
+      .where(and(inArray(bab.mataKuliahId, canonicalIds), eq(bab.status, "active"))).orderBy(asc(bab.orderIndex), asc(bab.id)) : [],
+    legacyIds.length ? db.select({ courseId: chapters.courseId, id: chapters.id, title: chapters.title,
+      orderIndex: chapters.orderIndex }).from(chapters)
+      .where(and(inArray(chapters.courseId, legacyIds), eq(chapters.status, "published"))).orderBy(asc(chapters.orderIndex), asc(chapters.id)) : [],
+  ]);
+  const canonicalEnrolled = new Set(canonicalEnrollments.map((row) => row.id));
+  const legacyEnrolled = new Set(legacyEnrollments.map((row) => row.id));
+  const results = await Promise.all(identities.map(async ({ id, identity }) => {
+    const input = { courseId: id, userId };
+    if (identity.status !== "active") return [id, deniedResult(input, identity, actor, false, identity.reason)] as const;
+    if (!actor.isActive) return [id, deniedResult(input, identity, actor, false, "USER_INACTIVE")] as const;
+    const isEnrolled = Boolean((identity.canonicalCourseId && canonicalEnrolled.has(identity.canonicalCourseId)) || legacyEnrolled.has(identity.legacyCourseId ?? identity.courseId));
+    const isStaff = await resolveStaffCourseAccess(actor, userId, identity.courseId, db);
+    const canonicalRows = canonicalChapters.filter((row) => row.courseId === identity.canonicalCourseId);
+    const activeRows: CourseChapterCandidate[] = canonicalRows.length
+      ? canonicalRows.map((row) => ({ id: row.id, canonicalId: row.id, legacyId: row.legacyId, title: row.title, orderIndex: row.orderIndex, source: "canonical" }))
+      : legacyChapters.filter((row) => row.courseId === (identity.legacyCourseId ?? identity.courseId))
+          .map((row) => ({ id: row.id, canonicalId: null, legacyId: row.id, title: row.title, orderIndex: row.orderIndex, source: "legacy" }));
+    return [id, projectCourseAccess(id, identity, actor, isEnrolled, isStaff, activeRows)] as const;
+  }));
+  return new Map(results);
 }
 
 export const resolveStudentCourseAccess = resolveCourseAccess;

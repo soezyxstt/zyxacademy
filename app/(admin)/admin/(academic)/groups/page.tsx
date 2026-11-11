@@ -22,9 +22,9 @@ export default async function AdminGroupsPage() {
     redirect("/");
   }
 
-  const [groupsList, allCourses] = await Promise.all([
+  const [groupData, allCourses] = await Promise.all([
     getAdminStudyGroups(),
-    db.select().from(courses),
+    db.select({ id: courses.id, title: courses.title, category: courses.category }).from(courses),
   ]);
 
   const coursesList = allCourses.map((c) => ({
@@ -39,7 +39,7 @@ export default async function AdminGroupsPage() {
         icon={Users}
         title={<TranslatedText namespace="adminOps" messageKey="groups.title" />}
       />
-      <GroupsDashboard initialGroups={groupsList} coursesList={coursesList} />
+      <GroupsDashboard initialGroups={groupData.groups} initialStats={groupData.stats} initialTotal={groupData.total} coursesList={coursesList} />
     </div>
   );
 }

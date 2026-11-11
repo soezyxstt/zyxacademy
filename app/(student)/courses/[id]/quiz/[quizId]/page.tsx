@@ -11,7 +11,7 @@ import { Reveal } from "@/components/ui/reveal";
 import { createMetadata} from "@/lib/site";
 import { db } from "@/db";
 import { quizTemplates, studentQuizAttempts, aiQuestionBank, knowledgeObjects, chapters } from "@/db/schema";
-import { and, or, eq, desc, sql, inArray } from "drizzle-orm";
+import { and, or, eq, desc, sql, inArray, notInArray } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { QuizStartButton } from "./quiz-start-button";
 import { TranslatedText } from "@/components/i18n/translated-text";
@@ -200,27 +200,6 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     : undefined;
   const availabilityTagCondition = fixedQuestionIds.length > 0 ? undefined : tagCondition;
 
-  const [questionsCountRow] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(aiQuestionBank)
-    .where(
-      and(
-        eq(aiQuestionBank.courseId, template.courseId),
-        eq(aiQuestionBank.reviewStatus, 'published'),
-        quizEligibilityCondition,
-        questionStateCondition,
-        availabilityTagCondition,
-        chapterScopeCondition,
-        fixedQuestionCondition,
-      )
-    );
-  const availableQuestionCount = questionsCountRow?.count ?? 0;
-  const questionsCount = hasMalformedFixedQuestionIds
-    ? 0
-    : fixedQuestionIds.length > 0
-    ? availableQuestionCount === fixedQuestionIds.length ? availableQuestionCount : 0
-    : availableQuestionCount;
-
   if (!isAccessible) {
     return (
       <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.locked" />} description={<TranslatedText namespace="learning" messageKey="quizTake.premiumDescription" values={{ course: course.title }} />} hideHeader>
@@ -363,9 +342,42 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     }
   }
 
+  const loadQuestionsCount = async () => {
+    const [row] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(aiQuestionBank)
+      .where(and(
+        eq(aiQuestionBank.courseId, template.courseId),
+        eq(aiQuestionBank.reviewStatus, 'published'),
+        quizEligibilityCondition,
+        questionStateCondition,
+        availabilityTagCondition,
+        chapterScopeCondition,
+        fixedQuestionCondition,
+      ));
+    const availableQuestionCount = row?.count ?? 0;
+    return hasMalformedFixedQuestionIds
+      ? 0
+      : fixedQuestionIds.length > 0
+      ? availableQuestionCount === fixedQuestionIds.length ? availableQuestionCount : 0
+      : availableQuestionCount;
+  };
+  // Only the gateway needs the count. Start it with attempt summaries when
+  // the request is known to lead there, without delaying review or the player.
+  const questionsCountPromise = !attemptId && !isViewDiscussion ? loadQuestionsCount() : null;
+  questionsCountPromise?.catch(() => {});
+
   // Fetch previous attempts for list
   const previousAttempts = await db
-    .select()
+    .select({
+      id: studentQuizAttempts.id,
+      status: studentQuizAttempts.status,
+      score: studentQuizAttempts.score,
+      durationSeconds: studentQuizAttempts.durationSeconds,
+      submittedAt: studentQuizAttempts.submittedAt,
+      startedAt: studentQuizAttempts.startedAt,
+      gradingStatus: studentQuizAttempts.gradingStatus,
+    })
     .from(studentQuizAttempts)
     .where(
       and(
@@ -393,6 +405,22 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
   const isDiscussionOpen = canViewDiscussion && explanationRelease !== "never";
   const shouldShowUnifiedView = (targetAttempt?.status === "completed") || isViewDiscussion;
+  const needsSnapshot = targetAttempt && (targetAttempt.status === "in_progress" || shouldShowUnifiedView);
+  const [targetAttemptSnapshot] = targetAttempt && needsSnapshot
+    ? await db
+        .select({
+          questionsSnapshot: studentQuizAttempts.questionsSnapshot,
+          answersSnapshot: studentQuizAttempts.answersSnapshot,
+        })
+        .from(studentQuizAttempts)
+        .where(and(
+          eq(studentQuizAttempts.id, targetAttempt.id),
+          eq(studentQuizAttempts.studentId, studentId),
+          eq(studentQuizAttempts.templateId, quizId),
+        ))
+        .limit(1)
+    : [];
+  if (needsSnapshot && !targetAttemptSnapshot) notFound();
 
   // STATE B: Active player taking quiz
   if (targetAttempt?.status === "in_progress") {
@@ -414,7 +442,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         shuffleQuestions: parsedRules?.shuffleQuestions,
         shuffleOptions: parsedRules?.shuffleOptions,
       },
-      questions: (targetAttempt.questionsSnapshot as unknown as Array<{
+      questions: (targetAttemptSnapshot!.questionsSnapshot as unknown as Array<{
         id: string;
         prompt: string;
         question_type?: string;
@@ -438,9 +466,9 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     };
 
     const initialAnswers: Record<string, any> = {};
-    if (targetAttempt.answersSnapshot && typeof targetAttempt.answersSnapshot === "object") {
-      const qSnapshot = (targetAttempt.questionsSnapshot as any[]) || [];
-      for (const [qId, sel] of Object.entries(targetAttempt.answersSnapshot as Record<string, any>)) {
+    if (targetAttemptSnapshot!.answersSnapshot && typeof targetAttemptSnapshot!.answersSnapshot === "object") {
+      const qSnapshot = (targetAttemptSnapshot!.questionsSnapshot as any[]) || [];
+      for (const [qId, sel] of Object.entries(targetAttemptSnapshot!.answersSnapshot as Record<string, any>)) {
         if (Array.isArray(sel)) {
           const qObj = qSnapshot.find((x) => x.id === qId);
           const isMultiple = qObj?.question_type === "multiple_choices";
@@ -477,7 +505,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
   // Unified State
   if (shouldShowUnifiedView) {
-    const rawSnapshot = (targetAttempt?.questionsSnapshot as Array<{
+    const rawSnapshot = (targetAttemptSnapshot?.questionsSnapshot as Array<{
       id: string;
       prompt: string;
       options: string[];
@@ -492,7 +520,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       ...question,
       options: publicOptionTexts(question.options),
     }));
-    const answers = (targetAttempt?.answersSnapshot as Record<string, number[]>) ?? {};
+    const answers = (targetAttemptSnapshot?.answersSnapshot as Record<string, number[]>) ?? {};
 
     let unseenSnapshot: Array<{
       id: string;
@@ -511,17 +539,34 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         ? JSON.parse(template.selectionRules)
         : template.selectionRules as Record<string, any>;
 
-      let selected: any[] = [];
+      const answeredIds = snapshot.map((question) => question.id).filter((id): id is string => typeof id === "string");
+      const unseenCondition = answeredIds.length > 0 ? notInArray(aiQuestionBank.id, answeredIds) : undefined;
+      const reviewProjection = {
+        id: aiQuestionBank.id,
+        prompt: aiQuestionBank.prompt,
+        options: aiQuestionBank.options,
+        correctIndices: aiQuestionBank.correctIndices,
+        difficulty: aiQuestionBank.difficulty,
+        explanation: aiQuestionBank.explanation,
+        origin: aiQuestionBank.origin,
+        sourceEventName: aiQuestionBank.sourceEventName,
+        sourceReferenceId: aiQuestionBank.sourceReferenceId,
+      };
+      let selected: Array<Pick<typeof aiQuestionBank.$inferSelect,
+        "id" | "prompt" | "options" | "correctIndices" | "difficulty" | "explanation" |
+        "origin" | "sourceEventName" | "sourceReferenceId"
+      >> = [];
       const fixedQuestionIds = rules?.fixedQuestionIds as string[] | undefined;
 
       if (fixedQuestionIds && fixedQuestionIds.length > 0) {
-        selected = await db.select().from(aiQuestionBank).where(
+        selected = await db.select(reviewProjection).from(aiQuestionBank).where(
           and(
             eq(aiQuestionBank.courseId, template.courseId),
             eq(aiQuestionBank.reviewStatus, 'published'),
             quizEligibilityCondition,
             questionStateCondition,
             chapterScopeCondition,
+            unseenCondition,
             inArray(aiQuestionBank.id, fixedQuestionIds)
           )
         );
@@ -533,22 +578,20 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         );
         const tagCondition = tags.length > 0 ? or(...tagConditions) : undefined;
 
-        selected = await db.select().from(aiQuestionBank).where(
+        selected = await db.select(reviewProjection).from(aiQuestionBank).where(
           and(
             eq(aiQuestionBank.courseId, template.courseId),
             eq(aiQuestionBank.reviewStatus, 'published'),
             quizEligibilityCondition,
             questionStateCondition,
             chapterScopeCondition,
+            unseenCondition,
             tagCondition
           )
         ).orderBy(desc(aiQuestionBank.createdAt));
       }
 
-      const answeredIds = new Set(snapshot.map(q => q.id));
-      const filteredSelected = selected.filter(q => !answeredIds.has(q.id));
-
-      unseenSnapshot = filteredSelected.map((q) => {
+      unseenSnapshot = selected.map((q) => {
         let opts = q.options;
         if (typeof opts === "string") {
           try { opts = JSON.parse(opts); } catch { opts = []; }
@@ -577,6 +620,8 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   // ───────────────────────────────────────────────────────────────────────────
   // STATE D: Gateway Confirmation page (Default if no attemptId)
   // ───────────────────────────────────────────────────────────────────────────
+  const questionsCount = await (questionsCountPromise ?? loadQuestionsCount());
+
   return <StudentQuizGateway id={id} courseTitle={course.title}
     template={{ id: template.id, title: template.title, selectionRules: { count: (template.selectionRules as {count?:number})?.count }, timeLimitSeconds: template.timeLimitSeconds, maxAttempts: template.maxAttempts }}
     completedAttempts={completedAttempts.map(({id,score,submittedAt,durationSeconds}) => ({id,score,submittedAt,durationSeconds}))}

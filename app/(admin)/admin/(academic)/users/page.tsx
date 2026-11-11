@@ -20,7 +20,7 @@ export default async function AdminUsersPage() {
     redirect("/");
   }
 
-  const { users, stats, currentUserId } = await getAdminUsersData();
+  const { users, stats, currentUserId, total } = await getAdminUsersData();
 
   return (
     <div className="space-y-4">
@@ -31,6 +31,7 @@ export default async function AdminUsersPage() {
       <UsersDashboard
         initialUsers={users}
         initialStats={stats}
+        initialTotal={total}
         currentUserId={currentUserId}
       />
     </div>

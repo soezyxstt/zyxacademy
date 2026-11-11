@@ -63,6 +63,10 @@ const TutorDrawerView = dynamic(
   }
 );
 
+function preloadTutorDrawer() {
+  void import("./tutor-drawer-view").catch(() => {});
+}
+
 const LEGACY_WELCOME =
   "Halo! Aku Zyra, asisten belajar buatan Zyx. Tanyakan apa saja seputar materi kuliah atau soal latihan, aku siap membimbingmu dengan pendekatan Socratic!";
 const CLEAN_WELCOME = "Halo! Aku Zyra. Tanyakan materi kuliah atau soal latihan yang ingin kamu bahas.";
@@ -100,21 +104,6 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   const pathname = experience.pathname ?? realPathname;
   const courseIdFromPath = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
   const caps = getTutorCapabilities(courseIdFromPath);
-
-  // Preload TutorDrawerView in idle time so opening the drawer is instant
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const preload = () => {
-      import("./tutor-drawer-view").catch(() => {});
-    };
-    if ("requestIdleCallback" in window) {
-      const handle = (window as any).requestIdleCallback(preload, { timeout: 2000 });
-      return () => (window as any).cancelIdleCallback(handle);
-    } else {
-      const timer = setTimeout(preload, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, []);
 
   const [isOpen, setIsOpen] = React.useState(false);
   const [activeMode, setActiveMode] = React.useState<TutorMode>(null);
@@ -218,12 +207,16 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
           !suppressPet &&
           !isOpen &&
           (caps.pet ? (
-            <ZyraFloatingPet state="idle" onOpen={openChat} />
+            <div className="contents" onPointerEnter={preloadTutorDrawer} onPointerDownCapture={preloadTutorDrawer} onFocusCapture={preloadTutorDrawer}>
+              <ZyraFloatingPet state="idle" onOpen={openChat} />
+            </div>
           ) : (
             <button
               type="button"
               onClick={openChat}
-              onMouseEnter={() => import("./tutor-drawer-view").catch(() => {})}
+              onPointerEnter={preloadTutorDrawer}
+              onPointerDown={preloadTutorDrawer}
+              onFocus={preloadTutorDrawer}
               aria-label="Tanya Zyra"
               title="Tanya Zyra"
               className="group fixed bottom-6 right-6 z-40 flex size-14 items-center justify-center rounded-full bg-brand-primary text-primary-foreground shadow-lg shadow-brand-primary/30 transition-all hover:scale-105 hover:bg-brand-primary/95 active:scale-95 md:bottom-8 md:right-8"

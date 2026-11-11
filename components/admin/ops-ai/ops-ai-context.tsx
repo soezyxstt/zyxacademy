@@ -54,10 +54,7 @@ export function OpsAiProvider({
   initialOpen?: boolean;
   initialWidth?: number;
 }) {
-  const [isOpen, setIsOpenState] = useState<boolean>(() => {
-    if (typeof initialOpen === "boolean") return initialOpen;
-    return loadOpsAiOpenPreference(false);
-  });
+  const [isOpen, setIsOpenState] = useState<boolean>(initialOpen ?? false);
 
   const [width, setWidthState] = useState<number>(() => {
     if (typeof initialWidth === "number") return initialWidth;
@@ -69,6 +66,14 @@ export function OpsAiProvider({
   const [maxWidth, setMaxWidth] = useState<number>(720);
 
   const triggerRef = useRef<HTMLElement | null>(null);
+  const openChangedRef = useRef(false);
+
+  // Restore after hydration so the server and initial client render agree.
+  useEffect(() => {
+    if (typeof initialOpen !== "boolean" && !openChangedRef.current) {
+      setIsOpenState(loadOpsAiOpenPreference(false));
+    }
+  }, [initialOpen]);
 
   // Synchronize width setting with boundary clamping and storage
   const setWidth = useCallback((value: number | ((prev: number) => number)) => {
@@ -82,6 +87,7 @@ export function OpsAiProvider({
 
   // Synchronize open state with storage
   const setIsOpen = useCallback((value: React.SetStateAction<boolean>) => {
+    openChangedRef.current = true;
     setIsOpenState((prev) => {
       const next = typeof value === "function" ? value(prev) : value;
       saveOpsAiOpenPreference(next);
@@ -144,6 +150,7 @@ export function OpsAiProvider({
   }, [setIsOpen]);
 
   const toggleOpen = useCallback(() => {
+    openChangedRef.current = true;
     setIsOpenState((prev) => {
       const next = !prev;
       saveOpsAiOpenPreference(next);

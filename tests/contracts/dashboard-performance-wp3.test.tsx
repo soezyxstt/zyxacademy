@@ -348,33 +348,21 @@ describe("WP3 dashboard streaming orchestration and error recovery", () => {
     ).rejects.toThrow();
   });
 
-  test("serializes server streak before TodayPlan mount and preserves streak on onboarding", async () => {
-    const events: string[] = [];
-    const streakGate = createDeferred<{ current: number; longest: number }>();
-
-    const todayPromise = TodayPlanSection({
+  test("leaves streak synchronization to the shared today request", async () => {
+    let streakCalls = 0;
+    const element = await TodayPlanSection({
       userId: "student-1",
       firstName: "Siti",
       deps: {
         getOrUpdateStreak: async () => {
-          events.push("streak:start");
-          const res = await streakGate.promise;
-          events.push("streak:done");
-          return res as Awaited<ReturnType<DashboardSectionDeps["getOrUpdateStreak"]>>;
+          streakCalls += 1;
+          return { current: 4, longest: 7 };
         },
       },
-    }).then((el) => {
-      events.push("todayPlan:ready");
-      return el;
     });
-
-    await Promise.resolve();
-    expect(events).toEqual(["streak:start"]);
-
-    streakGate.resolve({ current: 4, longest: 7 });
-    const element = await todayPromise;
-    expect(events).toEqual(["streak:start", "streak:done", "todayPlan:ready"]);
+    expect(streakCalls).toBe(0);
     expect(element.props.firstName).toBe("Siti");
+    expect(element.props.serverUserId).toBe("student-1");
 
     let onboardingStreakCalls = 0;
     const onboarding = await loadOnboardingData(
@@ -398,7 +386,7 @@ describe("WP3 dashboard streaming orchestration and error recovery", () => {
       },
     );
 
-    expect(onboardingStreakCalls).toBe(1);
+    expect(onboardingStreakCalls).toBe(0);
     expect(onboarding.studentTargetCategory).toBe("TPB");
     expect(onboarding.catalogCourses).toHaveLength(1);
     expect(onboarding.catalogCourses[0]?.completedFreeMaterialCount).toBe(1);
