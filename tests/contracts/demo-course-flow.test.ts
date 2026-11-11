@@ -8,7 +8,7 @@ describe("public demo course contract", () => {
     const resolver = source("lib/demo/legacy-eligibility.ts");
     const publicData = source("app/(marketing)/demo/demo-data.ts");
     expect(publicData).toContain("getPublicDemoSnapshots()");
-    expect(publicData).toContain("resolvePublicFreeFirstChapter(row.snapshot.courseId, selection)");
+    expect(publicData).toContain("resolvePublicFreeFirstChapter(row.snapshot.courseId, selection, kind, includeSolutions)");
     expect(resolver).toContain('eq(mataKuliah.status, "active")');
     expect(resolver).toContain("if (rows.length !== 1) return null");
     expect(resolver).toContain("if (mappedRows.length !== 1 || mappedRows[0]?.id !== row.id) return null");

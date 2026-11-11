@@ -73,11 +73,12 @@ describe("public demo snapshot", () => {
     const publicResolver = resolver.slice(resolver.indexOf("export async function resolvePublicFreeFirstChapter"));
     expect(publicResolver).toContain("eq(artikel.babId, first.id)");
     expect(publicResolver).toContain("eq(diktatMateri.babId, first.id)");
-    expect(publicResolver).toContain("eq(setFlashcard.babId, first.id)");
+    expect(publicResolver).toContain("findPublicFlashcardSet(course.id, first.id, selection.flashcardSetId)");
+    expect(resolver).toContain("eq(setFlashcard.babId, chapterId)");
     expect(publicResolver).toContain("resolveArticle(course, first, articleId, true)");
     expect(publicResolver).toContain("resolveDiktat(course, first, diktatId, true)");
-    expect(publicResolver).toContain("if (!match) return null");
-    expect(publicResolver).toContain("COLLECTION_PAGE_SIZE + 1");
+    expect(publicResolver).toContain("selectedSet === false) return null");
+    expect(resolver).toContain("COLLECTION_PAGE_SIZE + 1");
     const quiz = resolver.slice(resolver.indexOf("async function resolvePublicQuiz"), resolver.indexOf("export async function resolvePublicFreeFirstChapter"));
     expect(quiz).toContain("eq(soal.babId, chapter.id)");
     expect(quiz).toContain("offset >= total");
@@ -104,7 +105,7 @@ describe("public demo sanitizer integration", () => {
     expect(load).toContain("cleanItems(pieces.collections.diktats)");
     expect(load).toContain("cleanItems(pieces.collections.flashcardSets)");
     expect(load).toContain("catch { return null; }");
-    expect(data).toContain("loadPieces(row, { quizOffset: offset })");
+    expect(data).toContain('loadPieces(row, { quizOffset: offset }, "quiz", true)');
     const legacy = readFileSync("lib/demo/legacy-eligibility.ts", "utf8");
     const publicResolver = legacy.slice(legacy.indexOf("export async function resolvePublicFreeFirstChapter"));
     expect(publicResolver).not.toContain("JSON.stringify({ article");

@@ -5,7 +5,6 @@ import { ActivateClassModal } from "@/components/dashboard/activate-class-modal"
 import { StudentDashboardContent } from "@/components/dashboard/student-dashboard-content";
 import { TodayPlan } from "@/components/dashboard/today-plan";
 import type { DemoSummary } from "./demo-shell";
-import type { DemoExperience } from "@/app/(marketing)/demo/demo-data";
 import { demoProgress } from "@/lib/demo/progress-overlay";
 import { emptyOverlay } from "@/lib/demo/session-overlay";
 import { useStudentExperience } from "@/components/student-experience-provider";
@@ -41,7 +40,7 @@ export function DemoDashboard({ experiences, selected, masterySection, todayPlan
   </ApplicationPage>;
 }
 
-export function DemoTodayPlan({ selected }: { selected: DemoExperience }) {
+export function DemoTodayPlan({ selected }: { selected: { snapshot: DemoSummary["snapshot"]; article: { id: string; title: string } } }) {
   const { snapshot } = selected;
   const { route } = useStudentExperience();
   const t = useTranslations("marketing");
@@ -50,9 +49,9 @@ export function DemoTodayPlan({ selected }: { selected: DemoExperience }) {
   const completed = (id: string) => overlay.events.some(event => event.id === id);
   return <TodayPlan firstName={snapshot.displayName.split(" ")[0]} adapter={{
         data: { streak: { current: snapshot.streakDays, longest: snapshot.streakDays }, items: [
-          { id: selected.content.article.id, kind: "module", title: selected.content.article.title, href: route("article"), done: completed(`demo-article-${selected.content.article.id}`.slice(0,128)) },
+          { id: selected.article.id, kind: "module", title: selected.article.title, href: route("article"), done: completed(`demo-article-${selected.article.id}`.slice(0,128)) },
           { id: "fictional-review-plan", kind: "flashcards", title: t("demo.views.flashcards"), count: progress.dueCount, href: route("flashcards"), done: completed("fictional-review-plan") },
           { id: "fictional-quiz-plan", kind: "quiz", title: t("demo.session.practiceQuiz"), href: route("quiz"), done: completed("fictional-quiz-plan") },
-        ] }, complete: id => record(id === "fictional-review-plan" ? "review" : id === "fictional-quiz-plan" ? "quiz" : "article", id === selected.content.article.id ? `demo-article-${id}`.slice(0,128) : id, id === "fictional-review-plan" ? 3 : undefined),
+        ] }, complete: id => record(id === "fictional-review-plan" ? "review" : id === "fictional-quiz-plan" ? "quiz" : "article", id === selected.article.id ? `demo-article-${id}`.slice(0,128) : id, id === "fictional-review-plan" ? 3 : undefined),
       }} />;
 }

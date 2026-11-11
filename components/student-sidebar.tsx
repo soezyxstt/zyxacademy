@@ -131,7 +131,7 @@ function StudentSidebarContent({
     ? enrolledCourses.find((course) => course.id === activeCourseId)
     : undefined;
   const activeCourseMetadata = enrolledActiveCourse
-    ?? (activeCourse?.userId === userId && activeCourse.course.id === activeCourseId ? activeCourse.course : undefined);
+    ?? (activeCourse && activeCourse.userId === userId && activeCourse.course.id === activeCourseId ? activeCourse.course : undefined);
 
   useEffect(() => {
     if (demo || !userId) return;

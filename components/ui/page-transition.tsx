@@ -7,14 +7,14 @@ import { usePathname } from "next/navigation";
 export function getTransitionConfig(pathname: string | null, reduceMotion: boolean) {
   const isStudent =
     pathname !== null &&
-    (pathname.startsWith("/courses") ||
+    (/^(?:\/(?:en|id))?\/demo(?:\/|$)/.test(pathname) ||
+      pathname.startsWith("/courses") ||
       pathname.startsWith("/dashboard") ||
       pathname.startsWith("/calendar") ||
       pathname.startsWith("/feedback") ||
       pathname.startsWith("/leaderboard") ||
       pathname.startsWith("/profile") ||
       pathname.startsWith("/settings"));
-
 
   const duration = reduceMotion ? 0 : isStudent ? 0.2 : 0.45;
   const initialY = reduceMotion ? 0 : isStudent ? 6 : 12;

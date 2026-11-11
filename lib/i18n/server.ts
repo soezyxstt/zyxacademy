@@ -4,7 +4,7 @@ import { createTranslator } from "next-intl";
 import type { getTranslations as nextGetTranslations } from "next-intl/server";
 import type { AuthSession } from "@/lib/auth-session";
 import { LOCALE_COOKIE_NAME } from "@/lib/i18n/shared";
-import { loadMessages } from "@/lib/i18n/catalogs";
+import { DEFAULT_NAMESPACES, loadCatalog } from "@/lib/i18n/catalogs";
 import { getUserLocalePreference } from "@/lib/i18n/preferences";
 import { normalizeLocale, resolveLocale, type Locale } from "@/lib/i18n/locale";
 
@@ -41,8 +41,13 @@ export async function getAppLocaleResolution() {
   return resolveRequestLocale();
 }
 
+// The root provider and server translators can request the same catalog in a
+// render. React's cache shares it only within that request, keyed by strings.
+const getRequestCatalog = cache(loadCatalog);
+
 const getNamespaceTranslator = cache(async (locale: Locale, namespace: string) => {
-  const messages = await loadMessages(locale, [namespace.split(".")[0]]);
+  const rootNamespace = namespace.split(".")[0];
+  const messages = { [rootNamespace]: await getRequestCatalog(locale, rootNamespace) };
   return createTranslator({
     locale,
     messages,
@@ -55,6 +60,13 @@ export async function getTranslations(namespace: string) {
   return getNamespaceTranslator(await getAppLocale(), namespace);
 }
 
+const getRequestMessages = cache(async (locale: Locale) => Object.fromEntries(
+  await Promise.all(DEFAULT_NAMESPACES.map(async (namespace) => [
+    namespace,
+    await getRequestCatalog(locale, namespace),
+  ] as const)),
+));
+
 export async function getAppMessages(locale: Locale) {
-  return loadMessages(locale);
+  return getRequestMessages(locale);
 }

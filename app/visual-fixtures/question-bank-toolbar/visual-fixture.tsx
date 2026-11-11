@@ -86,8 +86,6 @@ export function QuestionBankToolbarVisualFixture({ initialTab }: { initialTab: "
               courses={courses}
               courseMap={courseMap}
               authoringCourses={[{ id: "course-1", legacyCourseId: "course-1", code: "MA101", title: "Matematika I" }]}
-              authoringChapters={[{ id: "chapter-1", mataKuliahId: "course-1", code: "BAB-1", title: "Limit", orderIndex: 1 }]}
-              authoringIdeas={[]}
             />
           </TabsContent>
           <TabsContent value="historical" className="w-full space-y-6">
