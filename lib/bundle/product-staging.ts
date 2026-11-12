@@ -1,3 +1,4 @@
+import { validateProductBundleAdmission } from "@/lib/bundle/product-admission";
 import { claimProductReviewSnapshot } from "./product-review-snapshot";
 import { createHash } from "node:crypto";
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
@@ -19,7 +20,7 @@ import { storage } from "@/lib/storage";
 import { buildProductBundleKey } from "@/lib/storage/keys";
 import { isBundleIdentitySentinelOrPlaceholder } from "./attribution";
 import { productEntityHash } from "./product-bundle-v2";
-import { deterministicProductSerialization, productInteractiveDocuments, validateProductBundleAdmission, type ProductDependency, type ProductEntity } from "./product-validator";
+import { deterministicProductSerialization, productInteractiveDocuments, type ProductDependency, type ProductEntity } from "./product-validator";
 import { stageInteractiveDocumentAssets, validateInteractiveDocumentArchive } from "@/lib/materials/interactive-document-assets";
 import { type ProductBundleValidation } from "./product-validator";
 import {

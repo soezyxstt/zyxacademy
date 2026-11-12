@@ -6,6 +6,7 @@ import { LIMIT_EPSILON_DELTA_GRAPH } from "../fixtures/product-learning/limit-ep
 import { deriveProductV4VerificationPlan } from "@/lib/bundle/product-v4-verification";
 import { createHash } from "node:crypto";
 import sharp from "sharp";
+import { decodeProductV4DocumentWire } from "@/lib/compute/product-v4-document-wire";
 
 const originalFetch = globalThis.fetch;
 const originalUrl = process.env.AUTHORING_VERIFICATION_RENDERER_URL, originalSecret = process.env.AUTHORING_VERIFICATION_RENDERER_SECRET;
@@ -65,7 +66,7 @@ test("HTTP executor sends the current document pair and rejects missing or chang
   globalThis.fetch = (async (_url: unknown, options?: RequestInit) => {
     calls++;
     const body = JSON.parse(String(options!.body));
-    expect(body.interactiveDocumentAssets[digest(document)]).toEqual({ document: document.toString("base64"), print: print.toString("base64") });
+    expect(decodeProductV4DocumentWire(body.interactiveDocumentAssets)[`${digest(document)}:${digest(print)}`]).toEqual({ document: new Uint8Array(document), print: new Uint8Array(print) });
     return Response.json(response({ checkId: requirement.id }));
   }) as typeof fetch;
   expect((await executeProductV4VerificationCheck({ bundle, plan, requirement }, readDocumentAsset)).status).toBe("PASS");

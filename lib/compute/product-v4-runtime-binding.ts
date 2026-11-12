@@ -5,18 +5,20 @@ import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { deterministicProductSerialization, productInteractiveDocuments, productBundleManifestSchema, productDependencySchema, productEntitySchema } from "@/lib/bundle/product-validator";
 import { PRODUCT_V4_VERIFICATION_POLICY, assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, formativeDocumentFields, type ProductV4VerificationBinding, type ProductV4VerificationPlan, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
-import type { ProductV4VerificationSnapshot } from "@/lib/bundle/product-v4-verification-service";
-import type { getProductBundleImport } from "@/lib/bundle/product-staging";
+import type { ProductV4VerificationSnapshot } from "@/lib/bundle/product-v4-verification-core";
 import type { DiktatSourceFigureAssets } from "@/lib/materials/diktat-static-visual";
 import type { SourceFigureVisualSpec } from "@/lib/materials/visual-contract";
 import type { resolveSourceFigureForCourse } from "@/lib/authoring/source-figures";
 import { parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
 import { interactiveDocumentSchema } from "@/lib/materials/interactive-document";
+import type { InteractiveDocumentSpec } from "@/lib/materials/interactive-document";
+import { buildInteractiveDocumentAssetKey } from "@/lib/storage/keys";
+import { productV4DocumentPairKey } from "./product-v4-document-wire";
 
 declare const __ZYX_VERIFICATION_BUILD_RUNTIME__: { fingerprint: ProductV4RuntimeFingerprint } | undefined;
 
 type Bundle = ProductV4VerificationSnapshot["bundle"];
-type ImportRow = Pick<NonNullable<Awaited<ReturnType<typeof getProductBundleImport>>>, "id" | "bundleType" | "bundleId" | "courseId" | "checksum">;
+type ImportRow = { id: string; bundleType: string; bundleId: string; courseId: string; checksum: string };
 type Figure = Awaited<ReturnType<typeof resolveSourceFigureForCourse>>;
 type VerifiedFigureVariant = Omit<Figure["variants"][number], "deliveryUrl"> & { bytes: Uint8Array };
 export interface ProductV4LiveDependency { type: "idea" | "source_material" | "source_chunk" | "product"; id: string; version: number; hash: string; status: string; courseId: string; sourceId?: string }
@@ -33,6 +35,19 @@ export type ProductV4RuntimeFingerprint = Pick<ProductV4VerificationBinding, "re
 const hash = (value: unknown) => createHash("sha256").update(deterministicProductSerialization(value)).digest("hex");
 const bytesHash = (value: Uint8Array) => createHash("sha256").update(value).digest("hex");
 const unique = (values: string[]) => [...new Set(values)].sort();
+type DocumentAssetReader = (spec: InteractiveDocumentSpec, kind: "document" | "print") => Promise<Uint8Array>;
+
+function verifyDocumentBytes(spec: InteractiveDocumentSpec, kind: "document" | "print", bytes: Uint8Array) {
+  const size = kind === "document" ? spec.documentBytes : spec.printBytes;
+  const checksum = kind === "document" ? spec.documentSha256 : spec.printSha256;
+  if (bytes.byteLength !== size || bytesHash(bytes) !== checksum) throw new Error("INTERACTIVE_DOCUMENT_INTEGRITY");
+}
+
+async function readAdmittedDocumentAsset(spec: InteractiveDocumentSpec, kind: "document" | "print") {
+  const { storage } = await import("@/lib/storage");
+  if (!storage.download) throw new Error("INTERACTIVE_DOCUMENT_STORAGE_UNAVAILABLE");
+  return storage.download(buildInteractiveDocumentAssetKey(kind === "document" ? spec.documentSha256 : spec.printSha256, kind));
+}
 
 // Keep this closure in Next output tracing; missing source bytes must invalidate verification.
 export const PRODUCT_V4_RUNTIME_FILES = [
@@ -59,10 +74,17 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "lib/authoring/source-pack.ts", "lib/authoring/question-bank-draft.ts", "lib/authoring/reference-question-draft.ts", "lib/question-authoring-contract.ts", "lib/ide/contracts.ts", "lib/sumber/contracts.ts", "lib/bundle/idea-bundle-v2.ts", "lib/bundle/validator.ts", "lib/bundle/zip-reader.ts", "lib/materials/quality-policy.ts", "lib/materials/quality-policy-constants.ts", "lib/materials/pdf-artifact-contract.ts",
   "lib/math/katex.ts", "lib/math/katex-render.ts", "lib/math/scientific-format.ts", "lib/math/text-segments.ts", "lib/math/unmarked-scientific.ts", "lib/math/visual-function-latex.ts", "lib/math/math-normalizer.ts", "lib/math/scientific-answer-normalizer.ts",
   "lib/materials/article-parts.ts", "lib/materials/article-contract.ts", "lib/materials/visual-contract.ts", "lib/materials/interactive-scene.ts", "lib/materials/interactive-document-markdown.ts", "lib/materials/epsilon-delta.ts",
-  "lib/materials/diktat-v4.ts", "lib/materials/diktat-static-visual.ts", "lib/materials/diktat-print-readiness.ts", "lib/materials/verification-preview.ts",
+  "lib/materials/diktat-v4.ts", "lib/materials/diktat-visual-snapshot.ts", "lib/materials/diktat-static-visual.ts", "lib/materials/diktat-print-readiness.ts", "lib/materials/verification-preview.ts",
   "lib/zyra/canvas/contracts.ts", "lib/zyra/canvas/expression.ts", "lib/zyra/canvas/evaluator.ts", "lib/zyra/canvas/viewport.ts",
-  "lib/bundle/product-diktat-pdf.ts", "lib/bundle/product-validator.ts", "lib/bundle/product-v4-verification.ts", "lib/bundle/product-v4-verification-service.ts", "lib/bundle/product-review-gate.ts", "lib/compute/product-v4-runtime-binding.ts",
+  "lib/bundle/product-diktat-pdf.ts", "lib/bundle/product-admission.ts", "lib/bundle/product-validator.ts", "lib/bundle/product-v4-verification.ts", "lib/bundle/product-v4-verification-service.ts", "lib/bundle/product-review-gate.ts", "lib/compute/product-v4-runtime-binding.ts",
   "lib/compute/product-v4-pdf-evidence.ts", "lib/compute/product-v4-verification-executor.ts", "lib/compute/product-v4-document-wire.ts", "lib/compute/product-v4-browser-runner.ts", "lib/compute/product-v4-formative-verification.ts", "lib/materials/formative-check-answer.ts", "components/course/formative-check-endpoint-context.tsx", "lib/compute/product-v4-browser-session.ts", "lib/compute/product-v4-browser-config.ts", "scripts/authoring/verification-renderer.ts", "scripts/authoring/build-local-verification-renderer.ts", "jobs/product-verification.ts",
+  "lib/materials/diktat-scene-svg.ts",
+  "lib/bundle/product-staged-worker.ts", "lib/authoring/question-visual-references.ts", "lib/authoring/question-visual-assets.ts",
+  "lib/compute/product-diktat-worker-assets.ts",
+  "lib/bundle/product-v4-verification-core.ts",
+  "lib/bundle/product-v4-verification-worker.ts", "lib/compute/product-v4-pdf-evidence-shared.ts",
+  "lib/materials/interactive-document-verified.ts", "lib/compute/product-v4-http-asset-validation.ts",
+  "scripts/authoring/local-v4-bundle.ts",
 ] as const;
 
 function figureSpecs(bundle: Bundle): SourceFigureVisualSpec[] {
@@ -90,7 +112,7 @@ async function verifiedFigures(bundle: Bundle, ports: FigurePorts) {
   return result;
 }
 
-export async function loadProductV4InteractiveDocumentAssets(input: { bundle: Bundle; plan: ProductV4VerificationPlan; requirement: ProductV4VerificationRequirement }, read?: typeof import("@/lib/materials/interactive-document-assets").readInteractiveDocumentAsset) {
+export async function loadProductV4InteractiveDocumentAssets(input: { bundle: Bundle; plan: ProductV4VerificationPlan; requirement: ProductV4VerificationRequirement }, read?: DocumentAssetReader) {
   const bundle = { manifest: productBundleManifestSchema.parse(input.bundle.manifest), products: input.bundle.products.map(product => productEntitySchema.parse(product)), dependencies: input.bundle.dependencies.map(dependency => productDependencySchema.parse(dependency)) };
   const derived = deriveProductV4VerificationPlan({ bundle, binding: input.plan.binding });
   assertProductV4VerificationCurrent(input.plan, derived);
@@ -111,26 +133,26 @@ export async function loadProductV4InteractiveDocumentAssets(input: { bundle: Bu
   }
   if (checked.length > 8 || [...lengths.values()].reduce((sum, size) => sum + size, 0) > 16 * 1024 * 1024) throw new Error("INTERACTIVE_DOCUMENT_TOTAL_LIMIT");
   if (!checked.length) return {};
-  const load = read ?? (await import("@/lib/materials/interactive-document-assets")).readInteractiveDocumentAsset;
-  const { verifyInteractiveDocumentAsset } = await import("@/lib/materials/interactive-document-server");
+  const load = read ?? readAdmittedDocumentAsset;
   const result: Record<string, { document: Uint8Array; print: Uint8Array }> = {};
   for (const spec of checked) {
-    const existing = result[spec.documentSha256];
+    const key = productV4DocumentPairKey(spec);
+    const existing = result[key];
     if (existing) {
       if (bytesHash(existing.print) !== spec.printSha256 || existing.document.length !== spec.documentBytes || existing.print.length !== spec.printBytes) throw new Error("INTERACTIVE_DOCUMENT_METADATA_CONFLICT");
       continue;
     }
     const document = new Uint8Array(await load(spec, "document"));
     const print = new Uint8Array(await load(spec, "print"));
-    await verifyInteractiveDocumentAsset(spec, "document", document);
-    await verifyInteractiveDocumentAsset(spec, "print", print);
-    result[spec.documentSha256] = { document, print };
+    verifyDocumentBytes(spec, "document", document);
+    verifyDocumentBytes(spec, "print", print);
+    result[key] = { document, print };
   }
   return result;
 }
 
-export async function loadProductV4StaticFigureAssets(bundle: Bundle, ports?: FigurePorts, includeDocumentPrint = true): Promise<DiktatSourceFigureAssets> {
-  const figures = await verifiedFigures(bundle, ports ?? await defaultPorts());
+export async function loadProductV4StaticFigureAssets(bundle: Bundle, ports?: FigurePorts, includeDocumentPrint = true, read?: DocumentAssetReader): Promise<DiktatSourceFigureAssets> {
+  const figures = figureSpecs(bundle).length ? await verifiedFigures(bundle, ports ?? await defaultPorts()) : [];
   const assets: Record<string, DiktatSourceFigureAssets[string]> = {};
   for (const figure of figures) {
     const variant = figure.variants.find(item => item.name === "print");
@@ -139,9 +161,10 @@ export async function loadProductV4StaticFigureAssets(bundle: Bundle, ports?: Fi
   }
   const documents = includeDocumentPrint ? bundle.products.flatMap(product => product.productType === "article" ? (product.visuals ?? []).filter(visual => visual.kind === "interactive_document") : []) : [];
   if (documents.length) {
-    const { readInteractiveDocumentAsset } = await import("@/lib/materials/interactive-document-assets");
+    const load = read ?? readAdmittedDocumentAsset;
     for (const spec of documents) {
-      const bytes = await readInteractiveDocumentAsset(spec, "print");
+      const bytes = await load(spec, "print");
+      verifyDocumentBytes(spec, "print", bytes);
       assets[`interactive_document:${spec.printSha256}`] = { bytes, mimeType: "image/png", sourceChecksum: spec.printSha256 };
     }
   }
@@ -180,7 +203,7 @@ export function productV4DependencyChecksum(bundle: Bundle, rows: readonly Produ
   return hash({ dependencies: [...bundle.dependencies].sort((a, b) => a.id.localeCompare(b.id)), live: [...rows].sort((a, b) => `${a.type}:${a.id}`.localeCompare(`${b.type}:${b.id}`)) });
 }
 
-export async function buildProductV4RuntimeBinding(input: { row: ImportRow; bundle: Bundle; runId: string }, injected?: RuntimePorts): Promise<ProductV4VerificationBinding> {
+export async function buildProductV4RuntimeBinding(input: { row: ImportRow; bundle: Bundle; runId: string }, injected?: RuntimePorts, read?: DocumentAssetReader): Promise<ProductV4VerificationBinding> {
   const { row, bundle, runId } = input;
   if (bundle.manifest.schemaVersion !== "product-bundle.v4" || row.bundleType !== "product" || row.bundleId !== bundle.manifest.bundleId || !/^[a-f0-9]{64}$/i.test(row.checksum)) throw new Error("PRODUCT_V4_IMPORT_MISMATCH");
   const ports = injected ?? await defaultPorts();
@@ -190,8 +213,13 @@ export async function buildProductV4RuntimeBinding(input: { row: ImportRow; bund
   const documents = productInteractiveDocuments(bundle.products);
   const documentAssets: Array<{ id: string; document: string; print: string }> = [];
   if (documents.length) {
-    const { readInteractiveDocumentAsset } = await import("@/lib/materials/interactive-document-assets");
-    for (const spec of documents) documentAssets.push({ id: spec.id, document: bytesHash(await readInteractiveDocumentAsset(spec, "document")), print: bytesHash(await readInteractiveDocumentAsset(spec, "print")) });
+    const load = read ?? readAdmittedDocumentAsset;
+    for (const spec of documents) {
+      const document = await load(spec, "document"), print = await load(spec, "print");
+      verifyDocumentBytes(spec, "document", document);
+      verifyDocumentBytes(spec, "print", print);
+      documentAssets.push({ id: spec.id, document: bytesHash(document), print: bytesHash(print) });
+    }
   }
   return { importId: row.id, courseId: course.id, runId, revision: Number.parseInt(row.checksum.slice(0, 8), 16) + 1,
     ...(process.env.NODE_ENV === "production" || typeof (globalThis as { Deno?: unknown }).Deno !== "undefined" || process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER ? verificationBrowserIdentity() : {}),

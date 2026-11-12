@@ -1,11 +1,13 @@
+import { validateProductBundleAdmission } from "@/lib/bundle/product-admission";
 ﻿import { createHash } from "node:crypto";
 import sharp from "sharp";
 import { zipSync } from "fflate";
 import { buildLocalVerificationFixture } from "../../../scripts/authoring/local-verification-fixture";
-import { computeProductBundleChecksum, deterministicProductSerialization, validateProductBundleAdmission } from "@/lib/bundle/product-validator";
+import { computeProductBundleChecksum, deterministicProductSerialization } from "@/lib/bundle/product-validator";
 import { materializeArticleParts } from "@/lib/materials/article-parts";
 import { interactiveDocumentSchema } from "@/lib/materials/interactive-document";
 import { visualSpecSchema } from "@/lib/materials/visual-contract";
+import { productV4DocumentPairKey } from "@/lib/compute/product-v4-document-wire";
 
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const encode = (value: unknown) => new TextEncoder().encode(deterministicProductSerialization(value));
@@ -24,7 +26,7 @@ export async function admittedFormativeVerificationFixture() {
     const document = Buffer.from(`<!doctype html><html><body><main><h1>${id} visual</h1><label>Nilai <input type="range" min="0" max="2" value="1" oninput="document.getElementById('value').textContent=this.value"></label><p id="value">1</p></main></body></html>`);
     const print = await sharp({ create: { width: 2, height: 2, channels: 4, background: { r: index * 70, g: 100, b: 160, alpha: 1 } } }).png().toBuffer();
     const spec = interactiveDocumentSchema.parse({ id, kind: "interactive_document", version: 1, label: `${id} visual`, description: "Ubah nilai", documentSha256: hash(document), documentBytes: document.length, printSha256: hash(print), printBytes: print.length, height: 300, staticFallback: { type: "text", summary: `${id} fallback`, content: "Nilai awal 1" }, printCaption: "Nilai awal" });
-    specs.push(spec); assets[spec.documentSha256] = { document, print };
+    specs.push(spec); assets[productV4DocumentPairKey(spec)] = { document, print };
     files.set(`visuals/${spec.documentSha256}.html`, document);
     files.set(`visuals/${spec.printSha256}.png`, print);
   }

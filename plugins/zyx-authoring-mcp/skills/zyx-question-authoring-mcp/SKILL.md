@@ -42,7 +42,7 @@ Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpo
 
 Untuk visual soal, baca `outputs.quizDraft.visualAuthoring` dan schema visual aktif dari server. Gunakan `zyx-visual` dengan data bertipe, dan simpan keadaan atau label khusus jawaban di pembahasan, bukan prompt atau opsi.
 
-Untuk `interactive_document`, sertakan `visualAssets` pada validasi, submit, dan update: array `{ path, sha256, bytes, base64 }` untuk setiap HTML dan PNG unik sesuai hash di metadata. Jangan taruh HTML atau base64 dalam teks soal. Aset prompt atau opsi tidak boleh dipakai ulang pada pembahasan; baca batas dan format lengkap pada playbook server.
+Untuk `interactive_document`, sertakan `visualAssets` pada validasi, submit, dan update visual baru atau berubah: array `{ path, sha256, bytes, base64 }` untuk setiap HTML dan PNG unik sesuai hash di metadata. Update yang hanya mempertahankan spec terikat dapat memakai ulang aset asli yang diverifikasi server tanpa mengirim byte ulang. Jangan taruh HTML atau base64 dalam teks soal. Aset prompt atau opsi tidak boleh dipakai ulang pada pembahasan; baca batas dan format lengkap pada playbook server.
 
 Untuk pasangan lokal yang sudah ditinjau, contoh yang dapat dijalankan ada di `scripts/authoring/package-interactive-document.ts` pada checkout repositori. Ambil kontrak live dan susun soal sendiri; hasilnya belum merupakan persetujuan soal.
 

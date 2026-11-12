@@ -1,8 +1,9 @@
+import { validateProductBundleAdmission } from "@/lib/bundle/product-admission";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { zipSync } from "fflate";
-import { computeProductBundleChecksum, deterministicProductSerialization, validateProductBundleAdmission, type ProductEntity } from "@/lib/bundle/product-validator";
+import { computeProductBundleChecksum, deterministicProductSerialization, type ProductEntity } from "@/lib/bundle/product-validator";
 import { interactiveDocumentSchema, type InteractiveDocumentSpec } from "@/lib/materials/interactive-document";
 import { validateInteractiveDocumentArchive } from "@/lib/materials/interactive-document-assets";
 import { validateQuestionVisualAssets } from "@/lib/authoring/question-visual-assets";

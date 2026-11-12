@@ -505,7 +505,7 @@ function EpsilonDeltaVisual({ spec, className, engine }: { spec: PublicEpsilonDe
 export function ProductLearningVisual({ spec: specProp, visual, className, engine }: ProductLearningVisualProps) {
   const spec = specProp ?? visual;
   if (!spec) return null;
-  if ((spec as { kind: string }).kind === "interactive_document") return <ScopedInteractiveDocument spec={spec as unknown as InteractiveDocumentSpec} />;
+  if (spec.kind === "interactive_document") return <ScopedInteractiveDocument spec={spec} />;
   if (spec.kind === "interactive_scene") return <InteractiveSceneVisual spec={spec} className={className} />;
   if (spec.kind === "geometry_2d") return <Geometry2dVisual spec={spec} className={className} />;
   if (spec.kind === "source_figure") return <figure className={`space-y-3 ${className ?? ""}`} aria-label={spec.label} data-source-figure>

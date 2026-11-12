@@ -7,14 +7,12 @@ import { fitNumericRange } from "@/lib/zyra/canvas/viewport";
 import { deriveEpsilonDelta, sampleEpsilonDeltaCurve } from "./epsilon-delta";
 import { visualSpecSchema, type VisualSpec } from "./visual-contract";
 import { initialSceneState, sceneValue } from "./interactive-scene";
-import { SceneSvg } from "@/components/course/interactive-scene-svg";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { buildDiktatVisualSnapshot } from "./diktat-visual-snapshot";
+export { buildDiktatVisualSnapshot, DIKTAT_STATIC_VISUAL_RENDERER } from "./diktat-visual-snapshot";
+import { renderDiktatSceneSvg } from "./diktat-scene-svg";
 
-export const DIKTAT_STATIC_VISUAL_RENDERER = "zyx-static-visual-v1";
 export interface DiktatSourceFigureAsset { bytes: Uint8Array; mimeType: "image/png" | "image/jpeg"; sourceChecksum: string; attribution?: string }
 export type DiktatSourceFigureAssets = Readonly<Record<string, DiktatSourceFigureAsset>>;
-const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const escape = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 const math = (latex: string) => katex.renderToString(latex, { throwOnError: true, trust: false, output: "htmlAndMathml" });
 const quantityLabel = (label: string, unit?: string | null) => prose(label) + (unit ? `&nbsp;${math(`\\left[\\pu{${unit}}\\right]`)}` : "");
@@ -23,12 +21,6 @@ function prose(value: string): string {
   const literal = scientificLiteralToLatex(value);
   if (literal) return math(literal);
   return splitScientificText(value).map(segment => segment.type === "math" ? math(segment.value) : escape(segment.value)).join("");
-}
-export function buildDiktatVisualSnapshot(input: VisualSpec) {
-  const visual = visualSpecSchema.parse(input);
-  const state = visual.kind === "epsilon_delta_graph" ? { epsilon: visual.defaultEpsilon, probe: visual.limitPoint }
-    : visual.kind === "learning_canvas" ? Object.fromEntries(visual.canvas.variables.map(variable => [variable.id, variable.defaultValue])) : visual.kind === "interactive_scene" ? initialSceneState(visual) : visual.kind === "interactive_document" ? { printSha256: visual.printSha256, defaultState: visual.staticFallback.content, printCaption: visual.printCaption } : {};
-  return { rendererVersion: DIKTAT_STATIC_VISUAL_RENDERER, visualHash: digest(visual), stateHash: digest(state) };
 }
 function label(x: number, y: number, text: string, width = 130, height = 48): string {
   return `<foreignObject x="${x}" y="${y}" width="${width}" height="${height}"><div xmlns="http://www.w3.org/1999/xhtml" style="font-size:24px;text-align:center">${text}</div></foreignObject>`;
@@ -96,7 +88,7 @@ export function renderDiktatStaticVisual(input: VisualSpec, assets: DiktatSource
     content = svg(drawing, 330) + [...geometry.segments, ...geometry.circles, ...geometry.polygons].filter(shape => shape.labelLatex).map(shape => `<p>${escape(shape.id)}: ${math(shape.labelLatex!)}</p>`).join("");
   } else if (visual.kind === "interactive_scene") {
     const state = initialSceneState(visual);
-    content = renderToStaticMarkup(createElement(SceneSvg, { spec: visual, state, printable: true })) + visual.outputs.map(output => {
+    content = renderDiktatSceneSvg(visual, state) + visual.outputs.map(output => {
       let result: string; try { result = String(Number(sceneValue(output.value, state).toPrecision(6))); } catch { result = "tidak tersedia"; }
       return `<p>${prose(output.label)}: ${escape(result)}${output.unit ? ` ${escape(output.unit)}` : ""}</p>`;
     }).join("") + `<p>${prose(visual.staticFallback.summary)}</p><p>${prose(visual.staticFallback.content)}</p>`;

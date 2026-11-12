@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { productBundleManifestSchema, productEntitySchema } from "@/lib/bundle/product-validator";
 import { PRODUCT_V4_RUNTIME_FILES, readProductV4RuntimeFingerprint, assertProductV4RuntimeFingerprint, buildProductV4RuntimeBinding, expectedChromiumRuntime, loadProductV4StaticFigureAssets, productV4DependencyChecksum, resolveProductV4LoadedRuntime, type ProductV4LiveDependency } from "@/lib/compute/product-v4-runtime-binding";
+import { loadDiktatWorkerAssets } from "@/lib/compute/product-diktat-worker-assets";
 
 const hash = "a".repeat(64);
 const manifest = productBundleManifestSchema.parse({ bundleId: "bundle", bundleType: "product", schemaVersion: "product-bundle.v4", courseId: "course", creatorId: "creator", createdAt: "2026-10-21T00:00:00.000Z", entityFiles: ["products", "dependencies"].map(entityType => ({ entityType, path: `${entityType}.json`, checksum: hash, stableIds: [] })), bundleChecksum: hash });
@@ -22,7 +23,7 @@ const ports = {
 const row = { id: "import", bundleId: "bundle", bundleType: "product" as const, courseId: "legacy-course", checksum: hash, updatedAt: new Date() };
 
 test("runtime closure binds interactive guidance, scene and shared expression sources", () => {
-  for (const file of ["lib/authoring/interactive-visual-guidance.ts", "lib/materials/interactive-scene.ts", "lib/materials/interactive-document-markdown.ts", "lib/compute/product-v4-document-wire.ts", "lib/zyra/canvas/expression.ts"]) expect(PRODUCT_V4_RUNTIME_FILES).toContain(file);
+  for (const file of ["lib/authoring/interactive-visual-guidance.ts", "lib/authoring/question-visual-references.ts", "lib/authoring/question-visual-assets.ts", "lib/bundle/product-staged-worker.ts", "lib/bundle/product-v4-verification-core.ts", "lib/bundle/product-v4-verification-worker.ts", "lib/compute/product-diktat-worker-assets.ts", "lib/compute/product-v4-pdf-evidence-shared.ts", "lib/compute/product-v4-http-asset-validation.ts", "lib/materials/interactive-scene.ts", "lib/materials/diktat-scene-svg.ts", "lib/materials/interactive-document-verified.ts", "lib/materials/interactive-document-markdown.ts", "lib/compute/product-v4-document-wire.ts", "lib/zyra/canvas/expression.ts", "scripts/authoring/local-v4-bundle.ts"]) expect(PRODUCT_V4_RUNTIME_FILES).toContain(file);
 });
 
 test("runtime attestation rejects every changed fingerprint field and reads installed Chromium metadata", () => {
@@ -89,9 +90,12 @@ test("source figures resolve through the DB course alias, verify bytes and omit 
   deliveryUrl = "https://signed.example/renewed";
   expect((await buildProductV4RuntimeBinding({ row, bundle: figureBundle, runId: "run" }, figurePorts)).assetChecksum).toBe(first.assetChecksum);
   expect((await loadProductV4StaticFigureAssets(figureBundle, figurePorts))[assetId]).toEqual({ bytes, mimeType: "image/png", sourceChecksum: hash, attribution: "Owned source" });
+  expect((await loadDiktatWorkerAssets(figureBundle, figurePorts))[assetId]).toEqual({ bytes, mimeType: "image/png", sourceChecksum: hash, attribution: "Owned source" });
   await expect(loadProductV4StaticFigureAssets(figureBundle, { ...figurePorts, download: async () => new Uint8Array([4]) })).rejects.toThrow("BYTES_CHANGED");
+  await expect(loadDiktatWorkerAssets(figureBundle, { ...figurePorts, download: async () => new Uint8Array([4]) })).rejects.toThrow("BYTES_CHANGED");
   permission = "unknown";
   await expect(loadProductV4StaticFigureAssets(figureBundle, figurePorts)).rejects.toThrow("NOT_AUTHORIZED");
+  await expect(loadDiktatWorkerAssets(figureBundle, figurePorts)).rejects.toThrow("NOT_AUTHORIZED");
 });
 
 

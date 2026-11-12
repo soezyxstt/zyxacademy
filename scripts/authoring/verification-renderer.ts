@@ -5,6 +5,7 @@ import { closeProductV4BrowserRunner, executeBrowserProductV4Check, validateVeri
 import type { ProductV4VerificationPlan, ProductV4VerificationRequirement } from "../../lib/bundle/product-v4-verification";
 import type { ProductEntity } from "../../lib/bundle/product-validator";
 import { productV4DocumentWireSchema, decodeProductV4DocumentWire } from "../../lib/compute/product-v4-document-wire";
+import { validateProductV4HttpAssets } from "../../lib/compute/product-v4-http-asset-validation";
 
 const args = process.argv.slice(2);
 const value = (flag: string, fallback: string) => args.includes(flag) ? args[args.indexOf(flag) + 1] : fallback;
@@ -41,7 +42,8 @@ const server = createServer(async (request, response) => {
     }
     const body = wireSchema.parse(JSON.parse(Buffer.concat(chunks).toString("utf8")));
     const staticFigureAssets = Object.fromEntries(Object.entries(body.staticFigureAssets ?? {}).map(([id, asset]) => [id, { bytes: Buffer.from(asset.base64, "base64"), mimeType: asset.mimeType, sourceChecksum: asset.sourceChecksum, attribution: asset.attribution }]));
-    const interactiveDocumentAssets = decodeProductV4DocumentWire(body.interactiveDocumentAssets ?? {});
+    const interactiveDocumentAssets = decodeProductV4DocumentWire(body.interactiveDocumentAssets ?? { documents: {}, prints: {}, pairs: [] });
+    await validateProductV4HttpAssets(body.bundle.products, interactiveDocumentAssets, staticFigureAssets);
     const result = await executeBrowserProductV4Check({ ...body, baseUrl, staticFigureAssets, interactiveDocumentAssets });
     response.end(JSON.stringify({ ...result, artifacts: result.artifacts.map(({ bytes, ...artifact }) => ({ ...artifact, base64: Buffer.from(bytes).toString("base64") })) }));
   } catch {

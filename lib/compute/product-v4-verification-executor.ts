@@ -1,6 +1,6 @@
 import { findUnmarkedScientificProse } from "@/lib/math/unmarked-scientific";
 import { z } from "zod";
-import type { ProductV4VerificationPorts } from "@/lib/bundle/product-v4-verification-service";
+import type { ProductV4VerificationPorts } from "@/lib/bundle/product-v4-verification-core";
 import type { ProductV4ObservedCheck } from "@/lib/bundle/product-v4-verification";
 import { loadProductV4StaticFigureAssets, loadProductV4InteractiveDocumentAssets, readProductV4ExecutorRuntime, assertProductV4RuntimeFingerprint } from "./product-v4-runtime-binding";
 import { encodeProductV4DocumentWire } from "./product-v4-document-wire";
@@ -26,7 +26,7 @@ const responseSchema = z.object({
 }).strict();
 
 /** The endpoint and credentials are server configuration, never MCP parameters. */
-export const executeProductV4VerificationCheck = async (input: Parameters<ProductV4VerificationPorts["execute"]>[0], readDocumentAsset?: Parameters<typeof loadProductV4InteractiveDocumentAssets>[1]): Promise<ProductV4ObservedCheck> => {
+export const executeProductV4VerificationCheck = async (input: Parameters<ProductV4VerificationPorts["execute"]>[0], readDocumentAsset?: Parameters<typeof loadProductV4InteractiveDocumentAssets>[1], figurePorts?: Parameters<typeof loadProductV4StaticFigureAssets>[1]): Promise<ProductV4ObservedCheck> => {
   if (input.requirement.layer === "structure" || input.requirement.layer === "model") {
     const findings: string[] = [];
     const observations: unknown[] = [];
@@ -61,7 +61,7 @@ export const executeProductV4VerificationCheck = async (input: Parameters<Produc
           observations.push({ epsilon, bound, method: "conservative polynomial analytic bound with floating-point guards" });
         }
       } else if (visual.kind === "source_figure") {
-        const assets = await loadProductV4StaticFigureAssets(input.bundle);
+        const assets = await loadProductV4StaticFigureAssets(input.bundle, figurePorts, true, readDocumentAsset);
         if (!assets[visual.assetId]) findings.push("SOURCE_FIGURE_NOT_VERIFIED");
         observations.push({ assetId: visual.assetId, sourceChecksum: visual.sourceChecksum });
       } else if (visual.kind === "interactive_document") observations.push({ kind: visual.kind, contract: "document metadata only", scientificModel: "NOT_TESTED", semanticReview: "required separately" });
@@ -74,7 +74,7 @@ export const executeProductV4VerificationCheck = async (input: Parameters<Produc
   if (isHostedComputeRuntime()) {
     const { executeBrowserProductV4Check, closeProductV4BrowserRunner } = await import("./product-v4-browser-runner");
     return runVerificationBrowserOperation(async (signal) => {
-      const staticFigureAssets = await loadProductV4StaticFigureAssets(input.bundle, undefined, input.requirement.layer === "print");
+      const staticFigureAssets = await loadProductV4StaticFigureAssets(input.bundle, figurePorts, input.requirement.layer === "print", readDocumentAsset);
       const interactiveDocumentAssets = await loadProductV4InteractiveDocumentAssets(input, readDocumentAsset);
       signal.throwIfAborted();
       return executeBrowserProductV4Check({ ...input, signal, baseUrl: process.env.NEXT_PUBLIC_APP_URL ?? "", staticFigureAssets, interactiveDocumentAssets });
@@ -88,7 +88,7 @@ export const executeProductV4VerificationCheck = async (input: Parameters<Produc
   };
   const url = new URL(endpoint);
   if (url.username || url.password || url.search || url.hash || (url.protocol !== "https:" && !(url.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)))) throw new Error("PRODUCT_V4_RENDERER_URL_INVALID");
-  const figures = await loadProductV4StaticFigureAssets(input.bundle, undefined, input.requirement.layer === "print");
+  const figures = await loadProductV4StaticFigureAssets(input.bundle, figurePorts, input.requirement.layer === "print", readDocumentAsset);
   const interactiveDocumentAssets = encodeProductV4DocumentWire(await loadProductV4InteractiveDocumentAssets(input, readDocumentAsset));
   const staticFigureAssets = Object.fromEntries(Object.entries(figures).map(([id, value]) => [id, { ...value, bytes: undefined, base64: Buffer.from(value.bytes).toString("base64") }]));
   const response = await fetch(`${endpoint.replace(/\/$/, "")}/verify`, {

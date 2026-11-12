@@ -1,15 +1,20 @@
 ﻿import { expect, mock, test } from "bun:test";
 import { createHash } from "node:crypto";
 import sharp from "sharp";
-import { zipSync } from "fflate";
+import { unzipSync, zipSync } from "fflate";
 import { buildLocalVerificationFixture } from "../../scripts/authoring/local-verification-fixture";
 import { createProductBundleDraft, finalizeProductBundleDraft } from "@/lib/bundle/product-draft";
-import { computeProductBundleChecksum, deterministicProductSerialization, validateProductBundle, validateProductBundleAdmission } from "@/lib/bundle/product-validator";
+import { computeProductBundleChecksum, deterministicProductSerialization, validateProductBundle } from "@/lib/bundle/product-validator";
 import { renderDiktatStaticVisual, buildDiktatVisualSnapshot } from "@/lib/materials/diktat-static-visual";
 import { sanitizeVisualSpec } from "@/lib/articles/structured-read-model";
 import { materializeArticleParts } from "@/lib/materials/article-parts";
+import { parseAdmittedProductBundle } from "@/lib/bundle/product-staged-worker";
+import { loadDiktatWorkerAssets } from "@/lib/compute/product-diktat-worker-assets";
+import { validateProductV4HttpAssets } from "@/lib/compute/product-v4-http-asset-validation";
+import { productV4DocumentPairKey } from "@/lib/compute/product-v4-document-wire";
 
 mock.module("server-only", () => ({}));
+const { validateProductBundleAdmission } = await import("@/lib/bundle/product-admission");
 const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const encode = (value: unknown) => new TextEncoder().encode(deterministicProductSerialization(value));
 const html = new TextEncoder().encode("<!doctype html><canvas></canvas><script>document.querySelector('canvas').width=240</script>");
@@ -62,6 +67,25 @@ test("Product admission verifies a complete ZIP and refuses structural-only succ
   }
 });
 
+test("Diktat worker reads only the exact admitted archive contents", async () => {
+  const bytes = archive();
+  const admitted = await validateProductBundleAdmission(bytes);
+  if (!admitted.success) throw new Error(JSON.stringify(admitted.issues));
+  const row = { bundleId: admitted.data.manifest.bundleId, checksum: admitted.data.checksum };
+  expect(parseAdmittedProductBundle(bytes, row).files.get(printPath)).toEqual(png);
+  expect(() => parseAdmittedProductBundle(new Uint8Array([1, 2, 3]), row)).toThrow("PRODUCT_BUNDLE_VALIDATION_FAILED:");
+  const ports = { course: async () => { throw new Error("Unexpected course lookup"); }, figure: async () => { throw new Error("Unexpected figure lookup"); }, download: async () => png };
+  expect((await loadDiktatWorkerAssets(admitted.data, ports))[`interactive_document:${spec.printSha256}`].bytes).toEqual(png);
+  await expect(loadDiktatWorkerAssets(admitted.data, { ...ports, download: async () => new Uint8Array(png.length) })).rejects.toThrow("INTERACTIVE_DOCUMENT_INTEGRITY");
+  expect(() => parseAdmittedProductBundle(bytes, { ...row, bundleId: "other" })).toThrow("PRODUCT_BUNDLE_CHECKSUM_MISMATCH");
+  const tampered = unzipSync(bytes);
+  tampered[printPath] = new Uint8Array(png.length);
+  expect(() => parseAdmittedProductBundle(zipSync(tampered), row)).toThrow("PRODUCT_BUNDLE_VALIDATION_FAILED:PRODUCT_BUNDLE_CHECKSUM_MISMATCH");
+  expect(() => parseAdmittedProductBundle(archive({ badPng: true }), row)).toThrow("PRODUCT_BUNDLE_CHECKSUM_MISMATCH");
+  const rejected = await validateProductBundleAdmission(archive({ badPng: true }));
+  expect(rejected.success).toBe(false);
+});
+
 test("projection and print bind metadata and exact PNG, with no inline code", () => {
   expect(sanitizeVisualSpec(spec)).toEqual(spec);
   expect(sanitizeVisualSpec({ ...spec, html: "<script>" })).toBeNull();
@@ -72,6 +96,22 @@ test("projection and print bind metadata and exact PNG, with no inline code", ()
   expect(rendered).not.toContain("<script>");
   expect(buildDiktatVisualSnapshot(spec).stateHash).not.toBe(buildDiktatVisualSnapshot({ ...spec, printCaption: "Berbeda" }).stateHash);
   expect(() => renderDiktatStaticVisual(spec, { [`interactive_document:${spec.printSha256}`]: { ...assets[`interactive_document:${spec.printSha256}`], bytes: new Uint8Array(png.length) } })).toThrow();
+});
+
+test("HTTP receiver fully decodes every matched document print, including print-only assets", async () => {
+  const key = productV4DocumentPairKey(spec);
+  const figures = { [`interactive_document:${spec.printSha256}`]: { bytes: png } };
+  await validateProductV4HttpAssets(finalized.products, { [key]: { document: html, print: png } }, figures);
+  await expect(validateProductV4HttpAssets(finalized.products, { [key]: { document: html, print: new Uint8Array(png.length) } }, {})).rejects.toThrow("INTERACTIVE_DOCUMENT_INTEGRITY");
+  await expect(validateProductV4HttpAssets(finalized.products, { [`${"0".repeat(64)}:${spec.printSha256}`]: { document: html, print: png } }, {})).rejects.toThrow("VERIFICATION_DOCUMENT_ASSET_UNAVAILABLE");
+  const corrupt = Buffer.from(png); corrupt[30] ^= 0xff;
+  const badSpec = { ...spec, printSha256: digest(corrupt) };
+  const products = structuredClone(finalized.products);
+  const changed = products.find(product => product.productType === "article");
+  if (!changed || changed.productType !== "article") throw new Error("FIXTURE_MISSING");
+  changed.visuals = [badSpec];
+  await expect(validateProductV4HttpAssets(products, { [productV4DocumentPairKey(badSpec)]: { document: html, print: corrupt } }, {})).rejects.toThrow("INTERACTIVE_DOCUMENT_PRINT_INVALID");
+  await expect(validateProductV4HttpAssets(products, {}, { [`interactive_document:${badSpec.printSha256}`]: { bytes: corrupt } })).rejects.toThrow("INTERACTIVE_DOCUMENT_PRINT_INVALID");
 });
 
 test("real V4 ZIP admits formative document fields and rejects cross-question disclosure", async () => {

@@ -1,11 +1,50 @@
-﻿import type { Page } from "playwright-core";
+﻿import type { Locator, Page } from "playwright-core";
 import { randomBytes } from "node:crypto";
 import { formativeDocumentFields } from "@/lib/bundle/product-v4-verification";
 import { formativeAnswerForReveal } from "@/lib/materials/formative-check-answer";
 import { parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
 import { verificationPreviewSchema } from "@/lib/materials/verification-preview";
-import { interactiveDocumentResponse, verifyInteractiveDocumentAsset } from "@/lib/materials/interactive-document-server";
+import { interactiveDocumentResponse, verifyAdmittedInteractiveDocumentAsset } from "@/lib/materials/interactive-document-verified";
 import { mintInteractiveDocumentGrant, verifyInteractiveDocumentGrant } from "@/lib/materials/interactive-document-grant";
+export async function documentInteractionSnapshot(body: Locator): Promise<string> {
+  return body.evaluate(() => {
+    const canvases = [...document.querySelectorAll("canvas")];
+    if (canvases.length > 16) throw new Error("VERIFICATION_DOCUMENT_CANVAS_LIMIT");
+    const pixels = canvases.map(canvas => {
+      if (!canvas.width || !canvas.height) return null;
+      // shortcut: 32px sampling can miss small changes, upgrade if finer bounded evidence is required.
+      const sample = document.createElement("canvas");
+      sample.width = sample.height = 32;
+      const context = sample.getContext("2d");
+      if (!context) throw new Error("VERIFICATION_DOCUMENT_CANVAS_UNAVAILABLE");
+      context.drawImage(canvas, 0, 0, 32, 32);
+      const data = context.getImageData(0, 0, 32, 32).data;
+      let a = 2166136261, b = 5381;
+      for (const byte of data) { a = Math.imul(a ^ byte, 16777619); b = Math.imul(b, 33) ^ byte; }
+      return [canvas.width, canvas.height, a, b];
+    });
+    return JSON.stringify({
+      text: document.body.textContent,
+      controls: [...document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("input,select,textarea")].map(control => [control.value, "checked" in control ? control.checked : null]),
+      states: [...document.querySelectorAll("[aria-pressed],[aria-checked],[aria-expanded],[aria-selected],[aria-valuenow]")].map(element => ["aria-pressed", "aria-checked", "aria-expanded", "aria-selected", "aria-valuenow"].map(name => element.getAttribute(name))),
+      graphics: [...document.querySelectorAll("svg")].map(svg => svg.innerHTML),
+      pixels,
+    });
+  });
+}
+
+export async function waitForDocumentInteraction(body: Locator, initial: string, changed: boolean): Promise<boolean> {
+  let previous = "";
+  // Observe the full window for stability so delayed restoration cannot certify a reset.
+  for (let attempt = 0; attempt < 30; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, 50));
+    const current = await documentInteractionSnapshot(body);
+    if (!changed && current !== initial) return false;
+    if (changed && current !== initial && current === previous) return true;
+    previous = current;
+  }
+  return !changed;
+}
 
 type Field = ReturnType<typeof formativeDocumentFields>[number];
 
@@ -49,8 +88,8 @@ export function formativeVerificationResponses(field: Field, grant: string) {
 export async function executeFormativeDocumentCheck(page: Page, baseUrl: string, field: Field, assets: { document: Uint8Array; print: Uint8Array } | undefined, scope: string) {
   if (!assets) throw new Error("VERIFICATION_DOCUMENT_ASSET_UNAVAILABLE");
   const documentBytes = Buffer.from(assets.document), print = Buffer.from(assets.print);
-  await verifyInteractiveDocumentAsset(field.spec, "document", documentBytes);
-  await verifyInteractiveDocumentAsset(field.spec, "print", print);
+  verifyAdmittedInteractiveDocumentAsset(field.spec, "document", documentBytes);
+  verifyAdmittedInteractiveDocumentAsset(field.spec, "print", print);
   const preview = formativeVerificationPreview(field, scope);
   const hidden = field.field === "answer" || field.field === "explanation";
   const secret = randomBytes(32).toString("hex");
@@ -125,23 +164,19 @@ export async function executeFormativeDocumentCheck(page: Page, baseUrl: string,
     return { body, state: JSON.stringify(state) };
   };
   const first = await open();
+  const initial = await documentInteractionSnapshot(first.body);
+  if (!await waitForDocumentInteraction(first.body, initial, false)) throw new Error("VERIFICATION_DOCUMENT_RENDER_UNSTABLE");
   const controls = first.body.locator('input[type="range"], select, input[type="checkbox"], button');
   let changed = false;
   for (const control of await controls.all()) {
     if (!await control.isVisible() || !await control.isEnabled()) continue;
-    const before = await first.body.evaluate(() => JSON.stringify({ html: document.body.innerHTML, controls: [...document.querySelectorAll<HTMLInputElement | HTMLSelectElement>("input,select,textarea")].map(control => [control.value, "checked" in control ? control.checked : null]) }));
     const tag = await control.evaluate(element => element.tagName);
     const type = await control.getAttribute("type");
     await control.focus();
+    const before = await documentInteractionSnapshot(first.body);
+    if (!await waitForDocumentInteraction(first.body, before, false)) throw new Error("VERIFICATION_DOCUMENT_RENDER_UNSTABLE");
     await control.press(tag === "SELECT" ? "ArrowDown" : type === "range" ? "ArrowRight" : "Space");
-    changed = await first.body.evaluate(async initial => {
-      const snapshot = () => JSON.stringify({ html: document.body.innerHTML, controls: [...document.querySelectorAll<HTMLInputElement | HTMLSelectElement>("input,select,textarea")].map(control => [control.value, "checked" in control ? control.checked : null]) });
-      for (let attempt = 0; attempt < 30; attempt++) {
-        if (snapshot() !== initial) return true;
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-      return false;
-    }, before);
+    changed = await waitForDocumentInteraction(first.body, before, true);
     if (changed) break;
   }
   if (!changed) throw new Error("VERIFICATION_VISUAL_STATE_UNSUPPORTED:keyboard-change");
@@ -149,6 +184,6 @@ export async function executeFormativeDocumentCheck(page: Page, baseUrl: string,
   if (await host.locator("iframe").count()) throw new Error("VERIFICATION_DOCUMENT_UNMOUNT_FAILED");
   if (!await host.getByText(field.spec.staticFallback.summary, { exact: true }).count()) throw new Error("VERIFICATION_DOCUMENT_FALLBACK_MISSING");
   const reset = await open();
-  if (reset.state !== first.state || responseCount < 2) throw new Error("VERIFICATION_RESET_FAILED");
+  if (reset.state !== first.state || !await waitForDocumentInteraction(reset.body, initial, false) || responseCount < 2) throw new Error("VERIFICATION_RESET_FAILED");
   return { field: field.field.startsWith("prompt:") ? "prompt" : field.field.startsWith("option:") ? "option" : field.field, reveal: hidden ? "simulated scoped response" : "not required", states: ["default", "keyboard-change", "reset"], scientificModel: "NOT_TESTED" };
 }

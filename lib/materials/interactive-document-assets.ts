@@ -1,7 +1,7 @@
 import "server-only";
 import { storage } from "@/lib/storage";
 import { buildInteractiveDocumentAssetKey } from "@/lib/storage/keys";
-import { interactiveDocumentSchema, type InteractiveDocumentSpec } from "./interactive-document";
+import { interactiveDocumentSchema, MAX_INTERACTIVE_DOCUMENT_SPECS, type InteractiveDocumentSpec } from "./interactive-document";
 import { verifyInteractiveDocumentAsset } from "./interactive-document-server";
 
 export type InteractiveDocumentAssetPair = {
@@ -20,7 +20,7 @@ export async function validateInteractiveDocumentArchive(
   manifest: readonly InteractiveDocumentAssetManifestEntry[],
   files: ReadonlyMap<string, Uint8Array>,
 ): Promise<InteractiveDocumentAssetPair[]> {
-  if (specs.length > 8) throw new Error("INTERACTIVE_DOCUMENT_COUNT_LIMIT");
+  if (specs.length > MAX_INTERACTIVE_DOCUMENT_SPECS) throw new Error("INTERACTIVE_DOCUMENT_COUNT_LIMIT");
   const expected = new Map<string, { sha256: string; bytes: number }>();
   const pairs: InteractiveDocumentAssetPair[] = [];
   for (const input of specs) {
@@ -58,7 +58,7 @@ export async function readInteractiveDocumentAsset(spec: InteractiveDocumentSpec
 
 /** Validate the complete authorized submission before persisting any immutable asset. */
 export async function stageInteractiveDocumentAssets(pairs: readonly InteractiveDocumentAssetPair[]): Promise<void> {
-  if (pairs.length > 8) throw new Error("INTERACTIVE_DOCUMENT_COUNT_LIMIT");
+  if (pairs.length > MAX_INTERACTIVE_DOCUMENT_SPECS) throw new Error("INTERACTIVE_DOCUMENT_COUNT_LIMIT");
   const unique = new Map<string, { spec: InteractiveDocumentSpec; kind: "document" | "print"; bytes: Uint8Array }>();
   for (const pair of pairs) {
     const spec = interactiveDocumentSchema.parse(pair.spec);

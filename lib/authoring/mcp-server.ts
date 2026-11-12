@@ -1,3 +1,4 @@
+import { validateProductBundleAdmission } from "@/lib/bundle/product-admission";
 import { mcpEnvironmentIdentity } from "./mcp-environment";
 import { registerTutorialTools } from "@/lib/admin-mcp/tutorial-tools";
 import { registerEnrollmentTools } from "@/lib/admin-mcp/enrollment-tools";
@@ -35,7 +36,7 @@ import { normalizeDate } from "@/lib/date-utils";
 import { serializeDeterministically, validateIdeaBundleZip, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
 import { previewIdeaBundle } from "@/lib/bundle/idea-preview";
 import { getIdeaBundleImport, listIdeaBundleImports, reviewIdeaBundle, stageIdeaBundle } from "@/lib/bundle/staging";
-import { validateProductBundle, validateProductBundleAdmission } from "@/lib/bundle/product-validator";
+import { validateProductBundle } from "@/lib/bundle/product-validator";
 import { previewProducts } from "@/lib/bundle/product-preview";
 import { discardProductBundleDraft, getProductBundleImport, listProductBundleImports, stageProductBundle } from "@/lib/bundle/product-staging";
 import {
@@ -2941,7 +2942,7 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
       chapterId: run.chapterId,
       ideaLinks,
       reviewStatus: "generated",
-    }, principal.actorId, questionId, visualAssets);
+    }, principal.actorId, questionId, visualAssets, { courseId: run.courseId, chapterId: run.chapterId });
     return { ok: true, result, next: "admin_review" };
   }));
 }

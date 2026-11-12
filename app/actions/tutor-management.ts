@@ -18,7 +18,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { validateQuestionVisualAssets } from "@/lib/authoring/question-visual-assets";
+import { rejectQuestionVisualReferences } from "@/lib/authoring/question-visual-references";
 import { parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
 import { verifyQuestionVisualBinding } from "@/lib/materials/question-visual-binding";
 import { parseMaterialIntoSections } from "@/lib/ingestion-parser";
@@ -1026,7 +1026,7 @@ export async function saveQuestionBankAction(
   },
 ) {
   const { session, access } = await verifyTutorAccess(courseId);
-  await validateQuestionVisualAssets([{ prompt: typeof data?.prompt === "string" ? data.prompt : "", options: Array.isArray(data?.options) ? data.options.filter((value): value is string => typeof value === "string") : [], explanation: typeof data?.explanation === "string" ? data.explanation : "" }]);
+  rejectQuestionVisualReferences([{ prompt: typeof data?.prompt === "string" ? data.prompt : "", options: Array.isArray(data?.options) ? data.options.filter((value): value is string => typeof value === "string") : [], explanation: typeof data?.explanation === "string" ? data.explanation : "" }]);
   const { roles, isAdmin } = await resolveActorRoles(
     session.user.id,
     (session.user as { role?: string | null }).role,
@@ -1484,7 +1484,7 @@ export async function saveTryoutQuestionAction(
   if (!session?.user) {
     throw new Error("Unauthorized: Silakan masuk terlebih dahulu.");
   }
-  await validateQuestionVisualAssets([{ prompt: data.prompt, options: data.options ?? [] }]);
+  rejectQuestionVisualReferences([{ prompt: data.prompt, options: data.options ?? [] }]);
 
   const { roles, isAdmin } = await resolveActorRoles(
     session.user.id,

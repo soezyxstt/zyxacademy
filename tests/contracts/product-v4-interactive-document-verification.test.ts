@@ -4,7 +4,7 @@ import sharp from "sharp";
 import { prepareVerificationDocumentResource } from "@/lib/compute/product-v4-browser-runner";
 import { interactiveDocumentSchema } from "@/lib/materials/interactive-document";
 import { loadProductV4InteractiveDocumentAssets, readProductV4RuntimeFingerprint } from "@/lib/compute/product-v4-runtime-binding";
-import { decodeProductV4DocumentWire, encodeProductV4DocumentWire } from "@/lib/compute/product-v4-document-wire";
+import { decodeProductV4DocumentWire, encodeProductV4DocumentWire, productV4DocumentPairKey } from "@/lib/compute/product-v4-document-wire";
 import { deriveProductV4VerificationPlan, formativeDocumentFields } from "@/lib/bundle/product-v4-verification";
 import { assertNoHiddenFormativeDocuments, formativeVerificationPreview, formativeVerificationResponses } from "@/lib/compute/product-v4-formative-verification";
 import { buildLocalVerificationFixture } from "../../scripts/authoring/local-verification-fixture";
@@ -52,9 +52,9 @@ test("current plan loads only selected verified bytes and builds exact scoped ar
   const requirement = plan.requirements.find(check => check.target === `${article.id}/${spec.id}` && check.layer === "web")!;
   const read = async (_spec: typeof spec, kind: "document" | "print") => kind === "document" ? document : print;
   const assets = await loadProductV4InteractiveDocumentAssets({ bundle, plan, requirement }, read);
-  expect(assets[spec.documentSha256].document).toEqual(new Uint8Array(document));
+  expect(assets[productV4DocumentPairKey(spec)].document).toEqual(new Uint8Array(document));
   document[0] ^= 1;
-  expect(assets[spec.documentSha256].document[0]).not.toBe(document[0]);
+  expect(assets[productV4DocumentPairKey(spec)].document[0]).not.toBe(document[0]);
   await expect(loadProductV4InteractiveDocumentAssets({ bundle, plan, requirement }, read)).rejects.toThrow("INTEGRITY");
   document[0] ^= 1;
   await expect(loadProductV4InteractiveDocumentAssets({ bundle, plan, requirement }, async (_spec, kind) => kind === "document" ? document : new Uint8Array())).rejects.toThrow("INTEGRITY");
@@ -70,13 +70,13 @@ test("current plan loads only selected verified bytes and builds exact scoped ar
 });
 
 test("wire rejects malformed, oversized and noncanonical base64 before use", () => {
-  const hash = "a".repeat(64);
+  const documentHash = "a".repeat(64), printHash = "b".repeat(64);
   for (const value of ["AB==", "not padded", "AAAA%%%", "A".repeat(8 * 1024 * 1024 + 8)]) {
-    expect(() => decodeProductV4DocumentWire({ [hash]: { document: value, print: "AA==" } })).toThrow();
+    expect(() => decodeProductV4DocumentWire({ documents: { [documentHash]: value }, prints: { [printHash]: "AA==" }, pairs: [`${documentHash}:${printHash}`] })).toThrow();
   }
-  expect(() => decodeProductV4DocumentWire(Object.fromEntries(Array.from({ length: 9 }, (_, index) => [index.toString(16).padStart(64, "0"), { document: "AA==", print: "AA==" }])))).toThrow();
+  expect(() => decodeProductV4DocumentWire({ documents: { [documentHash]: "AA==" }, prints: { [printHash]: "AA==" }, pairs: Array(9).fill(`${documentHash}:${printHash}`) })).toThrow();
   const large = "AAAA".repeat(2 * 1024 * 1024);
-  expect(() => decodeProductV4DocumentWire(Object.fromEntries(Array.from({ length: 3 }, (_, index) => [index.toString(16).padStart(64, "0"), { document: large, print: "AA==" }])))).toThrow();
+  expect(() => decodeProductV4DocumentWire({ documents: Object.fromEntries(Array.from({ length: 3 }, (_, index) => [index.toString(16).padStart(64, "0"), large])), prints: { [printHash]: "AA==" }, pairs: Array.from({ length: 3 }, (_, index) => `${index.toString(16).padStart(64, "0")}:${printHash}`) })).toThrow();
 });
 
 test("browser fixture is admitted and provides distinct scoped formative fields", async () => {
@@ -84,7 +84,7 @@ test("browser fixture is admitted and provides distinct scoped formative fields"
   const fields = formativeDocumentFields(bundle.products);
   expect(fields.map(field => field.field.startsWith("prompt:") ? "prompt" : field.field.startsWith("option:") ? "option" : field.field).sort()).toEqual(["answer", "explanation", "option", "prompt"]);
   for (const field of fields) {
-    const value = assets[field.spec.documentSha256];
+    const value = assets[productV4DocumentPairKey(field.spec)];
     await prepareVerificationDocumentResource(field.spec, value, "c".repeat(32));
   }
 });
@@ -142,7 +142,7 @@ test("formative fields bind to actual reveal and only the selected public field 
   expect(verifyInteractiveDocumentGrant(signed, "verification", "wrong", 1_001)).toBeNull();
   const answerRequirement = requirements.find(requirement => requirement.target === answer.target)!;
   const read = async (_spec: typeof spec, kind: "document" | "print") => kind === "document" ? document : print;
-  expect(Object.keys(await loadProductV4InteractiveDocumentAssets({ bundle, plan, requirement: answerRequirement }, read))).toEqual([spec.documentSha256]);
+  expect(Object.keys(await loadProductV4InteractiveDocumentAssets({ bundle, plan, requirement: answerRequirement }, read))).toEqual([productV4DocumentPairKey(spec)]);
   await expect(loadProductV4InteractiveDocumentAssets({ bundle, plan, requirement: answerRequirement }, async () => new Uint8Array())).rejects.toThrow("INTEGRITY");
   const tampered = { ...answerRequirement, target: requirements[0].target };
   if (tampered.target !== answerRequirement.target) await expect(loadProductV4InteractiveDocumentAssets({ bundle, plan, requirement: tampered }, read)).rejects.toThrow("VERIFICATION_REQUIREMENT_INVALID");

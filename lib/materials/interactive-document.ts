@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { inspectPayloadSecurity } from "./visual-payload-security";
 
+export const MAX_INTERACTIVE_DOCUMENT_SPECS = 8;
+
 const text = z.string().trim().min(1).max(2000);
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
 

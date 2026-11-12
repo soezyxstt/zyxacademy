@@ -6,7 +6,7 @@ import { buktiPdfBundle, imporBundle, user } from "@/db/schema";
 import { storage, type StorageProvider } from "@/lib/storage";
 import { joinKey, slugifySegment } from "@/lib/storage/keys";
 import type { ProductEntity } from "@/lib/bundle/product-validator";
-import { parseStagedProductBundle } from "@/lib/bundle/product-staging";
+import { readProductBundleForDiktat } from "@/lib/bundle/product-staged-worker";
 import type { SafeFailureCode } from "@/lib/materials/pdf-artifact-contract";
 import { uploadProductDiktatPdf } from "./product-diktat-storage";
 import {
@@ -74,7 +74,7 @@ export async function generateProductDiktatPdfEvidence(input: {
   if (!importRow) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
   if (importRow.status === "published" || importRow.status === "withdrawn") throw new Error("PRODUCT_DIKTAT_RENDER_DRAFT_REQUIRED");
 
-  const bundle = await parseStagedProductBundle(input.importId);
+  const bundle = await readProductBundleForDiktat(input.importId);
   const article = bundle.products.find((product): product is ArticleProduct => product.productType === "article");
   const diktat = bundle.products.find((product): product is DiktatProduct => product.productType === "diktat");
   if (!article || !diktat) throw new Error("PRODUCT_DIKTAT_SOURCE_MISSING");
@@ -98,7 +98,7 @@ export async function generateProductDiktatPdfEvidence(input: {
 
   try {
     const staticFigureAssets = article.schemaVersion === "article.v4"
-      ? await (await import("./product-v4-runtime-binding")).loadProductV4StaticFigureAssets(bundle)
+      ? await (await import("./product-diktat-worker-assets")).loadDiktatWorkerAssets(bundle)
       : undefined;
     const html = compileProductDiktatHtml({ article, diktat, staticFigureAssets });
     const bytes = await (input.renderer ?? renderProductDiktatPdf)(html);

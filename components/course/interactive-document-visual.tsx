@@ -61,6 +61,7 @@ export function InteractiveDocumentVisual({ spec, assetUrl }: { spec: Interactiv
   useEffect(() => {
     if (status !== "ready") return;
     sendPreferences();
+    const currentFrame = frame.current;
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const observer = new MutationObserver(sendPreferences);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
@@ -72,7 +73,7 @@ export function InteractiveDocumentVisual({ spec, assetUrl }: { spec: Interactiv
     });
     if (container.current) intersection?.observe(container.current);
     return () => {
-      frame.current?.contentWindow?.postMessage({ type: "zyx:visibility", active: false }, "*");
+      currentFrame?.contentWindow?.postMessage({ type: "zyx:visibility", active: false }, "*");
       observer.disconnect(); intersection?.disconnect(); motion.removeEventListener("change", sendPreferences);
       document.removeEventListener("visibilitychange", sendPreferences);
     };

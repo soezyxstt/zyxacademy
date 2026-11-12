@@ -37,6 +37,16 @@ describe("question interactive document envelope", () => {
     await expect(validateQuestionVisualAssets([{ ...question, prompt: fence({ ...spec, printSha256: hash(badPng), printBytes: badPng.length }) }], [assets[0], asset(badPng, "png")])).rejects.toThrow();
   });
 
+  test("rejects corrupt PNG pixel data even when metadata and digest match", async () => {
+    const corrupt = Buffer.from(png);
+    const idat = corrupt.indexOf("IDAT");
+    expect(idat).toBeGreaterThan(0);
+    corrupt[idat + 5] ^= 0xff;
+    expect((await sharp(corrupt).metadata()).format).toBe("png");
+    const visual = { ...spec, printSha256: hash(corrupt), printBytes: corrupt.length };
+    await expect(validateQuestionVisualAssets([{ ...question, prompt: fence(visual) }], [assets[0], asset(corrupt, "png")])).rejects.toThrow("INTERACTIVE_DOCUMENT_PRINT_INVALID");
+  });
+
   test("rejects disclosure, inline source and malformed metadata", async () => {
     await expect(validateQuestionVisualAssets([{ ...question, explanation: fence(spec) }], assets)).rejects.toThrow("QUESTION_VISUAL_DISCLOSURE");
     await expect(validateQuestionVisualAssets([{ ...question, prompt: `${question.prompt}\n<script>1</script>` }], assets)).rejects.toThrow("QUESTION_VISUAL_FORMAT_INVALID");

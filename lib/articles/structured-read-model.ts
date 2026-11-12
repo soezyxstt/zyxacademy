@@ -616,23 +616,31 @@ export function buildPublicArticleReadModel(
     const payload = block.formativeCheckPayload;
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) continue;
     const answer = payload as Record<string, unknown>;
-    let specs: InteractiveDocumentSpec[];
-    try { specs = [...parseInteractiveDocumentsInMarkdown(answer.answer), ...parseInteractiveDocumentsInMarkdown(answer.explanation)]; }
-    catch { unknownHiddenVisual = true; specs = []; }
-    for (const spec of specs) {
-      hiddenIds.add(spec.id);
-      hiddenHashes.add(spec.documentSha256);
-      hiddenHashes.add(spec.printSha256);
+    for (const field of [answer.answer, answer.explanation]) {
+      try {
+        for (const spec of parseInteractiveDocumentsInMarkdown(field)) {
+          hiddenHashes.add(spec.documentSha256);
+          hiddenHashes.add(spec.printSha256);
+        }
+      } catch { unknownHiddenVisual = true; }
     }
   }
   const hiddenVisual = (visual: PublicVisualSpec) => visual.kind === "interactive_document" &&
-    (unknownHiddenVisual || hiddenIds.has(visual.id) || hiddenHashes.has(visual.documentSha256) || hiddenHashes.has(visual.printSha256));
+    (unknownHiddenVisual || hiddenHashes.has(visual.documentSha256) || hiddenHashes.has(visual.printSha256));
   for (const raw of [...(rawArticle.visuals ?? []), ...validSections.flatMap(section => section.visuals ?? [])]) {
     const visual = sanitizeVisualSpec(raw);
     if (visual && hiddenVisual(visual)) hiddenIds.add(visual.id);
   }
   function redact<T>(value: T): T {
-    if (typeof value === "string") return ((unknownHiddenVisual && value.includes("zyx-visual") && value.includes("interactive_document")) || [...hiddenHashes].some(hash => value.includes(hash)) ? "Visual tidak tersedia." : value) as T;
+    if (typeof value === "string") {
+      let hiddenDocument = false;
+      try {
+        hiddenDocument = parseInteractiveDocumentsInMarkdown(value).some(spec => unknownHiddenVisual || hiddenHashes.has(spec.documentSha256) || hiddenHashes.has(spec.printSha256));
+      } catch {
+        hiddenDocument = unknownHiddenVisual || hiddenHashes.size > 0;
+      }
+      return (hiddenDocument || [...hiddenHashes].some(hash => value.includes(hash)) ? "Visual tidak tersedia." : value) as T;
+    }
     if (Array.isArray(value)) return value.map(redact) as T;
     if (value && typeof value === "object") {
       const object = value as Record<string, unknown>;

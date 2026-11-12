@@ -45,7 +45,7 @@ export function SceneSvg({ spec, state, onAction, onDrag, printable = false }: {
     const fontSize = unitsPerPixel * 13;
     if (!segments.some(segment => segment.type === "math")) return <text x={n(shape.x)} y={n(shape.y)} fill={color} fontSize={fontSize}>{shape.text}{suffix}</text>;
     return <foreignObject x={n(shape.x)} y={n(shape.y) - fontSize * 1.2} width={fontSize * 20} height={fontSize * 3} style={{ overflow: "hidden", pointerEvents: "none" }}>
-      <div xmlns="http://www.w3.org/1999/xhtml" style={{ color, display: "inline-block", fontSize: 20, lineHeight: 1.2, whiteSpace: "nowrap", transform: `scale(${fontSize / 20})`, transformOrigin: "top left", pointerEvents: shape.action && !printable ? "auto" : "none" }}>{segments.map((segment, index) => segment.type === "math" ? <span key={index} dangerouslySetInnerHTML={{ __html: renderKatexToString(segment.value, { throwOnError: false, strict: false, trust: false, maxSize: 4, maxExpand: 1000 }) }} /> : <React.Fragment key={index}>{segment.value}</React.Fragment>)}{suffix}</div>
+      <div {...{ xmlns: "http://www.w3.org/1999/xhtml" }} style={{ color, display: "inline-block", fontSize: 20, lineHeight: 1.2, whiteSpace: "nowrap", transform: `scale(${fontSize / 20})`, transformOrigin: "top left", pointerEvents: shape.action && !printable ? "auto" : "none" }}>{segments.map((segment, index) => segment.type === "math" ? <span key={index} dangerouslySetInnerHTML={{ __html: renderKatexToString(segment.value, { throwOnError: false, strict: false, trust: false, maxSize: 4, maxExpand: 1000 }) }} /> : <React.Fragment key={index}>{segment.value}</React.Fragment>)}{suffix}</div>
     </foreignObject>;
   };
   let rendered: React.ReactNode[];

@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { aiQuestionBank } from "@/db/schema";
 import { validateQuestion } from "@/lib/question-validator";
 import { eq } from "drizzle-orm";
-import { validateQuestionVisualAssets } from "@/lib/authoring/question-visual-assets";
+import { rejectQuestionVisualReferences } from "@/lib/authoring/question-visual-references";
 
 /**
  * Saves manual modifications to a question from a tutor.
@@ -16,7 +16,7 @@ export async function saveTutorQuestionEdit(
   explanation: string,
   tutorUserId: string // logged for audit trails
 ): Promise<{ success: boolean; errors?: string[] }> {
-  try { await validateQuestionVisualAssets([{ prompt, options, explanation }]); }
+  try { rejectQuestionVisualReferences([{ prompt, options, explanation }]); }
   catch (error) { return { success: false, errors: [error instanceof Error ? error.message : "QUESTION_VISUAL_FORMAT_INVALID"] }; }
   // Fetch existing question to retrieve KO association and other values
   const [currentQ] = await db
@@ -84,7 +84,7 @@ export async function approveAndPublishQuestion(
     return { success: false, errors: ["Historical and legacy reference questions are immutable."] };
   }
 
-  try { await validateQuestionVisualAssets([{ prompt: question.prompt, options: Array.isArray(question.options) ? question.options.map(String) : [], explanation: question.explanation }]); }
+  try { rejectQuestionVisualReferences([{ prompt: question.prompt, options: Array.isArray(question.options) ? question.options.map(String) : [], explanation: question.explanation }]); }
   catch (error) { return { success: false, errors: [error instanceof Error ? error.message : "QUESTION_VISUAL_FORMAT_INVALID"] }; }
 
   // Run validation on existing values to ensure KaTeX and structure are compliant

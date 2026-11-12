@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { stageProductBundle, listProductBundleImports, productBundleLifecycleStatus } from "@/lib/bundle/product-staging";
-import { validateProductBundleAdmission } from "@/lib/bundle/product-validator";
+import { validateProductBundleAdmission } from "@/lib/bundle/product-admission";
 import { previewProducts } from "@/lib/bundle/product-preview";
 import { createProductBundleDraft, finalizeProductBundleDraft, type ProductBundleDraft } from "@/lib/bundle/product-draft";
 

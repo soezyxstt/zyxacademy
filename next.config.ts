@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
       "./node_modules/pdfjs-dist/{package.json,standard_fonts/**}", "./node_modules/@napi-rs/canvas*/**",
       "./lib/{authoring,materials,math,bundle,compute,articles,zyra,ide,sumber}/**/*.ts",
       "./lib/question-authoring-contract.ts", "./lib/authoring/playbooks/**/*",
-      "./next.config.ts", "./scripts/authoring/prepare-web-verification.ts",
+      "./next.config.ts", "./scripts/authoring/prepare-web-verification.ts", "./scripts/authoring/local-v4-bundle.ts",
       "./deno.json", "./workers/deno-background/deno.json",
       "./components/coding/**/*", "./lib/coding/**/*", "./public/coding/worker.js",
       "./components/course/**/*.tsx", "./components/ui/{slider,scientific-input}.tsx",

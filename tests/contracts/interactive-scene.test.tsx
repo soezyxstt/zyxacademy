@@ -7,6 +7,7 @@ import { initialSceneState, sceneValue, sceneVisible, setSceneParameter } from "
 import { SceneSvg } from "@/components/course/interactive-scene-svg";
 import { stopSceneKey } from "@/components/course/interactive-scene-renderer";
 import { buildDiktatVisualSnapshot, renderDiktatStaticVisual } from "@/lib/materials/diktat-static-visual";
+import { renderDiktatSceneSvg } from "@/lib/materials/diktat-scene-svg";
 import { sanitizeDemoArticle, sanitizeDemoMarkdown } from "@/lib/demo/public-content-sanitizer";
 import type { PublicArticleReadModel } from "@/lib/articles/structured-read-model";
 import { machine, motion } from "../visual/fixtures/interactive-scene-data";
@@ -33,6 +34,30 @@ const payload = {
 const scene = () => { const parsed = visualSpecSchema.parse(payload); if (parsed.kind !== "interactive_scene") throw new Error("kind"); return parsed; };
 
 describe("bounded interactive scenes", () => {
+  test("worker print SVG matches the original React renderer for geometry, math and inaccessible states", () => {
+    const specimens = [payload, machine("fixture", "Diagram"), motion("moving", "Batang"), {
+      ...payload, label: `Label ' & < >`, description: `Deskripsi ' & < >`,
+      shapes: [
+        { type: "line", x1: 0, y1: 0, x2: 0, y2: 0, arrow: true, fill: true },
+        { type: "line", x1: 0, y1: 0, x2: 20, y2: 10, arrow: true, fill: true },
+        { type: "circle", cx: 5, cy: 5, r: 3, fill: true, color: "success" },
+        { type: "rect", x: 4, y: 6, width: 7, height: 8, color: "warning" },
+        { type: "polygon", points: [{ x: 0, y: 0 }, { x: 3, y: 4 }, { x: 5, y: 6 }], fill: true },
+        { type: "polygon", points: [{ x: 0, y: 0 }, { x: 3, y: 4 }], closed: false, fill: true },
+        { type: "path", commands: [{ op: "M", x: 1, y: 2 }, { op: "L", x: 2, y: 3 }, { op: "Q", x1: 3, y1: 4, x: 5, y: 6 }, { op: "C", x1: 1, y1: 2, x2: 3, y2: 4, x: 5, y: 6 }, { op: "Z" }] },
+        { type: "text", x: 1, y: 2, text: `Plain ' & < >`, value: "t" },
+        { type: "text", x: 1, y: 2, text: String.raw`A & $\theta$ < ${"`code`"} $\rule{1000000em}{1000000em}$`, value: "t" },
+        { type: "text", x: 1, y: 2, text: "hidden", visibleWhen: { left: "t", op: "gt", right: 1 } },
+      ],
+    }, { ...payload, shapes: [{ type: "circle", cx: "1/(t-1)", cy: 10, r: 3 }] }];
+    for (const input of specimens) {
+      const spec = visualSpecSchema.parse(input);
+      if (spec.kind !== "interactive_scene") throw new Error("kind");
+      for (const state of [initialSceneState(spec), setSceneParameter(spec, initialSceneState(spec), "t", 1)]) {
+        expect(renderDiktatSceneSvg(spec, state)).toBe(renderToStaticMarkup(<SceneSvg spec={spec} state={state} printable />));
+      }
+    }
+  });
   test("stops scene keyboard events without preventing select keyboard behavior", () => {
     for (const [key, tagName, expectedPrevented] of [["Enter", "INPUT", true], ["Enter", "DIV", false], [" ", "INPUT", false]] as const) {
       let stopped = false, prevented = false;
