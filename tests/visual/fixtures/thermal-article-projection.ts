@@ -13,7 +13,7 @@ export function buildThermalArticleReadModel(spec: InteractiveDocumentSpec) {
     content: block.contentMarkdown, status: "published",
   })));
   return buildPublicArticleReadModel(
-    { ...article, babId: article.chapterId, status: "published" }, sections, blocks, [],
+    { ...article, babId: article.chapterId ?? null, status: "published" }, sections, blocks, [],
     { id: article.chapterId, title: "Perpindahan panas", number: 1, courseTitle: "Perpindahan panas" },
   );
 }

@@ -68,7 +68,9 @@ test("product and quiz discover the same typed scene and isolated document contr
   expect(guidance.interactiveDocument.runtime).toContain("event.source === parent");
   expect(guidance.interactiveDocument.runtime).toContain("zyx:preferences");
   expect(guidance.interactiveDocument.presentation).toContain("question-option");
-  expect(guidance.schemaDocument).toEqual(product.schemaDocuments.find(item => item.name === "visual"));
+  const visualSchema = product.schemaDocuments.find(item => item.name === "visual");
+  if (!visualSchema) throw new Error("VISUAL_SCHEMA_REQUIRED");
+  expect(guidance.schemaDocument).toEqual(visualSchema);
   const response = await GET(new Request(`https://contract.test${guidance.schemaDocument.path}`));
   const body = await response.text();
   expect(createHash("sha256").update(body).digest("hex")).toBe(guidance.schemaDocument.sha256);

@@ -68,7 +68,7 @@ test("real in-memory SDK serves bootstrap and both contracts without claiming un
   } finally { await client.close(); await server.close(); }
 });
 
-test.each(richDocumentCases)("built pair %s matches its current source and capture", async id => {
+test.each([...richDocumentCases])("built pair %s matches its current source and capture", async id => {
   const actual = await readRichDocumentPair(id);
   expect(actual.spec.id).toBe(id);
   expect(sha(actual.document)).toBe(actual.spec.documentSha256);

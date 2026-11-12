@@ -5,7 +5,7 @@ import { zipSync } from "fflate";
 import { buildLocalVerificationFixture } from "../../../scripts/authoring/local-verification-fixture";
 import { computeProductBundleChecksum, deterministicProductSerialization } from "@/lib/bundle/product-validator";
 import { materializeArticleParts } from "@/lib/materials/article-parts";
-import { interactiveDocumentSchema } from "@/lib/materials/interactive-document";
+import { interactiveDocumentSchema, type InteractiveDocumentSpec } from "@/lib/materials/interactive-document";
 import { visualSpecSchema } from "@/lib/materials/visual-contract";
 import { productV4DocumentPairKey } from "@/lib/compute/product-v4-document-wire";
 
@@ -20,7 +20,7 @@ export async function admittedFormativeVerificationFixture() {
   const block = article.sections.flatMap(section => section.blocks).find(item => item.formativeCheckPayload?.options?.some(option => option.isCorrect));
   if (!block?.parts || !block.formativeCheckPayload?.options) throw new Error("FIXTURE_FORMATIVE_REQUIRED");
   const files = new Map(fixture.files);
-  const specs = [];
+  const specs: InteractiveDocumentSpec[] = [];
   const assets: Record<string, { document: Uint8Array; print: Uint8Array }> = {};
   for (const [index, id] of ["prompt", "option", "explanation"].entries()) {
     const document = Buffer.from(`<!doctype html><html><body><main><h1>${id} visual</h1><label>Nilai <input type="range" min="0" max="2" value="1" oninput="document.getElementById('value').textContent=this.value"></label><p id="value">1</p></main></body></html>`);

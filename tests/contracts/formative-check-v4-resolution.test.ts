@@ -1,6 +1,6 @@
 import { expect, mock, test } from "bun:test";
 
-const payload = { checkKind: "short_answer", answer: "limit", explanation: "Pembahasan" };
+const payload = { checkKind: "short_answer" as const, answer: "limit", explanation: "Pembahasan" };
 const marker = (version: number) => `Konten\n\n<!--__ZYX_V${version}_BLOCK_PAYLOAD__:${Buffer.from(JSON.stringify({ formativeCheckPayload: payload, parts: [] })).toString("base64url")}-->`;
 let version = 4;
 let calls = 0;

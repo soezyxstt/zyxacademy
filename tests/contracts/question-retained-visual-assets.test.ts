@@ -1,6 +1,7 @@
 import { beforeEach, expect, mock, test } from "bun:test";
 import { createHash } from "node:crypto";
 import sharp from "sharp";
+import type { QuestionAuthoringInput } from "@/lib/question-authoring-contract";
 
 mock.module("server-only", () => ({}));
 const objects = new Map<string, Uint8Array>();
@@ -35,8 +36,8 @@ const html = Buffer.from("<!doctype html><button>Tekan</button>");
 const png = await sharp({ create: { width: 2, height: 2, channels: 4, background: "white" } }).png().toBuffer();
 const makeSpec = (document = html, print = png) => ({ id: "x", kind: "interactive_document" as const, version: 1 as const, label: "X", description: "X", documentSha256: hash(document), documentBytes: document.length, printSha256: hash(print), printBytes: print.length, height: 400, staticFallback: { type: "text" as const, summary: "X", content: "X" }, printCaption: "X" });
 const fence = (spec: ReturnType<typeof makeSpec>) => `\`\`\`zyx-visual\n${JSON.stringify(spec)}\n\`\`\``;
-const makeQuestion = (spec = makeSpec()) => ({ prompt: fence(spec), options: ["A", "B"], correctIndices: [0], acceptableAnswers: [], explanation: "Jawaban A", difficulty: "easy" as const, questionType: "multiple_choice" as const, cognitiveLevel: "understand" as const, reasoningPattern: "reason", tags: [], courseId: "course", ideaLinks: [], reviewStatus: "generated" as const });
-const originalRow = (question = makeQuestion()) => ({ courseId: "course", chapterId: null, origin: "zyx_original", status: "draft", updatedAt: new Date("2026-01-01T00:00:00Z"), version: 1, prompt: question.prompt, options: question.options.map(text => ({ text })) });
+const makeQuestion = (spec = makeSpec()): QuestionAuthoringInput => ({ prompt: fence(spec), options: ["A", "B"], correctIndices: [0], acceptableAnswers: [], explanation: "Jawaban A", difficulty: "easy", questionType: "multiple_choice", cognitiveLevel: "understand", reasoningPattern: "reason", tags: [], courseId: "course", ideaLinks: [], reviewStatus: "generated" });
+const originalRow = (question = makeQuestion()) => ({ courseId: "course", chapterId: question.chapterId ?? null, origin: "zyx_original", status: "draft", updatedAt: new Date("2026-01-01T00:00:00Z"), version: 1, prompt: question.prompt, options: question.options.map(text => ({ text })) });
 const course = { id: "course", legacyCourseId: "legacy", status: "active" };
 const identity = { id: "admin", status: "active" };
 const inputRows = (row = originalRow(), solution = "Jawaban A") => { rows = [[course], [{ id: "legacy" }], [identity], [row], [{ content: solution }]]; };

@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { authorizeArticleDocument, authorizeAttemptDocument, authorizeDraftArticleDocument } from "@/lib/materials/interactive-document-authorization";
+import type { InteractiveDocumentSpec } from "@/lib/materials/interactive-document";
 
-const spec = { id: "visual", kind: "interactive_document", version: 1, label: "Visual", description: "Visual interaktif", documentSha256: "a".repeat(64), documentBytes: 10, printSha256: "b".repeat(64), printBytes: 10, height: 400, staticFallback: { type: "text", summary: "Ringkasan", content: "Isi" }, printCaption: "Awal" };
+const spec: InteractiveDocumentSpec = { id: "visual", kind: "interactive_document", version: 1, label: "Visual", description: "Visual interaktif", documentSha256: "a".repeat(64), documentBytes: 10, printSha256: "b".repeat(64), printBytes: 10, height: 400, staticFallback: { type: "text", summary: "Ringkasan", content: "Isi" }, printCaption: "Awal" };
 const other = { ...spec, id: "solution", documentSha256: "c".repeat(64), printSha256: "d".repeat(64) };
 const fence = (value: unknown) => `\`\`\`zyx-visual\n${JSON.stringify(value)}\n\`\`\``;
 const attempt = { id: "attempt", studentId: "user", status: "in_progress", questionsSnapshot: [{ id: "question", prompt: fence(spec), options: [fence(spec), "plain"], explanation: fence(other) }] };

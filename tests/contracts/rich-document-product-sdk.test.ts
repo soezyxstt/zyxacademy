@@ -130,6 +130,7 @@ test("actual Product V4 packages through the in-memory MCP SDK", async () => {
       const brick = id === "thermal" ? await readRichDocumentPair("brick") : null;
       const archive = id === "thermal" ? { pair: brick!, article: createThermalArticle(brick!.spec), zip: rawArchive(createThermalArticle(brick!.spec), brick!) } : await richArticleArchive(id);
       const article = archive.article;
+      if (!article.chapterId) throw new Error("FIXTURE_CHAPTER_REQUIRED");
       const runToken = await start(article.courseId, article.chapterId);
       const contract = await call("workflow.get_contract", { runToken, bootstrapToken });
       expect(contract.ok).toBe(true);
@@ -238,7 +239,10 @@ test("synthetic articles use distinct retrieval objectives and answer relationsh
     if (article.productType !== "article") throw new Error("ARTICLE_REQUIRED");
     const checks = article.sections.map(section => section.blocks.find(block => block.formativeCheckPayload)!);
     expect(new Set(checks.map(block => block.contentMarkdown)).size).toBe(3);
-    expect(new Set(article.sections.map(section => section.pedagogy.objectives[0].description)).size).toBe(3);
+    expect(new Set(article.sections.map(section => {
+      if (!section.pedagogy) throw new Error("FIXTURE_PEDAGOGY_REQUIRED");
+      return section.pedagogy.objectives[0].description;
+    })).size).toBe(3);
     for (const block of checks) {
       const check = block.formativeCheckPayload!;
       expect(check.options?.filter(option => option.isCorrect).map(option => option.text)).toEqual([check.answer]);
