@@ -28,6 +28,9 @@ test("interaction evidence ignores focus and no-op, observes pixels or accessibl
     pressed = "true";
     expect(await waitForDocumentInteraction(body, initial, true)).toBe(true);
     expect(await waitForDocumentInteraction(body, initial, false)).toBe(false);
+    const restoration = setTimeout(() => { pressed = "false"; }, 20);
+    expect(await waitForDocumentInteraction(body, initial, false)).toBe(false);
+    clearTimeout(restoration);
     pressed = "false";
     expect(await waitForDocumentInteraction(body, initial, false)).toBe(true);
     setTimeout(() => { pixel = 255; }, 180);

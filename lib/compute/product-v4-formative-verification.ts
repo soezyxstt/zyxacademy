@@ -4,6 +4,7 @@ import { formativeDocumentFields } from "@/lib/bundle/product-v4-verification";
 import { formativeAnswerForReveal } from "@/lib/materials/formative-check-answer";
 import { parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
 import { verificationPreviewSchema } from "@/lib/materials/verification-preview";
+import { interactiveDocumentSchema } from "@/lib/materials/interactive-document";
 import { interactiveDocumentResponse, verifyAdmittedInteractiveDocumentAsset } from "@/lib/materials/interactive-document-verified";
 import { mintInteractiveDocumentGrant, verifyInteractiveDocumentGrant } from "@/lib/materials/interactive-document-grant";
 export async function documentInteractionSnapshot(body: Locator): Promise<string> {
@@ -34,6 +35,7 @@ export async function documentInteractionSnapshot(body: Locator): Promise<string
 }
 
 export async function waitForDocumentInteraction(body: Locator, initial: string, changed: boolean): Promise<boolean> {
+  if (!changed && await documentInteractionSnapshot(body) !== initial) return false;
   let previous = "";
   // Observe the full window for stability so delayed restoration cannot certify a reset.
   for (let attempt = 0; attempt < 30; attempt++) {
@@ -51,7 +53,12 @@ type Field = ReturnType<typeof formativeDocumentFields>[number];
 export function assertNoHiddenFormativeDocuments(article: Field["article"], preview: unknown) {
   const hidden = article.sections.flatMap(section => section.blocks.flatMap(block => block.formativeCheckPayload ? [block.formativeCheckPayload.answer, block.formativeCheckPayload.explanation].flatMap(parseInteractiveDocumentsInMarkdown) : []));
   const text = JSON.stringify(preview);
-  if (hidden.some(spec => text.includes(spec.documentSha256) || text.includes(spec.printSha256) || text.includes(`"visualId":${JSON.stringify(spec.id)}`) || text.includes(`"id":${JSON.stringify(spec.id)}`))) throw new Error("VERIFICATION_FORMATIVE_PUBLIC_FIELD_REDACTED");
+  const registry = preview && typeof preview === "object" && "visuals" in preview && Array.isArray(preview.visuals) ? preview.visuals : [];
+  const visibleIds = new Set(registry.flatMap(value => {
+    const parsed = interactiveDocumentSchema.safeParse(value);
+    return parsed.success && !hidden.some(spec => [spec.documentSha256, spec.printSha256].some(hash => hash === parsed.data.documentSha256 || hash === parsed.data.printSha256)) ? [parsed.data.id] : [];
+  }));
+  if (hidden.some(spec => text.includes(spec.documentSha256) || text.includes(spec.printSha256) || (!visibleIds.has(spec.id) && (text.includes(`"visualId":${JSON.stringify(spec.id)}`) || text.includes(`"id":${JSON.stringify(spec.id)}`))))) throw new Error("VERIFICATION_FORMATIVE_PUBLIC_FIELD_REDACTED");
 }
 
 export function formativeVerificationPreview(field: Field, scope: string) {

@@ -1,6 +1,23 @@
 import { expect, test } from "bun:test";
 import { buildPublicArticleReadModel } from "@/lib/articles/structured-read-model";
-import { parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
+import { inspectInteractiveDocumentsInMarkdown, parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
+import type { InteractiveDocumentSpec } from "@/lib/materials/interactive-document";
+
+test.each(["answer", "explanation"])("preserves valid hidden hashes beside a malformed fence in the same %s field", field => {
+  const spec: InteractiveDocumentSpec = { id: "v", kind: "interactive_document", version: 1, label: "Secret", description: "Visual", documentSha256: "a".repeat(64), documentBytes: 1, printSha256: "b".repeat(64), printBytes: 1, height: 400, staticFallback: { type: "text", summary: "Secret", content: "Secret" }, printCaption: "Visual" };
+  const good = "```zyx-visual\n" + JSON.stringify(spec) + "\n```", bad = "```zyx-visual\n{invalid}\n```";
+  for (const value of [good + "\n\n" + bad, bad + "\n\n" + good]) {
+    expect(inspectInteractiveDocumentsInMarkdown(value)).toEqual({ specs: [spec], invalid: true });
+    expect(() => parseInteractiveDocumentsInMarkdown(value)).toThrow("QUESTION_VISUAL_FORMAT_INVALID");
+    const article = buildPublicArticleReadModel(
+      { id: "a", courseId: "c", slug: "a", title: "Article", version: 1 },
+      [{ id: "s", slug: "s", title: "Section" }],
+      [{ id: "b", bagianArtikelId: "s", blockType: "retrieval_prompt", content: `Hash ${spec.documentSha256} ${spec.printSha256}`, formativeCheckPayload: { answer: "plain", explanation: "plain", [field]: value } }],
+    );
+    expect(JSON.stringify(article)).not.toContain(spec.documentSha256);
+    expect(JSON.stringify(article)).not.toContain(spec.printSha256);
+  }
+});
 
 test.each(["answer", "explanation"])("retains known hidden hashes when the other field is malformed: %s", field => {
   const spec = { id: "v", kind: "interactive_document", version: 1, label: "Secret", description: "Visual", documentSha256: "a".repeat(64), documentBytes: 1, printSha256: "b".repeat(64), printBytes: 1, height: 400, staticFallback: { type: "text", summary: "Secret", content: "Secret" }, printCaption: "Visual" };

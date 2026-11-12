@@ -6,6 +6,7 @@ import { buildLocalVerificationFixture } from "../../scripts/authoring/local-ver
 import { createProductBundleDraft, finalizeProductBundleDraft } from "@/lib/bundle/product-draft";
 import { computeProductBundleChecksum, deterministicProductSerialization } from "@/lib/bundle/product-validator";
 import { buildPublicArticleReadModel } from "@/lib/articles/structured-read-model";
+import { assertNoHiddenFormativeDocuments } from "@/lib/compute/product-v4-formative-verification";
 
 mock.module("server-only", () => ({}));
 const { validateProductBundleAdmission } = await import("@/lib/bundle/product-admission");
@@ -43,6 +44,9 @@ test("admitted hidden and visible documents with equal IDs retain only the visib
   if (!admitted.success) throw new Error(JSON.stringify(admitted.issues));
   const admittedArticle = admitted.data.products.find(item => item.productType === "article");
   if (!admittedArticle || admittedArticle.productType !== "article") throw new Error("ADMITTED_ARTICLE_REQUIRED");
+  expect(() => assertNoHiddenFormativeDocuments(admittedArticle, { visuals: admittedArticle.visuals, visualId: visible.id })).not.toThrow();
+  expect(() => assertNoHiddenFormativeDocuments(admittedArticle, { visuals: [hidden] })).toThrow("VERIFICATION_FORMATIVE_PUBLIC_FIELD_REDACTED");
+  expect(() => assertNoHiddenFormativeDocuments(admittedArticle, { parts: [{ kind: "visual_ref", visualId: hidden.id }] })).toThrow("VERIFICATION_FORMATIVE_PUBLIC_FIELD_REDACTED");
   const section = admittedArticle.sections.find(item => item.blocks.some(block => block.parts?.some(part => part.kind === "visual_ref" && part.visualId === visible.id)));
   if (!section) throw new Error("VISIBLE_REFERENCE_REQUIRED");
   const blocks = admittedArticle.sections.flatMap(item => item.blocks.map(block => ({ ...block, bagianArtikelId: item.id, content: block.contentMarkdown })));

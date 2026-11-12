@@ -11,7 +11,7 @@ import {
 } from "@/lib/materials/visual-contract";
 import type { InteractiveSceneSpec } from "@/lib/materials/interactive-scene";
 import { interactiveDocumentSchema, type InteractiveDocumentSpec } from "@/lib/materials/interactive-document";
-import { parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
+import { inspectInteractiveDocumentsInMarkdown, parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
 import type { CanvasSpec } from "@/lib/zyra/canvas";
 import {
   formativeCheckPayloadSchema,
@@ -618,7 +618,9 @@ export function buildPublicArticleReadModel(
     const answer = payload as Record<string, unknown>;
     for (const field of [answer.answer, answer.explanation]) {
       try {
-        for (const spec of parseInteractiveDocumentsInMarkdown(field)) {
+        const result = inspectInteractiveDocumentsInMarkdown(field);
+        if (result.invalid) unknownHiddenVisual = true;
+        for (const spec of result.specs) {
           hiddenHashes.add(spec.documentSha256);
           hiddenHashes.add(spec.printSha256);
         }
