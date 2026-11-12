@@ -13,7 +13,7 @@ const { validateProductBundleAdmission } = await import("@/lib/bundle/product-ad
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const encode = (value: unknown) => new TextEncoder().encode(deterministicProductSerialization(value));
 
-test("admitted hidden and visible documents with equal IDs retain only the visible assets", async () => {
+test.each(["document", "graph"])("admitted hidden document and visible %s with equal IDs retain only visible assets", async mode => {
   const visibleHtml = Buffer.from("<!doctype html><p>Visible</p>");
   const hiddenHtml = Buffer.from("<!doctype html><p>Hidden answer</p>");
   const visiblePng = await sharp({ create: { width: 2, height: 2, channels: 4, background: "white" } }).png().toBuffer();
@@ -22,8 +22,10 @@ test("admitted hidden and visible documents with equal IDs retain only the visib
   const draft = createProductBundleDraft(source);
   const article = draft.products.find(product => product.productType === "article");
   if (!article || article.productType !== "article" || !article.visuals?.[0]) throw new Error("FIXTURE_ARTICLE_REQUIRED");
-  const visible = { id: article.visuals[0].id, kind: "interactive_document", version: 1, label: "Visible model", description: "Model", documentSha256: sha(visibleHtml), documentBytes: visibleHtml.length, printSha256: sha(visiblePng), printBytes: visiblePng.length, height: 400, staticFallback: { type: "text", summary: "Visible", content: "Visible fallback" }, printCaption: "Visible" } as const;
-  const hidden = { ...visible, label: "SECRET answer", documentSha256: sha(hiddenHtml), documentBytes: hiddenHtml.length, printSha256: sha(hiddenPng), printBytes: hiddenPng.length };
+  const document = { id: article.visuals[0].id, kind: "interactive_document", version: 1, label: "Visible model", description: "Model", documentSha256: sha(visibleHtml), documentBytes: visibleHtml.length, printSha256: sha(visiblePng), printBytes: visiblePng.length, height: 400, staticFallback: { type: "text", summary: "Visible", content: "Visible fallback" }, printCaption: "Visible" } as const;
+  if (mode === "graph" && article.visuals[0].kind !== "epsilon_delta_graph") throw new Error("FIXTURE_GRAPH_REQUIRED");
+  const visible = mode === "graph" ? article.visuals[0] : document;
+  const hidden = { ...document, label: "SECRET answer", documentSha256: sha(hiddenHtml), documentBytes: hiddenHtml.length, printSha256: sha(hiddenPng), printBytes: hiddenPng.length };
   article.visuals[0] = visible;
   const finalized = finalizeProductBundleDraft(source, draft).bundle;
   const products = structuredClone(finalized.products);
@@ -34,7 +36,8 @@ test("admitted hidden and visible documents with equal IDs retain only the visib
   check.formativeCheckPayload.explanation = `\`\`\`zyx-visual\n${JSON.stringify(hidden)}\n\`\`\``;
   const files = new Map(finalized.files);
   files.set("products.json", encode(products));
-  const assets = [[visible.documentSha256, "html", visibleHtml], [visible.printSha256, "png", visiblePng], [hidden.documentSha256, "html", hiddenHtml], [hidden.printSha256, "png", hiddenPng]] as const;
+  const assets: [string, string, Uint8Array][] = [[hidden.documentSha256, "html", hiddenHtml], [hidden.printSha256, "png", hiddenPng]];
+  if (mode === "document") assets.push([document.documentSha256, "html", visibleHtml], [document.printSha256, "png", visiblePng]);
   for (const [hash, extension, bytes] of assets) files.set(`visuals/${hash}.${extension}`, bytes);
   const entityFiles = finalized.manifest.entityFiles.map(file => ({ ...file, checksum: sha(files.get(file.path)!) }));
   const visualAssets = assets.map(([hash, extension, bytes]) => ({ path: `visuals/${hash}.${extension}`, sha256: hash, bytes: bytes.length }));
@@ -46,6 +49,7 @@ test("admitted hidden and visible documents with equal IDs retain only the visib
   if (!admittedArticle || admittedArticle.productType !== "article") throw new Error("ADMITTED_ARTICLE_REQUIRED");
   expect(() => assertNoHiddenFormativeDocuments(admittedArticle, { visuals: admittedArticle.visuals, visualId: visible.id })).not.toThrow();
   expect(() => assertNoHiddenFormativeDocuments(admittedArticle, { visuals: [hidden] })).toThrow("VERIFICATION_FORMATIVE_PUBLIC_FIELD_REDACTED");
+  expect(() => assertNoHiddenFormativeDocuments(admittedArticle, { visuals: [{ ...visible, kind: "invalid" }], visualId: hidden.id })).toThrow("VERIFICATION_FORMATIVE_PUBLIC_FIELD_REDACTED");
   expect(() => assertNoHiddenFormativeDocuments(admittedArticle, { parts: [{ kind: "visual_ref", visualId: hidden.id }] })).toThrow("VERIFICATION_FORMATIVE_PUBLIC_FIELD_REDACTED");
   const section = admittedArticle.sections.find(item => item.blocks.some(block => block.parts?.some(part => part.kind === "visual_ref" && part.visualId === visible.id)));
   if (!section) throw new Error("VISIBLE_REFERENCE_REQUIRED");
@@ -55,7 +59,11 @@ test("admitted hidden and visible documents with equal IDs retain only the visib
     admittedArticle.sections.map(item => ({ id: item.id, slug: item.id, title: item.title })), blocks,
   );
   const json = JSON.stringify(model);
-  expect(model.visuals?.some(item => item.id === visible.id && item.kind === "interactive_document" && item.documentSha256 === visible.documentSha256)).toBe(true);
+  const publicVisual = model.visuals?.find(item => item.id === visible.id);
+  expect(publicVisual?.kind).toBe(visible.kind);
+  if (visible.kind === "interactive_document") {
+    expect(publicVisual?.kind === "interactive_document" && publicVisual.documentSha256).toBe(visible.documentSha256);
+  }
   expect(json).toContain(`"visualId":"${visible.id}"`);
   expect(json).not.toContain(hidden.documentSha256);
   expect(json).not.toContain(hidden.printSha256);
