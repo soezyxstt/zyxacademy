@@ -82,6 +82,7 @@ const { client, testDb } = await createPostgresTestDb();
 
 mock.module("@/db", () => ({ db: testDb }));
 mock.module("@/lib/storage", () => ({ storage: mockStorage }));
+mock.module("@/lib/vector-sync-dispatch", () => ({ dispatchVectorSync: async () => {} }));
 
 const HASH_A = "a".repeat(64);
 const HASH_B = "b".repeat(64);
