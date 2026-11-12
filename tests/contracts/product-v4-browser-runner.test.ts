@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { authenticateVerificationBrowser, captureProductV4WebState, exerciseProductV4WebState, exerciseProductV4VisualSmoke, inspectProductV4WebDocument, inspectProductV4DisplayMath, exerciseProductV4MathScroll, validateVerificationBaseUrl, validateDeployedVerificationBaseUrl, resolveVerificationBaseUrl, isLocalPlaywrightVerification, waitForProductV4Visuals } from "@/lib/compute/product-v4-browser-runner";
-import type { Page } from "@playwright/test";
+import type { Page } from "playwright-core";
 import { verificationPreviewSchema } from "@/lib/materials/verification-preview";
 import { visualSpecSchema } from "@/lib/materials/visual-contract";
 
