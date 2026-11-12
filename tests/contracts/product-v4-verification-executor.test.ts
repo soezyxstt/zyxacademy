@@ -3,6 +3,9 @@ import { afterEach, expect, test } from "bun:test";
 import { executeProductV4VerificationCheck } from "@/lib/compute/product-v4-verification-executor";
 import { productEntitySchema } from "@/lib/bundle/product-validator";
 import { LIMIT_EPSILON_DELTA_GRAPH } from "../fixtures/product-learning/limit-epsilon-delta";
+import { deriveProductV4VerificationPlan } from "@/lib/bundle/product-v4-verification";
+import { createHash } from "node:crypto";
+import sharp from "sharp";
 
 const originalFetch = globalThis.fetch;
 const originalUrl = process.env.AUTHORING_VERIFICATION_RENDERER_URL, originalSecret = process.env.AUTHORING_VERIFICATION_RENDERER_SECRET;
@@ -42,6 +45,34 @@ test("executor runs actual structure and polynomial model checks locally", async
   await expect(executeProductV4VerificationCheck({ ...model, requirement: { ...model.requirement, target: "missing" } })).rejects.toThrow("VISUAL_MISSING");
 });
 
+test("HTTP executor sends the current document pair and rejects missing or changed bytes", async () => {
+  const document = Buffer.from("<!doctype html><p>document marker</p>");
+  const print = await sharp({ create: { width: 2, height: 2, channels: 4, background: "white" } }).png().toBuffer();
+  const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+  let invalid = "";
+  const readDocumentAsset = async (_spec: unknown, kind: "document" | "print") => {
+    if (invalid === "missing") throw new Error("MISSING");
+    return invalid === kind ? new Uint8Array([1]) : kind === "document" ? document : print;
+  };
+  const { bundle } = buildLocalVerificationFixture();
+  const article = bundle.products.find(product => product.productType === "article");
+  if (!article || article.productType !== "article") throw new Error("FIXTURE_ARTICLE_REQUIRED");
+  article.visuals = [{ id: article.visuals![0].id, kind: "interactive_document", version: 1, label: "Visual", description: "Visual", documentSha256: digest(document), documentBytes: document.length, printSha256: digest(print), printBytes: print.length, height: 400, staticFallback: { type: "text", summary: "Visual", content: "Visual" }, printCaption: "Visual" }];
+  const plan = deriveProductV4VerificationPlan({ bundle, binding: { importId: "import", courseId: bundle.manifest.courseId, runId: "run", revision: 1, rendererChecksum: hash, dependencyChecksum: hash, contractChecksum: hash, playbookChecksum: hash, fontChecksum: hash, assetChecksum: hash, printProfile: "a4", policyRevision: "v1" } });
+  const requirement = plan.requirements.find(check => check.target === `${article.id}/${article.visuals![0].id}` && check.layer === "web")!;
+  process.env.AUTHORING_VERIFICATION_RENDERER_URL = "http://127.0.0.1:9876"; process.env.AUTHORING_VERIFICATION_RENDERER_SECRET = "local-test-only";
+  let calls = 0;
+  globalThis.fetch = (async (_url: unknown, options?: RequestInit) => {
+    calls++;
+    const body = JSON.parse(String(options!.body));
+    expect(body.interactiveDocumentAssets[digest(document)]).toEqual({ document: document.toString("base64"), print: print.toString("base64") });
+    return Response.json(response({ checkId: requirement.id }));
+  }) as typeof fetch;
+  expect((await executeProductV4VerificationCheck({ bundle, plan, requirement }, readDocumentAsset)).status).toBe("PASS");
+  for (invalid of ["missing", "document", "print"]) await expect(executeProductV4VerificationCheck({ bundle, plan, requirement }, readDocumentAsset)).rejects.toThrow();
+  expect(calls).toBe(1);
+});
+
 test("executor reports absent renderer as untested and rejects unsafe configured origins", async () => {
   delete process.env.AUTHORING_VERIFICATION_RENDERER_URL; delete process.env.AUTHORING_VERIFICATION_RENDERER_SECRET;
   const oldPdfUrl = process.env.DIKTAT_RENDERER_URL, oldPdfSecret = process.env.DIKTAT_RENDERER_SECRET;
@@ -62,22 +93,27 @@ test("executor reports absent renderer as untested and rejects unsafe configured
 
 test("executor uses configured trust boundary and validates check identity and base64", async () => {
   process.env.AUTHORING_VERIFICATION_RENDERER_URL = "http://127.0.0.1:9876"; process.env.AUTHORING_VERIFICATION_RENDERER_SECRET = "local-test-only";
-  let payload = response();
+  const { bundle } = buildLocalVerificationFixture();
+  const plan = deriveProductV4VerificationPlan({ bundle, binding: { importId: "import", courseId: bundle.manifest.courseId, runId: "run", revision: 1, rendererChecksum: hash, dependencyChecksum: hash, contractChecksum: hash, playbookChecksum: hash, fontChecksum: hash, assetChecksum: hash, printProfile: "a4", policyRevision: "v1" } });
+  const requirement = plan.requirements.find(check => check.layer === "web")!;
+  const check = { bundle, plan, requirement };
+  let payload = response({ checkId: requirement.id });
   globalThis.fetch = (async (url: unknown, options?: RequestInit) => {
     expect(String(url)).toBe("http://127.0.0.1:9876/verify");
     expect(options!.redirect).toBe("error");
     expect((options!.headers as Record<string, string>).Authorization).toBe("Bearer local-test-only");
     return Response.json(payload);
   }) as typeof fetch;
-  expect(new TextDecoder().decode((await executeProductV4VerificationCheck(input())).artifacts[0].bytes)).toBe("png-test-bytes");
+  expect(new TextDecoder().decode((await executeProductV4VerificationCheck(check)).artifacts[0].bytes)).toBe("png-test-bytes");
   payload = response({ checkId: "b".repeat(64) });
-  await expect(executeProductV4VerificationCheck(input())).rejects.toThrow("CHECK_MISMATCH");
+  await expect(executeProductV4VerificationCheck(check)).rejects.toThrow("CHECK_MISMATCH");
   payload = response({ artifacts: [{ id: "screen", mediaType: "image/png", base64: "invalid%%%" }] });
-  await expect(executeProductV4VerificationCheck(input())).rejects.toThrow("ARTIFACT_INVALID");
+  payload.checkId = requirement.id;
+  await expect(executeProductV4VerificationCheck(check)).rejects.toThrow("ARTIFACT_INVALID");
   for (const base64 of ["", "AB==", "not padded"]) {
-    payload = response({ artifacts: [{ id: "screen", mediaType: "image/png", base64 }] });
-    await expect(executeProductV4VerificationCheck(input())).rejects.toThrow("ARTIFACT_INVALID");
+    payload = response({ checkId: requirement.id, artifacts: [{ id: "screen", mediaType: "image/png", base64 }] });
+    await expect(executeProductV4VerificationCheck(check)).rejects.toThrow("ARTIFACT_INVALID");
   }
   globalThis.fetch = Object.assign(async () => new Response("internal details", { status: 500 }), { preconnect: originalFetch.preconnect });
-  await expect(executeProductV4VerificationCheck(input())).rejects.toThrow("REJECTED:500");
+  await expect(executeProductV4VerificationCheck(check)).rejects.toThrow("REJECTED:500");
 });

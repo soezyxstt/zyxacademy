@@ -30,6 +30,9 @@ import {
 import { validateExtractedQuestion, type ExtractedQuestion } from "@/lib/question-markdown";
 import { referenceQuestionDraftSchema, type ReferenceQuestion, type ReferenceQuestionDraft, type ReferenceSourceMetadata, toQuestionIdeaLinks } from "@/lib/authoring/reference-question-draft";
 import { offloadBase64ImagesToR2, offloadQuestionItemImages } from "@/lib/question-images";
+import { stageInteractiveDocumentAssets } from "@/lib/materials/interactive-document-assets";
+import { validateQuestionVisualAssets, type QuestionVisualAssets } from "@/lib/authoring/question-visual-assets";
+import { stageQuestionVisualBinding } from "@/lib/materials/question-visual-binding";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -75,10 +78,19 @@ export type QuestionAuthoringBatchInput = {
   reviewStatus: QuestionReviewStatus;
   creatorId: string;
   createOnly?: boolean;
+  visualAssets?: QuestionVisualAssets;
 };
 
 function fail(code: string, message: string): never {
   throw new QuestionAuthoringError(code, message);
+}
+
+async function checkedQuestionVisualAssets(questions: Parameters<typeof validateQuestionVisualAssets>[0], assets?: QuestionVisualAssets) {
+  try {
+    return await validateQuestionVisualAssets(questions, assets);
+  } catch (error) {
+    fail("QUESTION_AUTHORING_VISUAL_ASSETS_INVALID", `Periksa metadata dan visualAssets HTML serta PNG soal: ${error instanceof Error ? error.message : "format tidak valid"}`);
+  }
 }
 
 export function isHistoricalReferenceLinkTarget(origin: string): origin is "historical_reference" {
@@ -512,14 +524,22 @@ async function prepareQuestion(input: QuestionAuthoringQuestion, index: number):
   return questionAuthoringInputSchema.omit({ courseId: true, chapterId: true, ideaLinks: true, reviewStatus: true }).parse(input);
 }
 
-export async function createCanonicalQuestion(input: QuestionAuthoringInput, creatorId: string): Promise<PersistResult> {
+export async function createCanonicalQuestion(input: QuestionAuthoringInput, creatorId: string, visualAssets?: QuestionVisualAssets): Promise<PersistResult> {
   const parsed = questionAuthoringInputSchema.parse(input);
   const context = await resolveContext(db, parsed.courseId, parsed.chapterId);
+  await db.transaction(async tx => {
+    await requireCreator(tx, creatorId);
+    await validateIdeaLinks(tx, context, parsed.ideaLinks);
+    await validateKnowledgeObject(tx, context, parsed.knowledgeObjectId);
+  });
+  const visualPairs = await checkedQuestionVisualAssets([parsed], visualAssets);
+  if (visualPairs.length) await stageInteractiveDocumentAssets(visualPairs);
   const offloadedQuestion = await offloadQuestionItemImages(parsed, {
     courseSlug: context.canonicalCourseId,
     questionIdentifier: "canonical",
   });
   const question = await prepareQuestion(offloadedQuestion, 1);
+  if (visualPairs.length) await stageQuestionVisualBinding(context.legacyCourseId, question, visualPairs);
   return db.transaction(async (tx) => {
     await requireCreator(tx, creatorId);
     await validateIdeaLinks(tx, context, parsed.ideaLinks);
@@ -569,6 +589,7 @@ export async function validateCanonicalQuestionBatch(input: Omit<QuestionAuthori
   const prepared = await prepareBatch(input);
   return db.transaction(async (tx) => {
     const context = await validatePreparedBatch(tx, prepared);
+    await checkedQuestionVisualAssets(prepared.items.map(item => item.question), input.visualAssets);
     return {
       canonicalCourseId: context.canonicalCourseId,
       legacyCourseId: context.legacyCourseId,
@@ -581,6 +602,19 @@ export async function validateCanonicalQuestionBatch(input: Omit<QuestionAuthori
 export async function createCanonicalQuestionBatch(input: QuestionAuthoringBatchInput): Promise<PersistResult[]> {
   const prepared = await prepareBatch(input);
   const context = await resolveContext(db, prepared.courseId, prepared.chapterId);
+  await db.transaction(async tx => {
+    await requireCreator(tx, input.creatorId);
+    await validatePreparedBatch(tx, prepared);
+    if (input.visualAssets?.length) {
+      for (const item of prepared.items) {
+        if (!item.questionId) continue;
+        const [existing] = await tx.select({ courseId: soal.mataKuliahId, origin: soal.origin }).from(soal).where(eq(soal.id, item.questionId)).limit(1);
+        if (existing && (existing.courseId !== context.canonicalCourseId || existing.origin !== "zyx_original")) fail("QUESTION_AUTHORING_NOT_IN_SCOPE", "Soal tidak ditemukan dalam mata kuliah ini.");
+      }
+    }
+  });
+  const visualPairs = await checkedQuestionVisualAssets(prepared.items.map(item => item.question), input.visualAssets);
+  if (visualPairs.length) await stageInteractiveDocumentAssets(visualPairs);
 
   // Offload images outside the write transaction using resolved canonical course ID
   const offloadedItems = await Promise.all(
@@ -592,6 +626,7 @@ export async function createCanonicalQuestionBatch(input: QuestionAuthoringBatch
       return { ...item, question: offloadedQuestion };
     })
   );
+  if (visualPairs.length) for (const item of offloadedItems) await stageQuestionVisualBinding(context.legacyCourseId, item.question, visualPairs);
 
   return db.transaction(async (tx) => {
     await requireCreator(tx, input.creatorId);
@@ -652,14 +687,27 @@ async function persistQuestionWithLinks(
   return result;
 }
 
-export async function updateCanonicalQuestion(input: QuestionAuthoringInput, creatorId: string, questionId: string): Promise<PersistResult> {
+export async function updateCanonicalQuestion(input: QuestionAuthoringInput, creatorId: string, questionId: string, visualAssets?: QuestionVisualAssets): Promise<PersistResult> {
   const parsed = questionAuthoringInputSchema.parse(input);
+  await prepareQuestion(parsed, 1);
   const context = await resolveContext(db, parsed.courseId, parsed.chapterId);
+  await db.transaction(async tx => {
+    await requireCreator(tx, creatorId);
+    await validateIdeaLinks(tx, context, parsed.ideaLinks);
+    await validateKnowledgeObject(tx, context, parsed.knowledgeObjectId);
+    if (visualAssets?.length || [parsed.prompt, ...parsed.options, parsed.explanation].some(text => /interactive_document/i.test(text))) {
+      const [existing] = await tx.select({ courseId: soal.mataKuliahId, origin: soal.origin }).from(soal).where(eq(soal.id, questionId)).limit(1);
+      if (!existing || existing.courseId !== context.canonicalCourseId || existing.origin !== "zyx_original") fail("QUESTION_AUTHORING_NOT_IN_SCOPE", "Soal tidak ditemukan dalam mata kuliah ini.");
+    }
+  });
+  const visualPairs = await checkedQuestionVisualAssets([parsed], visualAssets);
+  if (visualPairs.length) await stageInteractiveDocumentAssets(visualPairs);
   const offloadedQuestion = await offloadQuestionItemImages(parsed, {
     courseSlug: context.canonicalCourseId,
     questionIdentifier: questionId,
   });
   const question = await prepareQuestion(offloadedQuestion, 1);
+  if (visualPairs.length) await stageQuestionVisualBinding(context.legacyCourseId, question, visualPairs);
   return db.transaction(async (tx) => {
     await requireCreator(tx, creatorId);
     await validateIdeaLinks(tx, context, parsed.ideaLinks);
@@ -778,6 +826,8 @@ export async function createHistoricalQuestionBatch(input: HistoricalQuestionBat
   }
 
   const context = await resolveContext(db, input.courseId, null);
+  await db.transaction(tx => requireCreator(tx, input.creatorId));
+  await checkedQuestionVisualAssets(draft.questions.map(question => ({ ...question, explanation: getHistoricalSolutionContent(input.source, question) })));
   const processedQuestions = await Promise.all(
     draft.questions.map(async (question) => {
       const offloadedQuestion = await offloadQuestionItemImages(question, {

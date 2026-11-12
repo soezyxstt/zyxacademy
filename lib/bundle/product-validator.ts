@@ -12,6 +12,8 @@ import {
   workedExamplePayloadSchema,
 } from "@/lib/materials/pedagogy-contract";
 import { visualSpecSchema } from "@/lib/materials/visual-contract";
+import { parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
+import type { InteractiveDocumentSpec } from "@/lib/materials/interactive-document";
 
 export const productBundleEntityTypeSchema = z.enum(["products", "dependencies"]);
 export type ProductBundleEntityType = z.infer<typeof productBundleEntityTypeSchema>;
@@ -154,6 +156,7 @@ export const productBundleManifestSchema = z.object({
   curatorId: id.optional(),
   createdAt: timestamp,
   bundleChecksum: hash,
+  visualAssets: z.array(z.object({ path: id, sha256: z.string().regex(/^[a-f0-9]{64}$/), bytes: positive }).strict()).max(16).optional(),
   conflicts: z.array(z.object({ id, entityType: id, stableId: id, reason: id }).strict()).default([]),
 }).strict();
 export type ProductBundleManifest = z.infer<typeof productBundleManifestSchema>;
@@ -177,6 +180,27 @@ class ProductValidationError extends Error {
 
 function issue(code: string, message: string, path?: string): ProductValidationIssue {
   return { code, message, path };
+}
+
+function containsInteractiveDocument(value: unknown): boolean {
+  if (typeof value === "string") return value.replace(/\\u([a-f0-9]{4})/gi, (_, hex: string) => String.fromCharCode(parseInt(hex, 16))).includes("interactive_document");
+  if (Array.isArray(value)) return value.some(containsInteractiveDocument);
+  return value !== null && typeof value === "object" && Object.values(value).some(containsInteractiveDocument);
+}
+
+export function productInteractiveDocuments(products: readonly ProductEntity[]): InteractiveDocumentSpec[] {
+  return products.flatMap(product => product.productType === "article" ? [
+    ...(product.visuals ?? []).filter((visual): visual is InteractiveDocumentSpec => visual.kind === "interactive_document"),
+    ...product.sections.flatMap(section => section.blocks.flatMap(block => {
+      if (!block.formativeCheckPayload) return [];
+      return [
+        ...(block.parts ?? []).flatMap(part => part.kind === "markdown" ? parseInteractiveDocumentsInMarkdown(part.markdown) : []),
+        ...(block.formativeCheckPayload.options ?? []).flatMap(option => parseInteractiveDocumentsInMarkdown(option.text)),
+        ...parseInteractiveDocumentsInMarkdown(block.formativeCheckPayload.answer),
+        ...parseInteractiveDocumentsInMarkdown(block.formativeCheckPayload.explanation),
+      ];
+    })),
+  ] : []);
 }
 
 export function deterministicProductSerialization(value: unknown): string {
@@ -225,6 +249,7 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
     const bundleSectionIds = new Set<string>();
     const bundleV3BlockIds = new Set<string>();
     for (const product of products) {
+      if ((product.productType === "question" || product.productType === "solution") && containsInteractiveDocument(product)) return { success: false, issues: [issue("PRODUCT_QUESTION_INTERACTIVE_DOCUMENT_UNBOUND", "Product Bundle questions cannot bind interactive document assets")] };
       if (
         manifest.schemaVersion !== "product-bundle.v2"
         && (product.productType === "question" || product.productType === "solution" || product.productType === "assessment_blueprint")
@@ -246,7 +271,30 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
       if (Math.abs(weightSum - 1) > 0.000001) return { success: false, issues: [issue("PRODUCT_IDEA_WEIGHT_SUM_INVALID", `product ${product.id} Idea-link weights must sum to 1`)] };
       if (product.productType === "article") {
         const isV4 = manifest.schemaVersion === "product-bundle.v4";
-        if (!isV4 && product.visuals?.some(visual => visual.kind === "geometry_2d" || visual.kind === "source_figure")) return { success: false, issues: [issue("PRODUCT_VISUAL_REQUIRES_V4", "Geometry and source figures require an explicit V4 bundle")] };
+        if (product.blocks.some(block => parseInteractiveDocumentsInMarkdown(block.content).length || block.content.includes("<!--__ZYX_V4_"))) return { success: false, issues: [issue("PRODUCT_EMBEDDED_INTERACTIVE_DOCUMENT_UNBOUND", "Legacy Article blocks cannot bind interactive documents")] };
+        if (JSON.stringify(product.sections).includes("<!--__ZYX_V4_")) return { success: false, issues: [issue("PRODUCT_EMBEDDED_INTERACTIVE_DOCUMENT_UNBOUND", "Embedded Article payloads are not allowed")] };
+        const visible: InteractiveDocumentSpec[] = (product.visuals ?? []).filter((visual): visual is InteractiveDocumentSpec => visual.kind === "interactive_document");
+        const hidden: InteractiveDocumentSpec[] = [];
+        for (const section of product.sections) {
+          const { blocks, ...sectionMetadata } = section;
+          if (containsInteractiveDocument(sectionMetadata)) return { success: false, issues: [issue("PRODUCT_EMBEDDED_INTERACTIVE_DOCUMENT_UNBOUND", "Unbound Article document")] };
+          for (const block of blocks) {
+            const { parts, contentMarkdown, formativeCheckPayload, ...metadata } = block;
+            const formative = isV4 && !!formativeCheckPayload && (block.blockType === "retrieval_prompt" || block.blockType === "retrieval_close");
+            if (containsInteractiveDocument(metadata) || (!formative && containsInteractiveDocument({ parts, contentMarkdown, formativeCheckPayload }))) return { success: false, issues: [issue("PRODUCT_EMBEDDED_INTERACTIVE_DOCUMENT_UNBOUND", "Unbound Article document")] };
+            if (!formative || !formativeCheckPayload) continue;
+            const { options, answer, explanation, ...payloadMetadata } = formativeCheckPayload;
+            if (containsInteractiveDocument(payloadMetadata) || (options ?? []).some(({ text: _text, ...option }) => containsInteractiveDocument(option)) || (parts ?? []).some(part => part.kind !== "markdown" && containsInteractiveDocument(part))) return { success: false, issues: [issue("PRODUCT_EMBEDDED_INTERACTIVE_DOCUMENT_UNBOUND", "Unbound formative document")] };
+            const prompt = (parts ?? []).flatMap(part => part.kind === "markdown" ? [part.markdown] : []);
+            const fields = [...prompt, ...(options ?? []).map(option => option.text), answer, explanation];
+            if (fields.some(text => text.includes("<!--__ZYX_V4_"))) return { success: false, issues: [issue("PRODUCT_EMBEDDED_INTERACTIVE_DOCUMENT_UNBOUND", "Embedded Article payloads are not allowed in formative fields")] };
+            visible.push(...prompt.flatMap(parseInteractiveDocumentsInMarkdown), ...(options ?? []).flatMap(option => parseInteractiveDocumentsInMarkdown(option.text)));
+            hidden.push(...parseInteractiveDocumentsInMarkdown(answer), ...parseInteractiveDocumentsInMarkdown(explanation));
+          }
+        }
+        const visibleHashes = new Set(visible.flatMap(spec => [spec.documentSha256, spec.printSha256]));
+        if (hidden.some(spec => visibleHashes.has(spec.documentSha256) || visibleHashes.has(spec.printSha256))) return { success: false, issues: [issue("QUESTION_VISUAL_DISCLOSURE", "Visible and hidden formative documents cannot share assets")] };
+        if (!isV4 && product.visuals?.some(visual => visual.kind === "geometry_2d" || visual.kind === "source_figure" || visual.kind === "interactive_scene" || visual.kind === "interactive_document")) return { success: false, issues: [issue("PRODUCT_VISUAL_REQUIRES_V4", "This visual requires an explicit V4 bundle")] };
         if (isV4 && (product.blocks.length > 0 || !product.sections.length)) return { success: false, issues: [issue("PRODUCT_ARTICLE_V4_SHAPE_INVALID", "V4 requires sections and ordered parts")] };
         if (isV4 !== (product.schemaVersion === "article.v4")) return { success: false, issues: [issue("PRODUCT_ARTICLE_VERSION_MISMATCH", "V4 Articles require the V4 manifest and article.v4 schema")] };
         const articleParts = product.sections.flatMap((section) => section.blocks.flatMap((block) => block.parts ?? []));
@@ -547,8 +595,34 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
 
 export function validateProductBundle(bytes: Uint8Array): ProductBundleValidation {
   try {
-    return parseProductBundle(readSecureZip(bytes));
+    const result = parseProductBundle(readSecureZip(bytes, {}, { allowInteractiveDocuments: true }));
+    if (result.success && (result.data.manifest.visualAssets !== undefined || [...result.data.files.keys()].some(path => path.startsWith("visuals/")) || productInteractiveDocuments(result.data.products).length > 0)) {
+      return { success: false, issues: [issue("INTERACTIVE_DOCUMENT_ASYNC_VALIDATION_REQUIRED", "Interactive document assets require asynchronous admission")] };
+    }
+    return result;
   } catch (error) {
     return { success: false, issues: [issue(error instanceof Error && "code" in error ? String((error as { code: unknown }).code) : "PRODUCT_ZIP_INVALID", error instanceof Error ? error.message : String(error))] };
+  }
+}
+
+/** Admission validates decoded asset bytes; structural parsing alone is not admission. */
+export async function validateProductBundleAdmission(bytes: Uint8Array): Promise<ProductBundleValidation> {
+  let result: ProductBundleValidation;
+  try {
+    result = parseProductBundle(readSecureZip(bytes, {}, { allowInteractiveDocuments: true }));
+  } catch (error) {
+    return { success: false, issues: [issue(error instanceof Error && "code" in error ? String((error as { code: unknown }).code) : "PRODUCT_ZIP_INVALID", error instanceof Error ? error.message : String(error))] };
+  }
+  if (!result.success) return result;
+  const specs = productInteractiveDocuments(result.data.products);
+  if (specs.length && result.data.manifest.schemaVersion !== "product-bundle.v4") return { success: false, issues: [issue("PRODUCT_VISUAL_REQUIRES_V4", "Interactive documents require V4")] };
+  if (!specs.length && !result.data.manifest.visualAssets?.length && ![...result.data.files.keys()].some(path => path.startsWith("visuals/"))) return result;
+  try {
+    const { validateInteractiveDocumentArchive } = await import("@/lib/materials/interactive-document-assets");
+    await validateInteractiveDocumentArchive(specs, result.data.manifest.visualAssets ?? [], result.data.files);
+    return result;
+  } catch (error) {
+    const code = error instanceof Error && /^INTERACTIVE_DOCUMENT_[A-Z_]+$/.test(error.message) ? error.message : "INTERACTIVE_DOCUMENT_ASSET_INVALID";
+    return { success: false, issues: [issue(code, "Interactive document asset admission failed", "visualAssets")] };
   }
 }

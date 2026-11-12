@@ -1,12 +1,14 @@
 # Zyx Academy Documentation Index
 
+`ACTIVE`: The [Product V4 contract](bundle/product-bundle-v4.md) records asynchronous interactive document admission, scoped delivery, the theme and lifecycle message protocol, bounded resize through 2400 CSS px, and print boundaries. Formative prompt, option, answer and explanation checks passed through the trusted runner on local fixtures at both viewports; live MCP, authenticated services, deployment and publication acceptance remain separate.
+
 The `OPEN / IN PROGRESS` [demo performance audit](audit/demo-performance-20261111.md) tracks redundant server resolution, payloads, exercise collection, client imports and transitions, with local implementation and runtime acceptance kept separate.
 
 The `OPEN / IN PROGRESS` [web performance follow-up](audit/web-performance-follow-up-20261111.md) tracks the Terra max reviews, local optimizations, feature and architecture updates, intentionally retained behavior and unverified runtime, visual and performance boundaries.
 
 The `ACTIVE` [deployment guide](DEPLOYMENT.md) records the local Singapore web-function region correction, the production region observed on 2026-11-11, and the pending deployment and authenticated latency verification.
 
-The `ACTIVE` [feature catalog](features.md#embedded-learning-visuals) documents always-on typed `zyx-visual` Markdown embeds across compatible learning readers, question prompts, options, explanations and previews, including the payload limit and fence-preserving question import behavior.
+The `ACTIVE` [feature catalog](features.md#embedded-learning-visuals) documents always-on typed `zyx-visual` Markdown embeds and separately sandboxed `interactive_document` delivery. The [V4 contract](bundle/product-bundle-v4.md) records authoring, asset limits, verification boundaries and initial-state Diktat output.
 
 `ACTIVE`: The [deployment guide](DEPLOYMENT.md) documents the `local_playwright` V4 provider and exact-draft operator command. The [V4 contract](bundle/product-bundle-v4.md) records the shared Admin quality and verification context so UI Publish readiness agrees with the backend gate. Signed evidence, PDF lineage and explicit publication review remain required.
 
@@ -35,6 +37,8 @@ All markdown documents across `docs/` and `plans/` must be registered in this in
 The `ACTIVE` feature catalog records Zyra session continuity, conversational tutoring, article-style math presentation, proactive grounded visual exploration, and safe retry responses when generation fails.
 
 The `ACTIVE` feature catalog also documents compact Article formula rows, reading-first embedded graphs, optional parameter controls, and explicit graph interaction activation.
+
+The `ACTIVE` feature catalog records interactive document state preservation while scrolling and offscreen playback pause.
 
 The `ACTIVE` feature catalog records Article selection explanations, policy-validated contextual live-session follow-up suggestions, explicit Python generation with preserved retry intent and image snapshots, and the beginner Python generation policy.
 The `ACTIVE` feature catalog documents compact Form Studio rows, publication per question or per section, upload size labels, and confirmation before submission. Local fixture checks do not verify live storage or publication.
@@ -122,7 +126,7 @@ Every document in this repository has one of the following explicit statuses:
 | [bundle/idea-bundle-v3.md](bundle/idea-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-08-31 | Learning section hierarchy, Idea membership, validation, editing, and MCP transition contract. |
 | [bundle/product-bundle-v2.md](bundle/product-bundle-v2.md) | Bundle Contract | `TRANSITIONAL / LEGACY` | Current | Read compatibility and Article block review adapter for Product Bundle V2. |
 | [bundle/product-bundle-v3.md](bundle/product-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-10-11 | Structured Article, fixed readable Diktat typography, pagination, and numbered contact footer, typed visuals with geometric axis scaling and domain boundaries, simplified revision-bound review, publication, and student reads. |
-| [bundle/product-bundle-v4.md](bundle/product-bundle-v4.md) | Bundle Contract | `ACTIVE` | 2026-11-11 | Default V4 authoring contract with legacy compatibility: scientific parts, authored graphical Diktat, source figures, v2 smoke checks and guarded manual GitHub Actions verification with pinned local Chromium, unchanged signed exact-revision evidence, PDF and review gates, scientific prose blockers and checksum-pinned schema delivery. Operational rollout is separate. |
+| [bundle/product-bundle-v4.md](bundle/product-bundle-v4.md) | Bundle Contract | `ACTIVE` | 2026-11-12 | Default V4 authoring contract, graphical Diktat, source figures, interactive document admission and scoped delivery, local Chromium verification including formative fields, signed evidence and review gates. Operational rollout remains separate. |
 | [operations/public-demo-seeding.md](operations/public-demo-seeding.md) | Operations | `OPEN / IN PROGRESS` | Current | First-chapter learning access and authorized fictional fallbacks; active chapter and student-visible product metadata catalogue update and replacement baseline are under verification. |
 | [operations/production-readiness-checklist.md](operations/production-readiness-checklist.md) | Operations | `ACTIVE` | Current | Pre-deployment gates, quality criteria, staging validation checklist, and mandatory Idea links with exactly one primary for MCP quiz drafts and edits. |
 | [operations/neon-migration.md](operations/neon-migration.md) | Operations | `COMPLETED / RESOLVED` | 2026-11-02 | Verified staging cutover with 21,273 business rows, 124 source objects, Google login, 14 hosted routes, booking recovery, worker PDF integration and six concurrency regressions. CI passed 2,038 contracts across 313 files; hosted authoring passed 22 checks through review, publication and PDF download. Production cutover is recorded separately. |

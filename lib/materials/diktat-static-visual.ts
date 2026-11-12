@@ -6,6 +6,10 @@ import { evaluateFunctionPlot, safeExpressionToLatex, type FunctionPlotCanvas } 
 import { fitNumericRange } from "@/lib/zyra/canvas/viewport";
 import { deriveEpsilonDelta, sampleEpsilonDeltaCurve } from "./epsilon-delta";
 import { visualSpecSchema, type VisualSpec } from "./visual-contract";
+import { initialSceneState, sceneValue } from "./interactive-scene";
+import { SceneSvg } from "@/components/course/interactive-scene-svg";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 export const DIKTAT_STATIC_VISUAL_RENDERER = "zyx-static-visual-v1";
 export interface DiktatSourceFigureAsset { bytes: Uint8Array; mimeType: "image/png" | "image/jpeg"; sourceChecksum: string; attribution?: string }
@@ -23,7 +27,7 @@ function prose(value: string): string {
 export function buildDiktatVisualSnapshot(input: VisualSpec) {
   const visual = visualSpecSchema.parse(input);
   const state = visual.kind === "epsilon_delta_graph" ? { epsilon: visual.defaultEpsilon, probe: visual.limitPoint }
-    : visual.kind === "learning_canvas" ? Object.fromEntries(visual.canvas.variables.map(variable => [variable.id, variable.defaultValue])) : {};
+    : visual.kind === "learning_canvas" ? Object.fromEntries(visual.canvas.variables.map(variable => [variable.id, variable.defaultValue])) : visual.kind === "interactive_scene" ? initialSceneState(visual) : visual.kind === "interactive_document" ? { printSha256: visual.printSha256, defaultState: visual.staticFallback.content, printCaption: visual.printCaption } : {};
   return { rendererVersion: DIKTAT_STATIC_VISUAL_RENDERER, visualHash: digest(visual), stateHash: digest(state) };
 }
 function label(x: number, y: number, text: string, width = 130, height = 48): string {
@@ -90,6 +94,17 @@ export function renderDiktatStaticVisual(input: VisualSpec, assets: DiktatSource
     drawing += geometry.segments.map(segment => { const a = points.get(segment.from)!, b = points.get(segment.to)!; return `<path d="M${px(a.x)} ${py(a.y)}L${px(b.x)} ${py(b.y)}" stroke="#164e87"/>`; }).join("");
     drawing += geometry.points.map(point => `<circle cx="${px(point.x)}" cy="${py(point.y)}" r="3" fill="#164e87"/>${point.labelLatex ? label(px(point.x) - 45, py(point.y) + 5, math(point.labelLatex), 90) : ""}`).join("");
     content = svg(drawing, 330) + [...geometry.segments, ...geometry.circles, ...geometry.polygons].filter(shape => shape.labelLatex).map(shape => `<p>${escape(shape.id)}: ${math(shape.labelLatex!)}</p>`).join("");
+  } else if (visual.kind === "interactive_scene") {
+    const state = initialSceneState(visual);
+    content = renderToStaticMarkup(createElement(SceneSvg, { spec: visual, state, printable: true })) + visual.outputs.map(output => {
+      let result: string; try { result = String(Number(sceneValue(output.value, state).toPrecision(6))); } catch { result = "tidak tersedia"; }
+      return `<p>${prose(output.label)}: ${escape(result)}${output.unit ? ` ${escape(output.unit)}` : ""}</p>`;
+    }).join("") + `<p>${prose(visual.staticFallback.summary)}</p><p>${prose(visual.staticFallback.content)}</p>`;
+  } else if (visual.kind === "interactive_document") {
+    const asset = assets[`interactive_document:${visual.printSha256}`];
+    if (!asset || asset.mimeType !== "image/png" || asset.bytes.byteLength !== visual.printBytes || createHash("sha256").update(asset.bytes).digest("hex") !== visual.printSha256) throw new Error("DIKTAT_INTERACTIVE_DOCUMENT_ASSET_REQUIRED");
+    content = `<img src="data:image/png;base64,${Buffer.from(asset.bytes).toString("base64")}" alt="${escape(visual.description)}" style="width:100%;height:auto"/><p>${prose(visual.printCaption)}</p>`;
+    if (visual.staticFallback.content.trim() !== visual.printCaption.trim()) content += `<p>${prose(visual.staticFallback.content)}</p>`;
   } else if (visual.kind === "source_figure") {
     const asset = assets[visual.assetId];
     if (!asset || asset.sourceChecksum !== visual.sourceChecksum) throw new Error("DIKTAT_SOURCE_FIGURE_ASSET_REQUIRED");

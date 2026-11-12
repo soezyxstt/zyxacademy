@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { productBundleManifestSchema, productEntitySchema } from "@/lib/bundle/product-validator";
-import { readProductV4RuntimeFingerprint, assertProductV4RuntimeFingerprint, buildProductV4RuntimeBinding, expectedChromiumRuntime, loadProductV4StaticFigureAssets, productV4DependencyChecksum, resolveProductV4LoadedRuntime, type ProductV4LiveDependency } from "@/lib/compute/product-v4-runtime-binding";
+import { PRODUCT_V4_RUNTIME_FILES, readProductV4RuntimeFingerprint, assertProductV4RuntimeFingerprint, buildProductV4RuntimeBinding, expectedChromiumRuntime, loadProductV4StaticFigureAssets, productV4DependencyChecksum, resolveProductV4LoadedRuntime, type ProductV4LiveDependency } from "@/lib/compute/product-v4-runtime-binding";
 
 const hash = "a".repeat(64);
 const manifest = productBundleManifestSchema.parse({ bundleId: "bundle", bundleType: "product", schemaVersion: "product-bundle.v4", courseId: "course", creatorId: "creator", createdAt: "2026-10-21T00:00:00.000Z", entityFiles: ["products", "dependencies"].map(entityType => ({ entityType, path: `${entityType}.json`, checksum: hash, stableIds: [] })), bundleChecksum: hash });
@@ -20,6 +20,10 @@ const ports = {
   async dependencies() { return rows; }, async runtime() { return runtime; },
 };
 const row = { id: "import", bundleId: "bundle", bundleType: "product" as const, courseId: "legacy-course", checksum: hash, updatedAt: new Date() };
+
+test("runtime closure binds interactive guidance, scene and shared expression sources", () => {
+  for (const file of ["lib/authoring/interactive-visual-guidance.ts", "lib/materials/interactive-scene.ts", "lib/materials/interactive-document-markdown.ts", "lib/compute/product-v4-document-wire.ts", "lib/zyra/canvas/expression.ts"]) expect(PRODUCT_V4_RUNTIME_FILES).toContain(file);
+});
 
 test("runtime attestation rejects every changed fingerprint field and reads installed Chromium metadata", () => {
   expect(() => assertProductV4RuntimeFingerprint(runtime, { ...runtime })).not.toThrow();

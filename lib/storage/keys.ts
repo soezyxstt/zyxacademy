@@ -60,6 +60,16 @@ export function joinKey(...segments: string[]): string {
   return key;
 }
 
+export function buildInteractiveDocumentAssetKey(hash: string, kind: "document" | "print"): string {
+  if (!/^[a-f0-9]{64}$/.test(hash) || (kind !== "document" && kind !== "print")) throw new Error(INVALID_OBJECT_KEY);
+  return joinKey("overhaul", "interactive-documents", `${hash}.${kind === "document" ? "html" : "png"}`);
+}
+
+export function buildQuestionVisualBindingKey(hash: string): string {
+  if (!/^[a-f0-9]{64}$/.test(hash)) throw new Error("INVALID_QUESTION_VISUAL_BINDING_KEY");
+  return joinKey("overhaul", "question-visual-bindings", `${hash}.json`);
+}
+
 export function buildSourcePageImageKey(input: {
   courseId: string;
   materialId: string;

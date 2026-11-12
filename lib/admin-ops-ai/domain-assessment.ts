@@ -7,6 +7,7 @@ import {
 } from "@/db/schema";
 import { eq, desc, and, inArray, ilike } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
+import { validateQuestionVisualAssets } from "@/lib/authoring/question-visual-assets";
 
 export interface ListQuizzesInput {
   courseId?: string;
@@ -340,6 +341,7 @@ export async function executeCreateQuestion(input: CreateQuestionInput, _actorId
   if (!cleanCourseId) throw new Error("ID Mata Kuliah wajib diisi.");
   if (!cleanPrompt) throw new Error("Teks soal (prompt) tidak boleh kosong.");
   if (!input.options || input.options.length < 2) throw new Error("Pilihan jawaban minimal harus 2 opsi.");
+  await validateQuestionVisualAssets([{ ...input, explanation: input.explanation?.trim() || `Kunci jawaban benar adalah opsi ${input.correctAnswer}.` }]);
 
   const questionId = randomUUID();
   const difficulty = input.difficulty || "medium";
@@ -380,6 +382,8 @@ export async function executePublishQuestion(input: PublishQuestionInput, _actor
 
   const existing = await db.query.aiQuestionBank.findFirst({ where: eq(aiQuestionBank.id, cleanId) });
   if (!existing) throw new Error(`Soal '${cleanId}' tidak ditemukan.`);
+
+  await validateQuestionVisualAssets([{ prompt: existing.prompt, options: Array.isArray(existing.options) ? existing.options.map(String) : [], explanation: existing.explanation }]);
 
   await db
     .update(aiQuestionBank)

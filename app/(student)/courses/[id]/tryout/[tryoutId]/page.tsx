@@ -220,7 +220,7 @@ export default async function CourseTryoutTakePage({ params }: Props) {
   return (
     <CoursePageShell title={exam.title} description={<TranslatedText namespace="learning" messageKey="tryoutTake.instructions" />} hideHeader>
       <Reveal>
-        <TryoutForm courseId={id} exam={exam} />
+        <TryoutForm courseId={id} visualCourseId={dbExam.courseId} exam={exam} />
       </Reveal>
     </CoursePageShell>
   );

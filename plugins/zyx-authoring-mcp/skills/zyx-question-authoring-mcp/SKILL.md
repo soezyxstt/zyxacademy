@@ -40,6 +40,12 @@ Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpo
 4. Kunci `courseKey` dan `chapterKey` bersama operator dari label manusia, panggil `workflow.start` (`workflow: "quiz_bank"`) dengan `bootstrapToken`, lalu panggil `workflow.get_contract` untuk mengunci kontrak aktif.
 5. Teruskan `runToken` dan `bootstrapToken` ke `assessment.validate_quiz_draft`, `assessment.submit_quiz_draft`, dan `assessment.update_question`. Jika terjadi drift revisi playbook atau contract sebelum submit, ambil ulang `workflow.get_playbook` dan `workflow.get_contract`, periksa kembali draft terhadap aturan terbaru, lalu validasi ulang.
 
+Untuk visual soal, baca `outputs.quizDraft.visualAuthoring` dan schema visual aktif dari server. Gunakan `zyx-visual` dengan data bertipe, dan simpan keadaan atau label khusus jawaban di pembahasan, bukan prompt atau opsi.
+
+Untuk `interactive_document`, sertakan `visualAssets` pada validasi, submit, dan update: array `{ path, sha256, bytes, base64 }` untuk setiap HTML dan PNG unik sesuai hash di metadata. Jangan taruh HTML atau base64 dalam teks soal. Aset prompt atau opsi tidak boleh dipakai ulang pada pembahasan; baca batas dan format lengkap pada playbook server.
+
+Untuk pasangan lokal yang sudah ditinjau, contoh yang dapat dijalankan ada di `scripts/authoring/package-interactive-document.ts` pada checkout repositori. Ambil kontrak live dan susun soal sendiri; hasilnya belum merupakan persetujuan soal.
+
 ## Invariant lokal dan batas keamanan
 
 1. **Khusus soal `zyx_original` terhubung Idea**: Workflow ini hanya membuat atau memperbarui soal `zyx_original` yang memiliki minimal satu published Idea link dalam scope bab dan tepat satu target utama (`role: "primary"`). Jangan menyalin soal historis verbatim sebagai `zyx_original`; untuk impor soal historis verbatim gunakan [reference-question-ingest](../reference-question-ingest/SKILL.md).

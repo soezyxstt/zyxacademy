@@ -7,6 +7,7 @@ import type { PublicVisualSpec } from "@/lib/articles/structured-read-model";
 import { MathText } from "@/components/course/math-text";
 import { MarkdownRenderer, type MarkdownDensity } from "@/components/course/markdown-renderer";
 import { ProductLearningVisual } from "@/components/course/product-learning-visual";
+import { InteractiveDocumentArticleLocation } from "@/components/course/interactive-document-context";
 
 function ScopedMarkdown({ scope, ...props }: ComponentProps<typeof MarkdownRenderer> & { scope: string }) {
   return <ArticleMarkdownScope id={scope}><MarkdownRenderer {...props} /></ArticleMarkdownScope>;
@@ -27,7 +28,7 @@ export function ArticleParts({
         const renderPart = () => {
         if (part.kind === "code_example") return <div key={part.id} id={part.id} data-part-id={part.id} data-part-kind="code_example"><ArticleCodeExample part={part} /></div>;
         if (part.kind === "coding_exercise") return <div key={part.id} id={part.id} data-part-id={part.id} data-part-kind="coding_exercise"><ArticleCodingExercise part={part} /></div>;
-        if (part.kind === "markdown") return <div key={part.id} id={part.id} data-part-id={part.id}><ScopedMarkdown scope="markdown" content={part.markdown} density={density} /></div>;
+        if (part.kind === "markdown") return <div key={part.id} id={part.id} data-part-id={part.id}><InteractiveDocumentArticleLocation partId={part.id} field="markdown"><ScopedMarkdown scope="markdown" content={part.markdown} density={density} /></InteractiveDocumentArticleLocation></div>;
         if (part.kind === "worked_example") return (
           <section key={part.id} id={part.id} data-part-id={part.id} data-part-kind="worked_example" className="space-y-5">
             <h4 className="font-heading text-body-base font-bold"><MathText className="normal-case">{part.title}</MathText></h4>
@@ -60,7 +61,7 @@ export function ArticleParts({
           </div>
         );
         const visual = visuals.find((candidate) => candidate.id === part.visualId);
-        return visual ? <div key={part.id} id={part.id} data-part-id={part.id} data-part-kind="visual_ref"><ProductLearningVisual spec={visual} engine="jsxgraph" /></div> : (
+        return visual ? <div key={part.id} id={part.id} data-part-id={part.id} data-part-kind="visual_ref"><InteractiveDocumentArticleLocation partId={part.id} field="visual_ref"><ProductLearningVisual spec={visual} engine="jsxgraph" /></InteractiveDocumentArticleLocation></div> : (
           <p key={part.id} role="status" className="rounded-lg border border-border p-3 text-body-sm text-muted-foreground">Visual belum tersedia.</p>
         );
         };

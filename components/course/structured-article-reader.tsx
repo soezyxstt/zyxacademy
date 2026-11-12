@@ -62,6 +62,7 @@ import { ArticleCodingProvider, ArticleMarkdownScope } from "@/components/coding
 import { ArticleParts } from "@/components/course/article-parts";
 import { MathText } from "@/components/course/math-text";
 import { ProductLearningVisual } from "@/components/course/product-learning-visual";
+import { InteractiveDocumentArticle, InteractiveDocumentArticleLocation } from "@/components/course/interactive-document-context";
 import {
   ProductWorkedExample,
   ProductFormativeCheck,
@@ -276,7 +277,7 @@ export function StructuredArticleSectionContent({
       {!section.blocks.some((block) => block.parts?.length) && section.visuals && section.visuals.length > 0 ? (
         <div className="space-y-4 py-2">
           {section.visuals.map((visual) => (
-            <ProductLearningVisual key={visual.id} spec={visual} />
+            <InteractiveDocumentArticleLocation key={visual.id} sectionId={section.id} field="section_visual"><ProductLearningVisual spec={visual} /></InteractiveDocumentArticleLocation>
           ))}
         </div>
       ) : null}
@@ -402,7 +403,7 @@ export function StructuredArticleSectionContent({
             </div>
           );
           };
-          return <ArticleMarkdownScope key={block.id || blockIndex} id={JSON.stringify([section.id, block.id || blockIndex])}>{renderBlock()}</ArticleMarkdownScope>;
+          return <ArticleMarkdownScope key={block.id || blockIndex} id={JSON.stringify([section.id, block.id || blockIndex])}><InteractiveDocumentArticleLocation sectionId={section.id} blockId={block.id} field="content">{renderBlock()}</InteractiveDocumentArticleLocation></ArticleMarkdownScope>;
         })}
       </div>
     </>
@@ -1136,6 +1137,7 @@ export function StructuredArticleReader({
 
   return (
     <ArticleCodingProvider value={{ courseId: article.courseId, articleId: article.id, articleVersion: article.version, enabled: learnerMode && !adapter, browserOnly: pythonBrowserOnly }}>
+    <InteractiveDocumentArticle value={learnerMode && !adapter ? { courseId: article.courseId, articleId: article.id, articleVersion: article.version } : null}>
     <div className="min-h-screen w-full min-w-0 flex-1 bg-background text-foreground flex flex-col">
       {/* Sticky Reader Header / Focus Header - only rendered in learner mode */}
       {learnerMode &&
@@ -1503,6 +1505,7 @@ export function StructuredArticleReader({
         />
       )}
     </div>
+    </InteractiveDocumentArticle>
     </ArticleCodingProvider>
   );
 }

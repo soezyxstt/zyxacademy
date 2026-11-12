@@ -1,0 +1,22 @@
+{
+  "../rich-documents.css": "9d441e2f3cee38c45abbf2c3aea05e5645561232f713eb4117480f5c8ff53d21",
+  "affine-geometry.mjs": "3ec5936bff2fa213827e56c49d90742877cdf88bbda6fe19c4c3d587eb32f27b",
+  "affine.js": "c71b4a43a0474299cbeb762274cae3b74c0d9d889ea2f6c98df596b4458027c6",
+  "annulus-3d-view.mjs": "099e163860e960b1c986572cda0b8cf6e3e3cca81d7c84a17d945d799ba2b7d7",
+  "annulus-design.mjs": "0cfc739032090e3287791eaf8892b08f1292382a2fc10d82a1a0a3ad4ae7c971",
+  "annulus.js": "e7595904665ac7bae9e8d27ff86c541a08efef1997fd2697b85b55b4b91970c3",
+  "brick.js": "30ae673cd28069a44f07bb3e31d6bee8c6e239709858416df4fb557aa6f6a790",
+  "capture-match.mjs": "c441bfe6b24fc48c7800d6c96fcc6a7d59b8778a8153947509781c202814c50a",
+  "flow.mjs": "cd08cfabcafbab9ea64965ca155e31d8c5c006e05c2c409b632efcffd0db248f",
+  "mechanics.js": "25a9cf94b91bb23430c1cf26c7bd660bb8c1b62da847a3e51bf42a5172bdc6fd",
+  "milk.js": "6771cdb69fb5d8d3c088b9feb99d62b83103fcd82872391b722895278c088700",
+  "model-check.mjs": "9279818d8e8eef58798ca73db5c6b78775632bbac228ef20c1b08065121c4069",
+  "model-regressions.mjs": "afeb586f8b68dc5c2acddcb04d518eb076134f6e58f73b3259e10300964d3b05",
+  "models.js": "075501c86b8b39e3d2abddbdc4d78a24dbb1e288939c83c401804e9a77dcf41e",
+  "museum.js": "555c0b34fca5f69790f6fe32c9998bd4e69dc4df7ab444086a1401b8d04fbcd2",
+  "sampling.js": "ab3cd85124bbb61673ed16fa4d3c45f839246cb4a51771e2532d12b8607760d2",
+  "shared.js": "65c21042766bdc8ae2977c18b5bb62439412fd140003178b942ffb452f05a3a6",
+  "thermal-regressions.mjs": "45044716aa41d973282d0f4a21749ef193004a28cda1c83de9a689ff7cfb8ae8",
+  "thermal-view.mjs": "e8caec42b96a01b04da4eb47b8ce7cdd289aadde6d29f027514ba9ef94b47e03",
+  "thermal.mjs": "3c20f19dfd98d7547d53c6c9f023dd8598a6f3abcb5a92a80e22a6c9fd60db21"
+}

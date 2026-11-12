@@ -27,6 +27,7 @@ import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 import { UnshuffledQuestionDraft } from "@/lib/questions/contracts";
 import { solveQuestionIndependently } from "@/lib/questions/independent-solver";
 import { evaluateQuestionWithCritic, type CriticEvaluation } from "@/lib/questions/pedagogical-critic";
+import { validateQuestionVisualAssets } from "@/lib/authoring/question-visual-assets";
 
 export function buildQuestionPrompt(
   courseTitle: string,
@@ -483,6 +484,7 @@ export async function generateQuestionsForKOBatch(
 
     // Transactional database insertion
     try {
+      await validateQuestionVisualAssets([shuffled]);
       const newQuestionId = `q-${randomUUID()}`;
 
       await db.transaction(async (tx) => {

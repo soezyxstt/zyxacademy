@@ -1,0 +1,122 @@
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Distribusi rata-rata sampel</title><style>:root { color-scheme: light; --background: #fff; --foreground: #172f29; --primary: #176955; --primary-foreground: #fff; --muted: #e1eee6; --muted-foreground: #65776d; --border: #c9d6ce; --accent: #c88127; }
+:root[data-theme="dark"] { color-scheme: dark; --background: #17231f; --foreground: #e4eee8; --primary: #86d5b6; --primary-foreground: #17352b; --muted: #30473d; --muted-foreground: #a9beb1; --border: #52675b; --accent: #e8ac5e; }
+* { box-sizing: border-box; } body { margin: 0; background: transparent; color: var(--foreground); font: 14px/1.4 system-ui, sans-serif; } main { padding: 8px; max-width: 900px; margin: 0 auto; } svg { display: block; width: 100%; max-width: 620px; height: auto; margin: auto; fill: var(--foreground); } svg text { font-size: 16px; font-family: system-ui, sans-serif; } svg [role="button"] { cursor: pointer; } :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; } svg [role="button"]:focus-visible rect { stroke: var(--accent); stroke-width: 5; } .controls { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; } label { display: inline-flex; align-items: center; gap: 6px; } input[type="range"] { width: 105px; accent-color: var(--primary); } button, select { color: inherit; background: var(--background); border: 1px solid var(--border); border-radius: 5px; padding: 6px 9px; font: inherit; } button:disabled { opacity: .5; } p { margin: 8px 0 0; }
+main[data-mechanics] p, main[data-sampling-fixture] p { font-size: 16px; }
+main[data-mechanics] input, main[data-sampling-fixture] input { font: inherit; }
+.fbd-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,380px),1fr)); gap: 8px; margin-top: 12px; } [data-formula], [data-definitions] { overflow-x: auto; line-height: 2; }
+
+[data-room] text { font-size: 22px; }
+[data-sampling] text { font-size: 21px; }
+@media print {
+  main { max-width: 740px; padding: 12px; }
+  button, input, select, .controls label, [data-reduced-notice] { display: none !important; }
+  [role="button"] { pointer-events: none; }
+  .fbd-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  details > :not(summary) { display: block !important; }
+  details > summary { display: none; }
+  [data-formula], [data-definitions] { font-size: 13px; }
+}
+</style></head><body><main></main><script>"use strict";
+(() => {
+  // tests/visual/fixtures/rich-documents/shared.js
+  function setup() {
+    const root = document.querySelector("main");
+    let last = 0, queued = false, frame = 0;
+    const send = () => {
+      queued = false;
+      const height = Math.ceil(root.getBoundingClientRect().height);
+      if (height !== last) {
+        last = height;
+        parent.postMessage({ type: "zyx:resize", height }, "*");
+      }
+    };
+    const observer2 = new ResizeObserver(() => {
+      if (!queued) {
+        queued = true;
+        frame = requestAnimationFrame(send);
+      }
+    });
+    observer2.observe(root);
+    addEventListener("pagehide", () => {
+      observer2.disconnect();
+      cancelAnimationFrame(frame);
+    }, { once: true });
+    addEventListener("message", (event) => {
+      if (event.source !== parent || event.data?.type !== "zyx:preferences") return;
+      if (event.data.theme === "light" || event.data.theme === "dark") document.documentElement.dataset.theme = event.data.theme;
+      if (typeof event.data.reducedMotion === "boolean") document.documentElement.dataset.reducedMotion = String(event.data.reducedMotion);
+    });
+  }
+
+  // tests/visual/fixtures/rich-documents/models.js
+  var sampling = (n2) => ({ se: 380 / Math.sqrt(n2), mean: 2450 });
+  var rotorStations = { damper: 1 / 4, beamCenter: 1 / 2, machine: 1 };
+
+  // tests/visual/fixtures/rich-documents/sampling.js
+  setup();
+  var main = document.querySelector("main");
+  var n = 16;
+  var band = true;
+  var width = 0;
+  function means(n2) {
+    let seed = 4271;
+    const rand = () => ((seed = 1664525 * seed + 1013904223 >>> 0) + 0.5) / 4294967296;
+    return Array.from({ length: 600 }, () => {
+      let total = 0;
+      for (let i = 0; i < n2; i++) total += -Math.log(rand());
+      return 2070 + 380 * total / n2;
+    });
+  }
+  function histogram(values) {
+    const bins = Array(36).fill(0), min = 1900, max = 3e3;
+    let below = 0, above = 0;
+    for (const value of values) {
+      if (value < min) below++;
+      else if (value > max) above++;
+      else bins[Math.min(35, Math.floor((value - min) / (max - min) * 36))]++;
+    }
+    return { bins, min, max, below, above };
+  }
+  main.dataset.samplingFixture = "";
+  main.innerHTML = `<div class="controls"><label>Ukuran sampel <input type="range" min="1" max="64" step="1" value="16" data-n> <output>16</output></label><label><input type="checkbox" data-band checked> Rentang satu SE</label></div><svg data-sampling role="img" aria-describedby="sampling-result"></svg><p data-result id="sampling-result"></p><p>Batang menunjukkan 600 rata-rata dari sampel independen populasi eksponensial tergeser, dengan rata-rata 2450 kg dan simpangan baku 380 kg. Garis menunjukkan pendekatan normal; untuk n kecil distribusi rata-rata masih menceng ke kanan. Seed 4271.</p>`;
+  var svg = main.querySelector("svg");
+  var output = main.querySelector("output");
+  var result = main.querySelector("[data-result]");
+  function draw() {
+    const { se, mean } = sampling(n), values = means(n), { bins, min, max, below, above } = histogram(values), drawn = 600 - below - above, within = values.filter((value) => Math.abs(value - mean) <= se).length;
+    output.textContent = n;
+    result.textContent = `n = ${n}; SE ${se.toFixed(1)} kg; satu SE ${(mean - se).toFixed(1)} hingga ${(mean + se).toFixed(1)} kg. Pada ${min} hingga ${max} kg: ${drawn} rata-rata; di bawah ${below}, di atas ${above}. Teramati dalam satu SE: ${within}/600 (${(within / 6).toFixed(1)}%); acuan normal: 68,27%.`;
+    svg.setAttribute("aria-label", `Histogram n = ${n}: ${drawn} dari 600 rata-rata dalam rentang ${min} hingga ${max} kg, ${below} di bawah dan ${above} di atas. Garis membandingkan pendekatan normal; distribusi pada n kecil menceng ke kanan. Rentang satu SE ${band ? "ditampilkan" : "disembunyikan"}.`);
+    if (!width) return;
+    const left = 42, right = width - 24, plotWidth = right - left, x = (v) => left + (v - min) / (max - min) * plotWidth, base = 190, peak = 600 * ((max - min) / 36) / (se * Math.sqrt(2 * Math.PI)), tickStep = Math.ceil(Math.max(peak, ...bins) / 4 / 10) * 10, scale = 170 / (4 * tickStep), curve = Array.from({ length: 101 }, (_, i) => {
+      const v = min + (max - min) * i / 100;
+      return `${i ? "L" : "M"}${x(v).toFixed(1)},${(base - peak * scale * Math.exp(-0.5 * ((v - mean) / se) ** 2)).toFixed(1)}`;
+    }).join(" ");
+    const bars = bins.map((count, i) => `<rect data-bin="${i}" data-count="${count}" x="${left + i * plotWidth / 36}" y="${base - count * scale}" width="${Math.max(0, plotWidth / 36 - 0.5)}" height="${count * scale}" fill="var(--accent)" opacity=".65"/>`).join("");
+    svg.setAttribute("viewBox", `0 0 ${width} 242`);
+    svg.innerHTML = `${band ? `<rect x="${x(mean - se)}" y="20" width="${x(mean + se) - x(mean - se)}" height="170" fill="var(--muted)"/>` : ""}${bars}<path data-normal data-peak="${peak}" d="${curve}" fill="none" stroke="var(--primary)" stroke-width="2"/><path d="M${left} 20V190H${right}" fill="none" stroke="var(--foreground)"/><text x="${left}" y="14" style="font-size:13px">Jumlah per bin</text>${Array.from({ length: 5 }, (_, i) => `<text data-y-tick="${i * tickStep}" x="${left - 6}" y="${base - i * tickStep * scale + 4}" text-anchor="end" style="font-size:13px">${i * tickStep}</text>`).join("")}${(width < 360 ? [1900, 2450, 3e3] : [1900, 2200, 2450, 2700, 3e3]).map((v) => `<text x="${x(v)}" y="209" text-anchor="middle" style="font-size:13px">${v}</text>`).join("")}<text x="${width / 2}" y="232" text-anchor="middle" style="font-size:13px">Rata-rata sampel (kg)</text>`;
+  }
+  main.addEventListener("input", (e) => {
+    if (e.target.matches("[data-n]")) {
+      n = +e.target.value;
+      draw();
+    }
+  });
+  main.addEventListener("change", (e) => {
+    if (e.target.matches("[data-band]")) {
+      band = e.target.checked;
+      draw();
+    }
+  });
+  var observer = new ResizeObserver((entries) => {
+    const next = Math.min(620, entries[0].contentRect.width);
+    if (next > 0 && next !== width) {
+      width = next;
+      draw();
+    }
+  });
+  observer.observe(main);
+  addEventListener("pagehide", () => observer.disconnect(), { once: true });
+  draw();
+})();
+</script></body></html>

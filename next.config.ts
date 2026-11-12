@@ -28,7 +28,7 @@ const nextConfig: NextConfig = {
       "./app/globals.css", "./app/layout.tsx", "./app/authoring-verification/page.tsx",
       "./components/providers/{telemetry-boundary,posthog-provider}.tsx", "./lib/env.ts",
       "./app/api/courses/**/source-figures/**/route.ts", "./jobs/product-verification.ts", "./scripts/authoring/{verification-renderer,build-local-verification-renderer}.ts",
-      "./node_modules/{react,react-dom,next,jsxgraph,zod,mathjs,tailwindcss,playwright-core}/package.json",
+      "./node_modules/{react,react-dom,next,jsxgraph,zod,mathjs,sharp,tailwindcss,playwright-core}/package.json",
       "./node_modules/playwright-core/browsers.json", "./node_modules/@tailwindcss/postcss/package.json", "./node_modules/@playwright/test/package.json",
       "./node_modules/jsxgraph/distrib/**",
     ],

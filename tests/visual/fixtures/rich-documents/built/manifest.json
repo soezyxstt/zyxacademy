@@ -1,0 +1,128 @@
+{
+  "museum": {
+    "id": "museum",
+    "kind": "interactive_document",
+    "version": 1,
+    "label": "Denah museum",
+    "description": "Jalur antarruang melalui pintu.",
+    "documentSha256": "e1b11bceea95bc2a3356c6ae6444a99854456d53f4101322811c2c976263dcf4",
+    "documentBytes": 8335,
+    "printSha256": "bce8d97a74ff974a67bcf05cc5b058776d5dceabf1830a17bb32b0734bfee35e",
+    "printBytes": 9249,
+    "height": 500,
+    "staticFallback": {
+      "type": "text",
+      "summary": "Denah museum",
+      "content": "Denah tujuh ruang, rute awal berada di ruang 2."
+    },
+    "printCaption": "Denah tujuh ruang, rute awal berada di ruang 2."
+  },
+  "milk": {
+    "id": "milk",
+    "kind": "interactive_document",
+    "version": 1,
+    "label": "Mesin susu",
+    "description": "Warna masukan bercabang melalui tiga mesin.",
+    "documentSha256": "a31611a58a0626e8d88e5fb23d80b7e63e67c37a59ae19a05dfbb301e50cf21a",
+    "documentBytes": 8193,
+    "printSha256": "1b68dc059013fea9c496698949f25db08a65d6f155c6e82c8e178e58d34da20c",
+    "printBytes": 11832,
+    "height": 500,
+    "staticFallback": {
+      "type": "text",
+      "summary": "Mesin susu",
+      "content": "Kedua masukan awal cokelat. Dua mesin atas menghasilkan putih dan mesin akhir menghasilkan cokelat."
+    },
+    "printCaption": "Kedua masukan awal cokelat. Dua mesin atas menghasilkan putih dan mesin akhir menghasilkan cokelat."
+  },
+  "mechanics": {
+    "id": "mechanics",
+    "kind": "interactive_document",
+    "version": 1,
+    "label": "Balok dan rotor",
+    "description": "Gerak tunak dan diagram gaya balok.",
+    "documentSha256": "0f46f15a8aaef04211fa8525a6dd4ccbdc8b82ca10975aacc70adeb4be643cbb",
+    "documentBytes": 904980,
+    "printSha256": "bae87dcd4286bb2d554b2d8557bd552d3daf451e41e6647dac6882b6c0a2e502",
+    "printBytes": 70746,
+    "height": 500,
+    "staticFallback": {
+      "type": "text",
+      "summary": "Balok dan rotor",
+      "content": "Balok dihubungkan dengan rotor, pegas dan peredam. Waktu awal 0 detik dan rasio frekuensi 0,8."
+    },
+    "printCaption": "Balok dihubungkan dengan rotor, pegas dan peredam. Waktu awal 0 detik dan rasio frekuensi 0,8."
+  },
+  "sampling": {
+    "id": "sampling",
+    "kind": "interactive_document",
+    "version": 1,
+    "label": "Distribusi rata-rata sampel",
+    "description": "Perbandingan histogram dan pendekatan normal.",
+    "documentSha256": "04f0a50f5c1b8cc02c2a9ada3241bb2678723bafcdff1078f27d361bee9bebec",
+    "documentBytes": 8731,
+    "printSha256": "047f686911c988581a0cc006b610a29148af40a1bd01bca572b2d8142517dea9",
+    "printBytes": 28027,
+    "height": 500,
+    "staticFallback": {
+      "type": "text",
+      "summary": "Distribusi rata-rata sampel",
+      "content": "Untuk ukuran sampel 16, standard error 95 kg dan rentang satu standard error adalah 2355 hingga 2545 kg."
+    },
+    "printCaption": "Untuk ukuran sampel 16, standard error 95 kg dan rentang satu standard error adalah 2355 hingga 2545 kg."
+  },
+  "brick": {
+    "id": "brick",
+    "kind": "interactive_document",
+    "version": 1,
+    "label": "Bata berpemanas",
+    "description": "Suhu bata dan bidang potong tiga dimensi.",
+    "documentSha256": "015cea5d380fe5327f4e6d9689064b71a1e72f8e2388da2d989545e824ebacc4",
+    "documentBytes": 41776,
+    "printSha256": "51b8d0d9fd1096ecac057c5c0b1301167cddbd5e3053d478576aaded58aaac51",
+    "printBytes": 54192,
+    "height": 500,
+    "staticFallback": {
+      "type": "text",
+      "summary": "Bata berpemanas",
+      "content": "Pada 30 menit, pusat bata sekitar 956,6 derajat Celsius dan sudut sekitar 1177,5 derajat Celsius."
+    },
+    "printCaption": "Pada 30 menit, pusat bata sekitar 956,6 derajat Celsius dan sudut sekitar 1177,5 derajat Celsius."
+  },
+  "annulus": {
+    "id": "annulus",
+    "kind": "interactive_document",
+    "version": 1,
+    "label": "Anulus berpemanas",
+    "description": "Aliran anulus dan suhu curah sepanjang pipa.",
+    "documentSha256": "22a7f9f7af9d634b878ddd44cc1295ea7c4f5ea346c568ed5525f271ef5d463f",
+    "documentBytes": 27392,
+    "printSha256": "c748bfd5e521e31e397edf28e30460cb9e1acfcde1c4b4f19dfddad5d2f178e0",
+    "printBytes": 76073,
+    "height": 500,
+    "staticFallback": {
+      "type": "text",
+      "summary": "Anulus berpemanas",
+      "content": "Pada laju massa 0,05 kg per detik, panjang sekitar 49,98 m dan suhu curah keluar 95 derajat Celsius."
+    },
+    "printCaption": "Pada laju massa 0,05 kg per detik, panjang sekitar 49,98 m dan suhu curah keluar 95 derajat Celsius."
+  },
+  "affine": {
+    "id": "affine",
+    "kind": "interactive_document",
+    "version": 1,
+    "label": "Transformasi afin",
+    "description": "Poligon asal dan hasil transformasi.",
+    "documentSha256": "2811701f08ca0eba3a359702b4c836890f5f385c9b3c6484e2e6cc4f4d8db99b",
+    "documentBytes": 11677,
+    "printSha256": "d4767f72c1f523694d00a3d175980ae86e730a1165a781dae435d478f7ca3e17",
+    "printBytes": 20434,
+    "height": 500,
+    "staticFallback": {
+      "type": "text",
+      "summary": "Transformasi afin",
+      "content": "Pada keadaan awal, transformasi identitas menempatkan hasil tepat di atas poligon asal."
+    },
+    "printCaption": "Pada keadaan awal, transformasi identitas menempatkan hasil tepat di atas poligon asal."
+  }
+}
