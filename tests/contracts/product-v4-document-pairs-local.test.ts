@@ -17,6 +17,21 @@ const { productV4DocumentPairKey, encodeProductV4DocumentWire, decodeProductV4Do
 const { executeProductV4VerificationCheck } = await import("@/lib/compute/product-v4-verification-executor");
 const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
+test("wire permits the exact unique-byte budget with per-asset padding and rejects one extra byte", () => {
+  const assets = Object.fromEntries(Array.from({ length: 8 }, (_, index) => {
+    const document = Buffer.alloc(1024 * 1024, index * 2), print = Buffer.alloc(1024 * 1024, index * 2 + 1);
+    return [`${digest(document)}:${digest(print)}`, { document, print }];
+  }));
+  const wire = encodeProductV4DocumentWire(assets);
+  const decoded = decodeProductV4DocumentWire(wire);
+  expect(Object.values(decoded).reduce((sum, pair) => sum + pair.document.length + pair.print.length, 0)).toBe(16 * 1024 * 1024);
+  const key = Object.keys(assets)[0];
+  assets[key].document = Buffer.concat([assets[key].document, Buffer.from([0])]);
+  expect(() => encodeProductV4DocumentWire(assets)).toThrow("VERIFICATION_DOCUMENT_TOTAL_LIMIT");
+  wire.documents[key.split(":")[0]] = assets[key].document.toString("base64");
+  expect(() => decodeProductV4DocumentWire(wire)).toThrow("VERIFICATION_DOCUMENT_TOTAL_LIMIT");
+});
+
 test("wire counts shared document bytes once and rejects inconsistent shared bytes", () => {
   const document = new Uint8Array(5 * 1024 * 1024).fill(42);
   const documentHash = digest(document);

@@ -20,7 +20,8 @@ import {
   updateQuizMeta,
   setQuizQuestions,
 } from "@/lib/authoring/quiz-assembly";
-import { createAuthoringMcpServer } from "@/lib/authoring/mcp-server";
+mock.module("server-only", () => ({}));
+const { createAuthoringMcpServer } = await import("@/lib/authoring/mcp-server");
 import type { McpPrincipal } from "@/lib/authoring/mcp-auth";
 
 import { createHmac } from "node:crypto";

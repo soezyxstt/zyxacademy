@@ -16,7 +16,8 @@ export const productV4DocumentWireSchema = z.object({
     if (!assets.documents[document] || !assets.prints[print]) ctx.addIssue({ code: "custom", message: "VERIFICATION_DOCUMENT_WIRE_INVALID" });
   }
   if (new Set(assets.pairs).size !== assets.pairs.length || documents.size !== Object.keys(assets.documents).length || prints.size !== Object.keys(assets.prints).length) ctx.addIssue({ code: "custom", message: "VERIFICATION_DOCUMENT_WIRE_INVALID" });
-  if ([...Object.values(assets.documents), ...Object.values(assets.prints)].reduce((sum, value) => sum + value.length, 0) > Math.ceil(16 * 1024 * 1024 / 3) * 4 + 32) ctx.addIssue({ code: "custom", message: "VERIFICATION_DOCUMENT_TOTAL_LIMIT" });
+  // Each of the at most 16 assets rounds its base64 length independently.
+  if ([...Object.values(assets.documents), ...Object.values(assets.prints)].reduce((sum, value) => sum + value.length, 0) > Math.ceil(16 * 1024 * 1024 / 3) * 4 + 64) ctx.addIssue({ code: "custom", message: "VERIFICATION_DOCUMENT_TOTAL_LIMIT" });
 });
 
 export function decodeProductV4DocumentWire(value: unknown): Record<string, { document: Uint8Array; print: Uint8Array }> {
