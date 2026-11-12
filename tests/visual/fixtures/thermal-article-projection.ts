@@ -14,6 +14,6 @@ export function buildThermalArticleReadModel(spec: InteractiveDocumentSpec) {
   })));
   return buildPublicArticleReadModel(
     { ...article, babId: article.chapterId ?? null, status: "published" }, sections, blocks, [],
-    { id: article.chapterId, title: "Perpindahan panas", number: 1, courseTitle: "Perpindahan panas" },
+    { id: article.chapterId ?? null, title: "Perpindahan panas", number: 1, courseTitle: "Perpindahan panas" },
   );
 }
