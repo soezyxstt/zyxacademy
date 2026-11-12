@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const output = resolve(process.argv[2] || "artifacts/neon-worker");
-const packages = ["katex", "playwright-core", "sharp"];
+const packages = ["katex", "playwright-core"];
 const fingerprint = JSON.parse(await readFile("artifacts/authoring-verification/web-runtime.json", "utf8"));
 const chromium = JSON.parse(await readFile(join(dirname(require.resolve("playwright-core/package.json")), "browsers.json"), "utf8")).browsers.find(browser => browser.name === "chromium");
 const nativeDeps = process.platform === "win32" ? {
