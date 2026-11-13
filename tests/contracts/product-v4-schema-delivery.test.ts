@@ -86,7 +86,10 @@ test("product and quiz discover the same typed scene and isolated document contr
   expect(guidance.scene.labels).toContain("marked inline math");
   expect(guidance.scene.limits).toContain("131072 UTF-8 bytes");
   expect(guidance.scene.limits).toContain("131072 UTF-16 code units");
-  expect(product.publicationPermitted).toBe(false);
+  expect(product.publicationPermitted).toBe(true);
+  expect(product.publicationScope).toContain("authoring:publish");
+  expect(product.publicationScope).toContain("course/chapter run and exact checksum");
+  expect(product.publicationScope).toContain("quality, review, PDF, trusted verification and traceability gate");
   expect(quiz.reviewRequired).toBe(true);
 });
 
