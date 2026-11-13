@@ -1,8 +1,8 @@
 import { describe, expect, it, mock } from "bun:test";
 
-const enrollment = mock(async () => true);
+const contentAccess = mock(async () => true);
 const getData = mock(async () => ({ conceptName: "Hukum Ohm: V = IR", kosByType: {}, prerequisites: [], unlocks: [], related: [] }));
-mock.module("@/app/(student)/dashboard/actions", () => ({ checkEnrollment: enrollment }));
+mock.module("@/app/(student)/dashboard/actions", () => ({ checkFullCourseContentAccess: contentAccess }));
 mock.module("@/lib/concept-explorer-service", () => ({ getConceptExplorerData: getData }));
 mock.module("@/lib/course-utils", () => ({ getCourse: async () => ({ title: "Fisika" }) }));
 mock.module("@/lib/auth-session", () => ({ getAuthSession: async () => ({ user: { id: "student" } }) }));
@@ -18,7 +18,7 @@ const { default: Page } = await import("@/app/(student)/courses/[id]/concept/[sl
 
 describe("concept heading", () => {
   it("streams the localized name and shares one lookup with the content", async () => {
-    enrollment.mockResolvedValue(true);
+    contentAccess.mockResolvedValue(true);
     getData.mockClear();
     const page = await Page({ params: Promise.resolve({ id: "physics", slug: "hukum-ohm" }) });
     const title = page.props.title.props.children;
@@ -29,8 +29,8 @@ describe("concept heading", () => {
     expect(getData).toHaveBeenCalledWith("physics", "hukum-ohm", "student");
   });
 
-  it("does not load concept data for a student without enrollment", async () => {
-    enrollment.mockResolvedValue(false);
+  it("does not load concept data for a student without full content access", async () => {
+    contentAccess.mockResolvedValue(false);
     getData.mockClear();
     const page = await Page({ params: Promise.resolve({ id: "physics", slug: "hukum-ohm" }) });
     const title = page.props.title.props.children;
