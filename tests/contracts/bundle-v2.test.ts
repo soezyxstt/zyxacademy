@@ -194,7 +194,7 @@ describe("Product Bundle V3 contract", () => {
     };
     expect(productBundleManifestSchema.safeParse(manifestV3).success).toBe(true);
 
-    const manifestInvalid = { ...manifestV3, schemaVersion: "product-bundle.v5" };
+    const manifestInvalid = { ...manifestV3, schemaVersion: "product-bundle.v6" };
     expect(productBundleManifestSchema.safeParse(manifestInvalid).success).toBe(false);
   });
 
