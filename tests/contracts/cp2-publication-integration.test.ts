@@ -1326,65 +1326,63 @@ describe("CP2 Publication Integration Contract", () => {
     expect(successResult.published).toBe(true);
   });
 
-  test("runs four tracked fixture rehearsals through stage, review, real PDF, publish, and download gates", async () => {
-    const browser = await chromium.launch({ executablePath: contractChromiumPath(), args: ["--no-sandbox"] });
+  for (const runName of ["limit-a", "limit-b", "eigen", "tcp"]) test(`runs the tracked ${runName} fixture through stage, review, real PDF, publish, and download gates`, async () => {
+    const browser = await chromium.launch({ executablePath: contractChromiumPath(), headless: true, timeout: 15_000, args: ["--no-sandbox"] });
 
     try {
-      for (const runName of ["limit-a", "limit-b", "eigen", "tcp"]) {
-        const { article, diktat } = loadNormalizedCp7Rehearsal(runName);
-        const html = compileProductDiktatHtml({ article, diktat });
-        const page = await browser.newPage();
-        await page.setContent(html, { waitUntil: "load" });
-        const pdfBytes = new Uint8Array(
-          await page.pdf({ format: "A4", printBackground: true }),
-        );
-        await page.close();
+      const { article, diktat } = loadNormalizedCp7Rehearsal(runName);
+      const html = compileProductDiktatHtml({ article, diktat });
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: "load", timeout: 15_000 });
+      const pdfBytes = new Uint8Array(
+        await page.pdf({ format: "A4", printBackground: true }),
+      );
+      await page.close();
 
-        const inspected = await inspectProductDiktatPdf(pdfBytes);
-        expect(inspected.pageCount).toBeGreaterThanOrEqual(2);
-        expect(inspected.pageCount).toBeLessThanOrEqual(4);
-        expect(inspected.text.replace(/\s+/g, " ")).toContain(
-          diktat.title.replace(/\s+/g, " "),
-        );
+      const inspected = await inspectProductDiktatPdf(pdfBytes);
+      expect(inspected.pageCount).toBeGreaterThanOrEqual(2);
+      expect(inspected.pageCount).toBeLessThanOrEqual(4);
+      expect(inspected.text.replace(/\s+/g, " ")).toContain(
+        diktat.title.replace(/\s+/g, " "),
+      );
 
-        const { staged } = await stageTestBundle(
-          article,
-          diktat,
-          `bundle-cp7-${runName}`,
-          `run-cp7-${runName}`,
-        );
-        await seedApprovalRecords({
-          importId: staged.importId,
-          article,
-          diktat,
-          pdfStatus: "ready",
-        });
+      const { staged } = await stageTestBundle(
+        article,
+        diktat,
+        `bundle-cp7-${runName}`,
+        `run-cp7-${runName}`,
+      );
+      await seedApprovalRecords({
+        importId: staged.importId,
+        article,
+        diktat,
+        pdfStatus: "ready",
+      });
 
-        const evidenceKey = `courses/course-cp2/materials/${diktat.id}.pdf`;
-        storageMap.set(evidenceKey, pdfBytes);
-        const published = await publishProductBundle({
-          importId: staged.importId,
-          publishedBy: "user-admin-1",
-        });
-        expect(published.published).toBe(true);
+      const evidenceKey = `courses/course-cp2/materials/${diktat.id}.pdf`;
+      storageMap.set(evidenceKey, pdfBytes);
+      const published = await publishProductBundle({
+        importId: staged.importId,
+        publishedBy: "user-admin-1",
+      });
+      expect(published.published).toBe(true);
 
-        const [publishedDiktat] = await testDb
-          .select()
-          .from(schema.diktatMateri)
-          .where(eq(schema.diktatMateri.id, diktat.id));
-        expect(publishedDiktat?.status).toBe("published");
-        expect(publishedDiktat?.fileKey).toBe(evidenceKey);
-        expect(storageMap.get(evidenceKey)?.byteLength).toBe(pdfBytes.byteLength);
-        expect(canDownloadProductDiktat({ role: "admin", enrolled: false })).toBe(
-          true,
-        );
-        expect(canDownloadProductDiktat({ role: "student", enrolled: true })).toBe(
-          true,
-        );
-        expect(canDownloadProductDiktat({ role: "student", enrolled: false })).toBe(
-          false,
-        );
-      }
+      const [publishedDiktat] = await testDb
+        .select()
+        .from(schema.diktatMateri)
+        .where(eq(schema.diktatMateri.id, diktat.id));
+      expect(publishedDiktat?.status).toBe("published");
+      expect(publishedDiktat?.fileKey).toBe(evidenceKey);
+      expect(storageMap.get(evidenceKey)?.byteLength).toBe(pdfBytes.byteLength);
+      expect(canDownloadProductDiktat({ role: "admin", enrolled: false })).toBe(
+        true,
+      );
+      expect(canDownloadProductDiktat({ role: "student", enrolled: true })).toBe(
+        true,
+      );
+      expect(canDownloadProductDiktat({ role: "student", enrolled: false })).toBe(
+        false,
+      );
     } finally {
       await browser.close();
     }
