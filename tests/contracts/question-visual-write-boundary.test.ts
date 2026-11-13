@@ -1,6 +1,7 @@
 import { beforeEach, expect, mock, test } from "bun:test";
 import { createHash } from "node:crypto";
 import sharp from "sharp";
+import { buildInteractiveDocumentAdmissionKey, buildInteractiveDocumentAssetKey } from "@/lib/storage/keys";
 
 mock.module("server-only", () => ({}));
 const objects = new Map<string, Uint8Array>();
@@ -68,7 +69,10 @@ test("authorized batch stages verified assets and persists only metadata", async
   rows = [[course], [{ id: "legacy" }], [identity], [course], [{ id: "legacy" }], [identity], [course], [{ id: "legacy" }], [], []];
   const result = await createCanonicalQuestionBatch({ courseId: "course", creatorId: "admin", reviewStatus: "generated", items: [{ question: { ...question, prompt: `\`\`\`zyx-visual\n${JSON.stringify(visual)}\n\`\`\`` } }], visualAssets: [entry(html, "html"), entry(png, "png")] });
   expect(result[0].reviewStatus).toBe("generated");
-  expect(objects.size).toBe(3);
+  expect(objects.size).toBe(4);
+  expect(objects.get(buildInteractiveDocumentAssetKey(visual.documentSha256, "document"))).toEqual(html);
+  expect(objects.get(buildInteractiveDocumentAssetKey(visual.printSha256, "print"))).toEqual(png);
+  expect(objects.get(buildInteractiveDocumentAdmissionKey(visual.printSha256))).toEqual(Buffer.from(JSON.stringify({ version: 1, sha256: visual.printSha256, bytes: visual.printBytes })));
   expect(JSON.stringify(writes)).toContain(visual.documentSha256);
   expect(JSON.stringify(writes)).not.toContain(html.toString("base64"));
 });
