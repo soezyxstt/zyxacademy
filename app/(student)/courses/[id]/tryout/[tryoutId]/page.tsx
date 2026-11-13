@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Lock, ArrowLeft } from "lucide-react";
-import { checkEnrollment } from "@/app/(student)/dashboard/actions";
+import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { TryoutForm } from "@/components/course/tryout-form";
 import { EnrollmentForm } from "@/components/enrollment-form";
@@ -78,7 +78,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const t = await getTranslations("learning");
   
   let examTitle = t("metadata.tryoutTitleFallback");
-  const [dbExam] = await db.select({ title: exams.title }).from(exams).where(eq(exams.id, tryoutId)).limit(1);
+  const [dbExam] = course ? await db.select({ title: exams.title }).from(exams).where(and(eq(exams.id, tryoutId), eq(exams.courseId, course.legacyId ?? id), eq(exams.type, "tryout"), eq(exams.status, "published"))).limit(1) : [];
   if (dbExam) examTitle = dbExam.title;
 
   return createMetadata({
@@ -94,46 +94,12 @@ export default async function CourseTryoutTakePage({ params }: Props) {
   const course = await getCourse(id);
   if (!course) notFound();
 
-  let exam = null;
   const [dbExam] = await db
     .select()
     .from(exams)
-    .where(and(eq(exams.id, tryoutId), eq(exams.courseId, course.legacyId ?? id), eq(exams.type, "tryout")))
+    .where(and(eq(exams.id, tryoutId), eq(exams.courseId, course.legacyId ?? id), eq(exams.type, "tryout"), eq(exams.status, "published")))
     .limit(1);
-
-  if (dbExam) {
-    const dbQuestions = await db
-      .select()
-      .from(questions)
-      .where(eq(questions.examId, tryoutId))
-      .orderBy(asc(questions.order));
-
-    exam = {
-      id: dbExam.id,
-      courseId: id,
-      title: dbExam.title,
-      type: "tryout" as const,
-      status: dbExam.status,
-      settings: publicExamSettings(dbExam.settings),
-      questions: dbQuestions.map((q) => {
-        const content = typeof q.content === "string" ? JSON.parse(q.content) : q.content;
-        return {
-          id: q.id,
-          order: q.order,
-          type: q.type as any,
-          prompt: content.prompt,
-          options: publicOptionTexts(content.options),
-          acceptsImage: content.acceptsImage,
-          acceptsFile: content.acceptsFile,
-          origin: content.origin,
-          sourceEventName: content.sourceEventName,
-          sourceReferenceId: content.sourceReferenceId,
-        };
-      }),
-    } as unknown as ExamFixture;
-  }
-
-  if (!exam || exam.type !== "tryout") notFound();
+  if (!dbExam) notFound();
 
   // Enforce openAt and closeAt check
   const now = new Date();
@@ -142,7 +108,7 @@ export default async function CourseTryoutTakePage({ params }: Props) {
 
   if (openDate && now < openDate) {
     return (
-      <CoursePageShell title={<TranslatedText namespace="learning" messageKey="tryoutTake.notOpen" />} description={exam.title} hideHeader>
+      <CoursePageShell title={<TranslatedText namespace="learning" messageKey="tryoutTake.notOpen" />} description={dbExam.title} hideHeader>
         <Reveal>
           <div className="rounded-lg border border-border/70 bg-card p-5 text-center">
             <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="tryoutTake.notOpen" /></h3>
@@ -163,7 +129,7 @@ export default async function CourseTryoutTakePage({ params }: Props) {
 
   if (closeDate && now > closeDate) {
     return (
-      <CoursePageShell title={<TranslatedText namespace="learning" messageKey="tryoutTake.closed" />} description={exam.title} hideHeader>
+      <CoursePageShell title={<TranslatedText namespace="learning" messageKey="tryoutTake.closed" />} description={dbExam.title} hideHeader>
         <Reveal>
           <div className="rounded-lg border border-border/70 bg-card p-5 text-center">
             <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="tryoutTake.closed" /></h3>
@@ -182,9 +148,9 @@ export default async function CourseTryoutTakePage({ params }: Props) {
     );
   }
 
-  const isEnrolled = await checkEnrollment(id);
+  const hasFullContentAccess = await checkFullCourseContentAccess(id);
 
-  if (!isEnrolled) {
+  if (!hasFullContentAccess) {
     return (
       <CoursePageShell title={<TranslatedText namespace="learning" messageKey="tryoutTake.locked" />} description={<TranslatedText namespace="learning" messageKey="tryoutTake.premiumDescription" values={{ course: course.title }} />} hideHeader>
         <div className="mb-4">
@@ -204,7 +170,7 @@ export default async function CourseTryoutTakePage({ params }: Props) {
               <div>
                 <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="tryoutTake.needToken" /></h3>
                 <p className="mt-1 text-body-sm text-muted-foreground">
-                  <TranslatedText namespace="learning" messageKey="tryoutTake.activateToOpen" values={{ exam: exam.title }} />
+                  <TranslatedText namespace="learning" messageKey="tryoutTake.activateToOpen" values={{ exam: dbExam.title }} />
                 </p>
               </div>
             </div>
@@ -217,6 +183,35 @@ export default async function CourseTryoutTakePage({ params }: Props) {
     );
   }
 
+  const dbQuestions = await db
+    .select()
+    .from(questions)
+    .where(eq(questions.examId, tryoutId))
+    .orderBy(asc(questions.order));
+
+  const exam = {
+    id: dbExam.id,
+    courseId: id,
+    title: dbExam.title,
+    type: "tryout" as const,
+    status: dbExam.status,
+    settings: publicExamSettings(dbExam.settings),
+    questions: dbQuestions.map((q) => {
+      const content = typeof q.content === "string" ? JSON.parse(q.content) : q.content;
+      return {
+        id: q.id,
+        order: q.order,
+        type: q.type as any,
+        prompt: content.prompt,
+        options: publicOptionTexts(content.options),
+        acceptsImage: content.acceptsImage,
+        acceptsFile: content.acceptsFile,
+        origin: content.origin,
+        sourceEventName: content.sourceEventName,
+        sourceReferenceId: content.sourceReferenceId,
+      };
+    }),
+  } as unknown as ExamFixture;
   return (
     <CoursePageShell title={exam.title} description={<TranslatedText namespace="learning" messageKey="tryoutTake.instructions" />} hideHeader>
       <Reveal>

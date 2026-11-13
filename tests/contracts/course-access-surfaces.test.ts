@@ -45,12 +45,17 @@ describe("student course access surface contract", () => {
     expect(list).toContain("freeEligibleTemplateIds");
     expect(client).toContain("freeEligibleTemplateIds");
     expect(client).toContain("freeEligibleIds.has(template.id)");
-    expect(detail).toContain("isFreeQuizTemplate(template, access.freeChapterIds)");
-    expect(detail).toContain("extractFreeQuizChapterScope(rules)");
-    expect(detail).toContain("inArray(chapters.id, freeQuizChapterIds)");
-    expect(detail).toContain("eq(aiQuestionBank.isStale, false)");
-    expect(detail).toContain("knowledgeObjects.status} = 'active'");
-    expect(detail).toContain("chapters.status} = 'published'");
+    expect(detail).toContain("canAccessStudentQuizTemplate(access, template)");
+    expect(source("lib/quiz/student-access.ts")).toContain("isFreeQuizTemplate(template, access.freeChapterIds)");
+    const scope = source("lib/quiz/question-scope.ts");
+    expect(detail).toContain("freeQuizQuestionScope(access, template.selectionRules)");
+    expect(source("app/api/quiz/attempts/route.ts")).toContain("freeQuizQuestionScope(access, template.selectionRules)");
+    expect(scope).toContain("access.hasFullContentAccess ? access.scopedChapterIds : access.freeChapterIds");
+    expect(scope).toContain('eq(aiQuestionBank.isStale, false)');
+    expect(scope).toContain("soal.status} = 'published'");
+    expect(scope).toContain("bab.status} = 'active'");
+    expect(scope).toContain("knowledgeObjects.status} = 'active'");
+    expect(scope).toContain("chapters.status} = 'published'");
   });
 
   test("binds quiz draft and attempt access to the central course policy", () => {

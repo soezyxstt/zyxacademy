@@ -94,7 +94,7 @@ export function DemoStudentPage({ view, experience: { content, snapshot }, maste
  if (view === "groups") return <ApplicationPage><PageHeader icon={Users} title={<TranslatedText namespace="student" messageKey="navigation.groups" />} /><StudentGroupsCompactClient initialGroups={[]} /></ApplicationPage>;
  if (view === "schedule") return <StudentScheduleClient />;
  if (view === "video") return <CoursePageShell title={t("videoPage.title", { course: content.course.title })} icon={Video} backHref={href(`/courses/${courseId}`)} backLabel={t("videoPage.backToCourse")}>
-   <CourseVideosClient courseId={courseId} courseTitle={content.course.title} initialPlaylists={[]} chapters={[]} canManage={false} isEnrolled />
+   <CourseVideosClient courseId={courseId} courseTitle={content.course.title} initialPlaylists={[]} chapters={[]} canManage={false} hasFullContentAccess />
  </CoursePageShell>;
  if (view === "path") {
    const steps: StudyPathStep[] = snapshot.weakConcepts.map((concept, index) => ({

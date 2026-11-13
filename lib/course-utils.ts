@@ -61,7 +61,8 @@ export type StudentCourseAccess = {
   legacyCourseId: string | null;
   tier: StudentCourseAccessTier;
   isEnrolled: boolean;
-  /** IDs of the first two published chapters, including canonical and legacy aliases. */
+  hasFullContentAccess: boolean;
+  /** IDs of the first published chapter, including canonical and legacy aliases. */
   freeChapterIds: string[];
   /** Full server-resolved policy, retained for callers that need capabilities. */
   policy: CourseAccessResult;
@@ -202,6 +203,7 @@ const getStudentCourseAccessCached = cache(
       legacyCourseId: policy.legacyCourseId,
       tier: policy.tier === "free" ? "free" : "standard",
       isEnrolled: policy.isEnrolled,
+      hasFullContentAccess: policy.hasFullContentAccess,
       freeChapterIds: policy.freeChapterIds,
       policy,
     };
@@ -558,7 +560,7 @@ export function assembleCourseMaterialRows({
   }));
 
   const allMaterials = [...mappedCanonicalArticles, ...mappedCanonicalDiktats, ...mappedDiktats, ...mappedDb, ...mappedWeb];
-  if (studentAccess?.tier === "free") {
+  if (studentAccess?.tier === "free" && !studentAccess.hasFullContentAccess) {
     return allMaterials.filter((material) => {
       const isFreeProduct = material.kind === "article" || material.docCategory === "diktat";
       return isFreeProduct && isFreeChapterScoped(material.chapterIds, studentAccess.freeChapterIds);
@@ -721,7 +723,7 @@ const getCourseChapterOutlineCached = cache(
 
   const studentAccess = studentId ? await getStudentCourseAccess(studentId, courseId) : null;
   if (studentId && !studentAccess) return [];
-  const visibleChapterRows = studentAccess?.tier === "free"
+  const visibleChapterRows = studentAccess?.tier === "free" && !studentAccess.hasFullContentAccess
     ? chapterRows.filter((chapter) => isFreeChapterScoped(
         [chapter.id, "canonicalId" in chapter ? chapter.canonicalId : null],
         studentAccess.freeChapterIds,
@@ -1151,7 +1153,7 @@ export async function getCourseQuizzes(courseId: string, studentId?: string) {
   if (studentId) {
     const access = await getStudentCourseAccess(studentId, courseId);
     if (!access) return [];
-    if (access.tier === "free") {
+    if (access.tier === "free" && !access.hasFullContentAccess) {
       templates = templates.filter((template) => isFreeQuizTemplate(template, access.freeChapterIds));
     }
   }

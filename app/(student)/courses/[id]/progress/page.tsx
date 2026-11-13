@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { BarChart3 } from "lucide-react";
 import { notFound } from "next/navigation";
-import { checkEnrollment } from "@/app/(student)/dashboard/actions";
+import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { CourseProgressContentSkeleton } from "@/components/course/course-skeletons";
 import { EnrollmentForm } from "@/components/enrollment-form";
@@ -36,9 +36,9 @@ async function CourseProgressSummarySection({
   courseId: string;
   studentId?: string;
 }) {
-  const isEnrolled = await checkEnrollment(courseId);
+  const hasFullContentAccess = await checkFullCourseContentAccess(courseId);
 
-  if (!isEnrolled) {
+  if (!hasFullContentAccess) {
     return (
       <div className="rounded-xl border border-brand-secondary/25 bg-brand-secondary/5 p-4">
         <h3 className="font-heading text-body-base font-bold text-brand-secondary">

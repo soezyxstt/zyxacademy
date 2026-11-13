@@ -30,7 +30,7 @@ async function deliver(request: Request, head: boolean) {
     const shared = await fetchSharedCanonicalArticle(input.courseId, input.articleId);
     if (!shared || shared.articleRecord.id !== input.articleId || shared.articleRecord.version !== input.articleVersion) return unavailable(404);
     const access = await resolveCourseAccess({ courseId: input.courseId, userId: session.user.id });
-    if (!canAccessCourseContent(access, "article", [shared.articleRecord.babId, shared.chapterRecord?.legacyChapterId])) return unavailable(404);
+    if (!canAccessCourseContent(access, "article", [shared.articleRecord.babId, shared.chapterRecord?.legacyChapterId].filter((id): id is string => Boolean(id)))) return unavailable(404);
     const suffix = `:v${input.articleVersion}`;
     if (input.articleVersion > 1 && !input.articleId.endsWith(suffix)) return unavailable(404);
     const productId = input.articleVersion === 1 ? input.articleId : input.articleId.slice(0, -suffix.length);

@@ -6,6 +6,8 @@ Quiz scores remain available when discussion is locked. Solutions and diagnosis 
 
 Local performance follow-up keeps student material lists metadata-only, loads quiz snapshots only for the selected attempt, and shares Today activity and enrollment between sidebar and plan. Admin user and group lists use server-side search, filtering and pagination; heavy group details load on demand. Question authoring loads published Idea choices for the selected course and chapter when needed. Video player and management dialogs load on demand. The `OPEN / IN PROGRESS` [follow-up audit](audit/web-performance-follow-up-20261111.md) records unverified runtime, access, visual and performance boundaries.
 
+Course access categories are separate from academic disciplines. Admins can configure Free, Limited Time Free, or Premium. Limited offers use Jakarta wall time and include the start instant but exclude the end. Active free courses grant full learning content without creating an enrollment or changing AI quota; existing paid enrollment retains access after an offer ends. Student search checks current publication and chapter access, and flashcard recommendations use current course eligibility. Apply the additive PostgreSQL migration before deploying code that reads these columns.
+
 ## What It Is
 
 Zyx Academy is an AI-powered learning management platform. It takes expert teaching documents, breaks them into atomic concepts, and uses that structure to power personalized learning paths, adaptive flashcards, quizzes, PDF study guides, and one-on-one tutoring.

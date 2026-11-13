@@ -401,8 +401,8 @@ export async function getDashboardCourseMaterialsBatch(
         }
       }
       const webByChapter = new Map((webByLegacyId.get(entry.legacyCourseId) ?? []).map((row) => [row.chapterId, row.id]));
-      const chapterOutline = chapterRows.filter((chapter) => entry.access?.tier !== "free" || isFreeChapterScoped(
-        [chapter.id, chapter.canonicalId], entry.access.freeChapterIds,
+      const chapterOutline = chapterRows.filter((chapter) => entry.access?.tier !== "free" || entry.access.hasFullContentAccess || isFreeChapterScoped(
+        [chapter.id, chapter.canonicalId].filter((id): id is string => Boolean(id)), entry.access.freeChapterIds,
       )).map((chapter) => {
         const article = canonicalByChapter.get(chapter.canonicalId ?? chapter.id)
           ?? (chapter.legacyChapterId ? canonicalByChapter.get(chapter.legacyChapterId) : undefined);

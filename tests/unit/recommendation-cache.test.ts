@@ -4,6 +4,7 @@ let rows: unknown[][] = [];
 let insertError: unknown;
 let inserted: unknown[] = [];
 let computeError: Error | undefined;
+let dueCounts = new Map<string, number>();
 
 function query() {
   const chain: Record<string, unknown> = {};
@@ -29,12 +30,14 @@ mock.module("@/db", () => ({ db: {
 } }));
 mock.module("@/lib/study-path-service", () => ({ getOrComputeStudyPath: async () => [] }));
 mock.module("@/lib/mastery-store", () => ({ getMastery: async () => [] }));
+mock.module("@/lib/student/due-flashcards", () => ({ getDueFlashcardCounts: async () => { if (computeError) throw computeError; return dueCounts; } }));
 
 const { getOrBuildTodayRecommendation } = await import("@/lib/recommendation-service");
 const item = { id: "flashcards", kind: "flashcards" as const, title: "Review flashcards", count: 1, href: "/courses/course/flashcard", done: false };
 
 beforeEach(() => {
-  rows = [[], [{ cardId: "card", courseId: "course" }], [], [], [], []];
+  rows = [[], [], [], [], []];
+  dueCounts = new Map([["course", 1]]);
   insertError = undefined;
   inserted = [];
   computeError = undefined;
@@ -47,9 +50,16 @@ test("computes and stores the daily plan", async () => {
 });
 
 test("returns cached completion state without inserting", async () => {
+  dueCounts = new Map();
   rows = [[{ payload: { items: [{ id: "cached", kind: "quiz", title: "Quiz", href: "/quiz" }] }, completedItems: ["cached"] }]];
   expect(await getOrBuildTodayRecommendation("student", ["course"])).toEqual({ items: [{ id: "cached", kind: "quiz", title: "Quiz", href: "/quiz", done: true }] });
   expect(inserted).toHaveLength(0);
+});
+
+test("refreshes cached flashcards after access and due state change", async () => {
+  rows = [[{ payload: { items: [{ id: "flashcards", kind: "flashcards", title: "Old", href: "/courses/expired/flashcard" }] }, completedItems: ["flashcards"] }]];
+  dueCounts = new Map([["current", 2]]);
+  expect(await getOrBuildTodayRecommendation("student", [])).toEqual({ items: [{ id: "flashcards", kind: "flashcards", title: "Review flashcards", count: 2, href: "/courses/current/flashcard", done: false }] });
 });
 
 for (const error of [Object.assign(new Error("private SQL details"), { code: "25006" }), new Error("private failure")]) {

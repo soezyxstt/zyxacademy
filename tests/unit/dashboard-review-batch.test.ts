@@ -12,7 +12,11 @@ const courses = new Map<string, any>();
 const access = new Map<string, any>();
 mock.module("@/db", () => ({ db }));
 mock.module("@/lib/student/course-catalog", () => ({ resolveStudentCourse: async (id: string) => courses.get(id) ?? null }));
-mock.module("@/lib/course-utils", () => ({ getStudentCourseAccess: async (_: string, id: string) => access.get(id) ?? null, isFreeChapterScoped: (ids: (string | null)[], free: Set<string>) => ids.some(id => id != null && free.has(id)) }));
+mock.module("@/lib/course-utils", () => ({ getStudentCourseAccess: async (_: string, id: string) => {
+  const entry = access.get(id);
+  if (!entry) return null;
+  return { ...entry, policy: { hasCourseAccess: true, capabilities: { canReviewFlashcard: true }, tier: entry.tier === "free" ? "free" : "enrolled", hasFullContentAccess: entry.tier !== "free", scopedChapterIds: ["ch", "old-ch"], freeChapterIds: entry.freeChapterIds ?? [] } };
+}, isFreeChapterScoped: (ids: (string | null)[], allowed: Set<string> | string[]) => ids.length > 0 && ids.every(id => id !== null && new Set(allowed).has(id)) }));
 mock.module("@/lib/recommendation-service", () => ({ markRecommendationDone: async () => {} }));
 mock.module("@/lib/migrasi/repository-kompatibilitas", () => ({ dualWriteFlashcardReview: async () => {}, dualWriteLearningEvent: async () => {} }));
 mock.module("@/lib/pemahaman/evidence", () => ({ recordLearningEvidence: async () => {} }));
@@ -60,7 +64,7 @@ describe("dashboard review batch parity", () => {
     await legacy("b", "legacy-b", "old-ch");
     await canonical("c", "exact"); await insert(schema.kemajuanFlashcardMurid, { flashcardId: "exact", penggunaId: "student", dueAt: new Date(now), status: "active" });
     await canonical("c", "paused"); await insert(schema.kemajuanFlashcardMurid, { flashcardId: "paused", penggunaId: "student", dueAt: new Date(now), status: "paused" });
-    await canonical("d", "free"); access.set("d", { tier: "free", freeChapterIds: ["old-ch"] });
+    await canonical("d", "free"); access.set("d", { tier: "free", freeChapterIds: ["ch", "old-ch"] });
     await canonical("e", "denied"); access.delete("e");
     await compare(["a", "b", "c", "d", "e"], [0, 1, 1, 1, 0]);
   });

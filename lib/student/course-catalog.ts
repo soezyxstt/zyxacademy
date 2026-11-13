@@ -1,6 +1,7 @@
 import { and, asc, eq, gt, inArray, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { courses, enrollments, mataKuliah, pendaftaranMurid } from "@/db/schema";
+import type { CoursePricing } from "@/lib/student/course-pricing";
 
 export type StudentCourseRecord = {
   id: string;
@@ -9,6 +10,7 @@ export type StudentCourseRecord = {
   title: string;
   category: string;
   description: string;
+  pricing: CoursePricing;
 };
 
 export type StudentEnrollmentRecord = StudentCourseRecord & {
@@ -27,6 +29,7 @@ function projectCanonicalCourse(
     title: canonical.title,
     category: legacy?.category ?? "Akademik",
     description: legacy?.description ?? "",
+    pricing: { category: canonical.pricingCategory, startsAt: canonical.freeStartsAt, endsAt: canonical.freeEndsAt },
   };
 }
 
@@ -38,6 +41,7 @@ function projectLegacyCourse(legacy: typeof courses.$inferSelect): StudentCourse
     title: legacy.title,
     category: legacy.category,
     description: legacy.description ?? "",
+    pricing: { category: "premium", startsAt: null, endsAt: null },
   };
 }
 

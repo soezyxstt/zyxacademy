@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { enrollments, exams, mataKuliah } from "@/db/schema";
-import { and, eq, gt, inArray } from "drizzle-orm";
+import { exams } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { storage } from "@/lib/storage";
 import { buildExamAttachmentKey, INVALID_OBJECT_KEY } from "@/lib/storage/keys";
-import { resolveActorRoles } from "@/lib/tutor/assessment-policy";
+import { resolveCourseAccess } from "@/lib/student/course-access";
 
 const MAX_SIZE_BYTES = 10 * 1024 * 1024;
 
@@ -61,44 +61,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Tryout tidak tersedia." }, { status: 404 });
   }
 
-  const [canonicalCourse] = await db
-    .select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId })
-    .from(mataKuliah)
-    .where(eq(mataKuliah.id, examRecord.courseId))
-    .limit(1);
-
-  const courseIds = Array.from(
-    new Set(
-      [
-        examRecord.courseId,
-        canonicalCourse?.id,
-        canonicalCourse?.legacyCourseId,
-      ].filter((id): id is string => Boolean(id))
-    )
-  );
-
-  const { isAdmin } = await resolveActorRoles(user.id, (user as { role?: string | null }).role);
-
-  if (!isAdmin) {
-    const [enrollment] = await db
-      .select({ id: enrollments.id })
-      .from(enrollments)
-      .where(
-        and(
-          eq(enrollments.userId, user.id),
-          inArray(enrollments.courseId, courseIds),
-          gt(enrollments.expiresAt, new Date())
-        )
-      )
-      .limit(1);
-
-    if (!enrollment) {
-      return NextResponse.json(
-        { error: "Anda tidak berwenang mengunggah berkas untuk tryout ini." },
-        { status: 403 }
-      );
-    }
-  }
+  const access = await resolveCourseAccess({ courseId: examRecord.courseId, userId: user.id });
+  if (!access.hasFullContentAccess) return NextResponse.json({ error: "Anda tidak berwenang mengunggah berkas untuk tryout ini." }, { status: 403 });
 
   const ext = getExtension(file.name);
   const expectedMime = ALLOWED_TYPES[ext];

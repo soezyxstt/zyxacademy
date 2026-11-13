@@ -13,7 +13,7 @@ type AttemptType = Pick<typeof studentQuizAttempts.$inferSelect, "id" | "templat
 
 type QuizListClientProps = {
   courseId: string;
-  isEnrolled: boolean;
+  hasFullContentAccess: boolean;
   accessTier?: "anonymous" | "free" | "standard";
   /** Server-approved Free templates. Invalid or broad rules stay locked. */
   freeEligibleTemplateIds?: string[];
@@ -21,7 +21,7 @@ type QuizListClientProps = {
   attempts: AttemptType[];
 };
 
-export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ? "standard" : "anonymous", freeEligibleTemplateIds = [], templates, attempts }: QuizListClientProps) {
+export function QuizListClient({ courseId, hasFullContentAccess, accessTier = hasFullContentAccess ? "standard" : "anonymous", freeEligibleTemplateIds = [], templates, attempts }: QuizListClientProps) {
   const t = useTranslations("learning");
   const experience = useStudentExperience();
   const freeEligibleIds = new Set(freeEligibleTemplateIds);

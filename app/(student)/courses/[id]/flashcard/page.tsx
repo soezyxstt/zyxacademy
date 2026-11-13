@@ -38,8 +38,7 @@ async function CourseFlashcardContent({
   studentId: string;
 }) {
   const access = await getStudentCourseAccess(studentId, id);
-  const isEnrolled = access?.tier === "standard";
-  const canUseFlashcards = isEnrolled;
+  const canUseFlashcards = Boolean(access?.policy.capabilities.canReviewFlashcard);
 
   let queue: any[] = [];
   if (canUseFlashcards) {

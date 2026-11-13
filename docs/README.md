@@ -1,5 +1,7 @@
 # Zyx Academy Documentation Index
 
+`ACTIVE`: The [feature catalog](features.md) and [schema guide](DB_SCHEMA.md#mata_kuliah) describe admin-managed course access categories, scheduled free access, and current-policy search and recommendations. The additive PostgreSQL migration remains a deployment prerequisite; local checks do not establish remote rollout.
+
 `ACTIVE`: The [Product V4 contract](bundle/product-bundle-v4.md) records asynchronous interactive document admission, scoped delivery, the theme and lifecycle message protocol, bounded resize through 2400 CSS px, and print boundaries. Formative prompt, option, answer and explanation checks passed through the trusted runner on local fixtures at both viewports; live MCP, authenticated services, deployment and publication acceptance remain separate.
 
 The `OPEN / IN PROGRESS` [demo performance audit](audit/demo-performance-20261111.md) tracks redundant server resolution, payloads, exercise collection, client imports and transitions, with local implementation and runtime acceptance kept separate.

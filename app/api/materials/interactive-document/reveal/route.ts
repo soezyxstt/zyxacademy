@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { imporBundle, itemImporBundle, publikasiBundle } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { isEnrolled } from "@/lib/course-utils";
+import { canAccessCourseContent, resolveCourseAccess } from "@/lib/student/course-access";
 import { fetchSharedCanonicalArticle } from "@/lib/articles/structured-repository";
 import { getProductBundleImport, parseStagedProductBundle } from "@/lib/bundle/product-staging";
 import { productEntityHash } from "@/lib/bundle/product-bundle-v2";
@@ -35,7 +35,13 @@ async function deliver(request: Request, head: boolean) {
   try {
     const resolved = grant.draftId ? await resolveDraftProductFormativeCheck(grant.draftId, locator) : await resolvePublishedFormativeCheck(locator);
     if (!resolved.ok) return unavailable(404);
-    if (grant.draftId ? session.user.role !== "admin" : session.user.role !== "admin" && !(await isEnrolled(session.user.id, resolved.context.article.courseId))) return unavailable(404);
+    if (grant.draftId) {
+      if (session.user.role !== "admin") return unavailable(404);
+    } else {
+      const access = await resolveCourseAccess({ courseId: resolved.context.article.courseId, userId: session.user.id });
+      const shared = await fetchSharedCanonicalArticle(resolved.context.article.courseId, grant.articleId);
+      if (!shared || !canAccessCourseContent(access, "article", [shared.articleRecord.babId])) return unavailable(404);
+    }
     let importId = grant.draftId;
     let productId = grant.articleId;
     let sectionKey = grant.sectionId;

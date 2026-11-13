@@ -10,16 +10,18 @@ import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { createMetadata} from "@/lib/site";
 import { db } from "@/db";
-import { quizTemplates, studentQuizAttempts, aiQuestionBank, knowledgeObjects, chapters } from "@/db/schema";
+import { quizTemplates, studentQuizAttempts, aiQuestionBank } from "@/db/schema";
 import { and, or, eq, desc, sql, inArray, notInArray } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { QuizStartButton } from "./quiz-start-button";
 import { TranslatedText } from "@/components/i18n/translated-text";
 import { getTranslations } from "@/lib/i18n/server";
 import { normalizeDate } from "@/lib/date-utils";
-import { extractFreeQuizChapterScope, getCourse, isFreeQuizTemplate } from "@/lib/course-utils";
+import { getCourse } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
 import { resolveCourseAccess } from "@/lib/student/course-access";
+import { canAccessQuizSnapshot, freeQuizQuestionScope } from "@/lib/quiz/question-scope";
+import { canAccessStudentQuizTemplate, validatedQuizScope } from "@/lib/quiz/student-access";
 import { canViewQuizDiscussion, isQuizDiscussionClosed, projectQuizReviewSnapshot, publicQuizOptionTexts as publicOptionTexts } from "@/lib/quiz/review-release";
 
 type Props = {
@@ -98,11 +100,10 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
   // Access is resolved on the server. Free users may start only a regular
   // quiz whose complete chapter scope is within the first two chapters.
-  const isEnrolled = access.tier === "enrolled";
   const parsedAccessRules = typeof template.selectionRules === "string"
     ? (() => { try { return JSON.parse(template.selectionRules); } catch { return {}; } })()
     : template.selectionRules;
-  const rules = (parsedAccessRules ?? {}) as {
+  const rules = (validatedQuizScope(template.selectionRules) ? parsedAccessRules : {}) as {
     tags?: string[];
     count?: number;
     difficulty_proportions?: Record<string, number>;
@@ -113,9 +114,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     questionIds?: string[];
     question_ids?: string[];
   };
-  const isFree = access?.tier === "free";
-  const isFreeQuizScoped = isFree && isFreeQuizTemplate(template, access.freeChapterIds);
-  const isAccessible = access.hasCourseAccess && (isStaff || isEnrolled || isFreeQuizScoped);
+  const isAccessible = canAccessStudentQuizTemplate(access, template);
 
   const rawFixedQuestionIds = rules.fixedQuestionIds
     ?? rules.fixed_question_ids
@@ -132,17 +131,6 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     ? [...new Set(declaredFixedQuestionIds)]
     : [];
 
-  const requestedFreeChapterIds = isFree ? extractFreeQuizChapterScope(rules) : null;
-  const freeQuizChapterIds = requestedFreeChapterIds
-    ? [...new Set(
-        access.freeChapters
-          .filter((chapter) => [chapter.id, chapter.canonicalId, chapter.legacyId]
-            .some((chapterId) => chapterId && requestedFreeChapterIds.includes(chapterId)))
-          .flatMap((chapter) => [chapter.id, chapter.canonicalId, chapter.legacyId])
-          .filter((chapterId): chapterId is string => Boolean(chapterId)),
-      )]
-    : [];
-
   // Check if questions are available for this template
   const tags = (rules.tags as string[] | undefined) || [];
   const tagConditions = tags.map(
@@ -154,13 +142,8 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     eq(aiQuestionBank.origin, "itb_example"),
     eq(aiQuestionBank.quizEligible, true),
   );
-  const chapterScopeCondition = isFree
-    ? freeQuizChapterIds.length > 0
-      ? sql`exists (select 1 from ${knowledgeObjects} inner join ${chapters} on ${chapters.id} = ${knowledgeObjects.chapterId} where ${knowledgeObjects.id} = ${aiQuestionBank.knowledgeObjectId} and ${knowledgeObjects.status} = 'active' and ${chapters.status} = 'published' and ${inArray(chapters.id, freeQuizChapterIds)})`
-      : sql`0 = 1`
-    : undefined;
-  const questionStateCondition = isFree
-    ? and(eq(aiQuestionBank.status, "active"), eq(aiQuestionBank.isStale, false))
+  const chapterScopeCondition = access.tier === "free" && isAccessible
+    ? await freeQuizQuestionScope(access, template.selectionRules)
     : undefined;
   const fixedQuestionCondition = fixedQuestionIds.length > 0
     ? inArray(aiQuestionBank.id, fixedQuestionIds)
@@ -215,7 +198,6 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         eq(aiQuestionBank.courseId, template.courseId),
         eq(aiQuestionBank.reviewStatus, 'published'),
         quizEligibilityCondition,
-        questionStateCondition,
         availabilityTagCondition,
         chapterScopeCondition,
         fixedQuestionCondition,
@@ -377,6 +359,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         .limit(1)
     : [];
   if (needsSnapshot && !targetAttemptSnapshot) notFound();
+  if (targetAttemptSnapshot && !await canAccessQuizSnapshot(access, targetAttemptSnapshot.questionsSnapshot)) notFound();
 
   // STATE B: Active player taking quiz
   if (targetAttempt?.status === "in_progress") {
@@ -509,7 +492,6 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
             eq(aiQuestionBank.courseId, template.courseId),
             eq(aiQuestionBank.reviewStatus, 'published'),
             quizEligibilityCondition,
-            questionStateCondition,
             chapterScopeCondition,
             unseenCondition,
             inArray(aiQuestionBank.id, fixedQuestionIds)
@@ -528,7 +510,6 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
             eq(aiQuestionBank.courseId, template.courseId),
             eq(aiQuestionBank.reviewStatus, 'published'),
             quizEligibilityCondition,
-            questionStateCondition,
             chapterScopeCondition,
             unseenCondition,
             tagCondition

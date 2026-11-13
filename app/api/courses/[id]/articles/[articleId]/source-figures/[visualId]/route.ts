@@ -22,7 +22,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     .from(artikel).leftJoin(bab, eq(artikel.babId, bab.id)).where(and(eq(artikel.id, articleId), eq(artikel.mataKuliahId, course.canonicalId), eq(artikel.status, "published"))).limit(1);
   if (!article) return Response.json({ error: "Gambar tidak ditemukan." }, { status: 404 });
   const access = await resolveCourseAccess({ courseId, userId: session.user.id });
-  if (!canAccessCourseContent(access, "article", [article.chapterId, article.legacyChapterId])) return Response.json({ error: "Aktifkan akses kelas untuk melihat gambar." }, { status: 403 });
+  if (!canAccessCourseContent(access, "article", [article.chapterId, article.legacyChapterId].filter((id): id is string => Boolean(id)))) return Response.json({ error: "Aktifkan akses kelas untuk melihat gambar." }, { status: 403 });
   try {
     const encoded = article.content.match(/<!--__ZYX_V3_ARTICLE_VISUALS__:([A-Za-z0-9_-]+)-->/)?.[1];
     const visuals: unknown = encoded ? JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) : [];

@@ -4,9 +4,9 @@ const spec = { id: "visual", kind: "interactive_document", version: 1, label: "V
 const fence = `\`\`\`zyx-visual\n${JSON.stringify(spec)}\n\`\`\``;
 const attempt = { id: "attempt", studentId: "user", status: "in_progress", questionsSnapshot: [{ id: "q", prompt: fence, options: ["A", "B"], explanation: "Jawaban" }] };
 const template = { courseId: "course", status: "published", selectionRules: { explanationRelease: "immediate" }, showDiscussion: true, manualStatus: "open", closeAt: null };
-let access = { hasCourseAccess: true, tier: "enrolled", freeChapterIds: [] as string[] }, freeScoped = false;
+let access = { hasCourseAccess: true, tier: "enrolled", hasFullContentAccess: true, freeChapterIds: [] as string[] }, freeScoped = false;
 let row: any = { attempt, template };
-let signedIn = true, reads = 0;
+let signedIn = true, reads = 0, snapshotAllowed = true;
 const objects = new Map<string, Uint8Array>();
 const chain: Record<string, any> = {};
 for (const method of ["from", "innerJoin", "where"]) chain[method] = () => chain;
@@ -20,8 +20,9 @@ mock.module("@/lib/storage", () => ({ storage: {
 } }));
 mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => signedIn ? { user: { id: "user" } } : null } } }));
 mock.module("@/db", () => ({ db: { select: () => chain } }));
-mock.module("@/lib/student/course-access", () => ({ resolveCourseAccess: async () => access }));
-mock.module("@/lib/course-utils", () => ({ isFreeQuizTemplate: () => freeScoped }));
+mock.module("@/lib/student/course-access", () => ({ resolveCourseAccess: async () => access, hasChapterScopeWithin: () => true }));
+mock.module("@/lib/quiz/question-scope", () => ({ canAccessQuizSnapshot: async () => snapshotAllowed }));
+mock.module("@/lib/course-utils", () => ({ isFreeQuizTemplate: () => freeScoped, parseQuizSelectionRules: (value: unknown) => value ?? {} }));
 mock.module("@/lib/materials/interactive-document-assets", () => ({ readInteractiveDocumentAsset: async () => { reads++; return new Uint8Array([1]); } }));
 mock.module("@/lib/materials/interactive-document-server", () => ({ interactiveDocumentResponse: (bytes: Uint8Array) => new Response(bytes as unknown as BodyInit) }));
 const route = await import("@/app/api/materials/interactive-document/attempt/route");
@@ -60,15 +61,21 @@ test("explanation assets require the completed attempt's release policy", async 
 test("saved asset URLs retain current course and draft access gates", async () => {
   row = { attempt, template };
   const before = reads;
+  snapshotAllowed = false;
+  expect((await route.GET(request())).status).toBe(404);
+  snapshotAllowed = true;
   access = { ...access, hasCourseAccess: false };
   expect((await route.GET(request())).status).toBe(404);
   access = { ...access, hasCourseAccess: true };
   row = { attempt, template: { ...template, status: "draft" } };
   expect((await route.GET(request())).status).toBe(404);
   row = { attempt, template };
-  access = { ...access, tier: "free" };
+  access = { ...access, tier: "free", hasFullContentAccess: false };
   expect((await route.GET(request())).status).toBe(404);
   expect(reads).toBe(before);
+  access = { ...access, hasFullContentAccess: true };
+  expect((await route.GET(request())).status).toBe(200);
+  access = { ...access, hasFullContentAccess: false };
   freeScoped = true;
   expect((await route.GET(request())).status).toBe(200);
   access = { ...access, tier: "staff" };

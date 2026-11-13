@@ -11,7 +11,7 @@ import {
   knowledgeRelationships,
   studentConceptMastery,
 } from "@/db/schema";
-import { checkEnrollment } from "@/app/(student)/dashboard/actions";
+import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { CourseMasteryContentSkeleton } from "@/components/course/course-skeletons";
 import { studentCardClass } from "@/components/course/course-surfaces";
@@ -134,7 +134,7 @@ async function CourseMasteryContent({
   legacyCourseId: string;
   studentId: string;
 }) {
-  const enrolled = await checkEnrollment(id);
+  const enrolled = await checkFullCourseContentAccess(id);
 
   if (!enrolled) {
     return (

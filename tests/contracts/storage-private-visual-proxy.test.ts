@@ -13,7 +13,8 @@ mock.module("@/db", () => ({ db: { select: () => { queries++; return { from: () 
 mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => { sessions++; return session; } } } }));
 mock.module("next/headers", () => ({ headers: async () => new Headers() }));
 mock.module("@/lib/admin/course-identity", () => ({ resolveCourseIdentity: async () => null }));
-mock.module("@/lib/student/course-access", () => ({ resolveCourseAccess: async () => ({}) }));
+const coursePolicy = await import("@/lib/student/course-access");
+mock.module("@/lib/student/course-access", () => ({ ...coursePolicy, resolveCourseAccess: async () => ({}) }));
 const { GET } = await import("@/app/api/storage/file/[...key]/route");
 const get = (key: string, query = "") => GET(new Request(`http://localhost/api/storage/file/test${query}`), { params: Promise.resolve({ key: [key] }) });
 

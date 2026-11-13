@@ -18,6 +18,9 @@ import { buildRemediation } from '@/lib/remediation';
 import { PKA_COURSE_ID } from '@/lib/pka-config';
 import { normalizeDate } from '@/lib/date-utils';
 import { canViewAttemptDiscussion } from '@/lib/quiz/review-release';
+import { resolveCourseAccess } from '@/lib/student/course-access';
+import { canAccessStudentQuizTemplate } from '@/lib/quiz/student-access';
+import { canAccessQuizSnapshot } from '@/lib/quiz/question-scope';
 import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
 import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
 import { gradeStableOptionAnswer } from '@/lib/asesmen/attempt';
@@ -109,13 +112,9 @@ export async function GET(_req: NextRequest, { params }: Context) {
 
   if (!attempt) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const [template] = await db.select({
-    courseId: quizTemplates.courseId,
-    selectionRules: quizTemplates.selectionRules,
-    showDiscussion: quizTemplates.showDiscussion,
-    manualStatus: quizTemplates.manualStatus,
-    closeAt: quizTemplates.closeAt,
-  }).from(quizTemplates).where(eq(quizTemplates.id, attempt.templateId)).limit(1);
+  const [template] = await db.select().from(quizTemplates).where(eq(quizTemplates.id, attempt.templateId)).limit(1);
+  const access = template && await resolveCourseAccess({ courseId: template.courseId, userId: session.user.id });
+  if (!template || !access || !canAccessStudentQuizTemplate(access, template) || !await canAccessQuizSnapshot(access, attempt.questionsSnapshot)) return NextResponse.json({ error: "Akses kuis tidak tersedia." }, { status: 403 });
   const released = canViewAttemptDiscussion(template, attempt.status);
   const feedbackRows = released
     ? await db.select().from(attemptFeedback).where(eq(attemptFeedback.attemptId, id))
@@ -184,10 +183,12 @@ export async function POST(req: NextRequest, { params }: Context) {
   }
 
   const [templateMeta] = await db
-    .select({ timeLimitSeconds: quizTemplates.timeLimitSeconds })
+    .select()
     .from(quizTemplates)
     .where(eq(quizTemplates.id, attempt.templateId))
     .limit(1);
+  const access = templateMeta && await resolveCourseAccess({ courseId: templateMeta.courseId, userId: session.user.id });
+  if (!templateMeta || !access || !canAccessStudentQuizTemplate(access, templateMeta) || !await canAccessQuizSnapshot(access, attempt.questionsSnapshot)) return NextResponse.json({ error: "Akses kuis tidak tersedia." }, { status: 403 });
 
  const body = await req.json();
  const parsed = SubmitSchema.safeParse(body);

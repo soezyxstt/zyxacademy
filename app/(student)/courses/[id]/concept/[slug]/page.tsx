@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Lightbulb, Lock } from "lucide-react";
-import { checkEnrollment } from "@/app/(student)/dashboard/actions";
+import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { CourseConceptExplorerSkeleton } from "@/components/course/course-skeletons";
 import { studentCardClass } from "@/components/course/course-surfaces";
@@ -179,8 +179,8 @@ export default async function ConceptExplorerPage({ params }: Props) {
   ]);
   if (!course) notFound();
 
-  const dataPromise = checkEnrollment(id).then(async (isEnrolled) => {
-    if (!isEnrolled) return null;
+  const dataPromise = checkFullCourseContentAccess(id).then(async (hasFullContentAccess) => {
+    if (!hasFullContentAccess) return null;
     const data = await getConceptExplorerData(id, slug, session?.user?.id);
     if (!data) notFound();
     return data;

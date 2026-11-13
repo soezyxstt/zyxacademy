@@ -30,6 +30,8 @@ import {
   saveCourse,
   deleteCourse,
 } from "@/app/(admin)/admin/(academic)/courses/actions";
+import { CoursePricingFields, pricingCategoryLabel, pricingFields, pricingFromFields } from "@/components/admin/course-pricing-fields";
+import type { CoursePricing } from "@/lib/student/course-pricing";
 import { allowedCategories } from "@/app/(admin)/admin/(academic)/courses/constants";
 import {
   Plus,
@@ -53,6 +55,7 @@ export type CourseWithStats = {
   title: string;
   category: string;
   description?: string | null;
+  pricing?: CoursePricing;
   chapterCount: number;
   materialCount: number;
   quizCount: number;
@@ -65,7 +68,7 @@ type Props = {
 export function CoursesDashboard({ initialCourses }: Props) {
   const t = useTranslations("adminAcademic");
   const router = useRouter();
-  const [courses] = useState<CourseWithStats[]>(initialCourses);
+  const courses = initialCourses;
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "table">("table");
@@ -76,6 +79,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
   const [newTitle, setNewTitle] = useState("");
   const [newCategory, setNewCategory] = useState<string>("");
   const [newDescription, setNewDescription] = useState("");
+  const [newPricing, setNewPricing] = useState(() => pricingFields());
   const [createLoading, setCreateLoading] = useState(false);
 
   // Edit Modal State
@@ -83,6 +87,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
   const [editTitle, setEditTitle] = useState("");
   const [editCategory, setEditCategory] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editPricing, setEditPricing] = useState(() => pricingFields());
   const [editLoading, setEditLoading] = useState(false);
 
   // Delete Dialog State
@@ -125,13 +130,16 @@ export function CoursesDashboard({ initialCourses }: Props) {
       return;
     }
 
+    let pricing: CoursePricing;
+    try { pricing = pricingFromFields(newPricing); } catch { toast.error("Pastikan waktu mulai dan akhir WIB valid, dan waktu akhir setelah waktu mulai."); return; }
     setCreateLoading(true);
     const res = await saveCourse(
       cleanId,
       cleanTitle,
       newCategory,
       newDescription.trim() || null,
-      true
+      true,
+      pricing
     );
     setCreateLoading(false);
 
@@ -142,9 +150,10 @@ export function CoursesDashboard({ initialCourses }: Props) {
       setNewTitle("");
       setNewCategory("");
       setNewDescription("");
+      setNewPricing(pricingFields());
       router.refresh();
     } else {
-      toast.error(t("courses.errors.create"));
+      toast.error(res.error || t("courses.errors.create"));
     }
   };
 
@@ -155,6 +164,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
     setEditTitle(c.title);
     setEditCategory(c.category);
     setEditDescription(c.description || "");
+    setEditPricing(pricingFields(c.pricing));
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -164,13 +174,16 @@ export function CoursesDashboard({ initialCourses }: Props) {
       return;
     }
 
+    let pricing: CoursePricing;
+    try { pricing = pricingFromFields(editPricing); } catch { toast.error("Pastikan waktu mulai dan akhir WIB valid, dan waktu akhir setelah waktu mulai."); return; }
     setEditLoading(true);
     const res = await saveCourse(
       editingCourse.id,
       editTitle.trim(),
       editCategory,
       editDescription.trim() || null,
-      false
+      false,
+      pricing
     );
     setEditLoading(false);
 
@@ -179,7 +192,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
       setEditingCourse(null);
       router.refresh();
     } else {
-      toast.error(t("courses.errors.update"));
+      toast.error(res.error || t("courses.errors.update"));
     }
   };
 
@@ -317,6 +330,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                   <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors">
                     {c.title}
                   </h3>
+                  <span className="text-body-xs text-muted-foreground">{pricingCategoryLabel(c.pricing)}</span>
                 </div>
 
                 {/* Counters */}
@@ -394,6 +408,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                   </td>
                   <td className="px-3.5 py-2.5">
                     <p className="font-semibold text-foreground">{c.title}</p>
+                    <span className="text-body-xs text-muted-foreground">{pricingCategoryLabel(c.pricing)}</span>
                   </td>
                   <td className="px-3.5 py-2.5">
                     <Badge variant="secondary" className="rounded-md text-body-2xs font-medium px-1.5 py-0.5">
@@ -496,6 +511,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
               </Select>
             </div>
 
+            <CoursePricingFields id="create" value={newPricing} onChange={setNewPricing} disabled={createLoading} />
             <div className="space-y-1">
               <Label className="text-body-sm font-semibold text-foreground">{t("courses.descriptionOptional")}</Label>
               <Textarea
@@ -565,6 +581,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
               </Select>
             </div>
 
+            <CoursePricingFields id="edit" value={editPricing} onChange={setEditPricing} disabled={editLoading} />
             <div className="space-y-1">
               <Label className="text-body-sm font-semibold text-foreground">{t("courses.descriptionOptional")}</Label>
               <Textarea

@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { isEnrolled } from "@/lib/course-utils";
+import { canAccessCourseContent, resolveCourseAccess } from "@/lib/student/course-access";
 import {
   formativeCheckLocatorSchema,
   resolvePublishedFormativeCheck,
@@ -52,7 +52,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: failure.error }, { status: failure.status });
     }
 
-    if (session.user.role !== "admin" && !(await isEnrolled(session.user.id, resolved.context.article.courseId))) {
+    const access = await resolveCourseAccess({ courseId: resolved.context.article.courseId, userId: session.user.id });
+    if (!canAccessCourseContent(access, "article", [resolved.context.article.chapterId])) {
       return NextResponse.json({ error: "Anda belum terdaftar pada mata kuliah ini." }, { status: 403 });
     }
 
