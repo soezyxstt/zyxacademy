@@ -59,7 +59,7 @@ function applicationService(execute?: ProductV4VerificationPorts["execute"]) {
           const article = snapshot.bundle.products.find(product => product.productType === "article" && product.id === diktat.sourceArticleId);
           if (!article || article.productType !== "article") return false;
           const v4Binding = resolveProductV4PdfBinding({ importId: snapshot.importId, diktatId: diktat.id, validationReport: row.validationReport, verification: { plan, attemptId, receipt, stagingAuditId: snapshot.stagingAuditId, evaluation: { ready: true } } });
-          const selected = selectProductPdfEvidence({ rows: rows.map(row => ({ ...row, storageKey: row.storageKey ?? undefined, pageCount: row.pageCount ?? undefined, failureCode: row.failureCode ?? undefined })), imporBundleId: snapshot.importId, articleId: article.id, diktatId: diktat.id, articleVersion: article.version, articleHash: article.generationHash, diktatHash: diktat.generationHash, v4Binding });
+          const selected = selectProductPdfEvidence({ rows: rows.map(({ failureCode: _failureCode, ...row }) => ({ ...row, storageKey: row.storageKey ?? undefined, pageCount: row.pageCount ?? undefined })), imporBundleId: snapshot.importId, articleId: article.id, diktatId: diktat.id, articleVersion: article.version, articleHash: article.generationHash, diktatHash: diktat.generationHash, v4Binding });
           return !!selected && selected.status === "ready" && !!v4Binding && selected.storageKey === v4Binding.storageKey && selected.pageCount === v4Binding.pageCount;
         });
       });
