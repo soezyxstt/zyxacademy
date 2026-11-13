@@ -12,7 +12,7 @@ mock.module("next/headers", () => ({ headers: async () => new Headers() }));
 const { resolveCourseAccess } = await import("@/lib/student/course-access");
 const { canAccessQuizSnapshots } = await import("@/lib/quiz/question-scope");
 const { GET: getAttempt, POST: submitAttempt } = await import("@/app/api/quiz/attempts/[id]/route");
-const { GET: listAttempts } = await import("@/app/api/quiz/attempts/route");
+const { GET: listAttempts, POST: startAttempt } = await import("@/app/api/quiz/attempts/route");
 afterAll(() => client.close());
 
 test("expired preview authorizes every stored question at the detail and list boundaries", async () => {
@@ -90,6 +90,17 @@ test("expired preview authorizes every stored question at the detail and list bo
   await testDb.insert(schema.pendaftaranMurid).values({ id: "snapshot-paid", penggunaId: "snapshot-student", mataKuliahId: "snapshot-canonical", status: "active" });
   session = { user: { id: "snapshot-student", role: "student" } };
   expect((await getAttempt(request, { params: Promise.resolve({ id: "snapshot-mixed" }) })).status).toBe(200);
+  await testDb.update(schema.quizTemplates).set({ selectionRules: { count: 1, chapterIds: [], fixedQuestionIds: ["question-later"], tags: [] } }).where(eq(schema.quizTemplates.id, "snapshot-quiz"));
+  const start = () => startAttempt(new NextRequest("http://localhost/api/quiz/attempts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ courseId: "snapshot-canonical", templateId: "snapshot-quiz" }) }));
+  expect((await start()).status).toBe(201);
+  await testDb.delete(schema.pendaftaranMurid).where(eq(schema.pendaftaranMurid.id, "snapshot-paid"));
+  expect((await start()).status).toBe(403);
+  await testDb.update(schema.mataKuliah).set({ pricingCategory: "free", freeStartsAt: null, freeEndsAt: null }).where(eq(schema.mataKuliah.id, "snapshot-canonical"));
+  const freeStart = await start();
+  expect(freeStart.status).toBe(201);
+  const freeStartBody = await freeStart.json();
+  expect(freeStartBody.questions.map((question: { id: string }) => question.id)).toEqual(["question-later"]);
+  expect(JSON.stringify(freeStartBody)).not.toContain("secret answer");
   await testDb.update(schema.quizTemplates).set({ status: "draft" }).where(eq(schema.quizTemplates.id, "snapshot-quiz"));
   expect((await getAttempt(request, { params: Promise.resolve({ id: "snapshot-mixed" }) })).status).toBe(403);
 });
