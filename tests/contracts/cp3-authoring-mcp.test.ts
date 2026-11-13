@@ -1,3 +1,4 @@
+import { issueBoundMcpRunToken } from "../helpers/mcp-run";
 import { describe, expect, test, beforeAll, beforeEach, afterAll, mock } from "bun:test";
 import { createPostgresTestDb } from "../helpers/postgres";
 import { eq } from "drizzle-orm";
@@ -10,6 +11,7 @@ import {
 import type { McpPrincipal } from "@/lib/authoring/mcp-auth";
 import {
   issueMcpRunToken,
+  issueMcpBootstrapToken,
   workflowContract,
 } from "@/lib/authoring/mcp-workflows";
 import { requestedScopes } from "@/lib/authoring/mcp-oauth";
@@ -25,6 +27,8 @@ import {
   type ProductDependency,
   type ProductEntity,
 } from "@/lib/bundle/product-validator";
+import { parseStagedProductBundle } from "@/lib/bundle/product-staging";
+import { computeProductV4SectionSemanticHash } from "@/lib/bundle/product-v4-review";
 import { evaluateProductBundleQualityPolicy } from "@/lib/bundle/product-review-gate";
 import { provisionPenggunaForNewUser } from "@/lib/auth/authorization";
 import {
@@ -312,6 +316,22 @@ async function callMcpTool(
   name: string,
   args: Record<string, unknown>,
 ) {
+  // Existing pedagogic cases use the current scoped MCP review contract. Explicit
+  // overrides below still exercise stale revision, denied scope, and actor checks.
+  if (name === "authoring.review_product_bundle") {
+    const [row] = await testDb.select({ checksum: schema.imporBundle.checksum }).from(schema.imporBundle).where(eq(schema.imporBundle.id, String(args.importId))).limit(1);
+    const fixture = await parseStagedProductBundle(String(args.importId));
+    const article = fixture.products.find(product => product.productType === "article");
+    const bootstrapToken = issueMcpBootstrapToken({ actorId: principal.actorId, sessionId: principal.sessionId, stage: "product", bootstrapProtocol: 1, clientCapabilities: { independentSubagents: true, localArtifactFiles: true, pdfRendering: true } });
+    args = {
+      // Test fixtures explicitly review every section; individual cases override these decisions.
+      sectionDecisions: article?.productType === "article" ? article.sections.map(section => ({ sectionId: section.id, semanticHash: computeProductV4SectionSemanticHash(article, section.id), decision: "approved" })) : [],
+      runToken: issueBoundMcpRunToken({ workflow: "idea_product", courseId: "course-cp3", chapterId: "bab-cp3-001" }, bootstrapToken),
+      bootstrapToken,
+      expectedRevision: row?.checksum,
+      ...args,
+    };
+  }
   const server = createAuthoringMcpServer(principal);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
@@ -476,8 +496,8 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
       const pbContract = localContract.outputs.productBundle;
       if (!pbContract) throw new Error("Expected product bundle contract");
       expect(pbContract.schemaVersion).toBe("product-bundle.v4");
-      expect(pbContract.compatibleReadVersions).toEqual(["product-bundle.v2", "product-bundle.v3", "product-bundle.v4"]);
-      expect(pbContract.publicationPermitted).toBe(false);
+      expect(pbContract.compatibleReadVersions).toEqual(["product-bundle.v2", "product-bundle.v3", "product-bundle.v4", "product-bundle.v5"]);
+      expect(pbContract.publicationPermitted).toBe(true);
       expect(pbContract.reviewRequired).toBe(true);
       expect(pbContract.ideaPublicationRequired).toBe(true);
 
@@ -488,7 +508,9 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
         "authoring.restage_product_bundle",
         "authoring.verify_product_bundle",
         "authoring.get_verification",
+        "authoring.get_product_review_context",
         "authoring.review_product_bundle",
+        "authoring.publish_product_bundle",
       ]);
 
       // Evaluation stages distinction
@@ -538,7 +560,7 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
       expect(toolRes.isError).toBe(false);
       expect(toolRes.data.ok).toBe(true);
       expect(toolRes.data.outputs.productBundle.schemaVersion).toBe("product-bundle.v4");
-      expect(toolRes.data.outputs.productBundle.publicationPermitted).toBe(false);
+      expect(toolRes.data.outputs.productBundle.publicationPermitted).toBe(true);
     });
   });
 
@@ -865,11 +887,12 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
       const dep1 = createDiktatDependency(article1, diktat1);
       const bundle1 = buildBundleZip([article1, diktat1], [dep1], "bundle-restage-001");
 
-      const runToken = issueMcpRunToken({
+      const bootstrapToken = issueMcpBootstrapToken({ actorId: authorPrincipal.actorId, sessionId: authorPrincipal.sessionId, stage: "product", clientCapabilities: { independentSubagents: true, localArtifactFiles: true, pdfRendering: true } });
+      const runToken = issueBoundMcpRunToken({
         workflow: "idea_product",
         courseId: "course-cp3",
         chapterId: "bab-cp3-001",
-      });
+      }, bootstrapToken);
 
       const submitRes = await callMcpTool(authorPrincipal, "authoring.submit_product_bundle", {
         runToken,
@@ -889,6 +912,7 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
       const restageRes = await callMcpTool(authorPrincipal, "authoring.restage_product_bundle", {
         runToken,
         importId,
+        expectedRevision: bundle1.checksum,
         filename: "bundle-restage-001-v2.zip",
         bundleBase64: Buffer.from(bundle2.bytes).toString("base64"),
       });
@@ -1069,7 +1093,7 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
         policyVersion: QUALITY_POLICY_VERSION,
         contentFingerprint: freshFingerprint,
         criteria: LIMIT_HUMAN_REVIEW_CLEAN_APPROVAL.criteria,
-        expectedRevision: 999,
+        expectedRevision: HASH_B,
       });
 
       expect(reviewRes.isError).toBe(true);
@@ -1113,7 +1137,7 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
   });
 
   describe("MCP Registry Inspection and Publication Immunity", () => {
-    test("advertises zero publishing tools and strictly excludes publication scopes", async () => {
+    test("advertises scoped Idea and learning Product publication", async () => {
       const server = createAuthoringMcpServer(adminPrincipal);
       const transport = new WebStandardStreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
@@ -1137,12 +1161,17 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
       const tools = body.result?.tools ?? [];
       const toolNames = tools.map((t) => t.name);
 
-      // Asserts zero tools contain publish
+      // New explicit tools do not grant their scope to an existing principal.
       const publishTools = toolNames.filter((name) => name.toLowerCase().includes("publish"));
-      expect(publishTools).toEqual([]);
+      expect(publishTools.sort()).toEqual(["authoring.publish_idea_bundle", "authoring.publish_product_bundle", "authoring.publish_solution_collection"]);
 
-      // Asserts authoring:publish is rejected as an invalid scope
-      expect(() => requestedScopes("authoring:publish")).toThrow("invalid_scope");
+      expect(requestedScopes("authoring:publish")).toEqual(["authoring:publish"]);
+      expect(adminPrincipal.scopes).not.toContain("authoring:publish");
+      for (const name of publishTools) {
+        const denied = await callMcpTool(adminPrincipal, name, { runToken: "not-used", bootstrapToken: "not-used", importId: "not-used", expectedRevision: HASH_A });
+        expect(denied.isError).toBe(true);
+        expect(denied.data.error).toContain("AUTHORING_MCP_SCOPE_REQUIRED");
+      }
 
       // Verify publikasi_bundle table has zero records
       const publications = await testDb.select().from(schema.publikasiBundle);
@@ -1212,7 +1241,7 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
       const importId = submitRes.data.result.importId;
 
       // Before review approval, currentReadiness reports PEDAGOGIC_REVIEW_MISSING
-      const beforeInspect = await callMcpTool(readOnlyPrincipal, "authoring.get_import", {
+      const beforeInspect = await callMcpTool(adminPrincipal, "authoring.get_import", {
         bundleType: "product",
         importId,
       });
@@ -1242,7 +1271,7 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
       expect(reviewRes.data.ok).toBe(true);
 
       // After approving review for current fingerprint, currentReadiness must no longer report PEDAGOGIC_REVIEW_MISSING
-      const afterReviewInspect = await callMcpTool(readOnlyPrincipal, "authoring.get_import", {
+      const afterReviewInspect = await callMcpTool(adminPrincipal, "authoring.get_import", {
         bundleType: "product",
         importId,
       });
@@ -1268,7 +1297,7 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
         updatedAt: new Date(),
       });
 
-      const readyInspect = await callMcpTool(readOnlyPrincipal, "authoring.get_import", {
+      const readyInspect = await callMcpTool(adminPrincipal, "authoring.get_import", {
         bundleType: "product",
         importId,
       });
@@ -1285,7 +1314,7 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
       expect(pubGateReady.publicationReady).toBe(readyInspect.data.import.currentReadiness.publicationReady);
       expect(pubGateReady.issues.filter((i) => i.severity === "blocking")).toHaveLength(0);
 
-      const listImportsRes = await callMcpTool(readOnlyPrincipal, "authoring.list_imports", {
+      const listImportsRes = await callMcpTool(adminPrincipal, "authoring.list_imports", {
         bundleType: "product",
         limit: 20,
       });
@@ -1323,10 +1352,12 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
       };
       await testDb
         .update(schema.imporBundle)
-        .set({ validationReport: updatedReport })
+        .set({ validationReport: updatedReport, checksum: bundleModified.checksum })
         .where(eq(schema.imporBundle.id, importId));
 
-      const afterContentChangeInspect = await callMcpTool(readOnlyPrincipal, "authoring.get_import", {
+      storageMap.set(currentImportRow.sourceUriOrKey, bundleModified.bytes);
+
+      const afterContentChangeInspect = await callMcpTool(adminPrincipal, "authoring.get_import", {
         bundleType: "product",
         importId,
       });
@@ -1354,7 +1385,7 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
         contentFingerprint: newFingerprint,
         criteria: validCriteria,
       });
-      // Because restage/archive on disk still has original bundle bytes, insert approved review row for newFingerprint directly to test PDF-only staleness
+      // Preserve an explicit revised review when this adversarial fixture retains an older review row.
       if (reviewNewRes.isError) {
         await testDb.insert(schema.reviewPedagogiBundle).values({
           id: "rev-bug2-new-fp",
@@ -1371,7 +1402,7 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
         });
       }
 
-      const stalePdfInspect = await callMcpTool(readOnlyPrincipal, "authoring.get_import", {
+      const stalePdfInspect = await callMcpTool(adminPrincipal, "authoring.get_import", {
         bundleType: "product",
         importId,
       });

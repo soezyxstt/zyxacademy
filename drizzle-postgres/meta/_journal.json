@@ -50,6 +50,13 @@
       "when": 1793908326585,
       "tag": "0006_large_rocket_racer",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794479083789,
+      "tag": "0007_brief_blazing_skull",
+      "breakpoints": true
     }
   ]
 }

@@ -2,6 +2,9 @@ import { z } from "zod";
 import { createHash } from "node:crypto";
 import { articlePartsSchema } from "@/lib/materials/article-parts";
 import { authoredDiktatUnitsSchema } from "@/lib/materials/diktat-v4";
+import { solutionCollectionSchema } from "@/lib/materials/solution-collection";
+import { solutionReviewSchema } from "@/lib/solutions/review-contract";
+import { solutionReviewRequestSchema } from "@/lib/authoring/solution-review-request";
 import { visualSpecSchema } from "@/lib/materials/visual-contract";
 import { productV4ReviewContextShape } from "@/lib/bundle/product-v4-review";
 import { V4_SCIENTIFIC_PROSE_POLICY } from "@/lib/math/unmarked-scientific";
@@ -31,6 +34,20 @@ export function productV4SchemaDocuments() {
   });
 }
 
+export const PRODUCT_V5_SCHEMA_NAMES = [
+  "productBundleManifest", "product", "dependency", "solutionCollection", "solutionReview", "solutionReviewRequest", "articleParts", "visual",
+] as const;
+
+export function productV5SchemaDocuments() {
+  const { schemas } = authoringValidationSnapshot();
+  return PRODUCT_V5_SCHEMA_NAMES.map((name) => {
+    const body = JSON.stringify(schemas[name]);
+    const sha256 = createHash("sha256").update(body).digest("hex");
+    return { name, body, sha256, bytes: Buffer.byteLength(body),
+      path: `/api/authoring/contracts/product-v5?schema=${name}&sha256=${sha256}` };
+  });
+}
+
 export function authoringValidationSnapshot() {
   const schemas = {
     sourcePackManifest: sourcePackManifestSchema,
@@ -51,6 +68,9 @@ export function authoringValidationSnapshot() {
     pdfEvidence: pdfArtifactEvidenceSchema,
     articleParts: articlePartsSchema,
     diktatUnits: authoredDiktatUnitsSchema,
+    solutionCollection: solutionCollectionSchema,
+    solutionReview: solutionReviewSchema,
+    solutionReviewRequest: solutionReviewRequestSchema,
     visual: visualSpecSchema,
     v4ReviewContext: z.object(productV4ReviewContextShape).strict(),
   };

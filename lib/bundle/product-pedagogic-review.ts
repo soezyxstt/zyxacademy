@@ -1,9 +1,9 @@
 import crypto from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { reviewBundle, reviewItemBundle, reviewPedagogiBundle, user } from "@/db/schema";
+import { reviewBundle, reviewItemBundle, reviewPedagogiBundle } from "@/db/schema";
 import type { ProductEntity } from "@/lib/bundle/product-validator";
-import { hasPeran } from "@/lib/auth/authorization";
+import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
 import { checkTutorCourseAccess } from "@/lib/auth/tutor-access";
 import {
   getProductBundleImport,
@@ -12,8 +12,8 @@ import {
 } from "@/lib/bundle/product-staging";
 import {
   QUALITY_POLICY_VERSION,
-  computePedagogyContentFingerprint,
   validatePedagogicRubricDecision,
+  pedagogicReviewDecisionSchema,
   type PedagogicReviewDecision,
   type PedagogicRubricItem,
   type PedagogicException,
@@ -22,7 +22,10 @@ import {
 import { claimProductReviewSnapshot } from "./product-review-snapshot";
 import { getProductV4VerificationReadiness } from "./product-v4-verification-service";
 import { getProductV4VerificationReceiptSignature } from "./product-v4-verification";
-import { assertProductV4ReviewCardinality, validateProductV4ReviewContext, type ProductV4SectionDecision } from "./product-v4-review";
+import { assertProductV4ReviewCardinality, computeProductV4SectionSemanticHash, validateProductV4ReviewContext, type ProductV4SectionDecision } from "./product-v4-review";
+import { deterministicProductSerialization } from "./product-validator";
+import { productPedagogyFingerprint } from "./product-review-gate";
+import { sectionDecisionsSchema } from "./product-v4-review";
 
 function stableId(prefix: string, value: string): string {
   return `${prefix}-${crypto.createHash("sha256").update(value).digest("hex").slice(0, 16)}`;
@@ -42,6 +45,8 @@ export interface ExecutePedagogicReviewInput {
   sectionDecisions?: ProductV4SectionDecision[];
   notes?: string | null;
   reason?: string | null;
+  /** Retained for older callers; all review paths now enforce the same strict checks. */
+  strictRevision?: boolean;
 }
 
 export interface ExecutePedagogicReviewResult {
@@ -63,9 +68,8 @@ export interface ExecutePedagogicReviewResult {
  * Invariants:
  * - Enforces tutor/admin authorization.
  * - Requires staged bundle to be in draft state (draft review NEVER publishes).
- * - Verifies policy version and content fingerprint when supplied.
- * - Verifies expectedRevision if supplied.
- * - Validates supplied legacy rubric criteria and content anchors when present.
+ * - Requires the exact checksum, policy, complete content fingerprint and rubric.
+ * - Requires explicit current decisions for every Article section.
  * - Persists immutable review into reviewPedagogiBundle.
  */
 export async function executePedagogicReview(
@@ -77,30 +81,14 @@ export async function executePedagogicReview(
     throw new Error("PRODUCT_BUNDLE_REVIEW_DRAFT_REQUIRED");
   }
 
-  const [actor] = await db
-    .select({ role: user.role })
-    .from(user)
-    .where(eq(user.id, input.reviewerId))
-    .limit(1);
-
-  if (!actor) throw new Error("PRODUCT_BUNDLE_REVIEW_FORBIDDEN");
-  const isAdmin = actor.role === "admin" || (await hasPeran(input.reviewerId, "admin"));
-  if (!isAdmin) {
-    const isTutor = (await hasPeran(input.reviewerId, "tutor")) || actor.role === "teacher";
-    if (!isTutor || !row.courseId) throw new Error("PRODUCT_BUNDLE_REVIEW_FORBIDDEN");
+  const role = await assertAuthoringActor(db, input.reviewerId, { roles: ["admin", "tutor"], error: "PRODUCT_BUNDLE_REVIEW_FORBIDDEN" });
+  if (role === "tutor") {
+    if (!row.courseId) throw new Error("PRODUCT_BUNDLE_REVIEW_FORBIDDEN");
     const access = await checkTutorCourseAccess(input.reviewerId, row.courseId);
     if (!access.hasAccess) throw new Error("PRODUCT_BUNDLE_REVIEW_COURSE_FORBIDDEN");
   }
 
-  if (input.expectedRevision !== undefined && input.expectedRevision !== null) {
-    const revStr = String(input.expectedRevision);
-    const matches = revStr === String(row.version) || revStr === String(row.checksum);
-    if (!matches) {
-      throw new Error(
-        `PRODUCT_BUNDLE_STALE_CONTEXT:Expected revision ${input.expectedRevision} but current staged revision is ${row.version}`,
-      );
-    }
-  }
+  if (typeof input.expectedRevision !== "string" || !/^[a-f0-9]{64}$/.test(input.expectedRevision) || input.expectedRevision !== row.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
 
   if (input.policyVersion && input.policyVersion !== QUALITY_POLICY_VERSION) {
     throw new Error(
@@ -109,15 +97,12 @@ export async function executePedagogicReview(
   }
 
   const stagedBundle = await parseStagedProductBundle(input.importId);
+  if (stagedBundle.checksum !== row.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
   if (stagedBundle.manifest.schemaVersion === "product-bundle.v4") assertProductV4ReviewCardinality(stagedBundle.products);
-  const article = stagedBundle.products.find((p) => p.productType === "article");
+  const articles = stagedBundle.products.filter((p): p is Extract<ProductEntity, { productType: "article" }> => p.productType === "article");
+  const article = articles[0];
   if (!article) throw new Error("PRODUCT_BUNDLE_ARTICLE_MISSING");
-  const diktat = stagedBundle.products.find((p) => p.productType === "diktat");
-
-  const freshFingerprint = computePedagogyContentFingerprint({
-    article: article as unknown as Record<string, unknown>,
-    diktat: diktat ? (diktat as unknown as Record<string, unknown>) : undefined,
-  });
+  const freshFingerprint = productPedagogyFingerprint(stagedBundle.products);
 
   if (input.contentFingerprint && input.contentFingerprint !== freshFingerprint) {
     throw new Error(
@@ -130,8 +115,9 @@ export async function executePedagogicReview(
     throw new Error("PRODUCT_BUNDLE_REVIEW_REASON_REQUIRED");
   }
   const criteria = input.criteria ?? [];
-  if (criteria.length > 0) {
-    const rubricDecision: PedagogicReviewDecision = {
+  if (input.policyVersion !== QUALITY_POLICY_VERSION || input.contentFingerprint !== freshFingerprint || !Array.isArray(input.criteria) || !Array.isArray(input.sectionDecisions)) throw new Error("PRODUCT_BUNDLE_REVIEW_CONTEXT_REQUIRED");
+  {
+    const rubricDecision: PedagogicReviewDecision = pedagogicReviewDecisionSchema.parse({
       imporBundleId: input.importId,
       reviewerId: input.reviewerId,
       policyVersion: QUALITY_POLICY_VERSION,
@@ -140,7 +126,7 @@ export async function executePedagogicReview(
       criteria,
       exceptions: input.exceptions ?? [],
       notes: reviewNotes ?? undefined,
-    };
+    });
     const rubricValidation = validatePedagogicRubricDecision(rubricDecision);
     if (!rubricValidation.valid) {
       const firstIssue = rubricValidation.issues[0];
@@ -151,12 +137,9 @@ export async function executePedagogicReview(
   }
 
   const validDocIds = new Set(stagedBundle.products.map((p) => p.id));
-  const validSectionIds = new Set((article.sections ?? []).map((s) => s.id));
-  const validBlockIds = new Set([
-    ...(article.sections ?? []).flatMap((s) => s.blocks.map((b) => b.id)),
-    ...(article.blocks ?? []).map((b) => b.id),
-  ]);
-  const validVisualIds = new Set((article.visuals ?? []).map((v) => v.id));
+  const validSectionIds = new Set(articles.flatMap(art => art.sections.map(s => s.id)));
+  const validBlockIds = new Set(articles.flatMap(art => [...art.sections.flatMap(s => s.blocks.map(b => b.id)), ...art.blocks.map(b => b.id)]));
+  const validVisualIds = new Set(articles.flatMap(art => (art.visuals ?? []).map(v => v.id)));
 
   for (const crit of criteria) {
     for (const anchor of crit.contentAnchors) {
@@ -181,16 +164,35 @@ export async function executePedagogicReview(
       ? await getProductV4VerificationReadiness(input.importId, registered.runId) : null;
     sectionDecisions = validateProductV4ReviewContext({ article, importId: input.importId, checksum: row.checksum, fingerprint: freshFingerprint, review: input,
       verification: evidence ? { ready: evidence.evaluation.ready && registered?.planHash === evidence.plan.planHash, planHash: evidence.plan.planHash, importId: evidence.plan.binding.importId, receiptSignature: getProductV4VerificationReceiptSignature(evidence.receipt) } : undefined });
+  } else {
+    sectionDecisions = input.sectionDecisions!.map(decision => sectionDecisionsSchema.element.parse(decision));
+    const seen = new Set<string>();
+    for (const decision of sectionDecisions) {
+      if (seen.has(decision.sectionId)) throw new Error("PRODUCT_REVIEW_SECTION_DUPLICATE");
+      seen.add(decision.sectionId);
+      const owner = articles.find(art => art.sections.some(section => section.id === decision.sectionId));
+      if (!owner || computeProductV4SectionSemanticHash(owner, decision.sectionId) !== decision.semanticHash) throw new Error("PRODUCT_REVIEW_SECTION_STALE");
+      if (decision.decision === "changes_requested" && !decision.notes?.trim()) throw new Error("PRODUCT_REVIEW_SECTION_REASON_REQUIRED");
+    }
+    if (seen.size !== articles.reduce((n, art) => n + art.sections.length, 0) || (input.decision === "approved" && sectionDecisions.some(decision => decision.decision !== "approved"))) throw new Error("PRODUCT_REVIEW_ALL_SECTIONS_REQUIRED");
   }
-  const rubric = { criteria, ...(isV4 ? { verificationPlanHash: input.verificationPlanHash ?? null, verificationReceiptSignature: input.verificationReceiptSignature ?? null, sectionDecisions } : {}) };
+  if (isV4 && sectionDecisions.length !== article.sections.length) throw new Error("PRODUCT_REVIEW_ALL_SECTIONS_REQUIRED");
+  const rubric = { criteria, ...(isV4 ? { verificationPlanHash: input.verificationPlanHash ?? null, verificationReceiptSignature: input.verificationReceiptSignature ?? null } : {}), sectionDecisions };
   const reviewPedId = stableId(
     "rev-ped",
     `${input.importId}:${input.reviewerId}:${freshFingerprint}:${QUALITY_POLICY_VERSION}`,
   );
   const now = new Date();
 
-  await db.transaction(async (tx) => {
+  const recordedAt = await db.transaction(async (tx) => {
+    await assertAuthoringActor(tx, input.reviewerId, { roles: [role], error: "PRODUCT_BUNDLE_REVIEW_FORBIDDEN", lock: true });
+    if (role === "tutor" && (!row.courseId || !(await checkTutorCourseAccess(input.reviewerId, row.courseId, undefined, tx)).hasAccess)) throw new Error("PRODUCT_BUNDLE_REVIEW_COURSE_FORBIDDEN");
     await claimProductReviewSnapshot(tx, row, now);
+    {
+      const [existing] = await tx.select().from(reviewPedagogiBundle).where(and(eq(reviewPedagogiBundle.imporBundleId, input.importId), eq(reviewPedagogiBundle.reviewerId, input.reviewerId), eq(reviewPedagogiBundle.contentFingerprint, freshFingerprint), eq(reviewPedagogiBundle.policyVersion, QUALITY_POLICY_VERSION))).limit(1);
+      const [bundleReview] = await tx.select().from(reviewBundle).where(and(eq(reviewBundle.imporBundleId, input.importId), eq(reviewBundle.reviewerId, input.reviewerId))).limit(1);
+      if (existing && bundleReview && existing.status === input.decision && bundleReview.status === (input.decision === "approved" ? "approved" : "rejected") && existing.notes === reviewNotes && deterministicProductSerialization(existing.rubric) === deterministicProductSerialization(rubric) && deterministicProductSerialization(existing.exceptions) === deterministicProductSerialization(input.exceptions ?? [])) return existing.createdAt;
+    }
     await tx
       .insert(reviewPedagogiBundle)
       .values({
@@ -241,67 +243,14 @@ export async function executePedagogicReview(
         },
       });
 
-    if (isV4) {
+    {
       for (const decision of sectionDecisions) {
-        await tx.insert(reviewItemBundle).values({ id: stableId("review-product-item", `${input.importId}:${input.reviewerId}:article_section:${decision.sectionId}`), imporBundleId: input.importId, reviewerId: input.reviewerId, productId: article.id, blockId: decision.sectionId, targetType: "article_section", targetId: decision.sectionId, status: decision.decision, notes: decision.notes ?? null, createdAt: now, updatedAt: now }).onConflictDoUpdate({ target: [reviewItemBundle.imporBundleId, reviewItemBundle.reviewerId, reviewItemBundle.targetType, reviewItemBundle.targetId], set: { status: decision.decision, notes: decision.notes ?? null, updatedAt: now } });
-      }
-    } else if (input.decision === "approved") {
-      const articles = stagedBundle.products.filter(
-        (p): p is Extract<ProductEntity, { productType: "article" }> => p.productType === "article",
-      );
-      for (const art of articles) {
-        const sections = art.sections ?? [];
-        for (const section of sections) {
-          const itemReviewId = stableId(
-            "review-product-item",
-            `${input.importId}:${input.reviewerId}:article_section:${section.id}`,
-          );
-          const [existing] = await tx
-            .select({ status: reviewItemBundle.status })
-            .from(reviewItemBundle)
-            .where(
-              and(
-                eq(reviewItemBundle.imporBundleId, input.importId),
-                eq(reviewItemBundle.reviewerId, input.reviewerId),
-                eq(reviewItemBundle.targetType, "article_section"),
-                eq(reviewItemBundle.targetId, section.id),
-              ),
-            )
-            .limit(1);
-
-          if (!existing || existing.status !== "changes_requested") {
-            await tx
-              .insert(reviewItemBundle)
-              .values({
-                id: itemReviewId,
-                imporBundleId: input.importId,
-                reviewerId: input.reviewerId,
-                productId: art.id,
-                blockId: section.id,
-                targetType: "article_section",
-                targetId: section.id,
-                status: "approved",
-                notes: null,
-                createdAt: now,
-                updatedAt: now,
-              })
-              .onConflictDoUpdate({
-                target: [
-                  reviewItemBundle.imporBundleId,
-                  reviewItemBundle.reviewerId,
-                  reviewItemBundle.targetType,
-                  reviewItemBundle.targetId,
-                ],
-                set: {
-                  status: "approved",
-                  updatedAt: now,
-                },
-              });
-          }
-        }
+        const owner = articles.find(art => art.sections.some(section => section.id === decision.sectionId))!;
+        await tx.insert(reviewItemBundle).values({ id: stableId("review-product-item", `${input.importId}:${input.reviewerId}:article_section:${decision.sectionId}`), imporBundleId: input.importId, reviewerId: input.reviewerId, productId: owner.id, blockId: decision.sectionId, targetType: "article_section", targetId: decision.sectionId, status: decision.decision, notes: decision.notes ?? null, createdAt: now, updatedAt: now }).onConflictDoUpdate({ target: [reviewItemBundle.imporBundleId, reviewItemBundle.reviewerId, reviewItemBundle.targetType, reviewItemBundle.targetId], set: { status: decision.decision, notes: decision.notes ?? null, updatedAt: now } });
       }
     }
 
+    return now;
   });
 
   return {
@@ -313,6 +262,6 @@ export async function executePedagogicReview(
     contentFingerprint: freshFingerprint,
     criteriaCount: criteria.length,
     exceptionsCount: (input.exceptions ?? []).length,
-    createdAt: now.toISOString(),
+    createdAt: new Date(recordedAt).toISOString(),
   };
 }

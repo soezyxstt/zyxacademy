@@ -501,4 +501,27 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
     policyChange.validation.qualityPolicyVersion = "new-policy";
     expect(computeAuthoringContractDigest(policyChange)).not.toEqual(original);
   });
+
+  it("discovers exact legacy Article and Diktat export targets", () => {
+    const outputs = authoringContractSnapshot().contracts.idea_product.outputs as any;
+    const operator = outputs.productBundle.legacyLocalOperator;
+    expect(operator.inputSchema.properties).toHaveProperty("articleId");
+    expect(operator.inputSchema.properties).toHaveProperty("diktatId");
+    expect(operator.inputSchema.not).toEqual({ required: ["diktatId", "articleId"] });
+    expect(operator.articleOnlyRecovery).toContain("Article directly");
+    expect(operator.constraints).toContain("unlinked Article");
+  });
+});
+
+
+it("strict lifecycle bootstrap rejects unbound legacy runs while preserving opt-in legacy reads", () => {
+  const bootstrapToken = issueMcpBootstrapToken({ ...testPrincipal, stage: "product", clientCapabilities: fullCapabilities });
+  const legacy = readMcpRunToken(issueMcpRunToken({ workflow: "idea_product", courseId: "course", chapterId: "chapter" }));
+  expect(verifyMcpExecutionBootstrap({ ...testPrincipal, run: legacy }).mode).toBe("legacy");
+  expect(() => verifyMcpExecutionBootstrap({ ...testPrincipal, run: legacy, bootstrapToken, requireBoundRun: true })).toThrow("AUTHORING_MCP_LEGACY_RUN_RESTART_REQUIRED");
+  expect(() => verifyMcpExecutionBootstrap({ ...testPrincipal, run: legacy, requireBoundRun: true })).toThrow("AUTHORING_MCP_LEGACY_RUN_RESTART_REQUIRED");
+  const { kind: _kind, issuedAt: _issuedAt, expiresAt: _expiresAt, ...bootstrap } = readMcpBootstrapToken(bootstrapToken);
+  const bound = readMcpRunToken(issueMcpRunToken({ workflow: "idea_product", courseId: "course", chapterId: "chapter", bootstrap }));
+  expect(verifyMcpExecutionBootstrap({ ...testPrincipal, run: bound, bootstrapToken, requiredStage: "product", requireBoundRun: true }).mode).toBe("verified");
+  expect(() => verifyMcpExecutionBootstrap({ ...testPrincipal, sessionId: "other-session", run: bound, requireBoundRun: true })).toThrow("SESSION_MISMATCH");
 });

@@ -1,12 +1,12 @@
 import { db } from "@/db";
-import { knowledgeObjects, vectorSyncQueue, concepts, conceptLocalizations, aiExtractionFailures, courses, chapters, masterTeachingDocuments, knowledgeObjectSources } from "@/db/schema";
+import { conceptLocalizations, aiExtractionFailures, courses, chapters, masterTeachingDocuments } from "@/db/schema";
 import { generateContentWithFallback, embedText, withGeminiRetry } from "@/lib/gemini";
 import { USE_CASES } from "@/lib/ai-router";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { preprocessMarkdown, safeParseJson, slugify } from "./ko-utils";
-import { generateStableKoKey, computeSemanticKoHash, reconcileKoExtractionRun } from "@/lib/knowledge/identity";
+import { persistKoExtractionTx } from "@/lib/knowledge/extraction-persistence";
 import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 
 // ─── UTILITIES FOR CONCEPT RESOLUTION & MATCHING ──────────────────────────────
@@ -1112,137 +1112,13 @@ export async function extractKnowledgeObjectsForChapter(
     const derivedHashChanged = !existingMtd || existingMtd.derivedHash !== derivedHash;
     const nextVersion = existingMtd ? (derivedHashChanged ? existingMtd.version + 1 : existingMtd.version) : 1;
 
-    await db.transaction(async (tx) => {
-      // Non-destructive KO upsert and provenance reconciliation.
-        const existingKos = await tx
-          .select({
-            id: knowledgeObjects.id,
-            stableKey: knowledgeObjects.stableKey,
-            semanticHash: knowledgeObjects.semanticHash,
-            version: knowledgeObjects.version,
-            status: knowledgeObjects.status,
-            chapterId: knowledgeObjects.chapterId,
-          })
-          .from(knowledgeObjects)
-          .where(eq(knowledgeObjects.chapterId, chapterId));
-
-        const candidateInputs = koValues.map((ko: any) => {
-          const titleIdx = chapterMarkdown.indexOf(ko.title);
-          const startOffset = titleIdx >= 0 ? titleIdx : 0;
-          const endOffset = startOffset + Math.max(ko.title.length, 10);
-          const semanticHash = computeSemanticKoHash(ko.title, ko.content, (ko.type as any) || 'definition', 'core');
-          return {
-            title: ko.title,
-            summary: ko.content,
-            knowledgeKind: (ko.type as any) || 'definition',
-            instructionalRole: 'core' as const,
-            sourceSpans: [
-              {
-                sourceDocumentId: mtdId,
-                sourceVersion: `${nextVersion}.0`,
-                chapterId,
-                startOffset,
-                endOffset,
-                sourceHash,
-                excerptHash: semanticHash,
-                supportRole: 'core' as const,
-              },
-            ],
-          };
-        });
-
-        const { reconciliations, hasAmbiguousMatch } = reconcileKoExtractionRun(
-          existingKos as any,
-          candidateInputs,
-          mtdId,
-          chapterId
-        );
-
-        if (hasAmbiguousMatch) {
-          console.warn(`[ko-extractor] Ambiguous KO match detected for chapter ${chapterId}. Gating DB mutation for human review.`);
-        } else {
-          for (const rec of reconciliations) {
-            if (rec.action === 'supersede' && rec.existingId) {
-              await tx
-                .update(knowledgeObjects)
-                .set({ status: 'superseded', updatedAt: new Date() })
-                .where(eq(knowledgeObjects.id, rec.existingId));
-            }
-          }
-
-          // Insert new concepts if any
-          if (newConceptsToRegister.length > 0) {
-            await tx.insert(concepts).values(newConceptsToRegister);
-            await tx.insert(conceptLocalizations).values(newLocalizationsToRegister);
-          }
-
-          // Execute reconciliations cleanly and persist source spans
-          for (let i = 0; i < koValues.length; i++) {
-            const ko = koValues[i];
-            const rec = reconciliations[i];
-            const candidateInput = candidateInputs[i];
-            const stableKey = generateStableKoKey(mtdId, chapterId, ko.title);
-            const semanticHash = computeSemanticKoHash(ko.title, ko.content, (ko.type as any) || 'other', 'core');
-            const targetKoId = (rec && (rec.action === 'update' || rec.action === 'supersede') && rec.existingId)
-              ? rec.existingId
-              : ko.id;
-
-            if (!rec || rec.action === 'insert') {
-              await tx.insert(knowledgeObjects).values({
-                ...ko,
-                stableKey,
-                semanticHash,
-                knowledgeKind: (ko.type as any) || 'other',
-                instructionalRole: 'core',
-              });
-            } else if (rec.action === 'update' && rec.existingId) {
-              await tx
-                .update(knowledgeObjects)
-                .set({
-                  conceptName: ko.conceptName,
-                  title: ko.title,
-                  content: ko.content,
-                  type: ko.type,
-                  semanticHash,
-                  status: 'active',
-                  updatedAt: new Date(),
-                })
-                .where(eq(knowledgeObjects.id, rec.existingId));
-            } else if (rec.action === 'supersede' && rec.existingId) {
-              await tx
-                .update(knowledgeObjects)
-                .set({ status: 'superseded', updatedAt: new Date() })
-                .where(eq(knowledgeObjects.id, rec.existingId));
-
-              await tx.insert(knowledgeObjects).values({
-                ...ko,
-                stableKey,
-                semanticHash,
-                knowledgeKind: (ko.type as any) || 'other',
-                instructionalRole: 'core',
-              });
-            }
-
-            // Persist source spans provenance into DB
-            if (candidateInput && candidateInput.sourceSpans && candidateInput.sourceSpans.length > 0) {
-              for (const span of candidateInput.sourceSpans) {
-                await tx.insert(knowledgeObjectSources).values({
-                  id: `kos-${randomUUID()}`,
-                  koId: targetKoId,
-                  sourceDocumentId: mtdId,
-                  sourceVersion: `${nextVersion}.0`,
-                  chapterId,
-                  startOffset: span.startOffset,
-                  endOffset: span.endOffset,
-                  sourceHash: span.sourceHash,
-                  excerptHash: span.excerptHash,
-                  supportRole: span.supportRole,
-                  createdAt: new Date(),
-                }).onConflictDoNothing();
-              }
-            }
-          }
-      }
+    const persisted = await db.transaction(async (tx) => {
+      const accepted = await persistKoExtractionTx(tx, {
+        courseId, mtdId, chapterId, sourceVersion: `${nextVersion}.0`, sourceHash,
+        chapterMarkdown, candidates: koValues,
+        newConcepts: newConceptsToRegister, newLocalizations: newLocalizationsToRegister,
+      });
+      if (!accepted) return false;
 
       // Update MTD record with new version and hashes
       await tx
@@ -1279,34 +1155,11 @@ export async function extractKnowledgeObjectsForChapter(
           .where(eq(aiQuestionBank.sourceMtdId, mtdId));
       }
 
-      // Insert vector sync outbox payloads (routed to 'learning' namespace)
-      const outboxPayloads = koValues.map((ko) => {
-        const embeddingText = `Title: ${ko.title}\nConcept: ${ko.conceptName}\nContent: ${ko.content}`;
-        return {
-          id: randomUUID(),
-          courseId,
-          koId: ko.id,
-          action: "upsert" as const,
-          namespace: "learning" as const,
-          payload: {
-            text: embeddingText,
-            metadata: {
-              chapterId: ko.chapterId,
-              type: ko.type,
-              bloomLevel: ko.bloomLevel,
-              difficulty: ko.difficulty,
-              tags: ko.tags,
-            },
-          },
-          status: "pending" as const,
-          attempts: 0,
-        };
-      });
-
-      await tx.insert(vectorSyncQueue).values(outboxPayloads);
+      return true;
     });
 
-    dispatchVectorSync(courseId);
+    if (persisted) dispatchVectorSync(courseId);
+    else console.warn(`[ko-extractor] Ambiguous KO match detected for chapter ${chapterId}. Gating DB mutation for human review.`);
   }
 
  // Return formatted array matching the Zod KnowledgeObjectSchema structure expected by callers

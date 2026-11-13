@@ -1,4 +1,6 @@
+import { currentPublisherProductReadiness, publisherProductReviewReadiness } from "@/lib/bundle/product-readiness";
 import { mcpEnvironmentIdentity } from "./mcp-environment";
+import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { registerTutorialTools } from "@/lib/admin-mcp/tutorial-tools";
 import { registerEnrollmentTools } from "@/lib/admin-mcp/enrollment-tools";
 import { registerGroupTools } from "@/lib/admin-mcp/group-tools";
@@ -20,8 +22,8 @@ import { isSourceReadTimeout, timePdfStage } from "@/lib/compute/pdf-read-option
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAuthoringSkills } from "./mcp-skills";
 import { registerProductV4Tools } from "./mcp-v4-tools";
-import { computeProductV4VerificationContentHash } from "@/lib/bundle/product-v4-verification";
-import { computeProductV4SectionSemanticHash, productV4ReviewContextShape } from "@/lib/bundle/product-v4-review";
+import { computeProductV4VerificationContentHash, getProductV4VerificationReceiptSignature } from "@/lib/bundle/product-v4-verification";
+import { computeProductV4SectionSemanticHash, productV4ReviewContextShape, sectionDecisionsSchema } from "@/lib/bundle/product-v4-review";
 import type { SkillCatalogProfile } from "./skill-catalog";
 import { z } from "zod";
 import { createHash } from "node:crypto";
@@ -30,14 +32,15 @@ import { buildSourcePageImageKey } from "@/lib/storage/keys";
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import { and, asc, desc, eq, inArray, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { aiQuestionBank, asalIde, artikel, artikelIde, assessmentSources, bab, bagianArtikel, blokArtikel, buktiPdfBundle, diktatIde, diktatMateri, flashcard, flashcardIde, ide, ketergantunganProduk, mataKuliah, pembahasanSoal, potonganSumber, questionReferenceLinks, relasiIde, reviewPedagogiBundle, setFlashcard, soal, soalIde, soalItbReferensi, sumberMateri } from "@/db/schema";
+import { aiQuestionBank, asalIde, artikel, artikelIde, assessmentSources, auditMutasi, bab, bagianArtikel, blokArtikel, buktiPdfBundle, diktatIde, diktatMateri, flashcard, flashcardIde, ide, ketergantunganProduk, mataKuliah, pembahasanSoal, potonganSumber, questionReferenceLinks, relasiIde, reviewPedagogiBundle, setFlashcard, soal, soalIde, soalItbReferensi, sumberMateri } from "@/db/schema";
 import { normalizeDate } from "@/lib/date-utils";
 import { serializeDeterministically, validateIdeaBundleZip, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
 import { previewIdeaBundle } from "@/lib/bundle/idea-preview";
-import { getIdeaBundleImport, listIdeaBundleImports, reviewIdeaBundle, stageIdeaBundle } from "@/lib/bundle/staging";
+import { getIdeaBundleImport, getIdeaReviewResetState, listIdeaBundleImports, reviewIdeaBundle, stageIdeaBundle } from "@/lib/bundle/staging";
+import { getIdeaRevisionReviewContext, publishIdeaBundle, reviewIdeaBundleRevision, withdrawIdeaBundle } from "@/lib/bundle/publication";
 import { validateProductBundle } from "@/lib/bundle/product-validator";
 import { previewProducts } from "@/lib/bundle/product-preview";
-import { discardProductBundleDraft, getProductBundleImport, listProductBundleImports, stageProductBundle } from "@/lib/bundle/product-staging";
+import { adoptProductDraftRun, discardProductBundleDraft, getProductBundleImport, listProductBundleImports, listProductItemReviews, reviewProductBundle, stageProductBundle } from "@/lib/bundle/product-staging";
 import {
   getSourcePackImport,
   listSourcePackImports,
@@ -50,7 +53,10 @@ import {
   stageSourcePack,
 } from "@/lib/bundle/source-staging";
 import { validateSourcePack } from "@/lib/authoring/source-pack";
-import { withdrawProductBundle } from "@/lib/bundle/product-publication";
+import { publishProductBundle, withdrawProductBundle } from "@/lib/bundle/product-publication";
+import { normalizeSolutionReviewRequest, solutionReviewRequestSchema } from "@/lib/authoring/solution-review-request";
+import { getSolutionCollectionReviewContext, reviewSolutionCollection } from "@/lib/solutions/review";
+import { assertSolutionImportScope, lockSolutionImportScope, type SolutionImportScope } from "@/lib/solutions/import-scope";
 import { isStructuredArticleReaderEnabled } from "@/lib/articles/feature";
 import { evaluateIdeaBundleQuality } from "@/lib/authoring/quality/idea-bundle";
 import {
@@ -60,6 +66,7 @@ import {
 import { executePedagogicReview } from "@/lib/bundle/product-pedagogic-review";
 import {
   QUALITY_POLICY_VERSION,
+  PEDAGOGIC_CRITERION_IDS,
   pedagogicRubricItemSchema,
   pedagogicExceptionSchema,
   type DiagnosticIssue,
@@ -119,6 +126,7 @@ import {
   resolveAuthoringMcpEnvironment,
 } from "@/lib/authoring/mcp-playbook";
 import { requireMcpScope, resolveMcpAdmin, type McpPrincipal } from "@/lib/authoring/mcp-auth";
+import { insufficientScopeChallenge } from "@/lib/authoring/mcp-oauth";
 import {
   createQuizWithQuestions,
   getQuizDetail,
@@ -178,6 +186,19 @@ function toolError(error: unknown) {
   const code = redactSensitiveDetails(rawCode.slice(0, 120)).trim();
   const rawDetail = details.join(":").slice(0, 600);
   const detail = rawDetail ? redactSensitiveDetails(rawDetail).trim() : undefined;
+  if (code === "AUTHORING_MCP_SCOPE_REQUIRED" && detail) {
+    const challenge = insufficientScopeChallenge(detail);
+    return {
+      ...toolResult({
+        ok: false, error: code, detail, requiredScope: detail,
+        remediation: "Reauthorize this OAuth client with the union of its current scopes and the required scope, then approve consent and retry with the new token.",
+      }, true),
+      _meta: { "mcp/www_authenticate": [challenge] },
+    };
+  }
+  if (["IDEA_BUNDLE_REVIEW_RESET_REQUIRED", "IDEA_BUNDLE_REVIEW_RESET_STALE"].includes(code)) {
+    return toolResult({ ok: false, error: code, remediation: "Read authoring.get_import for the current Idea revision and reviewReset counts and fingerprint. Explicitly acknowledge the reset, then retry restaging with that fingerprint and revision." }, true);
+  }
   const issues = (error as any)?.issues;
   const safeIssues = Array.isArray(issues) ? issues.map((iss: any) => ({
     code: redactSensitiveDetails(String(iss.code ?? "")),
@@ -371,20 +392,20 @@ function scopeIssue(code: string, message: string, path: string) {
 }
 
 async function validateProductIdeaScope(run: ReturnType<typeof readMcpRunToken>, bundle: Extract<ReturnType<typeof validateProductBundle>, { success: true }>['data']) {
-  const links = [...new Map(bundle.products.flatMap((product) => product.ideaLinks.map((link) => [link.id, link] as const))).values()];
+  const links = bundle.products.flatMap(product => product.ideaLinks.map(link => ({ productId: product.id, link })));
   if (links.length === 0) return { valid: false, issues: [scopeIssue("PRODUCT_IDEA_LINK_MISSING", "Product Bundle must reference at least one Idea.", "entities/products.json")] };
   const rows = [];
-  for (const chunk of chunkValues(links.map((link) => link.id))) {
+  for (const chunk of chunkValues([...new Set(links.map(({ link }) => link.id))])) {
     rows.push(...await db.select({ id: ide.id, courseId: ide.mataKuliahId, version: ide.version, semanticHash: ide.semanticHash, status: ide.status }).from(ide).where(inArray(ide.id, chunk)));
   }
   const byId = new Map(rows.map((row) => [row.id, row]));
   const issues = [];
-  for (const link of links) {
+  for (const { productId, link } of links) {
     const row = byId.get(link.id);
-    if (!row || row.status !== "published") issues.push(scopeIssue("PRODUCT_BUNDLE_IDEA_NOT_PUBLISHED", `Idea ${link.id} must be published before Product Bundle staging.`, `entities/products.json:${link.id}`));
+    if (!row || row.status !== "published") issues.push(scopeIssue("PRODUCT_BUNDLE_IDEA_NOT_PUBLISHED", `Idea ${link.id} must be published before Product Bundle staging.`, `entities/products.json:${productId}.ideaLinks:${link.id}`));
     else {
-      if (row.courseId !== run.courseId) issues.push(scopeIssue("PRODUCT_BUNDLE_IDEA_COURSE_MISMATCH", `Idea ${link.id} belongs to another course.`, `entities/products.json:${link.id}`));
-      if (row.version !== link.version || row.semanticHash !== link.semanticHash) issues.push(scopeIssue("PRODUCT_BUNDLE_IDEA_VERSION_MISMATCH", `Idea ${link.id} version or semantic hash is stale.`, `entities/products.json:${link.id}`));
+      if (row.courseId !== run.courseId) issues.push(scopeIssue("PRODUCT_BUNDLE_IDEA_COURSE_MISMATCH", `Idea ${link.id} belongs to another course.`, `entities/products.json:${productId}.ideaLinks:${link.id}`));
+      if (row.version !== link.version || row.semanticHash !== link.semanticHash) issues.push(scopeIssue("PRODUCT_BUNDLE_IDEA_VERSION_MISMATCH", `Product ${productId} references a stale version or semantic hash of Idea ${link.id}.`, `entities/products.json:${productId}.ideaLinks:${link.id}`));
     }
   }
   return { valid: issues.length === 0, issues };
@@ -394,6 +415,12 @@ function validateIdeaChapterScope(run: ReturnType<typeof readMcpRunToken>, bundl
   const issues = [];
   for (const idea of bundle.entities.ideas) {
     if (idea.chapterId !== run.chapterId) issues.push(scopeIssue("AUTHORING_MCP_CHAPTER_SCOPE_MISMATCH", `Idea ${idea.id} does not belong to the locked chapter.`, `entities/ideas.json:${idea.id}`));
+  }
+  for (const section of bundle.entities.learningSections) {
+    if (section.chapterId !== run.chapterId) issues.push(scopeIssue("AUTHORING_MCP_CHAPTER_SCOPE_MISMATCH", `Section ${section.id} does not belong to the locked chapter.`, `entities/learning-sections.json:${section.id}`));
+  }
+  for (const source of bundle.entities.sourceMaterials) {
+    if (source.chapterId && source.chapterId !== run.chapterId) issues.push(scopeIssue("AUTHORING_MCP_CHAPTER_SCOPE_MISMATCH", `Source ${source.id} does not belong to the locked chapter.`, `entities/source-materials.json:${source.id}`));
   }
   return { valid: issues.length === 0, issues };
 }
@@ -415,7 +442,7 @@ function validateProductAssessmentBoundary(bundle: Extract<ReturnType<typeof val
       severity: "blocking" as const,
       target: { targetType: "document" as const, targetId: `entities/products.json:${product.id}` },
       reason: `Product ${product.id} has assessment type '${product.productType}', which is not allowed in a new Product Bundle MCP submission.`,
-      remediation: "Move original questions to quiz_bank or historical questions to reference_question_ingest. Keep Product Bundle outputs to article, diktat, flashcard_set, and flashcard.",
+      remediation: "Move assessment questions to quiz_bank or reference_question_ingest. A standalone learning example belongs in a V5 solution_collection, subject to explicit review and release.",
     }));
 }
 
@@ -868,6 +895,98 @@ async function assertImportRunScope(storedCourseId: string | null, runCourseId: 
   }
 }
 
+async function scopedIdeaImport(input: { principal: McpPrincipal; runToken: string; bootstrapToken: string; importId: string; expectedRevision: string }) {
+  const run = readMcpRunToken(input.runToken);
+  if (run.workflow !== "idea_product" || !run.chapterId) throw new Error("AUTHORING_MCP_WORKFLOW_MISMATCH");
+  verifyMcpExecutionBootstrap({ actorId: input.principal.actorId, sessionId: input.principal.sessionId, bootstrapToken: input.bootstrapToken, run, requiredStage: "idea", expectedWorkflow: "idea_product", requireBoundRun: true });
+  const row = await getIdeaBundleImport(input.importId);
+  if (!row) throw new Error("IDEA_BUNDLE_NOT_FOUND");
+  if (row.checksum !== input.expectedRevision) throw new Error("IDEA_BUNDLE_STALE_CONTEXT");
+  await assertImportRunScope(row.courseId, run.courseId);
+  const { parseStagedIdeaBundle } = await import("@/lib/bundle/staging");
+  const bundle = await parseStagedIdeaBundle(input.importId);
+  if (bundle.manifest.bundleChecksum !== input.expectedRevision || bundle.manifest.courseId !== run.courseId ||
+      bundle.entities.ideas.length === 0 || bundle.entities.ideas.some((idea) => idea.chapterId !== run.chapterId) ||
+      bundle.entities.learningSections.some((section) => section.chapterId !== run.chapterId) ||
+      bundle.entities.sourceMaterials.some((source) => source.chapterId && source.chapterId !== run.chapterId)) {
+    throw new Error("AUTHORING_MCP_IMPORT_SCOPE_MISMATCH");
+  }
+  return row;
+}
+
+/** Withdrawal-only recovery binds the explicit import, not a new authoring run. */
+async function scopedIdeaWithdrawalRecovery(input: { principal: McpPrincipal; bootstrapToken: string; importId: string; expectedRevision: string }) {
+  const bootstrap = verifyMcpExecutionBootstrap({ actorId: input.principal.actorId, sessionId: input.principal.sessionId, bootstrapToken: input.bootstrapToken, requiredStage: "idea", expectedWorkflow: "idea_product" });
+  if (bootstrap.mode !== "verified") throw new Error("AUTHORING_MCP_BOOTSTRAP_REQUIRED");
+  const row = await getIdeaBundleImport(input.importId);
+  if (!row) throw new Error("IDEA_BUNDLE_NOT_FOUND");
+  if (row.checksum !== input.expectedRevision) throw new Error("IDEA_BUNDLE_STALE_CONTEXT");
+  if (!["published", "withdrawn"].includes(row.status)) throw new Error("IDEA_BUNDLE_PUBLISHED_REQUIRED");
+  const { parseStagedIdeaBundle } = await import("@/lib/bundle/staging");
+  const bundle = await parseStagedIdeaBundle(input.importId);
+  if (bundle.manifest.bundleChecksum !== input.expectedRevision) throw new Error("IDEA_BUNDLE_STALE_CONTEXT");
+  const course = await resolveCourseIdentity(bundle.manifest.courseId);
+  if (!course?.canonicalId || typeof row.courseId !== "string" || !course.allIds.includes(row.courseId)) throw new Error("AUTHORING_MCP_IMPORT_COURSE_SCOPE_MISMATCH");
+  return row;
+}
+
+/** Explicit exact-target recovery is withdrawal-only, with no Source Pack requirement. */
+async function scopedProductWithdrawalRecovery(input: { principal: McpPrincipal; bootstrapToken: string; importId: string; expectedRevision: string }) {
+  const bootstrap = verifyMcpExecutionBootstrap({ actorId: input.principal.actorId, sessionId: input.principal.sessionId, bootstrapToken: input.bootstrapToken, requiredStage: "product", expectedWorkflow: "idea_product" });
+  if (bootstrap.mode !== "verified") throw new Error("AUTHORING_MCP_BOOTSTRAP_REQUIRED");
+  const row = await getProductBundleImport(input.importId);
+  if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+  if (row.checksum !== input.expectedRevision) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+  if (!["published", "withdrawn"].includes(row.status)) throw new Error("PRODUCT_BUNDLE_PUBLISHED_REQUIRED");
+  const { parseStagedProductBundle } = await import("@/lib/bundle/product-staging");
+  const bundle = await parseStagedProductBundle(input.importId);
+  if (bundle.checksum !== input.expectedRevision || bundle.manifest.bundleId !== row.bundleId) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+  const course = await resolveCourseIdentity(bundle.manifest.courseId);
+  if (!course?.canonicalId || typeof row.courseId !== "string" || !course.allIds.includes(row.courseId)) throw new Error("AUTHORING_MCP_IMPORT_COURSE_SCOPE_MISMATCH");
+  if (validateProductAssessmentBoundary(bundle).length) throw new Error("PRODUCT_BUNDLE_ASSESSMENT_FORBIDDEN");
+  return row;
+}
+
+async function scopedSolutionCollectionImport(input: { principal: McpPrincipal; runToken: string; bootstrapToken: string; importId: string; expectedRevision: string }) {
+  const run = readMcpRunToken(input.runToken);
+  if (run.workflow !== "idea_product" || !run.chapterId) throw new Error("AUTHORING_MCP_WORKFLOW_MISMATCH");
+  verifyMcpExecutionBootstrap({ actorId: input.principal.actorId, sessionId: input.principal.sessionId, bootstrapToken: input.bootstrapToken, run, requiredStage: "product", expectedWorkflow: "idea_product", requireBoundRun: true });
+  const row = await getProductBundleImport(input.importId);
+  if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+  if (!/^[a-f0-9]{64}$/.test(input.expectedRevision ?? "") || row.checksum !== input.expectedRevision) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+  await assertImportRunScope(row.courseId, run.courseId);
+  if (row.version !== 5) throw new Error("PRODUCT_V5_PROFILE_REQUIRED");
+  const { parseStagedProductBundle } = await import("@/lib/bundle/product-staging");
+  const bundle = await parseStagedProductBundle(input.importId);
+  const scope: SolutionImportScope = { revision: input.expectedRevision, bundleId: row.bundleId, sourceUriOrKey: row.sourceUriOrKey, storedCourseId: row.courseId, courseId: run.courseId, chapterId: run.chapterId };
+  assertSolutionImportScope(row, bundle, scope);
+  return { row, scope };
+}
+
+async function scopedLearningProductImport(input: { principal: McpPrincipal; runToken: string; bootstrapToken: string; importId: string; expectedRevision: string }) {
+  const run = readMcpRunToken(input.runToken);
+  if (run.workflow !== "idea_product" || !run.chapterId) throw new Error("AUTHORING_MCP_WORKFLOW_MISMATCH");
+  const bootstrap = verifyMcpExecutionBootstrap({ actorId: input.principal.actorId, sessionId: input.principal.sessionId, bootstrapToken: input.bootstrapToken, run, requiredStage: "product", expectedWorkflow: "idea_product", requireBoundRun: true });
+  if (bootstrap.mode !== "verified") throw new Error("AUTHORING_MCP_BOOTSTRAP_REQUIRED");
+  const row = await getProductBundleImport(input.importId);
+  if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+  if (row.checksum !== input.expectedRevision) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+  await assertImportRunScope(row.courseId, run.courseId);
+  const { parseStagedProductBundle } = await import("@/lib/bundle/product-staging");
+  const bundle = await parseStagedProductBundle(input.importId);
+  if (bundle.checksum !== input.expectedRevision || bundle.manifest.courseId !== run.courseId || !bundle.products.length || !validateProductChapterScope(run, bundle).valid) throw new Error("AUTHORING_MCP_IMPORT_SCOPE_MISMATCH");
+  if (validateProductAssessmentBoundary(bundle).length) throw new Error("PRODUCT_BUNDLE_ASSESSMENT_FORBIDDEN");
+  return { row, bundle, run };
+}
+
+
+async function mapImportsSequentially<T, R>(rows: readonly T[], read: (row: T) => Promise<R>): Promise<R[]> {
+  const output: R[] = [];
+  for (const row of rows) output.push(await read(row));
+  return output;
+}
+
+
 const REVIEW_AND_PDF_GATE_CODES = new Set([
   "PEDAGOGIC_REVIEW_MISSING",
   "POLICY_VERSION_MISMATCH",
@@ -877,6 +996,7 @@ const REVIEW_AND_PDF_GATE_CODES = new Set([
   "PEDAGOGIC_REVIEW_CHANGES_REQUESTED",
   "PEDAGOGIC_REVIEW_PENDING",
   "PEDAGOGIC_REVIEW_NOT_APPROVED",
+  "PEDAGOGIC_REVIEW_INVALID",
   "RUBRIC_CRITERION_DUPLICATE",
   "RUBRIC_CRITERION_UNANCHORED",
   "RUBRIC_CRITERION_MISSING",
@@ -899,6 +1019,7 @@ const REVIEW_AND_PDF_GATE_CODES = new Set([
 
 type PedagogicReviewSummaryRow = {
   id: string;
+  reviewerId?: string;
   status: "pending" | "approved" | "rejected" | "changes_requested" | string;
   policyVersion: string;
   contentFingerprint: string;
@@ -935,6 +1056,7 @@ function computeCurrentProductImportReadiness(
   },
   pedReviews: readonly PedagogicReviewSummaryRow[] = [],
   pdfEvidenceRows: readonly PdfEvidenceSummaryRow[] = [],
+  publisherId?: string,
 ) {
   const evaluatedAt = new Date().toISOString();
   const report = (row.validationReport ?? {}) as Record<string, unknown>;
@@ -993,7 +1115,9 @@ function computeCurrentProductImportReadiness(
     contentFingerprint,
     articleGenerationHash: expectedArticleGenHash,
     diktatGenerationHash: expectedDiktatGenHash,
+    publisherId,
     reviewRows: pedReviews.map((r) => ({
+      reviewerId: r.reviewerId,
       id: r.id,
       imporBundleId: row.id,
       status: r.status,
@@ -1090,17 +1214,23 @@ async function stageIdeaArtifact(input: {
   filename: string;
   bundleBase64: string;
   replaceImportId?: string;
+  expectedRevision?: string;
+  reviewResetFingerprint?: string;
   bootstrapToken?: string;
 }) {
   const run = readMcpRunToken(input.runToken);
   if (run.workflow !== "idea_product") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
   verifyMcpExecutionBootstrap({
     actorId: input.principal.actorId,
+    sessionId: input.principal.sessionId,
     bootstrapToken: input.bootstrapToken,
     run,
     requiredStage: "idea",
     expectedWorkflow: "idea_product",
   });
+  const replacementTarget = input.replaceImportId
+    ? await scopedIdeaImport({ principal: input.principal, runToken: input.runToken, bootstrapToken: input.bootstrapToken ?? "", importId: input.replaceImportId, expectedRevision: input.expectedRevision ?? "" })
+    : null;
   const bytes = decodeMcpArtifact(input.bundleBase64, AUTHORING_MCP_MAX_BUNDLE_BYTES);
   const validation = validateIdeaBundleZip(bytes);
   if (!validation.success) return { ok: false, valid: false, staged: false, filename: input.filename, issues: validation.issues };
@@ -1113,8 +1243,7 @@ async function stageIdeaArtifact(input: {
   const quality = evaluateIdeaBundleQuality(validation.data);
   if (!chapterScope.valid || !dbConflicts.valid || !quality.valid) return { ok: false, valid: false, staged: false, filename: input.filename, issues: [...chapterScope.issues, ...dbConflicts.issues, ...quality.issues], warnings: dbConflicts.warnings, quality };
   if (input.replaceImportId) {
-    const target = await getIdeaBundleImport(input.replaceImportId);
-    if (!target) throw new Error("IDEA_BUNDLE_NOT_FOUND");
+    const target = replacementTarget!;
     if (target.bundleId !== validation.data.manifest.bundleId) throw new Error("AUTHORING_MCP_IMPORT_BUNDLE_MISMATCH");
     await assertImportRunScope(target.courseId, run.courseId);
   }
@@ -1142,6 +1271,8 @@ async function stageIdeaArtifact(input: {
     },
     filename: input.filename,
     replaceImportId: input.replaceImportId,
+    expectedPreviousChecksum: input.expectedRevision,
+    reviewResetFingerprint: input.reviewResetFingerprint,
   });
   const safeResult = {
     importId: result.importId,
@@ -1162,17 +1293,22 @@ async function stageProductArtifact(input: {
   filename: string;
   bundleBase64: string;
   replaceImportId?: string;
+  expectedRevision?: string;
   bootstrapToken?: string;
 }) {
   const run = readMcpRunToken(input.runToken);
   if (run.workflow !== "idea_product") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
   verifyMcpExecutionBootstrap({
     actorId: input.principal.actorId,
+    sessionId: input.principal.sessionId,
     bootstrapToken: input.bootstrapToken,
     run,
     requiredStage: "product",
     expectedWorkflow: "idea_product",
   });
+  const replacementTarget = input.replaceImportId
+    ? await scopedLearningProductImport({ principal: input.principal, runToken: input.runToken, bootstrapToken: input.bootstrapToken ?? "", importId: input.replaceImportId, expectedRevision: input.expectedRevision ?? "" })
+    : null;
   const bytes = decodeMcpArtifact(input.bundleBase64, AUTHORING_MCP_MAX_BUNDLE_BYTES);
   const validation = validateProductBundle(bytes);
   if (!validation.success) {
@@ -1181,7 +1317,12 @@ async function stageProductArtifact(input: {
     );
     return { ok: false, valid: false, staged: false, publicationReady: false, filename: input.filename, issues: mappedIssues };
   }
-  if (isStructuredArticleReaderEnabled() && !["product-bundle.v3", "product-bundle.v4"].includes(validation.data.manifest.schemaVersion)) {
+  let permittedV2Restage = false;
+  if (isStructuredArticleReaderEnabled() && validation.data.manifest.schemaVersion === "product-bundle.v2" && input.replaceImportId && input.expectedRevision && input.bootstrapToken) {
+    const existing = replacementTarget!;
+    permittedV2Restage = existing.row.status === "draft" && existing.row.version === 2 && existing.bundle.manifest.bundleId === validation.data.manifest.bundleId;
+  }
+  if (isStructuredArticleReaderEnabled() && !["product-bundle.v3", "product-bundle.v4", "product-bundle.v5"].includes(validation.data.manifest.schemaVersion) && !permittedV2Restage) {
     return {
       ok: false,
       valid: false,
@@ -1193,7 +1334,7 @@ async function stageProductArtifact(input: {
         severity: "blocking",
         target: { targetType: "document", targetId: "manifest.json.schemaVersion" },
         reason: "Submission baru wajib memakai Product Bundle V3 saat structured reader aktif.",
-        remediation: "Use product-bundle.v4 for new authoring; preserve V3 only for an explicit legacy revision.",
+        remediation: "Use product-bundle.v4 for Article/Diktat or product-bundle.v5 for a standalone solution collection; preserve V3 for an explicit legacy revision.",
       }],
     };
   }
@@ -1248,12 +1389,14 @@ async function stageProductArtifact(input: {
     };
   }
 
+  let expectedPreviousChecksum: string | undefined;
   if (input.replaceImportId) {
-    const target = await getProductBundleImport(input.replaceImportId);
-    if (!target) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+    const target = replacementTarget!.row;
     if (target.bundleId !== validation.data.manifest.bundleId) throw new Error("AUTHORING_MCP_IMPORT_BUNDLE_MISMATCH");
     if (target.status !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
     await assertImportRunScope(target.courseId, run.courseId);
+    if (input.expectedRevision !== target.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+    expectedPreviousChecksum = input.expectedRevision;
   }
 
   const rawResult = await stageProductBundle({
@@ -1267,6 +1410,7 @@ async function stageProductArtifact(input: {
     qualityReport: policyEvaluation as unknown as Record<string, unknown>,
     filename: input.filename,
     preserveUnchangedItemReviews: true,
+    expectedPreviousChecksum,
   });
 
   if (input.replaceImportId && rawResult.importId !== input.replaceImportId) {
@@ -1976,9 +2120,11 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       filename: z.string().min(1).max(255),
       bundleBase64: z.string().min(1).max(48 * 1024 * 1024),
       bootstrapToken: z.string().min(1).optional(),
+      replaceImportId: z.string().min(1).optional(),
+      expectedRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken, filename, bundleBase64, bootstrapToken }: any) => safeTool(async () => {
+  }, async ({ runToken, filename, bundleBase64, bootstrapToken, replaceImportId, expectedRevision }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
     const run = readMcpRunToken(runToken);
     if (run.workflow !== "idea_product") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
@@ -2007,7 +2153,12 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
         next: "agent_revision",
       };
     }
-    if (isStructuredArticleReaderEnabled() && !["product-bundle.v3", "product-bundle.v4"].includes(validation.data.manifest.schemaVersion)) {
+    let permittedV2Restage = false;
+    if (isStructuredArticleReaderEnabled() && validation.data.manifest.schemaVersion === "product-bundle.v2" && replaceImportId && expectedRevision && bootstrapToken) {
+      const existing = await scopedLearningProductImport({ principal, runToken, bootstrapToken, importId: replaceImportId, expectedRevision });
+      permittedV2Restage = existing.row.status === "draft" && existing.row.version === 2 && existing.bundle.manifest.bundleId === validation.data.manifest.bundleId;
+    }
+    if (isStructuredArticleReaderEnabled() && !["product-bundle.v3", "product-bundle.v4", "product-bundle.v5"].includes(validation.data.manifest.schemaVersion) && !permittedV2Restage) {
       return {
         ok: false,
         valid: false,
@@ -2020,7 +2171,7 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
           severity: "blocking",
           target: { targetType: "document", targetId: "manifest.json.schemaVersion" },
           reason: "Submission baru wajib memakai Product Bundle V3 saat structured reader aktif.",
-          remediation: "Use product-bundle.v4 for new authoring; preserve V3 only for an explicit legacy revision.",
+          remediation: "Use product-bundle.v4 for Article/Diktat or product-bundle.v5 for a standalone solution collection; preserve V3 for an explicit legacy revision.",
         }],
         next: "agent_revision",
       };
@@ -2611,6 +2762,7 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
       const allPedReviews = await db
         .select({
           id: reviewPedagogiBundle.id,
+          reviewerId: reviewPedagogiBundle.reviewerId,
           imporBundleId: reviewPedagogiBundle.imporBundleId,
           status: reviewPedagogiBundle.status,
           policyVersion: reviewPedagogiBundle.policyVersion,
@@ -2644,14 +2796,8 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
     return {
       ok: true,
       bundleType,
-      imports: rows.map((row) => {
-        const currentReadiness = bundleType === "product"
-          ? computeCurrentProductImportReadiness(
-              row,
-              pedReviewsByImport.get(row.id) ?? [],
-              pdfEvidenceByImport.get(row.id) ?? [],
-            )
-          : undefined;
+      imports: await mapImportsSequentially(rows, async (row) => {
+        const currentReadiness = bundleType === "product" ? { ...computeCurrentProductImportReadiness(row, pedReviewsByImport.get(row.id) ?? [], pdfEvidenceByImport.get(row.id) ?? [], principal.actorId), ...await currentPublisherProductReadiness(row.id, principal.actorId).catch(() => ({ publicationReady: false, valid: false, issues: [{ code: "PRODUCT_BUNDLE_READINESS_UNAVAILABLE", severity: "blocking", reason: "Inspect the current import before publication." }] })) } : undefined;
         return {
           importId: row.id,
           bundleId: row.bundleId,
@@ -2700,9 +2846,22 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
     const row = bundleType === "idea" ? await getIdeaBundleImport(importId) : await getProductBundleImport(importId);
     if (!row) throw new Error(bundleType === "idea" ? "IDEA_BUNDLE_NOT_FOUND" : "PRODUCT_BUNDLE_NOT_FOUND");
     if (bundleType === "product") {
+      if (row.version === 5) {
+        const { parseStagedProductBundle } = await import("@/lib/bundle/product-staging");
+        const bundle = await parseStagedProductBundle(importId);
+        const quality = await evaluateProductBundleQualityPolicy({ bundle }, { imporBundleId: importId, publisherId: principal.actorId });
+        const safeImport = publicBundleImport(row);
+        return { ok: true, import: {
+          ...safeImport,
+          reviews: row.reviews.map((review) => ({ decision: review.status, reviewedAt: serializeMcpTimestamp(review.reviewedAt) })),
+          publicationReady: quality.publicationReady,
+          currentReadiness: { valid: quality.valid, publicationReady: quality.publicationReady, policyVersion: quality.policyVersion, contentFingerprint: quality.contentFingerprint, issues: quality.issues },
+        } };
+      }
       const pedReviews = await db
         .select({
           id: reviewPedagogiBundle.id,
+          reviewerId: reviewPedagogiBundle.reviewerId,
           status: reviewPedagogiBundle.status,
           policyVersion: reviewPedagogiBundle.policyVersion,
           contentFingerprint: reviewPedagogiBundle.contentFingerprint,
@@ -2723,20 +2882,25 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
         const { parseStagedProductBundle } = await import("@/lib/bundle/product-staging");
         const bundle = await parseStagedProductBundle(importId);
         const article = bundle.products.find(product => product.productType === "article");
-        const ref = row.validationReport.productV4Verification as { runId?: unknown } | undefined;
+        const ref = row.validationReport.productV4Verification as { runId?: unknown; planHash?: unknown } | undefined;
         const verification = typeof ref?.runId === "string" ? await (await import("@/lib/bundle/product-v4-verification-service")).getProductV4VerificationReadiness(importId, ref.runId) : null;
-        const quality = await evaluateProductBundleQualityPolicy({ bundle }, { imporBundleId: importId, v4Verification: verification });
-        return { ok: true, import: { ...publicBundleImport(row, pedReviews, pdfEvidenceRows), publicationReady: quality.publicationReady, quality,
+        const validVerification = verification && ref?.planHash === verification.plan.planHash ? verification : null;
+        const quality = await evaluateProductBundleQualityPolicy({ bundle }, { imporBundleId: importId, publisherId: principal.actorId, v4Verification: validVerification });
+        const publisherReview = await publisherProductReviewReadiness(row, bundle, principal.actorId);
+        const currentReadiness = await currentPublisherProductReadiness(importId, principal.actorId);
+        return { ok: true, import: { ...publicBundleImport(row, pedReviews, pdfEvidenceRows), publicationReady: currentReadiness.publicationReady, currentReadiness, quality: currentReadiness,
           verificationContentHash: computeProductV4VerificationContentHash(bundle),
           reviewContext: { expectedRevision: row.checksum, policyVersion: quality.policyVersion, contentFingerprint: quality.contentFingerprint,
-            verificationPlanHash: verification?.plan.planHash ?? null, verificationReceiptSignature: (verification?.receipt as { signature?: string } | null)?.signature ?? null,
+            verificationPlanHash: validVerification?.plan.planHash ?? null, verificationReceiptSignature: getProductV4VerificationReceiptSignature(validVerification?.receipt),
             sections: article?.productType === "article" ? article.sections.map(section => ({ sectionId: section.id, semanticHash: computeProductV4SectionSemanticHash(article, section.id) })) : [],
           }, verification,
         } };
       }
-      return { ok: true, import: publicBundleImport(row, pedReviews, pdfEvidenceRows) };
+      const currentReadiness = await currentPublisherProductReadiness(importId, principal.actorId);
+      return { ok: true, import: { ...publicBundleImport(row, pedReviews, pdfEvidenceRows), publicationReady: currentReadiness.publicationReady, currentReadiness: { ...computeCurrentProductImportReadiness(row, pedReviews, pdfEvidenceRows, principal.actorId), ...currentReadiness } } };
     }
-    return { ok: true, import: publicBundleImport(row) };
+    const reviewReset = await getIdeaReviewResetState(importId, row.checksum);
+    return { ok: true, import: { ...publicBundleImport(row), reviews: row.reviews.map(review => ({ decision: review.status, reviewedAt: serializeMcpTimestamp(review.reviewedAt) })), reviewReset } };
   }));
 
   (server as any).registerTool("authoring.restage_idea_bundle", {
@@ -2745,14 +2909,16 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
     inputSchema: {
       runToken: z.string().min(1),
       importId: z.string().trim().min(1),
+      expectedRevision: z.string().regex(/^[a-f0-9]{64}$/),
+      reviewResetFingerprint: z.string().regex(/^[a-f0-9]{64}$/).optional(),
       filename: z.string().min(1).max(255),
       bundleBase64: z.string().min(1).max(48 * 1024 * 1024),
       bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
-  }, async ({ runToken, importId, filename, bundleBase64, bootstrapToken }: any) => safeTool(async () => {
+  }, async ({ runToken, importId, filename, bundleBase64, bootstrapToken, expectedRevision, reviewResetFingerprint }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:stage");
-    return stageIdeaArtifact({ principal, runToken, filename, bundleBase64, replaceImportId: importId, bootstrapToken });
+    return stageIdeaArtifact({ principal, runToken, filename, bundleBase64, replaceImportId: importId, bootstrapToken, expectedRevision, reviewResetFingerprint });
   }));
 
   (server as any).registerTool("authoring.restage_product_bundle", {
@@ -2761,33 +2927,83 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
     inputSchema: {
       runToken: z.string().min(1),
       importId: z.string().trim().min(1),
+      expectedRevision: z.string().regex(/^[a-f0-9]{64}$/),
       filename: z.string().min(1).max(255),
       bundleBase64: z.string().min(1).max(48 * 1024 * 1024),
       bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
-  }, async ({ runToken, importId, filename, bundleBase64, bootstrapToken }: any) => safeTool(async () => {
+  }, async ({ runToken, importId, filename, bundleBase64, bootstrapToken, expectedRevision }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:stage");
-    return stageProductArtifact({ principal, runToken, filename, bundleBase64, replaceImportId: importId, bootstrapToken });
+    return stageProductArtifact({ principal, runToken, filename, bundleBase64, replaceImportId: importId, bootstrapToken, expectedRevision });
   }));
 
   (server as any).registerTool("authoring.discard_product_draft", {
     title: "Discard Product Bundle draft",
-    description: "Menghapus Product Bundle yang masih draft beserta artifact staging-nya. Published atau withdrawn bundle tidak dapat dihapus.",
+    description: "Menghapus draf learning Product Bundle pada checksum tepat dalam scope run. Artifact bersama disimpan untuk pembersihan aman.",
     inputSchema: {
+      runToken: z.string().min(1),
       importId: z.string().trim().min(1),
-      bootstrapToken: z.string().min(1).optional(),
+      bootstrapToken: z.string().min(1),
+      expectedRevision: z.string().regex(/^[a-f0-9]{64}$/),
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
-  }, async ({ importId, bootstrapToken }: any) => safeTool(async () => {
+  }, async (input: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:withdraw");
-    verifyMcpExecutionBootstrap({
-      actorId: principal.actorId,
-      sessionId: principal.sessionId,
-      bootstrapToken,
-      requiredStage: "product",
-    });
-    return { ok: true, result: await discardProductBundleDraft({ importId, actorId: principal.actorId }) };
+    await scopedLearningProductImport({ ...input, principal });
+    return { ok: true, result: await discardProductBundleDraft({ importId: input.importId, actorId: principal.actorId, expectedRevision: input.expectedRevision }) };
+  }));
+
+  (server as any).registerTool("authoring.get_idea_review_context", {
+    title: "Get Idea review context",
+    description: "Membaca Idea, provenance, dan hash item untuk review pada checksum tepat dalam scope run.",
+    inputSchema: { runToken: z.string().min(1), bootstrapToken: z.string().min(1), importId: z.string().trim().min(1), expectedRevision: z.string().regex(/^[a-f0-9]{64}$/) },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async (input: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:read");
+    await scopedIdeaImport({ principal, ...input });
+    return { ok: true, result: await getIdeaRevisionReviewContext({ importId: input.importId, reviewerId: principal.actorId, expectedRevision: input.expectedRevision }) };
+  }));
+
+  (server as any).registerTool("authoring.review_idea_revision", {
+    title: "Review Idea revision",
+    description: "Mencatat keputusan eksplisit untuk setiap Idea dan keputusan bundle pada checksum tepat. Approval memerlukan semua item approved.",
+    inputSchema: {
+      runToken: z.string().min(1), bootstrapToken: z.string().min(1), importId: z.string().trim().min(1),
+      expectedRevision: z.string().regex(/^[a-f0-9]{64}$/), decision: z.enum(["approved", "rejected"]),
+      items: z.array(z.object({ ideaId: z.string().trim().min(1), ideaHash: z.string().regex(/^[a-f0-9]{64}$/), status: z.enum(["approved", "changes_requested"]), notes: z.string().trim().max(2000).optional() }).strict()).min(1),
+      notes: z.string().trim().max(4000).optional(),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, async (input: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:review");
+    await scopedIdeaImport({ principal, ...input });
+    const result = await reviewIdeaBundleRevision({ importId: input.importId, reviewerId: principal.actorId, expectedRevision: input.expectedRevision, decision: input.decision, items: input.items, notes: input.notes });
+    return { ok: true, result, next: input.decision === "approved" ? "ready_for_publication_check" : "author_remediation" };
+  }));
+
+  (server as any).registerTool("authoring.publish_idea_bundle", {
+    title: "Publish Idea Bundle",
+    description: "Mempublikasikan Idea Bundle pada checksum tepat setelah review setiap Idea oleh admin yang sama. Retry pada revisi sama bersifat idempotent.",
+    inputSchema: { runToken: z.string().min(1), bootstrapToken: z.string().min(1), importId: z.string().trim().min(1), expectedRevision: z.string().regex(/^[a-f0-9]{64}$/) },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, async (input: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:publish");
+    await scopedIdeaImport({ principal, ...input });
+    const result = await publishIdeaBundle({ importId: input.importId, publishedBy: principal.actorId, expectedRevision: input.expectedRevision });
+    return { ok: true, result };
+  }));
+
+  (server as any).registerTool("authoring.withdraw_idea_bundle", {
+    title: "Withdraw Idea Bundle",
+    description: "Menarik Idea Bundle pada checksum tepat. Gunakan run terikat, atau recovery exact_import tanpa run dan Source Pack. Bootstrap aktif dan scope withdrawal tetap wajib; entitas bersama tetap aktif.",
+    inputSchema: { runToken: z.string().min(1).optional(), recovery: z.literal("exact_import").optional(), bootstrapToken: z.string().min(1), importId: z.string().trim().min(1), expectedRevision: z.string().regex(/^[a-f0-9]{64}$/) },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+  }, async (input: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:withdraw");
+    if (!input.runToken && input.recovery !== "exact_import") throw new Error("AUTHORING_MCP_RUN_REQUIRED");
+    const row = input.runToken ? await scopedIdeaImport({ principal, ...input }) : await scopedIdeaWithdrawalRecovery({ principal, ...input });
+    return { ok: true, result: await withdrawIdeaBundle({ importId: input.importId, withdrawnBy: principal.actorId, expectedRevision: input.expectedRevision, expectedCourseId: row.courseId! }) };
   }));
 
   (server as any).registerTool("authoring.review_idea_bundle", {
@@ -2795,20 +3011,66 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
     description: "Mencatat keputusan review immutable untuk Idea Bundle. Admin approval mengubah import menjadi approved; rejection menjadi rejected.",
     inputSchema: {
       importId: z.string().trim().min(1),
+      runToken: z.string().min(1),
+      expectedRevision: z.string().regex(/^[a-f0-9]{64}$/),
       decision: z.enum(["approved", "rejected"]),
       notes: z.string().trim().max(4000).optional(),
-      bootstrapToken: z.string().min(1).optional(),
+      bootstrapToken: z.string().min(1),
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
-  }, async ({ importId, decision, notes, bootstrapToken }: any) => safeTool(async () => {
+  }, async ({ importId, decision, notes, bootstrapToken, runToken, expectedRevision }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:review");
-    verifyMcpExecutionBootstrap({
-      actorId: principal.actorId,
-      sessionId: principal.sessionId,
-      bootstrapToken,
-      requiredStage: "idea",
-    });
-    return { ok: true, result: await reviewIdeaBundle({ importId, reviewerId: principal.actorId, decision, notes }) };
+    await scopedIdeaImport({ principal, importId, runToken, bootstrapToken, expectedRevision });
+    return { ok: true, result: await reviewIdeaBundle({ importId, reviewerId: principal.actorId, decision, notes, expectedRevision }) };
+  }));
+
+  (server as any).registerTool("authoring.adopt_product_draft_run", {
+    title: "Adopt a staged Product draft for this run",
+    description: "Mencatat pengalihan draft tanpa mengubah artefak. Bukti dan review lama menjadi tidak berlaku.",
+    inputSchema: { runToken: z.string().min(1), bootstrapToken: z.string().min(1), importId: z.string().trim().min(1), expectedRevision: z.string().regex(/^[a-f0-9]{64}$/), expectedStagingRunId: z.string().min(1).max(256) },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, async (input: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:stage");
+    const { run, row } = await scopedLearningProductImport({ principal, ...input });
+    return { ok: true, result: await adoptProductDraftRun({ importId: input.importId, actorId: principal.actorId, expectedRevision: input.expectedRevision, expectedStagingRunId: input.expectedStagingRunId, runId: run.runId, expectedCourseId: row.courseId, expectedSourceUriOrKey: row.sourceUriOrKey, expectedVersion: row.version }) };
+  }));
+
+  (server as any).registerTool("authoring.get_product_review_context", {
+    title: "Get scoped product review context",
+    description: "Membaca produk belajar draft dan referensi review untuk checksum dan scope run yang tepat.",
+    inputSchema: { runToken: z.string().min(1), bootstrapToken: z.string().min(1), importId: z.string().trim().min(1), expectedRevision: z.string().regex(/^[a-f0-9]{64}$/) },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async (input: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:read");
+    const { row, bundle, run } = await scopedLearningProductImport({ principal, ...input });
+    const article = bundle.products.find(product => product.productType === "article");
+    const ref = row.validationReport.productV4Verification as { runId?: unknown; planHash?: unknown } | undefined;
+    const verification = row.version === 4 && typeof ref?.runId === "string" && typeof ref.planHash === "string"
+      ? await (await import("@/lib/bundle/product-v4-verification-service")).getProductV4VerificationReadiness(input.importId, ref.runId).catch(() => null) : null;
+    const quality = await currentPublisherProductReadiness(input.importId, principal.actorId);
+    const [staging] = await db.select({ runId: auditMutasi.correlationId, afterSnapshot: auditMutasi.afterSnapshot }).from(auditMutasi).where(and(eq(auditMutasi.entityType, "product_bundle"), eq(auditMutasi.entityId, row.id), inArray(auditMutasi.action, ["draft_created", "draft_replaced"]))).orderBy(desc(auditMutasi.createdAt), desc(auditMutasi.id)).limit(1);
+    const latest = await getProductBundleImport(input.importId);
+    if (!latest || latest.checksum !== row.checksum || latest.sourceUriOrKey !== row.sourceUriOrKey || latest.status !== row.status || latest.version !== row.version || JSON.stringify(latest.validationReport) !== JSON.stringify(row.validationReport) || latest.updatedAt.getTime() !== row.updatedAt.getTime()) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+    if (row.version === 5) {
+      const { scope } = await scopedSolutionCollectionImport({ principal, ...input });
+      if (scope.bundleId !== row.bundleId || scope.sourceUriOrKey !== row.sourceUriOrKey || scope.storedCourseId !== row.courseId) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+      await db.transaction(async tx => { await lockSolutionImportScope(tx, input.importId, scope); });
+    }
+    const stagingRunId = staging?.afterSnapshot?.checksum === row.checksum ? staging.runId : null;
+    return { ok: true, result: {
+      importId: row.id, status: row.status, expectedRevision: row.checksum, schemaVersion: bundle.manifest.schemaVersion,
+      manifest: bundle.manifest, products: bundle.products, dependencies: bundle.dependencies,
+      items: row.items.map(item => ({ entityType: item.entityType, entityId: item.entityId, entityVersion: item.entityVersion, entityHash: item.entityHash })),
+      policyVersion: quality.policyVersion, contentFingerprint: quality.contentFingerprint,
+      criterionIds: article ? PEDAGOGIC_CRITERION_IDS : [],
+      sections: bundle.products.flatMap(product => product.productType === "article" ? product.sections.map(section => ({ articleId: product.id, sectionId: section.id, semanticHash: computeProductV4SectionSemanticHash(product, section.id), blockIds: section.blocks.map(block => block.id) })) : []),
+      verificationContentHash: row.version === 4 ? computeProductV4VerificationContentHash(bundle) : null,
+      stagingRunId, currentRunMatchesStaging: stagingRunId ? stagingRunId === run.runId : null,
+      verification: verification ? { ready: verification.evaluation.ready && ref?.planHash === verification.plan.planHash, runId: ref?.runId, planHash: verification.plan.planHash, receiptSignature: getProductV4VerificationReceiptSignature(verification.receipt) } : null,
+      quality: { valid: quality.valid, publicationReady: quality.publicationReady, issues: quality.issues, publisherReview: { reviewApproved: quality.reviewApproved, missingSections: quality.missingSections } },
+      reviewTool: row.version === 5 ? "authoring.review_solution_collection" : "authoring.review_product_bundle",
+      note: "Quality readiness is advisory; publication repeats authorization, review, traceability and all profile-specific gates.",
+    } };
   }));
 
   (server as any).registerTool("authoring.review_product_bundle", {
@@ -2816,38 +3078,31 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
     description: "Mencatat keputusan review Product Bundle draft tanpa mempublikasikannya.",
     inputSchema: {
       ...productV4ReviewContextShape,
+      sectionDecisions: z.array(sectionDecisionsSchema.element).optional(),
       importId: z.string().trim().min(1),
-      runToken: z.string().min(1).optional(),
+      runToken: z.string().min(1),
       decision: z.enum(["approved", "rejected", "changes_requested"]),
       policyVersion: z.string().trim().min(1).optional(),
       contentFingerprint: z.string().trim().min(1).optional(),
       criteria: z.array(pedagogicRubricItemSchema).optional(),
       exceptions: z.array(pedagogicExceptionSchema).default([]),
-      expectedRevision: z.union([z.string(), z.number()]).optional(),
+      expectedRevision: z.string().regex(/^[a-f0-9]{64}$/),
       notes: z.string().trim().max(4000).optional(),
       reason: z.string().trim().max(4000).optional(),
-      bootstrapToken: z.string().min(1).optional(),
+      bootstrapToken: z.string().min(1),
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
   }, async (input: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:review");
 
-    let run: ReturnType<typeof readMcpRunToken> | null = null;
-    if (input.runToken) {
-      run = readMcpRunToken(input.runToken);
-      if (run.workflow !== "idea_product") throw new Error("AUTHORING_MCP_WORKFLOW_MISMATCH");
-      const row = await getProductBundleImport(input.importId);
-      if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
-      await assertImportRunScope(row.courseId, run.courseId);
+    const { bundle } = await scopedLearningProductImport({ principal, ...input });
+    if (bundle.manifest.schemaVersion === "product-bundle.v5") throw new Error("PRODUCT_V5_EXPLICIT_REVIEW_REQUIRED");
+    if (!bundle.products.some(product => product.productType === "article")) {
+      if (input.decision === "changes_requested") throw new Error("PRODUCT_BUNDLE_REVIEW_DECISION_UNSUPPORTED");
+      if (input.decision === "rejected" && !(input.reason ?? input.notes)?.trim()) throw new Error("PRODUCT_BUNDLE_REVIEW_REASON_REQUIRED");
+      const result = await reviewProductBundle({ importId: input.importId, reviewerId: principal.actorId, expectedRevision: input.expectedRevision, decision: input.decision, notes: input.reason?.trim() || input.notes?.trim() });
+      return { ok: true, result, next: input.decision === "approved" ? "ready_for_publication_check" : "author_remediation" };
     }
-
-    verifyMcpExecutionBootstrap({
-      actorId: principal.actorId,
-      sessionId: principal.sessionId,
-      run,
-      bootstrapToken: input.bootstrapToken,
-      requiredStage: "product",
-    });
 
     const result = await executePedagogicReview({
       importId: input.importId,
@@ -2863,31 +3118,80 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
       sectionDecisions: input.sectionDecisions,
       notes: input.notes,
       reason: input.reason,
+      strictRevision: true,
     });
 
     return {
       ...result,
-      next: input.decision === "approved" ? "ready_for_pdf_and_publication" : "author_remediation",
+      next: input.decision === "approved" ? "ready_for_publication_check" : "author_remediation",
     };
+  }));
+
+  (server as any).registerTool("authoring.publish_product_bundle", {
+    title: "Publish learning Product Bundle",
+    description: "Mempublikasikan produk belajar pada checksum dan scope run yang tepat setelah semua gate lifecycle lulus; produk asesmen ditolak.",
+    inputSchema: { runToken: z.string().min(1), bootstrapToken: z.string().min(1), importId: z.string().trim().min(1), expectedRevision: z.string().regex(/^[a-f0-9]{64}$/) },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, async (input: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:publish");
+    const scoped = await scopedLearningProductImport({ principal, ...input });
+    const solutionScope = scoped.row.version === 5 ? (await scopedSolutionCollectionImport({ principal, ...input })).scope : undefined;
+    return { ok: true, result: await publishProductBundle({ importId: input.importId, publishedBy: principal.actorId, expectedRevision: input.expectedRevision, solutionScope }) };
+  }));
+
+  (server as any).registerTool("authoring.get_solution_collection_review_context", {
+    title: "Get solution collection review context",
+    description: "Membaca isi dan hash setiap contoh V5 dalam scope run untuk review revisi saat ini.",
+    inputSchema: { runToken: z.string().min(1), bootstrapToken: z.string().min(1), importId: z.string().trim().min(1), expectedRevision: z.string().regex(/^[a-f0-9]{64}$/) },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async (input: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:read");
+    const { scope } = await scopedSolutionCollectionImport({ principal, ...input });
+    return { ok: true, result: await getSolutionCollectionReviewContext({ importId: input.importId, reviewerId: principal.actorId, expectedRevision: input.expectedRevision, scope }) };
+  }));
+
+  (server as any).registerTool("authoring.review_solution_collection", {
+    title: "Review solution collection",
+    description: "Mencatat keputusan admin untuk setiap contoh V5 pada checksum dan hash item yang tepat, tanpa mempublikasikan.",
+    inputSchema: { runToken: z.string().min(1), bootstrapToken: z.string().min(1), importId: z.string().trim().min(1), ...solutionReviewRequestSchema.shape },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, async (input: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:review");
+    const { scope } = await scopedSolutionCollectionImport({ principal, ...input });
+    const request = solutionReviewRequestSchema.parse({ expectedRevision: input.expectedRevision, expectedReviewVersion: input.expectedReviewVersion, decision: input.decision, items: input.items });
+    const items = normalizeSolutionReviewRequest(request);
+    const result = await reviewSolutionCollection({ importId: input.importId, reviewerId: principal.actorId, expectedRevision: request.expectedRevision, expectedReviewVersion: request.expectedReviewVersion, decision: request.decision, items, scope });
+    return { ok: true, result, next: request.decision === "approved" ? "ready_for_publication_check" : "author_remediation" };
+  }));
+
+  (server as any).registerTool("authoring.publish_solution_collection", {
+    title: "Publish solution collection",
+    description: "Mempublikasikan hanya Product V5 pada checksum tepat setelah review lengkap oleh admin yang sama. Aman untuk dicoba ulang pada revisi yang sama.",
+    inputSchema: { runToken: z.string().min(1), bootstrapToken: z.string().min(1), importId: z.string().trim().min(1), expectedRevision: z.string().regex(/^[a-f0-9]{64}$/) },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, async (input: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:publish");
+    const { scope } = await scopedSolutionCollectionImport({ principal, ...input });
+    const result = await publishProductBundle({ importId: input.importId, publishedBy: principal.actorId, expectedRevision: input.expectedRevision, solutionScope: scope });
+    return { ok: true, result };
   }));
 
   (server as any).registerTool("authoring.withdraw_product_bundle", {
     title: "Withdraw published Product Bundle",
-    description: "Menarik Product Bundle published melalui lifecycle audited, meretire projection canonical, dan mengantrekan penghapusan vector. Tool ini idempotent.",
+    description: "Menarik learning Product Bundle pada checksum tepat dalam run terikat, atau recovery exact_import dengan bootstrap aktif tanpa Source Pack. Tool ini idempotent.",
     inputSchema: {
       importId: z.string().trim().min(1),
-      bootstrapToken: z.string().min(1).optional(),
+      bootstrapToken: z.string().min(1),
+      expectedRevision: z.string().regex(/^[a-f0-9]{64}$/),
+      runToken: z.string().min(1).optional(),
+      recovery: z.literal("exact_import").optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
-  }, async ({ importId, bootstrapToken }: any) => safeTool(async () => {
+  }, async (input: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:withdraw");
-    verifyMcpExecutionBootstrap({
-      actorId: principal.actorId,
-      sessionId: principal.sessionId,
-      bootstrapToken,
-      requiredStage: "product",
-    });
-    return { ok: true, result: await withdrawProductBundle({ importId, withdrawnBy: principal.actorId }) };
+    if (!input.runToken && input.recovery !== "exact_import") throw new Error("AUTHORING_MCP_RUN_REQUIRED");
+    const row = input.runToken ? (await scopedLearningProductImport({ principal, ...input })).row : await scopedProductWithdrawalRecovery({ principal, ...input });
+    return { ok: true, result: await withdrawProductBundle({ importId: input.importId, withdrawnBy: principal.actorId, expectedRevision: input.expectedRevision, expectedCourseId: row.courseId! }) };
   }));
 
   (server as any).registerTool("assessment.update_question", {

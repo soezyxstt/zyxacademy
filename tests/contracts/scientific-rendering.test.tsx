@@ -4,6 +4,8 @@ import katex from "@/lib/math/katex";
 import { scientificNumberToLatex, scientificNumberToText } from "@/lib/math/scientific-format";
 import { MathText } from "@/components/course/math-text";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { LocaleProvider } from "@/components/providers/locale-provider";
+import enLearningMessages from "@/messages/en/learning.json";
 import { parseCanonicalDiktatMarkdownToHtml } from "@/lib/bundle/product-diktat-pdf";
 
 describe("shared scientific rendering", () => {
@@ -68,4 +70,13 @@ describe("scientific delimiter boundaries", () => {
       expect(html.match(/class="katex"/g)).toHaveLength(3);
     }
   });
+});
+
+
+test("formula labels keep standalone SSR safe and follow the application locale", () => {
+  const standalone = renderToStaticMarkup(<MarkdownRenderer content="$$x=1$$" />);
+  expect(standalone).toContain('aria-label="Rumus utama"');
+  const english = renderToStaticMarkup(<LocaleProvider initialLocale="en" initialMessages={{ learning: enLearningMessages }}><MarkdownRenderer content="$$x=1$$" /></LocaleProvider>);
+  expect(english).toContain('aria-label="Main formula"');
+  expect(english).not.toContain('aria-label="Rumus utama"');
 });

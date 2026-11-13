@@ -15,10 +15,15 @@
  * - For UTC date strings in DB columns (streaks, recommendations), use `todayUtc()`.
  */
 
-import { addDays, format, getUnixTime, getISODay, subMinutes, subDays, subWeeks, startOfDay as fnsStartOfDay, startOfWeek as fnsStartOfWeek } from "date-fns";
+import { addDays, addMilliseconds, format, getUnixTime, getISODay, subMinutes, subDays, subWeeks, startOfDay as fnsStartOfDay, startOfWeek as fnsStartOfWeek } from "date-fns";
 
 /** Monday is index 0, using the local calendar day. */
 export function localWeekdayIndex(date: Date): number { return getISODay(date) - 1; }
+
+/** Call under the entity lock when timestamp ordering must survive equal or skewed clocks. */
+export function nextMonotonicTimestamp(previous?: Date | null, now = new Date()): Date {
+  return previous && now.getTime() <= previous.getTime() ? addMilliseconds(previous, 1) : now;
+}
 
 const CALENDAR_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const JAKARTA_TIME_ZONE = "Asia/Jakarta";

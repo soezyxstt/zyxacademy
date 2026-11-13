@@ -1,5 +1,5 @@
 import { claimProductReviewSnapshot } from "./product-review-snapshot";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
@@ -12,7 +12,6 @@ import {
   reviewBundle,
   reviewItemBundle,
   reviewPedagogiBundle,
-  user,
   pengguna,
 } from "@/db/schema";
 import { storage } from "@/lib/storage";
@@ -26,7 +25,8 @@ import {
   findStalePdfEvidenceProductIds,
   unchangedArticleSectionIds,
 } from "./product-review-preservation";
-import { hasPeran } from "@/lib/auth/authorization";
+import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
+import { nextMonotonicTimestamp, normalizeDate } from "@/lib/date-utils";
 import { checkTutorCourseAccess } from "@/lib/auth/tutor-access";
 
 export type ProductStageInput = {
@@ -40,6 +40,8 @@ export type ProductStageInput = {
   qualityReport?: Record<string, unknown>;
   filename?: string;
   preserveUnchangedItemReviews?: boolean;
+  /** The caller's observed checksum when replacing a draft. Required for every replacement. */
+  expectedPreviousChecksum?: string;
 };
 
 export type ProductBundleLifecycleStatus = "draft" | "published" | "withdrawn";
@@ -98,6 +100,9 @@ async function storedCourseId(courseId: string): Promise<string> {
  */
 export async function stageProductBundle(input: ProductStageInput) {
   enabled();
+  await assertAuthoringActor(db, input.requestedBy, { roles: ["admin"], error: "PRODUCT_BUNDLE_STAGE_FORBIDDEN" });
+  const parsed = parseProductBundleZip(input.bytes);
+  if (!parsed.success || parsed.data.checksum !== input.checksum || input.bundle.checksum !== input.checksum || parsed.data.manifest.bundleId !== input.bundleId || parsed.data.manifest.courseId !== input.courseId || deterministicProductSerialization(parsed.data.manifest) !== deterministicProductSerialization(input.bundle.manifest) || deterministicProductSerialization(parsed.data.products) !== deterministicProductSerialization(input.bundle.products) || deterministicProductSerialization(parsed.data.dependencies) !== deterministicProductSerialization(input.bundle.dependencies)) throw new Error("PRODUCT_BUNDLE_STAGING_MISMATCH");
   const [uploader] = await db.select({ id: pengguna.id }).from(pengguna).where(eq(pengguna.id, input.requestedBy)).limit(1);
   if (!uploader) throw new Error("PRODUCT_BUNDLE_UPLOADER_NOT_FOUND");
 
@@ -128,16 +133,24 @@ export async function stageProductBundle(input: ProductStageInput) {
     if (!row) throw new Error(`PRODUCT_BUNDLE_CURATOR_UNKNOWN:${curatorId}`);
   }
 
-  const schemaVersion = input.bundle.manifest.schemaVersion === "product-bundle.v4" ? 4 : input.bundle.manifest.schemaVersion === "product-bundle.v3" ? 3 : 2;
+  const schemaVersion = input.bundle.manifest.schemaVersion === "product-bundle.v5" ? 5 : input.bundle.manifest.schemaVersion === "product-bundle.v4" ? 4 : input.bundle.manifest.schemaVersion === "product-bundle.v3" ? 3 : 2;
   const legacyCourseId = await storedCourseId(input.courseId);
+  const retryResult = (observed: typeof imporBundle.$inferSelect) => db.transaction(async tx => {
+    await assertAuthoringActor(tx, input.requestedBy, { roles: ["admin"], error: "PRODUCT_BUNDLE_STAGE_FORBIDDEN", lock: true });
+    const [current] = await tx.select().from(imporBundle).where(eq(imporBundle.id, observed.id)).limit(1).for("update");
+    if (!current || current.bundleType !== "product" || current.bundleId !== input.bundleId || current.checksum !== input.checksum || current.status !== observed.status || current.sourceUriOrKey !== observed.sourceUriOrKey || current.courseId !== legacyCourseId || current.version !== schemaVersion) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+    const currentItems = await tx.select({ id: itemImporBundle.id }).from(itemImporBundle).where(eq(itemImporBundle.imporBundleId, current.id));
+    return { importId: current.id, bundleId: current.bundleId, checksum: current.checksum, sourceKey: current.sourceUriOrKey, created: false, replaced: false, status: productBundleLifecycleStatus(current.status), itemCount: currentItems.length };
+  });
   const [same] = await db.select().from(imporBundle).where(and(eq(imporBundle.bundleId, input.bundleId), eq(imporBundle.checksum, input.checksum))).limit(1);
-  if (same) {
-    const items = await db.select({ id: itemImporBundle.id }).from(itemImporBundle).where(eq(itemImporBundle.imporBundleId, same.id));
-    return { importId: same.id, bundleId: same.bundleId, checksum: same.checksum, sourceKey: same.sourceUriOrKey, created: false, replaced: false, status: productBundleLifecycleStatus(same.status), itemCount: items.length };
-  }
+  if (same) return retryResult(same);
   const [conflict] = await db.select().from(imporBundle).where(eq(imporBundle.bundleId, input.bundleId)).limit(1);
+  if (!conflict && input.expectedPreviousChecksum !== undefined) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
   if (conflict && productBundleLifecycleStatus(conflict.status) !== "draft") throw new Error(`PRODUCT_BUNDLE_CONFLICT:${input.bundleId}`);
-  let preservedItemReviews: Array<typeof reviewItemBundle.$inferSelect> = [];
+  if (conflict && (conflict.version === 5) !== (schemaVersion === 5)) throw new Error("PRODUCT_V5_PROFILE_MISMATCH");
+  if (conflict && input.expectedPreviousChecksum !== conflict.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+  if (conflict && input.expectedPreviousChecksum !== undefined && input.expectedPreviousChecksum !== conflict.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+  let unchangedSectionIds = new Set<string>();
   let stalePdfProductIds = new Set<string>();
   let canPreservePedagogy = false;
   let previousBundleParsed: Extract<ProductBundleValidation, { success: true }>["data"] | null = null;
@@ -146,14 +159,12 @@ export async function stageProductBundle(input: ProductStageInput) {
     try {
       const previousBytes = await storage.download(conflict.sourceUriOrKey);
       const previous = parseProductBundleZip(previousBytes);
-      if (previous.success) {
+      if (previous.success && previous.data.checksum === conflict.checksum) {
         previousBundleParsed = previous.data;
         canPreservePedagogy = canPreservePedagogicReview(previous.data, input.bundle);
         stalePdfProductIds = findStalePdfEvidenceProductIds(previous.data, input.bundle);
         if (input.preserveUnchangedItemReviews) {
-          const unchangedSectionIds = unchangedArticleSectionIds(previous.data, input.bundle);
-          const existingItemReviews = await db.select().from(reviewItemBundle).where(eq(reviewItemBundle.imporBundleId, conflict.id));
-          preservedItemReviews = existingItemReviews.filter((review) => review.targetType === "article_section" && review.targetId && unchangedSectionIds.has(review.targetId));
+          unchangedSectionIds = unchangedArticleSectionIds(previous.data, input.bundle);
         }
       }
     } catch {
@@ -170,9 +181,20 @@ export async function stageProductBundle(input: ProductStageInput) {
   ];
   try {
     await db.transaction(async (tx) => {
+      await assertAuthoringActor(tx, input.requestedBy, { roles: ["admin"], error: "PRODUCT_BUNDLE_STAGE_FORBIDDEN", lock: true });
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${input.bundleId}))`);
+      const current = await tx.select({ id: imporBundle.id, checksum: imporBundle.checksum, status: imporBundle.status }).from(imporBundle).where(eq(imporBundle.bundleId, input.bundleId));
+      if (conflict ? current.length !== 1 || current[0].id !== conflict.id || current[0].checksum !== input.expectedPreviousChecksum || current[0].status !== "draft" : current.length !== 0) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
       const targetImportId = conflict?.id ?? importId;
+      let preservedItemReviews: Array<typeof reviewItemBundle.$inferSelect> = [];
       const mutationAt = new Date();
       if (conflict) {
+        await claimProductReviewSnapshot(tx, conflict, mutationAt);
+        // Review writers take the same import lock. Read their latest decisions only after claiming it.
+        if (unchangedSectionIds.size) {
+          const existingReviews = await tx.select().from(reviewItemBundle).where(eq(reviewItemBundle.imporBundleId, conflict.id));
+          preservedItemReviews = existingReviews.filter(review => review.targetType === "article_section" && review.targetId && unchangedSectionIds.has(review.targetId));
+        }
         await tx.delete(reviewItemBundle).where(eq(reviewItemBundle.imporBundleId, conflict.id));
         await tx.delete(reviewBundle).where(eq(reviewBundle.imporBundleId, conflict.id));
         await tx.delete(itemImporBundle).where(eq(itemImporBundle.imporBundleId, conflict.id));
@@ -242,17 +264,20 @@ export async function stageProductBundle(input: ProductStageInput) {
       }
       await tx.insert(itemImporBundle).values(items.map((item) => ({ id: stableId("impor-product-item", `${targetImportId}:${item.entityType}:${item.entityId}:${item.entityVersion}`), imporBundleId: targetImportId, entityType: item.entityType, entityId: item.entityId, entityVersion: item.entityVersion, entityHash: item.entityHash, status: "draft" as const })));
       if (preservedItemReviews.length > 0) await tx.insert(reviewItemBundle).values(preservedItemReviews);
-      await tx.insert(auditMutasi).values({ id: stableId("audit-product", `${targetImportId}:draft:${input.checksum}:${mutationAt.getTime()}`), actorId: input.requestedBy, entityType: "product_bundle", entityId: targetImportId, action: conflict ? "draft_replaced" : "draft_created", beforeSnapshot: conflict ? { checksum: conflict.checksum, status: productBundleLifecycleStatus(conflict.status) } : null, afterSnapshot: { status: "draft", bundleId: input.bundleId, checksum: input.checksum, productCount: input.bundle.products.length, dependencyCount: input.bundle.dependencies.length }, correlationId: input.runId, createdAt: mutationAt });
+      const [previousStage] = await tx.select({ createdAt: auditMutasi.createdAt }).from(auditMutasi).where(and(eq(auditMutasi.entityType, "product_bundle"), eq(auditMutasi.entityId, targetImportId), inArray(auditMutasi.action, ["draft_created", "draft_replaced"]))).orderBy(desc(auditMutasi.createdAt), desc(auditMutasi.id)).limit(1);
+      await tx.insert(auditMutasi).values({ id: `audit-product-stage-${randomUUID()}`, actorId: input.requestedBy, entityType: "product_bundle", entityId: targetImportId, action: conflict ? "draft_replaced" : "draft_created", beforeSnapshot: conflict ? { checksum: conflict.checksum, status: productBundleLifecycleStatus(conflict.status) } : null, afterSnapshot: { status: "draft", bundleId: input.bundleId, checksum: input.checksum, productCount: input.bundle.products.length, dependencyCount: input.bundle.dependencies.length }, correlationId: input.runId, createdAt: nextMonotonicTimestamp(previousStage?.createdAt) });
     });
   } catch (error) {
-    await storage.delete(sourceKey).catch(() => undefined);
+    // A concurrent retry may already reference the same content-addressed key.
+    if (error instanceof Error && error.message === "PRODUCT_BUNDLE_STALE_CONTEXT") {
+      const [completed] = await db.select().from(imporBundle).where(and(eq(imporBundle.bundleId, input.bundleId), eq(imporBundle.checksum, input.checksum))).limit(1);
+      if (completed) return retryResult(completed);
+    }
     throw error;
   }
-  if (conflict && conflict.sourceUriOrKey !== sourceKey) await storage.delete(conflict.sourceUriOrKey).catch(() => undefined);
   return { importId: conflict?.id ?? importId, bundleId: input.bundleId, checksum: input.checksum, sourceKey, created: !conflict, replaced: Boolean(conflict), status: "draft" as const, itemCount: items.length };
 }
 
-import { normalizeDate } from "@/lib/date-utils";
 
 export async function getProductBundleImport(importId: string) {
   const [row] = await db.select().from(imporBundle).where(eq(imporBundle.id, importId)).limit(1);
@@ -304,12 +329,34 @@ export async function downloadProductBundleArtifact(importId: string): Promise<U
   return storage.download(row.sourceUriOrKey);
 }
 
+/** Rebind an unchanged, scoped draft to an authorized run without replacing its artifact. */
+export async function adoptProductDraftRun(input: { importId: string; actorId: string; expectedRevision: string; expectedStagingRunId: string; runId: string; expectedCourseId: string | null; expectedSourceUriOrKey: string; expectedVersion: number }) {
+  if (!/^[a-f0-9]{64}$/.test(input.expectedRevision) || !/^mcp-run-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(input.runId) || !input.expectedStagingRunId) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+  const row = await getProductBundleImport(input.importId);
+  if (!row || row.status !== "draft" || row.checksum !== input.expectedRevision || row.courseId !== input.expectedCourseId || row.sourceUriOrKey !== input.expectedSourceUriOrKey || row.version !== input.expectedVersion || ![2, 3, 4].includes(row.version)) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+  if (await reviewerRole(row, input.actorId) !== "admin") throw new Error("PRODUCT_BUNDLE_REVIEW_FORBIDDEN");
+  return db.transaction(async tx => {
+    await assertAuthoringActor(tx, input.actorId, { roles: ["admin"], error: "PRODUCT_BUNDLE_REVIEW_FORBIDDEN", lock: true, requireLegacyAdmin: true });
+    const [current] = await tx.select().from(imporBundle).where(eq(imporBundle.id, row.id)).limit(1).for("update");
+    if (!current || current.status !== "draft" || current.bundleType !== row.bundleType || current.bundleId !== row.bundleId || current.checksum !== input.expectedRevision || current.courseId !== input.expectedCourseId || current.sourceUriOrKey !== input.expectedSourceUriOrKey || current.version !== input.expectedVersion || deterministicProductSerialization(current.validationReport) !== deterministicProductSerialization(row.validationReport)) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+    const [staging] = await tx.select().from(auditMutasi).where(and(eq(auditMutasi.entityType, "product_bundle"), eq(auditMutasi.entityId, row.id), inArray(auditMutasi.action, ["draft_created", "draft_replaced"]))).orderBy(desc(auditMutasi.createdAt), desc(auditMutasi.id)).limit(1);
+    if (!staging || staging.afterSnapshot?.checksum !== input.expectedRevision) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+    if (staging.correlationId === input.runId && staging.afterSnapshot?.adoptedFrom === input.expectedStagingRunId) return { importId: row.id, checksum: row.checksum, runId: input.runId, adopted: false };
+    if (staging.correlationId !== input.expectedStagingRunId || staging.correlationId === input.runId) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+    const { productV4Verification: _verification, ...validationReport } = current.validationReport;
+    await tx.update(imporBundle).set({ validationReport: { ...validationReport, productRunAdoption: { runId: input.runId, previousStagingAuditId: staging.id } }, updatedAt: new Date() }).where(eq(imporBundle.id, row.id));
+    await tx.update(buktiPdfBundle).set({ status: "stale", updatedAt: new Date() }).where(eq(buktiPdfBundle.imporBundleId, row.id));
+    await tx.delete(reviewBundle).where(eq(reviewBundle.imporBundleId, row.id));
+    await tx.delete(reviewPedagogiBundle).where(eq(reviewPedagogiBundle.imporBundleId, row.id));
+    await tx.insert(auditMutasi).values({ id: `audit-product-adopt-${randomUUID()}`, actorId: input.actorId, entityType: "product_bundle", entityId: row.id, action: "draft_replaced", beforeSnapshot: { checksum: row.checksum, stagingAuditId: staging.id, stagingRunId: staging.correlationId }, afterSnapshot: { checksum: row.checksum, status: "draft", operation: "run_adoption", adoptedFrom: staging.correlationId }, correlationId: input.runId, createdAt: nextMonotonicTimestamp(staging.createdAt) });
+    return { importId: row.id, checksum: row.checksum, runId: input.runId, adopted: true };
+  });
+}
+
 async function reviewerRole(importRow: NonNullable<Awaited<ReturnType<typeof getProductBundleImport>>>, reviewerId: string): Promise<"admin" | "tutor"> {
-  const [actor] = await db.select({ role: user.role }).from(user).where(eq(user.id, reviewerId)).limit(1);
-  if (!actor) throw new Error("PRODUCT_BUNDLE_REVIEWER_NOT_FOUND");
-  if (actor.role === "admin" || (await hasPeran(reviewerId, "admin"))) return "admin";
-  const isTutor = (await hasPeran(reviewerId, "tutor")) || actor.role === "teacher";
-  if (!isTutor || !importRow.courseId) throw new Error("PRODUCT_BUNDLE_REVIEW_FORBIDDEN");
+  const role = await assertAuthoringActor(db, reviewerId, { roles: ["admin", "tutor"], error: "PRODUCT_BUNDLE_REVIEW_FORBIDDEN" });
+  if (role === "admin") return role;
+  if (!importRow.courseId) throw new Error("PRODUCT_BUNDLE_REVIEW_FORBIDDEN");
   const access = await checkTutorCourseAccess(reviewerId, importRow.courseId);
   if (!access.hasAccess) throw new Error("PRODUCT_BUNDLE_REVIEW_COURSE_FORBIDDEN");
   return "tutor";
@@ -362,16 +409,19 @@ export async function upsertProductItemReview(input: {
   targetId: string;
   status: ProductItemReviewStatus;
   notes?: string;
+  expectedRevision?: string;
 }) {
   enabled();
   const row = await getProductBundleImport(input.importId);
   if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
-  await reviewerRole(row, input.reviewerId);
+  if (typeof input.expectedRevision !== "string" || !/^[a-f0-9]{64}$/.test(input.expectedRevision) || input.expectedRevision !== row.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+  const role = await reviewerRole(row, input.reviewerId);
   if (productBundleLifecycleStatus(row.status) !== "draft") throw new Error("PRODUCT_BLOCK_REVIEW_DRAFT_REQUIRED");
   if (row.reviews.some((review) => review.reviewerId === input.reviewerId)) throw new Error("PRODUCT_BLOCK_REVIEW_IMMUTABLE");
   const notes = input.notes?.trim() || null;
   if (notes && notes.length > 2000) throw new Error("PRODUCT_BLOCK_REVIEW_NOTES_LIMIT");
   const bundle = await parseStagedProductBundle(input.importId);
+  if (bundle.checksum !== row.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
   const product = bundle.products.find((candidate) => candidate.id === input.productId);
   if (!product) throw new Error("PRODUCT_BLOCK_REVIEW_PRODUCT_NOT_FOUND");
   if (product.productType !== "article") throw new Error("PRODUCT_BLOCK_REVIEW_ARTICLE_REQUIRED");
@@ -382,25 +432,37 @@ export async function upsertProductItemReview(input: {
   }
   const now = new Date();
   const id = stableId("review-product-item", `${input.importId}:${input.reviewerId}:${input.targetType}:${input.targetId}`);
-  await db
-    .insert(reviewItemBundle)
-    .values({
-      id,
-      imporBundleId: input.importId,
-      reviewerId: input.reviewerId,
-      productId: input.productId,
-      blockId: input.targetId,
-      targetType: input.targetType,
-      targetId: input.targetId,
-      status: input.status,
-      notes,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: [reviewItemBundle.imporBundleId, reviewItemBundle.reviewerId, reviewItemBundle.targetType, reviewItemBundle.targetId],
-      set: { status: input.status, notes, updatedAt: now },
-    });
+  await db.transaction(async (tx) => {
+    await assertAuthoringActor(tx, input.reviewerId, { roles: [role], error: "PRODUCT_BUNDLE_REVIEW_FORBIDDEN", lock: true });
+    if (role === "tutor" && (!row.courseId || !(await checkTutorCourseAccess(input.reviewerId, row.courseId, undefined, tx)).hasAccess)) throw new Error("PRODUCT_BUNDLE_REVIEW_COURSE_FORBIDDEN");
+    const [current] = await tx.select().from(imporBundle).where(eq(imporBundle.id, row.id)).limit(1).for("update");
+    if (!current || current.bundleType !== "product") throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+    if (productBundleLifecycleStatus(current.status) !== "draft") throw new Error("PRODUCT_BLOCK_REVIEW_DRAFT_REQUIRED");
+    await claimProductReviewSnapshot(tx, row, now);
+    const [finalReview] = await tx.select({ id: reviewBundle.id }).from(reviewBundle).where(and(
+      eq(reviewBundle.imporBundleId, input.importId), eq(reviewBundle.reviewerId, input.reviewerId),
+    )).limit(1);
+    if (finalReview) throw new Error("PRODUCT_BLOCK_REVIEW_IMMUTABLE");
+    await tx
+      .insert(reviewItemBundle)
+      .values({
+        id,
+        imporBundleId: input.importId,
+        reviewerId: input.reviewerId,
+        productId: input.productId,
+        blockId: input.targetId,
+        targetType: input.targetType,
+        targetId: input.targetId,
+        status: input.status,
+        notes,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [reviewItemBundle.imporBundleId, reviewItemBundle.reviewerId, reviewItemBundle.targetType, reviewItemBundle.targetId],
+        set: { status: input.status, notes, updatedAt: now },
+      });
+  });
   return { id, productId: input.productId, targetType: input.targetType, targetId: input.targetId, status: input.status, notes, updatedAt: now };
 }
 
@@ -411,124 +473,71 @@ export async function upsertProductBlockReview(input: {
   blockId: string;
   status: ProductBlockReviewStatus;
   notes?: string;
+  expectedRevision?: string;
 }) {
-  try {
-    const result = await upsertProductItemReview({ ...input, targetType: "article_block", targetId: input.blockId });
-    return { ...result, blockId: result.targetId };
-  } catch (error) {
-    if (!isMissingReviewTargetColumns(error)) throw error;
-    const notes = input.notes?.trim() || null;
-    const id = stableId("review-product-block", `${input.importId}:${input.reviewerId}:${input.productId}:${input.blockId}`);
-    await db.execute(sql`
-      INSERT INTO review_item_bundle (
-        id, impor_bundle_id, reviewer_id, product_id, block_id, status, notes, created_at, updated_at
-      ) VALUES (
-        ${id}, ${input.importId}, ${input.reviewerId}, ${input.productId}, ${input.blockId}, ${input.status}, ${notes},
-        CURRENT_TIMESTAMP,
-        CURRENT_TIMESTAMP
-      )
-      ON CONFLICT (impor_bundle_id, reviewer_id, product_id, block_id)
-      DO UPDATE SET
-        status = excluded.status,
-        notes = excluded.notes,
-        updated_at = CURRENT_TIMESTAMP
-    `);
-    return { id, productId: input.productId, blockId: input.blockId, status: input.status, notes, updatedAt: new Date() };
-  }
+  const result = await upsertProductItemReview({ ...input, targetType: "article_block", targetId: input.blockId });
+  return { ...result, blockId: result.targetId };
 }
 
-export async function reviewProductBundle(input: { importId: string; reviewerId: string; decision: "approved" | "rejected"; notes?: string }) {
+export async function reviewProductBundle(input: { importId: string; reviewerId: string; decision: "approved" | "rejected"; notes?: string; expectedRevision?: string }) {
   enabled();
   const row = await getProductBundleImport(input.importId);
   if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+  if (typeof input.expectedRevision !== "string" || !/^[a-f0-9]{64}$/.test(input.expectedRevision) || input.expectedRevision !== row.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+  const reviewedBundle = await parseStagedProductBundle(input.importId);
+  if (reviewedBundle.checksum !== row.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+  if (reviewedBundle.products.some(product => product.productType === "article")) throw new Error("PRODUCT_BUNDLE_PEDAGOGIC_REVIEW_REQUIRED");
+  if (reviewedBundle.manifest.schemaVersion === "product-bundle.v5") throw new Error("PRODUCT_V5_EXPLICIT_REVIEW_REQUIRED");
   const role = await reviewerRole(row, input.reviewerId);
   const [existing] = row.reviews.filter((review) => review.reviewerId === input.reviewerId);
   if (existing && (existing.status !== input.decision || (existing.notes ?? null) !== (input.notes ?? null))) throw new Error("PRODUCT_BUNDLE_REVIEW_IMMUTABLE");
-  if (existing) return { reviewId: existing.id, status: productBundleLifecycleStatus(row.status), reviewerRole: role };
+  if (existing) {
+    if (input.expectedRevision !== undefined) {
+      await db.transaction(async (tx) => {
+        await assertAuthoringActor(tx, input.reviewerId, { roles: [role], error: "PRODUCT_BUNDLE_REVIEW_FORBIDDEN", lock: true });
+        if (role === "tutor" && (!row.courseId || !(await checkTutorCourseAccess(input.reviewerId, row.courseId, undefined, tx)).hasAccess)) throw new Error("PRODUCT_BUNDLE_REVIEW_COURSE_FORBIDDEN");
+        if (row.status === "draft") await claimProductReviewSnapshot(tx, row, new Date());
+        else {
+          const [current] = await tx.select({ checksum: imporBundle.checksum, status: imporBundle.status }).from(imporBundle).where(eq(imporBundle.id, row.id)).limit(1);
+          if (!current || current.checksum !== row.checksum || current.status !== row.status) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+        }
+        const [currentReview] = await tx.select({ status: reviewBundle.status, notes: reviewBundle.notes }).from(reviewBundle).where(and(eq(reviewBundle.imporBundleId, input.importId), eq(reviewBundle.reviewerId, input.reviewerId))).limit(1);
+        if (!currentReview || currentReview.status !== existing.status || currentReview.notes !== existing.notes) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+      });
+    }
+    return { reviewId: existing.id, status: productBundleLifecycleStatus(row.status), reviewerRole: role };
+  }
   const reviewId = stableId("review-product", `${input.importId}:${input.reviewerId}`);
   if (productBundleLifecycleStatus(row.status) !== "draft") throw new Error("PRODUCT_BUNDLE_REVIEW_DRAFT_REQUIRED");
   const status = "draft" as const;
   const now = new Date();
-  const bundle = input.decision === "approved" ? await parseStagedProductBundle(input.importId) : null;
-  if (bundle?.manifest.schemaVersion === "product-bundle.v4") throw new Error("PRODUCT_V4_EXPLICIT_REVIEW_REQUIRED");
   await db.transaction(async (tx) => {
+    await assertAuthoringActor(tx, input.reviewerId, { roles: [role], error: "PRODUCT_BUNDLE_REVIEW_FORBIDDEN", lock: true });
+    if (role === "tutor" && (!row.courseId || !(await checkTutorCourseAccess(input.reviewerId, row.courseId, undefined, tx)).hasAccess)) throw new Error("PRODUCT_BUNDLE_REVIEW_COURSE_FORBIDDEN");
     await claimProductReviewSnapshot(tx, row, now);
     await tx.insert(reviewBundle).values({ id: reviewId, imporBundleId: input.importId, reviewerId: input.reviewerId, status: input.decision, notes: input.notes ?? null, reviewedAt: now });
-    await tx.insert(auditMutasi).values({ id: stableId("audit-product", `${input.importId}:review:${input.reviewerId}`), actorId: input.reviewerId, entityType: "product_bundle", entityId: input.importId, action: input.decision === "approved" ? "reviewed" : "rejected", beforeSnapshot: null, afterSnapshot: { decision: input.decision, reviewerRole: role }, correlationId: input.importId });
+    await tx.insert(auditMutasi).values({ id: `audit-product-review-${randomUUID()}`, actorId: input.reviewerId, entityType: "product_bundle", entityId: input.importId, action: input.decision === "approved" ? "reviewed" : "rejected", beforeSnapshot: null, afterSnapshot: { decision: input.decision, reviewerRole: role, ...(input.expectedRevision ? { revision: row.checksum } : {}) }, correlationId: input.importId });
 
-    if (bundle) {
-      const articles = bundle.products.filter(
-        (p): p is Extract<ProductEntity, { productType: "article" }> => p.productType === "article",
-      );
-      for (const art of articles) {
-        const sections = art.sections ?? [];
-        for (const section of sections) {
-          const itemReviewId = stableId(
-            "review-product-item",
-            `${input.importId}:${input.reviewerId}:article_section:${section.id}`,
-          );
-          const [existing] = await tx
-            .select({ status: reviewItemBundle.status })
-            .from(reviewItemBundle)
-            .where(
-              and(
-                eq(reviewItemBundle.imporBundleId, input.importId),
-                eq(reviewItemBundle.reviewerId, input.reviewerId),
-                eq(reviewItemBundle.targetType, "article_section"),
-                eq(reviewItemBundle.targetId, section.id),
-              ),
-            )
-            .limit(1);
-
-          if (!existing || existing.status !== "changes_requested") {
-            await tx
-              .insert(reviewItemBundle)
-              .values({
-                id: itemReviewId,
-                imporBundleId: input.importId,
-                reviewerId: input.reviewerId,
-                productId: art.id,
-                blockId: section.id,
-                targetType: "article_section",
-                targetId: section.id,
-                status: "approved",
-                notes: null,
-                createdAt: now,
-                updatedAt: now,
-              })
-              .onConflictDoUpdate({
-                target: [
-                  reviewItemBundle.imporBundleId,
-                  reviewItemBundle.reviewerId,
-                  reviewItemBundle.targetType,
-                  reviewItemBundle.targetId,
-                ],
-                set: {
-                  status: "approved",
-                  updatedAt: now,
-                },
-              });
-          }
-        }
-      }
-    }
   });
   return { reviewId, status, reviewerRole: role };
 }
 
-export async function discardProductBundleDraft(input: { importId: string; actorId: string }): Promise<{ importId: string; discarded: boolean }> {
+export async function discardProductBundleDraft(input: { importId: string; actorId: string; expectedRevision?: string }): Promise<{ importId: string; discarded: boolean }> {
   enabled();
+  await assertAuthoringActor(db, input.actorId, { roles: ["admin"], error: "PRODUCT_BUNDLE_DISCARD_FORBIDDEN" });
   const row = await getProductBundleImport(input.importId);
   if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+  if (input.expectedRevision !== undefined && input.expectedRevision !== row.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
   if (productBundleLifecycleStatus(row.status) !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
   await db.transaction(async (tx) => {
+    await assertAuthoringActor(tx, input.actorId, { roles: ["admin"], error: "PRODUCT_BUNDLE_DISCARD_FORBIDDEN", lock: true });
+    await claimProductReviewSnapshot(tx, row, new Date());
     await tx.delete(reviewItemBundle).where(eq(reviewItemBundle.imporBundleId, row.id));
     await tx.delete(reviewBundle).where(eq(reviewBundle.imporBundleId, row.id));
     await tx.delete(itemImporBundle).where(eq(itemImporBundle.imporBundleId, row.id));
     await tx.delete(imporBundle).where(eq(imporBundle.id, row.id));
-    await tx.insert(auditMutasi).values({ id: stableId("audit-product", `${row.id}:discarded`), actorId: input.actorId, entityType: "product_bundle", entityId: row.id, action: "draft_discarded", beforeSnapshot: { status: "draft", bundleId: row.bundleId, checksum: row.checksum }, afterSnapshot: null, correlationId: row.id });
+    await tx.insert(auditMutasi).values({ id: `audit-product-discard-${randomUUID()}`, actorId: input.actorId, entityType: "product_bundle", entityId: row.id, action: "draft_discarded", beforeSnapshot: { status: "draft", bundleId: row.bundleId, checksum: row.checksum }, afterSnapshot: null, correlationId: row.id });
   });
-  await storage.delete(row.sourceUriOrKey).catch(() => undefined);
   return { importId: row.id, discarded: true };
 }
 

@@ -128,3 +128,12 @@ test("provider and reviewed browser version bind separate plans and cannot reuse
     else process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION = beforeVersion;
   }
 });
+
+test("external Product version two resolves its canonical versioned identity", () => {
+  const dependency = { id: "edge-v2", upstreamEntityType: "product" as const, upstreamEntityId: "external", upstreamVersion: 2, upstreamHash: hash, downstreamEntityType: "article" as const, downstreamEntityId: article.id, downstreamVersion: article.version, downstreamHash: article.generationHash, freshness: "UP_TO_DATE" as const };
+  const versioned = { type: "product" as const, id: "external:v2", courseId: "course", version: 2, hash, status: "published" };
+  const selected = { ...bundle, dependencies: [dependency] };
+  expect(productV4DependencyChecksum(selected, [...rows, versioned])).toMatch(/^[a-f0-9]{64}$/);
+  expect(() => productV4DependencyChecksum(selected, [...rows, { ...versioned, id: "external" }])).toThrow("DEPENDENCY_CHANGED");
+  expect(() => productV4DependencyChecksum(selected, [...rows, { ...versioned, status: "retired" }])).toThrow("DEPENDENCY_CHANGED");
+});

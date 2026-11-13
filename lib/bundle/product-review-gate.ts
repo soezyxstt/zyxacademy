@@ -1,7 +1,12 @@
+import { resolveProductV4PdfBinding, selectProductPdfEvidence, type ProductV4PdfBinding } from "./product-pdf-selection";
+import { listProcessingLegacyPdfRequests } from "./product-diktat-queue";
+import type { ProductV4VerificationPlan } from "./product-v4-verification";
 import { findUnmarkedScientificProse } from "@/lib/math/unmarked-scientific";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { reviewPedagogiBundle, buktiPdfBundle } from "@/db/schema";
+import { reviewPedagogiBundle, buktiPdfBundle, imporBundle, reviewBundle } from "@/db/schema";
+import { assertStoredSolutionReview } from "@/lib/solutions/review";
+import { legacyArticlePublicMarkdown } from "@/lib/materials/legacy-article-public";
 import { createHash } from "node:crypto";
 import { deterministicProductSerialization } from "./product-validator";
 import type {
@@ -22,6 +27,7 @@ import { visualSpecSchema } from "@/lib/materials/visual-contract";
 import {
   QUALITY_POLICY_VERSION,
   computePedagogyContentFingerprint,
+  pedagogicReviewDecisionSchema,
   validatePedagogicRubricDecision,
   type DiagnosticIssue,
   type QualityEvaluation,
@@ -33,6 +39,16 @@ import {
   validatePdfArtifactEvidence,
   type PdfArtifactEvidence,
 } from "@/lib/materials/pdf-artifact-contract";
+
+/** Bind a review to every Article and linked Diktat, independent of ZIP order. */
+export function productPedagogyFingerprint(products: readonly ProductEntity[]): string {
+  const articles = products.filter((p): p is Extract<ProductEntity, { productType: "article" }> => p.productType === "article").sort((a, b) => a.id.localeCompare(b.id));
+  const diktats = products.filter((p): p is Extract<ProductEntity, { productType: "diktat" }> => p.productType === "diktat");
+  if (!articles.length) return "";
+  const pairs = articles.map(article => ({ article, diktats: diktats.filter(d => d.sourceArticleId === article.id).sort((a, b) => a.id.localeCompare(b.id)) }));
+  if (pairs.length === 1 && pairs[0].diktats.length <= 1) return computePedagogyContentFingerprint({ article: pairs[0].article as unknown as Record<string, unknown>, diktat: pairs[0].diktats[0] as unknown as Record<string, unknown> | undefined });
+  return createHash("sha256").update(deterministicProductSerialization(pairs)).digest("hex");
+}
 
 export function assertProductSectionReviews(input: {
   requiredSectionIds: readonly string[];
@@ -52,8 +68,9 @@ export interface ProductBundleEvaluationContext {
   publisherId?: string;
   pedagogicReview?: PedagogicReviewDecision | null;
   pdfEvidence?: readonly PdfArtifactEvidence[] | null;
+  pendingPdfRequests?: readonly { productId: string }[];
   tx?: any;
-  v4Verification?: { plan: { contentHash: string; planHash: string }; evaluation: { ready: boolean } } | null;
+  v4Verification?: { plan: ProductV4VerificationPlan; attemptId?: string; stagingAuditId?: string; receipt?: unknown; evaluation: { ready: boolean } } | null;
 }
 
 export interface ProductBundleEvaluationInput {
@@ -81,25 +98,49 @@ export async function evaluateProductBundleQualityPolicy(
     ? []
     : bundleInput?.bundle?.dependencies ?? bundleInput?.dependencies ?? [];
 
+  const manifest = bundleInput?.bundle?.manifest ?? bundleInput?.manifest;
+  if (manifest?.schemaVersion === "product-bundle.v5") {
+    const product = products[0];
+    const valid = products.length === 1 && product?.productType === "solution_collection";
+    const contentFingerprint = createHash("sha256").update(deterministicProductSerialization({ manifest, products, dependencies })).digest("hex");
+    const issues: DiagnosticIssue[] = [];
+    if (!valid) issues.push({ code: "PRODUCT_V5_PROFILE_MISMATCH", severity: "blocking", target: { targetType: "document", targetId: manifest.bundleId }, reason: "V5 requires one standalone collection.", remediation: "Provide a valid V5 collection." });
+    if (dependencies.some(dep => dep.freshness !== "UP_TO_DATE")) issues.push({ code: "PRODUCT_DEPENDENCY_NEEDS_REVIEW", severity: "blocking", target: { targetType: "document", targetId: manifest.bundleId }, reason: "A dependency needs review.", remediation: "Refresh the locked dependencies." });
+    let approved = false;
+    if (valid && product.productType === "solution_collection" && context.imporBundleId && context.publisherId) {
+      const connection = context.tx ?? db;
+      try {
+        const { assertLiveSolutionCollectionDependencies } = await import("./product-publication");
+        await assertLiveSolutionCollectionDependencies({ product, dependencies, connection: context.tx });
+      } catch {
+        issues.push({ code: "PRODUCT_V5_LIVE_DEPENDENCY_MISMATCH", severity: "blocking", target: { targetType: "document", targetId: product.id }, reason: "The course, chapter or locked dependencies changed.", remediation: "Refresh the source and Idea context, revise the collection, and repeat review." });
+      }
+      const [row] = await connection.select({ checksum: imporBundle.checksum, status: imporBundle.status }).from(imporBundle).where(eq(imporBundle.id, context.imporBundleId)).limit(1);
+      const [review] = await connection.select({ notes: reviewBundle.notes }).from(reviewBundle).where(and(eq(reviewBundle.imporBundleId, context.imporBundleId), eq(reviewBundle.reviewerId, context.publisherId), eq(reviewBundle.status, "approved"))).limit(1);
+      if (row?.status === "draft" && row.checksum === manifest.bundleChecksum && review) {
+        try { assertStoredSolutionReview({ product, revision: row.checksum, notes: review.notes }); approved = true; } catch { /* Stale or incomplete decisions do not grant release. */ }
+      }
+    }
+    if (!approved) issues.push({ code: "PRODUCT_V5_REVIEW_REQUIRED", severity: "blocking", target: { targetType: "document", targetId: product?.id ?? manifest.bundleId }, reason: "The publisher must review every item for this revision.", remediation: "Review correctness, reasoning, problem provenance, solution provenance and release for every item, including any spoiler-free hint." });
+    return { valid, publicationReady: valid && issues.length === 0, policyVersion: "solution-collection-review.v1", contentFingerprint, issues, metrics: { collectionCount: valid ? 1 : 0, itemCount: product?.productType === "solution_collection" ? product.collection.items.length : 0, blockingIssueCount: issues.length, warningIssueCount: 0 } };
+  }
+
   const issues: DiagnosticIssue[] = [];
   const findingIdentity = new Map<DiagnosticIssue, string>();
 
-  const article = products.find((p) => p.productType === "article") as
-    | Extract<ProductEntity, { productType: "article" }>
-    | undefined;
-  const diktat = products.find((p) => p.productType === "diktat") as
-    | Extract<ProductEntity, { productType: "diktat" }>
-    | undefined;
+  const articles = products.filter((p): p is Extract<ProductEntity, { productType: "article" }> => p.productType === "article");
+  const diktats = products.filter((p): p is Extract<ProductEntity, { productType: "diktat" }> => p.productType === "diktat");
+  const article = articles[0];
+  const diktat = diktats.find(d => d.sourceArticleId === article?.id);
+  const contentFingerprint = productPedagogyFingerprint(products);
 
-  const contentFingerprint = article
-    ? computePedagogyContentFingerprint({
-        article: article as unknown as Record<string, unknown>,
-        diktat: diktat ? (diktat as unknown as Record<string, unknown>) : undefined,
-      })
-    : "";
-
-  if (article) {
+  for (const article of articles) {
     const isV3 = Boolean(article.sections && article.sections.length > 0);
+    if (!isV3) {
+      try { legacyArticlePublicMarkdown(article.blocks); } catch {
+        issues.push({ code: "PRODUCT_ARTICLE_LEGACY_PAYLOAD_INVALID", severity: "blocking", target: { targetType: "document", targetId: article.id }, reason: "The assembled legacy Article contains an ambiguous authoring payload.", remediation: "Use one validated envelope per block. Put intentionally public JSON examples inside code delimiters, then restage and review the exact revision." });
+      }
+    }
     if (isV3) {
       const presentationCodes = new Set([
         "ARTICLE_VISUAL_OPPORTUNITY_MISSING",
@@ -293,7 +334,7 @@ export async function evaluateProductBundleQualityPolicy(
     }
   }
 
-  if (diktat) {
+  for (const diktat of diktats) {
     if (diktat.sourceArticleId === diktat.id) {
       issues.push({
         code: "PRODUCT_DIKTAT_LINEAGE_INVALID",
@@ -369,40 +410,65 @@ export async function evaluateProductBundleQualityPolicy(
     pdfEvidenceList = evidenceRows as unknown as PdfArtifactEvidence[];
   }
 
-  const gateResult = evaluateProductBundleReviewAndPdfGate({
-    imporBundleId: context.imporBundleId ?? "",
-    hasArticle: Boolean(article),
-    articleId: article?.id ?? "",
-    diktatId: diktat?.id ?? null,
-    contentFingerprint,
-    articleGenerationHash: article?.generationHash ?? null,
-    diktatGenerationHash: diktat?.generationHash ?? null,
-    publisherId: context.publisherId,
-    reviewDecision: context.pedagogicReview,
-    reviewRows,
-    pdfEvidenceRows: pdfEvidenceList,
-  });
-
-  const manifest = bundleInput?.bundle?.manifest ?? bundleInput?.manifest;
-  if (manifest?.schemaVersion === "product-bundle.v4" || products.some((product) => product.productType === "article" && product.schemaVersion === "article.v4")) {
-    for (const product of products) for (const finding of findUnmarkedScientificProse(product)) issues.push({
-      code: "PRODUCT_V4_UNMARKED_SCIENTIFIC_NOTATION", severity: "blocking", target: { targetType: "document", targetId: product.id },
-      reason: `Unmarked mathematical notation in ${finding.path}: ${finding.notation}`,
-      remediation: "Use explicit inline or display math. Write scientific numbers with \\times 10^{...}, never a numeric e notation literal, and verify the rendered meaning.",
-    });
-    if (!diktat) issues.push({ code: "PRODUCT_V4_DIKTAT_REQUIRED", severity: "blocking", target: { targetType: "document", targetId: article?.id ?? "manifest.json" }, reason: "V4 publication requires the authored Diktat for the same Article revision.", remediation: "Add a traced Diktat with complete essential formula and Idea coverage." });
-    let verification = context.v4Verification;
-    if (!verification && context.imporBundleId) {
+  const isV4 = manifest?.schemaVersion === "product-bundle.v4" || products.some((product) => product.productType === "article" && product.schemaVersion === "article.v4");
+  if (!isV4 && context.imporBundleId) {
+    const connection = context.tx ?? db;
+    let revision = manifest?.bundleChecksum;
+    if (!revision) {
+      const [row] = await connection.select({ checksum: imporBundle.checksum }).from(imporBundle).where(eq(imporBundle.id, context.imporBundleId)).limit(1);
+      revision = row?.checksum;
+    }
+    if (revision) {
+      const requests = context.pendingPdfRequests ?? await listProcessingLegacyPdfRequests({ importId: context.imporBundleId, expectedRevision: revision, connection });
+      for (const request of requests) issues.push({ code: "PDF_REQUEST_PROCESSING", severity: "blocking", target: { targetType: "pdf", targetId: request.productId }, reason: "A PDF request for this revision is still being processed.", remediation: "Recover the request outcome or wait for its deadline before publication." });
+    }
+  }
+  let verification = context.v4Verification;
+  let validationReport: Record<string, unknown> | undefined;
+  if (isV4 && context.imporBundleId) {
+    const connection = context.tx ?? db;
+    const [row] = await connection.select({ validationReport: imporBundle.validationReport }).from(imporBundle).where(eq(imporBundle.id, context.imporBundleId)).limit(1);
+    validationReport = row?.validationReport;
+    if (verification === undefined) {
       try {
-        const { getProductBundleImport } = await import("./product-staging");
-        const row = await getProductBundleImport(context.imporBundleId);
-        const ref = row?.validationReport.productV4Verification as { runId?: unknown; planHash?: unknown } | undefined;
+        const ref = validationReport?.productV4Verification as { runId?: unknown; planHash?: unknown } | undefined;
         if (typeof ref?.runId === "string" && typeof ref.planHash === "string") {
           const current = await (await import("./product-v4-verification-service")).getProductV4VerificationReadiness(context.imporBundleId, ref.runId);
           if (current.plan.planHash === ref.planHash) verification = current;
         }
       } catch { verification = null; }
     }
+  }
+
+  const pairs: { article: (typeof articles)[number]; diktat: (typeof diktats)[number] | undefined }[] = articles.flatMap(article => {
+    const linked = diktats.filter(d => d.sourceArticleId === article.id);
+    const targets: Array<(typeof diktats)[number] | undefined> = linked.length ? linked : [undefined];
+    return targets.map(diktat => ({ article, diktat }));
+  });
+  const gateResults = (pairs.length ? pairs : [{ article: undefined, diktat: undefined }]).map(({ article, diktat }) => evaluateProductBundleReviewAndPdfGate({
+    imporBundleId: context.imporBundleId ?? "",
+    hasArticle: Boolean(article),
+    articleId: article?.id ?? "",
+    diktatId: diktat?.id ?? null,
+    contentFingerprint,
+    articleGenerationHash: article?.generationHash ?? null,
+    articleVersion: article?.version ?? null,
+    v4PdfBinding: isV4 ? (diktat ? resolveProductV4PdfBinding({ importId: context.imporBundleId ?? "", diktatId: diktat.id, validationReport, verification }) : null) : undefined,
+    diktatGenerationHash: diktat?.generationHash ?? null,
+    publisherId: context.publisherId,
+    reviewDecision: context.pedagogicReview,
+    reviewRows,
+    pdfEvidenceRows: pdfEvidenceList,
+  }));
+  const gateResult = gateResults[0];
+
+  if (isV4) {
+    for (const product of products) for (const finding of findUnmarkedScientificProse(product)) issues.push({
+      code: "PRODUCT_V4_UNMARKED_SCIENTIFIC_NOTATION", severity: "blocking", target: { targetType: "document", targetId: product.id },
+      reason: `Unmarked mathematical notation in ${finding.path}: ${finding.notation}`,
+      remediation: "Use explicit inline or display math. Write scientific numbers with \\times 10^{...}, never a numeric e notation literal, and verify the rendered meaning.",
+    });
+    if (!diktat) issues.push({ code: "PRODUCT_V4_DIKTAT_REQUIRED", severity: "blocking", target: { targetType: "document", targetId: article?.id ?? "manifest.json" }, reason: "V4 publication requires the authored Diktat for the same Article revision.", remediation: "Add a traced Diktat with complete essential formula and Idea coverage." });
     const expectedContentHash = manifest ? createHash("sha256").update(deterministicProductSerialization({ manifest, products, dependencies })).digest("hex") : null;
     if (!verification?.evaluation.ready || verification.plan.contentHash !== expectedContentHash) issues.push({
       code: "PRODUCT_V4_VERIFICATION_REQUIRED",
@@ -414,7 +480,7 @@ export async function evaluateProductBundleQualityPolicy(
   }
 
   const reviewDecision = gateResult.reviewDecision;
-  issues.push(...gateResult.issues);
+  issues.push(...gateResults.flatMap(result => result.issues));
 
   const uniqueIssues = [
     ...new Map(
@@ -424,17 +490,15 @@ export async function evaluateProductBundleQualityPolicy(
 
   const publicationReady = valid && uniqueIssues.filter((i) => i.severity === "blocking").length === 0;
 
-  const totalWords = article
-    ? article.sections && article.sections.length > 0
+  const totalWords = articles.reduce((total, article) => total + (article.sections && article.sections.length > 0
       ? article.sections.flatMap((s) => s.blocks).reduce((sum, b) => sum + b.contentMarkdown.split(/\s+/).filter(Boolean).length, 0)
-      : article.blocks.reduce((sum, b) => sum + b.content.split(/\s+/).filter(Boolean).length, 0)
-    : 0;
+      : article.blocks.reduce((sum, b) => sum + b.content.split(/\s+/).filter(Boolean).length, 0)), 0);
 
   const metrics: Record<string, number> = {
     articleCount: products.filter((p) => p.productType === "article").length,
     diktatCount: products.filter((p) => p.productType === "diktat").length,
     totalWordCount: totalWords,
-    visualCount: article?.visuals?.length ?? 0,
+    visualCount: articles.reduce((total, article) => total + (article.visuals?.length ?? 0), 0),
     blockingIssueCount: uniqueIssues.filter((i) => i.severity === "blocking").length,
     warningIssueCount: uniqueIssues.filter((i) => i.severity === "warning").length,
     rubricCriteriaMetCount: reviewDecision?.criteria
@@ -460,6 +524,8 @@ export interface ProductReviewAndPdfGateInput {
   diktatId?: string | null;
   contentFingerprint: string;
   articleGenerationHash?: string | null;
+  articleVersion?: number | null;
+  v4PdfBinding?: ProductV4PdfBinding | null;
   diktatGenerationHash?: string | null;
   publisherId?: string;
   reviewDecision?: PedagogicReviewDecision | null;
@@ -481,6 +547,7 @@ export interface ProductReviewAndPdfGateResult {
   reviewDecision: PedagogicReviewDecision | null;
   reviewStatus: "not_required" | "missing" | "pending" | "approved" | "rejected" | "changes_requested" | "stale";
   pdfEvidenceStatus: "not_required" | "missing" | "pending" | "ready" | "failed" | "stale" | "published";
+  selectedPdfEvidence: PdfArtifactEvidence | null;
   issues: DiagnosticIssue[];
 }
 
@@ -497,6 +564,7 @@ export function evaluateProductBundleReviewAndPdfGate(
       reviewDecision: null,
       reviewStatus: "not_required",
       pdfEvidenceStatus: "not_required",
+      selectedPdfEvidence: null,
       issues,
     };
   }
@@ -642,55 +710,25 @@ export function evaluateProductBundleReviewAndPdfGate(
       });
     }
 
-    if (reviewDecision.criteria.length > 0 && /^[a-f0-9]{64}$/i.test(reviewDecision.contentFingerprint)) {
-      const rubricResult = validatePedagogicRubricDecision(reviewDecision);
-      if (!rubricResult.valid) {
-        issues.push(...rubricResult.issues);
+    if (reviewDecision.status === "approved") {
+      const parsed = pedagogicReviewDecisionSchema.safeParse(reviewDecision);
+      if (!parsed.success) issues.push({ code: "PEDAGOGIC_REVIEW_INVALID", severity: "blocking", target: { targetType: "rubric", targetId: input.articleId }, reason: "The stored pedagogic review is incomplete or invalid.", remediation: "Record a complete anchored review for the current revision." });
+      else {
+        const rubricResult = validatePedagogicRubricDecision(parsed.data);
+        if (!rubricResult.valid) issues.push(...rubricResult.issues);
       }
     }
   }
 
   const targetPdfProductId = input.diktatId || input.articleId;
-  const list = input.pdfEvidenceRows ?? [];
   const expectedArticleHash = input.articleGenerationHash ?? undefined;
-  const expectedDiktatHash = input.diktatGenerationHash ?? undefined;
-
-  const matchesCurrentLineage = (e: PdfArtifactEvidence) => {
-    const matchesArticle = expectedArticleHash ? e.articleHash === expectedArticleHash : true;
-    const matchesDiktat = expectedDiktatHash ? e.diktatHash === expectedDiktatHash : true;
-    return matchesArticle && matchesDiktat;
-  };
-
-  // 1. Prefer exact current-lineage row for target product ID
-  let evidence: PdfArtifactEvidence | null =
-    list.find((e) => e.productId === targetPdfProductId && matchesCurrentLineage(e)) ?? null;
-
-  // 2. If no exact current-lineage row exists, choose deterministic target-product fallback so hash-mismatch diagnostics remain useful
-  if (!evidence) {
-    const targetRows = list.filter((e) => e.productId === targetPdfProductId);
-    if (targetRows.length > 0) {
-      evidence =
-        (expectedArticleHash ? targetRows.find((e) => e.articleHash === expectedArticleHash) : undefined) ??
-        (expectedDiktatHash ? targetRows.find((e) => e.diktatHash === expectedDiktatHash) : undefined) ??
-        targetRows[0];
-    }
-  }
-
-  // 3. Article-ID fallback only for explicit legacy compatibility when no Diktat-owned evidence exists (never outranks Diktat-owned evidence)
-  if (!evidence && input.diktatId) {
-    const legacyRows = list.filter((e) => e.productId === input.articleId);
-    if (legacyRows.length > 0) {
-      evidence =
-        legacyRows.find((e) => matchesCurrentLineage(e)) ??
-        (expectedArticleHash ? legacyRows.find((e) => e.articleHash === expectedArticleHash) : undefined) ??
-        (expectedDiktatHash ? legacyRows.find((e) => e.diktatHash === expectedDiktatHash) : undefined) ??
-        legacyRows[0];
-    }
-  }
-
-  if (!evidence && list.length > 0) {
-    evidence = list.find((e) => matchesCurrentLineage(e)) ?? list[0];
-  }
+  const expectedDiktatHash = input.diktatId ? input.diktatGenerationHash ?? undefined : expectedArticleHash;
+  const evidence = selectProductPdfEvidence({
+    rows: input.pdfEvidenceRows ?? [], imporBundleId: input.imporBundleId,
+    articleId: input.articleId, diktatId: input.diktatId, articleVersion: input.articleVersion,
+    articleHash: expectedArticleHash, diktatHash: expectedDiktatHash, v4Binding: input.v4PdfBinding,
+  });
+  const pdfIssuesStart = issues.length;
 
   let pdfEvidenceStatus: ProductReviewAndPdfGateResult["pdfEvidenceStatus"] = "missing";
   if (!evidence) {
@@ -766,16 +804,27 @@ export function evaluateProductBundleReviewAndPdfGate(
       });
     }
 
+    if (input.articleVersion && evidence.articleVersion !== input.articleVersion) {
+      pdfEvidenceStatus = "stale";
+      issues.push({ code: "PDF_LINEAGE_VERSION_MISMATCH", severity: "blocking", target: { targetType: "pdf", targetId: targetPdfProductId }, reason: "PDF evidence does not match the current Article version.", remediation: "Re-render the PDF for the current Article." });
+    }
+
     const pdfResult = validatePdfArtifactEvidence(evidence);
     if (!pdfResult.valid) {
       issues.push(...pdfResult.issues);
     }
   }
 
+  if (input.v4PdfBinding !== undefined && (!input.v4PdfBinding || !evidence || evidence.storageKey !== input.v4PdfBinding.storageKey || evidence.printProfile !== input.v4PdfBinding.printProfile || evidence.pageCount !== input.v4PdfBinding.pageCount)) {
+    pdfEvidenceStatus = "stale";
+    issues.push({ code: "PDF_V4_RECEIPT_MISMATCH", severity: "blocking", target: { targetType: "pdf", targetId: targetPdfProductId }, reason: "PDF evidence is not attached to the current verification receipt.", remediation: "Verify this revision again and attach its PDF evidence." });
+  }
+
   return {
     reviewDecision,
     reviewStatus,
     pdfEvidenceStatus,
+    selectedPdfEvidence: evidence?.status === "ready" && !issues.slice(pdfIssuesStart).some(issue => issue.severity === "blocking") ? evidence : null,
     issues,
   };
 }

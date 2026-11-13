@@ -17,6 +17,8 @@
     "stageDescription": "Membuat dan mengunggah Idea Bundle baru, draf artikel terstruktur, diktat, dan soal kuis.",
     "reviewTitle": "Ajukan ulasan pedagogis",
     "reviewDescription": "Melakukan evaluasi 8 kriteria mutu pembelajaran dan mencatat keputusan telaah draf.",
+    "publishTitle": "Publikasikan pembahasan soal",
+    "publishDescription": "Mempublikasikan kumpulan pembahasan V5 setelah review revisi yang sama selesai.",
     "withdrawTitle": "Tarik materi dan hapus draf",
     "withdrawDescription": "Menarik bundle materi terbit dan menghapus draf yang belum dipublikasikan.",
     "unknownScopeTitle": "Akses sumber daya authoring",

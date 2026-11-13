@@ -1,3 +1,4 @@
+import { productVersionId } from "@/lib/bundle/product-identity";
 import { verificationBrowserIdentity } from "./product-v4-browser-config";
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
@@ -57,7 +58,7 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "lib/materials/article-parts.ts", "lib/materials/article-contract.ts", "lib/materials/visual-contract.ts", "lib/materials/epsilon-delta.ts",
   "lib/materials/diktat-v4.ts", "lib/materials/diktat-static-visual.ts", "lib/materials/diktat-print-readiness.ts", "lib/materials/verification-preview.ts",
   "lib/zyra/canvas/contracts.ts", "lib/zyra/canvas/expression.ts", "lib/zyra/canvas/evaluator.ts", "lib/zyra/canvas/viewport.ts",
-  "lib/bundle/product-diktat-pdf.ts", "lib/bundle/product-validator.ts", "lib/bundle/product-v4-verification.ts", "lib/bundle/product-v4-verification-service.ts", "lib/bundle/product-review-gate.ts", "lib/compute/product-v4-runtime-binding.ts",
+  "lib/bundle/product-diktat-pdf.ts", "lib/bundle/product-validator.ts", "lib/bundle/product-identity.ts", "lib/bundle/product-v4-verification.ts", "lib/bundle/product-v4-verification-service.ts", "lib/bundle/product-v4-staging-identity.ts", "lib/bundle/product-pdf-selection.ts", "lib/bundle/product-readiness.ts", "lib/bundle/product-review-gate.ts", "lib/compute/product-v4-runtime-binding.ts",
   "lib/compute/product-v4-pdf-evidence.ts", "lib/compute/product-v4-verification-executor.ts", "lib/compute/product-v4-browser-runner.ts", "lib/compute/product-v4-browser-session.ts", "lib/compute/product-v4-browser-config.ts", "scripts/authoring/verification-renderer.ts", "scripts/authoring/build-local-verification-renderer.ts", "jobs/product-verification.ts",
 ] as const;
 
@@ -102,7 +103,7 @@ export function productV4DependencyChecksum(bundle: Bundle, rows: readonly Produ
   const byId = new Map(rows.map(row => [`${row.type}:${row.id}`, row]));
   if (byId.size !== rows.length) throw new Error("PRODUCT_V4_DEPENDENCY_AMBIGUOUS");
   const requireRow = (type: ProductV4LiveDependency["type"], id: string, version: number, checksum?: string) => {
-    const row = byId.get(`${type}:${id}`);
+    const row = byId.get(`${type}:${type === "product" ? productVersionId(id, version) : id}`);
     if (!row || row.courseId !== courseId || row.version !== version || (checksum && row.hash !== checksum) || (type === "idea" && row.status !== "published") || (type === "source_material" && row.status !== "active") || (type === "product" && !["published", "approved"].includes(row.status))) throw new Error(`PRODUCT_V4_DEPENDENCY_CHANGED:${type}:${id}`);
     return row;
   };
@@ -117,7 +118,7 @@ export function productV4DependencyChecksum(bundle: Bundle, rows: readonly Produ
   for (const dependency of bundle.dependencies) {
     const downstream = bundle.products.find(product => product.id === dependency.downstreamEntityId && product.productType === dependency.downstreamEntityType);
     if (dependency.freshness !== "UP_TO_DATE" || !downstream || downstream.version !== dependency.downstreamVersion || downstream.generationHash !== dependency.downstreamHash) throw new Error("PRODUCT_V4_DEPENDENCY_STALE");
-    const local = dependency.upstreamEntityType === "product" ? bundle.products.find(product => product.id === dependency.upstreamEntityId) : undefined;
+    const local = dependency.upstreamEntityType === "product" ? bundle.products.find(product => product.id === dependency.upstreamEntityId && product.version === dependency.upstreamVersion) : undefined;
     if (local) {
       if (local.version !== dependency.upstreamVersion || local.generationHash !== dependency.upstreamHash) throw new Error("PRODUCT_V4_DEPENDENCY_STALE");
     } else requireRow(dependency.upstreamEntityType, dependency.upstreamEntityId, dependency.upstreamVersion, dependency.upstreamHash);
@@ -223,7 +224,7 @@ async function defaultPorts(): Promise<RuntimePorts> {
       const sourceIds = unique([...ids("source_material"), ...chunks.map(row => row.sourceId), ...bundle.products.flatMap(product => product.sourceRefs.map(source => source.sourceId))]);
       if (ideaIds.length) rows.push(...(await db.select({ id: schema.ide.id, version: schema.ide.version, hash: schema.ide.semanticHash, status: schema.ide.status, courseId: schema.ide.mataKuliahId }).from(schema.ide).where(inArray(schema.ide.id, ideaIds))).map(row => ({ ...row, type: "idea" as const })));
       if (sourceIds.length) rows.push(...(await db.select({ id: schema.sumberMateri.id, version: schema.sumberMateri.version, hash: schema.sumberMateri.checksum, status: schema.sumberMateri.status, courseId: schema.sumberMateri.mataKuliahId }).from(schema.sumberMateri).where(inArray(schema.sumberMateri.id, sourceIds))).map(row => ({ ...row, type: "source_material" as const })));
-      const productIds = unique(ids("product").filter(id => !bundle.products.some(product => product.id === id)));
+      const productIds = unique(bundle.dependencies.filter(dependency => dependency.upstreamEntityType === "product" && !bundle.products.some(product => product.id === dependency.upstreamEntityId && product.version === dependency.upstreamVersion)).map(dependency => productVersionId(dependency.upstreamEntityId, dependency.upstreamVersion)));
       for (const table of [schema.artikel, schema.diktatMateri, schema.soal, schema.setFlashcard, schema.blueprintAsesmen]) if (productIds.length) {
         rows.push(...(await db.select({ id: table.id, version: table.version, hash: table.generationHash, status: table.status, courseId: table.mataKuliahId }).from(table).where(inArray(table.id, productIds))).map(row => ({ ...row, type: "product" as const })));
       }

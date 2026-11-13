@@ -1,3 +1,4 @@
+import { issueBoundMcpRunToken } from "../helpers/mcp-run";
 import { expect, test } from "bun:test";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -6,7 +7,7 @@ import { productV4RequestErrorCode, registerProductV4Tools } from "@/lib/authori
 import { issueMcpBootstrapToken, issueMcpRunToken } from "@/lib/authoring/mcp-workflows";
 
 const principal = { actorId: "actor", sessionId: "session", userId: "actor", authMethod: "session" as const, scopes: ["authoring:read", "authoring:stage"] };
-const runToken = () => issueMcpRunToken({ courseId: "canonical-course", chapterId: "chapter", workflow: "idea_product" });
+const runToken = () => issueBoundMcpRunToken({ courseId: "canonical-course", chapterId: "chapter", workflow: "idea_product" }, bootstrapToken());
 const bootstrapToken = (actorId = "actor", stage: "source" | "product" = "source") => issueMcpBootstrapToken({ actorId, sessionId: "session", stage, clientCapabilities: { independentSubagents: true, localArtifactFiles: true, pdfRendering: true } });
 
 async function connect(scopes = principal.scopes, overrides: Parameters<typeof registerProductV4Tools>[2] = {}) {
@@ -35,7 +36,8 @@ test("MCP mutations reject missing stage before source or storage I/O", async ()
   try {
     const response = await connection.client.callTool({ name: "source.extract_figure", arguments: { runToken: runToken(), bootstrapToken: bootstrapToken(), fileKey: "source", pageNumber: 1, crop: [0, 0, 1, 1], attribution: "Owner", permission: "unknown", sourceVisualId: "figure", sourcePackImportId: "pack", sourceDocumentId: "document", sourcePackChecksum: "a".repeat(64) } });
     expect(response.isError).toBe(true);
-    expect(response.structuredContent).toEqual({ ok: false, error: "AUTHORING_MCP_SCOPE_REQUIRED" });
+    expect(response.structuredContent).toMatchObject({ ok: false, error: "AUTHORING_MCP_SCOPE_REQUIRED", requiredScope: "authoring:stage" });
+    expect(response._meta?.["mcp/www_authenticate"]).toBeDefined();
     expect(touched).toBe(false);
   } finally { await connection.close(); }
 });
@@ -62,6 +64,7 @@ test("MCP verification accepts canonical aliases and rejects stale content and f
   const connection = await connect(principal.scopes, {
     getImport: async (id: string) => ({ courseId: id === "foreign" ? "foreign-course" : "legacy-course" }) as never,
     courseAliases: async () => new Set(["canonical-course", "legacy-course"]),
+    assertStagingScope: async (id, run) => { if (id === "wrong-run" || run.chapterId !== "chapter") throw new Error("PRODUCT_V4_VERIFICATION_CONFLICT"); },
     readiness: async () => ({ plan: { contentHash, planHash } }) as never,
     request: async input => { enqueues++; expect(input.expectedPlanHash).toBe(planHash); return { jobId: planHash } as never; },
     verification: async () => { throw new Error("INTERNAL_SECRET_DETAIL:must-not-leak"); },
@@ -72,6 +75,8 @@ test("MCP verification accepts canonical aliases and rejects stale content and f
     expect(enqueues).toBe(1);
     expect((await connection.client.callTool({ name: "authoring.verify_product_bundle", arguments: { ...input, expectedContentHash: "c".repeat(64) } })).structuredContent).toEqual({ ok: false, error: "PRODUCT_V4_VERIFICATION_CONFLICT" });
     expect((await connection.client.callTool({ name: "authoring.verify_product_bundle", arguments: { ...input, importId: "foreign" } })).isError).toBe(true);
+    expect((await connection.client.callTool({ name: "authoring.verify_product_bundle", arguments: { ...input, importId: "wrong-run" } })).isError).toBe(true);
+    expect((await connection.client.callTool({ name: "authoring.verify_product_bundle", arguments: { ...input, runToken: issueBoundMcpRunToken({ courseId: "canonical-course", chapterId: "other", workflow: "idea_product" }, input.bootstrapToken) } })).structuredContent).toEqual({ ok: false, error: "PRODUCT_V4_VERIFICATION_CONFLICT" });
     expect(enqueues).toBe(1);
     const response = await connection.client.callTool({ name: "authoring.get_verification", arguments: { runToken: input.runToken, bootstrapToken: input.bootstrapToken, importId: "allowed", planHash } });
     expect(response.structuredContent).toEqual({ ok: false, error: "AUTHORING_MCP_V4_REQUEST_FAILED" });
@@ -84,4 +89,15 @@ test("V4 diagnostics expose safe codes without runtime paths or identifiers", ()
   expect(productV4RequestErrorCode(Object.assign(new Error("secret/path"), { code: "ENOENT" }))).toBe("PRODUCT_V4_RUNTIME_ASSET_UNAVAILABLE");
   expect(productV4RequestErrorCode(new Error("PRODUCT_V4_VERIFICATION_CONFLICT:private-id"))).toBe("PRODUCT_V4_VERIFICATION_CONFLICT");
   expect(productV4RequestErrorCode(new Error("private credentials"))).toBe("AUTHORING_MCP_V4_REQUEST_FAILED");
+});
+
+
+test("V4 lifecycle rejects an unbound run before import or storage I/O", async () => {
+  let touched = false;
+  const connection = await connect(principal.scopes, { resolveFile: async () => { touched = true; throw new Error("NO_IO"); } });
+  try {
+    const response = await connection.client.callTool({ name: "source.get_figure", arguments: { runToken: issueMcpRunToken({ workflow: "idea_product", courseId: "canonical-course", chapterId: "chapter" }), bootstrapToken: bootstrapToken(), fileKey: "source", assetId: "a".repeat(64) } });
+    expect(response.structuredContent).toEqual({ ok: false, error: "AUTHORING_MCP_LEGACY_RUN_RESTART_REQUIRED" });
+    expect(touched).toBe(false);
+  } finally { await connection.close(); }
 });

@@ -523,7 +523,7 @@ export async function approveAndPublish(
         courseId: ko.courseId,
         koId: ko.id,
         action: "upsert",
-        payload: { text: payloadText, metadata: payloadMetadata },
+        payload: { entityId: ko.id, version: ko.version, legacyKind: "knowledge_object", text: payloadText, metadata: payloadMetadata },
         status: "pending",
         attempts: 0,
       });

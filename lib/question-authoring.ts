@@ -30,6 +30,8 @@ import {
 import { validateExtractedQuestion, type ExtractedQuestion } from "@/lib/question-markdown";
 import { referenceQuestionDraftSchema, type ReferenceQuestion, type ReferenceQuestionDraft, type ReferenceSourceMetadata, toQuestionIdeaLinks } from "@/lib/authoring/reference-question-draft";
 import { offloadBase64ImagesToR2, offloadQuestionItemImages } from "@/lib/question-images";
+import { enqueueQuestionReviewVectorTx } from "@/lib/question-review-lifecycle";
+import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -495,6 +497,7 @@ async function persistQuestion(
     createdAt: now,
   });
 
+  await enqueueQuestionReviewVectorTx(tx, { id: canonicalId, courseId: context.legacyCourseId, version, previousVersion: existingCanonical?.version, reviewStatus, prompt: question.prompt });
   return {
     id: canonicalId,
     canonicalCourseId: context.canonicalCourseId,
@@ -520,12 +523,14 @@ export async function createCanonicalQuestion(input: QuestionAuthoringInput, cre
     questionIdentifier: "canonical",
   });
   const question = await prepareQuestion(offloadedQuestion, 1);
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     await requireCreator(tx, creatorId);
     await validateIdeaLinks(tx, context, parsed.ideaLinks);
     await validateKnowledgeObject(tx, context, question.knowledgeObjectId);
     return persistQuestionWithLinks(tx, context, question, parsed.ideaLinks, [], creatorId, parsed.reviewStatus);
   });
+  if (!result.unchanged) await dispatchVectorSync(result.legacyCourseId);
+  return result;
 }
 
 type PreparedBatch = {
@@ -593,7 +598,7 @@ export async function createCanonicalQuestionBatch(input: QuestionAuthoringBatch
     })
   );
 
-  return db.transaction(async (tx) => {
+  const results = await db.transaction(async (tx) => {
     await requireCreator(tx, input.creatorId);
     await validatePreparedBatch(tx, { ...prepared, items: offloadedItems });
     const results: PersistResult[] = [];
@@ -612,6 +617,8 @@ export async function createCanonicalQuestionBatch(input: QuestionAuthoringBatch
     }
     return results;
   });
+  if (results.some(result => !result.unchanged)) await dispatchVectorSync(context.legacyCourseId);
+  return results;
 }
 
 async function persistQuestionWithLinks(
@@ -660,12 +667,14 @@ export async function updateCanonicalQuestion(input: QuestionAuthoringInput, cre
     questionIdentifier: questionId,
   });
   const question = await prepareQuestion(offloadedQuestion, 1);
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     await requireCreator(tx, creatorId);
     await validateIdeaLinks(tx, context, parsed.ideaLinks);
     await validateKnowledgeObject(tx, context, question.knowledgeObjectId);
     return persistQuestionWithLinks(tx, context, question, parsed.ideaLinks, [], creatorId, parsed.reviewStatus, questionId);
   });
+  if (!result.unchanged) await dispatchVectorSync(result.legacyCourseId);
+  return result;
 }
 
 export type HistoricalSourcePersistenceInput = {
@@ -795,7 +804,7 @@ export async function createHistoricalQuestionBatch(input: HistoricalQuestionBat
     })
   );
 
-  return db.transaction(async (tx) => {
+  const results = await db.transaction(async (tx) => {
     await requireCreator(tx, input.creatorId);
 
     const sourceHash = historicalSourceHash(input.source);
@@ -1030,8 +1039,11 @@ export async function createHistoricalQuestionBatch(input: HistoricalQuestionBat
         correlationId: assessmentSource.id,
         createdAt: now,
       });
+      if (question.quizEligible) await enqueueQuestionReviewVectorTx(tx, { id: canonicalId, courseId: context.legacyCourseId, version: 1, reviewStatus: "published", prompt: question.prompt });
       results.push({ id: canonicalId, canonicalCourseId: context.canonicalCourseId, legacyCourseId: context.legacyCourseId, chapterId: null, version: 1, reviewStatus: "published", created: true, unchanged: false });
     }
     return results;
   });
+  if (results.some(result => !result.unchanged) && draft.questions.some(question => question.quizEligible)) await dispatchVectorSync(context.legacyCourseId);
+  return results;
 }

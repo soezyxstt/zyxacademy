@@ -112,7 +112,8 @@ describe("provider-neutral authoring MCP workflow registry", () => {
       "authoring:review",
       "authoring:withdraw",
     ]);
-    expect(() => requestedScopes("authoring:publish")).toThrow("invalid_scope");
+    expect(requestedScopes("authoring:publish")).toEqual(["authoring:publish"]);
+    expect(requestedScopes(null)).not.toContain("authoring:publish");
   });
 
   it("grants only requested scopes and rejects invalid consent", () => {
@@ -281,7 +282,13 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     expect(names).toContain("authoring.restage_product_bundle");
     expect(names).toContain("authoring.discard_product_draft");
     expect(names).toContain("authoring.review_idea_bundle");
+    expect(names).toContain("authoring.get_idea_review_context");
+    expect(names).toContain("authoring.review_idea_revision");
+    expect(names).toContain("authoring.publish_idea_bundle");
+    expect(names).toContain("authoring.withdraw_idea_bundle");
     expect(names).toContain("authoring.review_product_bundle");
+    expect(names).toContain("authoring.get_product_review_context");
+    expect(names).toContain("authoring.publish_product_bundle");
     expect(names).toContain("authoring.withdraw_product_bundle");
     expect(names).toContain("assessment.update_question");
     const updateLinks = tools.find((tool) => tool.name === "assessment.update_question")?.inputSchema;
@@ -295,7 +302,7 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     expect(names).toContain("workflow.start");
     expect(names).toContain("source.list_packs");
     expect(names).toContain("source.get_pack");
-    expect(names.some((name) => name.includes("publish"))).toBe(false);
+    expect(names).toContain("authoring.publish_solution_collection");
     expect(names.some((name) => name.includes("both"))).toBe(false);
     expect(tools.find((tool) => tool.name === "authoring.list_imports")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
     expect(tools.find((tool) => tool.name === "source.list_files")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
@@ -376,7 +383,7 @@ describe("provider-neutral authoring MCP workflow registry", () => {
         jsonrpc: "2.0",
         id: 3,
         method: "tools/call",
-        params: { name: "authoring.withdraw_product_bundle", arguments: { importId: "product-import-1" } },
+        params: { name: "authoring.withdraw_product_bundle", arguments: { importId: "product-import-1", bootstrapToken: "scope-check-only", expectedRevision: "a".repeat(64), recovery: "exact_import" } },
       }),
     }));
     const body = await response.json() as { result?: { isError?: boolean; structuredContent?: { error?: string; detail?: string } } };

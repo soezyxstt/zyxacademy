@@ -1,4 +1,5 @@
 import { hydrateSourceFiguresForReader } from "./source-figure-resolver";
+import { hasLegacyPrivateFormativeEnvelope } from "@/lib/materials/legacy-article-public";
 import { articlePartsSchema } from "@/lib/materials/article-parts";
 import { db } from "@/db";
 import {
@@ -370,6 +371,7 @@ export async function getCanonicalPublishedTextProduct(
         )
         .limit(1);
       if (articleRecord && articleRecord.structureStatus !== "structured") {
+        if (hasLegacyPrivateFormativeEnvelope(articleRecord.contentMarkdown)) return null;
         return {
           id: articleRecord.id,
           title: articleRecord.title,

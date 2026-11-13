@@ -29,6 +29,7 @@ import {
 import { stableStringify } from "@/lib/staging/migration-ledger";
 import { PEMAHAMAN_RUBRIC_VERSION } from "@/lib/pemahaman/engine";
 import { createAssessmentWithLegacyProjection } from "@/lib/asesmen/quiz-canonical-sync";
+import { lockTutorAssignmentChanges } from "@/lib/auth/authoring-actor";
 
 type CompatibilityTx = {
   insert: (...args: any[]) => any;
@@ -192,6 +193,7 @@ export async function dualWriteTutorAssignment(
   assignment: LegacyTutorAssignmentMirror,
   actorId?: string | null,
 ): Promise<void> {
+  await lockTutorAssignmentChanges(tx, assignment.tutorId);
   if (!isEnabled()) return;
   await requirePengguna(tx, assignment.tutorId);
   const mataKuliahId = await findCourseTarget(tx, assignment.courseId);
@@ -219,6 +221,7 @@ export async function revokeCanonicalTutorCourseAssignments(
   tutorId: string,
   actorId?: string | null,
 ): Promise<void> {
+  await lockTutorAssignmentChanges(tx, tutorId);
   if (!isEnabled()) return;
   await requirePengguna(tx, tutorId);
   await tx

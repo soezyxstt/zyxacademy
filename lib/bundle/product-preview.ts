@@ -35,6 +35,8 @@ function unwrapText(raw: string): string {
 
 function sectionsOf(product: ProductEntity): ProductPreview["sections"] {
   switch (product.productType) {
+    case "solution_collection":
+      return product.collection.items.map(item => ({ label: item.title, content: JSON.stringify(item, null, 2) }));
     case "article":
       if (product.sections.length > 0) {
         return [...product.sections]

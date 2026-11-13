@@ -24,6 +24,21 @@ const row = {
 };
 
 describe("Plan 012 provider-neutral vector outbox", () => {
+  it("uses the server-resolved canonical course while keeping legacy queue ownership", () => {
+    const payload = canonicalOutboxPayload({ ...row, payload: { ...row.payload, canonicalCourseId: "canonical-mat-i", metadata: { ...row.payload.metadata, courseId: "untrusted-ignored" } } });
+    if (payload.operation !== "upsert") throw new Error("expected upsert");
+    expect(payload.metadata.courseId).toBe("canonical-mat-i");
+    expect(row.courseId).toBe("mat-i");
+    expect(() => canonicalOutboxPayload({ ...row, payload: { ...row.payload, canonicalCourseId: "" } })).toThrow("CANONICAL_COURSE_SCOPE_INVALID");
+  });
+  it("uses the same boundary-whitespace normalization for indexing and hydration", async () => {
+    const { canonicalVectorContent } = await import("@/lib/vectorize/content");
+    const ordinary = canonicalOutboxPayload(row);
+    const spaced = canonicalOutboxPayload({ ...row, payload: { ...row.payload, text: `\n ${row.payload.text}\n\t` } });
+    if (ordinary.operation !== "upsert" || spaced.operation !== "upsert") throw new Error("expected upsert");
+    expect(spaced.metadata.contentHash).toBe(ordinary.metadata.contentHash);
+    expect(spaced.content).toBe(canonicalVectorContent(`\n ${row.payload.text}\n\t`));
+  });
   it("creates a canonical payload without provider-specific fields", () => {
     const payload = canonicalOutboxPayload(row);
     assertProviderNeutralVectorOutbox(payload);

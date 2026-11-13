@@ -7,6 +7,7 @@ import {
   type ProviderNeutralVectorOutbox,
 } from "@/lib/vectorize/contracts";
 import { createHash } from "node:crypto";
+import { canonicalVectorContent } from "./content";
 
 export interface CanonicalOutboxRow {
   id: string;
@@ -90,16 +91,6 @@ function resolveNamespace(rowNamespace: string, payload: Payload, metadata: Payl
   return namespace;
 }
 
-function textValue(value: unknown): string {
-  if (typeof value === "string") return value.trim();
-  if (value === null || value === undefined) return "";
-  try {
-    return JSON.stringify(value).trim();
-  } catch {
-    return "";
-  }
-}
-
 export function canonicalOutboxPayload(row: CanonicalOutboxRow): ProviderNeutralVectorOutbox {
   const payload = objectValue(row.payload);
   const rawMetadata = objectValue(payload.metadata);
@@ -118,8 +109,11 @@ export function canonicalOutboxPayload(row: CanonicalOutboxRow): ProviderNeutral
     throw new Error(`CANONICAL_HOLDOUT_REFERENCE_BLOCKED:${row.id}`);
   }
 
-  const content = textValue(payload.text ?? payload.content ?? payload.canonicalStatement ?? payload.contentMarkdown ?? rawMetadata.content);
+  const content = canonicalVectorContent(payload.text ?? payload.content ?? payload.canonicalStatement ?? payload.contentMarkdown ?? rawMetadata.content);
   if (!content) throw new Error(`canonical outbox ${row.id} has no content`);
+  // Queue ownership and dispatch retain the legacy FK. Canonical publishers
+  // provide the separately resolved retrieval scope, never bundle-supplied metadata.
+  if (payload.canonicalCourseId !== undefined && (typeof payload.canonicalCourseId !== "string" || !payload.canonicalCourseId.trim())) throw new Error(`CANONICAL_COURSE_SCOPE_INVALID:${row.id}`);
   return createProviderNeutralVectorOutboxUpsert({
     entityType,
     entityId,
@@ -130,7 +124,7 @@ export function canonicalOutboxPayload(row: CanonicalOutboxRow): ProviderNeutral
       status: statusValue(rawMetadata.status ?? payload.status),
       accessClass: namespace === "admin_ops_knowledge" ? "admin" : namespace === "published_solutions" ? "restricted_solution" : namespace === "itb_question_references" ? "public" : "enrolled",
       language: String(rawMetadata.language ?? "id"),
-      courseId: row.courseId,
+      courseId: typeof payload.canonicalCourseId === "string" ? payload.canonicalCourseId : row.courseId,
       ...(typeof rawMetadata.chapterId === "string" && rawMetadata.chapterId ? { chapterId: rawMetadata.chapterId } : {}),
       contentHash: createHash("sha256").update(content, "utf8").digest("hex"),
     },

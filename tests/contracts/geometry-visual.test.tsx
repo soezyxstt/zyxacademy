@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { geometry2dVisualSpecSchema, sourceFigureVisualSpecSchema, visualSpecSchema } from "@/lib/materials/visual-contract";
 import { sanitizeVisualSpec } from "@/lib/articles/structured-read-model";
-import { geometryProjection, Geometry2dVisual } from "@/components/course/geometry-2d-visual";
+import { geometryHeight, geometryProjection, Geometry2dVisual } from "@/components/course/geometry-2d-visual";
 import { VISUAL_CAPABILITIES, UNSUPPORTED_VISUAL_CAPABILITIES, visualCapabilityFor } from "@/lib/materials/visual-capabilities";
 import { geometryVisualFixture } from "@/tests/fixtures/product-learning/geometry-visual";
 
@@ -18,6 +18,19 @@ describe("typed 2D geometry", () => {
   expect(p.x(1) - p.x(0)).toBeCloseTo(p.y(0) - p.y(1));
   expect(p.x(0)).toBe(300);
   expect(p.y(0)).toBe(200);
+ });
+ test("uses a compact frame for wide bounds without distorting units or circles", () => {
+  const bounds = { xMin: -5, xMax: 65, yMin: -6, yMax: 6 };
+  const height = geometryHeight(bounds);
+  const p = geometryProjection(bounds, height);
+  expect(height).toBeLessThan(200);
+  expect(height).toBeGreaterThanOrEqual(140);
+  expect(p.x(1) - p.x(0)).toBeCloseTo(p.y(0) - p.y(1));
+  expect(p.x(2) - p.x(0)).toBeCloseTo(p.y(0) - p.y(2));
+  expect(p.x(bounds.xMin)).toBeGreaterThanOrEqual(45);
+  expect(p.y(bounds.yMax)).toBeGreaterThanOrEqual(45 - 1e-10);
+  expect(geometryHeight({ xMin: -4, xMax: 4, yMin: -4, yMax: 4 })).toBe(400);
+  expect(geometryHeight({ xMin: 0, xMax: 1000, yMin: 0, yMax: 1 })).toBe(140);
  });
  test("rejects executable payloads, missing refs, duplicate IDs, unbounded shapes and invalid numeric geometry", () => {
   const base = geometryVisualFixture;

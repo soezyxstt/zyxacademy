@@ -12,6 +12,8 @@ import {
   workedExamplePayloadSchema,
 } from "@/lib/materials/pedagogy-contract";
 import { visualSpecSchema } from "@/lib/materials/visual-contract";
+import { solutionCollectionSchema } from "@/lib/materials/solution-collection";
+import { inspectPayloadSecurity } from "@/lib/materials/visual-contract";
 
 export const productBundleEntityTypeSchema = z.enum(["products", "dependencies"]);
 export type ProductBundleEntityType = z.infer<typeof productBundleEntityTypeSchema>;
@@ -58,7 +60,7 @@ export const productSourceRefSchema = z.object({ sourceId: id, version: positive
 
 const commonProduct = z.object({
   id,
-  productType: z.enum(["article", "diktat", "question", "solution", "flashcard_set", "flashcard", "assessment_blueprint"]),
+  productType: z.enum(["article", "diktat", "question", "solution", "flashcard_set", "flashcard", "assessment_blueprint", "solution_collection"]),
   courseId: id,
   chapterId: id.optional(),
   version: positive,
@@ -127,6 +129,7 @@ export const productEntitySchema = z.discriminatedUnion("productType", [
   commonProduct.extend({ productType: z.literal("flashcard_set"), title: z.string().min(1), cards: z.array(id).min(1) }),
   commonProduct.extend({ productType: z.literal("flashcard"), setId: z.string().min(1).optional(), front: z.string().min(1), back: z.string().min(1), explanation: z.string().optional(), atomic: z.literal(true) }),
   commonProduct.extend({ productType: z.literal("assessment_blueprint"), title: z.string().min(1), assessmentType: z.enum(["quiz", "tryout"]), chapterIds: z.array(id), questionIds: z.array(id).min(1) }),
+  commonProduct.extend({ productType: z.literal("solution_collection"), schemaVersion: z.literal("solution_collection.v1"), chapterId: id, title: z.string().trim().min(1), collection: solutionCollectionSchema }).strict(),
 ]);
 export type ProductEntity = z.infer<typeof productEntitySchema>;
 
@@ -136,7 +139,7 @@ export const productDependencySchema = z.object({
   upstreamEntityId: id,
   upstreamVersion: positive,
   upstreamHash: hash,
-  downstreamEntityType: z.enum(["article", "diktat", "question", "solution", "flashcard_set", "flashcard", "assessment_blueprint"]),
+  downstreamEntityType: z.enum(["article", "diktat", "question", "solution", "flashcard_set", "flashcard", "assessment_blueprint", "solution_collection"]),
   downstreamEntityId: id,
   downstreamVersion: positive,
   downstreamHash: hash,
@@ -144,10 +147,28 @@ export const productDependencySchema = z.object({
 }).strict();
 export type ProductDependency = z.infer<typeof productDependencySchema>;
 
+export function findInvalidProductDependency(dependencies: readonly ProductDependency[], products: readonly ProductEntity[]): { dependency: ProductDependency; code: string } | null {
+  const byRevision = new Map(products.map(product => [`${product.id}:${product.version}`, product]));
+  const localIds = new Set(products.map(product => product.id));
+  for (const dependency of dependencies) {
+    const downstream = byRevision.get(`${dependency.downstreamEntityId}:${dependency.downstreamVersion}`);
+    if (!downstream || downstream.productType !== dependency.downstreamEntityType || downstream.version !== dependency.downstreamVersion || downstream.generationHash !== dependency.downstreamHash) {
+      return { dependency, code: "PRODUCT_DEPENDENCY_TARGET_MISMATCH" };
+    }
+    if (dependency.upstreamEntityType === "product") {
+      const upstream = byRevision.get(`${dependency.upstreamEntityId}:${dependency.upstreamVersion}`);
+      if (localIds.has(dependency.upstreamEntityId) && (!upstream || upstream.generationHash !== dependency.upstreamHash || (downstream.productType === "diktat" && downstream.sourceArticleId === upstream.id && upstream.productType !== "article"))) {
+        return { dependency, code: "PRODUCT_DEPENDENCY_LOCAL_UPSTREAM_MISMATCH" };
+      }
+    }
+  }
+  return null;
+}
+
 export const productBundleManifestSchema = z.object({
   bundleId: id,
   bundleType: z.literal("product"),
-  schemaVersion: z.enum(["product-bundle.v2", "product-bundle.v3", "product-bundle.v4"]),
+  schemaVersion: z.enum(["product-bundle.v2", "product-bundle.v3", "product-bundle.v4", "product-bundle.v5"]),
   courseId: id,
   entityFiles: z.array(z.object({ path: id, entityType: productBundleEntityTypeSchema, checksum: hash, stableIds: z.array(id) }).strict()).length(2),
   creatorId: id,
@@ -220,6 +241,8 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
     };
     const products = readEntities("products", productEntitySchema);
     const dependencies = readEntities("dependencies", productDependencySchema);
+    const isV5 = manifest.schemaVersion === "product-bundle.v5";
+    if (isV5 ? products.length !== 1 || products[0]?.productType !== "solution_collection" : products.some(product => product.productType === "solution_collection") || dependencies.some(dependency => dependency.downstreamEntityType === "solution_collection")) return { success: false, issues: [issue("PRODUCT_V5_PROFILE_MISMATCH", "V5 contains exactly one standalone solution collection; earlier profiles cannot contain it")] };
     if (manifest.schemaVersion === "product-bundle.v4" && (products.filter(product => product.productType === "article").length !== 1 || products.filter(product => product.productType === "diktat").length > 1)) return { success: false, issues: [issue("PRODUCT_V4_SINGLE_ARTICLE_REQUIRED", "V4 bundles contain one chapter Article and at most one traced Diktat")] };
     const productKeys = new Set<string>();
     const bundleSectionIds = new Set<string>();
@@ -244,6 +267,21 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
       if (new Set(product.ideaLinks.map((link) => link.id)).size !== product.ideaLinks.length) return { success: false, issues: [issue("PRODUCT_IDEA_LINK_INVALID", `product ${product.id} has duplicate Idea links`)] };
       const weightSum = product.ideaLinks.reduce((sum, link) => sum + link.weight, 0);
       if (Math.abs(weightSum - 1) > 0.000001) return { success: false, issues: [issue("PRODUCT_IDEA_WEIGHT_SUM_INVALID", `product ${product.id} Idea-link weights must sum to 1`)] };
+      if (product.productType === "solution_collection") {
+        const collection = product.collection;
+        if (collection.id !== product.id || collection.title !== product.title || collection.course.id !== product.courseId || collection.chapter.id !== product.chapterId) return { success: false, issues: [issue("PRODUCT_V5_ENVELOPE_MISMATCH", "Collection identity, title, course and chapter must match the Product envelope")] };
+        if (!collection.items.length) return { success: false, issues: [issue("PRODUCT_V5_ITEMS_REQUIRED", "A collection must contain at least one item")] };
+        if (new Set(product.sourceRefs.map(ref => ref.sourceId)).size !== product.sourceRefs.length) return { success: false, issues: [issue("PRODUCT_V5_SOURCE_DUPLICATE", "Source references must be unique")] };
+        if (collection.items.some(item => item.visuals.some(visual => visual.kind === "source_figure"))) return { success: false, issues: [issue("PRODUCT_V5_SOURCE_FIGURE_UNSUPPORTED", "Source figures require a dedicated authorized delivery path")] };
+        if (!inspectPayloadSecurity(collection).safe || /data:|!\[[^\]]*\]\(https?:|<script|<iframe/i.test(JSON.stringify(collection))) return { success: false, issues: [issue("PRODUCT_V5_CONTENT_UNSAFE", "Collection contains unsupported executable or external media content")] };
+        const { generationHash: _generationHash, ...content } = product;
+        const actualHash = createHash("sha256").update(deterministicProductSerialization(content), "utf8").digest("hex");
+        if (actualHash !== product.generationHash) return { success: false, issues: [issue("PRODUCT_V5_GENERATION_HASH_MISMATCH", "Collection generation hash does not match its envelope and content")] };
+        const edges = dependencies.filter(dep => dep.downstreamEntityType === product.productType && dep.downstreamEntityId === product.id && dep.downstreamVersion === product.version && dep.downstreamHash === product.generationHash);
+        if (edges.length !== dependencies.length || edges.some(dep => !(dep.upstreamEntityType === "idea" && product.ideaLinks.some(link => link.id === dep.upstreamEntityId && link.version === dep.upstreamVersion && link.semanticHash === dep.upstreamHash)) && !(dep.upstreamEntityType === "source_material" && product.sourceRefs.some(ref => ref.sourceId === dep.upstreamEntityId && ref.version === dep.upstreamVersion && ref.checksum === dep.upstreamHash)))) return { success: false, issues: [issue("PRODUCT_V5_DEPENDENCY_INVALID", "Every dependency must target this exact collection revision and a declared Idea or source")] };
+        const matches = (type: string, entityId: string, version: number, entityHash: string) => edges.some(dep => dep.upstreamEntityType === type && dep.upstreamEntityId === entityId && dep.upstreamVersion === version && dep.upstreamHash === entityHash);
+        if (product.ideaLinks.some(link => !matches("idea", link.id, link.version, link.semanticHash)) || product.sourceRefs.some(ref => !matches("source_material", ref.sourceId, ref.version, ref.checksum))) return { success: false, issues: [issue("PRODUCT_V5_DEPENDENCY_MISSING", "Every linked Idea and source must have a locked dependency")] };
+      }
       if (product.productType === "article") {
         const isV4 = manifest.schemaVersion === "product-bundle.v4";
         if (!isV4 && product.visuals?.some(visual => visual.kind === "geometry_2d" || visual.kind === "source_figure")) return { success: false, issues: [issue("PRODUCT_VISUAL_REQUIRES_V4", "Geometry and source figures require an explicit V4 bundle")] };
@@ -496,6 +534,8 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
       const serialized = deterministicProductSerialization(product);
       if (/HOLDOUT_CANARY|authoringVisibility\s*[:=]\s*["']holdout|questionSnapshot|answerSnapshot/i.test(serialized)) return { success: false, issues: [issue("PRODUCT_HOLDOUT_LEAK", `product ${product.id} contains holdout content`)] };
     }
+    const invalidDependency = findInvalidProductDependency(dependencies, products);
+    if (invalidDependency) return { success: false, issues: [issue(invalidDependency.code, `dependency ${invalidDependency.dependency.id} does not match its bundled product revision`, declared.get("dependencies")?.path)] };
     for (const product of products) {
       if (product.productType !== "diktat") continue;
       const sourceArticle = products.find((candidate) => candidate.productType === "article" && candidate.id === product.sourceArticleId && candidate.version === product.sourceArticleVersion);

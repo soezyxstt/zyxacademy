@@ -1,3 +1,4 @@
+import { listPublishedSolutionCollections } from "@/lib/solutions/repository";
 import { StudentDocumentsView } from "@/components/course/student-documents-view";
 import { Suspense } from "react";
 import type { Metadata } from "next";
@@ -106,6 +107,7 @@ async function loadCourseMaterialData({
     courseQuizzes,
     courseTryouts,
     completedQuizIds,
+    solutionCollections,
   ] = await Promise.all([
     getStudentCourseAccess(studentId, id),
     progressPromise,
@@ -151,6 +153,7 @@ async function loadCourseMaterialData({
       .from(exams)
       .where(and(eq(exams.courseId, compatibilityCourseId), eq(exams.type, "tryout"), eq(exams.status, "published"))),
     attemptsPromise,
+    listPublishedSolutionCollections({ courseId: id, userId: studentId }),
   ]);
 
   const isFreeAccess = studentAccess?.tier === "free";
@@ -311,7 +314,23 @@ async function loadCourseMaterialData({
     return { id: t.id, courseId: id, title: t.title, kind: "tryout" as const, docCategory: "soal" as const, tabGroup: "bank_soal" as const, subcategory: "tryout", fileSize: `${duration} Menit \u00b7 Tryout Ujian`, completed: false, isPastYear: false, isPreview: false, chapterIds: [], href: `/courses/${id}/tryout/${t.id}` };
   });
 
-  const allMaterials = [...mappedCanonical, ...mappedCanonicalDiktats, ...mappedDiktats, ...mappedDb, ...mappedWeb, ...mappedManual, ...mappedQuizzes, ...mappedTryouts];
+  const mappedSolutions = solutionCollections.map((collection) => ({
+    id: collection.id,
+    courseId: id,
+    title: collection.title,
+    kind: "solution_collection" as const,
+    docCategory: "solusi" as const,
+    tabGroup: "bank_soal" as const,
+    source: "canonical-solution-collection",
+    completed: false,
+    isPastYear: false,
+    isPreview: false,
+    chapterId: collection.chapterId,
+    chapterIds: [collection.chapterId, collection.legacyChapterId].filter((chapterId): chapterId is string => Boolean(chapterId)),
+    href: `/courses/${encodeURIComponent(id)}/solutions/${encodeURIComponent(collection.id)}`,
+  }));
+
+  const allMaterials = [...mappedSolutions, ...mappedCanonical, ...mappedCanonicalDiktats, ...mappedDiktats, ...mappedDb, ...mappedWeb, ...mappedManual, ...mappedQuizzes, ...mappedTryouts];
   const isEnrolled = studentAccess?.tier === "standard";
   const materialsWithLockState = allMaterials.map((material) => {
     const materialChapterIds = [

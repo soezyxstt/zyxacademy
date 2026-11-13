@@ -174,7 +174,7 @@ async function main(): Promise<void> {
     assertStagingEnvironment({ productionEnv: parseEnvFile(join(process.cwd(), ".env.prod")), requiredResources: ["database", "authUrl"] });
     process.env.FEATURE_IDEA_BUNDLE_V2 = "1";
     process.env.STAGING_BUNDLE_WRANGLER_STORAGE = "1";
-    const [{ publishIdeaBundle, reconcilePublishedIdeaBundle }, { reviewIdeaBundle, stageIdeaBundle }] = await Promise.all([
+    const [{ publishIdeaBundle, reconcilePublishedIdeaBundle }, { reviewIdeaBundle, upsertIdeaItemReview, stageIdeaBundle }] = await Promise.all([
       import("@/lib/bundle/publication"),
       import("@/lib/bundle/staging"),
     ]);
@@ -222,11 +222,15 @@ async function main(): Promise<void> {
     }
     if (conflictCode !== "IDEA_BUNDLE_CONFLICT") throw new Error(`STAGING_CONFLICT_EXPECTATION_FAILED:${conflictCode}`);
 
-    const review = await reviewIdeaBundle({ importId: staged.importId, reviewerId: admin.id, decision: "approved", notes: "Plan 006 staging fixture" });
+    const expectedRevision = input.checksum;
+    for (const idea of validValidation.data.entities.ideas) {
+      await upsertIdeaItemReview({ importId: staged.importId, reviewerId: admin.id, expectedRevision, ideaId: idea.id, status: "approved", notes: "Explicit staging fixture decision" });
+    }
+    const review = await reviewIdeaBundle({ importId: staged.importId, reviewerId: admin.id, expectedRevision, decision: "approved", notes: "Plan 006 staging fixture" });
     process.env.STAGING_BUNDLE_FAILURE_TEST = "1";
     let failureCode = "NONE";
     try {
-      await publishIdeaBundle({ importId: staged.importId, publishedBy: admin.id, testFailureAfter: "ideas" });
+      await publishIdeaBundle({ importId: staged.importId, publishedBy: admin.id, expectedRevision, testFailureAfter: "ideas" });
     } catch (error) {
       failureCode = error instanceof Error ? error.message.split(":", 1)[0] : "UNKNOWN";
     } finally {
@@ -240,7 +244,7 @@ async function main(): Promise<void> {
     const failedSources = await db.select({ id: sumberMateri.id }).from(sumberMateri).where(inArray(sumberMateri.id, bundleSourceIds));
     if (failedImport?.status !== "approved" || failedIdeas.length !== 0 || failedSources.length !== 0) throw new Error("STAGING_PARTIAL_PUBLICATION_ROLLBACK_FAILED");
 
-    const published = await publishIdeaBundle({ importId: staged.importId, publishedBy: admin.id });
+    const published = await publishIdeaBundle({ importId: staged.importId, publishedBy: admin.id, expectedRevision });
     const reconcile = await reconcilePublishedIdeaBundle(staged.importId);
     if (!published.published || reconcile.publicationStatus !== "published" || reconcile.publishedItems !== afterFirstItems.length) {
       throw new Error("STAGING_VALID_PUBLICATION_EXPECTATION_FAILED");

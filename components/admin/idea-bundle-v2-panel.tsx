@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "@/lib/i18n/client";
-import { Check, FileCheck2, Layers, Upload, X } from "lucide-react";
+import { Layers, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchBar } from "@/components/ui/search-bar";
@@ -220,44 +221,6 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
     }
   }
 
-  async function decide(id: string, decision: "approved" | "rejected") {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/admin/bundles/idea/${id}/review`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ decision }),
-      });
-      const payload = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(payload.error || "IDEA_BUNDLE_REVIEW_FAILED");
-      setMessage(decision === "approved" ? "Artifact ditandai sudah direview." : "Artifact ditolak.");
-      await refresh();
-      setSelected((current) => current?.id === id ? { ...current, status: decision } : current);
-    } catch (reviewError) {
-      setError(explainBundleError(reviewError instanceof Error ? reviewError.message : "IDEA_BUNDLE_REVIEW_FAILED", t));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function publish(id: string) {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/admin/bundles/idea/${id}/publish`, { method: "POST" });
-      const payload = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(payload.error || "IDEA_BUNDLE_PUBLISH_FAILED");
-      setMessage("Artifact dipublikasikan.");
-      await refresh();
-      setSelected((current) => current?.id === id ? { ...current, status: "published" } : current);
-    } catch (publishError) {
-      setError(explainBundleError(publishError instanceof Error ? publishError.message : "IDEA_BUNDLE_PUBLISH_FAILED", t));
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
     <div className={embedded ? "space-y-6" : "space-y-8"}>
       {!embedded && <AdminPageHeader icon={Layers} title="Source Pack + Idea" />}
@@ -344,7 +307,10 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
           {activePreviewIdea && <article className="min-w-0 space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5"><div className="border-b border-border pb-4"><p className="font-heading text-body-base text-foreground">{activePreviewIdea.code}</p><p className="mt-1 text-body-sm text-muted-foreground">{humanLabel(activePreviewIdea.knowledgeKind, knowledgeLabels)} · {humanLabel(activePreviewIdea.instructionalRole, roleLabels)} · Bab {activePreviewIdea.chapterId}</p></div><MathText as="div" className="text-body-base text-foreground">{activePreviewIdea.canonicalStatement}</MathText><p className="text-body-sm text-muted-foreground">{activePreviewIdea.conciseExplanation}</p>{activePreviewIdea.latex && <div className="rounded-lg bg-muted p-3"><MathText bareMath as="div">{activePreviewIdea.latex}</MathText></div>}<div className="space-y-2 border-t border-border pt-4"><p className="text-body-sm font-semibold text-foreground">Bukti sumber</p>{activePreviewIdea.provenance.map((item) => <div key={item.id} className="border-l-2 border-border pl-3 text-body-sm"><p className="font-medium text-foreground">{item.sourceTitle} · {item.role}</p><p className="text-muted-foreground">{item.excerpt}</p></div>)}</div></article>}
         </div>
         {selected.preview.relations.length > 0 && <details className="rounded-xl border border-border bg-card p-4 shadow-sm"><summary className="cursor-pointer text-body-sm font-semibold text-foreground">Lihat {selected.preview.relations.length} relasi Idea</summary><div className="mt-3 divide-y divide-border">{selected.preview.relations.map((relation) => <p key={relation.id} className="py-2 text-body-sm text-muted-foreground">{relation.sourceIdeaId} · {humanLabel(relation.relationType, relationLabels)} · {relation.targetIdeaId}{relation.explanation ? ` · ${relation.explanation}` : ""}</p>)}</div></details>}
-        <div className="flex flex-wrap gap-2 border-t border-border pt-4">{selected.status === "validated" && <><Button type="button" size="sm" variant="outline" disabled={loading} onClick={() => void decide(selected.id, "approved")}><Check className="size-4" />Tandai sudah direview</Button><Button type="button" size="sm" variant="destructive" disabled={loading} onClick={() => void decide(selected.id, "rejected")}><X className="size-4" />Tolak artifact</Button></>}{selected.status === "approved" && <Button type="button" size="sm" disabled={loading} onClick={() => void publish(selected.id)}><FileCheck2 className="size-4" />Publikasikan</Button>}</div>
+        <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+          <p className="text-body-xs text-muted-foreground">Review setiap Idea sebelum menyetujui atau menerbitkan.</p>
+          <Button asChild size="sm"><Link href={`/admin/materials/review/idea/${encodeURIComponent(selected.id)}`}>Buka review Idea</Link></Button>
+        </div>
       </section>}
     </div>
   );

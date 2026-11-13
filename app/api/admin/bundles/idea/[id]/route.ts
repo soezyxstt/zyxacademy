@@ -1,9 +1,10 @@
+import { hasAuthoringActor } from "@/lib/auth/authoring-actor";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { previewIdeaBundle } from "@/lib/bundle/idea-preview";
-import { discardIdeaBundleDraft, getIdeaBundleImport, listIdeaItemReviews, parseStagedIdeaBundle } from "@/lib/bundle/staging";
+import { discardIdeaBundleDraft, getIdeaBundleImport, hasIdeaRevisionReviewEvidence, getIdeaReviewResetState, listIdeaItemReviews, parseStagedIdeaBundle } from "@/lib/bundle/staging";
 import { createIdeaBundleDraft, finalizeIdeaBundleDraft, type IdeaBundleDraft } from "@/lib/bundle/idea-draft";
 import { serializeDeterministically } from "@/lib/bundle/idea-bundle-v2";
 import { sha256Text } from "@/lib/bundle/validator";
@@ -14,13 +15,17 @@ export const runtime = "nodejs";
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user || session.user.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await hasAuthoringActor(session.user.id, ["admin"]))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await context.params;
   try {
     const bundle = await getIdeaBundleImport(id);
     if (!bundle) return NextResponse.json({ error: "IDEA_BUNDLE_NOT_FOUND" }, { status: 404 });
     const parsed = await parseStagedIdeaBundle(id);
     const itemReviews = await listIdeaItemReviews(id, session.user.id);
+    const reviewReset = await getIdeaReviewResetState(id, bundle.checksum);
+    const currentReview = bundle.reviews.find(review => review.reviewerId === session.user.id);
+    const revisionBound = currentReview ? await hasIdeaRevisionReviewEvidence({ importId: id, reviewerId: session.user.id, expectedRevision: bundle.checksum }) : false;
     return NextResponse.json({
       bundle: {
         id: bundle.id,
@@ -31,12 +36,14 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         validationReport: bundle.validationReport,
         createdAt: bundle.createdAt,
         updatedAt: bundle.updatedAt,
-        reviews: bundle.reviews,
+        reviews: bundle.reviews.map(review => ({ id: review.id, reviewerId: review.reviewerId, status: review.status, reviewedAt: review.reviewedAt, notes: review.reviewerId === session.user.id ? review.notes : null })),
+        currentReview: currentReview ? { ...currentReview, revisionBound } : null,
       },
       manifest: parsed.manifest,
       preview: previewIdeaBundle(parsed),
       draft: createIdeaBundleDraft(parsed),
       itemReviews,
+      reviewReset,
       structuredReaderEnabled: isStructuredArticleReaderEnabled(),
     });
   } catch (error) {
@@ -47,10 +54,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user || session.user.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await hasAuthoringActor(session.user.id, ["admin"]))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await context.params;
   try {
-    const body = await request.json() as { draft?: IdeaBundleDraft; expectedRevision?: string };
+    const body = await request.json() as { draft?: IdeaBundleDraft; expectedRevision?: string; reviewResetFingerprint?: string };
     if (!body.draft) return NextResponse.json({ error: "IDEA_BUNDLE_DRAFT_REQUIRED" }, { status: 400 });
     const stored = await getIdeaBundleImport(id);
     if (!stored) return NextResponse.json({ error: "IDEA_BUNDLE_NOT_FOUND" }, { status: 404 });
@@ -69,6 +77,8 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     const result = await stageIdeaBundle({
       runId: request.headers.get("x-correlation-id") ?? `admin-edit-${Date.now()}`,
       replaceImportId: id,
+      expectedPreviousChecksum: body.expectedRevision,
+      reviewResetFingerprint: body.reviewResetFingerprint,
       bundleId: bundle.manifest.bundleId,
       courseId: bundle.manifest.courseId,
       schemaVersion: Number(bundle.manifest.schemaVersion.match(/\.v(\d+)$/)?.[1] ?? 2),
@@ -90,16 +100,20 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     return NextResponse.json({ result });
   } catch (error) {
     const code = error instanceof Error ? error.message.split(":", 1)[0] : "IDEA_BUNDLE_UPDATE_FAILED";
-    const status = code === "IDEA_BUNDLE_NOT_FOUND" ? 404 : 422;
-    return NextResponse.json({ error: code }, { status });
+    const status = code.endsWith("FORBIDDEN") ? 403 : code === "IDEA_BUNDLE_NOT_FOUND" ? 404 : ["IDEA_BUNDLE_STALE_CONTEXT", "IDEA_BUNDLE_REVIEW_RESET_REQUIRED", "IDEA_BUNDLE_REVIEW_RESET_STALE"].includes(code) ? 409 : 422;
+    const recovery = ["IDEA_BUNDLE_REVIEW_RESET_REQUIRED", "IDEA_BUNDLE_REVIEW_RESET_STALE"].includes(code) ? "Reload the review summary and confirm resetting all saved reviews before saving again." : undefined;
+    return NextResponse.json({ error: code, ...(recovery ? { recovery } : {}) }, { status });
   }
 }
 
-export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { user } = await assertAdmin();
+    if (!(await hasAuthoringActor(user.id, ["admin"]))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     const { id } = await context.params;
-    return NextResponse.json({ result: await discardIdeaBundleDraft({ importId: id, actorId: user.id }) });
+    const body = await request.json().catch(() => null) as { expectedRevision?: unknown } | null;
+    if (typeof body?.expectedRevision !== "string" || !/^[a-f0-9]{64}$/.test(body.expectedRevision)) return NextResponse.json({ error: "IDEA_BUNDLE_REVISION_REQUIRED" }, { status: 400 });
+    return NextResponse.json({ result: await discardIdeaBundleDraft({ importId: id, actorId: user.id, expectedRevision: body.expectedRevision }) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "IDEA_BUNDLE_DISCARD_FAILED";
     const code = message === "Unauthorized" ? "Unauthorized" : message.startsWith("Forbidden") ? "Forbidden" : message.split(":", 1)[0];

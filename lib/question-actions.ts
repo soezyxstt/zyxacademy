@@ -1,7 +1,9 @@
 import { db } from "@/db";
-import { aiQuestionBank } from "@/db/schema";
+import { aiQuestionBank, soal } from "@/db/schema";
 import { validateQuestion } from "@/lib/question-validator";
 import { eq } from "drizzle-orm";
+import { transitionQuestionReviewTx } from "@/lib/question-review-lifecycle";
+import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 
 /**
  * Saves manual modifications to a question from a tutor.
@@ -44,7 +46,11 @@ export async function saveTutorQuestionEdit(
   }
 
   // Update in DB inside a transaction
-  await db.transaction(async tx => {
+  const transition = await db.transaction(async tx => {
+    const [canonical] = await tx.select({ id: soal.id }).from(soal).where(eq(soal.id, questionId)).limit(1).for("update");
+    if (canonical) return { canonicalEditRequired: true as const };
+    const result = await transitionQuestionReviewTx(tx, { id: questionId, reviewStatus: "reviewed", actorId: tutorUserId });
+    if (!result) return null;
     await tx
       .update(aiQuestionBank)
       .set({
@@ -56,7 +62,11 @@ export async function saveTutorQuestionEdit(
         qualityScore: 1.0, // Resets to perfect verification score
       })
       .where(eq(aiQuestionBank.id, questionId));
+    return result;
   });
+  if (!transition) return { success: false, errors: [`Question not found: ${questionId}`] };
+  if ("canonicalEditRequired" in transition) return { success: false, errors: ["Gunakan editor soal utama atau tool assessment.update_question agar perubahan dan revisi tetap selaras."] };
+  await dispatchVectorSync(transition.courseId);
 
   console.log(`[Tutor Action] Question ${questionId} edited by Tutor ${tutorUserId} and locked.`);
   return { success: true };
@@ -97,12 +107,9 @@ export async function approveAndPublishQuestion(
     };
   }
 
-  await db
-    .update(aiQuestionBank)
-    .set({
-      reviewStatus: "published",
-    })
-    .where(eq(aiQuestionBank.id, questionId));
+  const result = await db.transaction((tx) => transitionQuestionReviewTx(tx, { id: questionId, reviewStatus: "published" }));
+  if (!result) return { success: false, errors: [`Question not found: ${questionId}`] };
+  await dispatchVectorSync(result.courseId);
 
   console.log(`[Tutor Action] Question ${questionId} published and made active.`);
   return { success: true };
@@ -128,12 +135,9 @@ export async function retireQuestion(
     return { success: false, errors: ["Historical and legacy reference questions are immutable."] };
   }
 
-  await db
-    .update(aiQuestionBank)
-    .set({
-      reviewStatus: "retired",
-    })
-    .where(eq(aiQuestionBank.id, questionId));
+  const result = await db.transaction((tx) => transitionQuestionReviewTx(tx, { id: questionId, reviewStatus: "retired" }));
+  if (!result) return { success: false, errors: [`Question not found: ${questionId}`] };
+  await dispatchVectorSync(result.courseId);
 
   console.log(`[Tutor Action] Question ${questionId} retired.`);
   return { success: true };

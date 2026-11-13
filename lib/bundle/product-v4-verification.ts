@@ -41,6 +41,10 @@ export interface ProductV4VerificationPlan {
   planHash: string;
 }
 
+export function productV4VerificationRequirementId(check: Omit<ProductV4VerificationRequirement, "id">): string {
+  return digest(check);
+}
+
 export function computeProductV4VerificationContentHash(bundle: {
   manifest: ProductBundleManifest; products: readonly ProductEntity[]; dependencies: readonly ProductDependency[];
 }): string {
@@ -59,7 +63,7 @@ export function deriveProductV4VerificationPlan(input: {
   const requirements: ProductV4VerificationRequirement[] = [];
   const add = (target: string, layer: ProductV4VerificationRequirement["layer"], state: string, viewport: ProductV4VerificationRequirement["viewport"], artifactType: ProductV4VerificationRequirement["artifactType"]) => {
     const check = { target, layer, state, viewport, artifactType };
-    requirements.push({ id: digest(check), ...check });
+    requirements.push({ id: productV4VerificationRequirementId(check), ...check });
   };
   add(bundle.manifest.bundleId, "structure", "contract-and-dependency-closure", null, "application/json");
   for (const product of bundle.products) {
@@ -117,6 +121,14 @@ export interface ProductV4VerificationAuthority { signingKey: string; executorId
 function sign(body: unknown, authority: ProductV4VerificationAuthority): string {
   if (Buffer.byteLength(authority.signingKey) < 32) throw new Error("PRODUCT_V4_VERIFICATION_KEY_INVALID");
   return createHmac("sha256", authority.signingKey).update("zyx-product-v4-verification\n").update(deterministicProductSerialization(body)).digest("hex");
+}
+
+/** Historical byte proof only; this does not establish current plan readiness. */
+export function authenticProductV4VerificationReceipt(value: unknown, authority: ProductV4VerificationAuthority): ProductV4VerificationReceipt | null {
+  const parsed = receiptSchema.safeParse(value);
+  if (!parsed.success || parsed.data.executorId !== authority.executorId || parsed.data.origin !== "server_observed") return null;
+  const { signature, ...body } = parsed.data;
+  return timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(sign(body, authority), "hex")) ? parsed.data : null;
 }
 
 function issue(plan: ProductV4VerificationPlan, checks: readonly (ProductV4ObservedCheck | ProductV4VerificationResult)[], origin: ProductV4VerificationReceipt["origin"], authority: ProductV4VerificationAuthority): ProductV4VerificationReceipt {

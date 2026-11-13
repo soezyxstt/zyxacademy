@@ -2,6 +2,10 @@
 export type BundleErrorTranslator = (key: string) => string;
 
 const explanations: Record<string, string> = {
+  "IDEA_BUNDLE_ENTITY_RETIRED": "Entitas yang dirujuk sudah ditarik. Gunakan versi aktif lalu validasi ulang bundle.",
+  "IDEA_BUNDLE_STALE_CONTEXT": "Revisi bundle telah berubah. Muat ulang sebelum menyimpan keputusan atau menghapus draf.",
+  "IDEA_BUNDLE_REVISION_REQUIRED": "Muat ulang bundle untuk mendapatkan revisi sebelum menghapus draf.",
+  "PRODUCT_BUNDLE_REVISION_REQUIRED": "Muat ulang bundle untuk mendapatkan revisi sebelum menghapus draf.",
   "PRODUCT_V4_REVIEW_CONTEXT_STALE": "Revisi atau kebijakan review berubah. Muat ulang lalu periksa bagian yang berubah.",
   "PRODUCT_V4_REVIEW_SECTION_STALE": "Isi bagian berubah setelah diperiksa. Muat ulang dan tinjau bagian tersebut.",
   "PRODUCT_V4_REVIEW_ALL_SECTIONS_REQUIRED": "Setujui setiap bagian secara terpisah sebelum menyetujui bundle.",
@@ -50,6 +54,15 @@ const explanations: Record<string, string> = {
   "PRODUCT_BLOCK_REVIEW_BLOCK_NOT_FOUND": "Blok Artikel yang direview tidak ditemukan.",
   "PRODUCT_BLOCK_REVIEW_UPDATE_FAILED": "Review blok belum dapat disimpan. Coba lagi.",
   "PRODUCT_BUNDLE_REVIEWER_NOT_FOUND": "Akun reviewer tidak ditemukan.",
+  "PRODUCT_BUNDLE_PUBLISH_FORBIDDEN": "Anda tidak memiliki akses untuk menerbitkan bundle ini.",
+  "PRODUCT_BUNDLE_WITHDRAW_FORBIDDEN": "Anda tidak memiliki akses untuk menarik bundle ini.",
+  "PRODUCT_BUNDLE_DISCARD_FORBIDDEN": "Anda tidak memiliki akses untuk menghapus draf ini.",
+  "PRODUCT_BUNDLE_STAGE_FORBIDDEN": "Anda tidak memiliki akses untuk menyimpan bundle ini.",
+  "IDEA_BUNDLE_PUBLISH_FORBIDDEN": "Anda tidak memiliki akses untuk menerbitkan bundle ini.",
+  "IDEA_BUNDLE_REVIEW_FORBIDDEN": "Anda tidak memiliki akses untuk mereview bundle ini.",
+  "IDEA_BUNDLE_WITHDRAW_FORBIDDEN": "Anda tidak memiliki akses untuk menarik bundle ini.",
+  "IDEA_BUNDLE_DISCARD_FORBIDDEN": "Anda tidak memiliki akses untuk menghapus draf ini.",
+  "IDEA_BUNDLE_STAGE_FORBIDDEN": "Anda tidak memiliki akses untuk menyimpan bundle ini.",
   "PRODUCT_BUNDLE_REVIEW_FORBIDDEN": "Anda tidak memiliki akses untuk mereview bundle ini.",
   "PRODUCT_BUNDLE_REVIEW_COURSE_FORBIDDEN": "Anda tidak memiliki akses ke mata kuliah bundle ini.",
   "IDEA_BUNDLE_VALIDATION_FAILED": "Validasi Idea Bundle belum terpenuhi. Periksa struktur dan bukti sumber.",

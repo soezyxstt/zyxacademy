@@ -60,6 +60,24 @@ Keep quota and learner responses authoritative, check database write health and 
 
 Disable the affected tutor or admin copilot flag, reject pending proposals, and verify that the existing mutation boundary remains fail-closed. Do not apply a proposal while preconditions or audit linkage are uncertain.
 
+## Canonical publication vector recovery
+
+For bundle-managed Ideas, source chunks, Articles, questions and solutions, inspect the exact environment and canonical entity status before any authorized replay. A queue action is historical intent, not authority to republish content. The worker rereads canonical state before embedding and again while holding publication locks for the provider write. An old upsert for withdrawn content becomes a delete; an old delete for an active shared entity is skipped. Completion records the actual operation and indexed content hash.
+
+Dispatch and cron process up to 250 rows per invocation in five independently checkpointed batches, then schedule a durable continuation when eligible work remains. A malformed payload is retained with `VECTOR_SYNC_INVALID_PAYLOAD` and attempts 10, outside automatic retry. Inspect and repair that exact row only with authorization; do not reset unrelated rows or reuse an unvalidated body. Valid rows sharing its batch continue without consuming retries for its error.
+
+Each new Idea or Product import creates its own deterministic outbox IDs and reports the inserted count. A later shared publication does not reuse an exhausted job from another import. Repeating publication of the same import remains idempotent.
+
+Managed jobs require explicit, consistent entity ID and version fields. A missing ID must not be repaired by guessing from the queue ID. After an exhausted provider batch step, the worker splits by vector identity before consuming row attempts. Equal identities stay together; every child rechecks canonical state and its own lease. Independent upserts and deletes complete even when another identity is rejected. Isolation has at most 99 groups for a 50-identity batch; partial provider effects may be repeated idempotently. Remaining failures receive a checkpointed 30-second backoff and retry dispatch. Failed owned rows stop retrying at ten attempts; subsequent pending batches still continue. When processing leases are the only remaining work, a durable wakeup at the earliest expiry recovers abandoned leases without waiting for cron.
+
+Current authoring acceptance covers canonical Idea V3 and learning Product V4/V5. Review and publication can run through scoped MCP tools without opening the Admin website. Legacy compatibility and legacy indexing are retired from this acceptance scope.
+
+Rows in `learning`, `practice`, `past_exams`, `idea` and `product` are quarantined with `VECTOR_SYNC_LEGACY_NAMESPACE_RETIRED` and attempts 10. The worker performs no embedding, upsert or deletion for these rows. Do not replay them into canonical namespaces or infer ownership from a KO foreign key. There is no legacy KO or assessment-object retrieval fallback. Existing legacy rows and remote vectors have not been deleted; cleanup requires explicit authorization for the exact environment and target.
+
+Canonical question mutations queue current question and solution identities transactionally and dispatch after commit. Retired questions and superseded manual solutions queue deletion of their exact versions. Allowed canonical reference snapshots and the separate Admin Ops Knowledge pipeline remain subject to their existing access boundaries.
+
+Embedding runs outside database locks. The provider write and queue finalization hold canonical advisory locks and row locks through commit, so provider latency can delay publication or withdrawal. The lock order is Product identities, Idea identities, compatibility identities, canonical parents and children, then queue leases. A lost provider response is ambiguous; preserve the queue record and retry reconciliation against current canonical state. Do not mark it completed manually or replay its saved payload directly. A changed embedding identity fails the lease for retry rather than writing a stale embedding. Local mock and PGlite checks do not establish live provider ordering or two-session PostgreSQL contention. The managed-row SDK regression exercises real SDK step execution and checkpoint replay, with a simulated coordinator, immediate sleep acknowledgement and local event/provider transports. It does not establish hosted Inngest delivery or timing.
+
 ## Admin Ops Knowledge index synchronization
 
 1. Scope and Namespace:
