@@ -477,6 +477,7 @@ describe("CP2 Publication Integration Contract", () => {
     reviewerId?: string;
     pedagogicReviewerId?: string;
     pdfStatus?: "ready" | "stale" | "pending" | "failed";
+    preservePdfEvidence?: boolean;
   }) {
     const reviewerId = params.reviewerId ?? "user-admin-1";
     const pedagogicReviewerId = params.pedagogicReviewerId ?? reviewerId;
@@ -536,6 +537,7 @@ describe("CP2 Publication Integration Contract", () => {
     });
 
     // 4. PDF evidence
+    if (params.preservePdfEvidence) return;
     const pdfProductId = params.diktat ? params.diktat.id : params.article.id;
     await testDb.insert(schema.buktiPdfBundle).values({
       id: `pdf-${params.importId}-${pdfProductId}`,
@@ -543,7 +545,7 @@ describe("CP2 Publication Integration Contract", () => {
       productId: pdfProductId,
       articleVersion: params.article.version,
       articleHash: params.article.generationHash,
-      diktatHash: params.diktat ? params.diktat.generationHash : "0".repeat(64),
+      diktatHash: params.diktat ? params.diktat.generationHash : params.article.generationHash,
       rendererVersion: "zyx-pdf-v1",
       printProfile: "a4_standard",
       status: pdfStatus,
@@ -908,6 +910,7 @@ describe("CP2 Publication Integration Contract", () => {
       bundleId,
       courseId: "course-cp2",
       checksum: fixture2.checksum,
+      expectedPreviousChecksum: staged1.checksum,
       bytes: fixture2.bytes,
       requestedBy: "user-admin-1",
       bundle: fixture2.validation,
@@ -1248,6 +1251,7 @@ describe("CP2 Publication Integration Contract", () => {
       bundleId,
       courseId: "course-cp2",
       checksum: fixture2.checksum,
+      expectedPreviousChecksum: staged1.checksum,
       bytes: fixture2.bytes,
       requestedBy: "user-admin-1",
       bundle: fixture2.validation,
@@ -1267,15 +1271,12 @@ describe("CP2 Publication Integration Contract", () => {
     expect(diktatPdfEvidence).toBeDefined();
     expect(diktatPdfEvidence.status).toBe("stale");
 
-    // Re-seed overall bundle review approved by publisherId (since draft replacement clears reviewBundle)
-    await testDb.insert(schema.reviewBundle).values({
-      id: `review-${staged1.importId}-revised`,
-      imporBundleId: staged1.importId,
-      reviewerId: "user-admin-1",
-      status: "approved",
-      notes: "Overall bundle approval for revised diktat",
-      createdAt: new Date(),
-    });
+    // A content revision requires fresh semantic approval; retain the actual
+    // stale PDF row to prove that current review cannot bypass its gate.
+    await testDb.delete(schema.reviewBundle).where(eq(schema.reviewBundle.imporBundleId, staged1.importId));
+    await testDb.delete(schema.reviewItemBundle).where(eq(schema.reviewItemBundle.imporBundleId, staged1.importId));
+    await testDb.delete(schema.reviewPedagogiBundle).where(eq(schema.reviewPedagogiBundle.imporBundleId, staged1.importId));
+    await seedApprovalRecords({ importId: staged1.importId, article: article2, diktat: diktat2, preservePdfEvidence: true });
 
     // Attempt publication: MUST be blocked because PDF evidence is stale
     let pubError: any = null;
@@ -1505,7 +1506,9 @@ describe("CP2 Publication Integration Contract", () => {
   async function stageV2Products(products: ProductEntity[], bundleId: string) {
     const fixture = buildBundleZip(products, [], bundleId, "product-bundle.v2");
     const staged = await stageProductBundle({ runId: `run-${bundleId}`, bundleId, courseId: "course-cp2", checksum: fixture.checksum, bytes: fixture.bytes, requestedBy: "user-admin-1", bundle: fixture.validation });
-    await testDb.insert(schema.reviewBundle).values({ id: `approval-${bundleId}`, imporBundleId: staged.importId, reviewerId: "user-admin-1", status: "approved" });
+    const article = products.find((product): product is Extract<ProductEntity, { productType: "article" }> => product.productType === "article");
+    if (article) await seedApprovalRecords({ importId: staged.importId, article });
+    else await testDb.insert(schema.reviewBundle).values({ id: `approval-${bundleId}`, imporBundleId: staged.importId, reviewerId: "user-admin-1", status: "approved" });
     return staged.importId;
   }
 
@@ -1540,7 +1543,7 @@ describe("CP2 Publication Integration Contract", () => {
     await publishProductBundle({ importId: first, publishedBy: "user-admin-1" });
     await publishProductBundle({ importId: second, publishedBy: "user-admin-1" });
     const before = await testDb.select().from(schema.vectorSyncQueue);
-    expect(before.filter((row) => row.action === "upsert")).toHaveLength(1);
+    expect(before.filter((row) => row.action === "upsert")).toHaveLength(2);
     expect((await withdrawProductBundle({ importId: first, withdrawnBy: "user-admin-1", expectedRevision: (await testDb.select({ checksum: schema.imporBundle.checksum }).from(schema.imporBundle).where(eq(schema.imporBundle.id, first)))[0].checksum })).vectorJobCount).toBe(0);
     expect((await testDb.select().from(schema.artikel).where(eq(schema.artikel.id, "shared-article")))[0].status).toBe("published");
     expect((await testDb.select().from(schema.flashcard).where(eq(schema.flashcard.id, "shared-card")))[0].status).toBe("published");
