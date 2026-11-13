@@ -1,4 +1,5 @@
-import { canAccessStudentQuizTemplate } from "@/lib/quiz/student-access";
+import { canAccessStudentQuizTemplate, validatedQuizScope } from "@/lib/quiz/student-access";
+import { freeQuizQuestionScope } from "@/lib/quiz/question-scope";
 /**
  * GET /api/quiz/daily ; return a published daily quiz without answer keys.
  * POST /api/quiz/daily ; grade only the published questions resolved on the
@@ -16,8 +17,6 @@ import { db } from "@/db";
 import {
   aiQuestionBank,
   bab,
-  chapters,
-  knowledgeObjects,
   quizTemplates,
   studentQuizAttempts,
 } from "@/db/schema";
@@ -150,36 +149,6 @@ const questionSelect = {
   explanation: aiQuestionBank.explanation,
 } as const;
 
-function parseSelectionRules(raw: unknown): SelectionRules {
-  if (typeof raw === "string") {
-    try {
-      const parsed = JSON.parse(raw);
-      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-        ? parsed as SelectionRules
-        : {};
-    } catch {
-      return {};
-    }
-  }
-  return raw && typeof raw === "object" && !Array.isArray(raw)
-    ? raw as SelectionRules
-    : {};
-}
-
-function extractChapterScope(rules: SelectionRules, max = 2): string[] | null {
-  const keys = ["chapterId", "chapterIds", "chapters", "chapter_ids"];
-  const present = keys.filter((key) => Object.prototype.hasOwnProperty.call(rules, key));
-  if (present.length !== 1) return null;
-
-  const raw = rules[present[0]];
-  const refs = typeof raw === "string" ? [raw] : Array.isArray(raw) ? raw : [];
-  if (refs.length < 1 || refs.length > max || refs.some((ref) => typeof ref !== "string")) return null;
-
-  const normalized = refs.map((ref) => ref.trim());
-  if (normalized.some((ref) => ref.length === 0)) return null;
-  return [...new Set(normalized)];
-}
-
 async function expandChapterScope(access: CourseAccessResult, requested: readonly string[]): Promise<string[]> {
   const requestedIds = new Set(requested);
   const aliases = access.freeChapters
@@ -217,10 +186,14 @@ async function resolveDailyTemplateAccess(
   const access = await resolveCourseAccess({ courseId: template.courseId, userId, roleHint: role });
   if (!access.hasCourseAccess || !access.capabilities.canStartQuiz) return null;
 
-  const rules = parseSelectionRules(template.selectionRules);
-  const requestedChapterIds = extractChapterScope(rules, access.tier === "free" && access.hasFullContentAccess ? Infinity : 2);
+  const scope = validatedQuizScope(template.selectionRules);
+  if (!scope) return null;
+  const rules = (typeof template.selectionRules === "string"
+    ? JSON.parse(template.selectionRules)
+    : template.selectionRules) as SelectionRules;
+  const requestedChapterIds = scope.length > 0 ? scope : null;
   if (access.tier === "free" && !access.hasFullContentAccess) {
-    if (template.visibility !== "free" || !requestedChapterIds) return null;
+    if (template.visibility !== "free" || !requestedChapterIds || requestedChapterIds.length > 2) return null;
     if (!canAccessCourseContent(access, "quiz", requestedChapterIds)) return null;
     const chapterIds = await expandChapterScope(access, requestedChapterIds);
     return chapterIds.length > 0 ? { access, rules, chapterIds } : null;
@@ -277,7 +250,7 @@ async function publishedQuestionsForTemplate(input: {
   questionIds?: readonly string[];
   excludeIds?: readonly string[];
   difficulty?: "easy" | "medium" | "hard";
-  chapterIds: readonly string[];
+  scope?: SQL;
   tags?: readonly string[];
 }): Promise<ServerQuestion[]> {
   const conditions: SQL<unknown>[] = [
@@ -297,22 +270,7 @@ async function publishedQuestionsForTemplate(input: {
     conditions.push(or(...tagConditions) as SQL);
   }
 
-  if (input.chapterIds.length > 0) {
-    const koRows = await db
-      .select({ id: knowledgeObjects.id })
-      .from(knowledgeObjects)
-      .innerJoin(chapters, eq(knowledgeObjects.chapterId, chapters.id))
-      .where(
-        and(
-          eq(knowledgeObjects.courseId, input.template.courseId),
-          eq(knowledgeObjects.status, "active"),
-          eq(chapters.status, "published"),
-          inArray(chapters.id, [...input.chapterIds]),
-        ),
-      );
-    if (koRows.length === 0) return [];
-    conditions.push(inArray(aiQuestionBank.knowledgeObjectId, koRows.map((row) => row.id)));
-  }
+  if (input.scope) conditions.push(input.scope);
 
   return await db
     .select(questionSelect)
@@ -325,8 +283,10 @@ async function selectDailyQuestions(
   template: typeof quizTemplates.$inferSelect,
   rules: SelectionRules,
   chapterIds: readonly string[],
+  access: CourseAccessResult,
   requestedIds?: readonly string[],
 ): Promise<ServerQuestion[]> {
+  const scope = chapterIds.length > 0 ? await freeQuizQuestionScope(access, { chapterIds }) : undefined;
   const count = requestedCount(rules);
   const fixedIds = fixedQuestionIds(rules);
   const tags = Array.isArray(rules.tags)
@@ -337,7 +297,7 @@ async function selectDailyQuestions(
     const rows = await publishedQuestionsForTemplate({
       template,
       questionIds: requestedIds,
-      chapterIds,
+      scope,
       tags,
     });
     const byId = new Map(rows.map((row) => [row.id, row]));
@@ -348,7 +308,7 @@ async function selectDailyQuestions(
     const rows = await publishedQuestionsForTemplate({
       template,
       questionIds: fixedIds.slice(0, count),
-      chapterIds,
+      scope,
       tags,
     });
     const byId = new Map(rows.map((row) => [row.id, row]));
@@ -362,7 +322,7 @@ async function selectDailyQuestions(
     const rows = await publishedQuestionsForTemplate({
       template,
       difficulty,
-      chapterIds,
+      scope,
       tags,
     });
     selected.push(...rows.slice(0, Math.min(proportions[difficulty], count - selected.length)));
@@ -371,7 +331,7 @@ async function selectDailyQuestions(
   if (selected.length < count) {
     const rows = await publishedQuestionsForTemplate({
       template,
-      chapterIds,
+      scope,
       tags,
       excludeIds: selected.map((row) => row.id),
     });
@@ -485,7 +445,7 @@ export async function GET() {
   if (!selected) return NextResponse.json({ questions: [], templateId: null });
 
   const { template, resolved } = selected;
-  const questions = await selectDailyQuestions(template, resolved.rules, resolved.chapterIds);
+  const questions = await selectDailyQuestions(template, resolved.rules, resolved.chapterIds, resolved.access);
   const questionIds = questions.map((question) => question.id);
   return NextResponse.json({
     questions: questions.map(clientQuestion),
@@ -547,7 +507,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Soal kuis tidak sesuai dengan template." }, { status: 403 });
   }
 
-  const serverQuestions = await selectDailyQuestions(template, rules, resolved.chapterIds, requestedIds);
+  const serverQuestions = await selectDailyQuestions(template, rules, resolved.chapterIds, resolved.access, requestedIds);
   if (serverQuestions.length !== requestedIds.length) {
     return NextResponse.json({ error: "Sebagian soal kuis sudah tidak tersedia." }, { status: 403 });
   }
