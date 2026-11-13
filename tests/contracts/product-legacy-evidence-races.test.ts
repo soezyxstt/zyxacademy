@@ -39,6 +39,9 @@ mock.module("@/lib/bundle/product-staging", () => ({
   parseStagedProductBundle: async () => bundle,
   getProductBundleImport: async (id: string) => (await testDb.select().from(schema.imporBundle).where(eq(schema.imporBundle.id, id)))[0],
 }));
+mock.module("@/lib/bundle/product-staged-worker", () => ({
+  readProductBundleForDiktat: async () => bundle,
+}));
 mock.module("@/lib/compute/pdf-inspection", () => ({ inspectPdfText: async () => ({ pageCount: 1, text: "Learning content" }) }));
 const { provisionPenggunaForNewUser } = await import("@/lib/auth/authorization");
 const { generateProductDiktatPdfEvidence } = await import("@/lib/compute/product-diktat-inspector");
