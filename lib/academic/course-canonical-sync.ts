@@ -11,7 +11,7 @@ type LegacyCourseInsert = typeof courses.$inferInsert;
 export type CourseCanonicalSyncInput = {
   id: string;
   title: string;
-  category: LegacyCourseInsert["category"];
+  category: LegacyCourseInsert["category"] | "Umum";
   description?: string | null;
   isNew: boolean;
   actorId?: string | null;
@@ -58,7 +58,7 @@ async function recordAudit(
 }
 
 async function findCanonicalCourse(tx: DbOrTx, legacyCourseId: string) {
-  const [row] = await tx
+  const rows = await tx
     .select({
       id: mataKuliah.id,
       legacyCourseId: mataKuliah.legacyCourseId,
@@ -66,8 +66,9 @@ async function findCanonicalCourse(tx: DbOrTx, legacyCourseId: string) {
     })
     .from(mataKuliah)
     .where(or(eq(mataKuliah.legacyCourseId, legacyCourseId), eq(mataKuliah.id, legacyCourseId)))
-    .limit(1);
-  return row ?? null;
+    .limit(2);
+  if (rows.length > 1) throw new Error("COURSE_IDENTITY_AMBIGUOUS");
+  return rows[0] ?? null;
 }
 
 async function requireCanonicalCourse(tx: DbOrTx, legacyCourseId: string) {
@@ -168,10 +169,18 @@ export async function saveCourseWithCanonicalProjection(
   callerTx?: Tx,
 ): Promise<{ id: string; canonicalCourseId: string }> {
   const execute = async (tx: Tx) => {
+    const canonical = await findCanonicalCourse(tx, input.id);
+    const [sameIdLegacy] = await tx.select({ id: courses.id }).from(courses).where(eq(courses.id, input.id)).limit(1);
+    if (input.isNew && (sameIdLegacy || canonical)) throw new Error("COURSE_ALREADY_EXISTS");
+    if (canonical?.legacyCourseId && canonical.legacyCourseId !== canonical.id) {
+      const aliasTarget = await findCanonicalCourse(tx, canonical.legacyCourseId);
+      const [conflictingLegacy] = await tx.select({ id: courses.id }).from(courses).where(eq(courses.id, canonical.id)).limit(1);
+      if (aliasTarget?.id !== canonical.id || conflictingLegacy) throw new Error("COURSE_IDENTITY_AMBIGUOUS");
+    }
+
+    let legacyId: string | null = input.id;
     if (input.isNew) {
-      const [legacyExisting] = await tx.select({ id: courses.id }).from(courses).where(eq(courses.id, input.id)).limit(1);
-      const canonicalExisting = await findCanonicalCourse(tx, input.id);
-      if (legacyExisting || canonicalExisting) throw new Error("COURSE_ALREADY_EXISTS");
+      if (input.category === "Umum") throw new Error("COURSE_PROJECTION_UNAVAILABLE");
       await tx.insert(courses).values({
         id: input.id,
         title: input.title,
@@ -179,25 +188,37 @@ export async function saveCourseWithCanonicalProjection(
         description: input.description ?? null,
       });
     } else {
-      const [legacyExisting] = await tx.select({ id: courses.id }).from(courses).where(eq(courses.id, input.id)).limit(1);
-      if (!legacyExisting) throw new Error("COURSE_NOT_FOUND");
-      await tx
-        .update(courses)
-        .set({
+      legacyId = canonical?.legacyCourseId ?? (sameIdLegacy ? input.id : null);
+      if (!canonical && !legacyId) throw new Error("COURSE_NOT_FOUND");
+      if (!legacyId && (input.category !== "Umum" || input.description)) throw new Error("COURSE_PROJECTION_UNAVAILABLE");
+      if (legacyId) {
+        if (input.category === "Umum") throw new Error("COURSE_PROJECTION_UNAVAILABLE");
+        await tx.update(courses).set({
           title: input.title,
           category: input.category,
           description: input.description ?? null,
-        })
-        .where(eq(courses.id, input.id));
+        }).where(eq(courses.id, legacyId));
+      }
     }
 
-    const canonicalCourseId = await upsertCanonicalCourse(tx, input);
+    let canonicalCourseId: string;
+    if (canonical) {
+      const pricing = input.pricing === undefined ? undefined : validateCoursePricing(input.pricing);
+      await tx.update(mataKuliah).set({
+        title: input.title,
+        status: "active",
+        ...(pricing ? { pricingCategory: pricing.category, freeStartsAt: pricing.startsAt, freeEndsAt: pricing.endsAt } : {}),
+      }).where(eq(mataKuliah.id, canonical.id));
+      canonicalCourseId = canonical.id;
+    } else {
+      canonicalCourseId = await upsertCanonicalCourse(tx, input);
+    }
     await recordAudit(tx, {
       actorId: input.actorId,
       entityType: "mata_kuliah",
       entityId: canonicalCourseId,
-      action: input.isNew ? "canonical_create_with_legacy" : "canonical_update_with_legacy",
-      afterSnapshot: { legacyCourseId: input.id, title: input.title, status: "active" },
+      action: input.isNew ? "canonical_create_with_legacy" : legacyId ? "canonical_update_with_legacy" : "canonical_update",
+      afterSnapshot: { legacyCourseId: legacyId, title: input.title, status: "active" },
     });
     return { id: input.id, canonicalCourseId };
   };

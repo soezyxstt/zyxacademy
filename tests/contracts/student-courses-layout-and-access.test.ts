@@ -64,7 +64,8 @@ describe("student courses layout, whatsapp contact, and material access contract
     expect(materialPage).toContain("<EnrollmentForm");
 
     // Detail page checks
-    expect(materialDetail).toContain("access?.hasFullContentAccess");
+    expect(materialDetail).toContain("canAccessCourseContent(access.policy");
+    expect(materialDetail).toContain("hasChapterScopeWithin(materialChapterIds, access.policy.scopedChapterIds)");
     expect(materialDetail).toContain("isFreePdf");
   });
 

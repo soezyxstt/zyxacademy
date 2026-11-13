@@ -23,10 +23,11 @@ import {
   getCourseTermIndex,
 } from "@/lib/course-utils";
 import { db } from "@/db";
-import { aiMaterialInstances, diktats, courseMaterials, websiteMaterials, progress, studentMaterialProgress } from "@/db/schema";
-import { eq, and, notLike } from "drizzle-orm";
+import { aiMaterialInstances, artikel, diktatMateri, diktats, courseMaterials, websiteMaterials, progress, studentMaterialProgress } from "@/db/schema";
+import { eq, and, notLike, or } from "drizzle-orm";
 import { storage } from "@/lib/storage";
 import { getAuthSession } from "@/lib/auth-session";
+import { canAccessCourseContent, hasChapterScopeWithin } from "@/lib/student/course-access";
 import { getMaterialMetadataTitle } from "./material-metadata";
 
 type Props = { params: Promise<{ id: string; materialId: string }> };
@@ -39,6 +40,7 @@ async function fetchMaterial(
   studentId: string,
   course: NonNullable<Awaited<ReturnType<typeof getCourse>>>,
   canDownloadDiktat: boolean,
+  access: NonNullable<Awaited<ReturnType<typeof getStudentCourseAccess>>>,
 ): Promise<CourseMaterial | undefined> {
   const staticMat = getMaterial(courseId, materialId);
   if (staticMat) return staticMat;
@@ -129,7 +131,6 @@ async function fetchMaterial(
       title: websiteMaterials.title,
       status: websiteMaterials.status,
       chapterId: websiteMaterials.chapterId,
-      canonicalMarkdown: websiteMaterials.canonicalMarkdown,
     }).from(websiteMaterials)
       .where(and(eq(websiteMaterials.id, materialId), eq(websiteMaterials.courseId, compatibilityCourseId)))
       .limit(1),
@@ -179,6 +180,10 @@ async function fetchMaterial(
 
     // Drafts must never be reachable by direct URL ; fall through to 404.
     if (webMatRecord && webMatRecord.status === "published") {
+      const [body] = canAccessCourseContent(access.policy, "article", [webMatRecord.chapterId])
+        ? await db.select({ canonicalMarkdown: websiteMaterials.canonicalMarkdown }).from(websiteMaterials)
+            .where(and(eq(websiteMaterials.id, materialId), eq(websiteMaterials.courseId, compatibilityCourseId), eq(websiteMaterials.status, "published"), eq(websiteMaterials.chapterId, webMatRecord.chapterId))).limit(1)
+        : [];
       return {
         id: webMatRecord.id,
         courseId,
@@ -186,7 +191,7 @@ async function fetchMaterial(
         kind: "article" as const,
         docCategory: "materi" as const,
         fileSize: "Disusun otomatis",
-        body: webMatRecord.canonicalMarkdown,
+        body: body?.canonicalMarkdown,
         completed: await completionPromise,
         isPastYear: false,
         isPreview: true,
@@ -238,26 +243,26 @@ async function fetchMaterial(
         eq(aiMaterialInstances.courseId, compatibilityCourseId),
         notLike(aiMaterialInstances.title, "[DRAF]%"),
       ),
-      with: {
-        sections: {
-          orderBy: (s, { asc }) => [asc(s.orderIndex)],
-          with: {
-            chunks: {
-              orderBy: (c, { asc }) => [asc(c.orderIndex)],
-            },
-          },
-        },
-      },
+      columns: { id: true, title: true, chapterIds: true },
     });
 
     if (dbMaterial) {
-      const body = dbMaterial.sections
-        .map((s) => {
+      const scopedIds = Array.isArray(dbMaterial.chapterIds) ? dbMaterial.chapterIds : [];
+      const fullMaterial = canAccessCourseContent(access.policy, "article", scopedIds)
+        ? await db.query.aiMaterialInstances.findFirst({
+            where: and(eq(aiMaterialInstances.id, materialId), eq(aiMaterialInstances.courseId, compatibilityCourseId), notLike(aiMaterialInstances.title, "[DRAF]%")),
+            with: { sections: { orderBy: (s, { asc }) => [asc(s.orderIndex)], with: { chunks: { orderBy: (c, { asc }) => [asc(c.orderIndex)] } } } },
+          })
+        : null;
+      const resolvedIds = Array.isArray(fullMaterial?.chapterIds) ? fullMaterial.chapterIds : scopedIds;
+      const body = fullMaterial && canAccessCourseContent(access.policy, "article", resolvedIds)
+        ? fullMaterial.sections.map((s) => {
           const sectionTitle = s.title ? `## ${s.title}\n\n` : "";
           const content = s.chunks.map((c) => c.chunkText).join("\n\n");
           return sectionTitle + content;
         })
-        .join("\n\n");
+        .join("\n\n")
+        : undefined;
 
       return {
         id: dbMaterial.id,
@@ -270,7 +275,7 @@ async function fetchMaterial(
         completed: await completionPromise,
         isPastYear: false,
         isPreview: true, // Allow review without enrolling for simplicity
-        chapterIds: Array.isArray(dbMaterial.chapterIds) ? dbMaterial.chapterIds : [],
+        chapterIds: resolvedIds,
       };
     }
   } catch (error) {
@@ -291,34 +296,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
-async function MaterialDetailContent({
-  id,
-  materialId,
-  studentId,
-  course,
-}: {
-  id: string;
-  materialId: string;
-  studentId: string;
-  course: NonNullable<Awaited<ReturnType<typeof getCourse>>>;
-}) {
-  // Overlap canonical article and access queries once session and course are verified
-  const [canonicalArticle, access] = await Promise.all([
-    getReaderArticle(id, materialId, studentId),
-    getStudentCourseAccess(studentId, id),
-  ]);
-
-  // 1. Canonical structured article first. Published V2 Article and Diktat
-  // content falls through to the canonical text product reader below.
-  if (canonicalArticle) {
-    const hasFullContentAccess = Boolean(access?.hasFullContentAccess);
-    const articleChapterIds = [
-      canonicalArticle.chapterId,
-    ].filter((ch): ch is string => Boolean(ch));
-    const isFreeChapter = access?.tier === "free" && !access.hasFullContentAccess && isFreeChapterScoped(articleChapterIds, access.freeChapterIds);
-    const isAllowed = hasFullContentAccess || isFreeChapter;
-    if (!isAllowed) {
-      return (
+function MaterialLocked({ id, course, title }: { id: string; course: NonNullable<Awaited<ReturnType<typeof getCourse>>>; title: string }) {
+  return (
         <CoursePageShell title={<TranslatedText namespace="learning" messageKey="materialDetail.locked" />} description={<TranslatedText namespace="learning" messageKey="materialDetail.premiumDescription" values={{ course: course.title }} />} hideHeader>
           <div className="mb-4">
             <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-sm font-semibold text-muted-foreground hover:text-foreground">
@@ -337,7 +316,7 @@ async function MaterialDetailContent({
                 <div>
                   <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="courseAccess.needToken" /></h3>
                   <p className="mt-1 text-body-sm text-muted-foreground">
-                    <TranslatedText namespace="learning" messageKey="materialDetail.activateToOpen" values={{ title: canonicalArticle.title }} />
+                    <TranslatedText namespace="learning" messageKey="materialDetail.activateToOpen" values={{ title }} />
                   </p>
                 </div>
               </div>
@@ -348,55 +327,67 @@ async function MaterialDetailContent({
           </Reveal>
         </CoursePageShell>
       );
+}
+
+async function MaterialDetailContent({
+  id,
+  materialId,
+  studentId,
+  course,
+}: {
+  id: string;
+  materialId: string;
+  studentId: string;
+  course: NonNullable<Awaited<ReturnType<typeof getCourse>>>;
+}) {
+  const access = await getStudentCourseAccess(studentId, id);
+  if (!access) notFound();
+
+  // Check the canonical association before loading article blocks or markdown.
+  const canonicalCourseId = access.policy.canonicalCourseId;
+  if (canonicalCourseId) {
+    const [articleRows, diktatRows] = await Promise.all([
+      db.select({ title: artikel.title, chapterId: artikel.babId }).from(artikel)
+        .where(and(eq(artikel.mataKuliahId, canonicalCourseId), eq(artikel.status, "published"), or(eq(artikel.id, materialId), eq(artikel.slug, materialId)))).limit(1),
+      db.select({ title: diktatMateri.title, chapterId: diktatMateri.babId }).from(diktatMateri)
+        .where(and(eq(diktatMateri.mataKuliahId, canonicalCourseId), eq(diktatMateri.status, "published"), eq(diktatMateri.id, materialId))).limit(1),
+    ]);
+    const product = articleRows[0] ?? diktatRows[0];
+    if (product && !canAccessCourseContent(access.policy, articleRows[0] ? "article" : "diktat", [product.chapterId])) {
+      return <MaterialLocked id={id} course={course} title={product.title} />;
+    }
+  }
+  const canonicalArticle = await getReaderArticle(id, materialId, studentId);
+
+  // 1. Canonical structured article first. Published V2 Article and Diktat
+  // content falls through to the canonical text product reader below.
+  if (canonicalArticle) {
+    const articleChapterIds = [
+      canonicalArticle.chapterId,
+    ].filter((ch): ch is string => Boolean(ch));
+    const isFreeChapter = access?.tier === "free" && !access.hasFullContentAccess && isFreeChapterScoped(articleChapterIds, access.freeChapterIds);
+    const isAllowed = canAccessCourseContent(access.policy, "article", articleChapterIds);
+    if (!isAllowed) {
+      return <MaterialLocked id={id} course={course} title={canonicalArticle.title} />;
     }
 
     return <StructuredArticleReader article={canonicalArticle} course={course} pythonBrowserOnly={isFreeChapter} />;
   }
 
   // 2. Canonical text and legacy compatibility fallback
-  const material = await fetchMaterial(id, materialId, studentId, course, Boolean(access?.policy.capabilities.canDownloadDiktat));
+  const material = await fetchMaterial(id, materialId, studentId, course, Boolean(access.policy.capabilities.canDownloadDiktat), access);
   if (!material) notFound();
 
-  const hasFullContentAccess = Boolean(access?.hasFullContentAccess);
-  const isFreePdf = Boolean(access) && material.kind === "pdf" && material.docCategory !== "diktat";
   const materialChapterIds = [
     ...(material.chapterIds ?? []),
     ...(material.chapterId ? [material.chapterId] : []),
   ];
-  const isFreeChapter = access?.tier === "free" && !access.hasFullContentAccess && isFreeChapterScoped(materialChapterIds, access.freeChapterIds);
-  const isAccessible = hasFullContentAccess || isFreePdf || isFreeChapter;
+  const isFreePdf = material.kind === "pdf" && material.docCategory !== "diktat"
+    && hasChapterScopeWithin(materialChapterIds, access.policy.scopedChapterIds);
+  const isAccessible = isFreePdf || canAccessCourseContent(access.policy, material.docCategory === "diktat" ? "diktat" : "article", materialChapterIds);
 
   if (!isAccessible) {
-    return (
-      <CoursePageShell title={<TranslatedText namespace="learning" messageKey="materialDetail.locked" />} description={<TranslatedText namespace="learning" messageKey="materialDetail.premiumDescription" values={{ course: course.title }} />} hideHeader>
-        <div className="mb-4">
-          <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-sm font-semibold text-muted-foreground hover:text-foreground">
-            <Link href={`/courses/${id}/material`}>
-              <ArrowLeft className="size-3.5" />
-              <span><TranslatedText namespace="learning" messageKey="materialDetail.backToDocuments" /></span>
-            </Link>
-          </Button>
-        </div>
-        <Reveal>
-          <div className="rounded-lg border border-border/70 bg-card p-4">
-            <div className="flex items-start gap-3">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
-                <Lock className="size-5" />
-              </div>
-              <div>
-                <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="courseAccess.needToken" /></h3>
-                <p className="mt-1 text-body-sm text-muted-foreground">
-                  <TranslatedText namespace="learning" messageKey="materialDetail.activateToOpen" values={{ title: material.title }} />
-                </p>
-              </div>
-            </div>
-            <div className="mt-4">
-              <EnrollmentForm />
-            </div>
-          </div>
-        </Reveal>
-      </CoursePageShell>
-    );
+    return <MaterialLocked id={id} course={course} title={material.title} />;
   }
 
   const termIndex = await getCourseTermIndex(id);

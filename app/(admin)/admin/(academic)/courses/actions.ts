@@ -160,7 +160,16 @@ export async function saveCourse(
   if (!cleanCategory) {
     return { success: false, error: "Kategori tidak boleh kosong" };
   }
-  if (!(allowedCategories as readonly string[]).includes(cleanCategory)) {
+  // Canonical-only records have no stored legacy category; loaders display Umum.
+  const [canonicalOnly] = !isNew
+    ? await db.select({ id: mataKuliah.id }).from(mataKuliah)
+        .leftJoin(courses, or(eq(courses.id, mataKuliah.legacyCourseId), eq(courses.id, mataKuliah.id)))
+        .where(and(eq(mataKuliah.id, cleanId), sql`${courses.id} IS NULL`)).limit(1)
+    : [];
+  if (canonicalOnly && (cleanCategory !== "Umum" || cleanDesc)) {
+    return { success: false, error: "Kategori dan deskripsi belum dapat diubah untuk mata kuliah ini." };
+  }
+  if (!(allowedCategories as readonly string[]).includes(cleanCategory) && !(canonicalOnly && cleanCategory === "Umum")) {
     return { success: false, error: "Kategori tidak valid. Pilih dari daftar yang tersedia." };
   }
 
@@ -177,7 +186,7 @@ export async function saveCourse(
     await saveCourseWithCanonicalProjection({
       id: cleanId,
       title: cleanTitle,
-      category: cleanCategory as Category,
+      category: cleanCategory as Category | "Umum",
       description: cleanDesc,
       isNew,
       pricing: validatedPricing,
