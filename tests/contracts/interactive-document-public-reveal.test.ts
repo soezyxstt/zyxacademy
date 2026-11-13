@@ -7,8 +7,13 @@ const text = `\`\`\`zyx-visual\n${JSON.stringify(hidden)}\n\`\`\``;
 const formativeCheck = { checkKind: "short_answer", answer: text, explanation: "Penjelasan" };
 mock.module("next/headers", () => ({ headers: async () => new Headers() }));
 mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => ({ user: { id: "user", role: "student" } }) } } }));
-mock.module("@/lib/course-utils", () => ({ isEnrolled: async () => true }));
-mock.module("@/lib/materials/formative-check-server", () => ({ formativeCheckLocatorSchema: { safeParse: (value: unknown) => ({ success: true, data: value }) }, resolvePublishedFormativeCheck: async () => ({ ok: true, context: { formativeCheck, article: { courseId: "course" } } }) }));
+const coursePolicy = await import("@/lib/student/course-access");
+let hasCourseAccess = true;
+mock.module("@/lib/student/course-access", () => ({ ...coursePolicy, resolveCourseAccess: async () => ({
+  hasCourseAccess, hasFullContentAccess: true, tier: "free", capabilities: { canReadArticle: true },
+  scopedChapterIds: ["chapter"], freeChapterIds: ["chapter"],
+}) }));
+mock.module("@/lib/materials/formative-check-server", () => ({ formativeCheckLocatorSchema: { safeParse: (value: unknown) => ({ success: true, data: value }) }, resolvePublishedFormativeCheck: async () => ({ ok: true, context: { formativeCheck, article: { courseId: "course", chapterId: "chapter" } } }) }));
 
 test("unique hidden metadata is absent before reveal and present in the authorized response", async () => {
   const model = buildPublicArticleReadModel(
@@ -24,4 +29,16 @@ test("unique hidden metadata is absent before reveal and present in the authoriz
   expect(result.answer).toContain("SECRET label");
   expect(result.answer).toContain("SECRET fallback");
   expect(typeof result.visualAccess.answer).toBe("string");
+});
+
+test("a denied course cannot reveal hidden document metadata", async () => {
+  hasCourseAccess = false;
+  try {
+    const route = await import("@/app/api/materials/formative-check/reveal/route");
+    const response = await route.POST(new Request("http://localhost/reveal", { method: "POST", body: JSON.stringify({ articleId: "article", articleVersion: 1, sectionId: "section", blockId: "block" }) }));
+    expect(response.status).toBe(403);
+    expect(await response.text()).not.toContain("SECRET");
+  } finally {
+    hasCourseAccess = true;
+  }
 });

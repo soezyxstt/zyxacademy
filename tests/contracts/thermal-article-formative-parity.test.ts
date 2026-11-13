@@ -11,7 +11,11 @@ let overrideRetry: boolean | undefined;
 let useOverride = false;
 mock.module("next/headers", () => ({ headers: async () => new Headers() }));
 mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => ({ user: { id: "fixture", role: "admin" } }) } } }));
-mock.module("@/lib/course-utils", () => ({ isEnrolled: async () => true }));
+const coursePolicy = await import("@/lib/student/course-access");
+mock.module("@/lib/student/course-access", () => ({ ...coursePolicy, resolveCourseAccess: async () => ({
+  hasCourseAccess: true, hasFullContentAccess: true, tier: "staff", capabilities: { canReadArticle: true },
+  scopedChapterIds: [article.chapterId], freeChapterIds: [],
+}) }));
 mock.module("@/lib/materials/formative-ai-evaluator", () => ({ evaluateConceptualResponse: () => { throw new Error("unexpected AI evaluation"); } }));
 mock.module("@/lib/materials/formative-check-server", () => ({
   formativeCheckLocatorSchema: locator,
