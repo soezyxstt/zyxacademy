@@ -134,7 +134,7 @@ function createValidPdfEvidence(
     productId: diktat ? diktat.id : article.id,
     articleVersion: article.version,
     articleHash: article.generationHash,
-    diktatHash: diktat ? diktat.generationHash : "0".repeat(64),
+    diktatHash: diktat ? diktat.generationHash : article.generationHash,
     rendererVersion: "zyx-pdf-v1",
     printProfile: "a4_standard",
     status: "ready",
