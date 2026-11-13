@@ -281,7 +281,7 @@ test("published V4 historical preview uses its recorded canonical PDF without gr
   const context = await read();
   const [canonical] = await testDb.select().from(schema.diktatMateri).where(eq(schema.diktatMateri.id, diktat.id));
   expect(context.status).toBe("ready");
-  expect(context.evidence?.storageKey).toBe(canonical.fileKey);
+  expect(context.evidence?.storageKey).toBe(canonical.fileKey!);
   const pdfBytes = new TextEncoder().encode("%PDF-1.7\nfixture\n%%EOF");
   historicalObjects.set(canonical.fileKey!, pdfBytes);
   expect(() => assertDiktatPdfBytes(context, pdfBytes)).not.toThrow();

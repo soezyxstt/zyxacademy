@@ -67,7 +67,7 @@ export async function runProductLegacyLocal() {
     try {
       const [runtime, config] = await Promise.all([import("../../lib/compute/product-v4-runtime-binding"), import("../../lib/compute/product-v4-browser-config")]);
       const chromium = runtime.expectedChromiumRuntime();
-      const identity = config.verificationBrowserIdentity({ AUTHORING_VERIFICATION_BROWSER_PROVIDER: "local_playwright" } as NodeJS.ProcessEnv);
+      const identity = config.verificationBrowserIdentity({ NODE_ENV: "production", AUTHORING_VERIFICATION_BROWSER_PROVIDER: "local_playwright" } as NodeJS.ProcessEnv);
       console.log(JSON.stringify({ schema: "zyx-product-legacy-local-capabilities.v1", command: "node scripts/authoring/run-product-legacy-local.mjs --input <absolute-input-json-path>", inputSchema: "zyx-product-legacy-local-input.v1", requiredFields: ["privateFile", "sourceRevision", "importId", "runId", "expectedChecksum", "actorId"], optionalFields: ["diktatId", "articleId"], targetSelection: "One linked Diktat or unlinked Article per export. Omit both IDs only for a single eligible target; IDs are mutually exclusive.", resultSchema: "zyx-product-legacy-local-result.v1", target: "verified-production-only", deployedRevisionCheck: "operator-prerequisite from authorized deployment record", versions: [2, 3], browser: { ...chromium, provider: identity.browserProvider, configuredVersion: identity.browserVersion, pinsMatch: identity.browserVersion === chromium.browserVersion }, concurrency: 1, timeoutSeconds: 180, printProfile: "a4-self-study-readable-v3", pageRange: [1, 4] }));
     } finally { if (previous === undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL = previous; }
     return;

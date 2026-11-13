@@ -57,7 +57,7 @@ const b = artifact("shared-b");
 const c = artifact("shared-c");
 const d = partialArtifact("shared-d");
 const replacement = artifact("shared-a", "2026-08-04T00:00:00.000Z");
-const artifacts = new Map([["a.zip", a.bytes], ["b.zip", b.bytes], ["c.zip", c.bytes], ["d.zip", d.bytes]]);
+const artifacts = new Map<string, Uint8Array>([["a.zip", a.bytes], ["b.zip", b.bytes], ["c.zip", c.bytes], ["d.zip", d.bytes]]);
 const { client, testDb } = await createPostgresTestDb();
 let beforeTransaction: (() => Promise<void>) | undefined;
 const locks: string[][] = [];
@@ -141,7 +141,7 @@ test("Idea publication uses canonical retrieval scope when queue ownership uses 
   for (const idea of await testDb.select().from(schema.ide)) await testDb.update(schema.ide).set({ canonicalStatement: `\n${idea.canonicalStatement}` }).where(eq(schema.ide.id, idea.id));
   for (const chunk of await testDb.select().from(schema.potonganSumber)) await testDb.update(schema.potonganSumber).set({ content: `\n${chunk.content}\n` }).where(eq(schema.potonganSumber.id, chunk.id));
   const { vectorStore } = await import("@/lib/vector-store");
-  const query = spyOn(vectorStore, "query").mockImplementation(async (namespace, _question, options) => upserts.filter(payload => namespace === `${payload.metadata.courseId}_${payload.metadata.namespace}` && (!options?.filter?.chapterId || payload.metadata.chapterId === options.filter.chapterId)).map(payload => ({ id: payload.vectorId, score: 1, metadata: payload.metadata })));
+  const query = spyOn(vectorStore, "query").mockImplementation(async (namespace, _question, options) => upserts.filter(payload => namespace === `${payload.metadata.courseId}_${payload.metadata.namespace}` && (!options?.filter?.chapterId || payload.metadata.chapterId === options.filter.chapterId)).map(payload => ({ id: payload.vectorId, score: 1, metadata: { ...payload.metadata } })));
   try {
     const { retrieveCanonicalEvidence } = await import("@/lib/zyra/canonical-runtime");
     const result = await retrieveCanonicalEvidence({ courseId: "legacy-physics", chapterId: "chapter-kinematics", isEnrolled: true }, "Gerak");

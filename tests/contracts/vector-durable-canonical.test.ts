@@ -10,7 +10,7 @@ const events: unknown[] = [];
 const effects: Array<{ action: string; ids: string[] }> = [];
 let phase: "embedding" | "upsert" | "delete";
 const noNetwork = mock(async (): Promise<never> => { throw new Error("External transport forbidden in local SDK test"); });
-const inngest = new Inngest({ id: "local-vector-sdk", isDev: false, fetch: noNetwork });
+const inngest = new Inngest({ id: "local-vector-sdk", isDev: false, fetch: Object.assign(noNetwork, { preconnect: () => undefined }) });
 // Keep SDK step.sendEvent, replacing only its external event transport.
 Object.assign(inngest, { _send: async (input: { payload: unknown }) => { events.push(input.payload); return { ids: ["local-continuation"] }; } });
 const embed = mock(async (documents: readonly { title: string; content: string }[]) => {
@@ -39,7 +39,7 @@ beforeEach(async () => {
   await client.exec('TRUNCATE TABLE "user", courses, mata_kuliah CASCADE');
   await testDb.insert(schema.user).values({ id: "author", name: "Author", email: "sdk-author@example.test" });
   await testDb.insert(schema.pengguna).values({ id: "author" });
-  await testDb.insert(schema.courses).values({ id: "queue-course", title: "Course", category: "Test" });
+  await testDb.insert(schema.courses).values({ id: "queue-course", title: "Course", category: "Matematika" as const });
   await testDb.insert(schema.mataKuliah).values({ id: "canonical-course", legacyCourseId: "queue-course", code: "SDK", title: "Course" });
   await testDb.insert(schema.bab).values({ id: "canonical-chapter", mataKuliahId: "canonical-course", code: "SDK", title: "Chapter", orderIndex: 0 });
 });

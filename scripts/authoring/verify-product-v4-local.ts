@@ -93,7 +93,7 @@ export async function runProductV4LocalVerification() {
     try {
       const [runtime, { verificationBrowserIdentity }] = await Promise.all([import("../../lib/compute/product-v4-runtime-binding"), import("../../lib/compute/product-v4-browser-config")]);
       const chromium = runtime.expectedChromiumRuntime();
-      const configured = verificationBrowserIdentity({ AUTHORING_VERIFICATION_BROWSER_PROVIDER: "local_playwright" } as NodeJS.ProcessEnv);
+      const configured = verificationBrowserIdentity({ NODE_ENV: "production", AUTHORING_VERIFICATION_BROWSER_PROVIDER: "local_playwright" } as NodeJS.ProcessEnv);
       console.log(JSON.stringify({ schema: "zyx-product-v4-local-capabilities.v1", operator: { launcher: "scripts/authoring/run-product-v4-local.mjs", command: "node scripts/authoring/run-product-v4-local.mjs --input <input.json>", inputSchema: "zyx-product-v4-local-input.v1", requiredFields: ["privateFile", "sourceRevision", "importId", "runId", "expectedChecksum"], optionalFields: ["retry"], resultSchema: "zyx-product-v4-local-result.v1", target: "verified-production-only", deployedRevisionCheck: "operator-prerequisite", deployedRevisionSource: "authorized deployment record; not inferred from local HEAD" }, browser: { ...chromium, provider: configured.browserProvider, configuredVersion: configured.browserVersion, pinsMatch: configured.browserVersion === chromium.browserVersion }, runtime: await runtime.readProductV4RuntimeFingerprint(), concurrency: 1 }));
     } finally {
       if (previousDatabase === undefined) delete process.env.DATABASE_URL;

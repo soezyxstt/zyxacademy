@@ -65,7 +65,7 @@ async function stage(value: ReturnType<typeof fixture>, previous?: string) {
 }
 
 test("scoped learning reviews and publication bind V2 and V3 to the exact staged revision", async () => {
-  await testDb.insert(schema.courses).values({ id: "course", title: "Course", category: "Test" });
+  await testDb.insert(schema.courses).values({ id: "course", title: "Course", category: "Matematika" as const });
   await testDb.insert(schema.mataKuliah).values({ id: "course", code: "C", title: "Course", status: "active", legacyCourseId: "course" });
   await testDb.insert(schema.user).values({ id: "admin", name: "Admin", email: "admin@example.test", role: "admin" });
   await provisionPenggunaForNewUser({ id: "admin", role: "admin" });
@@ -189,7 +189,7 @@ test("scoped learning reviews and publication bind V2 and V3 to the exact staged
     expect((await invoke("authoring.withdraw_product_bundle", exact)).structuredContent.error).toBe("AUTHORING_MCP_RUN_REQUIRED");
     expect((await invoke("authoring.withdraw_product_bundle", { ...exact, recovery: "exact_import" })).structuredContent.result.withdrawn).toBe(true);
     if (version === 2) {
-      await testDb.insert(schema.courses).values({ id: "wrong-withdrawal-course", title: "Other", category: "Test" });
+      await testDb.insert(schema.courses).values({ id: "wrong-withdrawal-course", title: "Other", category: "Matematika" as const });
       await testDb.update(schema.imporBundle).set({ courseId: "wrong-withdrawal-course" }).where(eq(schema.imporBundle.id, row.id));
       expect((await invoke("authoring.withdraw_product_bundle", { ...exact, recovery: "exact_import" })).structuredContent.error).toBe("AUTHORING_MCP_IMPORT_COURSE_SCOPE_MISMATCH");
       await testDb.update(schema.imporBundle).set({ courseId: "course" }).where(eq(schema.imporBundle.id, row.id));

@@ -50,7 +50,7 @@ function bundle(profile: 2 | 3, dependencies: ProductDependency[]) {
 }
 
 beforeAll(async () => {
-  await testDb.insert(schema.courses).values([{ id: "legacy-main", title: "Main", category: "Test" }, { id: "legacy-other", title: "Other", category: "Test" }]);
+  await testDb.insert(schema.courses).values([{ id: "legacy-main", title: "Main", category: "Matematika" as const }, { id: "legacy-other", title: "Other", category: "Matematika" as const }]);
   await testDb.insert(schema.mataKuliah).values([{ id: "main", code: "M", title: "Main", legacyCourseId: "legacy-main" }, { id: "other", code: "O", title: "Other", legacyCourseId: "legacy-other" }]);
   await testDb.insert(schema.user).values({ id: "admin", name: "Admin", email: "admin@example.test", role: "admin" });
   await testDb.insert(schema.pengguna).values({ id: "admin" });

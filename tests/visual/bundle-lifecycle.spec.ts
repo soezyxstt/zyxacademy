@@ -631,7 +631,7 @@ test("structured section notes require save or discard before navigation and bun
     }
     if (request.request().method() === "POST") { decided = request.request().postDataJSON(); await request.fulfill({ json: { result: { ok: true } } }); return; }
     if (path.endsWith("/review")) { await request.fulfill({ json: { expectedRevision: checksum, contentFingerprint: fingerprint, policyVersion: QUALITY_POLICY_VERSION, sections: sections.map(section => ({ articleId: "article", sectionId: section.id, title: section.title, semanticHash: "c".repeat(64) })) } }); return; }
-    await request.fulfill({ json: { bundle: { id: "visual-product", courseId: "course", checksum, status: "draft", currentReview: null }, previews: [preview, diktatPreview], draft: { products: [structured, diktat] }, dependencies: [], blockReviews: reviews, qualityEvaluation: { publicationReady: false, issues: [] }, pdfStatuses: [{ ...{ status: "pending" }, productId: diktat.id, revision: checksum }], pdfStatus: { status: "pending" }, pdfStatuses: [{ productId: "diktat-one", revision: checksum, status: "pending" }], pedagogicReview: { id: "ped", status: "approved", policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: fingerprint, criteria: savedCriteria, notes: "" } } });
+    await request.fulfill({ json: { bundle: { id: "visual-product", courseId: "course", checksum, status: "draft", currentReview: null }, previews: [preview, diktatPreview], draft: { products: [structured, diktat] }, dependencies: [], blockReviews: reviews, qualityEvaluation: { publicationReady: false, issues: [] }, pdfStatuses: [{ ...{ status: "pending" }, productId: diktat.id, revision: checksum }], pdfStatus: { status: "pending" }, pedagogicReview: { id: "ped", status: "approved", policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: fingerprint, criteria: savedCriteria, notes: "" } } });
   });
   await page.goto(`${route}?mode=workspace-product`);
   const note = page.getByLabel("Catatan review", { exact: true });
@@ -1419,7 +1419,7 @@ for (const responseMode of ["stale", "mismatched"] as const) test(`V5 ${response
     state.revision = "a".repeat(64);
     const original = window.fetch.bind(window);
     Object.defineProperty(window, "sessionStorage", { configurable: true, get() { throw new DOMException("Unavailable", "SecurityError"); } });
-    window.fetch = async (input, init) => {
+    window.fetch = Object.assign(async (input: Parameters<typeof window.fetch>[0], init?: Parameters<typeof window.fetch>[1]) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       if (state.staleContext && url.includes("/solution-review") && init?.method !== "POST") {
         state.contextRevisionRequested = new URL(url, location.origin).searchParams.get("expectedRevision");
@@ -1427,7 +1427,7 @@ for (const responseMode of ["stale", "mismatched"] as const) test(`V5 ${response
         return new Response(JSON.stringify({ result: { revision: "d".repeat(64), productId: "collection-demo", reviewerId: "fixture-reviewer", savedReview: null, reviewVersion: "c".repeat(64), itemHashes: [{ itemId: "triangle-area", itemHash: "changed-triangle" }, { itemId: "python-loop", itemHash: "changed-python" }] } }));
       }
       return original(input, init);
-    };
+    }, original);
   }, { mode: responseMode });
   await page.route("**/api/admin/bundles/product/visual-product", async request => {
     const collection = structuredClone(solutionCollectionFixture);

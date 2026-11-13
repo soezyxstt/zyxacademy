@@ -20,7 +20,7 @@ beforeEach(async () => {
   await client.exec('TRUNCATE TABLE "user", courses, mata_kuliah CASCADE');
   await testDb.insert(schema.user).values({ id: "admin", name: "Admin", email: "review@example.test" });
   await testDb.insert(schema.pengguna).values({ id: "admin" });
-  await testDb.insert(schema.courses).values({ id: "legacy", title: "Course", category: "Test" });
+  await testDb.insert(schema.courses).values({ id: "legacy", title: "Course", category: "Matematika" as const });
   await testDb.insert(schema.mataKuliah).values({ id: "canonical", legacyCourseId: "legacy", code: "COURSE", title: "Course" });
 });
 

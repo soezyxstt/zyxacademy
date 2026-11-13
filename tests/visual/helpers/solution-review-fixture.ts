@@ -14,7 +14,7 @@ export async function installReviewMock(page: Page, failLoad = false) {
     const original = window.fetch.bind(window);
     const state = { revision: "revision-1", hashes: ["hash-triangle", "hash-python"], failLoad: initialFailLoad, failSave: false, submitted: null as unknown, saved: null as unknown };
     (window as any).__solutionReviewMock = state;
-    window.fetch = async (input, init) => {
+    window.fetch = Object.assign(async (input: Parameters<typeof window.fetch>[0], init?: Parameters<typeof window.fetch>[1]) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       if (!url.includes("/solution-review")) return original(input, init);
       const bytes = new TextEncoder().encode(JSON.stringify(state.saved));
@@ -38,7 +38,7 @@ export async function installReviewMock(page: Page, failLoad = false) {
       return new Response(JSON.stringify({ result: { reviewerId: "fixture-reviewer", savedReview: state.saved, reviewVersion, revision: state.revision, productId: "collection-demo", itemHashes: [
         { itemId: "triangle-area", itemHash: state.hashes[0] }, { itemId: "python-loop", itemHash: state.hashes[1] },
       ] } }), { status: 200, headers: { "content-type": "application/json" } });
-    };
+    }, original);
   }, failLoad);
 }
 

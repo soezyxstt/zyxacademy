@@ -18,7 +18,7 @@ afterAll(async () => { await client.close(); });
 
 beforeEach(async () => {
   await client.exec('TRUNCATE TABLE "user", courses, mata_kuliah CASCADE');
-  await testDb.insert(schema.courses).values({ id: "drain-course", title: "Course", category: "Test" }).onConflictDoNothing();
+  await testDb.insert(schema.courses).values({ id: "drain-course", title: "Course", category: "Matematika" as const }).onConflictDoNothing();
   embed.mockReset(); upsert.mockReset(); remove.mockReset(); dispatch.mockClear();
   embed.mockImplementation(async (documents: readonly unknown[]) => documents.map(() => Array(768).fill(0.5)));
   remove.mockImplementation(async () => ({}));

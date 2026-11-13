@@ -351,7 +351,7 @@ describe("Product Block Review Service Integration Contract", () => {
       expect(upsert.metadata).toMatchObject({ courseId: "mk-008", chapterId: "chapter-008" });
       expect((await testDb.select().from(schema.artikel))[0].contentMarkdown).toContain("__ZYX_V3_ARTICLE_VISUALS__");
       const { vectorStore } = await import("@/lib/vector-store");
-      const query = spyOn(vectorStore, "query").mockImplementation(async namespace => namespace === "mk-008_published_articles" ? [{ id: upsert.vectorId, score: 1, metadata: upsert.metadata }] : []);
+      const query = spyOn(vectorStore, "query").mockImplementation(async namespace => namespace === "mk-008_published_articles" ? [{ id: upsert.vectorId, score: 1, metadata: { ...upsert.metadata } }] : []);
       try {
         const { retrieveCanonicalEvidence } = await import("@/lib/zyra/canonical-runtime");
         const retrieval = await retrieveCanonicalEvidence({ courseId: "course-008", chapterId: "chapter-008", isEnrolled: true }, "Pertanyaan");

@@ -1,3 +1,4 @@
+import { buildLocalVerificationFixture } from "../../scripts/authoring/local-verification-fixture";
 import { expect, test } from "bun:test";
 import { validateProductLegacyLocalInput, productLegacyLocalFailure, assertProductLegacyReadback } from "../../scripts/authoring/verify-product-legacy-local";
 import { assertLegacyDiktatDraft, assertLegacyLearningProducts, selectLegacyPdfTarget } from "@/lib/compute/product-diktat-inspector";
@@ -42,8 +43,11 @@ test("legacy drafts require learning products and exclude assessment and later s
 });
 
 test("target selection matches each linked Diktat and unlinked Article", () => {
-  const a = { id: "a", productType: "article" }, b = { id: "b", productType: "article" };
-  const d = { id: "d", productType: "diktat", sourceArticleId: "a" };
+  const fixture = buildLocalVerificationFixture().bundle.products;
+  const article = fixture.find(product => product.productType === "article")!;
+  const diktat = fixture.find(product => product.productType === "diktat")!;
+  const a = { ...article, id: "a" }, b = { ...article, id: "b" };
+  const d = { ...diktat, id: "d", sourceArticleId: "a" };
   expect(selectLegacyPdfTarget([a] as any, input)).toEqual({ article: a, diktat: undefined });
   expect(selectLegacyPdfTarget([a, d] as any, input)).toEqual({ article: a, diktat: d });
   expect(() => selectLegacyPdfTarget([a, b, d] as any, input)).toThrow("EXACT_PRODUCT_REQUIRED");

@@ -24,13 +24,13 @@ test("canonical and legacy tutor assignments use the same user-row mutex as auth
   const tutorId = "assignment-lock-tutor", courseId = "assignment-lock-legacy", canonicalId = "assignment-lock-canonical";
   await testDb.insert(schema.user).values({ id: tutorId, name: "Tutor", email: "assignment-lock@example.test", role: "teacher" });
   await provisionPenggunaForNewUser({ id: tutorId, role: "teacher" });
-  await testDb.insert(schema.courses).values({ id: courseId, title: "Course", category: "Math" });
+  await testDb.insert(schema.courses).values({ id: courseId, title: "Course", category: "Matematika" as const });
   await testDb.insert(schema.mataKuliah).values({ id: canonicalId, title: "Course", code: "LOCK", legacyCourseId: courseId });
   await testDb.insert(schema.tutorCourses).values({ id: "fallback-assignment", tutorId, courseId });
   queries.length = 0;
   await testDb.transaction(async tx => {
-    await assertAuthoringActor(tx, tutorId, { roles: ["tutor"], error: "FORBIDDEN", lock: true });
-    expect((await checkTutorCourseAccess(tutorId, canonicalId, undefined, tx)).source).toBe("compatibility_fallback");
+    await assertAuthoringActor(tx as unknown as Parameters<typeof assertAuthoringActor>[0], tutorId, { roles: ["tutor"], error: "FORBIDDEN", lock: true });
+    expect((await checkTutorCourseAccess(tutorId, canonicalId, undefined, tx as unknown as Parameters<typeof checkTutorCourseAccess>[3])).source).toBe("compatibility_fallback");
   });
   const share = queries.findIndex(query => query.sql.includes('from "user"') && query.sql.includes("for share"));
   const assignmentsRead = queries.findIndex(query => query.sql.includes('from "penugasan_tutor"'));
@@ -59,13 +59,13 @@ test("canonical and legacy tutor assignments use the same user-row mutex as auth
   expect(queries.findIndex(query => query.sql.startsWith('insert into "penugasan_tutor"'))).toBeGreaterThan(grantLock);
   expect(grantLock).toBeGreaterThanOrEqual(0);
   await testDb.transaction(async tx => {
-    await assertAuthoringActor(tx, tutorId, { roles: ["tutor"], error: "FORBIDDEN", lock: true });
-    expect((await checkTutorCourseAccess(tutorId, courseId, undefined, tx)).source).toBe("canonical_assignment");
+    await assertAuthoringActor(tx as unknown as Parameters<typeof assertAuthoringActor>[0], tutorId, { roles: ["tutor"], error: "FORBIDDEN", lock: true });
+    expect((await checkTutorCourseAccess(tutorId, courseId, undefined, tx as unknown as Parameters<typeof checkTutorCourseAccess>[3])).source).toBe("canonical_assignment");
   });
   await testDb.transaction(tx => revokeCanonicalTutorCourseAssignments(tx, tutorId));
   await testDb.transaction(async tx => {
-    await assertAuthoringActor(tx, tutorId, { roles: ["tutor"], error: "FORBIDDEN", lock: true });
-    expect((await checkTutorCourseAccess(tutorId, canonicalId, undefined, tx)).hasAccess).toBe(false);
+    await assertAuthoringActor(tx as unknown as Parameters<typeof assertAuthoringActor>[0], tutorId, { roles: ["tutor"], error: "FORBIDDEN", lock: true });
+    expect((await checkTutorCourseAccess(tutorId, canonicalId, undefined, tx as unknown as Parameters<typeof checkTutorCourseAccess>[3])).hasAccess).toBe(false);
   });
   // A revoked canonical row blocks the still-present legacy projection.
   expect(await testDb.select().from(schema.tutorCourses).where(eq(schema.tutorCourses.tutorId, tutorId))).toHaveLength(1);

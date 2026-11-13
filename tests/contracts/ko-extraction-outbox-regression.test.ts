@@ -18,7 +18,7 @@ const candidate = (id: string, title: string, content: string) => ({
 beforeEach(async () => {
   await client.exec('TRUNCATE TABLE "user", courses, concepts CASCADE');
   await testDb.insert(schema.user).values({ id: "author", name: "Author", email: "ko@example.test" });
-  await testDb.insert(schema.courses).values({ id: "course", title: "Course", category: "Test" });
+  await testDb.insert(schema.courses).values({ id: "course", title: "Course", category: "Matematika" as const });
   await testDb.insert(schema.chapters).values({ id: "chapter", courseId: "course", title: "Chapter", orderIndex: 0 });
   await testDb.insert(schema.masterTeachingDocuments).values({ id: "mtd", courseId: "course", title: "Source", markdownContent: "Source", createdById: "author", version: 3, sourceHash: "old-source", derivedHash: "old-derived" });
   await testDb.insert(schema.concepts).values({ id: "concept", canonicalSlug: "concept" });

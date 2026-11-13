@@ -31,7 +31,7 @@ test("restage preserves the latest section decision committed before the import 
     await testDb.insert(schema.user).values({ id, name: id, email: `${id}@example.test`, role: "admin" });
     await provisionPenggunaForNewUser({ id, role: "admin" });
   }
-  await testDb.insert(schema.courses).values({ id: bundle.manifest.courseId, title: "Course", category: "Math" });
+  await testDb.insert(schema.courses).values({ id: bundle.manifest.courseId, title: "Course", category: "Matematika" as const });
   const stage = (bytes: Uint8Array, parsed: typeof bundle, expectedPreviousChecksum?: string) => stageProductBundle({ bytes, bundle: parsed, checksum: parsed.checksum, bundleId: parsed.manifest.bundleId, courseId: parsed.manifest.courseId, requestedBy: bundle.manifest.curatorId!, runId: "fixture", expectedPreviousChecksum, preserveUnchangedItemReviews: true });
   const staged = await stage(firstBytes, bundle);
   const article = bundle.products.find(product => product.productType === "article")!;
@@ -99,7 +99,7 @@ async function adoptionFixture(bundleId: string) {
     await testDb.insert(schema.user).values({ id, name: id, email: `${id}@example.test`, role: "admin" }).onConflictDoNothing();
     await provisionPenggunaForNewUser({ id, role: "admin" });
   }
-  await testDb.insert(schema.courses).values({ id: bundle.manifest.courseId, title: "Course", category: "Math" }).onConflictDoNothing();
+  await testDb.insert(schema.courses).values({ id: bundle.manifest.courseId, title: "Course", category: "Matematika" as const }).onConflictDoNothing();
   const staged = await stageProductBundle({ bytes, bundle, checksum: bundle.checksum, bundleId, courseId: bundle.manifest.courseId, requestedBy: actorId, runId: "fixture" });
   const [row] = await testDb.select().from(schema.imporBundle).where(eq(schema.imporBundle.id, staged.importId));
   return { bytes, bundle, row, actorId, input: { importId: staged.importId, actorId, expectedRevision: row.checksum, expectedStagingRunId: "fixture", runId: "mcp-run-11111111-1111-4111-8111-111111111111", expectedCourseId: row.courseId, expectedSourceUriOrKey: row.sourceUriOrKey, expectedVersion: row.version } };
