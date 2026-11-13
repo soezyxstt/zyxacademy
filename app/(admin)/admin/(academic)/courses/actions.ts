@@ -330,20 +330,18 @@ export async function getCourseSettingsData(courseId: string) {
   await assertAdmin();
 
   const cleanCourseId = courseId.trim().toLowerCase();
-  const [canonicalCourse, legacyCourse] = await Promise.all([
-    db
-      .select({ id: mataKuliah.id, title: mataKuliah.title, isDemo: mataKuliah.isDemo, pricingCategory: mataKuliah.pricingCategory, freeStartsAt: mataKuliah.freeStartsAt, freeEndsAt: mataKuliah.freeEndsAt })
+  const canonicalCourse = await db
+      .select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId, title: mataKuliah.title, isDemo: mataKuliah.isDemo, pricingCategory: mataKuliah.pricingCategory, freeStartsAt: mataKuliah.freeStartsAt, freeEndsAt: mataKuliah.freeEndsAt })
       .from(mataKuliah)
       .where(and(eq(mataKuliah.status, "active"), or(eq(mataKuliah.id, cleanCourseId), eq(mataKuliah.legacyCourseId, cleanCourseId))))
       .limit(1)
-      .then((rows) => rows[0] ?? null),
-    db
+      .then((rows) => rows[0] ?? null);
+  const legacyCourse = await db
       .select({ id: courses.id, title: courses.title, category: courses.category, description: courses.description })
       .from(courses)
-      .where(eq(courses.id, cleanCourseId))
+      .where(eq(courses.id, canonicalCourse?.legacyCourseId ?? canonicalCourse?.id ?? cleanCourseId))
       .limit(1)
-      .then((rows) => rows[0] ?? null),
-  ]);
+      .then((rows) => rows[0] ?? null);
 
   if (!canonicalCourse && !legacyCourse) return null;
 

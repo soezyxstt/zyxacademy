@@ -6,10 +6,11 @@ import { createPostgresTestDb } from "../helpers/postgres";
 const { client, testDb } = await createPostgresTestDb();
 mock.module("server-only", () => ({}));
 mock.module("@/db", () => ({ db: testDb }));
+mock.module("@/lib/db", () => ({ db: testDb }));
 mock.module("next/cache", () => ({ revalidatePath: () => {} }));
 mock.module("@/lib/auth/admin-guards", () => ({ assertAdmin: async () => ({ user: { id: "identity-admin" } }) }));
 const { saveCourseWithCanonicalProjection: save } = await import("@/lib/academic/course-canonical-sync");
-const { getCourses, saveCourse } = await import("@/app/(admin)/admin/(academic)/courses/actions");
+const { getCourses, getCourseSettingsData, saveCourse } = await import("@/app/(admin)/admin/(academic)/courses/actions");
 afterAll(() => client.close());
 
 const free = { category: "free" as const, startsAt: null, endsAt: null };
@@ -44,6 +45,15 @@ describe("course pricing canonical identity save", () => {
     expect((await saveCourse("new-invalid", "Invalid", "Umum", null, true, free)).success).toBe(false);
     await expect(save({ ...input, id: "identity-new-invalid", category: "Umum", isNew: true })).rejects.toThrow("COURSE_PROJECTION_UNAVAILABLE");
     await expect(save({ ...input, id: "identity-alias", category: "Umum" })).rejects.toThrow("COURSE_PROJECTION_UNAVAILABLE");
+  });
+
+  it("saves pricing from settings opened by either canonical or legacy identity", async () => {
+    for (const routeId of ["identity-canonical", "identity-alias"]) {
+      const settings = await getCourseSettingsData(routeId);
+      expect(settings).not.toBeNull();
+      expect([settings!.id, settings!.category, settings!.pricing.category]).toEqual(["identity-canonical", "Fisika", "free"]);
+      expect((await saveCourse(settings!.id, settings!.title, settings!.category, settings!.description, false, free)).success).toBe(true);
+    }
   });
 
   it("rejects missing identities and ambiguous aliases without changing either course", async () => {
