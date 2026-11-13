@@ -21,6 +21,7 @@ mock.module("@/lib/storage", () => ({ storage: {
 mock.module("@/lib/vector-sync-dispatch", () => ({ dispatchVectorSync: () => {} }));
 const { assertLiveProductBundleDependencies, publishProductBundle } = await import("@/lib/bundle/product-publication");
 const { stageProductBundle, reviewProductBundle } = await import("@/lib/bundle/product-staging");
+const { provisionPenggunaForNewUser } = await import("@/lib/auth/authorization");
 const { currentPublisherProductReadiness } = await import("@/lib/bundle/product-readiness");
 const { createAuthoringMcpServer } = await import("@/lib/authoring/mcp-server");
 const { issueMcpBootstrapToken, readMcpBootstrapToken, issueMcpRunToken } = await import("@/lib/authoring/mcp-workflows");
@@ -53,7 +54,7 @@ beforeAll(async () => {
   await testDb.insert(schema.courses).values([{ id: "legacy-main", title: "Main", category: "Matematika" as const }, { id: "legacy-other", title: "Other", category: "Matematika" as const }]);
   await testDb.insert(schema.mataKuliah).values([{ id: "main", code: "M", title: "Main", legacyCourseId: "legacy-main" }, { id: "other", code: "O", title: "Other", legacyCourseId: "legacy-other" }]);
   await testDb.insert(schema.user).values({ id: "admin", name: "Admin", email: "admin@example.test", role: "admin" });
-  await testDb.insert(schema.pengguna).values({ id: "admin" });
+  await provisionPenggunaForNewUser({ id: "admin", role: "admin" });
   await testDb.insert(schema.bab).values([{ id: "chapter", mataKuliahId: "main", code: "M1", title: "Main", orderIndex: 0 }, { id: "other-chapter", mataKuliahId: "other", code: "O1", title: "Other", orderIndex: 0 }]);
   for (const [id, courseId, chapterId] of [["idea", "main", "chapter"], ["other-idea", "other", "other-chapter"]]) {
     await testDb.insert(schema.ide).values({ id, mataKuliahId: courseId, babId: chapterId, stableKey: id, code: id, canonicalStatement: "Idea", conciseExplanation: "Explanation", status: "published", semanticHash: a, generationHash: a, creatorId: "admin" });
