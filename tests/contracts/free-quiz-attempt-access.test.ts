@@ -58,5 +58,6 @@ test("quiz staff access is assignment-bound, not a raw session-role bypass", () 
   expect(route).not.toContain("role === 'admin'");
   expect(route).not.toContain("role === 'teacher'");
   expect(route).toContain("courseId: template.courseId");
-  expect(route).toContain("policy?.allowed === true");
+  expect(route).toContain("!policyByTemplate.get(template.id)?.allowed");
+  expect(route).toContain("canAccessQuizSnapshots(access, group.map((attempt) => attempt.questionsSnapshot))");
 });

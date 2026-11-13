@@ -18,6 +18,9 @@ import { getOrCreateChatSession } from "@/lib/zyra/zyra-context-builder";
 import { getRecentSessions } from "@/lib/zyra/analytics-queries";
 import { isFreeChapterScoped } from "@/lib/course-utils";
 import { resolveCourseAccess, type CourseAccessResult } from "@/lib/student/course-access";
+import { canAccessQuizSnapshot } from "@/lib/quiz/question-scope";
+import { canAccessStudentQuizTemplate } from "@/lib/quiz/student-access";
+import { canViewAttemptDiscussion } from "@/lib/quiz/review-release";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { getCanonicalPublishedArticle, getCanonicalPublishedTextProduct } from "@/lib/articles/structured-repository";
 import { FREE_ALLOWANCE_IDEMPOTENCY_PREFIX } from "@/lib/usage-budget-service";
@@ -541,6 +544,8 @@ export async function askTutorRagAction(
       .select({
         id: studentQuizAttempts.id,
         title: quizTemplates.title,
+        template: quizTemplates,
+        status: studentQuizAttempts.status,
         questionsSnapshot: studentQuizAttempts.questionsSnapshot,
         strongAreas: studentQuizAttempts.strongAreas,
         weakAreas: studentQuizAttempts.weakAreas,
@@ -554,7 +559,9 @@ export async function askTutorRagAction(
       ))
       .limit(1);
 
-    if (reviewAttempt) {
+    if (reviewAttempt && canAccessStudentQuizTemplate(access, reviewAttempt.template)
+      && canViewAttemptDiscussion(reviewAttempt.template, reviewAttempt.status)
+      && await canAccessQuizSnapshot(access, reviewAttempt.questionsSnapshot)) {
       const questions = Array.isArray(reviewAttempt.questionsSnapshot)
         ? reviewAttempt.questionsSnapshot
             .slice(0, 30)

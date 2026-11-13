@@ -6,12 +6,15 @@ import { quizTemplates, studentQuizAttempts } from "@/db/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { resolveCourseAccess } from "@/lib/student/course-access";
 import { canAccessStudentQuizTemplate } from "@/lib/quiz/student-access";
+import { canAccessQuizSnapshot } from "@/lib/quiz/question-scope";
 import { storage } from "@/lib/storage";
 import { buildQuizAttachmentKey, quizAttachmentPrefix, INVALID_OBJECT_KEY } from "@/lib/storage/keys";
 
-async function canModifyAttempt(userId: string, templateId: string): Promise<boolean> {
+async function canModifyAttempt(userId: string, templateId: string, snapshot: unknown): Promise<boolean> {
   const [template] = await db.select().from(quizTemplates).where(eq(quizTemplates.id, templateId)).limit(1);
-  return Boolean(template && canAccessStudentQuizTemplate(await resolveCourseAccess({ courseId: template.courseId, userId }), template));
+  if (!template) return false;
+  const access = await resolveCourseAccess({ courseId: template.courseId, userId });
+  return canAccessStudentQuizTemplate(access, template) && await canAccessQuizSnapshot(access, snapshot);
 }
 
 const MAX_SIZE_BYTES = 4 * 1024 * 1024; // 4 MB to stay below Vercel's 4.5 MB Function payload ceiling
@@ -73,6 +76,7 @@ export async function POST(req: Request) {
       id: studentQuizAttempts.id,
       templateId: studentQuizAttempts.templateId,
       status: studentQuizAttempts.status,
+      questionsSnapshot: studentQuizAttempts.questionsSnapshot,
     })
     .from(studentQuizAttempts)
     .where(
@@ -90,7 +94,7 @@ export async function POST(req: Request) {
     );
   }
 
-  if (!await canModifyAttempt(user.id, attemptRecord.templateId)) return NextResponse.json({ error: "Akses kuis tidak tersedia." }, { status: 403 });
+  if (!await canModifyAttempt(user.id, attemptRecord.templateId, attemptRecord.questionsSnapshot)) return NextResponse.json({ error: "Akses kuis tidak tersedia." }, { status: 403 });
 
   const ext = getExtension(file.name);
   const expectedMime = ALLOWED_TYPES[ext];
@@ -256,6 +260,7 @@ export async function DELETE(req: Request) {
         templateId: studentQuizAttempts.templateId,
         status: studentQuizAttempts.status,
         answersSnapshot: studentQuizAttempts.answersSnapshot,
+        questionsSnapshot: studentQuizAttempts.questionsSnapshot,
       })
       .from(studentQuizAttempts)
       .where(
@@ -274,7 +279,7 @@ export async function DELETE(req: Request) {
       );
     }
 
-    if (!await canModifyAttempt(user.id, attemptRecord.templateId)) return NextResponse.json({ error: "Akses kuis tidak tersedia." }, { status: 403 });
+    if (!await canModifyAttempt(user.id, attemptRecord.templateId, attemptRecord.questionsSnapshot)) return NextResponse.json({ error: "Akses kuis tidak tersedia." }, { status: 403 });
 
     const expectedPrefix = quizAttachmentPrefix(attemptRecord.templateId);
     if (!fileKey.startsWith(expectedPrefix)) {

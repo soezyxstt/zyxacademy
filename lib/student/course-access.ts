@@ -607,12 +607,13 @@ async function resolveActiveChapters(
         title: bab.title,
         orderIndex: bab.orderIndex,
         legacyId: bab.legacyChapterId,
+        status: bab.status,
       })
       .from(bab)
-      .where(and(eq(bab.mataKuliahId, identity.canonicalCourseId), eq(bab.status, "active")))
+      .where(eq(bab.mataKuliahId, identity.canonicalCourseId))
       .orderBy(asc(bab.orderIndex), asc(bab.id));
     if (canonicalRows.length > 0) {
-      return canonicalRows.map((row) => ({
+      return canonicalRows.filter((row) => row.status === "active").map((row) => ({
         id: row.id,
         title: row.title,
         orderIndex: row.orderIndex,
@@ -836,8 +837,8 @@ export async function resolveCourseAccessBatch(userId: string, courseIds: readon
       eq(enrollments.userId, userId), inArray(enrollments.courseId, legacyIds), gt(enrollments.expiresAt, now),
     )) : [],
     canonicalIds.length ? client.select({ courseId: bab.mataKuliahId, id: bab.id, title: bab.title,
-      orderIndex: bab.orderIndex, legacyId: bab.legacyChapterId }).from(bab)
-      .where(and(inArray(bab.mataKuliahId, canonicalIds), eq(bab.status, "active"))).orderBy(asc(bab.orderIndex), asc(bab.id)) : [],
+      orderIndex: bab.orderIndex, legacyId: bab.legacyChapterId, status: bab.status }).from(bab)
+      .where(inArray(bab.mataKuliahId, canonicalIds)).orderBy(asc(bab.orderIndex), asc(bab.id)) : [],
     legacyIds.length ? client.select({ courseId: chapters.courseId, id: chapters.id, title: chapters.title,
       orderIndex: chapters.orderIndex }).from(chapters)
       .where(and(inArray(chapters.courseId, legacyIds), eq(chapters.status, "published"))).orderBy(asc(chapters.orderIndex), asc(chapters.id)) : [],
@@ -852,7 +853,7 @@ export async function resolveCourseAccessBatch(userId: string, courseIds: readon
     const isStaff = await resolveStaffCourseAccess(actor, userId, identity.courseId, client);
     const canonicalRows = canonicalChapters.filter((row) => row.courseId === identity.canonicalCourseId);
     const activeRows: CourseChapterCandidate[] = canonicalRows.length
-      ? canonicalRows.map((row) => ({ id: row.id, canonicalId: row.id, legacyId: row.legacyId, title: row.title, orderIndex: row.orderIndex, source: "canonical" }))
+      ? canonicalRows.filter((row) => row.status === "active").map((row) => ({ id: row.id, canonicalId: row.id, legacyId: row.legacyId, title: row.title, orderIndex: row.orderIndex, source: "canonical" }))
       : legacyChapters.filter((row) => row.courseId === (identity.legacyCourseId ?? identity.courseId))
           .map((row) => ({ id: row.id, canonicalId: null, legacyId: row.id, title: row.title, orderIndex: row.orderIndex, source: "legacy" }));
     return [id, projectCourseAccess(id, identity, actor, isEnrolled, isStaff, activeRows, now)] as const;

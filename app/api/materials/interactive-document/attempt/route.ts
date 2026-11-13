@@ -6,6 +6,7 @@ import { quizTemplates, studentQuizAttempts } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { resolveCourseAccess } from "@/lib/student/course-access";
 import { canAccessStudentQuizTemplate } from "@/lib/quiz/student-access";
+import { canAccessQuizSnapshot } from "@/lib/quiz/question-scope";
 import { authorizeAttemptDocument } from "@/lib/materials/interactive-document-authorization";
 import { verifyQuestionVisualBinding } from "@/lib/materials/question-visual-binding";
 import { readInteractiveDocumentAsset } from "@/lib/materials/interactive-document-assets";
@@ -32,7 +33,7 @@ async function deliver(request: Request, head: boolean) {
     const row = rows[0];
     if (!row) return unavailable(404);
     const access = await resolveCourseAccess({ courseId: row.template.courseId, userId: session.user.id, roleHint: session.user.role });
-    if (!canAccessStudentQuizTemplate(access, row.template)) return unavailable(404);
+    if (!canAccessStudentQuizTemplate(access, row.template) || !await canAccessQuizSnapshot(access, row.attempt.questionsSnapshot)) return unavailable(404);
     const spec = authorizeAttemptDocument({ ...input, userId: session.user.id, attempt: row.attempt, template: row.template });
     if (!spec || !Array.isArray(row.attempt.questionsSnapshot)) return unavailable(404);
     const question = row.attempt.questionsSnapshot.find((item: unknown) => !!item && typeof item === "object" && !Array.isArray(item) && (item as Record<string, unknown>).id === input.questionId) as { prompt: unknown; options: unknown; explanation?: unknown } | undefined;

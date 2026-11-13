@@ -23,6 +23,9 @@ import { QuestionSourceCitation } from "@/components/course/question-source-cita
 import { isShortAnswerCorrect } from "@/lib/quiz/short-answer";
 
 import { normalizeDate } from "@/lib/date-utils";
+import { resolveCourseAccess } from "@/lib/student/course-access";
+import { canAccessStudentQuizTemplate } from "@/lib/quiz/student-access";
+import { canAccessQuizSnapshot } from "@/lib/quiz/question-scope";
 
 type Props = {
   params: Promise<{ subject: string; stage: string }>;
@@ -107,7 +110,9 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
       .from(studentQuizAttempts)
       .where(and(eq(studentQuizAttempts.id, attemptId), eq(studentQuizAttempts.studentId, userId)))
       .limit(1);
-    if (!attempt) notFound();
+    if (!attempt || attempt.templateId !== template.id) notFound();
+    const access = await resolveCourseAccess({ courseId: template.courseId, userId });
+    if (!canAccessStudentQuizTemplate(access, template) || !await canAccessQuizSnapshot(access, attempt.questionsSnapshot)) notFound();
 
     if (attempt.status === "completed") {
       await recordPkaStageResult(attempt.id);

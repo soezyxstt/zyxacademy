@@ -20,7 +20,7 @@ import { normalizeDate } from "@/lib/date-utils";
 import { getCourse } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
 import { resolveCourseAccess } from "@/lib/student/course-access";
-import { freeQuizQuestionScope } from "@/lib/quiz/question-scope";
+import { canAccessQuizSnapshot, freeQuizQuestionScope } from "@/lib/quiz/question-scope";
 import { canAccessStudentQuizTemplate, validatedQuizScope } from "@/lib/quiz/student-access";
 import { canViewQuizDiscussion, isQuizDiscussionClosed, projectQuizReviewSnapshot, publicQuizOptionTexts as publicOptionTexts } from "@/lib/quiz/review-release";
 
@@ -359,6 +359,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         .limit(1)
     : [];
   if (needsSnapshot && !targetAttemptSnapshot) notFound();
+  if (targetAttemptSnapshot && !await canAccessQuizSnapshot(access, targetAttemptSnapshot.questionsSnapshot)) notFound();
 
   // STATE B: Active player taking quiz
   if (targetAttempt?.status === "in_progress") {

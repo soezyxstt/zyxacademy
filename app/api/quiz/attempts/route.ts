@@ -12,7 +12,7 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { and, or, eq, inArray, sql, desc, notInArray } from 'drizzle-orm';
 import { canAccessStudentQuizTemplate } from '@/lib/quiz/student-access';
-import { freeQuizQuestionScope } from '@/lib/quiz/question-scope';
+import { canAccessQuizSnapshots, freeQuizQuestionScope } from '@/lib/quiz/question-scope';
 import { getAdaptiveDifficultyProportions } from '@/lib/adaptive-quiz';
 import { canViewAttemptDiscussion } from '@/lib/quiz/review-release';
 import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
@@ -608,6 +608,7 @@ export async function GET(req: NextRequest) {
       .where(inArray(quizTemplates.id, [...new Set(templateIds)]))
     : [];
   const role = (session.user as { role?: string | null }).role;
+  const accessByTemplate = new Map<string, CourseAccessResult>();
   const policyEntries = await Promise.all(
     templates.map(async (template) => [
       template.id,
@@ -620,6 +621,7 @@ export async function GET(req: NextRequest) {
           userId: session.user.id,
           roleHint: role,
         });
+        accessByTemplate.set(template.id, access);
         const isStaff = access.tier === 'staff';
         if (!access.hasCourseAccess) {
           return {
@@ -653,10 +655,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: requestedPolicy.error }, { status: 403 });
   }
 
-  const visibleAttempts = attempts.filter((attempt) => {
-    const policy = policyByTemplate.get(attempt.templateId);
-    return policy?.allowed === true;
-  });
+  const allowedAttempts = new Set<string>();
+  await Promise.all(templates.map(async (template) => {
+    const access = accessByTemplate.get(template.id);
+    if (!access || !policyByTemplate.get(template.id)?.allowed) return;
+    const group = attempts.filter((attempt) => attempt.templateId === template.id);
+    const allowed = await canAccessQuizSnapshots(access, group.map((attempt) => attempt.questionsSnapshot));
+    group.forEach((attempt, index) => { if (allowed[index]) allowedAttempts.add(attempt.id); });
+  }));
+  const visibleAttempts = attempts.filter((attempt) => allowedAttempts.has(attempt.id));
 
  const templateById = new Map(templates.map((template) => [template.id, template]));
  const serializedAttempts = visibleAttempts.map((attempt) => serializeStudentQuizAttempt(attempt, {
