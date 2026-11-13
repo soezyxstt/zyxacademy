@@ -77,7 +77,8 @@ function localReviewDraft(value: unknown, importId: string, context: ReviewConte
   function readDraft(entry: unknown): { itemHash: string; draft: ItemDraft } | null {
     if (!entry || typeof entry !== "object" || !("itemHash" in entry) || typeof entry.itemHash !== "string" || !("draft" in entry) || !entry.draft || typeof entry.draft !== "object") return null;
     const draft: ItemDraft = {};
-    for (const { key } of criteria) if (key in entry.draft && ["approved", "changes_requested"].includes(String(entry.draft[key]))) draft[key] = entry.draft[key] as Choice;
+    const storedDraft = entry.draft as Record<string, unknown>;
+    for (const { key } of criteria) if (["approved", "changes_requested"].includes(String(storedDraft[key]))) draft[key] = storedDraft[key] as Choice;
     if ("notes" in entry.draft && typeof entry.draft.notes === "string") draft.notes = entry.draft.notes.slice(0, 2000);
     return { itemHash: entry.itemHash, draft };
   }

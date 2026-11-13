@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { assertProductV4VerificationCurrent } from "./product-v4-verification";
 import { createProductV4VerificationService, readProductVerificationObject, type ProductV4VerificationPorts, type ProductV4VerificationCheckpoint } from "./product-v4-verification-core";
 import { attachProductV4VerificationSnapshot, currentProductV4VerificationRef, latestProductV4StagingAudit, matchesProductV4StagingSnapshot } from "./product-v4-staging-identity";
@@ -100,7 +101,7 @@ export async function requestProductV4LocalAttempt(service: Pick<ReturnType<type
 export async function requestProductV4VerificationLocally(input: LocalScope & { retry?: boolean }) {
   const { assertProductV4LocalTarget } = await import("@/lib/compute/product-v4-local-operator");
   assertProductV4LocalTarget(process.env);
-  z.object({ importId: z.string().min(1), runId: z.string().min(1), expectedChecksum: hash, retry: z.boolean().optional() }).strict().parse(input);
+  z.object({ importId: z.string().min(1), runId: z.string().min(1), expectedChecksum: z.string().regex(/^[a-f0-9]{64}$/), retry: z.boolean().optional() }).strict().parse(input);
   const scope = { importId: input.importId, runId: input.runId, expectedChecksum: input.expectedChecksum };
   const service = await createProductV4ApplicationService(undefined, async () => {}, scope);
   return requestProductV4LocalAttempt(service, input);

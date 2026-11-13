@@ -21,7 +21,7 @@ const solutionPartSchema = z.discriminatedUnion("kind", [
 ]);
 const content = z.array(solutionPartSchema).min(1).max(100).superRefine((parts, ctx) => {
   const result = articlePartsSchema.safeParse(parts);
-  if (!result.success) result.error.issues.forEach((issue) => ctx.addIssue(issue));
+  if (!result.success) result.error.issues.forEach((issue) => ctx.addIssue({ code: "custom", path: issue.path, message: issue.message }));
 }).describe("Solution collection content allows static code examples only. Every code_example must explicitly set runnable to false. coding_exercise references and embedded article payloads are forbidden.");
 
 export const solutionQuestionTypeSchema = z.enum([

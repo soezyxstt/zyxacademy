@@ -1,4 +1,4 @@
-import { currentPublisherProductReadiness, publisherProductReviewReadiness } from "@/lib/bundle/product-readiness";
+import { currentPublisherProductReadiness } from "@/lib/bundle/product-readiness";
 import { validateProductBundleAdmission } from "@/lib/bundle/product-admission";
 import { mcpEnvironmentIdentity } from "./mcp-environment";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
@@ -41,7 +41,7 @@ import { getIdeaBundleImport, getIdeaReviewResetState, listIdeaBundleImports, re
 import { getIdeaRevisionReviewContext, publishIdeaBundle, reviewIdeaBundleRevision, withdrawIdeaBundle } from "@/lib/bundle/publication";
 import { validateProductBundle } from "@/lib/bundle/product-validator";
 import { previewProducts } from "@/lib/bundle/product-preview";
-import { adoptProductDraftRun, discardProductBundleDraft, getProductBundleImport, listProductBundleImports, listProductItemReviews, reviewProductBundle, stageProductBundle } from "@/lib/bundle/product-staging";
+import { adoptProductDraftRun, discardProductBundleDraft, getProductBundleImport, listProductBundleImports, reviewProductBundle, stageProductBundle } from "@/lib/bundle/product-staging";
 import {
   getSourcePackImport,
   listSourcePackImports,
@@ -2803,7 +2803,7 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
     return {
       ok: true,
       bundleType,
-      imports: await mapImportsSequentially(rows, async (row) => {
+      imports: await mapImportsSequentially([ ...rows ], async (row) => {
         const currentReadiness = bundleType === "product" ? { ...computeCurrentProductImportReadiness(row, pedReviewsByImport.get(row.id) ?? [], pdfEvidenceByImport.get(row.id) ?? [], principal.actorId), ...await currentPublisherProductReadiness(row.id, principal.actorId).catch(() => ({ publicationReady: false, valid: false, issues: [{ code: "PRODUCT_BUNDLE_READINESS_UNAVAILABLE", severity: "blocking", reason: "Inspect the current import before publication." }] })) } : undefined;
         return {
           importId: row.id,
@@ -2893,7 +2893,6 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
         const verification = typeof ref?.runId === "string" ? await (await import("@/lib/bundle/product-v4-verification-service")).getProductV4VerificationReadiness(importId, ref.runId) : null;
         const validVerification = verification && ref?.planHash === verification.plan.planHash ? verification : null;
         const quality = await evaluateProductBundleQualityPolicy({ bundle }, { imporBundleId: importId, publisherId: principal.actorId, v4Verification: validVerification });
-        const publisherReview = await publisherProductReviewReadiness(row, bundle, principal.actorId);
         const currentReadiness = await currentPublisherProductReadiness(importId, principal.actorId);
         return { ok: true, import: { ...publicBundleImport(row, pedReviews, pdfEvidenceRows), publicationReady: currentReadiness.publicationReady, currentReadiness, quality: currentReadiness,
           verificationContentHash: computeProductV4VerificationContentHash(bundle),

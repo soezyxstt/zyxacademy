@@ -95,7 +95,7 @@ export async function reconcileVectorRows(tx: Tx, rows: VectorRow[]): Promise<Re
   const solutionIds = ids(initial, "solution");
   const initialChunks = chunkIds.length ? await tx.select({ id: potonganSumber.id, parentId: potonganSumber.sumberMateriId }).from(potonganSumber).where(inArray(potonganSumber.id, chunkIds)) : [];
   const initialSolutions = solutionIds.length ? await tx.select({ id: pembahasanSoal.id, parentId: pembahasanSoal.soalId }).from(pembahasanSoal).where(inArray(pembahasanSoal.id, solutionIds)) : [];
-  const locks: CanonicalLock[] = initial.flatMap(({ managed, outbox }) => {
+  const locks: CanonicalLock[] = initial.flatMap<CanonicalLock>(({ managed, outbox }) => {
     if (!managed) return [{ domain: "compatibility" as const, entityType: outbox.entityType, entityId: outbox.entityId }];
     if (outbox.entityType === "idea") return [{ domain: "idea" as const, entityType: "idea", entityId: outbox.entityId }];
     if (outbox.entityType === "source_material") return [{ domain: "idea" as const, entityType: "source_chunk", entityId: outbox.entityId }];

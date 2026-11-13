@@ -187,7 +187,7 @@ function rowPayload(value: unknown): Record<string, unknown> {
 
 /** Processes pending outbox rows through the canonical 768-dimensional path with atomic lease claiming. */
 export async function processBatch(step: any, courseId?: string) {
-  const claimed = await step.run("claim-pending-batch", async () => {
+  const claimed: VectorSyncRow[] = await step.run("claim-pending-batch", async () => {
     const workerId = crypto.randomUUID();
     const now = new Date();
     const leaseExpiresAt = new Date(now.getTime() + LEASE_DURATION_MS);

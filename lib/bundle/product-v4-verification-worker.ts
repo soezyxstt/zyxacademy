@@ -3,17 +3,15 @@ import { buktiPdfBundle } from "@/db/schema";
 import { resolveProductV4PdfBinding, selectProductPdfEvidence } from "./product-pdf-selection";
 import { db } from "@/db";
 import { imporBundle } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { storage } from "@/lib/storage";
 import { inngest } from "@/jobs/client";
 import { resolveAuthSecret } from "@/lib/auth-secret";
-import { buildProductVerificationKey } from "@/lib/storage/keys";
 import { buildProductV4RuntimeBinding } from "@/lib/compute/product-v4-runtime-binding";
 import { persistProductV4PdfEvidence } from "@/lib/compute/product-v4-pdf-evidence-shared";
 import { parseAdmittedProductBundle } from "./product-staged-worker";
 import { createProductV4VerificationService, readProductVerificationObject, type ProductV4VerificationPorts, type ProductV4VerificationCheckpoint } from "./product-v4-verification-core";
 
-const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
 
 function applicationService(execute?: ProductV4VerificationPorts["execute"]) {
   const getRow = async (importId: string) => {
@@ -61,7 +59,7 @@ function applicationService(execute?: ProductV4VerificationPorts["execute"]) {
           const article = snapshot.bundle.products.find(product => product.productType === "article" && product.id === diktat.sourceArticleId);
           if (!article || article.productType !== "article") return false;
           const v4Binding = resolveProductV4PdfBinding({ importId: snapshot.importId, diktatId: diktat.id, validationReport: row.validationReport, verification: { plan, attemptId, receipt, stagingAuditId: snapshot.stagingAuditId, evaluation: { ready: true } } });
-          const selected = selectProductPdfEvidence({ rows, imporBundleId: snapshot.importId, articleId: article.id, diktatId: diktat.id, articleVersion: article.version, articleHash: article.generationHash, diktatHash: diktat.generationHash, v4Binding });
+          const selected = selectProductPdfEvidence({ rows: rows.map(row => ({ ...row, storageKey: row.storageKey ?? undefined, pageCount: row.pageCount ?? undefined, failureCode: row.failureCode ?? undefined })), imporBundleId: snapshot.importId, articleId: article.id, diktatId: diktat.id, articleVersion: article.version, articleHash: article.generationHash, diktatHash: diktat.generationHash, v4Binding });
           return !!selected && selected.status === "ready" && !!v4Binding && selected.storageKey === v4Binding.storageKey && selected.pageCount === v4Binding.pageCount;
         });
       });

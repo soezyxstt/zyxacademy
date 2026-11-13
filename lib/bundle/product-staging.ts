@@ -19,7 +19,7 @@ import { storage } from "@/lib/storage";
 import { buildProductBundleKey } from "@/lib/storage/keys";
 import { isBundleIdentitySentinelOrPlaceholder } from "./attribution";
 import { productEntityHash } from "./product-bundle-v2";
-import { deterministicProductSerialization, productInteractiveDocuments, type ProductDependency, type ProductEntity } from "./product-validator";
+import { deterministicProductSerialization, productInteractiveDocuments, type ProductDependency } from "./product-validator";
 import { stageInteractiveDocumentAssets, validateInteractiveDocumentArchive, verifyAdmittedInteractiveDocumentArchive } from "@/lib/materials/interactive-document-assets";
 import { parseAdmittedProductBundle } from "./product-staged-worker";
 import { type ProductBundleValidation } from "./product-validator";

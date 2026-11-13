@@ -486,7 +486,6 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
   const hasUnsavedItemNotes = unsavedItemNoteIds.length > 0;
   const hasUnsavedBundleNote = !hasOwnFinalDecision && reviewNote !== (payload?.bundle.currentReview?.notes ?? "");
   useMaterialReviewNavigation(contentChanged || hasUnsavedItemNotes || hasUnsavedBundleNote, saving || loading);
-  const ideaStatusLabel = (status: string) => t(status === "approved" ? "materials.status.approved" : status === "changes_requested" ? "materials.reviewStatus.changesRequested" : "materials.reviewStatus.pending");
   const itemReviewDisabled = saving || itemReviewLocked || editing;
   const allIdeasApproved = allIdeasReviewed && ideasList.every((idea) => payload?.itemReviews.find((review) => review.targetId === idea.id)?.status === "approved");
   const currentIndex = ideasList.findIndex((idea) => idea.id === selectedIdeaId);
@@ -1995,7 +1994,6 @@ export function FlashcardProductView({ product, compact = false }: { product: Ex
 }
 
 function FlashcardSetProductView({ product, allProducts, onSelectCard }: { product: Extract<ProductEntity, { productType: "flashcard_set" }>; allProducts: ProductEntity[]; onSelectCard: (id: string) => void }) {
-  const t = useTranslations("adminAcademic");
   const childCards = useMemo(() => {
     return allProducts.filter((p): p is Extract<ProductEntity, { productType: "flashcard" }> => p.productType === "flashcard" && (p.setId === product.id || product.cards.includes(p.id)));
   }, [allProducts, product]);
@@ -2604,7 +2602,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
     return review && review.status !== "pending" ? [{ sectionId: section.sectionId, semanticHash: section.semanticHash, decision: review.status, ...(review.notes ? { notes: review.notes } : {}) }] : [];
   }) ?? [];
   const anchorOptions = draftProducts.flatMap(product => [
-    { anchor: { targetType: "document" as const, targetId: product.id }, label: product.title },
+    { anchor: { targetType: "document" as const, targetId: product.id }, label: "title" in product ? product.title : product.id },
     ...(product.productType === "article" ? [
       ...product.sections.map(section => ({ anchor: { targetType: "section" as const, targetId: section.id }, label: `${product.title}: ${section.title}` })),
       ...[...product.blocks, ...product.sections.flatMap(section => section.blocks)].map(block => ({ anchor: { targetType: "block" as const, targetId: block.id }, label: `${product.title}: ${rubricT("anchorTypes.block")} ${block.id}` })),
