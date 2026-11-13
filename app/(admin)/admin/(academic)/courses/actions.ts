@@ -67,7 +67,8 @@ export async function getCourses() {
     });
   }
 
-  return db.select().from(courses).orderBy(asc(courses.title));
+  return (await db.select().from(courses).orderBy(asc(courses.title)))
+    .map((course) => ({ ...course, pricing: PREMIUM_PRICING }));
 }
 
 export async function getCoursesWithStats() {

@@ -18,6 +18,7 @@ const input = { title: "Updated", category: "Fisika" as const, isNew: false };
 describe("course pricing canonical identity save", () => {
   it("updates the actual legacy projection from either identity and preserves omitted pricing", async () => {
     await testDb.insert(schema.courses).values({ id: "identity-alias", title: "Legacy", category: "Fisika" });
+    expect((await getCourses())[0].pricing.category).toBe("premium");
     await testDb.insert(schema.mataKuliah).values({ id: "identity-canonical", code: "IDENTITY", title: "Canonical", legacyCourseId: "identity-alias", pricingCategory: "free" });
     await save({ ...input, id: "identity-canonical" });
     expect((await testDb.select().from(schema.courses).where(eq(schema.courses.id, "identity-alias")))[0].title).toBe("Updated");

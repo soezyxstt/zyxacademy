@@ -25,7 +25,7 @@ test("pricing quiz scope rejects malformed and conflicting representations", () 
 });
 
 test("canonical no-KO questions use the same chapter eligibility for fixed and dynamic selections", async () => {
-  await testDb.insert(schema.courses).values([{ id: "q-course", title: "Course", category: "Physics" }, { id: "q-foreign-course", title: "Foreign", category: "Physics" }]);
+  await testDb.insert(schema.courses).values([{ id: "q-course", title: "Course", category: "Fisika" }, { id: "q-foreign-course", title: "Foreign", category: "Fisika" }]);
   await testDb.insert(schema.mataKuliah).values([{ id: "q-canonical", code: "Q", title: "Course", legacyCourseId: "q-course" }, { id: "q-foreign", code: "F", title: "Foreign", legacyCourseId: "q-foreign-course" }]);
   await testDb.insert(schema.chapters).values({ id: "q-legacy", courseId: "q-course", title: "Chapter", orderIndex: 1, status: "published" });
   await testDb.insert(schema.bab).values([
