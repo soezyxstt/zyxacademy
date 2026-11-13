@@ -3,8 +3,14 @@ import { expect, mock, test } from "bun:test";
 mock.module("server-only", () => ({}));
 mock.module("@/lib/storage", () => ({ storage: {} }));
 let writes = 0;
-const db = { insert: () => ({ values: async () => { writes++; } }) };
-mock.module("@/db", () => ({ db }));
+let transactions = 0;
+const db = {
+  insert: () => ({ values: async () => { writes++; } }),
+  select: () => ({ from: () => ({ where: () => ({ limit: async () => [] }) }) }),
+};
+mock.module("@/db", () => ({ db: { ...db, transaction: async (operation: (tx: typeof db) => Promise<unknown>) => { transactions++; return operation(db); } } }));
+const dispatch = mock(async () => undefined);
+mock.module("@/lib/vector-sync-dispatch", () => ({ dispatchVectorSync: dispatch }));
 mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => ({ user: { id: "tutor", role: "teacher" } }) } } }));
 const tutorAccess = await import("@/lib/auth/tutor-access");
 mock.module("@/lib/auth/tutor-access", () => ({ ...tutorAccess, requireTutorCourseAccess: async () => ({ courseId: "course", legacyCourseId: "course" }) }));
@@ -21,6 +27,10 @@ test("legacy writers reject unbound assets before database mutation", async () =
   await expect(saveQuestionBankAction("course", null, input)).rejects.toThrow("QUESTION_VISUAL_ASSETS_REQUIRED");
   await expect(saveTryoutQuestionAction("course", "exam", null, { type: "multiple_choice", order: 0, prompt, options: input.options })).rejects.toThrow("QUESTION_VISUAL_ASSETS_REQUIRED");
   expect(writes).toBe(0);
+  expect(transactions).toBe(0);
+  expect(dispatch).not.toHaveBeenCalled();
   await executeCreateQuestion({ courseId: "course", prompt: "Soal biasa", options: ["A", "B"], correctAnswer: "A" });
   expect(writes).toBe(1);
+  expect(transactions).toBe(1);
+  expect(dispatch).toHaveBeenCalledWith("course");
 });
