@@ -55,15 +55,15 @@ async function CourseQuizListContent({
       .where(eq(studentQuizAttempts.studentId, studentId)),
   ]);
 
-  const accessTier = studentAccess ? studentAccess.tier : ("anonymous" as const);
-  const isEnrolled = studentAccess?.tier === "standard";
+  const accessTier = studentAccess?.hasFullContentAccess ? "standard" : studentAccess ? studentAccess.tier : ("anonymous" as const);
+  const hasFullContentAccess = Boolean(studentAccess?.hasFullContentAccess);
 
   const filteredTemplates = templates.filter((template) => {
     if (access === "free") return template.visibility === "free";
     if (access === "premium") return template.visibility === "paid";
     return true;
   });
-  const freeEligibleTemplateIds = studentAccess?.tier === "free"
+  const freeEligibleTemplateIds = studentAccess?.tier === "free" && !studentAccess.hasFullContentAccess
     ? templates
         .filter((template) => isFreeQuizTemplate(template, studentAccess.freeChapterIds))
         .map((template) => template.id)
@@ -71,7 +71,7 @@ async function CourseQuizListContent({
 
   return (
     <Reveal>
-      {!isEnrolled && (
+      {!hasFullContentAccess && (
         <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
             <div>
@@ -88,7 +88,7 @@ async function CourseQuizListContent({
       )}
       <QuizListClient
         courseId={id}
-        isEnrolled={isEnrolled}
+        hasFullContentAccess={hasFullContentAccess}
         accessTier={accessTier}
         freeEligibleTemplateIds={freeEligibleTemplateIds}
         templates={filteredTemplates}

@@ -17,9 +17,10 @@ import { QuizStartButton } from "./quiz-start-button";
 import { TranslatedText } from "@/components/i18n/translated-text";
 import { getTranslations } from "@/lib/i18n/server";
 import { normalizeDate } from "@/lib/date-utils";
-import { extractFreeQuizChapterScope, getCourse, isFreeQuizTemplate } from "@/lib/course-utils";
+import { extractFreeQuizChapterScope, getCourse } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
 import { resolveCourseAccess } from "@/lib/student/course-access";
+import { canAccessStudentQuizTemplate } from "@/lib/quiz/student-access";
 import { canViewQuizDiscussion, isQuizDiscussionClosed, projectQuizReviewSnapshot, publicQuizOptionTexts as publicOptionTexts } from "@/lib/quiz/review-release";
 
 type Props = {
@@ -98,7 +99,6 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
   // Access is resolved on the server. Free users may start only a regular
   // quiz whose complete chapter scope is within the first two chapters.
-  const isEnrolled = access.tier === "enrolled";
   const parsedAccessRules = typeof template.selectionRules === "string"
     ? (() => { try { return JSON.parse(template.selectionRules); } catch { return {}; } })()
     : template.selectionRules;
@@ -113,9 +113,8 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     questionIds?: string[];
     question_ids?: string[];
   };
-  const isFree = access?.tier === "free";
-  const isFreeQuizScoped = isFree && isFreeQuizTemplate(template, access.freeChapterIds);
-  const isAccessible = access.hasCourseAccess && (isStaff || isEnrolled || isFreeQuizScoped);
+  const isFree = access.tier === "free" && !access.hasFullContentAccess;
+  const isAccessible = canAccessStudentQuizTemplate(access, template);
 
   const rawFixedQuestionIds = rules.fixedQuestionIds
     ?? rules.fixed_question_ids

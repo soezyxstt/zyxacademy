@@ -7,10 +7,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 import { db } from '@/db';
-import { quizTemplates, aiQuestionBank, studentQuizAttempts, knowledgeObjects, studentConceptMastery, chapters } from '@/db/schema';
+import { quizTemplates, aiQuestionBank, studentQuizAttempts, knowledgeObjects, studentConceptMastery, chapters, bab } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { and, or, eq, inArray, sql, desc, notInArray } from 'drizzle-orm';
+import { canAccessStudentQuizTemplate } from '@/lib/quiz/student-access';
 import { getAdaptiveDifficultyProportions } from '@/lib/adaptive-quiz';
 import { canViewAttemptDiscussion } from '@/lib/quiz/review-release';
 import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
@@ -33,6 +34,7 @@ const StartSchema = z.object({
 const FREE_QUIZ_CATEGORIES: ReadonlySet<string> = new Set(['daily', 'weekly', 'chapter']);
 
 type FreeQuizPolicy = {
+  fullContent?: boolean;
   tier: CourseAccessTier;
   allowed: boolean;
   chapterIds: string[];
@@ -163,12 +165,24 @@ function expandFreeChapterScope(
   ];
 }
 
-function resolveFreeQuizPolicy(
+async function resolveFreeQuizPolicy(
   template: typeof quizTemplates.$inferSelect,
   access: CourseAccessResult,
-): FreeQuizPolicy {
-  if (access.tier === 'enrolled' || access.tier === 'staff') {
-    return { tier: access.tier, allowed: true, chapterIds: [] };
+): Promise<FreeQuizPolicy> {
+  if (access.hasCourseAccess && (access.hasFullContentAccess || access.tier === 'enrolled' || access.tier === 'staff')) {
+    if (access.tier === 'free') {
+      if (!canAccessStudentQuizTemplate(access, template)) return { tier: access.tier, allowed: false, chapterIds: [], error: 'Kuis ini belum tersedia.' };
+      const rules = parseSelectionRules(template.selectionRules);
+      const key = ['chapterId', 'chapterIds', 'chapters', 'chapter_ids'].find((item) => Object.prototype.hasOwnProperty.call(rules, item));
+      const requested: string[] = key ? (typeof rules[key] === 'string' ? [rules[key]] : rules[key]) : [];
+      const rows = key && access.canonicalCourseId ? await db.select({ id: bab.id, legacyId: bab.legacyChapterId }).from(bab).where(and(
+        eq(bab.mataKuliahId, access.canonicalCourseId), eq(bab.status, 'active'),
+        or(inArray(bab.id, requested), inArray(bab.legacyChapterId, requested)),
+      )) : [];
+      const chapterIds = key ? [...new Set([...requested, ...rows.flatMap((row) => [row.id, row.legacyId].filter((id): id is string => Boolean(id)))])] : access.scopedChapterIds;
+      return { tier: access.tier, allowed: true, chapterIds, fullContent: true };
+    }
+    return { tier: access.tier, allowed: true, chapterIds: [], fullContent: true };
   }
 
   if (access.tier !== 'free' || !access.hasCourseAccess) {
@@ -317,7 +331,7 @@ export async function POST(req: NextRequest) {
   }
   let freeQuizPolicy: FreeQuizPolicy | null = null;
   if (!isStaff) {
-    freeQuizPolicy = resolveFreeQuizPolicy(template, access);
+    freeQuizPolicy = await resolveFreeQuizPolicy(template, access);
     if (!freeQuizPolicy.allowed) {
       return NextResponse.json({ error: freeQuizPolicy.error }, { status: 403 });
     }
@@ -661,7 +675,7 @@ export async function GET(req: NextRequest) {
         if (isStaff) {
           return { tier: 'staff', allowed: true, chapterIds: [] };
         }
-        return resolveFreeQuizPolicy(template, access);
+        return await resolveFreeQuizPolicy(template, access);
       })(),
     ] as const),
   );

@@ -29,6 +29,7 @@ export interface CanonicalFormativeCheckContext {
   article: {
     id: string;
     courseId: string;
+    chapterId: string | null;
     title: string;
     version: number;
   };
@@ -78,6 +79,7 @@ export async function resolvePublishedFormativeCheck(
     .select({
       id: artikel.id,
       courseId: artikel.mataKuliahId,
+      chapterId: artikel.babId,
       title: artikel.title,
       version: artikel.version,
       structureStatus: artikel.structureStatus,
@@ -137,6 +139,7 @@ export async function resolvePublishedFormativeCheck(
       article: {
         id: article.id,
         courseId: article.courseId,
+        chapterId: article.chapterId,
         title: article.title,
         version: article.version,
       },

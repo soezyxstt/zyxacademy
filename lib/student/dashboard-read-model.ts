@@ -11,7 +11,7 @@ import {
   soal,
   submissions,
 } from "@/db/schema";
-import { eq, and, notLike, sql, inArray, asc, desc, or } from "drizzle-orm";
+import { eq, and, notLike, sql, inArray, asc, desc } from "drizzle-orm";
 import { requireAuthUser } from "@/lib/auth-session";
 import {
   getStudentCourseAccess,
@@ -315,7 +315,7 @@ export async function getDashboardCourseExamsBatch(
       if (studentId && !entry.access) {
         mappedQuizzes = [];
       } else {
-        if (studentId && entry.access?.tier === "free") {
+        if (studentId && entry.access?.tier === "free" && !entry.access.hasFullContentAccess) {
           sortedTemplates = sortedTemplates.filter((template) =>
             isFreeQuizTemplate(template, entry.access!.freeChapterIds),
           );

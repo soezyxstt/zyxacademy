@@ -142,7 +142,7 @@ export async function getCourseVideosData(courseSlugOrId: string) {
     roleHint: (session.user as { role?: string | null }).role,
   });
 
-  const isEnrolled = access.isEnrolled || access.tier === "staff";
+  const hasFullContentAccess = access.hasFullContentAccess;
 
   const courseIds = identity.allIds;
 
@@ -177,7 +177,7 @@ export async function getCourseVideosData(courseSlugOrId: string) {
 
   const chapterMap = new Map(chapterRows.map((ch) => [ch.id, ch.title]));
 
-  const mappedVideos: VideoItem[] = videoRows.map((v) => {
+  const mappedVideos: VideoItem[] = videoRows.filter((video) => access.tier === "staff" || !video.chapterId || access.scopedChapterIds.includes(video.chapterId)).map((v) => {
     const resolvedVideoUrl = v.videoUrl
       ? v.videoUrl.startsWith("youtube/")
         ? v.videoUrl
@@ -193,9 +193,9 @@ export async function getCourseVideosData(courseSlugOrId: string) {
       chapterTitle: v.chapterId ? chapterMap.get(v.chapterId) || null : null,
       title: v.title,
       description: v.description,
-      videoUrl: isEnrolled ? resolvedVideoUrl : "",
+      videoUrl: hasFullContentAccess ? resolvedVideoUrl : "",
       thumbnailUrl: resolvedThumbnailUrl,
-      videoKey: isEnrolled ? (v.videoUrl || null) : null,
+      videoKey: hasFullContentAccess ? (v.videoUrl || null) : null,
       thumbnailKey: v.thumbnailUrl || null,
       duration: v.duration,
       fileSize: v.fileSize,
@@ -203,7 +203,7 @@ export async function getCourseVideosData(courseSlugOrId: string) {
       uploadedBy: v.uploadedBy,
       createdAt: v.createdAt,
       updatedAt: v.updatedAt,
-      locked: !isEnrolled,
+      locked: !hasFullContentAccess,
     };
   });
 
@@ -231,7 +231,8 @@ export async function getCourseVideosData(courseSlugOrId: string) {
     chapters: chapterRows,
     playlists,
     videos: mappedVideos,
-    isEnrolled,
+    isEnrolled: access.isEnrolled,
+    hasFullContentAccess,
   };
 }
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Lock, ArrowLeft } from "lucide-react";
-import { checkEnrollment } from "@/app/(student)/dashboard/actions";
+import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { TryoutForm } from "@/components/course/tryout-form";
 import { EnrollmentForm } from "@/components/enrollment-form";
@@ -182,9 +182,9 @@ export default async function CourseTryoutTakePage({ params }: Props) {
     );
   }
 
-  const isEnrolled = await checkEnrollment(id);
+  const hasFullContentAccess = await checkFullCourseContentAccess(id);
 
-  if (!isEnrolled) {
+  if (!hasFullContentAccess) {
     return (
       <CoursePageShell title={<TranslatedText namespace="learning" messageKey="tryoutTake.locked" />} description={<TranslatedText namespace="learning" messageKey="tryoutTake.premiumDescription" values={{ course: course.title }} />} hideHeader>
         <div className="mb-4">

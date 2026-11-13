@@ -1,3 +1,4 @@
+import { canAccessStudentQuizTemplate } from "@/lib/quiz/student-access";
 /**
  * GET /api/quiz/daily ; return a published daily quiz without answer keys.
  * POST /api/quiz/daily ; grade only the published questions resolved on the
@@ -165,14 +166,14 @@ function parseSelectionRules(raw: unknown): SelectionRules {
     : {};
 }
 
-function extractChapterScope(rules: SelectionRules): string[] | null {
+function extractChapterScope(rules: SelectionRules, max = 2): string[] | null {
   const keys = ["chapterId", "chapterIds", "chapters", "chapter_ids"];
   const present = keys.filter((key) => Object.prototype.hasOwnProperty.call(rules, key));
   if (present.length !== 1) return null;
 
   const raw = rules[present[0]];
   const refs = typeof raw === "string" ? [raw] : Array.isArray(raw) ? raw : [];
-  if (refs.length < 1 || refs.length > 2 || refs.some((ref) => typeof ref !== "string")) return null;
+  if (refs.length < 1 || refs.length > max || refs.some((ref) => typeof ref !== "string")) return null;
 
   const normalized = refs.map((ref) => ref.trim());
   if (normalized.some((ref) => ref.length === 0)) return null;
@@ -186,7 +187,7 @@ async function expandChapterScope(access: CourseAccessResult, requested: readonl
     .flatMap((chapter) => [chapter.id, chapter.canonicalId, chapter.legacyId])
     .filter((id): id is string => Boolean(id));
 
-  if (access.tier !== "free" && access.canonicalCourseId && requested.length > 0) {
+  if ((access.tier !== "free" || access.hasFullContentAccess) && access.canonicalCourseId && requested.length > 0) {
     const canonicalRows = await db
       .select({ id: bab.id, legacyId: bab.legacyChapterId })
       .from(bab)
@@ -217,11 +218,18 @@ async function resolveDailyTemplateAccess(
   if (!access.hasCourseAccess || !access.capabilities.canStartQuiz) return null;
 
   const rules = parseSelectionRules(template.selectionRules);
-  const requestedChapterIds = extractChapterScope(rules);
-  if (access.tier === "free") {
+  const requestedChapterIds = extractChapterScope(rules, access.tier === "free" && access.hasFullContentAccess ? Infinity : 2);
+  if (access.tier === "free" && !access.hasFullContentAccess) {
     if (template.visibility !== "free" || !requestedChapterIds) return null;
     if (!canAccessCourseContent(access, "quiz", requestedChapterIds)) return null;
     const chapterIds = await expandChapterScope(access, requestedChapterIds);
+    return chapterIds.length > 0 ? { access, rules, chapterIds } : null;
+  }
+
+  if (access.tier === "free" && access.hasFullContentAccess) {
+    if (!canAccessStudentQuizTemplate(access, template)) return null;
+    if (requestedChapterIds && !canAccessCourseContent(access, "quiz", requestedChapterIds)) return null;
+    const chapterIds = requestedChapterIds ? await expandChapterScope(access, requestedChapterIds) : access.scopedChapterIds;
     return chapterIds.length > 0 ? { access, rules, chapterIds } : null;
   }
 

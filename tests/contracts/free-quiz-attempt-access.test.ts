@@ -22,7 +22,7 @@ test("Free quiz attempts stay published and first-two-chapter scoped", () => {
   expect(route).toContain("courseId: courseIdentity.primaryId");
   expect(route).toContain("const isStaff = access.tier === 'staff'");
   expect(route).toContain("canAccessCourseContent(access, 'quiz', chapterIds)");
-  expect(route).toContain("if (access.tier === 'enrolled' || access.tier === 'staff')");
+  expect(route).toContain("access.hasFullContentAccess || access.tier === 'enrolled' || access.tier === 'staff'");
   expect(route).toContain("if (!isStaff)");
   expect(route).toContain("template.status !== 'published'");
   expect(route).toContain("FREE_QUIZ_CATEGORIES");

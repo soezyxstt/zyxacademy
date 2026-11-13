@@ -35,9 +35,9 @@ export async function getDashboardReviewSummary(studentId: string, courseIds: re
   const now = Date.now();
   return courses.map(({ id, course, access }) => {
     if (!access) return { courseId: id, count: 0 };
-    const free = access.tier === "free" ? new Set(access.freeChapterIds) : null;
+    const free = access.tier === "free" ? new Set(access.hasFullContentAccess ? access.policy.scopedChapterIds : access.freeChapterIds) : null;
     if (course?.canonicalId && canonicalCourses.has(course.canonicalId)) {
-      const items = canonicalRows.filter((row) => row.courseId === course.canonicalId && (!free || isFreeChapterScoped([row.chapterId, row.legacyChapterId], free)) && isReviewDue(row.due ? { due: row.due, status: row.status ?? undefined } : null, now)).map((row) => {
+      const items = canonicalRows.filter((row) => row.courseId === course.canonicalId && (!free || isFreeChapterScoped([row.chapterId, row.legacyChapterId].filter((id): id is string => Boolean(id)), free)) && isReviewDue(row.due ? { due: row.due, status: row.status ?? undefined } : null, now)).map((row) => {
         const idea = weakestFlashcardIdea(ideaMap.get(row.id) ?? []);
         return { cardId: row.id, ideaId: idea?.ideaId ?? null, masteryScore: idea?.masteryScore ?? null, confidence: idea?.confidence ?? null, seenBefore: Boolean(row.lastReviewedAt), nextReviewDue: row.due ?? new Date(0) };
       });

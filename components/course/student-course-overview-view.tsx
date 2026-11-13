@@ -1,4 +1,6 @@
 
+import { CoursePricingLabel } from "@/components/course/course-pricing-label";
+import type { CoursePricing } from "@/lib/student/course-pricing";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { BookOpen, ArrowRight } from "lucide-react";
@@ -7,9 +9,9 @@ import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { TranslatedText } from "@/components/i18n/translated-text";
 
-export function StudentCourseOverviewView({ href = (path: string) => path,  course, isEnrolled, highlights, chapterOutline }: { href?: (path: string) => string;
-  course: { id: string; title: string; description: string | null };
-  isEnrolled: boolean;
+export function StudentCourseOverviewView({ href = (path: string) => path,  course, hasFullContentAccess, highlights, chapterOutline }: { href?: (path: string) => string;
+  course: { id: string; title: string; description: string | null; pricing?: CoursePricing };
+  hasFullContentAccess: boolean;
   highlights: ReactNode;
   chapterOutline: ReactNode;
 }) {
@@ -17,7 +19,8 @@ export function StudentCourseOverviewView({ href = (path: string) => path,  cour
   return (
       <CoursePageShell title={course.title} description={course.description ?? ""} icon={BookOpen} maxWidth="7xl" hideMobileTitle>
         <Reveal>
-          {!isEnrolled && (
+          {course.pricing && <div className="mb-3"><CoursePricingLabel pricing={course.pricing} /></div>}
+          {!hasFullContentAccess && (
             <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
               <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
                 <div>
@@ -28,9 +31,9 @@ export function StudentCourseOverviewView({ href = (path: string) => path,  cour
               </div>
             </div>
           )}
-          {isEnrolled && highlights}
+          {hasFullContentAccess && highlights}
           <div className="mb-6">{chapterOutline}</div>
-          {isEnrolled && (
+          {hasFullContentAccess && (
             <div className="mt-6 flex items-center justify-between border-t border-border/40 pt-4">
               <Link href={href(`/courses/${course.id}/progress`)} className="inline-flex items-center gap-1.5 text-body-sm font-semibold text-brand-primary hover:underline">
                 <span><TranslatedText namespace="learning" messageKey="courseOverview.viewProgress" /></span>

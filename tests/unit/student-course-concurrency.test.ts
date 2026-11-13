@@ -49,10 +49,12 @@ mock.module("@/lib/auth-session", () => ({
 // Mock course utils
 const mockStudentAccess = {
   tier: "standard",
+  hasFullContentAccess: true,
   freeChapterIds: [] as string[],
   policy: {
     capabilities: {
       canDownloadDiktat: true,
+      canReviewFlashcard: true,
     },
   },
 };

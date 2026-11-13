@@ -1,6 +1,7 @@
 import { and, asc, eq, lte, lt, or, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { flashcards, flashcardIde, rekomendasiFlashcard, studentFlashcardProgress, pemahamanIde } from "@/db/schema";
+import { flashcard, setFlashcard, flashcardIde, rekomendasiFlashcard, kemajuanFlashcardMurid, pemahamanIde } from "@/db/schema";
+import { canAccessCourseContent, resolveCourseAccessBatch } from "@/lib/student/course-access";
 
 export const FLASHCARD_SUPPRESSION_MASTERY_SCORE = 80;
 
@@ -68,36 +69,46 @@ export async function writeIdeaRecommendations(
 }
 
 export async function refreshIdeaRecommendations(penggunaId: string, limit = 20): Promise<IdeaRecommendation[]> {
+  const now = new Date();
   const rows = await db
     .select({
       flashcardId: flashcardIde.flashcardId,
       ideaId: flashcardIde.ideId,
-      dueAt: studentFlashcardProgress.dueDate,
+      dueAt: kemajuanFlashcardMurid.dueAt,
+      courseId: setFlashcard.mataKuliahId,
+      chapterId: setFlashcard.babId,
       masteryScore: pemahamanIde.skor,
       confidence: pemahamanIde.keyakinan,
     })
     .from(flashcardIde)
-    .innerJoin(flashcards, eq(flashcardIde.flashcardId, flashcards.id))
+    .innerJoin(flashcard, eq(flashcardIde.flashcardId, flashcard.id))
+    .innerJoin(setFlashcard, eq(flashcard.setFlashcardId, setFlashcard.id))
     .innerJoin(pemahamanIde, and(eq(pemahamanIde.ideId, flashcardIde.ideId), eq(pemahamanIde.penggunaId, penggunaId)))
     .leftJoin(
-      studentFlashcardProgress,
-      and(eq(studentFlashcardProgress.flashcardId, flashcardIde.flashcardId), eq(studentFlashcardProgress.studentId, penggunaId)),
+      kemajuanFlashcardMurid,
+      and(eq(kemajuanFlashcardMurid.flashcardId, flashcardIde.flashcardId), eq(kemajuanFlashcardMurid.penggunaId, penggunaId)),
     )
     .where(
       and(
-        eq(flashcards.status, "active"),
+        eq(flashcard.status, "published"),
+        eq(setFlashcard.status, "published"),
         lt(pemahamanIde.skor, FLASHCARD_SUPPRESSION_MASTERY_SCORE),
-        or(isNull(studentFlashcardProgress.id), lte(studentFlashcardProgress.dueDate, new Date())),
+        or(isNull(kemajuanFlashcardMurid.id), and(eq(kemajuanFlashcardMurid.status, "active"), lte(kemajuanFlashcardMurid.dueAt, now))),
       ),
     )
-    .orderBy(asc(studentFlashcardProgress.dueDate), asc(flashcardIde.flashcardId));
+    .orderBy(asc(kemajuanFlashcardMurid.dueAt), asc(flashcardIde.flashcardId));
+
+  const access = await resolveCourseAccessBatch(penggunaId, rows.map((row) => row.courseId), { now });
 
   return writeIdeaRecommendations(
     penggunaId,
-    rows.map((row) => ({
+    rows.filter((row) => {
+      const policy = access.get(row.courseId);
+      return policy && canAccessCourseContent(policy, "flashcard", [row.chapterId]);
+    }).map((row) => ({
       flashcardId: row.flashcardId,
       ideaId: row.ideaId,
-      dueAt: row.dueAt ?? new Date(),
+      dueAt: row.dueAt ?? now,
       masteryScore: row.masteryScore,
       confidence: row.confidence,
     })),

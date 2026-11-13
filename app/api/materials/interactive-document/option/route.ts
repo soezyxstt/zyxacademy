@@ -46,7 +46,7 @@ async function deliver(request: Request, head: boolean) {
       const shared = await fetchSharedCanonicalArticle(input.courseId, input.articleId);
       if (!shared || shared.articleRecord.id !== input.articleId || shared.articleRecord.version !== input.articleVersion) return unavailable(404);
       const access = await resolveCourseAccess({ courseId: input.courseId, userId: session.user.id });
-      if (!canAccessCourseContent(access, "article", [shared.articleRecord.babId, shared.chapterRecord?.legacyChapterId])) return unavailable(404);
+      if (!canAccessCourseContent(access, "article", [shared.articleRecord.babId, shared.chapterRecord?.legacyChapterId].filter((id): id is string => Boolean(id)))) return unavailable(404);
       const section = shared.parsedSections.find((item) => item.id === input.sectionId);
       const block = shared.parsedBlocks.find((item) => item.id === input.blockId && item.bagianArtikelId === section?.id);
       if (!section?.sectionKey || !block?.blockKey) return unavailable(404);

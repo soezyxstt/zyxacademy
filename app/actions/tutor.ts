@@ -118,7 +118,7 @@ async function requireEnrolledTutorAccess(courseId: string | null | undefined): 
 function assertFreeScope(access: CourseAccessResult | null, chapterIds: readonly (string | null | undefined)[]): void {
   if (access?.tier === "free" && !isFreeChapterScoped(
     chapterIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0),
-    access.freeChapterIds,
+    access.hasFullContentAccess ? access.scopedChapterIds : access.freeChapterIds,
   )) {
     throw new Error(UPGRADE_REQUIRED);
   }
@@ -373,7 +373,7 @@ export async function findKoForMaterialSectionAction(courseId: string, selectedT
       );
 
     const visibleKos = access?.tier === "free"
-      ? kos.filter((ko) => isFreeChapterScoped([ko.chapterId], access.freeChapterIds))
+      ? kos.filter((ko) => isFreeChapterScoped([ko.chapterId], access.hasFullContentAccess ? access.scopedChapterIds : access.freeChapterIds))
       : kos;
 
     // 1. Try exact or substring match on conceptName
@@ -728,7 +728,7 @@ export async function askTutorRagAction(
   let codingHintOnly = false;
   let codingPedagogyAction: "hint_request" | "follow_up" | undefined;
   if (codingRequest) {
-    if ((codingRequest as { kind?: unknown }).kind === "exercise" && access.tier !== "enrolled" && access.tier !== "staff") throw new Error("NOT_ENROLLED");
+    if ((codingRequest as { kind?: unknown }).kind === "exercise" && !access.hasFullContentAccess) throw new Error("NOT_ENROLLED");
     if (!access.canonicalCourseId) throw new Error("COURSE_SCOPE_REQUIRED");
     const coding = await resolveCodingTutorContext({ courseId: access.canonicalCourseId, userId: user.id, request: codingRequest });
     codingHintOnly = coding.assistance === "hints";
@@ -751,7 +751,7 @@ export async function askTutorRagAction(
     responseLanguage: responseLanguage === "en" || responseLanguage === "id" ? responseLanguage : undefined,
     sessionId: sid,
     accessTier: access?.tier === "free" ? "free" : "standard",
-    freeChapterIds: access?.freeChapterIds,
+    freeChapterIds: access?.hasFullContentAccess ? access.scopedChapterIds : access?.freeChapterIds,
     idempotencyKey,
     attemptState: hasActiveAttempt || codingHintOnly ? "in_progress" : "none",
     activityKind: hasActiveAttempt || codingHintOnly ? "quiz" : "study",

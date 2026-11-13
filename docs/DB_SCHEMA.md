@@ -370,6 +370,8 @@ Plan 003 adds these tables without changing legacy courses, chapters, enrollment
 
 ### mata_kuliah
 * `id`, `code`, `title`, `status`, `isDemo`
+* `pricingCategory`: `premium`, `free`, or `limited_time_free`, default `premium`. `freeStartsAt` and `freeEndsAt` are UTC instants required only for limited offers; start is inclusive and end exclusive. Admin entry uses WIB.
+* PostgreSQL migration `drizzle-postgres/0007_medical_quentin_quire.sql` is a prerequisite before code using these fields; it has not been applied remotely as part of this work.
 * `legacyCourseId`: Optional compatibility reference to `courses.id`.
 * `isDemo`: Boolean marker for the legacy singleton admin demo selection, separate from the public snapshot allowlist. A partial unique index allows at most one row with `isDemo = true`; archived or incomplete courses are not eligible for selection.
 * `createdAt`, `updatedAt`

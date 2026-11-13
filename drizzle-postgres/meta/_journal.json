@@ -50,6 +50,13 @@
       "when": 1793908326585,
       "tag": "0006_large_rocket_racer",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794545146148,
+      "tag": "0007_medical_quentin_quire",
+      "breakpoints": true
     }
   ]
 }

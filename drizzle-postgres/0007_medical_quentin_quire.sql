@@ -1,0 +1,4 @@
+ALTER TABLE "mata_kuliah" ADD COLUMN "pricing_category" text DEFAULT 'premium' NOT NULL;--> statement-breakpoint
+ALTER TABLE "mata_kuliah" ADD COLUMN "free_starts_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "mata_kuliah" ADD COLUMN "free_ends_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "mata_kuliah" ADD CONSTRAINT "mata_kuliah_pricing_check" CHECK (("mata_kuliah"."pricing_category" IN ('premium', 'free') AND "mata_kuliah"."free_starts_at" IS NULL AND "mata_kuliah"."free_ends_at" IS NULL) OR ("mata_kuliah"."pricing_category" = 'limited_time_free' AND "mata_kuliah"."free_starts_at" IS NOT NULL AND "mata_kuliah"."free_ends_at" IS NOT NULL AND "mata_kuliah"."free_starts_at" < "mata_kuliah"."free_ends_at"));

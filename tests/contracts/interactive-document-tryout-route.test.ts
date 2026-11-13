@@ -11,7 +11,7 @@ chain.where = () => Object.assign(Promise.resolve(rows), { limit: async () => ex
 mock.module("next/headers", () => ({ headers: async () => new Headers() }));
 mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => ({ user: { id: "user", role: "student" } }) } } }));
 mock.module("@/db", () => ({ db: { select: () => chain } }));
-mock.module("@/lib/student/course-access", () => ({ resolveCourseAccess: async () => ({ hasCourseAccess: allowed, tier: allowed ? "enrolled" : "free" }) }));
+mock.module("@/lib/student/course-access", () => ({ resolveCourseAccess: async () => ({ hasCourseAccess: allowed, hasFullContentAccess: allowed, tier: allowed ? "enrolled" : "free" }) }));
 mock.module("@/lib/materials/question-visual-binding", () => ({ verifyQuestionVisualBinding: async () => verified }));
 mock.module("@/lib/materials/interactive-document-assets", () => ({ readInteractiveDocumentAsset: async () => { reads++; return new Uint8Array([1]); } }));
 mock.module("@/lib/materials/interactive-document-server", () => ({ interactiveDocumentResponse: (bytes: Uint8Array) => new Response(bytes as unknown as BodyInit) }));

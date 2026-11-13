@@ -311,12 +311,12 @@ async function MaterialDetailContent({
   // 1. Canonical structured article first. Published V2 Article and Diktat
   // content falls through to the canonical text product reader below.
   if (canonicalArticle) {
-    const isEnrolled = access?.tier === "standard";
+    const hasFullContentAccess = Boolean(access?.hasFullContentAccess);
     const articleChapterIds = [
       canonicalArticle.chapterId,
     ].filter((ch): ch is string => Boolean(ch));
-    const isFreeChapter = access?.tier === "free" && isFreeChapterScoped(articleChapterIds, access.freeChapterIds);
-    const isAllowed = isEnrolled || isFreeChapter;
+    const isFreeChapter = access?.tier === "free" && !access.hasFullContentAccess && isFreeChapterScoped(articleChapterIds, access.freeChapterIds);
+    const isAllowed = hasFullContentAccess || isFreeChapter;
     if (!isAllowed) {
       return (
         <CoursePageShell title={<TranslatedText namespace="learning" messageKey="materialDetail.locked" />} description={<TranslatedText namespace="learning" messageKey="materialDetail.premiumDescription" values={{ course: course.title }} />} hideHeader>
@@ -357,14 +357,14 @@ async function MaterialDetailContent({
   const material = await fetchMaterial(id, materialId, studentId, course, Boolean(access?.policy.capabilities.canDownloadDiktat));
   if (!material) notFound();
 
-  const isEnrolled = access?.tier === "standard";
-  const isFreePdf = material.kind === "pdf" && material.docCategory !== "diktat";
+  const hasFullContentAccess = Boolean(access?.hasFullContentAccess);
+  const isFreePdf = Boolean(access) && material.kind === "pdf" && material.docCategory !== "diktat";
   const materialChapterIds = [
     ...(material.chapterIds ?? []),
     ...(material.chapterId ? [material.chapterId] : []),
   ];
-  const isFreeChapter = access?.tier === "free" && isFreeChapterScoped(materialChapterIds, access.freeChapterIds);
-  const isAccessible = isEnrolled || isFreePdf || isFreeChapter;
+  const isFreeChapter = access?.tier === "free" && !access.hasFullContentAccess && isFreeChapterScoped(materialChapterIds, access.freeChapterIds);
+  const isAccessible = hasFullContentAccess || isFreePdf || isFreeChapter;
 
   if (!isAccessible) {
     return (

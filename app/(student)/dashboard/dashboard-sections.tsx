@@ -19,6 +19,7 @@ import {
   getMaterialsProgress,
   getStudentSubmissions,
 } from "@/app/(student)/dashboard/actions";
+import { CoursePricingLabel } from "@/components/course/course-pricing-label";
 import { DashboardWeakConcepts } from "@/components/course/dashboard-weak-concepts";
 import { MathText } from "@/components/course/math-text";
 import { ActivateClassModal } from "@/components/dashboard/activate-class-modal";
@@ -297,7 +298,7 @@ export async function loadOnboardingData(
         const access: StudentCourseAccess | null = policy?.isAuthenticated && policy.hasCourseAccess && policy.tier !== "anonymous"
           ? { courseId: policy.courseId ?? course.id, canonicalCourseId: policy.canonicalCourseId,
               legacyCourseId: policy.legacyCourseId, tier: policy.tier === "free" ? "free" : "standard",
-              isEnrolled: policy.isEnrolled, freeChapterIds: policy.freeChapterIds, policy }
+              isEnrolled: policy.isEnrolled, hasFullContentAccess: policy.hasFullContentAccess, freeChapterIds: policy.freeChapterIds, policy }
           : null;
         return [course.id, { course, access }] as const;
       })) : undefined;
@@ -353,6 +354,7 @@ export async function loadOnboardingData(
       tryoutsCount: 0,
     }),
     ...courseDetails[index],
+    pricing: course.pricing,
   }));
 
   return { catalogCourses, studentTargetCategory: profile.targetCategory };
@@ -484,7 +486,7 @@ export async function loadRecommendedCoursesData(
       ? await Promise.all(
           unenrolledMatching.slice(0, 4).map(async (c) => {
             const materials = await d.getCourseMaterials(c.id);
-            return { id: c.id, title: c.title, category: c.category, materialsCount: materials.length };
+            return { id: c.id, title: c.title, category: c.category, pricing: c.pricing, materialsCount: materials.length };
           }),
         )
       : [];
@@ -675,6 +677,7 @@ export async function PrimaryLearningSection({
                       <span className="inline-flex rounded-md bg-brand-primary/10 px-2 py-0.5 text-[10px] font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20 shrink-0">
                         {course.category}
                       </span>
+                      <CoursePricingLabel pricing={course.pricing} />
                       <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors break-words min-w-0">
                         {course.title}
                       </h3>
@@ -815,6 +818,7 @@ export async function RecommendedCoursesSection({
                   <span className="inline-flex rounded-md bg-brand-primary/10 px-2 py-0.5 text-[10px] font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20">
                     {course.category}
                   </span>
+                  <CoursePricingLabel pricing={course.pricing} />
                   <span className="text-body-xs text-muted-foreground">
                     <TranslatedText namespace="student" messageKey="dashboard.materialCount" values={{ count: course.materialsCount }} />
                   </span>

@@ -1,5 +1,7 @@
 "use server";
 
+import { resolveCourseAccess } from "@/lib/student/course-access";
+
 import { db } from "@/db";
 import {
   aiMaterialInstances,
@@ -11,9 +13,8 @@ import {
   questions,
   submissions,
   mataKuliah,
-  enrollments,
 } from "@/db/schema";
-import { eq, and, inArray, asc, or, sql, notInArray, gt } from "drizzle-orm";
+import { eq, and, inArray, asc, or, sql, notInArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { randomUUID } from "crypto";
@@ -1905,36 +1906,8 @@ export async function submitTryoutAction(courseId: string, examId: string, answe
     throw new Error("Tryout tidak sesuai dengan kelas.");
   }
 
-  const { isAdmin } = await resolveActorRoles(
-    session.user.id,
-    (session.user as { role?: string | null }).role,
-  );
-
-  if (!isAdmin) {
-    const enrollmentCourseIds = [courseId];
-    if (canonicalCourse?.id && !enrollmentCourseIds.includes(canonicalCourse.id)) {
-      enrollmentCourseIds.push(canonicalCourse.id);
-    }
-    if (canonicalCourse?.legacyCourseId && !enrollmentCourseIds.includes(canonicalCourse.legacyCourseId)) {
-      enrollmentCourseIds.push(canonicalCourse.legacyCourseId);
-    }
-
-    const [enrollment] = await db
-      .select({ id: enrollments.id })
-      .from(enrollments)
-      .where(
-        and(
-          eq(enrollments.userId, session.user.id),
-          inArray(enrollments.courseId, enrollmentCourseIds),
-          gt(enrollments.expiresAt, new Date()),
-        ),
-      )
-      .limit(1);
-
-    if (!enrollment) {
-      throw new Error("Pendaftaran kelas tidak aktif atau sudah berakhir.");
-    }
-  }
+  const access = await resolveCourseAccess({ courseId: examRecord.courseId, userId: session.user.id });
+  if (!access.hasFullContentAccess) throw new Error("Akses mata kuliah tidak tersedia.");
 
   if (examRecord.status !== "published") {
     throw new Error("Tryout belum dipublikasikan atau sudah ditutup.");

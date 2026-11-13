@@ -9,7 +9,7 @@ import { studentCardClass } from "@/components/course/course-surfaces";
 import { createMetadata } from "@/lib/site";
 import { getCourse, getCourseLeaderboard } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
-import { checkEnrollment } from "@/app/(student)/dashboard/actions";
+import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { tabListClassName, tabTriggerClassName, tabTriggerActiveClassName } from "@/components/ui/tab-styles";
@@ -43,9 +43,9 @@ async function CourseLeaderboardContent({
   activeType: "quiz" | "simulation";
   userId?: string;
 }) {
-  const isEnrolled = await checkEnrollment(id);
+  const hasFullContentAccess = await checkFullCourseContentAccess(id);
 
-  if (!isEnrolled) {
+  if (!hasFullContentAccess) {
     return (
       <div className={studentCardClass()}>
         <div className="flex items-start gap-3">

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { and, desc, eq, or } from "drizzle-orm";
 import { db } from "@/db";
 import { auditMutasi, bab, chapters, courses, mataKuliah } from "@/db/schema";
+import { validateCoursePricing, type CoursePricing } from "@/lib/student/course-pricing";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type DbOrTx = Tx | typeof db;
@@ -14,6 +15,7 @@ export type CourseCanonicalSyncInput = {
   description?: string | null;
   isNew: boolean;
   actorId?: string | null;
+  pricing?: CoursePricing;
 };
 
 export type ChapterCanonicalSyncInput = {
@@ -93,16 +95,18 @@ async function findCanonicalChapter(tx: DbOrTx, legacyChapterId: string) {
 
 async function upsertCanonicalCourse(
   tx: Tx,
-  input: Pick<CourseCanonicalSyncInput, "id" | "title">,
+  input: Pick<CourseCanonicalSyncInput, "id" | "title" | "pricing">,
 ): Promise<string> {
   const existing = await findCanonicalCourse(tx, input.id);
+  const pricing = input.pricing === undefined ? undefined : validateCoursePricing(input.pricing);
+  const pricingFields = pricing ? { pricingCategory: pricing.category, freeStartsAt: pricing.startsAt, freeEndsAt: pricing.endsAt } : {};
   if (existing) {
     if (existing.legacyCourseId && existing.legacyCourseId !== input.id) {
       throw new Error(`Canonical course identity conflicts with ${input.id}`);
     }
     await tx
       .update(mataKuliah)
-      .set({ title: input.title, status: "active", legacyCourseId: input.id })
+      .set({ title: input.title, status: "active", legacyCourseId: input.id, ...pricingFields })
       .where(eq(mataKuliah.id, existing.id));
     return existing.id;
   }
@@ -113,6 +117,7 @@ async function upsertCanonicalCourse(
     title: input.title,
     status: "active",
     legacyCourseId: input.id,
+    ...pricingFields,
   });
   return input.id;
 }

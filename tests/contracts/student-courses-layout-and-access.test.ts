@@ -57,23 +57,24 @@ describe("student courses layout, whatsapp contact, and material access contract
 
     // Free PDF condition
     expect(materialPage).toContain('material.kind === "pdf" && material.docCategory !== "diktat"');
-    expect(materialPage).toContain("locked = !isEnrolled && !isFreeContent");
+    expect(materialPage).toContain("locked = !hasFullContentAccess && !isFreeContent");
 
     // Token activation banner for unenrolled students
-    expect(materialPage).toContain("!isEnrolled");
+    expect(materialPage).toContain("!hasFullContentAccess");
     expect(materialPage).toContain("<EnrollmentForm");
 
     // Detail page checks
-    expect(materialDetail).toContain('access?.tier === "standard"');
+    expect(materialDetail).toContain("access?.hasFullContentAccess");
     expect(materialDetail).toContain("isFreePdf");
   });
 
-  test("flashcards and tryouts require enrollment for full access", () => {
+  test("flashcards use the review capability and tryouts require full content access", () => {
     const flashcardPage = source("app/(student)/courses/[id]/flashcard/page.tsx");
     const tryoutDetail = source("app/(student)/courses/[id]/tryout/[tryoutId]/page.tsx");
 
-    expect(flashcardPage).toContain('access?.tier === "standard"');
+    expect(flashcardPage).toContain("access?.policy.capabilities.canReviewFlashcard");
     expect(flashcardPage).toContain("<EnrollmentForm");
+    expect(tryoutDetail).toContain("checkFullCourseContentAccess")
     expect(tryoutDetail).toContain("EnrollmentForm");
   });
 

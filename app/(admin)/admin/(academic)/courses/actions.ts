@@ -37,6 +37,7 @@ import {
   saveChapterWithCanonicalProjection,
   saveCourseWithCanonicalProjection,
 } from "@/lib/academic/course-canonical-sync";
+import { PREMIUM_PRICING, parseCoursePricingInput, type CoursePricing } from "@/lib/student/course-pricing";
 import { getDemoCourseEligibility } from "@/app/(marketing)/demo/demo-data";
 
 export async function getCourses() {
@@ -57,6 +58,7 @@ export async function getCourses() {
         id: mk.id,
         title: mk.title,
         category: legacy?.category ?? "Umum",
+        pricing: { category: mk.pricingCategory, startsAt: mk.freeStartsAt, endsAt: mk.freeEndsAt },
         description: legacy?.description ?? null,
         status: mk.status,
         createdAt: mk.createdAt,
@@ -104,6 +106,7 @@ export async function getCoursesWithStats() {
         id: mk.id,
         title: mk.title,
         category: legacy?.category ?? "Umum",
+        pricing: { category: mk.pricingCategory, startsAt: mk.freeStartsAt, endsAt: mk.freeEndsAt },
         description: legacy?.description ?? null,
         status: mk.status,
         createdAt: mk.createdAt,
@@ -123,6 +126,7 @@ export async function getCoursesWithStats() {
 
   return legacyList.map((c) => ({
     ...c,
+    pricing: PREMIUM_PRICING,
     chapterCount: legacyChapterCountMap[c.id] || 0,
     materialCount: materialCountMap[c.id] || 0,
     quizCount: quizCountMap[c.id] || 0,
@@ -137,7 +141,8 @@ export async function saveCourse(
   title: string,
   category: string,
   description: string | null,
-  isNew: boolean
+  isNew: boolean,
+  pricing?: CoursePricing
 ) {
   const { user: admin } = await assertAdmin();
 
@@ -159,6 +164,15 @@ export async function saveCourse(
     return { success: false, error: "Kategori tidak valid. Pilih dari daftar yang tersedia." };
   }
 
+  let validatedPricing: CoursePricing | undefined;
+  if (pricing !== undefined) {
+    try {
+      validatedPricing = parseCoursePricingInput(pricing);
+    } catch {
+      return { success: false, error: "Pilih kategori akses yang valid dan pastikan waktu akhir setelah waktu mulai." };
+    }
+  }
+
   try {
     await saveCourseWithCanonicalProjection({
       id: cleanId,
@@ -166,6 +180,7 @@ export async function saveCourse(
       category: cleanCategory as Category,
       description: cleanDesc,
       isNew,
+      pricing: validatedPricing,
       actorId: admin.id,
     });
 
@@ -307,7 +322,7 @@ export async function getCourseSettingsData(courseId: string) {
   const cleanCourseId = courseId.trim().toLowerCase();
   const [canonicalCourse, legacyCourse] = await Promise.all([
     db
-      .select({ id: mataKuliah.id, title: mataKuliah.title, isDemo: mataKuliah.isDemo })
+      .select({ id: mataKuliah.id, title: mataKuliah.title, isDemo: mataKuliah.isDemo, pricingCategory: mataKuliah.pricingCategory, freeStartsAt: mataKuliah.freeStartsAt, freeEndsAt: mataKuliah.freeEndsAt })
       .from(mataKuliah)
       .where(and(eq(mataKuliah.status, "active"), or(eq(mataKuliah.id, cleanCourseId), eq(mataKuliah.legacyCourseId, cleanCourseId))))
       .limit(1)
@@ -328,6 +343,7 @@ export async function getCourseSettingsData(courseId: string) {
     category: legacyCourse?.category ?? "Umum",
     description: legacyCourse?.description ?? null,
     isDemo: canonicalCourse?.isDemo ?? false,
+    pricing: canonicalCourse ? { category: canonicalCourse.pricingCategory, startsAt: canonicalCourse.freeStartsAt, endsAt: canonicalCourse.freeEndsAt } : PREMIUM_PRICING,
     demoEligibility: canonicalCourse ? await getDemoCourseEligibility(canonicalCourse.id) : null,
   };
 }

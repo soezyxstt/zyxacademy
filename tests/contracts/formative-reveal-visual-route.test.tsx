@@ -6,10 +6,10 @@ import { renderWithMessages } from "../helpers/render-with-messages";
 const visual = { id: "answer_scene", kind: "interactive_scene", label: "Jawaban", description: "Diagram", viewBox: { x: 0, y: 0, width: 20, height: 20 }, parameters: [{ id: "x", label: "X", min: 0, max: 1, step: 1, initial: 0, control: "range" }], shapes: [{ type: "circle", cx: "x", cy: 1, r: 1 }], staticFallback: { type: "text", summary: "Awal", content: "Awal" } };
 const fence = `\`\`\`zyx-visual\n${JSON.stringify(visual)}\n\`\`\``;
 const formativeCheck = { checkKind: "multiple_choice", answer: "fallback", explanation: "Penjelasan", options: [{ isCorrect: true, text: fence }] };
-const resolved = { ok: true, context: { formativeCheck, article: { courseId: "course" } } };
+const resolved = { ok: true, context: { formativeCheck, article: { courseId: "course", chapterId: "chapter" } } };
 mock.module("next/headers", () => ({ headers: async () => new Headers() }));
 mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => ({ user: { id: "admin", role: "admin" } }) } } }));
-mock.module("@/lib/course-utils", () => ({ isEnrolled: async () => true }));
+mock.module("@/lib/student/course-access", () => ({ resolveCourseAccess: async () => ({}), canAccessCourseContent: () => true }));
 mock.module("@/lib/materials/formative-check-server", () => ({ formativeCheckLocatorSchema: { safeParse: (data: unknown) => ({ success: true, data }) }, resolvePublishedFormativeCheck: async () => resolved }));
 mock.module("@/lib/materials/formative-check-draft-server", () => ({ resolveDraftProductFormativeCheck: async () => resolved }));
 

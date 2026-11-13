@@ -2,7 +2,7 @@ import { StudentCourseResultsList } from "@/components/course/student-course-res
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Lock, History } from "lucide-react";
-import { checkEnrollment } from "@/app/(student)/dashboard/actions";
+import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { CourseMyResultsListSkeleton } from "@/components/course/course-skeletons";
 import { studentCardClass } from "@/components/course/course-surfaces";
@@ -42,9 +42,9 @@ async function CourseMyResultsContent({
   legacyCourseId: string;
   studentId?: string;
 }) {
-  const isEnrolled = await checkEnrollment(id);
+  const hasFullContentAccess = await checkFullCourseContentAccess(id);
 
-  if (!isEnrolled) {
+  if (!hasFullContentAccess) {
     return (
       <div className={studentCardClass()}>
         <div className="flex items-start gap-3">

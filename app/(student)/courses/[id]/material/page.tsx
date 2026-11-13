@@ -153,7 +153,7 @@ async function loadCourseMaterialData({
     attemptsPromise,
   ]);
 
-  const isFreeAccess = studentAccess?.tier === "free";
+  const isFreeAccess = studentAccess?.tier === "free" && !studentAccess.hasFullContentAccess;
   const canDownloadDiktat = Boolean(studentAccess?.policy.capabilities.canDownloadDiktat);
   const freeChapterIds = new Set(studentAccess?.freeChapterIds ?? []);
 
@@ -312,7 +312,7 @@ async function loadCourseMaterialData({
   });
 
   const allMaterials = [...mappedCanonical, ...mappedCanonicalDiktats, ...mappedDiktats, ...mappedDb, ...mappedWeb, ...mappedManual, ...mappedQuizzes, ...mappedTryouts];
-  const isEnrolled = studentAccess?.tier === "standard";
+  const hasFullContentAccess = Boolean(studentAccess?.hasFullContentAccess);
   const materialsWithLockState = allMaterials.map((material) => {
     const materialChapterIds = [
       ...("chapterIds" in material && Array.isArray(material.chapterIds) ? material.chapterIds : []),
@@ -321,11 +321,12 @@ async function loadCourseMaterialData({
     const isFreeChapterContent = isFreeChapterScoped(materialChapterIds, freeChapterIds);
     // PDF materials (materi PDF, bank soal ITB / lembar soal tutorial / ujian), qualifying free quizzes,
     // and all first-chapter materials (artikel, diktat, kuis) are free
-    const isFreeContent =
+    const isFreeContent = Boolean(studentAccess) && (
       (material.kind === "pdf" && material.docCategory !== "diktat") ||
       (material.kind === "quiz" && freeQuizIds.has(material.id)) ||
-      isFreeChapterContent;
-    const locked = !isEnrolled && !isFreeContent;
+      isFreeChapterContent
+    );
+    const locked = !hasFullContentAccess && !isFreeContent;
     return {
       ...material,
       locked,
@@ -334,9 +335,9 @@ async function loadCourseMaterialData({
   const lockedMaterialCount = materialsWithLockState.filter((m) => m.locked).length;
 
   return {
-    isEnrolled,
+    hasFullContentAccess,
     isFreeAccess,
-    accessTier: studentAccess?.tier,
+    accessTier: studentAccess?.hasFullContentAccess ? "standard" as const : studentAccess?.tier,
     materialsWithLockState,
     courseChapters,
     lockedMaterialCount,
@@ -353,7 +354,7 @@ async function CourseMaterialListContent({
   dataPromise: ReturnType<typeof loadCourseMaterialData>;
 }) {
   const {
-    isEnrolled,
+    hasFullContentAccess,
     accessTier,
     materialsWithLockState,
     courseChapters,
@@ -362,7 +363,7 @@ async function CourseMaterialListContent({
 
   return (
     <>
-      {!isEnrolled && (
+      {!hasFullContentAccess && (
         <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
             <div>

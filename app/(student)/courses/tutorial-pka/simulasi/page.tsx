@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function PkaSimulasiPage() {
   const userId = await requirePkaSession("/courses/tutorial-pka/simulasi");
-  const isEnrolled = await checkEnrollment(PKA_COURSE_ID);
+  const hasFullContentAccess = await checkEnrollment(PKA_COURSE_ID);
 
   // Retrieve published simulation templates for Tutorial PKA
   const templates = await db
@@ -51,7 +51,7 @@ export default async function PkaSimulasiPage() {
       <Reveal>
         <QuizListClient
           courseId={PKA_COURSE_ID}
-          isEnrolled={isEnrolled}
+          hasFullContentAccess={hasFullContentAccess}
           templates={templates}
           attempts={attempts}
         />

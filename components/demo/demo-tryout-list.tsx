@@ -11,6 +11,6 @@ export function DemoTryoutList({ experience: { content, snapshot } }: { experien
   const { locale } = useAppLocale();
   const exam = syntheticTryout(snapshot.courseId, locale);
   return <StudentTryoutsView courseTitle={content.course.title}><Reveal>
-    <TryoutListClient courseId={snapshot.courseId} isEnrolled tryouts={[{ id: exam.id, courseId: snapshot.courseId, title: exam.title, type: "tryout", status: "published", settings: exam.settings, questions: [], questionCount: exam.questions.length, isFree: true }]} />
+    <TryoutListClient courseId={snapshot.courseId} hasFullContentAccess tryouts={[{ id: exam.id, courseId: snapshot.courseId, title: exam.title, type: "tryout", status: "published", settings: exam.settings, questions: [], questionCount: exam.questions.length, isFree: true }]} />
   </Reveal></StudentTryoutsView>;
 }

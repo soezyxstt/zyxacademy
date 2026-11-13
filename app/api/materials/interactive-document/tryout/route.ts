@@ -40,7 +40,7 @@ async function deliver(request: Request, head: boolean) {
     const closeAt = exam.closeAt ? new Date(exam.closeAt).getTime() : null;
     if ((openAt !== null && (!Number.isFinite(openAt) || now < openAt)) || (closeAt !== null && (!Number.isFinite(closeAt) || now > closeAt))) return unavailable(404);
     const access = await resolveCourseAccess({ courseId: exam.courseId, userId: session.user.id, roleHint: session.user.role });
-    if (!access.hasCourseAccess || (access.tier !== "enrolled" && access.tier !== "staff")) return unavailable(404);
+    if (!access.hasCourseAccess || !access.hasFullContentAccess) return unavailable(404);
     const rows = await db.select().from(questions).where(eq(questions.examId, exam.id));
     const matches = rows.filter(row => row.id === input.questionId);
     if (matches.length !== 1) return unavailable(404);

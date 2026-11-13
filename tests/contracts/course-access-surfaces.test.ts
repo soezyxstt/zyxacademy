@@ -45,7 +45,8 @@ describe("student course access surface contract", () => {
     expect(list).toContain("freeEligibleTemplateIds");
     expect(client).toContain("freeEligibleTemplateIds");
     expect(client).toContain("freeEligibleIds.has(template.id)");
-    expect(detail).toContain("isFreeQuizTemplate(template, access.freeChapterIds)");
+    expect(detail).toContain("canAccessStudentQuizTemplate(access, template)");
+    expect(source("lib/quiz/student-access.ts")).toContain("isFreeQuizTemplate(template, access.freeChapterIds)");
     expect(detail).toContain("extractFreeQuizChapterScope(rules)");
     expect(detail).toContain("inArray(chapters.id, freeQuizChapterIds)");
     expect(detail).toContain("eq(aiQuestionBank.isStale, false)");

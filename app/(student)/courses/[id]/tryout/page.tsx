@@ -6,7 +6,7 @@ import { CourseTryoutListSkeleton } from "@/components/course/course-skeletons";
 import { pageTitle } from "@/lib/site";
 import { getCourse } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
-import { checkEnrollment } from "@/app/(student)/dashboard/actions";
+import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
 import { TryoutListClient } from "./tryout-list-client";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
@@ -36,7 +36,7 @@ async function CourseTryoutListContent({
   id: string;
   course: NonNullable<Awaited<ReturnType<typeof getCourse>>>;
 }) {
-  const isEnrolled = await checkEnrollment(id);
+  const hasFullContentAccess = await checkFullCourseContentAccess(id);
 
   // Retrieve db tryouts
   const compatibilityCourseId = course.legacyId ?? id;
@@ -76,7 +76,7 @@ async function CourseTryoutListContent({
 
   return (
     <Reveal>
-      {!isEnrolled && (
+      {!hasFullContentAccess && (
         <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
             <div>
@@ -91,7 +91,7 @@ async function CourseTryoutListContent({
           </div>
         </div>
       )}
-      <TryoutListClient courseId={id} isEnrolled={isEnrolled} tryouts={allTryouts} />
+      <TryoutListClient courseId={id} hasFullContentAccess={hasFullContentAccess} tryouts={allTryouts} />
     </Reveal>
   );
 }

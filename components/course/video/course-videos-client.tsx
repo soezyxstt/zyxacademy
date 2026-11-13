@@ -80,7 +80,7 @@ type CourseVideosClientProps = {
   initialPlaylists: VideoPlaylistItem[];
   chapters: ChapterOption[];
   canManage?: boolean;
-  isEnrolled?: boolean;
+  hasFullContentAccess?: boolean;
 };
 
 /**
@@ -93,7 +93,7 @@ export function CourseVideosClient({
   initialPlaylists,
   chapters,
   canManage = false,
-  isEnrolled = true,
+  hasFullContentAccess = true,
 }: CourseVideosClientProps) {
   const t = useTranslations("studentCourse");
   const router = useRouter();
@@ -237,7 +237,7 @@ export function CourseVideosClient({
   };
 
   const handlePlayVideo = (video: VideoItem, playlist: VideoPlaylistItem) => {
-    const isLocked = !canManage && !isEnrolled && (video.locked ?? true);
+    const isLocked = !canManage && !hasFullContentAccess && (video.locked ?? true);
     if (isLocked) {
       setLockedVideo(video);
       return;
@@ -450,7 +450,7 @@ export function CourseVideosClient({
                   ) : (
                     <div className="divide-y divide-border/40 border-t border-border/40 bg-card/30">
                       {playlist.videos.map((video) => {
-                        const isLocked = !canManage && !isEnrolled && (video.locked ?? true);
+                        const isLocked = !canManage && !hasFullContentAccess && (video.locked ?? true);
                         const thumbnail = video.thumbnailUrl || getYouTubeThumbnailUrl(video.videoUrl);
                         return (
                           <div
