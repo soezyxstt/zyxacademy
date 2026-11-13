@@ -10,7 +10,7 @@ import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
 import { quizTemplates, studentQuizAttempts } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
-import { checkEnrollment } from "@/app/(student)/dashboard/actions";
+import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
 import { QuizListClient } from "../../[id]/quiz/quiz-list-client";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function PkaSimulasiPage() {
   const userId = await requirePkaSession("/courses/tutorial-pka/simulasi");
-  const isEnrolled = await checkEnrollment(PKA_COURSE_ID);
+  const hasFullContentAccess = await checkFullCourseContentAccess(PKA_COURSE_ID);
 
   // Retrieve published simulation templates for Tutorial PKA
   const templates = await db
@@ -38,7 +38,7 @@ export default async function PkaSimulasiPage() {
 
   // Retrieve student attempts for these templates
   const attempts = await db
-    .select()
+    .select({ id: studentQuizAttempts.id, templateId: studentQuizAttempts.templateId, status: studentQuizAttempts.status, score: studentQuizAttempts.score })
     .from(studentQuizAttempts)
     .where(eq(studentQuizAttempts.studentId, userId));
 
@@ -51,9 +51,9 @@ export default async function PkaSimulasiPage() {
       <Reveal>
         <QuizListClient
           courseId={PKA_COURSE_ID}
-          isEnrolled={isEnrolled}
+          hasFullContentAccess={hasFullContentAccess}
           templates={templates}
-          attempts={attempts}
+          attempts={attempts.map(({ id, templateId, status, score }) => ({ id, templateId, status, score }))}
         />
       </Reveal>
     </CoursePageShell>

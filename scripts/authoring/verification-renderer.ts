@@ -4,6 +4,8 @@ import { z } from "zod";
 import { closeProductV4BrowserRunner, executeBrowserProductV4Check, validateVerificationBaseUrl } from "../../lib/compute/product-v4-browser-runner";
 import type { ProductV4VerificationPlan, ProductV4VerificationRequirement } from "../../lib/bundle/product-v4-verification";
 import type { ProductEntity } from "../../lib/bundle/product-validator";
+import { productV4DocumentWireSchema, decodeProductV4DocumentWire } from "../../lib/compute/product-v4-document-wire";
+import { validateProductV4HttpAssets } from "../../lib/compute/product-v4-http-asset-validation";
 
 const args = process.argv.slice(2);
 const value = (flag: string, fallback: string) => args.includes(flag) ? args[args.indexOf(flag) + 1] : fallback;
@@ -19,6 +21,7 @@ const wireSchema = z.object({
   captureOffset: z.number().int().min(0).max(299).optional(),
   captureLimit: z.number().int().min(1).max(300).optional(),
   staticFigureAssets: z.record(z.string(), z.object({ base64: z.string().max(30_000_000), mimeType: z.enum(["image/png", "image/jpeg"]), sourceChecksum: z.string().regex(/^[a-f0-9]{64}$/), attribution: z.string().max(2000).optional() }).strict()).optional(),
+  interactiveDocumentAssets: productV4DocumentWireSchema.optional(),
 }).strict();
 
 const server = createServer(async (request, response) => {
@@ -39,7 +42,9 @@ const server = createServer(async (request, response) => {
     }
     const body = wireSchema.parse(JSON.parse(Buffer.concat(chunks).toString("utf8")));
     const staticFigureAssets = Object.fromEntries(Object.entries(body.staticFigureAssets ?? {}).map(([id, asset]) => [id, { bytes: Buffer.from(asset.base64, "base64"), mimeType: asset.mimeType, sourceChecksum: asset.sourceChecksum, attribution: asset.attribution }]));
-    const result = await executeBrowserProductV4Check({ ...body, baseUrl, staticFigureAssets });
+    const interactiveDocumentAssets = decodeProductV4DocumentWire(body.interactiveDocumentAssets ?? { documents: {}, prints: {}, pairs: [] });
+    await validateProductV4HttpAssets(body.bundle.products, interactiveDocumentAssets, staticFigureAssets);
+    const result = await executeBrowserProductV4Check({ ...body, baseUrl, staticFigureAssets, interactiveDocumentAssets });
     response.end(JSON.stringify({ ...result, artifacts: result.artifacts.map(({ bytes, ...artifact }) => ({ ...artifact, base64: Buffer.from(bytes).toString("base64") })) }));
   } catch {
     response.writeHead(400).end('{"error":"Verification request invalid or execution unavailable"}');

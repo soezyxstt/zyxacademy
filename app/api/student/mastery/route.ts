@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { db } from "@/db";
-import { enrollments } from "@/db/schema";
-import { and, eq, gt } from "drizzle-orm";
+import { resolveCourseAccess } from "@/lib/student/course-access";
 import { getMastery } from "@/lib/mastery-store";
 
 export async function GET(req: NextRequest) {
@@ -13,22 +11,8 @@ export async function GET(req: NextRequest) {
   const courseId = req.nextUrl.searchParams.get("courseId");
   if (!courseId) return NextResponse.json({ error: "courseId required" }, { status: 400 });
 
-  // Verify active enrollment
-  if (session.user.role !== "admin") {
-    const [enrollment] = await db
-      .select({ id: enrollments.id })
-      .from(enrollments)
-      .where(
-        and(
-          eq(enrollments.userId, session.user.id),
-          eq(enrollments.courseId, courseId),
-          gt(enrollments.expiresAt, new Date())
-        )
-      )
-      .limit(1);
-
-    if (!enrollment) return NextResponse.json({ error: "Not enrolled" }, { status: 403 });
-  }
+  const access = await resolveCourseAccess({ courseId, userId: session.user.id });
+  if (!access.hasFullContentAccess) return NextResponse.json({ error: "Akses mata kuliah tidak tersedia." }, { status: 403 });
 
   const concepts = await getMastery(session.user.id, courseId);
   return NextResponse.json({ concepts });

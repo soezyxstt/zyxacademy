@@ -28,7 +28,7 @@ export function DemoCourseOverview({ experience: { content, snapshot }, catalogu
     overlay, articleHref: article ? destination(`${base}/material/${article.id}`) : destination(`${base}/material`), partialPercent: snapshot.inProgressDocuments[0]?.completionPercent ?? 0,
     progressLabel: percent => t("course.chapterOutline.percentRead", { percent }),
   });
-  return <StudentCourseOverviewView href={href} course={content.course} isEnrolled
+  return <StudentCourseOverviewView href={href} course={content.course} hasFullContentAccess
     highlights={<>
       <CoursePrimaryActions className="mb-6"
         reading={{ tag: "DOKUMEN", title: article?.title ?? snapshot.inProgressDocuments[0]?.title ?? catalogue.chapters[0]?.title ?? content.course.title, meta: `${snapshot.inProgressDocuments[0]?.completionPercent ?? 0}% selesai`, actionLabel: "", href: destination(`${base}/material`) }}

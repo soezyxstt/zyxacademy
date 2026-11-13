@@ -48,6 +48,8 @@ import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { ArticleReadingCanvas } from "@/components/course/article-reading-canvas";
 import { StructuredArticleSectionContent } from "@/components/course/structured-article-reader";
 import { FormativeCheckEndpointProvider } from "@/components/course/formative-check-endpoint-context";
+import { InteractiveDocumentArticle } from "@/components/course/interactive-document-context";
+import { collectArticleVisualIds } from "@/lib/materials/article-parts";
 import {
   computeDeterministicSectionNumbering,
   sanitizeVisualSpec,
@@ -1111,6 +1113,7 @@ function StructuredArticleProductView({
   bundleId,
   expectedRevision,
   bundleStatus,
+  bundleChecksum,
   reviewLocked,
   itemReviews,
   onReviewChange,
@@ -1121,6 +1124,7 @@ function StructuredArticleProductView({
   bundleId: string;
   expectedRevision?: string;
   bundleStatus: string;
+  bundleChecksum?: string;
   reviewLocked: boolean;
   itemReviews: ProductBlockReview[];
   onReviewChange?: (review: ProductBlockReview) => void;
@@ -1170,10 +1174,10 @@ function StructuredArticleProductView({
     blocks: (() => {
       const renderedVisualIds = new Set<string>();
       return [...selected.blocks].sort((a, b) => a.orderIndex - b.orderIndex).map((block) => {
-        const visuals = (block.visualIds ?? [])
+        const visuals = (block.parts ? collectArticleVisualIds(block.parts) : block.visualIds ?? [])
           .map((visualId) => visualMap.get(visualId))
           .filter((visual): visual is NonNullable<ReturnType<typeof sanitizeVisualSpec>> => {
-            if (!visual || renderedVisualIds.has(visual.id)) return false;
+            if (!visual || (!block.parts && renderedVisualIds.has(visual.id))) return false;
             renderedVisualIds.add(visual.id);
             return true;
           });
@@ -1184,6 +1188,7 @@ function StructuredArticleProductView({
           title: block.title ?? null,
           orderIndex: block.orderIndex,
           content: block.contentMarkdown,
+          parts: block.parts,
           workedExample: sanitizeWorkedExample(block.workedExamplePayload),
           formativeCheck: sanitizeFormativeCheck(block.formativeCheckPayload),
           visuals: visuals.length > 0 ? visuals : undefined,
@@ -1204,7 +1209,7 @@ function StructuredArticleProductView({
       : undefined,
     visuals: (() => {
       if (selected.pedagogy?.visualRequirement.status !== "required") return undefined;
-      const blockVisualIds = new Set(selected.blocks.flatMap((block) => block.visualIds ?? []));
+      const blockVisualIds = new Set(selected.blocks.flatMap((block) => block.parts ? collectArticleVisualIds(block.parts) : block.visualIds ?? []));
       const sectionVisuals = selected.pedagogy.visualRequirement.visualIds
         .map((visualId) => visualMap.get(visualId))
         .filter((visual): visual is NonNullable<ReturnType<typeof sanitizeVisualSpec>> => {
@@ -1290,12 +1295,14 @@ function StructuredArticleProductView({
               ? `/api/admin/bundles/product/${encodeURIComponent(bundleId)}/formative-check`
               : "/api/materials/formative-check"}
           >
+            <InteractiveDocumentArticle value={bundleStatus === "draft" && bundleChecksum ? { courseId: product.courseId, articleId: product.id, articleVersion: product.version, draftId: bundleId, draftChecksum: bundleChecksum } : null}>
             <StructuredArticleSectionContent
               section={publicSection}
               articleId={product.id}
               articleVersion={product.version}
               showProgress={false}
             />
+            </InteractiveDocumentArticle>
           </FormativeCheckEndpointProvider>
         ) : (
           <AdminEmptyState
@@ -1766,9 +1773,9 @@ function LegacyArticleProductView({
 }
 
 /** Selects the structured or legacy article review view for the bundle. */
-export function ArticleProductView(props: Parameters<typeof LegacyArticleProductView>[0] & { structuredEnabled?: boolean; onSectionStateChange?: (state: { dirty: boolean; pending: boolean }) => void; parentBusy?: boolean }) {
+export function ArticleProductView(props: Parameters<typeof LegacyArticleProductView>[0] & { structuredEnabled?: boolean; bundleChecksum?: string; onSectionStateChange?: (state: { dirty: boolean; pending: boolean }) => void; parentBusy?: boolean }) {
   if (props.structuredEnabled && props.product.sections.length > 0) {
-    return <StructuredArticleProductView product={props.product} bundleId={props.bundleId} expectedRevision={props.expectedRevision} bundleStatus={props.bundleStatus} reviewLocked={props.reviewLocked ?? false} itemReviews={props.blockReviews ?? []} onReviewChange={props.onBlockReviewChange} onSectionStateChange={props.onSectionStateChange} parentBusy={props.parentBusy} />;
+    return <StructuredArticleProductView product={props.product} bundleId={props.bundleId} bundleChecksum={props.bundleChecksum ?? props.expectedRevision} expectedRevision={props.expectedRevision} bundleStatus={props.bundleStatus} reviewLocked={props.reviewLocked ?? false} itemReviews={props.blockReviews ?? []} onReviewChange={props.onBlockReviewChange} onSectionStateChange={props.onSectionStateChange} parentBusy={props.parentBusy} />;
   }
   return <LegacyArticleProductView {...props} />;
 }
@@ -3068,6 +3075,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                       bundleId={payload.bundle.id}
                       expectedRevision={payload.bundle.checksum}
                       bundleStatus={payload.bundle.status}
+                      bundleChecksum={payload.bundle.checksum}
                       reviewLocked={Boolean(payload.bundle.currentReview)}
                       blockReviews={payload.blockReviews}
                       onBlockReviewChange={handleBlockReviewChange}

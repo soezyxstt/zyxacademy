@@ -1,5 +1,5 @@
 {
-  "id": "ee7196d1-7bfe-4e50-bd58-821bbc868ec0",
+  "id": "634edf9d-ba6a-46d4-b23c-1fbb9ed2a92d",
   "prevId": "255fe0ac-ff39-44a9-9104-de6586c00772",
   "version": "7",
   "dialect": "postgresql",
@@ -17089,6 +17089,25 @@
           "notNull": true,
           "default": false
         },
+        "pricing_category": {
+          "name": "pricing_category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'premium'"
+        },
+        "free_starts_at": {
+          "name": "free_starts_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "free_ends_at": {
+          "name": "free_ends_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "legacy_course_id": {
           "name": "legacy_course_id",
           "type": "text",
@@ -17180,6 +17199,10 @@
         "mata_kuliah_status_check": {
           "name": "mata_kuliah_status_check",
           "value": "\"mata_kuliah\".\"status\" IN ('draft', 'active', 'archived')"
+        },
+        "mata_kuliah_pricing_check": {
+          "name": "mata_kuliah_pricing_check",
+          "value": "(\"mata_kuliah\".\"pricing_category\" IN ('premium', 'free') AND \"mata_kuliah\".\"free_starts_at\" IS NULL AND \"mata_kuliah\".\"free_ends_at\" IS NULL) OR (\"mata_kuliah\".\"pricing_category\" = 'limited_time_free' AND \"mata_kuliah\".\"free_starts_at\" IS NOT NULL AND \"mata_kuliah\".\"free_ends_at\" IS NOT NULL AND \"mata_kuliah\".\"free_starts_at\" < \"mata_kuliah\".\"free_ends_at\")"
         }
       },
       "isRLSEnabled": false
@@ -22951,227 +22974,6 @@
         "soal_relasi_ide_type_check": {
           "name": "soal_relasi_ide_type_check",
           "value": "\"soal_relasi_ide\".\"relation_type\" IN ('required', 'prerequisite', 'related')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.solution_collections": {
-      "name": "solution_collections",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "product_id": {
-          "name": "product_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version": {
-          "name": "version",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "course_id": {
-          "name": "course_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "chapter_id": {
-          "name": "chapter_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "import_id": {
-          "name": "import_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content": {
-          "name": "content",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "trace": {
-          "name": "trace",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "generation_hash": {
-          "name": "generation_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "published_at": {
-          "name": "published_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "solution_collections_product_version_idx": {
-          "name": "solution_collections_product_version_idx",
-          "columns": [
-            {
-              "expression": "product_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "version",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "solution_collections_one_published_idx": {
-          "name": "solution_collections_one_published_idx",
-          "columns": [
-            {
-              "expression": "product_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"solution_collections\".\"status\" = 'published'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "solution_collections_import_idx": {
-          "name": "solution_collections_import_idx",
-          "columns": [
-            {
-              "expression": "import_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "solution_collections_course_chapter_status_idx": {
-          "name": "solution_collections_course_chapter_status_idx",
-          "columns": [
-            {
-              "expression": "course_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "chapter_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "solution_collections_course_id_mata_kuliah_id_fk": {
-          "name": "solution_collections_course_id_mata_kuliah_id_fk",
-          "tableFrom": "solution_collections",
-          "tableTo": "mata_kuliah",
-          "columnsFrom": [
-            "course_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "solution_collections_chapter_id_bab_id_fk": {
-          "name": "solution_collections_chapter_id_bab_id_fk",
-          "tableFrom": "solution_collections",
-          "tableTo": "bab",
-          "columnsFrom": [
-            "chapter_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "solution_collections_import_id_impor_bundle_id_fk": {
-          "name": "solution_collections_import_id_impor_bundle_id_fk",
-          "tableFrom": "solution_collections",
-          "tableTo": "impor_bundle",
-          "columnsFrom": [
-            "import_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "solution_collections_version_check": {
-          "name": "solution_collections_version_check",
-          "value": "\"solution_collections\".\"version\" > 0"
-        },
-        "solution_collections_status_check": {
-          "name": "solution_collections_status_check",
-          "value": "\"solution_collections\".\"status\" IN ('published', 'withdrawn')"
         }
       },
       "isRLSEnabled": false

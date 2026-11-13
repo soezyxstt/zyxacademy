@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { Compass } from "lucide-react";
-import { checkEnrollment } from "@/app/(student)/dashboard/actions";
+import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { CourseStudyPathSkeleton } from "@/components/course/course-skeletons";
 import { studentCardClass } from "@/components/course/course-surfaces";
@@ -29,9 +29,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 async function CoursePathContent({ id }: { id: string }) {
-  const isEnrolled = await checkEnrollment(id);
+  const hasFullContentAccess = await checkFullCourseContentAccess(id);
 
-  if (!isEnrolled) {
+  if (!hasFullContentAccess) {
     return (
       <Reveal>
         <div className={studentCardClass("mx-auto max-w-xl text-center py-12")}>

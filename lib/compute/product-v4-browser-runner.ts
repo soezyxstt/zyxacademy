@@ -1,12 +1,15 @@
 import { assertVerificationBrowserIdentity } from "./product-v4-browser-config";
 import { isHostedComputeRuntime } from "./runtime";
 import { chromium, type Page } from "playwright-core";
+import { randomBytes } from "node:crypto";
 import type { BrowserContext } from "playwright-core";
 import { parseStoredPdfPages } from "./pdf-pages";
-import { deriveProductV4VerificationPlan, assertProductV4VerificationCurrent, type ProductV4ObservedCheck, type ProductV4VerificationPlan, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
+import { deriveProductV4VerificationPlan, assertProductV4VerificationCurrent, formativeDocumentFields, type ProductV4ObservedCheck, type ProductV4VerificationPlan, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
+import { assertNoHiddenFormativeDocuments, documentInteractionSnapshot, executeFormativeDocumentCheck, waitForDocumentInteraction } from "./product-v4-formative-verification";
 import { productBundleManifestSchema, productEntitySchema, productDependencySchema, deterministicProductSerialization, type ProductEntity } from "@/lib/bundle/product-validator";
 import { verificationPreviewSchema } from "@/lib/materials/verification-preview";
-import type { ArticlePart } from "@/lib/materials/article-parts";
+import { flattenArticleParts, type ArticlePart } from "@/lib/materials/article-parts";
+import { parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
 import type { VisualSpec } from "@/lib/materials/visual-contract";
 import { deriveEpsilonDelta } from "@/lib/materials/epsilon-delta";
 import { compileProductDiktatHtml, PRODUCT_DIKTAT_FOOTER_TEMPLATE } from "@/lib/bundle/product-diktat-pdf";
@@ -15,6 +18,8 @@ import type { DiktatSourceFigureAssets } from "@/lib/materials/diktat-static-vis
 import { z } from "zod";
 import { acquireConfiguredVerificationBrowser, type VerificationBrowserSession } from "./product-v4-browser-session";
 import { assertProductV4RuntimeFingerprint, expectedChromiumRuntime, resolveProductV4LoadedRuntime, type ProductV4RuntimeFingerprint } from "./product-v4-runtime-binding";
+import { interactiveDocumentResponse, verifyAdmittedInteractiveDocumentAsset } from "@/lib/materials/interactive-document-verified";
+import { productV4DocumentPairKey } from "./product-v4-document-wire";
 
 declare const __ZYX_VERIFICATION_BUILD_RUNTIME__: { fingerprint: ProductV4RuntimeFingerprint; chromium: { browserVersion: string; revision: string } } | undefined;
 
@@ -88,6 +93,27 @@ export async function fontsReady(page: Page) {
     }));
   });
 }
+export async function waitForProductV4Visuals(page: Page, visuals: readonly VisualSpec[], requireAll = true): Promise<void> {
+  const pending = new Map(visuals.filter(visual => visual.kind === "interactive_scene").map(visual => [visual.id, visual]));
+  for (const figure of await page.locator("main figure").all()) {
+    await figure.scrollIntoViewIfNeeded();
+    const id = await figure.getAttribute("id");
+    const scene = id ? pending.get(id) : undefined;
+    if (!scene || scene.kind !== "interactive_scene") continue;
+    try {
+      await page.waitForFunction(({ id, controls, playback }) => {
+        const figure = [...document.querySelectorAll("main figure")].find(element => element.id === id);
+        const root = figure?.querySelector("[data-interactive-scene]");
+        return Boolean(root?.querySelector(":scope > svg[role='group']") && root.querySelectorAll("[role='slider'], [data-scene-control]").length === controls && [...root.querySelectorAll("button")].some(button => button.textContent === "Reset") && [...root.querySelectorAll("button")].some(button => button.textContent === "Tampilkan alternatif") && (!playback || [...root.querySelectorAll("button")].some(button => button.textContent === "Putar")));
+      }, { id: scene.id, controls: scene.parameters.length, playback: Boolean(scene.time) }, { timeout: 15000 });
+    } catch {
+      throw new Error(`VERIFICATION_INTERACTIVE_SCENE_NOT_READY:${scene.id}`);
+    }
+    pending.delete(scene.id);
+  }
+  if (requireAll && pending.size) throw new Error(`VERIFICATION_INTERACTIVE_SCENE_NOT_READY:${pending.keys().next().value}`);
+}
+
 export async function captureProductV4WebState(page: Page, checkId: string, count: 1 | 3 = 3) {
   const height = await page.evaluate(() => Math.max(document.documentElement.scrollHeight, document.body.scrollHeight));
   const viewport = page.viewportSize();
@@ -124,6 +150,21 @@ export async function exerciseProductV4WebState(page: Page, state: string): Prom
   if (["changed", "epsilon-minimum", "epsilon-maximum", "resolution-limited", "reset", "keyboard"].includes(state)) {
     if (!await slider.count()) {
       if (!["changed", "reset", "keyboard"].includes(state)) return false;
+      const control = page.locator("main [data-interactive-scene] [data-scene-control]").first();
+      if (await control.count()) {
+        const before = await control.textContent();
+        const pressed = await control.getAttribute("aria-pressed");
+        await control.focus();
+        if (pressed !== null) await control.press("Space");
+        else { await control.press("Space"); await page.keyboard.press("ArrowDown"); await page.keyboard.press("Enter"); }
+        const changed = pressed !== null ? await control.getAttribute("aria-pressed") !== pressed : await control.textContent() !== before;
+        if (!changed) return false;
+        if (state === "reset") {
+          await page.getByRole("button", { name: /^Reset$/ }).first().click();
+          if ((pressed !== null ? await control.getAttribute("aria-pressed") !== pressed : await control.textContent() !== before)) throw new Error("VERIFICATION_RESET_FAILED");
+        }
+        return true;
+      }
       const plot = page.locator("main svg[tabindex='0']").first();
       if (!await plot.count()) return false;
       const before = await plot.innerHTML();
@@ -141,7 +182,8 @@ export async function exerciseProductV4WebState(page: Page, state: string): Prom
       await slider.focus();
       await slider.press("ArrowRight");
     }
-    const changed = await slider.inputValue().catch(async () => await slider.getAttribute("aria-valuenow") ?? "");
+    let changed = await slider.inputValue().catch(async () => await slider.getAttribute("aria-valuenow") ?? "");
+    if (["changed", "keyboard", "reset"].includes(state) && changed === original) { await slider.press("ArrowLeft"); changed = await slider.inputValue().catch(async () => await slider.getAttribute("aria-valuenow") ?? ""); }
     if (["changed", "keyboard", "reset"].includes(state) && changed === original) return false;
     if (state === "reset") {
       const reset = page.getByRole("button", { name: /^Reset(?: parameters?| visual(?:ization)?)?$/ }).first();
@@ -197,6 +239,84 @@ export function inspectProductV4WebDocument() {
 }
 
 export interface VisualSmokeObservation { state: string; exercised: true; document: ReturnType<typeof inspectProductV4WebDocument> }
+export async function prepareVerificationDocumentResource(visual: Extract<VisualSpec, { kind: "interactive_document" }>, assets: { document: Uint8Array; print: Uint8Array } | undefined, scope: string) {
+  if (!/^[a-f0-9]{32}$/.test(scope)) throw new Error("VERIFICATION_DOCUMENT_SCOPE_INVALID");
+  if (!assets) throw new Error("VERIFICATION_DOCUMENT_ASSET_UNAVAILABLE");
+  const document = Buffer.from(assets.document), print = Buffer.from(assets.print);
+  verifyAdmittedInteractiveDocumentAsset(visual, "document", document);
+  verifyAdmittedInteractiveDocumentAsset(visual, "print", print);
+  return { path: `/__zyx-verification-document/${scope}/${encodeURIComponent(visual.id)}/${visual.documentSha256}`, document, response: interactiveDocumentResponse(document, "document") };
+}
+export function verificationArticleDocumentRoutes(article: Extract<ProductEntity, { productType: "article" }>, scope: string) {
+  if (!/^[a-f0-9]{32}$/.test(scope)) throw new Error("VERIFICATION_DOCUMENT_SCOPE_INVALID");
+  return article.sections.flatMap(section => section.blocks.flatMap(block => flattenArticleParts(block.parts ?? []).flatMap(part => {
+    const specs = part.kind === "visual_ref" ? (article.visuals ?? []).filter((visual): visual is Extract<VisualSpec, { kind: "interactive_document" }> => visual.kind === "interactive_document" && visual.id === part.visualId) : part.kind === "markdown" && block.formativeCheckPayload ? parseInteractiveDocumentsInMarkdown(part.markdown) : [];
+    return specs.map(spec => {
+      const query = new URLSearchParams({ courseId: "verification", articleId: "verification", articleVersion: "1", sectionId: section.id, blockId: block.id, field: part.kind === "visual_ref" ? "visual_ref" : "markdown", partId: part.id, visualId: spec.id, hash: spec.documentSha256, kind: "document", checksum: scope });
+      return { spec, path: `/api/admin/bundles/product/${scope}/interactive-document?${query}` };
+    });
+  })));
+}
+async function exerciseInteractiveDocumentSmoke(page: Page, visual: Extract<VisualSpec, { kind: "interactive_document" }>): Promise<VisualSmokeObservation[]> {
+  const host = page.locator("main figure").filter({ hasText: visual.label });
+  if (await host.count() !== 1) throw new Error("VERIFICATION_DOCUMENT_SCOPE_AMBIGUOUS");
+  const open = async () => {
+    if (!await host.locator("iframe").count()) await host.getByRole("button", { name: "Buka visual", exact: true }).click();
+    const iframe = host.locator("iframe");
+    await iframe.waitFor();
+    if (await iframe.getAttribute("sandbox") !== "allow-scripts") throw new Error("VERIFICATION_DOCUMENT_SANDBOX_INVALID");
+    await host.locator("iframe:not([inert])").waitFor({ state: "attached", timeout: 16000 });
+    const frame = iframe.contentFrame();
+    await frame.locator("body").waitFor();
+    await frame.locator("body").evaluate(async () => {
+      await document.fonts.ready;
+      if ([...document.fonts].some(font => font.status === "error")) throw new Error("VERIFICATION_DOCUMENT_FONT_UNAVAILABLE");
+    });
+    return frame;
+  };
+  const inspect = async (frame: ReturnType<ReturnType<Page["locator"]>["contentFrame"]>) => {
+    const child = await frame.locator("body").evaluate(() => ({
+      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      empty: !document.body.innerText.trim() && !document.querySelector("svg,canvas,img"),
+      brokenImage: [...document.images].some(image => !image.complete || !image.naturalWidth),
+    }));
+    if (child.overflow || child.empty || child.brokenImage) throw new Error("VERIFICATION_DOCUMENT_RENDER_INVALID");
+    await fontsReady(page);
+    const observation = await page.evaluate(inspectProductV4WebDocument);
+    if (observation.issues.length) throw new Error(observation.issues.join(","));
+    return observation;
+  };
+  const frame = await open();
+  const initial = await documentInteractionSnapshot(frame.locator("body"));
+  if (!await waitForDocumentInteraction(frame.locator("body"), initial, false)) throw new Error("VERIFICATION_DOCUMENT_RENDER_UNSTABLE");
+  const observations: VisualSmokeObservation[] = [{ state: "default", exercised: true, document: await inspect(frame) }];
+  const controls = [frame.getByRole("slider", { name: /.+/ }), frame.getByRole("combobox", { name: /.+/ }), frame.getByRole("checkbox", { name: /.+/ }), frame.getByRole("button", { name: /.+/ })];
+  let changed = false;
+  for (const group of controls) {
+    for (const control of await group.all()) {
+      if (!await control.isVisible() || !await control.isEnabled()) continue;
+      const role = await control.getAttribute("role");
+      const tag = await control.evaluate(element => element.tagName);
+      await control.focus();
+      const before = await documentInteractionSnapshot(frame.locator("body"));
+      if (!await waitForDocumentInteraction(frame.locator("body"), before, false)) throw new Error("VERIFICATION_DOCUMENT_RENDER_UNSTABLE");
+      await control.press(tag === "SELECT" ? "ArrowDown" : role === "slider" || tag === "INPUT" && await control.getAttribute("type") === "range" ? "ArrowRight" : "Space");
+      if (await waitForDocumentInteraction(frame.locator("body"), before, true)) { changed = true; break; }
+    }
+    if (changed) break;
+  }
+  if (!changed) throw new Error("VERIFICATION_VISUAL_STATE_UNSUPPORTED:keyboard-change");
+  observations.push({ state: "changed", exercised: true, document: await inspect(frame) }, { state: "keyboard", exercised: true, document: await inspect(frame) });
+  await host.getByRole("button", { name: "Tutup visual", exact: true }).click();
+  if (await host.locator("iframe").count()) throw new Error("VERIFICATION_DOCUMENT_UNMOUNT_FAILED");
+  const reset = await open();
+  if (!await waitForDocumentInteraction(reset.locator("body"), initial, false)) throw new Error("VERIFICATION_RESET_FAILED");
+  observations.push({ state: "reset", exercised: true, document: await inspect(reset) });
+  await host.getByRole("button", { name: "Tutup visual", exact: true }).click();
+  if (!await host.getByText(visual.staticFallback.summary, { exact: true }).count()) throw new Error("VERIFICATION_VISUAL_STATE_UNSUPPORTED:fallback");
+  observations.push({ state: "fallback", exercised: true, document: await page.evaluate(inspectProductV4WebDocument) });
+  return observations;
+}
 export async function exerciseProductV4VisualSmoke(page: Page, visual: VisualSpec, ports = {
   exercise: exerciseProductV4WebState,
   inspect: async (page: Page) => {
@@ -216,6 +336,7 @@ export async function exerciseProductV4VisualSmoke(page: Page, visual: VisualSpe
     }
   },
 }) {
+  if (visual.kind === "interactive_document") return exerciseInteractiveDocumentSmoke(page, visual);
   const interactive = visual.kind === "epsilon_delta_graph" || ("interactive" in visual && visual.interactive);
   const epsilonStates = visual.kind === "epsilon_delta_graph" ? ["epsilon-minimum", "epsilon-maximum", ...([visual.defaultEpsilon * 0.1 || visual.defaultEpsilon, visual.defaultEpsilon, Math.min(visual.bounds.yMax - visual.limitValue, visual.limitValue - visual.bounds.yMin, visual.defaultEpsilon * 2.2)].some(value => deriveEpsilonDelta(visual, value).status === "resolution_limited") ? ["resolution-limited"] : [])] : [];
   const states = ["default", ...(interactive ? ["changed", "reset", "keyboard"] : []), ...epsilonStates, "fallback"];
@@ -268,6 +389,7 @@ export async function executeBrowserProductV4Check(input: {
   requirement: ProductV4VerificationRequirement;
   baseUrl: string;
   staticFigureAssets?: DiktatSourceFigureAssets;
+  interactiveDocumentAssets?: Readonly<Record<string, { document: Uint8Array; print: Uint8Array }>>;
   captureOffset?: number;
   captureLimit?: number;
   signal?: AbortSignal;
@@ -301,14 +423,52 @@ export async function executeBrowserProductV4Check(input: {
   page.on("response", (response) => { if (response.status() >= 400) errors.push(`HTTP_${response.status()}`); });
   await context.route("**/*", async (route) => {
     const url = new URL(route.request().url());
-    if (url.origin === baseUrl || url.protocol === "data:") await route.continue();
+    if (route.request().frame() !== page.mainFrame()) { errors.push("UNEXPECTED_DOCUMENT_REQUEST"); await route.abort(); }
+    else if (url.origin === baseUrl || url.protocol === "data:") await route.continue();
     else { errors.push("UNEXPECTED_EXTERNAL_REQUEST"); await route.abort(); }
   });
   try {
+    if (requirement.state === "formative-document-field") {
+      const fields = formativeDocumentFields(bundle.products).filter(field => field.target === requirement.target);
+      if (fields.length !== 1) throw new Error("VERIFICATION_FORMATIVE_FIELD_INVALID");
+      const response = await page.goto(`${baseUrl}/authoring-verification`, { waitUntil: "networkidle" });
+      if (response?.status() !== 200 || new URL(page.url()).pathname !== "/authoring-verification") throw new Error("VERIFICATION_PREVIEW_REDIRECT");
+      await page.waitForSelector("html[data-verification-ready='true']", { state: "attached" });
+      const webRuntime = await page.locator("html").getAttribute("data-verification-runtime");
+      if (!webRuntime) throw new Error("VERIFICATION_WEB_BUILD_UNATTESTED");
+      assertProductV4RuntimeFingerprint(input.plan.binding, JSON.parse(webRuntime));
+      const observation = await executeFormativeDocumentCheck(page, baseUrl, fields[0], input.interactiveDocumentAssets?.[productV4DocumentPairKey(fields[0].spec)], randomBytes(16).toString("hex"));
+      await fontsReady(page);
+      const documentObservation = await page.evaluate(inspectProductV4WebDocument);
+      const mathFailures = await page.evaluate(inspectProductV4DisplayMath, requirement.state);
+      if (documentObservation.issues.length || mathFailures.length || errors.length) throw new Error([...documentObservation.issues, ...mathFailures, ...errors].join(","));
+      result.artifacts = await captureProductV4WebState(page, requirement.id);
+      result.artifacts.push({ id: `observations-${requirement.id}.json`, mediaType: "application/json", bytes: Buffer.from(JSON.stringify({ ...observation, document: documentObservation })) });
+      if (errors.length) throw new Error(errors.join(","));
+      return { ...result, status: "PASS", observed: "Scoped formative field rendered with a simulated reveal response; scientific correctness and real service authentication require separate review." };
+    }
     if (requirement.layer === "web") {
       const visualArticle = bundle.products.find((product) => product.productType === "article" && (product.id === requirement.target || (product.visuals ?? []).some((visual) => `${product.id}/${visual.id}` === requirement.target)));
       if (!visualArticle || visualArticle.productType !== "article") throw new Error("VERIFICATION_ARTICLE_MISSING");
       const selected = (visualArticle.visuals ?? []).find((visual) => `${visualArticle.id}/${visual.id}` === requirement.target);
+      const documentScope = selected?.kind === "interactive_document" || !selected ? randomBytes(16).toString("hex") : undefined;
+      if (selected?.kind === "interactive_document" && documentScope) {
+        const assets = input.interactiveDocumentAssets?.[productV4DocumentPairKey(selected)];
+        const { path, response } = await prepareVerificationDocumentResource(selected, assets, documentScope);
+        const body = Buffer.from(await response.arrayBuffer());
+        await page.route(`${baseUrl}${path}`, async route => {
+          if (!["GET", "HEAD"].includes(route.request().method()) || route.request().url() !== `${baseUrl}${path}`) return route.abort();
+          await route.fulfill({ status: 200, headers: Object.fromEntries(response.headers), body: route.request().method() === "HEAD" ? "" : body });
+        });
+      }
+      if (!selected && documentScope) for (const { spec, path } of verificationArticleDocumentRoutes(visualArticle, documentScope)) {
+        const resource = await prepareVerificationDocumentResource(spec, input.interactiveDocumentAssets?.[productV4DocumentPairKey(spec)], documentScope);
+        const body = Buffer.from(await resource.response.arrayBuffer());
+        await page.route(url => url.href === `${baseUrl}${path}`, async route => {
+          if (!["GET", "HEAD"].includes(route.request().method()) || route.request().url() !== `${baseUrl}${path}`) return route.abort();
+          await route.fulfill({ status: 200, headers: Object.fromEntries(resource.response.headers), body: route.request().method() === "HEAD" ? "" : body });
+        });
+      }
       const previewVisuals = (visualArticle.visuals ?? []).map((visual) => {
         if (visual.kind !== "source_figure") return visual;
         const asset = input.staticFigureAssets?.[visual.assetId];
@@ -320,7 +480,8 @@ export async function executeBrowserProductV4Check(input: {
       });
       const payload = verificationPreviewSchema.parse({ type: "zyx-verification-preview.v1", title: visualArticle.title,
         sections: [...visualArticle.sections].sort((a, b) => a.orderIndex - b.orderIndex).map((section) => ({ id: section.id, title: section.title, blocks: [...section.blocks].sort((a, b) => a.orderIndex - b.orderIndex).map((block) => ({ id: block.id, parts: block.parts })) })),
-        visuals: previewVisuals, ...(selected ? { visualId: selected.id } : {}) });
+        visuals: previewVisuals, ...(selected ? { visualId: selected.id } : {}), ...(documentScope ? { documentScope } : {}) });
+      assertNoHiddenFormativeDocuments(visualArticle, payload);
       const response = await page.goto(`${baseUrl}/authoring-verification`, { waitUntil: "networkidle" });
       if (response?.status() !== 200 || new URL(page.url()).pathname !== "/authoring-verification") throw new Error("VERIFICATION_PREVIEW_REDIRECT");
       await page.waitForSelector("html[data-verification-ready='true']", { state: "attached" });
@@ -329,7 +490,7 @@ export async function executeBrowserProductV4Check(input: {
       assertProductV4RuntimeFingerprint(input.plan.binding, JSON.parse(webRuntime));
       await page.evaluate((preview) => window.postMessage(preview, window.location.origin), payload);
       await page.waitForSelector("[data-verification-loaded]");
-      for (const figure of await page.locator("main figure").all()) { await figure.scrollIntoViewIfNeeded(); }
+      await waitForProductV4Visuals(page, selected ? [selected] : visualArticle.visuals ?? [], Boolean(selected));
       for (const visual of selected ? [selected] : visualArticle.visuals ?? []) {
         if (visual.kind === "learning_canvas" && ["function_plot", "data_plot"].includes(visual.canvas.type)) {
           await page.waitForFunction(id => [...document.querySelectorAll("main figure")].some(figure => figure.id === id && figure.querySelector("svg[role='img']")), visual.id);
@@ -342,6 +503,13 @@ export async function executeBrowserProductV4Check(input: {
       if (requirement.state === "visual-smoke") {
         if (!selected) throw new Error("VERIFICATION_VISUAL_MISSING");
         // Capture the initial state before exercising later states.
+        if (selected.kind === "interactive_document") {
+          const host = page.locator("main figure").filter({ hasText: selected.label });
+          if (await host.count() !== 1) throw new Error("VERIFICATION_DOCUMENT_SCOPE_AMBIGUOUS");
+          await host.getByRole("button", { name: "Buka visual", exact: true }).click();
+          await host.locator("iframe:not([inert])").waitFor({ state: "attached", timeout: 16000 });
+          await host.locator("iframe").contentFrame().locator("body").evaluate(async () => { await document.fonts.ready; });
+        }
         result.artifacts = await captureProductV4WebState(page, requirement.id, 1);
         observations.push(...await exerciseProductV4VisualSmoke(page, selected));
       } else if (!await exerciseProductV4WebState(page, requirement.state)) return result;

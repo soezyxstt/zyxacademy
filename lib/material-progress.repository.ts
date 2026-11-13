@@ -72,7 +72,7 @@ export async function updateMaterialProgress(progress: {
   if (
     materialAccess.access.tier === "free"
     && (
-      !isFreeChapterScoped([persistedMaterial.chapterId], materialAccess.access.freeChapterIds)
+      !isFreeChapterScoped([persistedMaterial.chapterId], materialAccess.access.hasFullContentAccess ? materialAccess.access.policy.scopedChapterIds : materialAccess.access.freeChapterIds)
     )
   ) {
     throw new Error("MATERIAL_UPGRADE_REQUIRED");

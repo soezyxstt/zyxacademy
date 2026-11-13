@@ -2,7 +2,7 @@
 
 ## Standalone solution collections
 
-`solution_collections` is defined in `db/schema.ts` with generated PostgreSQL migration `drizzle-postgres/0007_brief_blazing_skull.sql`. Each row stores a versioned collection, canonical course and chapter, originating Product import, structured content and dependency trace, generation hash, publication status and timestamps. A partial unique index permits only one published version of a product. Publication and withdrawal are transactional; no migration was applied as part of this local implementation. See the [V5 contract](bundle/product-bundle-v5.md).
+`solution_collections` is defined in `db/schema.ts` with generated PostgreSQL migration `drizzle-postgres/0008_moaning_mole_man.sql`. Each row stores a versioned collection, canonical course and chapter, originating Product import, structured content and dependency trace, generation hash, publication status and timestamps. A partial unique index permits only one published version of a product. Publication and withdrawal are transactional; no migration was applied as part of this local implementation. See the [V5 contract](bundle/product-bundle-v5.md).
 
 This document catalogs the application schema. Staging uses the PostgreSQL tables in [db/schema.ts](../db/schema.ts) and generated migrations in `drizzle-postgres/`. Production retains its previous SQLite/Turso schema and code.
 
@@ -374,6 +374,8 @@ Plan 003 adds these tables without changing legacy courses, chapters, enrollment
 
 ### mata_kuliah
 * `id`, `code`, `title`, `status`, `isDemo`
+* `pricingCategory`: `premium`, `free`, or `limited_time_free`, default `premium`. `freeStartsAt` and `freeEndsAt` are UTC instants required only for limited offers; start is inclusive and end exclusive. Admin entry uses WIB.
+* PostgreSQL migration `drizzle-postgres/0007_medical_quentin_quire.sql` is a prerequisite before code using these fields; it has not been applied remotely as part of this work.
 * `legacyCourseId`: Optional compatibility reference to `courses.id`.
 * `isDemo`: Boolean marker for the legacy singleton admin demo selection, separate from the public snapshot allowlist. A partial unique index allows at most one row with `isDemo = true`; archived or incomplete courses are not eligible for selection.
 * `createdAt`, `updatedAt`

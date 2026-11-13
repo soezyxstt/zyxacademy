@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { CoursePricingLabel } from "@/components/course/course-pricing-label";
+import type { CoursePricing } from "@/lib/student/course-pricing";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { ArrowRight } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -13,6 +15,7 @@ export interface CatalogCourseItem {
   title: string;
   category: string;
   description: string;
+  pricing?: CoursePricing;
   materialsCount: number;
   quizzesCount: number;
   tryoutsCount: number;
@@ -112,6 +115,7 @@ export function CourseCatalogClient({
             <h3 className="break-words font-heading text-body-sm font-semibold text-foreground transition-colors group-hover:text-brand-primary">
               {c.title}
             </h3>
+            <CoursePricingLabel pricing={c.pricing} />
             {showCounts && <p className="mt-0.5 text-body-xs text-muted-foreground flex items-center gap-1.5">
               {isPka ? (
                 <span>{t("courseCatalog.pkaSummary")}</span>

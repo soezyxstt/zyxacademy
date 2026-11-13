@@ -6,11 +6,11 @@ import { auditMutasi, buktiPdfBundle, imporBundle } from "@/db/schema";
 import { storage, type StorageProvider } from "@/lib/storage";
 import { joinKey, slugifySegment } from "@/lib/storage/keys";
 import type { ProductEntity } from "@/lib/bundle/product-validator";
-import { parseStagedProductBundle } from "@/lib/bundle/product-staging";
 import { claimProductReviewSnapshot } from "@/lib/bundle/product-review-snapshot";
 import { claimQueuedLegacyPdfAttempt, LEGACY_PDF_ATTEMPT_TIMEOUT_MINUTES } from "@/lib/bundle/product-diktat-queue";
 import { minutesAgo } from "@/lib/date-utils";
 import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
+import { readProductBundleForDiktat } from "@/lib/bundle/product-staged-worker";
 import type { SafeFailureCode } from "@/lib/materials/pdf-artifact-contract";
 import { uploadProductDiktatPdf } from "./product-diktat-storage";
 import {
@@ -136,7 +136,7 @@ export async function generateProductDiktatPdfEvidence(input: {
   assertLegacyDiktatDraft(importRow, input.exactLegacyDraft, staging);
   if (!input.exactLegacyDraft && (!input.productId || !input.attemptId || !/^[a-f0-9]{64}$/.test(input.expectedRevision ?? "") || input.expectedRevision !== importRow.checksum)) throw new Error("PRODUCT_DIKTAT_SNAPSHOT_CONFLICT");
 
-  const bundle = await parseStagedProductBundle(input.importId);
+  const bundle = await readProductBundleForDiktat(input.importId);
   if (bundle.manifest.bundleChecksum !== importRow.checksum) throw new Error("PRODUCT_DIKTAT_SNAPSHOT_CONFLICT");
   if (input.exactLegacyDraft) assertLegacyLearningProducts(bundle, importRow.version);
   const target = input.exactLegacyDraft
@@ -149,6 +149,7 @@ export async function generateProductDiktatPdfEvidence(input: {
   // The non-null legacy column is the Article's self-lineage for this target;
   // it is not a Diktat hash and does not imply a Diktat entity exists.
   const lineageHash = diktat?.generationHash ?? article.generationHash;
+  const staticFigureAssets = article.schemaVersion === "article.v4" ? await (await import("./product-diktat-worker-assets")).loadDiktatWorkerAssets(bundle) : undefined;
 
   // The attempt ID also prevents an earlier concurrent render from completing a newer attempt.
   const id = input.exactLegacyDraft ? `pdf-evidence-${randomUUID()}` : input.attemptId!;
@@ -181,7 +182,7 @@ export async function generateProductDiktatPdfEvidence(input: {
   let readyCommitStarted = false;
   const provider = input.storageProvider ?? storage;
   try {
-    const html = diktat ? compileProductDiktatHtml({ article, diktat }) : compileProductArticleHtml(article);
+    const html = diktat ? compileProductDiktatHtml({ article, diktat, staticFigureAssets }) : compileProductArticleHtml(article);
     const bytes = await (input.renderer ?? renderProductDiktatPdf)(html);
     const inspection = await inspectProductDiktatPdf(bytes).catch((error) => {
       console.error("Product Diktat PDF inspection failed:", error instanceof Error ? error.message : String(error));

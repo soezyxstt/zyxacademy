@@ -1,13 +1,14 @@
-import { describe, expect, it } from "bun:test";
-import {
+import { describe, expect, it, mock } from "bun:test";
+mock.module("server-only", () => ({}));
+const {
   getHistoricalSolutionContent,
   isHistoricalReferenceLinkTarget,
-} from "@/lib/question-authoring";
-import {
+} = await import("@/lib/question-authoring");
+const {
   canonicalQuestionStatus,
   questionAuthoringInputSchema,
-} from "@/lib/question-authoring-contract";
-import { parseQuestionsMarkdown, validateExtractedQuestion } from "@/lib/question-markdown";
+} = await import("@/lib/question-authoring-contract");
+const { parseQuestionsMarkdown, validateExtractedQuestion } = await import("@/lib/question-markdown");
 
 describe("canonical question authoring contract", () => {
   it("parses the current Markdown sample with an explicit question type", () => {

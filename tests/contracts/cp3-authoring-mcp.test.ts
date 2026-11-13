@@ -5,9 +5,6 @@ import { eq } from "drizzle-orm";
 import { zipSync } from "fflate";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import * as schema from "@/db/schema";
-import {
-  createAuthoringMcpServer,
-} from "@/lib/authoring/mcp-server";
 import type { McpPrincipal } from "@/lib/authoring/mcp-auth";
 import {
   issueMcpRunToken,
@@ -97,6 +94,8 @@ mock.module("@/lib/storage", () => ({
   getStorage: () => mockStorage,
   storage: mockStorage,
 }));
+mock.module("server-only", () => ({}));
+const { createAuthoringMcpServer } = await import("@/lib/authoring/mcp-server");
 
 const HASH_A = "a".repeat(64);
 const HASH_B = "b".repeat(64);
@@ -534,7 +533,8 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
       // Typed visual specifications
       expect(pbContract.typedVisuals.supportedKinds).toContain("epsilon_delta_graph");
       expect(pbContract.typedVisuals.supportedKinds).toContain("learning_canvas");
-      expect(pbContract.typedVisuals.securityRestrictions).toContain("No executable JavaScript");
+      expect(pbContract.typedVisuals.securityRestrictions).toContain("Visual metadata and Markdown contain no executable code");
+      expect(pbContract.typedVisuals.securityRestrictions).toContain("Only interactive_document permits reviewed self-contained HTML");
 
       // Review rubric (8 criteria)
       expect(pbContract.reviewRubric.criteriaCount).toBe(8);

@@ -1,0 +1,18 @@
+:root { color-scheme: light; --background: #fff; --foreground: #172f29; --primary: #176955; --primary-foreground: #fff; --muted: #e1eee6; --muted-foreground: #65776d; --border: #c9d6ce; --accent: #c88127; }
+:root[data-theme="dark"] { color-scheme: dark; --background: #17231f; --foreground: #e4eee8; --primary: #86d5b6; --primary-foreground: #17352b; --muted: #30473d; --muted-foreground: #a9beb1; --border: #52675b; --accent: #e8ac5e; }
+* { box-sizing: border-box; } body { margin: 0; background: transparent; color: var(--foreground); font: 14px/1.4 system-ui, sans-serif; } main { padding: 8px; max-width: 900px; margin: 0 auto; } svg { display: block; width: 100%; max-width: 620px; height: auto; margin: auto; fill: var(--foreground); } svg text { font-size: 16px; font-family: system-ui, sans-serif; } svg [role="button"] { cursor: pointer; } :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; } svg [role="button"]:focus-visible rect { stroke: var(--accent); stroke-width: 5; } .controls { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; } label { display: inline-flex; align-items: center; gap: 6px; } input[type="range"] { width: 105px; accent-color: var(--primary); } button, select { color: inherit; background: var(--background); border: 1px solid var(--border); border-radius: 5px; padding: 6px 9px; font: inherit; } button:disabled { opacity: .5; } p { margin: 8px 0 0; }
+main[data-mechanics] p, main[data-sampling-fixture] p { font-size: 16px; }
+main[data-mechanics] input, main[data-sampling-fixture] input { font: inherit; }
+.fbd-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,380px),1fr)); gap: 8px; margin-top: 12px; } [data-formula], [data-definitions] { overflow-x: auto; line-height: 2; }
+
+[data-room] text { font-size: 22px; }
+[data-sampling] text { font-size: 21px; }
+@media print {
+  main { max-width: 740px; padding: 12px; }
+  button, input, select, .controls label, [data-reduced-notice] { display: none !important; }
+  [role="button"] { pointer-events: none; }
+  .fbd-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  details > :not(summary) { display: block !important; }
+  details > summary { display: none; }
+  [data-formula], [data-definitions] { font-size: 13px; }
+}

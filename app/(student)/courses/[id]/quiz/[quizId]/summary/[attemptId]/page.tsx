@@ -10,6 +10,9 @@ import { QuizAnalyticsView } from "@/components/course/quiz-analytics-view";
 import { getCourse } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
 import { getTranslations } from "@/lib/i18n/server";
+import { resolveCourseAccess } from "@/lib/student/course-access";
+import { canAccessStudentQuizTemplate } from "@/lib/quiz/student-access";
+import { canAccessQuizSnapshot } from "@/lib/quiz/question-scope";
 
 type Props = {
   params: Promise<{ id: string; quizId: string; attemptId: string }>;
@@ -62,6 +65,8 @@ export default async function QuizSummaryPage({ params }: Props) {
     .limit(1);
 
   if (!template || attempt.templateId !== quizId || ![course.id, course.canonicalId, course.legacyId, id].includes(template.courseId)) notFound();
+  const access = await resolveCourseAccess({ courseId: template.courseId, userId: session.user.id });
+  if (!canAccessStudentQuizTemplate(access, template) || !await canAccessQuizSnapshot(access, attempt.questionsSnapshot)) notFound();
   if (!canViewAttemptDiscussion(template, attempt.status)) redirect(`/courses/${id}/quiz/${quizId}?attemptId=${encodeURIComponent(attemptId)}`);
 
   return <StudentQuizSummaryView title={template?.title || course.title} reviewHref={`/courses/${id}/quiz/${quizId}?attemptId=${attemptId}`} historyHref={`/courses/${id}/my-results`} retryHref={`/courses/${id}/quiz/${quizId}`} pending={attempt.gradingStatus === "pending"}><QuizAnalyticsView attemptId={attemptId} courseId={course.legacyId ?? id} /></StudentQuizSummaryView>;

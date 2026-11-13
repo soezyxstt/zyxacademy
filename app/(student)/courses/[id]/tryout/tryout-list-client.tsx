@@ -26,7 +26,7 @@ interface TryoutItem {
 
 type TryoutListClientProps = {
   courseId: string;
-  isEnrolled: boolean;
+  hasFullContentAccess: boolean;
   tryouts: TryoutItem[];
 };
 
@@ -44,7 +44,7 @@ function readAttempts(tryouts: TryoutItem[]) {
   return counts;
 }
 
-export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListClientProps) {
+export function TryoutListClient({ courseId, hasFullContentAccess, tryouts }: TryoutListClientProps) {
   const t = useTranslations("learning");
   const experience = useStudentExperience();
   const href = experience.href ?? ((path: string) => path);
@@ -84,7 +84,7 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
           const maxAttempts = tryout.settings?.maxAttempts ?? 2;
           const isBlocked = attemptCount >= maxAttempts;
           const isFree = tryout.isFree || tryout.isPreview;
-          const accessible = isEnrolled || isFree;
+          const accessible = hasFullContentAccess || isFree;
 
           const now = new Date();
           const openDate = tryout.openAt ? new Date(tryout.openAt) : null;

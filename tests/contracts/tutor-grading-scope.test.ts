@@ -507,7 +507,7 @@ describe("Tutor Grading Scope and Policy", () => {
       mockSession = { user: { id: "usr-unenrolled", role: "student" } };
       await expect(
         submitTryoutAction("mk-calc", "exam-tryout-calc", {}),
-      ).rejects.toThrow("Pendaftaran kelas tidak aktif atau sudah berakhir.");
+      ).rejects.toThrow("Akses mata kuliah tidak tersedia.");
     });
 
     it("rejects submission when student enrollment has expired", async () => {
@@ -532,7 +532,7 @@ describe("Tutor Grading Scope and Policy", () => {
       mockSession = { user: { id: "usr-expired", role: "student" } };
       await expect(
         submitTryoutAction("mk-calc", "exam-tryout-calc", {}),
-      ).rejects.toThrow("Pendaftaran kelas tidak aktif atau sudah berakhir.");
+      ).rejects.toThrow("Akses mata kuliah tidak tersedia.");
     });
 
     it("rejects submission when tryout is not published", async () => {

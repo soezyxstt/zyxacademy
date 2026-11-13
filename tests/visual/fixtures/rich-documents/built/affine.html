@@ -1,0 +1,175 @@
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Transformasi afin</title><style>:root { color-scheme: light; --background: #fff; --foreground: #172f29; --primary: #176955; --primary-foreground: #fff; --muted: #e1eee6; --muted-foreground: #65776d; --border: #c9d6ce; --accent: #c88127; }
+:root[data-theme="dark"] { color-scheme: dark; --background: #17231f; --foreground: #e4eee8; --primary: #86d5b6; --primary-foreground: #17352b; --muted: #30473d; --muted-foreground: #a9beb1; --border: #52675b; --accent: #e8ac5e; }
+* { box-sizing: border-box; } body { margin: 0; background: transparent; color: var(--foreground); font: 14px/1.4 system-ui, sans-serif; } main { padding: 8px; max-width: 900px; margin: 0 auto; } svg { display: block; width: 100%; max-width: 620px; height: auto; margin: auto; fill: var(--foreground); } svg text { font-size: 16px; font-family: system-ui, sans-serif; } svg [role="button"] { cursor: pointer; } :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; } svg [role="button"]:focus-visible rect { stroke: var(--accent); stroke-width: 5; } .controls { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; } label { display: inline-flex; align-items: center; gap: 6px; } input[type="range"] { width: 105px; accent-color: var(--primary); } button, select { color: inherit; background: var(--background); border: 1px solid var(--border); border-radius: 5px; padding: 6px 9px; font: inherit; } button:disabled { opacity: .5; } p { margin: 8px 0 0; }
+main[data-mechanics] p, main[data-sampling-fixture] p { font-size: 16px; }
+main[data-mechanics] input, main[data-sampling-fixture] input { font: inherit; }
+.fbd-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,380px),1fr)); gap: 8px; margin-top: 12px; } [data-formula], [data-definitions] { overflow-x: auto; line-height: 2; }
+
+[data-room] text { font-size: 22px; }
+[data-sampling] text { font-size: 21px; }
+@media print {
+  main { max-width: 740px; padding: 12px; }
+  button, input, select, .controls label, [data-reduced-notice] { display: none !important; }
+  [role="button"] { pointer-events: none; }
+  .fbd-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  details > :not(summary) { display: block !important; }
+  details > summary { display: none; }
+  [data-formula], [data-definitions] { font-size: 13px; }
+}
+</style></head><body><main></main><script>"use strict";
+(() => {
+  // tests/visual/fixtures/rich-documents/shared.js
+  function setup() {
+    const root = document.querySelector("main");
+    let last = 0, queued = false, frame2 = 0;
+    const send = () => {
+      queued = false;
+      const height = Math.ceil(root.getBoundingClientRect().height);
+      if (height !== last) {
+        last = height;
+        parent.postMessage({ type: "zyx:resize", height }, "*");
+      }
+    };
+    const observer = new ResizeObserver(() => {
+      if (!queued) {
+        queued = true;
+        frame2 = requestAnimationFrame(send);
+      }
+    });
+    observer.observe(root);
+    addEventListener("pagehide", () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame2);
+    }, { once: true });
+    addEventListener("message", (event) => {
+      if (event.source !== parent || event.data?.type !== "zyx:preferences") return;
+      if (event.data.theme === "light" || event.data.theme === "dark") document.documentElement.dataset.theme = event.data.theme;
+      if (typeof event.data.reducedMotion === "boolean") document.documentElement.dataset.reducedMotion = String(event.data.reducedMotion);
+    });
+  }
+
+  // tests/visual/fixtures/rich-documents/models.js
+  var affine = ([x, y], a2, b2, tx2, ty) => [a2 * x + b2 * y + tx2, y + ty];
+  var rotorStations = { damper: 1 / 4, beamCenter: 1 / 2, machine: 1 };
+
+  // tests/visual/fixtures/rich-documents/affine-geometry.mjs
+  var polygon = [[0, 0], [2, 0], [2, 1], [1, 2], [0, 1]];
+  var frame = { width: 440, height: 160, origin: [180, 120], scale: 40 };
+  var project = ([x, y]) => [frame.origin[0] + x * frame.scale, frame.origin[1] - y * frame.scale];
+  function pointRegion(index) {
+    const [x, y] = project(polygon[index]), radius = 26;
+    let region = [[x - radius, y - radius], [x + radius, y - radius], [x + radius, y + radius], [x - radius, y + radius]];
+    for (const [i, point] of polygon.entries()) {
+      if (i === index) continue;
+      const [otherX, otherY] = project(point), dx = otherX - x, dy = otherY - y;
+      const side = ([px, py]) => 2 * (px - x) * dx + 2 * (py - y) * dy - dx * dx - dy * dy;
+      const clipped = [];
+      for (let j = 0; j < region.length; j++) {
+        const start = region[j], end = region[(j + 1) % region.length], a2 = side(start), b2 = side(end);
+        if (a2 <= 0) clipped.push(start);
+        if (a2 < 0 && b2 > 0 || a2 > 0 && b2 < 0) clipped.push(start.map((v, k) => v + (end[k] - v) * a2 / (a2 - b2)));
+      }
+      region = clipped;
+    }
+    return region;
+  }
+  var gridLines = [
+    ...Array.from({ length: 11 }, (_, i) => [[i - 4, -1], [i - 4, 3]]),
+    ...Array.from({ length: 5 }, (_, i) => [[-4, i - 1], [6, i - 1]])
+  ];
+
+  // tests/visual/fixtures/rich-documents/affine.js
+  setup();
+  var main = document.querySelector("main");
+  var a = 1;
+  var b = 0;
+  var tx = 0;
+  var selected = 0;
+  var xy = (point) => project(point).join(",");
+  var line = ([start, end]) => `M${xy(start)} L${xy(end)}`;
+  var transform = (point) => affine(point, a, b, tx, 0);
+  main.innerHTML = `<style>
+  [data-point] { cursor: pointer; outline: none; }
+  [data-point]:focus-visible .point-focus { stroke: var(--accent); stroke-width: 3; stroke-opacity: 1; }
+  [data-point] .point-focus { fill: var(--background); fill-opacity: .08; stroke: var(--foreground); stroke-opacity: .35; stroke-dasharray: 3 3; }
+  @media print { .point-focus { display: none; } }
+  [data-affine-scene] text { font-size: 26px; paint-order: stroke; stroke: var(--background); stroke-width: 4px; stroke-linejoin: round; }
+  .affine-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; }
+  .affine-legend span::before { content: ''; display: inline-block; width: 18px; margin-right: 5px; vertical-align: middle; border-top: 2px solid var(--foreground); }
+  .affine-legend [data-image-key]::before { border-color: var(--primary); border-top-style: dashed; }
+</style>
+<div class="affine-legend" aria-label="Legenda"><span>Asal</span><span data-image-key>Hasil</span></div>
+<svg data-affine-scene viewBox="0 0 ${frame.width} ${frame.height}" role="group" aria-label="Poligon dan grid asal serta hasil transformasi afin">
+  <g data-original-grid fill="none" stroke="var(--border)" stroke-width="1">${gridLines.map((points2, i) => `<path data-grid-line="${i}" d="${line(points2)}"/>`).join("")}</g>
+  <g data-image-grid fill="none" stroke="var(--primary)" stroke-opacity=".55" stroke-width="1.2" stroke-dasharray="4 3">${gridLines.map((_, i) => `<path data-grid-line="${i}"/>`).join("")}</g>
+  <path data-axes d="M${xy([-4, 0])} L${xy([6, 0])} M${xy([0, -1])} L180,8" fill="none" stroke="var(--foreground)" stroke-width="1.5"/>
+  <path data-axis-ticks d="M220,115 v10 M175,80 h10 M414,114 l6,6 -6,6 M174,14 l6,-6 6,6" fill="none" stroke="var(--foreground)" stroke-width="2"/>
+  <polygon data-original-polygon points="${polygon.map(xy).join(" ")}" fill="var(--muted)" fill-opacity=".65" stroke="var(--foreground)" stroke-width="2"/>
+  <polygon data-image-polygon fill="var(--primary)" fill-opacity=".3" stroke="var(--primary)" stroke-width="2.5"/>
+  <circle data-image-point r="5" fill="var(--primary)" stroke="var(--background)" stroke-width="2" pointer-events="none"/>
+  ${polygon.map((point, i) => `<g data-point="${i}" role="button" tabindex="0" aria-label="Pilih titik ${i + 1}, asal (${point.join(", ")})"><polygon class="point-focus" points="${pointRegion(i).map((p) => p.join(",")).join(" ")}"/><circle data-point-mark cx="${project(point)[0]}" cy="${project(point)[1]}" r="3.5" fill="var(--foreground)" stroke="var(--background)" stroke-width="1.5" pointer-events="none"/></g>`).join("")}
+  <g data-axis-labels fill="var(--foreground)" pointer-events="none"><text x="148" y="148">0</text><text x="213" y="148">1</text><text x="151" y="85">1</text><text x="387" y="108">+x</text><text x="189" y="27">+y</text></g>
+</svg>
+<p data-coordinate aria-live="polite"></p>
+<div class="controls"><label>Skala x <input data-a type="range" min="-1" max="2" step="0.1" value="1"> <output data-a-value></output></label><label>Geser x oleh y <input data-b type="range" min="-1" max="1" step="0.1" value="0"> <output data-b-value></output></label><label>Translasi x <input data-tx type="range" min="-1" max="1" step="0.1" value="0"> <output data-tx-value></output></label><button data-reset>Ulangi</button></div>
+<p data-invertibility aria-live="polite"></p>`;
+  var q = (selector) => main.querySelector(selector);
+  var points = main.querySelectorAll("[data-point]");
+  var imageGrid = main.querySelectorAll("[data-image-grid] [data-grid-line]");
+  var format = (n) => Number(n.toFixed(2)).toString();
+  function draw() {
+    imageGrid.forEach((path, i) => path.setAttribute("d", line(gridLines[i].map(transform))));
+    q("[data-image-polygon]").setAttribute("points", polygon.map((point) => xy(transform(point))).join(" "));
+    const image = transform(polygon[selected]), [cx, cy] = project(image);
+    q("[data-image-point]").setAttribute("cx", cx);
+    q("[data-image-point]").setAttribute("cy", cy);
+    points.forEach((point, i) => {
+      point.setAttribute("aria-pressed", String(i === selected));
+      point.querySelector("[data-point-mark]").setAttribute("r", i === selected ? "5" : "3.5");
+    });
+    q("[data-coordinate]").textContent = `Titik ${selected + 1}: asal (${polygon[selected].map(format).join(", ")}), hasil (${image.map(format).join(", ")})`;
+    for (const [key, value] of Object.entries({ a, b, tx })) q(`[data-${key}-value]`).textContent = value.toFixed(1);
+    q("[data-invertibility]").textContent = a === 0 ? "Skala nol meratakan poligon, sehingga transformasi tidak memiliki invers." : "Transformasi dapat dibalik karena skala x tidak nol.";
+  }
+  main.addEventListener("input", (event) => {
+    if (event.target.matches("[data-a]")) a = +event.target.value;
+    else if (event.target.matches("[data-b]")) b = +event.target.value;
+    else if (event.target.matches("[data-tx]")) tx = +event.target.value;
+    else return;
+    draw();
+  });
+  function selectPoint(point) {
+    selected = +point.dataset.point;
+    draw();
+  }
+  main.addEventListener("click", (event) => {
+    const point = event.target.closest("[data-point]");
+    if (point) selectPoint(point);
+    if (event.target.closest("[data-reset]")) {
+      a = 1;
+      b = tx = selected = 0;
+      q("[data-a]").value = a;
+      q("[data-b]").value = b;
+      q("[data-tx]").value = tx;
+      draw();
+      q("[data-reset]").focus();
+    }
+  });
+  main.addEventListener("keydown", (event) => {
+    const point = event.target.closest("[data-point]");
+    if (point && (event.key === "Enter" || event.key === " ")) {
+      event.preventDefault();
+      selectPoint(point);
+    }
+  });
+  draw();
+  var labelObserver = new ResizeObserver(() => {
+    const width = q("[data-affine-scene]").getBoundingClientRect().width;
+    if (width) q("[data-affine-scene]").querySelectorAll("text").forEach((label) => {
+      label.style.fontSize = 14 * frame.width / width + "px";
+    });
+  });
+  labelObserver.observe(q("[data-affine-scene]"));
+  addEventListener("pagehide", () => labelObserver.disconnect(), { once: true });
+})();
+</script></body></html>

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Flag, Timer, BookOpen, AlertCircle, FileText, Trash2, ArrowLeft, ArrowRight, UploadCloud } from "lucide-react";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { InteractiveDocumentTryout } from "@/components/course/interactive-document-context";
 import type { ExamFixture, QuestionSpec } from "@/lib/student-course-fixtures";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import {
@@ -43,11 +44,12 @@ function emptyAnswer(q: PublicQuestion): AnswerState {
 
 type TryoutFormProps = {
   courseId: string;
+  visualCourseId?: string;
   exam: TryoutPresentationExam;
   transport?: { submit: (answers: Record<string, AnswerState>) => Promise<void>; afterSubmitHref?: string };
 };
 
-export function TryoutForm({ courseId, exam, transport }: TryoutFormProps) {
+export function TryoutForm({ courseId, visualCourseId = courseId, exam, transport }: TryoutFormProps) {
   const t = useTranslations("studentCourse");
   const router = useRouter();
   const [index, setIndex] = useState(0);
@@ -289,7 +291,7 @@ export function TryoutForm({ courseId, exam, transport }: TryoutFormProps) {
               {index + 1}
             </span>
             <div className="min-w-0 flex-1 font-sans text-body-base leading-relaxed text-foreground">
-              <MarkdownRenderer content={q.prompt} className="space-y-3" />
+              <InteractiveDocumentTryout value={transport ? null : { courseId: visualCourseId, examId: exam.id, questionId: q.id, field: "prompt" }}><MarkdownRenderer content={q.prompt} className="space-y-3" /></InteractiveDocumentTryout>
             </div>
           </div>
 
@@ -304,7 +306,7 @@ export function TryoutForm({ courseId, exam, transport }: TryoutFormProps) {
                   <div
                     key={i}
                     onClick={(event) => {
-                      if ((event.target as Element).closest("button, input, select, textarea, a, figure, [data-learning-visual]")) return;
+                      if (!event.currentTarget.contains(event.target as Node) || (event.target as Element).closest("button, input, select, textarea, a, figure, [data-learning-visual]")) return;
                       setAnswerFor(q.id, { type: "multiple_choice", index: i });
                     }}
                     className={cn(
@@ -318,7 +320,7 @@ export function TryoutForm({ courseId, exam, transport }: TryoutFormProps) {
                     <span id={`tryout-letter-${q.id}-${i}`} className="text-body-sm font-semibold text-foreground mr-1">
                       {String.fromCharCode(65 + i)}.
                     </span>
-                    <div id={`tryout-option-${q.id}-${i}`} className="min-w-0 flex-1 break-words text-body-sm text-foreground leading-normal"><MarkdownRenderer content={opt} density="compact" /></div>
+                    <div id={`tryout-option-${q.id}-${i}`} className="min-w-0 flex-1 break-words text-body-sm text-foreground leading-normal"><InteractiveDocumentTryout value={transport ? null : { courseId: visualCourseId, examId: exam.id, questionId: q.id, field: "option", option: i }}><MarkdownRenderer content={opt} density="compact" /></InteractiveDocumentTryout></div>
                   </div>
                 );
               })}
@@ -336,7 +338,7 @@ export function TryoutForm({ courseId, exam, transport }: TryoutFormProps) {
                   <div
                     key={i}
                     onClick={(event) => {
-                      if ((event.target as Element).closest("button, input, select, textarea, a, figure, [data-learning-visual]")) return;
+                      if (!event.currentTarget.contains(event.target as Node) || (event.target as Element).closest("button, input, select, textarea, a, figure, [data-learning-visual]")) return;
                       const indices = checked ? ans.indices.filter((index) => index !== i) : [...ans.indices, i].sort((a, b) => a - b);
                       setAnswerFor(q.id, { type: "multiple_choices", indices });
                     }}
@@ -361,7 +363,7 @@ export function TryoutForm({ courseId, exam, transport }: TryoutFormProps) {
                     <span id={`tryout-letter-${q.id}-${i}`} className="text-body-sm font-semibold text-foreground mr-1">
                       {String.fromCharCode(65 + i)}.
                     </span>
-                    <div id={`tryout-option-${q.id}-${i}`} className="min-w-0 flex-1 break-words text-body-sm text-foreground leading-normal"><MarkdownRenderer content={opt} density="compact" /></div>
+                    <div id={`tryout-option-${q.id}-${i}`} className="min-w-0 flex-1 break-words text-body-sm text-foreground leading-normal"><InteractiveDocumentTryout value={transport ? null : { courseId: visualCourseId, examId: exam.id, questionId: q.id, field: "option", option: i }}><MarkdownRenderer content={opt} density="compact" /></InteractiveDocumentTryout></div>
                   </div>
                 );
               })}

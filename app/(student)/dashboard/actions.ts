@@ -167,14 +167,14 @@ export async function updateMaterialProgress(materialId: string, status: "in_pro
     throw new Error("MATERIAL_ACCESS_DENIED");
   }
   if (
-    materialAccess.access.tier === "free"
+    materialAccess.access.tier === "free" && !materialAccess.access.hasFullContentAccess
     && materialAccess.contentKind === "other"
   ) {
     throw new Error("MATERIAL_UPGRADE_REQUIRED");
   }
   if (
     materialAccess.access.tier === "free"
-    && !isFreeChapterScoped(materialAccess.chapterIds, materialAccess.access.freeChapterIds)
+    && !isFreeChapterScoped(materialAccess.chapterIds, materialAccess.access.hasFullContentAccess ? materialAccess.access.policy.scopedChapterIds : materialAccess.access.freeChapterIds)
   ) {
     throw new Error("MATERIAL_UPGRADE_REQUIRED");
   }
@@ -303,7 +303,7 @@ export async function getStudentSubmissions() {
 /**
  * Check if the student is actively enrolled in a specific course
  */
-export async function checkEnrollment(courseId: string): Promise<boolean> {
+export async function checkFullCourseContentAccess(courseId: string): Promise<boolean> {
   let user;
   try {
     user = await requireUser();
@@ -316,7 +316,14 @@ export async function checkEnrollment(courseId: string): Promise<boolean> {
     userId: user.id,
     roleHint: (user as { role?: string | null }).role,
   });
-  return access.hasCourseAccess && (access.tier === "enrolled" || access.tier === "staff");
+  return access.hasFullContentAccess;
+}
+
+export async function checkEnrollment(courseId: string): Promise<boolean> {
+  let user;
+  try { user = await requireUser(); } catch { return false; }
+  const access = await resolveCourseAccess({ courseId, userId: user.id });
+  return access.hasCourseAccess && (access.isEnrolled || access.tier === "staff");
 }
 
 /**

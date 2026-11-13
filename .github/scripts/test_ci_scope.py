@@ -107,6 +107,14 @@ class ScopeTest(unittest.TestCase):
         for path in ['bun.lock', 'scripts/ci/plan.py', '.github/workflows/ci.yml']:
             self.assertTrue(all(self.plan(path)[key] for key in ci.SCOPES), path)
 
+    def test_server_only_preload_revalidates_the_contract_context(self):
+        result = self.plan('tests/helpers/server-only-preload.ts')
+        self.assertEqual(result['tests'], self.plan('tests/helpers/postgres-preload.ts')['tests'])
+        self.assertIn('tests/contracts/cp2-publication-integration.test.ts', result['tests'])
+        self.assertIn('tests/contracts/product-v4-browser-runner.test.ts', result['tests'])
+        self.assertTrue(result['authoring'])
+        self.assertTrue(result['schedule'])
+
     def test_changed_test_is_selected_without_deployment(self):
         path = 'tests/contracts/group-name-policy.test.ts'
         result = self.plan(path)

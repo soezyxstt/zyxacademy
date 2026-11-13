@@ -59,7 +59,7 @@ async function seed() {
   await testDb.insert(schema.user).values({ id: actorId, name: "Fixture admin", email: "v4-race@example.test", role: "admin" });
   await provisionPenggunaForNewUser({ id: actorId, role: "admin" });
   await testDb.insert(schema.courses).values({ id: bundle.manifest.courseId, title: "Fixture", category: "Math" });
-  await testDb.insert(schema.imporBundle).values({ id: importId, bundleId: bundle.manifest.bundleId, checksum: bundle.checksum, bundleType: "product", courseId: bundle.manifest.courseId, sourceUriOrKey: "fixture.zip", version: 4, status: "draft", validationReport: {}, requestedBy: actorId });
+  await testDb.insert(schema.imporBundle).values({ id: importId, bundleId: bundle.manifest.bundleId, checksum: bundle.checksum, bundleType: "product", courseId: bundle.manifest.courseId, sourceUriOrKey: "fixture.zip", version: 4, status: "draft", validationReport: { valid: true }, requestedBy: actorId });
   await testDb.insert(schema.auditMutasi).values({ id: "stage-a", entityType: "product_bundle", entityId: importId, action: "draft_created", correlationId: runA, afterSnapshot: { checksum: bundle.checksum } });
   objects.set("fixture.zip", fixture.bytes);
 }

@@ -4,7 +4,6 @@ import {
   flashcardSets,
   studentFlashcardProgress,
   knowledgeObjects,
-  enrollments,
   flashcardReviews,
   learningEvents,
   flashcardIde,
@@ -15,7 +14,7 @@ import {
   reviewFlashcard,
   pemahamanIde,
 } from "@/db/schema";
-import { eq, and, lte, or, inArray, isNull, gt } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { calculateSM2 } from "./flashcard-scheduler";
 import { randomUUID } from "crypto";
 import { markRecommendationDone } from "@/lib/recommendation-service";
@@ -23,7 +22,9 @@ import { dualWriteFlashcardReview, dualWriteLearningEvent } from "@/lib/migrasi/
 import { recordLearningEvidence } from "@/lib/pemahaman/evidence";
 import { resolveStudentCourse } from "@/lib/student/course-catalog";
 import { getStudentCourseAccess, isFreeChapterScoped } from "@/lib/course-utils";
+import { canAccessCourseContent } from "@/lib/student/course-access";
 import { rankFlashcardQueue, isReviewDue, weakestFlashcardIdea, type FlashcardQueuePriorityInput } from "@/lib/flashcard-ranking";
+import { getDueFlashcardCounts } from "@/lib/student/due-flashcards";
 
 export interface FlashcardHistoryItem {
   reviewedAt: string;
@@ -87,7 +88,6 @@ export async function getReviewQueue(studentId: string, courseId: string) {
   const course = await resolveStudentCourse(courseId);
   const access = await getStudentCourseAccess(studentId, courseId);
   if (!access) return [];
-  const freeChapterIds = access?.tier === "free" ? new Set(access.freeChapterIds) : null;
   if (course?.canonicalId) {
     const canonicalCards = await db
       .select({
@@ -143,10 +143,9 @@ export async function getReviewQueue(studentId: string, courseId: string) {
       const now = Date.now();
       const eligible = canonicalCards
       .flatMap((card) => {
-          if (
-            freeChapterIds
-            && !isFreeChapterScoped([card.chapterId, card.legacyChapterId], freeChapterIds)
-          ) return [];
+          if (!canAccessCourseContent(access.policy, "flashcard", [
+            card.chapterId, ...(card.legacyChapterId ? [card.legacyChapterId] : []),
+          ])) return [];
           const progress = progressByCard.get(card.id);
           if (!isReviewDue(progress && { due: progress.dueAt, status: progress.status }, now)) return [];
           const idea = ideaByCard.get(card.id);
@@ -182,9 +181,7 @@ export async function getReviewQueue(studentId: string, courseId: string) {
       )
     );
 
-  if (freeChapterIds) {
-    publishedSets = publishedSets.filter((set) => freeChapterIds.has(set.chapterId));
-  }
+  publishedSets = publishedSets.filter((set) => canAccessCourseContent(access.policy, "flashcard", [set.chapterId]));
   if (publishedSets.length === 0) return [];
 
   const setIds = publishedSets.map(s => s.id);
@@ -326,7 +323,7 @@ export async function submitReview(
       reviewCourse.chapterId,
       "legacyChapterId" in reviewCourse ? reviewCourse.legacyChapterId : null,
     ].filter((id): id is string => Boolean(id)),
-    access.freeChapterIds,
+    access.hasFullContentAccess ? access.policy.scopedChapterIds : access.freeChapterIds,
   ))) {
     throw new Error("FLASHCARD_ACCESS_DENIED");
   }
@@ -374,7 +371,7 @@ async function submitCanonicalFlashcardReviewTx(
   const access = await getStudentCourseAccess(studentId, card.courseId);
   if (!access || (access.tier === "free" && !isFreeChapterScoped(
     [card.chapterId, card.legacyChapterId].filter((id): id is string => Boolean(id)),
-    access.freeChapterIds,
+    access.hasFullContentAccess ? access.policy.scopedChapterIds : access.freeChapterIds,
   ))) {
     throw new Error("FLASHCARD_ACCESS_DENIED");
   }
@@ -484,7 +481,7 @@ export async function submitFlashcardReviewTx(
   if (set.status !== "published" || set.isStale) throw new Error("FLASHCARD_NOT_AVAILABLE");
 
   const access = await getStudentCourseAccess(studentId, set.courseId);
-  if (!access || (access.tier === "free" && !isFreeChapterScoped([set.chapterId], access.freeChapterIds))) {
+  if (!access || (access.tier === "free" && !isFreeChapterScoped([set.chapterId], access.hasFullContentAccess ? access.policy.scopedChapterIds : access.freeChapterIds))) {
     throw new Error("FLASHCARD_ACCESS_DENIED");
   }
 
@@ -623,39 +620,8 @@ export async function submitFlashcardReviewTx(
 
   {
     Promise.resolve().then(async () => {
-      const now = new Date();
-      const remaining = await db
-        .selectDistinct({ id: flashcards.id })
-        .from(flashcards)
-        .innerJoin(flashcardSets, eq(flashcards.setId, flashcardSets.id))
-        .innerJoin(
-          enrollments,
-          and(
-            eq(flashcardSets.courseId, enrollments.courseId),
-            eq(enrollments.userId, studentId),
-            gt(enrollments.expiresAt, now)
-          )
-        )
-        .leftJoin(
-          studentFlashcardProgress,
-          and(
-            eq(studentFlashcardProgress.flashcardId, flashcards.id),
-            eq(studentFlashcardProgress.studentId, studentId)
-          )
-        )
-        .where(
-          and(
-            eq(flashcards.status, "active"),
-            eq(flashcardSets.status, "published"),
-            eq(flashcardSets.isStale, false),
-            or(
-              isNull(studentFlashcardProgress.id),
-              lte(studentFlashcardProgress.dueDate, now)
-            )
-          )
-        )
-        .limit(1);
-      if (remaining.length === 0) {
+      const remaining = await getDueFlashcardCounts(studentId);
+      if (![...remaining.values()].some((count) => count > 0)) {
         await markRecommendationDone("flashcards", studentId);
       }
     }).catch(() => {});
@@ -698,7 +664,7 @@ export async function skipFlashcardTx(
   if (set.status !== "published" || set.isStale) throw new Error("FLASHCARD_NOT_AVAILABLE");
 
   const access = await getStudentCourseAccess(studentId, set.courseId);
-  if (!access || (access.tier === "free" && !isFreeChapterScoped([set.chapterId], access.freeChapterIds))) {
+  if (!access || (access.tier === "free" && !isFreeChapterScoped([set.chapterId], access.hasFullContentAccess ? access.policy.scopedChapterIds : access.freeChapterIds))) {
     throw new Error("FLASHCARD_ACCESS_DENIED");
   }
 

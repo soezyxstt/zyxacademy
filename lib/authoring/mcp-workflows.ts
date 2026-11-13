@@ -8,6 +8,7 @@ import { evaluateSourcePackQuality, type SourcePackQualityReport } from "@/lib/a
 import { ZipSecurityError } from "@/lib/bundle/zip-reader";
 import { resolveAuthSecret } from "@/lib/auth-secret";
 import { authoringValidationSnapshot, productV4SchemaDocuments, productV5SchemaDocuments } from "@/lib/authoring/mcp-contract-revision";
+import { interactiveVisualGuidance } from "@/lib/authoring/interactive-visual-guidance";
 import {
   AUTHORING_MCP_BOOTSTRAP_PROTOCOL,
   buildPlaybookResponse,
@@ -594,6 +595,7 @@ function workflowStaticDefinition(workflowKey: AuthoringWorkflow) {
         primaryIdeaCount: 1,
         linkedIdeaWeightRule: "At least one published Idea in the locked course and chapter, exactly one primary, and positive weights summing to 1 are required.",
         scopeGuidance: quizBankScopeGuidance(),
+        visualAuthoring: interactiveVisualGuidance(),
         historicalReferenceBoundary: "Historical questions are read-only context for gap analysis. New quiz questions remain zyx_original and may link lineage with inspired_by, adapted_from, or derived_from.",
         draftExample: {
           schemaVersion: "question-bank-draft.v2",
@@ -1418,7 +1420,7 @@ export function productBundleV3Contract() {
       supportedKinds: Object.keys(VISUAL_CAPABILITIES),
       specFields: {
         id: "Unique visual identifier within article registry.",
-        kind: "Use a kind declared in capabilities: epsilon_delta_graph, learning_canvas, geometry_2d or source_figure.",
+        kind: "Use a kind declared in capabilities, including interactive_scene.",
         label: "Accessible visual title or label.",
         description: "Detailed description for screen readers and search.",
         bounds: "For epsilon_delta_graph, numeric bounding box xMin, xMax, yMin, yMax with strict ordering.",
@@ -1431,7 +1433,8 @@ export function productBundleV3Contract() {
         interactive: "For learning_canvas, whether the bounded canvas exposes controls; interactive plots require a static fallback.",
         canvas: "For learning_canvas, application-owned CanvasSpec with bounded function/data/derivation/diagram/vector/chemistry payload, controls, labels, domain, and fallback.",
       },
-      securityRestrictions: "No executable JavaScript or eval, no raw HTML, no raw SVG, no iframe, and no remote embed. 3D or unsupported canvas kinds are rejected until a typed renderer and PDF fallback exist.",
+      securityRestrictions: "Visual metadata and Markdown contain no executable code, raw HTML or URLs. Only interactive_document permits reviewed self-contained HTML as a separately validated archive asset. External resources, eval, remote embeds and unreviewed executable documents are unsupported.",
+      visualAuthoring: interactiveVisualGuidance(),
     },
     reviewRubric: {
       criteriaCount: 8,

@@ -61,15 +61,13 @@ async function CourseOverviewHighlights({
 
 async function CourseChapterOutlineSection({
   courseId,
-  isEnrolled,
   chapterOutlinePromise,
 }: {
   courseId: string;
-  isEnrolled: boolean;
   chapterOutlinePromise: ReturnType<typeof getCourseChapterOutline>;
 }) {
   const chapters = await chapterOutlinePromise;
-  return <ChapterOutline courseId={courseId} chapters={chapters} isEnrolled={isEnrolled} />;
+  return <ChapterOutline courseId={courseId} chapters={chapters} />;
 }
 
 export default async function CourseOverviewPage({ params }: Props) {
@@ -100,7 +98,7 @@ export default async function CourseOverviewPage({ params }: Props) {
   // Access can fail before a boundary consumes the outline promise.
   void chapterOutlinePromise.catch(() => {});
   const studentAccess = await getStudentCourseAccess(studentId, id);
-  const isEnrolled = studentAccess?.tier === "standard";
+  const hasFullContentAccess = Boolean(studentAccess?.hasFullContentAccess);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -135,9 +133,9 @@ export default async function CourseOverviewPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <StudentCourseOverviewView course={{ id: course.id, title: course.title, description: shortDescription }} isEnrolled={isEnrolled}
+      <StudentCourseOverviewView course={{ id: course.id, title: course.title, description: shortDescription, pricing: studentAccess?.policy.pricing }} hasFullContentAccess={hasFullContentAccess}
         highlights={<Suspense fallback={<CourseOverviewPrimaryActionsSkeleton />}><CourseOverviewHighlights studentId={studentId} courseId={id} chapterOutlinePromise={chapterOutlinePromise} /></Suspense>}
-        chapterOutline={<Suspense fallback={<CourseChapterOutlineSkeleton />}><CourseChapterOutlineSection courseId={id} isEnrolled={isEnrolled} chapterOutlinePromise={chapterOutlinePromise} /></Suspense>}
+        chapterOutline={<Suspense fallback={<CourseChapterOutlineSkeleton />}><CourseChapterOutlineSection courseId={id} chapterOutlinePromise={chapterOutlinePromise} /></Suspense>}
       />
     </>
   );

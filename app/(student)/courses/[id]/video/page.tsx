@@ -44,11 +44,11 @@ async function CourseVideosContent({
   const data = await getCourseVideosData(id);
 
   if (!data) notFound();
-  const { isEnrolled } = data;
+  const { hasFullContentAccess } = data;
 
   return (
     <Reveal>
-      {!isEnrolled && (
+      {!hasFullContentAccess && (
         <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
             <div>
@@ -70,7 +70,7 @@ async function CourseVideosContent({
         initialPlaylists={data.playlists}
         chapters={data.chapters}
         canManage={false}
-        isEnrolled={isEnrolled}
+        hasFullContentAccess={hasFullContentAccess}
       />
     </Reveal>
   );

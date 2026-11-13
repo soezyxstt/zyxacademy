@@ -186,7 +186,7 @@ def plan(changed, head, base=None, force=False):
     for file, scope in workflows.items():
         if '.github/workflows/' + file in changed:
             result[scope] = True
-    broad = bool(changed & {'scripts/test-contracts.ts', 'tests/helpers/postgres-preload.ts'}) or force or bool(changed & LOCKS) or any(p.startswith(('scripts/ci/', '.github/actions/')) for p in changed) or '.github/workflows/ci.yml' in changed
+    broad = bool(changed & {'scripts/test-contracts.ts', 'tests/helpers/postgres-preload.ts', 'tests/helpers/server-only-preload.ts'}) or force or bool(changed & LOCKS) or any(p.startswith(('scripts/ci/', '.github/actions/')) for p in changed) or '.github/workflows/ci.yml' in changed
     if broad:
         result.update(dict.fromkeys(SCOPES, True))
     selected = []

@@ -1,7 +1,8 @@
-import { expect, test } from "bun:test";
+import { expect, mock, test } from "bun:test";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import { createAuthoringMcpServer } from "@/lib/authoring/mcp-server";
 import { FORMS_PREVIEW_URI, FORMS_SUMMARY_URI } from "@/lib/admin-mcp/forms-ui";
+mock.module("server-only", () => ({}));
+const { createAuthoringMcpServer } = await import("@/lib/authoring/mcp-server");
 const principal = { userId: "fixture", actorId: "fixture", sessionId: "fixture", authMethod: "oauth" as const, scopes: ["authoring:read"] };
 async function rpc(method: string, params?: unknown) {
   const server = createAuthoringMcpServer(principal);

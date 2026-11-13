@@ -78,7 +78,8 @@ import {
   startAuthoringWorkflow,
 } from "@/lib/authoring/mcp-workflows";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import { createAuthoringMcpServer } from "@/lib/authoring/mcp-server";
+mock.module("server-only", () => ({}));
+const { createAuthoringMcpServer } = await import("@/lib/authoring/mcp-server");
 import { db } from "@/db";
 import { courses, mataKuliah, bab, user, pengguna } from "@/db/schema";
 import { eq } from "drizzle-orm";

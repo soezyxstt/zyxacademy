@@ -159,6 +159,25 @@ export function calendarDateToJakartaInstant(
   return parsed;
 }
 
+/** Parses a datetime-local value as a Jakarta wall time, independent of host timezone. */
+export function parseJakartaDatetimeLocal(value: string): Date {
+  const match = /^(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
+  if (!match || !isCalendarDate(match[1])) throw new RangeError("INVALID_JAKARTA_INSTANT");
+  return calendarDateToJakartaInstant(match[1], `${match[2]}:${match[3]}:00.000`);
+}
+
+/** Formats an instant for a Jakarta datetime-local input. */
+export function formatJakartaDatetimeLocal(value: Date): string {
+  if (Number.isNaN(value.getTime())) throw new RangeError("INVALID_INSTANT");
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: JAKARTA_TIME_ZONE,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(value);
+  const fields = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${fields.year}-${fields.month}-${fields.day}T${fields.hour}:${fields.minute}`;
+}
+
 export function getJakartaCalendarDate(date: Date = new Date()): CalendarDate {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
     throw new RangeError("INVALID_INSTANT");

@@ -1,3 +1,4 @@
+import { validateProductBundleAdmission } from "@/lib/bundle/product-admission";
 import { claimProductReviewSnapshot } from "./product-review-snapshot";
 import { createHash, randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
@@ -17,8 +18,10 @@ import {
 import { storage } from "@/lib/storage";
 import { buildProductBundleKey } from "@/lib/storage/keys";
 import { isBundleIdentitySentinelOrPlaceholder } from "./attribution";
-import { productEntityHash, parseProductBundleZip } from "./product-bundle-v2";
-import { deterministicProductSerialization, type ProductDependency, type ProductEntity } from "./product-validator";
+import { productEntityHash } from "./product-bundle-v2";
+import { deterministicProductSerialization, productInteractiveDocuments, type ProductDependency, type ProductEntity } from "./product-validator";
+import { stageInteractiveDocumentAssets, validateInteractiveDocumentArchive, verifyAdmittedInteractiveDocumentArchive } from "@/lib/materials/interactive-document-assets";
+import { parseAdmittedProductBundle } from "./product-staged-worker";
 import { type ProductBundleValidation } from "./product-validator";
 import {
   canPreservePedagogicReview,
@@ -101,8 +104,11 @@ async function storedCourseId(courseId: string): Promise<string> {
 export async function stageProductBundle(input: ProductStageInput) {
   enabled();
   await assertAuthoringActor(db, input.requestedBy, { roles: ["admin"], error: "PRODUCT_BUNDLE_STAGE_FORBIDDEN" });
-  const parsed = parseProductBundleZip(input.bytes);
+  const parsed = await validateProductBundleAdmission(input.bytes);
   if (!parsed.success || parsed.data.checksum !== input.checksum || input.bundle.checksum !== input.checksum || parsed.data.manifest.bundleId !== input.bundleId || parsed.data.manifest.courseId !== input.courseId || deterministicProductSerialization(parsed.data.manifest) !== deterministicProductSerialization(input.bundle.manifest) || deterministicProductSerialization(parsed.data.products) !== deterministicProductSerialization(input.bundle.products) || deterministicProductSerialization(parsed.data.dependencies) !== deterministicProductSerialization(input.bundle.dependencies)) throw new Error("PRODUCT_BUNDLE_STAGING_MISMATCH");
+  const specs = productInteractiveDocuments(parsed.data.products);
+  const pairs = await validateInteractiveDocumentArchive(specs, parsed.data.manifest.visualAssets ?? [], parsed.data.files);
+  input = { ...input, bundle: parsed.data };
   const [uploader] = await db.select({ id: pengguna.id }).from(pengguna).where(eq(pengguna.id, input.requestedBy)).limit(1);
   if (!uploader) throw new Error("PRODUCT_BUNDLE_UPLOADER_NOT_FOUND");
 
@@ -143,7 +149,7 @@ export async function stageProductBundle(input: ProductStageInput) {
     return { importId: current.id, bundleId: current.bundleId, checksum: current.checksum, sourceKey: current.sourceUriOrKey, created: false, replaced: false, status: productBundleLifecycleStatus(current.status), itemCount: currentItems.length };
   });
   const [same] = await db.select().from(imporBundle).where(and(eq(imporBundle.bundleId, input.bundleId), eq(imporBundle.checksum, input.checksum))).limit(1);
-  if (same) return retryResult(same);
+  if (same) { if (pairs.length) await stageInteractiveDocumentAssets(pairs); return retryResult(same); }
   const [conflict] = await db.select().from(imporBundle).where(eq(imporBundle.bundleId, input.bundleId)).limit(1);
   if (!conflict && input.expectedPreviousChecksum !== undefined) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
   if (conflict && productBundleLifecycleStatus(conflict.status) !== "draft") throw new Error(`PRODUCT_BUNDLE_CONFLICT:${input.bundleId}`);
@@ -158,7 +164,7 @@ export async function stageProductBundle(input: ProductStageInput) {
   if (conflict && storage.download) {
     try {
       const previousBytes = await storage.download(conflict.sourceUriOrKey);
-      const previous = parseProductBundleZip(previousBytes);
+      const previous = await validateProductBundleAdmission(previousBytes);
       if (previous.success && previous.data.checksum === conflict.checksum) {
         previousBundleParsed = previous.data;
         canPreservePedagogy = canPreservePedagogicReview(previous.data, input.bundle);
@@ -174,6 +180,7 @@ export async function stageProductBundle(input: ProductStageInput) {
 
   const importId = stableId("impor-product", `${input.bundleId}:${input.checksum}`);
   const sourceKey = buildProductBundleKey(input);
+  if (pairs.length) await stageInteractiveDocumentAssets(pairs);
   await storage.upload(input.bytes, input.filename ?? `${input.bundleId}.zip`, "application/zip", { key: sourceKey, metadata: { bundleId: input.bundleId, runId: input.runId, checksum: input.checksum } });
   const items = [
     ...input.bundle.products.map((product) => ({ entityType: product.productType, entityId: product.id, entityVersion: product.version, entityHash: productEntityHash(product) })),
@@ -544,8 +551,10 @@ export async function discardProductBundleDraft(input: { importId: string; actor
 export async function parseStagedProductBundle(importId: string): Promise<Extract<ProductBundleValidation, { success: true }>["data"]> {
   const row = await getProductBundleImport(importId);
   if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
-  const result = parseProductBundleZip(await downloadProductBundleArtifact(importId));
-  if (!result.success) throw new Error(`PRODUCT_BUNDLE_VALIDATION_FAILED:${result.issues.map((item) => item.code).join(",")}`);
-  if (result.data.manifest.bundleId !== row.bundleId || result.data.manifest.bundleChecksum !== row.checksum) throw new Error("PRODUCT_BUNDLE_CHECKSUM_MISMATCH");
-  return result.data;
+  if (row.validationReport.valid !== true) throw new Error("PRODUCT_BUNDLE_ADMISSION_REQUIRED");
+  const bundle = parseAdmittedProductBundle(await downloadProductBundleArtifact(importId), row);
+  const specs = productInteractiveDocuments(bundle.products);
+  if (specs.length && bundle.manifest.schemaVersion !== "product-bundle.v4") throw new Error("PRODUCT_VISUAL_REQUIRES_V4");
+  await verifyAdmittedInteractiveDocumentArchive(specs, bundle.manifest.visualAssets ?? [], bundle.files);
+  return bundle;
 }

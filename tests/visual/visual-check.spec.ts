@@ -48,7 +48,7 @@ for (const route of routes) {
     const runtimeErrors: string[] = [];
     const failedResponses: string[] = [];
     if (routePathname(route) === "/visual-fixtures/coding") await mockTerminal(page);
-    if (routePathname(route) === "/visual-fixtures/pricing-discounts") {
+    if (["/visual-fixtures/pricing-discounts", "/visual-fixtures/course-pricing"].includes(routePathname(route))) {
       await page.route("**/api/pricing", (request) => request.fulfill({ json: DEFAULT_PRICING_DISCOUNTS }));
     }
 

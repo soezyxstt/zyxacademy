@@ -17,6 +17,35 @@ import { Geometry2dVisual } from "@/components/course/geometry-2d-visual";
 import { MathText } from "@/components/course/math-text";
 import { scientificNumberToLatex, scientificValueToMathText } from "@/lib/math/scientific-format";
 import { visualFunctionToLatex } from "@/lib/math/visual-function-latex";
+import type { InteractiveSceneSpec } from "@/lib/materials/interactive-scene";
+import type { InteractiveDocumentSpec } from "@/lib/materials/interactive-document";
+import { useInteractiveDocumentUrl } from "@/components/course/interactive-document-context";
+import { InteractiveDocumentVisual } from "@/components/course/interactive-document-visual";
+
+function ScopedInteractiveDocument({ spec }: { spec: InteractiveDocumentSpec }) {
+  const assetUrl = useInteractiveDocumentUrl(spec);
+  return <InteractiveDocumentVisual spec={spec} assetUrl={assetUrl} />;
+}
+
+const LazyInteractiveScene = dynamic(() => import("@/components/course/interactive-scene-renderer").then(module => module.InteractiveSceneRenderer), {
+  ssr: false, loading: () => <p role="status" className="text-body-sm text-muted-foreground">Memuat visual...</p>,
+});
+
+function InteractiveSceneVisual({ spec, className }: { spec: InteractiveSceneSpec; className?: string }) {
+  const ref = React.useRef<HTMLElement>(null);
+  const [visible, setVisible] = useState(false);
+  React.useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    if (typeof IntersectionObserver === "undefined") { setVisible(true); return; }
+    const observer = new IntersectionObserver(([entry]) => { if (entry?.isIntersecting) { setVisible(true); observer.disconnect(); } }, { rootMargin: "240px" });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  return <figure ref={ref} id={spec.id} aria-label={spec.label} className={`space-y-2 ${className ?? ""}`}>
+    {visible ? <LazyInteractiveScene spec={spec} /> : <p className="text-body-sm text-muted-foreground">{spec.staticFallback.summary}</p>}
+  </figure>;
+}
 
 const LazyLearningCanvasRenderer = dynamic(
   () => import("@/components/course/learning-canvas/learning-canvas-renderer").then((module) => module.LearningCanvasRenderer),
@@ -476,6 +505,8 @@ function EpsilonDeltaVisual({ spec, className, engine }: { spec: PublicEpsilonDe
 export function ProductLearningVisual({ spec: specProp, visual, className, engine }: ProductLearningVisualProps) {
   const spec = specProp ?? visual;
   if (!spec) return null;
+  if (spec.kind === "interactive_document") return <ScopedInteractiveDocument spec={spec} />;
+  if (spec.kind === "interactive_scene") return <InteractiveSceneVisual spec={spec} className={className} />;
   if (spec.kind === "geometry_2d") return <Geometry2dVisual spec={spec} className={className} />;
   if (spec.kind === "source_figure") return <figure className={`space-y-3 ${className ?? ""}`} aria-label={spec.label} data-source-figure>
     <figcaption className="font-heading text-body-base font-bold"><MathText>{spec.label}</MathText></figcaption>

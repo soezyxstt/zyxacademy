@@ -1,7 +1,8 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { createHmac } from "node:crypto";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import { createAuthoringMcpServer } from "@/lib/authoring/mcp-server";
+mock.module("server-only", () => ({}));
+const { createAuthoringMcpServer } = await import("@/lib/authoring/mcp-server");
 import {
   AUTHORING_MCP_BOOTSTRAP_PROTOCOL,
   RECOMMENDED_PLUGIN_VERSION,

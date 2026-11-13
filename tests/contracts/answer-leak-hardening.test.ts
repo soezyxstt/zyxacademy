@@ -29,7 +29,7 @@ describe("assessment answer leak hardening", () => {
 
     const tryoutPage = source("app/(student)/courses/[id]/tryout/[tryoutId]/page.tsx");
     const tryoutStart = tryoutPage.indexOf("exam = {");
-    const tryoutEnd = tryoutPage.indexOf("if (!exam", tryoutStart);
+    const tryoutEnd = tryoutPage.indexOf("return (", tryoutStart);
     const tryoutBlock = tryoutPage.slice(tryoutStart, tryoutEnd);
     expect(tryoutBlock).toContain("options: publicOptionTexts(content.options)");
     expect(tryoutBlock).not.toContain("correctIndex");

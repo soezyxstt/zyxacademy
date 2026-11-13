@@ -40,6 +40,7 @@ export interface CompiledSafeExpression {
   expression: string;
   ast: SafeExpressionNode;
   evaluate(values: Record<string, number>): number;
+  evaluateWithScale(values: Record<string, number>): { value: number; scale: number };
 }
 
 function fail(message: string): never {
@@ -196,7 +197,7 @@ class ExpressionParser {
     if (token.kind === "number") return this.addNode({ kind: "number", value: token.value }, depth);
     if (token.kind === "identifier") {
       if (this.match("leftParen")) {
-        if (!(token.value in FUNCTION_ARITY)) fail("FUNCTION");
+        if (!Object.hasOwn(FUNCTION_ARITY, token.value)) fail("FUNCTION");
         const name = token.value as SafeFunctionName;
         const args: SafeExpressionNode[] = [];
         if (!this.match("rightParen")) {
@@ -224,7 +225,26 @@ class ExpressionParser {
   }
 }
 
-function evaluateNode(node: SafeExpressionNode, values: Record<string, number>): number {
+function evaluateNode(node: SafeExpressionNode, values: Record<string, number>, scales?: Map<SafeExpressionNode, { value: number; scale: number }>): number {
+  const result = evaluateNodeValue(node, values, scales);
+  if (scales) {
+    let scale = Math.abs(result);
+    if (node.kind === "unary") scale = scales.get(node.argument)!.scale;
+    if (node.kind === "binary") {
+      const left = scales.get(node.left)!.scale, right = scales.get(node.right)!.scale;
+      if (node.operator === "+" || node.operator === "-") scale = Math.max(scale, left, right);
+      else if (node.operator === "*") scale = Math.max(scale, left * right);
+      else if (node.operator === "/") {
+        const denominator = Math.abs(scales.get(node.right)!.value);
+        scale = Math.max(scale, left / denominator, scale === 0 ? 0 : scale * (right / denominator));
+      }
+    }
+    scales.set(node, { value: result, scale: Number.isFinite(scale) ? scale : Number.MAX_VALUE });
+  }
+  return result;
+}
+
+function evaluateNodeValue(node: SafeExpressionNode, values: Record<string, number>, scales?: Map<SafeExpressionNode, { value: number; scale: number }>): number {
   if (node.kind === "number") return node.value;
   if (node.kind === "variable") {
     const value = values[node.name];
@@ -232,12 +252,12 @@ function evaluateNode(node: SafeExpressionNode, values: Record<string, number>):
     return value;
   }
   if (node.kind === "unary") {
-    const value = evaluateNode(node.argument, values);
+    const value = evaluateNode(node.argument, values, scales);
     return node.operator === "-" ? -value : value;
   }
   if (node.kind === "binary") {
-    const left = evaluateNode(node.left, values);
-    const right = evaluateNode(node.right, values);
+    const left = evaluateNode(node.left, values, scales);
+    const right = evaluateNode(node.right, values, scales);
     if (node.operator === "+") return left + right;
     if (node.operator === "-") return left - right;
     if (node.operator === "*") return left * right;
@@ -247,7 +267,7 @@ function evaluateNode(node: SafeExpressionNode, values: Record<string, number>):
     }
     return left ** right;
   }
-  const args = node.args.map((arg) => evaluateNode(arg, values));
+  const args = node.args.map((arg) => evaluateNode(arg, values, scales));
   let result: number;
   if (node.name === "abs") result = Math.abs(args[0]);
   else if (node.name === "cos") result = Math.cos(args[0]);
@@ -281,6 +301,12 @@ export function compileSafeExpression(
       const result = evaluateNode(ast, values);
       if (!Number.isFinite(result)) fail("NON_FINITE");
       return result;
+    },
+    evaluateWithScale: (values) => {
+      const scales = new Map<SafeExpressionNode, { value: number; scale: number }>();
+      const value = evaluateNode(ast, values, scales);
+      if (!Number.isFinite(value)) fail("NON_FINITE");
+      return { value, scale: scales.get(ast)!.scale };
     },
   };
 }

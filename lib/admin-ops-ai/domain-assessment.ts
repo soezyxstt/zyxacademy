@@ -9,6 +9,7 @@ import { eq, desc, and, inArray, ilike } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 import { enqueueQuestionReviewVectorTx, transitionQuestionReviewTx } from "@/lib/question-review-lifecycle";
+import { rejectQuestionVisualReferences } from "@/lib/authoring/question-visual-references";
 
 export interface ListQuizzesInput {
   courseId?: string;
@@ -342,6 +343,7 @@ export async function executeCreateQuestion(input: CreateQuestionInput, _actorId
   if (!cleanCourseId) throw new Error("ID Mata Kuliah wajib diisi.");
   if (!cleanPrompt) throw new Error("Teks soal (prompt) tidak boleh kosong.");
   if (!input.options || input.options.length < 2) throw new Error("Pilihan jawaban minimal harus 2 opsi.");
+  rejectQuestionVisualReferences([{ ...input, explanation: input.explanation?.trim() || `Kunci jawaban benar adalah opsi ${input.correctAnswer}.` }]);
 
   const questionId = randomUUID();
   const difficulty = input.difficulty || "medium";
@@ -383,6 +385,11 @@ export interface PublishQuestionInput {
 export async function executePublishQuestion(input: PublishQuestionInput, actorId?: string) {
   const cleanId = input.questionId.trim();
   if (!cleanId) throw new Error("ID Soal wajib diisi.");
+
+  const existing = await db.query.aiQuestionBank.findFirst({ where: eq(aiQuestionBank.id, cleanId) });
+  if (!existing) throw new Error(`Soal '${cleanId}' tidak ditemukan.`);
+
+  rejectQuestionVisualReferences([{ prompt: existing.prompt, options: Array.isArray(existing.options) ? existing.options.map(String) : [], explanation: existing.explanation }]);
 
   const result = await db.transaction((tx) => transitionQuestionReviewTx(tx, { id: cleanId, reviewStatus: "published", actorId }));
   if (!result) throw new Error(`Soal '${cleanId}' tidak ditemukan.`);

@@ -1656,6 +1656,9 @@ export const mataKuliah = pgTable(
   title: text("title").notNull(),
   status: text("status").$type<"draft" | "active" | "archived">().default("active").notNull(),
   isDemo: boolean("is_demo").default(false).notNull(),
+  pricingCategory: text("pricing_category").$type<import("@/lib/student/course-pricing").CoursePricingCategory>().default("premium").notNull(),
+  freeStartsAt: timestamp("free_starts_at", { withTimezone: true }),
+  freeEndsAt: timestamp("free_ends_at", { withTimezone: true }),
   legacyCourseId: text("legacy_course_id").references(() => courses.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -1670,6 +1673,7 @@ export const mataKuliah = pgTable(
     .where(sql`${table.isDemo} = true`),
   index("mata_kuliah_legacy_course_idx").on(table.legacyCourseId),
   check("mata_kuliah_status_check", sql`${table.status} IN ('draft', 'active', 'archived')`),
+  check("mata_kuliah_pricing_check", sql`(${table.pricingCategory} IN ('premium', 'free') AND ${table.freeStartsAt} IS NULL AND ${table.freeEndsAt} IS NULL) OR (${table.pricingCategory} = 'limited_time_free' AND ${table.freeStartsAt} IS NOT NULL AND ${table.freeEndsAt} IS NOT NULL AND ${table.freeStartsAt} < ${table.freeEndsAt})`),
  ],
 );
 

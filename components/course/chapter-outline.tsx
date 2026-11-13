@@ -1,7 +1,7 @@
 import type { ChapterOutlineItem } from "@/lib/course-utils";
 import { ChapterOutlineList } from "@/components/course/chapter-outline-list";
 
-type ChapterOutlineProps = { courseId: string; chapters: ChapterOutlineItem[]; isEnrolled: boolean };
+type ChapterOutlineProps = { courseId: string; chapters: ChapterOutlineItem[] };
 export function ChapterOutline({ courseId, chapters }: ChapterOutlineProps) {
   return <ChapterOutlineList chapters={chapters.map((chapter, index) => ({
     id: chapter.id, title: chapter.title, number: index + 1, completed: chapter.completed,

@@ -224,7 +224,7 @@ export default async function StudentNavigationVisualFixturePage({
               className="mb-6"
             />
             <div className="mb-6">
-              <ChapterOutline courseId="ma1101" chapters={mockChapters} isEnrolled={true} />
+              <ChapterOutline courseId="ma1101" chapters={mockChapters} />
             </div>
           </CoursePageShell>
         </div>

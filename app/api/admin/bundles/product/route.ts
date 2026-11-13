@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { stageProductBundle, listProductBundleImports, productBundleLifecycleStatus } from "@/lib/bundle/product-staging";
-import { validateProductBundle } from "@/lib/bundle/product-validator";
+import { validateProductBundleAdmission } from "@/lib/bundle/product-admission";
 import { previewProducts } from "@/lib/bundle/product-preview";
 import { createProductBundleDraft, finalizeProductBundleDraft, type ProductBundleDraft } from "@/lib/bundle/product-draft";
 
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     if (!(file instanceof File)) return NextResponse.json({ error: "PRODUCT_BUNDLE_FILE_REQUIRED" }, { status: 400 });
     if (file.size <= 0 || file.size > MAX_UPLOAD_BYTES) return NextResponse.json({ error: "PRODUCT_BUNDLE_FILE_LIMIT" }, { status: 413 });
     const uploadedBytes = new Uint8Array(await file.arrayBuffer());
-    const validation = validateProductBundle(uploadedBytes);
+    const validation = await validateProductBundleAdmission(uploadedBytes);
     if (!validation.success) return NextResponse.json({ error: "PRODUCT_BUNDLE_VALIDATION_FAILED", reasonCodes: validation.issues.map((issue) => issue.code), issues: validation.issues }, { status: 422 });
     const intent = form.get("intent");
     if (intent !== "stage") {

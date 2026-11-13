@@ -1,8 +1,10 @@
-import { describe, expect, it } from "bun:test";
+import type { CatalogIdeaRecord } from "@/lib/authoring/question-catalog";
+import { describe, expect, it, mock } from "bun:test";
+mock.module("server-only", () => ({}));
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import { createAuthoringMcpServer } from "@/lib/authoring/mcp-server";
-import { previousIdeaBundleSourceKey } from "@/lib/bundle/staging";
-import {
+const { createAuthoringMcpServer } = await import("@/lib/authoring/mcp-server");
+const { previousIdeaBundleSourceKey } = await import("@/lib/bundle/staging");
+const {
   authoringContractSnapshot,
   MCP_AUTHORING_DEFAULT_SCOPES,
   MCP_CONNECTION_TOKEN_TTL_SECONDS,
@@ -11,18 +13,17 @@ import {
   issueMcpRunToken,
   listAuthoringWorkflows,
   readMcpConnectionToken,
-} from "@/lib/authoring/mcp-workflows";
-import { normalizeQuestionBankDraft, parseQuestionBankDraftJson } from "@/lib/authoring/question-bank-draft";
-import {
+} = await import("@/lib/authoring/mcp-workflows");
+const { normalizeQuestionBankDraft, parseQuestionBankDraftJson } = await import("@/lib/authoring/question-bank-draft");
+const {
   computeIdeaFacets,
   filterIdeaRecords,
   normalizeIdeaDifficultyLevel,
   paginateIdeaRecords,
-  type CatalogIdeaRecord,
-} from "@/lib/authoring/question-catalog";
-import { reviewQuestionBankDraft } from "@/lib/authoring/question-draft-review";
-import { MCP_OAUTH_SCOPES, approvedScopes, requestedScopes } from "@/lib/authoring/mcp-oauth";
-import { GET as mcpGet, DELETE as mcpDelete } from "@/app/api/mcp/authoring/route";
+} = await import("@/lib/authoring/question-catalog");
+const { reviewQuestionBankDraft } = await import("@/lib/authoring/question-draft-review");
+const { MCP_OAUTH_SCOPES, approvedScopes, requestedScopes } = await import("@/lib/authoring/mcp-oauth");
+const { GET: mcpGet, DELETE: mcpDelete } = await import("@/app/api/mcp/authoring/route");
 
 const testPrincipal = {
   userId: "test-admin",

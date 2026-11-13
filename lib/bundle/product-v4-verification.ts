@@ -1,6 +1,8 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { deterministicProductSerialization, type ProductBundleManifest, type ProductDependency, type ProductEntity } from "./product-validator";
+import { parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
+import { formativeAnswerForReveal } from "@/lib/materials/formative-check-answer";
 
 export const PRODUCT_V4_VERIFICATION_POLICY = "product-v4-verification.v2";
 export { CLOUDFLARE_VERIFICATION_BROWSER_VERSION as PRODUCT_V4_DEPLOYED_BROWSER_VERSION } from "@/lib/compute/product-v4-browser-config";
@@ -8,6 +10,23 @@ export const PRODUCT_V4_VIEWPORTS = [{ width: 380, height: 844 }, { width: 1536,
 const digest = (value: unknown) => createHash("sha256").update(deterministicProductSerialization(value)).digest("hex");
 const sha256 = z.string().regex(/^[a-f0-9]{64}$/);
 const name = z.string().trim().min(1).max(500);
+
+export function formativeDocumentFields(products: readonly ProductEntity[]) {
+  return products.flatMap(article => article.productType !== "article" ? [] : article.sections.flatMap(section => section.blocks.flatMap(block => {
+    const payload = block.formativeCheckPayload;
+    if (!payload) return [];
+    const fields = [
+      ...(block.parts ?? []).flatMap(part => part.kind === "markdown" ? [{ field: `prompt:${part.id}`, value: part.markdown }] : []),
+      ...(payload.options ?? []).map((option, index) => ({ field: `option:${index}`, value: option.text })),
+      { field: "answer", value: formativeAnswerForReveal(payload) },
+      { field: "explanation", value: payload.explanation },
+    ];
+    return fields.flatMap(({ field, value }) => parseInteractiveDocumentsInMarkdown(value).map((spec, index) => ({
+      target: `formative-document/${digest({ articleId: article.id, sectionId: section.id, blockId: block.id, field, index, spec })}`,
+      article, section, block, field, value, spec, index,
+    })));
+  })));
+}
 
 export interface ProductV4VerificationBinding {
   importId: string;
@@ -73,11 +92,12 @@ export function deriveProductV4VerificationPlan(input: {
         add(product.id, "web", "keyboard-and-text-zoom", viewport, "image/png");
       }
       for (const visual of product.visuals ?? []) {
-        add(`${product.id}/${visual.id}`, "model", "domain-units-and-model", null, "application/json");
+        add(`${product.id}/${visual.id}`, "model", visual.kind === "interactive_document" ? "document-metadata-only-scientific-review-required" : "domain-units-and-model", null, "application/json");
         for (const viewport of PRODUCT_V4_VIEWPORTS) {
           add(`${product.id}/${visual.id}`, "web", "visual-smoke", viewport, "image/png");
         }
       }
+      for (const field of formativeDocumentFields([product])) for (const viewport of PRODUCT_V4_VIEWPORTS) add(field.target, "web", "formative-document-field", viewport, "image/png");
     }
     if (product.productType === "diktat") {
       add(product.id, "print", "pdf-fonts-assets-lineage-and-pages", null, "application/pdf");

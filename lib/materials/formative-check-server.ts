@@ -29,6 +29,7 @@ export interface CanonicalFormativeCheckContext {
   article: {
     id: string;
     courseId: string;
+    chapterId: string | null;
     title: string;
     version: number;
   };
@@ -53,7 +54,7 @@ export type FormativeCheckResolution =
     };
 
 function decodeBlockPayload(content: string): { content: string; payload: unknown } {
-  const marker = /<!--__ZYX_V3_BLOCK_PAYLOAD__:([A-Za-z0-9_-]+)-->/;
+  const marker = /<!--__ZYX_V[34]_BLOCK_PAYLOAD__:([A-Za-z0-9_-]+)-->/;
   const match = content.match(marker);
   if (!match) return { content, payload: undefined };
 
@@ -78,6 +79,7 @@ export async function resolvePublishedFormativeCheck(
     .select({
       id: artikel.id,
       courseId: artikel.mataKuliahId,
+      chapterId: artikel.babId,
       title: artikel.title,
       version: artikel.version,
       structureStatus: artikel.structureStatus,
@@ -137,6 +139,7 @@ export async function resolvePublishedFormativeCheck(
       article: {
         id: article.id,
         courseId: article.courseId,
+        chapterId: article.chapterId,
         title: article.title,
         version: article.version,
       },

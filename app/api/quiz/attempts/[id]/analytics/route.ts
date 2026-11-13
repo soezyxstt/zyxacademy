@@ -5,6 +5,9 @@ import { auth } from "@/lib/auth";
 import { hasAnyPeran } from "@/lib/auth/authorization";
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
+import { resolveCourseAccess } from "@/lib/student/course-access";
+import { canAccessStudentQuizTemplate } from "@/lib/quiz/student-access";
+import { canAccessQuizSnapshot } from "@/lib/quiz/question-scope";
 import { canViewAttemptDiscussion } from "@/lib/quiz/review-release";
 import { inngest } from "@/lib/inngest";
 
@@ -25,6 +28,7 @@ export async function GET(_req: NextRequest, { params }: Context) {
       studentId: studentQuizAttempts.studentId,
       templateId: studentQuizAttempts.templateId,
       status: studentQuizAttempts.status,
+      questionsSnapshot: studentQuizAttempts.questionsSnapshot,
     })
     .from(studentQuizAttempts)
     .where(eq(studentQuizAttempts.id, attemptId))
@@ -49,11 +53,12 @@ export async function GET(_req: NextRequest, { params }: Context) {
     return NextResponse.json({ status: "not_available", message: "Analytics are only accessible after quiz completion" });
   }
 
-  const [template] = await db.select({
-    courseId: quizTemplates.courseId, selectionRules: quizTemplates.selectionRules,
-    showDiscussion: quizTemplates.showDiscussion, manualStatus: quizTemplates.manualStatus,
-    closeAt: quizTemplates.closeAt,
-  }).from(quizTemplates).where(eq(quizTemplates.id, attempt.templateId)).limit(1);
+  const [template] = await db.select().from(quizTemplates).where(eq(quizTemplates.id, attempt.templateId)).limit(1);
+  if (!template) return NextResponse.json({ error: "Kuis tidak tersedia." }, { status: 404 });
+  const access = await resolveCourseAccess({ courseId: template.courseId, userId: session.user.id });
+  if (isOwner ? !canAccessStudentQuizTemplate(access, template) || !await canAccessQuizSnapshot(access, attempt.questionsSnapshot) : access.tier !== "staff" || !access.hasCourseAccess) {
+    return NextResponse.json({ error: "Akses kuis tidak tersedia." }, { status: 403 });
+  }
   if (!isAdminOrTeacher && !canViewAttemptDiscussion(template, attempt.status)) {
     return NextResponse.json({ status: "not_available", message: "Pembahasan kuis belum tersedia." }, { status: 403 });
   }
@@ -121,6 +126,7 @@ export async function POST(_req: NextRequest, { params }: Context) {
       studentId: studentQuizAttempts.studentId,
       templateId: studentQuizAttempts.templateId,
       status: studentQuizAttempts.status,
+      questionsSnapshot: studentQuizAttempts.questionsSnapshot,
     })
     .from(studentQuizAttempts)
     .where(eq(studentQuizAttempts.id, attemptId))
@@ -144,11 +150,12 @@ export async function POST(_req: NextRequest, { params }: Context) {
     return NextResponse.json({ error: "Cannot generate analytics for an active attempt" }, { status: 400 });
   }
 
-  const [template] = await db.select({
-    courseId: quizTemplates.courseId, selectionRules: quizTemplates.selectionRules,
-    showDiscussion: quizTemplates.showDiscussion, manualStatus: quizTemplates.manualStatus,
-    closeAt: quizTemplates.closeAt,
-  }).from(quizTemplates).where(eq(quizTemplates.id, attempt.templateId)).limit(1);
+  const [template] = await db.select().from(quizTemplates).where(eq(quizTemplates.id, attempt.templateId)).limit(1);
+  if (!template) return NextResponse.json({ error: "Kuis tidak tersedia." }, { status: 404 });
+  const access = await resolveCourseAccess({ courseId: template.courseId, userId: session.user.id });
+  if (isOwner ? !canAccessStudentQuizTemplate(access, template) || !await canAccessQuizSnapshot(access, attempt.questionsSnapshot) : access.tier !== "staff" || !access.hasCourseAccess) {
+    return NextResponse.json({ error: "Akses kuis tidak tersedia." }, { status: 403 });
+  }
   if (!isAdminOrTeacher && !canViewAttemptDiscussion(template, attempt.status)) {
     return NextResponse.json({ status: "not_available", message: "Pembahasan kuis belum tersedia." }, { status: 403 });
   }

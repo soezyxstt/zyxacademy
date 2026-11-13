@@ -2,6 +2,7 @@ import { describe, expect, it, mock, beforeEach, beforeAll, afterAll } from "bun
 import { createPostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
 import { NextRequest } from "next/server";
+import { eq } from "drizzle-orm";
 
 let mockSession: any = null;
 
@@ -511,7 +512,7 @@ describe("Tutor Quiz Template API Access Controls", () => {
       expect(res.status).toBe(401);
     });
 
-    it("returns only free published quizzes of enrolled courses for students", async () => {
+    it("returns published quizzes of enrolled courses for students", async () => {
       mockSession = { user: { id: "usr-student-1", role: "student" } };
 
       const res = await GET(
@@ -520,21 +521,39 @@ describe("Tutor Quiz Template API Access Controls", () => {
       expect(res.status).toBe(200);
       const rows = await res.json();
       expect(Array.isArray(rows)).toBe(true);
-      expect(rows.map((r: { id: string }) => r.id)).toEqual(["tpl-calc-1"]);
+      expect(rows.map((r: { id: string }) => r.id).sort()).toEqual(["tpl-calc-1", "tpl-calc-sim"]);
     });
 
-    it("rejects students querying courses without an active enrollment", async () => {
+    it("keeps unentitled students within the preview policy", async () => {
       mockSession = { user: { id: "usr-student-1", role: "student" } };
 
       const resUnknown = await GET(
         new NextRequest("http://localhost:3000/api/quiz/templates?courseId=mk-physics"),
       );
-      expect(resUnknown.status).toBe(403);
+      expect(resUnknown.status).toBe(200);
+      expect(await resUnknown.json()).toEqual([]);
 
       const resNoCourseId = await GET(new NextRequest("http://localhost:3000/api/quiz/templates"));
       expect(resNoCourseId.status).toBe(200);
       const noCourseRows = await resNoCourseId.json();
       expect(noCourseRows).toEqual([]);
+    });
+
+    it("exposes published content for a free course without creating enrollment", async () => {
+      mockSession = { user: { id: "usr-student-1", role: "student" } };
+      await testDb.insert(schema.bab).values([
+        { id: "physics-first", mataKuliahId: "mk-physics", code: "01", title: "First", orderIndex: 1 },
+        { id: "physics-second", mataKuliahId: "mk-physics", code: "02", title: "Second", orderIndex: 2 },
+      ]).onConflictDoNothing();
+      await testDb.update(schema.quizTemplates).set({ visibility: "paid", selectionRules: { chapterId: "physics-second" } }).where(eq(schema.quizTemplates.id, "tpl-physics-1"));
+      await testDb.update(schema.mataKuliah).set({ pricingCategory: "free" }).where(eq(schema.mataKuliah.id, "mk-physics"));
+      const response = await GET(new NextRequest("http://localhost:3000/api/quiz/templates?courseId=mk-physics"));
+      expect(response.status).toBe(200);
+      expect((await response.json()).map((row: { id: string }) => row.id)).toEqual(["tpl-physics-1"]);
+      await testDb.update(schema.mataKuliah).set({ pricingCategory: "premium" }).where(eq(schema.mataKuliah.id, "mk-physics"));
+      const expired = await GET(new NextRequest("http://localhost:3000/api/quiz/templates?courseId=mk-physics"));
+      expect(await expired.json()).toEqual([]);
+      await testDb.update(schema.quizTemplates).set({ visibility: "free", selectionRules: { count: 5 } }).where(eq(schema.quizTemplates.id, "tpl-physics-1"));
     });
 
     it("scopes tutor listings to accessible courses only", async () => {

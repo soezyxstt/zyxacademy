@@ -55,7 +55,7 @@ import type { CanonicalEntityType, CanonicalNamespace } from "@/lib/vectorize/co
 import { resolveBundleIdentity } from "./attribution";
 import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 import { parseStagedProductBundle, getProductBundleImport, productBundleLifecycleStatus } from "./product-staging";
-import { deterministicProductSerialization, findInvalidProductDependency, hasProductBundleDependencyBlock, type ProductDependency, type ProductEntity } from "./product-validator";
+import { deterministicProductSerialization, findInvalidProductDependency, hasProductBundleDependencyBlock, productInteractiveDocuments, type ProductDependency, type ProductEntity } from "./product-validator";
 import { z } from "zod";
 import { productV4ReviewContextShape, validateProductV4ReviewContext } from "./product-v4-review";
 import { QUALITY_POLICY_VERSION, pedagogicRubricItemSchema } from "@/lib/materials/quality-policy";
@@ -693,6 +693,14 @@ export async function publishProductBundle(input: { importId: string; publishedB
   const bundle = await parseStagedProductBundle(input.importId);
   if (bundle.checksum !== snapshot.checksum || bundle.manifest.bundleId !== snapshot.bundleId) throw new Error("PRODUCT_BUNDLE_PUBLICATION_CONFLICT");
   if (input.solutionScope) assertSolutionImportScope(snapshot, bundle, input.solutionScope);
+  const documents = productInteractiveDocuments(bundle.products);
+  if (documents.length) {
+    const { readInteractiveDocumentAsset } = await import("@/lib/materials/interactive-document-assets");
+    for (const spec of documents) {
+      await readInteractiveDocumentAsset(spec, "document");
+      await readInteractiveDocumentAsset(spec, "print");
+    }
+  }
   const isV4 = bundle.manifest.schemaVersion === "product-bundle.v4";
   const isV5 = bundle.manifest.schemaVersion === "product-bundle.v5";
   if (hasProductBundleDependencyBlock(bundle)) throw new Error("PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW");

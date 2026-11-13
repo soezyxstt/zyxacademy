@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { articlePartSchema, type ArticlePart, materializeArticleParts, flattenArticleParts, collectArticlePartIds } from "./article-parts";
 import { inspectPayloadSecurity, type VisualSpec } from "./visual-contract";
-import { buildDiktatVisualSnapshot } from "./diktat-static-visual";
+import { buildDiktatVisualSnapshot } from "./diktat-visual-snapshot";
 
 const text = z.string().trim().min(1);
 const printablePartSchema = z.union([

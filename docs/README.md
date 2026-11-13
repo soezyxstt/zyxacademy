@@ -6,7 +6,11 @@ The `ACTIVE` Idea V3 and Product V4/V5 contracts and `TRANSITIONAL / LEGACY` Pro
 
 The `TRANSITIONAL / LEGACY` Product V2/V3 contracts and the `ACTIVE` development guide describe private Article-owned PDF evidence for an unlinked legacy Article, alongside linked Diktat exports. The `TRANSITIONAL / LEGACY` [Product Bundle V2 contract](bundle/product-bundle-v2.md) records dependency identity and course checks shared by all Product profiles. The `ACTIVE` [Idea Bundle V3 contract](bundle/idea-bundle-v3.md) records session-bound MCP submission, target-draft chapter checks, session-bound lifecycle runs, publisher-owned review eligibility and legacy review reaffirmation, including unsaved note handling, locked content-editor transitions, aggregate review-reset confirmation and guarded link and browser-history navigation. The Product V3 contract also records protected editor, section-note, rubric and target-bound PDF request and refresh transitions, supported non-Article decisions, and snapshot-locked idempotent staging retries. The `TRANSITIONAL / LEGACY` [Product Bundle V3 contract](bundle/product-bundle-v3.md) also records the assessment boundary on restage targets.
 
-The `ACTIVE` [Product Bundle V5 contract](bundle/product-bundle-v5.md) describes standalone solution collections, revision-bound headless Idea and V5 review and publication, active canonical actor authorization, serialized tutor assignment and role changes, monotonic staging audits, recovery of notes from changed items, draft-preserving question history, OAuth publication consent, learner access and current release limitations. Its generated migration is not evidence of deployment.
+The `ACTIVE` [Product Bundle V5 contract](bundle/product-bundle-v5.md) describes standalone solution collections, revision-bound headless Idea and V5 review and publication, active canonical actor authorization, serialized tutor assignment and role changes, monotonic staging audits, recovery of notes from changed items, draft-preserving question history, OAuth publication consent, learner access and current release limitations. Its generated migration 0008 follows the course-access migration from main and is not evidence of deployment.
+
+`ACTIVE`: The [feature catalog](features.md) and [schema guide](DB_SCHEMA.md#mata_kuliah) describe admin-managed course access categories, scheduled free access, and current-policy search and recommendations. The additive PostgreSQL migration remains a deployment prerequisite; local checks do not establish remote rollout.
+
+`ACTIVE`: The [Product V4 contract](bundle/product-bundle-v4.md) records asynchronous interactive document admission, scoped delivery, the theme and lifecycle message protocol, bounded resize through 2400 CSS px, and print boundaries. Formative prompt, option, answer and explanation checks passed through the trusted runner on local fixtures at both viewports; live MCP, authenticated services, deployment and publication acceptance remain separate.
 
 The `OPEN / IN PROGRESS` [demo performance audit](audit/demo-performance-20261111.md) tracks redundant server resolution, payloads, exercise collection, client imports and transitions, with local implementation and runtime acceptance kept separate.
 
@@ -14,7 +18,7 @@ The `OPEN / IN PROGRESS` [web performance follow-up](audit/web-performance-follo
 
 The `ACTIVE` [deployment guide](DEPLOYMENT.md) records the local Singapore web-function region correction, the production region observed on 2026-11-11, and the pending deployment and authenticated latency verification.
 
-The `ACTIVE` [feature catalog](features.md#embedded-learning-visuals) documents always-on typed `zyx-visual` Markdown embeds across compatible learning readers, question prompts, options, explanations and previews, including the payload limit and fence-preserving question import behavior.
+The `ACTIVE` [feature catalog](features.md#embedded-learning-visuals) documents always-on typed `zyx-visual` Markdown embeds and separately sandboxed `interactive_document` delivery. The [V4 contract](bundle/product-bundle-v4.md) records authoring, asset limits, shared web and worker admission receipts, verification boundaries and initial-state Diktat output.
 
 `ACTIVE`: The [deployment guide](DEPLOYMENT.md) documents the `local_playwright` V4 provider and exact-draft operator command. The [V4 contract](bundle/product-bundle-v4.md) records the shared Admin quality and verification context so UI Publish readiness agrees with the backend gate. Signed evidence, PDF lineage and explicit publication review remain required.
 
@@ -47,6 +51,8 @@ All markdown documents across `docs/` and `plans/` must be registered in this in
 The `ACTIVE` feature catalog records Zyra session continuity, conversational tutoring, article-style math presentation, proactive grounded visual exploration, and safe retry responses when generation fails.
 
 The `ACTIVE` feature catalog also documents compact Article formula rows, reading-first embedded graphs, optional parameter controls, and explicit graph interaction activation.
+
+The `ACTIVE` feature catalog records interactive document state preservation while scrolling and offscreen playback pause.
 
 The `ACTIVE` feature catalog records Article selection explanations, policy-validated contextual live-session follow-up suggestions, explicit Python generation with preserved retry intent and image snapshots, and the beginner Python generation policy.
 The `ACTIVE` feature catalog documents compact Form Studio rows, publication per question or per section, upload size labels, and confirmation before submission. Local fixture checks do not verify live storage or publication.

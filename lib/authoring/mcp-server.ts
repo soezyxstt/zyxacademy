@@ -1,4 +1,5 @@
 import { currentPublisherProductReadiness, publisherProductReviewReadiness } from "@/lib/bundle/product-readiness";
+import { validateProductBundleAdmission } from "@/lib/bundle/product-admission";
 import { mcpEnvironmentIdentity } from "./mcp-environment";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { registerTutorialTools } from "@/lib/admin-mcp/tutorial-tools";
@@ -76,6 +77,7 @@ import {
 } from "@/lib/materials/pdf-artifact-contract";
 import { sha256Text } from "@/lib/bundle/validator";
 import { createCanonicalQuestionBatch, createHistoricalQuestionBatch, QuestionAuthoringError, updateCanonicalQuestion, validateCanonicalQuestionBatch } from "@/lib/question-authoring";
+import { questionVisualAssetsSchema, type QuestionVisualAssets } from "@/lib/authoring/question-visual-assets";
 import { questionAuthoringQuestionSchema, questionIdeaLinkSchema } from "@/lib/question-authoring-contract";
 import { normalizeQuestionBankDraft, parseQuestionBankDraftJson, type NormalizedQuestionBankDraft } from "@/lib/authoring/question-bank-draft";
 import {
@@ -647,7 +649,7 @@ function canonicalBatchForRun(run: ReturnType<typeof readMcpRunToken>, draft: No
   return {
     courseId: run.courseId,
     chapterId: run.chapterId,
-    reviewStatus: "published" as const,
+    reviewStatus: "generated" as const,
     items: draft.items.map((item) => ({
       questionId: questionIdForRun(run.runId, item.externalId),
       question: item.question,
@@ -740,6 +742,7 @@ async function validateQuestionBankDraft(
   runToken: string,
   draft: NormalizedQuestionBankDraft,
   bootstrapToken?: string,
+  visualAssets?: QuestionVisualAssets,
 ) {
   const run = readMcpRunToken(runToken);
   if (run.workflow !== "quiz_bank") return { ok: false, valid: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
@@ -768,7 +771,7 @@ async function validateQuestionBankDraft(
     };
   }
   try {
-    await validateCanonicalQuestionBatch(canonicalBatchForRun(run, draft));
+    await validateCanonicalQuestionBatch({ ...canonicalBatchForRun(run, draft), visualAssets });
   } catch (error) {
     return {
       ok: false,
@@ -804,6 +807,7 @@ async function stageQuestionBankDraft(
   runToken: string,
   draft: NormalizedQuestionBankDraft,
   bootstrapToken?: string,
+  visualAssets?: QuestionVisualAssets,
 ) {
   requireMcpScope(principal, "authoring:stage");
   const run = readMcpRunToken(runToken);
@@ -838,6 +842,7 @@ async function stageQuestionBankDraft(
       ...canonicalBatchForRun(run, draft),
       creatorId: principal.actorId,
       createOnly: true,
+      visualAssets,
     });
     return {
       ok: true,
@@ -1310,7 +1315,7 @@ async function stageProductArtifact(input: {
     ? await scopedLearningProductImport({ principal: input.principal, runToken: input.runToken, bootstrapToken: input.bootstrapToken ?? "", importId: input.replaceImportId, expectedRevision: input.expectedRevision ?? "" })
     : null;
   const bytes = decodeMcpArtifact(input.bundleBase64, AUTHORING_MCP_MAX_BUNDLE_BYTES);
-  const validation = validateProductBundle(bytes);
+  const validation = await validateProductBundleAdmission(bytes);
   if (!validation.success) {
     const mappedIssues = validation.issues.map((iss) =>
       productValidationIssueToDiagnostic(iss, input.filename),
@@ -2137,7 +2142,7 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       expectedWorkflow: "idea_product",
     });
     const bytes = decodeMcpArtifact(bundleBase64, AUTHORING_MCP_MAX_BUNDLE_BYTES);
-    const validation = validateProductBundle(bytes);
+    const validation = await validateProductBundleAdmission(bytes);
     if (!validation.success) {
       const mappedIssues = validation.issues.map((iss) =>
         productValidationIssueToDiagnostic(iss, filename),
@@ -2397,14 +2402,15 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
     inputSchema: {
       runToken: z.string().min(1),
       draftJson: z.string().min(1).max(8 * 1024 * 1024),
+      visualAssets: questionVisualAssetsSchema.optional(),
       bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken, draftJson, bootstrapToken }: any) => safeTool(async () => {
+  }, async ({ runToken, draftJson, bootstrapToken, visualAssets }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
     const parsed = parseQuestionBankDraftJson(draftJson);
     if (!parsed.success) return { ok: false, valid: false, issues: parsed.issues, next: "agent_revision" };
-    return validateQuestionBankDraft(principal, runToken, normalizeQuestionBankDraft(parsed.data), bootstrapToken);
+    return validateQuestionBankDraft(principal, runToken, normalizeQuestionBankDraft(parsed.data), bootstrapToken, visualAssets);
   }));
 
   (server as any).registerTool("assessment.submit_quiz_draft", {
@@ -2413,13 +2419,14 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
     inputSchema: {
       runToken: z.string().min(1),
       draftJson: z.string().min(1).max(8 * 1024 * 1024),
+      visualAssets: questionVisualAssetsSchema.optional(),
       bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken, draftJson, bootstrapToken }: any) => safeTool(async () => {
+  }, async ({ runToken, draftJson, bootstrapToken, visualAssets }: any) => safeTool(async () => {
     const parsed = parseQuestionBankDraftJson(draftJson);
     if (!parsed.success) return { ok: false, valid: false, staged: false, issues: parsed.issues, next: "agent_revision" };
-    return stageQuestionBankDraft(principal, runToken, normalizeQuestionBankDraft(parsed.data), bootstrapToken);
+    return stageQuestionBankDraft(principal, runToken, normalizeQuestionBankDraft(parsed.data), bootstrapToken, visualAssets);
   }));
 }
 
@@ -3202,10 +3209,11 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
       questionId: z.string().trim().min(1),
       question: questionAuthoringQuestionSchema,
       ideaLinks: z.array(questionIdeaLinkSchema).min(1).max(50),
+      visualAssets: questionVisualAssetsSchema.optional(),
       bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
-  }, async ({ runToken, questionId, question, ideaLinks, bootstrapToken }: any) => safeTool(async () => {
+  }, async ({ runToken, questionId, question, ideaLinks, bootstrapToken, visualAssets }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:stage");
     const run = readMcpRunToken(runToken);
     if (run.workflow !== "quiz_bank") throw new Error("AUTHORING_MCP_WORKFLOW_MISMATCH");
@@ -3238,7 +3246,7 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
       chapterId: run.chapterId,
       ideaLinks,
       reviewStatus: "generated",
-    }, principal.actorId, questionId);
+    }, principal.actorId, questionId, visualAssets, { courseId: run.courseId, chapterId: run.chapterId });
     return { ok: true, result, next: "admin_review" };
   }));
 }

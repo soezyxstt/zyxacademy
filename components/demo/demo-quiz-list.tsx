@@ -19,7 +19,7 @@ export function DemoQuizList({ experience: { content, snapshot } }: { experience
   const assessment = snapshot.availableAssessments.find(item => item.type === "quiz");
   const templates: ComponentProps<typeof QuizListClient>["templates"] = assessment && access !== "premium" ? [{ id: assessment.id, title: assessment.title, visibility: "free", category: "chapter", selectionRules: { count: content.collections.quiz.total }, timeLimitSeconds: 900, manualStatus: "open", openAt: null, closeAt: null }] : [];
   return <StudentQuizListView href={href} id={snapshot.courseId} courseTitle={content.course.title} access={access}>
-    <Reveal><QuizListClient courseId={snapshot.courseId} isEnrolled templates={templates} attempts={attempts} /></Reveal>
+    <Reveal><QuizListClient courseId={snapshot.courseId} hasFullContentAccess templates={templates} attempts={attempts} /></Reveal>
   </StudentQuizListView>;
 }
 
