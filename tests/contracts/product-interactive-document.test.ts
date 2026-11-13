@@ -12,6 +12,8 @@ import { parseAdmittedProductBundle } from "@/lib/bundle/product-staged-worker";
 import { loadDiktatWorkerAssets } from "@/lib/compute/product-diktat-worker-assets";
 import { validateProductV4HttpAssets } from "@/lib/compute/product-v4-http-asset-validation";
 import { productV4DocumentPairKey } from "@/lib/compute/product-v4-document-wire";
+import { buildInteractiveDocumentAdmissionKey, buildInteractiveDocumentAssetKey } from "@/lib/storage/keys";
+import { interactiveDocumentAdmissionReceipt } from "@/lib/materials/interactive-document-verified";
 
 mock.module("server-only", () => ({}));
 const { validateProductBundleAdmission } = await import("@/lib/bundle/product-admission");
@@ -74,9 +76,16 @@ test("Diktat worker reads only the exact admitted archive contents", async () =>
   const row = { bundleId: admitted.data.manifest.bundleId, checksum: admitted.data.checksum };
   expect(parseAdmittedProductBundle(bytes, row).files.get(printPath)).toEqual(png);
   expect(() => parseAdmittedProductBundle(new Uint8Array([1, 2, 3]), row)).toThrow("PRODUCT_BUNDLE_VALIDATION_FAILED:");
-  const ports = { course: async () => { throw new Error("Unexpected course lookup"); }, figure: async () => { throw new Error("Unexpected figure lookup"); }, download: async () => png };
+  const receiptKey = buildInteractiveDocumentAdmissionKey(spec.printSha256);
+  const assetKey = buildInteractiveDocumentAssetKey(spec.printSha256, "print");
+  const download = async (key: string, asset: Uint8Array = png) => {
+    if (key === receiptKey) return interactiveDocumentAdmissionReceipt(spec);
+    if (key === assetKey) return asset;
+    throw new Error(`Unexpected storage read: ${key}`);
+  };
+  const ports = { course: async () => { throw new Error("Unexpected course lookup"); }, figure: async () => { throw new Error("Unexpected figure lookup"); }, download };
   expect((await loadDiktatWorkerAssets(admitted.data, ports))[`interactive_document:${spec.printSha256}`].bytes).toEqual(png);
-  await expect(loadDiktatWorkerAssets(admitted.data, { ...ports, download: async () => new Uint8Array(png.length) })).rejects.toThrow("INTERACTIVE_DOCUMENT_INTEGRITY");
+  await expect(loadDiktatWorkerAssets(admitted.data, { ...ports, download: key => download(key, new Uint8Array(png.length)) })).rejects.toThrow("INTERACTIVE_DOCUMENT_INTEGRITY");
   expect(() => parseAdmittedProductBundle(bytes, { ...row, bundleId: "other" })).toThrow("PRODUCT_BUNDLE_CHECKSUM_MISMATCH");
   const tampered = unzipSync(bytes);
   tampered[printPath] = new Uint8Array(png.length);
