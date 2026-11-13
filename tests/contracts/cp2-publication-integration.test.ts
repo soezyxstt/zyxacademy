@@ -1,4 +1,4 @@
-import { contractChromiumPath } from "../helpers/chromium";
+import { renderContractPdf } from "../helpers/chromium";
 import { describe, expect, test, beforeEach, afterAll } from "bun:test";
 import { mock } from "bun:test";
 import type { ArticleDocument } from "@/lib/materials/article-contract";
@@ -34,7 +34,6 @@ import {
   compileProductDiktatHtml,
 } from "@/lib/bundle/product-diktat-pdf";
 import { inspectProductDiktatPdf } from "@/lib/compute/product-diktat-inspector";
-import { chromium } from "playwright";
 
 
 // Each fixture acts on the revision it just read, matching the service's caller contract.
@@ -1327,65 +1326,56 @@ describe("CP2 Publication Integration Contract", () => {
   });
 
   for (const runName of ["limit-a", "limit-b", "eigen", "tcp"]) test(`runs the tracked ${runName} fixture through stage, review, real PDF, publish, and download gates`, async () => {
-    const browser = await chromium.launch({ executablePath: contractChromiumPath(), headless: true, timeout: 15_000, args: ["--no-sandbox"] });
+    const { article, diktat } = loadNormalizedCp7Rehearsal(runName);
+    const html = compileProductDiktatHtml({ article, diktat });
+    const pdfBytes = await renderContractPdf(html);
+    console.info(`CP2 rehearsal ${runName}: PDF rendered`);
 
-    try {
-      const { article, diktat } = loadNormalizedCp7Rehearsal(runName);
-      const html = compileProductDiktatHtml({ article, diktat });
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: "load", timeout: 15_000 });
-      const pdfBytes = new Uint8Array(
-        await page.pdf({ format: "A4", printBackground: true }),
-      );
-      await page.close();
+    const inspected = await inspectProductDiktatPdf(pdfBytes);
+    console.info(`CP2 rehearsal ${runName}: PDF inspected`);
+    expect(inspected.pageCount).toBeGreaterThanOrEqual(2);
+    expect(inspected.pageCount).toBeLessThanOrEqual(4);
+    expect(inspected.text.replace(/\s+/g, " ")).toContain(
+      diktat.title.replace(/\s+/g, " "),
+    );
 
-      const inspected = await inspectProductDiktatPdf(pdfBytes);
-      expect(inspected.pageCount).toBeGreaterThanOrEqual(2);
-      expect(inspected.pageCount).toBeLessThanOrEqual(4);
-      expect(inspected.text.replace(/\s+/g, " ")).toContain(
-        diktat.title.replace(/\s+/g, " "),
-      );
+    const { staged } = await stageTestBundle(
+      article,
+      diktat,
+      `bundle-cp7-${runName}`,
+      `run-cp7-${runName}`,
+    );
+    await seedApprovalRecords({
+      importId: staged.importId,
+      article,
+      diktat,
+      pdfStatus: "ready",
+    });
 
-      const { staged } = await stageTestBundle(
-        article,
-        diktat,
-        `bundle-cp7-${runName}`,
-        `run-cp7-${runName}`,
-      );
-      await seedApprovalRecords({
-        importId: staged.importId,
-        article,
-        diktat,
-        pdfStatus: "ready",
-      });
+    const evidenceKey = `courses/course-cp2/materials/${diktat.id}.pdf`;
+    storageMap.set(evidenceKey, pdfBytes);
+    const published = await publishProductBundle({
+      importId: staged.importId,
+      publishedBy: "user-admin-1",
+    });
+    expect(published.published).toBe(true);
 
-      const evidenceKey = `courses/course-cp2/materials/${diktat.id}.pdf`;
-      storageMap.set(evidenceKey, pdfBytes);
-      const published = await publishProductBundle({
-        importId: staged.importId,
-        publishedBy: "user-admin-1",
-      });
-      expect(published.published).toBe(true);
-
-      const [publishedDiktat] = await testDb
-        .select()
-        .from(schema.diktatMateri)
-        .where(eq(schema.diktatMateri.id, diktat.id));
-      expect(publishedDiktat?.status).toBe("published");
-      expect(publishedDiktat?.fileKey).toBe(evidenceKey);
-      expect(storageMap.get(evidenceKey)?.byteLength).toBe(pdfBytes.byteLength);
-      expect(canDownloadProductDiktat({ role: "admin", enrolled: false })).toBe(
-        true,
-      );
-      expect(canDownloadProductDiktat({ role: "student", enrolled: true })).toBe(
-        true,
-      );
-      expect(canDownloadProductDiktat({ role: "student", enrolled: false })).toBe(
-        false,
-      );
-    } finally {
-      await browser.close();
-    }
+    const [publishedDiktat] = await testDb
+      .select()
+      .from(schema.diktatMateri)
+      .where(eq(schema.diktatMateri.id, diktat.id));
+    expect(publishedDiktat?.status).toBe("published");
+    expect(publishedDiktat?.fileKey).toBe(evidenceKey);
+    expect(storageMap.get(evidenceKey)?.byteLength).toBe(pdfBytes.byteLength);
+    expect(canDownloadProductDiktat({ role: "admin", enrolled: false })).toBe(
+      true,
+    );
+    expect(canDownloadProductDiktat({ role: "student", enrolled: true })).toBe(
+      true,
+    );
+    expect(canDownloadProductDiktat({ role: "student", enrolled: false })).toBe(
+      false,
+    );
   });
 
   test("persisted PDF evidence selection deterministically elects current-lineage Diktat artifact over adversarial newer wrong-lineage rows", async () => {
