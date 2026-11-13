@@ -6,12 +6,16 @@ import { renderWithMessages } from "../helpers/render-with-messages";
 const visual = { id: "answer_scene", kind: "interactive_scene", label: "Jawaban", description: "Diagram", viewBox: { x: 0, y: 0, width: 20, height: 20 }, parameters: [{ id: "x", label: "X", min: 0, max: 1, step: 1, initial: 0, control: "range" }], shapes: [{ type: "circle", cx: "x", cy: 1, r: 1 }], staticFallback: { type: "text", summary: "Awal", content: "Awal" } };
 const fence = `\`\`\`zyx-visual\n${JSON.stringify(visual)}\n\`\`\``;
 const formativeCheck = { checkKind: "multiple_choice", answer: "fallback", explanation: "Penjelasan", options: [{ isCorrect: true, text: fence }] };
+let activeAdmin = true;
+const hasAuthoringActor = mock(async () => activeAdmin);
+mock.module("@/lib/auth/authoring-actor", () => ({ hasAuthoringActor }));
 const resolved = { ok: true, context: { formativeCheck, article: { courseId: "course", chapterId: "chapter" } } };
 mock.module("next/headers", () => ({ headers: async () => new Headers() }));
 mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => ({ user: { id: "admin", role: "admin" } }) } } }));
 mock.module("@/lib/student/course-access", () => ({ resolveCourseAccess: async () => ({}), canAccessCourseContent: () => true }));
 mock.module("@/lib/materials/formative-check-server", () => ({ formativeCheckLocatorSchema: { safeParse: (data: unknown) => ({ success: true, data }) }, resolvePublishedFormativeCheck: async () => resolved }));
-mock.module("@/lib/materials/formative-check-draft-server", () => ({ resolveDraftProductFormativeCheck: async () => resolved }));
+const resolveDraft = mock(async () => resolved);
+mock.module("@/lib/materials/formative-check-draft-server", () => ({ resolveDraftProductFormativeCheck: resolveDraft }));
 
 test("published and draft reveal endpoints preserve a visual-only option as Markdown", async () => {
   const published = await import("@/app/api/materials/formative-check/reveal/route");
@@ -25,4 +29,16 @@ test("published and draft reveal endpoints preserve a visual-only option as Mark
     expect(html).toContain('id="answer_scene"');
     expect(html).not.toContain('kind&quot;:&quot;interactive_scene');
   }
+});
+
+test("draft reveal denies an inactive admin before resolving private content", async () => {
+  activeAdmin = false;
+  resolveDraft.mockClear();
+  try {
+    const { POST } = await import("@/app/api/admin/bundles/product/[id]/formative-check/reveal/route");
+    const response = await POST(new Request("http://localhost/reveal", { method: "POST", body: "{}" }), { params: Promise.resolve({ id: "draft" }) });
+    expect(response.status).toBe(403);
+    expect(hasAuthoringActor).toHaveBeenCalledWith("admin", ["admin"]);
+    expect(resolveDraft).not.toHaveBeenCalled();
+  } finally { activeAdmin = true; }
 });
