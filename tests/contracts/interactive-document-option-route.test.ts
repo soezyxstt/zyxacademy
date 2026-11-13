@@ -17,7 +17,7 @@ mock.module("@/lib/materials/formative-check-draft-server", () => ({ resolveDraf
 mock.module("@/lib/bundle/product-staging", () => ({ getProductBundleImport: async () => ({ status: "draft", checksum }), parseStagedProductBundle: async () => ({ checksum, products: [product], files: new Map([[`visuals/${spec.documentSha256}.html`, new Uint8Array([1])], [`visuals/${spec.printSha256}.png`, new Uint8Array([2])]]) }) }));
 mock.module("@/lib/bundle/product-bundle-v2", () => ({ productEntityHash: () => "hash" }));
 mock.module("@/lib/materials/interactive-document-assets", () => ({ readInteractiveDocumentAsset: async () => { reads++; return new Uint8Array([1]); } }));
-mock.module("@/lib/materials/interactive-document-server", () => ({ verifyInteractiveDocumentAsset: async () => {}, interactiveDocumentResponse: (bytes: Uint8Array) => new Response(bytes as unknown as BodyInit) }));
+mock.module("@/lib/materials/interactive-document-verified", () => ({ verifyAdmittedInteractiveDocumentAsset: () => {}, interactiveDocumentResponse: (bytes: Uint8Array) => new Response(bytes as unknown as BodyInit) }));
 const route = await import("@/app/api/materials/interactive-document/option/route");
 const query = new URLSearchParams({ courseId: "course", articleId: "article", articleVersion: "2", sectionId: "section", blockId: "block", optionId: "a", visualId: "visual", hash: spec.documentSha256, draftId: "draft", checksum, kind: "document" });
 const request = (params = query) => new Request(`http://localhost/api?${params}`);

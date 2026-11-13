@@ -21,7 +21,8 @@ import { buildProductBundleKey } from "@/lib/storage/keys";
 import { isBundleIdentitySentinelOrPlaceholder } from "./attribution";
 import { productEntityHash } from "./product-bundle-v2";
 import { deterministicProductSerialization, productInteractiveDocuments, type ProductDependency, type ProductEntity } from "./product-validator";
-import { stageInteractiveDocumentAssets, validateInteractiveDocumentArchive } from "@/lib/materials/interactive-document-assets";
+import { stageInteractiveDocumentAssets, validateInteractiveDocumentArchive, verifyAdmittedInteractiveDocumentArchive } from "@/lib/materials/interactive-document-assets";
+import { parseAdmittedProductBundle } from "./product-staged-worker";
 import { type ProductBundleValidation } from "./product-validator";
 import {
   canPreservePedagogicReview,
@@ -151,22 +152,19 @@ export async function stageProductBundle(input: ProductStageInput) {
   let canPreservePedagogy = false;
   let previousBundleParsed: Extract<ProductBundleValidation, { success: true }>["data"] | null = null;
 
-  if (conflict && storage.download) {
-    try {
-      const previousBytes = await storage.download(conflict.sourceUriOrKey);
-      const previous = await validateProductBundleAdmission(previousBytes);
-      if (previous.success) {
-        previousBundleParsed = previous.data;
-        canPreservePedagogy = canPreservePedagogicReview(previous.data, input.bundle);
-        stalePdfProductIds = findStalePdfEvidenceProductIds(previous.data, input.bundle);
-        if (input.preserveUnchangedItemReviews) {
-          const unchangedSectionIds = unchangedArticleSectionIds(previous.data, input.bundle);
-          const existingItemReviews = await db.select().from(reviewItemBundle).where(eq(reviewItemBundle.imporBundleId, conflict.id));
-          preservedItemReviews = existingItemReviews.filter((review) => review.targetType === "article_section" && review.targetId && unchangedSectionIds.has(review.targetId));
-        }
-      }
-    } catch {
-      // If previous artifact download or parsing fails, cannot verify identity
+  if (conflict) {
+    if (!storage.download) throw new Error("PRODUCT_BUNDLE_STORAGE_DOWNLOAD_UNAVAILABLE");
+    const previousBytes = await storage.download(conflict.sourceUriOrKey);
+    const previous = await validateProductBundleAdmission(previousBytes);
+    if (!previous.success) throw new Error(`PRODUCT_BUNDLE_PREVIOUS_VALIDATION_FAILED:${previous.issues.map(item => item.code).join(",")}`);
+    if (previous.data.checksum !== conflict.checksum || previous.data.manifest.bundleId !== conflict.bundleId) throw new Error("PRODUCT_BUNDLE_PREVIOUS_CHECKSUM_MISMATCH");
+    previousBundleParsed = previous.data;
+    canPreservePedagogy = canPreservePedagogicReview(previous.data, input.bundle);
+    stalePdfProductIds = findStalePdfEvidenceProductIds(previous.data, input.bundle);
+    if (input.preserveUnchangedItemReviews) {
+      const unchangedSectionIds = unchangedArticleSectionIds(previous.data, input.bundle);
+      const existingItemReviews = await db.select().from(reviewItemBundle).where(eq(reviewItemBundle.imporBundleId, conflict.id));
+      preservedItemReviews = existingItemReviews.filter((review) => review.targetType === "article_section" && review.targetId && unchangedSectionIds.has(review.targetId));
     }
   }
 
@@ -545,8 +543,10 @@ export async function discardProductBundleDraft(input: { importId: string; actor
 export async function parseStagedProductBundle(importId: string): Promise<Extract<ProductBundleValidation, { success: true }>["data"]> {
   const row = await getProductBundleImport(importId);
   if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
-  const result = await validateProductBundleAdmission(await downloadProductBundleArtifact(importId));
-  if (!result.success) throw new Error(`PRODUCT_BUNDLE_VALIDATION_FAILED:${result.issues.map((item) => item.code).join(",")}`);
-  if (result.data.manifest.bundleId !== row.bundleId || result.data.manifest.bundleChecksum !== row.checksum) throw new Error("PRODUCT_BUNDLE_CHECKSUM_MISMATCH");
-  return result.data;
+  if (row.validationReport.valid !== true) throw new Error("PRODUCT_BUNDLE_ADMISSION_REQUIRED");
+  const bundle = parseAdmittedProductBundle(await downloadProductBundleArtifact(importId), row);
+  const specs = productInteractiveDocuments(bundle.products);
+  if (specs.length && bundle.manifest.schemaVersion !== "product-bundle.v4") throw new Error("PRODUCT_VISUAL_REQUIRES_V4");
+  await verifyAdmittedInteractiveDocumentArchive(specs, bundle.manifest.visualAssets ?? [], bundle.files);
+  return bundle;
 }

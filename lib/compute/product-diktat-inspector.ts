@@ -78,6 +78,9 @@ export async function generateProductDiktatPdfEvidence(input: {
   const article = bundle.products.find((product): product is ArticleProduct => product.productType === "article");
   const diktat = bundle.products.find((product): product is DiktatProduct => product.productType === "diktat");
   if (!article || !diktat) throw new Error("PRODUCT_DIKTAT_SOURCE_MISSING");
+  const staticFigureAssets = article.schemaVersion === "article.v4"
+    ? await (await import("./product-diktat-worker-assets")).loadDiktatWorkerAssets(bundle)
+    : undefined;
 
   const id = evidenceId(input.importId, diktat.id, diktat.generationHash);
   const now = new Date();
@@ -97,9 +100,6 @@ export async function generateProductDiktatPdfEvidence(input: {
   });
 
   try {
-    const staticFigureAssets = article.schemaVersion === "article.v4"
-      ? await (await import("./product-diktat-worker-assets")).loadDiktatWorkerAssets(bundle)
-      : undefined;
     const html = compileProductDiktatHtml({ article, diktat, staticFigureAssets });
     const bytes = await (input.renderer ?? renderProductDiktatPdf)(html);
     const inspection = await inspectProductDiktatPdf(bytes).catch((error) => {

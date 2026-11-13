@@ -1,6 +1,15 @@
 import { createHash } from "node:crypto";
 import type { InteractiveDocumentSpec } from "./interactive-document";
 
+// Bump the receipt version and storage key when the full PNG admission contract changes.
+export function interactiveDocumentAdmissionReceipt(spec: InteractiveDocumentSpec): Buffer {
+  return Buffer.from(JSON.stringify({ version: 1, sha256: spec.printSha256, bytes: spec.printBytes }));
+}
+
+export function verifyInteractiveDocumentAdmissionReceipt(spec: InteractiveDocumentSpec, bytes: Uint8Array): void {
+  if (!Buffer.from(bytes).equals(interactiveDocumentAdmissionReceipt(spec))) throw new Error("INTERACTIVE_DOCUMENT_ADMISSION_REQUIRED");
+}
+
 export function verifyAdmittedInteractiveDocumentAsset(spec: InteractiveDocumentSpec, kind: "document" | "print", bytes: Uint8Array): void {
   const size = kind === "document" ? spec.documentBytes : spec.printBytes;
   const hash = kind === "document" ? spec.documentSha256 : spec.printSha256;

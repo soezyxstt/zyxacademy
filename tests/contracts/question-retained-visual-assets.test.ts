@@ -30,7 +30,7 @@ mock.module("@/db", () => ({ db }));
 const { updateCanonicalQuestion } = await import("@/lib/question-authoring");
 const { stageQuestionVisualBinding, verifyQuestionVisualBinding } = await import("@/lib/materials/question-visual-binding");
 const { stageInteractiveDocumentAssets } = await import("@/lib/materials/interactive-document-assets");
-const { buildInteractiveDocumentAssetKey } = await import("@/lib/storage/keys");
+const { buildInteractiveDocumentAdmissionKey, buildInteractiveDocumentAssetKey } = await import("@/lib/storage/keys");
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const html = Buffer.from("<!doctype html><button>Tekan</button>");
 const png = await sharp({ create: { width: 2, height: 2, channels: 4, background: "white" } }).png().toBuffer();
@@ -49,7 +49,7 @@ const stage = async (question = makeQuestion(), spec = makeSpec(), document = ht
   downloads.length = 0;
 };
 const update = (question = makeQuestion(), assets?: any) => updateCanonicalQuestion(question, "admin", "q1", assets);
-const assetReads = () => downloads.filter(key => key.includes("interactive-documents/"));
+const assetReads = () => downloads.filter(key => key.includes("interactive-documents/") && !key.includes("/admission-v1/"));
 
 beforeEach(() => { objects.clear(); downloads.length = 0; rows = []; writes = []; offload.mockReset(); offload.mockImplementation(async question => question); });
 
@@ -124,6 +124,14 @@ test("corrupt stored bytes and invalid UTF-8 or PNG fail even with matching bind
     inputRows(originalRow(question));
     await expect(update(question)).rejects.toThrow();
   }
+  expect(writes).toHaveLength(0);
+});
+
+test("retained edits fail closed when the PNG admission receipt is missing", async () => {
+  await stage();
+  objects.delete(buildInteractiveDocumentAdmissionKey(makeSpec().printSha256));
+  inputRows();
+  await expect(update()).rejects.toThrow();
   expect(writes).toHaveLength(0);
 });
 

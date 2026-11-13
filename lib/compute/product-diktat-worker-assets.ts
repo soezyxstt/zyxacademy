@@ -3,7 +3,8 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { mataKuliah } from "@/db/schema";
 import { storage } from "@/lib/storage";
-import { buildInteractiveDocumentAssetKey } from "@/lib/storage/keys";
+import { buildInteractiveDocumentAdmissionKey, buildInteractiveDocumentAssetKey } from "@/lib/storage/keys";
+import { verifyInteractiveDocumentAdmissionReceipt } from "@/lib/materials/interactive-document-verified";
 import { resolveSourceFigureForCourse } from "@/lib/authoring/source-figures";
 import type { ProductBundleValidation } from "@/lib/bundle/product-validator";
 import type { DiktatSourceFigureAssets } from "@/lib/materials/diktat-static-visual";
@@ -45,6 +46,7 @@ export async function loadDiktatWorkerAssets(bundle: Bundle, ports: Ports = {
     }
   }
   for (const spec of visuals.filter(visual => visual.kind === "interactive_document")) {
+    verifyInteractiveDocumentAdmissionReceipt(spec, await ports.download(buildInteractiveDocumentAdmissionKey(spec.printSha256)));
     const bytes = await ports.download(buildInteractiveDocumentAssetKey(spec.printSha256, "print"));
     if (bytes.byteLength !== spec.printBytes || bytesHash(bytes) !== spec.printSha256) throw new Error("INTERACTIVE_DOCUMENT_INTEGRITY");
     assets[`interactive_document:${spec.printSha256}`] = { bytes, mimeType: "image/png", sourceChecksum: spec.printSha256 };

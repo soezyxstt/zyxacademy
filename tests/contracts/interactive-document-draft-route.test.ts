@@ -11,7 +11,7 @@ mock.module("next/headers", () => ({ headers: async () => new Headers() }));
 mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => ({ user: { id: "user", role } }) } } }));
 mock.module("@/lib/bundle/product-staging", () => ({ getProductBundleImport: async () => ({ status, checksum }), parseStagedProductBundle: async () => ({ checksum, products: [product], files: new Map([[`visuals/${spec.documentSha256}.html`, new Uint8Array([1])], [`visuals/${spec.printSha256}.png`, new Uint8Array([2])]]) }) }));
 mock.module("@/lib/materials/interactive-document-assets", () => ({ readInteractiveDocumentAsset: async () => { reads++; return new Uint8Array([1]); } }));
-mock.module("@/lib/materials/interactive-document-server", () => ({ verifyInteractiveDocumentAsset: async () => {}, interactiveDocumentResponse: (bytes: Uint8Array) => new Response(bytes as unknown as BodyInit, { headers: { "content-type": "text/html", "cache-control": "private, no-store" } }) }));
+mock.module("@/lib/materials/interactive-document-verified", () => ({ verifyAdmittedInteractiveDocumentAsset: () => {}, interactiveDocumentResponse: (bytes: Uint8Array) => new Response(bytes as unknown as BodyInit, { headers: { "content-type": "text/html", "cache-control": "private, no-store" } }) }));
 const route = await import("@/app/api/admin/bundles/product/[id]/interactive-document/route");
 const query = new URLSearchParams({ courseId: "course", articleId: "article", articleVersion: "2", sectionId: "section", blockId: "block", field: "visual_ref", partId: "part", visualId: "visual", hash: spec.documentSha256, checksum, kind: "document" });
 const context = { params: Promise.resolve({ id: "draft" }) };

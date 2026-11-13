@@ -49,7 +49,7 @@ mock.module("@/lib/materials/formative-check-draft-server", () => ({ resolveDraf
 mock.module("@/lib/bundle/product-staging", () => ({ getProductBundleImport: async () => ({ status: "draft", checksum: currentChecksum }), parseStagedProductBundle: async () => bundle }));
 mock.module("@/lib/bundle/product-bundle-v2", () => ({ productEntityHash: () => "hash" }));
 mock.module("@/lib/materials/interactive-document-assets", () => ({ readInteractiveDocumentAsset: async () => { reads++; return new Uint8Array([1]); } }));
-mock.module("@/lib/materials/interactive-document-server", () => ({ verifyInteractiveDocumentAsset: async () => {}, interactiveDocumentResponse: (bytes: Uint8Array) => new Response(bytes as unknown as BodyInit) }));
+mock.module("@/lib/materials/interactive-document-verified", () => ({ verifyAdmittedInteractiveDocumentAsset: () => {}, interactiveDocumentResponse: (bytes: Uint8Array) => new Response(bytes as unknown as BodyInit) }));
 const route = await import("@/app/api/materials/interactive-document/reveal/route");
 const grant = mintInteractiveDocumentGrant({ userId: "admin", articleId: product.id, articleVersion: product.version, sectionId: section.id, blockId: block.id, field: "explanation", draftId: "draft", draftChecksum: checksum }, "test-only-secret");
 const query = new URLSearchParams({ grant, visualId: "visual", hash: spec.documentSha256, kind: "document" });

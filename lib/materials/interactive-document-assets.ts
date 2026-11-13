@@ -1,8 +1,9 @@
 import "server-only";
 import { storage } from "@/lib/storage";
-import { buildInteractiveDocumentAssetKey } from "@/lib/storage/keys";
+import { buildInteractiveDocumentAdmissionKey, buildInteractiveDocumentAssetKey } from "@/lib/storage/keys";
 import { interactiveDocumentSchema, MAX_INTERACTIVE_DOCUMENT_SPECS, type InteractiveDocumentSpec } from "./interactive-document";
 import { verifyInteractiveDocumentAsset } from "./interactive-document-server";
+import { interactiveDocumentAdmissionReceipt, verifyInteractiveDocumentAdmissionReceipt, verifyAdmittedInteractiveDocumentAsset } from "./interactive-document-verified";
 
 export type InteractiveDocumentAssetPair = {
   spec: InteractiveDocumentSpec;
@@ -19,6 +20,13 @@ export async function validateInteractiveDocumentArchive(
   specs: readonly InteractiveDocumentSpec[],
   manifest: readonly InteractiveDocumentAssetManifestEntry[],
   files: ReadonlyMap<string, Uint8Array>,
+): Promise<InteractiveDocumentAssetPair[]> {
+  return checkArchive(specs, manifest, files, verifyInteractiveDocumentAsset);
+}
+
+async function checkArchive(
+  specs: readonly InteractiveDocumentSpec[], manifest: readonly InteractiveDocumentAssetManifestEntry[], files: ReadonlyMap<string, Uint8Array>,
+  verify: (spec: InteractiveDocumentSpec, kind: "document" | "print", bytes: Uint8Array) => Promise<void>,
 ): Promise<InteractiveDocumentAssetPair[]> {
   if (specs.length > MAX_INTERACTIVE_DOCUMENT_SPECS) throw new Error("INTERACTIVE_DOCUMENT_COUNT_LIMIT");
   const expected = new Map<string, { sha256: string; bytes: number }>();
@@ -41,10 +49,26 @@ export async function validateInteractiveDocumentArchive(
   }
   if ([...files.keys()].some(path => path.startsWith("visuals/") && !expected.has(path))) throw new Error("INTERACTIVE_DOCUMENT_ORPHAN_ASSET");
   for (const pair of pairs) {
-    await verifyInteractiveDocumentAsset(pair.spec, "document", pair.document);
-    await verifyInteractiveDocumentAsset(pair.spec, "print", pair.print);
+    await verify(pair.spec, "document", pair.document);
+    await verify(pair.spec, "print", pair.print);
   }
   return pairs;
+}
+
+async function verifyReceipt(spec: InteractiveDocumentSpec): Promise<void> {
+  if (!storage.download) throw new Error("INTERACTIVE_DOCUMENT_STORAGE_UNAVAILABLE");
+  const receipt = await storage.download(buildInteractiveDocumentAdmissionKey(spec.printSha256));
+  verifyInteractiveDocumentAdmissionReceipt(spec, receipt);
+}
+
+/** The receipt can only be written after full admission, and is not an authorization grant. */
+export async function verifyAdmittedInteractiveDocumentArchive(
+  specs: readonly InteractiveDocumentSpec[], manifest: readonly InteractiveDocumentAssetManifestEntry[], files: ReadonlyMap<string, Uint8Array>,
+): Promise<void> {
+  await checkArchive(specs, manifest, files, async (spec, kind, bytes) => {
+    verifyAdmittedInteractiveDocumentAsset(spec, kind, bytes);
+    if (kind === "print") await verifyReceipt(spec);
+  });
 }
 
 /** The caller must authorize the exact immutable content version and field before reading. */
@@ -52,7 +76,8 @@ export async function readInteractiveDocumentAsset(spec: InteractiveDocumentSpec
   const checked = interactiveDocumentSchema.parse(spec);
   if (!storage.download) throw new Error("INTERACTIVE_DOCUMENT_STORAGE_UNAVAILABLE");
   const bytes = await storage.download(buildInteractiveDocumentAssetKey(kind === "document" ? checked.documentSha256 : checked.printSha256, kind));
-  await verifyInteractiveDocumentAsset(checked, kind, bytes);
+  await verifyReceipt(checked);
+  verifyAdmittedInteractiveDocumentAsset(checked, kind, bytes);
   return bytes;
 }
 
@@ -74,5 +99,12 @@ export async function stageInteractiveDocumentAssets(pairs: readonly Interactive
   for (const [key, asset] of unique) {
     if (!await storage.exists(key)) await storage.upload(asset.bytes, key.split("/").pop()!, asset.kind === "document" ? "text/html; charset=utf-8" : "image/png", { key });
     await verifyInteractiveDocumentAsset(asset.spec, asset.kind, await storage.download(key));
+  }
+  for (const asset of unique.values()) {
+    if (asset.kind !== "print") continue;
+    const key = buildInteractiveDocumentAdmissionKey(asset.spec.printSha256);
+    const receipt = interactiveDocumentAdmissionReceipt(asset.spec);
+    if (!await storage.exists(key)) await storage.upload(receipt, key.split("/").pop()!, "application/json", { key });
+    await verifyReceipt(asset.spec);
   }
 }

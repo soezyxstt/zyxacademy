@@ -65,6 +65,11 @@ export function buildInteractiveDocumentAssetKey(hash: string, kind: "document" 
   return joinKey("overhaul", "interactive-documents", `${hash}.${kind === "document" ? "html" : "png"}`);
 }
 
+export function buildInteractiveDocumentAdmissionKey(hash: string): string {
+  if (!/^[a-f0-9]{64}$/.test(hash)) throw new Error(INVALID_OBJECT_KEY);
+  return joinKey("overhaul", "interactive-documents", "admission-v1", `${hash}.json`);
+}
+
 export function buildQuestionVisualBindingKey(hash: string): string {
   if (!/^[a-f0-9]{64}$/.test(hash)) throw new Error("INVALID_QUESTION_VISUAL_BINDING_KEY");
   return joinKey("overhaul", "question-visual-bindings", `${hash}.json`);

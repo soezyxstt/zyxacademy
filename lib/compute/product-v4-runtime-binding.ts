@@ -12,7 +12,8 @@ import type { resolveSourceFigureForCourse } from "@/lib/authoring/source-figure
 import { parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
 import { interactiveDocumentSchema } from "@/lib/materials/interactive-document";
 import type { InteractiveDocumentSpec } from "@/lib/materials/interactive-document";
-import { buildInteractiveDocumentAssetKey } from "@/lib/storage/keys";
+import { buildInteractiveDocumentAdmissionKey, buildInteractiveDocumentAssetKey } from "@/lib/storage/keys";
+import { verifyInteractiveDocumentAdmissionReceipt } from "@/lib/materials/interactive-document-verified";
 import { productV4DocumentPairKey } from "./product-v4-document-wire";
 
 declare const __ZYX_VERIFICATION_BUILD_RUNTIME__: { fingerprint: ProductV4RuntimeFingerprint } | undefined;
@@ -46,6 +47,7 @@ function verifyDocumentBytes(spec: InteractiveDocumentSpec, kind: "document" | "
 async function readAdmittedDocumentAsset(spec: InteractiveDocumentSpec, kind: "document" | "print") {
   const { storage } = await import("@/lib/storage");
   if (!storage.download) throw new Error("INTERACTIVE_DOCUMENT_STORAGE_UNAVAILABLE");
+  verifyInteractiveDocumentAdmissionReceipt(spec, await storage.download(buildInteractiveDocumentAdmissionKey(spec.printSha256)));
   return storage.download(buildInteractiveDocumentAssetKey(kind === "document" ? spec.documentSha256 : spec.printSha256, kind));
 }
 
@@ -63,7 +65,7 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "components/course/article-parts.tsx", "components/course/math-text.tsx", "components/course/markdown-renderer.tsx",
   "lib/markdown-compiler.ts", "lib/materials/embedded-visuals.ts",
   "components/course/product-learning-visual.tsx", "components/course/epsilon-delta-board.tsx", "components/course/geometry-2d-visual.tsx", "components/course/interactive-scene-renderer.tsx", "components/course/interactive-scene-svg.tsx",
-  "components/course/interactive-document-visual.tsx", "components/course/interactive-document-context.tsx", "lib/materials/interactive-document.ts", "lib/materials/interactive-document-server.ts", "lib/materials/interactive-document-assets.ts", "lib/materials/interactive-document-authorization.ts", "lib/materials/interactive-document-grant.ts", "lib/materials/visual-payload-security.ts",
+  "components/course/interactive-document-visual.tsx", "components/course/interactive-document-context.tsx", "lib/materials/interactive-document.ts", "lib/materials/interactive-document-server.ts", "lib/materials/interactive-document-png-worker.cjs", "lib/materials/interactive-document-assets.ts", "lib/materials/interactive-document-authorization.ts", "lib/materials/interactive-document-grant.ts", "lib/materials/visual-payload-security.ts",
   "app/api/materials/interactive-document/article/route.ts", "app/api/materials/interactive-document/reveal/route.ts",
   "components/course/learning-canvas/learning-canvas-renderer.tsx", "components/ui/slider.tsx",
   "components/course/markdown/flowchart-node.tsx", "lib/flowchart.ts",
@@ -79,7 +81,7 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "lib/bundle/product-diktat-pdf.ts", "lib/bundle/product-admission.ts", "lib/bundle/product-validator.ts", "lib/bundle/product-v4-verification.ts", "lib/bundle/product-v4-verification-service.ts", "lib/bundle/product-review-gate.ts", "lib/compute/product-v4-runtime-binding.ts",
   "lib/compute/product-v4-pdf-evidence.ts", "lib/compute/product-v4-verification-executor.ts", "lib/compute/product-v4-document-wire.ts", "lib/compute/product-v4-browser-runner.ts", "lib/compute/product-v4-formative-verification.ts", "lib/materials/formative-check-answer.ts", "components/course/formative-check-endpoint-context.tsx", "lib/compute/product-v4-browser-session.ts", "lib/compute/product-v4-browser-config.ts", "scripts/authoring/verification-renderer.ts", "scripts/authoring/build-local-verification-renderer.ts", "jobs/product-verification.ts",
   "lib/materials/diktat-scene-svg.ts",
-  "lib/bundle/product-staged-worker.ts", "lib/authoring/question-visual-references.ts", "lib/authoring/question-visual-assets.ts",
+  "lib/bundle/product-staged-worker.ts", "lib/bundle/product-staging.ts", "lib/storage/keys.ts", "lib/authoring/question-visual-references.ts", "lib/authoring/question-visual-assets.ts",
   "lib/compute/product-diktat-worker-assets.ts",
   "lib/bundle/product-v4-verification-core.ts",
   "lib/bundle/product-v4-verification-worker.ts", "lib/compute/product-v4-pdf-evidence-shared.ts",
@@ -270,7 +272,7 @@ export async function readProductV4RuntimeFingerprint(): Promise<ProductV4Runtim
   }
   const [{ getStagePlaybookManifest }, { PRODUCT_DIKTAT_PRINT_PROFILE }] = await Promise.all([import("@/lib/authoring/mcp-playbook"), import("@/lib/bundle/product-diktat-pdf")]);
   const require = createRequire(import.meta.url);
-  const packages = ["pyodide", "@codemirror/state", "@codemirror/view", "@codemirror/language", "@codemirror/lang-python", "@codemirror/commands", "react", "react-dom", "next", "katex", "jsxgraph", "zod", "mathjs", "sharp", "tailwindcss", "@tailwindcss/postcss", "@playwright/test", "playwright-core"];
+  const packages = ["pyodide", "@codemirror/state", "@codemirror/view", "@codemirror/language", "@codemirror/lang-python", "@codemirror/commands", "react", "react-dom", "next", "katex", "jsxgraph", "zod", "mathjs", "sharp", "pngjs", "tailwindcss", "@tailwindcss/postcss", "@playwright/test", "playwright-core"];
   const versions = packages.map(name => [name, JSON.parse(readFileSync(runtimePackageManifest(name), "utf8")).version]);
   const katexRoot = dirname(require.resolve("katex/package.json"));
   const browsers = readFileSync(join(dirname(require.resolve("playwright-core/package.json")), "browsers.json"));

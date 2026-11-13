@@ -15,7 +15,7 @@ import { formativeCheckPayloadSchema } from "@/lib/materials/pedagogy-contract";
 import { interactiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-authorization";
 import { verifyInteractiveDocumentGrant } from "@/lib/materials/interactive-document-grant";
 import { readInteractiveDocumentAsset } from "@/lib/materials/interactive-document-assets";
-import { interactiveDocumentResponse, verifyInteractiveDocumentAsset } from "@/lib/materials/interactive-document-server";
+import { interactiveDocumentResponse, verifyAdmittedInteractiveDocumentAsset } from "@/lib/materials/interactive-document-verified";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,8 +79,8 @@ async function deliver(request: Request, head: boolean) {
     const document = bundle.files.get(`visuals/${spec.documentSha256}.html`);
     const print = bundle.files.get(`visuals/${spec.printSha256}.png`);
     if (!document || !print) return unavailable(404);
-    await verifyInteractiveDocumentAsset(spec, "document", document);
-    await verifyInteractiveDocumentAsset(spec, "print", print);
+    verifyAdmittedInteractiveDocumentAsset(spec, "document", document);
+    verifyAdmittedInteractiveDocumentAsset(spec, "print", print);
     const response = interactiveDocumentResponse(await readInteractiveDocumentAsset(spec, parsed.data.kind), parsed.data.kind);
     return head ? new Response(null, { status: response.status, headers: response.headers }) : response;
   } catch {

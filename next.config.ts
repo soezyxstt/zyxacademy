@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
   env: { NEXT_PUBLIC_V4_WEB_RUNTIME: existsSync(webRuntimePath) ? readFileSync(webRuntimePath, "utf8") : "" },
   serverExternalPackages: ["pyodide", "puppeteer", "@napi-rs/canvas", "pdfjs-dist", "pdf-parse", "pg", "drizzle-orm"],
   outputFileTracingIncludes: {
+    "/*": ["./lib/materials/interactive-document-png-worker.cjs", "./node_modules/pngjs/**"],
     "/coding/runtime-frame": ["./lib/coding/frame.html"],
     "/api/coding/**": ["./public/coding/worker.js", "./node_modules/pyodide/**"],
     "/api/**": [
@@ -28,7 +29,7 @@ const nextConfig: NextConfig = {
       "./app/globals.css", "./app/layout.tsx", "./app/authoring-verification/page.tsx",
       "./components/providers/{telemetry-boundary,posthog-provider}.tsx", "./lib/env.ts",
       "./app/api/courses/**/source-figures/**/route.ts", "./jobs/product-verification.ts", "./scripts/authoring/{verification-renderer,build-local-verification-renderer}.ts",
-      "./node_modules/{react,react-dom,next,jsxgraph,zod,mathjs,sharp,tailwindcss,playwright-core}/package.json",
+      "./node_modules/{react,react-dom,next,jsxgraph,zod,mathjs,sharp,pngjs,tailwindcss,playwright-core}/package.json",
       "./node_modules/playwright-core/browsers.json", "./node_modules/@tailwindcss/postcss/package.json", "./node_modules/@playwright/test/package.json",
       "./node_modules/jsxgraph/distrib/**",
     ],

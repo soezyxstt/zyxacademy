@@ -24,6 +24,7 @@ test("private document and binding keys never reach storage, for any session or 
     for (const key of [
       `overhaul/interactive-documents/${hash}.html`,
       `overhaul/interactive-documents/${hash}.png`,
+      `overhaul/interactive-documents/admission-v1/${hash}.json`,
       `overhaul/question-visual-bindings/${hash}.json`,
       `overhaul%2Finteractive-documents%2F${hash}.html`,
       `/api/storage/file/overhaul/interactive-documents/${hash}.html`,
