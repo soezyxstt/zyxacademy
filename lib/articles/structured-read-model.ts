@@ -19,6 +19,11 @@ import {
   type FormativeCheckKind,
 } from "@/lib/materials/pedagogy-contract";
 
+/** Keep managed visual registries out of retrieval text and its content hash. */
+export function articleIndexableMarkdown(markdown: string): string {
+  return markdown.replace(/\n*<!--__ZYX_V3_ARTICLE_VISUALS__:[A-Za-z0-9_-]+-->/g, "");
+}
+
 export interface PublicWorkedExampleStep {
   stepIndex: number;
   label: string;

@@ -12,6 +12,7 @@ import {
   BookOpen,
   UploadCloud,
   ClipboardCheck,
+  FileCheck2,
   Archive,
   Lock,
   User,
@@ -49,6 +50,12 @@ const SCOPE_DETAILS: Record<string, ScopeInfo> = {
     titleKey: "reviewTitle",
     descriptionKey: "reviewDescription",
     icon: ClipboardCheck,
+  },
+  "authoring:publish": {
+    key: "authoring:publish",
+    titleKey: "publishTitle",
+    descriptionKey: "publishDescription",
+    icon: FileCheck2,
   },
   "authoring:withdraw": {
     key: "authoring:withdraw",

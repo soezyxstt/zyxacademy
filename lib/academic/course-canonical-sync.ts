@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, or } from "drizzle-orm";
+import { and, desc, eq, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { auditMutasi, bab, chapters, courses, mataKuliah } from "@/db/schema";
+import { auditMutasi, bab, chapters, courses, knowledgeObjects, mataKuliah, vectorSyncQueue } from "@/db/schema";
+import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 import { validateCoursePricing, type CoursePricing } from "@/lib/student/course-pricing";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -377,12 +378,13 @@ export async function archiveChapterWithLegacyDeletion(
   actorId?: string | null,
   callerTx?: Tx,
 ): Promise<{ id: string; canonicalChapterId: string | null }> {
+  let dispatchCourse: string | undefined;
   const execute = async (tx: Tx) => {
     const [legacy] = await tx
       .select({ id: chapters.id, courseId: chapters.courseId })
       .from(chapters)
       .where(eq(chapters.id, legacyChapterId))
-      .limit(1);
+      .limit(1).for("update");
     if (!legacy) throw new Error("CHAPTER_NOT_FOUND");
 
     const canonical = await findCanonicalChapter(tx, legacyChapterId);
@@ -398,6 +400,16 @@ export async function archiveChapterWithLegacyDeletion(
         .set({ status: "archived", orderIndex: (latest?.orderIndex ?? 0) + 1 })
         .where(eq(bab.id, canonical.id));
     }
+    // Preserve the identity before cascade deletion clears old queue KO FKs.
+    const kos = await tx.select({ id: knowledgeObjects.id, version: knowledgeObjects.version }).from(knowledgeObjects).where(eq(knowledgeObjects.chapterId, legacyChapterId));
+    if (kos.length) dispatchCourse = legacy.courseId;
+    for (const ko of kos) {
+      await tx.update(vectorSyncQueue).set({ payload: sql`${vectorSyncQueue.payload} || jsonb_build_object('entityId', ${ko.id}::text, 'version', coalesce(${vectorSyncQueue.payload}->'version', '1'::jsonb), 'legacyKind', 'knowledge_object')` }).where(eq(vectorSyncQueue.koId, ko.id));
+      for (const version of new Set([1, ko.version])) await tx.insert(vectorSyncQueue).values({
+        id: `delete-ko-${randomUUID()}`, courseId: legacy.courseId, koId: null, namespace: "learning", action: "delete",
+        payload: { entityId: ko.id, version, legacyKind: "knowledge_object" },
+      });
+    }
     await tx.delete(chapters).where(eq(chapters.id, legacyChapterId));
     await recordAudit(tx, {
       actorId,
@@ -409,7 +421,10 @@ export async function archiveChapterWithLegacyDeletion(
     return { id: legacyChapterId, canonicalChapterId: canonical?.id ?? null };
   };
 
-  return callerTx ? execute(callerTx) : db.transaction((tx) => execute(tx));
+  if (callerTx) return execute(callerTx);
+  const result = await db.transaction(tx => execute(tx));
+  if (dispatchCourse) await dispatchVectorSync(dispatchCourse);
+  return result;
 }
 
 export async function reorderChaptersWithCanonicalProjection(

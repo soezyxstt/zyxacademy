@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { RetryAfterError } from "inngest";
 import { productBundleManifestSchema, productEntitySchema } from "@/lib/bundle/product-validator";
-import { readProductVerificationObject, createProductV4VerificationService, type ProductV4VerificationPorts, type ProductV4VerificationSnapshot } from "@/lib/bundle/product-v4-verification-service";
+import { readProductVerificationObject, createProductV4VerificationService, requestProductV4LocalAttempt, type ProductV4VerificationPorts, type ProductV4VerificationSnapshot } from "@/lib/bundle/product-v4-verification-service";
 import { buildProductVerificationKey } from "@/lib/storage/keys";
 import { assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, evaluateProductV4Verification, PRODUCT_V4_VERIFICATION_POLICY, PRODUCT_V4_VIEWPORTS, recordProductV4VerificationReport, runProductV4Verification, type ProductV4ObservedCheck, type ProductV4VerificationResult, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
 
@@ -122,7 +122,7 @@ test("executor cannot swap check identity or pass NA to remove an obligation", a
 
 function serviceFixture() {
   const objects = new Map<string, Uint8Array>();
-  const mutable: { snapshot: ProductV4VerificationSnapshot; allowAttach: boolean; executeCount: number; enqueueCount: number; mutateDuringExecution: boolean; reportedStatus: ProductV4ObservedCheck["status"]; enqueueFails: boolean; changeAttemptDuringExecution: boolean } = { snapshot: { importId: "import", checksum: hash, sourceUriOrKey: "bundle.zip", binding, bundle }, allowAttach: true, executeCount: 0, enqueueCount: 0, mutateDuringExecution: false, reportedStatus: "PASS", enqueueFails: false, changeAttemptDuringExecution: false };
+  const mutable: { snapshot: ProductV4VerificationSnapshot; allowAttach: boolean; executeCount: number; enqueueCount: number; mutateDuringExecution: boolean; reportedStatus: ProductV4ObservedCheck["status"]; enqueueFails: boolean; changeAttemptDuringExecution: boolean } = { snapshot: { importId: "import", checksum: hash, sourceUriOrKey: "bundle.zip", stagingAuditId: "stage-a", stagingRunId: "run", importState: { bundleType: "product", bundleId: "bundle", courseId: "course", version: 4, status: "draft", validationReport: {} }, binding, bundle }, allowAttach: true, executeCount: 0, enqueueCount: 0, mutateDuringExecution: false, reportedStatus: "PASS", enqueueFails: false, changeAttemptDuringExecution: false };
   const ports: ProductV4VerificationPorts = {
     async load() { return mutable.snapshot; },
     async read(key) { return objects.get(key) ?? null; },
@@ -133,6 +133,10 @@ function serviceFixture() {
       mutable.snapshot = { ...mutable.snapshot, verificationAttemptId: attemptId, verificationPlanHash: planHash };
       return true;
     },
+    async persistPdfEvidence({ plan, attemptId, receipt }) {
+      mutable.snapshot = { ...mutable.snapshot, pdfEvidenceAttachment: { planHash: plan.planHash, attemptId, receiptSignature: receipt.signature } };
+    },
+    async hasPdfEvidence() { return true; },
     async execute({ requirement }) {
       mutable.executeCount++;
       if (mutable.mutateDuringExecution) mutable.snapshot = { ...mutable.snapshot, binding: { ...binding, revision: 2 } };
@@ -143,6 +147,29 @@ function serviceFixture() {
   };
   return { service: createProductV4VerificationService(ports), mutable, objects, ports };
 }
+
+test("local attempt starts without a prior job, reuses a completed result and retries failures only on request", async () => {
+  const { service, mutable, ports } = serviceFixture();
+  mutable.snapshot = { ...mutable.snapshot, binding: { ...binding, browserProvider: "local_playwright", browserVersion: "1.2.3.4" } };
+  ports.enqueue = async () => {};
+  const scope = { importId: "import", runId: "run", expectedChecksum: hash };
+  await expect(requestProductV4LocalAttempt(service, { ...scope, expectedChecksum: "b".repeat(64) })).rejects.toThrow("EXACT_DRAFT_REQUIRED");
+  const first = await requestProductV4LocalAttempt(service, scope);
+  expect(first.state.status).toBe("pending");
+  expect(mutable.enqueueCount).toBe(0);
+  expect((await requestProductV4LocalAttempt(service, scope)).attemptId).toBe(first.attemptId);
+  mutable.reportedStatus = "FAIL";
+  const failed = await service.process({ importId: scope.importId, runId: scope.runId, planHash: first.plan.planHash, attemptId: first.attemptId });
+  expect(failed.evaluation.ready).toBe(false);
+  expect((await requestProductV4LocalAttempt(service, scope)).attemptId).toBe(first.attemptId);
+  const retried = await requestProductV4LocalAttempt(service, { ...scope, retry: true });
+  expect(retried.attemptId).not.toBe(first.attemptId);
+  mutable.reportedStatus = "PASS";
+  const completed = await service.process({ importId: scope.importId, runId: scope.runId, planHash: retried.plan.planHash, attemptId: retried.attemptId });
+  expect(completed.evaluation.ready).toBe(true);
+  expect((await requestProductV4LocalAttempt(service, { ...scope, retry: true })).attemptId).toBe(retried.attemptId);
+  expect(mutable.enqueueCount).toBe(0);
+});
 
 test("persisted job only becomes ready after actual execution and intact artifact readback", async () => {
   const { service, mutable, objects } = serviceFixture();
@@ -162,7 +189,63 @@ test("persisted job only becomes ready after actual execution and intact artifac
   expect(mutable.executeCount).toBe(8);
   const artifact = result.receipt.results[0].artifacts[0];
   objects.set(buildProductVerificationKey(input.planHash, artifact.id), new TextEncoder().encode("changed bytes"));
-  await expect(service.get(input)).rejects.toThrow("ARTIFACT_MISSING_OR_CHANGED");
+  expect(await service.get(input)).toMatchObject({ state: { status: "failed", failureCode: "PRODUCT_V4_VERIFICATION_ARTIFACT_MISSING_OR_CHANGED" }, evaluation: { ready: false } });
+});
+
+for (const local of [false, true]) test(`${local ? "local" : "hosted"} artifact damage is retryable within the current run without swallowing storage errors`, async () => {
+  const { service, mutable, objects, ports } = serviceFixture();
+  if (local) mutable.snapshot = { ...mutable.snapshot, binding: { ...binding, browserProvider: "local_playwright", browserVersion: "1.2.3.4" } };
+  const scope = { importId: "import", runId: "run", expectedChecksum: hash };
+  const request = (retry = false) => local ? requestProductV4LocalAttempt(service, { ...scope, retry }) : service.request({ importId: scope.importId, runId: scope.runId, retry });
+  for (const missing of [true, false]) {
+    const started = await request();
+    const completed = await service.process({ importId: scope.importId, runId: scope.runId, planHash: started.plan.planHash, attemptId: started.attemptId });
+    const key = buildProductVerificationKey(completed.plan.planHash, completed.receipt.results[0].artifacts[0].id);
+    if (missing) objects.delete(key); else objects.set(key, new Uint8Array([0]));
+    expect((await service.readiness(scope.importId, scope.runId)).state.status).toBe("failed");
+    const read = ports.read;
+    const failure = new Error("STORAGE_DENIED");
+    ports.read = async selected => { if (selected === key) throw failure; return read(selected); };
+    await expect(request(true)).rejects.toBe(failure);
+    ports.read = read;
+    const retried = await request(true);
+    expect(retried.attemptId).not.toBe(started.attemptId);
+    expect(retried.stagingAuditId).toBe("stage-a");
+    expect((await service.process({ importId: scope.importId, runId: scope.runId, planHash: retried.plan.planHash, attemptId: retried.attemptId })).evaluation.ready).toBe(true);
+  }
+});
+
+test("scoped MCP retry replaces a damaged completed attempt in the same bound run", async () => {
+  const [{ McpServer }, { Client }, { InMemoryTransport }, { registerProductV4Tools }, { issueMcpBootstrapToken, readMcpRunToken }, { issueBoundMcpRunToken }] = await Promise.all([
+    import("@modelcontextprotocol/sdk/server/mcp.js"), import("@modelcontextprotocol/sdk/client/index.js"), import("@modelcontextprotocol/sdk/inMemory.js"), import("@/lib/authoring/mcp-v4-tools"), import("@/lib/authoring/mcp-workflows"), import("../helpers/mcp-run"),
+  ]);
+  const bootstrapToken = issueMcpBootstrapToken({ actorId: "actor", sessionId: "session", stage: "product", clientCapabilities: { independentSubagents: true, localArtifactFiles: true, pdfRendering: true } });
+  const runToken = issueBoundMcpRunToken({ workflow: "idea_product", courseId: "course", chapterId: "chapter" }, bootstrapToken);
+  const runId = readMcpRunToken(runToken).runId;
+  const { service, mutable, objects } = serviceFixture();
+  mutable.snapshot = { ...mutable.snapshot, stagingRunId: runId, binding: { ...binding, runId } };
+  const server = new McpServer({ name: "artifact-recovery", version: "1" });
+  registerProductV4Tools(server, { actorId: "actor", userId: "actor", sessionId: "session", authMethod: "session", scopes: ["authoring:read", "authoring:stage"] }, {
+    getImport: async () => ({ courseId: "course" }) as never, courseAliases: async () => new Set(["course"]), assertStagingScope: async () => {},
+    readiness: (id, run) => service.readiness(id, run), request: input => service.request(input),
+  });
+  const client = new Client({ name: "artifact-recovery", version: "1" });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  try {
+    for (const missing of ["artifact", "manifest", "state"]) {
+    const started = await service.request({ importId: "import", runId });
+    const completed = await service.process({ importId: "import", runId, planHash: started.plan.planHash, attemptId: started.attemptId });
+    objects.delete(buildProductVerificationKey(completed.plan.planHash, missing === "artifact" ? completed.receipt.results[0].artifacts[0].id : `${missing}-${completed.attemptId}.json`));
+    const response = await client.callTool({ name: "authoring.verify_product_bundle", arguments: { runToken, bootstrapToken, importId: "import", expectedContentHash: completed.plan.contentHash, retry: true } });
+    expect(response.isError).toBeUndefined();
+    const result = response.structuredContent as { ok: boolean; result: { attemptId: string; state: { status: string } } };
+    expect(result.ok).toBe(true);
+    expect(result.result.attemptId).not.toBe(completed.attemptId);
+    expect(result.result.state.status).toBe("pending");
+    expect(mutable.snapshot.stagingRunId).toBe(runId);
+    }
+  } finally { await client.close(); await server.close(); }
 });
 
 test("verification reads directly and only treats storage not-found errors as absent", async () => {
@@ -185,7 +268,53 @@ test("transient missing state retries without inventing an expired lease, persis
   const input = { importId: "import", runId: "run", planHash: requested.jobId };
   expect((await service.get(input)).state.status).toBe("pending");
   ports.read = async key => key.includes("/state-") ? null : read(key);
-  await expect(service.get(input)).rejects.toThrow("PRODUCT_V4_VERIFICATION_STATE_MISSING");
+  expect(await service.get(input)).toMatchObject({ state: { status: "failed", failureCode: "PRODUCT_V4_VERIFICATION_METADATA_MISSING" }, evaluation: { ready: false } });
+});
+
+for (const local of [false, true]) for (const missing of ["manifest", "state", "both"]) test(`${local ? "local" : "hosted"} explicit retry recovers absent ${missing} metadata in the same staging identity`, async () => {
+  const { service, mutable, objects, ports } = serviceFixture();
+  if (local) mutable.snapshot = { ...mutable.snapshot, binding: { ...binding, browserProvider: "local_playwright", browserVersion: "1.2.3.4" } };
+  const scope = { importId: "import", runId: "run", expectedChecksum: hash };
+  const request = (retry = false) => local ? requestProductV4LocalAttempt(service, { ...scope, retry }) : service.request({ importId: scope.importId, runId: scope.runId, retry });
+  const started = await request();
+  for (const part of ["manifest", "state"]) if (missing === part || missing === "both") objects.delete(buildProductVerificationKey(started.plan.planHash, `${part}-${started.attemptId}.json`));
+  expect(await service.readiness(scope.importId, scope.runId)).toMatchObject({ state: { status: "failed", failureCode: "PRODUCT_V4_VERIFICATION_METADATA_MISSING" }, evaluation: { ready: false } });
+  expect((await request()).attemptId).toBe(started.attemptId);
+  const read = ports.read;
+  ports.read = async key => { if (key.includes(`${missing === "state" ? "state" : "manifest"}-${started.attemptId}`)) throw new Error("STORAGE_OFFLINE"); return read(key); };
+  await expect(request(true)).rejects.toThrow("STORAGE_OFFLINE");
+  ports.read = read;
+  const retried = await request(true);
+  expect(retried.attemptId).not.toBe(started.attemptId);
+  expect(retried.stagingAuditId).toBe("stage-a");
+  expect((await service.process({ importId: scope.importId, runId: scope.runId, planHash: retried.plan.planHash, attemptId: retried.attemptId })).evaluation.ready).toBe(true);
+});
+
+test("invalid metadata can be explicitly replaced, while valid foreign identities remain conflicts", async () => {
+  for (const part of ["manifest", "state", "receipt"]) {
+    const { service, objects } = serviceFixture();
+    const started = await service.request({ importId: "import", runId: "run" });
+    await service.process({ importId: "import", runId: "run", planHash: started.plan.planHash, attemptId: started.attemptId });
+    objects.set(buildProductVerificationKey(started.plan.planHash, `${part}-${started.attemptId}.json`), new TextEncoder().encode("invalid JSON"));
+    expect(await service.readiness("import", "run")).toMatchObject({ state: { status: "failed", failureCode: "PRODUCT_V4_VERIFICATION_METADATA_INVALID" }, evaluation: { ready: false } });
+    expect((await service.request({ importId: "import", runId: "run", retry: true })).attemptId).not.toBe(started.attemptId);
+  }
+  const { service, objects } = serviceFixture();
+  const started = await service.request({ importId: "import", runId: "run" });
+  const key = buildProductVerificationKey(started.plan.planHash, `manifest-${started.attemptId}.json`);
+  const job = JSON.parse(new TextDecoder().decode(objects.get(key)));
+  objects.set(key, new TextEncoder().encode(JSON.stringify({ ...job, runId: "foreign-run" })));
+  await expect(service.request({ importId: "import", runId: "run", retry: true })).rejects.toThrow("SCOPE_MISMATCH");
+  objects.set(key, new TextEncoder().encode(JSON.stringify(job)));
+  const stateKey = buildProductVerificationKey(started.plan.planHash, `state-${started.attemptId}.json`);
+  objects.set(stateKey, new TextEncoder().encode(JSON.stringify({ attemptId: "00000000-0000-4000-8000-000000000099", status: "pending" })));
+  await expect(service.request({ importId: "import", runId: "run", retry: true })).rejects.toThrow("ATTEMPT_STALE");
+  const transport = serviceFixture();
+  const pending = await transport.service.request({ importId: "import", runId: "run" });
+  const failure = new SyntaxError("Provider response could not be decoded");
+  transport.ports.read = async () => { throw failure; };
+  await expect(transport.service.request({ importId: "import", runId: "run", retry: true })).rejects.toBe(failure);
+  expect(transport.mutable.snapshot.verificationAttemptId).toBe(pending.attemptId);
 });
 
 test("interrupted verification resumes memoized checks and reports bounded progress", async () => {
@@ -407,4 +536,36 @@ test("Steel capacity backoff preserves provider category and never produces a re
   expect(waiting.state.retryAt).toBeGreaterThan(Date.now());
   expect(waiting.receipt).toBeNull();
   expect(waiting.evaluation.ready).toBe(false);
+});
+
+
+test("verification cannot complete while PDF attachment is pending or fails", async () => {
+  const { service, ports, mutable } = serviceFixture();
+  const requested = await service.request({ importId: "import", runId: "run" });
+  const input = { importId: "import", runId: "run", planHash: requested.plan.planHash, attemptId: requested.attemptId };
+  const attach = ports.persistPdfEvidence;
+  ports.persistPdfEvidence = async args => {
+    const during = await service.get({ importId: input.importId, runId: input.runId, planHash: input.planHash });
+    expect(during.state.status).not.toBe("complete");
+    expect(during.evaluation.ready).toBe(false);
+    await attach(args);
+  };
+  const complete = await service.process(input);
+  expect(complete.evaluation.ready).toBe(true);
+  ports.hasPdfEvidence = async () => false;
+  expect((await service.get({ importId: input.importId, runId: input.runId, planHash: input.planHash })).evaluation.ready).toBe(false);
+  ports.hasPdfEvidence = async () => true;
+  mutable.snapshot = { ...mutable.snapshot, pdfEvidenceAttachment: undefined };
+  expect((await service.get({ importId: input.importId, runId: input.runId, planHash: input.planHash })).evaluation.ready).toBe(false);
+  expect((await service.get({ importId: input.importId, runId: input.runId, planHash: input.planHash })).state.failureCode).toBe("PRODUCT_V4_PDF_EVIDENCE_REQUIRED");
+
+  const failed = serviceFixture();
+  const next = await failed.service.request({ importId: "import", runId: "run" });
+  failed.ports.persistPdfEvidence = async () => { throw new Error("PDF_ATTACHMENT_FAILED"); };
+  const nextInput = { importId: "import", runId: "run", planHash: next.plan.planHash, attemptId: next.attemptId };
+  await expect(failed.service.process(nextInput)).rejects.toThrow("PDF_ATTACHMENT_FAILED");
+  const result = await failed.service.get({ importId: nextInput.importId, runId: nextInput.runId, planHash: nextInput.planHash });
+  expect(result.state.status).toBe("failed");
+  expect(result.state.failureCode).toBe("PRODUCT_V4_PDF_EVIDENCE_PERSIST_FAILED");
+  expect(result.evaluation.ready).toBe(false);
 });

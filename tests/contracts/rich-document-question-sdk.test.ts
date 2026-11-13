@@ -5,6 +5,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 
 process.env.BETTER_AUTH_SECRET = "local-test-secret-at-least-thirty-two-characters";
 mock.module("server-only", () => ({}));
+mock.module("@/lib/vector-sync-dispatch", () => ({ dispatchVectorSync: () => {} }));
 const objects = new Map<string, Uint8Array>();
 mock.module("@/lib/storage", () => ({ storage: {
   exists: async (key: string) => objects.has(key),
@@ -28,6 +29,7 @@ function selected(table: unknown) {
   if (table === schema.bab) return [chapter];
   if (table === schema.ide) return [idea];
   if (table === schema.pengguna) return [{ id: "admin", status: "active" }];
+  if (table === schema.pembahasanSoal) return [];
   if (table === schema.soal) return currentId && canonical.has(currentId) ? [canonical.get(currentId)] : [];
   if (table === schema.aiQuestionBank) return currentId && projections.has(currentId) ? [projections.get(currentId)] : [];
   throw new Error("UNEXPECTED_DB_SELECT");

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentProps } from "react";
-import { ArticleCodeExample, ArticleCodingExercise, ArticleMarkdownScope } from "@/components/coding/article-coding";
+import { ArticleCodeExample, ArticleCodingExercise, ArticleMarkdownScope, type StaticCodeLabels } from "@/components/coding/article-coding";
 import { articleCaseLatex, type ArticlePart } from "@/lib/materials/article-parts";
 import type { PublicVisualSpec } from "@/lib/articles/structured-read-model";
 import { MathText } from "@/components/course/math-text";
@@ -17,16 +17,18 @@ export function ArticleParts({
   parts,
   visuals = [],
   density,
+  staticCodeLabels,
 }: {
   parts: ArticlePart[];
   visuals?: PublicVisualSpec[];
   density?: MarkdownDensity;
+  staticCodeLabels?: StaticCodeLabels;
 }) {
   return (
     <div className="w-full min-w-0 max-w-full space-y-5" data-article-parts>
       {parts.map((part) => {
         const renderPart = () => {
-        if (part.kind === "code_example") return <div key={part.id} id={part.id} data-part-id={part.id} data-part-kind="code_example"><ArticleCodeExample part={part} /></div>;
+        if (part.kind === "code_example") return <div key={part.id} id={part.id} data-part-id={part.id} data-part-kind="code_example"><ArticleCodeExample part={part} staticCodeLabels={staticCodeLabels} /></div>;
         if (part.kind === "coding_exercise") return <div key={part.id} id={part.id} data-part-id={part.id} data-part-kind="coding_exercise"><ArticleCodingExercise part={part} /></div>;
         if (part.kind === "markdown") return <div key={part.id} id={part.id} data-part-id={part.id}><InteractiveDocumentArticleLocation partId={part.id} field="markdown"><ScopedMarkdown scope="markdown" content={part.markdown} density={density} /></InteractiveDocumentArticleLocation></div>;
         if (part.kind === "worked_example") return (
@@ -36,7 +38,7 @@ export function ArticleParts({
             <ol className="space-y-6">
               {part.steps.map((step, index) => <li key={step.id} id={step.id} data-step-id={step.id} className="min-w-0 max-w-full space-y-3 border-l-2 border-primary/40 pl-4">
                 <div className="flex items-baseline gap-2"><span className="text-body-sm text-muted-foreground">{index + 1}.</span><ScopedMarkdown scope={`step:${step.id}:operation`} content={step.operationMarkdown} density={density} /></div>
-                <ArticleMarkdownScope id={`step:${step.id}`}><ArticleParts parts={step.parts} visuals={visuals} density={density} /></ArticleMarkdownScope>
+                <ArticleMarkdownScope id={`step:${step.id}`}><ArticleParts parts={step.parts} visuals={visuals} density={density} staticCodeLabels={staticCodeLabels} /></ArticleMarkdownScope>
                 <ScopedMarkdown scope={`step:${step.id}:reason`} content={step.reasonMarkdown} density={density} />
                 {step.conditionsMarkdown ? <ScopedMarkdown scope={`step:${step.id}:conditions`} content={step.conditionsMarkdown} density={density} /> : null}
               </li>)}

@@ -67,6 +67,23 @@ const studyRequest = {
 };
 
 describe("Plan 013 Zyra canonical runtime", () => {
+  it("withholds raw or repeatedly encoded historical Article formative payloads from tutor hydration", () => {
+    const article = candidate({ namespace: "published_articles", entityType: "article", entityId: "article-1" });
+    let content = JSON.stringify({ content: "Prompt", formativeCheckPayload: { answer: "private" } });
+    for (let depth = 0; depth < 4; depth++) {
+      const result = hydrateCanonicalCandidates([article], [record({ namespace: "published_articles", entityType: "article", entityId: "article-1", content })], studyRequest);
+      expect(result.sources).toHaveLength(0);
+      expect(result.rejected[0]?.reasonCode).toBe("PRIVATE_ARTICLE_PAYLOAD");
+      content = JSON.stringify(content);
+    }
+    expect(hydrateCanonicalCandidates([article], [record({ namespace: "published_articles", entityType: "article", entityId: "article-1", content: "Prompt dan pilihan publik" })], studyRequest).sources).toHaveLength(1);
+    const mixed = hydrateCanonicalCandidates([article], [record({ namespace: "published_articles", entityType: "article", entityId: "article-1", content: 'Intro\n{"content":"Question","answer":"private","isCorrect":true}' })], studyRequest);
+    expect(mixed.sources).toHaveLength(0);
+    expect(mixed.rejected[0]?.reasonCode).toBe("PRIVATE_ARTICLE_PAYLOAD");
+    const ordinary = hydrateCanonicalCandidates([article], [record({ namespace: "published_articles", entityType: "article", entityId: "article-1", content: 'Kolom "content": isi pesan' })], studyRequest);
+    expect(ordinary.sources).toHaveLength(1);
+  });
+
   it("hydrates only the current, course-scoped canonical row", () => {
     const result = hydrateCanonicalCandidates([candidate()], [record()], studyRequest);
 

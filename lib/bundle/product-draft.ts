@@ -41,6 +41,9 @@ function mergeProduct(original: ProductEntity, submitted: ProductEntity): Produc
   if (original.productType !== submitted.productType) throw new Error("PRODUCT_DRAFT_IDENTITY_CHANGED");
   const common = { ...original, ideaLinks: mergeIdeaLinks(original, submitted) };
   switch (original.productType) {
+    case "solution_collection":
+      if (submitted.productType !== "solution_collection") throw new Error("PRODUCT_DRAFT_IDENTITY_CHANGED");
+      return productEntitySchema.parse({ ...common, title: submitted.collection.title, collection: submitted.collection });
     case "article": {
       if (submitted.productType !== "article") throw new Error("PRODUCT_DRAFT_IDENTITY_CHANGED");
       const isV2 = original.blocks.length > 0 && original.sections.length === 0;

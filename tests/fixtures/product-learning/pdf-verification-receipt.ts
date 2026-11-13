@@ -13,7 +13,7 @@ export async function fixture() {
   const binding = { importId: "import", courseId: "course", runId: "run", revision: 1, rendererChecksum: hash, dependencyChecksum: hash, contractChecksum: hash, playbookChecksum: hash, fontChecksum: hash, assetChecksum: hash, printProfile: PRODUCT_DIKTAT_PRINT_PROFILE, policyRevision: "v1" };
   const bundle = { manifest, products: [article, diktat], dependencies: [] };
   const plan = deriveProductV4VerificationPlan({ bundle, binding });
-  const snapshot: ProductV4VerificationSnapshot = { importId: "import", checksum: hash, sourceUriOrKey: "bundle.zip", bundle, binding, verificationAttemptId: attemptId, verificationPlanHash: plan.planHash };
+  const snapshot: ProductV4VerificationSnapshot = { importId: "import", checksum: hash, sourceUriOrKey: "bundle.zip", stagingAuditId: "stage-a", stagingRunId: "run", importState: { bundleType: "product", bundleId: "bundle", courseId: "course", version: 4, status: "draft", validationReport: {} }, bundle, binding, verificationAttemptId: attemptId, verificationPlanHash: plan.planHash };
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
   const artifactBytes = new Map<string, Uint8Array>();
   const checks: ProductV4ObservedCheck[] = [];

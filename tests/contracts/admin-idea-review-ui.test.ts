@@ -38,10 +38,28 @@ describe("Admin Idea review workspace contract", () => {
     const withdrawRoute = source("app/api/admin/bundles/idea/[id]/withdraw/route.ts");
     expect(detailRoute).toContain("export async function DELETE");
     expect(detailRoute).toContain("discardIdeaBundleDraft");
+    expect(detailRoute).toContain("expectedRevision: body.expectedRevision");
+    expect(source("app/api/admin/bundles/[kind]/[id]/item-reviews/route.ts")).toContain("expectedRevision: parsed.data.expectedRevision");
     expect(withdrawRoute).toContain("withdrawIdeaBundle");
     expect(detailRoute.slice(detailRoute.indexOf("export async function DELETE"))).toContain("await assertAdmin()");
     expect(withdrawRoute).toContain("await assertAdmin()");
     expect(withdrawRoute).not.toContain('session.user.role !== "admin"');
+  });
+
+  test("Idea review and publish use the displayed revision and require item decisions", () => {
+    const detail = source("components/admin/material-review-detail.tsx").split("const blockReviewTones")[0];
+    const oldPanel = source("components/admin/idea-bundle-v2-panel.tsx");
+    const reviewRoute = source("app/api/admin/bundles/idea/[id]/review/route.ts");
+    const publishRoute = source("app/api/admin/bundles/idea/[id]/publish/route.ts");
+    expect(detail).toContain('JSON.stringify({ decision, notes: reviewNote || undefined, expectedRevision: payload.bundle.checksum })');
+    expect(detail).toContain('JSON.stringify({ expectedRevision: payload.bundle.checksum })');
+    expect(detail).toContain('disabled={saving || editing || hasUnsavedItemNotes || !allIdeasApproved}');
+    expect(detail).toContain('disabled={saving || editing || hasUnsavedItemNotes || !allIdeasReviewed}');
+    expect(oldPanel).toContain('/admin/materials/review/idea/${encodeURIComponent(selected.id)}');
+    expect(oldPanel).not.toContain('/publish`');
+    expect(oldPanel).not.toContain('/review`');
+    expect(reviewRoute).toContain('expectedRevision: z.string().regex(/^[a-f0-9]{64}$/),');
+    expect(publishRoute).toContain('expectedRevision: parsed.data.expectedRevision');
   });
 
   test("Idea lifecycle services retire published entities and remove draft records", () => {
@@ -51,14 +69,14 @@ describe("Admin Idea review workspace contract", () => {
     expect(publication).toContain('set({ status: "withdrawn", updatedAt: now })');
     expect(publication).toContain('action: "delete" as const');
     expect(publication).toContain('action: "withdrawn"');
-    expect(publication).toContain("hasAdminAuthorization(input.withdrawnBy, actor.role)");
+    expect(publication).toContain("assertAuthoringActor(tx, input.withdrawnBy");
     expect(staging).toContain("export async function discardIdeaBundleDraft");
-    expect(staging).toContain("hasAdminAuthorization(input.actorId, actor.role)");
-    expect(staging).toContain('set({ status: "discarding"');
-    expect(staging).toContain("await deleteArtifact(prepared.sourceUriOrKey, true)");
+    expect(staging).toContain("assertAuthoringActor(tx, input.actorId");
+    expect(staging).toContain('.for("update")');
+    expect(staging).not.toContain("await deleteArtifact(");
     expect(staging).toContain("tx.delete(reviewItemBundle)");
     expect(staging).toContain("tx.delete(imporBundle)");
-    expect(staging.indexOf("await deleteArtifact(prepared.sourceUriOrKey, true)")).toBeLessThan(staging.indexOf("tx.delete(imporBundle)", staging.indexOf("export async function discardIdeaBundleDraft")));
+    expect(staging.slice(staging.indexOf("export async function discardIdeaBundleDraft"))).toContain("return db.transaction");
     expect(source("db/schema.ts")).toContain('"withdrawn" | "discarding"');
   });
 });

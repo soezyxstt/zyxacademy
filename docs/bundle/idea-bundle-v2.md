@@ -47,13 +47,13 @@ Unknown manifest fields fail closed. The bundle checksum is deterministic over t
 1. An admin uploads a ZIP through `/api/admin/bundles/idea` with preview intent. The API validates the ZIP and returns an editable projection without writing R2, `impor_bundle`, `item_impor_bundle`, or canonical rows.
 2. The admin reviews and edits Idea content, classification, provenance notes, and relation meaning. Stable IDs, course and chapter identity, source bytes, chunks, offsets, checksums, attribution, versions, and lifecycle state cannot be changed through the draft contract.
 3. Explicit staging resubmits the original ZIP and draft. The server performs an allowlist merge, recomputes Idea semantic and generation hashes plus all entity and bundle checksums, repeats full validation, then records the final ZIP and inventory. An identical `bundleId` and checksum returns the existing import without new rows. A reused `bundleId` with a different checksum is blocked as `IDEA_BUNDLE_CONFLICT`.
-4. A tutor may review an import only when assigned to its course. An admin may approve or reject. Review decisions are immutable and audited.
-5. Only an admin can publish an approved import. Publication resolves legacy course and chapter identities, writes all source, chunk, Idea, provenance, and relation rows in one Turso transaction, and records `publikasi_bundle` plus mutation audits.
+4. A tutor may review an import only when assigned to its course. The reviewer records an explicit decision for every Idea on the displayed checksum before submitting an immutable bundle decision. Approval requires every Idea to be approved. A replaced draft clears item decisions.
+5. Only the admin who approved the current revision with complete item evidence can publish it. Review and publication require the caller's observed checksum and reject a stale or missing value. Publication resolves legacy course and chapter identities, writes all source, chunk, Idea, provenance, and relation rows in one PostgreSQL transaction, and records `publikasi_bundle` plus mutation audits.
 6. Vector work is inserted into `vector_sync_queue` as deterministic, conflict-safe outbox jobs for embedding-eligible source chunks and published Ideas. Source chunks use `source_materials` and Ideas use `canonical_ideas`; each job carries the content needed to build the canonical provider-neutral payload. No partial publication is visible after a transaction failure.
 
 The review inventory lives at `/admin/materials/review?section=idea` (the legacy `/admin/bundles/idea` route redirects there). Published evidence is never deleted as a rollback mechanism.
 
-The panel loads the immutable staged ZIP for review and displays every Idea, source excerpt, provenance role, relation, and AI generation label before approval or publication controls are available. External agents may use `$UPLOADER` for creator fields and `$APPROVING_REVIEWER` for curator fields; the values are resolved to real accountable identities only at publication.
+The detailed review loads the staged ZIP and displays each Idea and its source evidence. The legacy panel links to that review to collect individual decisions. External agents may use `$UPLOADER` for creator fields and `$APPROVING_REVIEWER` for curator fields; the values are resolved to real accountable identities only at publication.
 
 ## Staging evidence
 

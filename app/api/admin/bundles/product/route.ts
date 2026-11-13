@@ -1,3 +1,4 @@
+import { hasAuthoringActor } from "@/lib/auth/authoring-actor";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
@@ -18,7 +19,8 @@ function errorResponse(error: unknown, fallback = "PRODUCT_BUNDLE_REQUEST_FAILED
 
 async function requireAdmin(): Promise<{ id: string } | NextResponse> {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user || session.user.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await hasAuthoringActor(session.user.id, ["admin"]))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   return { id: session.user.id };
 }
 
@@ -85,6 +87,7 @@ export async function POST(request: NextRequest) {
       requestedBy: actor.id,
       bundle,
       filename: file.name || "product-bundle-v2.zip",
+      expectedPreviousChecksum: typeof form.get("expectedRevision") === "string" ? String(form.get("expectedRevision")) : undefined,
     });
     return NextResponse.json({ result }, { status: result.created ? 201 : 200 });
   } catch (error) {

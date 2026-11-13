@@ -1,4 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { createPostgresTestDb } from "../helpers/postgres";
+import { user } from "@/db/schema";
+import { describe, it, expect, beforeEach, afterEach, afterAll, mock } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -36,6 +38,13 @@ import { FakeCanonicalVectorProvider } from "@/lib/vectorize/fake-adapter";
 import { CANONICAL_VECTOR_PROFILE } from "@/lib/vectorize/contracts";
 import type { CanonicalContentV2EmbeddingAdapter } from "@/lib/vectorize/embedding";
 import type { AdminKnowledgeChunk, AdminKnowledgeSourceRecord } from "@/lib/admin-ops-ai/admin-knowledge-contracts";
+
+// Keep database-read tools isolated from deployment credentials and exercise
+// their PII projection against a nonempty canonical test result.
+const { client, testDb } = await createPostgresTestDb();
+mock.module("@/db", () => ({ db: testDb }));
+await testDb.insert(user).values({ id: "runtime-admin", name: "admin_test", email: "runtime-admin@example.test", role: "admin" });
+afterAll(async () => { await client.close(); });
 
 // ============================================================================
 // Test Utilities & Helpers
@@ -454,6 +463,7 @@ describe("Admin Ops AI Runtime - CP3 Native Streaming Agent & Contracts", () => 
       expect(Array.isArray(searchRes.data)).toBe(true);
 
       const users = searchRes.data as Array<Record<string, unknown>>;
+      expect(users).toHaveLength(1);
       for (const u of users) {
         expect(u.id).toBeDefined();
         expect(u.name).toBeDefined();
@@ -614,10 +624,12 @@ describe("Admin Ops AI Runtime - CP3 Native Streaming Agent & Contracts", () => 
       expect(resPercent).toBeDefined();
       expect(resPercent.summary).toBeDefined();
       expect(Array.isArray(resPercent.data)).toBe(true);
+      expect(resPercent.data).toEqual([]);
 
       const resUnderscore = await executeOpsAiTool("search_users", { query: "admin_test" });
       expect(resUnderscore).toBeDefined();
       expect(Array.isArray(resUnderscore.data)).toBe(true);
+      expect(resUnderscore.data).toHaveLength(1);
     });
 
     it("rejects immediately when abortSignal is already aborted before model request", async () => {

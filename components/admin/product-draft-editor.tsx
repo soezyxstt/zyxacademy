@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +21,9 @@ function productTitle(product: ProductEntity) {
 
 export function ProductDraftEditor({ product, index, preview, onChange }: { product: ProductEntity; index: number; preview?: ProductPreview; onChange: (product: ProductEntity) => void }) {
   const t = useTranslations("adminAcademic");
+  const fieldId = useId();
+  const blockT = useTranslations("adminReviewProduct");
+  const blockLabel = (type: string) => ["prior_knowledge_activation", "problem_introduction", "explanation", "verbal_representation", "mathematical_representation", "worked_example", "misconception", "application", "cross_idea_synthesis", "summary"].includes(type) ? blockT(`blockTypes.${type}.label`) : t("editor.articleSections");
   const humanProductLabel = (value: string) => t(`editor.productTypes.${value}`);
   const difficultyLabels = { easy: t("editor.difficulty.easy"), medium: t("editor.difficulty.medium"), hard: t("editor.difficulty.hard") };
   const cognitiveLabels = { remember: t("editor.cognitive.remember"), understand: t("editor.cognitive.understand"), apply: t("editor.cognitive.apply"), analyze: t("editor.cognitive.analyze"), evaluate: t("editor.cognitive.evaluate"), create: t("editor.cognitive.create") };
@@ -57,8 +62,8 @@ export function ProductDraftEditor({ product, index, preview, onChange }: { prod
       </div>
 
       {product.productType === "article" && <div className="space-y-4">
-        <div className="grid gap-4 lg:grid-cols-2"><div className="space-y-2"><Label>{t("editor.articleTitle")}</Label><Input value={product.title} onChange={(event) => onChange({ ...product, title: event.target.value })} /></div><div className="space-y-2"><Label>{t("editor.slug")}</Label><Input value={product.slug} onChange={(event) => onChange({ ...product, slug: event.target.value })} /></div></div>
-        <div className="space-y-4"><p className="text-body-sm font-semibold text-foreground">{t("editor.articleSections")}</p>{[...product.blocks].sort((left, right) => left.orderIndex - right.orderIndex).map((block) => <div key={block.id} className="space-y-2 border-l-2 border-primary pl-3"><Label>{block.orderIndex + 1}. {block.blockType.replaceAll("_", " ")}</Label><Textarea value={block.content} onChange={(event) => onChange({ ...product, blocks: product.blocks.map((item) => item.id === block.id ? { ...item, content: event.target.value } : item) })} className="min-h-28" /><div className="rounded-lg bg-muted p-3 text-body-sm"><MarkdownRenderer content={block.content} /></div></div>)}</div>
+        <div className="grid gap-4 lg:grid-cols-2"><div className="space-y-2"><Label htmlFor={`${fieldId}-title`}>{t("editor.articleTitle")}</Label><Input id={`${fieldId}-title`} value={product.title} onChange={(event) => onChange({ ...product, title: event.target.value })} /></div><div className="space-y-2"><Label htmlFor={`${fieldId}-slug`}>{t("editor.slug")}</Label><Input id={`${fieldId}-slug`} value={product.slug} onChange={(event) => onChange({ ...product, slug: event.target.value })} /></div></div>
+        <div className="space-y-4"><p className="text-body-sm font-semibold text-foreground">{t("editor.articleSections")}</p>{[...product.blocks].sort((left, right) => left.orderIndex - right.orderIndex).map((block) => <div key={block.id} className="space-y-2 border-l-2 border-primary pl-3"><Label>{block.orderIndex + 1}. {blockLabel(block.blockType)}</Label><Textarea value={block.content} onChange={(event) => onChange({ ...product, blocks: product.blocks.map((item) => item.id === block.id ? { ...item, content: event.target.value } : item) })} className="min-h-28" /><div className="rounded-lg bg-muted p-3 text-body-sm"><MarkdownRenderer content={block.content} /></div></div>)}</div>
       </div>}
 
       {product.productType === "diktat" && <div className="space-y-4"><div className="space-y-2"><Label>{t("editor.diktatTitle")}</Label><Input value={product.title} onChange={(event) => onChange({ ...product, title: event.target.value })} /></div><div className="space-y-2"><Label>{t("editor.diktatContent")}</Label><Textarea value={product.contentMarkdown} onChange={(event) => onChange({ ...product, contentMarkdown: event.target.value })} className="min-h-72 font-mono" /></div><div className="space-y-2 rounded-lg bg-muted p-4"><p className="text-body-sm font-semibold text-foreground">{t("editor.diktatPreview")}</p><MarkdownRenderer content={product.contentMarkdown} className="text-body-sm text-foreground" /></div><p className="text-body-sm text-muted-foreground">{t("editor.articleDerived")}</p></div>}

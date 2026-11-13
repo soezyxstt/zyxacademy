@@ -9,6 +9,7 @@ import {
   peran,
 } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards";
+import { lockAuthoringIdentityChange } from "@/lib/auth/authoring-actor";
 import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import {
   PERAN_CODES,
@@ -136,6 +137,7 @@ export async function updateUserRolesAction(
 
   try {
     await db.transaction(async (tx) => {
+      if (!(await lockAuthoringIdentityChange(tx, targetUserId))) throw new Error("Pengguna tidak ditemukan.");
       // Ensure seed roles exist
       for (const seed of PERAN_SEEDS) {
         const existing = await tx

@@ -10,7 +10,7 @@ export const productDiktatPdfWorker = inngest.createFunction(
     concurrency: { limit: 2 },
   },
   async ({ event, step }) => {
-    const data = event.data as { importId: string; requestedBy: string };
+    const data = event.data as { importId: string; requestedBy: string; productId: string; expectedRevision: string; attemptId: string };
     return step.run("render-product-diktat-pdf", () =>
       generateProductDiktatPdfEvidence({ ...data, throwOnFailure: true })
     );

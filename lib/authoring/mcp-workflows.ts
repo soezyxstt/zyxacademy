@@ -7,7 +7,7 @@ import { validateSourcePack, type ValidatedSourcePack } from "@/lib/authoring/so
 import { evaluateSourcePackQuality, type SourcePackQualityReport } from "@/lib/authoring/quality/source-pack";
 import { ZipSecurityError } from "@/lib/bundle/zip-reader";
 import { resolveAuthSecret } from "@/lib/auth-secret";
-import { authoringValidationSnapshot, productV4SchemaDocuments } from "@/lib/authoring/mcp-contract-revision";
+import { authoringValidationSnapshot, productV4SchemaDocuments, productV5SchemaDocuments } from "@/lib/authoring/mcp-contract-revision";
 import { interactiveVisualGuidance } from "@/lib/authoring/interactive-visual-guidance";
 import {
   AUTHORING_MCP_BOOTSTRAP_PROTOCOL,
@@ -160,7 +160,8 @@ export const MCP_AUTHORING_DEFAULT_SCOPES = [
   "authoring:review",
   "authoring:withdraw",
 ] as const;
-export const MCP_AUTHORING_SCOPES = MCP_AUTHORING_DEFAULT_SCOPES;
+// Publication is an explicit grant and is intentionally absent from default OAuth scopes.
+export const MCP_AUTHORING_SCOPES = [...MCP_AUTHORING_DEFAULT_SCOPES, "authoring:publish"] as const;
 
 export type SourcePackSummary = {
   packId: string;
@@ -539,9 +540,10 @@ function workflowStaticDefinition(workflowKey: AuthoringWorkflow) {
       "Compatibility check harus selesai sebelum hasil dikirim untuk review.",
       "Technical quality dan content quality report harus valid tanpa issue blocking.",
       "Jika quality report gagal, revisi artifact lalu jalankan validator ulang; jangan mengubah checksum secara manual.",
-      "Product Bundle baru hanya boleh berisi article, diktat, flashcard_set, dan flashcard; question, solution, dan assessment_blueprint memakai workflow asesmen.",
+      "Product Bundle V4 berisi article, diktat, flashcard_set, dan flashcard; V5 berisi satu solution_collection mandiri. Entity question, solution, dan assessment_blueprint memakai workflow asesmen.",
+      "Setiap contoh V5 harus ditinjau untuk kebenaran, penalaran, provenance soal dan solusi, serta kelayakan rilis pada checksum terbaru; jawaban asesmen terlindungi tidak boleh dirilis secara implisit.",
       "Jangan membuat soal kuis Zyx atau soal referensi historis dalam Product Bundle; gunakan workflow asesmen yang sesuai.",
-      "Publish selalu dilakukan oleh admin melalui alur review.",
+      "Publikasi Product belajar memerlukan admin, review dan bukti sesuai profil, serta scope publish dan checksum tepat pada tool MCP; asesmen tidak boleh dirilis lewat tool Product.",
     ]
     : workflow.key === "quiz_bank"
       ? [
@@ -568,7 +570,15 @@ function workflowStaticDefinition(workflowKey: AuthoringWorkflow) {
         schemaVersion: "idea-bundle.v3",
         compatibleReadVersions: ["idea-bundle.v2", "idea-bundle.v3"],
         validationTool: "authoring.validate_idea_bundle",
+        reviewContextTool: "authoring.get_idea_review_context",
+        reviewTool: "authoring.review_idea_revision",
+        publishTool: "authoring.publish_idea_bundle",
+        withdrawTool: "authoring.withdraw_idea_bundle",
+        withdrawRecovery: { recovery: "exact_import", omit: "runToken", requiredInputs: ["bootstrapToken", "importId", "expectedRevision"], sourcePackRequired: false, scope: "The exact published or withdrawn import and its validated course; only withdrawal uses this recovery mode." },
+        reviewAndPublishRequiredInputs: ["runToken", "bootstrapToken", "importId", "expectedRevision"],
+        withdrawRequiredInputs: ["bootstrapToken", "importId", "expectedRevision"],
         reviewRequired: true,
+        restageReviewReset: { readTool: "authoring.get_import", readField: "import.reviewReset", acknowledgmentInput: "reviewResetFingerprint", revisionInput: "expectedRevision", retryErrors: ["IDEA_BUNDLE_REVIEW_RESET_REQUIRED", "IDEA_BUNDLE_REVIEW_RESET_STALE"], guidance: "For changed content, read counts and fingerprint for all saved reviews, explicitly acknowledge their deletion, then pass the current fingerprint. Reload and decide again if stale. An unchanged submission does not reset reviews." },
         attribution: { creatorId: "$UPLOADER", curatorId: "$APPROVING_REVIEWER" },
         creatorRule: "Generator Idea Bundle wajib selalu menghasilkan creatorId: '$UPLOADER', bukan ID placeholder eksternal.",
       },
@@ -782,6 +792,7 @@ export function verifyMcpExecutionBootstrap(input: {
   run?: Pick<RunTokenPayload, "workflow" | "bootstrap"> | null;
   requiredStage?: AuthoringPlaybookStage;
   expectedWorkflow?: AuthoringWorkflow;
+  requireBoundRun?: boolean;
 }) {
   const expectedWorkflow = input.expectedWorkflow ?? input.run?.workflow;
   let verifiedFromToken: ReturnType<typeof validateBootstrapContextAgainstActiveServer> | null = null;
@@ -796,6 +807,8 @@ export function verifyMcpExecutionBootstrap(input: {
       expectedWorkflow,
     });
   }
+
+  if (input.requireBoundRun && !input.run?.bootstrap) throw new Error("AUTHORING_MCP_LEGACY_RUN_RESTART_REQUIRED");
 
   if (input.run?.bootstrap) {
     verifyBootstrapIdentity(input.run.bootstrap, input);
@@ -1251,26 +1264,74 @@ export function productBundleV3Contract() {
         references: "visual_ref.visualId resolves in the Article visuals registry. focusRefs resolve to Article elements. Worked-step sourceElementRefs resolve to previously available elements, not forward references.",
         visuals: "Use the visual schema for the exact family, parameters, controls and bindings. Renderer-owned behavior only; no executable code or persistent remote image URLs. A valid structural visual still requires model, domain, state and print verification.",
         diktat: "Require authored units and matching sourceArticleId, sourceArticleVersion, sourceArticleHash and locked product dependency. Unit sourceElementRefs resolve to Article elements, and aggregate Idea coverage matches. contentMarkdown equals the projection of units. Each top-level visual_ref requires staticMarkdown; omit staticSnapshot for server derivation or provide the current exact pin.",
-        review: "Combine the pedagogicReview schema with v4ReviewContext for authoring.review_product_bundle. Approval requires current revision, content fingerprint, policy, verification plan and receipt signature, all rubric criteria, and an approved semanticHash decision for every section. Read current context through authoring.get_import.",
-        verification: "After authorized staging, read verificationContentHash from authoring.get_import; the request returns the derived plan, request authoring.verify_product_bundle and poll authoring.get_verification. Structural JSON Schema does not encode cross-reference, lineage, security, numerical, editorial or readiness refinements. Never infer publication readiness from schema validation alone.",
+        review: "Combine the pedagogicReview schema with v4ReviewContext for authoring.review_product_bundle. Approval requires current revision, content fingerprint, policy, verification plan and receipt signature, all rubric criteria, and an approved semanticHash decision for every section. Read exact scoped content and references through authoring.get_product_review_context.",
+        verification: "After authorized staging, obtain the exact checksum and staging run from authoring.get_product_review_context. Use the local operator launcher described below to execute trusted verification without a hosted browser job. Inspect its plan, receipt and artifacts. Structural JSON Schema does not encode cross-reference, lineage, security, numerical, editorial or readiness refinements. Never infer publication readiness from schema validation alone.",
       },
       capabilities: VISUAL_CAPABILITIES, unsupportedCapabilities: UNSUPPORTED_VISUAL_CAPABILITIES,
-      verification: { policyVersion: PRODUCT_V4_VERIFICATION_POLICY, requestTool: "authoring.verify_product_bundle", getTool: "authoring.get_verification", origin: "server_observed", localReportsGrantReadiness: false, reviewContextTool: "authoring.get_import" },
+      verification: {
+        policyVersion: PRODUCT_V4_VERIFICATION_POLICY, requestTool: "authoring.verify_product_bundle", getTool: "authoring.get_verification", origin: "server_observed", localReportsGrantReadiness: false, reviewContextTool: "authoring.get_product_review_context",
+        localOperator: {
+          launcher: "scripts/authoring/run-product-v4-local.mjs",
+          capabilitiesCommand: "node scripts/authoring/run-product-v4-local.mjs --capabilities",
+          command: "node scripts/authoring/run-product-v4-local.mjs --input <absolute-input-json-path>",
+          capabilitiesSchema: "zyx-product-v4-local-capabilities.v1",
+          deployedRevisionCheck: "operator-prerequisite",
+          inputSchema: {
+            type: "object", additionalProperties: false,
+            required: ["privateFile", "sourceRevision", "importId", "runId", "expectedChecksum"],
+            properties: {
+              privateFile: { type: "string", minLength: 1, description: "Path to private settings JSON outside the checkout or ignored by Git." },
+              sourceRevision: { type: "string", pattern: "^[a-f0-9]{40}$", description: "Obtain the deployed SHA from the authorized deployment record before execution. The CLI checks local HEAD and private settings against it; it does not discover deployed Git identity." },
+              importId: { type: "string", pattern: "^impor-product-[a-f0-9]{32}$" },
+              runId: { type: "string", pattern: "^mcp-run-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$", description: "The run that created or replaced this exact draft." },
+              expectedChecksum: { type: "string", pattern: "^[a-f0-9]{64}$" },
+              retry: { type: "boolean", description: "Set true only after inspecting and correcting a prior failed attempt." },
+            },
+          },
+          inputSchemaId: "zyx-product-v4-local-input.v1",
+          resultSchemaId: "zyx-product-v4-local-result.v1",
+          result: { successStatuses: ["ready", "not_ready"], attemptStatuses: ["failed", "stale", "execution_failed"], identityFields: ["importId", "runId", "checksum", "planHash", "attemptId"], readyFields: ["sourceRevision", "receiptSignature", "browserProvider", "chromium", "requirementCount", "ready", "artifactCount", "outputDirectory", "planFile", "receiptFile", "inventory"], failure: "A sanitized JSON object with status=error, code and recovery is written to stderr; not_ready and failed attempts exit nonzero." },
+          runtimePins: "Discover browser version, revision, configuredVersion, pinsMatch and runtime fingerprints from --capabilities for the exact clean deployed checkout. The launcher checks the reviewed local provider pin against the installed Playwright browser manifest; do not hard-code a version from an old contract.",
+          constraints: "Local verified production operator only, one attempt at a time. Input JSON is at most 16 KiB; private settings JSON is at most 128 KiB and never belongs in a bundle or MCP response. The launcher enforces the production target, staging audit, checksum, source revision and dependency bindings before writing.",
+        },
+      },
       sourceFigures: { extractTool: "source.extract_figure", getTool: "source.get_figure", provenanceRequired: true },
     };
   return {
     ...v4,
     diktatSchemaVersion: "diktat.v4",
-    compatibleReadVersions: ["product-bundle.v2", "product-bundle.v3", "product-bundle.v4"],
+    compatibleReadVersions: ["product-bundle.v2", "product-bundle.v3", "product-bundle.v4", "product-bundle.v5"],
     pilot: v4,
-    writeEntityTypes: ["article", "diktat", "flashcard_set", "flashcard"],
+    writeEntityTypes: ["article", "diktat", "flashcard_set", "flashcard", "solution_collection"],
+    solutionCollection: {
+      schemaVersion: "product-bundle.v5",
+      productType: "solution_collection",
+      productSchemaVersion: "solution_collection.v1",
+      collectionSchemaVersion: "solution_collection.v1",
+      schemaDocuments: productV5SchemaDocuments().map(({ body: _body, ...document }) => document),
+      semanticRules: {
+        envelope: "V5 contains exactly one standalone solution_collection. Its identity, title, course and chapter match its collection. Do not create unrelated Article or Diktat products.",
+        content: "Use the declared question type, discipline and compatible template. Include prompt, appropriate options and answer, strategy, justified steps, verification, and any relevant misconceptions. Optional hintMarkdown is a separately authored short starting clue, never a copy of the strategy, final answer or full solution. Use validated Article parts and typed visuals; source figures are not supported in V5.",
+        provenance: "Provide separate problem and solution provenance with attribution, and source titles and locators when adapted or reproduced. Unknown rights or release eligibility prevent approval.",
+        review: "A reviewer must explicitly decide correctness, reasoning, problemProvenance, solutionProvenance and release for every item against the exact current bundle checksum. Read reviewVersion from authoring.get_solution_collection_review_context and send it as expectedReviewVersion to authoring.review_solution_collection; stale concurrent decisions are rejected, while identical retries are idempotent. Reasoning review includes checking that any hintMarkdown does not reveal the answer or full solution. Any restaging requires current decisions; validation or staging does not publish.",
+        security: "Never implicitly release a protected assessment question or answer, or index this collection in public search, quizzes or Zyra. An authorized admin may explicitly publish through MCP or the Admin UI after all server gates pass.",
+        validation: "JSON Schema is structural only. Use authoring.validate_product_bundle for cross-reference, security, dependency, scope and other semantic checks.",
+      },
+      reviewRequired: true,
+      reviewTool: "authoring.review_solution_collection",
+      reviewContextTool: "authoring.get_solution_collection_review_context",
+      reviewContextRequiredInputs: ["runToken", "bootstrapToken", "importId", "expectedRevision"],
+      publishTool: "authoring.publish_solution_collection",
+      reviewSurface: "Admin UI or scoped MCP tools; review and publication use the same current admin and exact revision.",
+      publicationPermitted: true,
+    },
     forbiddenAssessmentEntityTypes: ["question", "solution", "assessment_blueprint"],
     scopeBoundary: {
       learnerProductsOnly: true,
       assessmentProductsForbidden: true,
       historicalReferenceWorkflow: "reference_question_ingest",
       originalQuestionWorkflow: "quiz_bank",
-      compatibility: "Existing Product Bundle V2 assessment rows remain readable through legacy readers, but new MCP Product submissions cannot create them.",
+      compatibility: "Existing Product Bundle V2 assessment rows remain readable through legacy readers, but new MCP Product submissions cannot create them. V5 standalone learning examples are separately reviewed for release.",
     },
     assessmentWorkflowBoundary: "Questions and their historical references belong to reference_question_ingest or quiz_bank, never a new Product Bundle submission.",
     toolSequence: [
@@ -1279,15 +1340,61 @@ export function productBundleV3Contract() {
       "authoring.restage_product_bundle",
       "authoring.verify_product_bundle",
       "authoring.get_verification",
+      "authoring.get_product_review_context",
       "authoring.review_product_bundle",
+      "authoring.publish_product_bundle",
     ],
     validationTool: "authoring.validate_product_bundle",
+    legacyV2ValidationRecovery: { optionalInputs: ["replaceImportId", "expectedRevision"], boundary: "Pass the exact existing V2 learning-only draft and caller-observed checksum with its verified run/bootstrap when validating a restage under the structured-reader flag. New V2 submissions remain blocked." },
     submitTool: "authoring.submit_product_bundle",
     restageTool: "authoring.restage_product_bundle",
+    adoptDraftRun: { tool: "authoring.adopt_product_draft_run", requiredInputs: ["runToken", "bootstrapToken", "importId", "expectedRevision", "expectedStagingRunId"], scope: "authoring:stage", boundary: "Explicit active-admin adoption of an unchanged scoped V2/V3/V4 draft. Supply the stagingRunId from current review context. It records an audit and invalidates prior PDF, verification and bundle review; verify and review again." },
+    discardDraft: { tool: "authoring.discard_product_draft", requiredInputs: ["runToken", "bootstrapToken", "importId", "expectedRevision"], scope: "authoring:withdraw", boundary: "Exact caller-observed revision, verified learning-product course/chapter run. Shared artifacts are retained for safe cleanup." },
     reviewTool: "authoring.review_product_bundle",
+    reviewContextTool: "authoring.get_product_review_context",
+    publishTool: "authoring.publish_product_bundle",
+    withdrawTool: "authoring.withdraw_product_bundle",
+    withdrawRequiredInputs: ["runToken", "bootstrapToken", "importId", "expectedRevision"],
+    withdrawRecovery: { recovery: "exact_import", omit: "runToken", requiredInputs: ["bootstrapToken", "importId", "expectedRevision"], sourcePackRequired: false, boundary: "Explicit withdrawal-only recovery of the exact published or withdrawn learning import, with fresh principal/session-bound bootstrap, validated course and transactional revision check." },
     reviewRequired: true,
     ideaPublicationRequired: true,
-    publicationPermitted: false,
+    publicationPermitted: true,
+    publicationScope: "Explicit admin action with authoring:publish, a verified product bootstrap, course/chapter run and exact checksum; learning products only. Every existing quality, review, PDF, trusted verification and traceability gate still applies where relevant.",
+    legacyReview: "V2/V3 learning-only imports use exact-revision pedagogic review with explicit section decisions when an Article is present, or a whole-bundle decision for non-Article products. Every Article requires current PDF evidence through its linked Diktat or its direct Article-only export. V2 assessment entities are excluded.",
+    legacyLocalOperator: {
+      articleOnlyRecovery: "Render the current unlinked Article directly with the private local operator. Supply articleId when there is more than one export target; never create a Diktat or placeholder solely for evidence.",
+      launcher: "scripts/authoring/run-product-legacy-local.mjs",
+      capabilitiesCommand: "node scripts/authoring/run-product-legacy-local.mjs --capabilities",
+      command: "node scripts/authoring/run-product-legacy-local.mjs --input <absolute-input-json-path>",
+      capabilitiesSchemaId: "zyx-product-legacy-local-capabilities.v1",
+      inputSchemaId: "zyx-product-legacy-local-input.v1",
+      inputSchema: {
+        type: "object", additionalProperties: false,
+        not: { required: ["diktatId", "articleId"] },
+        required: ["privateFile", "sourceRevision", "importId", "runId", "expectedChecksum", "actorId"],
+        properties: {
+          privateFile: { type: "string", pattern: "^/", description: "Absolute path to settings JSON outside the checkout or Git-ignored, never include secrets in this input." },
+          sourceRevision: { type: "string", pattern: "^[a-f0-9]{40}$", description: "First verify this deployed SHA against the authorized deployment record; the command verifies the clean local checkout and matching settings, not the deployed SHA." },
+          importId: { type: "string", pattern: "^impor-product-[a-f0-9]{32}$" },
+          runId: { type: "string", pattern: "^mcp-run-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$", description: "Original run that last created or replaced the exact draft." },
+          expectedChecksum: { type: "string", pattern: "^[a-f0-9]{64}$" },
+          actorId: { type: "string", pattern: "^[a-zA-Z0-9_-]{1,200}$", description: "Explicit authorized active admin identity, checked read-only before writes." },
+          diktatId: { type: "string", minLength: 1, maxLength: 256, pattern: "^(?!\\s*$)[^\\u0000]+$", description: "Select one linked Diktat. Required for this target when there is more than one export target; mutually exclusive with articleId." },
+          articleId: { type: "string", minLength: 1, maxLength: 256, pattern: "^(?!\\s*$)[^\\u0000]+$", description: "Select one Article without a linked Diktat. Required for this target when there is more than one export target; mutually exclusive with diktatId." },
+        },
+      },
+      resultSchemaId: "zyx-product-legacy-local-result.v1",
+      resultSchema: {
+        oneOf: [
+          { type: "object", additionalProperties: false, required: ["schema", "status", "sourceRevision", "importId", "runId", "checksum", "actorId", "productId", "evidenceId", "browserProvider", "chromium", "printProfile", "pageCount", "pdfChecksum", "outputDirectory", "inventory", "next"], properties: {
+            schema: { const: "zyx-product-legacy-local-result.v1" }, status: { const: "ready" }, sourceRevision: { type: "string", pattern: "^[a-f0-9]{40}$" }, importId: { type: "string" }, runId: { type: "string" }, checksum: { type: "string", pattern: "^[a-f0-9]{64}$" }, actorId: { type: "string" }, productId: { type: "string" }, evidenceId: { type: "string" }, browserProvider: { const: "local_playwright" }, chromium: { type: "object", additionalProperties: false, required: ["browserVersion", "revision"], properties: { browserVersion: { type: "string" }, revision: { type: "string" } } }, printProfile: { const: "a4-self-study-readable-v3" }, pageCount: { type: "integer", minimum: 1, maximum: 4 }, pdfChecksum: { type: "string", pattern: "^[a-f0-9]{64}$" }, outputDirectory: { type: "string" }, inventory: { type: "array", items: { type: "object", additionalProperties: false, required: ["file", "mediaType", "checksum", "byteLength"], properties: { file: { type: "string" }, mediaType: { enum: ["application/pdf", "image/png", "application/json"] }, checksum: { type: "string", pattern: "^[a-f0-9]{64}$" }, byteLength: { type: "integer", minimum: 1 }, pageNumber: { type: "integer", minimum: 1, maximum: 4 } } } }, next: { type: "string" },
+          } },
+          { type: "object", additionalProperties: false, required: ["schema", "status", "importId", "runId", "checksum", "productId", "evidenceId", "failureCode"], properties: { schema: { const: "zyx-product-legacy-local-result.v1" }, status: { const: "failed" }, importId: { type: "string" }, runId: { type: "string" }, checksum: { type: "string" }, productId: { type: "string" }, evidenceId: { type: "string" }, failureCode: { type: ["string", "null"] } } },
+        ],
+      },
+      failure: { type: "object", additionalProperties: false, required: ["status", "code", "recovery"], properties: { status: { const: "error" }, code: { type: "string" }, recovery: { type: "string" } }, description: "Sanitized stderr JSON, nonzero exit. A failed result can precede this object. Other progress lines are JSON diagnostics." },
+      constraints: "Private local production operator only, exact V2/V3 learning-only draft, active admin, one process at a time, 180-second hard limit. Run once per linked Diktat or unlinked Article; omit the ID only for one eligible target. Article-owned evidence uses its generation hash as self-lineage in the legacy Diktat hash column. Settings use the V4 local format. Pinned local Playwright only, no hosted fallback. PDF storage and local files are read back and checksummed. Inspect every page; quality, review and publication gates remain in force. This produces no V4 trusted receipt.",
+    },
     evaluationStages: {
       authorPreflight: "Local AST compilation, schema validation, and quality policy gate checking prior to submission.",
       deterministicValid: "Pure content validity checking pedagogy references, payloads, and typed visuals. Independent from admin review and PDF evidence.",

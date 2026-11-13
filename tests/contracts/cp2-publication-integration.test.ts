@@ -1,4 +1,4 @@
-import { contractChromiumPath } from "../helpers/chromium";
+import { renderContractPdf } from "../helpers/chromium";
 import { describe, expect, test, beforeEach, afterAll } from "bun:test";
 import { mock } from "bun:test";
 import type { ArticleDocument } from "@/lib/materials/article-contract";
@@ -17,7 +17,7 @@ import {
 } from "@/lib/bundle/product-validator";
 import { provisionPenggunaForNewUser } from "@/lib/auth/authorization";
 import { stageProductBundle, reviewProductBundle } from "@/lib/bundle/product-staging";
-import { publishProductBundle } from "@/lib/bundle/product-publication";
+import { assertLiveProductBundleDependencies, publishProductBundle as publishProductBundleService, withdrawProductBundle } from "@/lib/bundle/product-publication";
 import { evaluateProductBundleQualityPolicy } from "@/lib/bundle/product-review-gate";
 import {
   QUALITY_POLICY_VERSION,
@@ -34,8 +34,13 @@ import {
   compileProductDiktatHtml,
 } from "@/lib/bundle/product-diktat-pdf";
 import { inspectProductDiktatPdf } from "@/lib/compute/product-diktat-inspector";
-import { chromium } from "playwright";
 
+
+// Each fixture acts on the revision it just read, matching the service's caller contract.
+async function publishProductBundle(input: Omit<Parameters<typeof publishProductBundleService>[0], "expectedRevision"> & { expectedRevision?: string }) {
+  const [row] = await testDb.select({ checksum: schema.imporBundle.checksum }).from(schema.imporBundle).where(eq(schema.imporBundle.id, input.importId));
+  return publishProductBundleService({ ...input, expectedRevision: input.expectedRevision ?? row?.checksum ?? "" });
+}
 
 const storageMap = new Map<string, Uint8Array>();
 const mockStorage = {
@@ -82,7 +87,7 @@ const { client, testDb } = await createPostgresTestDb();
 
 mock.module("@/db", () => ({ db: testDb }));
 mock.module("@/lib/storage", () => ({ storage: mockStorage }));
-mock.module("@/lib/vector-sync-dispatch", () => ({ dispatchVectorSync: async () => {} }));
+mock.module("@/lib/vector-sync-dispatch", () => ({ dispatchVectorSync: async () => undefined }));
 
 const HASH_A = "a".repeat(64);
 const HASH_B = "b".repeat(64);
@@ -471,6 +476,7 @@ describe("CP2 Publication Integration Contract", () => {
     reviewerId?: string;
     pedagogicReviewerId?: string;
     pdfStatus?: "ready" | "stale" | "pending" | "failed";
+    preservePdfEvidence?: boolean;
   }) {
     const reviewerId = params.reviewerId ?? "user-admin-1";
     const pedagogicReviewerId = params.pedagogicReviewerId ?? reviewerId;
@@ -530,6 +536,7 @@ describe("CP2 Publication Integration Contract", () => {
     });
 
     // 4. PDF evidence
+    if (params.preservePdfEvidence) return;
     const pdfProductId = params.diktat ? params.diktat.id : params.article.id;
     await testDb.insert(schema.buktiPdfBundle).values({
       id: `pdf-${params.importId}-${pdfProductId}`,
@@ -537,7 +544,7 @@ describe("CP2 Publication Integration Contract", () => {
       productId: pdfProductId,
       articleVersion: params.article.version,
       articleHash: params.article.generationHash,
-      diktatHash: params.diktat ? params.diktat.generationHash : "0".repeat(64),
+      diktatHash: params.diktat ? params.diktat.generationHash : params.article.generationHash,
       rendererVersion: "zyx-pdf-v1",
       printProfile: "a4_standard",
       status: pdfStatus,
@@ -547,6 +554,20 @@ describe("CP2 Publication Integration Contract", () => {
       updatedAt: now,
     });
   }
+
+  test("publishes the same Article-owned legacy PDF accepted by the shared gate", async () => {
+    const article = createV3Article("article-legacy-pdf-owner");
+    const diktat = createDiktat(article, "diktat-legacy-pdf-owner");
+    const { staged, fixture } = await stageTestBundle(article, diktat, "bundle-legacy-pdf-owner");
+    await seedApprovalRecords({ importId: staged.importId, article, diktat });
+    const key = "courses/course-cp2/materials/legacy-article.pdf";
+    await testDb.update(schema.buktiPdfBundle).set({ productId: article.id, storageKey: key }).where(eq(schema.buktiPdfBundle.imporBundleId, staged.importId));
+    const quality = await evaluateProductBundleQualityPolicy([article, diktat], { imporBundleId: staged.importId, publisherId: "user-admin-1", tx: testDb });
+    expect(quality.publicationReady).toBe(true);
+    await publishProductBundle({ importId: staged.importId, publishedBy: "user-admin-1", expectedRevision: fixture.checksum });
+    const [published] = await testDb.select().from(schema.diktatMateri).where(eq(schema.diktatMateri.id, diktat.id));
+    expect(published.fileKey).toBe(key);
+  });
 
   for (const failure of ["missing-approval", "failed-pdf", "missing-section"] as const) {
     test(`does not create a legacy approval when ${failure} blocks publication`, async () => {
@@ -562,7 +583,7 @@ describe("CP2 Publication Integration Contract", () => {
       expect(await testDb.select().from(schema.reviewBundle).where(eq(schema.reviewBundle.imporBundleId, staged.importId))).toHaveLength(0);
     });
   }
-  test("publishes V3 with the current pedagogic approval and no legacy bundle review", async () => {
+  test("requires an explicit bundle approval in addition to the current pedagogic approval", async () => {
     const article = createV3Article();
     const diktat = createDiktat(article);
     const { staged } = await stageTestBundle(article, diktat);
@@ -574,8 +595,8 @@ describe("CP2 Publication Integration Contract", () => {
     });
 
     await testDb.delete(schema.reviewBundle).where(eq(schema.reviewBundle.imporBundleId, staged.importId));
-    await testDb.update(schema.reviewPedagogiBundle).set({ rubric: { criteria: [] } }).where(eq(schema.reviewPedagogiBundle.imporBundleId, staged.importId));
-
+    await expect(publishProductBundle({ importId: staged.importId, publishedBy: "user-admin-1" })).rejects.toThrow("PRODUCT_BUNDLE_ADMIN_APPROVAL_REQUIRED");
+    await testDb.insert(schema.reviewBundle).values({ id: `rev-bundle-${staged.importId}`, imporBundleId: staged.importId, reviewerId: "user-admin-1", status: "approved" });
     const pubResult = await publishProductBundle({
       importId: staged.importId,
       publishedBy: "user-admin-1",
@@ -622,7 +643,7 @@ describe("CP2 Publication Integration Contract", () => {
     expect(vectorRows.length).toBeGreaterThan(0);
   });
 
-  test("auto-approves pending article sections when bundle review is approved", async () => {
+  test("whole-bundle review cannot auto-approve Article sections", async () => {
     const article = createV3Article("article-auto-approve");
     const diktat = createDiktat(article, "diktat-auto-approve");
     const { staged } = await stageTestBundle(
@@ -639,23 +660,23 @@ describe("CP2 Publication Integration Contract", () => {
     expect(beforeReviews).toHaveLength(0);
 
     // Admin approves the bundle overall
-    await reviewProductBundle({
+    await expect(reviewProductBundle({
       importId: staged.importId,
       reviewerId: "user-admin-1",
       decision: "approved",
-      notes: "Approve bundle with auto-approval of sections",
-    });
+      expectedRevision: staged.checksum,
+      notes: "Approve bundle",
+    })).rejects.toThrow("PRODUCT_BUNDLE_PEDAGOGIC_REVIEW_REQUIRED");
 
-    // All sections should now be automatically approved in reviewItemBundle
+    // No section decision is inferred from the whole-bundle request.
     const afterReviews = await testDb
       .select()
       .from(schema.reviewItemBundle)
       .where(eq(schema.reviewItemBundle.imporBundleId, staged.importId));
-    expect(afterReviews).toHaveLength(article.sections.length);
-    expect(afterReviews.every((r) => r.status === "approved")).toBe(true);
+    expect(afterReviews).toHaveLength(0);
   });
 
-  test("preserves existing changes_requested sections when bundle review is approved", async () => {
+  test("whole-bundle review preserves existing explicit section decisions", async () => {
     const article = createV3Article("article-cr-preserve");
     const diktat = createDiktat(article, "diktat-cr-preserve");
     const { staged } = await stageTestBundle(
@@ -680,24 +701,24 @@ describe("CP2 Publication Integration Contract", () => {
     });
 
     // Admin approves the bundle overall
-    await reviewProductBundle({
+    await expect(reviewProductBundle({
       importId: staged.importId,
       reviewerId: "user-admin-1",
       decision: "approved",
+      expectedRevision: staged.checksum,
       notes: "Approve bundle",
-    });
+    })).rejects.toThrow("PRODUCT_BUNDLE_PEDAGOGIC_REVIEW_REQUIRED");
 
     const reviews = await testDb
       .select()
       .from(schema.reviewItemBundle)
       .where(eq(schema.reviewItemBundle.imporBundleId, staged.importId));
-    expect(reviews).toHaveLength(article.sections.length);
+    expect(reviews).toHaveLength(1);
 
     const crReview = reviews.find((r) => r.targetId === firstSection.id);
     expect(crReview?.status).toBe("changes_requested");
 
-    const otherReviews = reviews.filter((r) => r.targetId !== firstSection.id);
-    expect(otherReviews.every((r) => r.status === "approved")).toBe(true);
+    expect(reviews.filter((r) => r.targetId !== firstSection.id)).toHaveLength(0);
   });
 
   test("publication is idempotent on retry without duplicating records", async () => {
@@ -888,6 +909,7 @@ describe("CP2 Publication Integration Contract", () => {
       bundleId,
       courseId: "course-cp2",
       checksum: fixture2.checksum,
+      expectedPreviousChecksum: staged1.checksum,
       bytes: fixture2.bytes,
       requestedBy: "user-admin-1",
       bundle: fixture2.validation,
@@ -1228,6 +1250,7 @@ describe("CP2 Publication Integration Contract", () => {
       bundleId,
       courseId: "course-cp2",
       checksum: fixture2.checksum,
+      expectedPreviousChecksum: staged1.checksum,
       bytes: fixture2.bytes,
       requestedBy: "user-admin-1",
       bundle: fixture2.validation,
@@ -1247,15 +1270,12 @@ describe("CP2 Publication Integration Contract", () => {
     expect(diktatPdfEvidence).toBeDefined();
     expect(diktatPdfEvidence.status).toBe("stale");
 
-    // Re-seed overall bundle review approved by publisherId (since draft replacement clears reviewBundle)
-    await testDb.insert(schema.reviewBundle).values({
-      id: `review-${staged1.importId}-revised`,
-      imporBundleId: staged1.importId,
-      reviewerId: "user-admin-1",
-      status: "approved",
-      notes: "Overall bundle approval for revised diktat",
-      createdAt: new Date(),
-    });
+    // A content revision requires fresh semantic approval; retain the actual
+    // stale PDF row to prove that current review cannot bypass its gate.
+    await testDb.delete(schema.reviewBundle).where(eq(schema.reviewBundle.imporBundleId, staged1.importId));
+    await testDb.delete(schema.reviewItemBundle).where(eq(schema.reviewItemBundle.imporBundleId, staged1.importId));
+    await testDb.delete(schema.reviewPedagogiBundle).where(eq(schema.reviewPedagogiBundle.imporBundleId, staged1.importId));
+    await seedApprovalRecords({ importId: staged1.importId, article: article2, diktat: diktat2, preservePdfEvidence: true });
 
     // Attempt publication: MUST be blocked because PDF evidence is stale
     let pubError: any = null;
@@ -1305,68 +1325,57 @@ describe("CP2 Publication Integration Contract", () => {
     expect(successResult.published).toBe(true);
   });
 
-  test("runs four tracked fixture rehearsals through stage, review, real PDF, publish, and download gates", async () => {
-    const browser = await chromium.launch({ executablePath: contractChromiumPath(), args: ["--no-sandbox"] });
+  for (const runName of ["limit-a", "limit-b", "eigen", "tcp"]) test(`runs the tracked ${runName} fixture through stage, review, real PDF, publish, and download gates`, async () => {
+    const { article, diktat } = loadNormalizedCp7Rehearsal(runName);
+    const html = compileProductDiktatHtml({ article, diktat });
+    const pdfBytes = await renderContractPdf(html);
+    console.info(`CP2 rehearsal ${runName}: PDF rendered`);
 
-    try {
-      for (const runName of ["limit-a", "limit-b", "eigen", "tcp"]) {
-        const { article, diktat } = loadNormalizedCp7Rehearsal(runName);
-        const html = compileProductDiktatHtml({ article, diktat });
-        const page = await browser.newPage();
-        await page.setContent(html, { waitUntil: "load" });
-        const pdfBytes = new Uint8Array(
-          await page.pdf({ format: "A4", printBackground: true }),
-        );
-        await page.close();
+    const inspected = await inspectProductDiktatPdf(pdfBytes);
+    console.info(`CP2 rehearsal ${runName}: PDF inspected`);
+    expect(inspected.pageCount).toBeGreaterThanOrEqual(2);
+    expect(inspected.pageCount).toBeLessThanOrEqual(4);
+    expect(inspected.text.replace(/\s+/g, " ")).toContain(
+      diktat.title.replace(/\s+/g, " "),
+    );
 
-        const inspected = await inspectProductDiktatPdf(pdfBytes);
-        expect(inspected.pageCount).toBeGreaterThanOrEqual(2);
-        expect(inspected.pageCount).toBeLessThanOrEqual(4);
-        expect(inspected.text.replace(/\s+/g, " ")).toContain(
-          diktat.title.replace(/\s+/g, " "),
-        );
+    const { staged } = await stageTestBundle(
+      article,
+      diktat,
+      `bundle-cp7-${runName}`,
+      `run-cp7-${runName}`,
+    );
+    await seedApprovalRecords({
+      importId: staged.importId,
+      article,
+      diktat,
+      pdfStatus: "ready",
+    });
 
-        const { staged } = await stageTestBundle(
-          article,
-          diktat,
-          `bundle-cp7-${runName}`,
-          `run-cp7-${runName}`,
-        );
-        await seedApprovalRecords({
-          importId: staged.importId,
-          article,
-          diktat,
-          pdfStatus: "ready",
-        });
+    const evidenceKey = `courses/course-cp2/materials/${diktat.id}.pdf`;
+    storageMap.set(evidenceKey, pdfBytes);
+    const published = await publishProductBundle({
+      importId: staged.importId,
+      publishedBy: "user-admin-1",
+    });
+    expect(published.published).toBe(true);
 
-        const evidenceKey = `courses/course-cp2/materials/${diktat.id}.pdf`;
-        storageMap.set(evidenceKey, pdfBytes);
-        const published = await publishProductBundle({
-          importId: staged.importId,
-          publishedBy: "user-admin-1",
-        });
-        expect(published.published).toBe(true);
-
-        const [publishedDiktat] = await testDb
-          .select()
-          .from(schema.diktatMateri)
-          .where(eq(schema.diktatMateri.id, diktat.id));
-        expect(publishedDiktat?.status).toBe("published");
-        expect(publishedDiktat?.fileKey).toBe(evidenceKey);
-        expect(storageMap.get(evidenceKey)?.byteLength).toBe(pdfBytes.byteLength);
-        expect(canDownloadProductDiktat({ role: "admin", enrolled: false })).toBe(
-          true,
-        );
-        expect(canDownloadProductDiktat({ role: "student", enrolled: true })).toBe(
-          true,
-        );
-        expect(canDownloadProductDiktat({ role: "student", enrolled: false })).toBe(
-          false,
-        );
-      }
-    } finally {
-      await browser.close();
-    }
+    const [publishedDiktat] = await testDb
+      .select()
+      .from(schema.diktatMateri)
+      .where(eq(schema.diktatMateri.id, diktat.id));
+    expect(publishedDiktat?.status).toBe("published");
+    expect(publishedDiktat?.fileKey).toBe(evidenceKey);
+    expect(storageMap.get(evidenceKey)?.byteLength).toBe(pdfBytes.byteLength);
+    expect(canDownloadProductDiktat({ role: "admin", enrolled: false })).toBe(
+      true,
+    );
+    expect(canDownloadProductDiktat({ role: "student", enrolled: true })).toBe(
+      true,
+    );
+    expect(canDownloadProductDiktat({ role: "student", enrolled: false })).toBe(
+      false,
+    );
   });
 
   test("persisted PDF evidence selection deterministically elects current-lineage Diktat artifact over adversarial newer wrong-lineage rows", async () => {
@@ -1481,5 +1490,136 @@ describe("CP2 Publication Integration Contract", () => {
     ).toBe(true);
     const targetIssue = negEval.issues.find((i) => i.target.targetType === "pdf");
     expect(targetIssue?.target.targetId).toBe(diktat.id);
+  });
+  async function stageV2Products(products: ProductEntity[], bundleId: string) {
+    const fixture = buildBundleZip(products, [], bundleId, "product-bundle.v2");
+    const staged = await stageProductBundle({ runId: `run-${bundleId}`, bundleId, courseId: "course-cp2", checksum: fixture.checksum, bytes: fixture.bytes, requestedBy: "user-admin-1", bundle: fixture.validation });
+    const article = products.find((product): product is Extract<ProductEntity, { productType: "article" }> => product.productType === "article");
+    if (article) await seedApprovalRecords({ importId: staged.importId, article });
+    else await testDb.insert(schema.reviewBundle).values({ id: `approval-${bundleId}`, imporBundleId: staged.importId, reviewerId: "user-admin-1", status: "approved" });
+    return staged.importId;
+  }
+
+  function cardProducts(setVersion = 1, front = "Apa itu limit?"): ProductEntity[] {
+    const common = {
+      courseId: "course-cp2", chapterId: "bab-cp2-001", version: 1, status: "draft" as const,
+      ideaLinks: [{ id: "idea-limit-cp2", version: 1, semanticHash: HASH_A, weight: 1, role: "primary" as const }],
+      sourceRefs: [{ sourceId: "source-cp2-001", version: 1, checksum: HASH_B, excerptIds: ["ex-cp2-1"] }],
+      schemaVersion: "1.0", sourceHash: HASH_B, generationHash: HASH_C, creatorId: "user-admin-1", curatorId: "user-admin-1",
+    };
+    return [
+      { ...common, id: "shared-set", productType: "flashcard_set", version: setVersion, title: "Limit", cards: ["shared-card"] },
+      { ...common, id: "shared-card", productType: "flashcard", setId: "shared-set", front, back: "Nilai yang didekati", atomic: true },
+    ];
+  }
+
+  function legacyArticle(): Extract<ProductEntity, { productType: "article" }> {
+    const template = createV3Article("shared-article");
+    return {
+      ...template, visuals: [], sections: [],
+      blocks: ["prior_knowledge_activation", "problem_introduction", "explanation", "verbal_representation", "mathematical_representation", "analogy", "worked_example", "misconception", "application", "retrieval_prompt", "summary", "retrieval_close"].map((blockType, orderIndex) => ({
+        id: `shared-block-${orderIndex}`, blockType, orderIndex,
+        content: `${blockType} Penjelasan dasar tanpa section untuk V2 materi limit kalkulus.`,
+      })),
+    };
+  }
+
+  test("retains shared canonical rows and vector jobs until the final published owner withdraws", async () => {
+    const products = [legacyArticle(), ...cardProducts()];
+    const first = await stageV2Products(products, "shared-owner-a");
+    const second = await stageV2Products(products, "shared-owner-b");
+    await publishProductBundle({ importId: first, publishedBy: "user-admin-1" });
+    await publishProductBundle({ importId: second, publishedBy: "user-admin-1" });
+    const before = await testDb.select().from(schema.vectorSyncQueue);
+    expect(before.filter((row) => row.action === "upsert")).toHaveLength(2);
+    expect((await withdrawProductBundle({ importId: first, withdrawnBy: "user-admin-1", expectedRevision: (await testDb.select({ checksum: schema.imporBundle.checksum }).from(schema.imporBundle).where(eq(schema.imporBundle.id, first)))[0].checksum })).vectorJobCount).toBe(0);
+    expect((await testDb.select().from(schema.artikel).where(eq(schema.artikel.id, "shared-article")))[0].status).toBe("published");
+    expect((await testDb.select().from(schema.flashcard).where(eq(schema.flashcard.id, "shared-card")))[0].status).toBe("published");
+    expect(await testDb.select().from(schema.vectorSyncQueue)).toHaveLength(before.length);
+    expect((await withdrawProductBundle({ importId: second, withdrawnBy: "user-admin-1", expectedRevision: (await testDb.select({ checksum: schema.imporBundle.checksum }).from(schema.imporBundle).where(eq(schema.imporBundle.id, second)))[0].checksum })).vectorJobCount).toBe(1);
+    expect((await testDb.select().from(schema.artikel).where(eq(schema.artikel.id, "shared-article")))[0].status).toBe("withdrawn");
+    expect((await testDb.select().from(schema.flashcard).where(eq(schema.flashcard.id, "shared-card")))[0].status).toBe("retired");
+    expect((await testDb.select().from(schema.vectorSyncQueue)).filter((row) => row.action === "delete")).toHaveLength(1);
+    const third = await stageV2Products(products, "shared-owner-c");
+    await expect(publishProductBundle({ importId: third, publishedBy: "user-admin-1" })).rejects.toThrow("PRODUCT_BUNDLE_VERSION_CONFLICT");
+  });
+
+  test("rejects a changed Article with the same declared hash and detects tampered stored sections", async () => {
+    const article = createV3Article("article-projection");
+    const diktat = createDiktat(article, "diktat-projection");
+    const first = await stageTestBundle(article, diktat, "projection-original");
+    await seedApprovalRecords({ importId: first.staged.importId, article, diktat });
+    await publishProductBundle({ importId: first.staged.importId, publishedBy: "user-admin-1" });
+    const matching = await stageTestBundle(article, diktat, "projection-matching");
+    await seedApprovalRecords({ importId: matching.staged.importId, article, diktat });
+    expect((await publishProductBundle({ importId: matching.staged.importId, publishedBy: "user-admin-1" })).published).toBe(true);
+
+    const changed = structuredClone(article);
+    changed.sections[0].blocks[0].title = "Judul blok yang berbeda";
+    const changedDraft = await stageTestBundle(changed, diktat, "projection-changed");
+    await seedApprovalRecords({ importId: changedDraft.staged.importId, article: changed, diktat });
+    const oldBlocks = await testDb.select().from(schema.blokArtikel).where(eq(schema.blokArtikel.artikelId, article.id));
+    await expect(publishProductBundle({ importId: changedDraft.staged.importId, publishedBy: "user-admin-1" })).rejects.toThrow(`PRODUCT_BUNDLE_VERSION_CONFLICT:${article.id}`);
+    expect(await testDb.select().from(schema.blokArtikel).where(eq(schema.blokArtikel.artikelId, article.id))).toEqual(oldBlocks);
+
+    const identical = await stageTestBundle(article, diktat, "projection-tampered");
+    await seedApprovalRecords({ importId: identical.staged.importId, article, diktat });
+    await testDb.update(schema.bagianArtikel).set({ learningObjective: "Isi yang berubah" }).where(and(eq(schema.bagianArtikel.artikelId, article.id), eq(schema.bagianArtikel.sectionKey, article.sections[0].id)));
+    await expect(publishProductBundle({ importId: identical.staged.importId, publishedBy: "user-admin-1" })).rejects.toThrow(`PRODUCT_BUNDLE_VERSION_CONFLICT:${article.id}`);
+  });
+
+  test("rejects Diktat content changes hidden behind unchanged declared hashes and preserves the original PDF", async () => {
+    const article = createV3Article("diktat-binding-article");
+    const diktat = createDiktat(article, "diktat-binding");
+    const first = await stageTestBundle(article, diktat, "diktat-binding-first");
+    await seedApprovalRecords({ importId: first.staged.importId, article, diktat });
+    await publishProductBundle({ importId: first.staged.importId, publishedBy: "user-admin-1" });
+    const original = (await testDb.select().from(schema.diktatMateri).where(eq(schema.diktatMateri.id, diktat.id)))[0];
+    const changed = { ...diktat, contentMarkdown: `${diktat.contentMarkdown}\n\nIsi yang berbeda.` };
+    const second = await stageTestBundle(article, changed, "diktat-binding-changed");
+    await seedApprovalRecords({ importId: second.staged.importId, article, diktat: changed });
+    await expect(publishProductBundle({ importId: second.staged.importId, publishedBy: "user-admin-1" })).rejects.toThrow(`PRODUCT_BUNDLE_VERSION_CONFLICT:${diktat.id}`);
+    expect((await testDb.select().from(schema.diktatMateri).where(eq(schema.diktatMateri.id, diktat.id)))[0]).toEqual(original);
+  });
+
+  test("rejects a V2 Article with an unchanged hash and a different block identity", async () => {
+    const article = legacyArticle();
+    const first = await stageV2Products([article], "legacy-projection-first");
+    await publishProductBundle({ importId: first, publishedBy: "user-admin-1" });
+    const changed = structuredClone(article);
+    changed.blocks[0].id = "different-block-id";
+    const second = await stageV2Products([changed], "legacy-projection-changed");
+    await expect(publishProductBundle({ importId: second, publishedBy: "user-admin-1" })).rejects.toThrow(`PRODUCT_BUNDLE_VERSION_CONFLICT:${article.id}`);
+    const blocks = await testDb.select().from(schema.blokArtikel).where(eq(schema.blokArtikel.artikelId, article.id));
+    expect(blocks).toHaveLength(article.blocks.length);
+    expect(blocks.some((block) => block.blockKey === "different-block-id")).toBe(false);
+  });
+
+  test("does not reuse a flashcard with different content or a different set version", async () => {
+    const first = await stageV2Products(cardProducts(), "cards-original");
+    await publishProductBundle({ importId: first, publishedBy: "user-admin-1" });
+    const changed = await stageV2Products(cardProducts(1, "Bagaimana limit bekerja?"), "cards-changed");
+    await expect(publishProductBundle({ importId: changed, publishedBy: "user-admin-1" })).rejects.toThrow("PRODUCT_BUNDLE_VERSION_CONFLICT:shared-card");
+    const nextSet = await stageV2Products(cardProducts(2), "cards-next-set");
+    await expect(publishProductBundle({ importId: nextSet, publishedBy: "user-admin-1" })).rejects.toThrow("PRODUCT_BUNDLE_VERSION_CONFLICT:shared-card");
+    expect(await testDb.select().from(schema.setFlashcard).where(eq(schema.setFlashcard.id, "shared-set:v2"))).toHaveLength(0);
+    expect((await testDb.select().from(schema.flashcard).where(eq(schema.flashcard.id, "shared-card")))[0].setFlashcardId).toBe("shared-set");
+    await testDb.update(schema.flashcard).set({ status: "retired" }).where(eq(schema.flashcard.id, "shared-card"));
+    const retired = await stageV2Products(cardProducts(), "cards-retired");
+    await expect(publishProductBundle({ importId: retired, publishedBy: "user-admin-1" })).rejects.toThrow("PRODUCT_BUNDLE_VERSION_CONFLICT:shared-card");
+  });
+
+  test("readiness and publication reject Ideas and sources from another canonical course", async () => {
+    await testDb.insert(schema.mataKuliah).values({ id: "other-course", code: "OTHER", title: "Other course", status: "active" });
+    const products = cardProducts();
+    const importId = await stageV2Products(products, "foreign-trace");
+    const readiness = { courseId: "course-cp2", products, dependencies: [] };
+    await testDb.update(schema.ide).set({ mataKuliahId: "other-course" }).where(eq(schema.ide.id, "idea-limit-cp2"));
+    await expect(assertLiveProductBundleDependencies(readiness)).rejects.toThrow("PRODUCT_BUNDLE_IDEA_NOT_PUBLISHED");
+    await expect(publishProductBundle({ importId, publishedBy: "user-admin-1" })).rejects.toThrow("PRODUCT_BUNDLE_IDEA_NOT_PUBLISHED");
+    await testDb.update(schema.ide).set({ mataKuliahId: "mk-cp2" }).where(eq(schema.ide.id, "idea-limit-cp2"));
+    await testDb.update(schema.sumberMateri).set({ mataKuliahId: "other-course" }).where(eq(schema.sumberMateri.id, "source-cp2-001"));
+    await expect(assertLiveProductBundleDependencies(readiness)).rejects.toThrow("PRODUCT_BUNDLE_SOURCE_MISMATCH");
+    await expect(publishProductBundle({ importId, publishedBy: "user-admin-1" })).rejects.toThrow("PRODUCT_BUNDLE_SOURCE_MISMATCH");
   });
 });

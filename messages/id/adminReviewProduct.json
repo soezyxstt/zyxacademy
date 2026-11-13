@@ -48,16 +48,46 @@
     "changesRequested": "Perlu revisi"
   },
   "blockTypes": {
-    "prior_knowledge_activation": { "label": "Aktivasi Pengetahuan Awal", "badge": "Prasyarat" },
-    "problem_introduction": { "label": "Pengantar Masalah", "badge": "Motivasi" },
-    "explanation": { "label": "Penjelasan Konsep", "badge": "Konsep Inti" },
-    "verbal_representation": { "label": "Representasi Verbal", "badge": "Intuitif" },
-    "mathematical_representation": { "label": "Representasi Matematis", "badge": "Formula" },
-    "worked_example": { "label": "Contoh Soal & Pembahasan", "badge": "Contoh" },
-    "misconception": { "label": "Miskonsepsi Umum", "badge": "Peringatan" },
-    "application": { "label": "Aplikasi Nyata", "badge": "Penerapan" },
-    "cross_idea_synthesis": { "label": "Sintesis Lintas-Idea", "badge": "Sintesis" },
-    "summary": { "label": "Rangkuman Bab", "badge": "Rangkuman" }
+    "prior_knowledge_activation": {
+      "label": "Aktivasi Pengetahuan Awal",
+      "badge": "Prasyarat"
+    },
+    "problem_introduction": {
+      "label": "Pengantar Masalah",
+      "badge": "Motivasi"
+    },
+    "explanation": {
+      "label": "Penjelasan Konsep",
+      "badge": "Konsep Inti"
+    },
+    "verbal_representation": {
+      "label": "Representasi Verbal",
+      "badge": "Intuitif"
+    },
+    "mathematical_representation": {
+      "label": "Representasi Matematis",
+      "badge": "Formula"
+    },
+    "worked_example": {
+      "label": "Contoh Soal & Pembahasan",
+      "badge": "Contoh"
+    },
+    "misconception": {
+      "label": "Miskonsepsi Umum",
+      "badge": "Peringatan"
+    },
+    "application": {
+      "label": "Aplikasi Nyata",
+      "badge": "Penerapan"
+    },
+    "cross_idea_synthesis": {
+      "label": "Sintesis Lintas-Idea",
+      "badge": "Sintesis"
+    },
+    "summary": {
+      "label": "Rangkuman Bab",
+      "badge": "Rangkuman"
+    }
   },
   "difficulty": {
     "easy": "Mudah",
@@ -78,5 +108,7 @@
   "solutionTitle": "Pembahasan Soal",
   "assessmentBlueprint": "Blueprint Asesmen ({type})",
   "chapterCount": "Bab ({count})",
-  "questionCount": "Soal ({count})"
+  "questionCount": "Soal ({count})",
+  "unsavedSectionNote": "Simpan atau buang perubahan catatan bagian sebelum berpindah atau memutuskan bundle.",
+  "discardSectionNote": "Buang perubahan catatan"
 }

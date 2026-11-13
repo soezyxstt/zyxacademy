@@ -1,19 +1,24 @@
 import { randomUUID } from "node:crypto";
-import { describe, expect, it } from "bun:test";
+import { afterAll, describe, expect, it, mock } from "bun:test";
 import { and, eq } from "drizzle-orm";
-import { db } from "@/db";
+import { createPostgresTestDb } from "../helpers/postgres";
 import { bab, chapters, courses, mataKuliah, penugasanTutor, pengguna, tutorCourses, user } from "@/db/schema";
-import {
+const { client, testDb: db } = await createPostgresTestDb();
+mock.module("@/db", () => ({ db }));
+mock.module("@/lib/db", () => ({ db }));
+mock.module("@/lib/vector-sync-dispatch", () => ({ dispatchVectorSync: async () => undefined }));
+afterAll(async () => { await client.close(); });
+const {
   archiveChapterWithLegacyDeletion,
   archiveCourseWithLegacyDeletion,
   reorderChaptersWithCanonicalProjection,
   saveChapterWithCanonicalProjection,
   saveCourseWithCanonicalProjection,
-} from "@/lib/academic/course-canonical-sync";
-import {
+} = await import("@/lib/academic/course-canonical-sync");
+const {
   dualWriteTutorAssignment,
   revokeCanonicalTutorCourseAssignments,
-} from "@/lib/migrasi/repository-kompatibilitas";
+} = await import("@/lib/migrasi/repository-kompatibilitas");
 
 function fixtureId(prefix: string): string {
   return `${prefix}-${randomUUID()}`;

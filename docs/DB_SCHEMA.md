@@ -1,5 +1,9 @@
 # Zyx Database Schema Reference
 
+## Standalone solution collections
+
+`solution_collections` is defined in `db/schema.ts` with generated PostgreSQL migration `drizzle-postgres/0008_moaning_mole_man.sql`. Each row stores a versioned collection, canonical course and chapter, originating Product import, structured content and dependency trace, generation hash, publication status and timestamps. A partial unique index permits only one published version of a product. Publication and withdrawal are transactional; no migration was applied as part of this local implementation. See the [V5 contract](bundle/product-bundle-v5.md).
+
 This document catalogs the application schema. Staging uses the PostgreSQL tables in [db/schema.ts](../db/schema.ts) and generated migrations in `drizzle-postgres/`. Production retains its previous SQLite/Turso schema and code.
 
 Legacy SQLite SQL and storage-type descriptions below remain historical reference. Use `db/schema.ts` and `drizzle-postgres/` for exact staging column types and constraints.

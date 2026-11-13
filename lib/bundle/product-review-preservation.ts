@@ -92,12 +92,18 @@ export function findStalePdfEvidenceProductIds(previous: ValidProductBundle, nex
       stale.add(nextProduct.id);
       continue;
     }
-    if (prevProduct.generationHash !== nextProduct.generationHash) {
+    // Legacy generationHash is declarative. Compare the server-parsed content too.
+    if (deterministicProductSerialization(prevProduct) !== deterministicProductSerialization(nextProduct)) {
       stale.add(nextProduct.id);
     }
   }
 
   const nextDiktats = next.products.filter((p) => p.productType === "diktat");
+  const linkedDiktats = (bundle: ValidProductBundle, articleId: string) => bundle.products.filter(product => product.productType === "diktat" && product.sourceArticleId === articleId)
+    .map(product => ({ id: product.id, version: product.version, hash: product.generationHash })).sort((a, b) => a.id.localeCompare(b.id));
+  for (const article of next.products.filter(product => product.productType === "article")) {
+    if (deterministicProductSerialization(linkedDiktats(previous, article.id)) !== deterministicProductSerialization(linkedDiktats(next, article.id))) stale.add(article.id);
+  }
   for (const diktat of nextDiktats) {
     if (diktat.sourceArticleId && stale.has(diktat.sourceArticleId)) {
       stale.add(diktat.id);

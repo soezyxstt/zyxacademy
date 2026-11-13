@@ -1,16 +1,17 @@
 import { createHash } from "node:crypto";
-import { assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, evaluateProductV4Verification, parseProductV4VerificationReceipt, type ProductV4VerificationAuthority, type ProductV4VerificationPlan, type ProductV4VerificationBinding } from "@/lib/bundle/product-v4-verification";
+import { assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, evaluateProductV4Verification, parseProductV4VerificationReceipt, type ProductV4VerificationAuthority, type ProductV4VerificationPlan } from "@/lib/bundle/product-v4-verification";
 import type { ProductV4VerificationSnapshot } from "@/lib/bundle/product-v4-verification-core";
 import { buildProductVerificationKey } from "@/lib/storage/keys";
 import { PRODUCT_DIKTAT_PRINT_PROFILE, PRODUCT_DIKTAT_RENDERER_VERSION } from "@/lib/bundle/product-diktat-pdf";
-import type { buktiPdfBundle, imporBundle } from "@/db/schema";
+import type { buktiPdfBundle } from "@/db/schema";
+import { currentProductV4VerificationRef, latestProductV4StagingAudit, matchesProductV4StagingSnapshot } from "@/lib/bundle/product-v4-staging-identity";
 
 export function deriveProductV4PdfEvidence(input: {
   snapshot: ProductV4VerificationSnapshot; plan: ProductV4VerificationPlan; attemptId: string;
   receipt: unknown; authority: ProductV4VerificationAuthority; artifactBytes: ReadonlyMap<string, Uint8Array>;
 }) {
   const { snapshot, plan, attemptId, authority } = input;
-  if (snapshot.verificationAttemptId !== attemptId || snapshot.verificationPlanHash !== plan.planHash || plan.binding.importId !== snapshot.importId || plan.binding.printProfile !== PRODUCT_DIKTAT_PRINT_PROFILE) throw new Error("PRODUCT_V4_PDF_EVIDENCE_STALE");
+  if (snapshot.verificationAttemptId !== attemptId || snapshot.verificationPlanHash !== plan.planHash || plan.binding.importId !== snapshot.importId || plan.binding.runId !== snapshot.stagingRunId || plan.binding.printProfile !== PRODUCT_DIKTAT_PRINT_PROFILE) throw new Error("PRODUCT_V4_PDF_EVIDENCE_STALE");
   assertProductV4VerificationCurrent(plan, deriveProductV4VerificationPlan({ bundle: snapshot.bundle, binding: snapshot.binding }));
   const receipt = parseProductV4VerificationReceipt(input.receipt);
   if (!evaluateProductV4Verification(plan, [receipt], authority).ready) throw new Error("PRODUCT_V4_PDF_VERIFICATION_REQUIRED");
@@ -31,11 +32,11 @@ export function deriveProductV4PdfEvidence(input: {
       rendererVersion: PRODUCT_DIKTAT_RENDERER_VERSION, printProfile: PRODUCT_DIKTAT_PRINT_PROFILE,
       storageKey: buildProductVerificationKey(plan.planHash, artifact.id), pageCount: check.pageCount, status: "ready" as const, failureCode: null });
   }
+  if (!rows.length) throw new Error("PRODUCT_V4_PDF_ARTIFACT_REQUIRED");
   return rows;
 }
 
-/** Trusted job completion only. Polling and caller-uploaded evidence never call this writer. */
-export async function persistProductV4PdfEvidence(input: { snapshot: ProductV4VerificationSnapshot; plan: ProductV4VerificationPlan; attemptId: string; receipt: unknown }, buildProductV4RuntimeBinding: (input: { row: typeof imporBundle.$inferSelect & { courseId: string }; bundle: ProductV4VerificationSnapshot["bundle"]; runId: string }) => Promise<ProductV4VerificationBinding>) {
+export async function persistProductV4PdfEvidence(input: { snapshot: ProductV4VerificationSnapshot; plan: ProductV4VerificationPlan; attemptId: string; receipt: unknown }, buildProductV4RuntimeBinding: typeof import("./product-v4-runtime-binding").buildProductV4RuntimeBinding) {
   const [{ db }, { imporBundle, buktiPdfBundle }, { and, eq }, { storage }, { resolveAuthSecret }] = await Promise.all([
     import("@/db"), import("@/db/schema"), import("drizzle-orm"), import("@/lib/storage"), import("@/lib/auth-secret"),
   ]);
@@ -45,9 +46,11 @@ export async function persistProductV4PdfEvidence(input: { snapshot: ProductV4Ve
   for (const result of receipt.results) for (const artifact of result.artifacts) if (artifact.mediaType === "application/pdf") artifactBytes.set(artifact.id, await storage.download(buildProductVerificationKey(input.plan.planHash, artifact.id)));
   const rows = deriveProductV4PdfEvidence({ ...input, receipt, artifactBytes, authority: { signingKey: resolveAuthSecret(), executorId: "zyx-product-v4-server-runner.v1" } });
   await db.transaction(async (tx) => {
-    const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.snapshot.importId)).limit(1);
-    const current = row?.validationReport.productV4Verification as { attemptId?: unknown; planHash?: unknown } | undefined;
-    if (!row || row.status !== "draft" || row.checksum !== input.snapshot.checksum || row.sourceUriOrKey !== input.snapshot.sourceUriOrKey || current?.attemptId !== input.attemptId || current.planHash !== input.plan.planHash) throw new Error("PRODUCT_V4_PDF_EVIDENCE_CONFLICT");
+    const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.snapshot.importId)).limit(1).for("update");
+    const staging = await latestProductV4StagingAudit(tx, input.snapshot.importId);
+    if (!matchesProductV4StagingSnapshot(row, staging, input.snapshot) || !row || row.status !== "draft") throw new Error("PRODUCT_V4_PDF_EVIDENCE_CONFLICT");
+    const current = currentProductV4VerificationRef(row.validationReport, input.snapshot.stagingAuditId, input.snapshot.stagingRunId);
+    if (current?.attemptId !== input.attemptId || current.planHash !== input.plan.planHash || input.snapshot.stagingRunId !== input.plan.binding.runId) throw new Error("PRODUCT_V4_PDF_EVIDENCE_CONFLICT");
     if (!row.courseId) throw new Error("PRODUCT_V4_COURSE_MISMATCH");
     const binding = await buildProductV4RuntimeBinding({ row: { ...row, courseId: row.courseId }, bundle: input.snapshot.bundle, runId: input.plan.binding.runId });
     assertProductV4VerificationCurrent(input.plan, deriveProductV4VerificationPlan({ bundle: input.snapshot.bundle, binding }));

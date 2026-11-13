@@ -1,8 +1,9 @@
+import { hasAuthoringActor } from "@/lib/auth/authoring-actor";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { hasAnyPeran } from "@/lib/auth/authorization";
+
 import { explainBundleError } from "@/lib/bundle/admin-errors";
 import { upsertIdeaItemReview } from "@/lib/bundle/staging";
 import { upsertProductItemReview } from "@/lib/bundle/product-staging";
@@ -10,6 +11,7 @@ import { upsertProductItemReview } from "@/lib/bundle/product-staging";
 export const runtime = "nodejs";
 
 const itemReviewSchema = z.object({
+  expectedRevision: z.string().regex(/^[a-f0-9]{64}$/),
   targetType: z.enum(["idea", "article_section", "article_block"]),
   targetId: z.string().min(1),
   productId: z.string().min(1).optional(),
@@ -19,12 +21,8 @@ const itemReviewSchema = z.object({
 
 export async function PUT(request: NextRequest, context: { params: Promise<{ kind: string; id: string }> }) {
   const session = await auth.api.getSession({ headers: await headers() });
-  const isAuthorized = session?.user && (
-    (await hasAnyPeran(session.user.id, ["admin", "tutor"], { allowAdmin: true })) ||
-    session.user.role === "admin" ||
-    session.user.role === "teacher"
-  );
-  if (!isAuthorized) return NextResponse.json({ error: "Anda tidak memiliki akses untuk mereview bundle ini.", code: "UNAUTHORIZED" }, { status: 401 });
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await hasAuthoringActor(session.user.id, ["admin", "tutor"]))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const parsed = itemReviewSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Data review item tidak valid.", code: "BUNDLE_ITEM_REVIEW_INVALID" }, { status: 400 });
@@ -38,6 +36,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ kin
         ideaId: parsed.data.targetId,
         status: parsed.data.status,
         notes: parsed.data.notes,
+        expectedRevision: parsed.data.expectedRevision,
       }) });
     }
     if (kind === "product" && parsed.data.targetType !== "idea" && parsed.data.productId) {
@@ -49,6 +48,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ kin
         targetId: parsed.data.targetId,
         status: parsed.data.status,
         notes: parsed.data.notes,
+        expectedRevision: parsed.data.expectedRevision,
       }) });
     }
     return NextResponse.json({ error: "Target review tidak sesuai dengan jenis bundle.", code: "BUNDLE_ITEM_REVIEW_TARGET_INVALID" }, { status: 400 });

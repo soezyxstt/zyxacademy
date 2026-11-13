@@ -17,6 +17,7 @@ await local.insert(schema.user).values({ id: "local-test-author", name: "PDF fix
 await local.insert(schema.pengguna).values({ id: "local-test-author", status: "active" });
 await local.insert(schema.courses).values({ id: "course", title: "PDF fixture", category: "Matematika" });
 await local.insert(schema.imporBundle).values({ id: "import", bundleId: input.snapshot.bundle.manifest.bundleId, checksum: input.snapshot.checksum, bundleType: "product", courseId: "course", sourceUriOrKey: input.snapshot.sourceUriOrKey, version: 4, status: "draft", validationReport: {}, requestedBy: "local-test-author" });
+await local.insert(schema.auditMutasi).values({ id: "stage-a", entityType: "product_bundle", entityId: "import", action: "draft_created", correlationId: "run", afterSnapshot: { checksum: input.snapshot.checksum } });
 const objects = new Map<string, Uint8Array>();
 mock.module("@/db", () => ({ db: new Proxy(local, { get(target, property) {
   if (property === "transaction") return async (callback: (tx: Tx) => Promise<unknown>) => local.transaction(async (tx) => { transactions++; activeTx = tx; try { return await callback(tx); } finally { activeTx = null; } });
@@ -29,7 +30,7 @@ mock.module("@/lib/storage", () => ({ storage: {
 mock.module("@/jobs/client", () => ({ inngest: { send: async () => ({ ids: [] }) } }));
 mock.module("@/lib/bundle/product-staging", () => ({
   getProductBundleImport: async (id: string) => (await local.select().from(schema.imporBundle).where(eq(schema.imporBundle.id, id)))[0],
-  parseStagedProductBundle: async () => input.snapshot.bundle,
+  parseStagedProductBundle: async () => ({ ...input.snapshot.bundle, checksum: input.snapshot.checksum }),
 }));
 mock.module("@/lib/compute/product-v4-verification-executor", () => ({
   buildProductV4RuntimeBinding: async () => input.snapshot.binding,

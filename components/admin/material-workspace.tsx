@@ -1,5 +1,6 @@
 "use client";
 
+import { MaterialReviewNavigation } from "@/components/admin/material-review-navigation";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "@/lib/i18n/client";
@@ -66,7 +67,7 @@ export function MaterialWorkspace({
   const effectiveBackLabel = backLabel ?? (detailMode ? (lockedCourse ? t("materials.backToCourseReview", { title: lockedCourse.title }) : t("materials.backToReviewList")) : undefined);
 
   return (
-    <div className="space-y-4">
+    <MaterialReviewNavigation><div className="space-y-4">
       {!hideHeader && (
         <AdminPageHeader
           icon={BookOpenCheck}
@@ -104,6 +105,6 @@ export function MaterialWorkspace({
           </Tabs>
         </div>
       )}
-    </div>
+    </div></MaterialReviewNavigation>
   );
 }

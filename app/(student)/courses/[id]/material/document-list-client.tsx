@@ -158,6 +158,7 @@ function DocumentHeaderIcon({
   docCategory?: DocCategory;
   subcategory?: string | null;
 }) {
+  if (kind === "solution_collection") return <BookOpenCheck className="size-4 shrink-0 text-primary" aria-hidden />;
   if (kind === "quiz" || subcategory === "kuis") {
     return <ClipboardList className="size-4 shrink-0 text-amber-500" aria-hidden />;
   }
@@ -376,7 +377,7 @@ function FilterGroup({
 
 function isPageNavigationMaterial(material: CourseMaterial): boolean {
   // Articles and Diktats keep navigating to the dedicated material reader page
-  if (material.kind === "article") return true;
+  if (material.kind === "article" || material.kind === "solution_collection") return true;
   if (material.docCategory === "diktat" || material.tabGroup === "diktat") return true;
   // Interactive quizzes and tryouts have their own interactive test pages
   if (material.kind === "quiz" || material.kind === "tryout") return true;
@@ -717,8 +718,9 @@ export function DocumentListClient({
           {filteredMaterials.map((material) => {
             const itemHref = material.href ?? `/courses/${courseId}/material/${material.id}`;
             const isPageNav = forcePageNavigation || isPageNavigationMaterial(material);
-            const subLabel =
-              material.subcategory
+            const subLabel = material.kind === "solution_collection"
+              ? t("documents.materialTypes.solution_collection")
+              : material.subcategory
                 ? getSubcategoryLabel(material.subcategory as any) ?? material.subcategory
                 : categoryLabel[material.docCategory ?? "materi"];
             const { babBadge, title: cleanTitle } = parseMaterialTitle(material.title, courseTitle);
@@ -730,7 +732,7 @@ export function DocumentListClient({
                 itemHref={itemHref}
                 isPageNav={isPageNav}
                 onSelectPdf={setSelectedPdf}
-                className="group flex flex-col min-w-0 overflow-hidden rounded-xl border border-border/50 bg-card transition-all duration-150 hover:border-border/90 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary text-left"
+                className={cn("group flex flex-col min-w-0 overflow-hidden rounded-xl border border-border/50 bg-card transition-all duration-150 hover:border-border/90 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary text-left", material.kind === "solution_collection" && "self-start")}
               >
                 {/* Header */}
                 <div className="flex items-center gap-2.5 px-3 py-2.5">
@@ -873,9 +875,9 @@ export function DocumentListClient({
                 </div>
 
                 {/* Body (Preview or Placeholder) */}
-                <div className="border-t border-border/40">
+                {material.kind !== "solution_collection" ? <div className="border-t border-border/40">
                   <DocumentPreview material={material} />
-                </div>
+                </div> : null}
               </DocumentItemWrapper>
             );
           })}
@@ -886,8 +888,9 @@ export function DocumentListClient({
           {filteredMaterials.map((material) => {
             const itemHref = material.href ?? `/courses/${courseId}/material/${material.id}`;
             const isPageNav = forcePageNavigation || isPageNavigationMaterial(material);
-            const subLabel =
-              material.subcategory
+            const subLabel = material.kind === "solution_collection"
+              ? t("documents.materialTypes.solution_collection")
+              : material.subcategory
                 ? getSubcategoryLabel(material.subcategory as any) ?? material.subcategory
                 : categoryLabel[material.docCategory ?? "materi"];
             const { babBadge, title: cleanTitle } = parseMaterialTitle(material.title, courseTitle);

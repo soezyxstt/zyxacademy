@@ -2,7 +2,7 @@
 
 ## 1. Stage Objective
 
-Transform a validated Source Pack into an `idea-bundle.v3` ZIP archive containing pedagogical `learningSections`, atomic `ideas`, byte-accurate `provenance` (`sourceMaterials`, `sourceChunks`, `ideaProvenance`), and an acyclic `relations` DAG, then validate and stage it for admin review.
+Transform a validated Source Pack into an `idea-bundle.v3` ZIP archive containing pedagogical `learningSections`, atomic `ideas`, byte-accurate `provenance` (`sourceMaterials`, `sourceChunks`, `ideaProvenance`), and an acyclic `relations` DAG, then validate, stage, review and publish the exact revision through authorized MCP tools.
 
 ## 2. Step-by-Step Tool Sequence
 
@@ -21,9 +21,13 @@ Transform a validated Source Pack into an `idea-bundle.v3` ZIP archive containin
 5. **Validate and Stage:**
    - Call `authoring.validate_idea_bundle` with `runToken`, `filename`, `bundleBase64`, and `bootstrapToken`.
    - Resolve all blocking issues and warnings until `ok: true` and `valid: true`.
-   - Call `authoring.submit_idea_bundle` (or `authoring.restage_idea_bundle` with `importId` if replacing an existing unapproved staged bundle).
-   - If the operator explicitly requests recording a review decision and the principal holds `authoring:review`, call `authoring.review_idea_bundle`.
-   - Remind the operator that an admin must publish the approved Idea Bundle in `/admin/materials/review` before Product Bundle V4 authoring can reference its Ideas.
+   - Call `authoring.submit_idea_bundle` (or `authoring.restage_idea_bundle` with `importId` and the caller's last-read checksum as `expectedRevision` if replacing an existing unapproved staged bundle). Before changing a draft, read `authoring.get_import` and inspect `import.reviewReset` counts. Explicitly acknowledge deletion of saved reviews by passing its `fingerprint` as `reviewResetFingerprint`. If the reset is required or stale, reload and decide again. Unchanged content does not reset reviews.
+   - Read the current checksum, then call `authoring.get_idea_review_context` with the locked `runToken`, `bootstrapToken`, `importId`, and `expectedRevision`.
+   - Review each Idea and its provenance. With `authoring:review`, call `authoring.review_idea_revision` using every current Idea hash and an explicit item decision. Missing or failed decisions cannot grant approval.
+   - With explicit publication authorization and `authoring:publish`, call `authoring.publish_idea_bundle` using the same exact checksum and admin identity. A matching retry is idempotent. A stale checksum requires fresh context and review.
+   - Read back the published Ideas before authoring products. No Admin website visit is required. An insufficient-scope response provides the OAuth resource and required grant; reauthorize with the union of existing and required scopes instead of silently granting permission.
+   - For authorized withdrawal, use `authoring.withdraw_idea_bundle` with `authoring:withdraw`, the bound run and bootstrap, import ID and exact checksum. Read current status afterward. Matching retries are idempotent; entities still owned by another published import remain active.
+   - If an old published import has no usable run, fetch a fresh Idea bootstrap, omit `runToken`, and explicitly pass `recovery: "exact_import"` with the import ID and observed checksum. Withdrawal recovery needs no Source Pack and grants no authoring, review or publication bypass.
 
 ## 3. `idea-bundle.v3` Archive Contract
 

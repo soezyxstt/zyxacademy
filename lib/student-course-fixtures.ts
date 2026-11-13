@@ -3,7 +3,7 @@
  * Replace with TanStack Query + fetch when ready.
  */
 
-export type MaterialKind = "article" | "pdf" | "image" | "video" | "link" | "quiz" | "tryout";
+export type MaterialKind = "solution_collection" | "article" | "pdf" | "image" | "video" | "link" | "quiz" | "tryout";
 export type DocCategory = "materi" | "soal" | "solusi" | "diktat";
 
 export type CourseMaterial = {
