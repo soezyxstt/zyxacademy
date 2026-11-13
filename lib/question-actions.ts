@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { aiQuestionBank } from "@/db/schema";
 import { validateQuestion } from "@/lib/question-validator";
 import { eq } from "drizzle-orm";
+import { rejectQuestionVisualReferences } from "@/lib/authoring/question-visual-references";
 
 /**
  * Saves manual modifications to a question from a tutor.
@@ -15,6 +16,8 @@ export async function saveTutorQuestionEdit(
   explanation: string,
   tutorUserId: string // logged for audit trails
 ): Promise<{ success: boolean; errors?: string[] }> {
+  try { rejectQuestionVisualReferences([{ prompt, options, explanation }]); }
+  catch (error) { return { success: false, errors: [error instanceof Error ? error.message : "QUESTION_VISUAL_FORMAT_INVALID"] }; }
   // Fetch existing question to retrieve KO association and other values
   const [currentQ] = await db
     .select()
@@ -80,6 +83,9 @@ export async function approveAndPublishQuestion(
   if (question.origin !== "zyx_original") {
     return { success: false, errors: ["Historical and legacy reference questions are immutable."] };
   }
+
+  try { rejectQuestionVisualReferences([{ prompt: question.prompt, options: Array.isArray(question.options) ? question.options.map(String) : [], explanation: question.explanation }]); }
+  catch (error) { return { success: false, errors: [error instanceof Error ? error.message : "QUESTION_VISUAL_FORMAT_INVALID"] }; }
 
   // Run validation on existing values to ensure KaTeX and structure are compliant
   const qc = await validateQuestion({

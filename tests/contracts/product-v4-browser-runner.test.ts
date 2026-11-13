@@ -1,7 +1,41 @@
 import { expect, test } from "bun:test";
-import { authenticateVerificationBrowser, captureProductV4WebState, exerciseProductV4WebState, exerciseProductV4VisualSmoke, inspectProductV4WebDocument, inspectProductV4DisplayMath, exerciseProductV4MathScroll, validateVerificationBaseUrl, validateDeployedVerificationBaseUrl, resolveVerificationBaseUrl, isLocalPlaywrightVerification } from "@/lib/compute/product-v4-browser-runner";
-import type { Page } from "@playwright/test";
+import { authenticateVerificationBrowser, captureProductV4WebState, exerciseProductV4WebState, exerciseProductV4VisualSmoke, inspectProductV4WebDocument, inspectProductV4DisplayMath, exerciseProductV4MathScroll, validateVerificationBaseUrl, validateDeployedVerificationBaseUrl, resolveVerificationBaseUrl, isLocalPlaywrightVerification, waitForProductV4Visuals } from "@/lib/compute/product-v4-browser-runner";
+import type { Page } from "playwright-core";
 import { verificationPreviewSchema } from "@/lib/materials/verification-preview";
+import { visualSpecSchema } from "@/lib/materials/visual-contract";
+
+test("scene verification waits for the mounted SVG and controls before capture or actions", async () => {
+  const visual = visualSpecSchema.parse({ id: "scene", kind: "interactive_scene", label: "Scene", description: "Scene", viewBox: { x: 0, y: 0, width: 20, height: 20 }, parameters: [{ id: "x", label: "X", min: 0, max: 1, step: 1, initial: 0, control: "range" }], shapes: [{ type: "circle", cx: "x", cy: 1, r: 1 }], staticFallback: { type: "text", summary: "Fallback", content: "Fallback" } });
+  let release!: () => void;
+  let mounted = false, controls = false, scrolled = false, completed = false;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const original = Object.getOwnPropertyDescriptor(globalThis, "document");
+  const buttons = [{ textContent: "Reset" }, { textContent: "Tampilkan alternatif" }];
+  const root = { querySelector: (selector: string) => { expect(selector).toBe(":scope > svg[role='group']"); return mounted ? {} : null; }, querySelectorAll: (selector: string) => selector === "button" ? buttons : controls ? [{}] : [] };
+  Object.defineProperty(globalThis, "document", { configurable: true, value: { querySelectorAll: () => [{ id: "scene", querySelector: () => root }] } });
+  try {
+    const page = { locator: () => ({ all: async () => [{ scrollIntoViewIfNeeded: async () => { scrolled = true; }, getAttribute: async () => "scene" }] }), waitForFunction: async (predicate: (arg: unknown) => boolean, arg: unknown, options: { timeout: number }) => {
+      expect(scrolled).toBe(true); expect(options.timeout).toBe(15000);
+      expect(predicate(arg)).toBe(false);
+      mounted = true;
+      expect(predicate(arg)).toBe(false);
+      await gate;
+      expect(predicate(arg)).toBe(true);
+    } } as unknown as Page;
+    const waiting = waitForProductV4Visuals(page, [visual]).then(() => { completed = true; });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(completed).toBe(false);
+    controls = true; release();
+    await waiting;
+    expect(completed).toBe(true);
+    const failed = { ...page, waitForFunction: async () => { throw new Error("timeout"); } } as unknown as Page;
+    await expect(waitForProductV4Visuals(failed, [visual])).rejects.toThrow("VERIFICATION_INTERACTIVE_SCENE_NOT_READY:scene");
+    await expect(waitForProductV4Visuals({ locator: () => ({ all: async () => [] }) } as unknown as Page, [visual])).rejects.toThrow("VERIFICATION_INTERACTIVE_SCENE_NOT_READY:scene");
+    await expect(waitForProductV4Visuals({ locator: () => ({ all: async () => [] }) } as unknown as Page, [visual], false)).resolves.toBeUndefined();
+  } finally {
+    if (original) Object.defineProperty(globalThis, "document", original); else Reflect.deleteProperty(globalThis, "document");
+  }
+});
 
 test("deployed browser target accepts only the exact authorized Zyx origins", () => {
   expect(validateDeployedVerificationBaseUrl("https://staging.zyxacademy.com")).toBe("https://staging.zyxacademy.com");
@@ -40,6 +74,10 @@ test("controlled preview validates authored parts and excludes execution and ans
   const unsafe = structuredClone(payload);
   unsafe.sections[0].blocks[0].parts[0].meaningMarkdown = "<script>alert(1)</script>";
   expect(verificationPreviewSchema.safeParse(unsafe).success).toBe(false);
+  expect(verificationPreviewSchema.safeParse({ ...payload, documentScope: "a".repeat(32) }).success).toBe(true);
+  for (const documentScope of ["../document", "a".repeat(31), "A".repeat(32), "a".repeat(32) + "?x=1"]) {
+    expect(verificationPreviewSchema.safeParse({ ...payload, documentScope }).success).toBe(false);
+  }
 });
 
 test("source preview accepts only a verified inline image adapter, never arbitrary URLs or internal identities", () => {

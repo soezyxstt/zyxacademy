@@ -7,7 +7,7 @@ import {
   computeProductBundleChecksum,
   deterministicProductSerialization,
   productEntitySchema,
-  validateProductBundle,
+  parseProductBundle,
   type ProductDependency,
   type ProductEntity,
   type ProductBundleValidation,
@@ -209,7 +209,7 @@ export function finalizeProductBundleDraft(original: ValidProductBundle, draft: 
   files.set("manifest.json", strToU8(`${deterministicProductSerialization(manifest)}\n`));
   const entries = Object.fromEntries([...files.entries()].sort(([left], [right]) => left.localeCompare(right)));
   const bytes = zipSync(entries, { level: 6 });
-  const validation = validateProductBundle(bytes);
+  const validation = parseProductBundle(files);
   if (!validation.success) throw new Error(`${validation.issues[0]?.code ?? "PRODUCT_DRAFT_INVALID"}:${validation.issues[0]?.message ?? "Draft tidak valid"}`);
   return { bytes, bundle: validation.data };
 }

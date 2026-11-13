@@ -3,7 +3,7 @@ import type { ArticlePart } from "@/lib/materials/article-parts";
 import { inspectPayloadSecurity, visualSpecSchema } from "@/lib/materials/visual-contract";
 
 /** Content must already have passed the chapter and product eligibility checks. */
-export function sanitizeDemoMarkdown(text: string): string {
+function sanitizeDemoMarkdownText(text: string): string {
   // Decode common obfuscation before removing destinations. Repeat for nested encoding.
   let value = text;
   for (let i = 0; i < 3; i++) {
@@ -26,6 +26,22 @@ export function sanitizeDemoMarkdown(text: string): string {
     .replace(/(?:data|javascript|vbscript|file|blob)\s*:[^\s<>\])}]*/gi, "")
     .replace(/(^|[\s("'])((?:\.{1,2}\/|\/\/|\/)[a-z0-9_~.%@+-][^\s<>\])}]*)/gi, "$1")
     .replace(/(^|[\s("'])[a-z0-9_.-]+\/(?:[^\s<>\])}]*\/)?[^\s<>\])}]+\.(?:pdf|png|jpe?g|gif|webp|svg|html?|json|zip|mp4)(?:\?[^\s<>\])}]*)?/gi, "$1");
+}
+
+export function sanitizeDemoMarkdown(text: string): string {
+  const fences = /^ {0,3}(`{3,}|~{3,})zyx-visual[ \t]*\r?\n([\s\S]*?)^ {0,3}\1[ \t]*(?=\r?$)/gm;
+  let result = "", cursor = 0;
+  for (const match of text.matchAll(fences)) {
+    result += sanitizeDemoMarkdownText(text.slice(cursor, match.index));
+    let safe = false;
+    if (match[2].length <= 128 * 1024) try {
+      const parsed = visualSpecSchema.safeParse(JSON.parse(match[2]));
+      safe = parsed.success && parsed.data.kind === "interactive_scene" && safeVisual(parsed.data);
+    } catch { /* Invalid fences follow normal sanitization. */ }
+    result += safe ? match[0] : sanitizeDemoMarkdownText(match[0]);
+    cursor = match.index! + match[0].length;
+  }
+  return result + sanitizeDemoMarkdownText(text.slice(cursor));
 }
 
 
@@ -115,11 +131,12 @@ function validateMetadata(article: PublicArticleReadModel): void {
 // reference. Source figures always contain an unverified assetId and are withheld.
 function safeVisual(visual: PublicVisualSpec): boolean {
   if (visual.kind === "source_figure" || !inspectPayloadSecurity(visual).safe || !visualSpecSchema.safeParse(visual).success) return false;
-  const check = (value: unknown): boolean => {
-    if (typeof value === "string") return sanitizeDemoMarkdown(value) === value;
+  const expressionFields = new Set(["x", "y", "x1", "y1", "x2", "y2", "cx", "cy", "r", "width", "height", "left", "right", "value"]);
+  const check = (value: unknown, key = ""): boolean => {
+    if (typeof value === "string") return visual.kind === "interactive_scene" && expressionFields.has(key) || sanitizeDemoMarkdownText(value) === value;
     if (typeof value === "number") return Number.isFinite(value) && Math.abs(value) <= 1_000_000_000;
-    if (Array.isArray(value)) return value.every(check);
-    if (value && typeof value === "object") return Object.entries(value).every(([key, item]) => check(key) && check(item));
+    if (Array.isArray(value)) return value.every(item => check(item));
+    if (value && typeof value === "object") return Object.entries(value).every(([key, item]) => check(key) && check(item, key));
     return true;
   };
   return check(visual);

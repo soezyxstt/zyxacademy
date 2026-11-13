@@ -18,6 +18,9 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { randomUUID } from "crypto";
 import { z } from "zod";
+import { rejectQuestionVisualReferences } from "@/lib/authoring/question-visual-references";
+import { parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
+import { verifyQuestionVisualBinding } from "@/lib/materials/question-visual-binding";
 import { parseMaterialIntoSections } from "@/lib/ingestion-parser";
 import { revalidatePath } from "next/cache";
 import { notifyQuizPublishedBestEffort } from "@/lib/notifications/send";
@@ -1023,6 +1026,7 @@ export async function saveQuestionBankAction(
   },
 ) {
   const { session, access } = await verifyTutorAccess(courseId);
+  rejectQuestionVisualReferences([{ prompt: typeof data?.prompt === "string" ? data.prompt : "", options: Array.isArray(data?.options) ? data.options.filter((value): value is string => typeof value === "string") : [], explanation: typeof data?.explanation === "string" ? data.explanation : "" }]);
   const { roles, isAdmin } = await resolveActorRoles(
     session.user.id,
     (session.user as { role?: string | null }).role,
@@ -1480,6 +1484,7 @@ export async function saveTryoutQuestionAction(
   if (!session?.user) {
     throw new Error("Unauthorized: Silakan masuk terlebih dahulu.");
   }
+  rejectQuestionVisualReferences([{ prompt: data.prompt, options: data.options ?? [] }]);
 
   const { roles, isAdmin } = await resolveActorRoles(
     session.user.id,
@@ -1724,6 +1729,13 @@ export async function importQuestionBankToTryoutAction(
   const rowsToImport = uniqueIds
     .map((qId) => bankRows.find((row) => row.id === qId)!)
     .filter((row) => !importedIds.has(row.id));
+  for (const row of rowsToImport) {
+    const copied = { prompt: row.prompt, options: Array.isArray(row.options) ? row.options.map(String) : [], explanation: row.explanation };
+    const documents = [copied.prompt, ...copied.options, copied.explanation].flatMap(parseInteractiveDocumentsInMarkdown);
+    if (documents.length && !await verifyQuestionVisualBinding(exam.courseId, copied)) {
+      throw new Error("Aset visual soal belum terverifikasi untuk mata kuliah tryout.");
+    }
+  }
   const firstOrder =
     existingQuestions.reduce((highest, question) => Math.max(highest, question.order), 0) + 1;
 

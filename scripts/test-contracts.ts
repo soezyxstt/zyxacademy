@@ -37,8 +37,8 @@ let cursor = 0;
 await Promise.all(Array.from({ length: 1 }, async () => {
   while (cursor < files.length) {
     const index = cursor++, file = files[index];
-    const preload = databaseIntegrationFiles.has(file.replaceAll("\\", "/").split("/").at(-1)!)
-      ? ["--preload", "./tests/helpers/postgres-preload.ts"] : [];
+    const preload = ["--preload", "./tests/helpers/server-only-preload.ts"];
+    if (databaseIntegrationFiles.has(file.replaceAll("\\", "/").split("/").at(-1)!)) preload.push("--preload", "./tests/helpers/postgres-preload.ts");
     const child = Bun.spawn([process.execPath, "test", ...preload, "--timeout", "60000", file], { env: environment, stdout: "pipe", stderr: "pipe" });
     const timeout = setTimeout(() => child.kill(), 300000);
     const [stdout, stderr, exitCode] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);

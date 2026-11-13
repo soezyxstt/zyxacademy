@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { afterEach, expect, it } from "bun:test";
+import { afterEach, expect, it, mock } from "bun:test";
 import { inngest } from "@/jobs/client";
 import { processSourceReadPage } from "@/jobs/source-read";
 import { storage } from "@/lib/storage";
@@ -7,7 +7,8 @@ import { readSourceFileMetadata } from "@/lib/authoring/source-file-metadata";
 import { buildSourceReadJobKey } from "@/lib/storage/keys";
 import { sourceReadJob } from "@/lib/authoring/source-read-jobs";
 import { issueMcpSourceFileKey, readMcpSourceFileKey } from "@/lib/authoring/mcp-workflows";
-import { formatSourceFileReadResult } from "@/lib/authoring/mcp-server";
+mock.module("server-only", () => ({}));
+const { formatSourceFileReadResult } = await import("@/lib/authoring/mcp-server");
 import { pdfReadOptionsSchema, timePdfStage } from "@/lib/compute/pdf-read-options";
 import { readPdfFromStorage } from "@/lib/compute/pdf-reader";
 import { requestPdfPagesFromCompute } from "@/lib/compute-client/pdf";

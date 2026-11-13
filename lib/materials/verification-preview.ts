@@ -15,5 +15,11 @@ export const verificationPreviewSchema = z.object({
   sections: z.array(z.object({ id: z.string().min(1), title: z.string().max(500), blocks: z.array(z.object({ id: z.string().min(1), parts: articlePartsSchema }).strict()).max(200) }).strict()).max(200),
   visuals: z.array(previewVisual).max(100),
   visualId: z.string().optional(),
+  documentScope: z.string().regex(/^[a-f0-9]{32}$/).optional(),
+  formative: z.object({
+    sectionId: z.string().min(1), blockId: z.string().min(1),
+    parts: articlePartsSchema,
+    check: z.object({ checkKind: z.enum(["multiple_choice", "short_answer", "numeric_answer", "conceptual_explanation"]), options: z.array(z.object({ id: z.string().min(1), text: z.string().min(1) }).strict()).optional(), evaluationMode: z.enum(["choice", "text_exact", "numeric", "ai_rubric"]).nullable(), unit: z.string().optional(), feedbackPolicy: z.object({ hints: z.array(z.string()), allowRetry: z.boolean() }).strict().optional() }).strict(),
+  }).strict().optional(),
 }).strict();
 export type VerificationPreview = z.infer<typeof verificationPreviewSchema>;

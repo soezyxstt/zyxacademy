@@ -66,8 +66,9 @@ export async function runProductV4LocalVerification() {
     const result = await service.processProductV4VerificationJob({ importId: input.importId, runId: input.runId, planHash: requested.plan.planHash, attemptId: requested.attemptId }, undefined, async check => {
       assertSource();
       if (check.requirement.layer === "structure" || check.requirement.layer === "model") return executor.executeProductV4VerificationCheck(check);
-      const staticFigureAssets = await runtime.loadProductV4StaticFigureAssets(check.bundle);
-      return runner.executeBrowserProductV4Check({ ...check, baseUrl: "https://www.zyxacademy.com", staticFigureAssets });
+      const staticFigureAssets = await runtime.loadProductV4StaticFigureAssets(check.bundle, undefined, check.requirement.layer === "print");
+      const interactiveDocumentAssets = await runtime.loadProductV4InteractiveDocumentAssets(check);
+      return runner.executeBrowserProductV4Check({ ...check, baseUrl: "https://www.zyxacademy.com", staticFigureAssets, interactiveDocumentAssets });
     });
     const verified = await service.getProductV4Verification({ importId: input.importId, runId: input.runId, planHash: result.plan.planHash });
     assertSource();

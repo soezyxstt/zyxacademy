@@ -6,7 +6,9 @@ import {
   formativeCheckLocatorSchema,
   resolvePublishedFormativeCheck,
 } from "@/lib/materials/formative-check-server";
-import type { FormativeCheckPayload } from "@/lib/materials/pedagogy-contract";
+import { formativeAnswerForReveal } from "@/lib/materials/formative-check-answer";
+import { interactiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-authorization";
+import { mintInteractiveDocumentGrant } from "@/lib/materials/interactive-document-grant";
 
 export const dynamic = "force-dynamic";
 
@@ -27,17 +29,6 @@ function resolutionError(code: string): { status: number; error: string } {
     default:
       return { status: 500, error: "Pembahasan tidak dapat dibuka." };
   }
-}
-
-function answerForReveal(formativeCheck: FormativeCheckPayload): string {
-  if (formativeCheck.checkKind !== "multiple_choice") return formativeCheck.answer;
-
-  const correctIndex = formativeCheck.options?.findIndex((option) => option.isCorrect) ?? -1;
-  const correctOption = correctIndex >= 0 ? formativeCheck.options?.[correctIndex] : undefined;
-  if (!correctOption) return formativeCheck.answer;
-
-  const label = correctIndex < 26 ? String.fromCharCode(65 + correctIndex) : String(correctIndex + 1);
-  return `${label}. ${correctOption.text}`;
 }
 
 export async function POST(request: Request) {
@@ -65,10 +56,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Anda belum terdaftar pada mata kuliah ini." }, { status: 403 });
     }
 
-    return NextResponse.json({
-      answer: answerForReveal(resolved.context.formativeCheck),
-      explanation: resolved.context.formativeCheck.explanation,
-    });
+    const answer = formativeAnswerForReveal(resolved.context.formativeCheck);
+    const explanation = resolved.context.formativeCheck.explanation;
+    const visualAccess = Object.fromEntries(([ ["answer", answer], ["explanation", explanation] ] as const).flatMap(([field, text]) => interactiveDocumentsInMarkdown(text).length ? [[field, mintInteractiveDocumentGrant({ userId: session.user.id, ...parsed.data, field }, process.env.BETTER_AUTH_SECRET ?? "")]] : []));
+    return NextResponse.json({ answer, explanation, visualAccess }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error(
       "POST /api/materials/formative-check/reveal failed:",

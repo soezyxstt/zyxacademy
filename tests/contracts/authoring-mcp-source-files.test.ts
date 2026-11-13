@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { strToU8, zipSync } from "fflate";
 import {
   AUTHORING_MCP_MAX_STORED_BLOB_BYTES,
@@ -23,7 +23,8 @@ import {
   readMcpSourceFileKey,
   readMcpSourcePackBinding,
 } from "@/lib/authoring/mcp-workflows";
-import { formatSourceFileReadResult } from "@/lib/authoring/mcp-server";
+mock.module("server-only", () => ({}));
+const { formatSourceFileReadResult } = await import("@/lib/authoring/mcp-server");
 
 process.env.BETTER_AUTH_SECRET = "test-better-auth-secret-for-stored-source-files";
 

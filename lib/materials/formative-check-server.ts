@@ -53,7 +53,7 @@ export type FormativeCheckResolution =
     };
 
 function decodeBlockPayload(content: string): { content: string; payload: unknown } {
-  const marker = /<!--__ZYX_V3_BLOCK_PAYLOAD__:([A-Za-z0-9_-]+)-->/;
+  const marker = /<!--__ZYX_V[34]_BLOCK_PAYLOAD__:([A-Za-z0-9_-]+)-->/;
   const match = content.match(marker);
   if (!match) return { content, payload: undefined };
 

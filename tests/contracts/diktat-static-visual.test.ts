@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { renderDiktatStaticVisual, buildDiktatVisualSnapshot } from "@/lib/materials/diktat-static-visual";
 import { prepareAuthoredDiktatVisuals, authoredDiktatUnitsSchema } from "@/lib/materials/diktat-v4";
 import { visualSpecSchema } from "@/lib/materials/visual-contract";
@@ -6,6 +7,17 @@ import { LIMIT_EPSILON_DELTA_GRAPH } from "../fixtures/product-learning/limit-ep
 const base = { version: "zyra-learning-canvas-v1", title: "Scientific plot", purpose: "Scientific quantities.", variables: [], controls: [], claimRefs: [], altText: "Scientific plot.", fallback: { summary: "Scientific values.", columns: [{ id: "x", label: "$x$" }], rows: [["1"]] } };
 function render(canvas: object) { return renderDiktatStaticVisual(visualSpecSchema.parse({ id: "v", kind: "learning_canvas", label: "Scientific", description: "Mathematical quantities.", interactive: false, canvas: { ...base, ...canvas } })); }
 describe("Diktat deterministic static visuals", () => {
+  test("prints one document caption and preserves a distinct fallback", () => {
+    const bytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
+    const hash = createHash("sha256").update(bytes).digest("hex");
+    const spec = { id: "document", kind: "interactive_document", version: 1, label: "Bata", description: "Suhu bata", documentSha256: "a".repeat(64), documentBytes: 100, printSha256: hash, printBytes: bytes.length, height: 400, staticFallback: { type: "text", summary: "Suhu bata", content: "Suhu awal 30 C." }, printCaption: "Suhu awal 30 C." };
+    const assets = { [`interactive_document:${hash}`]: { bytes, mimeType: "image/png" as const, sourceChecksum: hash } };
+    expect(renderDiktatStaticVisual(visualSpecSchema.parse(spec), assets).match(/Suhu awal 30 C\./g)).toHaveLength(1);
+    const distinct = { ...spec, staticFallback: { ...spec.staticFallback, content: "Radiasi diabaikan." } };
+    const html = renderDiktatStaticVisual(visualSpecSchema.parse(distinct), assets);
+    expect(html).toContain("Suhu awal 30 C.");
+    expect(html).toContain("Radiasi diabaikan.");
+  });
   test("renders analytic epsilon/delta bands and pinned state without authored assets", () => {
     const html = renderDiktatStaticVisual(LIMIT_EPSILON_DELTA_GRAPH);
     expect(html).toContain("<svg"); expect(html).toContain("foreignObject"); expect(html).toContain("\\delta"); expect(html).toContain("data-state-hash");

@@ -448,6 +448,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         <Reveal>
           <QuizPlayer
             courseId={id}
+            visualCourseId={template.courseId}
             exam={formattedExam}
             attemptId={targetAttempt.id}
             initialAnswers={initialAnswers}
@@ -558,7 +559,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       });
     }
 
-    return <StudentQuizReview id={id} quizId={quizId} template={{ title: template.title }} targetAttempt={targetAttempt ? { id: targetAttempt.id, score: targetAttempt.score, durationSeconds: targetAttempt.durationSeconds, submittedAt: targetAttempt.submittedAt, gradingStatus: targetAttempt.gradingStatus } : null} snapshot={snapshot} answers={answers} unseenSnapshot={unseenSnapshot} discussionAvailable={isDiscussionOpen} />;
+    return <StudentQuizReview id={id} visualCourseId={template.courseId} quizId={quizId} template={{ title: template.title }} targetAttempt={targetAttempt ? { id: targetAttempt.id, score: targetAttempt.score, durationSeconds: targetAttempt.durationSeconds, submittedAt: targetAttempt.submittedAt, gradingStatus: targetAttempt.gradingStatus } : null} snapshot={snapshot} answers={answers} unseenSnapshot={unseenSnapshot} discussionAvailable={isDiscussionOpen} />;
   }
 
   // ───────────────────────────────────────────────────────────────────────────

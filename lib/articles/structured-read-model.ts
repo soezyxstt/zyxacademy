@@ -5,9 +5,13 @@ import {
   learningCanvasVisualSpecSchema,
   geometry2dVisualSpecSchema,
   sourceFigureVisualSpecSchema,
+  interactiveSceneVisualSpecSchema,
   type Geometry2dVisualSpec,
   type SourceFigureVisualSpec,
 } from "@/lib/materials/visual-contract";
+import type { InteractiveSceneSpec } from "@/lib/materials/interactive-scene";
+import { interactiveDocumentSchema, type InteractiveDocumentSpec } from "@/lib/materials/interactive-document";
+import { inspectInteractiveDocumentsInMarkdown, parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
 import type { CanvasSpec } from "@/lib/zyra/canvas";
 import {
   formativeCheckPayloadSchema,
@@ -89,7 +93,7 @@ export type PublicGeometry2dVisualSpec = Geometry2dVisualSpec;
 export type PublicSourceFigureVisualSpec = Omit<SourceFigureVisualSpec, "materialId" | "sourceChecksum"> & {
   asset?: { assetId: string; imageUrl: string; attribution: string; width: number; height: number };
 };
-export type PublicVisualSpec = PublicEpsilonDeltaGraphSpec | PublicLearningCanvasVisualSpec | PublicGeometry2dVisualSpec | PublicSourceFigureVisualSpec;
+export type PublicVisualSpec = PublicEpsilonDeltaGraphSpec | PublicLearningCanvasVisualSpec | PublicGeometry2dVisualSpec | PublicSourceFigureVisualSpec | InteractiveSceneSpec | InteractiveDocumentSpec;
 
 export interface PublicLearningTimeEstimate {
   readingMinutes: number;
@@ -463,6 +467,16 @@ export function sanitizeVisualSpec(payload: unknown): PublicVisualSpec | null {
   const secCheck = inspectPayloadSecurity(payload);
   if (!secCheck.safe) return null;
 
+  if (p.kind === "interactive_document") {
+    const document = interactiveDocumentSchema.safeParse(payload);
+    return document.success ? document.data : null;
+  }
+
+  if (p.kind === "interactive_scene") {
+    const scene = interactiveSceneVisualSpecSchema.safeParse(payload);
+    return scene.success ? scene.data : null;
+  }
+
   if (p.kind === "geometry_2d") {
     const geometry = geometry2dVisualSpecSchema.safeParse(payload);
     return geometry.success ? geometry.data : null;
@@ -594,6 +608,49 @@ export function buildPublicArticleReadModel(
   const validBlocks = (rawBlocks || [])
     .filter((b) => !b.status || b.status === "published")
     .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0) || a.id.localeCompare(b.id));
+  // A visual shared with an answer is hidden everywhere until the reveal endpoint grants it.
+  const hiddenHashes = new Set<string>();
+  const hiddenIds = new Set<string>();
+  let unknownHiddenVisual = false;
+  for (const block of rawBlocks) {
+    const payload = block.formativeCheckPayload;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) continue;
+    const answer = payload as Record<string, unknown>;
+    for (const field of [answer.answer, answer.explanation]) {
+      try {
+        const result = inspectInteractiveDocumentsInMarkdown(field);
+        if (result.invalid) unknownHiddenVisual = true;
+        for (const spec of result.specs) {
+          hiddenHashes.add(spec.documentSha256);
+          hiddenHashes.add(spec.printSha256);
+        }
+      } catch { unknownHiddenVisual = true; }
+    }
+  }
+  const hiddenVisual = (visual: PublicVisualSpec) => visual.kind === "interactive_document" &&
+    (unknownHiddenVisual || hiddenHashes.has(visual.documentSha256) || hiddenHashes.has(visual.printSha256));
+  for (const raw of [...(rawArticle.visuals ?? []), ...validSections.flatMap(section => section.visuals ?? [])]) {
+    const visual = sanitizeVisualSpec(raw);
+    if (visual && hiddenVisual(visual)) hiddenIds.add(visual.id);
+  }
+  function redact<T>(value: T): T {
+    if (typeof value === "string") {
+      let hiddenDocument = false;
+      try {
+        hiddenDocument = parseInteractiveDocumentsInMarkdown(value).some(spec => unknownHiddenVisual || hiddenHashes.has(spec.documentSha256) || hiddenHashes.has(spec.printSha256));
+      } catch {
+        hiddenDocument = unknownHiddenVisual || hiddenHashes.size > 0;
+      }
+      return (hiddenDocument || [...hiddenHashes].some(hash => value.includes(hash)) ? "Visual tidak tersedia." : value) as T;
+    }
+    if (Array.isArray(value)) return value.map(redact) as T;
+    if (value && typeof value === "object") {
+      const object = value as Record<string, unknown>;
+      if (object.kind === "visual_ref" && typeof object.visualId === "string" && hiddenIds.has(object.visualId)) return { id: object.id, kind: "markdown", markdown: "Visual tidak tersedia." } as T;
+      return Object.fromEntries(Object.entries(object).map(([key, item]) => [key, redact(item)])) as T;
+    }
+    return value;
+  }
   const rawVisualIdsByBlock = new Map<string, string[]>();
   for (const block of validBlocks) {
     const ids = Array.isArray(block.visualIds)
@@ -621,10 +678,10 @@ export function buildPublicArticleReadModel(
       blockType: b.blockType,
       title: b.title ?? null,
       orderIndex: b.orderIndex ?? 0,
-      content: b.parts === undefined ? b.content : materializeArticleParts(articlePartsSchema.parse(b.parts)),
-      parts: b.parts === undefined ? undefined : articlePartsSchema.parse(b.parts),
-      workedExample: workedExample ?? undefined,
-      formativeCheck: formativeCheck ?? undefined,
+      content: b.parts === undefined ? redact(b.content) : materializeArticleParts(redact(articlePartsSchema.parse(b.parts))),
+      parts: b.parts === undefined ? undefined : redact(articlePartsSchema.parse(b.parts)),
+      workedExample: workedExample ? redact(workedExample) : undefined,
+      formativeCheck: formativeCheck ? redact(formativeCheck) : undefined,
     });
     blocksBySection.set(b.bagianArtikelId, existing);
   }
@@ -634,7 +691,7 @@ export function buildPublicArticleReadModel(
   if (Array.isArray(rawArticle.visuals)) {
     for (const v of rawArticle.visuals) {
       const sv = sanitizeVisualSpec(v);
-      if (sv) sanitizedArticleVisuals.push(sv);
+      if (sv && !hiddenVisual(sv)) sanitizedArticleVisuals.push(sv);
     }
   }
   const visualMap = new Map(sanitizedArticleVisuals.map((v) => [v.id, v]));
@@ -706,10 +763,8 @@ export function buildPublicArticleReadModel(
     if (rawPed?.visualRequirement && typeof rawPed.visualRequirement === "object") {
       const vr = rawPed.visualRequirement as Record<string, unknown>;
       if (vr.status === "required" && Array.isArray(vr.visualIds)) {
-        visualReq = {
-          status: "required",
-          visualIds: vr.visualIds.filter((id): id is string => typeof id === "string"),
-        };
+        const visibleIds = vr.visualIds.filter((id): id is string => typeof id === "string" && !hiddenIds.has(id));
+        if (visibleIds.length) visualReq = { status: "required", visualIds: visibleIds };
       } else if (vr.status === "not_required" && typeof vr.reason === "string") {
         visualReq = {
           status: "not_required",
@@ -728,7 +783,7 @@ export function buildPublicArticleReadModel(
     if (Array.isArray(s.visuals)) {
       for (const v of s.visuals) {
         const sv = sanitizeVisualSpec(v);
-        if (sv) sectionVisuals.push(sv);
+        if (sv && !hiddenVisual(sv)) sectionVisuals.push(sv);
       }
     }
     if (visualReq?.status === "required" && visualReq.visualIds) {

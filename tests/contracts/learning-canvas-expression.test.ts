@@ -13,8 +13,14 @@ describe("Learning Canvas safe expressions", () => {
   });
 
   test("rejects property access, assignment, and unknown identifiers", () => {
-    for (const source of ["Math.random()", "x = 1", "window.alert(x)", "unknown + x", "import(x)"]) {
+    for (const source of ["Math.random()", "x = 1", "window.alert(x)", "unknown + x", "import(x)", "constructor(0)", "toString(0)", "valueOf(0)", "__proto__(0)"]) {
       expect(() => parseSafeExpression(source, { variables: ["x"] })).toThrow();
+    }
+  });
+
+  test("evaluates every allowed function", () => {
+    for (const [source, expected] of [["abs(-2)", 2], ["cos(0)", 1], ["exp(0)", 1], ["log(1)", 0], ["max(1,2)", 2], ["min(1,2)", 1], ["sin(0)", 0], ["sqrt(4)", 2], ["tan(0)", 0]] as const) {
+      expect(compileSafeExpression(source, { variables: [] }).evaluate({})).toBe(expected);
     }
   });
 
@@ -32,6 +38,16 @@ describe("Learning Canvas safe expressions", () => {
     const expression = compileSafeExpression("a*x + b", { variables: ["x", "a", "b"] });
     expect(expression.evaluate({ x: 2, a: 3, b: 1 })).toBe(7);
     expect(expression.evaluate({ x: 2, a: 3, b: 1 })).toBe(7);
+  });
+
+  test("tracks bounded arithmetic scale without changing evaluation", () => {
+    const expression = compileSafeExpression("(0.1+0.2-0.3)*x", { variables: ["x"] });
+    const tracked = expression.evaluateWithScale({ x: 1000000 });
+    expect(tracked.value).toBe(expression.evaluate({ x: 1000000 }));
+    expect(tracked.scale).toBeGreaterThanOrEqual(300000);
+    expect(Number.isFinite(tracked.scale)).toBe(true);
+    expect(compileSafeExpression("0/(1e308-1e308+1e-300)", { variables: [] }).evaluateWithScale({})).toEqual({ value: 0, scale: 0 });
+    expect(() => compileSafeExpression("1/x", { variables: ["x"] }).evaluateWithScale({ x: 0 })).toThrow(/SAFE_EXPRESSION_DIVISION_BY_ZERO/);
   });
 
   test("normalizes legacy graph notation before safe evaluation", () => {

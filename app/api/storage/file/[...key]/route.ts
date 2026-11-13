@@ -245,6 +245,12 @@ export async function GET(
       return new Response("Missing file key", { status: 400 });
     }
 
+    // Private interactive assets are available only through scoped routes.
+    const normalizedPath = new URL(`/${key.replace(/\\/g, "/").replace(/\/+/g, "/")}`, "http://storage.invalid").pathname.replace(/^\/+/, "");
+    if ([key, normalizedPath].some((value) => /^overhaul\/(interactive-documents|question-visual-bindings)(?:\/|$)/.test(value))) {
+      return new Response("File not found", { status: 404 });
+    }
+
     // Product Bundle Diktat PDFs carry enrollment-gated course material. They
     // are served only by the authenticated admin preview and learner routes.
     if (isProtectedProductDiktatPdfKey(key)) {

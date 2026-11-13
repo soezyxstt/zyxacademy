@@ -1,0 +1,378 @@
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Anulus berpemanas</title><style>:root { color-scheme: light; --background: #fff; --foreground: #172f29; --primary: #176955; --primary-foreground: #fff; --muted: #e1eee6; --muted-foreground: #65776d; --border: #c9d6ce; --accent: #c88127; }
+:root[data-theme="dark"] { color-scheme: dark; --background: #17231f; --foreground: #e4eee8; --primary: #86d5b6; --primary-foreground: #17352b; --muted: #30473d; --muted-foreground: #a9beb1; --border: #52675b; --accent: #e8ac5e; }
+* { box-sizing: border-box; } body { margin: 0; background: transparent; color: var(--foreground); font: 14px/1.4 system-ui, sans-serif; } main { padding: 8px; max-width: 900px; margin: 0 auto; } svg { display: block; width: 100%; max-width: 620px; height: auto; margin: auto; fill: var(--foreground); } svg text { font-size: 16px; font-family: system-ui, sans-serif; } svg [role="button"] { cursor: pointer; } :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; } svg [role="button"]:focus-visible rect { stroke: var(--accent); stroke-width: 5; } .controls { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; } label { display: inline-flex; align-items: center; gap: 6px; } input[type="range"] { width: 105px; accent-color: var(--primary); } button, select { color: inherit; background: var(--background); border: 1px solid var(--border); border-radius: 5px; padding: 6px 9px; font: inherit; } button:disabled { opacity: .5; } p { margin: 8px 0 0; }
+main[data-mechanics] p, main[data-sampling-fixture] p { font-size: 16px; }
+main[data-mechanics] input, main[data-sampling-fixture] input { font: inherit; }
+.fbd-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,380px),1fr)); gap: 8px; margin-top: 12px; } [data-formula], [data-definitions] { overflow-x: auto; line-height: 2; }
+
+[data-room] text { font-size: 22px; }
+[data-sampling] text { font-size: 21px; }
+@media print {
+  main { max-width: 740px; padding: 12px; }
+  button, input, select, .controls label, [data-reduced-notice] { display: none !important; }
+  [role="button"] { pointer-events: none; }
+  .fbd-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  details > :not(summary) { display: block !important; }
+  details > summary { display: none; }
+  [data-formula], [data-definitions] { font-size: 13px; }
+}
+</style></head><body><main></main><script>"use strict";
+(() => {
+  // tests/visual/fixtures/rich-documents/shared.js
+  function setup() {
+    const root = document.querySelector("main");
+    let last = 0, queued = false, frame = 0;
+    const send = () => {
+      queued = false;
+      const height = Math.ceil(root.getBoundingClientRect().height);
+      if (height !== last) {
+        last = height;
+        parent.postMessage({ type: "zyx:resize", height }, "*");
+      }
+    };
+    const observer = new ResizeObserver(() => {
+      if (!queued) {
+        queued = true;
+        frame = requestAnimationFrame(send);
+      }
+    });
+    observer.observe(root);
+    addEventListener("pagehide", () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    }, { once: true });
+    addEventListener("message", (event) => {
+      if (event.source !== parent || event.data?.type !== "zyx:preferences") return;
+      if (event.data.theme === "light" || event.data.theme === "dark") document.documentElement.dataset.theme = event.data.theme;
+      if (typeof event.data.reducedMotion === "boolean") document.documentElement.dataset.reducedMotion = String(event.data.reducedMotion);
+    });
+  }
+
+  // tests/visual/fixtures/rich-documents/flow.mjs
+  var boundaryDefaults = Object.freeze({ lengthM: 0.8, reynoldsL: 2e5, prandtl: 0.8, conductivityWmK: 0.028, probeFraction: 0.5 });
+  var annulusDefaults = Object.freeze({ innerDiameterM: 0.04, outerDiameterM: 0.09, lengthM: 8, massFlowKgS: 0.08, cpJkgK: 4e3, hWm2K: 100, inletC: 20, wallC: 80, heatFluxWm2: 1200, boundary: "temperature", probeFraction: 0.5 });
+  function flowRange(p, key, low, high) {
+    if (!Number.isFinite(p[key]) || p[key] < low || p[key] > high) throw new RangeError(`${key} must be within ${low} and ${high}`);
+  }
+  function annulusParams(input = {}) {
+    const p = { ...annulusDefaults, ...input };
+    flowRange(p, "innerDiameterM", 0.01, 0.2);
+    flowRange(p, "outerDiameterM", 0.02, 0.4);
+    if (p.outerDiameterM <= p.innerDiameterM) throw new RangeError("Diameter luar harus lebih besar dari diameter dalam");
+    flowRange(p, "lengthM", 0.1, 50);
+    flowRange(p, "massFlowKgS", 5e-3, 2);
+    flowRange(p, "cpJkgK", 100, 1e4);
+    flowRange(p, "hWm2K", 1, 2e3);
+    flowRange(p, "inletC", -100, 500);
+    flowRange(p, "wallC", -100, 500);
+    flowRange(p, "heatFluxWm2", -2e4, 2e4);
+    flowRange(p, "probeFraction", 0, 1);
+    if (!["temperature", "flux"].includes(p.boundary)) throw new RangeError("boundary must be temperature or flux");
+    return p;
+  }
+
+  // tests/visual/fixtures/rich-documents/annulus-design.mjs
+  var annulusDesignDefaults = Object.freeze({ innerDiameterM: 0.05, outerDiameterM: 0.1, massFlowKgS: 0.1, cpJkgK: 3900, hWm2K: 140, inletC: 25, wallC: 85, targetOutletC: 55, probeFraction: 0.5 });
+  function annulusDesignParams(input = {}) {
+    const p = { ...annulusDesignDefaults, ...input };
+    annulusParams({ ...p, lengthM: 1, boundary: "temperature" });
+    if (!Number.isFinite(p.targetOutletC) || p.inletC <= -273.15 || p.wallC <= -273.15 || p.targetOutletC <= -273.15) throw new RangeError("Suhu harus di atas nol absolut");
+    if (!(p.inletC < p.targetOutletC && p.targetOutletC < p.wallC)) throw new RangeError("Suhu target harus di antara suhu masuk dan suhu dinding");
+    return p;
+  }
+  function annulusDesignModel(input = {}) {
+    const p = annulusDesignParams(input);
+    const capacityWK = p.massFlowKgS * p.cpJkgK;
+    const perimeterM = Math.PI * p.innerDiameterM;
+    const lengthM = capacityWK / (p.hWm2K * perimeterM) * Math.log((p.wallC - p.inletC) / (p.wallC - p.targetOutletC));
+    if (!Number.isFinite(lengthM) || lengthM <= 0) throw new RangeError("Panjang hasil tidak dapat dihitung");
+    const at = (fraction) => {
+      const xM = fraction * lengthM;
+      const bulkC = p.inletC + (p.wallC - p.inletC) * -Math.expm1(-p.hWm2K * perimeterM * xM / capacityWK);
+      return { fraction, xM, bulkC, heatFluxWm2: p.hWm2K * (p.wallC - bulkC) };
+    };
+    const span = p.wallC - p.inletC, remaining = p.wallC - p.targetOutletC;
+    const logSpan = Math.log(span / remaining);
+    const boundaries = Array.from({ length: 321 }, (_, i) => i === 320 ? 1 : Math.log(span / (span * (1 - i / 320) + remaining * i / 320)) / logSpan);
+    const colorStops = boundaries.map((fraction) => ({ fraction, bulkC: at(fraction).bulkC }));
+    return { colorStops, lengthM, heatW: capacityWK * (p.targetOutletC - p.inletC), perimeterM, capacityWK, flowAreaM2: Math.PI / 4 * (p.outerDiameterM ** 2 - p.innerDiameterM ** 2), probe: at(p.probeFraction), profile: Array.from({ length: 41 }, (_, i) => at(i / 40)), graphProfile: Array.from({ length: 41 }, (_, i) => at(i / 40 * Math.min(1, 120 / lengthM))) };
+  }
+
+  // tests/visual/fixtures/rich-documents/annulus-3d-view.mjs
+  function annulus3DGeometry(params) {
+    const p = annulusDesignParams(params), ratio = p.innerDiameterM / p.outerDiameterM;
+    const point = (x, r, angle) => [x, r * Math.cos(angle), r * Math.sin(angle)];
+    const faces = [], segments = 36, axial = 20, start = Math.PI / 4, sweep = 3 * Math.PI / 2;
+    for (let i = 0; i < segments; i++) {
+      const a = start + sweep * i / segments, b = start + sweep * (i + 1) / segments;
+      for (let j = 0; j < axial; j++) {
+        const x = -2 + 4 * j / axial, y = -2 + 4 * (j + 1) / axial;
+        for (const [r, kind] of [[1, "outer"], [ratio, "inner"]]) faces.push({ kind, fraction: (j + 0.5) / axial, points: [point(x, r, a), point(y, r, a), point(y, r, b), point(x, r, b)] });
+      }
+      for (const x of [-2, 2]) faces.push({ kind: "gap", fraction: (x + 2) / 4, points: [point(x, ratio, a), point(x, 1, a), point(x, 1, b), point(x, ratio, b)] });
+    }
+    for (const angle of [start, start + sweep]) {
+      faces.push({ kind: "cut", points: [point(-2, ratio, angle), point(2, ratio, angle), point(2, 1, angle), point(-2, 1, angle)] });
+    }
+    return { innerRadius: ratio, outerRadius: 1, faces };
+  }
+  function annulus3DProject(point, camera) {
+    const [x, y, z] = point, cy = Math.cos(camera.yaw), sy = Math.sin(camera.yaw), cp = Math.cos(camera.pitch), sp = Math.sin(camera.pitch);
+    const horizontal = x * cy - y * sy, depth = x * sy + y * cy;
+    return { x: horizontal, y: z * cp - depth * sp, depth: z * sp + depth * cp };
+  }
+  function annulus3DFrame(geometry, camera, width, height) {
+    const projected = geometry.faces.flatMap((face) => face.points.map((point) => annulus3DProject(point, camera)));
+    const xs = projected.map((p) => p.x), ys = projected.map((p) => p.y);
+    const left = Math.min(...xs), right = Math.max(...xs), bottom = Math.min(...ys), top = Math.max(...ys);
+    return { scale: Math.min((width - 64) / (right - left), (height - 64) / (top - bottom)), x: (left + right) / 2, y: (bottom + top) / 2 };
+  }
+  function mountAnnulus3D(host2, input = {}) {
+    const initial = annulusDesignParams(input);
+    let params = { ...initial }, camera = { yaw: -0.5, pitch: 0.45 };
+    const fields = [["innerDiameterM", "D\u1D62 (m)"], ["outerDiameterM", "D\u2092 (m)"], ["massFlowKgS", "\u1E41 (kg/s)"], ["targetOutletC", "T keluar (\xB0C)"]];
+    host2.innerHTML = `<style>
+    .ann3{font:14px/1.4 system-ui,sans-serif;color:#183b3a;max-width:1100px;margin:auto}.ann3 *{box-sizing:border-box}.ann3 [hidden]{display:none!important}.ann3-layout[hidden]{display:grid!important;visibility:hidden}.ann3-summary[hidden]{display:block!important;visibility:hidden}.ann3-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:12px}.ann3 canvas,.ann3 svg{display:block;width:100%;background:white;touch-action:none}.ann3 canvas{height:280px;cursor:grab}.ann3 svg{height:auto;cursor:crosshair}.ann3-fields{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px}.ann3-fields label{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;max-width:100%}.ann3 input{font:inherit;font-size:14px;color:inherit;width:82px;max-width:100%;min-height:32px;border:1px solid #bbc9c6;border-radius:5px;padding:3px 5px;background:white}.ann3 :focus-visible{outline:2px solid #1768a5;outline-offset:2px}.ann3-position{display:flex;align-items:center;gap:8px;margin-top:4px}.ann3 .ann3-position input{width:100%;flex:1;accent-color:#1768a5}.ann3-summary{font-size:13px;font-variant-numeric:tabular-nums;margin-top:6px}.ann3 button{font:inherit;color:inherit;min-height:32px;border:0;background:none;padding:0;text-decoration:underline;cursor:pointer}@media print{.ann3-fields,.ann3-position,.ann3 button,.ann3-error{display:none!important}}.ann3-error{color:#a42f24;font-size:13px;margin:6px 0 0}@media(max-width:700px){.ann3-layout{grid-template-columns:1fr;gap:4px}.ann3 canvas{height:220px}.ann3 input{width:76px}.ann3-fields{gap:6px 10px}}
+  </style><section class="ann3" aria-label="Anulus"><div class="ann3-layout"><canvas tabindex="0" role="img" aria-label="Anulus 3D. Panah memutar kamera; Home mengembalikan kondisi awal."></canvas><svg tabindex="0" viewBox="0 0 400 230" role="slider" aria-valuemin="0" aria-valuemax="1" aria-label="Posisi sepanjang anulus (meter)"><g data-graph></g></svg></div><label class="ann3-position">Posisi (m)<input type="range" min="0" step="any" data-position aria-label="Posisi sepanjang anulus (meter)"></label><div class="ann3-summary" data-result aria-live="polite"></div><div class="ann3-fields">${fields.map(([key, label]) => `<label>${label}<input type="number" step="any" data-param="${key}"></label>`).join("")}</div><p class="ann3-error" data-error role="alert" hidden></p><button type="button" data-recover hidden>Atur ulang</button></section>`;
+    const q = (selector) => host2.querySelector(selector), canvas = q("canvas"), ctx = canvas.getContext("2d");
+    function draw() {
+      const model = annulusDesignModel(params), geometry = annulus3DGeometry(params);
+      const rect = canvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.round(rect.width * dpr));
+      canvas.height = Math.max(1, Math.round(rect.height * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      ctx.fillStyle = getComputedStyle(host2).getPropertyValue("--background").trim() || "#fff";
+      ctx.fillRect(0, 0, rect.width, rect.height);
+      const frame = annulus3DFrame(geometry, camera, rect.width, rect.height);
+      const screen = (pt) => {
+        const v = annulus3DProject(pt, camera);
+        return { x: rect.width / 2 + (v.x - frame.x) * frame.scale, y: rect.height / 2 - (v.y - frame.y) * frame.scale, depth: v.depth };
+      };
+      const temperatureColor = (t) => {
+        const k = Math.max(0, Math.min(1, (t - params.inletC) / (params.wallC - params.inletC)));
+        return `rgb(${Math.round(65 + 165 * k)},${Math.round(145 - 55 * k)},${Math.round(195 - 130 * k)})`;
+      };
+      const faces = geometry.faces.map((face) => ({ ...face, projected: face.points.map(screen) }));
+      faces.sort((a2, b2) => a2.projected.reduce((s, p) => s + p.depth, 0) / 4 - b2.projected.reduce((s, p) => s + p.depth, 0) / 4);
+      for (const face of faces) {
+        ctx.beginPath();
+        face.projected.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+        ctx.closePath();
+        if (face.kind === "cut") {
+          const [a2, b2, , d] = face.projected, ax = b2.x - a2.x, ay = b2.y - a2.y, rx = d.x - a2.x, ry = d.y - a2.y;
+          if (Math.abs(ax * ry - ay * rx) < 1e-8) continue;
+          ctx.save();
+          ctx.transform(ax, ay, rx, ry, a2.x, a2.y);
+          const gradient2 = ctx.createLinearGradient(0, 0, 1, 0);
+          for (const stop of model.colorStops) gradient2.addColorStop(stop.fraction, temperatureColor(stop.bulkC));
+          ctx.fillStyle = gradient2;
+          ctx.fillRect(0, 0, 1, 1);
+          ctx.restore();
+          continue;
+        } else ctx.fillStyle = face.kind === "outer" ? "#aabbb8" : face.kind === "inner" ? "#b86143" : temperatureColor(face.fraction === 0 ? params.inletC : params.targetOutletC);
+        ctx.fill();
+        if (face.kind !== "cut") {
+          ctx.strokeStyle = "rgba(40,70,67,.22)";
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+      const heatX = Math.abs(-2 + 4 * params.probeFraction + 0.8) < 0.5 ? 0.2 : -0.8;
+      const heatStart = screen([heatX, geometry.innerRadius * Math.SQRT1_2, geometry.innerRadius * Math.SQRT1_2]), heatEnd = screen([heatX, (geometry.innerRadius + (1 - geometry.innerRadius) * 0.55) * Math.SQRT1_2, (geometry.innerRadius + (1 - geometry.innerRadius) * 0.55) * Math.SQRT1_2]);
+      const angle = Math.atan2(heatEnd.y - heatStart.y, heatEnd.x - heatStart.x);
+      ctx.beginPath();
+      ctx.moveTo(heatStart.x, heatStart.y);
+      ctx.lineTo(heatEnd.x, heatEnd.y);
+      ctx.lineTo(heatEnd.x - 7 * Math.cos(angle - 0.5), heatEnd.y - 7 * Math.sin(angle - 0.5));
+      ctx.moveTo(heatEnd.x, heatEnd.y);
+      ctx.lineTo(heatEnd.x - 7 * Math.cos(angle + 0.5), heatEnd.y - 7 * Math.sin(angle + 0.5));
+      ctx.strokeStyle = "#9b291d";
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      const probeX = -2 + 4 * params.probeFraction;
+      const a = screen([probeX, geometry.innerRadius * Math.cos(Math.PI / 4), geometry.innerRadius * Math.sin(Math.PI / 4)]), b = screen([probeX, Math.cos(Math.PI / 4), Math.sin(Math.PI / 4)]);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#172d2c";
+      ctx.stroke();
+      const ink = getComputedStyle(host2).getPropertyValue("--foreground").trim() || "#183b3a";
+      ctx.font = "13px system-ui";
+      ctx.fillStyle = ink;
+      const occupied = [];
+      for (const [point, label, dx, dy, outline] of [[[-2, 0, 0], "Masuk", -20, 20, false], [[2, 0, 0], "Keluar", -18, 20, false], [[0, geometry.innerRadius * 0.707, geometry.innerRadius * 0.707], "T dinding", 8, 16, true], [[0, -0.707, 0.707], "q\u2033 = 0", -44, -8, true]]) {
+        const anchor = screen(point), width = ctx.measureText(label).width;
+        const candidates = [[dx, dy], [8, -12], [-width - 8, 16], [-width - 8, -12], [8, 30], [-width - 8, 30], ...[...Array(Math.floor((rect.height - 56) / 18))].map((_, i) => [dx, 16 + i * 18 - anchor.y])];
+        const boxes = candidates.map(([x, y]) => ({ x: Math.max(8, Math.min(rect.width - width - 8, anchor.x + x)), y: Math.max(16, Math.min(rect.height - 40, anchor.y + y)), width }));
+        const box = boxes.find((a2) => occupied.every((b2) => a2.x + a2.width + 4 <= b2.x || b2.x + b2.width + 4 <= a2.x || a2.y + 4 <= b2.y - 13 || b2.y + 4 <= a2.y - 13)) ?? boxes[0];
+        occupied.push(box);
+        ctx.save();
+        if (outline) {
+          ctx.strokeStyle = getComputedStyle(host2).getPropertyValue("--background").trim() || "#fff";
+          ctx.lineWidth = 4;
+          ctx.strokeText(label, box.x, box.y);
+        }
+        ctx.fillText(label, box.x, box.y);
+        ctx.restore();
+      }
+      const cold = params.inletC + " \xB0C", hot = params.wallC + " \xB0C";
+      ctx.font = "13px system-ui";
+      const keyWidth = Math.min(rect.width - 28, Math.max(130, ctx.measureText(cold).width + ctx.measureText(hot).width + 24));
+      const gradient = ctx.createLinearGradient(14, 0, 14 + keyWidth, 0);
+      gradient.addColorStop(0, "rgb(65,145,195)");
+      gradient.addColorStop(1, "rgb(230,90,65)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(14, rect.height - 18, keyWidth, 5);
+      ctx.fillStyle = ink;
+      ctx.fillText(cold, 14, rect.height - 24);
+      ctx.fillText(hot, 14 + keyWidth - ctx.measureText(hot).width, rect.height - 24);
+      q("[data-result]").textContent = `Panjang ${model.lengthM.toFixed(2)} m; panas ${(model.heatW / 1e3).toFixed(2)} kW; x ${model.probe.xM.toFixed(2)} m; fluks lokal ${model.probe.heatFluxWm2.toFixed(0)} W/m\xB2${model.probe.xM > 120 ? `; suhu ${model.probe.bulkC.toFixed(1)} \xB0C; posisi di luar grafik 0 sampai 120 m` : ""}`;
+      canvas.setAttribute("aria-label", `Anulus 3D, probe x ${model.probe.xM.toFixed(2)} meter, suhu ${model.probe.bulkC.toFixed(2)} derajat Celsius. Panah memutar kamera; Home mengembalikan kondisi awal.`);
+      const position2 = q("[data-position]");
+      position2.max = String(model.lengthM);
+      position2.value = String(model.probe.xM);
+      position2.setAttribute("aria-valuetext", `x ${model.probe.xM.toFixed(2)} meter, suhu ${model.probe.bulkC.toFixed(2)} derajat Celsius, fluks lokal ${model.probe.heatFluxWm2.toFixed(1)} watt per meter persegi`);
+      const graphNode = q("svg");
+      graphNode.setAttribute("aria-valuemax", String(model.lengthM));
+      graphNode.setAttribute("aria-valuenow", String(model.probe.xM));
+      graphNode.setAttribute("aria-valuetext", `x ${model.probe.xM.toFixed(2)} meter, suhu ${model.probe.bulkC.toFixed(2)} derajat Celsius, fluks lokal ${model.probe.heatFluxWm2.toFixed(1)} watt per meter persegi${model.probe.xM > 120 ? ", posisi di luar grafik 0 sampai 120 meter" : ""}`);
+      const graphX = (x) => 48 + 330 * x / 120, graphY = (t) => 185 - 145 * (t - params.inletC) / (params.wallC - params.inletC);
+      const visibleProfile = model.graphProfile;
+      const line = visibleProfile.map((p, i) => `${i ? "L" : "M"}${graphX(p.xM)},${graphY(p.bulkC)}`).join(" "), px = graphX(model.probe.xM), py = graphY(model.probe.bulkC), marker = model.probe.xM <= 120 ? `<path d="M${px} 185V${py}" stroke="var(--muted-foreground)" stroke-dasharray="4 3"/><circle cx="${px}" cy="${py}" r="5" fill="var(--accent)"/><text x="${Math.min(325, Math.max(50, px - 15))}" y="${Math.max(24, py - 12)}" font-size="12">${model.probe.bulkC.toFixed(1)} \xB0C</text>` : "";
+      q("[data-graph]").innerHTML = `<path d="M48 20V185H378" fill="none" stroke="var(--foreground)"/><path d="${line}" fill="none" stroke="var(--primary)" stroke-width="3"/>${marker}<text x="48" y="16" font-size="13">T rata-rata (\xB0C)</text><text x="48" y="205" font-size="12">0</text><path d="M378 185v5" stroke="var(--foreground)"/><text x="378" y="205" text-anchor="end" font-size="12">120 m</text><text x="42" y="189" text-anchor="end" font-size="12">${params.inletC.toFixed(0)}</text><text x="255" y="32" font-size="12">T dinding ${params.wallC.toFixed(1)} \xB0C</text><path d="M48 40H378" stroke="var(--accent)" stroke-dasharray="5 4"/>`;
+    }
+    function sync(editedInput) {
+      for (const el of host2.querySelectorAll("[data-param]")) {
+        if (el !== editedInput) el.value = String(params[el.dataset.param]);
+        if (el.dataset.param === "targetOutletC") el.style.width = `${Math.max(10, el.value.length + 4)}ch`;
+      }
+      draw();
+    }
+    const api = { getState: () => ({ params: { ...params }, model: annulusDesignModel(params), camera: { ...camera } }), actions: {
+      setParams(next, editedInput) {
+        const candidate = annulusDesignParams({ ...params, ...next });
+        annulusDesignModel(candidate);
+        params = candidate;
+        q("[data-error]").hidden = true;
+        q("[data-recover]").hidden = true;
+        q(".ann3-layout").hidden = false;
+        q(".ann3-position").hidden = false;
+        q("[data-result]").hidden = false;
+        sync(editedInput);
+        return api.getState();
+      },
+      reset() {
+        params = { ...initial };
+        camera = { yaw: -0.5, pitch: 0.45 };
+        q("[data-error]").hidden = true;
+        q("[data-recover]").hidden = true;
+        q(".ann3-layout").hidden = false;
+        q(".ann3-position").hidden = false;
+        q("[data-result]").hidden = false;
+        sync();
+        return api.getState();
+      }
+    } };
+    for (const el of host2.querySelectorAll("[data-param]")) el.addEventListener("input", () => {
+      try {
+        if (el.value === "") throw new RangeError("Isi nilai");
+        api.actions.setParams({ [el.dataset.param]: Number(el.value) }, el);
+      } catch (error) {
+        q("[data-error]").textContent = error.message.includes("Suhu target") ? `Target harus di antara ${params.inletC} dan ${params.wallC} \xB0C.` : error.message.replace(/^(\w+) must be within (.+) and (.+)$/, (_, key, min, max) => `${fields.find((f) => f[0] === key)?.[1] ?? key}: ${min} sampai ${max}.`);
+        q("[data-error]").hidden = false;
+        q("[data-recover]").hidden = false;
+        q(".ann3-layout").hidden = true;
+        q(".ann3-position").hidden = true;
+        q("[data-result]").hidden = true;
+      }
+    });
+    const position = q("[data-position]");
+    position.addEventListener("input", (event) => api.actions.setParams({ probeFraction: Math.max(0, Math.min(1, Number(event.target.value) / annulusDesignModel(params).lengthM)) }));
+    position.addEventListener("keydown", (event) => {
+      const direction = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, PageUp: 10, PageDown: -10 }[event.key];
+      if (direction === void 0 && event.key !== "Home" && event.key !== "End") return;
+      event.preventDefault();
+      const length = annulusDesignModel(params).lengthM, x = event.key === "Home" ? 0 : event.key === "End" ? length : Math.max(0, Math.min(length, Number(position.value) + direction));
+      api.actions.setParams({ probeFraction: x / length });
+    });
+    q("[data-recover]").addEventListener("click", () => api.actions.reset());
+    const graph = q("svg");
+    function pointProbe(event) {
+      const r = graph.getBoundingClientRect(), fraction = Math.max(0, Math.min(1, ((event.clientX - r.left) * 400 / r.width - 48) / 330 * 120 / annulusDesignModel(params).lengthM));
+      api.actions.setParams({ probeFraction: fraction });
+    }
+    let probing = false;
+    graph.addEventListener("pointerdown", (event) => {
+      probing = true;
+      graph.setPointerCapture(event.pointerId);
+      pointProbe(event);
+    });
+    graph.addEventListener("pointermove", (event) => {
+      if (probing) pointProbe(event);
+    });
+    graph.addEventListener("pointerup", () => {
+      probing = false;
+    });
+    graph.addEventListener("pointercancel", () => {
+      probing = false;
+    });
+    graph.addEventListener("keydown", (event) => {
+      const direction = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[event.key];
+      if (direction === void 0 && event.key !== "Home" && event.key !== "End") return;
+      event.preventDefault();
+      const length = annulusDesignModel(params).lengthM, x = event.key === "Home" ? 0 : event.key === "End" ? length : Math.max(0, Math.min(length, params.probeFraction * length + direction));
+      api.actions.setParams({ probeFraction: x / length });
+    });
+    for (const surface of [canvas, graph]) surface.addEventListener("dblclick", () => api.actions.reset());
+    canvas.addEventListener("keydown", (event) => {
+      if (event.key === "Home") {
+        event.preventDefault();
+        api.actions.reset();
+        return;
+      }
+      const d = { ArrowLeft: [-0.1, 0], ArrowRight: [0.1, 0], ArrowUp: [0, -0.1], ArrowDown: [0, 0.1] }[event.key];
+      if (!d) return;
+      event.preventDefault();
+      camera.yaw += d[0];
+      camera.pitch = Math.max(-1.4, Math.min(1.4, camera.pitch + d[1]));
+      draw();
+    });
+    let drag = null;
+    canvas.addEventListener("pointerdown", (event) => {
+      drag = [event.clientX, event.clientY];
+      canvas.setPointerCapture(event.pointerId);
+    });
+    canvas.addEventListener("pointermove", (event) => {
+      if (!drag) return;
+      camera.yaw += (event.clientX - drag[0]) * 0.01;
+      camera.pitch = Math.max(-1.4, Math.min(1.4, camera.pitch + (event.clientY - drag[1]) * 0.01));
+      drag = [event.clientX, event.clientY];
+      draw();
+    });
+    canvas.addEventListener("pointerup", () => {
+      drag = null;
+    });
+    canvas.addEventListener("pointercancel", () => {
+      drag = null;
+    });
+    const observer = new ResizeObserver(draw);
+    observer.observe(canvas);
+    addEventListener("message", (event) => {
+      if (event.source === parent && event.data?.type === "zyx:preferences") requestAnimationFrame(draw);
+    });
+    addEventListener("pagehide", () => observer.disconnect(), { once: true });
+    sync();
+    return api;
+  }
+
+  // tests/visual/fixtures/rich-documents/annulus.js
+  setup();
+  var main = document.querySelector("main");
+  var host = document.createElement("div");
+  main.append(host);
+  mountAnnulus3D(host, { innerDiameterM: 0.025, outerDiameterM: 0.1, massFlowKgS: 0.05, cpJkgK: 4186, hWm2K: 64.2, inletC: 25, targetOutletC: 95, wallC: 125, probeFraction: 1 });
+  main.insertAdjacentHTML("beforeend", "<style>.ann3{color:var(--foreground)} .ann3 canvas,.ann3 svg{background:var(--background)} .ann3-fields label{font-size:14px}.ann3 input{font-size:14px;color:var(--foreground);background:var(--background);border-color:var(--border)} .ann3-summary{font-size:14px}</style><p>Panjang gambar dipadatkan; rasio diameter dipertahankan. Warna menunjukkan suhu curah sepanjang aliran, bukan medan suhu radial. Model memakai sifat dan koefisien konstan.</p>");
+})();
+</script></body></html>

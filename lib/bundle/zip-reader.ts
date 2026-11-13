@@ -167,7 +167,7 @@ function findEndOfCentralDirectory(bytes: Uint8Array): number {
   fail("ZIP_NOT_ARCHIVE", "ZIP end-of-central-directory record was not found");
 }
 
-function readCentralEntries(bytes: Uint8Array, limits: ZipSecurityLimits): CentralEntry[] {
+function readCentralEntries(bytes: Uint8Array, limits: ZipSecurityLimits, allowInteractiveDocuments: boolean): CentralEntry[] {
   const eocd = findEndOfCentralDirectory(bytes);
   const disk = readU16(bytes, eocd + 4, bytes.length);
   const centralDisk = readU16(bytes, eocd + 6, bytes.length);
@@ -222,7 +222,8 @@ function readCentralEntries(bytes: Uint8Array, limits: ZipSecurityLimits): Centr
     const unixMode = madeByOs === 3 || madeByOs === 19 ? (externalAttributes >>> 16) & 0xffff : 0;
     const isDirectory = rawPath.endsWith("/") || (unixMode & 0xf000) === 0x4000 || (externalAttributes & 0x10) !== 0;
     const isSymlink = (unixMode & 0xf000) === 0xa000;
-    const isExecutable = (unixMode & 0o111) !== 0 || isExecutablePath(normalizedPath);
+    const allowedDocument = allowInteractiveDocuments && rawPath === normalizedPath && /^visuals\/[a-f0-9]{64}\.html$/.test(rawPath);
+    const isExecutable = (unixMode & 0o111) !== 0 || (isExecutablePath(normalizedPath) && !allowedDocument);
     if (isSymlink) fail("ZIP_SYMLINK", "symlink ZIP entries are forbidden", rawPath);
     if (!isDirectory && isExecutable) fail("ZIP_EXECUTABLE", "executable ZIP entries are forbidden", rawPath);
     if (!isDirectory && isNestedArchive(normalizedPath)) {
@@ -290,12 +291,12 @@ function extractEntry(bytes: Uint8Array, entry: CentralEntry): Uint8Array {
   return output;
 }
 
-export function readSecureZip(input: Uint8Array | ArrayBuffer, overrides: Partial<ZipSecurityLimits> = {}): SecureZipArchive {
+export function readSecureZip(input: Uint8Array | ArrayBuffer, overrides: Partial<ZipSecurityLimits> = {}, options: { allowInteractiveDocuments?: boolean } = {}): SecureZipArchive {
   const bytes = toBytes(input);
   const limits = { ...DEFAULT_ZIP_SECURITY_LIMITS, ...overrides };
   if (bytes.byteLength > limits.maxArchiveBytes) fail("ZIP_FILE_LIMIT", "ZIP archive exceeds the configured limit");
 
-  const centralEntries = readCentralEntries(bytes, limits);
+  const centralEntries = readCentralEntries(bytes, limits, options.allowInteractiveDocuments === true);
   const entries: SecureZipEntry[] = [];
   const files = new Map<string, Uint8Array>();
   let totalUncompressedBytes = 0;

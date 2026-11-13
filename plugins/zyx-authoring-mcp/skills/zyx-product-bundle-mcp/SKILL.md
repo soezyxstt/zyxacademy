@@ -47,6 +47,12 @@ Gunakan `product-bundle.v4`, `article.v4` dan `diktat.v4` untuk authoring Artike
 
 Untuk V4, susun bagian Artikel dalam urutan baca dengan `parts`: narasi, `math_unit` beserta makna dan syaratnya, lalu `visual_ref` pada lokasi penjelasan yang relevan. Tulis semua variabel, label grafik, satuan, dan notasi ilmiah dengan delimiter matematika. Gunakan `\times 10^{n}` untuk pangkat sepuluh, `\ce{}` untuk reaksi kimia, dan `\pu{}` untuk satuan ketika didukung renderer aktif. Tautkan setiap visual ke tujuan pemahaman, besaran, domain, kontrol, dan fallback cetaknya. Turunkan Diktat dari Artikel final dengan lineage yang diwajibkan schema, bukan menyalin seluruh Artikel.
 
+Untuk `interactive_scene`, baca `typedVisuals.visualAuthoring` dan schema visual aktif. Terjemahkan referensi HTML menjadi geometri dan state bertipe; HTML, JavaScript dan SVG mentah tidak dapat diimpor. Gunakan `visual-teknik` untuk memandu model ilmiah, lalu verifikasi model dan hasil render sendiri.
+
+Untuk `interactive_document`, ikuti `typedVisuals.visualAuthoring.interactiveDocument`: metadata ada di Artikel, sedangkan HTML mandiri offline dan PNG keadaan awal masuk ke ZIP sebagai aset terpisah beserta manifest hash. Admission asinkron memeriksa aset. Adaptasi output skill visual ke kontrak dan tinjau model serta hasilnya; fixture generik bukan katalog model. Verifikasi field formative masih IN PROGRESS. Semua gate dan receipt tepercaya tetap diperlukan sebelum publikasi.
+
+Untuk menyiapkan pasangan lokal yang sudah ditinjau, lihat perintah di `scripts/authoring/package-interactive-document.ts` pada checkout repositori. Ambil kontrak live dan isi metadata serta Artikel sendiri; hasilnya belum menjadi Product lengkap atau persetujuan.
+
 Creator menyerahkan artifact final dan hash yang sama kepada Critic dan Student POV. Verifikasi memakai renderer sebenarnya pada ponsel dan desktop, setiap state kontrol, batas domain, empty/error state, serta PDF cetak. Bukti wajib berasal dari tool/verifier yang ditetapkan kontrak dan mengikat hash artifact serta versi renderer. Pernyataan agen atau screenshot tanpa identitas artifact tidak menggantikan receipt tepercaya. Perubahan isi atau dependency visual mewajibkan verifikasi ulang. Tahap selesai hanya jika validasi dan seluruh gate runtime lulus; laporkan gate yang masih memblokir tanpa mengklaim siap publikasi.
 
 ## Mekanisme subagent host wajib (Creator, Critic, Student POV)

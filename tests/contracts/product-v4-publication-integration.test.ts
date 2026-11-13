@@ -46,7 +46,9 @@ const bindingPorts = {
 };
 const getRow = async () => (await testDb.select().from(schema.imporBundle).where(eq(schema.imporBundle.id, importId)))[0];
 async function currentPlan() {
-  const binding = await buildProductV4RuntimeBinding({ row: await getRow(), bundle, runId: "postgres-run" }, bindingPorts);
+  const row = await getRow();
+  if (!row.courseId) throw new Error("FIXTURE_COURSE_REQUIRED");
+  const binding = await buildProductV4RuntimeBinding({ row: { ...row, courseId: row.courseId }, bundle, runId: "postgres-run" }, bindingPorts);
   return deriveProductV4VerificationPlan({ bundle, binding });
 }
 let trustedReceipt: Awaited<ReturnType<typeof runProductV4Verification>>;
