@@ -7,11 +7,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 import { db } from '@/db';
-import { quizTemplates, aiQuestionBank, studentQuizAttempts, knowledgeObjects, studentConceptMastery, chapters, bab } from '@/db/schema';
+import { quizTemplates, aiQuestionBank, studentQuizAttempts, knowledgeObjects, studentConceptMastery, bab } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { and, or, eq, inArray, sql, desc, notInArray } from 'drizzle-orm';
 import { canAccessStudentQuizTemplate } from '@/lib/quiz/student-access';
+import { freeQuizQuestionScope } from '@/lib/quiz/question-scope';
 import { getAdaptiveDifficultyProportions } from '@/lib/adaptive-quiz';
 import { canViewAttemptDiscussion } from '@/lib/quiz/review-release';
 import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
@@ -256,29 +257,6 @@ async function resolveFreeQuizPolicy(
   return { tier: 'free', allowed: true, chapterIds: resolvedChapterIds };
 }
 
-async function resolveFreeQuestionIds(courseId: string, chapterIds: readonly string[]): Promise<string[]> {
-  if (chapterIds.length === 0) return [];
-
-  const rows = await db
-    .select({ questionId: aiQuestionBank.id })
-    .from(aiQuestionBank)
-    .innerJoin(knowledgeObjects, eq(aiQuestionBank.knowledgeObjectId, knowledgeObjects.id))
-    .innerJoin(chapters, eq(knowledgeObjects.chapterId, chapters.id))
-    .where(
-      and(
-        eq(aiQuestionBank.courseId, courseId),
-        eq(aiQuestionBank.status, 'active'),
-        eq(aiQuestionBank.isStale, false),
-        eq(aiQuestionBank.reviewStatus, 'published'),
-        eq(knowledgeObjects.status, 'active'),
-        eq(chapters.status, 'published'),
-        inArray(chapters.id, [...chapterIds]),
-      ),
-    );
-
-  return rows.map((row) => row.questionId);
-}
-
 export async function POST(req: NextRequest) {
  const session = await auth.api.getSession({ headers: await headers() });
  if (!session?.user) {
@@ -330,6 +308,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Akses mata kuliah ini belum tersedia.' }, { status: 403 });
   }
   let freeQuizPolicy: FreeQuizPolicy | null = null;
+  if (!canAccessStudentQuizTemplate(access, template)) {
+    return NextResponse.json({ error: 'Kuis ini belum tersedia.' }, { status: 403 });
+  }
   if (!isStaff) {
     freeQuizPolicy = await resolveFreeQuizPolicy(template, access);
     if (!freeQuizPolicy.allowed) {
@@ -396,16 +377,8 @@ export async function POST(req: NextRequest) {
   );
   const freePolicy = freeQuizPolicy;
   const isFreeQuiz = freePolicy?.tier === 'free';
-  const freeQuestionIds = isFreeQuiz
-    ? await resolveFreeQuestionIds(template.courseId, freePolicy.chapterIds)
-    : null;
   const freeQuestionCondition = isFreeQuiz
-    ? freeQuestionIds && freeQuestionIds.length > 0
-      ? inArray(aiQuestionBank.id, freeQuestionIds)
-      : sql`1 = 0`
-    : undefined;
-  const freeQuestionStateCondition = isFreeQuiz
-    ? and(eq(aiQuestionBank.status, 'active'), eq(aiQuestionBank.isStale, false))
+    ? await freeQuizQuestionScope(access, template.selectionRules)
     : undefined;
 
   let selected: any[] = [];
@@ -421,7 +394,6 @@ export async function POST(req: NextRequest) {
           quizEligibilityCondition,
           inArray(aiQuestionBank.id, fixedQuestionIds),
           freeQuestionCondition,
-          freeQuestionStateCondition,
         )
       );
     // Sort selected questions in the order of fixedQuestionIds
@@ -455,7 +427,6 @@ export async function POST(req: NextRequest) {
               eq(aiQuestionBank.difficulty, diff as 'easy' | 'medium' | 'hard'),
               tagCondition,
               freeQuestionCondition,
-              freeQuestionStateCondition,
             ),
           )
           .orderBy(sql`RANDOM()`)
@@ -481,7 +452,6 @@ export async function POST(req: NextRequest) {
             selectedIds.length > 0 ? notInArray(aiQuestionBank.id, selectedIds) : undefined,
             tagCondition,
             freeQuestionCondition,
-            freeQuestionStateCondition,
           ),
         )
         .orderBy(sql`RANDOM()`)
@@ -492,11 +462,6 @@ export async function POST(req: NextRequest) {
 
     // Shuffle selected questions
     selected = selected.sort(() => Math.random() - 0.5);
-  }
-
-  if (isFreeQuiz) {
-    const allowedQuestionIds = new Set(freeQuestionIds ?? []);
-    selected = selected.filter((question) => allowedQuestionIds.has(question.id));
   }
 
   if (fixedQuestionIds.length > 0 && selected.length !== fixedQuestionIds.length) {
@@ -663,6 +628,9 @@ export async function GET(req: NextRequest) {
             chapterIds: [],
             error: 'Akses mata kuliah ini belum tersedia.',
           };
+        }
+        if (!canAccessStudentQuizTemplate(access, template)) {
+          return { tier: access.tier, allowed: false, chapterIds: [], error: 'Kuis ini belum tersedia.' };
         }
         if (template.status === 'draft' && !isStaff) {
           return {

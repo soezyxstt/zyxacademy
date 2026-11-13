@@ -1,8 +1,7 @@
 import { inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { aiMaterialInstances, artikel, bab, chapters, courseMaterials, diktatMateri, diktats, quizTemplates, websiteMaterials } from "@/db/schema";
+import { aiMaterialInstances, artikel, bab, chapters, courseMaterials, diktatMateri, diktats, exams, quizTemplates, websiteMaterials } from "@/db/schema";
 import { canAccessCourseContent, resolveCourseAccessBatch } from "@/lib/student/course-access";
-import { extractFreeQuizChapterScope } from "@/lib/course-utils";
 import { canAccessStudentQuizTemplate } from "@/lib/quiz/student-access";
 
 export type StudentSearchCandidate = { courseId: string; entityId: string; type: string };
@@ -11,7 +10,7 @@ export type StudentSearchCandidate = { courseId: string; entityId: string; type:
 export async function resolveStudentSearchCandidates(studentId: string, candidates: readonly StudentSearchCandidate[], now = new Date()): Promise<Map<StudentSearchCandidate, string>> {
   const ids = [...new Set(candidates.map((item) => item.entityId).filter(Boolean))];
   if (!ids.length) return new Map();
-  const [access, chapterRows, canonicalChapters, ai, manual, legacyDiktat, web, articles, canonicalDiktat, quizzes] = await Promise.all([
+  const [access, chapterRows, canonicalChapters, ai, manual, legacyDiktat, web, articles, canonicalDiktat, quizzes, examRows] = await Promise.all([
     resolveCourseAccessBatch(studentId, candidates.map((item) => item.courseId), { now }),
     db.select().from(chapters).where(inArray(chapters.id, ids)),
     db.select().from(bab).where(inArray(bab.id, ids)),
@@ -22,6 +21,7 @@ export async function resolveStudentSearchCandidates(studentId: string, candidat
     db.select().from(artikel).where(inArray(artikel.id, ids)),
     db.select().from(diktatMateri).where(inArray(diktatMateri.id, ids)),
     db.select().from(quizTemplates).where(inArray(quizTemplates.id, ids)),
+    db.select().from(exams).where(inArray(exams.id, ids)),
   ]);
   const result = new Map<StudentSearchCandidate, string>();
   for (const item of candidates) {
@@ -48,9 +48,11 @@ export async function resolveStudentSearchCandidates(studentId: string, candidat
     }
     if (item.type === "quiz") {
       for (const row of quizzes) {
-        const scope = extractFreeQuizChapterScope(row.selectionRules);
-        if (row.id === item.entityId && row.status === "published" && scope && allowed(row.courseId, scope, "quiz") && canAccessStudentQuizTemplate(policy, row)) matches.push(row.title);
+        if (row.id === item.entityId && [policy.canonicalCourseId, policy.legacyCourseId, policy.courseId].includes(row.courseId) && canAccessStudentQuizTemplate(policy, row)) matches.push(row.title);
       }
+    }
+    if (item.type === "exam") {
+      for (const row of examRows) if (row.id === item.entityId && row.type === "tryout" && row.status === "published" && policy.hasFullContentAccess && [policy.canonicalCourseId, policy.legacyCourseId, policy.courseId].includes(row.courseId)) matches.push(row.title);
     }
     if (matches.length === 1) result.set(item, matches[0]);
   }

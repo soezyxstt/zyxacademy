@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
       if (candidate) {
         const title = current.get(candidate);
         if (!title) continue;
-        const suffix = candidate.type === "material" ? `/material/${encodeURIComponent(candidate.entityId)}` : candidate.type === "quiz" ? `/quiz/${encodeURIComponent(candidate.entityId)}` : "";
+        const suffix = candidate.type === "material" ? `/material/${encodeURIComponent(candidate.entityId)}` : candidate.type === "quiz" ? `/quiz/${encodeURIComponent(candidate.entityId)}` : candidate.type === "exam" ? `/tryout/${encodeURIComponent(candidate.entityId)}` : "";
         filteredMatches.push({ id: item.id, score: item.score, metadata: { title, href: `/courses/${encodeURIComponent(candidate.courseId)}${suffix}`, category: candidate.type, entity_type: candidate.type, entity_id: candidate.entityId, course_id: candidate.courseId, min_role: 1 } });
         continue;
       }

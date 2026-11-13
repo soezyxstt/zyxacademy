@@ -12,6 +12,7 @@ import { eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { getCourse, getStudentCourseAccess, getStudentVisibleCourseQuizzes, isFreeQuizTemplate } from "@/lib/course-utils";
+import { validatedQuizScope, canAccessStudentQuizTemplate } from "@/lib/quiz/student-access";
 import { getAuthSession } from "@/lib/auth-session";
 import { TranslatedText } from "@/components/i18n/translated-text";
 import { getTranslations } from "@/lib/i18n/server";
@@ -59,6 +60,8 @@ async function CourseQuizListContent({
   const hasFullContentAccess = Boolean(studentAccess?.hasFullContentAccess);
 
   const filteredTemplates = templates.filter((template) => {
+    if (!validatedQuizScope(template.selectionRules)) return false;
+    if (studentAccess?.policy?.tier === "free" && studentAccess.hasFullContentAccess && !canAccessStudentQuizTemplate(studentAccess.policy, template)) return false;
     if (access === "free") return template.visibility === "free";
     if (access === "premium") return template.visibility === "paid";
     return true;
