@@ -22,6 +22,8 @@ export function validatedQuizScope(raw: unknown): string[] | null {
   }
   if (!keys.length) return [];
   const rawScope = rules[keys[0]];
+  // Authoring emits chapterIds: [] for a course-wide quiz.
+  if (keys[0] === "chapterIds" && Array.isArray(rawScope) && rawScope.length === 0) return [];
   const values = typeof rawScope === "string" ? [rawScope] : rawScope;
   if (!Array.isArray(values) || !values.length || values.some((id) => typeof id !== "string" || !id.trim())) return null;
   return values.map((id: string) => id.trim());

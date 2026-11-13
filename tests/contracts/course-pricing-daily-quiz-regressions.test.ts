@@ -62,6 +62,11 @@ test("daily quiz uses published canonical and legacy scope for GET and signed se
   result = await get();
   expect(result.questionIds.sort()).toEqual(["daily-q-first", "daily-q-later", "daily-q-legacy"]);
 
+  await rules({ chapterIds: [], fixedQuestionIds: ["daily-q-later"], tags: [] });
+  result = await get();
+  expect(result.questionIds).toEqual(["daily-q-later"]);
+  expect((await submit(result)).status).toBe(200);
+
   await testDb.update(schema.aiQuestionBank).set({ reviewStatus: "published" }).where(eq(schema.aiQuestionBank.origin, "historical_reference"));
   await rules({ chapterId: "daily-first", tags: ["history"] });
   expect((await get()).questionIds).toEqual(["daily-history-true"]);
@@ -78,6 +83,8 @@ test("daily quiz uses published canonical and legacy scope for GET and signed se
   expect(result.questionIds.sort()).toEqual(["daily-q-first", "daily-q-later", "daily-q-legacy"]);
   expect((await submit(result)).status).toBe(200);
   await pricing("limited_time_free", new Date(now + 86400000), new Date(now + 172800000));
+  await rules({ chapterIds: [] });
+  expect((await get()).templateId).toBeNull();
   await rules({ chapterId: "daily-later" });
   expect((await get()).templateId).toBeNull();
   await rules({ chapterId: "daily-old-first" });
@@ -94,7 +101,7 @@ test("daily quiz uses published canonical and legacy scope for GET and signed se
   expect((await submit(preview)).status).toBe(403);
   session = { user: { id: "daily-student", role: "student" } };
   await testDb.insert(schema.pendaftaranMurid).values({ id: "daily-paid", penggunaId: "daily-student", mataKuliahId: "daily-canonical", status: "active" });
-  await rules({ chapterId: "daily-later", fixedQuestionIds: ["daily-q-later"] });
+  await rules({ chapterIds: [], fixedQuestionIds: ["daily-q-later"], tags: [] });
   result = await get();
   expect(result.questionIds).toEqual(["daily-q-later"]);
   expect((await submit(result)).status).toBe(200);
@@ -109,7 +116,7 @@ test("daily quiz uses published canonical and legacy scope for GET and signed se
   result = await get();
   await testDb.update(schema.soal).set({ status: "draft" }).where(eq(schema.soal.id, "daily-q-first"));
   expect((await submit(result)).status).toBe(403);
-  for (const selectionRules of ["{", { chapterIds: [] }, { chapterId: "daily-first", chapterIds: ["daily-first"] }, { fixedQuestionIds: ["daily-q-first", null] }, { tags: "selected" }]) {
+  for (const selectionRules of ["{", { chapterId: "daily-first", chapterIds: ["daily-first"] }, { fixedQuestionIds: ["daily-q-first", null] }, { tags: "selected" }]) {
     await rules(selectionRules);
     expect((await get()).templateId).toBeNull();
   }

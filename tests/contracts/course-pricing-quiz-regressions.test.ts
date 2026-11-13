@@ -13,7 +13,7 @@ const policy = { hasCourseAccess: true, hasFullContentAccess: true, tier: "free"
 const template = { status: "published", category: "chapter", visibility: "free", selectionRules: {} } as const;
 
 test("pricing quiz scope rejects malformed and conflicting representations", () => {
-  for (const rules of ["{", "null", "[]", "5", null, [], 4, { chapterIds: [] }, { chapterIds: ["q-chapter", null] }, { chapterId: "q-chapter", chapterIds: ["q-chapter"] }, { fixedQuestionIds: ["x", null] }, { tags: "bad" }]) {
+  for (const rules of ["{", "null", "[]", "5", null, [], 4, { chapterIds: ["q-chapter", null] }, { chapterId: "q-chapter", chapterIds: ["q-chapter"] }, { fixedQuestionIds: ["x", null] }, { tags: "bad" }]) {
     expect(validatedQuizScope(rules)).toBeNull();
     expect(canAccessStudentQuizTemplate(policy, { ...template, selectionRules: rules } as any)).toBe(false);
   }
@@ -22,6 +22,17 @@ test("pricing quiz scope rejects malformed and conflicting representations", () 
   expect(canAccessStudentQuizTemplate(policy, { ...template, selectionRules: { chapterId: "foreign" } } as any)).toBe(false);
   expect(canAccessStudentQuizTemplate({ ...policy, hasFullContentAccess: false }, { ...template, selectionRules: { chapterId: "q-second" } } as any)).toBe(false);
   expect(canAccessStudentQuizTemplate({ ...policy, tier: "enrolled" }, template as any)).toBe(true);
+});
+
+test("authoring's empty chapterIds means course-wide for full grants, never restricted preview", () => {
+  const authoredRules = { count: 1, chapterIds: [], fixedQuestionIds: ["q-valid"], tags: [], explanationRelease: "after_close" };
+  for (const selectionRules of [authoredRules, JSON.stringify(authoredRules)]) {
+    expect(validatedQuizScope(selectionRules)).toEqual([]);
+    for (const tier of ["free", "enrolled", "staff"]) {
+      expect(canAccessStudentQuizTemplate({ ...policy, tier }, { ...template, selectionRules } as any)).toBe(true);
+    }
+    expect(canAccessStudentQuizTemplate({ ...policy, hasFullContentAccess: false }, { ...template, selectionRules } as any)).toBe(false);
+  }
 });
 
 test("canonical no-KO questions use the same chapter eligibility for fixed and dynamic selections", async () => {
@@ -43,6 +54,7 @@ test("canonical no-KO questions use the same chapter eligibility for fixed and d
   }
   const select = async (rules: unknown, access = policy, fixed?: string[]) => testDb.select({ id: schema.aiQuestionBank.id }).from(schema.aiQuestionBank).where(and(eq(schema.aiQuestionBank.courseId, "q-course"), eq(schema.aiQuestionBank.reviewStatus, "published"), await freeQuizQuestionScope(access, rules), fixed ? inArray(schema.aiQuestionBank.id, fixed) : undefined));
   expect((await select({}, policy, ["q-valid"])).map((row) => row.id)).toEqual(["q-valid"]);
+  expect((await select({ chapterIds: [] }, policy, ["q-valid"])).map((row) => row.id)).toEqual(["q-valid"]);
   expect((await select({})).map((row) => row.id).sort()).toEqual(["q-later", "q-valid"]);
   expect((await select({ chapterId: "q-legacy" })).map((row) => row.id)).toEqual(["q-valid"]);
   expect((await select({ chapterId: "q-chapter" }, { ...policy, hasFullContentAccess: false })).map((row) => row.id)).toEqual(["q-valid"]);
