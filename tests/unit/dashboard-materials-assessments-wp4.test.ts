@@ -4,6 +4,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import { getTableConfig } from "drizzle-orm/pg-core";
 import * as schema from "../../db/schema";
 import type { StudentEnrollmentRecord } from "../../lib/student/course-catalog";
+import { PREMIUM_PRICING } from "../../lib/student/course-pricing";
 
 const tables = [
   schema.courses,
@@ -149,6 +150,7 @@ async function seedFiveCourseFixture() {
         code: `CODE-${id}`,
         title: `Course ${id.toUpperCase()}`,
         status: "active",
+        pricingCategory: "premium",
         legacyCourseId: id,
         createdAt: now,
         updatedAt: now,
@@ -162,11 +164,13 @@ async function seedFiveCourseFixture() {
       category: "TPB",
       description: `Desc ${id}`,
       enrolledAt: now,
+      pricing: PREMIUM_PRICING,
       expiresAt: new Date("2027-01-01T00:00:00.000Z"),
     });
     courseAccessMap.set(id, {
       isAuthenticated: true,
       hasCourseAccess: true,
+      hasFullContentAccess: true,
       tier: "enrolled",
       courseId: id,
       canonicalCourseId: mkId,
