@@ -95,6 +95,7 @@ mock.module("@/lib/storage", () => ({
   storage: mockStorage,
 }));
 mock.module("server-only", () => ({}));
+mock.module("@/lib/vector-sync-dispatch", () => ({ dispatchVectorSync: async () => undefined }));
 const { createAuthoringMcpServer } = await import("@/lib/authoring/mcp-server");
 
 const HASH_A = "a".repeat(64);
@@ -395,8 +396,8 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
     await client.query("INSERT INTO \"user\" (id, name, email, email_verified, role, created_at, updated_at) VALUES ($1, $2, $3, true, 'admin', now(), now())", ["user-admin-cp3", "Admin CP3", "admin.cp3@example.test"]);
     await provisionPenggunaForNewUser({ id: "user-admin-cp3", role: "admin" });
 
-    await client.query("INSERT INTO \"user\" (id, name, email, email_verified, role, created_at, updated_at) VALUES ($1, $2, $3, true, 'teacher', now(), now())", ["user-author-cp3", "Author CP3", "author.cp3@example.test"]);
-    await provisionPenggunaForNewUser({ id: "user-author-cp3", role: "teacher" });
+    await client.query("INSERT INTO \"user\" (id, name, email, email_verified, role, created_at, updated_at) VALUES ($1, $2, $3, true, 'admin', now(), now())", ["user-author-cp3", "Author CP3", "author.cp3@example.test"]);
+    await provisionPenggunaForNewUser({ id: "user-author-cp3", role: "admin" });
 
     await client.query("INSERT INTO \"user\" (id, name, email, email_verified, role, created_at, updated_at) VALUES ($1, $2, $3, true, 'student', now(), now())", ["user-reader-cp3", "Reader CP3", "reader.cp3@example.test"]);
     await provisionPenggunaForNewUser({ id: "user-reader-cp3", role: "student" });
@@ -829,6 +830,7 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
         bundleBase64: Buffer.from(bundle.bytes).toString("base64"),
       });
 
+      expect(submitRes.data.error).toBeUndefined();
       expect(submitRes.isError).toBe(false);
       expect(submitRes.data.ok).toBe(true);
       expect(submitRes.data.valid).toBe(true);
@@ -896,6 +898,7 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
 
       const submitRes = await callMcpTool(authorPrincipal, "authoring.submit_product_bundle", {
         runToken,
+        bootstrapToken,
         filename: "bundle-restage-001.zip",
         bundleBase64: Buffer.from(bundle1.bytes).toString("base64"),
       });
@@ -913,6 +916,7 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
         runToken,
         importId,
         expectedRevision: bundle1.checksum,
+        bootstrapToken,
         filename: "bundle-restage-001-v2.zip",
         bundleBase64: Buffer.from(bundle2.bytes).toString("base64"),
       });
