@@ -22,6 +22,7 @@ import { dualWriteFlashcardReview, dualWriteLearningEvent } from "@/lib/migrasi/
 import { recordLearningEvidence } from "@/lib/pemahaman/evidence";
 import { resolveStudentCourse } from "@/lib/student/course-catalog";
 import { getStudentCourseAccess, isFreeChapterScoped } from "@/lib/course-utils";
+import { canAccessCourseContent } from "@/lib/student/course-access";
 import { rankFlashcardQueue, isReviewDue, weakestFlashcardIdea, type FlashcardQueuePriorityInput } from "@/lib/flashcard-ranking";
 import { getDueFlashcardCounts } from "@/lib/student/due-flashcards";
 
@@ -87,7 +88,6 @@ export async function getReviewQueue(studentId: string, courseId: string) {
   const course = await resolveStudentCourse(courseId);
   const access = await getStudentCourseAccess(studentId, courseId);
   if (!access) return [];
-  const freeChapterIds = access?.tier === "free" ? new Set(access.hasFullContentAccess ? access.policy.scopedChapterIds : access.freeChapterIds) : null;
   if (course?.canonicalId) {
     const canonicalCards = await db
       .select({
@@ -143,10 +143,9 @@ export async function getReviewQueue(studentId: string, courseId: string) {
       const now = Date.now();
       const eligible = canonicalCards
       .flatMap((card) => {
-          if (
-            freeChapterIds
-            && !isFreeChapterScoped([card.chapterId, card.legacyChapterId], freeChapterIds)
-          ) return [];
+          if (!canAccessCourseContent(access.policy, "flashcard", [
+            card.chapterId, ...(card.legacyChapterId ? [card.legacyChapterId] : []),
+          ])) return [];
           const progress = progressByCard.get(card.id);
           if (!isReviewDue(progress && { due: progress.dueAt, status: progress.status }, now)) return [];
           const idea = ideaByCard.get(card.id);
@@ -182,9 +181,7 @@ export async function getReviewQueue(studentId: string, courseId: string) {
       )
     );
 
-  if (freeChapterIds) {
-    publishedSets = publishedSets.filter((set) => freeChapterIds.has(set.chapterId));
-  }
+  publishedSets = publishedSets.filter((set) => canAccessCourseContent(access.policy, "flashcard", [set.chapterId]));
   if (publishedSets.length === 0) return [];
 
   const setIds = publishedSets.map(s => s.id);
