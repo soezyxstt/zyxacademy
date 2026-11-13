@@ -15,18 +15,18 @@ let sourceLookup = false;
 let tables: Record<string, unknown> = {};
 const inserted: Array<{ table: unknown; values: any }> = [];
 const objects = new Map<string, Uint8Array>();
-const db = { select: () => ({ from: (table: unknown) => {
-  const rows = table === tables.ide ? ideaRows : table === tables.pengguna ? [{ id: "local" }] : table === tables.courses ? [{ id: currentCourse }] : table === tables.mataKuliah ? [{ id: currentCourse, code: currentCourse, title: currentCourse }] : table === tables.bab ? [{ id: currentChapter, courseId: currentCourse, code: currentChapter, title: currentChapter, orderIndex: 1 }] : table === tables.imporBundle ? (sourceLookup ? [sourceRow] : []) : null;
+const db: any = { select: () => ({ from: (table: unknown) => {
+  const rows = table === tables.ide ? ideaRows : table === tables.user ? [{ role: "admin" }] : table === tables.penggunaPeran ? [{ code: "admin" }] : table === tables.pengguna ? [{ id: "local", status: "active" }] : table === tables.auditMutasi ? [] : table === tables.courses ? [{ id: currentCourse }] : table === tables.mataKuliah ? [{ id: currentCourse, code: currentCourse, title: currentCourse }] : table === tables.bab ? [{ id: currentChapter, courseId: currentCourse, code: currentChapter, title: currentChapter, orderIndex: 1 }] : table === tables.imporBundle ? (sourceLookup ? [sourceRow] : []) : null;
   if (!rows) throw new Error("UNEXPECTED_DATABASE_TABLE");
-  const query: any = { where: () => query, orderBy: async () => rows, limit: async () => rows, then: (resolve: any, reject: any) => Promise.resolve(rows).then(resolve, reject) };
+  const query: any = { innerJoin: () => query, where: () => query, orderBy: () => query, limit: () => query, for: () => query, then: (resolve: any, reject: any) => Promise.resolve(rows).then(resolve, reject) };
   return query;
-} }), transaction: async (fn: (tx: unknown) => Promise<void>) => fn({ insert: (table: unknown) => ({ values: async (values: unknown) => { if (![tables.imporBundle, tables.itemImporBundle, tables.auditMutasi].includes(table)) throw new Error("UNEXPECTED_INSERT"); inserted.push({ table, values }); } }) }) };
+} }), transaction: async (fn: (tx: unknown) => Promise<void>) => fn({ select: db.select, execute: async () => {}, insert: (table: unknown) => ({ values: async (values: unknown) => { if (![tables.imporBundle, tables.itemImporBundle, tables.auditMutasi].includes(table)) throw new Error("UNEXPECTED_INSERT"); inserted.push({ table, values }); } }) }) };
 mock.module("@/db", () => ({ db }));
 mock.module("@/lib/db", () => ({ db }));
 mock.module("@/lib/storage", () => ({ storage: { exists: async (key: string) => objects.has(key), upload: async (bytes: Uint8Array, _name: string, _mime: string, options: { key: string }) => { objects.set(options.key, Uint8Array.from(bytes)); }, download: async (key: string) => { const bytes = objects.get(key); if (!bytes) throw new Error("MISSING_LOCAL_OBJECT"); return bytes; }, delete: async (key: string) => { objects.delete(key); } } }));
 
 const schema = await import("@/db/schema");
-tables = { ide: schema.ide, pengguna: schema.pengguna, courses: schema.courses, mataKuliah: schema.mataKuliah, bab: schema.bab, imporBundle: schema.imporBundle, itemImporBundle: schema.itemImporBundle, auditMutasi: schema.auditMutasi };
+tables = { user: schema.user, penggunaPeran: schema.penggunaPeran, ide: schema.ide, pengguna: schema.pengguna, courses: schema.courses, mataKuliah: schema.mataKuliah, bab: schema.bab, imporBundle: schema.imporBundle, itemImporBundle: schema.itemImporBundle, auditMutasi: schema.auditMutasi };
 const { createAuthoringMcpServer } = await import("@/lib/authoring/mcp-server");
 const { validateSourcePack } = await import("@/lib/authoring/source-pack");
 const { readInteractiveDocumentAsset } = await import("@/lib/materials/interactive-document-assets");
