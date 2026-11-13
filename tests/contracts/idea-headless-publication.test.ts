@@ -64,7 +64,7 @@ const fakeDb: any = {
       if (table === schema.auditMutasi) state.audits.push(value);
       if (table === schema.publikasiBundle) state.publication = value;
     };
-    const query: any = { values(input: unknown) { value = input; return query; }, onConflictDoNothing: async () => apply(), onConflictDoUpdate: async () => apply(), then(resolve: any, reject: any) { apply(); return Promise.resolve().then(resolve, reject); } };
+    const query: any = { values(input: unknown) { value = input; return query; }, onConflictDoNothing: () => query, onConflictDoUpdate: () => query, returning: async () => { apply(); return (Array.isArray(value) ? value : [value]).map((row: { id: string }) => ({ id: row.id })); }, then(resolve: any, reject: any) { apply(); return Promise.resolve().then(resolve, reject); } };
     return query;
   },
   transaction: async (callback: (tx: any) => unknown) => {
