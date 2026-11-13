@@ -161,20 +161,17 @@ export async function stageProductBundle(input: ProductStageInput) {
   let canPreservePedagogy = false;
   let previousBundleParsed: Extract<ProductBundleValidation, { success: true }>["data"] | null = null;
 
-  if (conflict && storage.download) {
-    try {
-      const previousBytes = await storage.download(conflict.sourceUriOrKey);
-      const previous = await validateProductBundleAdmission(previousBytes);
-      if (previous.success && previous.data.checksum === conflict.checksum) {
-        previousBundleParsed = previous.data;
-        canPreservePedagogy = canPreservePedagogicReview(previous.data, input.bundle);
-        stalePdfProductIds = findStalePdfEvidenceProductIds(previous.data, input.bundle);
-        if (input.preserveUnchangedItemReviews) {
-          unchangedSectionIds = unchangedArticleSectionIds(previous.data, input.bundle);
-        }
-      }
-    } catch {
-      // If previous artifact download or parsing fails, cannot verify identity
+  if (conflict) {
+    if (!storage.download) throw new Error("PRODUCT_BUNDLE_STORAGE_DOWNLOAD_UNAVAILABLE");
+    const previousBytes = await storage.download(conflict.sourceUriOrKey);
+    const previous = await validateProductBundleAdmission(previousBytes);
+    if (!previous.success) throw new Error(`PRODUCT_BUNDLE_PREVIOUS_VALIDATION_FAILED:${previous.issues.map(item => item.code).join(",")}`);
+    if (previous.data.checksum !== conflict.checksum || previous.data.manifest.bundleId !== conflict.bundleId) throw new Error("PRODUCT_BUNDLE_PREVIOUS_CHECKSUM_MISMATCH");
+    previousBundleParsed = previous.data;
+    canPreservePedagogy = canPreservePedagogicReview(previous.data, input.bundle);
+    stalePdfProductIds = findStalePdfEvidenceProductIds(previous.data, input.bundle);
+    if (input.preserveUnchangedItemReviews) {
+      unchangedSectionIds = unchangedArticleSectionIds(previous.data, input.bundle);
     }
   }
 

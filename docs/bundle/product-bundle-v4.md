@@ -97,7 +97,7 @@ retain their existing contract. See [coding contract](../coding-foundation.md).
 
 ## Replacement and readiness
 
-All Product profiles require `expectedPreviousChecksum` for replacement at the shared staging service. MCP restaging carries the caller's `expectedRevision` unchanged; submission without it is create-only when the bundle ID differs in content. Readiness is scoped to the current publisher, including bundle and section decisions and live source dependencies. Publication holds share locks on referenced Ideas, sources, excerpts and external Product dependencies until commit. Import listing evaluates one artifact at a time to bound concurrent memory use.
+All Product profiles require `expectedPreviousChecksum` for replacement at the shared staging service. Replacement revalidates the stored artifact before uploading or changing the draft. A failed download, admission or identity check preserves the prior artifact and reviews, so a transient print-admission failure can be retried safely. MCP restaging carries the caller's `expectedRevision` unchanged; submission without it is create-only when the bundle ID differs in content. Readiness is scoped to the current publisher, including bundle and section decisions and live source dependencies. Publication holds share locks on referenced Ideas, sources, excerpts and external Product dependencies until commit. Import listing evaluates one artifact at a time to bound concurrent memory use.
 
 V4 verification checks the actual staged chapter and original staging run before attaching an attempt. Missing read or stage scope returns an OAuth `insufficient_scope` challenge with the required scope. Local Playwright attempts require the local operator to execute them; polling does not start a hosted worker.
 

@@ -5,18 +5,33 @@ const schema = await import("@/db/schema");
 const events: string[] = [];
 let failPrevious = true;
 let lookup = 0;
-const old = { id: "draft", bundleId: "bundle", status: "draft", sourceUriOrKey: "old", checksum: "a".repeat(64) };
+const old = { id: "draft", bundleId: "bundle", status: "draft", sourceUriOrKey: "old", checksum: "a".repeat(64), bundleType: "product", version: 4, courseId: "course", validationReport: { valid: true } };
 const review = { id: "review", targetType: "article_section", targetId: "section" };
 const previous = { checksum: old.checksum, manifest: { bundleId: "bundle" }, products: [], dependencies: [] };
 const next = { checksum: "b".repeat(64), manifest: { bundleId: "bundle", courseId: "course", creatorId: "authoring-mcp", curatorId: "authoring-mcp", schemaVersion: "product-bundle.v4", visualAssets: [] }, products: [], dependencies: [], files: new Map(), issues: [], publicationBlocked: false };
+function select(transactional = false) {
+  return { from(table: unknown) {
+    const rows = table === schema.user ? [{ role: "admin" }]
+      : table === schema.pengguna ? [{ id: "actor", status: "active" }]
+      : table === schema.penggunaPeran ? [{ code: "admin" }]
+      : table === schema.courses ? [{ id: "course" }]
+      : table === schema.imporBundle ? (transactional || ++lookup % 2 === 0 ? [old] : [])
+      : table === schema.reviewItemBundle ? [review] : [];
+    const query = {
+      innerJoin() { return query; }, where() { return query; }, orderBy() { return query; },
+      limit() { return query; }, for() { return query; },
+      then(resolve: (value: typeof rows) => unknown) { return Promise.resolve(rows).then(resolve); },
+    };
+    return query;
+  } };
+}
 const db = {
-  select() { return { from(table: unknown) { return { where() { return {
-    limit: async () => table === schema.pengguna ? [{ id: "actor" }] : table === schema.courses ? [{ id: "course" }] : table === schema.imporBundle ? (++lookup % 2 ? [] : [old]) : [],
-    then: (resolve: (value: unknown) => void) => resolve(table === schema.reviewItemBundle ? [review] : []),
-  }; } }; } }; },
+  select: () => select(),
   transaction: async (fn: (tx: unknown) => Promise<void>) => { events.push("transaction"); await fn({
+    select: () => select(true),
+    execute: async () => {},
     delete(table: unknown) { events.push(`delete:${getTableName(table as never)}`); return { where: async () => {} }; },
-    update(table: unknown) { events.push(`update:${getTableName(table as never)}`); return { set: () => ({ where: async () => {} }) }; },
+    update(table: unknown) { events.push(`update:${getTableName(table as never)}`); return { set: () => ({ where: () => ({ returning: async () => [{ id: old.id }] }) }) }; },
     insert(table: unknown) { return { values: async (values: unknown) => { events.push(`insert:${getTableName(table as never)}:${JSON.stringify(values)}`); } }; },
   }); },
 };
@@ -30,7 +45,7 @@ mock.module("@/lib/auth/tutor-access", () => ({ checkTutorCourseAccess: async ()
 const { stageProductBundle } = await import("@/lib/bundle/product-staging");
 
 test("transient previous admission failure preserves the draft and a retry preserves unchanged review", async () => {
-  const input = { runId: "run", bundleId: "bundle", courseId: "course", checksum: next.checksum, bytes: new Uint8Array([1]), requestedBy: "actor", bundle: next as never, preserveUnchangedItemReviews: true };
+  const input = { runId: "run", bundleId: "bundle", courseId: "course", checksum: next.checksum, bytes: new Uint8Array([1]), requestedBy: "actor", bundle: next as never, preserveUnchangedItemReviews: true, expectedPreviousChecksum: old.checksum };
   await expect(stageProductBundle(input)).rejects.toThrow("PRODUCT_BUNDLE_PREVIOUS_VALIDATION_FAILED:INTERACTIVE_DOCUMENT_PRINT_BUSY");
   expect(events).toEqual([]);
   failPrevious = false;
@@ -39,5 +54,5 @@ test("transient previous admission failure preserves the draft and a retry prese
   expect(events.some(event => event.startsWith("insert:review_item_bundle:") && event.includes('"id":"review"'))).toBe(true);
   expect(events.some(event => event === "delete:review_pedagogi_bundle")).toBe(false);
   expect(events.some(event => event === "update:bukti_pdf_bundle")).toBe(false);
-  expect(events).toContain("delete:object");
+  expect(events).not.toContain("delete:object");
 });
