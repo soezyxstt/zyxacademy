@@ -69,9 +69,9 @@ describe("Admin Idea review workspace contract", () => {
     expect(publication).toContain('set({ status: "withdrawn", updatedAt: now })');
     expect(publication).toContain('action: "delete" as const');
     expect(publication).toContain('action: "withdrawn"');
-    expect(publication).toContain("hasAdminAuthorization(input.withdrawnBy, actor.role)");
+    expect(publication).toContain("assertAuthoringActor(tx, input.withdrawnBy");
     expect(staging).toContain("export async function discardIdeaBundleDraft");
-    expect(staging).toContain("hasAdminAuthorization(input.actorId, actor.role)");
+    expect(staging).toContain("assertAuthoringActor(tx, input.actorId");
     expect(staging).toContain('.for("update")');
     expect(staging).not.toContain("await deleteArtifact(");
     expect(staging).toContain("tx.delete(reviewItemBundle)");
