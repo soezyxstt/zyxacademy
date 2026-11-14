@@ -42,16 +42,15 @@ async function WrongPanel() {
  </p>
  <div className="mt-2 space-y-1 text-body-sm text-foreground">
  <p>
- 1. Antiturunan dari <MathText>{"$2x$"}</MathText> memang{" "}
- <MathText>{"$x^2$"}</MathText> ; tapi ini integral <em>tentu</em>.
+ 1. <MathText>{t("home.quizWorkedStep1")}</MathText>
  </p>
  <p>
- 2. Evaluasi batasnya:{" "}
+ 2. {t("home.quizWorkedStep2")}{" "}
  <MathText>{"$\\left[x^2\\right]_0^1 = 1 - 0 = 1$."}</MathText>
  </p>
  </div>
  <p className="mt-2.5 inline-flex items-center gap-1 text-body-sm font-semibold text-primary">
- {t("home.quizReview")} <ArrowRight className="size-3.5" aria-hidden /> Bab 4 · Integral Tentu
+ {t("home.quizReview")} <ArrowRight className="size-3.5" aria-hidden /> {t("home.quizReviewChapter")}
  </p>
  </div>
  );
@@ -84,7 +83,7 @@ export async function LandingDemoQuiz() {
  <div className="bg-landing-dots pointer-events-none absolute -inset-6 -z-10 rounded-3xl opacity-70" aria-hidden />
  <div className="landing-rise">
  <QuizDemo
- prompt={<MathText>{"Hitung $\\int_0^1 2x\\,dx$"}</MathText>}
+ prompt={<MathText>{t("home.quizDemoPrompt")}</MathText>}
  options={options}
  correctPanel={<CorrectPanel />}
  wrongPanel={<WrongPanel />}

@@ -6,7 +6,6 @@ import { DropdownMenu } from "radix-ui";
 
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { Button } from "@/components/ui/button";
-import { SheetClose } from "@/components/ui/sheet";
 import { signOut, useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
@@ -26,6 +25,7 @@ export function NavProfileOrSignIn({
   showSignIn = true,
 }: NavProfileOrSignInProps) {
   const t = useTranslations("marketing");
+  const account = useTranslations("common");
   const { data: session, isPending } = useSession();
   const sheet = variant === "sheet";
 
@@ -51,78 +51,24 @@ export function NavProfileOrSignIn({
     const email = session.user.email;
     const label = name || email?.split("@")[0] || t("nav.account");
 
-    if (sheet) {
-      return (
-        <div className="flex min-w-0 w-full flex-col gap-2">
-          <SheetClose asChild>
-            <Link
-              href="/dashboard"
-              prefetch={false}
-              title={email ?? label}
-              aria-label={t("nav.dashboardFor", { name: label })}
-              onClick={onNavigate}
-              className={cn(
-                "border-border hover:bg-muted/70 flex min-h-14 min-w-0 w-full items-center gap-3 rounded-xl border bg-background px-3 py-2.5 shadow-none transition-colors",
-                "outline-none focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2"
-              )}
-            >
-              {session.user.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={session.user.image}
-                  alt={label}
-                  width={40}
-                  height={40}
-                  className="border-border size-10 shrink-0 rounded-full border object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <span className="bg-muted border-border flex size-10 shrink-0 items-center justify-center rounded-full border">
-                  <User className="text-muted-foreground size-5" aria-hidden />
-                </span>
-              )}
-              <div className="min-w-0 flex-1 text-left">
-                <p className="break-words [overflow-wrap:anywhere] font-heading text-body-base font-semibold leading-tight tracking-tight text-foreground">
-                  {label}
-                </p>
-                {email ? (
-                  <p className="text-body-sm mt-0.5 min-w-0 truncate text-muted-foreground">{email}</p>
-                ) : null}
-              </div>
-            </Link>
-          </SheetClose>
-          <Button
-            type="button"
-            variant="outline"
-            className="text-body-sm h-11 w-full justify-center gap-2 rounded-xl font-medium"
-            onClick={() => {
-              void (async () => {
-                await signOut();
-                onNavigate?.();
-              })();
-            }}
-          >
-            <LogOut className="size-4" aria-hidden />
-            {t("nav.signOut")}
-          </Button>
-        </div>
-      );
-    }
-
-    const userRole = (session.user as { role?: string | null }).role;
+    const userWithRoles = session.user as { role?: string | null; roles?: string[] | null };
+    const roles = Array.isArray(userWithRoles.roles) ? userWithRoles.roles : [];
+    const isAdmin = userWithRoles.role === "admin" || roles.includes("admin");
+    const isTutor = userWithRoles.role === "teacher" || userWithRoles.role === "tutor" || roles.includes("teacher") || roles.includes("tutor");
 
     return (
-      <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+      <div className={cn("flex shrink-0 items-center gap-1 sm:gap-1.5", sheet && "w-full")}>
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
             <Button
-              aria-label={t("nav.account")}
+              aria-label={account("accountNamed", { name: label })}
               data-testid="nav-profile-trigger"
               variant="ghost"
               className={cn(
                 "text-foreground gap-2 rounded-lg hover:bg-muted cursor-pointer",
-                "h-10 w-10 max-w-[11rem] min-w-0 shrink-0 overflow-hidden xl:w-44 xl:justify-start xl:gap-2 xl:px-2",
-                "max-xl:size-10 max-xl:justify-center max-xl:border max-xl:border-border/60 max-xl:p-0 max-xl:shadow-none max-xl:hover:border-border max-xl:hover:bg-muted/80"
+                sheet
+                  ? "min-h-14 w-full min-w-0 justify-start border border-border px-3 py-2 text-left"
+                  : "h-10 w-10 max-w-[11rem] min-w-0 shrink-0 overflow-hidden xl:w-44 xl:justify-start xl:gap-2 xl:px-2 max-xl:size-10 max-xl:justify-center max-xl:border max-xl:border-border/60 max-xl:p-0 max-xl:shadow-none max-xl:hover:border-border max-xl:hover:bg-muted/80"
               )}
             >
               {session.user.image ? (
@@ -132,62 +78,64 @@ export function NavProfileOrSignIn({
                   alt={label}
                   width={32}
                   height={32}
-                  className="border-border max-xl:size-9 max-xl:border-0 shrink-0 rounded-full border object-cover xl:size-8"
+                  className={cn("border-border shrink-0 rounded-full border object-cover", sheet ? "size-10" : "max-xl:size-9 max-xl:border-0 xl:size-8")}
                   referrerPolicy="no-referrer"
                 />
               ) : (
-                <span className="bg-muted border-border flex max-xl:size-9 shrink-0 items-center justify-center rounded-full border xl:size-8">
+                <span className={cn("bg-muted border-border flex shrink-0 items-center justify-center rounded-full border", sheet ? "size-10" : "max-xl:size-9 xl:size-8")}>
                   <User className="text-muted-foreground size-4" aria-hidden />
                 </span>
               )}
-              <span className="hidden min-w-0 flex-1 overflow-hidden text-body-sm font-medium xl:flex">
+              <span className={cn("min-w-0 flex-1 overflow-hidden text-body-sm font-medium", !sheet && "hidden xl:block")}>
                 <span className="block truncate">{label}</span>
+                {sheet && email && <span className="block truncate text-body-xs font-normal text-muted-foreground">{email}</span>}
               </span>
             </Button>
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content
               sideOffset={6}
-              align="end"
+              align={sheet ? "start" : "end"}
+              side={sheet ? "top" : "bottom"}
               className="border-border bg-popover text-popover-foreground z-50 min-w-44 rounded-xl border p-1 shadow-lg data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
             >
               <DropdownMenu.Item
                 asChild
-                className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
+                className="hover:bg-accent hover:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
               >
                 <Link href="/profile" prefetch={false} onClick={onNavigate}>
                   <User className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  <span>{t("nav.profile")}</span>
+                  <span>{account("profileSettings")}</span>
                 </Link>
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 asChild
-                className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
+                className="hover:bg-accent hover:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
               >
                 <Link href="/dashboard" prefetch={false} onClick={onNavigate}>
                   <LayoutDashboard className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  <span>{t("nav.learningDashboard")}</span>
+                  <span>{account("studentDashboard")}</span>
                 </Link>
               </DropdownMenu.Item>
-              {(userRole === "teacher" || userRole === "tutor" || userRole === "admin") && (
+              {(isTutor || isAdmin) && (
                 <DropdownMenu.Item
                   asChild
-                  className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
+                  className="hover:bg-accent hover:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
                 >
                   <Link href="/tutor" prefetch={false} onClick={onNavigate}>
                     <GraduationCap className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                    <span>{t("nav.tutorPanel")}</span>
+                    <span>{account("tutorPanel")}</span>
                   </Link>
                 </DropdownMenu.Item>
               )}
-              {userRole === "admin" && (
+              {isAdmin && (
                 <DropdownMenu.Item
                   asChild
-                  className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
+                  className="hover:bg-accent hover:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
                 >
                   <Link href="/admin" prefetch={false} onClick={onNavigate}>
                     <ShieldCheck className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                    <span>{t("nav.adminPanel")}</span>
+                    <span>{account("adminPanel")}</span>
                   </Link>
                 </DropdownMenu.Item>
               )}

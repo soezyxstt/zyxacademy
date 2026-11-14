@@ -2,7 +2,8 @@
 
 import { usePricingDiscounts } from "@/hooks/use-pricing-discounts";
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, BookOpen, CalendarDays, Calculator, Info, Tag, Users } from "lucide-react";
+import { useTranslations } from "@/lib/i18n/client";
+import { AlertCircle, Calculator, Info, Tag } from "lucide-react";
 import { AdminSectionTitle } from "@/components/admin/section-title";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,9 +46,9 @@ function parsePositiveInteger(value: string): number | null {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-function getQuantityError(value: string, label: string): string | undefined {
-  if (!value.trim()) return `Masukkan ${label.toLowerCase()}.`;
-  if (parsePositiveInteger(value) === null) return `${label} harus berupa bilangan bulat positif.`;
+function getQuantityError(value: string, label: string, t: ReturnType<typeof useTranslations<"adminOps">>): string | undefined {
+  if (!value.trim()) return t("pricingEstimatorUI.required", { field: label.toLowerCase() });
+  if (parsePositiveInteger(value) === null) return t("pricingEstimatorUI.positiveInteger", { field: label });
   return undefined;
 }
 
@@ -56,27 +57,28 @@ export function CustomPriceEstimator({
 }: {
   initialVouchers?: ActiveDiscountVoucher[];
 } = {}) {
+  const t = useTranslations("adminOps");
   const { settings, now, error: pricingError } = usePricingDiscounts();
   const [values, setValues] = useState<QuantityValues>(initialValues);
   const [selectedVoucherCode, setSelectedVoucherCode] = useState<string>("none");
   const [activeVouchers, setActiveVouchers] = useState<ActiveDiscountVoucher[]>(initialVouchers ?? []);
   const [isLoadingVouchers, setIsLoadingVouchers] = useState<boolean>(!initialVouchers);
-  const [voucherError, setVoucherError] = useState<string | null>(null);
+  const [voucherError, setVoucherError] = useState(false);
 
   useEffect(() => {
     if (!initialVouchers) {
       setIsLoadingVouchers(true);
-      setVoucherError(null);
+      setVoucherError(false);
       getActiveDiscountVouchers()
         .then((res) => {
           if (res.success && res.data) {
             setActiveVouchers(res.data);
           } else {
-            setVoucherError(res.error ?? "Gagal memuat voucher aktif.");
+            setVoucherError(true);
           }
         })
-        .catch((err) => {
-          setVoucherError(err instanceof Error ? err.message : "Gagal memuat voucher aktif.");
+        .catch(() => {
+          setVoucherError(true);
         })
         .finally(() => {
           setIsLoadingVouchers(false);
@@ -100,21 +102,21 @@ export function CustomPriceEstimator({
 
   const errors = useMemo<QuantityErrors>(() => {
     const nextErrors: QuantityErrors = {
-      meetings: getQuantityError(values.meetings, "Jumlah pertemuan"),
-      courses: getQuantityError(values.courses, "Jumlah mata kuliah"),
-      persons: getQuantityError(values.persons, "Jumlah anggota kelompok"),
+      meetings: getQuantityError(values.meetings, t("pricingEstimatorUI.meetings"), t),
+      courses: getQuantityError(values.courses, t("pricingEstimatorUI.courses"), t),
+      persons: getQuantityError(values.persons, t("pricingEstimatorUI.memberCount"), t),
     };
 
     if (!nextErrors.meetings && quantities.meetings !== null) {
       if (quantities.meetings < CUSTOM_MIN_MEETINGS) {
-        nextErrors.meetings = `Minimal ${CUSTOM_MIN_MEETINGS} pertemuan.`;
+        nextErrors.meetings = t("pricingEstimatorUI.minimumMeetings", { count: CUSTOM_MIN_MEETINGS });
       } else if (quantities.meetings % CUSTOM_MEETING_STEP !== 0) {
-        nextErrors.meetings = `Jumlah pertemuan harus kelipatan ${CUSTOM_MEETING_STEP}.`;
+        nextErrors.meetings = t("pricingEstimatorUI.meetingMultiple", { count: CUSTOM_MEETING_STEP });
       }
     }
 
     return nextErrors;
-  }, [quantities, values]);
+  }, [quantities, values, t]);
 
   const quote = useMemo(() => {
     if (
@@ -151,12 +153,12 @@ export function CustomPriceEstimator({
       <section className="rounded-xl border border-border bg-card p-4">
         <AdminSectionTitle
           icon={Calculator}
-          title="Konfigurasi custom"
+          title={t("pricingEstimatorUI.customConfiguration")}
         />
 
         <div className="mt-5 grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
           <div className="space-y-2">
-            <Label htmlFor="custom-meetings">Jumlah pertemuan</Label>
+            <Label htmlFor="custom-meetings">{t("pricingEstimatorUI.meetings")}</Label>
             <Input
               id="custom-meetings"
               type="number"
@@ -174,12 +176,12 @@ export function CustomPriceEstimator({
               className={errors.meetings ? "text-body-xs text-destructive" : "text-body-xs text-muted-foreground"}
               aria-live="polite"
             >
-              {errors.meetings ?? `Kelipatan ${CUSTOM_MEETING_STEP}, contoh 5, 10, atau 15.`}
+              {errors.meetings ?? t("pricingEstimatorUI.meetingHelp", { count: CUSTOM_MEETING_STEP })}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="custom-courses">Jumlah mata kuliah</Label>
+            <Label htmlFor="custom-courses">{t("pricingEstimatorUI.courses")}</Label>
             <Input
               id="custom-courses"
               type="number"
@@ -189,20 +191,14 @@ export function CustomPriceEstimator({
               value={values.courses}
               onChange={(event) => updateValue("courses", event.target.value)}
               aria-invalid={Boolean(errors.courses)}
-              aria-describedby="custom-courses-help"
+              aria-describedby={errors.courses ? "custom-courses-help" : undefined}
               className={errors.courses ? "border-destructive focus-visible:border-destructive" : undefined}
             />
-            <p
-              id="custom-courses-help"
-              className={errors.courses ? "text-body-xs text-destructive" : "text-body-xs text-muted-foreground"}
-              aria-live="polite"
-            >
-              {errors.courses ?? "Jumlah mata kuliah yang masuk ke paket."}
-            </p>
+            {errors.courses && <p id="custom-courses-help" className="text-body-xs text-destructive" aria-live="polite">{errors.courses}</p>}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="custom-persons">Anggota kelompok</Label>
+            <Label htmlFor="custom-persons">{t("pricingEstimatorUI.members")}</Label>
             <Input
               id="custom-persons"
               type="number"
@@ -212,23 +208,17 @@ export function CustomPriceEstimator({
               value={values.persons}
               onChange={(event) => updateValue("persons", event.target.value)}
               aria-invalid={Boolean(errors.persons)}
-              aria-describedby="custom-persons-help"
+              aria-describedby={errors.persons ? "custom-persons-help" : undefined}
               className={errors.persons ? "border-destructive focus-visible:border-destructive" : undefined}
             />
-            <p
-              id="custom-persons-help"
-              className={errors.persons ? "text-body-xs text-destructive" : "text-body-xs text-muted-foreground"}
-              aria-live="polite"
-            >
-              {errors.persons ?? "Jumlah anggota yang berbagi paket."}
-            </p>
+            {errors.persons && <p id="custom-persons-help" className="text-body-xs text-destructive" aria-live="polite">{errors.persons}</p>}
           </div>
 
           <div className="space-y-2 sm:col-span-3 xl:col-span-1 border-t border-border/70 pt-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <Label htmlFor="custom-voucher" className="flex items-center gap-1.5">
                 <Tag className="size-3.5 text-brand-primary" aria-hidden />
-                Voucher / kode referal
+                {t("pricingEstimatorUI.voucherLabel")}
               </Label>
               {selectedVoucher && (
                 <Button
@@ -238,20 +228,20 @@ export function CustomPriceEstimator({
                   onClick={() => setSelectedVoucherCode("none")}
                   className="h-5 px-1.5 text-body-xs text-muted-foreground hover:text-foreground"
                 >
-                  Lepas voucher
+                  {t("pricingEstimatorUI.removeVoucher")}
                 </Button>
               )}
             </div>
 
             <Select value={selectedVoucherCode} onValueChange={setSelectedVoucherCode}>
               <SelectTrigger id="custom-voucher" className="w-full">
-                <SelectValue placeholder="Pilih voucher aktif" />
+                <SelectValue placeholder={t("pricingEstimatorUI.selectVoucher")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Tanpa voucher</SelectItem>
+                <SelectItem value="none">{t("pricingEstimatorUI.noVoucher")}</SelectItem>
                 {activeVouchers.map((v) => (
                   <SelectItem key={v.id} value={v.code}>
-                    {v.code} (Diskon {v.discountPercent}% - {v.remainingQuota} sisa)
+                    {t("pricingEstimatorUI.voucherOption", { code: v.code, percent: v.discountPercent, remaining: v.remainingQuota })}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -265,21 +255,21 @@ export function CustomPriceEstimator({
                 >
                   {selectedVoucher.code} (-{selectedVoucher.discountPercent}%)
                 </Badge>
-                <span>Potongan tambahan dari harga promo</span>
+                <span>{t("pricingEstimatorUI.voucherAdditional")}</span>
               </div>
             ) : voucherError ? (
               <p className="text-body-xs text-destructive" role="alert">
-                {voucherError}
+                {t("pricingEstimatorUI.voucherFailed")}
               </p>
             ) : isLoadingVouchers ? (
               <p className="text-body-xs text-muted-foreground">
-                Memuat voucher aktif...
+                {t("pricingEstimatorUI.voucherLoading")}
               </p>
             ) : (
               <p className="text-body-xs text-muted-foreground">
                 {activeVouchers.length > 0
-                  ? "Voucher diterapkan setelah diskon komponen."
-                  : "Belum ada voucher aktif. Buat di tab Kelola voucher."}
+                  ? t("pricingEstimatorUI.voucherHelp")
+                  : t("pricingEstimatorUI.voucherEmpty")}
               </p>
             )}
           </div>
@@ -288,7 +278,7 @@ export function CustomPriceEstimator({
         <div className="mt-5 flex items-start gap-2 border-t border-border/70 pt-4">
           <Info className="mt-0.5 size-4 shrink-0 text-status-info" aria-hidden="true" />
           <p className="text-body-xs leading-relaxed text-muted-foreground">
-            Mencakup akses platform dan tutorial. Harga final dikonfirmasi sebelum pembayaran.
+            {t("pricingEstimatorUI.priceTerms")}
           </p>
         </div>
       </section>
@@ -299,10 +289,10 @@ export function CustomPriceEstimator({
       >
         <AdminSectionTitle
           icon={Calculator}
-          title="Perkiraan harga"
+          title={t("pricingEstimatorUI.estimatedPrice")}
           right={quote && quote.discountAmount > 0 ? (
             <span className="rounded-md border border-[var(--zx-accent)]/30 bg-[var(--zx-accent)]/10 px-2 py-1 text-body-xs font-semibold text-[var(--zx-accent)]">
-              Diskon {quote.discountPercent}%
+              {t("pricingEstimatorUI.discount", { percent: quote.discountPercent })}
             </span>
           ) : null}
         />
@@ -311,43 +301,43 @@ export function CustomPriceEstimator({
           <div className="mt-4 space-y-4" aria-live="polite">
             <div className={`grid gap-3 ${quote.discountAmount > 0 ? "sm:grid-cols-2" : ""}`}>
               {quote.discountAmount > 0 && <div className="space-y-2 border-t border-border pt-3">
-                <p className="text-body-xs font-semibold text-muted-foreground">Sebelum diskon</p>
+                <p className="text-body-xs font-semibold text-muted-foreground">{t("pricingEstimatorUI.beforeDiscount")}</p>
                 <p
                   className="mt-2 font-heading text-h5 font-bold text-foreground"
                   data-price-before={quote.beforeDiscount}
                 >
                   <s>{formatPlanPrice(quote.beforeDiscount)}</s>
                 </p>
-                <p className="mt-1 text-body-xs text-muted-foreground">Total kelompok per semester</p>
+                <p className="mt-1 text-body-xs text-muted-foreground">{t("pricingEstimatorUI.groupPerSemester")}</p>
                 <div className="mt-3 border-t border-border/70 pt-3">
-                  <p className="text-body-xs font-semibold text-muted-foreground">Per orang</p>
+                  <p className="text-body-xs font-semibold text-muted-foreground">{t("pricingEstimatorUI.perPerson")}</p>
                   <p
                     className="mt-1 font-heading text-body-base font-bold text-foreground"
                     data-price-before-per-person={quote.beforeDiscountPerPerson}
                   >
                     {formatPlanPrice(quote.beforeDiscountPerPerson)}
-                    <span className="ml-1 font-sans text-body-xs font-normal text-muted-foreground">/ semester</span>
+                    <span className="ml-1 font-sans text-body-xs font-normal text-muted-foreground">{t("pricingEstimatorUI.perSemester")}</span>
                   </p>
                 </div>
               </div>}
 
               <div className="border-l-2 border-primary pl-3 py-2">
-                <p className="text-body-xs font-semibold text-[var(--zx-accent)]">{quote.discountAmount > 0 ? "Setelah diskon" : "Harga berlaku"}</p>
+                <p className="text-body-xs font-semibold text-[var(--zx-accent)]">{quote.discountAmount > 0 ? t("pricingEstimatorUI.afterDiscount") : t("pricingEstimatorUI.currentPrice")}</p>
                 <p
                   className="mt-2 font-heading text-h5 font-bold text-foreground"
                   data-price-after={quote.afterDiscount}
                 >
                   {formatPlanPrice(quote.afterDiscount)}
                 </p>
-                <p className="mt-1 text-body-xs text-muted-foreground">Total kelompok per semester</p>
+                <p className="mt-1 text-body-xs text-muted-foreground">{t("pricingEstimatorUI.groupPerSemester")}</p>
                 <div className="mt-3 border-t border-[var(--zx-accent)]/20 pt-3">
-                  <p className="text-body-xs font-semibold text-[var(--zx-accent)]">Per orang</p>
+                  <p className="text-body-xs font-semibold text-[var(--zx-accent)]">{t("pricingEstimatorUI.perPerson")}</p>
                   <p
                     className="mt-1 font-heading text-body-base font-bold text-foreground"
                     data-price-after-per-person={quote.afterDiscountPerPerson}
                   >
                     {formatPlanPrice(quote.afterDiscountPerPerson)}
-                    <span className="ml-1 font-sans text-body-xs font-normal text-muted-foreground">/ semester</span>
+                    <span className="ml-1 font-sans text-body-xs font-normal text-muted-foreground">{t("pricingEstimatorUI.perSemester")}</span>
                   </p>
                 </div>
               </div>
@@ -362,7 +352,7 @@ export function CustomPriceEstimator({
                   <div className="flex items-center gap-1.5">
                     <Tag className="size-4 text-status-success" aria-hidden />
                     <p className="text-body-xs font-semibold text-status-success">
-                      Harga akhir setelah voucher {selectedVoucher?.code}
+                      {t("pricingEstimatorUI.voucherFinal", { code: selectedVoucher?.code ?? "" })}
                     </p>
                   </div>
                   <Badge
@@ -382,7 +372,7 @@ export function CustomPriceEstimator({
                       {formatPlanPrice(quote.finalPrice)}
                     </p>
                     <p className="mt-0.5 text-body-xs text-muted-foreground">
-                      Total pembayaran kelompok per semester
+                      {t("pricingEstimatorUI.groupPaymentPerSemester")}
                     </p>
                   </div>
                   <div className="sm:text-right">
@@ -392,23 +382,23 @@ export function CustomPriceEstimator({
                     >
                       {formatPlanPrice(quote.finalPricePerPerson!)}
                       <span className="ml-1 font-sans text-body-xs font-normal text-muted-foreground">
-                        / semester
+                        {t("pricingEstimatorUI.perSemester")}
                       </span>
                     </p>
-                    <p className="mt-0.5 text-body-xs text-muted-foreground">Per orang</p>
+                    <p className="mt-0.5 text-body-xs text-muted-foreground">{t("pricingEstimatorUI.perPerson")}</p>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-1 border-t border-status-success/20 pt-2 text-body-xs text-muted-foreground">
                   <div className="flex items-center justify-between">
-                    <span>Potongan voucher ({quote.voucherDiscountPercent}%):</span>
+                    <span>{t("pricingEstimatorUI.voucherDiscount", { percent: quote.voucherDiscountPercent! })}</span>
                     <span className="font-semibold text-status-success">
                       -{formatPlanPrice(quote.voucherDiscountAmount!)} (-
-                      {formatPlanPrice(quote.voucherDiscountAmountPerPerson!)} / orang)
+                      {formatPlanPrice(quote.voucherDiscountAmountPerPerson!)} {t("pricingEstimatorUI.perPersonSuffix")})
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span>Total hemat:</span>
+                    <span>{t("pricingEstimatorUI.savings")}</span>
                     <span className="font-semibold text-foreground">
                       -{formatPlanPrice(quote.totalSavings!)}
                     </span>
@@ -418,7 +408,7 @@ export function CustomPriceEstimator({
             )}
 
             {quote.discountAmount > 0 && <div className="flex items-center justify-between gap-3 border-y border-border/70 py-3 text-body-sm">
-              <span className="text-muted-foreground">Potongan {quote.discountPercent}%</span>
+              <span className="text-muted-foreground">{t("pricingEstimatorUI.discountAmount", { percent: quote.discountPercent })}</span>
               <div className="text-right">
                 <span className="font-semibold text-status-success" data-price-discount={quote.discountAmount}>
                   -{formatPlanPrice(quote.discountAmount)}
@@ -427,36 +417,18 @@ export function CustomPriceEstimator({
                   className="block text-body-xs text-muted-foreground"
                   data-price-discount-per-person={quote.discountAmountPerPerson}
                 >
-                  -{formatPlanPrice(quote.discountAmountPerPerson)} / orang
+                  -{formatPlanPrice(quote.discountAmountPerPerson)} {t("pricingEstimatorUI.perPersonSuffix")}
                 </span>
               </div>
             </div>}
-
-            <div className="space-y-2">
-              <p className="text-body-xs font-semibold text-muted-foreground">Ringkasan konfigurasi</p>
-              <div className="flex flex-wrap gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-muted/30 px-2.5 py-1 text-body-xs text-foreground">
-                  <CalendarDays className="size-3.5 text-brand-primary" aria-hidden="true" />
-                  {quantities.meetings} pertemuan
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-muted/30 px-2.5 py-1 text-body-xs text-foreground">
-                  <BookOpen className="size-3.5 text-brand-primary" aria-hidden="true" />
-                  {quantities.courses} mata kuliah
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-muted/30 px-2.5 py-1 text-body-xs text-foreground">
-                  <Users className="size-3.5 text-brand-primary" aria-hidden="true" />
-                  {quantities.persons} anggota
-                </span>
-              </div>
-            </div>
           </div>
         ) : (
           <div className="mt-6 flex items-start gap-3 rounded-lg border border-status-warning/30 bg-status-warning/10 p-4" role="status">
             <AlertCircle className="mt-0.5 size-5 shrink-0 text-status-warning" aria-hidden="true" />
             <div className="space-y-1">
-              <p className="text-body-sm font-semibold text-foreground">{pricingError ? "Gagal memuat harga. Coba muat ulang." : !settings ? "Memuat harga..." : "Lengkapi konfigurasi"}</p>
+              <p className="text-body-sm font-semibold text-foreground">{pricingError ? t("pricingEstimatorUI.priceFailed") : !settings ? t("pricingEstimatorUI.priceLoading") : t("pricingEstimatorUI.completeConfiguration")}</p>
               {settings && !pricingError && <p className="text-body-xs leading-relaxed text-muted-foreground">
-                Periksa jumlah pertemuan, mata kuliah, dan anggota kelompok untuk menampilkan estimasi harga.
+                {t("pricingEstimatorUI.priceInvalid")}
               </p>}
             </div>
           </div>

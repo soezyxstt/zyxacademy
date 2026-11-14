@@ -424,6 +424,10 @@ export function ScheduleCalendarView({
   const nowMinutes = getJakartaClock(now);
 
   useEffect(() => {
+    setCourseFilter(initialCourseFilter || "all");
+  }, [initialCourseFilter]);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => setNow(new Date()), 60_000 - Date.now() % 60_000);
     return () => window.clearTimeout(timer);
   }, [now]);
@@ -623,7 +627,7 @@ export function ScheduleCalendarView({
 
   return (
     <div className="min-w-0 space-y-2">
-      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <Select value={viewMode} onValueChange={(value: CalendarViewMode) => setViewMode(value)}>
           <SelectTrigger className="h-9 w-[106px] shrink-0 text-body-sm font-semibold">
             <SelectValue />
@@ -643,9 +647,9 @@ export function ScheduleCalendarView({
 
         <Popover>
           <PopoverTrigger asChild>
-            <Button type="button" variant="ghost" size="sm" className="h-9 min-w-0 max-w-full justify-start gap-2 px-2 text-body-sm font-semibold sm:flex-1">
+            <Button type="button" variant="ghost" size="sm" className="min-h-9 h-auto min-w-0 max-w-full justify-start gap-2 px-2 text-body-sm font-semibold">
               <CalendarDays className="size-4 shrink-0 text-brand-primary" />
-              <span className="truncate">{rangeLabel}</span>
+              <span className="whitespace-normal text-left">{rangeLabel}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent align="start" className="w-auto p-2">
@@ -671,7 +675,7 @@ export function ScheduleCalendarView({
 
           <Popover>
             <PopoverTrigger asChild>
-              <Button type="button" variant="outline" size="sm" className="h-9 gap-1.5 px-2.5"><SlidersHorizontal className="size-4" /><span className="hidden sm:inline">{t("calendar.filter")}</span></Button>
+              <Button type="button" variant="outline" size="sm" aria-label={t("calendar.filter")} className="h-9 gap-1.5 px-2.5"><SlidersHorizontal className="size-4" /><span className="hidden sm:inline">{t("calendar.filter")}</span></Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-72 space-y-3 p-3">
               <div className="space-y-1.5">

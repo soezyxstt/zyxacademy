@@ -52,7 +52,7 @@
     "liveQuiz": "Kuis langsung",
     "tryoutGrading": "Penilaian tryout",
     "overview": "Ringkasan",
-    "materialsDescription": "Kelola modul dan materi pengajaran mata kuliah {courseId}.",
+    "materialsDescription": "Materi pengajaran untuk mata kuliah {courseId}.",
     "videosDescription": "Kelola playlist dan video pembelajaran mata kuliah {courseId}.",
     "participantsDescription": "Daftar peserta dan kelompok belajar aktif untuk kelas {courseId}.",
     "manageQuizzes": "Kelola kuis",

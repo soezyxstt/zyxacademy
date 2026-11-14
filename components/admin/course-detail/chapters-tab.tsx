@@ -103,8 +103,7 @@ export function ChaptersTab({
     }
 
     setAddingChapter(true);
-    const nextOrder = chapters.length + 1;
-    const res = await saveChapter(null, courseId, newTitle.trim(), nextOrder, newDescription.trim() || null);
+    const res = await saveChapter(null, courseId, newTitle.trim(), 0, newDescription.trim() || null);
     setAddingChapter(false);
 
     if (res.success) {
@@ -113,7 +112,7 @@ export function ChaptersTab({
       setNewDescription("");
       router.refresh();
     } else {
-      toast.error(t("courseDetail.chapters.errors.create"));
+      toast.error(t(res.code === "CHAPTER_DESCRIPTION_UNAVAILABLE" ? "courseDetail.chapters.errors.descriptionUnavailable" : "courseDetail.chapters.errors.create"));
     }
   };
 
@@ -145,7 +144,7 @@ export function ChaptersTab({
       setEditingChapter(null);
       router.refresh();
     } else {
-      toast.error(t("courseDetail.chapters.errors.update"));
+      toast.error(t(res.code === "CHAPTER_DESCRIPTION_UNAVAILABLE" ? "courseDetail.chapters.errors.descriptionUnavailable" : "courseDetail.chapters.errors.update"));
     }
   };
 

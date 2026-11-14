@@ -90,7 +90,7 @@ export async function getScheduleData(weekOffset = 0) {
   const peranCodes = await getPeranCodes(dbUser.id);
   const isAdmin = dbUser.role === "admin" || peranCodes.includes("admin");
   const isTutor = dbUser.role === "teacher" || peranCodes.includes("tutor");
-  if (isAdmin || isTutor) {
+  if (!isAdmin && isTutor) {
     throw new Error("FORBIDDEN_STUDENT_SCHEDULE");
   }
 

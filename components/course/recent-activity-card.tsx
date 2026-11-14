@@ -66,6 +66,14 @@ export function RecentActivityCard({
   }
 
   const isEmpty = !data || data.length === 0;
+  const activityTitles: Record<string, string> = {
+    "Aktivitas belajar": t("course.recentActivity.learning"),
+    "Learning activity": t("course.recentActivity.learning"),
+    "Menyelesaikan dokumen": t("course.recentActivity.materialCompleted"),
+    "Menjawab kuis": t("course.recentActivity.quizAnswered"),
+    "Mengulas flashcard": t("course.recentActivity.flashcardReviewed"),
+  };
+  const isGenericTitle = (title: string) => title === "Aktivitas belajar" || title === "Learning activity";
 
   const getIcon = (type: RecentActivityData["type"] | "daily_summary") => {
     switch (type) {
@@ -99,9 +107,9 @@ export function RecentActivityCard({
                 </div>
                 <div className="min-w-0">
                   <p className="text-body-sm font-semibold text-foreground leading-tight">
-                    {activity.title}
+                    {isGenericTitle(activity.title) && activity.description ? activity.description : activityTitles[activity.title] ?? activity.title}
                   </p>
-                  {activity.description && (
+                  {activity.description && !isGenericTitle(activity.title) && (
                     <p className="text-body-xs text-muted-foreground mt-0.5 leading-snug">
                       {activity.description}
                     </p>

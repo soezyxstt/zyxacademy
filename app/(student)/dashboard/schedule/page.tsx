@@ -8,17 +8,21 @@ import { ApplicationPage } from "@/components/application-page";
 import { PageHeader } from "@/components/page-header";
 import { StudentScheduleClient, ScheduleCalendarSkeleton } from "./schedule-client";
 import { TranslatedText } from "@/components/i18n/translated-text";
+import { studentScheduleRedirect } from "@/lib/schedule/student-schedule-redirect";
+import { getCourse } from "@/lib/course-utils";
 
-export default async function StudentSchedulePage() {
+export default async function StudentSchedulePage({ searchParams }: { searchParams: Promise<{ course?: string | string[] }> }) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.id) redirect("/");
 
   const legacyRole = (session.user as { role?: string | null }).role;
   const isAdmin = legacyRole === "admin" || await hasAnyPeran(session.user.id, ["admin"], { allowAdmin: false });
-  if (isAdmin) redirect("/admin/schedules");
-
   const isTutor = legacyRole === "teacher" || await hasAnyPeran(session.user.id, ["tutor"], { allowAdmin: false });
-  if (isTutor) redirect("/tutor/schedule");
+  const course = (await searchParams).course;
+  const courseId = typeof course === "string" ? course : "";
+  const destination = studentScheduleRedirect(isAdmin, isTutor, courseId.trim().length > 0);
+  if (destination) redirect(destination);
+  const selectedCourse = isAdmin && courseId ? await getCourse(courseId) : null;
 
   return (
     <Suspense
@@ -29,7 +33,7 @@ export default async function StudentSchedulePage() {
         </ApplicationPage>
       }
     >
-      <StudentScheduleClient />
+      <StudentScheduleClient selectedCourse={selectedCourse ? { id: courseId, title: selectedCourse.title } : undefined} />
     </Suspense>
   );
 }

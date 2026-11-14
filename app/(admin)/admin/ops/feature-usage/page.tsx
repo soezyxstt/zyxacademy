@@ -84,10 +84,10 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
         />
         <AdminStatStripItem
           label={t("featureUsageUI.topFeature")}
-          value={metrics.totals.topFeatureLabel ?? "-"}
+          value={metrics.totals.topFeatureLabel ? t(`featureUsageUI.featureLabels.${metrics.rows[0].key}`) : "-"}
           caption={
             metrics.totals.topFeatureSharePercent !== null
-              ? `${metrics.totals.topFeatureSharePercent}% dari total aktivitas`
+              ? t("featureUsageUI.topShare", { percent: metrics.totals.topFeatureSharePercent })
               : t("featureUsageUI.noActivity")
           }
           icon={Trophy}
@@ -144,10 +144,8 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
                   <tr key={row.key} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-3 text-muted-foreground">{index + 1}</td>
                     <td className="px-4 py-3">
-                      <span className="font-semibold text-foreground">{row.label}</span>
-                      {row.detail && (
-                        <span className="block text-body-xs text-muted-foreground">{row.detail}</span>
-                      )}
+                      <span className="font-semibold text-foreground">{t(`featureUsageUI.featureLabels.${row.key}`)}</span>
+                      <span className="block text-body-xs text-muted-foreground">{t(`featureUsageUI.featureDetails.${row.key}`, { count: row.detailCount ?? 0 })}</span>
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-foreground">
                       {row.events.toLocaleString("id-ID")}
@@ -180,6 +178,8 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
             <p className="font-heading text-body-base font-bold text-foreground">{t("featureUsageUI.coverage")}</p>
             <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
               {coverageItems.map((item) => <li key={item}>{item}</li>)}
+              <li>{t("featureUsageUI.materialCoverage")}</li>
+              <li>{t("featureUsageUI.rollingCoverage")}</li>
               <li>
                 {t("featureUsageUI.publicVisits")}{" "}
                 <Link href="/admin/ops/web-analytics" className="font-medium text-brand-primary hover:underline">

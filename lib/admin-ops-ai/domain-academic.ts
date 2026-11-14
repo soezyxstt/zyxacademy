@@ -337,45 +337,18 @@ export async function executeBatchCreateChapters(input: BatchCreateChaptersInput
       throw new Error(`Mata kuliah '${cleanCourseId}' tidak ditemukan.`);
     }
 
-    // Get current max orderIndex
-    const currentChapters = await tx.select({ orderIndex: bab.orderIndex }).from(bab).where(eq(bab.mataKuliahId, cleanCourseId));
-    let highestOrder = currentChapters.reduce((max, c) => Math.max(max, c.orderIndex ?? 0), 0);
-
     const createdChapters: Array<{ id: string; title: string; orderIndex: number }> = [];
 
     for (const ch of validChapters) {
-      highestOrder++;
-      const orderIndex = ch.orderIndex ?? highestOrder;
-      const chapterId = `ch-${cleanCourseId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-
-      try {
-        const created = await saveChapterWithCanonicalProjection({
-          courseId: cleanCourseId,
-          title: ch.title,
-          orderIndex,
-          description: ch.description,
-          actorId: resolvedActorId,
-        }, tx);
-        createdChapters.push({ id: created.id, title: ch.title, orderIndex });
-      } catch {
-        await tx.insert(chapters).values({
-          id: chapterId,
-          courseId: cleanCourseId,
-          title: ch.title,
-          orderIndex,
-          description: ch.description,
-        });
-        await tx.insert(bab).values({
-          id: chapterId,
-          mataKuliahId: cleanCourseId,
-          code: `legacy-${chapterId}`,
-          title: ch.title,
-          orderIndex,
-          status: "active",
-          legacyChapterId: chapterId,
-        }).onConflictDoNothing();
-        createdChapters.push({ id: chapterId, title: ch.title, orderIndex });
-      }
+      const created = await saveChapterWithCanonicalProjection({
+        courseId: cleanCourseId,
+        title: ch.title,
+        orderIndex: ch.orderIndex ?? 0,
+        append: ch.orderIndex === undefined,
+        description: ch.description,
+        actorId: resolvedActorId,
+      }, tx);
+      createdChapters.push({ id: created.id, title: ch.title, orderIndex: created.orderIndex });
     }
 
     return {

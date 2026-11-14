@@ -37,8 +37,10 @@ export default async function TutorMaterialsPage({ params }: Props) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) redirect("/tutor");
 
+  let canManage = false;
   try {
-    await requireTutorCourseAccess(session.user.id, courseId, { allowAdmin: true });
+    const access = await requireTutorCourseAccess(session.user.id, courseId, { allowAdmin: true });
+    canManage = access.source === "admin_override";
   } catch {
     redirect("/tutor");
   }
@@ -112,7 +114,7 @@ export default async function TutorMaterialsPage({ params }: Props) {
         backHref={`/tutor/${courseId}`}
         backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.backToCourse" />}
       />
-      <MaterialsClient courseId={identity.legacyId || identity.primaryId} initialMaterials={materials} />
+      <MaterialsClient courseId={identity.legacyId || identity.primaryId} initialMaterials={materials} canManage={canManage} />
     </ApplicationPage>
   );
 }

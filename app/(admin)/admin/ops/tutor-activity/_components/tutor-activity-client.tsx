@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { AlertCircle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/client";
@@ -35,16 +35,21 @@ export function TutorActivityClient({
   const [cursorHistory, setCursorHistory] = useState<Array<{ createdAt: string | number | Date; id: string } | null>>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const requestVersion = useRef(0);
+  useEffect(() => () => { requestVersion.current++; }, []);
 
   const fetchLogs = (nextFilters: TutorActivityFilterInput) => {
+    const version = ++requestVersion.current;
     setErrorMessage(null);
     startTransition(async () => {
       try {
         const res = await getTutorActivityLogsAction(nextFilters);
+        if (version !== requestVersion.current) return;
         setItems(res.items);
         setNextCursor(res.nextCursor);
         setHasNextPage(res.hasNextPage);
       } catch (err) {
+        if (version !== requestVersion.current) return;
         console.error("Failed to load tutor activity logs:", err);
         setErrorMessage(t("tutorActivityUI.loadError"));
       }
@@ -102,15 +107,13 @@ export function TutorActivityClient({
 
   return (
     <div className="space-y-4 w-full">
-      <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
-        <ActivityFilters
-          filters={filters}
-          options={options}
-          onFilterChange={handleFilterChange}
-          onReset={handleReset}
-          isPending={isPending}
-        />
-      </div>
+      <ActivityFilters
+        filters={filters}
+        options={options}
+        onFilterChange={handleFilterChange}
+        onReset={handleReset}
+        isPending={isPending}
+      />
 
       {errorMessage && (
         <div

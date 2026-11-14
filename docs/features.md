@@ -41,7 +41,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Grades quiz essays and may override deterministic short-answer scores (`/tutor/[courseId]/quizzes/grading`). Final quiz totals remain hidden from students until every essay has been reviewed.
 - Inspects student attempt spreadsheets and exports CSV records (`/tutor/[courseId]/quizzes/[templateId]/attempts`)
 - Reviews enrolled students, active study groups, and group representatives (`/tutor/[courseId]/participants`)
-- Cannot author or upload course materials (materials authoring is disabled for tutors; `/tutor/[courseId]/materials` redirects to the course overview)
+- Cannot author or upload course materials. `/tutor/[courseId]/materials` retains a read-only material list; its authoring controls require the existing Admin override.
 - Cannot author simulations or tryouts (tryout authoring is disabled for tutors; `/tutor/[courseId]/tryouts` redirects to the course overview)
 
 ### Admin
@@ -533,7 +533,7 @@ Zyra uses bounded, session-scoped conversation context to interpret follow-up qu
 
 ### Scheduling & Calendar System (Model Kelompok Belajar)
 
-The canonical scheduling workflow uses concrete, date-specific 90-minute tutor slots. The dedicated tutor surface is `/tutor/schedule`; `/dashboard/schedule` is student-only and redirects tutor accounts to the canonical route.
+The canonical scheduling workflow uses concrete, date-specific 90-minute tutor slots. The dedicated tutor surface is `/tutor/schedule`; `/dashboard/schedule` redirects tutor accounts there. An Admin opening `/dashboard/schedule?course=<id>` retains the student course perspective and account-scoped memberships and enrollments; an Admin visit without a course redirects to `/admin/schedules`. Authenticated runtime verification remains open.
 
 - Group Ownership & Collaborative Booking:
   - Tutoring sessions are booked on behalf of Study Groups.

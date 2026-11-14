@@ -137,7 +137,7 @@ describe("admin scheduling operations", () => {
       `${repoRoot}/app/(student)/dashboard/schedule/page.tsx`,
       "utf8",
     );
-    expect(page).toContain('redirect("/tutor/schedule")');
+    expect(page).toContain("studentScheduleRedirect(isAdmin, isTutor,");
   });
 
   it("requires structural validation and a reason for admin availability overrides", () => {

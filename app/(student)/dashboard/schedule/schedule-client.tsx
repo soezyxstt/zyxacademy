@@ -97,7 +97,7 @@ function getTutorFilterOptions(data: any, fallbackName: string) {
   return Array.from(byId.values()).sort((left, right) => left.name.localeCompare(right.name, "id"));
 }
 
-export function StudentScheduleClient() {
+export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { id: string; title: string } } = {}) {
   const experience = useStudentExperience();
   const community = useDemoCommunity();
   const loadSchedule = useCallback(async (offset: number) => {
@@ -221,6 +221,7 @@ export function StudentScheduleClient() {
 
   const userObj = activeData.user || {};
   const coursesList = getCourseFilterOptions(activeData, t("schedule.courseFallback"));
+  if (selectedCourse && !coursesList.some((course) => course.id === selectedCourse.id)) coursesList.push(selectedCourse);
   const tutorsList = getTutorFilterOptions(activeData, t("schedule.tutorFallback"));
   const initialCourseFilter = searchParams.get("course") || "all";
   const activeSessionBooking = activeSessionBookingId

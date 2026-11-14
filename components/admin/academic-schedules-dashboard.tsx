@@ -536,9 +536,9 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
   return (
     <div className="space-y-3 font-sans">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="min-w-0 flex-1 overflow-x-auto">
+        <div className="min-w-0 flex-1">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="min-w-max">
+            <TabsList>
               <TabsTrigger value="calendar"><CalendarDays className="size-3.5" />{translate("academicScheduleUI.calendar")}</TabsTrigger>
               <TabsTrigger value="academic">{translate("academicScheduleUI.list")}</TabsTrigger>
               <TabsTrigger value="tutors">{translate("academicScheduleUI.tutors")}</TabsTrigger>
@@ -598,7 +598,7 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
           {(calendarMode === "tutorial" || calendarMode === "all") && (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-body-xs">
               <span className="text-muted-foreground">{translate("academicScheduleUI.coverage")}</span>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 {(data.coverage || []).map((row: any) => (
                   <Badge key={row.tutorId} variant="outline" className="rounded-md font-normal">{row.tutorName}: {row.available} {translate("academicScheduleUI.available")}</Badge>
                 ))}

@@ -58,8 +58,7 @@ export function NotificationBroadcastForm({ courses }: Props) {
  }, [state, t]);
 
  return (
- <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
- <form action={formAction} className="p-4 space-y-4">
+ <form action={formAction} className="space-y-3">
  {/* Hidden target fields (controlled by Select components) */}
  <input type="hidden" name="target" value={target} />
  <input type="hidden" name="targetId" value={targetId} />
@@ -126,7 +125,7 @@ export function NotificationBroadcastForm({ courses }: Props) {
  name="title"
  value={title}
  onChange={(e) => setTitle(e.target.value.slice(0, 100))}
- placeholder="e.g. 📝 New quiz available"
+ placeholder={t("notificationUI.titlePlaceholder")}
  required
  className="rounded-md"
  />
@@ -220,6 +219,5 @@ export function NotificationBroadcastForm({ courses }: Props) {
  {isPending ? t("notificationUI.sending") : t("notificationUI.send")}
  </Button>
  </form>
- </div>
  );
 }

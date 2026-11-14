@@ -5,9 +5,9 @@ import { storage } from "@/lib/storage";
 import {
   assertSafeKey,
   buildMediaKey,
+  existingMediaFolderPath,
   isMediaKey,
   leafFilename,
-  slugifySegment,
   INVALID_OBJECT_KEY,
 } from "@/lib/storage/keys";
 import {
@@ -15,7 +15,6 @@ import {
   buildFolderTree,
   isFolderMarkerKey,
   kindFromKey,
-  normalizeFolderPath,
   parentFolderPath,
   storageFolderPathOfKey,
   type MediaFile,
@@ -27,16 +26,7 @@ export const dynamic = "force-dynamic";
 const MEDIA_DOMAIN = "media";
 
 function normalizeTargetFolder(path?: string | null): string {
-  const raw = (path || "").trim();
-  if (raw) assertSafeKey(raw);
-  const cleaned = normalizeFolderPath(raw);
-  const slugged = cleaned
-    .split("/")
-    .map((seg) => slugifySegment(seg, ""))
-    .filter(Boolean)
-    .join("/");
-  assertSafeKey(slugged ? `${MEDIA_DOMAIN}/${slugged}` : MEDIA_DOMAIN);
-  return slugged;
+  return existingMediaFolderPath(path);
 }
 
 async function listStorageObjects(): Promise<{ key: string; size: number; lastModified: Date }[]> {
@@ -52,7 +42,7 @@ export async function GET(req: Request) {
     await assertAdmin();
 
     const url = new URL(req.url);
-    const folder = normalizeFolderPath(url.searchParams.get("folder"));
+    const folder = existingMediaFolderPath(url.searchParams.get("folder"));
     if (folder) assertSafeKey(folder);
 
     const objs = await listStorageObjects();
@@ -121,7 +111,7 @@ export async function POST(req: Request) {
     const targetFolder = normalizeTargetFolder(typeof body?.targetFolder === "string" ? body.targetFolder : null);
 
     if (body?.kind === "folder") {
-      const sourceFolder = normalizeFolderPath(typeof body?.folderPath === "string" ? body.folderPath : null);
+      const sourceFolder = existingMediaFolderPath(typeof body?.folderPath === "string" ? body.folderPath : null);
       if (!sourceFolder) {
         return NextResponse.json({ error: "Folder wajib diisi" }, { status: 400 });
       }
@@ -140,7 +130,7 @@ export async function POST(req: Request) {
         const relFolder = relParts.slice(0, -1).join("/");
         const filename = relParts[relParts.length - 1];
         const newFolderPath = [newPath, relFolder].filter(Boolean).join("/");
-        const newKey = buildMediaKey({ folderPath: newFolderPath, filename });
+        const newKey = buildMediaKey({ folderPath: newFolderPath, filename, preserveFolderPath: true });
         assertSafeKey(newKey);
         await storage.copy(obj.key, newKey);
         count += 1;
@@ -159,7 +149,7 @@ export async function POST(req: Request) {
     if (isMediaKey(key)) {
       return NextResponse.json({ error: "File sudah berada di dalam media" }, { status: 400 });
     }
-    const newKey = buildMediaKey({ folderPath: targetFolder, filename: leafFilename(key) });
+    const newKey = buildMediaKey({ folderPath: targetFolder, filename: leafFilename(key), preserveFolderPath: true });
     if (await storage.exists(newKey)) {
       return NextResponse.json({ error: "File dengan nama tersebut sudah ada" }, { status: 409 });
     }

@@ -218,7 +218,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="@container/courses min-w-0 space-y-4">
       {/* Search, Filter, and View Controls */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex-1 min-w-[140px]">
@@ -307,7 +307,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
         </div>
       ) : viewMode === "grid" ? (
         /* Grid View */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 @min-[32rem]/courses:grid-cols-2 @min-[49rem]/courses:grid-cols-3">
           {filteredCourses.map((c) => (
             <div
               key={c.id}
@@ -327,7 +327,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                 </div>
 
                 <div>
-                  <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors">
+                  <h3 title={c.title} className="line-clamp-2 break-words font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors">
                     {c.title}
                   </h3>
                   <span className="text-body-xs text-muted-foreground">{pricingCategoryLabel(c.pricing)}</span>

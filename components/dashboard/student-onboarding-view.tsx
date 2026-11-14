@@ -234,13 +234,13 @@ export function StudentOnboardingView({
             )}
           </section>
 
-          <section className="border-b border-border/70 pb-6">
+          <section className="@container/onboarding-features border-b border-border/70 pb-6">
             <h2 className="mb-4 flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
               <Flame className="size-4.5 text-brand-primary" />
               {t("dashboard.availableInFree")}
             </h2>
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 @min-[32rem]/onboarding-features:grid-cols-2 @min-[49rem]/onboarding-features:grid-cols-3">
               {featureHighlights.map((feature) => {
                 const Icon = feature.icon;
                 return (
@@ -256,7 +256,7 @@ export function StudentOnboardingView({
             </div>
           </section>
 
-          <section className="space-y-4">
+          <section className="@container/onboarding-plans space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-3">
               <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
                 <GraduationCap className="size-4.5 text-brand-primary" />
@@ -269,7 +269,7 @@ export function StudentOnboardingView({
 
             <PlanPromotion className="mt-2" />
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 @min-[32rem]/onboarding-plans:grid-cols-2 @min-[49rem]/onboarding-plans:grid-cols-3">
               {previewPlanTiers.map((tier) => (
                 <Card
                   key={tier.key}

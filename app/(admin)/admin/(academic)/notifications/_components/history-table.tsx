@@ -139,8 +139,8 @@ export function NotificationHistoryTable({ history: initialHistory, total, pageS
                 {row.body ? (
                   <p className="text-body-xs text-muted-foreground truncate mt-0.5">{row.body}</p>
                 ) : null}
-                <p className="text-body-xs text-muted-foreground font-mono truncate mt-1">
-                  {row.userName ? `${row.userName} · ` : ""}{row.userId}
+                <p className="text-body-xs text-muted-foreground truncate mt-1">
+                  {row.userName || row.userId}
                 </p>
               </div>
 

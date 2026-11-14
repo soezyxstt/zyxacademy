@@ -158,19 +158,15 @@ for (const session of ["guest", "student"] as const) {
             }
 
             if (session === "student") {
-              const account = sheet.getByRole("link", { name: /bilingual student fixture/i });
-              const signOut = sheet.getByRole("button", { name: /sign out|keluar/i });
+              const account = sheet.getByRole("button", { name: /bilingual student fixture/i });
               await expect(account).toBeVisible();
               await expect(account).toContainText("bilingual-student@example.invalid");
-              await expect(signOut).toBeVisible();
               await expectInsideViewport(account, sheet, page);
-              await expectInsideViewport(signOut, sheet, page);
-              const accountText = account.locator("div.min-w-0");
-              const accountDimensions = await accountText.evaluate((element) => ({
-                scrollWidth: element.scrollWidth,
-                clientWidth: element.clientWidth,
-              }));
-              expect(accountDimensions.scrollWidth).toBeLessThanOrEqual(accountDimensions.clientWidth + 1);
+              await account.click();
+              const menu = page.getByRole("menu");
+              await expect(menu.getByRole("menuitem", { name: /sign out|keluar/i })).toBeVisible();
+              await expect(menu.getByRole("menuitem", { name: /student dashboard|dasbor siswa/i })).toHaveAttribute("href", "/dashboard");
+              await page.keyboard.press("Escape");
             } else {
               const signIn = sheet.getByRole("button", { name: /sign in with google|masuk dengan google/i });
               await expect(signIn).toBeVisible();

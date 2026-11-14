@@ -256,13 +256,29 @@ export function mediaLeaf(filename: string): string {
  * Media Library object key: `media/{children_folder...}/{leaf}`.
  * `folderPath` is an optional nested folder path, e.g. "logos" or "kelas/tpb-2026".
  */
+export function existingMediaFolderPath(path?: string | null): string {
+  const folder = path ?? "";
+  if (folder) {
+    assertSafeKey(folder);
+    if (folder.split("/").some((segment) => !segment)) throw new Error(INVALID_OBJECT_KEY);
+  }
+  return folder;
+}
+
+export function buildMediaFolderPath(path?: string | null): string {
+  const parts = existingMediaFolderPath(path).split("/");
+  const name = slugifySegment(parts.pop(), "");
+  return name ? [...parts, name].join("/") : "";
+}
+
 export function buildMediaKey(params: {
   folderPath?: string | null;
   filename: string;
+  preserveFolderPath?: boolean;
 }): string {
-  const rawFolder = (params.folderPath || "").trim();
+  const rawFolder = params.preserveFolderPath ? existingMediaFolderPath(params.folderPath) : (params.folderPath || "").trim();
   if (rawFolder) assertSafeKey(rawFolder);
-  const folder = rawFolder
+  const folder = params.preserveFolderPath ? rawFolder : rawFolder
     .split("/")
     .map((seg) => slugifySegment(seg, ""))
     .filter(Boolean)
