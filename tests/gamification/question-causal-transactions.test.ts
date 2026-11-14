@@ -88,7 +88,7 @@ describe('question evidence transaction ordering', () => {
   await entered.promise;
   const loser = first === 'disclosure' ? runSubmission() : runDisclosure();
   finish.resolve(); await Promise.all([winner, loser]);
-  expect(fact).toBe(first === 'disclosure' ? 'real' : null);
+  expect(fact as string | null).toBe(first === 'disclosure' ? 'real' : null);
   const replay = transaction('processor'); await lockQuestionExposures(replay.tx, 'u', ['a']);
   expect((await getLatestQuestionExposures(replay.tx, 'u', ['a'], 'attempt')).get('a')?.attemptIdentity ?? null).toBe(fact);
   replay.commit();
