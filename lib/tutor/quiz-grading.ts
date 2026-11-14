@@ -28,6 +28,7 @@ import {
 import { requestIdeaMasteryRecompute } from "@/lib/pemahaman/evidence";
 import { answerToStableOptionIds, gradeStableOptionAnswer } from "@/lib/asesmen/attempt";
 import { normalizeDate } from "@/lib/date-utils";
+import { recordAuthorizedStaffAttemptDisclosures } from "@/lib/gamification/question-exposure";
 import { isShortAnswerCorrect } from "@/lib/quiz/short-answer";
 
 export const TUTOR_QUIZ_GRADING_ERRORS = {
@@ -523,6 +524,13 @@ export async function gradeQuizAttempt(
     );
   }
 
+  if (finalCalculatedScore !== null) {
+    await db.transaction(tx => recordAuthorizedStaffAttemptDisclosures(tx, {
+      userId: tutorPenggunaId, attemptOwnerId: attempt.studentId, courseId: template.courseId,
+      attemptId, questionIds: questions.map(q => q.id), occurredAt: new Date(), requestId: randomUUID(),
+    }));
+  }
+
   return {
     success: true,
     attemptId,
@@ -747,6 +755,11 @@ export async function getQuizAttemptDetailsForGrading(
       isShortAnswer: qType === "short_answer",
     };
   });
+
+  await db.transaction(tx => recordAuthorizedStaffAttemptDisclosures(tx, {
+    userId: tutorPenggunaId, attemptOwnerId: attempt.studentId, courseId: template.courseId,
+    attemptId, questionIds: questions.map(q => q.id), occurredAt: new Date(), requestId: randomUUID(),
+  }));
 
   return {
     attemptId: attempt.id,

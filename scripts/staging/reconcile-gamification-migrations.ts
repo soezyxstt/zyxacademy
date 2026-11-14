@@ -16,7 +16,7 @@ if (process.env.NEON_BRANCH_ID !== 'br-gentle-scene-azq0gp91' || process.env.NEO
 // Pin both the file bytes and timestamps. 0000 and 0002 are known historical
 // differences, not permission to rewrite or relabel their existing journal rows.
 const migrations = readMigrationFiles({ migrationsFolder: 'drizzle-postgres' });
-if (migrations.length !== 18) throw new Error('UNEXPECTED_LOCAL_MIGRATION_CHAIN');
+if (migrations.length !== 21) throw new Error('UNEXPECTED_LOCAL_MIGRATION_CHAIN');
 for (let i = 0; i < migrations.length; i++) {
  const expected = i < 9 ? EXPECTED_JOURNAL[i] : i < 16 ? EXPECTED_JOURNAL[i + 2] : PENDING[i - 16];
  const localHash = i === 0 ? '5fbe4a906e5859c37e54c450ad7ad8b41c3da1831e675c56d8b624a99975ca11' : i === 2 ? '7a9da240d42361c5df25a2c02b05787ae7915d9c0a240566931b719a244214e0' : expected[1];
@@ -28,12 +28,14 @@ try {
  await client.connect();
  const db = drizzle(client);
  const result = await db.transaction(async tx => {
+  await tx.execute(sql`set local lock_timeout = '10s'`);
+  await tx.execute(sql`set local statement_timeout = '2min'`);
   const identity = await tx.execute<{ database: string }>(sql`select current_database() as database`);
   if (identity.rows[0]?.database !== 'neondb') throw new Error('DATABASE_IDENTITY_MISMATCH');
   await tx.execute(sql`set local search_path = public, pg_catalog`);
   await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended('zyx:staging-gamification-migration', 0))`);
   // Block concurrent writers and other migrators during the temporary old-index state.
-  await tx.execute(sql`lock table drizzle.__drizzle_migrations, public.gamification_profiles, public.review_item_bundle, public.ketergantungan_produk in access exclusive mode`);
+  await tx.execute(sql`lock table drizzle.__drizzle_migrations, public.gamification_profiles, public.review_item_bundle, public.ketergantungan_produk, public.gamification_question_exposures in access exclusive mode`);
   const journal = await tx.execute<{ created_at: string; hash: string }>(sql`select created_at, hash from drizzle.__drizzle_migrations order by created_at, id`);
   const state = classifyJournal(journal.rows);
   const indexes = await tx.execute<{ name: string; definition: string; valid: boolean }>(sql`
@@ -46,15 +48,36 @@ try {
   const columns = await tx.execute<{ column_name: string; data_type: string; is_nullable: string; column_default: string | null }>(sql`
    select column_name, data_type, is_nullable, column_default from information_schema.columns
    where table_schema='public' and table_name='gamification_profiles' and column_name in ('equipped_zyra_skin_id','equipped_zyra_avatar_id') order by column_name`);
+  const ordering = await tx.execute<{ column_exists: boolean; valid: boolean }>(sql`
+   select exists (select 1 from information_schema.columns where table_schema='public' and table_name='gamification_question_exposures' and column_name='causal_order') as column_exists,
+    exists (select 1 from information_schema.columns c join pg_index i on i.indexrelid=to_regclass('public.gamification_question_exposure_order_idx')
+     where c.table_schema='public' and c.table_name='gamification_question_exposures' and c.column_name='causal_order' and c.data_type='bigint' and c.is_nullable='NO'
+      and pg_get_serial_sequence('public.gamification_question_exposures', 'causal_order') is not null and i.indisvalid and i.indisready
+      and pg_get_indexdef(i.indexrelid)='CREATE INDEX gamification_question_exposure_order_idx ON public.gamification_question_exposures USING btree (user_id, question_id, causal_order)') as valid`);
+  const inspectBank = () => tx.execute<{ present: boolean; valid: boolean }>(sql`
+   select to_regclass('public.gamification_question_bank_disclosures') is not null as present,
+    (select count(*) = 5 and count(*) filter (where is_nullable='NO' and column_default is null and
+      ((column_name in ('id','user_id','question_id','course_id') and data_type='text') or (column_name='exposed_at' and data_type='timestamp with time zone'))) = 5
+     from information_schema.columns where table_schema='public' and table_name='gamification_question_bank_disclosures')
+    and exists (select 1 from pg_index i where i.indexrelid=to_regclass('public.gamification_question_bank_disclosure_lookup_idx') and i.indisvalid and i.indisready
+      and pg_get_indexdef(i.indexrelid)='CREATE INDEX gamification_question_bank_disclosure_lookup_idx ON public.gamification_question_bank_disclosures USING btree (user_id, question_id)')
+    and (select count(*) from pg_constraint c where c.conrelid=to_regclass('public.gamification_question_bank_disclosures') and c.contype='p' and pg_get_constraintdef(c.oid)='PRIMARY KEY (id)')=1
+    and (select count(*) from pg_constraint c join pg_attribute a on a.attrelid=c.conrelid and a.attnum=c.conkey[1]
+      where c.conrelid=to_regclass('public.gamification_question_bank_disclosures') and c.contype='f' and c.convalidated and cardinality(c.conkey)=1
+       and a.attname='user_id' and c.confrelid=to_regclass('public."user"'))=1
+    and (select count(*) from pg_constraint c where c.conrelid=to_regclass('public.gamification_question_bank_disclosures') and c.contype='f')=1 as valid`);
+  const bank = await inspectBank();
   const dependencyDef = 'CREATE UNIQUE INDEX ketergantungan_produk_edge_idx ON public.ketergantungan_produk USING btree (upstream_entity_type, upstream_entity_id, upstream_version, downstream_entity_type, downstream_entity_id, downstream_version)';
   const reviewDef = 'CREATE UNIQUE INDEX review_item_bundle_target_scoped_unique ON public.review_item_bundle USING btree (impor_bundle_id, reviewer_id, target_type, target_id, product_id) NULLS NOT DISTINCT';
   if (indexes.rows.length !== 2 || !indexes.rows.every(row => row.valid) || indexes.rows.find(row => row.name === 'ketergantungan_produk_edge_idx')?.definition !== dependencyDef || indexes.rows.find(row => row.name === 'review_item_bundle_target_scoped_unique')?.definition !== reviewDef || constraint.rows.length !== 1 || constraint.rows[0].definition !== 'UNIQUE NULLS NOT DISTINCT (impor_bundle_id, reviewer_id, target_type, target_id, product_id)' || !constraint.rows[0].validated || constraint.rows[0].deferrable) throw new Error('UNEXPECTED_INDEX_STATE');
   const completeColumns = columns.rows.length === 2 && columns.rows.every(row => row.data_type === 'text' && row.is_nullable === 'YES' && row.column_default === null);
   if (state === 'complete') {
-   if (!completeColumns) throw new Error('UNEXPECTED_APPEARANCE_COLUMNS');
+   if (!completeColumns || !ordering.rows[0]?.valid || !bank.rows[0]?.valid) throw new Error('UNEXPECTED_COMPLETED_SCHEMA');
    return 'already complete';
   }
-  if (columns.rows.length !== 0) throw new Error('UNEXPECTED_APPEARANCE_COLUMNS');
+  if (columns.rows.length !== 0 || ordering.rows[0]?.column_exists || ordering.rows[0]?.valid || bank.rows[0]?.present) throw new Error('UNEXPECTED_PENDING_SCHEMA');
+  const existingOrderIndex = await tx.execute<{ present: boolean }>(sql`select to_regclass('public.gamification_question_exposure_order_idx') is not null as present`);
+  if (existingOrderIndex.rows[0]?.present) throw new Error('UNEXPECTED_PENDING_SCHEMA');
   const duplicates = await tx.execute<{ review_duplicates: string; dependency_duplicates: string }>(sql`
    select (select count(*) from (select 1 from public.review_item_bundle where impor_bundle_id is not null and reviewer_id is not null and target_type is not null and target_id is not null group by impor_bundle_id, reviewer_id, target_type, target_id having count(*) > 1) d) as review_duplicates,
    (select count(*) from (select 1 from public.ketergantungan_produk where upstream_entity_type is not null and upstream_entity_id is not null and downstream_entity_type is not null and downstream_entity_id is not null group by upstream_entity_type, upstream_entity_id, downstream_entity_type, downstream_entity_id having count(*) > 1) d) as dependency_duplicates`);
@@ -74,8 +97,16 @@ try {
     to_regclass('public.review_item_bundle_target_idx')::text as old_index,
     (select count(*)::integer from information_schema.columns where table_schema='public' and table_name='gamification_profiles' and column_name in ('equipped_zyra_skin_id','equipped_zyra_avatar_id') and data_type='text' and is_nullable='YES' and column_default is null) as column_count
    from pg_constraint c where c.conrelid='public.review_item_bundle'::regclass and c.conname='review_item_bundle_target_scoped_unique' and c.convalidated and not c.condeferrable`);
-  if (final.rows.length !== 1 || final.rows[0].review !== constraint.rows[0].definition || final.rows[0].review_index !== reviewDef || final.rows[0].dependency !== dependencyDef || final.rows[0].old_index !== null || final.rows[0].column_count !== 2) throw new Error('FINAL_SCHEMA_MISMATCH');
-  return 'applied 0016 and 0017';
+  const finalOrder = await tx.execute<{ valid: boolean }>(sql`select exists (
+   select 1 from information_schema.columns c join pg_index i on i.indexrelid=to_regclass('public.gamification_question_exposure_order_idx')
+   where c.table_schema='public' and c.table_name='gamification_question_exposures' and c.column_name='causal_order' and c.data_type='bigint' and c.is_nullable='NO'
+    and pg_get_serial_sequence('public.gamification_question_exposures', 'causal_order') is not null and i.indisvalid and i.indisready
+    and pg_get_indexdef(i.indexrelid)='CREATE INDEX gamification_question_exposure_order_idx ON public.gamification_question_exposures USING btree (user_id, question_id, causal_order)') as valid`);
+  const finalBank = await inspectBank();
+  if (final.rows.length !== 1 || final.rows[0].review !== constraint.rows[0].definition || final.rows[0].review_index !== reviewDef || final.rows[0].dependency !== dependencyDef || final.rows[0].old_index !== null || final.rows[0].column_count !== 2 || !finalOrder.rows[0]?.valid || !finalBank.rows[0]?.valid) throw new Error('FINAL_SCHEMA_MISMATCH');
+  const finalJournal = await tx.execute<{ created_at: string; hash: string }>(sql`select created_at, hash from drizzle.__drizzle_migrations order by created_at, id`);
+  if (classifyJournal(finalJournal.rows) !== 'complete') throw new Error('FINAL_HISTORY_MISMATCH');
+  return 'applied 0016 through 0020';
  });
  console.log(`Staging gamification migration: ${result}`);
 } catch (error) {

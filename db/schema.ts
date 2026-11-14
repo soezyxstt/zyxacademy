@@ -3,6 +3,7 @@ import {
  pgTable,
  text,
  bigint,
+ bigserial,
  boolean,
  timestamp,
  jsonb,
@@ -6337,7 +6338,8 @@ export const gamificationQuestionExposures = pgTable('gamification_question_expo
  kind: text('kind').$type<'disclosure' | 'baseline'>().notNull(),
  attemptIdentity: text('attempt_identity').notNull(),
  exposedAt: timestamp('exposed_at', { withTimezone: true }).notNull().defaultNow(),
-}, t => [unique('gamification_question_exposure_identity').on(t.userId, t.questionId, t.kind, t.attemptIdentity), index('gamification_question_exposure_history_idx').on(t.userId, t.questionId, t.exposedAt), check('gamification_question_exposure_kind_check', sql`${t.kind} in ('disclosure', 'baseline')`)]);
+ causalOrder: bigserial('causal_order', { mode: 'bigint' }).notNull(),
+}, t => [unique('gamification_question_exposure_identity').on(t.userId, t.questionId, t.kind, t.attemptIdentity), index('gamification_question_exposure_history_idx').on(t.userId, t.questionId, t.exposedAt), index('gamification_question_exposure_order_idx').on(t.userId, t.questionId, t.causalOrder), check('gamification_question_exposure_kind_check', sql`${t.kind} in ('disclosure', 'baseline')`)]);
 
 /** Marks that legacy history was checked, including when it was empty. */
 export const gamificationQuestionExposureInitializations = pgTable('gamification_question_exposure_initializations', {
@@ -6345,3 +6347,12 @@ export const gamificationQuestionExposureInitializations = pgTable('gamification
  questionId: text('question_id').notNull().references(() => soal.id),
  initializedAt: timestamp('initialized_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.userId, t.questionId] })]);
+
+/** Staff may see a bank answer before the matching canonical question exists. */
+export const gamificationQuestionBankDisclosures = pgTable('gamification_question_bank_disclosures', {
+ id: text('id').primaryKey(),
+ userId: text('user_id').notNull().references(() => user.id),
+ questionId: text('question_id').notNull(),
+ courseId: text('course_id').notNull(),
+ exposedAt: timestamp('exposed_at', { withTimezone: true }).notNull(),
+}, t => [index('gamification_question_bank_disclosure_lookup_idx').on(t.userId, t.questionId)]);

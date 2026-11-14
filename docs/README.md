@@ -331,3 +331,5 @@ Expanded cosmetic update: `gamification.md`, `features.md`, `ARCHITECTURE.md` an
 `ACTIVE` cosmetic refinement: the gamification, feature and architecture contracts describe texture-free procedural models, single-canvas selection, rendered static posters, and ten frame collections. Full application, staging migration and seeding acceptance remain `OPEN / IN PROGRESS`.
 
 `ACTIVE` frame motion contract: `gamification.md`, `features.md` and `ARCHITECTURE.md` record v40 independent ornament choreography replacing faint glows and full-scene parallax. Primary component-fixture temporal verification passed; full application and deployment acceptance remain `OPEN / IN PROGRESS`.
+
+`ACTIVE` gamification evidence contract: generated migrations 0018 through 0020 add persisted disclosure ordering and unresolved staff bank disclosures. The updated staging-only bridge requires all five pending migrations and renewed independent review, backup and preflight. Runtime and staging acceptance remain `OPEN / IN PROGRESS`.

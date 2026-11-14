@@ -24,7 +24,7 @@ export default async function AdminCourseQuestionsPage({ params }: Props) {
   }
 
   const { slug } = await params;
-  const data = await getCourseDetailData(slug);
+  const data = await getCourseDetailData(slug, true);
   if (!data) notFound();
 
   return (

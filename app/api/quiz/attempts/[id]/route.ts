@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/db';
-import { lockQuestionExposures, recordAttemptDisclosures } from '@/lib/gamification/question-exposure';
+import { lockQuestionExposureUser, lockQuestionExposures, recordAttemptDisclosures } from '@/lib/gamification/question-exposure';
 import { studentQuizAttempts, aiQuestionBank, quizTemplates, knowledgeObjects, attemptFeedback, soal, soalIde, ide, itemAsesmen, jawabanMurid, buktiIdeJawaban } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
@@ -326,6 +326,7 @@ export async function POST(req: NextRequest, { params }: Context) {
  : [];
 
   const submitted = await db.transaction(async (tx) => {
+    await lockQuestionExposureUser(tx, session.user.id);
     const [locked] = await tx.select().from(studentQuizAttempts).where(and(eq(studentQuizAttempts.id, id), eq(studentQuizAttempts.studentId, session.user.id))).for('update');
     if (!locked || locked.status !== 'in_progress') return false;
     if (JSON.stringify(locked.questionsSnapshot) !== JSON.stringify(attempt.questionsSnapshot) || JSON.stringify(locked.answersSnapshot) !== JSON.stringify(attempt.answersSnapshot)) return false;

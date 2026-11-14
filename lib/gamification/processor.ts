@@ -7,7 +7,7 @@ import { solutionCollectionSchema } from '@/lib/materials/solution-collection';
 import { courseCreditMicro, rankForTotals } from './policy';
 import { crossedBadgeTiers, rewardForEvent, sameIds, recallDecision } from './processor-policy';
 import { ensureGamificationMissions, advanceGamificationMissions } from './missions';
-import { snapshotExposureIdentity, submissionResultIdentity } from './question-exposure-policy';
+import { snapshotExposureIdentity } from './question-exposure-policy';
 import { getLatestQuestionExposure, lockQuestionExposure } from './question-exposure';
 import { checkAnswerCorrectness } from './question-grading';
 import { isEligibleQuestionRetry } from './evidence';
@@ -75,7 +75,7 @@ async function processOne(tx: Tx, event: typeof gamificationEventOutbox.$inferSe
   const details = receipt.details.lastReveal as { attemptId?: unknown; occurredAt?: unknown } | null;
   if (!fact || fact.id !== `question:${fact.attemptId}:${event.sourceId}` || fact.source !== 'question' || fact.userId !== event.userId || fact.courseId !== receipt.courseId || fact.sourceId !== event.sourceId || fact.sourceVersion !== receipt.sourceVersion || fact.occurredAt.getTime() !== event.occurredAt.getTime() || !fact.attemptId || typeof fact.correct !== 'boolean' || !original || original.status !== 'completed' || !original.submittedAt || original.submittedAt.getTime() !== event.occurredAt.getTime() || matching.length !== 1 || !identity || identity.courseId !== receipt.courseId || identity.sourceVersion !== receipt.sourceVersion || !canonical || canonical.status !== 'published' || canonical.mataKuliahId !== receipt.courseId || String(canonical.version) !== receipt.sourceVersion || canonical.questionType !== question.question_type || !Array.isArray(canonical.optionsSnapshot) || JSON.stringify(canonical.optionsSnapshot.map((o: any) => o.text)) !== JSON.stringify(question.options) || JSON.stringify(canonical.optionsSnapshot.flatMap((o: any, i: number) => o.isCorrect ? [i] : [])) !== JSON.stringify(question.correct_indices) || receipt.details.attemptId !== fact.attemptId || receipt.details.correct !== fact.correct || checkAnswerCorrectness(question, ((original.answersSnapshot ?? {}) as Record<string, unknown>)[event.sourceId]) !== fact.correct) throw new Reject();
   let latest: Awaited<ReturnType<typeof getLatestQuestionExposure>>;
-  try { latest = await getLatestQuestionExposure(tx, event.userId, event.sourceId, event.occurredAt, submissionResultIdentity(fact.attemptId)); } catch (error) { if (error instanceof Error && ['QUESTION_EXPOSURE_NOT_INITIALIZED', 'QUESTION_EXPOSURE_BEFORE_INITIALIZATION'].includes(error.message)) throw new Reject(); throw error; }
+  try { latest = await getLatestQuestionExposure(tx, event.userId, event.sourceId, fact.attemptId); } catch (error) { if (error instanceof Error && ['QUESTION_EXPOSURE_NOT_INITIALIZED', 'QUESTION_EXPOSURE_BOUNDARY_MISSING'].includes(error.message)) throw new Reject(); throw error; }
   if ((latest?.attemptIdentity ?? null) !== fact.lastRevealAttemptId || (latest?.exposedAt.getTime() ?? null) !== (fact.lastRevealAt?.getTime() ?? null) || (details?.attemptId ?? null) !== fact.lastRevealAttemptId || (details?.occurredAt ?? null) !== (fact.lastRevealAt?.toISOString() ?? null)) throw new Reject();
   let revealAttempt = fact.lastRevealAttemptId;
   if (revealAttempt && revealAttempt !== 'baseline') { try { const parsed = JSON.parse(revealAttempt); if (Array.isArray(parsed) && typeof parsed[0] === 'string') revealAttempt = parsed[0]; } catch { /* legacy identity */ } }

@@ -22,6 +22,9 @@ export const EXPECTED_JOURNAL: ReadonlyArray<readonly [number, string]> = [
 export const PENDING: ReadonlyArray<readonly [number, string]> = [
  [1794663999331, 'ab8260d9c42e60f5e188839f37580e8591473e657272bc4f4e6e478c98042e49'],
  [1794682179689, 'db368d90db8a2538ce288cb92221cf2f1583db0c6de44b63af7f6089549ac465'],
+ [1794684199718, 'a0338adbfdfd666827fedac1ea0539d45df186aa06972fb4ab8185c7df05be41'],
+ [1794684510330, '9afb969b564147a2476080a0e5c32cfd194a6e280349d618cdd3388ada1ea6cf'],
+ [1794684833202, '1bae0d6e04e94879e57be391a3953ba83197dcc79ffa3a40cecb7eb0a7cdb2bf'],
 ];
 export type JournalRow = { created_at: string | number; hash: string };
 export function classifyJournal(rows: JournalRow[]): 'pending' | 'complete' {

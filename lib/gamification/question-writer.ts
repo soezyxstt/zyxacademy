@@ -4,7 +4,7 @@ import { db } from '@/db';
 import { gamificationLearningFacts, studentQuizAttempts } from '@/db/schema';
 import { resolveCourseAccess } from '@/lib/student/course-access';
 import { matchRewardSnapshots } from './question-exposure-policy';
-import { getLatestQuestionExposures, initializeQuestionExposureHistoryBatch, lockQuestionExposures } from './question-exposure';
+import { getLatestQuestionExposures, initializeQuestionExposureHistoryBatch, lockQuestionExposures, recordSubmissionBoundaries } from './question-exposure';
 import { startLearningRewards } from './learning-start';
 import { recordGamificationEvidenceBatch } from './receipts';
 import { checkAnswerCorrectness } from './question-grading';
@@ -19,8 +19,10 @@ export async function writeQuestionRewards(tx: Tx, input: { userId: string; atte
  // The held snapshot is authoritative. Require a matching caller snapshot as well.
  const valid = matchRewardSnapshots(input.snapshot, attempt.snapshot);
  await lockQuestionExposures(tx, input.userId, valid.map(row => row.identity.canonicalQuestionId));
- await initializeQuestionExposureHistoryBatch(tx, valid.map(({ identity }) => ({ ...identity, userId: input.userId, attemptId: input.attemptId, occurredAt: input.occurredAt })));
- const latest = await getLatestQuestionExposures(tx, input.userId, valid.map(row => row.identity.canonicalQuestionId), input.occurredAt);
+ const histories = valid.map(({ identity }) => ({ ...identity, userId: input.userId, attemptId: input.attemptId, occurredAt: input.occurredAt }));
+ await initializeQuestionExposureHistoryBatch(tx, histories);
+ await recordSubmissionBoundaries(tx, histories);
+ const latest = await getLatestQuestionExposures(tx, input.userId, valid.map(row => row.identity.canonicalQuestionId), input.attemptId);
  const approved = new Map<string, boolean>();
  for (const { identity } of valid) {
   if (approved.has(identity.courseId)) continue;

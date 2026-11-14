@@ -256,8 +256,7 @@ async function resolveCourseIdentity(
   requestedCourseId: string,
   client: typeof db,
 ): Promise<CourseIdentity> {
-  const [canonicalRows, legacyRows] = await Promise.all([
-    client
+  const canonicalRows = await client
       .select({
         id: mataKuliah.id,
         title: mataKuliah.title,
@@ -270,13 +269,12 @@ async function resolveCourseIdentity(
       })
       .from(mataKuliah)
       .where(or(eq(mataKuliah.id, requestedCourseId), eq(mataKuliah.legacyCourseId, requestedCourseId)))
-      .limit(2),
-    client
+      .limit(2);
+  const legacyRows = await client
       .select({ id: courses.id, title: courses.title })
       .from(courses)
       .where(eq(courses.id, requestedCourseId))
-      .limit(2),
-  ]);
+      .limit(2);
 
   return projectCourseIdentity(requestedCourseId, canonicalRows, legacyRows);
 }
@@ -374,18 +372,16 @@ async function resolveActor(
     };
   }
 
-  const [[existingIdentity], [knownAuthUser]] = await Promise.all([
-    client
+  const [existingIdentity] = await client
       .select({ status: pengguna.status })
       .from(pengguna)
       .where(eq(pengguna.id, userId))
-      .limit(1),
-    client
+      .limit(1);
+  const [knownAuthUser] = await client
       .select({ id: authUser.id, createdAt: authUser.createdAt, updatedAt: authUser.updatedAt, role: authUser.role })
       .from(authUser)
       .where(eq(authUser.id, userId))
-      .limit(1),
-  ]);
+      .limit(1);
   let identity: { status: "active" | "suspended" } | null | undefined = existingIdentity;
   if (identity?.status === "suspended") {
     return {
@@ -737,10 +733,8 @@ export async function resolveCourseAccess(
     }, false, "COURSE_NOT_FOUND");
   }
 
-  const [identity, actor] = await Promise.all([
-    resolveCourseIdentity(requestedCourseId, client),
-    resolveActor(userId, client),
-  ]);
+  const identity = await resolveCourseIdentity(requestedCourseId, client);
+  const actor = await resolveActor(userId, client);
   if (identity.status !== "active") {
     return deniedResult(normalizedInput, identity, actor, false, identity.reason);
   }

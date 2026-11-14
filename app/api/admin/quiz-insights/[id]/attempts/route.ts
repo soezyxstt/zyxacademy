@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
+import { authorizedSnapshotDisclosures, recordAuthorizedGlobalDisclosures } from "@/lib/gamification/question-exposure";
 import { quizTemplates, studentQuizAttempts, user, courses } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -116,6 +117,8 @@ export async function GET(req: NextRequest, { params }: Context) {
       answersSnapshot: (att.answersSnapshot as Record<string, any>) || {},
     };
   });
+
+  await db.transaction(tx => recordAuthorizedGlobalDisclosures(tx, { userId: session.user.id, questions: authorizedSnapshotDisclosures(template.courseId, filteredAttempts.map(attempt => attempt.questionsSnapshot)), requestId: crypto.randomUUID() }));
 
   // If CSV export requested
   if (format === "csv") {
