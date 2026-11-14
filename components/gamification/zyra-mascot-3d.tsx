@@ -21,10 +21,11 @@ export function ZyraMascot3D({cosmeticId,size=320,animated=true,className}: Zyra
   const [unavailable,setUnavailable]=useState(false);
   const [readyKey,setReadyKey]=useState<string | null>(null);
   const modelKey=avatar?.modelKey;
+  const hasModel=Boolean(modelKey);
   const large=extent>=128;
   const selected=useRef(modelKey); selected.current=modelKey;
   useEffect(()=>{
-    if(!modelKey||!large||!host.current) return;
+    if(!hasModel||!large||!host.current) return;
     setReadyKey(null); setUnavailable(false);
     let cancelled=false;
     const container=host.current;
@@ -33,7 +34,7 @@ export function ZyraMascot3D({cosmeticId,size=320,animated=true,className}: Zyra
       handle.current=mountMascotScene(container,selected.current!,motion.current,()=>{if(!cancelled){setReadyKey(null);setUnavailable(true);}},()=>{if(!cancelled)setReadyKey(selected.current!);});
     }).catch(()=>{if(!cancelled){setReadyKey(null);setUnavailable(true);}});
     return ()=>{cancelled=true;handle.current?.dispose();handle.current=null;};
-  },[large,!!modelKey]);
+  },[large,hasModel]);
   useEffect(()=>{if(modelKey&&handle.current){setReadyKey(null);handle.current.setModel(modelKey);}},[modelKey]);
   useEffect(()=>{handle.current?.setAnimated(animated);},[animated]);
   const ready=large&&readyKey===modelKey;

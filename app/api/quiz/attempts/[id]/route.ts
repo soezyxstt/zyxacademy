@@ -24,7 +24,6 @@ import { canAccessStudentQuizTemplate } from '@/lib/quiz/student-access';
 import { canAccessQuizSnapshot } from '@/lib/quiz/question-scope';
 import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
 import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
-import { snapshotExposureIdentity } from '@/lib/gamification/question-exposure-policy';
 import { checkAnswerCorrectness } from '@/lib/gamification/question-grading';
 import { writeQuestionRewards } from '@/lib/gamification/question-writer';
 import { quizAttachmentPrefix } from '@/lib/storage/keys';
@@ -330,7 +329,7 @@ export async function POST(req: NextRequest, { params }: Context) {
     const [locked] = await tx.select().from(studentQuizAttempts).where(and(eq(studentQuizAttempts.id, id), eq(studentQuizAttempts.studentId, session.user.id))).for('update');
     if (!locked || locked.status !== 'in_progress') return false;
     if (JSON.stringify(locked.questionsSnapshot) !== JSON.stringify(attempt.questionsSnapshot) || JSON.stringify(locked.answersSnapshot) !== JSON.stringify(attempt.answersSnapshot)) return false;
-    await lockQuestionExposures(tx, session.user.id, snapshot.flatMap(q => { const identity = snapshotExposureIdentity(q); return identity ? [identity.canonicalQuestionId] : []; }));
+    await lockQuestionExposures(tx, session.user.id, snapshot.map(q => q.id));
     const now = new Date();
     const elapsedSeconds = Math.max(0, Math.floor((now.getTime() - normalizeDate(attempt.startedAt).getTime()) / 1000));
     const finalDurationSeconds = templateMeta.timeLimitSeconds != null ? Math.min(elapsedSeconds, templateMeta.timeLimitSeconds) : elapsedSeconds;
@@ -352,6 +351,8 @@ export async function POST(req: NextRequest, { params }: Context) {
       })
       .where(eq(studentQuizAttempts.id, id));
     await writeQuestionRewards(tx, { userId: session.user.id, attemptId: id, snapshot, answers, occurredAt: now });
+    // The returned score and correct count can reveal answers through repeated attempts.
+    await recordAttemptDisclosures(tx, { userId: session.user.id, attemptId: id, questionIds: snapshot.map(q => q.id), occurredAt: now, requestId: 'submission-result' });
     await dualWriteQuizAttempt(tx, {
       id,
       templateId: attempt.templateId,

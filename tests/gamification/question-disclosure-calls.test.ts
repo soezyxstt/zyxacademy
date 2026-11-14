@@ -20,3 +20,14 @@ test('authorized review and tutor disclosure precede output', () => {
  expect(helper).toContain('resolveCourseAccess({ userId: input.userId, courseId: input.canonicalCourseId }, tx)');
  expect(helper).toContain("eq(soal.status, 'published')");
 });
+test('both score responses record disclosure after evidence inside the submission transaction', () => {
+ for (const path of ['app/api/quiz/attempts/[id]/route.ts', 'app/api/quiz/daily/route.ts']) {
+  const route = source(path);
+  const evidence = route.indexOf('await writeQuestionRewards(tx');
+  const disclosure = route.indexOf("requestId: 'submission-result'", evidence);
+  expect(evidence).toBeGreaterThan(0);
+  expect(disclosure).toBeGreaterThan(evidence);
+  expect(disclosure).toBeLessThan(route.indexOf('await dualWriteQuizAttempt(tx', evidence));
+ }
+ expect(source('lib/gamification/processor.ts')).toContain('submissionResultIdentity(fact.attemptId)');
+});

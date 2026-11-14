@@ -10,10 +10,6 @@ export default async function GamificationPage({ searchParams }: { searchParams:
  try { actor = await assertAdmin(); } catch { redirect('/'); }
  const params = await searchParams;
  const value = (key: string) => typeof params[key] === 'string' ? params[key] as string : undefined;
- try {
-  const data = await getAdminGamificationData(actor.user.id, { q: value('q'), page: value('page'), course: value('course'), reports: value('reports'), reportPage: value('reportPage') });
-  return <div className="space-y-6"><PageHeader title="Gamification" icon={Trophy} /><GamificationAdmin data={data} /></div>;
- } catch {
-  return <div className="space-y-6"><PageHeader title="Gamification" icon={Trophy} /><p role="alert" className="text-body-sm">Data tidak dapat dimuat. Muat ulang halaman untuk mencoba lagi.</p></div>;
- }
+ const data = await getAdminGamificationData(actor.user.id, { q: value('q'), page: value('page'), course: value('course'), reports: value('reports'), reportPage: value('reportPage') }).catch(() => null);
+ return <div className="space-y-6"><PageHeader title="Gamification" icon={Trophy} />{data ? <GamificationAdmin data={data} /> : <p role="alert" className="text-body-sm">Data tidak dapat dimuat. Muat ulang halaman untuk mencoba lagi.</p>}</div>;
 }

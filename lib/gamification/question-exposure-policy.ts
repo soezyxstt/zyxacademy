@@ -1,5 +1,8 @@
 import { isDeepStrictEqual } from 'node:util';
 
+/** Stable marker for the score disclosed after a submission's evidence is written. */
+export const submissionResultIdentity = (attemptId: string) => JSON.stringify([attemptId, 'submission-result']);
+
 /** Validate provenance against the immutable server-held question, never a client payload. */
 export function snapshotExposureIdentity(value: unknown) {
  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;

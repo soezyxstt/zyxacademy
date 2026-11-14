@@ -32,8 +32,7 @@ import {
 } from "@/lib/student/course-access";
 import { canonicalObjectiveProvenance } from "@/lib/gamification/question-snapshot-provenance";
 import { writeQuestionRewards } from "@/lib/gamification/question-writer";
-import { lockQuestionExposures } from "@/lib/gamification/question-exposure";
-import { snapshotExposureIdentity } from "@/lib/gamification/question-exposure-policy";
+import { lockQuestionExposures, recordAttemptDisclosures } from "@/lib/gamification/question-exposure";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { resolveAuthSecret } from "@/lib/auth-secret";
 
@@ -555,10 +554,7 @@ export async function POST(req: NextRequest) {
   });
 
   await db.transaction(async (tx) => {
-    await lockQuestionExposures(tx, session.user.id, serverSnapshot.flatMap(question => {
-      const identity = snapshotExposureIdentity(question);
-      return identity ? [identity.canonicalQuestionId] : [];
-    }));
+    await lockQuestionExposures(tx, session.user.id, serverSnapshot.map(question => question.id));
     const submittedAt = new Date();
     await tx.insert(studentQuizAttempts).values({
       id: attemptId,
@@ -573,6 +569,7 @@ export async function POST(req: NextRequest) {
       startedAt: submittedAt,
     });
     await writeQuestionRewards(tx, { userId: session.user.id, attemptId, snapshot: serverSnapshot, answers, occurredAt: submittedAt });
+    await recordAttemptDisclosures(tx, { userId: session.user.id, attemptId, questionIds: serverSnapshot.map(question => question.id), occurredAt: submittedAt, requestId: 'submission-result' });
     await dualWriteQuizAttempt(tx, {
       id: attemptId,
       templateId: template.id,

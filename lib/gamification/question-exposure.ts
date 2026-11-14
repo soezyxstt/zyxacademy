@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, lte, ne, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { gamificationQuestionExposures, gamificationQuestionExposureInitializations, soal, studentQuizAttempts } from '@/db/schema';
 import { resolveCourseAccess } from '@/lib/student/course-access';
@@ -59,18 +59,18 @@ export async function initializeQuestionExposureHistory(tx: Transaction, input: 
 }
 
 /** Missing or future initialization is never interpreted as an empty history. */
-export async function getLatestQuestionExposures(tx: Transaction, userId: string, ids: string[], before: Date) {
+export async function getLatestQuestionExposures(tx: Transaction, userId: string, ids: string[], before: Date, excludeSubmissionResult?: string) {
  if (!(before instanceof Date) || !Number.isFinite(before.getTime())) throw new Error('INVALID_QUESTION_EXPOSURE_INPUT');
  const unique = [...new Set(ids)];
  if (!unique.length) return new Map<string, typeof gamificationQuestionExposures.$inferSelect>();
  const states = await tx.select().from(gamificationQuestionExposureInitializations).where(and(eq(gamificationQuestionExposureInitializations.userId, userId), inArray(gamificationQuestionExposureInitializations.questionId, unique)));
  if (states.length !== unique.length) throw new Error('QUESTION_EXPOSURE_NOT_INITIALIZED');
  if (states.some(state => state.initializedAt.getTime() > before.getTime())) throw new Error('QUESTION_EXPOSURE_BEFORE_INITIALIZATION');
- const rows = await tx.selectDistinctOn([gamificationQuestionExposures.questionId]).from(gamificationQuestionExposures).where(and(eq(gamificationQuestionExposures.userId, userId), inArray(gamificationQuestionExposures.questionId, unique), lte(gamificationQuestionExposures.exposedAt, before))).orderBy(gamificationQuestionExposures.questionId, desc(gamificationQuestionExposures.exposedAt), desc(gamificationQuestionExposures.id));
+ const rows = await tx.selectDistinctOn([gamificationQuestionExposures.questionId]).from(gamificationQuestionExposures).where(and(eq(gamificationQuestionExposures.userId, userId), inArray(gamificationQuestionExposures.questionId, unique), lte(gamificationQuestionExposures.exposedAt, before), excludeSubmissionResult ? or(ne(gamificationQuestionExposures.attemptIdentity, excludeSubmissionResult), ne(gamificationQuestionExposures.exposedAt, before)) : undefined)).orderBy(gamificationQuestionExposures.questionId, desc(gamificationQuestionExposures.exposedAt), desc(gamificationQuestionExposures.id));
  return new Map(rows.map(row => [row.questionId, row]));
 }
-export async function getLatestQuestionExposure(tx: Transaction, userId: string, canonicalQuestionId: string, before: Date) {
- return (await getLatestQuestionExposures(tx, userId, [canonicalQuestionId], before)).get(canonicalQuestionId) ?? null;
+export async function getLatestQuestionExposure(tx: Transaction, userId: string, canonicalQuestionId: string, before: Date, excludeSubmissionResult?: string) {
+ return (await getLatestQuestionExposures(tx, userId, [canonicalQuestionId], before, excludeSubmissionResult)).get(canonicalQuestionId) ?? null;
 }
 
 async function resolveAttempt(tx: Transaction, input: AttemptInput, allowLegacy: boolean): Promise<HistoryInput | null> {

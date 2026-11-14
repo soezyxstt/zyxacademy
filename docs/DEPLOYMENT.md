@@ -2,7 +2,20 @@
 
 The [gamification contract](gamification.md) records verified staging migrations 0009 through 0015 and outstanding application and deployment verification. It does not authorize production rollout.
 
-A staging merge can trigger background worker deployment when affected checks pass. Web deployment also follows those checks unless the web deployment hold is set. The deployment workflow does not apply database migrations or seed cosmetics. Do not merge this revision until the target is verified and migrations and the 28-item catalog seed have been separately authorized and applied. Migration 0016 adds the two profile columns; migration 0017 reconciles the previously unapplied upstream review and dependency index changes after gamification migrations 0009 through 0016. The stock Drizzle migrator uses the latest recorded timestamp, so an environment that applied either divergent upstream migration needs a separately reviewed reconciliation: 0017 unconditionally drops the old indexes and cannot safely run there unchanged. Verify the exact ledger, both old indexes, new constraint and index definitions, and data compatibility on every target before authorizing migration. Do not rewrite journal rows or assume the earlier staging observation describes another target. Historical upstream SQL remains in Git history.
+A staging merge can trigger background worker and web deployment after affected checks pass, unless the web hold is set. Neither workflow applies migrations or seeds cosmetics. Verify the target, apply the prerequisites below, and verify the result before merging. No production rollout is authorized by these instructions.
+
+The 2026-11-14 staging preflight found 18 journal rows: the two upstream migrations `0009_polite_wendigo` and `0010_silky_misty_knight` and gamification migrations 0009 through 0015 are already applied. The new review constraint and six-column dependency index exist, migration 0016 is absent, and the catalog has seven rows. Evidence: `artifacts/gamification/pr333-staging-preflight-round2.json`. The stock migrator must not be used for this observed state: generated 0017 unconditionally drops the earlier indexes. Historical 0000 and 0002 hashes differ from the current files; neither old row is rewritten.
+
+After independent review of the bridge and renewed read-only verification of project `muddy-sky-44104897`, branch `br-gentle-scene-azq0gp91`, compute `ep-sparkling-lab-azrp3ymj`, and database `neondb`, run the staging-only bridge with the verified staging environment. Set `NEON_BRANCH_ID` to that branch ID, `NEON_EXPECTED_DATABASE=neondb`, and `NEON_EXPECTED_HOST` to the exact hostname in the verified `DATABASE_URL`. Do not print the URL or credentials.
+
+```bash
+bun --env-file=.env.staging scripts/staging/reconcile-gamification-migrations.ts
+bun --env-file=.env.staging scripts/staging/seed-gamification-catalog.ts
+```
+
+The bridge locks the journal and affected tables, checks all observed history hashes and timestamps, local migration hashes, exact upstream index and constraint definitions, and four-column duplicate compatibility. It temporarily reconstructs the old indexes and executes every statement of the unchanged generated 0016 and 0017 using Drizzle, recording each actual hash only after its SQL succeeds. All changes and checks share one transaction; an error rolls it back. A complete matching retry is a no-op. The catalog seed checks the completed journal and existing catalog entries, inserts only missing entries, and rejects conflicts. Neither command handles partial or unknown histories. Take an authorized backup and assess the exclusive-lock window before execution; verify the journal, columns, index definitions, and all 28 catalog rows afterward. Do not suppress a failure or manually alter the journal.
+
+For other targets, inspect their complete history and schema independently. The bridge accepts only the observed staging branch and history. A target with only the gamification chain and the expected old indexes can use the standard guarded Drizzle migrator after its own compatibility checks. A different upstream-applied or partial history needs its own reviewed reconciliation, not a guessed skip or a journal edit.
 
 
 
