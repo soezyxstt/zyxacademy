@@ -1,9 +1,27 @@
 import { describe, expect, test } from "bun:test";
 import { addCalendarDays, assertCalendarDate } from "@/lib/date-utils";
-import { communityKey, demoCommunitySchema, demoWeek, emptyCommunity, parseCommunity, putDemoBooking } from "./community-state";
+import { communityKey, demoCommunitySchema, demoGroupUsage, demoWeek, emptyCommunity, parseCommunity, putDemoBooking } from "./community-state";
 
 const scope = { courseId: "math", revision: "r1" };
 describe("browser demo community", () => {
+  test("group usage follows booking, completion, cancellation and moves without double counting or crossing courses", () => {
+    const anchor = "2026-11-16";
+    const initial = emptyCommunity(scope.courseId);
+    const week = demoWeek(scope, anchor, initial);
+    const usage = (state: typeof initial) => demoGroupUsage(scope.courseId, state, demoWeek(scope, anchor, state).bookings);
+    expect(usage(initial)).toEqual({ usedQuotaSessions: 2, weeklyUsedSessions: 2 });
+    const added = putDemoBooking(scope, initial, { ...week.bookings[0], ...week.slots[2], id: "new-booking" });
+    expect(usage(added)).toEqual({ usedQuotaSessions: 3, weeklyUsedSessions: 3 });
+    const completed = putDemoBooking(scope, added, { ...added.bookings[0], status: "completed" });
+    expect(usage(completed)).toEqual(usage(added));
+    const cancelled = putDemoBooking(scope, completed, { ...completed.bookings[0], status: "cancelled" });
+    expect(usage(cancelled)).toEqual(usage(initial));
+    const seedCancelled = putDemoBooking(scope, cancelled, { ...week.bookings[0], status: "cancelled" });
+    expect(usage(seedCancelled)).toEqual({ usedQuotaSessions: 1, weeklyUsedSessions: 1 });
+    const moved = putDemoBooking(scope, initial, { ...week.bookings[0], sessionDate: "2026-11-24" });
+    expect(usage(moved)).toEqual({ usedQuotaSessions: 2, weeklyUsedSessions: 1 });
+    expect(usage({ ...moved, bookings: [...moved.bookings, { ...week.bookings[0], id: "foreign", courseId: "other" }] })).toEqual(usage(moved));
+  });
   test("seeds every arbitrary week across year boundaries and preserves moved overrides", () => {
     for (let week = -125; week <= 125; week++) {
       const anchor = addCalendarDays(assertCalendarDate("2028-02-29"), week * 7);

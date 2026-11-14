@@ -20,6 +20,8 @@ test("global calendar combines distinct weekly seeds while course calendars stay
       expect(selected.groupBookings).toHaveLength(2);
       expect(selected.availableSlots).toHaveLength(3);
       expect(selected.groups).toHaveLength(1);
+      expect(selected.groups[0].usedQuotaSessions).toBe(2);
+      expect(selected.groups[0].weeklyUsedSessions).toBe(2);
       expect(selected.groupBookings.every(row => row.courseId === scope.courseId)).toBe(true);
     }
   }

@@ -54,7 +54,10 @@ for (const mode of ["Minggu", "Hari", "Bulan"]) {
     const starting = page.getByRole("button", { name: /Tutor: Nara/ });
     const released = page.getByRole("button", { name: /Tutor: Sinta/ });
     await expect(starting).toBeVisible();
-    await released.click();
+    await page.getByRole("button", { name: "Pesan sesi", exact: true }).click();
+    await expect(page.getByRole("dialog").getByRole("listitem")).toHaveCount(2);
+    await page.screenshot({ path: testInfo.outputPath("picker-open.png") });
+    await page.getByRole("dialog").getByRole("listitem").filter({ hasText: "Sinta" }).getByRole("button", { name: "Pesan sesi", exact: true }).click();
     await expect(page.locator("main")).toHaveAttribute("data-selected", "released");
     const history = page.getByRole("button", { name: /Kalkulus.*Dibatalkan/ });
     await history.click();
@@ -68,6 +71,11 @@ for (const mode of ["Minggu", "Hari", "Bulan"]) {
     await expect(released).toBeVisible();
     await expect(page.locator("html")).toHaveJSProperty("scrollWidth", await page.locator("html").evaluate((html) => html.clientWidth));
     await page.screenshot({ path: testInfo.outputPath("at-start.png") });
+    await page.getByRole("button", { name: "Pesan sesi", exact: true }).click();
+    await expect(page.getByRole("dialog").getByRole("listitem")).toHaveCount(1);
+    await page.clock.fastForward(3 * 60 * 60 * 1000);
+    await expect(page.getByText("Belum ada slot tersedia", { exact: true })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("picker-empty.png") });
     expect(errors).toEqual([]);
   });
 }
