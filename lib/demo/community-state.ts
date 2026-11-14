@@ -56,3 +56,13 @@ export function demoWeek(scope: DemoCommunityScope, anchor: string, state: DemoC
   const bookings = [...seeds.filter(row => !overrides.has(row.id)), ...state.bookings].filter(row => row.sessionDate >= startIso && row.sessionDate <= endIso).map(booking => withCurrentSlot(booking, scope.courseTitle));
   return { slots: slots.map(slot => ({ ...slot, booking: bookings.find(row => row.status !== "cancelled" && overlaps(row, slot)) ?? null })), bookings };
 }
+
+export function demoGroupUsage(courseId: string, state: DemoCommunity, weekBookings: DemoBooking[]) {
+  const counts = (booking: DemoBooking) => booking.courseId === courseId && booking.groupId === demoGroupId(courseId) && booking.status !== "cancelled";
+  // Include saved sessions outside this week so moving a session does not refund it.
+  const bookings = new Map([...weekBookings, ...state.bookings].map(booking => [booking.id, booking]));
+  return {
+    usedQuotaSessions: [...bookings.values()].filter(counts).length,
+    weeklyUsedSessions: weekBookings.filter(counts).length,
+  };
+}

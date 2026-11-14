@@ -1,4 +1,4 @@
-The `ACTIVE` [feature catalog](features.md) records the shared student/demo Groups view and the student calendar booking action with a filtered slot picker. Authenticated booking runtime remains unverified.
+The `ACTIVE` [feature catalog](features.md) records the shared student/demo Groups view, booking-derived demo usage counters and the student calendar booking action with a filtered slot picker. Authenticated booking runtime remains unverified.
 
 The `ACTIVE` [feature catalog](features.md) and [architecture guide](ARCHITECTURE.md) describe browser-persistent public demo schedules, groups, assessment progress and per-course rankings. Weekly course-specific slots are generated for any requested week. The global calendar combines courses, explicit course calendars stay scoped, and ranking seeds differ by course; attachments remain in the browser. Local validation is separate from production acceptance.
 

@@ -130,6 +130,35 @@ test("quota failure preserves the group draft and never claims saved", async ({ 
   await expect(page.getByRole("heading", { name: "Logika runtut", exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
+test("group quota follows course-local bookings and cancellations", async ({ page }, info) => {
+  const errors = guard(page);
+  await page.clock.install({ time: new Date("2026-11-15T02:00:00Z") });
+  const used = () => page.getByText("Kuota paket", { exact: true }).locator("..").locator("p").last();
+  await visit(page, "groups");
+  await expect(used()).toHaveText(/^2\s*\//);
+  await expect(page.getByText("Minggu ini: 2 sesi", { exact: true })).toBeVisible();
+  await capture(page, info, "group-usage-initial");
+  await visit(page, "schedule");
+  await page.getByRole("button", { name: "Pesan sesi", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Pesan sesi", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button").filter({ hasText: "Berpikir Komputasional" }).click();
+  await page.locator("#booking-topic").fill("Penghitung kuota");
+  await page.getByRole("button", { name: "Konfirmasi pemesanan", exact: true }).click();
+  await expect(page.locator("#session-topic")).toHaveValue("Penghitung kuota");
+  await visit(page, "groups");
+  await expect(used()).toHaveText(/^3\s*\//);
+  await expect(page.getByText("Minggu ini: 3 sesi", { exact: true })).toBeVisible();
+  await capture(page, info, "group-usage-booked");
+  await visit(page, "schedule");
+  await page.getByRole("button").filter({ hasText: "Penghitung kuota" }).click();
+  await page.getByRole("button", { name: "Batalkan sesi", exact: true }).click();
+  await expect(page.getByText("Dibatalkan", { exact: true }).last()).toBeVisible();
+  await visit(page, "groups");
+  await expect(used()).toHaveText(/^2\s*\//);
+  await expect(page.getByText("Minggu ini: 2 sesi", { exact: true })).toBeVisible();
+  await capture(page, info, "group-usage-cancelled");
+  expect(errors).toEqual([]);
+});
 test("flashcard flip, answer and cursor survive reload", async ({ page }, info) => {
   const errors = guard(page); await visit(page, "flashcards");
   await page.getByText("Pertanyaan kartu 1?", { exact: true }).click();
