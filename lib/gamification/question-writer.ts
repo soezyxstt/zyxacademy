@@ -4,7 +4,7 @@ import { db } from '@/db';
 import { gamificationLearningFacts, studentQuizAttempts } from '@/db/schema';
 import { resolveCourseAccess } from '@/lib/student/course-access';
 import { matchRewardSnapshots } from './question-exposure-policy';
-import { getLatestQuestionExposures, initializeQuestionExposureHistoryBatch, lockQuestionExposures, recordSubmissionBoundaries } from './question-exposure';
+import { getLatestQuestionExposures, initializeQuestionExposureHistoryBatch, lockCanonicalQuestions, lockQuestionExposures, recordSubmissionBoundaries } from './question-exposure';
 import { startLearningRewards } from './learning-start';
 import { recordGamificationEvidenceBatch } from './receipts';
 import { checkAnswerCorrectness } from './question-grading';
@@ -17,8 +17,16 @@ export async function writeQuestionRewards(tx: Tx, input: { userId: string; atte
  if (!attempt) throw new Error('QUESTION_EXPOSURE_ATTEMPT_NOT_FOUND');
  if (!Array.isArray(attempt.snapshot)) return;
  // The held snapshot is authoritative. Require a matching caller snapshot as well.
- const valid = matchRewardSnapshots(input.snapshot, attempt.snapshot);
- await lockQuestionExposures(tx, input.userId, valid.map(row => row.identity.canonicalQuestionId));
+ const candidates = matchRewardSnapshots(input.snapshot, attempt.snapshot);
+ await lockQuestionExposures(tx, input.userId, candidates.map(row => row.identity.canonicalQuestionId));
+ const canonical = await lockCanonicalQuestions(tx, candidates.map(row => row.identity.canonicalQuestionId));
+ const byId = new Map(canonical.map(row => [row.id, row]));
+ const valid = candidates.filter(({ identity, q }) => {
+  const row = byId.get(identity.canonicalQuestionId);
+  const snapshot = q as { question_type: string; options: string[]; correct_indices: number[] };
+  const options = row?.optionsSnapshot as { text?: unknown; isCorrect?: unknown }[] | undefined;
+  return row?.status === 'published' && row.quizEligible && row.mataKuliahId === identity.courseId && String(row.version) === identity.sourceVersion && row.questionType === snapshot.question_type && Array.isArray(options) && options.every(o => o && typeof o === 'object') && JSON.stringify(options.map(o => o.text)) === JSON.stringify(snapshot.options) && JSON.stringify(options.flatMap((o, i) => o.isCorrect ? [i] : [])) === JSON.stringify(snapshot.correct_indices);
+ });
  const histories = valid.map(({ identity }) => ({ ...identity, userId: input.userId, attemptId: input.attemptId, occurredAt: input.occurredAt }));
  if (await initializeQuestionExposureHistoryBatch(tx, histories) === false) return;
  await recordSubmissionBoundaries(tx, histories);

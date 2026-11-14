@@ -6314,7 +6314,7 @@ export const gamificationLearningFacts = pgTable('gamification_learning_facts', 
  source: text('source').$type<'question' | 'flashcard'>().notNull(), sourceId: text('source_id').notNull(), sourceVersion: text('source_version').notNull(), occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
  attemptId: text('attempt_id'), correct: boolean('correct'), lastRevealAttemptId: text('last_reveal_attempt_id'), lastRevealAt: timestamp('last_reveal_at', { withTimezone: true }),
  adapter: text('adapter').$type<'canonical' | 'legacy'>(), grade: bigint('grade', { mode: 'number' }), previousDueAt: timestamp('previous_due_at', { withTimezone: true }),
-}, t => [index('gamification_learning_facts_owner_source_idx').on(t.userId, t.source, t.sourceId, t.occurredAt), check('gamification_learning_facts_kind_check', sql`(${t.source} = 'question' and ${t.attemptId} is not null and ${t.correct} is not null and ((${t.lastRevealAttemptId} is null and ${t.lastRevealAt} is null) or (${t.lastRevealAttemptId} is not null and ${t.lastRevealAt} is not null)) and ${t.grade} is null and ${t.previousDueAt} is null and ${t.adapter} is null) or (${t.source} = 'flashcard' and ${t.grade} is not null and ${t.grade} between 0 and 4 and ${t.previousDueAt} is not null and ${t.adapter} in ('canonical', 'legacy') and ${t.attemptId} is null and ${t.correct} is null and ${t.lastRevealAttemptId} is null and ${t.lastRevealAt} is null)`)]);
+}, t => [index('gamification_learning_facts_owner_source_idx').on(t.userId, t.source, t.sourceId, t.occurredAt), index('gamification_question_comeback_lookup_idx').on(t.userId, t.source, t.sourceId, t.sourceVersion, t.correct, t.occurredAt), check('gamification_learning_facts_kind_check', sql`(${t.source} = 'question' and ${t.attemptId} is not null and ${t.correct} is not null and ((${t.lastRevealAttemptId} is null and ${t.lastRevealAt} is null) or (${t.lastRevealAttemptId} is not null and ${t.lastRevealAt} is not null)) and ${t.grade} is null and ${t.previousDueAt} is null and ${t.adapter} is null) or (${t.source} = 'flashcard' and ${t.grade} is not null and ${t.grade} between 0 and 4 and ${t.previousDueAt} is not null and ${t.adapter} in ('canonical', 'legacy') and ${t.attemptId} is null and ${t.correct} is null and ${t.lastRevealAttemptId} is null and ${t.lastRevealAt} is null)`)]);
 export const gamificationEligibleRecalls = pgTable('gamification_eligible_recalls', {
  sourceEvidenceId: text('source_evidence_id').primaryKey().references(() => gamificationLearningFacts.id), userId: text('user_id').notNull().references(() => user.id), checklistItemId: text('checklist_item_id').notNull().references(() => gamificationChecklistItems.id), reviewedAt: timestamp('reviewed_at', { withTimezone: true }).notNull(), previousDueAt: timestamp('previous_due_at', { withTimezone: true }).notNull(),
 }, t => [index('gamification_eligible_recalls_lookup_idx').on(t.userId, t.checklistItemId, t.reviewedAt)]);
@@ -6332,7 +6332,7 @@ export const gamificationExplanationCompletionsV2 = pgTable('gamification_explan
 export const gamificationQuestionExposures = pgTable('gamification_question_exposures', {
  id: text('id').primaryKey(),
  userId: text('user_id').notNull().references(() => user.id),
- questionId: text('question_id').notNull().references(() => soal.id),
+ questionId: text('question_id').notNull(),
  courseId: text('course_id').notNull().references(() => mataKuliah.id),
  sourceVersion: text('source_version').notNull(),
  kind: text('kind').$type<'disclosure' | 'baseline'>().notNull(),
@@ -6344,7 +6344,7 @@ export const gamificationQuestionExposures = pgTable('gamification_question_expo
 /** Marks that legacy history was checked, including when it was empty. */
 export const gamificationQuestionExposureInitializations = pgTable('gamification_question_exposure_initializations', {
  userId: text('user_id').notNull().references(() => user.id),
- questionId: text('question_id').notNull().references(() => soal.id),
+ questionId: text('question_id').notNull(),
  initializedAt: timestamp('initialized_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.userId, t.questionId] })]);
 
@@ -6371,7 +6371,7 @@ export const gamificationQuestionExposureProjection = pgTable('gamification_ques
 export const gamificationQuestionExposureObservations = pgTable('gamification_question_exposure_observations', {
  userId: text('user_id').notNull().references(() => user.id),
  attemptId: text('attempt_id').notNull().references(() => studentQuizAttempts.id),
- questionId: text('question_id').notNull().references(() => soal.id),
+ questionId: text('question_id').notNull(),
  courseId: text('course_id').notNull().references(() => mataKuliah.id),
  sourceVersion: text('source_version').notNull(),
  attemptIdentity: text('attempt_identity'),

@@ -1,6 +1,6 @@
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { gamificationQuestionExposures, gamificationQuestionExposureInitializations, gamificationQuestionBankDisclosures, gamificationQuestionExposureProjection, gamificationQuestionExposureObservations, gamificationQuestionLegacyIndex, gamificationQuestionHistoryCutover, soal, studentQuizAttempts } from '@/db/schema';
+import { gamificationQuestionExposures, gamificationQuestionExposureInitializations, gamificationQuestionBankDisclosures, gamificationQuestionExposureProjection, gamificationQuestionExposureObservations, gamificationQuestionLegacyIndex, gamificationQuestionHistoryCutover, soal, studentQuizAttempts, quizTemplates } from '@/db/schema';
 import { resolveCourseAccess } from '@/lib/student/course-access';
 import { snapshotExposureIdentity, submissionResultIdentity, UNCERTAIN_EXPOSURE_IDENTITY } from './question-exposure-policy';
 
@@ -29,6 +29,14 @@ export async function lockQuestionExposures(tx: Transaction, userId: string, can
  await lockQuestionExposureUser(tx, userId);
  const keys = [...new Set(canonicalQuestionIds)].sort().map(id => JSON.stringify(['zyx:question-exposure', userId, id]));
  if (keys.length) await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(key, 0)) from (select key from jsonb_array_elements_text(${JSON.stringify(keys)}::jsonb) as t(key) order by key) ordered`);
+}
+
+/** Lock canonical rows in deterministic order after the viewer lock. Deletions and edits
+ * wait until all reward decisions and disclosures in this transaction are complete. */
+export async function lockCanonicalQuestions(tx: Transaction, ids: readonly string[]) {
+ const unique = [...new Set(ids)].sort();
+ if (!unique.length) return [];
+ return tx.select().from(soal).where(inArray(soal.id, unique)).orderBy(asc(soal.id)).for('share');
 }
 
 const orderedExposureId = () => `ordered:${crypto.randomUUID()}`;
@@ -196,7 +204,7 @@ async function recordAttemptDisclosuresForOwner(tx: Transaction, ownerId: string
  if (!input.userId || !input.attemptId || !input.requestId || !Number.isFinite(input.occurredAt.getTime())) throw new Error('INVALID_QUESTION_EXPOSURE_INPUT');
  const ids = [...new Set(input.questionIds.filter(Boolean))];
  if (!ids.length && !input.outsideSnapshot?.questionIds.length) return;
- const [attempt] = await tx.select({ snapshot: studentQuizAttempts.questionsSnapshot }).from(studentQuizAttempts).where(and(eq(studentQuizAttempts.id, input.attemptId), eq(studentQuizAttempts.studentId, ownerId))).limit(1);
+ const [attempt] = await tx.select({ snapshot: studentQuizAttempts.questionsSnapshot, courseId: quizTemplates.courseId }).from(studentQuizAttempts).innerJoin(quizTemplates, eq(quizTemplates.id, studentQuizAttempts.templateId)).where(and(eq(studentQuizAttempts.id, input.attemptId), eq(studentQuizAttempts.studentId, ownerId))).limit(1);
  if (!attempt) throw new Error('QUESTION_EXPOSURE_ATTEMPT_NOT_FOUND');
  if (!Array.isArray(attempt.snapshot)) throw new Error('QUESTION_EXPOSURE_SNAPSHOT_INVALID');
  const requested = new Set(ids);
@@ -209,19 +217,27 @@ async function recordAttemptDisclosuresForOwner(tx: Transaction, ownerId: string
   found.push(q);
   matches.set(q.id, found);
  }
- const legacyIds = ids.filter(id => matches.get(id)?.length === 1 && !Object.hasOwn(matches.get(id)![0], 'gamificationProvenance'));
- const canonical = legacyIds.length ? await tx.select({ id: soal.id, courseId: soal.mataKuliahId, version: soal.version }).from(soal).where(inArray(soal.id, legacyIds)) : [];
+ // The course comes from the owned attempt's template, never a client or snapshot.
+ // Staff use the actual viewer's access while ownership remains separately checked.
+ const access = await resolveCourseAccess({ userId: input.userId, courseId: attempt.courseId }, tx);
+ if (!access.hasCourseAccess || ![access.canonicalCourseId, access.legacyCourseId].includes(attempt.courseId)) throw new Error('QUESTION_EXPOSURE_COURSE_ACCESS_DENIED');
+ const disclosureCourseId = access.canonicalCourseId ?? access.legacyCourseId;
+ if (!disclosureCourseId) throw new Error('QUESTION_EXPOSURE_COURSE_ACCESS_DENIED');
+ const matchedIds = ids.filter(id => matches.has(id));
+ await lockQuestionExposures(tx, input.userId, matchedIds);
+ const canonical = await lockCanonicalQuestions(tx, matchedIds);
  const canonicalById = new Map(canonical.map(row => [row.id, row]));
  const identities: HistoryInput[] = [];
+ const unresolvedSnapshot: string[] = [];
  for (const id of ids) {
   const found = matches.get(id);
-  if (!found || found.length !== 1) continue;
-  const identity = snapshotExposureIdentity(found[0]);
-  if (identity) identities.push({ ...input, ...identity });
-  else if (!Object.hasOwn(found[0], 'gamificationProvenance')) {
-   const row = canonicalById.get(id);
-   if (row?.courseId && Number.isSafeInteger(row.version) && row.version > 0) identities.push({ ...input, canonicalQuestionId: row.id, courseId: row.courseId, sourceVersion: String(row.version) });
-  }
+  if (!found?.length) continue;
+  const identity = found.length === 1 ? snapshotExposureIdentity(found[0]) : null;
+  const row = canonicalById.get(id);
+  const usable = row && row.status === 'published' && row.mataKuliahId === access.canonicalCourseId && Number.isSafeInteger(row.version) && row.version > 0;
+  if (usable && identity && identity.courseId === row.mataKuliahId && identity.sourceVersion === String(row.version)) identities.push({ ...input, ...identity });
+  else if (usable && found.length === 1 && !Object.hasOwn(found[0], 'gamificationProvenance')) identities.push({ ...input, canonicalQuestionId: row.id, courseId: row.mataKuliahId, sourceVersion: String(row.version) });
+  else unresolvedSnapshot.push(id);
  }
  // Outside-snapshot IDs come from the authorized review, not client input.
  // Retain unresolved ones as tombstones until a canonical question is available.
@@ -242,6 +258,7 @@ async function recordAttemptDisclosuresForOwner(tx: Transaction, ownerId: string
  // use a timestamp captured while waiting for the lock.
  const occurredAt = input.requestId === 'submission-result' ? input.occurredAt : new Date();
  identities.forEach(identity => { identity.occurredAt = occurredAt; });
+ if (unresolvedSnapshot.length) await recordAuthorizedGlobalDisclosures(tx, { userId: input.userId, questions: unresolvedSnapshot.map(questionId => ({ questionId, courseId: disclosureCourseId })), requestId: JSON.stringify([input.attemptId, input.requestId]) });
  if (unresolvedOutside.length && input.outsideSnapshot) await recordAuthorizedGlobalDisclosures(tx, { userId: input.userId, questions: unresolvedOutside.map(questionId => ({ questionId, courseId: input.outsideSnapshot!.canonicalCourseId })), requestId: input.requestId });
  await initializeQuestionExposureHistoryBatch(tx, identities);
  await recordExposureRows(tx, identities.map(identity => ({ id: orderedExposureId(), userId: identity.userId, questionId: identity.canonicalQuestionId, courseId: identity.courseId, sourceVersion: identity.sourceVersion, kind: 'disclosure' as const, attemptIdentity: JSON.stringify([identity.attemptId, input.requestId]), exposedAt: identity.occurredAt })));

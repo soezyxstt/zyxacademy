@@ -338,3 +338,7 @@ Expanded cosmetic update: `gamification.md`, `features.md`, `ARCHITECTURE.md` an
 
 
 The active [gamification](gamification.md), [schema](DB_SCHEMA.md), and [deployment](DEPLOYMENT.md) documents describe the compact question exposure cutover. Local implementation remains subject to review; staging migration, backfill, fixture execution, and rollout remain OPEN / IN PROGRESS.
+
+`ACTIVE` local gamification source includes migration 0023 for retained question identities and the bounded comeback index. Staging migration, cutover, runtime fixture and rollout remain `OPEN / IN PROGRESS`.
+
+`ACTIVE` worker health checks derive the expected function count from the canonical compute registration and verify the archive checksum; the former fixed 22-function expectation is obsolete for the new revision. A verified staging writer drain remains `OPEN / IN PROGRESS`.

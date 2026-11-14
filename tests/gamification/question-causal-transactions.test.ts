@@ -26,9 +26,10 @@ let legacyRows: any[];
 let ready: boolean;
 let projectionProbes: number;
 let projectionOrder: number;
+let heldSnapshot: unknown[];
 const heldQuestion = { id: 'a', question_type: 'multiple_choice', options: ['a', 'b'], correct_indices: [1], gamificationProvenance: { marker: 'canonical-objective-v1', canonicalQuestionId: 'a', courseId: 'c', sourceVersion: '1', answerProof: { questionType: 'multiple_choice', correctIndices: [1] } } };
 
-beforeEach(() => { rows = []; sequence = 0n; locks = new Map(); trace = []; bankRows = []; canonical = new Set(); drafts = new Set(); projections = []; observations = []; states = []; legacyRows = []; ready = true; projectionProbes = 0; projectionOrder = 0; staffAllowed = true; legacyOnly = false; });
+beforeEach(() => { rows = []; sequence = 0n; locks = new Map(); trace = []; bankRows = []; canonical = new Set(); drafts = new Set(); projections = []; observations = []; states = []; legacyRows = []; ready = true; projectionProbes = 0; projectionOrder = 0; staffAllowed = true; legacyOnly = false; heldSnapshot = [heldQuestion]; });
 
 /** Minimal transaction adapter: it executes the production Drizzle predicates,
  * enforces unique disclosure identities, and queues advisory locks until commit. */
@@ -38,8 +39,8 @@ function transaction(name: string) {
  const query = (table: any, condition: any) => {
   const { sql, params } = dialect.sqlToQuery(condition);
   const name = getTableName(table);
-  if (name === getTableName(studentQuizAttempts)) return params[0] === 'attempt-owner' && params[1] === 'learner' ? [{ snapshot: [heldQuestion] }] : [];
-  const list = sql.match(/"question_id" in \(([^)]+)\)/)?.[1] ?? '';
+  if (name === getTableName(studentQuizAttempts)) return params[0] === 'attempt-owner' && params[1] === 'learner' ? [{ snapshot: heldSnapshot, courseId: legacyOnly ? 'legacy-c' : 'c' }] : [];
+  const list = sql.match(/"(?:question_id|id)" in \(([^)]+)\)/)?.[1] ?? '';
   const ids = [...list.matchAll(/\$(\d+)/g)].map(match => String(params[Number(match[1]) - 1]));
   if (name === getTableName(cutover)) return ready ? [{ id: 'v1' }] : [];
   if (name === getTableName(initialization)) return states.filter(row => row.userId === params[0] && ids.includes(row.questionId));
@@ -48,7 +49,7 @@ function transaction(name: string) {
    if (ids.length) return observations.filter(row => row.userId === params[0] && row.attemptId === params[1] && ids.includes(row.questionId));
    return observations.filter(row => row.userId === params[0] && row.questionId === params[1] && row.attemptId === params[2]);
   }
-  if (name === getTableName(soal)) return ids.filter(id => canonical.has(id) && (!sql.includes('"status"') || !drafts.has(id))).map(id => ({ id, courseId: 'c', version: 1 }));
+  if (name === getTableName(soal)) return ids.filter(id => canonical.has(id) && (!sql.includes('"status"') || !drafts.has(id))).map(id => ({ id, courseId: 'c', mataKuliahId: 'c', version: 1, status: drafts.has(id) ? 'draft' : 'published' }));
   return [];
  };
  const tx = {
@@ -75,7 +76,10 @@ function transaction(name: string) {
    await previous;
    held.add(key); releases.push(release); trace.push(`${name}:user`);
   },
-  select: () => ({ from: (table: any) => ({ where: (condition: any) => { const result = Promise.resolve(query(table, condition)); return Object.assign(result, { limit: () => result }); } }) }),
+  select: () => ({ from: (table: any) => {
+   const where = (condition: any) => { const result = Promise.resolve(query(table, condition)); return Object.assign(result, { limit: () => result, orderBy: () => ({ for: () => result }) }); };
+   return { where, innerJoin: () => ({ where }) };
+  } }),
   insert: (table: any) => ({ values: (values: any | any[]) => {
    const write = async () => {
     const inserted: any[] = [];
@@ -248,6 +252,21 @@ describe('question evidence transaction ordering', () => {
   expect(revealed?.exposedAt).toEqual(bankRows[0].exposedAt);
   if (!revealed || revealed.attemptIdentity === null || revealed.exposedAt === null) throw new Error('Expected prior disclosure');
   expect(isEligibleQuestionRetry({ correct: true, attemptId: 'later', occurredAt: later[0].occurredAt, lastReveal: revealed ? { attemptId: revealed.attemptIdentity, occurredAt: revealed.exposedAt } : null })).toBe(false);
+  t.commit();
+ });
+ for (const state of ['missing', 'draft', 'invalid'] as const) for (const requestId of ['submission-result', 'review'] as const) test(`${requestId} retains ${state} in-snapshot disclosure under the owned course`, async () => {
+  const t = transaction('learner');
+  heldSnapshot = [{ id: 'a', ...(state === 'invalid' ? { gamificationProvenance: { marker: 'invalid', courseId: 'injected' } } : {}) }];
+  if (state !== 'missing') canonical.add('a');
+  if (state === 'draft') drafts.add('a');
+  await recordAttemptDisclosures(t.tx, { userId: 'learner', attemptId: 'attempt-owner', questionIds: ['a'], occurredAt: time, requestId });
+  expect(bankRows.map(row => [row.userId, row.courseId, row.questionId])).toEqual([['learner', 'c', 'a']]);
+  canonical.add('a'); drafts.delete('a');
+  const later = [{ ...inputs('later')[0], userId: 'learner', occurredAt: new Date(bankRows[0].exposedAt.getTime() + 1000) }];
+  await initializeQuestionExposureHistoryBatch(t.tx, later); await recordSubmissionBoundaries(t.tx, later);
+  const reveal = (await getLatestQuestionExposures(t.tx, 'learner', ['a'], 'later')).get('a');
+  if (!reveal?.attemptIdentity || !reveal.exposedAt) throw new Error('Expected disclosure');
+  expect(isEligibleQuestionRetry({ correct: true, attemptId: 'later', occurredAt: later[0].occurredAt, lastReveal: { attemptId: reveal.attemptIdentity, occurredAt: reveal.exposedAt } })).toBe(false);
   t.commit();
  });
  test('12000 prior question and wildcard views retain bounded projection and observation work', async () => {

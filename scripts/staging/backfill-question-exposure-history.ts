@@ -1,4 +1,4 @@
-/** Run only during the documented staging write-free cutover, after migration 0022. */
+/** Run only during the documented staging write-free cutover, after migration 0023. */
 import { Client } from 'pg';
 import { assertTarget } from '../neon/import-core';
 import { classifyJournal } from './gamification-migration-core';

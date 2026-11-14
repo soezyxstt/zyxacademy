@@ -162,6 +162,13 @@
       "when": 1794688351346,
       "tag": "0022_rich_lady_vermin",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1794689158352,
+      "tag": "0023_supreme_speedball",
+      "breakpoints": true
     }
   ]
 }

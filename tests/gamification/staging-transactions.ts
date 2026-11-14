@@ -12,6 +12,8 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import pg from 'pg';
 import { build } from 'esbuild';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { classifyJournal } from '../../scripts/staging/gamification-migration-core';
 
 const root = process.cwd();
 const host = 'ep-sparkling-lab-azrp3ymj.c-3.ap-southeast-1.aws.neon.tech';
@@ -22,7 +24,7 @@ const publicIds = ids.map(id => `${id}-public`);
 const fail = (message: string): never => { throw new Error(message); };
 
 async function main() {
- if (process.env.RUN_GAMIFICATION_STAGING_CHECKS !== '1') fail('Explicit staging opt-in required');
+ if (process.env.RUN_GAMIFICATION_STAGING_CHECKS !== '1' || process.env.NEON_BRANCH_ID !== 'br-gentle-scene-azq0gp91') fail('Explicit staging target and opt-in required');
  let url: URL;
  try { url = new URL(process.env.DATABASE_URL ?? ''); } catch { return fail('Invalid database URL'); }
  if (!['postgres:', 'postgresql:'].includes(url.protocol) || url.hostname !== host || url.port && url.port !== '5432' || url.pathname !== '/neondb' || url.searchParams.get('host')) fail('Database target does not match the approved staging endpoint');
@@ -36,9 +38,10 @@ async function main() {
    const identity = await client.query("select current_database() as db, current_setting('transaction_read_only') as ro");
    assert.equal(identity.rows[0].db, 'neondb'); assert.equal(identity.rows[0].ro, 'on');
    const journal = JSON.parse(await readFile(path.join(root, 'drizzle-postgres/meta/_journal.json'), 'utf8'));
-   const expected = await Promise.all(journal.entries.filter((e: any) => e.idx >= 9 && e.idx <= 22).map(async (e: any) => ({ when: String(e.when), hash: createHash('sha256').update(await readFile(path.join(root, `drizzle-postgres/${e.tag}.sql`))).digest('hex') })));
-   assert.equal(expected.length, 14);
-   const migrations = await client.query('select hash, created_at from drizzle.__drizzle_migrations');
+   const expected = await Promise.all(journal.entries.filter((e: any) => e.idx >= 9 && e.idx <= 23).map(async (e: any) => ({ when: String(e.when), hash: createHash('sha256').update(await readFile(path.join(root, `drizzle-postgres/${e.tag}.sql`))).digest('hex') })));
+   assert.equal(expected.length, 15);
+   const migrations = await client.query('select hash, created_at from drizzle.__drizzle_migrations order by created_at,id');
+   assert.equal(classifyJournal(migrations.rows), 'complete');
    for (const e of expected) assert(migrations.rows.some(r => r.hash === e.hash && String(r.created_at) === e.when), 'Required migration missing or mismatched');
    const historyReady = await client.query("select exists(select 1 from gamification_question_history_cutover where id='v1') as ready");
    assert.equal(historyReady.rows[0]?.ready,true, 'Question history cutover not ready');
@@ -67,7 +70,7 @@ async function main() {
   };
   const before = await numericCounts(); assert(Object.values(before).every(v => v === 0));
   // Resolve only the actor and server-only marker to test stubs. The actual db adapter remains in use.
-  const bundle = await build({ stdin: { contents: `export { purchaseGamificationCosmetic, equipGamificationCosmetics } from './lib/gamification/rewards'; export { getGamificationLeaderboard } from './lib/gamification/leaderboard'; export { pool, db } from './lib/db'; export { writeQuestionRewards } from './lib/gamification/question-writer'; export { recordAuthorizedGlobalDisclosures } from './lib/gamification/question-exposure'; export { processGamificationOutbox } from './lib/gamification/processor'; export { reconcileGamificationAccount } from './lib/gamification/reconciliation'; export { resolveCourseAccess } from './lib/student/course-access';`, resolveDir: root, loader: 'ts' }, bundle: true, platform: 'node', format: 'cjs', write: false, packages: 'external', tsconfig: path.join(root, 'tsconfig.json'), plugins: [{ name: 'fixture-session', setup(b) {
+  const bundle = await build({ stdin: { contents: `export { purchaseGamificationCosmetic, equipGamificationCosmetics } from './lib/gamification/rewards'; export { getGamificationLeaderboard } from './lib/gamification/leaderboard'; export { pool, db } from './lib/db'; export { writeQuestionRewards } from './lib/gamification/question-writer'; export { recordAuthorizedGlobalDisclosures, recordAttemptDisclosures, lockQuestionExposures } from './lib/gamification/question-exposure'; export { processGamificationOutbox } from './lib/gamification/processor'; export { reconcileGamificationAccount } from './lib/gamification/reconciliation'; export { resolveCourseAccess } from './lib/student/course-access';`, resolveDir: root, loader: 'ts' }, bundle: true, platform: 'node', format: 'cjs', write: false, packages: 'external', tsconfig: path.join(root, 'tsconfig.json'), plugins: [{ name: 'fixture-session', setup(b) {
    b.onResolve({ filter: /^server-only$/ }, () => ({ path: 'server-only', namespace: 'fixture' }));
    b.onResolve({ filter: /^\.\/access$/ }, args => args.resolveDir.endsWith('/lib/gamification') ? { path: 'access', namespace: 'fixture' } : undefined);
    b.onLoad({ filter: /.*/, namespace: 'fixture' }, args => ({ contents: args.path === 'access' ? 'export async function requireStudentGamificationAccess(){return {user:{id:globalThis.__gamificationFixtureActor}}}' : '', loader: 'js' }));
@@ -193,17 +196,72 @@ async function main() {
    await writeQuestion();
    assert.equal(Number((await pool.query('select count(*) n from gamification_evidence_receipts where user_id=$1', [questionActor])).rows[0].n),1);
    console.log('PASS: original question writer and processor, correct answer, empty exposure history, XP, badge, and writer retry');
+   // These two cases need independently committed fixture rows so two connections can
+   // contend on the real canonical row. The finally block removes all scoped records.
+   const waitBlocked = async (pid: number, blocker: number) => {
+    const deadline = Date.now()+10000;
+    while (Date.now()<deadline) {
+     const result = await pool.query('select $2::int = any(pg_blocking_pids($1)) blocked',[pid,blocker]);
+     if (result.rows[0]?.blocked) return;
+     await new Promise<void>(resolve => setImmediate(resolve));
+    }
+    throw new Error('EXPECTED_ROW_LOCK_WAIT');
+   };
+   for (const first of ['delete','writer'] as const) {
+    const id = `${prefix}-race-${first}`, raceAttempt = `${id}-attempt`;
+    await pool.query("insert into soal (id,mata_kuliah_id,question_type,prompt,options_snapshot,quiz_eligible,version,status,difficulty,cognitive_level,reasoning_pattern,generation_hash,creator_id,published_at) values ($1,$2,'multiple_choice','Fixture',$3::jsonb,true,1,'published','easy','remember','fixture','fixture',$4,$5)",[id,course,JSON.stringify([{text:'A',isCorrect:true},{text:'B',isCorrect:false}]),questionActor,started]);
+    await pool.query("insert into gamification_checklist_items (id,checklist_id,category,source_id,content_version,base_xp_micro) values ($1,$2,'question',$3,'1',100000)",[`${id}-item`,questionChecklist,id]);
+    const raceQ = {...q,id,gamificationProvenance:{...q.gamificationProvenance,canonicalQuestionId:id}};
+    const raceAnswers = {[id]:0}, raceAt = new Date(Date.now()-1000);
+    await pool.query("insert into student_quiz_attempts (id,student_id,template_id,status,questions_snapshot,answers_snapshot,started_at,submitted_at) values ($1,$2,$3,'completed',$4::jsonb,$5::jsonb,$6,$7)",[raceAttempt,questionActor,template,JSON.stringify([raceQ]),JSON.stringify(raceAnswers),started,raceAt]);
+    const deleter = await pool.connect(), writer = await pool.connect();
+    try {
+     await deleter.query('begin'); await writer.query('begin');
+     const deleterPid: number = (await deleter.query('select pg_backend_pid() pid')).rows[0].pid;
+     const writerPid: number = (await writer.query('select pg_backend_pid() pid')).rows[0].pid;
+     await deleter.query("set local lock_timeout='10s'"); await writer.query("set local lock_timeout='10s'");
+     const writerTx = drizzle(writer);
+     const write = async () => {
+      await app.lockQuestionExposures(writerTx,questionActor,[id]);
+      await app.writeQuestionRewards(writerTx,{userId:questionActor,attemptId:raceAttempt,snapshot:[raceQ],answers:raceAnswers,occurredAt:raceAt});
+      await app.recordAttemptDisclosures(writerTx,{userId:questionActor,attemptId:raceAttempt,questionIds:[id],occurredAt:raceAt,requestId:'submission-result'});
+     };
+     if (first === 'delete') {
+      await deleter.query('delete from soal where id=$1',[id]);
+      const pending = write(); await waitBlocked(writerPid,deleterPid);
+      await deleter.query('commit'); await pending; await writer.query('commit');
+     } else {
+      await write();
+      const pending = deleter.query('delete from soal where id=$1',[id]); await waitBlocked(deleterPid,writerPid);
+      await writer.query('commit'); await pending; await deleter.query('commit');
+     }
+     const disclosure = await pool.query('select count(*)::int n from gamification_question_exposure_projection where user_id=$1 and course_id=$2 and question_id=$3',[questionActor,course,id]);
+     assert.equal(disclosure.rows[0].n,1);
+     if (first === 'writer') {
+      await pool.query("update gamification_event_outbox set created_at='1900-01-01' where user_id=$1 and source_id=$2 and status='pending'",[questionActor,id]);
+      const candidate = await pool.query("select user_id,source_id from gamification_event_outbox where status='pending' order by created_at,id limit 1");
+      assert.equal(candidate.rows[0]?.user_id,questionActor); assert.equal(candidate.rows[0]?.source_id,id);
+      assert.deepEqual(await app.processGamificationOutbox({limit:1}),{processed:0,rejected:1,failed:0});
+     } else assert.equal(Number((await pool.query('select count(*) n from gamification_learning_facts where user_id=$1 and source_id=$2',[questionActor,id])).rows[0].n),0);
+     assert.equal(Number((await pool.query('select count(*) n from gamification_xp_ledger where user_id=$1',[questionActor])).rows[0].n),1);
+    } finally {
+     await deleter.query('rollback').catch(() => {}); await writer.query('rollback').catch(() => {}); deleter.release(); writer.release();
+    }
+   }
+   console.log('PASS: both delete versus writer lock orders, surviving disclosure, processor rejection and no duplicate award');
+
    console.log('Session authentication stubbed and unverified; checklist approval service not exercised.');
   } finally {
    if (wrote) {
     const c = await pool.connect(); try { await c.query('begin');
      const actor = `${prefix}-processor`, course = `${prefix}-course`, checklist = `${prefix}-checklist`, questionActor = `${prefix}-question`;
      for (const table of ['gamification_xp_ledger','gamification_lp_ledger','gamification_badge_activities','gamification_badges','gamification_qualified_days','gamification_missions','gamification_leaderboard_periods','gamification_accounts','gamification_event_outbox','gamification_evidence_receipts','gamification_article_completions','gamification_course_starts','gamification_question_exposures','gamification_question_exposure_initializations','gamification_question_exposure_projection','gamification_question_exposure_observations','gamification_question_bank_disclosures','gamification_question_legacy_index','gamification_learning_facts']) await c.query(`delete from ${table} where user_id = any($1::text[])`,[[actor,questionActor]]);
+     await c.query('delete from notifications where user_id = any($1::text[])',[[actor,questionActor]]);
      await c.query('delete from gamification_checklist_items where checklist_id = any($1::text[])',[[checklist,`${prefix}-checklist-v2`]]);
      await c.query('delete from gamification_checklists where id = any($1::text[])',[[checklist,`${prefix}-checklist-v2`]]);
      await c.query('delete from student_quiz_attempts where student_id=$1',[questionActor]);
      await c.query('delete from quiz_templates where id=$1',[`${prefix}-template`]);
-     await c.query('delete from soal where id=$1',[`${prefix}-q`]);
+     await c.query('delete from soal where id like $1',[`${prefix}%`]);
      await c.query('update mata_kuliah set legacy_course_id=null where id=$1',[course]);
      await c.query('delete from courses where id=$1',[course]);
      await c.query('delete from artikel where mata_kuliah_id=$1',[course]);
