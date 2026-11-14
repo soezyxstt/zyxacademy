@@ -403,7 +403,7 @@ export function SessionDetailDrawer({
   const handleLocalChange = async (patch: Parameters<LocalScheduleOperations["update"]>[1]) => {
     setBusyAction("schedule");
     try { await localOperations?.update(booking, patch); await refreshParent(); }
-    catch { toast.error("Jadwal belum tersimpan. Periksa tanggal dan waktu, lalu coba lagi."); }
+    catch (error) { toast.error(error instanceof Error && error.message === "SLOT_TAKEN" ? "Waktu tersebut sudah terisi. Pilih jadwal lain." : "Jadwal belum tersimpan. Periksa tanggal dan waktu, lalu coba lagi."); }
     finally { setBusyAction(null); }
   };
 

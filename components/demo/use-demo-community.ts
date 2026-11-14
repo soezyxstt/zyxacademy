@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useStudentExperience } from "@/components/student-experience-provider";
-import { communityKey, demoBookingSchema, demoCommunitySchema, emptyCommunity, parseCommunity, type DemoBooking, type DemoCommunity, type DemoCommunityScope, type DemoResource } from "@/lib/demo/community-state";
+import { communityKey, demoBookingSchema, demoCommunitySchema, emptyCommunity, parseCommunity, putDemoBooking, type DemoBooking, type DemoCommunity, type DemoCommunityScope, type DemoResource } from "@/lib/demo/community-state";
 import { clearDemoCommunityFiles, deleteDemoFile, readDemoFile, storeDemoFile } from "@/lib/demo/community-files";
 
 const changeEvent = "zyx-demo-community-change";
@@ -49,8 +49,7 @@ export function useDemoCommunity() {
   const operations = useMemo<LocalScheduleOperations>(() => {
     const update = async (booking: DemoBooking, patch: Partial<DemoBooking>) => save(current => {
       const existing = current.bookings.find(row => row.id === booking.id) ?? booking;
-      const next = demoBookingSchema.parse({ ...existing, ...patch });
-      return { ...current, bookings: [...current.bookings.filter(row => row.id !== next.id), next] };
+      return putDemoBooking({ courseId, revision }, current, { ...existing, ...patch });
     });
     const addResource: LocalScheduleOperations["addResource"] = async (booking, input) => {
       const id = crypto.randomUUID();
@@ -72,10 +71,7 @@ export function useDemoCommunity() {
         try {
           for (const url of input.links) booking.resources.push({ id: crypto.randomUUID(), phase: "pre", kind: "link", label: url, url, fileName: null, mimeType: null, sizeBytes: null, createdById: "fictional-demo-student" });
           for (const file of input.files) { const id = crypto.randomUUID(); await storeDemoFile(key, id, file); stored.push(id); booking.resources.push({ id, phase: "pre", kind: "file", label: file.name, url: "", fileName: file.name, mimeType: file.type, sizeBytes: file.size, createdById: "fictional-demo-student" }); }
-          save(current => {
-            if (current.bookings.some(row => row.slotId === booking.slotId && row.status !== "cancelled")) throw new Error("SLOT_TAKEN");
-            return { ...current, bookings: [...current.bookings, booking] };
-          });
+          save(current => putDemoBooking({ courseId, revision }, current, booking));
         } catch (cause) { await Promise.all(stored.map(id => deleteDemoFile(key, id).catch(() => undefined))); throw cause; }
         return booking.id;
       },
@@ -89,6 +85,6 @@ export function useDemoCommunity() {
         const url = URL.createObjectURL(file); const anchor = document.createElement("a"); anchor.href = url; anchor.download = resource.fileName ?? resource.label; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
       },
     };
-  }, [key, save]);
+  }, [key, save, courseId, revision]);
   return { state, ready, error, save, operations, scope: { courseId, revision } };
 }

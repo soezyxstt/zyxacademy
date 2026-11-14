@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { addCalendarDays, assertCalendarDate } from "@/lib/date-utils";
 
 const course = "fictional-berpikir";
 const key = `zyx-demo-community:1:${course}:fixture-v1`;
@@ -25,6 +26,7 @@ async function visit(page: Page, view: string) {
 }
 async function capture(page: Page, info: TestInfo, name: string) {
   await expect(page.locator('#main-content [aria-busy="true"]')).toHaveCount(0);
+  if (!(await page.getByRole("dialog").count())) await page.evaluate(() => window.scrollTo(0, 0));
   await page.evaluate(async () => { await document.fonts.ready; });
   await page.addStyleTag({ content: "nextjs-portal { display:none !important; }" });
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
@@ -77,6 +79,8 @@ test("weekly sessions persist context, pre/post files and links, moves, completi
   await page.getByRole("button", { name: "Tutup", exact: true }).first().click();
   await page.getByRole("button").filter({ hasText: "Latihan dan pembahasan" }).first().click();
   await page.getByRole("button", { name: "Batalkan sesi", exact: true }).click();
+  await page.getByText("Dibatalkan", { exact: true }).scrollIntoViewIfNeeded();
+  await expect(page.getByText("Dibatalkan", { exact: true })).toBeVisible();
   await capture(page, info, "session-cancelled");
   await page.getByRole("button", { name: "Tutup", exact: true }).first().click();
   for (let index = 0; index < 4; index++) {
@@ -188,4 +192,27 @@ test("failed file storage rolls back metadata and reset clears scoped files", as
   await visit(page, "groups");
   await expect(page.locator("#demo-group-name")).toHaveValue("Kelompok belajar");
   await capture(page, info, "demo-reset"); expect(errors).toEqual([]);
+});
+test("rescheduling rejects a seeded conflict and releases the original slot", async ({ page }, info) => {
+  const errors = guard(page); await visit(page, "schedule"); await openSession(page);
+  const original = assertCalendarDate(await page.locator("#demo-move-date").inputValue());
+  await page.locator("#demo-move-date").fill(addCalendarDays(original, 7));
+  await page.getByRole("button", { name: "Ubah jadwal", exact: true }).click();
+  await expect(page.getByText("Waktu tersebut sudah terisi. Pilih jadwal lain.", { exact: true }).first()).toBeVisible();
+  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBeNull();
+  await capture(page, info, "move-conflict");
+  await page.locator("#demo-move-date").fill(addCalendarDays(original, 8));
+  await page.getByRole("button", { name: "Ubah jadwal", exact: true }).click();
+  await expect(page.locator("#session-topic")).toHaveCount(0);
+  await page.getByRole("button").filter({ hasText: /^10:00-11:30/ }).first().click();
+  await page.getByRole("dialog").getByRole("button").filter({ hasText: "Berpikir Komputasional" }).click();
+  await page.locator("#booking-topic").fill("Mengisi slot asal");
+  await page.getByRole("button", { name: "Konfirmasi pemesanan", exact: true }).click();
+  await expect(page.locator("#session-topic")).toHaveValue("Mengisi slot asal");
+  await capture(page, info, "original-slot-rebooked");
+  await page.getByRole("button", { name: "Tutup", exact: true }).first().click();
+  await page.getByRole("button", { name: "Rentang berikutnya", exact: true }).click();
+  await page.getByRole("button").filter({ hasText: "Diskusi materi" }).last().click();
+  await expect(page.locator("#demo-move-date")).toHaveValue(addCalendarDays(original, 8));
+  await capture(page, info, "moved-session-next-week"); expect(errors).toEqual([]);
 });

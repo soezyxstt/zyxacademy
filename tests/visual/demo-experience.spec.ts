@@ -44,6 +44,7 @@ for (const view of routes) test(`student page ${view || "dashboard"}`, async ({ 
  if (view === "playground") await expect(page.getByRole("button", { name: "Jalankan", exact: true })).toBeVisible();
  if (view === "quiz") await expect(page.getByRole("radio").first()).toBeVisible();
  if (view === "zyra") await expect(page.getByRole("textbox").last()).toBeVisible();
+ if (view === "leaderboard" || view === "course-leaderboard") await expect(page.getByText("Ayu", { exact: true }).first()).toBeVisible();
  await capture(page, info, `student-${view || "dashboard"}`);
  expect(failures).toEqual([]);
 });

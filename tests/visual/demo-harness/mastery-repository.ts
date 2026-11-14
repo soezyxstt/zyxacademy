@@ -1,5 +1,5 @@
 import "server-only";
-import { fixtureDelay } from "@/app/(marketing)/demo/demo-data";
+import { fixtureDelay } from "@/tests/visual/demo-harness/demo-data";
 import { buildDemoMastery } from "@/lib/demo/mastery";
 
 export async function getDemoMastery(courseIds: string[]) {

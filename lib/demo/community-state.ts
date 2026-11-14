@@ -17,11 +17,27 @@ export function parseCommunity(raw: string | null): DemoCommunity {
   if (!raw) return emptyCommunity();
   return demoCommunitySchema.parse(JSON.parse(raw.length <= 2000000 ? raw : "null"));
 }
+function demoSlots(anchor: string) {
+  const { startIso } = getCalendarWeekRange(assertCalendarDate(anchor));
+  return [0, 2, 5].map((offset, index) => ({ id: `demo-slot-${addCalendarDays(startIso, offset)}`, sessionDate: addCalendarDays(startIso, offset), startTime: index === 1 ? "14:00" : "10:00", endTime: index === 1 ? "15:30" : "11:30", tutorId: "fictional-demo-tutor", tutor: { id: "fictional-demo-tutor", name: "Kak Nara" }, mode: "online" }));
+}
+function withCurrentSlot(booking: DemoBooking): DemoBooking {
+  const slot = demoSlots(booking.sessionDate).find(row => row.sessionDate === booking.sessionDate && row.startTime === booking.startTime && row.endTime === booking.endTime);
+  return { ...booking, slotId: slot?.id ?? `demo-custom-${booking.id}` };
+}
+const overlaps = (a: Pick<DemoBooking, "sessionDate" | "startTime" | "endTime">, b: Pick<DemoBooking, "sessionDate" | "startTime" | "endTime">) => a.sessionDate === b.sessionDate && a.startTime < b.endTime && b.startTime < a.endTime;
+
+/** Check implicit weekly seeds too, and release the old slot when a session moves. */
+export function putDemoBooking(scope: DemoCommunityScope, state: DemoCommunity, value: DemoBooking): DemoCommunity {
+  const next = withCurrentSlot(demoBookingSchema.parse(value));
+  if (next.status !== "cancelled" && demoWeek(scope, next.sessionDate, state).bookings.some(row => row.id !== next.id && row.status !== "cancelled" && overlaps(row, next))) throw new Error("SLOT_TAKEN");
+  return { ...state, bookings: [...state.bookings.filter(row => row.id !== next.id), next] };
+}
 export function demoWeek(scope: DemoCommunityScope, anchor: string, state: DemoCommunity) {
   const { startIso, endIso } = getCalendarWeekRange(assertCalendarDate(anchor));
-  const slots = [0, 2, 5].map((offset, index) => ({ id: `demo-slot-${addCalendarDays(startIso, offset)}`, sessionDate: addCalendarDays(startIso, offset), startTime: index === 1 ? "14:00" : "10:00", endTime: index === 1 ? "15:30" : "11:30", tutorId: "fictional-demo-tutor", tutor: { id: "fictional-demo-tutor", name: "Kak Nara" }, mode: "online" }));
+  const slots = demoSlots(anchor);
   const seeds: DemoBooking[] = slots.slice(0, 2).map((slot, index) => ({ id: `demo-booking-${slot.sessionDate}`, slotId: slot.id, sessionDate: slot.sessionDate, startTime: slot.startTime, endTime: slot.endTime, courseId: scope.courseId, groupId: "demo-group", topic: index ? "Latihan dan pembahasan" : "Diskusi materi", preSessionNotes: "", postSessionNotes: "", status: "confirmed", resources: [] }));
   const overrides = new Map(state.bookings.map(row => [row.id, row]));
-  const bookings = [...seeds.filter(row => !overrides.has(row.id)), ...state.bookings].filter(row => row.sessionDate >= startIso && row.sessionDate <= endIso);
-  return { slots, bookings };
+  const bookings = [...seeds.filter(row => !overrides.has(row.id)), ...state.bookings].filter(row => row.sessionDate >= startIso && row.sessionDate <= endIso).map(withCurrentSlot);
+  return { slots: slots.map(slot => ({ ...slot, booking: bookings.find(row => row.status !== "cancelled" && overlaps(row, slot)) ?? null })), bookings };
 }

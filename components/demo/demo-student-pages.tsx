@@ -46,7 +46,7 @@ const StudentScheduleClient = dynamic(() => import("@/app/(student)/dashboard/sc
 export function DemoStudentPage({ view, experience: { content, snapshot }, mastery }: { view: string; experience: DemoSummary; mastery?: DemoMastery }) {
  const experience = useStudentExperience();
  const { overlays, ready, generation } = useDemoSession();
- const [rankings, setRankings] = useState<Record<string, ReturnType<typeof demoLeaderboard>>>({});
+ const [rankings, setRankings] = useState<Record<string, ReturnType<typeof demoLeaderboard>>>(() => Object.fromEntries(experience.baseline.map(row => [row.courseId, demoLeaderboard(row, emptyOverlay(), () => null, experience.account?.name ?? "Pelajar Demo")])));
  useEffect(() => {
    if (!ready) return;
    setRankings(Object.fromEntries(experience.baseline.map(row => [row.courseId,

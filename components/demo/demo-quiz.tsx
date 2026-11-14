@@ -14,6 +14,7 @@ import { fictionalQuizCorrectCount } from "@/lib/demo/assessment/history";
 import { useTranslations } from "@/lib/i18n/client";
 import { useDemoSession } from "./demo-session";
 import { useStudentExperience } from "@/components/student-experience-provider";
+import { ApplicationPage } from "@/components/application-page";
 
 // Fictional historical attempts never invent answers for real course questions.
 const historicalQuestions: DemoQuizQuestion[] = [
@@ -89,7 +90,7 @@ export function DemoQuiz({ pages, courseId, view = "quiz" }: {
     return <DemoQuizResults result={baselineResult} questions={historicalQuestions} answers={Object.fromEntries(historicalQuestions.map((question, index) => [question.id, [index < baselineCorrect ? 0 : 1]]))} courseId={courseId} />;
   }
   if (loaded.result) return <DemoQuizResults result={loaded.result} questions={questions} answers={loaded.answers} courseId={courseId} />;
-  return <QuizPlayer key={`${questionKey}:${generation}`} courseId={courseId} exam={exam} attemptId={`demo:${questionKey}:${generation}`} transport={transport} />;
+  return <ApplicationPage><QuizPlayer key={`${questionKey}:${generation}`} courseId={courseId} exam={exam} attemptId={`demo:${questionKey}:${generation}`} transport={transport} /></ApplicationPage>;
 }
 
 /** Route owners may reuse this after loading a validated local result. */
