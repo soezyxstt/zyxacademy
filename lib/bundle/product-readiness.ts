@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { buktiPdfBundle, imporBundle } from "@/db/schema";
 import type { PdfArtifactEvidence } from "@/lib/materials/pdf-artifact-contract";
 import { getProductBundleImport, listProductItemReviews } from "./product-staging";
-import { evaluateProductBundleQualityPolicy } from "./product-review-gate";
+import { evaluateProductBundleQualityPolicy, productSectionReviewState } from "./product-review-gate";
 import { listProcessingLegacyPdfRequests } from "./product-diktat-queue";
 import type { getProductV4VerificationReadiness } from "./product-v4-verification-service";
 import type { validateProductBundle } from "./product-validator";
@@ -12,10 +12,12 @@ import { deterministicProductSerialization } from "./product-validator";
 
 export async function publisherProductReviewReadiness(row: NonNullable<Awaited<ReturnType<typeof getProductBundleImport>>>, bundle: Extract<ReturnType<typeof validateProductBundle>, { success: true }>["data"], publisherId: string) {
   const reviewApproved = row.reviews.some(review => review.reviewerId === publisherId && review.status === "approved");
-  const sectionIds = bundle.products.flatMap(product => product.productType === "article" ? product.sections.map(section => section.id) : []);
-  const decisions = sectionIds.length ? await listProductItemReviews(row.id, publisherId) : [];
-  const missingSections = sectionIds.filter(sectionId => !decisions.some(review => review.targetType === "article_section" && review.targetId === sectionId && review.status === "approved"));
-  return { reviewApproved, missingSections };
+  const requiredSections = bundle.products.flatMap(product => product.productType === "article" ? product.sections.map(section => ({ productId: product.id, sectionId: section.id })) : []);
+  const decisions = requiredSections.length ? await listProductItemReviews(row.id, publisherId) : [];
+  const state = productSectionReviewState({ requiredSections, reviewerId: publisherId, reviews: decisions });
+  const missingSectionTargets = [...new Map([...state.missing, ...state.changesRequested].map(section => [JSON.stringify([section.productId, section.sectionId]), section])).values()];
+  const missingSections = missingSectionTargets.map(section => requiredSections.filter(target => target.sectionId === section.sectionId).length === 1 ? section.sectionId : `${section.productId}/${section.sectionId}`);
+  return { reviewApproved, missingSections, missingSectionTargets };
 }
 
 export async function currentPublisherProductReadiness(importId: string, publisherId: string, options: { v4Verification?: Awaited<ReturnType<typeof getProductV4VerificationReadiness>> | null } = {}) {

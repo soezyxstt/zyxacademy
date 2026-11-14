@@ -184,6 +184,10 @@ Zyra accepts an allowlisted response language, honors explicit English or Indone
    - Retired browser-only manual authoring APIs return HTTP 410 Gone.
 3. Sidebar isolation guarantee: no old route can render an active global course workspace or reset the contextual sidebar back to global while viewing a course-owned resource.
 
+### Flexible existing-content revisions
+
+The [revision contract](bundle/authoring-revisions.md) describes MCP editing for Idea V3 and learning Product V3/V4/V5. Agents fork a stored artifact into a separate draft, edit entities and reading units by stable ID, inspect affected reviews and dependencies, and explicitly publish a reference-based release. A release can replace related Idea and Product revisions atomically while keeping the old content live until it succeeds. History and restoration use immutable artifacts; restoration creates a new draft. Existing-content edits use stored source context and a fresh bound bootstrap, without a replacement Source Pack or expired original run. Unchanged review evidence requires server-proven applicability and explicit reviewer consent. Profile-specific correctness, release, source, PDF and trusted-verification gates remain in place. No Admin website visit is mandatory. Implemented with focused local verification; remote migrations, deployment and live-service acceptance remain pending.
+
 ### Idea Bundle Workflow
 
 1. Admins open `/admin/courses/[slug]/review`, choose `Source Pack + Idea`, and use the compact `Upload ZIP` action (or access via `/admin/materials/review?courseId=...` compatibility redirect). The dialog first analyzes the strict ZIP without persistence, then stages the validated artifact after confirmation. Validation rejects unsafe archive entries, unknown manifest fields, checksum drift, missing source spans, non-publishable Ideas or sources, inconsistent creator attribution, duplicate stable keys, unresolved conflicts, and prerequisite cycles.
@@ -749,3 +753,6 @@ Reviewed solution collections can be published headlessly for a course chapter a
 Pembahasan soal displays the authored hint beside the optional Admin review decisions. Markdown fenced code in prompts and reasoning shares the static-code keyboard scrolling controls used by typed examples.
 
 Pembahasan review supports Indonesian and English, detects tab-draft conflicts against the saved server baseline, and requires explicit recovery before reusing conflicting choices. Bounded question pages support normal Tab navigation. Static typed and Markdown code retain their language and localized copy controls, with visible fallback when the clipboard is unavailable.
+
+
+Agent-first content tools expose paginated registered capabilities, permission recovery and actor-scoped database receipts. Blog creation, validation, editing and explicit publication use MCP with observed revisions; public edits report their live impact. Media resolution returns served paths without private storage credentials. Repository plugin 0.5.0 adds five focused skills. See [agent-first content operations](operations/agent-first-content.md) for limits and release boundaries.

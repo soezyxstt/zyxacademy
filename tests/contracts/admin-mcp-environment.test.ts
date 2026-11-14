@@ -29,7 +29,7 @@ test("an explicit target must match both environment and exact origin", () => {
 });
 let effects = 0;
 mock.module("@/lib/db", () => ({ db: {} }));
-mock.module("@/lib/authoring/mcp-auth", () => ({ requireMcpScope: () => undefined, resolveMcpAdmin: async () => undefined }));
+mock.module("@/lib/authoring/mcp-auth", () => ({ MCP_MANUAL_CLIENT_ID: "zyx-admin-connection", requireMcpScope: () => undefined, resolveMcpAdmin: async () => undefined }));
 const { adminToolkit } = await import("@/lib/admin-mcp/toolkit");
 const { registerOperationsTools } = await import("@/lib/admin-mcp/operations-tools");
 const { registerFormsTools } = await import("@/lib/admin-mcp/forms-tools");

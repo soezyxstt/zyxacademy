@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -24,6 +25,88 @@ class PluginDistributionTest(unittest.TestCase):
     def tearDown(self) -> None:
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_release_exports_original_and_focused_skills_with_matching_host_metadata(self) -> None:
+        original = (
+            "zyx-authoring-pipeline", "zyx-source-pack-mcp", "zyx-idea-bundle-mcp",
+            "zyx-product-bundle-mcp", "zyx-question-authoring-mcp",
+            "reference-question-ingest", "zyx-admin-operations",
+        )
+        focused = (
+            "zyx-blog-mcp", "zyx-content-revisions", "zyx-forms-mcp",
+            "zyx-media-mcp", "zyx-operation-recovery",
+        )
+        release = ce.load_release_metadata(self.source_copy)
+        self.assertEqual(tuple(release["skills"]), original + focused)
+        self.assertEqual(ce.EXPECTED_SKILLS, original + focused)
+        self.assertEqual(release["version"], "0.5.0")
+        self.assertEqual(release["bootstrapProtocol"], 1)
+        self.assertEqual(release["minCompatibleVersion"], "0.2.0")
+        server_source = (self.repo_plugin_root.parent.parent / "lib/authoring/mcp-playbook.ts").read_text(encoding="utf-8")
+        self.assertRegex(server_source, rf'RECOMMENDED_PLUGIN_VERSION\s*=\s*["\']{re.escape(release["version"])}["\']')
+
+        for env_name in ("staging", "production"):
+            with self.subTest(environment=env_name):
+                target = self.temp_dir / f"inventory-{env_name}"
+                summary = ce.configure_plugin(self.source_copy, env_name, output_dir=target)
+                self.assertEqual(set(summary["fileHashes"]), ce.allowed_package_files())
+                self.assertEqual({entry.name for entry in (target / "skills").iterdir()}, set(original + focused))
+                codex = ce.read_json(target / ".codex-plugin/plugin.json")
+                claude = ce.read_json(target / ".claude-plugin/plugin.json")
+                self.assertEqual(codex["version"], release["version"])
+                self.assertEqual(claude["version"], release["version"])
+                self.assertLessEqual(len(codex["interface"]["shortDescription"]), 30)
+                for skill in focused:
+                    text = (target / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
+                    self.assertRegex(text, rf"(?m)^name: {re.escape(skill)}$")
+                    self.assertIn("admin.environment", text)
+                    self.assertIn("admin.capabilities", text)
+                    self.assertIn(f'"pluginVersion": "{release["version"]}"', text)
+                    self.assertEqual(text.count("<!-- BEGIN:environment-connection -->"), 1)
+                    yaml_text = (target / "skills" / skill / "agents/openai.yaml").read_text(encoding="utf-8")
+                    fields = {
+                        key.strip(): json.loads(value.strip())
+                        for line in yaml_text.splitlines()
+                        if line.startswith("  ")
+                        for key, value in [line.strip().split(":", 1)]
+                    }
+                    self.assertEqual(set(fields), {"display_name", "short_description", "default_prompt"})
+                    self.assertGreaterEqual(len(fields["short_description"]), 25)
+                    self.assertLessEqual(len(fields["short_description"]), 64)
+                    self.assertIn(f"${skill}", fields["default_prompt"])
+
+    def test_missing_focused_skill_files_fail_packaging_instead_of_silently_omitting_skill(self) -> None:
+        for relative in (
+            "skills/zyx-blog-mcp/SKILL.md",
+            "skills/zyx-operation-recovery/agents/openai.yaml",
+        ):
+            with self.subTest(relative=relative):
+                source_file = self.source_copy / relative
+                saved = source_file.read_bytes()
+                source_file.unlink()
+                with self.assertRaisesRegex(ValueError, "missing required allowlist files"):
+                    ce.inspect_source_tree(self.source_copy)
+                source_file.write_bytes(saved)
+
+    def test_admin_skills_need_identity_discovery_while_revision_skill_keeps_stage_bootstrap(self) -> None:
+        target = self.temp_dir / "workflow-boundaries"
+        ce.configure_plugin(self.source_copy, "staging", output_dir=target)
+        for skill in ce.ADMIN_IDENTITY_SKILLS:
+            with self.subTest(skill=skill):
+                path = target / "skills" / skill / "SKILL.md"
+                saved = path.read_text(encoding="utf-8")
+                path.write_text(saved.replace("admin.environment", "admin.identity_removed"), encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "must require admin.environment"):
+                    ce.validate_rendered_package(target, "staging")
+                path.write_text(saved, encoding="utf-8")
+
+        revision_path = target / "skills/zyx-content-revisions/SKILL.md"
+        saved = revision_path.read_text(encoding="utf-8")
+        self.assertIn("zyx-idea-bundle-mcp", saved)
+        self.assertIn("zyx-product-bundle-mcp", saved)
+        revision_path.write_text(saved.replace("workflow.get_playbook", "workflow.bootstrap_removed"), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "must require workflow.get_playbook"):
+            ce.validate_rendered_package(target, "staging")
 
     def test_build_preserves_unmanaged_output_and_rejects_extra_files_in_managed_output(self) -> None:
         target = self.temp_dir / "unmanaged-output"
@@ -64,12 +147,12 @@ class PluginDistributionTest(unittest.TestCase):
             summary_a = ce.configure_plugin(self.source_copy, env_name, output_dir=out_a)
             summary_b = ce.configure_plugin(self.source_copy, env_name, output_dir=out_b)
             self.assertEqual(summary_a["payloadHash"], summary_b["payloadHash"])
-            self.assertEqual(summary_a["version"], "0.4.1")
+            self.assertEqual(summary_a["version"], "0.5.0")
             self.assertEqual(summary_a["bootstrapProtocol"], 1)
             for skill in ce.EXPECTED_SKILLS:
                 content = (out_a / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
-                self.assertIn('"pluginVersion": "0.4.1"', content)
-                self.assertNotIn('"pluginVersion": "0.4.0"', content)
+                self.assertIn('"pluginVersion": "0.5.0"', content)
+                self.assertNotIn('"pluginVersion": "0.4.1"', content)
 
             cfg = ce.ENVIRONMENTS[env_name]
             mcp_json = ce.read_json(out_a / ".mcp.json")
@@ -133,15 +216,15 @@ class PluginDistributionTest(unittest.TestCase):
         self.assertTrue(noop_res["ok"])
         self.assertEqual(noop_res["status"], "noop")
 
-        readme_path = candidate / "README.md"
-        readme_path.write_text(readme_path.read_text(encoding="utf-8") + "\nExtra line\n", encoding="utf-8")
+        skill_path = candidate / "skills/zyx-blog-mcp/SKILL.md"
+        skill_path.write_text(skill_path.read_text(encoding="utf-8") + "\nUpdated blog guidance.\n", encoding="utf-8")
         collision_res = ce.verify_release_progression(candidate, baseline)
         self.assertFalse(collision_res["ok"])
         self.assertEqual(collision_res["status"], "version_collision")
 
         for rel in ("release.json", ".codex-plugin/plugin.json", ".claude-plugin/plugin.json"):
             data = ce.read_json(candidate / rel)
-            data["version"] = "0.5.0"
+            data["version"] = "0.6.0"
             ce.write_json(candidate / rel, data)
         advance_res = ce.verify_release_progression(candidate, baseline)
         self.assertTrue(advance_res["ok"])

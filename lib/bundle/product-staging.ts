@@ -1,3 +1,4 @@
+import { revisionPublicationConnection } from "@/lib/authoring/revision-publication-context";
 import { validateProductBundleAdmission } from "@/lib/bundle/product-admission";
 import { claimProductReviewSnapshot } from "./product-review-snapshot";
 import { createHash, randomUUID } from "node:crypto";
@@ -157,6 +158,9 @@ export async function stageProductBundle(input: ProductStageInput) {
   if (conflict && input.expectedPreviousChecksum !== conflict.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
   if (conflict && input.expectedPreviousChecksum !== undefined && input.expectedPreviousChecksum !== conflict.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
   let unchangedSectionIds = new Set<string>();
+  const unchangedSectionsByProduct = new Map<string, Set<string>>();
+  const sectionOwners = new Map<string, string[]>();
+  const previousSectionOwners = new Map<string, string[]>();
   let stalePdfProductIds = new Set<string>();
   let canPreservePedagogy = false;
   let previousBundleParsed: Extract<ProductBundleValidation, { success: true }>["data"] | null = null;
@@ -172,6 +176,15 @@ export async function stageProductBundle(input: ProductStageInput) {
     stalePdfProductIds = findStalePdfEvidenceProductIds(previous.data, input.bundle);
     if (input.preserveUnchangedItemReviews) {
       unchangedSectionIds = unchangedArticleSectionIds(previous.data, input.bundle);
+      for (const product of previous.data.products) {
+        if (product.productType !== "article") continue;
+        for (const section of product.sections) previousSectionOwners.set(section.id, [...(previousSectionOwners.get(section.id) ?? []), product.id]);
+      }
+      for (const product of input.bundle.products) {
+        if (product.productType !== "article") continue;
+        unchangedSectionsByProduct.set(product.id, unchangedArticleSectionIds(previous.data, input.bundle, product.id));
+        for (const section of product.sections) sectionOwners.set(section.id, [...(sectionOwners.get(section.id) ?? []), product.id]);
+      }
     }
   }
 
@@ -197,7 +210,14 @@ export async function stageProductBundle(input: ProductStageInput) {
         // Review writers take the same import lock. Read their latest decisions only after claiming it.
         if (unchangedSectionIds.size) {
           const existingReviews = await tx.select().from(reviewItemBundle).where(eq(reviewItemBundle.imporBundleId, conflict.id));
-          preservedItemReviews = existingReviews.filter(review => review.targetType === "article_section" && review.targetId && unchangedSectionIds.has(review.targetId));
+          preservedItemReviews = existingReviews.filter(review => {
+            if (review.targetType !== "article_section" || !review.targetId) return false;
+            const previousOwners = previousSectionOwners.get(review.targetId);
+            const nextOwners = sectionOwners.get(review.targetId);
+            const inferredOwner = previousOwners?.length === 1 && nextOwners?.length === 1 && previousOwners[0] === nextOwners[0] ? previousOwners[0] : undefined;
+            const owner = review.productId ?? inferredOwner;
+            return owner !== undefined && Boolean(unchangedSectionsByProduct.get(owner)?.has(review.targetId));
+          });
         }
         await tx.delete(reviewItemBundle).where(eq(reviewItemBundle.imporBundleId, conflict.id));
         await tx.delete(reviewBundle).where(eq(reviewBundle.imporBundleId, conflict.id));
@@ -284,11 +304,11 @@ export async function stageProductBundle(input: ProductStageInput) {
 
 
 export async function getProductBundleImport(importId: string) {
-  const [row] = await db.select().from(imporBundle).where(eq(imporBundle.id, importId)).limit(1);
+  const [row] = await revisionPublicationConnection().select().from(imporBundle).where(eq(imporBundle.id, importId)).limit(1);
   if (!row || row.bundleType !== "product") return null;
   const [items, reviews] = await Promise.all([
-    db.select().from(itemImporBundle).where(eq(itemImporBundle.imporBundleId, importId)),
-    db.select().from(reviewBundle).where(eq(reviewBundle.imporBundleId, importId)).orderBy(desc(reviewBundle.createdAt)),
+    revisionPublicationConnection().select().from(itemImporBundle).where(eq(itemImporBundle.imporBundleId, importId)),
+    revisionPublicationConnection().select().from(reviewBundle).where(eq(reviewBundle.imporBundleId, importId)).orderBy(desc(reviewBundle.createdAt)),
   ]);
   return {
     ...row,
@@ -435,7 +455,7 @@ export async function upsertProductItemReview(input: {
     if (!blockExists) throw new Error("PRODUCT_BLOCK_REVIEW_BLOCK_NOT_FOUND");
   }
   const now = new Date();
-  const id = stableId("review-product-item", `${input.importId}:${input.reviewerId}:${input.targetType}:${input.targetId}`);
+  const id = stableId("review-product-item", JSON.stringify([input.importId, input.reviewerId, input.targetType, input.productId, input.targetId]));
   await db.transaction(async (tx) => {
     await assertAuthoringActor(tx, input.reviewerId, { roles: [role], error: "PRODUCT_BUNDLE_REVIEW_FORBIDDEN", lock: true });
     if (role === "tutor" && (!row.courseId || !(await checkTutorCourseAccess(input.reviewerId, row.courseId, undefined, tx)).hasAccess)) throw new Error("PRODUCT_BUNDLE_REVIEW_COURSE_FORBIDDEN");
@@ -463,7 +483,7 @@ export async function upsertProductItemReview(input: {
         updatedAt: now,
       })
       .onConflictDoUpdate({
-        target: [reviewItemBundle.imporBundleId, reviewItemBundle.reviewerId, reviewItemBundle.targetType, reviewItemBundle.targetId],
+        target: [reviewItemBundle.imporBundleId, reviewItemBundle.reviewerId, reviewItemBundle.targetType, reviewItemBundle.targetId, reviewItemBundle.productId],
         set: { status: input.status, notes, updatedAt: now },
       });
   });

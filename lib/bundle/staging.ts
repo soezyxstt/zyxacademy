@@ -1,3 +1,4 @@
+import { revisionPublicationConnection } from "@/lib/authoring/revision-publication-context";
 import { normalizeDate } from "@/lib/date-utils";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { resolveAuthSecret } from "@/lib/auth-secret";
@@ -311,11 +312,11 @@ export async function stageIdeaBundle(input: IdeaBundleStageInput): Promise<Idea
 }
 
 export async function getIdeaBundleImport(importId: string) {
-  const [row] = await db.select().from(imporBundle).where(eq(imporBundle.id, importId)).limit(1);
+  const [row] = await revisionPublicationConnection().select().from(imporBundle).where(eq(imporBundle.id, importId)).limit(1);
   if (!row || row.bundleType !== "idea") return null;
   const [items, reviews] = await Promise.all([
-    db.select().from(itemImporBundle).where(eq(itemImporBundle.imporBundleId, importId)),
-    db.select().from(reviewBundle).where(eq(reviewBundle.imporBundleId, importId)).orderBy(desc(reviewBundle.createdAt)),
+    revisionPublicationConnection().select().from(itemImporBundle).where(eq(itemImporBundle.imporBundleId, importId)),
+    revisionPublicationConnection().select().from(reviewBundle).where(eq(reviewBundle.imporBundleId, importId)).orderBy(desc(reviewBundle.createdAt)),
   ]);
   return {
     ...row,
@@ -457,7 +458,7 @@ export async function upsertIdeaItemReview(input: {
       createdAt: now,
       updatedAt: now,
     }).onConflictDoUpdate({
-      target: [reviewItemBundle.imporBundleId, reviewItemBundle.reviewerId, reviewItemBundle.targetType, reviewItemBundle.targetId],
+      target: [reviewItemBundle.imporBundleId, reviewItemBundle.reviewerId, reviewItemBundle.targetType, reviewItemBundle.targetId, reviewItemBundle.productId],
       set: { status: input.status, notes, updatedAt: now },
     });
     const item = { ideaId: input.ideaId, status: input.status, notes };

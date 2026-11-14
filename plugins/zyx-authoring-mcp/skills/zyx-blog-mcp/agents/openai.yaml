@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zyx Blog MCP"
+  short_description: "Draft, edit and publish Zyx blog posts via MCP"
+  default_prompt: "Use $zyx-blog-mcp to create or update the requested blog through the intended Zyx MCP connection, inspect the exact revision and public impact, and publish only within the user's authorization."

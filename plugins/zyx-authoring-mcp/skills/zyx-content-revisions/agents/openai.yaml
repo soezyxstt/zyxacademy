@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zyx Content Revisions"
+  short_description: "Revise and release existing Zyx learning content"
+  default_prompt: "Use $zyx-content-revisions to update the requested existing Idea or learning Product by stable ID, retain the current live version during drafting, and prepare an exact reviewed release."

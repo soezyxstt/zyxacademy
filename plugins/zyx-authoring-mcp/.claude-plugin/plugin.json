@@ -1,7 +1,7 @@
 {
   "name": "zyx-authoring-mcp-staging",
-  "version": "0.4.1",
-  "description": "Author staging Zyx content through MCP quality gates.",
+  "version": "0.5.0",
+  "description": "Zyx staging MCP workflows",
   "author": {
     "name": "Zyx Academy"
   },
@@ -16,7 +16,12 @@
     "idea-bundle",
     "product-bundle",
     "question-bank",
-    "historical-reference"
+    "historical-reference",
+    "content-revisions",
+    "blog",
+    "forms",
+    "media",
+    "admin-operations"
   ],
   "mcpServers": "./.mcp.json"
 }

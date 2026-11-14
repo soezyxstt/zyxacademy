@@ -568,6 +568,7 @@ function workflowStaticDefinition(workflowKey: AuthoringWorkflow) {
     ? {
       ideaBundle: {
         schemaVersion: "idea-bundle.v3",
+        revisions: flexibleRevisionContract("idea"),
         compatibleReadVersions: ["idea-bundle.v2", "idea-bundle.v3"],
         validationTool: "authoring.validate_idea_bundle",
         reviewContextTool: "authoring.get_idea_review_context",
@@ -642,6 +643,7 @@ function workflowStaticDefinition(workflowKey: AuthoringWorkflow) {
 export function authoringContractSnapshot() {
   const payload = {
     version: AUTHORING_MCP_VERSION,
+    revisions: flexibleRevisionContract(),
     validation: authoringValidationSnapshot(),
     workflows: WORKFLOW_OPTIONS,
     contracts: {
@@ -1253,6 +1255,40 @@ export function quizBankScopeGuidance() {
   };
 }
 
+export function flexibleRevisionContract(kind?: "idea" | "product") {
+  return {
+    schemaVersion: "authoring-revisions.v1",
+    supportedKinds: kind ? [kind] : ["idea", "product"],
+    minimumBundleVersion: 3,
+    sourcePackRequired: false,
+    runTokenRequired: false,
+    verificationExecution: "Context and draft responses issue a fresh principal/session-bound runToken for the persisted stagingRunId and artifact scope. Use it with trusted verification or the private operator; renewing it does not adopt a run or clear evidence.",
+    bootstrapRequired: true,
+    bootstrapScope: "Fresh matching Idea/Product stage, bound to the current principal, session, environment and server contract. Mixed releases supply bootstrapTokens for every referenced kind.",
+    tools: {
+      context: "authoring.get_edit_context", create: "authoring.create_revision", patch: "authoring.patch_revision",
+      plan: "authoring.plan_release", prepareVerification: "authoring.prepare_revision_verification", review: "authoring.review_revision", publish: "authoring.publish_release",
+      history: "authoring.list_revisions", restore: "authoring.restore_revision",
+    },
+    prospectiveVerification: "When a mixed release changes Idea references needed by V4 verification, call authoring.prepare_revision_verification explicitly with stage scope and exact entries. Its server attestation binds those immutable candidates; authoring.plan_release does not write attestations. Then use the returned context execution runToken for trusted verification and inspect its actual evidence before review.",
+    toolSequence: ["authoring.get_edit_context", "authoring.create_revision", "authoring.patch_revision", "authoring.plan_release", "authoring.review_revision", "authoring.plan_release", "authoring.publish_release"],
+    scopes: { read: "authoring:read", edit: "authoring:stage", review: "authoring:review", publish: "authoring:publish" },
+    patch: { operations: ["set", "add", "remove", "move"], target: ["entityType", "entityId", "sectionId", "blockId", "itemId"], stableIdsOnly: true, numericArrayPaths: false, nestedSelectors: "steps[step-id].reasonMarkdown selects a stable nested item; selectors are never numeric offsets. Nested IDs use letters, digits, underscore, colon or hyphen. Replace the enclosing typed array for other valid IDs.", identityAndHashes: "Server managed. Actor IDs, scope, checksum and generation hashes cannot be supplied as edits." },
+    limits: { operations: 128, releaseEntries: 16, entityIds: 256, requestBytes: 524288 },
+    createRequiredInputs: ["kind", "baseImportId", "expectedRevision", "bootstrapToken"],
+    patchRequiredInputs: ["kind", "importId", "expectedRevision", "bootstrapToken", "operations"],
+    releaseRequiredInputs: ["entries", "bootstrapTokens"],
+    publishRequiredInputs: ["entries", "bootstrapTokens", "expectedPlanHash"],
+    releaseManifest: "References exact Idea/Product imports and revisions, including V3/V4/V5 together. Per-profile ZIP validation and evidence remain intact; this is not a mixed-schema archive.",
+    review: "Read each current reviewContext. Supply its explicit profile-specific evidence. To reuse unchanged units explicitly, send evidence.reuseUnchanged=true and evidence.reuseToken from the last-read context.reviewReuse alongside the final decision and new decisions for changed units. The service recomputes same-reviewer applicability and rejects a stale reuse token; changed parent, source or provenance context can require broader review. Article rubric and current V4 receipt remain explicit. Approval is never inferred from a successful edit.",
+    publication: "An explicit authorized admin release rechecks the observed plan, revisions, dependencies, own review, trusted V4 verification and V5 item decisions in one transaction. Any blocker preserves the previous live content.",
+    restore: "Read history and the current live context, then supply historicalImportId/expectedRevision and currentImportId/currentRevision. Restoration creates a new reviewable draft, never rewrites history or implicitly publishes.",
+    immutableDrafts: "Each accepted patch returns a successor importId and revision. Continue with that returned identity; earlier draft snapshots and their review audit remain immutable.",
+    recovery: "Read returned current revision, blockers and nextActions after conflicts. Resume durable drafts with a fresh session-bound bootstrap, without run adoption or a replacement Source Pack.",
+    websiteRequired: false,
+  };
+}
+
 export function productBundleV3Contract() {
   const v4 = { schemaVersion: "product-bundle.v4", articleSchemaVersion: "article.v4", orderedPartKinds: ["markdown", "math_unit", "visual_ref", "worked_example"], publicationReady: "derived from current trusted verification, explicit section review and PDF evidence", articleCount: 1, diktatCount: "at most one in draft, required for publication", scopedSymbolDefinitions: true,
       schemaDocuments: productV4SchemaDocuments().map(({ body: _body, ...document }) => document),
@@ -1299,6 +1335,7 @@ export function productBundleV3Contract() {
     };
   return {
     ...v4,
+    revisions: flexibleRevisionContract("product"),
     diktatSchemaVersion: "diktat.v4",
     compatibleReadVersions: ["product-bundle.v2", "product-bundle.v3", "product-bundle.v4", "product-bundle.v5"],
     pilot: v4,
