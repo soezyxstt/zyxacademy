@@ -2,13 +2,14 @@ import { afterAll, beforeAll, expect, mock, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import * as schema from "@/db/schema";
+import * as extras from "@/db/schedule-extras";
 import { createPostgresTestDb } from "../helpers/postgres";
 import { adminMcpTestPrincipal, seedAdminMcpAuthority } from "../helpers/admin-mcp-authority";
 
 const { client } = await createPostgresTestDb();
 const queries: { sql: string; params: unknown[] }[] = [];
 let failLegacyWrite = false;
-const database = drizzle(client, { schema, logger: { logQuery(sql, params) {
+const database = drizzle(client, { schema: { ...schema, ...extras }, logger: { logQuery(sql, params) {
   queries.push({ sql, params });
   if (failLegacyWrite && sql.startsWith('update "user"')) throw new Error("SIMULATED_LEGACY_WRITE_FAILURE");
 } } });
