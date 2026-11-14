@@ -3,7 +3,7 @@ import { strToU8, zipSync } from "fflate";
 import { articlePartsSchema, collectArticleVisualIds, materializeArticleParts } from "@/lib/materials/article-parts";
 import { materializeAuthoredDiktat, prepareAuthoredDiktatVisuals } from "@/lib/materials/diktat-v4";
 import { computeIdeaBundleChecksum, serializeDeterministically, validateIdeaBundle, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
-import { computeProductBundleChecksum, parseProductBundle, productEntitySchema, type ProductBundleValidation, type ProductEntity, type ProductDependency } from "@/lib/bundle/product-validator";
+import { computeProductBundleChecksum, parseProductBundle, productEntitySchema, type ProductBundleValidation, type ProductDependency } from "@/lib/bundle/product-validator";
 
 export type RevisionKind = "idea" | "product";
 export type RevisionPatchOperation = {
@@ -274,7 +274,7 @@ function impactFor(before: Record<string, Node[]>, after: Record<string, Node[]>
 function productArtifact(input: RevisionArtifactInput, original: ValidRevisionProductBundle): RevisionArtifactResult {
   if (!["product-bundle.v3", "product-bundle.v4", "product-bundle.v5"].includes(original.manifest.schemaVersion) || original.products.some(product => !supportedProducts.has(product.productType))) throw new Error("REVISION_PROFILE_UNSUPPORTED");
   if (new Set(original.products.map(product => product.id)).size !== original.products.length) throw new Error("REVISION_AMBIGUOUS_ENTITY_ID");
-  const before: Record<string, Node[]> = { products: clone(original.products) as Node[], dependencies: clone(original.dependencies) as Node[] };
+  const before: Record<string, Node[]> = { products: list(clone(original.products)), dependencies: list(clone(original.dependencies)) };
   const current = clone(before);
   for (const operation of input.operations) mutate(current, "product", operation);
   assertManagedIdentity(before, current);
@@ -388,7 +388,7 @@ function productArtifact(input: RevisionArtifactInput, original: ValidRevisionPr
 
 function ideaArtifact(input: RevisionArtifactInput, original: ValidatedIdeaBundle): RevisionArtifactResult {
   if (original.manifest.schemaVersion !== "idea-bundle.v3") throw new Error("REVISION_PROFILE_UNSUPPORTED");
-  const before: Record<string, Node[]> = { ideas: clone(original.entities.ideas) as Node[], provenance: clone(original.entities.provenance) as Node[], relations: clone(original.entities.relations) as Node[], learningSections: clone(original.entities.learningSections) as Node[] };
+  const before: Record<string, Node[]> = { ideas: list(clone(original.entities.ideas)), provenance: list(clone(original.entities.provenance)), relations: list(clone(original.entities.relations)), learningSections: list(clone(original.entities.learningSections)) };
   const current = clone(before);
   for (const operation of input.operations) mutate(current, "idea", operation);
   assertManagedIdentity(before, current);

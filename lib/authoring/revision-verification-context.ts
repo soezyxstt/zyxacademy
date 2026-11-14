@@ -159,7 +159,7 @@ export async function assertProspectiveReleaseDependencies(input: { productBundl
 }
 
 async function lockIdentities(entries: readonly Loaded[], connection: Connection): Promise<CanonicalLock[]> {
-  const locks = entries.flatMap(entry => [entry.bundle, entry.baseBundle].flatMap(bundle => "entities" in bundle ? [
+  const locks: CanonicalLock[] = entries.flatMap(entry => [entry.bundle, entry.baseBundle].flatMap(bundle => "entities" in bundle ? [
     ...bundle.entities.ideas.map(value => ({ domain: "idea" as const, entityType: "idea", entityId: value.id })),
     ...bundle.entities.sourceMaterials.map(value => ({ domain: "idea" as const, entityType: "source_material", entityId: value.id })),
     ...bundle.entities.sourceChunks.map(value => ({ domain: "idea" as const, entityType: "source_chunk", entityId: value.id })),
@@ -167,7 +167,7 @@ async function lockIdentities(entries: readonly Loaded[], connection: Connection
     { domain: "product" as const, entityType: product.productType, entityId: productVersionId(product.id, product.version) },
     ...product.ideaLinks.map(value => ({ domain: "idea" as const, entityType: "idea", entityId: value.id })),
     ...product.sourceRefs.flatMap(source => [{ domain: "idea" as const, entityType: "source_material", entityId: source.sourceId }, ...source.excerptIds.map(id => ({ domain: "idea" as const, entityType: "source_chunk", entityId: id }))]),
-  ]), ...bundle.dependencies.flatMap(dependency => dependency.upstreamEntityType === "product"
+  ]), ...bundle.dependencies.flatMap<CanonicalLock>(dependency => dependency.upstreamEntityType === "product"
     ? ["article", "diktat", "question", "solution", "flashcard_set", "flashcard", "assessment_blueprint", "solution_collection"].map(entityType => ({ domain: "product" as const, entityType, entityId: productVersionId(dependency.upstreamEntityId, dependency.upstreamVersion) }))
     : [{ domain: "idea" as const, entityType: dependency.upstreamEntityType, entityId: dependency.upstreamEntityId }]) ]));
   const chunks = [...new Set(locks.filter(lock => lock.entityType === "source_chunk").map(lock => lock.entityId))];
