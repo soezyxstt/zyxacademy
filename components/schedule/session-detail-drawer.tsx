@@ -50,7 +50,10 @@ export type PendingSessionResource = {
   sizeBytes?: number;
 };
 
+import type { LocalScheduleOperations } from "@/components/demo/use-demo-community";
+
 type SessionDetailDrawerProps = {
+  localOperations?: LocalScheduleOperations;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   booking: any | null;
@@ -161,6 +164,7 @@ export function SessionDetailDrawer({
   pendingResources = [],
   onPendingResourcesChange,
   onSuccess,
+  localOperations,
 }: SessionDetailDrawerProps) {
   const t = useTranslations("schedule");
   const effectiveRole = isAdmin ? "admin" : role || "student";
@@ -168,7 +172,7 @@ export function SessionDetailDrawer({
   const isStudent = effectiveRole === "student";
   const isTutor = effectiveRole === "teacher";
   const canEditPre = isStudent && booking?.status !== "completed" && booking?.status !== "cancelled";
-  const canEditPost = isTutor && booking?.status !== "cancelled";
+  const canEditPost = (isTutor || Boolean(localOperations)) && booking?.status !== "cancelled";
   const slot = booking?.slot;
 
   const [resources, setResources] = useState<{ pre: DrawerResource[]; post: DrawerResource[] }>({
@@ -183,9 +187,13 @@ export function SessionDetailDrawer({
   const [recordingUrl, setRecordingUrl] = useState("");
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [ticketOpen, setTicketOpen] = useState(false);
+  const [moveDate, setMoveDate] = useState("");
+  const [moveStart, setMoveStart] = useState("");
+  const [moveEnd, setMoveEnd] = useState("");
 
   useEffect(() => {
     setResources({ pre: resourcesFor(booking, "pre"), post: resourcesFor(booking, "post") });
+    setMoveDate(booking?.sessionDate || ""); setMoveStart(booking?.startTime || ""); setMoveEnd(booking?.endTime || "");
     setTopic(booking?.topic || "");
     setStudentNote(booking?.preSessionNotes || "");
     setSummary(booking?.postSessionNotes || "");
@@ -212,6 +220,11 @@ export function SessionDetailDrawer({
   };
 
   const uploadAndStoreFile = async (file: File, phase: "pre" | "post") => {
+    if (localOperations) {
+      const result = await localOperations.addResource(booking, { phase, kind: "file", label: file.name, file });
+      setResources(current => ({ ...current, [phase]: [...current[phase], result.resource] }));
+      return;
+    }
     const formData = new FormData();
     formData.append("file", file);
     formData.append("folder", `schedules/${booking.id}/${phase === "pre" ? "materials" : "notes"}`);
@@ -252,7 +265,7 @@ export function SessionDetailDrawer({
           uploadedCount += 1;
         } catch (error) {
           failedCount += 1;
-          console.error("Session resource upload error:", error);
+          if (!localOperations) console.error("Session resource upload error:", error);
         }
       }
       if (uploadedCount > 0) await refreshParent();
@@ -275,13 +288,13 @@ export function SessionDetailDrawer({
 
     setBusyAction(`link-${phase}-${kind}`);
     try {
-      const result = await addSessionResourceAction({
+      const result = await (localOperations ? localOperations.addResource(booking, { phase, kind, label: kind === "recording" ? t("session.recording") : value, url: value }) : addSessionResourceAction({
         bookingId: booking.id,
         phase,
         kind,
         label: kind === "recording" ? t("session.recording") : value,
         url: value,
-      });
+      }));
       if (!result.success) {
         toast.error(t("session.errors.addLink"));
         return;
@@ -293,7 +306,7 @@ export function SessionDetailDrawer({
       toast.success(t("session.linkAdded"));
       await refreshParent();
     } catch (error) {
-      console.error("Session resource link error:", error);
+      if (!localOperations) console.error("Session resource link error:", error);
       toast.error(t("session.errors.addLink"));
     } finally {
       setBusyAction(null);
@@ -301,19 +314,19 @@ export function SessionDetailDrawer({
   };
 
   const handleDeleteResource = async (resource: DrawerResource) => {
-    if (!isStudent || resource.phase !== "pre" || resource.createdById !== effectiveCurrentUserId) return;
+    if (!localOperations && (!isStudent || resource.phase !== "pre" || resource.createdById !== effectiveCurrentUserId)) return;
     setBusyAction(`delete-${resource.id}`);
     try {
-      const result = await deleteSessionResourceAction(resource.id);
+      const result = localOperations ? (await localOperations.deleteResource(booking, resource), { success: true }) : await deleteSessionResourceAction(resource.id);
       if (!result.success) {
         toast.error(t("session.errors.deleteResource"));
         return;
       }
-      updateLocalResources("pre", resources.pre.filter((item) => item.id !== resource.id));
+      updateLocalResources(resource.phase, resources[resource.phase].filter((item) => item.id !== resource.id));
       toast.success(t("session.resourceDeleted"));
       await refreshParent();
     } catch (error) {
-      console.error("Session resource delete error:", error);
+      if (!localOperations) console.error("Session resource delete error:", error);
       toast.error(t("session.errors.deleteResource"));
     } finally {
       setBusyAction(null);
@@ -323,7 +336,7 @@ export function SessionDetailDrawer({
   const handleSavePreContext = async () => {
     setBusyAction("pre-context");
     try {
-      const result = await updatePreSessionContextAction(booking.id, topic, studentNote);
+      const result = localOperations ? (await localOperations.update(booking, { topic, preSessionNotes: studentNote }), { success: true }) : await updatePreSessionContextAction(booking.id, topic, studentNote);
       if (!result.success) {
         toast.error(t("session.errors.saveContext"));
         return;
@@ -331,7 +344,7 @@ export function SessionDetailDrawer({
       toast.success(t("session.contextSaved"));
       await refreshParent();
     } catch (error) {
-      console.error("Pre-session context error:", error);
+      if (!localOperations) console.error("Pre-session context error:", error);
       toast.error(t("session.errors.saveContext"));
     } finally {
       setBusyAction(null);
@@ -341,7 +354,7 @@ export function SessionDetailDrawer({
   const handleCompleteSession = async () => {
     setBusyAction("complete");
     try {
-      const result = await completeTutorSessionAction(booking.id, summary);
+      const result = localOperations ? (await localOperations.update(booking, { postSessionNotes: summary, status: "completed" }), { success: true }) : await completeTutorSessionAction(booking.id, summary);
       if (!result.success) {
         toast.error(t("session.errors.saveSummary"));
         return;
@@ -349,7 +362,7 @@ export function SessionDetailDrawer({
       toast.success(t("session.summaryCompleted"));
       await refreshParent();
     } catch (error) {
-      console.error("Complete session error:", error);
+      if (!localOperations) console.error("Complete session error:", error);
       toast.error(t("session.errors.saveSummary"));
     } finally {
       setBusyAction(null);
@@ -380,11 +393,18 @@ export function SessionDetailDrawer({
       toast.success(t("session.pendingAdded", { label: pending.label }));
       await refreshParent();
     } catch (error) {
-      console.error("Retry session resource error:", error);
+      if (!localOperations) console.error("Retry session resource error:", error);
       toast.error(t("session.pendingFailed", { label: pending.label }));
     } finally {
       setBusyAction(null);
     }
+  };
+
+  const handleLocalChange = async (patch: Parameters<LocalScheduleOperations["update"]>[1]) => {
+    setBusyAction("schedule");
+    try { await localOperations?.update(booking, patch); await refreshParent(); }
+    catch { toast.error("Jadwal belum tersimpan. Periksa tanggal dan waktu, lalu coba lagi."); }
+    finally { setBusyAction(null); }
   };
 
   const renderResources = (phase: "pre" | "post") => {
@@ -394,11 +414,12 @@ export function SessionDetailDrawer({
     return (
       <ul className="space-y-1.5">
         {list.map((resource) => {
-          const canDelete = isStudent && phase === "pre" && resource.createdById === effectiveCurrentUserId;
+          const canDelete = Boolean(localOperations) || (isStudent && phase === "pre" && resource.createdById === effectiveCurrentUserId);
           return (
             <li key={resource.id} className="flex min-w-0 items-center gap-2">
               <a
-                href={resource.url}
+                href={resource.url || "#"}
+                onClick={localOperations && resource.kind === "file" ? event => { event.preventDefault(); void localOperations.download(resource).catch(() => toast.error("Berkas tidak tersedia di browser ini.")); } : undefined}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex min-w-0 flex-1 items-center gap-1.5 text-body-xs font-semibold text-brand-primary hover:underline"
@@ -599,7 +620,10 @@ export function SessionDetailDrawer({
                   {tickets.slice(0, 3).map((ticket: any) => <li key={ticket.id}>{ticket.type === "reschedule" ? t("ticket.reschedule") : t("ticket.cancellation")}: {ticket.status === "approved" ? t("ticket.status.approved") : ticket.status === "rejected" ? t("ticket.status.rejected") : t("ticket.status.pending")}, {ticket.reason}</li>)}
                 </ul>
               ) : <p className="text-body-xs text-muted-foreground">{t("session.noTickets")}</p>}
-              {canOpenTicket ? (
+              {localOperations && canOpenTicket ? <div className="space-y-2">
+                <div className="flex flex-wrap gap-2"><div><Label htmlFor="demo-move-date">Tanggal sesi</Label><Input id="demo-move-date" type="date" value={moveDate} onChange={event => setMoveDate(event.target.value)} /></div><div><Label htmlFor="demo-move-start">Mulai</Label><Input id="demo-move-start" type="time" value={moveStart} onChange={event => setMoveStart(event.target.value)} /></div><div><Label htmlFor="demo-move-end">Selesai</Label><Input id="demo-move-end" type="time" value={moveEnd} onChange={event => setMoveEnd(event.target.value)} /></div></div>
+                <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" disabled={Boolean(busyAction)} onClick={() => void handleLocalChange({ sessionDate: moveDate, startTime: moveStart, endTime: moveEnd })}>Ubah jadwal</Button><Button size="sm" variant="outline" disabled={Boolean(busyAction)} onClick={() => void handleLocalChange({ status: "cancelled" })}>Batalkan sesi</Button></div>
+              </div> : canOpenTicket ? (
                 <Button type="button" variant="outline" size="sm" onClick={() => setTicketOpen(true)} className="text-body-xs"><MessageSquare className="size-3.5" /> {isTutor ? t("session.reviewRequest") : t("session.requestChange")}</Button>
               ) : null}
               {onOpenAuditLog ? <Button type="button" variant="ghost" size="sm" onClick={() => onOpenAuditLog(booking)} className="text-body-xs"><History className="size-3.5" /> {t("session.openFullHistory")}</Button> : null}

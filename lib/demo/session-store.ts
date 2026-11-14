@@ -26,6 +26,7 @@ export function createDemoOverlayStore(storage: StorageAccess) {
 
   function record(scope: Scope, event: DemoEvent): void {
     const key = overlayKey(scope.courseId, scope.revision);
+    if (!dirty.has(key)) stale.add(key);
     const current = read(scope);
     const next = addDemoEvent(current, event);
     if (next === current) return;
@@ -66,10 +67,10 @@ let browserStore: DemoOverlayStore | undefined;
 export function getBrowserDemoOverlayStore(): DemoOverlayStore {
   if (typeof window === "undefined") throw new Error("Demo overlay store requires a browser");
   if (!browserStore) {
-    const store = createDemoOverlayStore(() => window.sessionStorage);
+    const store = createDemoOverlayStore(() => window.localStorage);
     window.addEventListener("storage", event => {
       try {
-        if (event.storageArea === window.sessionStorage && (event.key === null || event.key.startsWith("zyx-demo:1:"))) store.invalidate(event.key);
+        if (event.storageArea === window.localStorage && (event.key === null || event.key.startsWith("zyx-demo:1:"))) store.invalidate(event.key);
       } catch { /* Storage may be unavailable. */ }
     });
     window.addEventListener("pageshow", event => {

@@ -53,7 +53,7 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
     if (experience.mode !== "demo") return updateStudentProfileAction(previous, form);
     const validated = validateAcademicProfile({ faculty: String(form.get("faculty") ?? ""), major: String(form.get("major") ?? ""), entryYear: String(form.get("entryYear") ?? "") });
     if (validated.errorCode) return { success: false, message: "Periksa profil akademis.", errorCode: validated.errorCode, submittedAt: Date.now() };
-    try { sessionStorage.setItem(`zyx-demo-profile:${experience.baseline.map(row => row.revision).join(":")}`, JSON.stringify(validated.profile)); } catch { /* The fictional form remains usable without storage. */ }
+    try { localStorage.setItem(`zyx-demo-profile:${experience.baseline.map(row => row.revision).join(":")}`, JSON.stringify(validated.profile)); } catch { return { success: false, message: "Penyimpanan browser tidak tersedia.", submittedAt: Date.now() }; }
     return { success: true, message: "", submittedAt: Date.now() };
   }, INITIAL_STATE);
   const shownSubmission = useRef(0);

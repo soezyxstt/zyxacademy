@@ -2,7 +2,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { validateAcademicProfile, type AcademicProfile } from "@/lib/student/academic-profile";
-import { Bell, MessageSquareHeart, UserCheck, Code2, Compass, Target, Trophy, Users, Video } from "lucide-react";
+import { Bell, MessageSquareHeart, UserCheck, Code2, Compass, Target, Trophy, Video } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { tabListClassName, tabTriggerClassName, tabTriggerActiveClassName } from "@/components/ui/tab-styles";
@@ -19,6 +19,10 @@ import type { StudyPathStep } from "@/components/course/study-path-timeline";
 import { useTranslations } from "@/lib/i18n/client";
 import { demoProgress } from "@/lib/demo/progress-overlay";
 import type { DemoMastery } from "@/lib/demo/mastery";
+import { demoLeaderboard } from "@/lib/demo/leaderboard";
+import { emptyOverlay } from "@/lib/demo/session-overlay";
+import { useDemoSession } from "./demo-session";
+import { DemoGroups } from "./demo-groups";
 
 function DemoFeatureLoading() {
  return <div role="status" aria-busy="true" aria-label="Loading" className="space-y-4 py-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-12 w-full" /><Skeleton className="h-40 w-full" /></div>;
@@ -31,7 +35,6 @@ const StudentLeaderboardView = dynamic(() => import("@/components/student-leader
 const StudentCourseLeaderboardContent = dynamic(() => import("@/components/course/student-course-leaderboard-content").then(module => module.StudentCourseLeaderboardContent), { loading: DemoFeatureLoading });
 const LiveStudentPage = dynamic(() => import("@/app/(student)/courses/[id]/live/page"), { loading: DemoFeatureLoading });
 const StudentProfileView = dynamic(() => import("@/components/student-profile-view").then(module => module.StudentProfileView), { loading: DemoFeatureLoading });
-const StudentGroupsCompactClient = dynamic(() => import("@/components/dashboard/student-groups-compact-client").then(module => module.StudentGroupsCompactClient), { loading: DemoFeatureLoading });
 const SettingsClient = dynamic(() => import("@/app/(student)/settings/settings-client").then(module => module.SettingsClient), { loading: DemoFeatureLoading });
 const NotificationPreferencesForm = dynamic(() => import("@/app/(student)/settings/notifications/notification-preferences-form").then(module => module.NotificationPreferencesForm), { loading: DemoFeatureLoading });
 const StudyPathTimeline = dynamic(() => import("@/components/course/study-path-timeline").then(module => module.StudyPathTimeline), { loading: DemoFeatureLoading });
@@ -42,6 +45,13 @@ const StudentScheduleClient = dynamic(() => import("@/app/(student)/dashboard/sc
 
 export function DemoStudentPage({ view, experience: { content, snapshot }, mastery }: { view: string; experience: DemoSummary; mastery?: DemoMastery }) {
  const experience = useStudentExperience();
+ const { overlays, ready, generation } = useDemoSession();
+ const [rankings, setRankings] = useState<Record<string, ReturnType<typeof demoLeaderboard>>>({});
+ useEffect(() => {
+   if (!ready) return;
+   setRankings(Object.fromEntries(experience.baseline.map(row => [row.courseId,
+     demoLeaderboard(row, overlays[row.courseId] ?? emptyOverlay(), key => localStorage.getItem(key), experience.account?.name ?? "Pelajar Demo")])));
+ }, [experience.baseline, experience.account?.name, overlays, ready, generation]);
  const searchParams = useSearchParams();
  const [profile, setProfile] = useState<AcademicProfile | null>(null);
  const profileKey = `zyx-demo-profile:${experience.baseline.map(row => row.revision).join(":")}`;
@@ -49,7 +59,7 @@ export function DemoStudentPage({ view, experience: { content, snapshot }, maste
    if (view !== "profile" && view !== "profile-edit") return;
    let loaded: AcademicProfile | null = null;
    try {
-     const raw: unknown = JSON.parse(sessionStorage.getItem(profileKey) ?? "null");
+     const raw: unknown = JSON.parse(localStorage.getItem(profileKey) ?? "null");
      if (raw && typeof raw === "object") {
        const value = raw as Record<string, unknown>;
        if (typeof value.faculty === "string" && typeof value.major === "string" && typeof value.entryYear === "number") {
@@ -71,11 +81,11 @@ export function DemoStudentPage({ view, experience: { content, snapshot }, maste
    averageScore={84} userGroups={[]} studentBookings={[]} dbUser={profile ?? { faculty: "STEI", major: "Teknik Informatika", entryYear: 2026 }} />;
  if (view === "profile-edit") return <ApplicationPage><PageHeader title={<TranslatedText namespace="student" messageKey="profile.editTitle" />} icon={UserCheck} backHref={href("/profile")} backLabel={<TranslatedText namespace="student" messageKey="profile.pageTitle" />} /><div className="mt-6"><ProfileEditForm key={JSON.stringify(profile)} user={{ id: "fictional-demo-student", ...account, ...(profile ?? { faculty: "STEI", major: "Teknik Informatika", entryYear: 2026 }) }} /></div></ApplicationPage>;
  if (view === "reflections") return <StudentReflectionsView href={href} reflections={[]} />;
- const leaderboardByCourse = Object.fromEntries((experience.courses ?? []).map(course => [course.id, [{ rank: 1, name: account.name, avgScore: 84, attempts: 3 }]]));
+ const leaderboardByCourse = rankings;
  if (view === "leaderboard") return <StudentLeaderboardView href={href} allCourses={experience.courses ?? []} leaderboardByCourse={leaderboardByCourse} />;
  if (view === "course-leaderboard") {
    const activeType = searchParams.get("type") === "simulation" ? "simulation" : "quiz";
-   const rankedRows = [{ rank: 1, studentId: "fictional-demo-student", userId: "fictional-demo-student", displayName: account.name, studentName: account.name, attemptCount: 3, attempts: 3, avgScore: 84, score: 84, avgDuration: 240, correctHardCount: 2, attemptedMediumCount: 3 }];
+   const rankedRows = activeType === "quiz" ? rankings[courseId] ?? [] : demoLeaderboard(snapshot, emptyOverlay(), () => null, account.name, activeType);
    return <CoursePageShell title={t("leaderboard.title", { course: content.course.title })} icon={Trophy}>
      <nav aria-labelledby="leaderboard-type-label" className="mb-4"><span id="leaderboard-type-label" className="sr-only">{t("leaderboard.typeLabel")}</span><div className={tabListClassName}>
        <Link href={href(`/courses/${courseId}/leaderboard?type=quiz`)} aria-current={activeType === "quiz" ? "page" : undefined} className={cn(tabTriggerClassName, activeType === "quiz" && tabTriggerActiveClassName)}>{t("leaderboard.quiz")}</Link>
@@ -91,7 +101,7 @@ export function DemoStudentPage({ view, experience: { content, snapshot }, maste
    <PageHeader title={<TranslatedText namespace="student" messageKey="notificationPreferences.title" />} icon={Bell} backHref={href("/settings")} backLabel={<TranslatedText namespace="student" messageKey="settings.title" />} />
    <div className="mt-6"><NotificationPreferencesForm accountEmail={account.email} initialPreferences={DEFAULT_EMAIL_NOTIFICATION_PREFERENCES} /></div>
  </ApplicationPage>;
- if (view === "groups") return <ApplicationPage><PageHeader icon={Users} title={<TranslatedText namespace="student" messageKey="navigation.groups" />} /><StudentGroupsCompactClient initialGroups={[]} /></ApplicationPage>;
+ if (view === "groups") return <DemoGroups />;
  if (view === "schedule") return <StudentScheduleClient />;
  if (view === "video") return <CoursePageShell title={t("videoPage.title", { course: content.course.title })} icon={Video} backHref={href(`/courses/${courseId}`)} backLabel={t("videoPage.backToCourse")}>
    <CourseVideosClient courseId={courseId} courseTitle={content.course.title} initialPlaylists={[]} chapters={[]} canManage={false} hasFullContentAccess />

@@ -23,11 +23,11 @@ export function clearDemoTryoutCompletions(courseId: string): void {
   const prefix = `zyx-demo-tryout:1:${encodeURIComponent(courseId)}:`;
   try {
     const keys: string[] = [];
-    for (let index = 0; index < sessionStorage.length; index++) {
-      const key = sessionStorage.key(index);
+    for (let index = 0; index < localStorage.length; index++) {
+      const key = localStorage.key(index);
       if (key?.startsWith(prefix)) keys.push(key);
     }
-    for (const key of keys) sessionStorage.removeItem(key);
+    for (const key of keys) localStorage.removeItem(key);
   } catch { /* Storage may be unavailable. */ }
 }
 
