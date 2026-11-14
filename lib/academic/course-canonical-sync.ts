@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { auditMutasi, bab, chapters, courses, knowledgeObjects, mataKuliah, vectorSyncQueue } from "@/db/schema";
 import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
@@ -314,7 +314,10 @@ export async function saveChapterWithCanonicalProjection(
       if (!active.length) {
         const legacyRows = await tx.select({ id: chapters.id, orderIndex: chapters.orderIndex }).from(chapters)
           .where(eq(chapters.courseId, course.legacyCourseId)).orderBy(chapters.orderIndex);
-        if (legacyRows.length) await reorderChaptersWithCanonicalProjection(course.id, legacyRows.map((row) => row.id), input.actorId, tx);
+        const archived = await tx.select({ id: bab.id, legacyChapterId: bab.legacyChapterId }).from(bab).where(eq(bab.mataKuliahId, course.id));
+        const represented = new Set(archived.flatMap((row) => row.legacyChapterId ? [row.id, row.legacyChapterId] : [row.id]));
+        const unprojected = legacyRows.filter((row) => !represented.has(row.id));
+        if (unprojected.length) await reorderChaptersWithCanonicalProjection(course.id, unprojected.map((row) => row.id), input.actorId, tx);
       }
     }
     let existing = input.id ? await resolveChapter(tx, input.id, course) : null;
@@ -322,17 +325,23 @@ export async function saveChapterWithCanonicalProjection(
     if (!course.legacyCourseId && input.description) throw new Error("CHAPTER_PROJECTION_UNAVAILABLE");
     const [latest] = await tx.select({ orderIndex: bab.orderIndex }).from(bab)
       .where(eq(bab.mataKuliahId, course.id)).orderBy(desc(bab.orderIndex)).limit(1);
-    let orderIndex = !input.id && input.append ? (latest?.orderIndex ?? 0) + 1 : input.orderIndex;
+    const [latestLegacy] = !input.id && input.append && course.legacyCourseId
+      ? await tx.select({ orderIndex: chapters.orderIndex }).from(chapters)
+        .where(eq(chapters.courseId, course.legacyCourseId)).orderBy(desc(chapters.orderIndex)).limit(1)
+      : [];
+    let orderIndex = !input.id && input.append ? Math.max(latest?.orderIndex ?? 0, latestLegacy?.orderIndex ?? 0) + 1 : input.orderIndex;
     if (!Number.isSafeInteger(orderIndex) || orderIndex < 0) throw new Error("CHAPTER_ORDER_INVALID");
     const currentOrder = existing?.canonical?.orderIndex ?? existing?.legacy?.orderIndex;
     if (existing && currentOrder !== orderIndex) {
-      const active = await tx.select({ id: bab.id, orderIndex: bab.orderIndex }).from(bab)
-        .where(and(eq(bab.mataKuliahId, course.id), eq(bab.status, "active"))).orderBy(bab.orderIndex);
-      const legacyRows = !active.length && course.legacyCourseId
+      const all = await tx.select({ id: bab.id, legacyChapterId: bab.legacyChapterId, status: bab.status, orderIndex: bab.orderIndex }).from(bab)
+        .where(eq(bab.mataKuliahId, course.id)).orderBy(bab.orderIndex);
+      const legacyRows = course.legacyCourseId
         ? await tx.select({ id: chapters.id, orderIndex: chapters.orderIndex }).from(chapters)
           .where(eq(chapters.courseId, course.legacyCourseId)).orderBy(chapters.orderIndex)
         : [];
-      const ids = (active.length ? active : legacyRows).map((row) => row.id);
+      const represented = new Set(all.flatMap((row) => row.legacyChapterId ? [row.id, row.legacyChapterId] : [row.id]));
+      const ids = [...all.filter((row) => row.status === "active"), ...legacyRows.filter((row) => !represented.has(row.id))]
+        .sort((a, b) => a.orderIndex - b.orderIndex || a.id.localeCompare(b.id)).map((row) => row.id);
       const currentId = existing.canonical?.id ?? existing.legacy!.id;
       const index = ids.indexOf(currentId);
       if (index < 0) throw new Error("CHAPTER_ORDER_SCOPE_MISMATCH");
@@ -477,11 +486,39 @@ export async function reorderChaptersWithCanonicalProjection(
     const active = all.filter((row) => row.status === "active");
     const legacyRows = course.legacyCourseId ? await tx.select({ id: chapters.id, courseId: chapters.courseId, title: chapters.title, orderIndex: chapters.orderIndex })
       .from(chapters).where(eq(chapters.courseId, course.legacyCourseId)) : [];
-    const resolved = [] as Awaited<ReturnType<typeof resolveChapter>>[];
-    for (const id of chapterIds) resolved.push(await resolveChapter(tx, id, course));
-    const expected = active.length ? active.map((row) => row.id) : legacyRows.map((row) => row.id);
+    const lookupIds = [...new Set([...chapterIds, ...all.flatMap((row) => row.legacyChapterId ? [row.id, row.legacyChapterId] : [row.id])])];
+    const canonicalMatches = lookupIds.length ? await tx.select({ id: bab.id, courseId: bab.mataKuliahId, legacyChapterId: bab.legacyChapterId,
+      status: bab.status, orderIndex: bab.orderIndex, title: bab.title }).from(bab)
+      .where(or(inArray(bab.id, lookupIds), inArray(bab.legacyChapterId, lookupIds))) : [];
+    const legacyMatches = lookupIds.length ? await tx.select({ id: chapters.id, courseId: chapters.courseId, title: chapters.title, orderIndex: chapters.orderIndex })
+      .from(chapters).where(inArray(chapters.id, lookupIds)) : [];
+    const canonicalById = new Map<string, typeof canonicalMatches>();
+    for (const row of canonicalMatches) {
+      for (const id of new Set([row.id, row.legacyChapterId].filter((value): value is string => Boolean(value)))) {
+        canonicalById.set(id, [...(canonicalById.get(id) ?? []), row]);
+      }
+    }
+    const legacyById = new Map(legacyMatches.map((row) => [row.id, row]));
+    const findCanonical = (id: string) => {
+      const matches = canonicalById.get(id) ?? [];
+      if (matches.length > 1) throw new Error("CHAPTER_IDENTITY_AMBIGUOUS");
+      return matches[0] ?? null;
+    };
+    const resolved = chapterIds.map((id) => {
+      const canonical = findCanonical(id);
+      if (canonical && canonical.courseId !== course.id) throw new Error("CHAPTER_NOT_FOUND");
+      if (canonical?.legacyChapterId && findCanonical(canonical.legacyChapterId)?.id !== canonical.id) throw new Error("CHAPTER_IDENTITY_AMBIGUOUS");
+      if (canonical && legacyById.has(canonical.id) && canonical.legacyChapterId !== canonical.id) throw new Error("CHAPTER_IDENTITY_AMBIGUOUS");
+      const legacy = legacyById.get(canonical ? canonical.legacyChapterId ?? "" : id) ?? null;
+      if (canonical?.legacyChapterId && !legacy) throw new Error("CHAPTER_IDENTITY_AMBIGUOUS");
+      if (legacy && legacy.courseId !== course.legacyCourseId) throw new Error("CHAPTER_NOT_FOUND");
+      if (!canonical && !legacy) throw new Error("CHAPTER_NOT_FOUND");
+      return { canonical, legacy };
+    });
+    const expected = [...active.map((row) => row.id), ...legacyRows.filter((row) => !findCanonical(row.id)).map((row) => row.id)];
     const actual = resolved.map((row) => row.canonical?.id ?? row.legacy!.id);
-    if (actual.length !== expected.length || new Set(actual).size !== actual.length || expected.some((id) => !actual.includes(id)) || resolved.some((row) => row.canonical && row.canonical.status !== "active")) {
+    const actualIds = new Set(actual);
+    if (actual.length !== expected.length || actualIds.size !== actual.length || expected.some((id) => !actualIds.has(id)) || resolved.some((row) => row.canonical && row.canonical.status !== "active")) {
       throw new Error("CHAPTER_ORDER_SCOPE_MISMATCH");
     }
     let next = all.reduce((max, row) => Math.max(max, row.orderIndex), chapterIds.length);

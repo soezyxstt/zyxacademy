@@ -409,11 +409,11 @@ export async function getCourseDetailData(courseId: string) {
     ? await getDemoCourseEligibility(canonicalCourse.id)
     : null;
 
-  const [babList, legacyChapters, materialsList, quizTemplatesList, rawQuestions] = await Promise.all([
+  const [allBab, legacyChapters, materialsList, quizTemplatesList, rawQuestions] = await Promise.all([
     db
       .select()
       .from(bab)
-      .where(and(eq(bab.mataKuliahId, canonicalCourseId), eq(bab.status, "active")))
+      .where(eq(bab.mataKuliahId, canonicalCourseId))
       .orderBy(asc(bab.orderIndex)),
     db
       .select()
@@ -441,6 +441,9 @@ export async function getCourseDetailData(courseId: string) {
       )
       .orderBy(desc(aiQuestionBank.createdAt)),
   ]);
+  const babList = allBab.filter((chapter) => chapter.status === "active");
+  const representedLegacyIds = new Set(allBab.flatMap((chapter) => chapter.legacyChapterId ? [chapter.id, chapter.legacyChapterId] : [chapter.id]));
+  const unprojectedLegacy = legacyChapters.filter((chapter) => !representedLegacyIds.has(chapter.id));
 
   // Map chapters from canonical bab if available, preserving legacy descriptions
   let chaptersList: Array<{
@@ -457,7 +460,7 @@ export async function getCourseDetailData(courseId: string) {
 
   if (babList.length > 0) {
     const legacyMap = new Map(legacyChapters.map((lc) => [lc.id, lc]));
-    chaptersList = babList.map((b) => {
+    chaptersList = [...babList.map((b) => {
       const legacy = legacyMap.get(b.legacyChapterId ?? "") || legacyMap.get(b.id);
       return {
         id: b.id,
@@ -470,9 +473,14 @@ export async function getCourseDetailData(courseId: string) {
         updatedAt: b.updatedAt,
         legacyChapterId: b.legacyChapterId ?? null,
       };
-    });
+    }), ...unprojectedLegacy.map((ch) => ({
+      id: ch.id, courseId: canonicalCourseId, title: ch.title, orderIndex: ch.orderIndex,
+      description: ch.description, status: ch.status, createdAt: ch.createdAt,
+      updatedAt: ch.updatedAt, legacyChapterId: ch.id,
+    }))];
+    chaptersList.sort((a, b) => a.orderIndex - b.orderIndex || a.id.localeCompare(b.id));
   } else {
-    chaptersList = legacyChapters.map((ch) => ({
+    chaptersList = unprojectedLegacy.map((ch) => ({
       id: ch.id,
       courseId: canonicalCourseId,
       title: ch.title,
@@ -637,6 +645,7 @@ export async function getAllChapters() {
 
 function revalidateChapterPaths(courseIds: string[]) {
   revalidatePath("/admin/courses");
+  // shortcut: layout patterns also invalidate other courses, narrow this when per-course tags cover nested reads.
   revalidatePath("/(admin)/admin/(academic)/courses/[slug]", "layout");
   revalidatePath("/(student)/courses/[id]", "layout");
   for (const id of new Set(courseIds)) {

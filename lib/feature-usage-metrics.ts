@@ -9,7 +9,7 @@ import {
   tutorChatMessages,
 } from "@/db/schema";
 import { and, eq, sql, type AnyColumn } from "drizzle-orm";
-import { daysAgo, formatIsoDateUtc } from "@/lib/date-utils";
+import { elapsedDaysAgo, formatIsoDateUtc } from "@/lib/date-utils";
 
 export const FEATURE_USAGE_RANGES = [7, 30, 90] as const;
 export type FeatureUsageRange = (typeof FEATURE_USAGE_RANGES)[number];
@@ -71,7 +71,7 @@ const dayExpr = (column: AnyColumn) =>
 
 export function featureUsageDailyDates(rangeDays: FeatureUsageRange, now: Date): string[] {
   return Array.from({ length: rangeDays + 1 }, (_, i) =>
-    formatIsoDateUtc(daysAgo(rangeDays - i, now)),
+    formatIsoDateUtc(elapsedDaysAgo(rangeDays - i, now)),
   );
 }
 
@@ -83,8 +83,8 @@ export async function getFeatureUsageMetrics(
   rangeDays: FeatureUsageRange
 ): Promise<FeatureUsageMetrics> {
   const now = new Date();
-  const windowStart = daysAgo(rangeDays, now);
-  const startEpochSeconds = Math.floor(windowStart.getTime() / 1000);
+  const windowStart = elapsedDaysAgo(rangeDays, now);
+  const startEpochSeconds = windowStart.getTime() / 1000;
   const endEpochSeconds = now.getTime() / 1000;
 
   const [

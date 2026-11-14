@@ -44,7 +44,7 @@ describe("public account menu", () => {
         ["student", ["admin"], ["/profile", "/dashboard", "/tutor", "/admin"]],
       ] as const) {
         user = { name: "Test", role, roles };
-        expect(links(exports.NavProfileOrSignIn({ variant }))).toEqual(expected);
+        expect(links(exports.NavProfileOrSignIn({ variant }))).toEqual([...expected]);
       }
     });
   }

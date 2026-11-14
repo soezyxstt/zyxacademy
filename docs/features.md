@@ -446,8 +446,9 @@ Zyra uses bounded, session-scoped conversation context to interpret follow-up qu
 
 ### Structured Form Upload Storage System
 
-- All public form file response uploads and admin form builder question attachments are saved under a structured R2 storage key hierarchy: `forms/[slugified-judul-forms]/question-[number]/[timestamp]-[hash]-[filename]`.
+- Form response uploads and builder question images use the active object storage provider with keys under `forms/[slugified-judul-forms]/question-[number]/[timestamp]-[hash]-[filename]`.
 - Path key resolution is handled deterministically via `lib/forms/storage-utils.ts` (`buildFormStorageKey`) and `/api/forms/upload`.
+- The storage proxy serves a question image publicly only while a non-deleted form references its proxy URL. Other form files require an active canonical admin role; response answers cannot prove upload ownership. A respondent can download a local copy of a new upload. External legacy URLs retain their own access policy and query strings.
 
 ### Course Material Batch Upload (Admin)
 
@@ -533,7 +534,7 @@ Zyra uses bounded, session-scoped conversation context to interpret follow-up qu
 
 ### Scheduling & Calendar System (Model Kelompok Belajar)
 
-The canonical scheduling workflow uses concrete, date-specific 90-minute tutor slots. The route determines the perspective: `/dashboard/schedule` remains the global student calendar for every signed-in role, `/dashboard/schedule?course=<id>` shows only that course's slots, bookings, academic events and eligible groups, `/tutor/schedule` is the tutor workspace, and `/admin/schedules` is the administrative global calendar. Course scope accepts mapped canonical and legacy IDs. Student booking details remain limited to the account's memberships; visiting this route with an Admin role does not grant administrative calendar controls. After booking or session mutations, the client clears all cached weeks and rejects older prefetch results. Authenticated runtime verification remains open.
+The canonical scheduling workflow uses concrete, date-specific 90-minute tutor slots. The route determines the perspective: `/dashboard/schedule` remains the global student calendar for every signed-in role, `/dashboard/schedule?course=<id>` shows only that course's slots, bookings, academic events and eligible groups, `/tutor/schedule` is the tutor workspace, and `/admin/schedules` is the administrative global calendar. Course scope accepts mapped canonical and legacy IDs. Student booking details remain limited to the account's memberships; visiting this route with an Admin role does not grant administrative calendar controls. The client loads weeks on demand and clears cached weeks after booking or session mutations, rejecting older responses. Authenticated runtime verification remains open.
 
 - Group Ownership & Collaborative Booking:
   - Tutoring sessions are booked on behalf of Study Groups.

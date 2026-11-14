@@ -9,7 +9,14 @@ import { db } from "@/db";
 import {
   user,
   groups,
+  groupCourses,
   groupMembers,
+  tutorCourses,
+  penugasanTutor,
+  mataKuliah,
+  pengguna,
+  penggunaPeran,
+  peran,
   tutorSlots,
   bookings,
   bookingResources,
@@ -19,7 +26,7 @@ import {
   academicSchedules,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { eq, and, desc, inArray, sql, gte, lte, lt, gt, isNotNull, isNull, or } from "drizzle-orm";
+import { eq, and, desc, inArray, notInArray, sql, gte, lte, lt, gt, isNotNull, isNull, or } from "drizzle-orm";
 import { daysFrom } from "@/lib/date-utils";
 import { canBookTutorialSlot } from "@/lib/schedule/week-policy";
 import {
@@ -44,6 +51,7 @@ import { executeDecideTutorRescheduleTicket } from "@/app/(tutor)/tutor/schedule
 import { recordMutationAudit } from "@/lib/audit/mutasi";
 import { type DbExecutor } from "@/lib/auth/tutor-access";
 import { listStudentEnrollments } from "@/lib/student/course-catalog";
+import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 
 import {
   addBookingResource,
@@ -75,8 +83,14 @@ async function requireUser() {
 
 // ── GET SCHEDULE DATA ─────────────────────────────────────────────────────────
 
-export async function getScheduleData(weekOffset = 0) {
+export async function getScheduleData(weekOffset = 0, courseId?: string) {
   const currentUser = await requireUser();
+
+  const selectedCourse = courseId ? await resolveCourseIdentity(courseId) : null;
+  if (courseId && (!selectedCourse || selectedCourse.status !== "active")) {
+    throw new Error("COURSE_NOT_FOUND");
+  }
+  const courseIds = selectedCourse?.allIds;
 
   const dbUser = await db.query.user.findFirst({
     where: eq(user.id, currentUser.id),
@@ -100,6 +114,7 @@ export async function getScheduleData(weekOffset = 0) {
   const allAcademicSchedules = await db.query.academicSchedules.findMany({
     where: and(
       eq(academicSchedules.status, "published"),
+      courseIds ? inArray(academicSchedules.courseId, courseIds) : undefined,
       lte(academicSchedules.startDate, new Date(`${viewWeekEnd}T23:59:59.999+07:00`)),
       or(
         isNull(academicSchedules.endDate),
@@ -116,11 +131,15 @@ export async function getScheduleData(weekOffset = 0) {
   // ── STUDENT ROLE DATA ───────────────────────────────────────────────────────
   // 1. Get student study groups
   const myMemberships = await db.query.groupMembers.findMany({
-    where: eq(groupMembers.userId, dbUser.id),
+    where: and(
+      eq(groupMembers.userId, dbUser.id),
+      courseIds ? inArray(groupMembers.groupId, db.select({ id: groupCourses.groupId }).from(groupCourses).where(inArray(groupCourses.courseId, courseIds))) : undefined,
+    ),
     with: {
       group: {
         with: {
           courses: {
+            where: courseIds ? inArray(groupCourses.courseId, courseIds) : undefined,
             with: {
               course: true,
             },
@@ -146,7 +165,7 @@ export async function getScheduleData(weekOffset = 0) {
   }));
 
   // 2. Get student active enrollments
-  const activeEnrollments = (await listStudentEnrollments(dbUser.id)).map((enrollment) => ({
+  const activeEnrollments = (await listStudentEnrollments(dbUser.id)).filter((enrollment) => !courseIds || courseIds.includes(enrollment.id)).map((enrollment) => ({
     id: enrollment.id,
     enrolledAt: enrollment.enrolledAt,
     expiresAt: enrollment.expiresAt,
@@ -159,16 +178,47 @@ export async function getScheduleData(weekOffset = 0) {
   }));
 
   // 3. Find all available tutor slots with tutors & their certified courses
+  const legacyTutorIds = courseIds
+    ? db.select({ id: tutorCourses.tutorId }).from(tutorCourses).where(inArray(tutorCourses.courseId, courseIds))
+    : null;
+  const tutorCourseFilter = selectedCourse?.canonicalId && legacyTutorIds
+    ? and(
+      inArray(tutorSlots.tutorId, db.select({ id: pengguna.id }).from(pengguna)
+        .innerJoin(penggunaPeran, eq(penggunaPeran.penggunaId, pengguna.id))
+        .innerJoin(peran, eq(peran.id, penggunaPeran.peranId))
+        .where(and(eq(pengguna.status, "active"), inArray(peran.code, ["tutor", "admin"]))),
+      ),
+      or(
+        inArray(tutorSlots.tutorId, db.select({ id: pengguna.id }).from(pengguna)
+          .innerJoin(penggunaPeran, eq(penggunaPeran.penggunaId, pengguna.id))
+          .innerJoin(peran, eq(peran.id, penggunaPeran.peranId))
+          .where(and(eq(pengguna.status, "active"), eq(peran.code, "admin"))),
+        ),
+        inArray(tutorSlots.tutorId, db.select({ id: penugasanTutor.penggunaId }).from(penugasanTutor).where(and(
+          eq(penugasanTutor.mataKuliahId, selectedCourse.canonicalId),
+          eq(penugasanTutor.status, "active"),
+          eq(penugasanTutor.assignmentScope, "course"),
+        ))),
+        and(
+          inArray(tutorSlots.tutorId, legacyTutorIds),
+          notInArray(tutorSlots.tutorId, db.select({ id: penugasanTutor.penggunaId }).from(penugasanTutor)
+            .where(eq(penugasanTutor.mataKuliahId, selectedCourse.canonicalId))),
+        ),
+      ),
+    )
+    : legacyTutorIds ? inArray(tutorSlots.tutorId, legacyTutorIds) : undefined;
   const allTutorSlots = await db.query.tutorSlots.findMany({
     where: and(
       isNotNull(tutorSlots.sessionDate),
       gte(tutorSlots.sessionDate, viewWeekStart),
       lte(tutorSlots.sessionDate, viewWeekEnd),
+      tutorCourseFilter,
     ),
     with: {
       tutor: {
         with: {
           tutorCourses: {
+            where: courseIds ? inArray(tutorCourses.courseId, courseIds) : undefined,
             with: {
               course: true,
             },
@@ -183,11 +233,59 @@ export async function getScheduleData(weekOffset = 0) {
     },
   });
 
+  const tutorIds = [...new Set(allTutorSlots.map((slot) => slot.tutorId))];
+  const filterCourseIds = new Set(courseIds ? [] : [
+    ...activeEnrollments.map((row) => row.id),
+    ...myGroups.flatMap((group) => group.courses.map((row) => row.courseId)),
+  ]);
+  const courseLookupIds = !courseIds
+    ? [...new Set([
+      ...allTutorSlots.flatMap((slot) => (slot.tutor?.tutorCourses ?? []).map((row) => row.courseId)),
+      ...filterCourseIds,
+    ])]
+    : [];
+  const [canonicalAssignments, eligibleTutors, mappedCourses] = !courseIds && tutorIds.length
+    ? await Promise.all([db.select({ tutorId: penugasanTutor.penggunaId, courseId: penugasanTutor.mataKuliahId,
+        status: penugasanTutor.status, scope: penugasanTutor.assignmentScope,
+        legacyCourseId: mataKuliah.legacyCourseId, courseStatus: mataKuliah.status })
+        .from(penugasanTutor).innerJoin(mataKuliah, eq(mataKuliah.id, penugasanTutor.mataKuliahId))
+        .where(inArray(penugasanTutor.penggunaId, tutorIds)),
+      db.select({ id: pengguna.id, role: peran.code }).from(pengguna)
+        .innerJoin(penggunaPeran, eq(penggunaPeran.penggunaId, pengguna.id))
+        .innerJoin(peran, eq(peran.id, penggunaPeran.peranId))
+        .where(and(inArray(pengguna.id, tutorIds), eq(pengguna.status, "active"), inArray(peran.code, ["tutor", "admin"]))),
+      courseLookupIds.length ? db.select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId, status: mataKuliah.status })
+        .from(mataKuliah).where(or(inArray(mataKuliah.id, courseLookupIds), inArray(mataKuliah.legacyCourseId, courseLookupIds))) : [],
+    ])
+    : [[], [], []];
+  const eligibleTutorIds = new Set(eligibleTutors.map((row) => row.id));
+  const adminTutorIds = new Set(eligibleTutors.filter((row) => row.role === "admin").map((row) => row.id));
+  const coursesByAlias = new Map<string, typeof mappedCourses>();
+  for (const row of mappedCourses) {
+    for (const id of new Set([row.id, row.legacyCourseId].filter((value): value is string => Boolean(value)))) {
+      const matches = coursesByAlias.get(id) ?? [];
+      matches.push(row);
+      coursesByAlias.set(id, matches);
+    }
+  }
+  const adminCourseIds = mappedCourses.flatMap((row) => {
+    const ids = row.legacyCourseId ? [row.id, row.legacyCourseId] : [row.id];
+    return row.status === "active" && ids.some((id) => filterCourseIds.has(id)) && ids.every((id) => coursesByAlias.get(id)?.length === 1) ? ids : [];
+  });
+  const assignmentsByTutor = new Map<string, typeof canonicalAssignments>();
+  for (const row of canonicalAssignments) {
+    const assignments = assignmentsByTutor.get(row.tutorId) ?? [];
+    assignments.push(row);
+    assignmentsByTutor.set(row.tutorId, assignments);
+  }
+  const coursesByTutor = new Map<string, string[]>();
+
   // 4. Get bookings made by the student's groups
   const groupBookings = myGroupIds.length
     ? await db.query.bookings.findMany({
         where: and(
           inArray(bookings.groupId, myGroupIds),
+          courseIds ? inArray(bookings.courseId, courseIds) : undefined,
           gte(bookings.sessionDate, viewWeekStart),
           lte(bookings.sessionDate, viewWeekEnd),
         ),
@@ -238,10 +336,30 @@ export async function getScheduleData(weekOffset = 0) {
   // booking details in the group-scoped read above so another group's topic,
   // notes, resources, audit entries, and ticket thread are never exposed as
   // part of the availability payload.
-  const availableSlots = allTutorSlots.map(({ bookings: occupants, ...slot }) => ({
-    ...slot,
-    booking: occupants[0] ?? null,
-  }));
+  const availableSlots = allTutorSlots.flatMap(({ bookings: occupants, ...slot }) => {
+    if (!courseIds && !coursesByTutor.has(slot.tutorId)) {
+      const assignments = assignmentsByTutor.get(slot.tutorId) ?? [];
+      const blocked = new Set(assignments.flatMap((row) => row.legacyCourseId ? [row.legacyCourseId] : []));
+      const compatible = assignments.flatMap((row) => {
+        const ids = row.legacyCourseId ? [row.courseId, row.legacyCourseId] : [row.courseId];
+        return eligibleTutorIds.has(slot.tutorId) && row.courseStatus === "active"
+          && (adminTutorIds.has(slot.tutorId) || (row.status === "active" && row.scope === "course"))
+          && ids.every((id) => !coursesByAlias.has(id) || (coursesByAlias.get(id)?.length === 1 && coursesByAlias.get(id)?.[0].id === row.courseId))
+          ? ids : [];
+      });
+      const legacy = (slot.tutor?.tutorCourses ?? []).flatMap((row) => {
+        const id = row.courseId;
+        if (blocked.has(id)) return [];
+        const matches = coursesByAlias.get(id) ?? [];
+        if (!matches.length) return [id];
+        return matches.length === 1 && matches[0].legacyCourseId === id && matches[0].status === "active" && eligibleTutorIds.has(slot.tutorId)
+          ? [id, matches[0].id] : [];
+      });
+      coursesByTutor.set(slot.tutorId, [...new Set([...compatible, ...legacy, ...(adminTutorIds.has(slot.tutorId) ? adminCourseIds : [])])]);
+    }
+    const matchedCourseIds = courseIds ?? coursesByTutor.get(slot.tutorId) ?? [];
+    return matchedCourseIds.length ? [{ ...slot, matchedCourseIds, booking: occupants[0] ?? null }] : [];
+  });
 
   return {
     role: "student" as const,

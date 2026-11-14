@@ -27,7 +27,7 @@ export default async function StudentSchedulePage({ searchParams }: { searchPara
         </ApplicationPage>
       }
     >
-      <StudentScheduleClient selectedCourse={selectedCourse ? { id: selectedCourse.primaryId, title: selectedCourse.title, compatibleCourseIds: selectedCourse.allIds } : undefined} />
+      <StudentScheduleClient key={selectedCourse?.primaryId ?? "all"} selectedCourse={selectedCourse ? { id: selectedCourse.primaryId, title: selectedCourse.title, compatibleCourseIds: selectedCourse.allIds } : undefined} />
     </Suspense>
   );
 }

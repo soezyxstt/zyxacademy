@@ -7,6 +7,8 @@ const data = {
   user: { id: "current-account", role: "admin" },
   availableSlots: [
     { id: "a-slot", tutor: { tutorCourses: [{ courseId: "legacy-a" }] } },
+    { id: "canonical-slot", matchedCourseIds: ["a", "legacy-a"], tutor: { tutorCourses: [] } },
+    { id: "revoked-slot", matchedCourseIds: [], tutor: { tutorCourses: [{ courseId: "legacy-a" }] } },
     { id: "b-slot", tutor: { tutorCourses: [{ course: { id: "b" } }] } },
   ],
   groupBookings: [{ id: "a-booking", courseId: "a" }, { id: "b-booking", courseId: "b" }],
@@ -35,7 +37,7 @@ test("selecting a course keeps events under its compatible ID and excludes other
 
 test("course calendar excludes other courses and global events while accepting canonical and legacy IDs", () => {
   const scoped = scopeStudentSchedule(data, ["a", "legacy-a"]);
-  expect(scoped.availableSlots?.map(row => row.id)).toEqual(["a-slot"]);
+  expect(scoped.availableSlots?.map(row => row.id)).toEqual(["a-slot", "canonical-slot"]);
   expect(scoped.groupBookings?.map(row => row.id)).toEqual(["a-booking"]);
   expect(scoped.academicSchedules?.map(row => row.id)).toEqual(["a-exam"]);
   expect(scoped.enrollments).toEqual([{ course: { id: "a" } }]);

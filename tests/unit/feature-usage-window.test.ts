@@ -14,7 +14,7 @@ mock.module("@/db/schema", () => ({
 }));
 mock.module("drizzle-orm", () => ({ and: (...values: unknown[]) => values, eq: () => {}, sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }) }));
 mock.module("@/lib/date-utils", () => ({
-  daysAgo: (days: number, date: Date) => new Date(date.getTime() - days * 86_400_000),
+  elapsedDaysAgo: (days: number, date: Date) => new Date(date.getTime() - days * 86_400_000),
   formatIsoDateUtc: (date: Date) => date.toISOString().slice(0, 10),
 }));
 
@@ -39,7 +39,6 @@ test("totals, daily counts and unique users share a bounded window that excludes
     expect(strings.join("")).toContain("<= to_timestamp");
     expect(values[3]).toBeGreaterThanOrEqual(before);
     expect(values[3]).toBeLessThanOrEqual(Date.now() / 1000);
-    expect(values[3] - values[1]).toBeGreaterThanOrEqual(7 * 86400);
-    expect(values[3] - values[1]).toBeLessThan(7 * 86400 + 1);
+    expect(values[3] - values[1]).toBeCloseTo(7 * 86400, 4);
   }
 });

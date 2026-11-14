@@ -552,7 +552,9 @@ export function ScheduleCalendarView({
     if (courseFilter !== "all") {
       if (event.kind === "availability") {
         const tutorCourses = event.source?.tutor?.tutorCourses || [];
-        const hasCourse = tutorCourses.some((entry: any) => matchesScheduleCourse(entry.courseId || entry.course?.id, courseFilter, compatibleCourseIds));
+        const hasCourse = event.source?.matchedCourseIds
+          ? event.source.matchedCourseIds.some((id: string) => matchesScheduleCourse(id, courseFilter, compatibleCourseIds))
+          : tutorCourses.some((entry: any) => matchesScheduleCourse(entry.courseId || entry.course?.id, courseFilter, compatibleCourseIds));
         if (!hasCourse) return false;
       } else if (!matchesScheduleCourse(event.courseId, courseFilter, compatibleCourseIds)) {
         return false;

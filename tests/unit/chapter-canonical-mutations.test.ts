@@ -15,6 +15,7 @@ type Predicate = (row: Row) => boolean;
 const eq = (col: Column, value: unknown): Predicate => (row) => row[col.key] === value;
 const and = (...predicates: Predicate[]): Predicate => (row) => predicates.every((p) => p(row));
 const or = (...predicates: Predicate[]): Predicate => (row) => predicates.some((p) => p(row));
+const inArray = (col: Column, values: unknown[]): Predicate => (row) => values.includes(row[col.key]);
 const desc = (col: Column) => ({ col, desc: true });
 const sql = (parts: TemplateStringsArray, ...values: unknown[]) => ({ parts, values });
 
@@ -23,6 +24,7 @@ let lockTail = Promise.resolve();
 let locks = 0;
 let maxLocks = 0;
 let lockCalls = 0;
+let selectCalls = 0;
 function reset() {
   data.courses = [{ id: "legacy-course" }];
   data.mataKuliah = [{ id: "canonical-course", legacyCourseId: "legacy-course", status: "active" }];
@@ -32,7 +34,7 @@ function reset() {
   data.knowledgeObjects = [];
   data.vectorSyncQueue = [];
   dispatched.length = 0;
-  locks = 0; maxLocks = 0; lockCalls = 0; lockTail = Promise.resolve();
+  locks = 0; maxLocks = 0; lockCalls = 0; selectCalls = 0; lockTail = Promise.resolve();
 }
 function fakeTransaction() {
   let release: (() => void) | undefined;
@@ -53,6 +55,7 @@ function fakeTransaction() {
       await Promise.resolve();
     },
     select(fields: Record<string, Column>) {
+      selectCalls++;
       let source: string;
       let predicate: Predicate = () => true;
       let sort: any;
@@ -96,7 +99,7 @@ const db = { async transaction<T>(fn: (tx: ReturnType<typeof fakeTransaction>) =
   const tx = fakeTransaction();
   try { return await fn(tx); } finally { tx.finish(); }
 } };
-mock.module("drizzle-orm", () => ({ and, desc, eq, or, sql }));
+mock.module("drizzle-orm", () => ({ and, desc, eq, inArray, or, sql }));
 mock.module("@/db/schema", () => ({ auditMutasi, bab, chapters, courses, mataKuliah, knowledgeObjects, vectorSyncQueue }));
 mock.module("@/lib/vector-sync-dispatch", () => ({ dispatchVectorSync: async (courseId: string) => { dispatched.push(courseId); } }));
 mock.module("@/db", () => ({ db }));
@@ -134,6 +137,13 @@ describe("chapter identity and ordering with a fake transaction", () => {
     expect(lockCalls).toBe(2);
     expect(data.bab.filter((row) => row.status === "archived").map((row) => row.orderIndex)).toEqual([2, 4]);
   });
+  it("appends after unprojected legacy chapters in a mixed course", async () => {
+    fixtures();
+    data.chapters.push({ id: "legacy-late", courseId: "legacy-course", title: "Late", orderIndex: 12 });
+    const created = await save({ courseId: "canonical-course", title: "New", orderIndex: 0, append: true });
+    expect(created.orderIndex).toBe(13);
+    expect(data.chapters.find((row) => row.id === created.id)?.orderIndex).toBe(13);
+  });
   it("reorders canonical IDs around archived positions and accepts aliases", async () => {
     fixtures();
     await reorder("canonical-course", ["only-b", "legacy-a"]);
@@ -145,11 +155,37 @@ describe("chapter identity and ordering with a fake transaction", () => {
     expect(data.bab.filter((row) => row.status === "archived")).toHaveLength(2);
     await expect(reorder("canonical-course", ["canonical-a", "legacy-a"])).rejects.toThrow("CHAPTER_ORDER_SCOPE_MISMATCH");
   });
+  it("resolves all chapter identities with a fixed number of reads during reorder", async () => {
+    reset();
+    for (let i = 1; i <= 20; i++) {
+      data.chapters.push({ id: `legacy-${i}`, courseId: "legacy-course", title: `${i}`, orderIndex: i });
+      data.bab.push({ id: `canonical-${i}`, mataKuliahId: "canonical-course", legacyChapterId: `legacy-${i}`, status: "active", title: `${i}`, orderIndex: i });
+    }
+    await reorder("canonical-course", data.chapters.map((row) => row.id).reverse());
+    expect(selectCalls).toBeLessThanOrEqual(12);
+    expect(data.bab.find((row) => row.id === "canonical-20")?.orderIndex).toBe(1);
+  });
   it("changes edit order via the same collision-safe reorder", async () => {
     fixtures();
     await save({ id: "only-b", courseId: "canonical-course", title: "B", orderIndex: 1 });
     expect(data.bab.find((row) => row.id === "only-b")?.orderIndex).toBe(1);
     expect(data.bab.find((row) => row.id === "canonical-a")?.orderIndex).toBe(2);
+  });
+  it("reorders mixed canonical and unprojected legacy chapters without losing either", async () => {
+    fixtures();
+    data.chapters.push({ id: "legacy-b", courseId: "legacy-course", title: "Legacy B", orderIndex: 2 });
+    await reorder("canonical-course", ["legacy-b", "canonical-a", "only-b"]);
+    expect(data.bab.find((row) => row.legacyChapterId === "legacy-b")?.orderIndex).toBe(1);
+    expect(data.bab.find((row) => row.id === "canonical-a")?.orderIndex).toBe(2);
+    expect(data.bab.find((row) => row.id === "only-b")?.orderIndex).toBe(3);
+    expect(data.chapters.find((row) => row.id === "legacy-b")?.orderIndex).toBe(1);
+  });
+  it("can move an unprojected legacy chapter in a mixed list", async () => {
+    fixtures();
+    data.chapters.push({ id: "legacy-b", courseId: "legacy-course", title: "Legacy B", orderIndex: 2 });
+    await save({ id: "legacy-b", courseId: "canonical-course", title: "Changed B", orderIndex: 1 });
+    expect(data.bab.find((row) => row.legacyChapterId === "legacy-b")?.orderIndex).toBe(1);
+    expect(data.chapters.find((row) => row.id === "legacy-b")?.title).toBe("Changed B");
   });
   it("archives canonical-only and mapped rows and keeps canonical archive records", async () => {
     fixtures();
@@ -201,5 +237,9 @@ describe("chapter identity and ordering with a fake transaction", () => {
     fixtures();
     data.bab.push({ id: "another", mataKuliahId: "canonical-course", legacyChapterId: "legacy-a", status: "active", title: "X", orderIndex: 5 });
     await expect(save({ id: "canonical-a", courseId: "canonical-course", title: "X", orderIndex: 1 })).rejects.toThrow("CHAPTER_IDENTITY_AMBIGUOUS");
+    await expect(reorder("canonical-course", ["canonical-a", "only-b", "another"])).rejects.toThrow("CHAPTER_IDENTITY_AMBIGUOUS");
+    fixtures();
+    data.bab.push({ id: "foreign", mataKuliahId: "other-course", legacyChapterId: "legacy-a", status: "active", title: "X", orderIndex: 1 });
+    await expect(reorder("canonical-course", ["canonical-a", "only-b"])).rejects.toThrow("CHAPTER_IDENTITY_AMBIGUOUS");
   });
 });

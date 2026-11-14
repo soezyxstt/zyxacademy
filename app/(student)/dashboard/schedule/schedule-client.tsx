@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AlertCircle, CalendarDays } from "lucide-react";
 import { toast } from "@/components/ui/toast";
@@ -102,7 +102,7 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
   const experience = useStudentExperience();
   const community = useDemoCommunity();
   const loadSchedule = useCallback(async (offset: number) => {
-    if (experience.mode !== "demo") return getScheduleData(offset);
+    if (experience.mode !== "demo") return getScheduleData(offset, selectedCourse?.id);
     const weekInfo = getWeekScheduleDays(daysFrom(offset * 7, getJakartaNow()));
     const scope = { courseId: community.scope.courseId, revision: community.scope.revision };
     const localState = parseCommunity(localStorage.getItem(communityKey(scope)));
@@ -116,7 +116,7 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
       availableSlots: week.slots.map(slot => ({ ...slot, tutor: { ...slot.tutor, tutorCourses: [{ courseId: community.scope.courseId }] } })),
       groupBookings: week.bookings.map(row => ({ ...row, course, group, mode: "online", slot: { tutor: { name: "Kak Nara" } } })), academicSchedules: [],
     };
-  }, [experience, community.scope.courseId, community.scope.revision]);
+  }, [experience, community.scope.courseId, community.scope.revision, selectedCourse?.id]);
   const t = useTranslations("student");
   const tRef = useRef(t);
   useEffect(() => {
@@ -156,7 +156,11 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
       setLoading(true);
       setLoadError(false);
       const nextData = await loadSchedule(offset);
-      if (version === cacheVersion.current) weekCache.current.set(offset, nextData);
+      if (version === cacheVersion.current) {
+        weekCache.current.delete(offset);
+        weekCache.current.set(offset, nextData);
+        if (weekCache.current.size > 5) weekCache.current.delete(weekCache.current.keys().next().value!);
+      }
       if (requestId === activeRequest.current) {
         setData(nextData);
         setDataWeekOffset(offset);
@@ -181,23 +185,9 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
     void fetchData(weekOffset);
   }, [fetchData, weekOffset, community.state]);
 
-  useEffect(() => {
-    if (!data || loading || dataWeekOffset !== weekOffset) return;
-    const version = cacheVersion.current;
-
-    for (const adjacentOffset of [weekOffset - 1, weekOffset + 1]) {
-      if (weekCache.current.has(adjacentOffset)) continue;
-      void loadSchedule(adjacentOffset)
-        .then((adjacentData) => {
-          if (version === cacheVersion.current) weekCache.current.set(adjacentOffset, adjacentData);
-        })
-        .catch(() => undefined);
-    }
-  }, [data, dataWeekOffset, loading, weekOffset, loadSchedule]);
-
   const courseParam = searchParams.get("course");
-  const courseIds = selectedCourse?.compatibleCourseIds ?? (courseParam ? [courseParam] : []);
-  const activeData = dataWeekOffset === weekOffset && data ? scopeStudentSchedule(data, courseIds) : null;
+  const courseIds = useMemo(() => selectedCourse?.compatibleCourseIds ?? (courseParam ? [courseParam] : []), [selectedCourse, courseParam]);
+  const activeData = useMemo(() => dataWeekOffset === weekOffset && data ? scopeStudentSchedule(data, courseIds) : null, [data, dataWeekOffset, weekOffset, courseIds]);
   if (!activeData) {
     if (loadError) {
       return (

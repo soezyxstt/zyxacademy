@@ -370,7 +370,7 @@ export async function executeUpdateChapter(input: UpdateChapterInput, actorId?: 
   if (!chapterId) throw new Error("ID Bab wajib diisi.");
 
   const existingBab = await db.query.bab.findFirst({ where: eq(bab.id, chapterId) });
-  const existingCh = await db.query.chapters.findFirst({ where: eq(chapters.id, chapterId) });
+  const existingCh = await db.query.chapters.findFirst({ where: eq(chapters.id, existingBab?.legacyChapterId ?? chapterId) });
 
   if (!existingBab && !existingCh) {
     throw new Error(`Bab dengan ID '${chapterId}' tidak ditemukan.`);
