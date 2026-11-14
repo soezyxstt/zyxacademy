@@ -2599,7 +2599,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
   const articleProducts = draftProducts.filter((product): product is Extract<ProductEntity, { productType: "article" }> => product.productType === "article");
   const sectionDecisions = reviewContext?.sections.flatMap(section => {
     const review = payload?.blockReviews?.find(item => item.productId === section.articleId && item.targetType === "article_section" && item.targetId === section.sectionId);
-    return review && review.status !== "pending" ? [{ sectionId: section.sectionId, semanticHash: section.semanticHash, decision: review.status, ...(review.notes ? { notes: review.notes } : {}) }] : [];
+    return review && review.status !== "pending" ? [{ productId: section.articleId, sectionId: section.sectionId, semanticHash: section.semanticHash, decision: review.status, ...(review.notes ? { notes: review.notes } : {}) }] : [];
   }) ?? [];
   const anchorOptions = draftProducts.flatMap(product => [
     { anchor: { targetType: "document" as const, targetId: product.id }, label: "title" in product ? product.title : product.id },

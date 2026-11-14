@@ -1341,3 +1341,13 @@ Admin MCP domain registrars share the authoring endpoint and enforce their own s
 Admin mutations use strict scoped handlers, signed ten-minute plans, revision checks and transactional audit/idempotency receipts. External effects use the additive `admin_operation_jobs` outbox and existing Inngest worker. Uncertain effects require manual reconciliation rather than automatic replay. MCP Apps resources coexist with authoring skill resources and retain text fallbacks. See [Admin MCP operations](operations/admin-mcp.md) for contracts and verification limits.
 
 Staging release integration preserves `StudentDashboardContent` for live and demo dashboards. Live rendering supplies independently suspended primary and secondary sections; demo data continues using the existing populated renderer.
+
+
+## Flexible authoring revision boundary
+
+Status: `OPEN / IN PROGRESS`. The [revision contract](bundle/authoring-revisions.md) separates immutable admitted artifacts, editable draft successors and reference-based release manifests for Idea V3 and learning Product V3/V4/V5. Draft edits derive hashes and versions server-side and preserve old artifacts and review history. A changed draft returns its successor import identity; stale writes cannot silently replace that successor. An edit uses stored source scope rather than requiring another Source Pack.
+
+The release coordinator reuses the existing publication and withdrawal services with a request-isolated transaction context. It must not replace global database methods. Canonical dependency reads and writes use the outer transaction, common advisory-lock order and current actor checks. Vector dispatch is deferred until commit. Superseded ownership and new publication are committed atomically; failed validation or a stale live baseline preserves the current release. Mixed reference manifests keep each artifact's schema and verification requirements, including the separate V4 receipt and V5 item-review gates. The new workflow excludes bundle versions below V3 and does not delete historical data.
+
+
+Agent-first operation descriptors are recorded by the server registrars rather than a separate guessed catalog. Shared blog services bind MCP, Admin and Admin Ops writes to observed row revisions. Mutation receipts and live write authority are checked transactionally; provider outcomes remain separate. See [agent-first content operations](operations/agent-first-content.md).

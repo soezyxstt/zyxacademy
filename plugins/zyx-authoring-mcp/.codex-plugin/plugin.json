@@ -1,7 +1,7 @@
 {
   "name": "zyx-authoring-mcp-staging",
-  "version": "0.4.1",
-  "description": "Author staging Zyx content through MCP quality gates.",
+  "version": "0.5.0",
+  "description": "Zyx staging MCP workflows",
   "author": {
     "name": "Zyx Academy"
   },
@@ -16,14 +16,19 @@
     "idea-bundle",
     "product-bundle",
     "question-bank",
-    "historical-reference"
+    "historical-reference",
+    "content-revisions",
+    "blog",
+    "forms",
+    "media",
+    "admin-operations"
   ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Zyx Authoring MCP (Staging)",
-    "shortDescription": "Author staging Zyx content through MCP quality gates.",
-    "longDescription": "Provides one end-to-end authoring pipeline and five independently invocable specialist skills for prompt-only Source Pack, Idea Bundle, Product Bundle, Question Bank, and historical reference authoring. The remote MCP server serves active stage playbooks via workflow.get_playbook and remains the authority for authentication, schema validation, provenance, quality gates, and staging.",
+    "shortDescription": "Zyx staging MCP workflows",
+    "longDescription": "Provides focused workflows for academic authoring, V3+ content revisions, blog editing, forms, media and operation recovery. The remote MCP server remains authoritative for current capabilities, environment identity, scopes, exact revisions, signed mutation plans, trusted evidence and explicit publication. The Admin website is optional for supported workflows.",
     "developerName": "Zyx Academy",
     "category": "Productivity",
     "capabilities": [

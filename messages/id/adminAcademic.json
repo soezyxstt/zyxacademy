@@ -974,6 +974,7 @@
     "fileUploadFailed": "Berkas gagal diunggah. Coba lagi.",
     "mediaUrlRequired": "Masukkan URL media terlebih dahulu.",
     "articleSaved": "Artikel berhasil disimpan.",
+    "articleChanged": "Artikel berubah. Salin perubahan lokal, lalu muat ulang.",
     "articleSaveFailed": "Artikel gagal disimpan. Periksa kolom wajib lalu coba lagi."
   },
   "metadata": {

@@ -1,34 +1,35 @@
 import { assertMcpTarget } from "@/lib/authoring/mcp-environment";
-import { redactActivationTokens } from "./sensitive-data";
+import { adminMcpFailure } from "./errors";
+import { registerOperationDescriptor, sanitizeAdminOperationResult } from "./operation-contracts";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { chapters, courseMaterials, courses, courseVideos, groups, enrollmentTokens, academicSchedules, blogArticles, googleMeetSessions, aiGenerationJobs } from "@/db/schema";
+import { chapters, courseMaterials, courses, courseVideos, groups, enrollmentTokens, academicSchedules, googleMeetSessions, aiGenerationJobs } from "@/db/schema";
 import { requireMcpScope, resolveMcpAdmin, type McpPrincipal } from "@/lib/authoring/mcp-auth";
 
 const page = { limit: z.number().int().min(1).max(100).default(25), offset: z.number().int().min(0).max(100000).default(0) };
-type Registrar = { registerTool(name: string, config: { description: string; inputSchema: Record<string, z.ZodType>; annotations: { readOnlyHint: true; destructiveHint: false; openWorldHint: false } }, callback: (input: Record<string, unknown>) => Promise<CallToolResult>): unknown };
+type Registrar = { registerTool(name: string, config: { description: string; inputSchema: Record<string, z.ZodType>; annotations: { readOnlyHint: boolean; destructiveHint: boolean; openWorldHint: boolean } }, callback: (input: Record<string, unknown>) => Promise<CallToolResult>): unknown };
 
 /** Register explicitly scoped, bounded operational reads. Never return storage URLs. */
 export function registerOperationsTools(server: McpServer, principal: McpPrincipal): void {
   const registrar = server as unknown as Registrar;
   function register<T extends z.ZodObject>(name: string, scope: string, schema: T, description: string, execute: (input: z.infer<T>) => Promise<unknown>) {
-    registrar.registerTool(name, { description, inputSchema: schema.extend({ expectedEnvironment: z.enum(["staging", "production", "local"]), expectedOrigin: z.url().max(2048) }).shape, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } }, async (raw) => {
+    const scopedSchema = schema.safeExtend({ expectedEnvironment: z.enum(["staging", "production", "local"]), expectedOrigin: z.url().max(2048) });
+    const descriptor = registerOperationDescriptor(server, { name, scope, description, schema: scopedSchema });
+    registrar.registerTool(name, { description, inputSchema: scopedSchema.shape, annotations: descriptor.annotations }, async (raw) => {
       try {
         requireMcpScope(principal, scope);
         await resolveMcpAdmin(principal);
-        const { expectedEnvironment, expectedOrigin, ...businessInput } = schema.extend({ expectedEnvironment: z.enum(["staging", "production", "local"]), expectedOrigin: z.url().max(2048) }).strict().parse(raw);
+        const { expectedEnvironment, expectedOrigin, ...businessInput } = scopedSchema.strict().parse(raw);
         assertMcpTarget(expectedEnvironment, expectedOrigin);
         const result = await execute(businessInput as z.infer<T>);
-        const data = name === "groups.list" && !principal.scopes.includes("access:secrets:read") ? redactActivationTokens(result) : result;
+        const data = sanitizeAdminOperationResult(name, result, principal);
         const payload = { ok: true, data };
         return { content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload };
       } catch (error) {
-        const code = error instanceof Error && error.message.startsWith("AUTHORING_MCP_SCOPE_REQUIRED:") ? "AUTHORING_MCP_SCOPE_REQUIRED" : error instanceof z.ZodError ? "INVALID_INPUT" : error instanceof Error && error.message.startsWith("MCP_") ? error.message : "ADMIN_MCP_REQUEST_FAILED";
-        const payload = { ok: false, error: code };
-        return { content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload, isError: true };
+        return adminMcpFailure(error);
       }
     });
   }
@@ -46,8 +47,6 @@ export function registerOperationsTools(server: McpServer, principal: McpPrincip
     db.select({ id: enrollmentTokens.id, groupId: enrollmentTokens.groupId, capacity: enrollmentTokens.capacity, createdAt: enrollmentTokens.createdAt, expiresAt: enrollmentTokens.expiresAt }).from(enrollmentTokens).orderBy(asc(enrollmentTokens.id)).limit(limit).offset(offset));
   register("schedules.list", "schedules:read", z.object(page), "List academic schedule metadata.", async ({ limit, offset }) =>
     db.select({ id: academicSchedules.id, type: academicSchedules.type, title: academicSchedules.title, courseId: academicSchedules.courseId, startDate: academicSchedules.startDate, endDate: academicSchedules.endDate, status: academicSchedules.status }).from(academicSchedules).orderBy(asc(academicSchedules.startDate), asc(academicSchedules.id)).limit(limit).offset(offset));
-  register("blog.list", "blog:read", z.object(page), "List blog article metadata.", async ({ limit, offset }) =>
-    db.select({ id: blogArticles.id, title: blogArticles.title, slug: blogArticles.slug, category: blogArticles.category, status: blogArticles.status, updatedAt: blogArticles.updatedAt }).from(blogArticles).orderBy(asc(blogArticles.title), asc(blogArticles.id)).limit(limit).offset(offset));
   register("meet.list", "meet:read", z.object(page), "List meeting metadata without links or participant details.", async ({ limit, offset }) =>
     db.select({ id: googleMeetSessions.id, title: googleMeetSessions.title, accessType: googleMeetSessions.accessType, deletedAt: googleMeetSessions.deletedAt, createdAt: googleMeetSessions.createdAt }).from(googleMeetSessions).orderBy(asc(googleMeetSessions.id)).limit(limit).offset(offset));
   register("jobs.list", "jobs:read", z.object(page), "List generation job status without prompts or errors.", async ({ limit, offset }) =>

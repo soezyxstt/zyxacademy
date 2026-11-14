@@ -1,0 +1,2 @@
+DROP INDEX "ketergantungan_produk_edge_idx";--> statement-breakpoint
+CREATE UNIQUE INDEX "ketergantungan_produk_edge_idx" ON "ketergantungan_produk" USING btree ("upstream_entity_type","upstream_entity_id","upstream_version","downstream_entity_type","downstream_entity_id","downstream_version");

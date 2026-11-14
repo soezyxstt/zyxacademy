@@ -8,7 +8,6 @@ import {
   pkaAnnouncements,
   pkaSchedules,
   customForms,
-  blogArticles,
   shortLink,
   aiGenerationJobs,
 } from "@/db/schema";
@@ -18,6 +17,7 @@ import { getAllFeatureFlagsStatus, KNOWN_FEATURE_FLAGS } from "@/lib/feature-fla
 import { membershipIdFor, type PeranCode } from "@/lib/auth/peran";
 import { sendAdminBroadcast } from "@/lib/notifications/send";
 import { lockAuthoringIdentityChange } from "@/lib/auth/authoring-actor";
+import { BlogServiceError, createBlogArticle, searchBlogArticles, setBlogPublication, type BlogFields } from "@/lib/blog/service";
 
 // ─── 1. Users & Permissions ──────────────────────────────────────────────────
 
@@ -371,104 +371,37 @@ export async function executeGetFormResponsesSummary(input: GetFormResponsesSumm
 // ─── 5. Blog CMS ─────────────────────────────────────────────────────────────
 
 export interface ListBlogArticlesInput {
-  status?: "published" | "draft";
+  status?: "published" | "draft" | "scheduled";
   search?: string;
 }
 
-export async function executeListBlogArticles(input: ListBlogArticlesInput) {
-  const articles = await db.query.blogArticles.findMany({
-    orderBy: [desc(blogArticles.createdAt)],
-    limit: 30,
-  });
-
-  let list = articles.map((a) => ({
-    id: a.id,
-    title: a.title,
-    slug: a.slug,
-    category: a.category,
-    status: a.status,
-    readMinutes: a.readMinutes,
-    publishedAt: a.publishedAt,
-    createdAt: a.createdAt,
-  }));
-
-  if (input.status) list = list.filter((a) => a.status === input.status);
-  if (input.search) {
-    const q = input.search.toLowerCase();
-    list = list.filter((a) => a.title.toLowerCase().includes(q) || a.slug.toLowerCase().includes(q));
-  }
-
-  return {
-    summary: `Ditemukan ${list.length} artikel blog.`,
-    data: list,
-  };
+export async function executeListBlogArticles(input: ListBlogArticlesInput, actorId?: string) {
+  if (!actorId) throw new BlogServiceError("BLOG_FORBIDDEN");
+  const page = await searchBlogArticles(actorId, { query: input.search, status: input.status, limit: 30, offset: 0 });
+  return { summary: `Ditemukan ${page.items.length} artikel blog.`, data: page.items };
 }
 
-export interface CreateBlogArticleInput {
-  title: string;
-  content: string;
-  category?: "tips_kuliah" | "pojok_kampus" | "fakta_seru" | "kegiatan_zyx";
+export interface CreateBlogArticleInput extends BlogFields {
   status?: "draft" | "published";
-  summary?: string;
 }
 
 export async function executeCreateBlogArticle(input: CreateBlogArticleInput, actorId?: string) {
-  const title = input.title.trim();
-  const content = input.content.trim();
-  if (!title) throw new Error("Judul artikel blog wajib diisi.");
-  if (!content) throw new Error("Isi artikel blog wajib diisi.");
-
-  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || `artikel-${Date.now()}`;
-  const id = `art-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-  const status = input.status || "draft";
-  const category = input.category || "tips_kuliah";
-  const readMinutes = Math.max(1, Math.ceil(content.split(/\s+/).length / 200));
-
-  await db.insert(blogArticles).values({
-    id,
-    slug,
-    title,
-    content,
-    summary: input.summary?.trim() || content.slice(0, 150),
-    category,
-    status,
-    readMinutes,
-    createdById: actorId ?? null,
-    publishedAt: status === "published" ? new Date() : null,
-  });
-
-  return {
-    summary: `Artikel blog '${title}' (slug: ${slug}) berhasil dibuat dengan status '${status}'.`,
-    data: { id, slug, title, status, category },
-  };
+  if (!actorId) throw new BlogServiceError("BLOG_FORBIDDEN");
+  const { status = "draft", ...article } = input;
+  const result = await db.transaction(tx => createBlogArticle(tx, { actorId, article, status }));
+  return { summary: `Artikel blog '${result.title}' dibuat dengan status '${result.status}'.`, data: result };
 }
 
 export interface PublishBlogArticleInput {
   articleId: string;
+  expectedRevision: string;
   publish: boolean;
 }
 
-export async function executePublishBlogArticle(input: PublishBlogArticleInput) {
-  const articleId = input.articleId.trim();
-  if (!articleId) throw new Error("ID Artikel wajib diisi.");
-
-  const existing = await db.query.blogArticles.findFirst({ where: eq(blogArticles.id, articleId) });
-  if (!existing) throw new Error(`Artikel dengan ID '${articleId}' tidak ditemukan.`);
-
-  const newStatus = input.publish ? "published" : "draft";
-  await db
-    .update(blogArticles)
-    .set({
-      status: newStatus,
-      publishedAt: input.publish ? new Date() : null,
-      updatedAt: new Date(),
-    })
-    .where(eq(blogArticles.id, articleId));
-
-  return {
-    summary: `Artikel '${existing.title}' berhasil diubah statusnya menjadi '${newStatus}'.`,
-    data: { id: articleId, status: newStatus },
-  };
+export async function executePublishBlogArticle(input: PublishBlogArticleInput, actorId?: string) {
+  if (!actorId) throw new BlogServiceError("BLOG_FORBIDDEN");
+  const result = await db.transaction(tx => setBlogPublication(tx, { actorId, id: input.articleId, expectedRevision: input.expectedRevision, published: input.publish }));
+  return { summary: `Artikel '${result.title}' disimpan dengan status '${result.status}'.`, data: result };
 }
 
 // ─── 6. Ops, Short Links & Feature Flags ─────────────────────────────────────

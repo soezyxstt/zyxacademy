@@ -6,9 +6,10 @@ const events: string[] = [];
 let failPrevious = true;
 let lookup = 0;
 const old = { id: "draft", bundleId: "bundle", status: "draft", sourceUriOrKey: "old", checksum: "a".repeat(64), bundleType: "product", version: 4, courseId: "course", validationReport: { valid: true } };
-const review = { id: "review", targetType: "article_section", targetId: "section" };
-const previous = { checksum: old.checksum, manifest: { bundleId: "bundle" }, products: [], dependencies: [] };
-const next = { checksum: "b".repeat(64), manifest: { bundleId: "bundle", courseId: "course", creatorId: "authoring-mcp", curatorId: "authoring-mcp", schemaVersion: "product-bundle.v4", visualAssets: [] }, products: [], dependencies: [], files: new Map(), issues: [], publicationBlocked: false };
+const article = { id: "article", productType: "article", schemaVersion: "article.v4", version: 1, generationHash: "c".repeat(64), creatorId: "authoring-mcp", title: "Article", sections: [{ id: "section", orderIndex: 0, blocks: [] }], visuals: [] };
+const review = { id: "review", productId: article.id, targetType: "article_section", targetId: "section" };
+const previous = { checksum: old.checksum, manifest: { bundleId: "bundle" }, products: [article], dependencies: [] };
+const next = { checksum: "b".repeat(64), manifest: { bundleId: "bundle", courseId: "course", creatorId: "authoring-mcp", curatorId: "authoring-mcp", schemaVersion: "product-bundle.v4", visualAssets: [] }, products: [article], dependencies: [], files: new Map(), issues: [], publicationBlocked: false };
 function select(transactional = false) {
   return { from(table: unknown) {
     const rows = table === schema.user ? [{ role: "admin" }]
