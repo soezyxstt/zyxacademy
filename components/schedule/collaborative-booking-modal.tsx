@@ -38,7 +38,10 @@ export type BookingSuccessResult = {
   pendingResources: PendingSessionResource[];
 };
 
+import type { LocalScheduleOperations } from "@/components/demo/use-demo-community";
+
 type Props = {
+  localOperations?: LocalScheduleOperations;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   slot: any | null;
@@ -72,6 +75,7 @@ export function CollaborativeBookingModal({
   groups,
   onSuccess,
   onSlotTaken,
+  localOperations,
 }: Props) {
   const t = useTranslations("schedule");
   const { locale } = useAppLocale();
@@ -137,6 +141,12 @@ export function CollaborativeBookingModal({
 
     setLoading(true);
     try {
+      if (localOperations) {
+        const bookingId = await localOperations.book({ slot: selectedSlot, courseId: selectedCourseId, groupId: selectedGroupId, topic: topic.trim(), preSessionNotes: note.trim(), links: parsedLinks, files: selectedFiles });
+        onOpenChange(false);
+        await onSuccess({ bookingId, pendingResources: [] });
+        return;
+      }
       const result = await bookTutorialSlot({
         slotId: selectedSlot.id,
         courseId: selectedCourseId,

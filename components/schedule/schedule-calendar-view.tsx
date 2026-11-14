@@ -47,6 +47,7 @@ const END_MINUTES = END_HOUR * 60;
 const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, index) => START_HOUR + index);
 
 export type ScheduleCalendarProps = {
+  allowPastBooking?: boolean;
   role: "student" | "teacher" | "admin";
   adminMode?: "all" | "academic" | "tutorial";
   currentUserId: string;
@@ -410,6 +411,7 @@ export function ScheduleCalendarView({
   onAssignTutorialSlot,
   onOpenSessionDetail,
   initialCourseFilter = "all",
+  allowPastBooking = false,
 }: ScheduleCalendarProps) {
   const t = useTranslations("schedule");
   const { locale } = useAppLocale();
@@ -477,7 +479,7 @@ export function ScheduleCalendarView({
         mode: slot.mode,
         location: slot.location,
         tutorId: slot.tutorId || slot.tutor?.id || null,
-        locked: role === "student" ? !canBookTutorialSlot(dateIso, slot.startTime, now) : dateIso < today,
+        locked: role === "student" ? !allowPastBooking && !canBookTutorialSlot(dateIso, slot.startTime, now) : dateIso < today,
         hasBookingHistory: cancelledSlotIds.has(slot.id),
         source: slot,
       });
@@ -537,7 +539,7 @@ export function ScheduleCalendarView({
     }
 
     return result;
-  }, [academicSchedules, bookings, slots, role, now, today, t]);
+  }, [academicSchedules, bookings, slots, role, allowPastBooking, now, today, t]);
 
   const filteredEvents = useMemo(() => normalizedEvents.filter((event) => {
     if (courseFilter !== "all") {
@@ -588,7 +590,7 @@ export function ScheduleCalendarView({
 
   const openEvent = (event: CalendarEvent) => {
     if (event.kind === "availability") {
-      if (role === "student" && canBookTutorialSlot(event.dateIso, event.source.startTime)) {
+      if (role === "student" && (allowPastBooking || canBookTutorialSlot(event.dateIso, event.source.startTime))) {
         onSelectSlotToBook?.(event.source, event.dateIso);
       } else if (role === "admin") {
         onAssignTutorialSlot?.(event.source);

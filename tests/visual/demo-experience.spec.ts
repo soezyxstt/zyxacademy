@@ -29,7 +29,7 @@ async function visit(page: Page, view: string) {
 async function capture(page: Page, info: TestInfo, name: string) {
  await page.evaluate(async () => { await document.fonts.ready; window.scrollTo(0, 0); });
  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
- await page.waitForLoadState("networkidle");
+ await expect(page.locator('#main-content [aria-busy="true"]')).toHaveCount(0);
  await expect.poll(async () => (await page.locator("#main-content").innerText()).trim().length).toBeGreaterThan(5);
  await expect(page.locator("#main-content > div").first()).toHaveCSS("opacity", "1");
  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
@@ -44,6 +44,7 @@ for (const view of routes) test(`student page ${view || "dashboard"}`, async ({ 
  if (view === "playground") await expect(page.getByRole("button", { name: "Jalankan", exact: true })).toBeVisible();
  if (view === "quiz") await expect(page.getByRole("radio").first()).toBeVisible();
  if (view === "zyra") await expect(page.getByRole("textbox").last()).toBeVisible();
+ if (view === "leaderboard" || view === "course-leaderboard") await expect(page.getByText("Ayu", { exact: true }).first()).toBeVisible();
  await capture(page, info, `student-${view || "dashboard"}`);
  expect(failures).toEqual([]);
 });
@@ -64,7 +65,7 @@ test("article completion returns to the student document list and logout resets 
  await visit(page, "article");
  await page.getByRole("button", { name: "Kembali ke daftar materi", exact: true }).click();
  await expect(page).toHaveURL(/\/demo\/documents\?course=/);
- await expect.poll(() => page.evaluate(id => sessionStorage.getItem(`zyx-demo:1:${id}:fixture-v1`), course)).toContain('"article"');
+ await expect.poll(() => page.evaluate(id => localStorage.getItem(`zyx-demo:1:${id}:fixture-v1`), course)).toContain('"article"');
  await capture(page, info, "documents-completed");
  await visit(page, "article");
  await capture(page, info, "article-completed");
@@ -74,7 +75,7 @@ test("article completion returns to the student document list and logout resets 
  await capture(page, info, "account-menu-open");
  await page.getByRole("menuitem", { name: "Keluar", exact: true }).click();
  await expect(page).toHaveURL(/\/demo\?course=/);
- await expect.poll(() => page.evaluate(id => sessionStorage.getItem(`zyx-demo:1:${id}:fixture-v1`), course)).toBeNull();
+ await expect.poll(() => page.evaluate(id => localStorage.getItem(`zyx-demo:1:${id}:fixture-v1`), course)).toBeNull();
  await capture(page, info, "account-reset");
  expect(failures).toEqual([]);
 });
@@ -196,9 +197,9 @@ test("unknown product selection does not expose another chapter", async ({ reque
 
 test("corrupt and unavailable storage keep student pages usable", async ({ page }, info) => {
  const failures = guard(page);
- await page.addInitScript(() => { sessionStorage.setItem("zyx-demo:1:fictional-berpikir:fixture-v1", "{broken"); });
+ await page.addInitScript(() => { localStorage.setItem("zyx-demo:1:fictional-berpikir:fixture-v1", "{broken"); });
  await visit(page, ""); await capture(page, info, "corrupt-storage");
- await page.addInitScript(() => { Object.defineProperty(window, "sessionStorage", { get() { throw new DOMException("Unavailable", "SecurityError"); } }); });
+ await page.addInitScript(() => { Object.defineProperty(window, "localStorage", { get() { throw new DOMException("Unavailable", "SecurityError"); } }); });
  await visit(page, "article"); await page.getByRole("button", { name: "Kembali ke daftar materi", exact: true }).click();
  await expect(page).toHaveURL(/\/demo\/documents/); await capture(page, info, "unavailable-storage");
  expect(failures).toEqual([]);
@@ -222,9 +223,9 @@ test("student catalogue selects four courses with isolated local progress", asyn
  await page.goto(withCourse("/id/demo/article", courses[0].id), { waitUntil: "networkidle" });
  await page.getByRole("button", { name: "Kembali ke daftar materi", exact: true }).click();
  await page.goto(withCourse("/id/demo/article", courses[1].id), { waitUntil: "networkidle" });
- expect(await page.evaluate(id => sessionStorage.getItem(`zyx-demo:1:${id}:fixture-v1`), courses[1].id)).toBeNull();
+ expect(await page.evaluate(id => localStorage.getItem(`zyx-demo:1:${id}:fixture-v1`), courses[1].id)).toBeNull();
  await capture(page, info, "isolated-course-article");
- expect(await page.evaluate(id => sessionStorage.getItem(`zyx-demo:1:${id}:fixture-v1`), courses[0].id)).toContain('"article"');
+ expect(await page.evaluate(id => localStorage.getItem(`zyx-demo:1:${id}:fixture-v1`), courses[0].id)).toContain('"article"');
  expect(failures).toEqual([]);
 });
 test("student document list opens the second eligible article and Diktat", async ({ page }, info) => {

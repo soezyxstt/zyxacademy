@@ -22,6 +22,8 @@ import {
 } from "@/components/schedule/session-detail-drawer";
 import { useTranslations } from "@/lib/i18n/client";
 
+import { useDemoCommunity } from "@/components/demo/use-demo-community";
+import { communityKey, demoWeek, parseCommunity } from "@/lib/demo/community-state";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { daysFrom, getJakartaNow, getWeekScheduleDays } from "@/lib/date-utils";
 
@@ -97,16 +99,23 @@ function getTutorFilterOptions(data: any, fallbackName: string) {
 
 export function StudentScheduleClient() {
   const experience = useStudentExperience();
+  const community = useDemoCommunity();
   const loadSchedule = useCallback(async (offset: number) => {
     if (experience.mode !== "demo") return getScheduleData(offset);
+    const weekInfo = getWeekScheduleDays(daysFrom(offset * 7, getJakartaNow()));
+    const scope = { courseId: community.scope.courseId, revision: community.scope.revision };
+    const localState = parseCommunity(localStorage.getItem(communityKey(scope)));
+    const week = demoWeek(scope, weekInfo.startOfWeekIso, localState);
+    const course = experience.courses?.find(row => row.id === community.scope.courseId);
+    const group = { id: "demo-group", ...localState.group, totalQuotaSessions: 9999, usedQuotaSessions: 0, courses: [{ course }] };
     return {
       role: "student", user: { id: "fictional-demo-student", ...experience.account },
-      weekInfo: getWeekScheduleDays(daysFrom(offset * 7, getJakartaNow())),
-      isWeekLocked: false, groups: [],
+      weekInfo, isWeekLocked: false, groups: [group],
       enrollments: (experience.courses ?? []).map((course) => ({ course })),
-      availableSlots: [], groupBookings: [], academicSchedules: [],
+      availableSlots: week.slots.map(slot => ({ ...slot, tutor: { ...slot.tutor, tutorCourses: [{ courseId: community.scope.courseId }] } })),
+      groupBookings: week.bookings.map(row => ({ ...row, course, group, mode: "online", slot: { tutor: { name: "Kak Nara" } } })), academicSchedules: [],
     };
-  }, [experience]);
+  }, [experience, community.scope.courseId, community.scope.revision]);
   const t = useTranslations("student");
   const tRef = useRef(t);
   useEffect(() => {
@@ -127,7 +136,7 @@ export function StudentScheduleClient() {
 
   const fetchData = useCallback(async (offset: number, force = false) => {
     const requestId = ++activeRequest.current;
-    const cached = !force ? weekCache.current.get(offset) : null;
+    const cached = !force && experience.mode !== "demo" ? weekCache.current.get(offset) : null;
     if (cached) {
       setData(cached);
       setDataWeekOffset(offset);
@@ -159,11 +168,11 @@ export function StudentScheduleClient() {
         setLoading(false);
       }
     }
-  }, [loadSchedule]);
+  }, [loadSchedule, experience.mode]);
 
   useEffect(() => {
     void fetchData(weekOffset);
-  }, [fetchData, weekOffset]);
+  }, [fetchData, weekOffset, community.state]);
 
   useEffect(() => {
     if (!data || loading || dataWeekOffset !== weekOffset) return;
@@ -225,6 +234,7 @@ export function StudentScheduleClient() {
       <div className={calendarStyles.root} aria-busy={loading}>
         <ScheduleCalendarView
           role="student"
+          allowPastBooking={experience.mode === "demo"}
           currentUserId={userObj.id}
           weekInfo={activeData.weekInfo}
           isWeekLocked={activeData.isWeekLocked}
@@ -243,7 +253,9 @@ export function StudentScheduleClient() {
         />
       </div>
 
+      {experience.mode === "demo" && community.error ? <p role="alert" className="text-body-xs text-destructive">{community.error}</p> : null}
       <CollaborativeBookingModal
+        localOperations={experience.mode === "demo" ? community.operations : undefined}
         open={Boolean(bookingSlotData)}
         onOpenChange={(open) => {
           if (!open) setBookingSlotData(null);
@@ -264,6 +276,7 @@ export function StudentScheduleClient() {
         }}
       />
       <SessionDetailDrawer
+        localOperations={experience.mode === "demo" ? community.operations : undefined}
         open={Boolean(activeSessionBooking)}
         onOpenChange={(open) => {
           if (!open) {

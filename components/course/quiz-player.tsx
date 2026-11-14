@@ -81,11 +81,11 @@ export function QuizPlayer({ courseId, visualCourseId = courseId, exam, attemptI
   const storage = useMemo(() => {
     const fallback = new Map<string, string>();
     return {
-      getItem: (key: string) => { try { return (transport ? window.sessionStorage : window.localStorage).getItem(key); } catch { return fallback.get(key) ?? null; } },
-      setItem: (key: string, value: string) => { try { (transport ? window.sessionStorage : window.localStorage).setItem(key, value); } catch { fallback.set(key, value); } },
-      removeItem: (key: string) => { try { (transport ? window.sessionStorage : window.localStorage).removeItem(key); } catch { fallback.delete(key); } },
+      getItem: (key: string) => { try { return window.localStorage.getItem(key); } catch { return fallback.get(key) ?? null; } },
+      setItem: (key: string, value: string) => { try { window.localStorage.setItem(key, value); } catch { fallback.set(key, value); } },
+      removeItem: (key: string) => { try { window.localStorage.removeItem(key); } catch { fallback.delete(key); } },
     };
-  }, [transport]);
+  }, []);
   const router = useRouter();
   const { setSuppressPet } = useTutor();
   const durationSeconds =
