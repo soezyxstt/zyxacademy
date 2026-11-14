@@ -226,6 +226,7 @@ describe('question evidence transaction ordering', () => {
   await recordSubmissionBoundaries(t.tx, later);
   const revealed = (await getLatestQuestionExposures(t.tx, 'learner', ['a'], 'later')).get('a');
   expect(revealed?.exposedAt).toEqual(bankRows[0].exposedAt);
+  if (!revealed || revealed.attemptIdentity === null || revealed.exposedAt === null) throw new Error('Expected prior disclosure');
   expect(isEligibleQuestionRetry({ correct: true, attemptId: 'later', occurredAt: later[0].occurredAt, lastReveal: revealed ? { attemptId: revealed.attemptIdentity, occurredAt: revealed.exposedAt } : null })).toBe(false);
   t.commit();
  });
@@ -245,6 +246,7 @@ describe('question evidence transaction ordering', () => {
   await recordSubmissionBoundaries(t.tx, later);
   const revealed = (await getLatestQuestionExposures(t.tx, 'learner', ['a'], 'later')).get('a');
   expect(revealed?.exposedAt).toEqual(bankRows[0].exposedAt);
+  if (!revealed || revealed.attemptIdentity === null || revealed.exposedAt === null) throw new Error('Expected prior disclosure');
   expect(isEligibleQuestionRetry({ correct: true, attemptId: 'later', occurredAt: later[0].occurredAt, lastReveal: revealed ? { attemptId: revealed.attemptIdentity, occurredAt: revealed.exposedAt } : null })).toBe(false);
   t.commit();
  });
