@@ -4,6 +4,9 @@ import {
   ArrowRight,
   BookOpen,
   Brain,
+  CalendarDays,
+  Trophy,
+  Users,
   CheckSquare,
   FileText,
   Layers3,
@@ -14,7 +17,7 @@ import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { cn } from "@/lib/utils";
 import type { DemoCourseSummary } from "@/app/(marketing)/demo/demo-data";
 
-export type DemoView = "dashboard" | "article" | "diktat" | "flashcards" | "quiz" | "zyra";
+export type DemoView = "dashboard" | "article" | "diktat" | "flashcards" | "quiz" | "zyra" | "schedule" | "leaderboard" | "groups";
 
 const demoNav: Array<{ view: Exclude<DemoView, "dashboard">; label: string; icon: typeof BookOpen }> = [
   { view: "article", label: "Artikel", icon: BookOpen },
@@ -22,6 +25,9 @@ const demoNav: Array<{ view: Exclude<DemoView, "dashboard">; label: string; icon
   { view: "flashcards", label: "Flashcard", icon: Layers3 },
   { view: "quiz", label: "Kuis", icon: CheckSquare },
   { view: "zyra", label: "Zyra", icon: MessageCircle },
+  { view: "schedule", label: "Jadwal", icon: CalendarDays },
+  { view: "leaderboard", label: "Leaderboard", icon: Trophy },
+  { view: "groups", label: "Kelompok belajar", icon: Users },
 ];
 
 export function demoSignInHref(nextPath: string): string {

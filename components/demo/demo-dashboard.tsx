@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BookOpen, CheckSquare, FileText, Layers3, MessageCircle } from "lucide-react";
+import { ArrowRight, CalendarDays, Trophy, Users, BookOpen, CheckSquare, FileText, Layers3, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DemoAuthCta } from "./demo-shell";
@@ -8,33 +8,31 @@ const checklist = [
   {
     href: "/demo/article",
     label: "Baca Artikel",
-    detail: "Lihat materi lengkap bab ini.",
     icon: BookOpen,
   },
   {
     href: "/demo/diktat",
     label: "Buka Diktat",
-    detail: "Coba dua bagian awal untuk review.",
     icon: FileText,
   },
   {
     href: "/demo/flashcards",
     label: "Balik Flashcard",
-    detail: "Uji ingatan dengan lima kartu.",
     icon: Layers3,
   },
   {
     href: "/demo/quiz",
     label: "Coba Kuis",
-    detail: "Jawab tiga soal tanpa menyimpan hasil.",
     icon: CheckSquare,
   },
   {
     href: "/demo/zyra",
     label: "Kenali Zyra",
-    detail: "Lihat contoh alur tanya jawab.",
     icon: MessageCircle,
   },
+  { href: "/demo/schedule", label: "Jadwal belajar", icon: CalendarDays },
+  { href: "/demo/leaderboard", label: "Leaderboard", icon: Trophy },
+  { href: "/demo/groups", label: "Kelompok belajar", icon: Users },
 ] as const;
 
 export function DemoDashboard({ nextPath }: { nextPath: string }) {
@@ -54,7 +52,7 @@ export function DemoDashboard({ nextPath }: { nextPath: string }) {
         </div>
 
         <ol className="mt-6 space-y-2">
-          {checklist.map(({ href, label, detail, icon: Icon }, index) => (
+          {checklist.map(({ href, label, icon: Icon }, index) => (
             <li key={href}>
               <Link
                 href={href}
@@ -67,7 +65,6 @@ export function DemoDashboard({ nextPath }: { nextPath: string }) {
                   <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                   <span className="min-w-0">
                     <span className="block text-body-sm font-semibold text-foreground">{label}</span>
-                    <span className="block text-body-xs text-muted-foreground">{detail}</span>
                   </span>
                 </span>
                 <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />

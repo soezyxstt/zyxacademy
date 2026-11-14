@@ -1,33 +1,35 @@
 "use client";
 
-import { useState } from "react";
 import { ArrowLeft, ArrowRight, Layers3, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { DemoFlashcard as DemoFlashcardData } from "@/app/(marketing)/demo/demo-data";
 import { DemoAuthCta } from "./demo-shell";
+import { useDemoState } from "./use-demo-state";
 
 export function DemoFlashcards({ cards, nextPath }: { cards: DemoFlashcardData[]; nextPath: string }) {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [revealed, setRevealed] = useState(false);
+  const { state, save, ready, error } = useDemoState(nextPath);
+  const signature = JSON.stringify(cards);
+  const progress = state.flashcard?.signature === signature ? state.flashcard : null;
+  const activeIndex = progress && progress.index < cards.length ? progress.index : 0;
+  const revealed = progress?.revealed ?? false;
   const card = cards[activeIndex];
 
   if (!card) return null;
 
   const move = (direction: -1 | 1) => {
-    setActiveIndex((current) => (current + direction + cards.length) % cards.length);
-    setRevealed(false);
+    save(current => ({ ...current, flashcard: { signature, index: (activeIndex + direction + cards.length) % cards.length, revealed: false } }));
   };
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-2xl" aria-busy={!ready}>
       <Card variant="solid" className="p-5 sm:p-8">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Layers3 className="size-5 text-brand-primary" aria-hidden="true" />
             <h2 className="font-heading text-h5 font-bold text-foreground">Flashcard bab pertama</h2>
           </div>
-          <span className="text-body-xs font-semibold text-muted-foreground">
+          <span className="shrink-0 whitespace-nowrap text-body-xs font-semibold text-muted-foreground">
             {activeIndex + 1} dari {cards.length}
           </span>
         </div>
@@ -35,7 +37,8 @@ export function DemoFlashcards({ cards, nextPath }: { cards: DemoFlashcardData[]
         <button
           type="button"
           aria-pressed={revealed}
-          onClick={() => setRevealed((value) => !value)}
+          disabled={!ready}
+          onClick={() => save(current => ({ ...current, flashcard: { signature, index: activeIndex, revealed: !revealed } }))}
           className="mt-8 flex min-h-64 w-full flex-col items-center justify-center rounded-xl border border-brand-primary/25 bg-brand-primary/5 p-6 text-center outline-none transition-colors hover:bg-brand-primary/10 focus-visible:ring-2 focus-visible:ring-[var(--zx-accent)]"
         >
           <span className="text-body-xs font-semibold uppercase tracking-[0.16em] text-brand-primary">
@@ -54,20 +57,21 @@ export function DemoFlashcards({ cards, nextPath }: { cards: DemoFlashcardData[]
         </button>
 
         <div className="mt-5 flex items-center justify-between gap-3">
-          <Button type="button" variant="outline" size="sm" onClick={() => move(-1)} className="gap-1.5 rounded-lg">
+          <Button type="button" variant="outline" size="sm" disabled={!ready} onClick={() => move(-1)} className="gap-1.5 rounded-lg">
             <ArrowLeft className="size-3.5" aria-hidden="true" />
             Sebelumnya
           </Button>
-          <Button type="button" variant="outline" size="sm" onClick={() => move(1)} className="gap-1.5 rounded-lg">
+          <Button type="button" variant="outline" size="sm" disabled={!ready} onClick={() => move(1)} className="gap-1.5 rounded-lg">
             Berikutnya
             <ArrowRight className="size-3.5" aria-hidden="true" />
           </Button>
         </div>
       </Card>
 
+      {error && <p role="alert" className="mt-3 text-body-sm text-status-error">{error}</p>}
       <div className="mt-5 flex flex-col gap-3 rounded-xl border border-brand-primary/20 bg-brand-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-heading text-body-base font-bold text-foreground">Simpan latihanmu</h2>
+          <h2 className="font-heading text-body-base font-bold text-foreground">Lanjutkan latihan di akunmu</h2>
           <p className="mt-1 text-body-xs text-muted-foreground">Masuk untuk mengakses flashcard di setiap mata kuliah.</p>
         </div>
         <DemoAuthCta nextPath={nextPath} />

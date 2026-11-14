@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { DemoCommunity } from "@/components/demo/demo-community";
 import { DemoArticleView } from "@/components/demo/demo-article-view";
 import { DemoDiktatView } from "@/components/demo/demo-diktat-view";
 import { DemoEmptyState } from "@/components/demo/demo-empty-state";
@@ -15,7 +16,7 @@ type Props = {
   params: Promise<{ view: string }>;
 };
 
-const supportedViews = ["article", "diktat", "flashcards", "quiz", "zyra"] as const;
+const supportedViews = ["article", "diktat", "flashcards", "quiz", "zyra", "schedule", "leaderboard", "groups"] as const;
 type SupportedView = (typeof supportedViews)[number];
 
 const VIEW_LABELS: Record<SupportedView, string> = {
@@ -24,6 +25,9 @@ const VIEW_LABELS: Record<SupportedView, string> = {
   flashcards: "Demo Flashcard",
   quiz: "Demo Kuis Interaktif",
   zyra: "Demo Asisten Zyra",
+  schedule: "Demo Jadwal Belajar",
+  leaderboard: "Demo Leaderboard",
+  groups: "Demo Kelompok Belajar",
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -66,6 +70,11 @@ export default async function DemoViewPage({ params }: Props) {
       break;
     case "quiz":
       body = <DemoQuiz questions={content.quiz} quizSetToken={content.quizSetToken} nextPath={nextPath} />;
+      break;
+    case "schedule":
+    case "leaderboard":
+    case "groups":
+      body = <DemoCommunity view={view} course={content.course} nextPath={nextPath} />;
       break;
     case "zyra":
       body = <DemoZyra nextPath={nextPath} />;

@@ -9,6 +9,9 @@ const routes = [
   "/demo/flashcards",
   "/demo/quiz",
   "/demo/zyra",
+  "/demo/schedule",
+  "/demo/leaderboard",
+  "/demo/groups",
 ] as const;
 
 async function stabilize(page: Page) {
