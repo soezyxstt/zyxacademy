@@ -26,7 +26,7 @@ function getAllFiles(dir: string, extensions: string[]): string[] {
 
 describe("CP5: Retirement of browser manual authoring and clean global navigation", () => {
   describe("1. Navigation exactness", () => {
-    it("sidebar Akademik & Konten contains exactly three items", () => {
+    it("sidebar Akademik & Konten contains the four approved destinations", () => {
       const sidebar = source("components/admin-sidebar.tsx");
 
       // Check group definition
@@ -38,12 +38,16 @@ describe("CP5: Retirement of browser manual authoring and clean global navigatio
       expect(sidebar).toContain('{ id: "schedules", label: "Jadwal Umum", href: "/admin/schedules", icon: CalendarDays, group: "akademik" }');
       expect(sidebar).toContain('{ id: "bank-soal", label: "Bank Soal", href: "/admin/questions", icon: Library, group: "akademik" }');
 
-      // Ensure no extra items in akademik group
+      // Gamification is an approved non-authoring destination. Retired authoring
+      // surfaces remain forbidden by the separate retirement checks below.
+      expect(sidebar).toContain('{ id: "gamification", label: "Gamification", href: "/admin/gamification", icon: Trophy, group: "akademik" }');
+
+      // Reject any destination outside the explicit four-item list.
       const matches = sidebar.match(/group:\s*"akademik"/g);
-      expect(matches?.length).toBe(3);
+      expect(matches?.length).toBe(4);
     });
 
-    it("admin dashboard category Akademik & Konten reflects exactly the same three global destinations", () => {
+    it("admin dashboard category Akademik & Konten retains the three core academic destinations", () => {
       const dashboard = source("app/(admin)/admin/page.tsx");
       expect(dashboard).toContain('name: "Akademik & Konten"');
       expect(dashboard).toContain('href: "/admin/courses"');
