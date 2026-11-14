@@ -400,7 +400,8 @@ def pages(path, token, params, headers, max_pages=3):
         if (not isinstance(page, dict) or set(page) - {'hasMore', 'cursor', 'limit'} or link
                 or ('hasMore' in page and type(page['hasMore']) is not bool)
                 or ('limit' in page and (type(page['limit']) is not int or not 1 <= page['limit'] <= 250))
-                or (page.get('cursor') not in (None, '') and not valid_cursor(page['cursor']))):
+                or (not page.get('hasMore', False) and page.get('cursor') not in (None, '')
+                    and not valid_cursor(page['cursor']))):
             inngest_shape(path, payload)
             raise ValueError('INNGEST_PAGINATION_UNKNOWN')
         rows.extend(data)
