@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { ReviewDetailSkeleton } from "@/components/admin/content-loading-skeletons";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -46,6 +48,8 @@ import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { ArticleReadingCanvas } from "@/components/course/article-reading-canvas";
 import { StructuredArticleSectionContent } from "@/components/course/structured-article-reader";
 import { FormativeCheckEndpointProvider } from "@/components/course/formative-check-endpoint-context";
+import { InteractiveDocumentArticle } from "@/components/course/interactive-document-context";
+import { collectArticleVisualIds } from "@/lib/materials/article-parts";
 import {
   computeDeterministicSectionNumbering,
   sanitizeVisualSpec,
@@ -54,14 +58,17 @@ import {
   type PublicSectionReadModel,
 } from "@/lib/articles/structured-read-model";
 import { explainBundleError } from "@/lib/bundle/admin-errors";
-import { useTranslations } from "@/lib/i18n/client";
-import { ProductV4ReviewForm, type ProductV4AdminReviewContext, type ProductV4AdminReviewInput } from "@/components/admin/product-v4-review-form";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import type { ProductV4AdminReviewContext } from "@/components/admin/product-v4-review-form";
+import { PEDAGOGIC_CRITERION_IDS } from "@/lib/materials/quality-policy-constants";
+import { SolutionCollectionReview } from "@/components/admin/solution-collection-review";
 import { ProductDraftEditor } from "@/components/admin/product-draft-editor";
 import type { PedagogicCriterionId } from "@/lib/materials/quality-policy";
 import type { ProductPreview } from "@/lib/bundle/product-preview";
 import type { ProductDependency, ProductEntity } from "@/lib/bundle/product-validator";
 import { cn } from "@/lib/utils";
 import styles from "./material-review-detail.module.css";
+import { useMaterialReviewNavigation } from "./material-review-navigation";
 
 type DetailProps = {
   detailId: string;
@@ -90,9 +97,10 @@ type IdeaPreview = {
 };
 
 type IdeaDetailPayload = {
-  bundle: { id: string; bundleId: string; courseId: string | null; status: string; checksum: string; createdAt: string; reviews?: { status: string; notes: string | null }[] };
+  bundle: { id: string; bundleId: string; courseId: string | null; status: string; checksum: string; createdAt: string; reviews?: { status: string; notes: string | null }[]; currentReview?: { status: string; notes: string | null; revisionBound?: boolean } | null };
   preview: IdeaPreview;
   draft: IdeaDraft;
+  reviewReset?: { revision: string; itemReviewCount: number; bundleReviewCount: number; fingerprint: string };
   itemReviews: { id: string; targetType: "idea"; targetId: string; status: "pending" | "approved" | "changes_requested"; notes: string | null }[];
   structuredReaderEnabled?: boolean;
 };
@@ -158,10 +166,11 @@ export type PedagogicReviewState = {
 
 export type PdfEvidenceState = {
   id?: string;
-  status: "none" | "pending" | "ready" | "failed" | "stale";
+  status: "none" | "missing" | "pending" | "ready" | "failed" | "stale" | "unknown" | "not_required" | "select_product" | "source_missing";
   productId?: string;
-  pageCount?: number;
-  failureCode?: string;
+  revision?: string;
+  pageCount?: number | null;
+  failureCode?: string | null;
   message?: string;
 };
 
@@ -196,6 +205,8 @@ export type ProductDetailPayload = {
   qualityEvaluation?: QualityEvaluationState;
   pedagogicReview?: PedagogicReviewState | null;
   pdfStatus?: PdfEvidenceState;
+  pdfStatuses?: PdfEvidenceState[];
+  manifest?: { schemaVersion?: string };
   blockingIssues?: QualityIssue[];
   revisionFreshness?: RevisionFreshnessState;
   v4ReviewContext?: ProductV4AdminReviewContext | null;
@@ -326,7 +337,7 @@ function DetailStatus({ status }: { status: string }) {
 
 function DetailLoading() {
   const t = useTranslations("adminAcademic");
-  return <div className="rounded-xl border border-border bg-card p-8 text-center text-body-sm text-muted-foreground">{t("materials.loadingDetail")}</div>;
+  return <ReviewDetailSkeleton label={t("materials.loadingDetail")} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -336,6 +347,7 @@ function DetailLoading() {
 export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
   const t = useTranslations("adminAcademic");
   const adminT = useTranslations("admin");
+  const { locale } = useAppLocale();
   const router = useRouter();
   const [payload, setPayload] = useState<IdeaDetailPayload | null>(null);
   const [draft, setDraft] = useState<IdeaDraft | null>(null);
@@ -349,6 +361,12 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmContentSave, setConfirmContentSave] = useState(false);
+  const contentChanged = Boolean(payload && draft && JSON.stringify(draft) !== JSON.stringify(payload.draft));
+  const hasSavedReviews = Boolean(payload?.reviewReset && (payload.reviewReset.itemReviewCount + payload.reviewReset.bundleReviewCount > 0));
+  const [ideaRevisionConflict, setIdeaRevisionConflict] = useState(false);
+  const [confirmIdeaRefresh, setConfirmIdeaRefresh] = useState(false);
+
   const [confirmAction, setConfirmAction] = useState<"discard" | "withdraw" | null>(null);
 
   const load = useCallback(async () => {
@@ -359,12 +377,14 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
       const nextPayload = await response.json() as IdeaDetailPayload & { error?: string };
       if (!response.ok || !nextPayload.bundle || !nextPayload.preview) throw new Error(nextPayload.error || "IDEA_BUNDLE_DETAIL_FAILED");
       setPayload(nextPayload);
+      setIdeaRevisionConflict(false);
+      setIdeaReviewNotes({});
       setDraft(nextPayload.draft);
       setEditing(false);
       setSelectedIdeaId((current) => nextPayload.preview.ideas.some((idea) => idea.id === current) ? current : nextPayload.preview.ideas[0]?.id ?? null);
-      setReviewNote(nextPayload.bundle.reviews?.[0]?.notes ?? "");
+      setReviewNote(nextPayload.bundle.currentReview?.notes ?? "");
     } catch (loadError) {
-      setError(explainBundleError(loadError instanceof Error ? loadError.message : "IDEA_BUNDLE_DETAIL_FAILED", (key) => adminT(`bundleErrors.${key}`)));
+      setError(explainBundleError(loadError instanceof Error ? loadError.message : "IDEA_BUNDLE_DETAIL_FAILED", (key) => adminT(key)));
     } finally {
       setLoading(false);
     }
@@ -373,58 +393,101 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
   useEffect(() => { void load(); }, [load]);
 
   async function decide(decision: "approved" | "rejected") {
-    if (!payload) return;
+    if (!payload || hasUnsavedItemNotes || editing) return;
     setSaving(true);
     setError(null);
     try {
-      const response = await fetch(`/api/admin/bundles/idea/${encodeURIComponent(payload.bundle.id)}/review`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision, notes: reviewNote || undefined }) });
+      const response = await fetch(`/api/admin/bundles/idea/${encodeURIComponent(payload.bundle.id)}/review`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision, notes: reviewNote || undefined, expectedRevision: payload.bundle.checksum }) });
       const result = await response.json() as { error?: string };
       if (!response.ok) throw new Error(result.error || "IDEA_BUNDLE_REVIEW_FAILED");
       await load();
     } catch (reviewError) {
-      setError(explainBundleError(reviewError instanceof Error ? reviewError.message : "IDEA_BUNDLE_REVIEW_FAILED", (key) => adminT(`bundleErrors.${key}`)));
+      const code = reviewError instanceof Error ? reviewError.message : "IDEA_BUNDLE_REVIEW_FAILED";
+      setError(code === "IDEA_BUNDLE_ITEM_REVIEW_INCOMPLETE"
+        ? (locale === "en" ? "Review each Idea again before submitting the decision." : "Review kembali setiap Idea sebelum menyimpan keputusan.")
+        : explainBundleError(code, (key) => adminT(key)));
     } finally {
       setSaving(false);
     }
   }
 
   async function publish() {
-    if (!payload) return;
+    if (!payload || saving || editing || hasUnsavedItemNotes) return;
     setSaving(true);
     setError(null);
     try {
-      const response = await fetch(`/api/admin/bundles/idea/${encodeURIComponent(payload.bundle.id)}/publish`, { method: "POST" });
-      const result = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(result.error || "IDEA_BUNDLE_PUBLISH_FAILED");
+      const response = await fetch(`/api/admin/bundles/idea/${encodeURIComponent(payload.bundle.id)}/publish`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ expectedRevision: payload.bundle.checksum }) });
+      const result = await response.json() as { error?: string; code?: string };
+      if (!response.ok) throw new Error(result.code || result.error || "IDEA_BUNDLE_PUBLISH_FAILED");
       await load();
     } catch (publishError) {
-      setError(explainBundleError(publishError instanceof Error ? publishError.message : "IDEA_BUNDLE_PUBLISH_FAILED", (key) => adminT(`bundleErrors.${key}`)));
+      const code = publishError instanceof Error ? publishError.message : "IDEA_BUNDLE_PUBLISH_FAILED";
+      setError(["IDEA_BUNDLE_ITEM_REVIEW_INCOMPLETE", "IDEA_BUNDLE_REVISION_REVIEW_REQUIRED", "IDEA_BUNDLE_ADMIN_APPROVAL_REQUIRED"].includes(code)
+        ? (locale === "en" ? "Your approval must include a review of every Idea in this revision." : "Persetujuan Anda harus mencakup review setiap Idea pada revisi ini.")
+        : explainBundleError(code === "IDEA_BUNDLE_PUBLICATION_CONFLICT" ? "IDEA_BUNDLE_STALE_CONTEXT" : code, (key) => adminT(key)));
     } finally {
       setSaving(false);
     }
   }
 
   function updateIdeaDraft(id: string, changes: Partial<IdeaDraftItem>) {
+    if (saving) return;
     setDraft((current) => current ? { ...current, ideas: current.ideas.map((idea) => idea.id === id ? { ...idea, ...changes } : idea) } : current);
   }
 
-  async function saveDraft() {
-    if (!payload || !draft) return;
+  async function saveDraft(confirmed = false) {
+    if (!payload || !draft || saving || ideaRevisionConflict) return;
+    if (!contentChanged) { setEditing(false); return; }
+    if (!payload.reviewReset || payload.reviewReset.revision !== payload.bundle.checksum) {
+      setError(t("materials.ideaResetUnavailable"));
+      return;
+    }
+    if (hasSavedReviews && !confirmed) { setConfirmContentSave(true); return; }
+    setConfirmContentSave(false);
     setSaving(true);
     setError(null);
     try {
-      const response = await fetch(`/api/admin/bundles/idea/${encodeURIComponent(payload.bundle.id)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ draft, expectedRevision: payload.bundle.checksum }) });
-      const result = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(result.error || "IDEA_BUNDLE_UPDATE_FAILED");
+      const response = await fetch(`/api/admin/bundles/idea/${encodeURIComponent(payload.bundle.id)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ draft, expectedRevision: payload.bundle.checksum, ...(confirmed ? { reviewResetFingerprint: payload.reviewReset.fingerprint } : {}) }) });
+      const result = await response.json() as { error?: string; code?: string };
+      const code = result.code || result.error;
+      if (!response.ok && (code === "IDEA_BUNDLE_REVIEW_RESET_REQUIRED" || code === "IDEA_BUNDLE_REVIEW_RESET_STALE" || code === "IDEA_BUNDLE_REVISION_CONFLICT" || code === "IDEA_BUNDLE_STALE_CONTEXT")) {
+        const refresh = await fetch(`/api/admin/bundles/idea/${encodeURIComponent(detailId)}`, { cache: "no-store" });
+        const latest = await refresh.json() as IdeaDetailPayload;
+        if (!refresh.ok || !latest.bundle || !latest.reviewReset || latest.reviewReset.revision !== latest.bundle.checksum) throw new Error("IDEA_BUNDLE_DETAIL_FAILED");
+        if (latest.bundle.checksum !== payload.bundle.checksum) {
+          setIdeaRevisionConflict(true);
+          setError(t("materials.ideaRevisionChanged"));
+        } else {
+          // Update only the aggregate. The local content and review notes belong to the displayed revision.
+          setPayload(current => current ? { ...current, reviewReset: latest.reviewReset } : current);
+          setError(t("materials.ideaResetChanged"));
+          setConfirmContentSave(true);
+        }
+        return;
+      }
+      if (!response.ok) throw new Error(code || "IDEA_BUNDLE_UPDATE_FAILED");
       await load();
     } catch (saveError) {
-      setError(explainBundleError(saveError instanceof Error ? saveError.message : "IDEA_BUNDLE_UPDATE_FAILED", (key) => adminT(`bundleErrors.${key}`)));
+      setError(explainBundleError(saveError instanceof Error ? saveError.message : "IDEA_BUNDLE_UPDATE_FAILED", (key) => adminT(key)));
     } finally {
       setSaving(false);
     }
   }
 
   const ideasList = useMemo(() => payload?.preview.ideas ?? [], [payload]);
+  const allIdeasReviewed = ideasList.length > 0 && ideasList.every((idea) => {
+    const status = payload?.itemReviews.find((review) => review.targetId === idea.id)?.status;
+    return status === "approved" || status === "changes_requested";
+  });
+  const ownFinalDecision = payload?.bundle.currentReview?.status;
+  const hasOwnFinalDecision = ownFinalDecision === "approved" || ownFinalDecision === "rejected";
+  const itemReviewLocked = Boolean(payload?.bundle.currentReview?.revisionBound);
+  const unsavedItemNoteIds = Object.keys(ideaReviewNotes).filter(id => ideasList.some(idea => idea.id === id) && ideaReviewNotes[id] !== (payload?.itemReviews.find(review => review.targetId === id)?.notes ?? ""));
+  const hasUnsavedItemNotes = unsavedItemNoteIds.length > 0;
+  const hasUnsavedBundleNote = !hasOwnFinalDecision && reviewNote !== (payload?.bundle.currentReview?.notes ?? "");
+  useMaterialReviewNavigation(contentChanged || hasUnsavedItemNotes || hasUnsavedBundleNote, saving || loading);
+  const itemReviewDisabled = saving || itemReviewLocked || editing;
+  const allIdeasApproved = allIdeasReviewed && ideasList.every((idea) => payload?.itemReviews.find((review) => review.targetId === idea.id)?.status === "approved");
   const currentIndex = ideasList.findIndex((idea) => idea.id === selectedIdeaId);
   const activeIdea = ideasList[currentIndex >= 0 ? currentIndex : 0] ?? null;
   const activeDraftIdea = draft?.ideas.find((idea) => idea.id === activeIdea?.id) ?? null;
@@ -437,37 +500,41 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
   }, [ideasList, payload?.itemReviews, searchQuery, statusFilter]);
 
   async function saveIdeaItemReview(status: "pending" | "approved" | "changes_requested") {
-    if (!activeIdea) return;
+    if (!activeIdea || itemReviewDisabled) return;
     setSaving(true);
     setError(null);
     try {
       const response = await fetch(`/api/admin/bundles/idea/${encodeURIComponent(payload!.bundle.id)}/item-reviews`, {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ targetType: "idea", targetId: activeIdea.id, status, notes: ideaReviewNotes[activeIdea.id]?.trim() || undefined }),
+        body: JSON.stringify({ expectedRevision: payload!.bundle.checksum, targetType: "idea", targetId: activeIdea.id, status, notes: (ideaReviewNotes[activeIdea.id] ?? payload!.itemReviews.find((review) => review.targetId === activeIdea.id)?.notes ?? "").trim() || undefined }),
       });
-      const result = await response.json() as { result?: IdeaDetailPayload["itemReviews"][number]; error?: string };
-      if (!response.ok) throw new Error(result.error || "IDEA_ITEM_REVIEW_UPDATE_FAILED");
+      const result = await response.json() as { result?: IdeaDetailPayload["itemReviews"][number]; error?: string; code?: string };
+      if (!response.ok) throw new Error(result.code || result.error || "IDEA_ITEM_REVIEW_UPDATE_FAILED");
       if (!result.result) throw new Error("IDEA_ITEM_REVIEW_UPDATE_FAILED");
       const nextReviews = [
         ...payload!.itemReviews.filter((review) => review.targetId !== activeIdea.id),
         result.result,
       ];
       setPayload((current) => current ? { ...current, itemReviews: nextReviews } : current);
+      setIdeaReviewNotes(current => { const next = { ...current }; delete next[activeIdea.id]; return next; });
       const nextPending = [
         ...ideasList.slice(currentIndex + 1),
         ...ideasList.slice(0, currentIndex),
       ].find((idea) => (nextReviews.find((review) => review.targetId === idea.id)?.status ?? "pending") === "pending");
       if (nextPending) setSelectedIdeaId(nextPending.id);
     } catch (reviewError) {
-      setError(explainBundleError(reviewError instanceof Error ? reviewError.message : "IDEA_ITEM_REVIEW_UPDATE_FAILED", (key) => adminT(`bundleErrors.${key}`)));
+      const code = reviewError instanceof Error ? reviewError.message : "IDEA_ITEM_REVIEW_UPDATE_FAILED";
+      setError(code === "IDEA_ITEM_REVIEW_IMMUTABLE"
+        ? (locale === "en" ? "Your review is already locked for this revision." : "Review Anda sudah terkunci untuk revisi ini.")
+        : explainBundleError(code, (key) => adminT(key)));
     } finally {
       setSaving(false);
     }
   }
 
   function goToIndex(index: number) {
-    if (index >= 0 && index < ideasList.length) {
+    if (!editing && !saving && index >= 0 && index < ideasList.length) {
       setSelectedIdeaId(ideasList[index].id);
       setEditing(false);
     }
@@ -481,7 +548,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
       const endpoint = action === "withdraw"
         ? `/api/admin/bundles/idea/${encodeURIComponent(payload.bundle.id)}/withdraw`
         : `/api/admin/bundles/idea/${encodeURIComponent(payload.bundle.id)}`;
-      const response = await fetch(endpoint, { method: action === "discard" ? "DELETE" : "POST" });
+      const response = await fetch(endpoint, { method: action === "discard" ? "DELETE" : "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ expectedRevision: payload.bundle.checksum }) });
       const result = await response.json() as { error?: string };
       if (!response.ok) throw new Error(result.error || `IDEA_BUNDLE_${action.toUpperCase()}_FAILED`);
       if (action === "discard") {
@@ -490,7 +557,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
         setPayload((current) => current ? { ...current, bundle: { ...current.bundle, status: "withdrawn" } } : current);
       }
     } catch (mutationError) {
-      setError(explainBundleError(mutationError instanceof Error ? mutationError.message : "IDEA_BUNDLE_UPDATE_FAILED", (key) => adminT(`bundleErrors.${key}`)));
+      setError(explainBundleError(mutationError instanceof Error ? mutationError.message : "IDEA_BUNDLE_UPDATE_FAILED", (key) => adminT(key)));
     } finally {
       setSaving(false);
     }
@@ -509,7 +576,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
             type="button"
             size="sm"
             variant="outline"
-            disabled={currentIndex <= 0}
+            disabled={editing || saving || currentIndex <= 0}
             onClick={() => goToIndex(currentIndex - 1)}
             aria-label={t("materials.previousIdea")}
             className="h-8 px-2.5"
@@ -523,7 +590,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
             type="button"
             size="sm"
             variant="outline"
-            disabled={currentIndex >= ideasList.length - 1}
+            disabled={editing || saving || currentIndex >= ideasList.length - 1}
             onClick={() => goToIndex(currentIndex + 1)}
             aria-label={t("materials.nextIdea")}
             className="h-8 px-2.5"
@@ -532,7 +599,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
           </Button>
         </div>
 
-        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
+        <Select disabled={editing || saving} value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
           <SelectTrigger className="h-8 w-40 text-body-sm"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("materials.allStatuses")}</SelectItem>
@@ -545,7 +612,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
         {/* Drawer Trigger for 60+ Items Search List */}
         <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
           <SheetTrigger asChild>
-            <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-body-sm">
+            <Button type="button" size="sm" variant="outline" disabled={editing || saving} className="h-8 gap-1.5 text-body-sm">
               <ListFilter className="size-3.5" />
               {t("materials.ideaListWithCount", { count: ideasList.length })}
             </Button>
@@ -568,7 +635,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
                 <button
                   key={idea.id}
                   type="button"
-                  onClick={() => { setSelectedIdeaId(idea.id); setEditing(false); setDrawerOpen(false); }}
+                  disabled={editing || saving} onClick={() => { if (editing || saving) return; setSelectedIdeaId(idea.id); setDrawerOpen(false); }}
                   className={cn(
                     "w-full rounded-lg p-2.5 text-left text-body-xs transition-colors hover:bg-muted",
                     activeIdea?.id === idea.id ? "bg-muted font-semibold border-l-2 border-brand-primary" : "text-foreground"
@@ -594,7 +661,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
             <SearchBar size="sm" value={searchQuery} onSearch={setSearchQuery} onClear={() => setSearchQuery("")} placeholder={t("materials.searchIdeas")} />
             {filteredIdeas.map((idea) => {
               const status = payload.itemReviews.find((review) => review.targetId === idea.id)?.status ?? "pending";
-              return <button key={idea.id} type="button" aria-label={`${shortIdeaCode(idea.code)}, ${t(`materials.reviewStatus.${status}`)}`} onClick={() => { setSelectedIdeaId(idea.id); setEditing(false); }} className={cn("w-full rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", status === "approved" ? "border-status-success/50 bg-status-success/10 hover:bg-status-success/15" : status === "changes_requested" ? "border-status-warning/60 bg-status-warning/10 hover:bg-status-warning/15" : "border-border bg-card hover:bg-muted/50", activeIdea.id === idea.id && "ring-2 ring-primary ring-offset-1 ring-offset-background")}><span className="text-body-sm font-semibold">{shortIdeaCode(idea.code)}</span><p className="mt-1 line-clamp-2 text-body-xs text-muted-foreground"><MathText as="span">{idea.canonicalStatement}</MathText></p></button>;
+              return <button key={idea.id} type="button" aria-label={`${shortIdeaCode(idea.code)}, ${t(status === "approved" ? "materials.status.approved" : status === "changes_requested" ? "materials.reviewStatus.changesRequested" : "materials.reviewStatus.pending")}`} disabled={editing || saving} onClick={() => { if (!editing && !saving) setSelectedIdeaId(idea.id); }} className={cn("w-full rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", status === "approved" ? "border-status-success/50 bg-status-success/10 hover:bg-status-success/15" : status === "changes_requested" ? "border-status-warning/60 bg-status-warning/10 hover:bg-status-warning/15" : "border-border bg-card hover:bg-muted/50", activeIdea.id === idea.id && "ring-2 ring-primary ring-offset-1 ring-offset-background")}><span className="text-body-sm font-semibold">{shortIdeaCode(idea.code)}</span><p className="mt-1 line-clamp-2 text-body-xs text-muted-foreground"><MathText as="span">{idea.canonicalStatement}</MathText></p></button>;
             })}
           </aside> : null}
         <article key={activeIdea.id} className="space-y-4 rounded-xl border border-border bg-card p-4">
@@ -610,13 +677,13 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
             <div className="flex items-center gap-2">
                 <Badge variant="outline">{t("materials.sourceEvidenceCount", { count: activeIdea.provenance.length })}</Badge>
               {!editing && !["published", "withdrawn", "discarding"].includes(payload.bundle.status) && (
-                <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)} className="h-8 text-body-sm">{t("materials.editContent")}</Button>
+                <Button type="button" size="sm" variant="outline" disabled={saving || hasUnsavedItemNotes || hasUnsavedBundleNote} onClick={() => setEditing(true)} className="h-8 text-body-sm">{t("materials.editContent")}</Button>
               )}
             </div>
           </div>
 
           {editing && activeDraftIdea ? (
-            <div className="space-y-4">
+            <fieldset disabled={saving} className="min-w-0 space-y-4 border-0 p-0">
               <div className="grid gap-3 lg:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor={`detail-idea-code-${activeIdea.id}`}>{t("materials.shortCode")}</Label>
@@ -624,16 +691,16 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1.5">
-                    <Label>{t("materials.knowledgeType")}</Label>
-                    <Select value={activeDraftIdea.knowledgeKind} onValueChange={(value) => updateIdeaDraft(activeDraftIdea.id, { knowledgeKind: value })}>
-                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <Label htmlFor={`detail-idea-knowledge-${activeIdea.id}`}>{t("materials.knowledgeType")}</Label>
+                    <Select disabled={saving} value={activeDraftIdea.knowledgeKind} onValueChange={(value) => updateIdeaDraft(activeDraftIdea.id, { knowledgeKind: value })}>
+                      <SelectTrigger id={`detail-idea-knowledge-${activeIdea.id}`} className="h-9"><SelectValue /></SelectTrigger>
                       <SelectContent>{Object.keys(knowledgeLabels).map((value) => <SelectItem key={value} value={value}>{t(`materials.taxonomy.knowledge.${value}`)}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>{t("materials.learningRole")}</Label>
-                    <Select value={activeDraftIdea.instructionalRole} onValueChange={(value) => updateIdeaDraft(activeDraftIdea.id, { instructionalRole: value })}>
-                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <Label htmlFor={`detail-idea-role-${activeIdea.id}`}>{t("materials.learningRole")}</Label>
+                    <Select disabled={saving} value={activeDraftIdea.instructionalRole} onValueChange={(value) => updateIdeaDraft(activeDraftIdea.id, { instructionalRole: value })}>
+                      <SelectTrigger id={`detail-idea-role-${activeIdea.id}`} className="h-9"><SelectValue /></SelectTrigger>
                       <SelectContent>{Object.keys(roleLabels).map((value) => <SelectItem key={value} value={value}>{t(`materials.taxonomy.role.${value}`)}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
@@ -661,10 +728,10 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
                 )}
               </div>
               <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-                <Button type="button" size="sm" disabled={saving} onClick={() => void saveDraft()}>{t("documents.saveChanges")}</Button>
-                <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => void load()}>{t("common.cancel")}</Button>
+                <Button type="button" size="sm" disabled={saving || ideaRevisionConflict} onClick={() => void saveDraft()}>{t("documents.saveChanges")}</Button>
+                <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => { setDraft(payload.draft); setEditing(false); }}>{t("common.cancel")}</Button>
               </div>
-            </div>
+            </fieldset>
           ) : (
             <div className="space-y-6">
               <div className="space-y-2">
@@ -709,21 +776,26 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
           )}
           {!["published", "withdrawn", "discarding"].includes(payload.bundle.status) ? (
             <div className="space-y-3 border-t border-border pt-4">
+              <Label htmlFor={`idea-item-note-${activeIdea.id}`} className="text-body-sm font-semibold">{t("materials.ideaItemReviewNote")}</Label>
               <Textarea
+                id={`idea-item-note-${activeIdea.id}`}
+                disabled={itemReviewDisabled}
                 value={ideaReviewNotes[activeIdea.id] ?? payload.itemReviews.find((review) => review.targetId === activeIdea.id)?.notes ?? ""}
                 onChange={(event) => setIdeaReviewNotes((current) => ({ ...current, [activeIdea.id]: event.target.value }))}
                 placeholder={t("materials.itemReviewPlaceholder")}
                 className="min-h-20 text-body-sm"
               />
+              {unsavedItemNoteIds.includes(activeIdea.id) ? <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => setIdeaReviewNotes(current => { const next = { ...current }; delete next[activeIdea.id]; return next; })}>{t("materials.discardItemNote")}</Button> : null}
+              {itemReviewLocked ? <p role="status" className="text-body-xs text-muted-foreground">{t("materials.itemReviewLocked")}</p> : null}
               <div className="flex flex-wrap gap-2">
-                <Button type="button" size="sm" disabled={saving} onClick={() => void saveIdeaItemReview("approved")} className="bg-status-success text-white hover:bg-status-success/90">
+                <Button type="button" size="sm" disabled={itemReviewDisabled} onClick={() => void saveIdeaItemReview("approved")} className="bg-status-success text-white hover:bg-status-success/90">
                   <Check className="size-4" />{t("materials.approveAndContinue")}
                 </Button>
-                <Button type="button" size="sm" disabled={saving} variant="outline" onClick={() => void saveIdeaItemReview("changes_requested")} className="border-status-warning text-status-warning">
+                <Button type="button" size="sm" disabled={itemReviewDisabled} variant="outline" onClick={() => void saveIdeaItemReview("changes_requested")} className="border-status-warning text-status-warning">
                   <AlertTriangle className="size-4" />{t("materials.requestChanges")}
                 </Button>
                 {(payload.itemReviews.find((review) => review.targetId === activeIdea.id)?.status ?? "pending") !== "pending" ? (
-                  <Button type="button" size="sm" disabled={saving} variant="ghost" onClick={() => void saveIdeaItemReview("pending")}>
+                  <Button type="button" size="sm" disabled={itemReviewDisabled} variant="ghost" onClick={() => void saveIdeaItemReview("pending")}>
                     <RotateCcw className="size-4" />{t("materials.resetStatus")}
                   </Button>
                 ) : null}
@@ -758,30 +830,44 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
       <section className="border-t border-border pt-3 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Label htmlFor="idea-review-note" className="text-body-sm font-semibold">{t("materials.reviewNotes")}</Label>
-          <span className="text-body-xs text-muted-foreground">{t("materials.savedWithDecision")}</span>
+          <span className="break-all font-mono text-body-xs text-muted-foreground">SHA-256: {payload.bundle.checksum}</span>
         </div>
         <Textarea
           id="idea-review-note"
+          disabled={saving || editing || hasOwnFinalDecision}
           value={reviewNote}
           onChange={(event) => setReviewNote(event.target.value)}
           placeholder={t("materials.reviewNotesPlaceholder")}
           className="min-h-16 text-body-sm"
         />
+          {hasUnsavedBundleNote ? <div className="flex flex-wrap items-center gap-2 text-body-xs text-muted-foreground"><p>{t("materials.unsavedBundleNote")}</p><Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => setReviewNote(payload.bundle.currentReview?.notes ?? "")}>{t("materials.discardBundleNote")}</Button></div> : null}
+          {payload.bundle.status === "validated" && !allIdeasApproved && (
+            <p className="text-body-xs text-muted-foreground">{!allIdeasReviewed
+              ? (locale === "en" ? "Review every Idea before submitting a decision." : "Review setiap Idea sebelum menyimpan keputusan.")
+              : (locale === "en" ? "Approve every Idea before approving the bundle." : "Setujui setiap Idea sebelum menyetujui bundle.")}</p>
+          )}
+          {hasUnsavedItemNotes ? <div role="status" className="flex flex-wrap items-center gap-2 border-l-2 border-status-warning pl-3 text-body-xs text-foreground"><p>{t("materials.unsavedItemNotes")}</p><Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => setSelectedIdeaId(unsavedItemNoteIds[0])}>{t("materials.openUnsavedItemNote")}</Button></div> : null}
           {error && <p className="text-body-xs text-status-error">{error}</p>}
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
           <div className="flex flex-wrap gap-2">
-          {payload.bundle.status === "validated" && (
+          {(["validated", "approved", "rejected"] as string[]).includes(payload.bundle.status) && !hasOwnFinalDecision && (
             <>
-              <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => void decide("approved")}>
+              <Button type="button" size="sm" variant="outline" disabled={saving || editing || hasUnsavedItemNotes || !allIdeasApproved} onClick={() => void decide("approved")}>
                 <Check className="size-3.5" />{t("materials.approve")}
               </Button>
-              <Button type="button" size="sm" variant="destructive" disabled={saving} onClick={() => void decide("rejected")}>
+              <Button type="button" size="sm" variant="destructive" disabled={saving || editing || hasUnsavedItemNotes || !allIdeasReviewed} onClick={() => void decide("rejected")}>
                 <X className="size-3.5" />{t("materials.reject")}
               </Button>
             </>
           )}
-          {payload.bundle.status === "approved" && (
-            <Button type="button" size="sm" disabled={saving} onClick={() => void publish()}>
+          {(["validated", "approved", "rejected"] as string[]).includes(payload.bundle.status) && hasOwnFinalDecision && !itemReviewLocked && (
+            <Button type="button" size="sm" variant="outline" disabled={saving || editing || hasUnsavedItemNotes || (ownFinalDecision === "approved" ? !allIdeasApproved : !allIdeasReviewed)} onClick={() => void decide(ownFinalDecision as "approved" | "rejected")}>
+              {t(ownFinalDecision === "approved" ? "materials.reaffirmApproval" : "materials.reaffirmRejection")}
+            </Button>
+          )}
+          {hasOwnFinalDecision && ["validated", "approved", "rejected"].includes(payload.bundle.status) ? <StatusBadge tone={ownFinalDecision === "approved" ? "success" : "error"}>{t(ownFinalDecision === "approved" ? "materials.savedApproval" : "materials.savedRejection")}</StatusBadge> : null}
+          {(["validated", "approved", "rejected"] as string[]).includes(payload.bundle.status) && ownFinalDecision === "approved" && (
+            <Button type="button" size="sm" disabled={saving || editing || hasUnsavedItemNotes || !itemReviewLocked} onClick={() => void publish()}>
               <FileCheck2 className="size-3.5" />{t("documents.publish")}
             </Button>
           )}
@@ -798,7 +884,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
           {(["validated", "approved", "rejected", "published", "discarding"] as string[]).includes(payload.bundle.status) && (
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
-                <Button type="button" size="sm" variant="outline" disabled={saving} aria-label={t("materials.moreActions")}>
+                <Button type="button" size="sm" variant="outline" disabled={saving || editing} aria-label={t("materials.moreActions")}>
                   <MoreHorizontal className="size-4" />{t("materials.moreActions")}
                 </Button>
               </DropdownMenu.Trigger>
@@ -819,6 +905,9 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
           )}
         </div>
       </section>
+      <AdminConfirmDialog open={confirmContentSave} onOpenChange={setConfirmContentSave} title={t("materials.replaceIdeaContentTitle")} description={t("materials.replaceIdeaContentDescription", { items: payload.reviewReset?.itemReviewCount ?? 0, bundles: payload.reviewReset?.bundleReviewCount ?? 0 })} confirmLabel={t("materials.replaceIdeaContentConfirm")} loading={saving} onConfirm={() => void saveDraft(true)} />
+      {ideaRevisionConflict ? <Button type="button" size="sm" variant="outline" onClick={() => setConfirmIdeaRefresh(true)}>{t("materials.ideaLoadRevision")}</Button> : null}
+      <AdminConfirmDialog open={confirmIdeaRefresh} onOpenChange={setConfirmIdeaRefresh} title={t("materials.ideaLoadRevisionTitle")} description={t("materials.ideaLoadRevisionDescription")} confirmLabel={t("materials.ideaLoadRevision")} loading={loading} onConfirm={() => { setConfirmIdeaRefresh(false); void load(); }} />
       <AdminConfirmDialog
         open={confirmAction !== null}
         onOpenChange={(open) => { if (!open) setConfirmAction(null); }}
@@ -1021,17 +1110,25 @@ function ArticleBlockInspector({
 function StructuredArticleProductView({
   product,
   bundleId,
+  expectedRevision,
   bundleStatus,
+  bundleChecksum,
   reviewLocked,
   itemReviews,
   onReviewChange,
+  onSectionStateChange,
+  parentBusy = false,
 }: {
   product: Extract<ProductEntity, { productType: "article" }>;
   bundleId: string;
+  expectedRevision?: string;
   bundleStatus: string;
+  bundleChecksum?: string;
   reviewLocked: boolean;
   itemReviews: ProductBlockReview[];
   onReviewChange?: (review: ProductBlockReview) => void;
+  onSectionStateChange?: (state: { dirty: boolean; pending: boolean }) => void;
+  parentBusy?: boolean;
 }) {
   const adminT = useTranslations("admin");
   const structuredArticleT = useTranslations("adminReviewProduct");
@@ -1076,10 +1173,10 @@ function StructuredArticleProductView({
     blocks: (() => {
       const renderedVisualIds = new Set<string>();
       return [...selected.blocks].sort((a, b) => a.orderIndex - b.orderIndex).map((block) => {
-        const visuals = (block.visualIds ?? [])
+        const visuals = (block.parts ? collectArticleVisualIds(block.parts) : block.visualIds ?? [])
           .map((visualId) => visualMap.get(visualId))
           .filter((visual): visual is NonNullable<ReturnType<typeof sanitizeVisualSpec>> => {
-            if (!visual || renderedVisualIds.has(visual.id)) return false;
+            if (!visual || (!block.parts && renderedVisualIds.has(visual.id))) return false;
             renderedVisualIds.add(visual.id);
             return true;
           });
@@ -1090,6 +1187,7 @@ function StructuredArticleProductView({
           title: block.title ?? null,
           orderIndex: block.orderIndex,
           content: block.contentMarkdown,
+          parts: block.parts,
           workedExample: sanitizeWorkedExample(block.workedExamplePayload),
           formativeCheck: sanitizeFormativeCheck(block.formativeCheckPayload),
           visuals: visuals.length > 0 ? visuals : undefined,
@@ -1110,7 +1208,7 @@ function StructuredArticleProductView({
       : undefined,
     visuals: (() => {
       if (selected.pedagogy?.visualRequirement.status !== "required") return undefined;
-      const blockVisualIds = new Set(selected.blocks.flatMap((block) => block.visualIds ?? []));
+      const blockVisualIds = new Set(selected.blocks.flatMap((block) => block.parts ? collectArticleVisualIds(block.parts) : block.visualIds ?? []));
       const sectionVisuals = selected.pedagogy.visualRequirement.visualIds
         .map((visualId) => visualMap.get(visualId))
         .filter((visual): visual is NonNullable<ReturnType<typeof sanitizeVisualSpec>> => {
@@ -1125,27 +1223,32 @@ function StructuredArticleProductView({
     setNotes(review?.notes ?? "");
   }, [review?.notes, selected?.id]);
 
+  const noteDirty = notes !== (review?.notes ?? "");
+  useEffect(() => { onSectionStateChange?.({ dirty: noteDirty, pending: saving }); }, [noteDirty, saving, onSectionStateChange]);
+  useEffect(() => () => onSectionStateChange?.({ dirty: false, pending: false }), [onSectionStateChange]);
+
   /** Saves the selected section's review and advances to the next pending section. */
   async function saveSectionReview(status: ProductBlockReview["status"]) {
-    if (!selected || bundleStatus !== "draft" || reviewLocked) return;
+    if (!selected || bundleStatus !== "draft" || reviewLocked || saving || parentBusy) return;
     setSaving(true);
     setReviewError(null);
     try {
       const response = await fetch(`/api/admin/bundles/product/${encodeURIComponent(bundleId)}/item-reviews`, {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ targetType: "article_section", targetId: selected.id, productId: product.id, status, notes: notes.trim() || undefined }),
+        body: JSON.stringify({ expectedRevision, targetType: "article_section", targetId: selected.id, productId: product.id, status, notes: notes.trim() || undefined }),
       });
       const data = await response.json() as { result?: ProductBlockReview; error?: string };
       if (!response.ok || !data.result) throw new Error(data.error || "PRODUCT_SECTION_REVIEW_UPDATE_FAILED");
       onReviewChange?.(data.result);
+      setNotes(data.result.notes ?? "");
       const pending = sections.find((section) => {
         if (section.id === selected.id) return false;
         return !reviews.some((entry) => entry.targetId === section.id && entry.status !== "pending");
       });
       if (pending) setSelectedSectionId(pending.id);
     } catch (error) {
-      setReviewError(explainBundleError(error instanceof Error ? error.message : "PRODUCT_SECTION_REVIEW_UPDATE_FAILED", (key) => adminT(`bundleErrors.${key}`)));
+      setReviewError(explainBundleError(error instanceof Error ? error.message : "PRODUCT_SECTION_REVIEW_UPDATE_FAILED", (key) => adminT(key)));
     } finally {
       setSaving(false);
     }
@@ -1160,7 +1263,7 @@ function StructuredArticleProductView({
           <button
             key={section.id}
             type="button"
-            onClick={() => { setSelectedSectionId(section.id); setMobileQueueOpen(false); }}
+            disabled={saving || parentBusy || noteDirty} onClick={() => { if (saving || parentBusy || noteDirty) return; setSelectedSectionId(section.id); setMobileQueueOpen(false); }}
             className={cn("w-full rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", selected?.id === section.id ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-muted/50")}
           >
             <div className="flex items-center justify-between gap-2 text-body-xs text-muted-foreground">
@@ -1191,12 +1294,14 @@ function StructuredArticleProductView({
               ? `/api/admin/bundles/product/${encodeURIComponent(bundleId)}/formative-check`
               : "/api/materials/formative-check"}
           >
+            <InteractiveDocumentArticle value={bundleStatus === "draft" && bundleChecksum ? { courseId: product.courseId, articleId: product.id, articleVersion: product.version, draftId: bundleId, draftChecksum: bundleChecksum } : null}>
             <StructuredArticleSectionContent
               section={publicSection}
               articleId={product.id}
               articleVersion={product.version}
               showProgress={false}
             />
+            </InteractiveDocumentArticle>
           </FormativeCheckEndpointProvider>
         ) : (
           <AdminEmptyState
@@ -1222,17 +1327,19 @@ function StructuredArticleProductView({
               <Label htmlFor={`section-review-notes-${selected.id}`} className="text-body-sm font-semibold">{structuredArticleT("notes")}</Label>
               <Textarea
                 id={`section-review-notes-${selected.id}`}
+                disabled={saving || parentBusy}
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
                 placeholder={structuredArticleT("notesPlaceholder")}
                 className="min-h-20 text-body-sm"
               />
+              {noteDirty ? <div role="status" className="flex flex-wrap items-center gap-2 border-l-2 border-status-warning pl-3 text-body-xs"><p>{structuredArticleT("unsavedSectionNote")}</p><Button type="button" size="sm" variant="outline" disabled={saving || parentBusy} onClick={() => setNotes(review?.notes ?? "")}>{structuredArticleT("discardSectionNote")}</Button></div> : null}
               {reviewError ? <p className="text-body-xs text-status-error">{reviewError}</p> : null}
               <div className="flex flex-wrap gap-2">
-                <Button type="button" disabled={saving} onClick={() => void saveSectionReview("approved")} className="bg-status-success text-white hover:bg-status-success/90">
+                <Button type="button" disabled={saving || parentBusy} onClick={() => void saveSectionReview("approved")} className="bg-status-success text-white hover:bg-status-success/90">
                   <Check className="mr-1 size-4" />{structuredArticleT("approveSection")}
                 </Button>
-                <Button type="button" disabled={saving} variant="outline" onClick={() => void saveSectionReview("changes_requested")} className="border-status-warning text-status-warning">
+                <Button type="button" disabled={saving || parentBusy} variant="outline" onClick={() => void saveSectionReview("changes_requested")} className="border-status-warning text-status-warning">
                   <AlertTriangle className="mr-1 size-4" />{structuredArticleT("requestSectionChanges")}
                 </Button>
               </div>
@@ -1252,21 +1359,27 @@ function LegacyArticleProductView({
   viewMode,
   onViewModeChange,
   bundleId,
+  expectedRevision,
   bundleStatus,
   reviewLocked = false,
   blockReviews = [],
   onBlockReviewChange,
   dependencies = [],
+  parentBusy = false,
+  onSectionStateChange,
 }: {
   product: Extract<ProductEntity, { productType: "article" }>;
   viewMode: "student" | "blocks";
   onViewModeChange: (mode: "student" | "blocks") => void;
   bundleId: string;
+  expectedRevision?: string;
   bundleStatus: string;
   reviewLocked?: boolean;
   blockReviews?: ProductBlockReview[];
   onBlockReviewChange?: (review: ProductBlockReview) => void;
   dependencies?: ProductDependency[];
+  parentBusy?: boolean;
+  onSectionStateChange?: (state: { dirty: boolean; pending: boolean }) => void;
 }) {
   const adminT = useTranslations("admin");
   const legacyArticleT = useTranslations("adminReviewProduct");
@@ -1327,6 +1440,11 @@ function LegacyArticleProductView({
       .join("\n\n");
   }, [sortedBlocks]);
 
+  const noteDirty = Object.entries(blockNotes).some(([id, note]) => note.trim() !== (blockReviewMap[id]?.notes ?? "").trim());
+  const pending = Object.values(savingStates).some(state => state === "saving");
+  useEffect(() => { onSectionStateChange?.({ dirty: noteDirty, pending }); }, [onSectionStateChange, noteDirty, pending]);
+  useEffect(() => () => onSectionStateChange?.({ dirty: false, pending: false }), [onSectionStateChange]);
+
   const activeBlock = sortedBlocks.find((b) => b.id === selectedBlockId) ?? sortedBlocks[0] ?? null;
   const activeParsed = activeBlock ? parseEmbeddedContent(activeBlock.content) : null;
   const activeReview = activeBlock ? blockReviewMap[activeBlock.id] ?? null : null;
@@ -1336,7 +1454,7 @@ function LegacyArticleProductView({
     status: "pending" | "approved" | "changes_requested",
     overrideNote?: string
   ) {
-    if (bundleStatus !== "draft" || reviewLocked) return;
+    if (bundleStatus !== "draft" || reviewLocked || parentBusy || pending) return;
     const noteToSave = overrideNote !== undefined ? overrideNote : (blockNotes[blockId] ?? blockReviewMap[blockId]?.notes ?? "");
     setSavingStates((prev) => ({ ...prev, [blockId]: "saving" }));
     setSaveErrors((prev) => {
@@ -1349,6 +1467,7 @@ function LegacyArticleProductView({
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          expectedRevision,
           productId: product.id,
           blockId,
           status,
@@ -1375,7 +1494,7 @@ function LegacyArticleProductView({
       setSavingStates((prev) => ({ ...prev, [blockId]: "error" }));
       setSaveErrors((prev) => ({
         ...prev,
-        [blockId]: explainBundleError(saveError instanceof Error ? saveError.message : "PRODUCT_BLOCK_REVIEW_UPDATE_FAILED", (key) => adminT(`bundleErrors.${key}`)),
+        [blockId]: explainBundleError(saveError instanceof Error ? saveError.message : "PRODUCT_BLOCK_REVIEW_UPDATE_FAILED", (key) => adminT(key)),
       }));
     }
   }
@@ -1418,7 +1537,8 @@ function LegacyArticleProductView({
             type="button"
             size="sm"
             variant={viewMode === "student" ? "secondary" : "outline"}
-            onClick={() => onViewModeChange("student")}
+            disabled={parentBusy || noteDirty || pending}
+            onClick={() => { if (!parentBusy && !noteDirty && !pending) onViewModeChange("student"); }}
             className="h-8 text-body-xs gap-1.5"
           >
             <BookOpen className="size-3.5" />
@@ -1428,7 +1548,8 @@ function LegacyArticleProductView({
             type="button"
             size="sm"
             variant={viewMode === "blocks" ? "secondary" : "outline"}
-            onClick={() => onViewModeChange("blocks")}
+            disabled={parentBusy || noteDirty || pending}
+            onClick={() => { if (!parentBusy && !noteDirty && !pending) onViewModeChange("blocks"); }}
             className="h-8 text-body-xs gap-1.5"
           >
             <Layers className="size-3.5" />
@@ -1508,7 +1629,8 @@ function LegacyArticleProductView({
                       <button
                         type="button"
                         aria-pressed={isSelected}
-                        onClick={() => setSelectedBlockId(block.id)}
+                        disabled={parentBusy || pending}
+                        onClick={() => { if (!parentBusy && !pending) setSelectedBlockId(block.id); }}
                         className="flex min-w-0 items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <span className="flex size-5 shrink-0 items-center justify-center rounded bg-muted font-mono text-body-xs font-bold text-muted-foreground">
@@ -1537,6 +1659,7 @@ function LegacyArticleProductView({
                             size="sm"
                             variant="ghost"
                             className="h-7 px-2 text-body-xs text-status-error"
+                            disabled={parentBusy || pending}
                             onClick={() => void saveBlockReview(block.id, currentStatus)}
                           >
                             {legacyArticleT("retry")}
@@ -1554,6 +1677,7 @@ function LegacyArticleProductView({
                                 "h-7 px-2 text-body-xs gap-1",
                                 currentStatus === "approved" && "bg-status-success text-white hover:bg-status-success/90"
                               )}
+                              disabled={parentBusy || pending}
                               onClick={() => void saveBlockReview(block.id, currentStatus === "approved" ? "pending" : "approved")}
                               title={currentStatus === "approved" ? legacyArticleT("cancelApproval") : legacyArticleT("approveBlock")}
                             >
@@ -1568,6 +1692,7 @@ function LegacyArticleProductView({
                                 "h-7 px-2 text-body-xs gap-1",
                                 currentStatus === "changes_requested" && "bg-status-warning text-white hover:bg-status-warning/90"
                               )}
+                              disabled={parentBusy || pending}
                               onClick={() => void saveBlockReview(block.id, currentStatus === "changes_requested" ? "pending" : "changes_requested")}
                               title={currentStatus === "changes_requested" ? legacyArticleT("cancelChangesRequest") : legacyArticleT("requestBlockChanges")}
                             >
@@ -1592,6 +1717,7 @@ function LegacyArticleProductView({
                     {bundleStatus === "draft" && !reviewLocked && (
                       <div className="space-y-1 pt-1">
                         <Textarea
+                          disabled={parentBusy || pending}
                           value={blockNotes[block.id] ?? review?.notes ?? ""}
                           onChange={(e) => {
                             const val = e.target.value;
@@ -1646,9 +1772,9 @@ function LegacyArticleProductView({
 }
 
 /** Selects the structured or legacy article review view for the bundle. */
-export function ArticleProductView(props: Parameters<typeof LegacyArticleProductView>[0] & { structuredEnabled?: boolean }) {
+export function ArticleProductView(props: Parameters<typeof LegacyArticleProductView>[0] & { structuredEnabled?: boolean; bundleChecksum?: string; onSectionStateChange?: (state: { dirty: boolean; pending: boolean }) => void; parentBusy?: boolean }) {
   if (props.structuredEnabled && props.product.sections.length > 0) {
-    return <StructuredArticleProductView product={props.product} bundleId={props.bundleId} bundleStatus={props.bundleStatus} reviewLocked={props.reviewLocked ?? false} itemReviews={props.blockReviews ?? []} onReviewChange={props.onBlockReviewChange} />;
+    return <StructuredArticleProductView product={props.product} bundleId={props.bundleId} bundleChecksum={props.bundleChecksum ?? props.expectedRevision} expectedRevision={props.expectedRevision} bundleStatus={props.bundleStatus} reviewLocked={props.reviewLocked ?? false} itemReviews={props.blockReviews ?? []} onReviewChange={props.onBlockReviewChange} onSectionStateChange={props.onSectionStateChange} parentBusy={props.parentBusy} />;
   }
   return <LegacyArticleProductView {...props} />;
 }
@@ -1658,6 +1784,11 @@ export function DiktatProductView({
   dependencies = [],
   bundleId,
   pdfStatus,
+  expectedRevision,
+  pdfBusy = false,
+  pdfBlocked = false,
+  trustedVerification = false,
+  onRequestPdf,
   onPdfRendered,
 }: {
   product: (Extract<ProductEntity, { productType: "diktat" }> & { fileKey?: string | null }) | {
@@ -1672,6 +1803,11 @@ export function DiktatProductView({
   dependencies?: ProductDependency[];
   bundleId?: string;
   pdfStatus?: { status: string; pageCount?: number | null };
+  expectedRevision?: string;
+  pdfBusy?: boolean;
+  pdfBlocked?: boolean;
+  trustedVerification?: boolean;
+  onRequestPdf?: (productId: string) => Promise<void>;
   onPdfRendered?: () => void;
 }) {
   const t = useTranslations("adminAcademic");
@@ -1695,22 +1831,19 @@ export function DiktatProductView({
     STALE: "error",
   };
 
-  const hasPdf = Boolean(renderedKey || product.fileKey || pdfStatus?.status === "ready");
-  const pdfViewUrl = bundleId
-    ? `/api/admin/bundles/product/${encodeURIComponent(bundleId)}/pdf`
+  const hasPdf = bundleId ? pdfStatus?.status === "ready" : Boolean(renderedKey || product.fileKey);
+  const pdfViewUrl = bundleId && expectedRevision
+    ? productPdfUrl(bundleId, product.id, expectedRevision)
     : `/api/admin/diktats/${encodeURIComponent(product.id)}/pdf`;
 
   const handleRenderPdf = async () => {
+    if (bundleId) {
+      if (!pdfBlocked && !pdfBusy && !trustedVerification && onRequestPdf) await onRequestPdf(product.id);
+      return;
+    }
+    if (rendering) return;
     setRendering(true);
     try {
-      if (bundleId) {
-        const res = await fetch(`/api/admin/bundles/product/${encodeURIComponent(bundleId)}/pdf`, { method: "POST" });
-        if (!res.ok) {
-          throw new Error(t("materials.productView.pdfRenderFailed"));
-        }
-        toast.success(t("materials.productView.pdfRenderQueued"));
-        onPdfRendered?.();
-      } else {
         const res = await fetch(`/api/admin/diktats/${encodeURIComponent(product.id)}/pdf`, { method: "POST" });
         const data = await res.json();
         if (!res.ok || !data.ok) {
@@ -1719,7 +1852,6 @@ export function DiktatProductView({
         setRenderedKey(data.fileKey);
         toast.success(t("materials.productView.pdfRendered"));
         onPdfRendered?.();
-      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("materials.productView.pdfRenderFailed"));
     } finally {
@@ -1756,15 +1888,15 @@ export function DiktatProductView({
             </Button>
           )}
 
-          <Button
+          {!trustedVerification && <Button
             type="button"
             size="sm"
             variant={hasPdf ? "outline" : "default"}
-            disabled={rendering}
+            disabled={rendering || pdfBusy || pdfBlocked || Boolean(bundleId && !onRequestPdf)}
             onClick={() => void handleRenderPdf()}
             className="gap-1.5 h-8 text-body-xs"
           >
-            {rendering ? (
+            {rendering || pdfBusy ? (
               <>
                 <Loader2 className="size-3.5 animate-spin" />
                 {t("materials.productView.rendering")}
@@ -1780,10 +1912,9 @@ export function DiktatProductView({
                 {t("materials.productView.renderPdf")}
               </>
             )}
-          </Button>
+          </Button>}
         </div>
       </div>
-
       {/* Diktat Content Canvas (Direct canvas without nested card) */}
       <div className="prose dark:prose-invert max-w-none text-body-base leading-relaxed text-foreground border-t border-border/70 pt-4">
         <MarkdownRenderer content={parsed.content} density="compact" />
@@ -1792,7 +1923,7 @@ export function DiktatProductView({
   );
 }
 
-export function FlashcardProductView({ product }: { product: Extract<ProductEntity, { productType: "flashcard" }> | { id: string; front: string; back: string; explanation?: string | null } }) {
+export function FlashcardProductView({ product, compact = false }: { product: Extract<ProductEntity, { productType: "flashcard" }> | { id: string; front: string; back: string; explanation?: string | null }; compact?: boolean }) {
   const t = useTranslations("adminAcademic");
   const [isFlipped, setIsFlipped] = useState(false);
   const parsedFront = parseEmbeddedContent(product.front);
@@ -1802,9 +1933,7 @@ export function FlashcardProductView({ product }: { product: Extract<ProductEnti
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
-        <div>
-          <h3 className="font-heading text-body-sm font-bold text-foreground">{t("materials.productView.flashcard")}</h3>
-        </div>
+        {!compact ? <h3 className="font-heading text-body-sm font-bold text-foreground">{t("materials.productView.flashcard")}</h3> : null}
         <Button
           type="button"
           size="sm"
@@ -1834,9 +1963,7 @@ export function FlashcardProductView({ product }: { product: Extract<ProductEnti
           <Badge variant={isFlipped ? "default" : "outline"} className="text-body-xs">
             {isFlipped ? t("materials.productView.backAnswer") : t("materials.productView.frontQuestion")}
           </Badge>
-          <span className="text-body-xs text-muted-foreground flex items-center gap-1">
-            <RotateCcw className="size-3" /> {t("materials.productView.clickToFlip")}
-          </span>
+          {!compact ? <span className="text-body-xs text-muted-foreground flex items-center gap-1"><RotateCcw className="size-3" /> {t("materials.productView.clickToFlip")}</span> : null}
         </div>
 
         <div className="my-4 text-center text-body-base font-semibold text-foreground">
@@ -1867,19 +1994,12 @@ export function FlashcardProductView({ product }: { product: Extract<ProductEnti
 }
 
 function FlashcardSetProductView({ product, allProducts, onSelectCard }: { product: Extract<ProductEntity, { productType: "flashcard_set" }>; allProducts: ProductEntity[]; onSelectCard: (id: string) => void }) {
-  const t = useTranslations("adminAcademic");
   const childCards = useMemo(() => {
     return allProducts.filter((p): p is Extract<ProductEntity, { productType: "flashcard" }> => p.productType === "flashcard" && (p.setId === product.id || product.cards.includes(p.id)));
   }, [allProducts, product]);
 
   return (
     <div className="space-y-4">
-      <div className="border-b border-border pb-3">
-        <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">{t("materials.productView.flashcardSet")}</span>
-        <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">{product.title}</h3>
-        <p className="text-body-xs text-muted-foreground">{t("materials.productView.cardCount", { count: product.cards.length })}</p>
-      </div>
-
       <div className="divide-y divide-border rounded-xl border border-border bg-card">
         {childCards.map((card, idx) => {
           const frontParsed = parseEmbeddedContent(card.front);
@@ -2061,59 +2181,84 @@ type ConfirmActionState =
   | null;
 
 /** Shows PDF and content readiness, including blocking publication issues. */
-function BundleReadinessPanel({ payload, onRefresh }: { payload: ProductDetailPayload; onRefresh: () => Promise<void> }) {
-  const t = useTranslations("adminAcademic");
-  const [pdfBusy, setPdfBusy] = useState(false);
-  const [pdfRequestFailed, setPdfRequestFailed] = useState(false);
-  const pdf = payload.pdfStatus ?? { status: "pending" as const };
-  const freshness = payload.revisionFreshness;
+function productPdfUrl(bundleId: string, productId: string, revision: string) {
+  const params = new URLSearchParams({ productId, expectedRevision: revision });
+  return `/api/admin/bundles/product/${encodeURIComponent(bundleId)}/pdf?${params.toString()}`;
+}
 
-  /** Queues a PDF render and refreshes the displayed readiness state. */
-  const requestPdf = async () => {
-    setPdfBusy(true);
-    setPdfRequestFailed(false);
-    try {
-      const response = await fetch(`/api/admin/bundles/product/${encodeURIComponent(payload.bundle.id)}/pdf`, { method: "POST" });
-      if (!response.ok) {
-        setPdfRequestFailed(true);
-        return;
-      }
-      await onRefresh();
-    } catch {
-      setPdfRequestFailed(true);
-    } finally {
-      setPdfBusy(false);
+type PdfRequestScope = { importId: string; productId: string; revision: string; requestId: string };
+type PdfRequestOutcome = { requestId?: string; outcome?: "unknown" | "processing" | "accepted" | "rejected"; attemptId?: string; supersededByAttemptId?: string; error?: string };
+const pdfRequestKeys = ["pdfImportId", "pdfProductId", "pdfRevision", "pdfRequestId"] as const;
+
+function readPdfRequest(importId: string): PdfRequestScope | null {
+  const params = new URL(window.location.href).searchParams;
+  const [storedImport, productId, revision, requestId] = pdfRequestKeys.map(key => params.get(key));
+  if (storedImport !== importId || !productId || !revision || !requestId || !/^[a-f0-9]{64}$/.test(revision) || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(requestId)) return null;
+  return { importId, productId, revision, requestId };
+}
+
+function writePdfRequest(scope: PdfRequestScope | null, expected?: PdfRequestScope): boolean {
+  try {
+    if (expected) {
+      const current = readPdfRequest(expected.importId);
+      if (!current || current.requestId !== expected.requestId || current.productId !== expected.productId || current.revision !== expected.revision) return false;
     }
-  };
+    const url = new URL(window.location.href);
+    for (const key of pdfRequestKeys) url.searchParams.delete(key);
+    if (scope) pdfRequestKeys.forEach((key, index) => url.searchParams.set(key, [scope.importId, scope.productId, scope.revision, scope.requestId][index]));
+    window.history.replaceState(null, "", url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function BundleReadinessPanel({ payload, pdf, targetId, onRequestPdf, onRefreshPdf, onRetryRequest, pdfScopeConflict, onForgetRequest, settlementOnly, pdfBusy, pdfUnresolved, retryAllowed, pdfRequestFailed, trustedVerification, contentEditing = false, sectionReviewBlocked = false, parentBusy = false }: { payload: ProductDetailPayload; pdf: PdfEvidenceState; targetId?: string; onRequestPdf: (productId: string) => Promise<void>; onRefreshPdf: () => void; onRetryRequest: () => void; pdfScopeConflict: boolean; onForgetRequest: () => void; settlementOnly: boolean; pdfBusy: boolean; pdfUnresolved: boolean; retryAllowed: boolean; pdfRequestFailed: boolean; trustedVerification: boolean; contentEditing?: boolean; sectionReviewBlocked?: boolean; parentBusy?: boolean }) {
+  const t = useTranslations("adminAcademic");
+  const requiresPdf = pdf.status !== "not_required";
+  const freshness = payload.revisionFreshness;
 
   return (
     <section className={cn(styles.bundleReadiness, "space-y-2")} aria-label={t("materials.readiness.label")}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge tone={pdf.status === "ready" ? "success" : pdf.status === "failed" ? "error" : "warning"}>
-            {t(`materials.readiness.pdfStatus.${pdf.status}`)}{pdf.status === "ready" && pdf.pageCount ? `, ${t("materials.readiness.pageCount", { count: pdf.pageCount })}` : ""}
+          <StatusBadge tone={pdf.status === "ready" || pdf.status === "not_required" ? "success" : pdf.status === "failed" ? "error" : "warning"}>
+            <span role="status" aria-live="polite" aria-atomic="true">{t(`materials.readiness.pdfStatus.${pdf.status}`)}{pdf.status === "ready" && pdf.pageCount ? `, ${t("materials.readiness.pageCount", { count: pdf.pageCount })}` : ""}</span>
           </StatusBadge>
-          {freshness ? (
+          {freshness && requiresPdf && pdf.status !== "unknown" ? (
             <StatusBadge tone={freshness.isFresh ? "success" : freshness.completenessState === "stale" ? "error" : "warning"}>
               {freshness.isFresh ? t("materials.readiness.contentCurrent") : t("materials.readiness.reviewStale")}
             </StatusBadge>
           ) : null}
-          {payload.qualityEvaluation ? (
+          {payload.qualityEvaluation && pdf.status !== "unknown" ? (
             <StatusBadge tone={payload.qualityEvaluation.publicationReady ? "success" : "warning"}>
               {payload.qualityEvaluation.publicationReady ? t("materials.readiness.qualityPassed") : t("materials.readiness.checkQuality")}
             </StatusBadge>
           ) : null}
         </div>
-        {pdf.status === "ready" ? (
-          <Button asChild type="button" size="sm" variant="outline">
-            <a href={`/api/admin/bundles/product/${encodeURIComponent(payload.bundle.id)}/pdf`} target="_blank" rel="noreferrer">{t("materials.readiness.viewPdf")}</a>
-          </Button>
-        ) : (
-          <Button type="button" size="sm" variant="outline" disabled={pdfBusy} onClick={() => void requestPdf()}>
+        {pdfUnresolved ? <div className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" variant="outline" disabled={pdfBusy || parentBusy} onClick={onRefreshPdf}>{t("materials.readiness.checkPdfRequest")}</Button>
+          <Button type="button" size="sm" variant="outline" disabled={pdfBusy || parentBusy || !retryAllowed} onClick={onRetryRequest}>{t(settlementOnly ? "materials.readiness.settlePdfRequest" : "materials.readiness.retryPdfRequest")}</Button>
+        </div> : !requiresPdf ? null : pdf.status === "ready" && targetId ? (
+          <div className="flex flex-wrap gap-2">
+            <Button asChild type="button" size="sm" variant="outline">
+              <a href={productPdfUrl(payload.bundle.id, targetId, payload.bundle.checksum)} target="_blank" rel="noreferrer">{t("materials.readiness.viewPdf")}</a>
+            </Button>
+            {pdfRequestFailed && !trustedVerification ? <Button type="button" size="sm" variant="outline" disabled={pdfBusy || contentEditing || sectionReviewBlocked || parentBusy} onClick={() => void onRequestPdf(targetId)}>{t("materials.readiness.rerenderPdf")}</Button> : null}
+          </div>
+        ) : targetId && !trustedVerification ? (
+          <Button type="button" size="sm" variant="outline" disabled={pdf.status === "pending" || pdfBusy || contentEditing || sectionReviewBlocked || parentBusy} onClick={() => void onRequestPdf(targetId)}>
             {pdfBusy ? t("materials.readiness.queueing") : pdf.status === "failed" || pdf.status === "stale" ? t("materials.readiness.rerenderPdf") : t("materials.readiness.renderPdf")}
           </Button>
-        )}
+        ) : null}
+        {!pdfUnresolved && targetId && pdf.status === "pending" ? <Button type="button" size="sm" variant="outline" disabled={pdfBusy || parentBusy || sectionReviewBlocked} onClick={onRefreshPdf}>{t("materials.readiness.refreshPdf")}</Button> : null}
       </div>
+      {trustedVerification && targetId && pdf.status !== "ready" ? <p role="status" className="text-body-xs text-muted-foreground">{t("materials.readiness.trustedVerification")}</p> : null}
+      {(contentEditing || sectionReviewBlocked) && requiresPdf && pdf.status !== "ready" ? <p role="status" className="text-body-xs text-muted-foreground">{t(sectionReviewBlocked ? "materials.readiness.finishSectionReview" : "materials.readiness.finishContentEditing")}</p> : null}
+      {pdfScopeConflict ? <div role="alert" className="space-y-2 border-l-2 border-status-warning pl-3 text-body-sm">
+        <p>{t("materials.readiness.pdfScopeConflict")}</p>
+        <Button type="button" size="sm" variant="outline" disabled={pdfBusy || parentBusy} onClick={onForgetRequest}>{t("materials.readiness.forgetPdfTracking")}</Button>
+      </div> : null}
       {pdfRequestFailed ? <p className="text-body-xs text-status-error">{t("materials.readiness.pdfRequestFailed")}</p> : null}
       {(payload.blockingIssues?.length ?? 0) > 0 ? (
         <div className="space-y-1 border-t border-status-error/30 pt-2">
@@ -2342,9 +2487,11 @@ function ProductBundleMetadataPanel({
 export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHref }: DetailProps) {
   const t = useTranslations("adminAcademic");
   const adminT = useTranslations("admin");
+  const rubricT = useTranslations("admin.productRubric");
   const router = useRouter();
   const [payload, setPayload] = useState<ProductDetailPayload | null>(null);
-  const [v4ReviewInput, setV4ReviewInput] = useState<ProductV4AdminReviewInput | null>(null);
+  const [reviewContext, setReviewContext] = useState<{ expectedRevision: string; policyVersion: string; contentFingerprint: string; sections: { articleId: string; sectionId: string; title: string; semanticHash: string }[] } | null>(null);
+  const [criterionDraft, setCriterionDraft] = useState<Partial<Record<PedagogicCriterionId, { status?: "met" | "needs_revision" | "not_met"; reason?: string; contentAnchors?: PedagogicReviewState["criteria"][number]["contentAnchors"] }>>>({});
   const [draftProducts, setDraftProducts] = useState<ProductEntity[]>([]);
   const [activeType, setActiveType] = useUrlTab("productType", "all");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
@@ -2358,20 +2505,63 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
   const [pickerHovered, setPickerHovered] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const pdfBusyRef = useRef(false);
+  const [pdfRequest, setPdfRequest] = useState<PdfRequestScope | null>(null);
+  const pdfRequestRef = useRef<PdfRequestScope | null>(null);
+  const [pdfRestoredFor, setPdfRestoredFor] = useState<string | null>(null);
+  const detailIdRef = useRef(detailId);
+  detailIdRef.current = detailId;
+  const [pdfRequestFailed, setPdfRequestFailed] = useState(false);
+  const [pdfScopeConflict, setPdfScopeConflict] = useState(false);
+  const [pdfRefreshFailed, setPdfRefreshFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ConfirmActionState>(null);
 
-  const load = useCallback(async () => {
+  const [sectionReviewState, setSectionReviewState] = useState({ dirty: false, pending: false });
+  const handleSectionStateChange = useCallback((next: { dirty: boolean; pending: boolean }) => setSectionReviewState(current => current.dirty === next.dirty && current.pending === next.pending ? current : next), []);
+  const sectionReviewBlocked = sectionReviewState.dirty || sectionReviewState.pending;
+
+  const [reviewRefreshConflict, setReviewRefreshConflict] = useState(false);
+  const [confirmReviewRefresh, setConfirmReviewRefresh] = useState(false);
+  const reviewDraftSnapshot = useRef({ payload, reviewContext, criterionDraft, reviewNote, draftProducts, editing });
+  reviewDraftSnapshot.current = { payload, reviewContext, criterionDraft, reviewNote, draftProducts, editing };
+
+  const load = useCallback(async (options?: { preserveReviewDraft?: boolean; preserveContentDraft?: boolean; pdfRefresh?: boolean }) => {
     setLoading(true);
     setError(null);
     try {
       const response = await fetch(`/api/admin/bundles/product/${encodeURIComponent(detailId)}`, { cache: "no-store" });
       const nextPayload = await response.json() as ProductDetailPayload & { error?: string };
       if (!response.ok || !nextPayload.bundle) throw new Error(nextPayload.error || "PRODUCT_BUNDLE_DETAIL_FAILED");
+      let context = null;
+      if (nextPayload.draft?.products.some(product => product.productType === "article")) {
+        const reviewResponse = await fetch(`/api/admin/bundles/product/${encodeURIComponent(detailId)}/review`, { cache: "no-store" });
+        context = await reviewResponse.json();
+        if (!reviewResponse.ok || context.expectedRevision !== nextPayload.bundle.checksum) throw new Error("PRODUCT_BUNDLE_REVIEW_CONTEXT_FAILED");
+      }
+      if (context && nextPayload.revisionFreshness) {
+        const isFingerprintMatch = nextPayload.pedagogicReview?.contentFingerprint === context.contentFingerprint;
+        const isPolicyMatch = nextPayload.pedagogicReview?.policyVersion === context.policyVersion;
+        nextPayload.revisionFreshness = { ...nextPayload.revisionFreshness, currentFingerprint: context.contentFingerprint, isFingerprintMatch, isPolicyMatch, isFresh: isFingerprintMatch && isPolicyMatch, completenessState: !nextPayload.pedagogicReview ? "incomplete" : isFingerprintMatch && isPolicyMatch ? "complete" : "stale" };
+      }
+      if (detailIdRef.current !== detailId) return;
+      const previous = reviewDraftSnapshot.current;
+      const preserveDraft = options?.preserveReviewDraft && previous.payload?.bundle.id === detailId &&
+        (Object.keys(previous.criterionDraft).length > 0 || previous.reviewNote !== (previous.payload.bundle.currentReview?.notes ?? previous.payload.pedagogicReview?.notes ?? ""));
+      const preserveContent = Boolean(options?.preserveContentDraft && previous.payload?.bundle.id === detailId && JSON.stringify(previous.draftProducts) !== JSON.stringify(previous.payload.draft.products));
+      if ((preserveDraft || preserveContent) && (previous.payload?.bundle.checksum !== nextPayload.bundle.checksum || (preserveDraft && (previous.reviewContext?.contentFingerprint !== context?.contentFingerprint || previous.reviewContext?.policyVersion !== context?.policyVersion)))) {
+        setReviewRefreshConflict(true);
+        setConfirmReviewRefresh(true);
+        return;
+      }
+      if (options?.pdfRefresh) setPdfRefreshFailed(false);
+      setReviewRefreshConflict(false);
       setPayload(nextPayload);
-      setV4ReviewInput(null);
-      setDraftProducts(nextPayload.draft?.products ?? []);
-      setEditing(false);
+      setReviewContext(context);
+      if (!preserveDraft) setCriterionDraft({});
+      if (!preserveContent) setDraftProducts(nextPayload.draft?.products ?? []);
+      if (!preserveContent) setEditing(false);
       setSelectedProductId((current) => nextPayload.previews.some((preview) => preview.id === current) ? current : nextPayload.previews[0]?.id ?? null);
       const existingReviewStatus = nextPayload.bundle.currentReview?.status ?? nextPayload.pedagogicReview?.status;
       setReviewDecision(
@@ -2381,19 +2571,65 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
           ? existingReviewStatus
           : null
       );
-      setReviewNote(nextPayload.bundle.currentReview?.notes ?? nextPayload.pedagogicReview?.notes ?? "");
+      if (!preserveDraft) setReviewNote(nextPayload.bundle.currentReview?.notes ?? nextPayload.pedagogicReview?.notes ?? "");
+      return nextPayload;
     } catch (loadError) {
-      setError(explainBundleError(loadError instanceof Error ? loadError.message : "PRODUCT_BUNDLE_DETAIL_FAILED", (key) => adminT(`bundleErrors.${key}`)));
+      if (detailIdRef.current !== detailId) return;
+      if (options?.pdfRefresh) setPdfRefreshFailed(true);
+      setError(explainBundleError(loadError instanceof Error ? loadError.message : "PRODUCT_BUNDLE_DETAIL_FAILED", (key) => adminT(key)));
     } finally {
-      setLoading(false);
+      if (detailIdRef.current === detailId) setLoading(false);
     }
   }, [detailId, adminT]);
 
+  useEffect(() => {
+    detailIdRef.current = detailId;
+    const restored = readPdfRequest(detailId);
+    pdfBusyRef.current = false;
+    setPdfBusy(false);
+    pdfRequestRef.current = restored;
+    setPdfRequest(restored);
+    setPdfRestoredFor(detailId);
+    setPdfRequestFailed(false);
+    setPdfScopeConflict(false);
+    return () => { if (detailIdRef.current === detailId) detailIdRef.current = ""; };
+  }, [detailId]);
   useEffect(() => { void load(); }, [load]);
+
+  const articleProducts = draftProducts.filter((product): product is Extract<ProductEntity, { productType: "article" }> => product.productType === "article");
+  const sectionDecisions = reviewContext?.sections.flatMap(section => {
+    const review = payload?.blockReviews?.find(item => item.productId === section.articleId && item.targetType === "article_section" && item.targetId === section.sectionId);
+    return review && review.status !== "pending" ? [{ sectionId: section.sectionId, semanticHash: section.semanticHash, decision: review.status, ...(review.notes ? { notes: review.notes } : {}) }] : [];
+  }) ?? [];
+  const anchorOptions = draftProducts.flatMap(product => [
+    { anchor: { targetType: "document" as const, targetId: product.id }, label: "title" in product ? product.title : product.id },
+    ...(product.productType === "article" ? [
+      ...product.sections.map(section => ({ anchor: { targetType: "section" as const, targetId: section.id }, label: `${product.title}: ${section.title}` })),
+      ...[...product.blocks, ...product.sections.flatMap(section => section.blocks)].map(block => ({ anchor: { targetType: "block" as const, targetId: block.id }, label: `${product.title}: ${rubricT("anchorTypes.block")} ${block.id}` })),
+      ...(product.visuals ?? []).map(visual => ({ anchor: { targetType: "visual" as const, targetId: visual.id }, label: `${product.title}: ${rubricT("anchorTypes.visual")} ${visual.id}` })),
+    ] : []),
+  ]).filter((option, index, all) => all.findIndex(other => JSON.stringify(other.anchor) === JSON.stringify(option.anchor)) === index);
+  const anchorValue = (anchor: PedagogicReviewState["criteria"][number]["contentAnchors"][number]) => JSON.stringify(anchor);
+  const criterionValue = (id: PedagogicCriterionId) => {
+    const saved = payload?.pedagogicReview?.criteria.find(item => item.criterionId === id);
+    return criterionDraft[id] ?? (saved ? { status: saved.status, reason: saved.reason, contentAnchors: saved.contentAnchors } : undefined);
+  };
+  const criteria = PEDAGOGIC_CRITERION_IDS.flatMap(criterionId => {
+    const item = criterionValue(criterionId);
+    return item?.status && item.reason?.trim() && item.contentAnchors?.length ? [{ criterionId, status: item.status, reason: item.reason.trim(), contentAnchors: item.contentAnchors }] : [];
+  });
+  const hasUnsavedReview = Object.keys(criterionDraft).length > 0 || Boolean(payload && reviewNote !== (payload.bundle.currentReview?.notes ?? payload.pedagogicReview?.notes ?? ""));
+  const contentDirty = Boolean(payload?.draft && JSON.stringify(draftProducts) !== JSON.stringify(payload.draft.products));
+  const pdfUnresolved = pdfRestoredFor !== detailId || pdfRequest?.importId === detailId;
+  const hasPendingPdf = pdfUnresolved || Boolean(payload?.pdfStatuses?.some(item => item.revision === payload.bundle.checksum && item.status === "pending"));
+  useMaterialReviewNavigation(hasUnsavedReview || contentDirty || sectionReviewState.dirty || Boolean(pdfRequest?.importId === detailId), saving || loading || pdfBusy || sectionReviewState.pending);
+  const reviewFieldsDisabled = saving || loading || pdfBusy || pdfUnresolved || pdfRefreshFailed || reviewRefreshConflict || editing || sectionReviewBlocked;
+  const completeReview = !articleProducts.length || Boolean(reviewContext && criteria.length === PEDAGOGIC_CRITERION_IDS.length && sectionDecisions.length === reviewContext.sections.length);
+  const approveReview = completeReview && criteria.every(item => item.status === "met") && sectionDecisions.every(item => item.decision === "approved") && (!payload?.v4ReviewContext || Boolean(payload.v4ReviewContext.verificationReady && payload.v4ReviewContext.verificationPlanHash && payload.v4ReviewContext.verificationReceiptSignature));
 
   /** Submits a bundle decision with the reviewer's reason when supplied. */
   async function decide(decision: "approved" | "rejected" | "changes_requested") {
-    if (!payload) return;
+    if (!payload || reviewFieldsDisabled || pdfBusyRef.current || pdfRequestRef.current || pdfRestoredFor !== detailId) return;
     setSaving(true);
     setError(null);
     try {
@@ -2404,8 +2640,8 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
           decision,
           reason: reviewNote.trim() || undefined,
           expectedRevision: payload.bundle.checksum,
-          contentFingerprint: payload.revisionFreshness?.currentFingerprint,
-          ...(payload.v4ReviewContext ? v4ReviewInput?.request : {}),
+          ...(reviewContext ? { policyVersion: reviewContext.policyVersion, contentFingerprint: reviewContext.contentFingerprint, criteria, sectionDecisions } : {}),
+          ...(payload.v4ReviewContext ? { verificationPlanHash: payload.v4ReviewContext.verificationPlanHash ?? undefined, verificationReceiptSignature: payload.v4ReviewContext.verificationReceiptSignature ?? undefined } : {}),
         }),
       });
       const result = await response.json() as { error?: string };
@@ -2413,19 +2649,21 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
       await load();
       setReviewDecision(decision);
     } catch (reviewError) {
-      setError(explainBundleError(reviewError instanceof Error ? reviewError.message : "PRODUCT_BUNDLE_REVIEW_FAILED", (key) => adminT(`bundleErrors.${key}`)));
+      const code = reviewError instanceof Error ? reviewError.message : "PRODUCT_BUNDLE_REVIEW_FAILED";
+      if (code.includes("STALE") || code.includes("CONFLICT")) await load({ preserveReviewDraft: true, preserveContentDraft: true });
+      setError(explainBundleError(code, (key) => adminT(key)));
     } finally {
       setSaving(false);
     }
   }
 
   async function mutate(action: "publish" | "withdraw" | "discard") {
-    if (!payload) return;
+    if (!payload || reviewFieldsDisabled || pdfBusyRef.current || pdfRequestRef.current || pdfRestoredFor !== detailId || (action === "publish" && hasPendingPdf)) return;
     setSaving(true);
     setError(null);
     try {
       const endpoint = action === "publish" ? `/api/admin/bundles/product/${encodeURIComponent(payload.bundle.id)}/publish` : action === "withdraw" ? `/api/admin/bundles/product/${encodeURIComponent(payload.bundle.id)}/withdraw` : `/api/admin/bundles/product/${encodeURIComponent(payload.bundle.id)}`;
-      const response = await fetch(endpoint, { method: action === "discard" ? "DELETE" : "POST" });
+      const response = await fetch(endpoint, { method: action === "discard" ? "DELETE" : "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ expectedRevision: payload.bundle.checksum }) });
       const result = await response.json() as { error?: string };
       if (!response.ok) throw new Error(result.error || `PRODUCT_BUNDLE_${action.toUpperCase()}_FAILED`);
       if (action === "discard") {
@@ -2434,23 +2672,27 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
       }
       await load();
     } catch (mutationError) {
-      setError(explainBundleError(mutationError instanceof Error ? mutationError.message : "PRODUCT_BUNDLE_UPDATE_FAILED", (key) => adminT(`bundleErrors.${key}`)));
+      const code = mutationError instanceof Error ? mutationError.message : "PRODUCT_BUNDLE_UPDATE_FAILED";
+      if (code.includes("STALE") || code.includes("CONFLICT")) await load({ preserveReviewDraft: true, preserveContentDraft: true });
+      setError(explainBundleError(code, (key) => adminT(key)));
     } finally {
       setSaving(false);
     }
   }
 
   async function saveDraft() {
-    if (!payload) return;
+    if (!payload || saving || loading || pdfBusyRef.current || pdfUnresolved || pdfRequestRef.current || pdfRefreshFailed || reviewRefreshConflict || sectionReviewBlocked) return;
     setSaving(true);
     setError(null);
     try {
       const response = await fetch(`/api/admin/bundles/product/${encodeURIComponent(payload.bundle.id)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ draft: { products: draftProducts }, expectedRevision: payload.bundle.checksum }) });
       const result = await response.json() as { error?: string };
       if (!response.ok) throw new Error(result.error || "PRODUCT_BUNDLE_UPDATE_FAILED");
-      await load();
+      await load({ preserveReviewDraft: true });
     } catch (saveError) {
-      setError(explainBundleError(saveError instanceof Error ? saveError.message : "PRODUCT_BUNDLE_UPDATE_FAILED", (key) => adminT(`bundleErrors.${key}`)));
+      const code = saveError instanceof Error ? saveError.message : "PRODUCT_BUNDLE_UPDATE_FAILED";
+      if (code.includes("STALE") || code.includes("CONFLICT")) await load({ preserveReviewDraft: true, preserveContentDraft: true });
+      setError(explainBundleError(code, (key) => adminT(key)));
     } finally {
       setSaving(false);
     }
@@ -2472,7 +2714,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
       }
 
       const totalBlocks = current.draft.products.reduce(
-        (acc, p) => acc + (p.productType === "article" ? p.blocks.length : 0),
+        (acc, p) => acc + (p.productType === "article" ? (p.sections.length || p.blocks.length) : 0),
         0
       );
       const approved = nextReviews.filter((r) => r.status === "approved").length;
@@ -2534,15 +2776,120 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
   const activePreview = visiblePreviews[currentIndex >= 0 ? currentIndex : 0] ?? payload?.previews[0] ?? null;
   const activeDraftProduct = draftProducts.find((product) => product.id === activePreview?.id) ?? null;
   const isStudentArticlePreview = activeDraftProduct?.productType === "article" && articleViewMode === "student" && !editing;
+  const diktats = draftProducts.filter((product): product is Extract<ProductEntity, { productType: "diktat" }> => product.productType === "diktat");
+  const linkedDiktats = activeDraftProduct?.productType === "article" ? diktats.filter(product => product.sourceArticleId === activeDraftProduct.id) : [];
+  const pdfTarget = activeDraftProduct?.productType === "diktat" ? activeDraftProduct : linkedDiktats.length === 1 ? linkedDiktats[0] : undefined;
+  const selectedPdf: PdfEvidenceState = pdfTarget
+    ? payload?.pdfStatuses?.find(status => status.productId === pdfTarget.id && status.revision === payload?.bundle.checksum) ?? { status: "missing" as const }
+    : { status: activeDraftProduct?.productType === "article" && linkedDiktats.length === 0 ? "source_missing" as const : diktats.length ? "select_product" as const : payload?.pdfStatus?.status === "source_missing" ? "source_missing" as const : "not_required" as const };
+  const activePdf: PdfEvidenceState = pdfUnresolved || (pdfRefreshFailed && pdfTarget)
+    ? { ...selectedPdf, status: "unknown" }
+    : selectedPdf;
+  const trustedVerification = payload?.manifest?.schemaVersion === "product-bundle.v4";
+
+  const requestIsCurrent = (scope: PdfRequestScope) => detailIdRef.current === scope.importId && pdfRequestRef.current?.requestId === scope.requestId;
+
+  async function applyPdfOutcome(scope: PdfRequestScope, result: PdfRequestOutcome) {
+    if (!requestIsCurrent(scope) || result.requestId !== scope.requestId || (result.outcome !== "accepted" && result.outcome !== "rejected")) return;
+    if (result.outcome === "accepted" && !result.attemptId) return;
+    const latest = await load({ preserveReviewDraft: true, preserveContentDraft: true, pdfRefresh: true });
+    if (!latest || !requestIsCurrent(scope)) return;
+    const selected = latest.pdfStatuses?.find(item => item.productId === scope.productId && item.revision === scope.revision);
+    // A fresh read of an older ready row cannot establish the accepted attempt.
+    if (result.outcome === "accepted" && latest.bundle.checksum === scope.revision && selected?.id !== (result.supersededByAttemptId ?? result.attemptId)) return;
+    if (!writePdfRequest(null, scope)) { setPdfRefreshFailed(true); return; }
+    pdfRequestRef.current = null;
+    setPdfRequest(null);
+    setPdfScopeConflict(false);
+    setPdfRequestFailed(result.outcome === "rejected");
+    if (latest.bundle.checksum !== scope.revision || result.error?.includes("STALE") || result.error?.includes("CONFLICT")) setError(t("materials.readiness.pdfRevisionChanged"));
+  }
+
+  async function lookupPdfOutcome(scope: PdfRequestScope) {
+    try {
+      const params = new URLSearchParams({ outcome: "1", requestId: scope.requestId, productId: scope.productId, expectedRevision: scope.revision });
+      const response = await fetch(`/api/admin/bundles/product/${encodeURIComponent(scope.importId)}/pdf?${params}`, { cache: "no-store" });
+      const result = await response.json() as PdfRequestOutcome;
+      if (response.ok) await applyPdfOutcome(scope, result);
+      else if (result.error === "PRODUCT_DIKTAT_REQUEST_CONFLICT" && requestIsCurrent(scope)) setPdfScopeConflict(true);
+    } catch { /* An unavailable lookup leaves the request unresolved. */ }
+  }
+
+  async function runPdfRequest(scope: PdfRequestScope, mode: "post" | "lookup") {
+    if (pdfBusyRef.current || !requestIsCurrent(scope)) return;
+    pdfBusyRef.current = true;
+    setPdfBusy(true);
+    try {
+      if (mode === "lookup") {
+        await lookupPdfOutcome(scope);
+      } else {
+        try {
+          const response = await fetch(`/api/admin/bundles/product/${encodeURIComponent(scope.importId)}/pdf`, {
+            method: "POST", headers: { "content-type": "application/json" },
+            body: JSON.stringify({ productId: scope.productId, expectedRevision: scope.revision, requestId: scope.requestId }),
+          });
+          const result = await response.json().catch(() => ({})) as PdfRequestOutcome;
+          if (result.requestId === scope.requestId && (result.outcome === "rejected" || result.outcome === "accepted" && result.attemptId)) await applyPdfOutcome(scope, result);
+          else if (result.error === "PRODUCT_DIKTAT_REQUEST_CONFLICT" && requestIsCurrent(scope)) setPdfScopeConflict(true);
+          else await lookupPdfOutcome(scope);
+        } catch {
+          // Unknown can precede registration of the interrupted POST.
+          await lookupPdfOutcome(scope);
+        }
+      }
+    } finally {
+      if (detailIdRef.current === scope.importId) { pdfBusyRef.current = false; setPdfBusy(false); }
+    }
+  }
+
+  async function requestPdf(productId: string) {
+    if (!payload || pdfRestoredFor !== detailId || pdfRequestRef.current || pdfBusyRef.current || activePdf.status === "pending" || pdfRefreshFailed || saving || loading || reviewRefreshConflict || editing || contentDirty || sectionReviewBlocked || trustedVerification || pdfTarget?.id !== productId || payload.bundle.status !== "draft") return;
+    const scope = { importId: detailId, productId, revision: payload.bundle.checksum, requestId: crypto.randomUUID() };
+    if (!writePdfRequest(scope)) { setPdfRefreshFailed(true); return; }
+    pdfRequestRef.current = scope;
+    setPdfRequest(scope);
+    setPdfRequestFailed(false);
+    await runPdfRequest(scope, "post");
+  }
+
+  function checkPdfStatus() {
+    const scope = pdfRequestRef.current;
+    if (scope?.importId === detailId) void runPdfRequest(scope, "lookup");
+    else void load({ preserveReviewDraft: true, preserveContentDraft: true, pdfRefresh: true });
+  }
+
+  function retryPdfRequest() {
+    const scope = pdfRequestRef.current;
+    if (!scope || !payload || scope.importId !== detailId || pdfScopeConflict || saving || loading || reviewRefreshConflict || editing || contentDirty || sectionReviewBlocked) return;
+    void runPdfRequest(scope, "post");
+  }
+
+  async function forgetPdfRequest() {
+    const scope = pdfRequestRef.current;
+    if (!scope || !pdfScopeConflict || pdfBusyRef.current) return;
+    pdfBusyRef.current = true;
+    setPdfBusy(true);
+    try {
+      // Forget only this browser's pointer after the current account reads readiness.
+      // Processing requests and pending evidence remain enforced by the server.
+      const latest = await load({ preserveReviewDraft: true, preserveContentDraft: true, pdfRefresh: true });
+      if (!latest || !requestIsCurrent(scope) || !writePdfRequest(null, scope)) return;
+      pdfRequestRef.current = null;
+      setPdfRequest(null);
+      setPdfScopeConflict(false);
+      setPdfRequestFailed(false);
+    } finally { pdfBusyRef.current = false; setPdfBusy(false); }
+  }
 
   function goToIndex(index: number) {
-    if (index >= 0 && index < visiblePreviews.length) {
+    if (!reviewFieldsDisabled && !pdfBusyRef.current && index >= 0 && index < visiblePreviews.length) {
       setSelectedProductId(visiblePreviews[index].id);
       setEditing(false);
     }
   }
 
   function handleTypeTabChange(newType: string) {
+    if (reviewFieldsDisabled || pdfBusyRef.current) return;
     setActiveType(newType);
     setEditing(false);
     const matching = payload?.previews.filter((preview) => newType === "all" || preview.productType === newType) ?? [];
@@ -2552,6 +2899,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
   }
 
   function handleSelectProduct(id: string) {
+    if (reviewFieldsDisabled || pdfBusyRef.current) return;
     setSelectedProductId(id);
     setEditing(false);
     setDrawerOpen(false);
@@ -2561,24 +2909,34 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
     }
   }
 
-  if (loading) return <DetailLoading />;
+  if (loading && !payload) return <DetailLoading />;
   if (error && !payload) return <AdminErrorState message={error} onRetry={() => void load()} />;
   if (!payload) return <AdminEmptyState title={t("materials.artifactNotFound")} description={t("materials.artifactUnavailable")} />;
 
+  const collectionProduct = draftProducts.find((product) => product.productType === "solution_collection");
+  if (collectionProduct?.productType === "solution_collection") {
+    return <div className="space-y-3">
+      {error ? <AdminErrorState message={error} onRetry={() => void load()} /> : null}
+      <SolutionCollectionReview collection={collectionProduct.collection} importId={payload.bundle.id} checksum={payload.bundle.checksum} status={payload.bundle.status} publicationReady={Boolean(payload.qualityEvaluation?.publicationReady && !payload.publicationBlocked)} publicationIssues={[...(payload.blockingIssues ?? payload.qualityEvaluation?.issues ?? []), ...(payload.publicationBlocked ? [{ code: "PRODUCT_DEPENDENCY_NEEDS_REVIEW", severity: "blocking" }] : [])]} onRefresh={async () => { await load(); }} onMutate={mutate} saving={saving || loading} />
+    </div>;
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" aria-busy={loading}>
+      {pdfRefreshFailed ? <AdminErrorState message={t("materials.readiness.pdfRefreshFailed")} onRetry={checkPdfStatus} /> : null}
+      {reviewRefreshConflict ? <AdminErrorState message={rubricT("revisionChanged")} onRetry={() => setConfirmReviewRefresh(true)} /> : null}
       {/* Unified Integrated Review Toolbar */}
       <Tabs value={activeType} onValueChange={handleTypeTabChange}>
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 p-1.5 shadow-2xs">
           {/* Filter Tabs */}
           <TabsList className="bg-transparent p-0 border-0 shrink-0">
-            <TabsTrigger value="all" className="h-8 text-body-xs font-medium">{t("materials.all")}</TabsTrigger>
+            <TabsTrigger disabled={reviewFieldsDisabled} value="all" className="h-8 text-body-xs font-medium">{t("materials.all")}</TabsTrigger>
             {Object.entries(typeCounts).map(([type]) => (
-              <TabsTrigger key={type} value={type} className="h-8 text-body-xs font-medium">
+              <TabsTrigger disabled={reviewFieldsDisabled} key={type} value={type} className="h-8 text-body-xs font-medium">
                 {t(`editor.productTypes.${type}`)}
               </TabsTrigger>
             ))}
-            <TabsTrigger value="metadata" className="h-8 text-body-xs font-medium">{t("materials.metadata")}</TabsTrigger>
+            <TabsTrigger disabled={reviewFieldsDisabled} value="metadata" className="h-8 text-body-xs font-medium">{t("materials.metadata")}</TabsTrigger>
           </TabsList>
 
           {/* Stepper + Active Product Searchable Sheet Toolbar */}
@@ -2589,7 +2947,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                   type="button"
                   size="sm"
                   variant="ghost"
-                  disabled={currentIndex <= 0}
+                  disabled={reviewFieldsDisabled || currentIndex <= 0}
                   onClick={() => goToIndex(currentIndex - 1)}
                   aria-label={t("materials.previousSection")}
                   className="size-7 p-0"
@@ -2603,7 +2961,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                   type="button"
                   size="sm"
                   variant="ghost"
-                  disabled={currentIndex >= visiblePreviews.length - 1}
+                  disabled={reviewFieldsDisabled || currentIndex >= visiblePreviews.length - 1}
                   onClick={() => goToIndex(currentIndex + 1)}
                   aria-label={t("materials.nextSection")}
                   className="size-7 p-0"
@@ -2619,6 +2977,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                     type="button"
                     size="sm"
                     variant="outline"
+                    disabled={reviewFieldsDisabled}
                     onMouseEnter={() => setPickerHovered(true)}
                     onMouseLeave={() => setPickerHovered(false)}
                     className="h-8 min-w-0 max-w-[220px] sm:w-[260px] sm:max-w-[260px] flex-1 sm:flex-initial gap-2 text-body-xs justify-between overflow-hidden"
@@ -2679,29 +3038,29 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
         <TabsContent value={activeType} className="mt-4">
           {/* 100% Canvas Width for Content Review */}
           {activePreview ? (
-            <article key={activePreview.id} className="rounded-xl border border-border bg-card p-4 space-y-4">
+            <article key={activePreview.id} className={cn("space-y-4", activeDraftProduct?.productType === "flashcard" || activeDraftProduct?.productType === "flashcard_set" ? "py-2" : "rounded-xl border border-border bg-card p-4")}>
               {!isStudentArticlePreview && <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-3">
                 <div className={cn(styles.productHeader, "min-w-0 flex-1")}>
                   <Badge variant="secondary" className="text-body-xs font-semibold">{t(`editor.productTypes.${activePreview.productType}`)}</Badge>
-                  <h3 className={cn(styles.productTitle, "mt-1.5 font-heading text-body-base font-bold text-foreground")}>{activePreview.title || t("materials.untitledSection")}</h3>
-                  <span className="text-body-xs text-muted-foreground">{t("editor.version", { version: activePreview.version })}</span>
+                  {activeDraftProduct?.productType === "flashcard" && parseEmbeddedContent(activeDraftProduct.front).content.trim() === activePreview.title?.trim() ? null : <h3 className={cn(styles.productTitle, "mt-1.5 font-heading text-body-base font-bold text-foreground")}>{activePreview.title || t("materials.untitledSection")}</h3>}
+                  <span className="mt-1 block text-body-xs text-muted-foreground">{t("editor.version", { version: activePreview.version })}</span>
                 </div>
                 {!editing && payload.bundle.status === "draft" && (
-                  <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)} className="h-8 text-body-sm">{t("materials.editContent")}</Button>
+                  <Button type="button" size="sm" variant="outline" disabled={saving || loading || pdfBusy || pdfUnresolved || pdfRefreshFailed || reviewRefreshConflict || sectionReviewBlocked} onClick={() => { if (!pdfBusyRef.current && !pdfRequestRef.current && pdfRestoredFor === detailId && !saving && !loading && !pdfRefreshFailed && !sectionReviewBlocked && !reviewRefreshConflict) setEditing(true); }} className="h-8 text-body-sm">{t("materials.editContent")}</Button>
                 )}
               </div>}
 
               {editing && activeDraftProduct ? (
                 <div className="space-y-4">
-                  <ProductDraftEditor
+                  <fieldset disabled={saving || loading || pdfBusy} className="min-w-0 border-0 p-0"><ProductDraftEditor
                     product={activeDraftProduct}
                     index={draftProducts.findIndex((product) => product.id === activeDraftProduct.id)}
                     preview={activePreview}
-                    onChange={(next) => setDraftProducts((current) => current.map((product) => product.id === next.id ? next : product))}
-                  />
+                    onChange={(next) => { if (!saving && !loading && !pdfBusyRef.current) setDraftProducts((current) => current.map((product) => product.id === next.id ? next : product)); }}
+                  /></fieldset>
                   <div className="flex flex-wrap gap-2 border-t border-border pt-3">
                     <Button type="button" size="sm" disabled={saving} onClick={() => void saveDraft()}>{t("documents.saveChanges")}</Button>
-                    <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => void load()}>{t("common.cancel")}</Button>
+                    <Button type="button" size="sm" variant="outline" disabled={saving || loading} onClick={() => { setDraftProducts(payload.draft?.products ?? []); setEditing(false); }}>{t("common.cancel")}</Button>
                   </div>
                 </div>
               ) : activeDraftProduct ? (
@@ -2710,14 +3069,18 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                     <ArticleProductView
                       product={activeDraftProduct}
                       viewMode={articleViewMode}
-                      onViewModeChange={setArticleViewMode}
+                      onViewModeChange={(mode) => { if (!pdfBusyRef.current && !saving && !loading && !sectionReviewBlocked) setArticleViewMode(mode); }}
                       bundleId={payload.bundle.id}
+                      expectedRevision={payload.bundle.checksum}
                       bundleStatus={payload.bundle.status}
+                      bundleChecksum={payload.bundle.checksum}
                       reviewLocked={Boolean(payload.bundle.currentReview)}
                       blockReviews={payload.blockReviews}
                       onBlockReviewChange={handleBlockReviewChange}
                       dependencies={payload.dependencies}
-                      structuredEnabled={payload.structuredReaderEnabled}
+                      structuredEnabled={activeDraftProduct.sections.length > 0 || payload.structuredReaderEnabled}
+                      onSectionStateChange={handleSectionStateChange}
+                      parentBusy={saving || loading || pdfBusy || pdfUnresolved || pdfRefreshFailed || reviewRefreshConflict}
                     />
                   )}
                   {activeDraftProduct.productType === "diktat" && (
@@ -2725,12 +3088,16 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                       product={activeDraftProduct}
                       dependencies={payload.dependencies}
                       bundleId={payload.bundle.id}
-                      pdfStatus={payload.pdfStatus}
-                      onPdfRendered={load}
+                      pdfStatus={activePdf}
+                      expectedRevision={payload.bundle.checksum}
+                      pdfBusy={pdfBusy || activePdf.status === "pending"}
+                      pdfBlocked={saving || loading || pdfUnresolved || pdfRefreshFailed || editing || contentDirty || sectionReviewBlocked || reviewRefreshConflict || payload.bundle.status !== "draft"}
+                      trustedVerification={trustedVerification}
+                      onRequestPdf={requestPdf}
                     />
                   )}
                   {activeDraftProduct.productType === "flashcard" && (
-                    <FlashcardProductView product={activeDraftProduct} />
+                    <FlashcardProductView product={activeDraftProduct} compact />
                   )}
                   {activeDraftProduct.productType === "flashcard_set" && (
                     <FlashcardSetProductView
@@ -2767,12 +3134,24 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
         </TabsContent>
       </Tabs>
 
-      {payload.bundle.status === "draft" && <BundleReadinessPanel payload={payload} onRefresh={load} />}
+      {(payload.bundle.status === "draft" || pdfUnresolved) && <BundleReadinessPanel payload={payload} pdf={activePdf} targetId={pdfTarget?.id} onRequestPdf={requestPdf} onRefreshPdf={checkPdfStatus} onRetryRequest={retryPdfRequest} pdfScopeConflict={pdfScopeConflict} onForgetRequest={() => void forgetPdfRequest()} settlementOnly={Boolean(pdfRequest && pdfRequest.revision !== payload.bundle.checksum)} pdfBusy={pdfBusy} pdfUnresolved={Boolean(pdfUnresolved)} retryAllowed={Boolean(pdfRequest && !pdfScopeConflict && !editing && !contentDirty && !sectionReviewBlocked && !reviewRefreshConflict)} pdfRequestFailed={pdfRequestFailed} trustedVerification={trustedVerification} contentEditing={editing || contentDirty} sectionReviewBlocked={sectionReviewBlocked} parentBusy={saving || loading || (!pdfUnresolved && pdfRefreshFailed) || reviewRefreshConflict} />}
 
-      {payload.bundle.status === "draft" && payload.v4ReviewContext ? <ProductV4ReviewForm key={`${payload.bundle.checksum}:${payload.v4ReviewContext.verificationReceiptSignature ?? "pending"}`} context={payload.v4ReviewContext} onChange={setV4ReviewInput} /> : null}
+      {payload.bundle.status === "draft" && articleProducts.length > 0 ? <section className="space-y-3 border-t border-border pt-4" aria-label={rubricT("title")}>
+        <h3 className="font-heading text-body-base font-bold">{rubricT("title")}</h3>
+        <div className="divide-y divide-border">{PEDAGOGIC_CRITERION_IDS.map((id) => {
+          const label = rubricT(`criteria.${id}`);
+          const update = (patch: Partial<NonNullable<typeof criterionDraft[typeof id]>>) => { if (!pdfBusyRef.current && !reviewFieldsDisabled) setCriterionDraft(current => ({ ...current, [id]: { ...criterionValue(id), ...current[id], ...patch } })); };
+          return <fieldset key={id} disabled={reviewFieldsDisabled} className="space-y-2 py-3"><legend className="text-body-sm font-semibold">{label}</legend><div className="flex flex-wrap gap-2">
+            <Select disabled={reviewFieldsDisabled} value={criterionValue(id)?.status ?? ""} onValueChange={status => update({ status: status as "met" | "needs_revision" | "not_met" })}><SelectTrigger className="w-44 text-body-sm" aria-label={rubricT("decisionLabel", { label })}><SelectValue placeholder={rubricT("chooseDecision")} /></SelectTrigger><SelectContent><SelectItem value="met">{rubricT("met")}</SelectItem><SelectItem value="needs_revision">{rubricT("needsRevision")}</SelectItem><SelectItem value="not_met">{rubricT("notMet")}</SelectItem></SelectContent></Select>
+            <Select disabled={reviewFieldsDisabled} value={criterionValue(id)?.contentAnchors?.[0] ? anchorValue(criterionValue(id)!.contentAnchors![0]) : ""} onValueChange={value => { const option = anchorOptions.find(option => anchorValue(option.anchor) === value); if (option) update({ contentAnchors: [option.anchor, ...(criterionValue(id)?.contentAnchors?.slice(1) ?? [])].filter((anchor, index, all) => all.findIndex(other => anchorValue(other) === anchorValue(anchor)) === index) }); }}><SelectTrigger className="min-w-36 flex-1 text-body-sm" aria-label={rubricT("evidenceLabel", { label })}><SelectValue placeholder={rubricT("chooseEvidence")} /></SelectTrigger><SelectContent>{anchorOptions.map(option => <SelectItem key={anchorValue(option.anchor)} value={anchorValue(option.anchor)}>{option.label}</SelectItem>)}</SelectContent></Select>
+          </div>{criterionValue(id)?.contentAnchors?.length ? <ul className="space-y-1 text-body-xs text-muted-foreground">{criterionValue(id)!.contentAnchors!.map(anchor => <li key={anchorValue(anchor)}>{rubricT(`anchorTypes.${anchor.targetType}`)}: {anchorOptions.find(option => anchorValue(option.anchor) === anchorValue(anchor))?.label ?? anchor.targetId}</li>)}</ul> : null}<Textarea disabled={reviewFieldsDisabled} aria-label={rubricT("reasonLabel", { label })} value={criterionValue(id)?.reason ?? ""} onChange={event => update({ reason: event.target.value })} placeholder={rubricT("reasonPlaceholder")} className="min-h-16 text-body-sm" /></fieldset>;
+        })}</div>
+      </section> : null}
+
+      {reviewDecision === "approved" && hasUnsavedReview ? <p role="status" className="border-l-2 border-status-warning pl-3 text-body-xs text-foreground">{rubricT("unsaved")}</p> : null}
 
       {/* Review Actions Sticky Footer */}
-      <section className="sticky bottom-0 z-50 rounded-xl border border-border bg-card p-3 shadow-lg space-y-2 md:static md:z-auto md:p-4 md:space-y-3">
+      <section className="rounded-xl border border-border bg-card p-3 shadow-xs space-y-2 md:p-4 md:space-y-3">
         {/* Block Review Summary Strip */}
         {payload.blockReviewSummary && payload.blockReviewSummary.total > 0 && (
           <div className="hidden md:flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-2.5 text-body-xs">
@@ -2795,7 +3174,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
           </div>
         )}
 
-        <div className={cn("space-y-1.5", !mobileNotesOpen && !reviewNote && "hidden md:block")}>
+        <div className={cn("space-y-1.5", !mobileNotesOpen && "hidden md:block")}>
           <div className="flex items-center justify-between">
             <Label htmlFor="product-review-note" className="text-body-sm font-semibold">{t("materials.decisionReason")}</Label>
             <div className="flex items-center gap-2">
@@ -2804,17 +3183,19 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-6 px-1.5 text-body-2xs md:hidden"
+                className="h-8 px-2 text-body-sm md:hidden"
+                disabled={saving || loading}
                 onClick={() => setMobileNotesOpen(false)}
               >
-                {t("common.cancel")}
+                {rubricT("closeNotes")}
               </Button>
             </div>
           </div>
           <Textarea
             id="product-review-note"
+            disabled={reviewFieldsDisabled || payload.bundle.status !== "draft"}
             value={reviewNote}
-            onChange={(event) => setReviewNote(event.target.value)}
+            onChange={(event) => { if (!pdfBusyRef.current && !reviewFieldsDisabled) setReviewNote(event.target.value); }}
             placeholder={t("materials.decisionReasonPlaceholder")}
             className="min-h-16 text-body-sm bg-background"
           />
@@ -2827,7 +3208,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
           <div className="flex flex-wrap items-center gap-2">
             {payload.bundle.status === "draft" && (
               <>
-                {!mobileNotesOpen && !reviewNote ? (
+                {!mobileNotesOpen ? (
                   <Button
                     type="button"
                     size="sm"
@@ -2838,27 +3219,27 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                     {t("materials.revisionNotes")}
                   </Button>
                 ) : null}
-                <Button
+                {articleProducts.length > 0 ? (<Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  className={cn(!mobileNotesOpen && !reviewNote && "hidden md:inline-flex")}
-                  disabled={saving || !reviewNote.trim()}
+                  className={cn(!mobileNotesOpen && "hidden md:inline-flex")}
+                  disabled={reviewFieldsDisabled || !reviewNote.trim() || !completeReview}
                   onClick={() => void decide("changes_requested")}
                 >
                   {t("materials.requestChanges")}
-                </Button>
+                </Button>) : null}
                 <Button
                   type="button"
                   size="sm"
                   variant="destructive"
-                  className={cn(!mobileNotesOpen && !reviewNote && "hidden md:inline-flex")}
-                  disabled={saving || !reviewNote.trim()}
+                  className={cn(!mobileNotesOpen && "hidden md:inline-flex")}
+                  disabled={reviewFieldsDisabled || !reviewNote.trim() || !completeReview}
                   onClick={() => void decide("rejected")}
                 >
                   {t("materials.reject")}
                 </Button>
-                <Button type="button" size="sm" disabled={saving || (draftProducts.some((product) => product.productType === "article" && product.schemaVersion === "article.v4") && !v4ReviewInput?.ready)} onClick={() => void decide("approved")}>
+                <Button type="button" size="sm" disabled={reviewFieldsDisabled || !approveReview} onClick={() => void decide("approved")}>
                   <Check className="size-3.5" />{t("materials.approveBundle")}
                 </Button>
               </>
@@ -2869,10 +3250,16 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                 size="sm"
                 disabled={
                   saving ||
+                  loading ||
+                  pdfBusy ||
+                  hasPendingPdf ||
+                  pdfRefreshFailed ||
+                  reviewRefreshConflict ||
+                  editing ||
+                  sectionReviewBlocked ||
+                  hasUnsavedReview ||
                   payload.publicationBlocked ||
-                  !payload.qualityEvaluation?.publicationReady ||
-                  !payload.revisionFreshness?.isFresh ||
-                  payload.pdfStatus?.status !== "ready"
+                  !payload.qualityEvaluation?.publicationReady
                 }
                 onClick={() => void mutate("publish")}
               >
@@ -2886,7 +3273,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
           {(payload.bundle.status === "draft" || payload.bundle.status === "published") && (
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
-                <Button type="button" size="sm" variant="outline" disabled={saving} aria-label={t("materials.moreActions")} className="shrink-0">
+                <Button type="button" size="sm" variant="outline" disabled={saving || loading || pdfBusy || pdfRefreshFailed} aria-label={t("materials.moreActions")} className="shrink-0">
                   <MoreHorizontal className="size-4" />
                   <span className="hidden sm:inline">{t("materials.moreActions")}</span>
                 </Button>
@@ -2920,6 +3307,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
         </div>
       </section>
 
+      <AdminConfirmDialog open={confirmReviewRefresh} onOpenChange={setConfirmReviewRefresh} title={rubricT("revisionChangedTitle")} description={rubricT("revisionChangedDescription")} confirmLabel={rubricT("loadNewRevision")} loading={loading} onConfirm={() => { setConfirmReviewRefresh(false); void load(); }} />
       {/* Confirmation Dialogs */}
       <AdminConfirmDialog
         open={confirmAction !== null}

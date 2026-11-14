@@ -1656,6 +1656,9 @@ export const mataKuliah = pgTable(
   title: text("title").notNull(),
   status: text("status").$type<"draft" | "active" | "archived">().default("active").notNull(),
   isDemo: boolean("is_demo").default(false).notNull(),
+  pricingCategory: text("pricing_category").$type<import("@/lib/student/course-pricing").CoursePricingCategory>().default("premium").notNull(),
+  freeStartsAt: timestamp("free_starts_at", { withTimezone: true }),
+  freeEndsAt: timestamp("free_ends_at", { withTimezone: true }),
   legacyCourseId: text("legacy_course_id").references(() => courses.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -1670,6 +1673,7 @@ export const mataKuliah = pgTable(
     .where(sql`${table.isDemo} = true`),
   index("mata_kuliah_legacy_course_idx").on(table.legacyCourseId),
   check("mata_kuliah_status_check", sql`${table.status} IN ('draft', 'active', 'archived')`),
+  check("mata_kuliah_pricing_check", sql`(${table.pricingCategory} IN ('premium', 'free') AND ${table.freeStartsAt} IS NULL AND ${table.freeEndsAt} IS NULL) OR (${table.pricingCategory} = 'limited_time_free' AND ${table.freeStartsAt} IS NOT NULL AND ${table.freeEndsAt} IS NOT NULL AND ${table.freeStartsAt} < ${table.freeEndsAt})`),
  ],
 );
 
@@ -2921,6 +2925,30 @@ export const publikasiBundle = pgTable(
   check("publikasi_bundle_version_check", sql`${table.version} > 0`),
  ],
 );
+
+/** Reviewed standalone worked examples, kept outside Article and assessment storage. */
+export const solutionCollections = pgTable("solution_collections", {
+  id: text("id").primaryKey(),
+  productId: text("product_id").notNull(),
+  version: bigint("version", { mode: "number" }).notNull(),
+  courseId: text("course_id").notNull().references(() => mataKuliah.id, { onDelete: "restrict" }),
+  chapterId: text("chapter_id").notNull().references(() => bab.id, { onDelete: "restrict" }),
+  importId: text("import_id").notNull().references(() => imporBundle.id, { onDelete: "restrict" }),
+  title: text("title").notNull(),
+  content: jsonb("content").$type<unknown>().notNull(),
+  trace: jsonb("trace").$type<unknown>().notNull(),
+  generationHash: text("generation_hash").notNull(),
+  status: text("status").$type<"published" | "withdrawn">().notNull(),
+  publishedAt: timestamp("published_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+  uniqueIndex("solution_collections_product_version_idx").on(table.productId, table.version),
+  uniqueIndex("solution_collections_one_published_idx").on(table.productId).where(sql`${table.status} = 'published'`),
+  uniqueIndex("solution_collections_import_idx").on(table.importId),
+  index("solution_collections_course_chapter_status_idx").on(table.courseId, table.chapterId, table.status),
+  check("solution_collections_version_check", sql`${table.version} > 0`),
+  check("solution_collections_status_check", sql`${table.status} IN ('published', 'withdrawn')`),
+]);
 
 export const reviewPedagogiBundle = pgTable(
   "review_pedagogi_bundle",

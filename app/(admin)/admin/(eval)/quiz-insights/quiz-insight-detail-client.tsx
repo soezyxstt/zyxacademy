@@ -21,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge, BetaBadge } from "@/components/ui/badge";
 import { FormattedDate } from "@/components/ui/formatted-date";
-import { MathText } from "@/components/course/math-text";
+import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { QuizAttemptsSpreadsheet } from "@/app/(admin)/admin/(eval)/quiz-insights/[id]/_components/quiz-attempts-spreadsheet";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
@@ -471,7 +471,7 @@ export function QuizInsightDetailClient({
                 </div>
 
                 <div className="text-body-sm font-medium text-foreground">
-                  <MathText>{q.prompt}</MathText>
+                  <MarkdownRenderer content={q.prompt} />
                 </div>
 
                 {/* Option Breakdown */}
@@ -494,7 +494,7 @@ export function QuizInsightDetailClient({
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="font-bold shrink-0">{String.fromCharCode(65 + optIdx)}.</span>
-                            <div className="min-w-0 break-words"><MathText>{opt}</MathText></div>
+                            <div className="min-w-0 break-words"><MarkdownRenderer content={opt} density="compact" /></div>
                           </div>
                           <div className="shrink-0 tabular-nums text-right">
                             <span>{chosenCount} ({percentage}%)</span>
@@ -509,7 +509,7 @@ export function QuizInsightDetailClient({
                 {q.explanation && (
                   <div className="border-t border-border pt-3 text-body-xs text-muted-foreground space-y-1">
                     <p className="font-semibold text-foreground">{tx("solutionExplanation")}</p>
-                    <MathText>{q.explanation}</MathText>
+                    <MarkdownRenderer content={q.explanation} density="compact" />
                   </div>
                 )}
               </div>

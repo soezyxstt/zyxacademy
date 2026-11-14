@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 
-import { MathText } from "@/components/course/math-text";
+import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { submitReviewAction } from "./actions";
 import { toast } from "@/components/ui/toast";
 import { emitActivityUpdated } from "@/lib/activity-signal";
@@ -273,12 +273,12 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
 
       {/* 3D Flip Card Container */}
       <div
-        className="relative w-full h-80 select-none cursor-pointer"
+        className={`relative w-full select-none cursor-pointer ${[activeCard.front, activeCard.back, activeCard.explanation].some((content) => content?.includes("```zyx-visual")) ? "h-[min(80dvh,48rem)] min-h-80" : "h-80"}`}
         style={cardStyle}
         onClick={(e) => {
-          // Avoid flipping when clicking buttons or input elements
+          // Visual controls and plot gestures must not flip the card.
           const target = e.target as HTMLElement;
-          if (target.closest("button") || target.closest("input") || target.closest("textarea")) {
+          if (target.closest("button, input, textarea, select, a, figure, [data-learning-visual]")) {
             return;
           }
           handleFlip();
@@ -290,6 +290,8 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
         >
           {/* FRONT FACE */}
           <div
+            data-flashcard-face="front"
+            inert={isFlipped}
             className="absolute inset-0 w-full h-full rounded-2xl border border-border bg-card p-6 shadow-sm flex flex-col justify-between"
             style={faceStyle}
           >
@@ -300,10 +302,10 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
               </span>
             </div>
 
-            <div className="flex-1 flex items-center justify-center py-4 overflow-y-auto">
-              <MathText className="font-sans text-body-base font-semibold text-foreground text-center" as="div">
-                {activeCard.front}
-              </MathText>
+            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto py-4">
+              <div className="flex min-h-full min-w-0 flex-col justify-center">
+                <MarkdownRenderer content={activeCard.front} className="font-sans text-body-base font-semibold text-foreground text-center" />
+              </div>
             </div>
 
             <div className="flex items-center justify-center gap-1.5 text-body-xs text-muted-foreground">
@@ -314,6 +316,8 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
 
           {/* BACK FACE */}
           <div
+            data-flashcard-face="back"
+            inert={!isFlipped}
             className="absolute inset-0 w-full h-full rounded-2xl border border-border bg-card p-6 shadow-sm flex flex-col justify-between rotate-y-180"
             style={faceStyle}
           >
@@ -344,18 +348,16 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
               )}
             </div>
 
-            <div className="flex-1 flex flex-col justify-center py-4 overflow-y-auto space-y-3">
-              <MathText className="font-heading text-body-base font-bold text-foreground text-center" as="div">
-                {activeCard.back}
-              </MathText>
+            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto py-4">
+              <div className="flex min-h-full min-w-0 flex-col justify-center space-y-3">
+              <MarkdownRenderer content={activeCard.back} className="font-heading text-body-base font-bold text-foreground text-center" />
               {activeCard.explanation && (
                 <div className="rounded-lg bg-muted/40 p-3 border border-border/50">
                   <div className="text-body-xs font-semibold text-muted-foreground mb-0.5">{t("flashcards.explanation")}</div>
-                  <MathText className="text-body-xs text-muted-foreground" as="div">
-                    {activeCard.explanation}
-                  </MathText>
+                  <MarkdownRenderer content={activeCard.explanation} density="compact" className="text-body-xs text-muted-foreground" />
                 </div>
               )}
+              </div>
             </div>
 
             <div className="flex items-center justify-center gap-1.5 text-body-xs text-muted-foreground">

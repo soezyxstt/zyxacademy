@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { CoursePricingLabel } from "@/components/course/course-pricing-label";
+import type { CoursePricing } from "@/lib/student/course-pricing";
 import {
   ArrowRight,
   BookOpen,
@@ -25,6 +27,7 @@ export interface CatalogCourse {
   id: string;
   title: string;
   category: string;
+  pricing?: CoursePricing;
   description: string;
   materialsCount: number;
   quizzesCount: number;
@@ -157,6 +160,7 @@ export function StudentOnboardingView({
                               {course.title}
                             </h3>
                           </div>
+                          <div className="mt-1"><CoursePricingLabel pricing={course.pricing} /></div>
                           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-body-xs text-muted-foreground">
                             <span>{t("dashboard.freeChapters", { count: course.freeChapters.length })}</span>
                             <span>{t("dashboard.materialsCount", { count: course.freeMaterialCount })}</span>

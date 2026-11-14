@@ -14,6 +14,7 @@ import Script from "next/script";
 import NextTopLoader from "nextjs-toploader";
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { getAppLocaleResolution, getAppMessages, getTranslations } from "@/lib/i18n/server";
+import { env } from "@/lib/env";
 
 export async function generateMetadata(): Promise<Metadata> {
   const [{ locale }, t] = await Promise.all([
@@ -65,15 +66,14 @@ export default async function RootLayout({
  children: React.ReactNode;
 }>) {
  const { locale, accountPreference } = await getAppLocaleResolution();
- const messages = await getAppMessages(locale);
- const t = await getTranslations("core");
+ const [messages, t] = await Promise.all([getAppMessages(locale), getTranslations("core")]);
  return (
  <html lang={locale} suppressHydrationWarning className={`${inter.variable} ${lexend.variable} overflow-x-clip`}>
  <head>
    <link rel="manifest" href="/manifest.webmanifest" crossOrigin="use-credentials" />
  </head>
   <body className="font-sans min-h-screen flex flex-col overflow-x-clip">
-    <PostHogProvider>
+    <PostHogProvider apiKey={env.NEXT_PUBLIC_POSTHOG_KEY} apiHost={env.NEXT_PUBLIC_POSTHOG_HOST}>
       <QueryProvider>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
         <LocaleProvider initialLocale={locale} initialMessages={messages} accountPreference={accountPreference}>

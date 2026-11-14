@@ -20,6 +20,8 @@ import {
   deleteCourse,
   setDemoCourse,
 } from "@/app/(admin)/admin/(academic)/courses/actions";
+import { CoursePricingFields, pricingFields, pricingFromFields } from "@/components/admin/course-pricing-fields";
+import type { CoursePricing } from "@/lib/student/course-pricing";
 import { allowedCategories } from "@/app/(admin)/admin/(academic)/courses/constants";
 import {
   Settings,
@@ -47,6 +49,7 @@ type Course = {
   title: string;
   category: string;
   description?: string | null;
+  pricing?: CoursePricing;
   isDemo?: boolean;
   demoEligibility?: {
     eligible: boolean;
@@ -74,6 +77,7 @@ export function SettingsTab({ course }: Props) {
   // Form State
   const [title, setTitle] = useState(course.title);
   const [category, setCategory] = useState(course.category);
+  const [pricing, setPricing] = useState(() => pricingFields(course.pricing));
   const [description, setDescription] = useState(course.description || "");
 
   const handleSave = async (e: React.FormEvent) => {
@@ -87,13 +91,16 @@ export function SettingsTab({ course }: Props) {
       return;
     }
 
+    let parsedPricing: CoursePricing;
+    try { parsedPricing = pricingFromFields(pricing); } catch { toast.error("Pastikan waktu mulai dan akhir WIB valid, dan waktu akhir setelah waktu mulai."); return; }
     setLoading(true);
     const res = await saveCourse(
       course.id,
       title.trim(),
       category,
       description.trim() || null,
-      false
+      false,
+      parsedPricing
     );
     setLoading(false);
 
@@ -101,7 +108,7 @@ export function SettingsTab({ course }: Props) {
       toast.success(t("courseDetail.settings.success.saved"));
       router.refresh();
     } else {
-      toast.error(t("courseDetail.settings.errors.save"));
+      toast.error(res.error || t("courseDetail.settings.errors.save"));
     }
   };
 
@@ -179,6 +186,7 @@ export function SettingsTab({ course }: Props) {
             </Select>
           </div>
 
+          <CoursePricingFields id="settings" value={pricing} onChange={setPricing} disabled={loading} />
           <div className="space-y-1">
             <Label className="text-body-sm font-semibold text-foreground">{t("courseDetail.settings.description")}</Label>
             <Textarea

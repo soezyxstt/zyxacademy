@@ -79,6 +79,7 @@ export async function acquireVerificationBrowser(account: string, token: string,
 
 /** Select explicitly; credentials for one provider never fall back to another. */
 export async function acquireConfiguredVerificationBrowser(env = process.env, ports?: Ports): Promise<VerificationBrowserSession> {
+  if (verificationBrowserProvider(env) === "local_playwright") throw new NonRetriableError("VERIFICATION_BROWSER_LOCAL_OPERATOR_REQUIRED");
   return verificationBrowserProvider(env) === "steel"
     ? acquireSteelVerificationBrowser(env.STEEL_API_KEY ?? "", ports)
     : acquireVerificationBrowser(env.CF_ACCOUNT_ID ?? "", env.CF_BROWSER_API_TOKEN ?? env.CF_API_TOKEN ?? "", ports);

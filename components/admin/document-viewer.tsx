@@ -1,5 +1,7 @@
 "use client";
 
+import { DocumentTextSkeleton } from "@/components/admin/content-loading-skeletons";
+
 import { useEffect, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { Download, ExternalLink, Minus, Plus, RefreshCw } from "lucide-react";
@@ -387,7 +389,7 @@ export function DocumentViewer({ file, onClose }: DocumentViewerProps) {
         );
       }
       if (text === null) {
-        return <div className="h-40 animate-pulse rounded-lg bg-muted" />;
+        return <DocumentTextSkeleton />;
       }
       return (
         <div className="space-y-3">

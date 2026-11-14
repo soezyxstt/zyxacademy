@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, or } from "drizzle-orm";
+import { and, desc, eq, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { auditMutasi, bab, chapters, courses, mataKuliah } from "@/db/schema";
+import { auditMutasi, bab, chapters, courses, knowledgeObjects, mataKuliah, vectorSyncQueue } from "@/db/schema";
+import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
+import { validateCoursePricing, type CoursePricing } from "@/lib/student/course-pricing";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type DbOrTx = Tx | typeof db;
@@ -10,10 +12,11 @@ type LegacyCourseInsert = typeof courses.$inferInsert;
 export type CourseCanonicalSyncInput = {
   id: string;
   title: string;
-  category: LegacyCourseInsert["category"];
+  category: LegacyCourseInsert["category"] | "Umum";
   description?: string | null;
   isNew: boolean;
   actorId?: string | null;
+  pricing?: CoursePricing;
 };
 
 export type ChapterCanonicalSyncInput = {
@@ -56,7 +59,7 @@ async function recordAudit(
 }
 
 async function findCanonicalCourse(tx: DbOrTx, legacyCourseId: string) {
-  const [row] = await tx
+  const rows = await tx
     .select({
       id: mataKuliah.id,
       legacyCourseId: mataKuliah.legacyCourseId,
@@ -64,8 +67,9 @@ async function findCanonicalCourse(tx: DbOrTx, legacyCourseId: string) {
     })
     .from(mataKuliah)
     .where(or(eq(mataKuliah.legacyCourseId, legacyCourseId), eq(mataKuliah.id, legacyCourseId)))
-    .limit(1);
-  return row ?? null;
+    .limit(2);
+  if (rows.length > 1) throw new Error("COURSE_IDENTITY_AMBIGUOUS");
+  return rows[0] ?? null;
 }
 
 async function requireCanonicalCourse(tx: DbOrTx, legacyCourseId: string) {
@@ -93,16 +97,18 @@ async function findCanonicalChapter(tx: DbOrTx, legacyChapterId: string) {
 
 async function upsertCanonicalCourse(
   tx: Tx,
-  input: Pick<CourseCanonicalSyncInput, "id" | "title">,
+  input: Pick<CourseCanonicalSyncInput, "id" | "title" | "pricing">,
 ): Promise<string> {
   const existing = await findCanonicalCourse(tx, input.id);
+  const pricing = input.pricing === undefined ? undefined : validateCoursePricing(input.pricing);
+  const pricingFields = pricing ? { pricingCategory: pricing.category, freeStartsAt: pricing.startsAt, freeEndsAt: pricing.endsAt } : {};
   if (existing) {
     if (existing.legacyCourseId && existing.legacyCourseId !== input.id) {
       throw new Error(`Canonical course identity conflicts with ${input.id}`);
     }
     await tx
       .update(mataKuliah)
-      .set({ title: input.title, status: "active", legacyCourseId: input.id })
+      .set({ title: input.title, status: "active", legacyCourseId: input.id, ...pricingFields })
       .where(eq(mataKuliah.id, existing.id));
     return existing.id;
   }
@@ -113,6 +119,7 @@ async function upsertCanonicalCourse(
     title: input.title,
     status: "active",
     legacyCourseId: input.id,
+    ...pricingFields,
   });
   return input.id;
 }
@@ -163,10 +170,18 @@ export async function saveCourseWithCanonicalProjection(
   callerTx?: Tx,
 ): Promise<{ id: string; canonicalCourseId: string }> {
   const execute = async (tx: Tx) => {
+    const canonical = await findCanonicalCourse(tx, input.id);
+    const [sameIdLegacy] = await tx.select({ id: courses.id }).from(courses).where(eq(courses.id, input.id)).limit(1);
+    if (input.isNew && (sameIdLegacy || canonical)) throw new Error("COURSE_ALREADY_EXISTS");
+    if (canonical?.legacyCourseId && canonical.legacyCourseId !== canonical.id) {
+      const aliasTarget = await findCanonicalCourse(tx, canonical.legacyCourseId);
+      const [conflictingLegacy] = await tx.select({ id: courses.id }).from(courses).where(eq(courses.id, canonical.id)).limit(1);
+      if (aliasTarget?.id !== canonical.id || conflictingLegacy) throw new Error("COURSE_IDENTITY_AMBIGUOUS");
+    }
+
+    let legacyId: string | null = input.id;
     if (input.isNew) {
-      const [legacyExisting] = await tx.select({ id: courses.id }).from(courses).where(eq(courses.id, input.id)).limit(1);
-      const canonicalExisting = await findCanonicalCourse(tx, input.id);
-      if (legacyExisting || canonicalExisting) throw new Error("COURSE_ALREADY_EXISTS");
+      if (input.category === "Umum") throw new Error("COURSE_PROJECTION_UNAVAILABLE");
       await tx.insert(courses).values({
         id: input.id,
         title: input.title,
@@ -174,25 +189,37 @@ export async function saveCourseWithCanonicalProjection(
         description: input.description ?? null,
       });
     } else {
-      const [legacyExisting] = await tx.select({ id: courses.id }).from(courses).where(eq(courses.id, input.id)).limit(1);
-      if (!legacyExisting) throw new Error("COURSE_NOT_FOUND");
-      await tx
-        .update(courses)
-        .set({
+      legacyId = canonical?.legacyCourseId ?? (sameIdLegacy ? input.id : null);
+      if (!canonical && !legacyId) throw new Error("COURSE_NOT_FOUND");
+      if (!legacyId && (input.category !== "Umum" || input.description)) throw new Error("COURSE_PROJECTION_UNAVAILABLE");
+      if (legacyId) {
+        if (input.category === "Umum") throw new Error("COURSE_PROJECTION_UNAVAILABLE");
+        await tx.update(courses).set({
           title: input.title,
           category: input.category,
           description: input.description ?? null,
-        })
-        .where(eq(courses.id, input.id));
+        }).where(eq(courses.id, legacyId));
+      }
     }
 
-    const canonicalCourseId = await upsertCanonicalCourse(tx, input);
+    let canonicalCourseId: string;
+    if (canonical) {
+      const pricing = input.pricing === undefined ? undefined : validateCoursePricing(input.pricing);
+      await tx.update(mataKuliah).set({
+        title: input.title,
+        status: "active",
+        ...(pricing ? { pricingCategory: pricing.category, freeStartsAt: pricing.startsAt, freeEndsAt: pricing.endsAt } : {}),
+      }).where(eq(mataKuliah.id, canonical.id));
+      canonicalCourseId = canonical.id;
+    } else {
+      canonicalCourseId = await upsertCanonicalCourse(tx, input);
+    }
     await recordAudit(tx, {
       actorId: input.actorId,
       entityType: "mata_kuliah",
       entityId: canonicalCourseId,
-      action: input.isNew ? "canonical_create_with_legacy" : "canonical_update_with_legacy",
-      afterSnapshot: { legacyCourseId: input.id, title: input.title, status: "active" },
+      action: input.isNew ? "canonical_create_with_legacy" : legacyId ? "canonical_update_with_legacy" : "canonical_update",
+      afterSnapshot: { legacyCourseId: legacyId, title: input.title, status: "active" },
     });
     return { id: input.id, canonicalCourseId };
   };
@@ -351,12 +378,13 @@ export async function archiveChapterWithLegacyDeletion(
   actorId?: string | null,
   callerTx?: Tx,
 ): Promise<{ id: string; canonicalChapterId: string | null }> {
+  let dispatchCourse: string | undefined;
   const execute = async (tx: Tx) => {
     const [legacy] = await tx
       .select({ id: chapters.id, courseId: chapters.courseId })
       .from(chapters)
       .where(eq(chapters.id, legacyChapterId))
-      .limit(1);
+      .limit(1).for("update");
     if (!legacy) throw new Error("CHAPTER_NOT_FOUND");
 
     const canonical = await findCanonicalChapter(tx, legacyChapterId);
@@ -372,6 +400,16 @@ export async function archiveChapterWithLegacyDeletion(
         .set({ status: "archived", orderIndex: (latest?.orderIndex ?? 0) + 1 })
         .where(eq(bab.id, canonical.id));
     }
+    // Preserve the identity before cascade deletion clears old queue KO FKs.
+    const kos = await tx.select({ id: knowledgeObjects.id, version: knowledgeObjects.version }).from(knowledgeObjects).where(eq(knowledgeObjects.chapterId, legacyChapterId));
+    if (kos.length) dispatchCourse = legacy.courseId;
+    for (const ko of kos) {
+      await tx.update(vectorSyncQueue).set({ payload: sql`${vectorSyncQueue.payload} || jsonb_build_object('entityId', ${ko.id}::text, 'version', coalesce(${vectorSyncQueue.payload}->'version', '1'::jsonb), 'legacyKind', 'knowledge_object')` }).where(eq(vectorSyncQueue.koId, ko.id));
+      for (const version of new Set([1, ko.version])) await tx.insert(vectorSyncQueue).values({
+        id: `delete-ko-${randomUUID()}`, courseId: legacy.courseId, koId: null, namespace: "learning", action: "delete",
+        payload: { entityId: ko.id, version, legacyKind: "knowledge_object" },
+      });
+    }
     await tx.delete(chapters).where(eq(chapters.id, legacyChapterId));
     await recordAudit(tx, {
       actorId,
@@ -383,7 +421,10 @@ export async function archiveChapterWithLegacyDeletion(
     return { id: legacyChapterId, canonicalChapterId: canonical?.id ?? null };
   };
 
-  return callerTx ? execute(callerTx) : db.transaction((tx) => execute(tx));
+  if (callerTx) return execute(callerTx);
+  const result = await db.transaction(tx => execute(tx));
+  if (dispatchCourse) await dispatchVectorSync(dispatchCourse);
+  return result;
 }
 
 export async function reorderChaptersWithCanonicalProjection(

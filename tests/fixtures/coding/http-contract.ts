@@ -8,7 +8,7 @@ mock.module("server-only", () => ({}));
 mock.module("@/db", () => ({ db: testDb }));
 mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => userId ? { user: { id: userId } } : null } } }));
 mock.module("@/lib/env", () => ({ env: {} }));
-mock.module("@/lib/student/course-access", () => ({ resolveCourseAccess: async ({ courseId }: { courseId: string }) => ({ hasCourseAccess: courseId === "course", canonicalCourseId: "course", tier: "enrolled" }) }));
+mock.module("@/lib/student/course-access", () => ({ resolveCourseAccess: async ({ courseId }: { courseId: string }) => ({ hasCourseAccess: courseId === "course", canonicalCourseId: "course", hasFullContentAccess: courseId === "course", tier: "enrolled" }) }));
 mock.module("@/lib/coding/server-runtime", () => ({ createTrustedPythonRuntime: async () => { if (providerFailure) throw new Error("provider failure"); return ({ async close() { if (cleanupFailure) throw new Error("cleanup failure"); }, async execute({ stdin }: { stdin: string }) { executions++; return { status: "completed", stdout: stdin === "public" ? "public-result\n" : "PRIVATE-RESULT\n", stderr: "", truncated: false }; } }); } }));
 const publicProblemRoute = await import("@/app/api/coding/problems/[problemId]/route");
 const submissions = await import("@/app/api/coding/submissions/route");

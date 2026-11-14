@@ -1,14 +1,16 @@
+import { hasAuthoringActor } from "@/lib/auth/authoring-actor";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { hasAnyPeran } from "@/lib/auth/authorization";
+
 import { explainBundleError } from "@/lib/bundle/admin-errors";
 import { upsertProductBlockReview } from "@/lib/bundle/product-staging";
 
 export const runtime = "nodejs";
 
 const blockReviewSchema = z.object({
+  expectedRevision: z.string().regex(/^[a-f0-9]{64}$/),
   productId: z.string().min(1),
   blockId: z.string().min(1),
   status: z.enum(["pending", "approved", "changes_requested"]),
@@ -17,12 +19,9 @@ const blockReviewSchema = z.object({
 
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const session = await auth.api.getSession({ headers: await headers() });
-  const isAuthorized =
-    session?.user &&
-    ((await hasAnyPeran(session.user.id, ["admin", "tutor"], { allowAdmin: true })) ||
-      session.user.role === "admin" ||
-      session.user.role === "teacher");
-  if (!isAuthorized) return NextResponse.json({ error: "Anda tidak memiliki akses untuk mereview bundle ini.", code: "UNAUTHORIZED" }, { status: 401 });
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await hasAuthoringActor(session.user.id, ["admin", "tutor"]))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   let body: unknown;
   try {
     body = await request.json();

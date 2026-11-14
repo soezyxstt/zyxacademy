@@ -58,10 +58,11 @@ import {
   resolveActiveSection,
   searchArticleContent,
 } from "@/lib/articles/structured-read-model";
-import { ArticleCodingProvider } from "@/components/coding/article-coding";
+import { ArticleCodingProvider, ArticleMarkdownScope } from "@/components/coding/article-coding";
 import { ArticleParts } from "@/components/course/article-parts";
 import { MathText } from "@/components/course/math-text";
 import { ProductLearningVisual } from "@/components/course/product-learning-visual";
+import { InteractiveDocumentArticle, InteractiveDocumentArticleLocation } from "@/components/course/interactive-document-context";
 import {
   ProductWorkedExample,
   ProductFormativeCheck,
@@ -81,6 +82,7 @@ export interface StructuredArticleReaderProps {
   article: PublicArticleReadModel;
   course?: { id?: string; title: string } | null;
   mode?: MaterialReaderMode;
+  pythonBrowserOnly?: boolean;
   backHref?: string;
   prevMaterial?: MaterialNavigationItem | null;
   nextMaterial?: MaterialNavigationItem | null;
@@ -275,13 +277,14 @@ export function StructuredArticleSectionContent({
       {!section.blocks.some((block) => block.parts?.length) && section.visuals && section.visuals.length > 0 ? (
         <div className="space-y-4 py-2">
           {section.visuals.map((visual) => (
-            <ProductLearningVisual key={visual.id} spec={visual} />
+            <InteractiveDocumentArticleLocation key={visual.id} sectionId={section.id} field="section_visual"><ProductLearningVisual spec={visual} /></InteractiveDocumentArticleLocation>
           ))}
         </div>
       ) : null}
 
       <div className="space-y-6 py-2">
         {section.blocks.map((block, blockIndex) => {
+          const renderBlock = () => {
           if (block.blockType === "worked_example" && block.workedExample) {
             return (
               <div
@@ -399,6 +402,8 @@ export function StructuredArticleSectionContent({
               {!block.parts?.length ? <BlockVisuals visuals={block.visuals} /> : null}
             </div>
           );
+          };
+          return <ArticleMarkdownScope key={block.id || blockIndex} id={JSON.stringify([section.id, block.id || blockIndex])}><InteractiveDocumentArticleLocation sectionId={section.id} blockId={block.id} field="content">{renderBlock()}</InteractiveDocumentArticleLocation></ArticleMarkdownScope>;
         })}
       </div>
     </>
@@ -409,6 +414,7 @@ export function StructuredArticleReader({
   article,
   course,
   mode = "learner",
+  pythonBrowserOnly = false,
   backHref,
   prevMaterial,
   nextMaterial,
@@ -1130,7 +1136,8 @@ export function StructuredArticleReader({
   );
 
   return (
-    <ArticleCodingProvider value={{ courseId: article.courseId, articleId: article.id, articleVersion: article.version, enabled: learnerMode && !adapter }}>
+    <ArticleCodingProvider value={{ courseId: article.courseId, articleId: article.id, articleVersion: article.version, enabled: learnerMode && !adapter, browserOnly: pythonBrowserOnly }}>
+    <InteractiveDocumentArticle value={learnerMode && !adapter ? { courseId: article.courseId, articleId: article.id, articleVersion: article.version } : null}>
     <div className="min-h-screen w-full min-w-0 flex-1 bg-background text-foreground flex flex-col">
       {/* Sticky Reader Header / Focus Header - only rendered in learner mode */}
       {learnerMode &&
@@ -1498,6 +1505,7 @@ export function StructuredArticleReader({
         />
       )}
     </div>
+    </InteractiveDocumentArticle>
     </ArticleCodingProvider>
   );
 }

@@ -3,13 +3,15 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import katex from "@/lib/math/katex";
 import { splitScientificText } from "@/lib/math/text-segments";
+import { isValidHttpUrl } from "@/lib/links";
+import { legacyArticlePublicBlocks } from "@/lib/materials/legacy-article-public";
 import type { ProductEntity } from "./product-validator";
 import { materializeAuthoredDiktat, validateAuthoredDiktat } from "@/lib/materials/diktat-v4";
 import { renderDiktatStaticVisual, type DiktatSourceFigureAssets } from "@/lib/materials/diktat-static-visual";
 
 
-export const PRODUCT_DIKTAT_RENDERER_VERSION = "zyx-diktat-worker-v6";
-export const PRODUCT_DIKTAT_PRINT_PROFILE = "a4-self-study-readable-v3";
+import { PRODUCT_DIKTAT_RENDERER_VERSION, PRODUCT_DIKTAT_PRINT_PROFILE } from "@/lib/materials/diktat-renderer-policy";
+export { PRODUCT_DIKTAT_RENDERER_VERSION, PRODUCT_DIKTAT_PRINT_PROFILE };
 
 export function buildSelfContainedKatexCss(): string {
   const require = createRequire("Deno" in globalThis ? new URL("../../workers/deno-background/package.json", import.meta.url) : import.meta.url);
@@ -131,6 +133,11 @@ export function compileProductDiktatHtml(source: ProductDiktatRenderSource): str
     : parseCanonicalDiktatMarkdownToHtml(withoutRepeatedDocumentHeading(markdown), source.diktat.title);
   if (source.diktat.units && content.includes('class="katex-error"')) throw new Error("DIKTAT_MATH_RENDER_INVALID");
 
+  return productPrintShell(title, content, "Diktat");
+}
+
+/** The legacy Article export shares the exact readable print profile with Diktat. */
+function productPrintShell(title: string, content: string, label: string): string {
   return `<!doctype html>
 <html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title>
 <style>${KATEX_CSS}
@@ -175,10 +182,70 @@ li { margin-bottom: .8mm; padding-left: .5mm; }
 .label-wrong, .label-correct, .solution-header, .example-badge, .step-badge { font-weight: 700; }
 .example-header, .solution-header { margin: 1.5mm 0 .5mm; }
 .inline-code { font-family: monospace; }
+.article-print-link, .article-print-destination { overflow-wrap: anywhere; }
+.article-print-link { color: inherit; text-decoration: underline; }
 </style></head><body>
 <div class="diktat-watermark" aria-hidden="true">${ZYX_MAIN_LOGO_SVG}</div>
 
-<main class="diktat"><header class="diktat-header"><span class="eyebrow">Diktat</span><h1>${title}</h1></header>${content}</main></body></html>`;
+<main class="diktat"><header class="diktat-header"><span class="eyebrow">${label}</span><h1>${title}</h1></header>${content}</main></body></html>`;
+}
+
+/** Print the learner-visible legacy Article itself, without creating a Diktat. */
+export function compileProductArticleHtml(article: ArticleProduct): string {
+  if (/\.v[45]$/.test(article.schemaVersion)) throw new Error("PRODUCT_ARTICLE_LEGACY_REQUIRED");
+  const sorted = <T extends { orderIndex: number; id: string }>(items: readonly T[]) =>
+    [...items].sort((a, b) => a.orderIndex - b.orderIndex || a.id.localeCompare(b.id));
+  const markdown = (value: string) => {
+    // The local browser cannot fetch external media. Refuse rather than silently
+    // print a URL or omit an authored image or embedded HTML.
+    const html = parseCanonicalDiktatMarkdownToHtml(value, "", { preserveText: true });
+    if (html.includes('class="katex-error"')) throw new Error("PRODUCT_ARTICLE_MATH_RENDER_INVALID");
+    return html;
+  };
+  const visual = (id: string) => {
+    const source = article.visuals?.find(item => item.id === id);
+    if (!source) throw new Error("PRODUCT_ARTICLE_PRINT_VISUAL_MISSING");
+    return renderDiktatStaticVisual(source);
+  };
+  const blockContent = (content: string, worked?: ArticleProduct["sections"][number]["blocks"][number]["workedExamplePayload"], formative?: ArticleProduct["sections"][number]["blocks"][number]["formativeCheckPayload"]) => [
+    markdown(content),
+    ...(worked ? sorted(worked.steps.map(step => ({ ...step, orderIndex: step.stepIndex, id: String(step.stepIndex) }))).map(step => markdown(`### ${step.label}\n\n${step.explanation}\n\n${step.reason}`)).concat(markdown(`### Verifikasi\n\n${worked.verification}`)) : []),
+    // Formative answers, correctness and feedback remain behind their existing
+    // evaluation boundary; the visible options are part of the prompt.
+    ...(formative?.options?.map(option => markdown(`- ${option.text}`)) ?? []),
+    ...(formative?.evaluation?.mode === "numeric" && formative.evaluation.unit ? [markdown(`Satuan: ${formative.evaluation.unit}`)] : []),
+  ].join("\n");
+  let content: string;
+  if (article.blocks.length && !article.sections.length) {
+    const projected = legacyArticlePublicBlocks(article.blocks);
+    content = sorted(article.blocks).map((block, index) => {
+      try {
+        const embedded: unknown = JSON.parse(block.content);
+        if (embedded && typeof embedded === "object" && "content" in embedded && typeof embedded.content === "string") {
+          const metadata = embedded as { assets?: unknown; visualIds?: unknown };
+          if ((metadata.assets && (!Array.isArray(metadata.assets) || metadata.assets.length)) || (metadata.visualIds && (!Array.isArray(metadata.visualIds) || metadata.visualIds.length))) throw new Error("PRODUCT_ARTICLE_PRINT_MEDIA_UNSUPPORTED");
+        } else if (embedded && typeof embedded === "object" && !Array.isArray(embedded)) throw new Error("PRODUCT_ARTICLE_PRINT_BLOCK_INVALID");
+      } catch (error) {
+        if (error instanceof SyntaxError) { /* Plain Markdown is valid V2 content. */ }
+        else throw error;
+      }
+      return `<section class="diktat-unit">${markdown(projected[index])}</section>`;
+    }).join("\n");
+  } else if (article.sections.length && !article.blocks.length) {
+    content = sorted(article.sections).map(section => {
+      const seen = new Set<string>();
+      const blockVisualIds = new Set(section.blocks.flatMap(block => block.visualIds ?? []));
+      const sectionVisuals = section.pedagogy?.visualRequirement.status === "required"
+        ? section.pedagogy.visualRequirement.visualIds.filter(id => !blockVisualIds.has(id) && !seen.has(id)).map(id => { seen.add(id); return visual(id); }).join("\n") : "";
+      const blocks = sorted(section.blocks).map(block => {
+        if (block.parts) throw new Error("PRODUCT_ARTICLE_LEGACY_REQUIRED");
+        const visuals = (block.visualIds ?? []).filter(id => !seen.has(id)).map(id => { seen.add(id); return visual(id); }).join("\n");
+        return `<section class="diktat-unit">${block.title ? markdown(`### ${block.title}`) : ""}${blockContent(block.contentMarkdown, block.workedExamplePayload, block.formativeCheckPayload)}${visuals}</section>`;
+      }).join("\n");
+      return `${markdown(`## ${section.title}`)}${section.learningObjective ? markdown(section.learningObjective) : ""}${sectionVisuals}${blocks}`;
+    }).join("\n");
+  } else throw new Error("PRODUCT_ARTICLE_LEGACY_SHAPE_INVALID");
+  return productPrintShell(escapeHtml(article.title), content, "Artikel");
 }
 
 /** Removes the leading Markdown title already printed in the document header. */
@@ -190,8 +257,72 @@ function withoutRepeatedDocumentHeading(markdown: string): string {
  * Parses canonical Markdown text into semantic HTML with KaTeX equations,
  * styled pedagogical cards, tables, and formatted lists.
  */
-export function parseCanonicalDiktatMarkdownToHtml(markdown: string, documentTitle: string): string {
+export function parseCanonicalDiktatMarkdownToHtml(markdown: string, documentTitle: string, options: { preserveText?: boolean } = {}): string {
   const mathMap = new Map<string, string>();
+  const printDestinations = new Map<string, string>();
+  const printUrls = new Map<string, string>();
+  const inlineLinkPattern = /\[([^\]\n]*)\]\((<[^>\n]+>|(?:\\.|[^\s()\\]|\([^\s()]*\))+)(?:\s+"[^"\n]*")?\)/g;
+  const protectDestination = (destination: string) => {
+    const token = `%%ZYXPRINTDEST${printDestinations.size}%%`;
+    printDestinations.set(token, destination);
+    return token;
+  };
+  // URL punctuation is literal, including math delimiters. Restore it only after
+  // math and inline formatting. Code keeps its original Markdown spelling too.
+  const protectPrintLinks = () => {
+    let result = "";
+    let cursor = 0;
+    const escaped = (position: number) => {
+      let count = 0;
+      while (position > 0 && markdown[--position] === "\\") count++;
+      return count % 2 === 1;
+    };
+    while (cursor < markdown.length) {
+      if (!escaped(cursor)) {
+        const code = markdown[cursor] === "`" ? markdown.slice(cursor).match(/^`+/)?.[0] : undefined;
+        const open = code ?? (["$$", "\\[", "\\("].find(delimiter => markdown.startsWith(delimiter, cursor)) ?? (markdown[cursor] === "$" ? "$" : undefined));
+        if (open) {
+          const close = code ?? (open === "\\[" ? "\\]" : open === "\\(" ? "\\)" : open);
+          let end = cursor + open.length;
+          while (end < markdown.length) {
+            if (!code && open === "$" && markdown[end] === "\n") break;
+            if (markdown.startsWith(close, end) && (code || !escaped(end)) && (close !== "$" || (markdown[end - 1] !== "$" && markdown[end + 1] !== "$")) && (!code || (markdown[end - 1] !== "`" && markdown[end + code.length] !== "`"))) break;
+            end++;
+          }
+          if (end < markdown.length && markdown.startsWith(close, end)) {
+            result += markdown.slice(cursor, end + close.length);
+            cursor = end + close.length;
+            continue;
+          }
+          if (code && code.length >= 3 && (cursor === 0 || markdown[cursor - 1] === "\n")) return result + markdown.slice(cursor);
+        }
+        if (markdown.startsWith("![", cursor) && /^!\[(.*?)\]\((.*?)\)/.test(markdown.slice(cursor))) throw new Error("PRODUCT_ARTICLE_PRINT_MEDIA_UNSUPPORTED");
+        if (markdown[cursor] === "[") {
+          inlineLinkPattern.lastIndex = cursor;
+          const match = inlineLinkPattern.exec(markdown);
+          if (match?.index === cursor) {
+            const [source, label, href] = match;
+            const token = protectDestination(href);
+            result += (label === href ? `[${token}](` : source.slice(0, label.length + 3)) + token + source.slice(label.length + 3 + href.length);
+            cursor += source.length;
+            continue;
+          }
+        }
+        if (markdown[cursor] === "<") {
+          if (/^<\/?(?:img|video|audio|iframe|object|embed)(?:\s+[a-z_:][\w:.-]*(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?)*\s*\/?>/i.test(markdown.slice(cursor))) throw new Error("PRODUCT_ARTICLE_PRINT_MEDIA_UNSUPPORTED");
+          const match = markdown.slice(cursor).match(/^<(https?:\/\/[^<>\s]+|mailto:[^<>\s]+)>/);
+          if (match) {
+            result += `<${protectDestination(match[1])}>`;
+            cursor += match[0].length;
+            continue;
+          }
+        }
+      }
+      result += markdown[cursor++];
+    }
+    return result;
+  };
+  const protectedMarkdown = options.preserveText ? protectPrintLinks() : markdown;
   let tokenCounter = 0;
 
   function storeMath(latex: string, displayMode: boolean): string {
@@ -201,7 +332,7 @@ export function parseCanonicalDiktatMarkdownToHtml(markdown: string, documentTit
       rendered = katex.renderToString(latex.trim(), {
         displayMode,
         throwOnError: true,
-        output: "html",
+        output: options.preserveText ? "htmlAndMathml" : "html",
       });
       if (displayMode) {
         rendered = `<div class="formula-display">${rendered}</div>`;
@@ -215,7 +346,7 @@ export function parseCanonicalDiktatMarkdownToHtml(markdown: string, documentTit
     return id;
   }
 
-  const text = splitScientificText(markdown).map((segment) => {
+  const text = splitScientificText(protectedMarkdown).map((segment) => {
     if (segment.type === "math") return storeMath(segment.value, segment.display);
     if (segment.type === "text") return segment.value.replace(/\\\$/g, "$");
     const id = `%%ZYXMATH${tokenCounter++}%%`;
@@ -226,13 +357,30 @@ export function parseCanonicalDiktatMarkdownToHtml(markdown: string, documentTit
   }).join("");
 
   function formatInline(str: string): string {
-    const html = escapeHtml(str)
+    const links = new Map<string, string>();
+    const link = (label: string, destination: string) => {
+      const href = (printDestinations.get(destination) ?? destination).replace(/^<|>$/g, "").replace(/\\([()\\])/g, "$1");
+      if (/[\u0000-\u0020\u007f\\]/.test(href) || !(isValidHttpUrl(href) || /^\/(?!\/)/.test(href) || /^#[^#]/.test(href) || /^mailto:[^@]+@[^@]+$/.test(href))) throw new Error("PRODUCT_ARTICLE_PRINT_LINK_UNSUPPORTED");
+      if (isValidHttpUrl(href)) { const url = new URL(href); if (url.username || url.password) throw new Error("PRODUCT_ARTICLE_PRINT_LINK_UNSUPPORTED"); }
+      const token = `%%ZYXPRINTLINK${links.size}%%`;
+      const urlToken = `%%ZYXPRINTURL${printUrls.size}%%`;
+      printUrls.set(urlToken, escapeHtml(href));
+      const literalLabel = !label || label === destination || label === href;
+      links.set(token, `<a class="article-print-link" href="${urlToken}">${literalLabel ? urlToken : formatInline(label)}</a>${!literalLabel ? `<span class="article-print-destination"> (${urlToken})</span>` : ""}`);
+      return token;
+    };
+    const linked = options.preserveText ? str.replace(inlineLinkPattern, (_match, label: string, href: string) => link(label, href))
+      .replace(/<(https?:\/\/[^<>\s]+|mailto:[^<>\s]+|%%ZYXPRINTDEST\d+%%)>/g, (_match, href: string) => link(href, href)) : str;
+    if (options.preserveText && (/\[[^\n]*\]\(/.test(linked) || /\[[^\]\n]*\]\[[^\]\n]*\]/.test(linked) || /^\s*\[[^\]\n]+\]:/.test(linked))) throw new Error("PRODUCT_ARTICLE_PRINT_LINK_UNSUPPORTED");
+    const html = escapeHtml(linked)
       .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
       .replace(/__([^_]+)__/g, "<strong>$1</strong>")
       .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<em>$1</em>")
       .replace(/(?<!_)_([^_]+)_(?!_)/g, "<em>$1</em>")
       .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
-    return applySemanticEmphasis(html);
+    let formatted = applySemanticEmphasis(html);
+    for (const [token, value] of links) formatted = formatted.replaceAll(token, value);
+    return formatted;
   }
 
   function detectCardClass(title: string): string {
@@ -426,7 +574,7 @@ export function parseCanonicalDiktatMarkdownToHtml(markdown: string, documentTit
 
     // Misconception / Pitfall pattern in text
     if (
-      trimmed.includes("Miskonsepsi:") &&
+      !options.preserveText && trimmed.includes("Miskonsepsi:") &&
       (trimmed.includes("Koreksi:") || (i + 1 < lines.length && lines[i + 1].includes("Koreksi:")))
     ) {
       let combined = trimmed;
@@ -497,6 +645,8 @@ export function parseCanonicalDiktatMarkdownToHtml(markdown: string, documentTit
   for (const [placeholder, rendered] of mathMap.entries()) {
     htmlResult = htmlResult.replaceAll(placeholder, rendered);
   }
+  for (const [placeholder, rendered] of printUrls) htmlResult = htmlResult.replaceAll(placeholder, rendered);
+  for (const [placeholder, destination] of printDestinations) htmlResult = htmlResult.replaceAll(placeholder, escapeHtml(destination));
 
   return htmlResult;
 }
@@ -1011,4 +1161,3 @@ export async function renderProductDiktatPdf(
 export function canDownloadProductDiktat(input: { role?: string | null; enrolled: boolean }): boolean {
   return input.role === "admin" || (input.role === "student" && input.enrolled);
 }
-export { latestReadyProductDiktatEvidence } from "./product-diktat-evidence";

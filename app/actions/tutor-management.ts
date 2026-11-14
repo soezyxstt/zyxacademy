@@ -1,5 +1,7 @@
 "use server";
 
+import { resolveCourseAccess } from "@/lib/student/course-access";
+
 import { db } from "@/db";
 import {
   aiMaterialInstances,
@@ -11,13 +13,15 @@ import {
   questions,
   submissions,
   mataKuliah,
-  enrollments,
 } from "@/db/schema";
-import { eq, and, inArray, asc, or, sql, notInArray, gt } from "drizzle-orm";
+import { eq, and, inArray, asc, or, sql, notInArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { randomUUID } from "crypto";
 import { z } from "zod";
+import { rejectQuestionVisualReferences } from "@/lib/authoring/question-visual-references";
+import { parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
+import { verifyQuestionVisualBinding } from "@/lib/materials/question-visual-binding";
 import { parseMaterialIntoSections } from "@/lib/ingestion-parser";
 import { revalidatePath } from "next/cache";
 import { notifyQuizPublishedBestEffort } from "@/lib/notifications/send";
@@ -1023,6 +1027,7 @@ export async function saveQuestionBankAction(
   },
 ) {
   const { session, access } = await verifyTutorAccess(courseId);
+  rejectQuestionVisualReferences([{ prompt: typeof data?.prompt === "string" ? data.prompt : "", options: Array.isArray(data?.options) ? data.options.filter((value): value is string => typeof value === "string") : [], explanation: typeof data?.explanation === "string" ? data.explanation : "" }]);
   const { roles, isAdmin } = await resolveActorRoles(
     session.user.id,
     (session.user as { role?: string | null }).role,
@@ -1480,6 +1485,7 @@ export async function saveTryoutQuestionAction(
   if (!session?.user) {
     throw new Error("Unauthorized: Silakan masuk terlebih dahulu.");
   }
+  rejectQuestionVisualReferences([{ prompt: data.prompt, options: data.options ?? [] }]);
 
   const { roles, isAdmin } = await resolveActorRoles(
     session.user.id,
@@ -1724,6 +1730,13 @@ export async function importQuestionBankToTryoutAction(
   const rowsToImport = uniqueIds
     .map((qId) => bankRows.find((row) => row.id === qId)!)
     .filter((row) => !importedIds.has(row.id));
+  for (const row of rowsToImport) {
+    const copied = { prompt: row.prompt, options: Array.isArray(row.options) ? row.options.map(String) : [], explanation: row.explanation };
+    const documents = [copied.prompt, ...copied.options, copied.explanation].flatMap(parseInteractiveDocumentsInMarkdown);
+    if (documents.length && !await verifyQuestionVisualBinding(exam.courseId, copied)) {
+      throw new Error("Aset visual soal belum terverifikasi untuk mata kuliah tryout.");
+    }
+  }
   const firstOrder =
     existingQuestions.reduce((highest, question) => Math.max(highest, question.order), 0) + 1;
 
@@ -1893,36 +1906,8 @@ export async function submitTryoutAction(courseId: string, examId: string, answe
     throw new Error("Tryout tidak sesuai dengan kelas.");
   }
 
-  const { isAdmin } = await resolveActorRoles(
-    session.user.id,
-    (session.user as { role?: string | null }).role,
-  );
-
-  if (!isAdmin) {
-    const enrollmentCourseIds = [courseId];
-    if (canonicalCourse?.id && !enrollmentCourseIds.includes(canonicalCourse.id)) {
-      enrollmentCourseIds.push(canonicalCourse.id);
-    }
-    if (canonicalCourse?.legacyCourseId && !enrollmentCourseIds.includes(canonicalCourse.legacyCourseId)) {
-      enrollmentCourseIds.push(canonicalCourse.legacyCourseId);
-    }
-
-    const [enrollment] = await db
-      .select({ id: enrollments.id })
-      .from(enrollments)
-      .where(
-        and(
-          eq(enrollments.userId, session.user.id),
-          inArray(enrollments.courseId, enrollmentCourseIds),
-          gt(enrollments.expiresAt, new Date()),
-        ),
-      )
-      .limit(1);
-
-    if (!enrollment) {
-      throw new Error("Pendaftaran kelas tidak aktif atau sudah berakhir.");
-    }
-  }
+  const access = await resolveCourseAccess({ courseId: examRecord.courseId, userId: session.user.id });
+  if (!access.hasFullContentAccess) throw new Error("Akses mata kuliah tidak tersedia.");
 
   if (examRecord.status !== "published") {
     throw new Error("Tryout belum dipublikasikan atau sudah ditutup.");

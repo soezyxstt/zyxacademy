@@ -40,12 +40,12 @@ export function catalogueProgress(courseId: string, catalogue: DemoCatalogue) {
   return { total: catalogue.materials.length, completed: completed.length };
 }
 
-export function addSelectedFallback(catalogue: DemoCatalogue, selected: { articleId: string; diktatId: string }, titles: { article: string; diktat: string }): DemoCatalogue {
+export function addSelectedFallback(catalogue: DemoCatalogue, selected: { articleId?: string; diktatId?: string }, titles: { article: string; diktat: string }): DemoCatalogue {
   const first = catalogue.chapters[0];
   if (!first) return catalogue;
   const materials = [...catalogue.materials];
   for (const item of [{ id: selected.articleId, title: titles.article, kind: "article" as const }, { id: selected.diktatId, title: titles.diktat, kind: "diktat" as const }]) {
-    if (!materials.some(existing => existing.id === item.id)) materials.push({ ...item, chapterId: first.id });
+    if (item.id && !materials.some(existing => existing.id === item.id)) materials.push({ ...item, id: item.id, chapterId: first.id });
   }
   return { ...catalogue, materials };
 }

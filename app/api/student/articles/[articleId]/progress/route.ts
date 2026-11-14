@@ -58,7 +58,7 @@ export async function PUT(req: NextRequest, { params }: RouteProps) {
     if (!access) {
       return NextResponse.json({ error: "Akses materi tidak tersedia." }, { status: 403 });
     }
-    if (access.tier === "free" && !isFreeChapterScoped([articleRecord.chapterId].filter((id): id is string => Boolean(id)), access.freeChapterIds)) {
+    if (access.tier === "free" && !isFreeChapterScoped([articleRecord.chapterId].filter((id): id is string => Boolean(id)), access.hasFullContentAccess ? access.policy.scopedChapterIds : access.freeChapterIds)) {
       return NextResponse.json({ error: "Materi ini tersedia setelah aktivasi kelas." }, { status: 403 });
     }
 

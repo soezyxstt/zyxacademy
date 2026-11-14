@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { blogArticles } from "@/db/schema";
 import { eq, and, ne, desc } from "drizzle-orm";
 import { auth } from "@/lib/auth";
-import { hasAnyPeran } from "@/lib/auth/authorization";
+import { hasAnyPeran } from "@/lib/auth/request-cache";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import Image from "next/image";
 import { Calendar, Clock, ChevronLeft, User, Share2 } from "lucide-react";

@@ -2,11 +2,11 @@ import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { headers as nextHeaders } from "next/headers";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
-import { diktatMateri, diktats, mataKuliah, studentQuizAttempts, quizTemplates } from "@/db/schema";
+import { diktatMateri, diktats, mataKuliah, studentQuizAttempts, quizTemplates, courseVideos } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
-import { resolveCourseAccess } from "@/lib/student/course-access";
-import { isProtectedProductDiktatPdfKey, leafFilename, quizAttachmentPrefix } from "@/lib/storage/keys";
+import { canAccessCourseContent, resolveCourseAccess } from "@/lib/student/course-access";
+import { isProtectedCourseDiktatPdfKey, isProtectedProductDiktatPdfKey, leafFilename, quizAttachmentPrefix } from "@/lib/storage/keys";
 import { getS3StorageConfig } from "@/lib/storage/r2";
 
 const config = getS3StorageConfig(process.env.STORAGE_PROVIDER_MODE === "neon" ? "neon" : "r2");
@@ -69,7 +69,7 @@ async function resolveDiktatAuthorization(key: string): Promise<DiktatAuthorizat
     const candidates = storageKeyCandidates(key);
     const [canonicalRows, legacyRows] = await Promise.all([
       db
-        .select({ key: diktatMateri.fileKey, courseId: mataKuliah.id })
+        .select({ key: diktatMateri.fileKey, courseId: mataKuliah.id, chapterId: diktatMateri.babId })
         .from(diktatMateri)
         .innerJoin(mataKuliah, eq(diktatMateri.mataKuliahId, mataKuliah.id))
         .where(and(
@@ -78,17 +78,21 @@ async function resolveDiktatAuthorization(key: string): Promise<DiktatAuthorizat
           inArray(diktatMateri.fileKey, candidates),
         )),
       db
-        .select({ key: diktats.fileUrl, courseId: diktats.courseId })
+        .select({ key: diktats.fileUrl, courseId: diktats.courseId, chapterIds: diktats.chapterIds })
         .from(diktats)
         .where(and(eq(diktats.status, "ready"), inArray(diktats.fileUrl, candidates))),
     ]);
     const matches = [
-      ...canonicalRows.map((row) => ({ ...row, source: "canonical" as const })),
-      ...legacyRows.map((row) => ({ ...row, source: "legacy" as const })),
+      ...canonicalRows.map((row) => ({ key: row.key, courseId: row.courseId, chapterIds: row.chapterId ? [row.chapterId] : [], source: "canonical" as const })),
+      ...legacyRows.map((row) => ({ key: row.key, courseId: row.courseId, chapterIds: Array.isArray(row.chapterIds) ? row.chapterIds : [], source: "legacy" as const })),
     ].filter(
-      (row): row is { key: string; courseId: string; source: "canonical" | "legacy" } => normalizeStorageKey(row.key) === key,
+      (row): row is { key: string; courseId: string; chapterIds: string[]; source: "canonical" | "legacy" } => normalizeStorageKey(row.key) === key,
     );
-    if (matches.length === 0) return { matched: false, allowed: true };
+    if (matches.length === 0) {
+      // Rollback artifacts must not become public when no active row references them.
+      const protectedKey = isProtectedCourseDiktatPdfKey(key);
+      return { matched: protectedKey, allowed: !protectedKey };
+    }
 
     const identities = await Promise.all(
       [...new Set(matches.map((row) => row.courseId))].map((courseId) => resolveCourseIdentity(courseId)),
@@ -112,7 +116,8 @@ async function resolveDiktatAuthorization(key: string): Promise<DiktatAuthorizat
     });
     return {
       matched: true,
-      allowed: access.hasCourseAccess && access.capabilities.canDownloadDiktat,
+      allowed: access.hasCourseAccess && access.capabilities.canDownloadDiktat
+        && (access.tier !== "free" || matches.every((row) => canAccessCourseContent(access, "diktat-download", row.chapterIds))),
     };
   } catch {
     // A storage authorization failure must not turn into a downloadable file.
@@ -216,10 +221,11 @@ async function resolveCourseVideoAuthorization(key: string): Promise<CourseVideo
       roleHint: (session.user as { role?: string | null }).role,
     });
 
-    return {
-      matched: true,
-      allowed: access.isEnrolled || access.tier === "staff",
-    };
+    if (!access.hasFullContentAccess) return { matched: true, allowed: false };
+    const rows = await db.select({ courseId: courseVideos.courseId, chapterId: courseVideos.chapterId })
+      .from(courseVideos).where(eq(courseVideos.videoUrl, key));
+    const validCourseIds = new Set([access.courseId, access.canonicalCourseId, access.legacyCourseId].filter(Boolean));
+    return { matched: true, allowed: rows.length > 0 && rows.every((row) => validCourseIds.has(row.courseId) && (!row.chapterId || access.scopedChapterIds.includes(row.chapterId))) };
   } catch {
     return { matched: true, allowed: false };
   }
@@ -239,6 +245,12 @@ export async function GET(
     
     if (!key) {
       return new Response("Missing file key", { status: 400 });
+    }
+
+    // Private interactive assets are available only through scoped routes.
+    const normalizedPath = new URL(`/${key.replace(/\\/g, "/").replace(/\/+/g, "/")}`, "http://storage.invalid").pathname.replace(/^\/+/, "");
+    if ([key, normalizedPath].some((value) => /^overhaul\/(interactive-documents|question-visual-bindings)(?:\/|$)/.test(value))) {
+      return new Response("File not found", { status: 404 });
     }
 
     // Product Bundle Diktat PDFs carry enrollment-gated course material. They

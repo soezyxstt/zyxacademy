@@ -466,7 +466,7 @@ function LessCardsFixture() {
           </span>
           <QuizListClient
             courseId="ma1101"
-            isEnrolled={true}
+            hasFullContentAccess={true}
             accessTier="standard"
             templates={mockQuizTemplates}
             attempts={[]}
@@ -485,7 +485,7 @@ function LessCardsFixture() {
             courseSlug="matematika-1"
             initialPlaylists={mockPlaylists}
             chapters={[{ id: "ch-1", title: "Sistem Bilangan", orderIndex: 1 }]}
-            isEnrolled={true}
+            hasFullContentAccess={true}
             canManage={false}
           />
         </section>

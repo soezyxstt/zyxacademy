@@ -5,16 +5,14 @@ import { db } from "@/db";
 import {
   aiQuestionBank,
   assessmentSources,
-  bab,
   courses,
-  ide,
   mataKuliah,
   pembahasanSoal,
   soal,
   soalIde,
 } from "@/db/schema";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
+import { assertTutorOrAdmin } from "@/lib/auth/admin-guards-server";
 import { canonicalQuestionStatus } from "@/lib/question-authoring-contract";
 import { QuestionBankClient } from "./questions-client";
 import { HistoricalQuestionsClient } from "./historical-questions-client";
@@ -101,8 +99,6 @@ export default async function AIQuestionsPage({ searchParams }: { searchParams: 
   const [
     authoringCourses,
     legacyCoursesList,
-    authoringChapters,
-    authoringIdeas,
   ] = await Promise.all([
     // Canonical mata kuliah
     db
@@ -120,22 +116,6 @@ export default async function AIQuestionsPage({ searchParams }: { searchParams: 
       .select({ id: courses.id, title: courses.title })
       .from(courses)
       .orderBy(asc(courses.title)),
-    // Chapters (only needed for authoring on the active tab)
-    isActiveTab
-      ? db
-          .select({ id: bab.id, mataKuliahId: bab.mataKuliahId, code: bab.code, title: bab.title, orderIndex: bab.orderIndex })
-          .from(bab)
-          .where(eq(bab.status, "active"))
-          .orderBy(asc(bab.orderIndex))
-      : Promise.resolve([]),
-    // Ideas (only needed for authoring on the active tab)
-    isActiveTab
-      ? db
-          .select({ id: ide.id, mataKuliahId: ide.mataKuliahId, babId: ide.babId, code: ide.code, statement: ide.canonicalStatement })
-          .from(ide)
-          .where(eq(ide.status, "published"))
-          .orderBy(asc(ide.code))
-      : Promise.resolve([]),
   ]);
 
   // Build unified course map and canonical ID resolver
@@ -397,8 +377,6 @@ export default async function AIQuestionsPage({ searchParams }: { searchParams: 
             courseMap={courseMap}
             canonicalCourseMap={canonicalCourseMap}
             authoringCourses={authoringCourses}
-            authoringChapters={authoringChapters}
-            authoringIdeas={authoringIdeas}
           />}
         </TabsContent>
 

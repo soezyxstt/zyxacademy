@@ -31,12 +31,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 async function CourseOverviewHighlights({
   studentId,
   courseId,
-  chapterOutline,
+  chapterOutlinePromise,
 }: {
   studentId: string;
   courseId: string;
-  chapterOutline: Awaited<ReturnType<typeof getCourseChapterOutline>>;
+  chapterOutlinePromise: ReturnType<typeof getCourseChapterOutline>;
 }) {
+  const chapterOutline = await chapterOutlinePromise;
   const overviewData = await getCourseOverviewData(studentId, courseId, chapterOutline);
   if (!overviewData) return null;
 
@@ -60,17 +61,13 @@ async function CourseOverviewHighlights({
 
 async function CourseChapterOutlineSection({
   courseId,
-  studentId,
-  isEnrolled,
-  initialChapters,
+  chapterOutlinePromise,
 }: {
   courseId: string;
-  studentId: string;
-  isEnrolled: boolean;
-  initialChapters?: Awaited<ReturnType<typeof getCourseChapterOutline>>;
+  chapterOutlinePromise: ReturnType<typeof getCourseChapterOutline>;
 }) {
-  const chapters = initialChapters ?? (await getCourseChapterOutline(courseId, studentId));
-  return <ChapterOutline courseId={courseId} chapters={chapters} isEnrolled={isEnrolled} />;
+  const chapters = await chapterOutlinePromise;
+  return <ChapterOutline courseId={courseId} chapters={chapters} />;
 }
 
 export default async function CourseOverviewPage({ params }: Props) {
@@ -96,12 +93,12 @@ export default async function CourseOverviewPage({ params }: Props) {
   const course = courseResult.data;
   if (!course) return null;
 
-  // Independent reads run together to keep TTFB low.
-  const [studentAccess, chapterOutline] = await Promise.all([
-    getStudentCourseAccess(studentId, id),
-    getCourseChapterOutline(id, studentId),
-  ]);
-  const isEnrolled = studentAccess?.tier === "standard";
+  // Start the outline alongside access, but let the boundaries await it.
+  const chapterOutlinePromise = getCourseChapterOutline(id, studentId);
+  // Access can fail before a boundary consumes the outline promise.
+  void chapterOutlinePromise.catch(() => {});
+  const studentAccess = await getStudentCourseAccess(studentId, id);
+  const hasFullContentAccess = Boolean(studentAccess?.hasFullContentAccess);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -136,9 +133,9 @@ export default async function CourseOverviewPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <StudentCourseOverviewView course={{ id: course.id, title: course.title, description: shortDescription }} isEnrolled={isEnrolled}
-        highlights={<Suspense fallback={<CourseOverviewPrimaryActionsSkeleton />}><CourseOverviewHighlights studentId={studentId} courseId={id} chapterOutline={chapterOutline} /></Suspense>}
-        chapterOutline={<Suspense fallback={<CourseChapterOutlineSkeleton />}><CourseChapterOutlineSection courseId={id} studentId={studentId} isEnrolled={isEnrolled} initialChapters={chapterOutline} /></Suspense>}
+      <StudentCourseOverviewView course={{ id: course.id, title: course.title, description: shortDescription, pricing: studentAccess?.policy.pricing }} hasFullContentAccess={hasFullContentAccess}
+        highlights={<Suspense fallback={<CourseOverviewPrimaryActionsSkeleton />}><CourseOverviewHighlights studentId={studentId} courseId={id} chapterOutlinePromise={chapterOutlinePromise} /></Suspense>}
+        chapterOutline={<Suspense fallback={<CourseChapterOutlineSkeleton />}><CourseChapterOutlineSection courseId={id} chapterOutlinePromise={chapterOutlinePromise} /></Suspense>}
       />
     </>
   );

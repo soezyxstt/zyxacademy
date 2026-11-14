@@ -48,16 +48,46 @@
     "changesRequested": "Changes requested"
   },
   "blockTypes": {
-    "prior_knowledge_activation": { "label": "Prior knowledge activation", "badge": "Prerequisite" },
-    "problem_introduction": { "label": "Problem introduction", "badge": "Motivation" },
-    "explanation": { "label": "Concept explanation", "badge": "Core concept" },
-    "verbal_representation": { "label": "Verbal representation", "badge": "Intuition" },
-    "mathematical_representation": { "label": "Mathematical representation", "badge": "Formula" },
-    "worked_example": { "label": "Worked example", "badge": "Example" },
-    "misconception": { "label": "Common misconception", "badge": "Warning" },
-    "application": { "label": "Real-world application", "badge": "Application" },
-    "cross_idea_synthesis": { "label": "Cross-Idea synthesis", "badge": "Synthesis" },
-    "summary": { "label": "Chapter summary", "badge": "Summary" }
+    "prior_knowledge_activation": {
+      "label": "Prior knowledge activation",
+      "badge": "Prerequisite"
+    },
+    "problem_introduction": {
+      "label": "Problem introduction",
+      "badge": "Motivation"
+    },
+    "explanation": {
+      "label": "Concept explanation",
+      "badge": "Core concept"
+    },
+    "verbal_representation": {
+      "label": "Verbal representation",
+      "badge": "Intuition"
+    },
+    "mathematical_representation": {
+      "label": "Mathematical representation",
+      "badge": "Formula"
+    },
+    "worked_example": {
+      "label": "Worked example",
+      "badge": "Example"
+    },
+    "misconception": {
+      "label": "Common misconception",
+      "badge": "Warning"
+    },
+    "application": {
+      "label": "Real-world application",
+      "badge": "Application"
+    },
+    "cross_idea_synthesis": {
+      "label": "Cross-Idea synthesis",
+      "badge": "Synthesis"
+    },
+    "summary": {
+      "label": "Chapter summary",
+      "badge": "Summary"
+    }
   },
   "difficulty": {
     "easy": "Easy",
@@ -78,5 +108,7 @@
   "solutionTitle": "Question solution",
   "assessmentBlueprint": "Assessment blueprint ({type})",
   "chapterCount": "Chapters ({count})",
-  "questionCount": "Questions ({count})"
+  "questionCount": "Questions ({count})",
+  "unsavedSectionNote": "Save or discard section note changes before navigating or deciding the bundle.",
+  "discardSectionNote": "Discard note changes"
 }

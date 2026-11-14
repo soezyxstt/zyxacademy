@@ -5,7 +5,7 @@ import { getTranslations } from "@/lib/i18n/server";
 import { db } from "@/db";
 import { courses, quizTemplates } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { assertAdmin } from "@/lib/auth/admin-guards";
+import { assertAdmin } from "@/lib/auth/admin-guards-server";
 import { QuizForm, type InitialQuizData } from "@/app/(admin)/admin/(eval)/quizzes/_components/quiz-form";
 import { getCourseDetailData } from "../../../../actions";
 

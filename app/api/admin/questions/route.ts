@@ -15,6 +15,7 @@ import {
   pembahasanSoal,
   soal,
   soalIde,
+  mataKuliah,
 } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { hasAnyPeran } from '@/lib/auth/authorization';
@@ -22,6 +23,8 @@ import { headers } from 'next/headers';
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { questionAuthoringInputSchema, canonicalQuestionStatus } from '@/lib/question-authoring-contract';
 import { createCanonicalQuestion, QuestionAuthoringError } from '@/lib/question-authoring';
+import { enqueueQuestionReviewVectorTx } from '@/lib/question-review-lifecycle';
+import { dispatchVectorSync } from '@/lib/vector-sync-dispatch';
 
 /**
  * Handles GET requests to retrieve paginated question bank records with optional filters.
@@ -130,6 +133,7 @@ export async function PUT(req: NextRequest) {
   const canonicalStatus = canonicalQuestionStatus(reviewStatus);
   const now = new Date();
   const publishedAt = canonicalStatus === 'published' ? now : null;
+  const dispatchCourses = new Set<string>();
 
   const result = await db.transaction(async (tx) => {
     const canonicalRows = await tx
@@ -139,18 +143,20 @@ export async function PUT(req: NextRequest) {
         version: soal.version,
         status: soal.status,
         courseId: soal.mataKuliahId,
+        prompt: soal.prompt,
       })
       .from(soal)
-      .where(inArray(soal.id, ids));
+      .where(inArray(soal.id, ids)).orderBy(soal.id).for('update');
     const compatibilityRows = await tx
       .select({
         id: aiQuestionBank.id,
         origin: aiQuestionBank.origin,
         reviewStatus: aiQuestionBank.reviewStatus,
         courseId: aiQuestionBank.courseId,
+        prompt: aiQuestionBank.prompt,
       })
       .from(aiQuestionBank)
-      .where(inArray(aiQuestionBank.id, ids));
+      .where(inArray(aiQuestionBank.id, ids)).orderBy(aiQuestionBank.id).for('update');
     const canonicalById = new Map(canonicalRows.map((row) => [row.id, row]));
     const compatibilityById = new Map(compatibilityRows.map((row) => [row.id, row]));
 
@@ -238,6 +244,14 @@ export async function PUT(req: NextRequest) {
       correlationId: id,
       createdAt: now,
     })));
+    for (const id of [...new Set(ids)].sort()) {
+      const canonical = canonicalById.get(id), compatibility = compatibilityById.get(id);
+      if (!canonical && !compatibility) continue;
+      const [course] = !compatibility && canonical ? await tx.select({ legacyId: mataKuliah.legacyCourseId }).from(mataKuliah).where(eq(mataKuliah.id, canonical.courseId)).limit(1) : [];
+      const courseId = compatibility?.courseId ?? course?.legacyId ?? canonical!.courseId;
+      await enqueueQuestionReviewVectorTx(tx, { id, courseId, version: canonical?.version ?? 1, reviewStatus, prompt: canonical?.prompt ?? compatibility!.prompt });
+      dispatchCourses.add(courseId);
+    }
     return { blockedHistoricalQuestionIds: [] as string[] };
   });
 
@@ -252,6 +266,7 @@ export async function PUT(req: NextRequest) {
     );
   }
 
+  for (const courseId of dispatchCourses) await dispatchVectorSync(courseId);
   return NextResponse.json({ updated: ids.length });
 }
 

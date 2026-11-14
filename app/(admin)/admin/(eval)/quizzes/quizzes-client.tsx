@@ -4,11 +4,12 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Clock, Award, BookOpen, Loader2, Calendar, Eye, Check, Edit } from "lucide-react";
+import { Plus, Trash2, Clock, Award, BookOpen, Calendar, Eye, Check, Edit } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { CourseBadge, DifficultyBadge } from "@/components/admin/status-badges";
 import { AdminOptionLetter } from "@/components/admin/option-letter";
+import { QuizPreviewSkeleton } from "@/components/admin/content-loading-skeletons";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -515,10 +516,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
 
           <div className="flex-1 overflow-y-auto p-4 text-left">
             {loadingPreview ? (
-              <div className="py-12 flex flex-col items-center justify-center gap-3">
-                <Loader2 className="size-8 animate-spin text-brand-primary" />
-                <p className="text-body-sm text-muted-foreground">{tx("resolvingQuestions")}</p>
-              </div>
+              <QuizPreviewSkeleton label={tx("resolvingQuestions")} />
             ) : previewQuestions.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground text-body-sm">
                 {tx("noPreviewQuestions")}

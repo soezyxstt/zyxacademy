@@ -1,9 +1,9 @@
 "use client";
 
+import { ZyraUsageSkeleton } from "@/components/admin/content-loading-skeletons";
 import { daysAgo } from "@/lib/date-utils";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { RefreshCw } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -151,10 +151,7 @@ export function ZyraUsageCharts() {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-24 text-body-sm text-muted-foreground">
-          <RefreshCw className="mr-2 size-4 animate-spin" />
-          Memuat data penggunaan Zyra...
-        </div>
+        <ZyraUsageSkeleton />
       ) : (
         <>
           <div className="min-w-0 space-y-3">

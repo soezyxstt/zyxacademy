@@ -17,6 +17,7 @@ import { randomUUID } from "node:crypto";
 import { getAllFeatureFlagsStatus, KNOWN_FEATURE_FLAGS } from "@/lib/feature-flags";
 import { membershipIdFor, type PeranCode } from "@/lib/auth/peran";
 import { sendAdminBroadcast } from "@/lib/notifications/send";
+import { lockAuthoringIdentityChange } from "@/lib/auth/authoring-actor";
 
 // ─── 1. Users & Permissions ──────────────────────────────────────────────────
 
@@ -35,36 +36,39 @@ export async function executeUpdateUserRole(input: UpdateUserRoleInput, actorId?
   const targetUser = await db.query.user.findFirst({ where: eq(user.id, userId) });
   if (!targetUser) throw new Error(`Pengguna dengan ID '${userId}' tidak ditemukan.`);
 
-  // Ensure domain identity pengguna exists
-  await db
-    .insert(pengguna)
-    .values({ id: userId, status: "active" })
-    .onConflictDoNothing();
+  await db.transaction(async tx => {
+    if (!(await lockAuthoringIdentityChange(tx, userId))) throw new Error("Pengguna tidak ditemukan.");
+    // Ensure domain identity pengguna exists
+    await tx
+      .insert(pengguna)
+      .values({ id: userId, status: "active" })
+      .onConflictDoNothing();
 
-  // Clear existing roles and assign new ones
-  await db.delete(penggunaPeran).where(eq(penggunaPeran.penggunaId, userId));
+    // Clear existing roles and assign new ones
+    await tx.delete(penggunaPeran).where(eq(penggunaPeran.penggunaId, userId));
 
-  for (const roleCode of input.roles) {
-    const roleRecord = await db.query.peran.findFirst({ where: eq(peran.code, roleCode) });
-    if (roleRecord) {
-      await db.insert(penggunaPeran).values({
-        id: membershipIdFor(userId, roleRecord.code as PeranCode),
-        penggunaId: userId,
-        peranId: roleRecord.id,
-        source: "admin-ops-ai",
-        auditActorPenggunaId: actorId ?? null,
-      });
+    for (const roleCode of input.roles) {
+      const [roleRecord] = await tx.select().from(peran).where(eq(peran.code, roleCode)).limit(1);
+      if (roleRecord) {
+        await tx.insert(penggunaPeran).values({
+          id: membershipIdFor(userId, roleRecord.code as PeranCode),
+          penggunaId: userId,
+          peranId: roleRecord.id,
+          source: "admin-ops-ai",
+          auditActorPenggunaId: actorId ?? null,
+        });
+      }
     }
-  }
 
-  // Sync legacy role on user table
-  const primaryRole = input.roles.includes("admin")
-    ? "admin"
-    : input.roles.includes("tutor")
-    ? "teacher"
-    : "student";
+    // Sync legacy role on user table
+    const primaryRole = input.roles.includes("admin")
+      ? "admin"
+      : input.roles.includes("tutor")
+      ? "teacher"
+      : "student";
 
-  await db.update(user).set({ role: primaryRole as any }).where(eq(user.id, userId));
+    await tx.update(user).set({ role: primaryRole as any }).where(eq(user.id, userId));
+  });
 
   return {
     summary: `Peran pengguna '${targetUser.name}' (${targetUser.email}) berhasil diubah menjadi [${input.roles.join(", ")}].`,

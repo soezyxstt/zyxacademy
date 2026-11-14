@@ -1,5 +1,7 @@
 "use client";
 
+import { FormListSkeleton } from "@/components/admin/content-loading-skeletons";
+
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -1880,9 +1882,7 @@ export default function AdminFormsBuilder({
           </div>
 
           {loadingForms ? (
-            <div className="flex h-40 items-center justify-center rounded-2xl border border-border bg-card">
-              <RefreshCw className="size-6 animate-spin text-muted-foreground" />
-            </div>
+            <FormListSkeleton />
           ) : formsLoadError ? (
             <div role="alert" className="rounded-xl border border-status-error/30 bg-status-error/10 p-4 text-body-sm text-status-error">
               Gagal memuat formulir. Muat ulang untuk mencoba lagi.

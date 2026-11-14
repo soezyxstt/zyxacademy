@@ -9,7 +9,6 @@ import { randomUUID } from 'crypto';
 import { db } from '@/db';
 import {
   asesmen,
-  enrollments,
   mataKuliah,
   pengguna,
   quizTemplates,
@@ -17,7 +16,9 @@ import {
 } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { and, eq, desc, gt, inArray, or } from 'drizzle-orm';
+import { and, eq, desc, inArray, or } from 'drizzle-orm';
+import { resolveCourseAccess, type CourseAccessResult } from '@/lib/student/course-access';
+import { canAccessStudentQuizTemplate } from '@/lib/quiz/student-access';
 import { assessmentScopeSchema } from '@/lib/asesmen/contracts';
 import { getQuizTimingMismatch } from '@/lib/asesmen/quiz-timing';
 import { notifyQuizPublishedBestEffort } from '@/lib/notifications/send';
@@ -380,6 +381,7 @@ export async function GET(req: NextRequest) {
   const category = searchParams.get('category');
 
   const conditions = [];
+  let studentAccess: CourseAccessResult | null = null;
   if (courseId) {
     const [canonicalCourse] = await db
       .select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId })
@@ -430,42 +432,9 @@ export async function GET(req: NextRequest) {
       conditions.push(inArray(quizTemplates.courseId, accessibleIds));
     }
   } else {
-    // Students and other roles: only enrolled courses, only published free quizzes.
-    if (!courseId) {
-      return NextResponse.json([]);
-    }
-
-    const [canonicalCourse] = await db
-      .select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId })
-      .from(mataKuliah)
-      .where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId)))
-      .limit(1);
-
-    const enrollmentCourseId = canonicalCourse?.legacyCourseId ?? canonicalCourse?.id ?? null;
-    if (!enrollmentCourseId) {
-      return NextResponse.json([]);
-    }
-
-    const [enrollment] = await db
-      .select({ id: enrollments.id })
-      .from(enrollments)
-      .where(
-        and(
-          eq(enrollments.userId, session.user.id),
-          eq(enrollments.courseId, enrollmentCourseId),
-          gt(enrollments.expiresAt, new Date()),
-        ),
-      )
-      .limit(1);
-
-    if (!enrollment) {
-      return NextResponse.json(
-        { error: 'Forbidden: NO_ACTIVE_ENROLLMENT' },
-        { status: 403 },
-      );
-    }
-
-    conditions.push(eq(quizTemplates.visibility, 'free'));
+    if (!courseId) return NextResponse.json([]);
+    studentAccess = await resolveCourseAccess({ courseId, userId: session.user.id });
+    if (!studentAccess.hasCourseAccess) return NextResponse.json({ error: 'Akses mata kuliah tidak tersedia.' }, { status: 403 });
     conditions.push(eq(quizTemplates.status, 'published'));
   }
 
@@ -498,5 +467,5 @@ export async function GET(req: NextRequest) {
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(quizTemplates.createdAt));
 
-  return NextResponse.json(rows);
+  return NextResponse.json(studentAccess ? rows.filter((row) => canAccessStudentQuizTemplate(studentAccess!, row)) : rows);
 }

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getAuthSession } from "@/lib/auth-session";
-import { hasPeran } from "@/lib/auth/authorization";
+import { hasPeran } from "@/lib/auth/request-cache";
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { ApplicationShell } from "@/components/application-shell";
 import { OpsAiDrawer } from "@/components/admin/ops-ai/ops-ai-drawer";

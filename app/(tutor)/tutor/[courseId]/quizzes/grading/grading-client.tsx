@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { MathText } from "@/components/course/math-text";
+import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { toast } from "@/components/ui/toast";
 import {
@@ -325,7 +326,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                 </div>
 
                 <div className="text-body-sm text-foreground">
-                  <MathText>{q.prompt}</MathText>
+                  <MarkdownRenderer content={q.prompt} />
                 </div>
 
                 {q.acceptableAnswers && q.acceptableAnswers.length > 0 && (

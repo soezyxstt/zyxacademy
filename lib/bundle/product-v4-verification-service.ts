@@ -1,222 +1,12 @@
-import { verificationBrowserFailureCode } from "@/lib/compute/product-v4-browser-config";
-import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
-import { RetryAfterError } from "inngest";
-import { buildProductVerificationKey } from "@/lib/storage/keys";
-import { assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, evaluateProductV4Verification, recordProductV4VerificationReport, runProductV4Verification, type ProductV4ObservedCheck, type ProductV4VerificationAuthority, type ProductV4VerificationBinding, type ProductV4VerificationPlan, type ProductV4VerificationReceipt, type ProductV4VerificationRequirement, type ProductV4VerificationResult } from "./product-v4-verification";
-import type { ProductBundleManifest, ProductDependency, ProductEntity } from "./product-validator";
+import { assertProductV4VerificationCurrent } from "./product-v4-verification";
+import { createProductV4VerificationService, readProductVerificationObject, type ProductV4VerificationPorts, type ProductV4VerificationCheckpoint } from "./product-v4-verification-core";
+import { attachProductV4VerificationSnapshot, currentProductV4VerificationRef, latestProductV4StagingAudit, matchesProductV4StagingSnapshot } from "./product-v4-staging-identity";
+export * from "./product-v4-verification-core";
+type LocalScope = { importId: string; runId: string; expectedChecksum: string };
 
-export interface ProductV4VerificationSnapshot {
-  importId: string;
-  checksum: string;
-  sourceUriOrKey: string;
-  verificationAttemptId?: string | null;
-  verificationPlanHash?: string | null;
-  binding: ProductV4VerificationBinding;
-  bundle: { manifest: ProductBundleManifest; products: readonly ProductEntity[]; dependencies: readonly ProductDependency[] };
-}
-export interface ProductV4VerificationPorts {
-  load(importId: string, runId: string): Promise<ProductV4VerificationSnapshot>;
-  read(key: string): Promise<Uint8Array | null>;
-  write(key: string, bytes: Uint8Array, mediaType: string): Promise<void>;
-  enqueue(input: { importId: string; runId: string; planHash: string; attemptId: string }): Promise<void>;
-  attach(snapshot: ProductV4VerificationSnapshot, planHash: string, attemptId: string, expectedAttemptId: string | null): Promise<boolean>;
-  execute(input: { plan: ProductV4VerificationPlan; bundle: ProductV4VerificationSnapshot["bundle"]; requirement: ProductV4VerificationRequirement; captureOffset?: number; captureLimit?: number }): Promise<ProductV4ObservedCheck>;
-  authority(): ProductV4VerificationAuthority;
-}
-const hash = z.string().regex(/^[a-f0-9]{64}$/);
-const jobSchema = z.object({ importId: z.string().min(1), runId: z.string().min(1), planHash: hash }).strict();
-const attemptSchema = jobSchema.extend({ attemptId: z.string().uuid() });
-const stateSchema = z.object({ attemptId: z.string().uuid(), status: z.enum(["pending", "running", "complete", "failed", "stale"]), receiptKey: z.string().optional(), failureCode: z.string().max(100).optional(), updatedAt: z.number().int().optional(), retryAt: z.number().int().optional(), completedChecks: z.number().int().nonnegative().optional(), totalChecks: z.number().int().positive().optional(), currentCheckId: hash.optional() }).strict();
-export type ProductV4VerificationCheckpoint = <T>(id: string, execute: () => Promise<T>) => Promise<T>;
-const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
-
-export async function readProductVerificationObject(provider: { download?: (key: string) => Promise<Uint8Array> }, key: string): Promise<Uint8Array | null> {
-  if (!provider.download) throw new Error("STORAGE_DOWNLOAD_UNSUPPORTED");
-  try { return await provider.download(key); }
-  catch (error) {
-    const cause = (error instanceof Error ? error.cause ?? error : error) as { name?: string; $metadata?: { httpStatusCode?: number } } | null;
-    const status = cause?.$metadata?.httpStatusCode;
-    if (status === 404 || (status === undefined && (cause?.name === "NoSuchKey" || cause?.name === "NotFound"))) return null;
-    throw error;
-  }
-}
-
-/** Storage manifest is written after artifacts; only an atomic import attachment makes it current. */
-export function createProductV4VerificationService(ports: ProductV4VerificationPorts) {
-  const json = async (key: string) => {
-    const bytes = await ports.read(key);
-    if (!bytes) return null;
-    if (bytes.byteLength > 5 * 1024 * 1024) throw new Error("PRODUCT_V4_VERIFICATION_MANIFEST_TOO_LARGE");
-    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
-  };
-  const current = async (importId: string, runId: string) => {
-    const snapshot = await ports.load(importId, runId);
-    const plan = deriveProductV4VerificationPlan({ bundle: snapshot.bundle, binding: snapshot.binding });
-    return { snapshot, plan };
-  };
-  const get = async (input: { importId: string; runId: string; planHash: string }) => {
-    jobSchema.parse(input);
-    const { snapshot, plan } = await current(input.importId, input.runId);
-    if (plan.planHash !== input.planHash) throw new Error("PRODUCT_V4_VERIFICATION_CONFLICT");
-    const attemptId = snapshot.verificationAttemptId;
-    if (!attemptId || (snapshot.verificationPlanHash && snapshot.verificationPlanHash !== plan.planHash)) throw new Error("PRODUCT_V4_VERIFICATION_JOB_NOT_FOUND");
-    z.string().uuid().parse(attemptId);
-    const manifest = await json(buildProductVerificationKey(plan.planHash, `manifest-${attemptId}.json`));
-    if (!manifest) throw new Error("PRODUCT_V4_VERIFICATION_JOB_NOT_FOUND");
-    const job = attemptSchema.parse(manifest);
-    if (job.importId !== input.importId || job.runId !== input.runId || job.planHash !== plan.planHash) throw new Error("PRODUCT_V4_VERIFICATION_SCOPE_MISMATCH");
-    const stateKey = buildProductVerificationKey(plan.planHash, `state-${attemptId}.json`);
-    let storedState = await json(stateKey);
-    for (let retry = 0; !storedState && retry < 2; retry++) {
-      await new Promise(resolve => setTimeout(resolve, 50 * 2 ** retry));
-      storedState = await json(stateKey);
-    }
-    if (!storedState) throw new Error("PRODUCT_V4_VERIFICATION_STATE_MISSING");
-    const state = stateSchema.parse(storedState);
-    if (["pending", "running"].includes(state.status) && (!state.updatedAt || Date.now() - Math.max(state.updatedAt, state.retryAt ?? 0) > 20 * 60_000)) {
-      state.status = "failed";
-      state.failureCode = "PRODUCT_V4_VERIFICATION_LEASE_EXPIRED";
-    }
-    if (state.attemptId !== attemptId || job.attemptId !== attemptId) throw new Error("PRODUCT_V4_VERIFICATION_ATTEMPT_STALE");
-    if (state.receiptKey && state.receiptKey !== `receipt-${attemptId}.json`) throw new Error("PRODUCT_V4_VERIFICATION_ATTEMPT_STALE");
-    const receipt = state.receiptKey ? await json(buildProductVerificationKey(plan.planHash, state.receiptKey)) : null;
-    const evaluation = evaluateProductV4Verification(plan, receipt ? [receipt] : [], ports.authority());
-    if (evaluation.ready && receipt) {
-      const artifacts = (receipt as ProductV4VerificationReceipt).results.flatMap(result => result.artifacts);
-      for (let start = 0; start < artifacts.length; start += 8) {
-        await Promise.all(artifacts.slice(start, start + 8).map(async artifact => {
-          if (!artifact.id.startsWith(`artifact-${attemptId}-`)) throw new Error("PRODUCT_V4_VERIFICATION_ATTEMPT_STALE");
-          const bytes = await ports.read(buildProductVerificationKey(plan.planHash, artifact.id));
-          if (!bytes || bytes.byteLength !== artifact.byteLength || createHash("sha256").update(bytes).digest("hex") !== artifact.checksum) throw new Error("PRODUCT_V4_VERIFICATION_ARTIFACT_MISSING_OR_CHANGED");
-        }));
-      }
-    }
-    return { jobId: plan.planHash, attemptId, plan, state, receipt, evaluation: { ...evaluation, ready: state.status === "complete" && evaluation.ready } };
-  };
-  return {
-    current,
-    get,
-    async fail(input: { importId: string; runId: string; planHash: string; attemptId: string }) {
-      const { snapshot, plan } = await current(input.importId, input.runId);
-      if (plan.planHash !== input.planHash || snapshot.verificationAttemptId !== input.attemptId) return;
-      const previous = await get({ importId: input.importId, runId: input.runId, planHash: input.planHash });
-      if (previous.state.status === "complete") return;
-      await ports.write(buildProductVerificationKey(plan.planHash, `state-${input.attemptId}.json`), encode({ ...previous.state, status: "failed", updatedAt: Date.now(), failureCode: previous.state.failureCode ?? "PRODUCT_V4_VERIFICATION_WORKER_FAILED" }), "application/json");
-    },
-    async readiness(importId: string, runId: string) {
-      const { snapshot, plan } = await current(importId, runId);
-      if (!snapshot.verificationAttemptId || (snapshot.verificationPlanHash && snapshot.verificationPlanHash !== plan.planHash)) return {
-        jobId: null, plan, state: { status: "pending" as const }, receipt: null,
-        evaluation: evaluateProductV4Verification(plan, [], ports.authority()),
-      };
-      return get({ importId, runId, planHash: plan.planHash });
-    },
-    async request(input: { importId: string; runId: string; expectedPlanHash?: string; retry?: boolean }) {
-      const { snapshot, plan } = await current(input.importId, input.runId);
-      if (input.expectedPlanHash && input.expectedPlanHash !== plan.planHash) throw new Error("PRODUCT_V4_VERIFICATION_CONFLICT");
-      const previousAttempt = snapshot.verificationAttemptId ?? null;
-      if (previousAttempt && (!snapshot.verificationPlanHash || snapshot.verificationPlanHash === plan.planHash)) {
-        const previous = await get({ importId: input.importId, runId: input.runId, planHash: plan.planHash });
-        if (!input.retry) return previous;
-        if (previous.evaluation.ready || previous.state.status === "running" || previous.state.status === "pending") throw new Error("PRODUCT_V4_VERIFICATION_RETRY_NOT_ALLOWED");
-      }
-      const attemptId = randomUUID();
-      const job = { importId: input.importId, runId: input.runId, planHash: plan.planHash, attemptId };
-      await ports.write(buildProductVerificationKey(plan.planHash, `manifest-${attemptId}.json`), encode(job), "application/json");
-      await ports.write(buildProductVerificationKey(plan.planHash, `state-${attemptId}.json`), encode({ attemptId, status: "pending", updatedAt: Date.now(), completedChecks: 0, totalChecks: plan.requirements.length }), "application/json");
-      if (!await ports.attach(snapshot, plan.planHash, attemptId, previousAttempt)) throw new Error("PRODUCT_V4_VERIFICATION_CONFLICT");
-      try { await ports.enqueue(job); }
-      catch (error) {
-        await ports.write(buildProductVerificationKey(plan.planHash, `state-${attemptId}.json`), encode({ attemptId, status: "failed", failureCode: "PRODUCT_V4_VERIFICATION_ENQUEUE_FAILED" }), "application/json");
-        throw error;
-      }
-      return get({ importId: input.importId, runId: input.runId, planHash: plan.planHash });
-    },
-    async process(input: { importId: string; runId: string; planHash: string; attemptId?: string }, checkpoint: ProductV4VerificationCheckpoint = (_id, execute) => execute()) {
-      jobSchema.parse({ importId: input.importId, runId: input.runId, planHash: input.planHash });
-      const { snapshot, plan, existing } = await checkpoint("prepare-verification", async () => ({
-        ...await current(input.importId, input.runId),
-        existing: await get({ importId: input.importId, runId: input.runId, planHash: input.planHash }),
-      }));
-      if (plan.planHash !== input.planHash) throw new Error("PRODUCT_V4_VERIFICATION_CONFLICT");
-      const attemptId = z.string().uuid().parse(input.attemptId ?? snapshot.verificationAttemptId);
-      if (attemptId !== snapshot.verificationAttemptId) throw new Error("PRODUCT_V4_VERIFICATION_ATTEMPT_STALE");
-      const getInput = { importId: input.importId, runId: input.runId, planHash: input.planHash };
-      const assertAttempt = async () => {
-        const fresh = await current(input.importId, input.runId);
-        assertProductV4VerificationCurrent(plan, fresh.plan);
-        if (fresh.snapshot.verificationAttemptId !== attemptId) throw new Error("PRODUCT_V4_VERIFICATION_ATTEMPT_STALE");
-      };
-      const stateKey = buildProductVerificationKey(plan.planHash, `state-${attemptId}.json`);
-      if (existing.state.status === "complete") return existing;
-      let completedChecks = 0;
-      try {
-        const receipt = await runProductV4Verification(plan, ports.authority(), async (requirement) => {
-          let offset = 0;
-          let total = 1;
-          let observed: ProductV4VerificationResult | undefined;
-          do {
-            const stored = await checkpoint(`verify-${requirement.id}-${offset}`, async () => {
-              await assertAttempt();
-              await ports.write(stateKey, encode({ attemptId, status: "running", updatedAt: Date.now(), completedChecks, totalChecks: plan.requirements.length, currentCheckId: requirement.id }), "application/json");
-              let result: ProductV4ObservedCheck;
-              try {
-                result = await ports.execute({ plan, bundle: snapshot.bundle, requirement, ...(requirement.layer === "web" ? { captureOffset: offset, captureLimit: 2 } : {}) });
-              } catch (error) {
-                if (error instanceof RetryAfterError) {
-                  const retryAt = /^\d+$/.test(error.retryAfter) ? Date.now() + Number(error.retryAfter) * 1000 : Date.parse(error.retryAfter);
-                  if (!Number.isSafeInteger(retryAt) || retryAt <= Date.now()) throw new Error("PRODUCT_V4_VERIFICATION_RETRY_TIME_INVALID");
-                  await ports.write(stateKey, encode({ attemptId, status: "pending", updatedAt: Date.now(), retryAt, completedChecks, totalChecks: plan.requirements.length, currentCheckId: requirement.id, failureCode: verificationBrowserFailureCode(error) ?? "VERIFICATION_BROWSER_RATE_LIMITED" }), "application/json");
-                }
-                throw error;
-              }
-              await assertAttempt();
-              const artifacts: ProductV4ObservedCheck["artifacts"] = [];
-              for (let start = 0; start < result.artifacts.length; start += 8) {
-                artifacts.push(...await Promise.all(result.artifacts.slice(start, start + 8).map(async (artifact, index) => {
-                  const extension = artifact.mediaType === "image/png" ? "png" : artifact.mediaType === "application/pdf" ? "pdf" : "json";
-                  const id = `artifact-${attemptId}-${requirement.id}-${offset + start + index}.${extension}`;
-                  await ports.write(buildProductVerificationKey(plan.planHash, id), artifact.bytes, artifact.mediaType);
-                  return { ...artifact, id };
-                })));
-              }
-              const persisted = recordProductV4VerificationReport(plan, [{ ...result, artifacts }], ports.authority()).results[0];
-              await ports.write(stateKey, encode({ attemptId, status: "running", updatedAt: Date.now(), completedChecks, totalChecks: plan.requirements.length }), "application/json");
-              return { ...persisted, ...(result.captureTotal === undefined ? {} : { captureTotal: result.captureTotal }) };
-            });
-            const { captureTotal, ...batch } = stored;
-            observed = { ...batch, artifacts: [...(observed?.artifacts ?? []), ...batch.artifacts] };
-            if (captureTotal !== undefined && (!Number.isInteger(captureTotal) || captureTotal < 1 || captureTotal > 300 || (offset > 0 && total !== captureTotal) || batch.artifacts.length === 0 || offset + batch.artifacts.length > captureTotal)) throw new Error("PRODUCT_V4_CAPTURE_BATCH_INVALID");
-            offset += batch.artifacts.length;
-            total = captureTotal ?? offset;
-          } while (offset < total && observed.status === "PASS");
-          completedChecks++;
-          return observed;
-
-        });
-        return await checkpoint("finalize-verification", async () => {
-          await assertAttempt();
-          if (!await ports.attach(snapshot, plan.planHash, attemptId, attemptId)) throw new Error("PRODUCT_V4_VERIFICATION_CONFLICT");
-          const receiptKey = `receipt-${attemptId}.json`;
-          await ports.write(buildProductVerificationKey(plan.planHash, receiptKey), encode(receipt), "application/json");
-          await assertAttempt();
-          await ports.write(stateKey, encode({ attemptId, status: "complete", receiptKey, updatedAt: Date.now(), completedChecks, totalChecks: plan.requirements.length }), "application/json");
-          return get(getInput);
-        });
-      } catch (error) {
-        if (error instanceof RetryAfterError) throw error;
-        const stale = error instanceof Error && ["PRODUCT_V4_VERIFICATION_CONFLICT", "PRODUCT_V4_VERIFICATION_ATTEMPT_STALE"].includes(error.message);
-        const browserFailure = verificationBrowserFailureCode(error);
-        await ports.write(stateKey, encode({ attemptId, status: stale ? "stale" : "failed", updatedAt: Date.now(), completedChecks, totalChecks: plan.requirements.length, failureCode: stale ? "PRODUCT_V4_VERIFICATION_CONFLICT" : browserFailure ?? "PRODUCT_V4_VERIFICATION_EXECUTION_FAILED" }), "application/json");
-        throw error;
-      }
-    },
-  };
-}
-
-async function applicationService(execute?: ProductV4VerificationPorts["execute"]) {
-  const [{ db }, { imporBundle }, { and, eq }, { storage }, { inngest }, staged, runtimeBinding, { resolveAuthSecret }] = await Promise.all([
+export async function createProductV4ApplicationService(execute?: ProductV4VerificationPorts["execute"], enqueue?: ProductV4VerificationPorts["enqueue"], localScope?: LocalScope) {
+  const [{ db }, { imporBundle, buktiPdfBundle }, { eq }, { storage }, { inngest }, staged, runtimeBinding, { resolveAuthSecret }] = await Promise.all([
     import("@/db"), import("@/db/schema"), import("drizzle-orm"), import("@/lib/storage"), import("@/jobs/client"),
     import("./product-staging"), import("@/lib/compute/product-v4-runtime-binding"), import("@/lib/auth-secret"),
   ]);
@@ -224,26 +14,67 @@ async function applicationService(execute?: ProductV4VerificationPorts["execute"
     async load(importId, runId) {
       const row = await staged.getProductBundleImport(importId);
       if (!row || row.bundleType !== "product") throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+      const staging = await latestProductV4StagingAudit(db, importId);
+      if (row.version !== 4 || !["draft", "published"].includes(row.status) || !staging || staging.correlationId !== runId || staging.afterSnapshot?.checksum !== row.checksum) throw new Error("PRODUCT_V4_VERIFICATION_CONFLICT");
+      if (localScope) {
+        const { assertProductV4LocalDraft } = await import("@/lib/compute/product-v4-local-operator");
+        if (importId !== localScope.importId || runId !== localScope.runId) throw new Error("PRODUCT_V4_LOCAL_EXACT_DRAFT_REQUIRED");
+        assertProductV4LocalDraft(row, localScope, staging);
+      }
       const bundle = await staged.parseStagedProductBundle(importId);
-      const binding = await runtimeBinding.buildProductV4RuntimeBinding({ row, bundle, runId });
-      const previous = row.validationReport.productV4Verification as { attemptId?: unknown; planHash?: unknown } | undefined;
-      return { importId, checksum: row.checksum, sourceUriOrKey: row.sourceUriOrKey, binding,
+      if (bundle.checksum !== row.checksum) throw new Error("PRODUCT_V4_VERIFICATION_CONFLICT");
+      if (!row.courseId) throw new Error("PRODUCT_V4_COURSE_MISMATCH");
+      const binding = await runtimeBinding.buildProductV4RuntimeBinding({ row: { ...row, courseId: row.courseId }, bundle, runId });
+      const previous = currentProductV4VerificationRef(row.validationReport, staging.id, runId);
+      return { importId, checksum: row.checksum, sourceUriOrKey: row.sourceUriOrKey, stagingAuditId: staging.id, stagingRunId: runId,
+        importState: { bundleType: row.bundleType, bundleId: row.bundleId, courseId: row.courseId, version: row.version, status: row.status, validationReport: row.validationReport }, binding,
         verificationAttemptId: typeof previous?.attemptId === "string" ? previous.attemptId : null,
         verificationPlanHash: typeof previous?.planHash === "string" ? previous.planHash : null,
+        pdfEvidenceAttachment: row.validationReport.productV4PdfEvidence,
         bundle: { manifest: bundle.manifest, products: bundle.products, dependencies: bundle.dependencies } };
     },
     read: key => readProductVerificationObject(storage, key),
     async write(key, bytes, mediaType) { await storage.upload(bytes, key.split("/").pop()!, mediaType, { key }); },
-    async enqueue(data) { await inngest.send({ id: `product-verification-${data.planHash}-${data.attemptId}`, name: "product.verification.requested", data }); },
+    enqueue: enqueue ?? (async data => {
+      if (process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER === "local_playwright") return;
+      await inngest.send({ id: `product-verification-${data.planHash}-${data.attemptId}`, name: "product.verification.requested", data });
+    }),
     async attach(snapshot, planHash, attemptId, expectedAttemptId) {
-      const row = await staged.getProductBundleImport(snapshot.importId);
-      if (!row || row.checksum !== snapshot.checksum || row.sourceUriOrKey !== snapshot.sourceUriOrKey) return false;
-      const current = row.validationReport.productV4Verification as { attemptId?: unknown } | undefined;
-      if ((typeof current?.attemptId === "string" ? current.attemptId : null) !== expectedAttemptId) return false;
-      const rows = await db.update(imporBundle).set({ validationReport: { ...row.validationReport, productV4Verification: { planHash, runId: snapshot.binding.runId, attemptId } }, updatedAt: new Date() }).where(and(
-        eq(imporBundle.id, snapshot.importId), eq(imporBundle.checksum, snapshot.checksum), eq(imporBundle.sourceUriOrKey, snapshot.sourceUriOrKey), eq(imporBundle.validationReport, row.validationReport),
-      )).returning({ id: imporBundle.id });
-      return rows.length === 1;
+      if (snapshot.binding.runId !== snapshot.stagingRunId) return false;
+      return attachProductV4VerificationSnapshot(db, snapshot, planHash, attemptId, expectedAttemptId);
+    },
+    async persistPdfEvidence(input) {
+      const { persistProductV4PdfEvidence } = await import("@/lib/compute/product-v4-pdf-evidence");
+      await persistProductV4PdfEvidence(input);
+    },
+    async hasPdfEvidence({ snapshot, plan, attemptId, receipt }) {
+      const checked = await db.transaction(async tx => {
+        const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, snapshot.importId)).limit(1).for("update");
+        const staging = await latestProductV4StagingAudit(tx, snapshot.importId);
+        if (!matchesProductV4StagingSnapshot(row, staging, snapshot) || !row || !["draft", "published"].includes(row.status)) return null;
+        const ref = currentProductV4VerificationRef(row.validationReport, snapshot.stagingAuditId, snapshot.stagingRunId);
+        if (ref?.attemptId !== attemptId || ref.planHash !== plan.planHash || plan.binding.runId !== snapshot.stagingRunId) return null;
+        const rows = await tx.select().from(buktiPdfBundle).where(eq(buktiPdfBundle.imporBundleId, snapshot.importId));
+        return { row, rows };
+      });
+      if (!checked) return false;
+      const { row, rows } = checked;
+      const { resolveProductV4PdfBinding } = await import("./product-pdf-selection");
+      const { evaluateProductBundleReviewAndPdfGate } = await import("./product-review-gate");
+      const diktats = snapshot.bundle.products.filter(product => product.productType === "diktat");
+      if (!diktats.length) return false;
+      return diktats.every(diktat => {
+        if (diktat.productType !== "diktat") return false;
+        const article = snapshot.bundle.products.find(product => product.productType === "article" && product.id === diktat.sourceArticleId);
+        if (!article || article.productType !== "article") return false;
+        const v4PdfBinding = resolveProductV4PdfBinding({ importId: snapshot.importId, diktatId: diktat.id, validationReport: row.validationReport, verification: { plan, attemptId, stagingAuditId: snapshot.stagingAuditId, receipt, evaluation: { ready: true } } });
+        return Boolean(evaluateProductBundleReviewAndPdfGate({
+          imporBundleId: snapshot.importId, hasArticle: true, articleId: article.id, diktatId: diktat.id,
+          contentFingerprint: "", articleVersion: article.version, articleGenerationHash: article.generationHash,
+          diktatGenerationHash: diktat.generationHash, v4PdfBinding,
+          pdfEvidenceRows: rows as unknown as import("@/lib/materials/pdf-artifact-contract").PdfArtifactEvidence[],
+        }).selectedPdfEvidence);
+      });
     },
     execute: execute ?? (async () => { throw new Error("PRODUCT_V4_COMPUTE_EXECUTOR_REQUIRED"); }),
     authority() {
@@ -254,37 +85,49 @@ async function applicationService(execute?: ProductV4VerificationPorts["execute"
 }
 
 export async function requestProductV4Verification(input: { importId: string; runId: string; expectedPlanHash?: string; retry?: boolean }) {
-  return (await applicationService()).request(input);
+  return (await createProductV4ApplicationService()).request(input);
+}
+export async function requestProductV4LocalAttempt(service: Pick<ReturnType<typeof createProductV4VerificationService>, "current" | "readiness" | "request">, input: LocalScope & { retry?: boolean }) {
+  const selected = await service.current(input.importId, input.runId);
+  if (selected.snapshot.checksum !== input.expectedChecksum) throw new Error("PRODUCT_V4_LOCAL_EXACT_DRAFT_REQUIRED");
+  const current = await service.readiness(input.importId, input.runId);
+  assertProductV4VerificationCurrent(selected.plan, current.plan);
+  if (current.plan.binding.browserProvider !== "local_playwright") throw new Error("PRODUCT_V4_LOCAL_BROWSER_REQUIRED");
+  if (current.state.status === "running") throw new Error("PRODUCT_V4_LOCAL_ATTEMPT_RUNNING");
+  const retry = input.retry === true && !current.evaluation.ready && current.jobId !== null && !["pending", "running"].includes(current.state.status);
+  return service.request({ importId: input.importId, runId: input.runId, expectedPlanHash: current.plan.planHash, retry });
+}
+/** Private local operator path; publication and review remain separate operations. */
+export async function requestProductV4VerificationLocally(input: LocalScope & { retry?: boolean }) {
+  const { assertProductV4LocalTarget } = await import("@/lib/compute/product-v4-local-operator");
+  assertProductV4LocalTarget(process.env);
+  z.object({ importId: z.string().min(1), runId: z.string().min(1), expectedChecksum: z.string().regex(/^[a-f0-9]{64}$/), retry: z.boolean().optional() }).strict().parse(input);
+  const scope = { importId: input.importId, runId: input.runId, expectedChecksum: input.expectedChecksum };
+  const service = await createProductV4ApplicationService(undefined, async () => {}, scope);
+  return requestProductV4LocalAttempt(service, input);
 }
 export async function getProductV4Verification(input: { importId: string; runId: string; planHash: string }) {
-  return (await applicationService()).get(input);
+  return (await createProductV4ApplicationService()).get(input);
 }
 export async function failProductV4VerificationJob(input: { importId: string; runId: string; planHash: string; attemptId: string }) {
-  return (await applicationService()).fail(input);
+  return (await createProductV4ApplicationService()).fail(input);
 }
-export async function processProductV4VerificationJob(input: { importId: string; runId: string; planHash: string; attemptId?: string }, checkpoint: ProductV4VerificationCheckpoint | undefined, execute: ProductV4VerificationPorts["execute"]) {
-  const service = await applicationService(execute);
-  checkpoint ??= (_id, operation) => operation();
-  const result = await service.process(input, checkpoint);
-  if (result.evaluation.ready) {
-    await checkpoint("persist-pdf-evidence", async () => {
-      const { persistProductV4PdfEvidence } = await import("@/lib/compute/product-v4-pdf-evidence");
-      try {
-        await persistProductV4PdfEvidence({ snapshot: (await service.current(input.importId, input.runId)).snapshot, plan: result.plan, attemptId: result.attemptId, receipt: result.receipt });
-      } catch (error) {
-        const fresh = await service.current(input.importId, input.runId);
-        if (fresh.plan.planHash === result.plan.planHash && fresh.snapshot.verificationAttemptId === result.attemptId) {
-          const { storage } = await import("@/lib/storage");
-          const key = buildProductVerificationKey(result.plan.planHash, `state-${result.attemptId}.json`);
-          await storage.upload(encode({ attemptId: result.attemptId, status: "failed", receiptKey: `receipt-${result.attemptId}.json`, failureCode: "PRODUCT_V4_PDF_EVIDENCE_PERSIST_FAILED" }), key.split("/").pop()!, "application/json", { key });
-        }
-        throw error;
-      }
-    });
+export async function processProductV4VerificationJob(input: { importId: string; runId: string; planHash: string; attemptId?: string }, checkpoint: ProductV4VerificationCheckpoint | undefined, execute: ProductV4VerificationPorts["execute"], localScope?: LocalScope) {
+  if (localScope) {
+    const { assertProductV4LocalTarget } = await import("@/lib/compute/product-v4-local-operator");
+    assertProductV4LocalTarget(process.env);
   }
-  return result;
+  const service = await createProductV4ApplicationService(execute, localScope ? async () => {} : undefined, localScope);
+  checkpoint ??= (_id, operation) => operation();
+  return service.process(input, checkpoint);
+}
+export async function getProductV4VerificationLocally(input: LocalScope & { planHash: string }) {
+  const { assertProductV4LocalTarget } = await import("@/lib/compute/product-v4-local-operator");
+  assertProductV4LocalTarget(process.env);
+  const scope = { importId: input.importId, runId: input.runId, expectedChecksum: input.expectedChecksum };
+  return (await createProductV4ApplicationService(undefined, async () => {}, scope)).get({ importId: input.importId, runId: input.runId, planHash: input.planHash });
 }
 export async function getProductV4VerificationReadiness(importId: string, runId: string) {
-  const service = await applicationService();
+  const service = await createProductV4ApplicationService();
   return service.readiness(importId, runId);
 }

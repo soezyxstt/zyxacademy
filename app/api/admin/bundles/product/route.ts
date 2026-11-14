@@ -1,8 +1,9 @@
+import { hasAuthoringActor } from "@/lib/auth/authoring-actor";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { stageProductBundle, listProductBundleImports, productBundleLifecycleStatus } from "@/lib/bundle/product-staging";
-import { validateProductBundle } from "@/lib/bundle/product-validator";
+import { validateProductBundleAdmission } from "@/lib/bundle/product-admission";
 import { previewProducts } from "@/lib/bundle/product-preview";
 import { createProductBundleDraft, finalizeProductBundleDraft, type ProductBundleDraft } from "@/lib/bundle/product-draft";
 
@@ -18,7 +19,8 @@ function errorResponse(error: unknown, fallback = "PRODUCT_BUNDLE_REQUEST_FAILED
 
 async function requireAdmin(): Promise<{ id: string } | NextResponse> {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user || session.user.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await hasAuthoringActor(session.user.id, ["admin"]))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   return { id: session.user.id };
 }
 
@@ -57,7 +59,7 @@ export async function POST(request: NextRequest) {
     if (!(file instanceof File)) return NextResponse.json({ error: "PRODUCT_BUNDLE_FILE_REQUIRED" }, { status: 400 });
     if (file.size <= 0 || file.size > MAX_UPLOAD_BYTES) return NextResponse.json({ error: "PRODUCT_BUNDLE_FILE_LIMIT" }, { status: 413 });
     const uploadedBytes = new Uint8Array(await file.arrayBuffer());
-    const validation = validateProductBundle(uploadedBytes);
+    const validation = await validateProductBundleAdmission(uploadedBytes);
     if (!validation.success) return NextResponse.json({ error: "PRODUCT_BUNDLE_VALIDATION_FAILED", reasonCodes: validation.issues.map((issue) => issue.code), issues: validation.issues }, { status: 422 });
     const intent = form.get("intent");
     if (intent !== "stage") {
@@ -85,6 +87,7 @@ export async function POST(request: NextRequest) {
       requestedBy: actor.id,
       bundle,
       filename: file.name || "product-bundle-v2.zip",
+      expectedPreviousChecksum: typeof form.get("expectedRevision") === "string" ? String(form.get("expectedRevision")) : undefined,
     });
     return NextResponse.json({ result }, { status: result.created ? 201 : 200 });
   } catch (error) {

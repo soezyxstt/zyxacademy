@@ -73,9 +73,11 @@ Package builds only replace files in an owned output directory. A non-empty unma
 - **Lifecycle management**:
   - `authoring.list_imports` and `authoring.get_import`: Inspect staged Source, Idea, and Product imports and review logs without exposing storage keys or reviewer IDs (`authoring:read`).
   - `authoring.restage_idea_bundle` and `authoring.restage_product_bundle`: Replace staged bundles and reset prior review state (`authoring:stage`).
-  - `authoring.discard_product_draft`: Permanently delete draft Product Bundles and staging artifacts (`authoring:withdraw`).
-  - `authoring.review_idea_bundle` and `authoring.review_product_bundle`: Record immutable review decisions (`authoring:review`).
-  - `authoring.withdraw_product_bundle`: Audited, idempotent, destructive withdrawal of published Product Bundles (`authoring:withdraw`). Idea Bundle withdrawal is not implemented.
+  - `authoring.discard_product_draft`: Remove draft Product Bundle inventory; retain shared content-addressed objects for safe cleanup (`authoring:withdraw`).
+  - `authoring.get_idea_review_context`, `authoring.review_idea_revision`, `authoring.get_product_review_context`, and `authoring.review_product_bundle`: Read exact-revision review context and record explicit decisions (`authoring:read` / `authoring:review`).
+  - `authoring.adopt_product_draft_run`: Explicitly bind an unchanged scoped draft to the current run, auditing and invalidating prior evidence and bundle review (`authoring:stage`).
+  - `authoring.publish_idea_bundle`, `authoring.publish_product_bundle`, and `authoring.publish_solution_collection`: Explicit admin publication after the applicable exact-revision gates (`authoring:publish`).
+  - `authoring.withdraw_product_bundle` and `authoring.withdraw_idea_bundle`: Audited, idempotent withdrawal (`authoring:withdraw`). Idea withdrawal binds the bootstrap and exact checksum, with a scoped run or explicit exact-import recovery without a Source Pack and preserves entities owned by another published import.
   - `assessment.update_question`: Edit draft Zyx-original questions in scope and return them to `reviewStatus=generated` for admin review (`authoring:stage`). ITB example and historical reference questions are immutable; published or retired questions cannot be edited.
 
 ## Publication matrix and safety boundaries
@@ -83,8 +85,8 @@ Package builds only replace files in an owned output directory. A non-empty unma
 | Workflow / Stage | Submission tool | Persistence state | Publication boundary |
 | --- | --- | --- | --- |
 | Source Pack | `source.ingest` | `impor_bundle` (`status="validated"`) | Validated source archive; not learner-visible. |
-| Idea Bundle V3 | `authoring.submit_idea_bundle` / `authoring.restage_idea_bundle` | `impor_bundle` (`status="staged"`) | Never publishes Ideas via MCP. Admin UI publication is required before Product Bundle authoring. |
-| Product Bundle V3 | `authoring.submit_product_bundle` / `authoring.restage_product_bundle` | `impor_bundle` (`status="staged"`) | Never publishes learner products via MCP. `authoring.review_product_bundle` records pedagogical review only. |
+| Idea Bundle V3 | `authoring.submit_idea_bundle` / `authoring.restage_idea_bundle` | `impor_bundle` (reviewable import) | An authorized admin may explicitly publish through scoped MCP after exact-revision item review or use Admin UI. Published Ideas are required for Product authoring. |
+| Learning Product Bundle V2 to V5 | `authoring.submit_product_bundle` / `authoring.restage_product_bundle` | `impor_bundle` (draft) | An authorized admin may explicitly publish through scoped MCP or Admin UI after the applicable review, dependency, PDF and verification gates. V5 uses its separate item review. |
 | Original Quiz Bank (`quiz_bank`) | `assessment.submit_quiz_draft` / `assessment.update_question` | `question_bank` (`status="draft"`, `reviewStatus="generated"`) | Never publishes learner quiz questions via MCP. |
 | Historical Reference (`reference_question_ingest`) | `assessment.submit_reference_draft` | `reference_question_bank` (`status="published"`, `reviewStatus="published"`) | Directly persists immutable published historical reference records (`historical_reference`). |
 

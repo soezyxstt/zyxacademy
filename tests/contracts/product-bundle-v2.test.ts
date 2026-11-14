@@ -1,8 +1,10 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { zipSync } from "fflate";
-import { computeProductBundleChecksum, deterministicProductSerialization, validateProductBundle, type ProductDependency, type ProductEntity } from "@/lib/bundle/product-validator";
+import { computeProductBundleChecksum, deterministicProductSerialization, hasProductBundleDependencyBlock, validateProductBundle, type ProductDependency, type ProductEntity } from "@/lib/bundle/product-validator";
 import { createProductBundleDraft, finalizeProductBundleDraft } from "@/lib/bundle/product-draft";
-import { productBundleLifecycleStatus } from "@/lib/bundle/product-staging";
+mock.module("server-only", () => ({}));
+mock.module("@/db", () => ({ db: {} }));
+const { productBundleLifecycleStatus } = await import("@/lib/bundle/product-staging");
 
 const HASH_A = "a".repeat(64);
 const HASH_B = "b".repeat(64);
@@ -95,6 +97,24 @@ function archive(files: ReadonlyMap<string, Uint8Array>): Uint8Array {
 }
 
 describe("Plan 008 Product Bundle V2", () => {
+  test("rejects unbound interactive documents in question and solution fields, including escaped metadata", () => {
+    for (const [index, field] of [[2, "prompt"], [3, "content"]] as const) {
+      const products = validProducts();
+      products[index][field] = '```zyx-visual\n{"kind":"interactive\\u005fdocument"}\n```';
+      const result = validateProductBundle(archive(buildFiles(products)));
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.issues[0].code).toBe("PRODUCT_QUESTION_INTERACTIVE_DOCUMENT_UNBOUND");
+    }
+  });
+  test("rejects parsed unterminated interactive documents in legacy article blocks", () => {
+    const products = validProducts();
+    const blocks = products[0].blocks as Array<{ content: string }>;
+    const visual = { id: "x", kind: "interactive_document", version: 1, label: "X", description: "X", documentSha256: HASH_A, documentBytes: 1, printSha256: HASH_B, printBytes: 1, height: 400, staticFallback: { type: "text", summary: "X", content: "X" }, printCaption: "X" };
+    blocks[0].content = `\`\`\`zyx-visual\n${JSON.stringify(visual).replace("interactive_document", "interactive\\u005fdocument")}`;
+    const result = validateProductBundle(archive(buildFiles(products)));
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.issues[0].code).toBe("PRODUCT_EMBEDDED_INTERACTIVE_DOCUMENT_UNBOUND");
+  });
   test("exposes only the three-state Product Bundle lifecycle", () => {
     expect(productBundleLifecycleStatus("draft")).toBe("draft");
     expect(productBundleLifecycleStatus("published")).toBe("published");
@@ -303,6 +323,10 @@ describe("Product Bundle V3 assessment boundary", () => {
     const learningProducts = validProducts().filter((product) => !["question", "solution", "assessment_blueprint"].includes(String(product.productType)));
     const result = validateProductBundle(archive(buildFiles(learningProducts, validDependencies(), "product-bundle.v3")));
     expect(result.success).toBe(true);
+    if (result.success) expect(hasProductBundleDependencyBlock(result.data)).toBe(false);
+    const stale = validateProductBundle(archive(buildFiles(learningProducts, validDependencies().map((dependency) => ({ ...dependency, freshness: "STALE" })), "product-bundle.v3")));
+    expect(stale.success).toBe(true);
+    if (stale.success) expect(hasProductBundleDependencyBlock(stale.data)).toBe(true);
   });
 
   test("rejects question, solution, and assessment blueprint writes", () => {

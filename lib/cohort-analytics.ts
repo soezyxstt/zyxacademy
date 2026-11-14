@@ -18,9 +18,40 @@ import {
 } from "@/db/schema";
 import { and, desc, eq, gt, gte, inArray, sql, count, avg } from "drizzle-orm";
 import { QUESTION_TOTAL_INDEX } from "@/lib/option-stats";
+import { gradeStableOptionAnswer } from "@/lib/asesmen/attempt";
+import { isShortAnswerCorrect } from "@/lib/quiz/short-answer";
 
 const MIN_STUDENTS = 5;
 const MIN_QUESTION_ATTEMPTS = 5;
+
+/** Null means the snapshot cannot be auto-graded and must not affect correctness rates. */
+export function cohortSnapshotAnswerCorrectness(question: Record<string, unknown>, submitted: unknown): boolean | null {
+  const type = question.question_type ?? question.questionType;
+  const acceptable = question.acceptable_answers ?? question.acceptableAnswers;
+  if (type === "essay") return null;
+  if (type === "short_answer" || (Array.isArray(acceptable) && acceptable.length > 0)) {
+    if (!Array.isArray(acceptable) || acceptable.length === 0 || !acceptable.every(value => typeof value === "string" || (typeof value === "number" && Number.isFinite(value)))) return null;
+    const validAnswer = submitted === null || submitted === undefined || typeof submitted === "string" || typeof submitted === "number"
+      || (Array.isArray(submitted) && submitted.length <= 1 && submitted.every(value => typeof value === "string" || typeof value === "number"))
+      || (typeof submitted === "object" && !Array.isArray(submitted) && typeof (submitted as { text?: unknown }).text === "string");
+    return validAnswer ? isShortAnswerCorrect(submitted, acceptable) : null;
+  }
+  const correct = question.correct_indices ?? question.correctIndices;
+  if (!Array.isArray(correct) || correct.length === 0 || !correct.every(value => Number.isInteger(value) && value >= 0)) return null;
+  const indices = submitted === null || submitted === undefined ? [] : typeof submitted === "number" ? [submitted] : submitted;
+  const stableIds = question.stable_option_ids;
+  if (Array.isArray(stableIds) && stableIds.every(value => typeof value === "string")) {
+    const selections = typeof indices === "string" ? [indices] : indices;
+    if (!correct.every(value => value < stableIds.length) || !Array.isArray(selections)
+      || !(selections.every(value => Number.isInteger(value) && value >= 0 && value < stableIds.length)
+        || selections.every(value => typeof value === "string" && stableIds.includes(value)))) return null;
+    return gradeStableOptionAnswer({ stableOptionIds: stableIds, correctIndices: correct, submitted: indices,
+      questionType: type === "multiple_choices" || correct.length > 1 ? "multiple_choices" : "multiple_choice" });
+  }
+  if (!Array.isArray(indices) || !indices.every(value => Number.isInteger(value) && value >= 0)) return null;
+  const selected = [...new Set(indices)];
+  return selected.length === correct.length && selected.every(index => correct.includes(index));
+}
 
 // ─── Base types (P6A) ────────────────────────────────────────────────────────
 
@@ -305,20 +336,17 @@ export async function computeSnapshotPayload(courseId: string): Promise<Snapshot
 
   // ── Most-missed questions (in-memory from attempt snapshots) ─────────────
 
-  type QSnap = { id: string; correct_indices: number[] };
-  type ASnap = Record<string, number[]>;
-
   const qStats: Map<string, { total: number; correct: number }> = new Map();
 
   for (const attempt of completedAttempts) {
-    const qs = (attempt.questionsSnapshot ?? []) as QSnap[];
-    const as_ = (attempt.answersSnapshot ?? {}) as ASnap;
+    const qs = attempt.questionsSnapshot;
+    const as_ = attempt.answersSnapshot ?? {};
+    if (!Array.isArray(qs) || typeof as_ !== "object" || Array.isArray(as_)) continue;
     for (const q of qs) {
+      if (!q || typeof q !== "object" || typeof q.id !== "string") continue;
+      const isCorrect = cohortSnapshotAnswerCorrectness(q, (as_ as Record<string, unknown>)[q.id]);
+      if (isCorrect === null) continue;
       const existing = qStats.get(q.id) ?? { total: 0, correct: 0 };
-      const submitted: number[] = as_[q.id] ?? [];
-      const isCorrect =
-        submitted.length === q.correct_indices.length &&
-        submitted.every((i) => q.correct_indices.includes(i));
       qStats.set(q.id, { total: existing.total + 1, correct: existing.correct + (isCorrect ? 1 : 0) });
     }
   }

@@ -12,7 +12,8 @@ describe("assessment answer leak hardening", () => {
 
     expect(clientBlock).toContain("options: publicOptionTexts(q.options)");
     expect(clientBlock).not.toContain("options: q.options");
-    expect(route).toContain("const serializedAttempts = serializeStudentQuizAttemptList(visibleAttempts)");
+    expect(route).toContain("visibleAttempts.map((attempt) => serializeStudentQuizAttempt(attempt");
+    expect(route).toContain("canViewAttemptDiscussion(templateById.get(attempt.templateId), attempt.status) ? 'released' : 'hidden'");
     expect(route).toContain("serializedAttempts.map(stripAnswerMarkers)");
   });
 
@@ -28,7 +29,7 @@ describe("assessment answer leak hardening", () => {
 
     const tryoutPage = source("app/(student)/courses/[id]/tryout/[tryoutId]/page.tsx");
     const tryoutStart = tryoutPage.indexOf("exam = {");
-    const tryoutEnd = tryoutPage.indexOf("if (!exam", tryoutStart);
+    const tryoutEnd = tryoutPage.indexOf("return (", tryoutStart);
     const tryoutBlock = tryoutPage.slice(tryoutStart, tryoutEnd);
     expect(tryoutBlock).toContain("options: publicOptionTexts(content.options)");
     expect(tryoutBlock).not.toContain("correctIndex");

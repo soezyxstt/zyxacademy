@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   evaluateProductBundleQualityPolicy,
+  productPedagogyFingerprint,
 } from "@/lib/bundle/product-review-gate";
 import type {
   ProductEntity,
@@ -22,6 +23,19 @@ import {
 
 const HASH_A = "a".repeat(64);
 const HASH_D = "d".repeat(64);
+
+test("legacy readiness blocks concatenated authoring envelopes before review or publication", async () => {
+  const article = createValidArticleEntity() as Extract<ProductEntity, { productType: "article" }>;
+  article.sections = [];
+  article.blocks = [{ id: "mixed", blockType: "explanation", orderIndex: 0, content: 'Intro\n{"content":"Question","answer":"private","isCorrect":true}' }];
+  const result = await evaluateProductBundleQualityPolicy([article], { pedagogicReview: null, pdfEvidence: [] });
+  expect(result.publicationReady).toBe(false);
+  expect(result.issues.some(issue => issue.code === "PRODUCT_ARTICLE_LEGACY_PAYLOAD_INVALID" && issue.target.targetId === article.id)).toBe(true);
+  article.blocks[0].content = 'Intro\n{"explanation":"private feedback"}';
+  expect((await evaluateProductBundleQualityPolicy([article], { pedagogicReview: null, pdfEvidence: [] })).issues.some(issue => issue.code === "PRODUCT_ARTICLE_LEGACY_PAYLOAD_INVALID")).toBe(true);
+  article.blocks = [{ id: "a", blockType: "explanation", orderIndex: 0, content: "Intro\n{" }, { id: "b", blockType: "explanation", orderIndex: 1, content: '"answer":"private"}' }];
+  expect((await evaluateProductBundleQualityPolicy([article], { pedagogicReview: null, pdfEvidence: [] })).issues.some(issue => issue.code === "PRODUCT_ARTICLE_LEGACY_PAYLOAD_INVALID")).toBe(true);
+});
 
 function createValidArticleEntity(): ProductEntity {
   const cloned = structuredClone(LIMIT_ARTICLE_FIXTURE);
@@ -120,7 +134,7 @@ function createValidPdfEvidence(
     productId: diktat ? diktat.id : article.id,
     articleVersion: article.version,
     articleHash: article.generationHash,
-    diktatHash: diktat ? diktat.generationHash : "0".repeat(64),
+    diktatHash: diktat ? diktat.generationHash : article.generationHash,
     rendererVersion: "zyx-pdf-v1",
     printProfile: "a4_standard",
     status: "ready",
@@ -144,6 +158,27 @@ function createApprovedReview(
 }
 
 describe("CP2 Quality Policy Evaluation Service", () => {
+  test("multi-Article fingerprints and PDF gates use linked pairs independent of Diktat order", async () => {
+    const first = createValidArticleEntity();
+    if (first.productType !== "article") throw new Error("article fixture required");
+    const identifiers = [...first.sections.flatMap(section => [section.id, ...section.blocks.map(block => block.id)]), ...(first.visuals ?? []).map(visual => visual.id)].sort((a, b) => b.length - a.length);
+    let encoded = JSON.stringify(first);
+    for (const id of identifiers) encoded = encoded.split(id).join(`${id}-second`);
+    const second = { ...JSON.parse(encoded), id: "article-second", slug: "article-second", generationHash: "e".repeat(64) } as typeof first;
+    const d1 = createValidDiktatEntity(first), originalD2 = createValidDiktatEntity(second);
+    if (d1.productType !== "diktat" || originalD2.productType !== "diktat") throw new Error("diktat fixture required");
+    const d2 = { ...originalD2, id: "diktat-second", generationHash: "f".repeat(64) };
+    const products = [first, second, d2, d1];
+    const fingerprint = productPedagogyFingerprint(products);
+    expect(productPedagogyFingerprint([d1, second, first, d2])).toBe(fingerprint);
+    expect(productPedagogyFingerprint([first, { ...second, title: "Changed" }, d2, d1])).not.toBe(fingerprint);
+    const review = { ...createApprovedReview(first, d1), contentFingerprint: fingerprint };
+    const evidence = [createValidPdfEvidence(first, d1), createValidPdfEvidence(second, d2)];
+    const report = await evaluateProductBundleQualityPolicy(products, { pedagogicReview: review, pdfEvidence: evidence });
+    expect(report.issues.filter(issue => issue.code.startsWith("PDF_"))).toHaveLength(0);
+    const missing = await evaluateProductBundleQualityPolicy(products, { pedagogicReview: review, pdfEvidence: [evidence[0]] });
+    expect(missing.issues.some(issue => issue.code === "PDF_EVIDENCE_MISSING" && issue.target.targetId === d2.id)).toBe(true);
+  });
   test("reports valid authoring but not publication-ready when review and PDF evidence are missing", async () => {
     const article = createValidArticleEntity();
     const result = await evaluateProductBundleQualityPolicy([article]);

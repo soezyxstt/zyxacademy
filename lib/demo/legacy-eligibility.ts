@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
 import {
   artikel,
@@ -19,6 +20,8 @@ import {
 } from "@/db/schema";
 import { db } from "@/lib/db";
 import { fictionalDemoProducts } from "@/lib/demo/fictional-products";
+import { getPublicDemoContext, getPublicDemoContexts, getPublicDemoInitialArticles, type DemoChapter, type DemoCourseContext } from "@/lib/demo/context-repository";
+import type { DemoCanonicalCourse } from "@/lib/demo/snapshot-repository";
 import { getAuthorizedFreeQuestionIds } from "@/lib/demo/free-quiz-policy";
 import { selectFreeChapters, hasChapterScopeWithin } from "@/lib/student/course-access";
 import {
@@ -87,7 +90,7 @@ export type DemoEligibility = {
   issues: string[];
 };
 
-type CanonicalCourse = typeof mataKuliah.$inferSelect & {
+type CanonicalCourse = DemoCanonicalCourse & {
   isDemo?: boolean;
 };
 
@@ -104,7 +107,7 @@ function asCanonicalCourse(row: typeof mataKuliah.$inferSelect): CanonicalCourse
   return row as CanonicalCourse;
 }
 
-async function resolveCanonicalCourse(courseId: string): Promise<CanonicalCourse | null> {
+export async function resolveCanonicalCourse(courseId: string): Promise<CanonicalCourse | null> {
   const cleanId = courseId.trim().toLowerCase();
   if (!cleanId) return null;
 
@@ -141,7 +144,7 @@ async function resolveCanonicalCourse(courseId: string): Promise<CanonicalCourse
   return row ? asCanonicalCourse(row) : null;
 }
 
-async function buildCourseSummary(course: CanonicalCourse, chapter: typeof bab.$inferSelect): Promise<DemoCourseSummary> {
+export async function buildCourseSummary(course: CanonicalCourse, chapter: DemoChapter): Promise<DemoCourseSummary> {
   const legacyId = course.legacyCourseId ?? course.id;
   const [legacy] = await db
     .select({ category: courses.category, description: courses.description })
@@ -169,7 +172,7 @@ async function getFirstActiveChapter(course: CanonicalCourse) {
   return chapter ?? null;
 }
 
-async function resolveArticle(course: CanonicalCourse, chapter: typeof bab.$inferSelect, selectedId?: string, publicVisuals = false) {
+async function resolveArticle(course: CanonicalCourse, chapter: DemoChapter, selectedId?: string, publicVisuals = false) {
   const [record] = await db
     .select({ id: artikel.id })
     .from(artikel)
@@ -245,7 +248,7 @@ export function splitDiktatPreview(markdown: string): DemoDiktatSection[] {
   return [{ title: "Bagian 1", content: clean }];
 }
 
-async function resolveDiktat(course: CanonicalCourse, chapter: typeof bab.$inferSelect, selectedId?: string, full = false) {
+async function resolveDiktat(course: CanonicalCourse, chapter: DemoChapter, selectedId?: string, full = false) {
   const [record] = await db
     .select({ title: diktatMateri.title, contentMarkdown: diktatMateri.contentMarkdown })
     .from(diktatMateri)
@@ -272,7 +275,7 @@ async function resolveDiktat(course: CanonicalCourse, chapter: typeof bab.$infer
     : null;
 }
 
-async function resolveFlashcards(course: CanonicalCourse, chapter: typeof bab.$inferSelect, selectedId?: string, offset = 0, limit = 5) {
+async function resolveFlashcards(course: CanonicalCourse, chapter: DemoChapter, selectedId?: string, offset = 0, limit = 5) {
   const rows = await db
     .select({
       front: flashcard.front,
@@ -343,7 +346,7 @@ function parseJson(value: string): unknown {
   }
 }
 
-async function resolveQuiz(course: CanonicalCourse, chapter: typeof bab.$inferSelect) {
+async function resolveQuiz(course: CanonicalCourse, chapter: DemoChapter) {
   const rows = await db
     .select({
       id: soal.id,
@@ -536,66 +539,73 @@ function validOffset(offset: number, step: number): boolean {
 }
 
 /** Use the canonical projection only when it still agrees with the Free template. */
-async function authorizedQuizQuestionIds(course: CanonicalCourse, chapter: typeof bab.$inferSelect): Promise<string[]> {
-  if (!course.legacyCourseId) return [];
-  const allowedChapters = [chapter.id, ...(chapter.legacyChapterId ? [chapter.legacyChapterId] : [])];
+const scanPublicQuiz = cache(async (courseId: string, legacyCourseId: string | null, chapterId: string, legacyChapterId: string | null) => {
+  if (!legacyCourseId) return [];
+  const allowedChapters = [chapterId, ...(legacyChapterId ? [legacyChapterId] : [])];
   const templates = await db.select({ template: quizTemplates, assessmentId: asesmen.id })
     .from(quizTemplates).innerJoin(asesmen, eq(asesmen.id, quizTemplates.id))
-    .where(and(eq(quizTemplates.courseId, course.legacyCourseId), eq(asesmen.mataKuliahId, course.id),
+    .where(and(eq(quizTemplates.courseId, legacyCourseId), eq(asesmen.mataKuliahId, courseId),
       eq(asesmen.status, "published"), eq(asesmen.assessmentType, "quiz")));
+  if (!templates.length) return [];
+  const assessmentIds = templates.map(({ assessmentId }) => assessmentId);
+  const [coverage, items] = await Promise.all([
+    db.select({ assessmentId: cakupanAsesmen.asesmenId, chapterId: cakupanAsesmen.babId }).from(cakupanAsesmen).where(inArray(cakupanAsesmen.asesmenId, assessmentIds)),
+    db.select({ assessmentId: itemAsesmen.asesmenId, questionId: soal.id, courseId: soal.mataKuliahId, chapterId: soal.babId, status: soal.status, version: soal.version, contentVersion: itemAsesmen.contentVersion })
+      .from(itemAsesmen).innerJoin(soal, eq(itemAsesmen.soalId, soal.id)).where(inArray(itemAsesmen.asesmenId, assessmentIds)),
+  ]);
   const authorized = new Set<string>();
   for (const { template, assessmentId } of templates) {
-    const [coverage, items] = await Promise.all([
-      db.select({ chapterId: cakupanAsesmen.babId }).from(cakupanAsesmen).where(eq(cakupanAsesmen.asesmenId, assessmentId)),
-      db.select({ questionId: soal.id, courseId: soal.mataKuliahId, chapterId: soal.babId, status: soal.status, version: soal.version, contentVersion: itemAsesmen.contentVersion })
-        .from(itemAsesmen).innerJoin(soal, eq(itemAsesmen.soalId, soal.id)).where(eq(itemAsesmen.asesmenId, assessmentId)),
-    ]);
-    for (const id of getAuthorizedFreeQuestionIds({ template, courseId: course.id, chapterIds: allowedChapters, coverage: coverage.map((item) => item.chapterId), items })) authorized.add(id);
+    const scope = coverage.filter((item) => item.assessmentId === assessmentId).map((item) => item.chapterId);
+    const selected = items.filter((item) => item.assessmentId === assessmentId);
+    for (const id of getAuthorizedFreeQuestionIds({ template, courseId, chapterIds: allowedChapters, coverage: scope, items: selected })) authorized.add(id);
   }
-  return [...authorized];
-}
-
-/** Read eligible questions in bounded batches and retain only the requested page. */
-async function resolvePublicQuiz(course: CanonicalCourse, chapter: typeof bab.$inferSelect, offset: number) {
-  if (!validOffset(offset, QUIZ_PAGE_SIZE)) return null;
-  const authorizedIds = await authorizedQuizQuestionIds(course, chapter);
-  if (!authorizedIds.length) return null;
-  let total = 0;
+  if (!authorized.size) return [];
+  const authorizedIds = [...authorized];
+  const questionIds: Array<{ id: string; version: number }> = [];
   let dbOffset = 0;
-  const page: Array<{ id: string; version: number; prompt: string; multiple: boolean; options: string[]; correctIndices: number[] }> = [];
   while (true) {
-    const rows = await db.select({ id: soal.id, version: soal.version, prompt: soal.prompt, questionType: soal.questionType, optionsSnapshot: soal.optionsSnapshot })
-      .from(soal).where(and(eq(soal.mataKuliahId, course.id), eq(soal.babId, chapter.id), eq(soal.status, "published"), inArray(soal.id, authorizedIds),
+    const rows = await db.select({ id: soal.id, version: soal.version, optionsSnapshot: soal.optionsSnapshot })
+      .from(soal).where(and(eq(soal.mataKuliahId, courseId), eq(soal.babId, chapterId), eq(soal.status, "published"), inArray(soal.id, authorizedIds),
         or(eq(soal.origin, "zyx_original"), eq(soal.origin, "itb_example"), eq(soal.quizEligible, true)),
         or(eq(soal.questionType, "multiple_choice"), eq(soal.questionType, "multiple_choices"))))
       .orderBy(asc(soal.id)).limit(100).offset(dbOffset);
     for (const row of rows) {
-      const parsed = parseOptionsSnapshot(row.optionsSnapshot);
-      if (!parsed) continue;
-      if (total >= offset && total < offset + QUIZ_PAGE_SIZE) page.push({ id: row.id, version: row.version, prompt: row.prompt, multiple: row.questionType === "multiple_choices", ...parsed });
-      total++;
+      if (parseOptionsSnapshot(row.optionsSnapshot)) questionIds.push({ id: row.id, version: row.version });
     }
     dbOffset += rows.length;
     if (rows.length < 100) break;
   }
+  return questionIds;
+});
+
+/** Each render scans the authorized scope once; solutions are read only for grading. */
+async function resolvePublicQuiz(course: CanonicalCourse, chapter: DemoChapter, offset: number, includeSolutions = true) {
+  if (!validOffset(offset, QUIZ_PAGE_SIZE)) return null;
+  const questionIds = await scanPublicQuiz(course.id, course.legacyCourseId, chapter.id, chapter.legacyChapterId);
+  const total = questionIds.length;
   if (offset >= total) return null;
-  const solutions = await db.select({ soalId: pembahasanSoal.soalId, content: pembahasanSoal.content }).from(pembahasanSoal)
+  const expected = questionIds.slice(offset, offset + QUIZ_PAGE_SIZE);
+  const pageIds = expected.map((question) => question.id);
+  const rows = await db.select({ id: soal.id, version: soal.version, prompt: soal.prompt, questionType: soal.questionType, optionsSnapshot: soal.optionsSnapshot })
+    .from(soal).where(and(eq(soal.mataKuliahId, course.id), eq(soal.babId, chapter.id), eq(soal.status, "published"), inArray(soal.id, pageIds),
+      or(eq(soal.origin, "zyx_original"), eq(soal.origin, "itb_example"), eq(soal.quizEligible, true)),
+      or(eq(soal.questionType, "multiple_choice"), eq(soal.questionType, "multiple_choices"))))
+    .orderBy(asc(soal.id));
+  const page = rows.flatMap((row) => {
+    const parsed = parseOptionsSnapshot(row.optionsSnapshot);
+    return parsed ? [{ id: row.id, version: row.version, prompt: row.prompt, multiple: row.questionType === "multiple_choices", ...parsed }] : [];
+  });
+  if (page.length !== expected.length || page.some((question, index) => question.id !== expected[index].id || question.version !== expected[index].version)) return null;
+  const solutions = includeSolutions ? await db.select({ soalId: pembahasanSoal.soalId, content: pembahasanSoal.content }).from(pembahasanSoal)
     .where(and(inArray(pembahasanSoal.soalId, page.map((q) => q.id)), eq(pembahasanSoal.status, "published")))
-    .orderBy(desc(pembahasanSoal.version), desc(pembahasanSoal.publishedAt), desc(pembahasanSoal.updatedAt), asc(pembahasanSoal.id));
+    .orderBy(desc(pembahasanSoal.version), desc(pembahasanSoal.publishedAt), desc(pembahasanSoal.updatedAt), asc(pembahasanSoal.id)) : [];
   const explanations = new Map<string, string>();
   for (const solution of solutions) if (!explanations.has(solution.soalId)) explanations.set(solution.soalId, solution.content);
   return { questions: page.map((q) => ({ ...q, explanation: explanations.get(q.id) ?? null })),
     metadata: { offset, total, pageSize: QUIZ_PAGE_SIZE, nextOffset: offset + QUIZ_PAGE_SIZE < total ? offset + QUIZ_PAGE_SIZE : null, previousOffset: offset > 0 ? offset - QUIZ_PAGE_SIZE : null } };
 }
 
-/** Resolve products only inside the allowlisted course's first Free chapter. */
-export async function resolvePublicFreeFirstChapter(courseId: string, selection: PublicDemoSelection = {}) {
-  const course = await resolveCanonicalCourse(courseId);
-  if (!course || course.id !== courseId) return null;
-  if ([selection.articleId, selection.diktatId, selection.flashcardSetId].some((id) => id !== undefined && (typeof id !== "string" || !id.trim() || id !== id.trim() || id.length > 128))) return null;
-  const collectionOffset = selection.collectionOffset ?? 0;
-  const flashcardOffset = selection.flashcardOffset ?? 0;
-  if (!validOffset(collectionOffset, COLLECTION_PAGE_SIZE) || !validOffset(flashcardOffset, FLASHCARD_PAGE_SIZE)) return null;
+export async function resolveDemoFirstChapter(course: CanonicalCourse) {
   const chapters = await db.select().from(bab).where(and(eq(bab.mataKuliahId, course.id), eq(bab.status, "active"))).orderBy(asc(bab.orderIndex), asc(bab.id));
   const free = selectFreeChapters(chapters.map((chapter) => ({ id: chapter.id, title: chapter.title, orderIndex: chapter.orderIndex, canonicalId: chapter.id, legacyId: chapter.legacyChapterId, source: "canonical" as const })));
   const first = chapters.find((chapter) => chapter.id === free[0]?.canonicalId);
@@ -608,48 +618,132 @@ export async function resolvePublicFreeFirstChapter(courseId: string, selection:
     if (mappings.length !== 1 || mappings[0].id !== first.id || legacyChapters.length !== 1
       || legacyChapters[0].courseId !== course.legacyCourseId) return null;
   }
-  const [articles, diktats, flashcardSets, initialArticles, initialDiktats, initialSets, realQuizPage] = await Promise.all([
-    db.select({ id: artikel.id, title: artikel.title }).from(artikel).where(and(eq(artikel.mataKuliahId, course.id), eq(artikel.babId, first.id), eq(artikel.structureStatus, "structured"), eq(artikel.status, "published"))).orderBy(asc(artikel.id)).limit(COLLECTION_PAGE_SIZE + 1).offset(collectionOffset),
-    db.select({ id: diktatMateri.id, title: diktatMateri.title }).from(diktatMateri).where(and(eq(diktatMateri.mataKuliahId, course.id), eq(diktatMateri.babId, first.id), eq(diktatMateri.status, "published"))).orderBy(asc(diktatMateri.id)).limit(COLLECTION_PAGE_SIZE + 1).offset(collectionOffset),
-    db.select({ id: setFlashcard.id, title: setFlashcard.title }).from(setFlashcard).where(and(eq(setFlashcard.mataKuliahId, course.id), eq(setFlashcard.babId, first.id), eq(setFlashcard.status, "published"))).orderBy(asc(setFlashcard.id)).limit(COLLECTION_PAGE_SIZE + 1).offset(collectionOffset),
-    db.select({ id: artikel.id }).from(artikel).where(and(eq(artikel.mataKuliahId, course.id), eq(artikel.babId, first.id), eq(artikel.structureStatus, "structured"), eq(artikel.status, "published"))).orderBy(asc(artikel.id)).limit(1),
-    db.select({ id: diktatMateri.id }).from(diktatMateri).where(and(eq(diktatMateri.mataKuliahId, course.id), eq(diktatMateri.babId, first.id), eq(diktatMateri.status, "published"))).orderBy(asc(diktatMateri.id)).limit(1),
-    db.select({ id: setFlashcard.id }).from(setFlashcard).where(and(eq(setFlashcard.mataKuliahId, course.id), eq(setFlashcard.babId, first.id), eq(setFlashcard.status, "published"))).orderBy(asc(setFlashcard.id)).limit(1),
-    resolvePublicQuiz(course, first, selection.quizOffset ?? 0),
+  return first;
+}
+
+/** Default article metadata follows the same selection order as the reader. */
+export async function resolveDemoInitialArticles(course: CanonicalCourse, first: DemoChapter) {
+  return db.select({ id: artikel.id, title: artikel.title }).from(artikel)
+    .where(and(eq(artikel.mataKuliahId, course.id), eq(artikel.babId, first.id), eq(artikel.structureStatus, "structured"), eq(artikel.status, "published")))
+    .orderBy(asc(artikel.id)).limit(1);
+}
+
+export type PublicDemoKind = "all" | "metadata" | "documents" | "article" | "diktat" | "flashcards" | "quiz";
+
+type ProductMetadata = { id: string; title: string };
+const loadCollections = cache(async (courseId: string, chapterId: string, offset: number) => {
+  const [articles, diktats, flashcardSets] = await Promise.all([
+    db.select({ id: artikel.id, title: artikel.title }).from(artikel).where(and(eq(artikel.mataKuliahId, courseId), eq(artikel.babId, chapterId), eq(artikel.structureStatus, "structured"), eq(artikel.status, "published"))).orderBy(asc(artikel.id)).limit(COLLECTION_PAGE_SIZE + 1).offset(offset),
+    db.select({ id: diktatMateri.id, title: diktatMateri.title }).from(diktatMateri).where(and(eq(diktatMateri.mataKuliahId, courseId), eq(diktatMateri.babId, chapterId), eq(diktatMateri.status, "published"))).orderBy(asc(diktatMateri.id)).limit(COLLECTION_PAGE_SIZE + 1).offset(offset),
+    db.select({ id: setFlashcard.id, title: setFlashcard.title }).from(setFlashcard).where(and(eq(setFlashcard.mataKuliahId, courseId), eq(setFlashcard.babId, chapterId), eq(setFlashcard.status, "published"))).orderBy(asc(setFlashcard.id)).limit(COLLECTION_PAGE_SIZE + 1).offset(offset),
   ]);
+  return { articles, diktats, flashcardSets };
+});
+
+const initialDiktat = cache(async (courseId: string, chapterId: string) => {
+  const [item] = await db.select({ id: diktatMateri.id, title: diktatMateri.title }).from(diktatMateri)
+    .where(and(eq(diktatMateri.mataKuliahId, courseId), eq(diktatMateri.babId, chapterId), eq(diktatMateri.status, "published"))).orderBy(asc(diktatMateri.id)).limit(1);
+  return item ?? null;
+});
+const initialFlashcardSet = cache(async (courseId: string, chapterId: string) => {
+  const [item] = await db.select({ id: setFlashcard.id, title: setFlashcard.title }).from(setFlashcard)
+    .where(and(eq(setFlashcard.mataKuliahId, courseId), eq(setFlashcard.babId, chapterId), eq(setFlashcard.status, "published"))).orderBy(asc(setFlashcard.id)).limit(1);
+  return item ?? null;
+});
+const findPublicFlashcardSet = cache(async (courseId: string, chapterId: string, setId: string) => {
+  const [match] = await db.select({ id: setFlashcard.id }).from(setFlashcard)
+    .where(and(eq(setFlashcard.id, setId), eq(setFlashcard.mataKuliahId, courseId), eq(setFlashcard.babId, chapterId), eq(setFlashcard.status, "published"))).limit(1);
+  return Boolean(match);
+});
+
+/** Resolve products only inside the allowlisted course's first Free chapter. */
+export async function resolvePublicFreeFirstChapter(courseId: string, selection: PublicDemoSelection = {}, kind: PublicDemoKind = "all", includeSolutions = true, resolvedContext?: DemoCourseContext) {
+  if ([selection.articleId, selection.diktatId, selection.flashcardSetId].some((id) => id !== undefined && (typeof id !== "string" || !id.trim() || id !== id.trim() || id.length > 128))) return null;
+  const collectionOffset = selection.collectionOffset ?? 0;
+  const flashcardOffset = selection.flashcardOffset ?? 0;
+  const quizOffset = selection.quizOffset ?? 0;
+  if (!validOffset(collectionOffset, COLLECTION_PAGE_SIZE) || !validOffset(flashcardOffset, FLASHCARD_PAGE_SIZE) || !validOffset(quizOffset, QUIZ_PAGE_SIZE)) return null;
+
+  if (resolvedContext && (resolvedContext.row.snapshot.courseId !== courseId || resolvedContext.row.course.id !== courseId)) return null;
+  const context = resolvedContext ?? await getPublicDemoContext(courseId);
+  // Direct callers such as the seed preflight may inspect a course before opt-in.
+  const course = context === undefined ? await resolveCanonicalCourse(courseId) : context?.row.course;
+  if (!course || course.id !== courseId) return null;
+  const first = context === undefined ? await resolveDemoFirstChapter(course) : context?.first;
+  if (!first) return null;
   const fallback = fictionalDemoProducts(course, first);
-  const fallbackArticle = initialArticles.length === 0 ? fallback?.article : undefined;
-  const fallbackDiktat = initialDiktats.length === 0 ? fallback?.diktat : undefined;
-  const fallbackSet = initialSets.length === 0 ? fallback?.flashcardSet : undefined;
-  const articleId = selection.articleId ?? initialArticles[0]?.id ?? fallbackArticle?.id;
-  const diktatId = selection.diktatId ?? initialDiktats[0]?.id ?? fallbackDiktat?.id;
-  const flashcardSetId = selection.flashcardSetId ?? initialSets[0]?.id ?? fallbackSet?.id ?? null;
-  const quizPage = realQuizPage ?? (fallback && (selection.quizOffset ?? 0) === 0 ? {
+  const listsNeeded = kind === "all" || kind === "documents" || kind === "flashcards";
+  const articleNeeded = kind === "all" || kind === "article";
+  const diktatNeeded = kind === "all" || kind === "diktat";
+  const cardsNeeded = kind === "all" || kind === "flashcards" || flashcardOffset > 0;
+  const quizNeeded = kind === "all" || kind === "quiz" || quizOffset > 0;
+  const [lists, firstLists, defaultArticleRows, defaultDiktat, defaultSet, realQuizPage, courseSummary] = await Promise.all([
+    listsNeeded ? loadCollections(course.id, first.id, collectionOffset) : Promise.resolve(null),
+    listsNeeded && collectionOffset > 0 ? loadCollections(course.id, first.id, 0) : Promise.resolve(null),
+    !listsNeeded && (articleNeeded || kind === "metadata" || selection.articleId !== undefined)
+      ? context ? getPublicDemoContexts().then((contexts) => getPublicDemoInitialArticles(contexts.values())).then((items) => {
+        const item = items.get(course.id);
+        return item ? [item] : [];
+      }) : resolveDemoInitialArticles(course, first)
+      : Promise.resolve([]),
+    !listsNeeded && (diktatNeeded || selection.diktatId !== undefined) ? initialDiktat(course.id, first.id) : Promise.resolve(null),
+    !listsNeeded && (cardsNeeded || selection.flashcardSetId !== undefined) ? initialFlashcardSet(course.id, first.id) : Promise.resolve(null),
+    quizNeeded ? resolvePublicQuiz(course, first, quizOffset, includeSolutions) : Promise.resolve(null),
+    context ? Promise.resolve({ id: course.id, title: course.title, ...context.metadata, chapterTitle: first.title, chapterNumber: first.orderIndex }) : buildCourseSummary(course, first),
+  ]);
+  const initialLists = firstLists ?? lists;
+  const firstArticle = initialLists?.articles[0] ?? defaultArticleRows[0] ?? null;
+  const firstDiktat = initialLists?.diktats[0] ?? defaultDiktat;
+  const firstSet = initialLists?.flashcardSets[0] ?? defaultSet;
+  const fallbackArticle = !firstArticle ? fallback?.article : undefined;
+  const fallbackDiktat = !firstDiktat ? fallback?.diktat : undefined;
+  const fallbackSet = !firstSet ? fallback?.flashcardSet : undefined;
+  const articleId = selection.articleId ?? firstArticle?.id ?? fallbackArticle?.id;
+  const diktatId = selection.diktatId ?? firstDiktat?.id ?? fallbackDiktat?.id;
+  const flashcardSetId = selection.flashcardSetId ?? firstSet?.id ?? fallbackSet?.id ?? null;
+  const quizPage = realQuizPage ?? (fallback && quizOffset === 0 && quizNeeded ? {
     questions: fallback.quiz,
     metadata: { offset: 0, total: fallback.quiz.length, pageSize: QUIZ_PAGE_SIZE, nextOffset: null, previousOffset: null },
   } : null);
-  if (!articleId || !diktatId || !quizPage) return null;
-  if (selection.flashcardSetId && selection.flashcardSetId !== fallbackSet?.id) {
-    const [match] = await db.select({ id: setFlashcard.id }).from(setFlashcard).where(and(eq(setFlashcard.id, selection.flashcardSetId), eq(setFlashcard.mataKuliahId, course.id), eq(setFlashcard.babId, first.id), eq(setFlashcard.status, "published"))).limit(1);
-    if (!match) return null;
-  }
-  const [courseSummary, article, diktat, cardRows] = await Promise.all([
-    buildCourseSummary(course, first),
-    articleId === fallbackArticle?.id ? fallbackArticle : resolveArticle(course, first, articleId, true),
-    diktatId === fallbackDiktat?.id ? fallbackDiktat : resolveDiktat(course, first, diktatId, true),
-    flashcardSetId === fallbackSet?.id ? (flashcardOffset === 0 ? fallback?.flashcards ?? [] : [])
-      : flashcardSetId ? resolveFlashcards(course, first, flashcardSetId, flashcardOffset, FLASHCARD_PAGE_SIZE + 1) : Promise.resolve([]),
+  if ((articleNeeded && !articleId) || (diktatNeeded && !diktatId) || (quizNeeded && !quizPage)) return null;
+
+  // Validate explicit selections even when their body is not needed by this view.
+  const [selectedArticle, selectedDiktat, selectedSet] = await Promise.all([
+    selection.articleId && !articleNeeded && selection.articleId !== fallbackArticle?.id
+      ? db.select({ id: artikel.id }).from(artikel).where(and(eq(artikel.id, selection.articleId), eq(artikel.mataKuliahId, course.id), eq(artikel.babId, first.id), eq(artikel.structureStatus, "structured"), eq(artikel.status, "published"))).limit(1) : Promise.resolve(null),
+    selection.diktatId && !diktatNeeded && selection.diktatId !== fallbackDiktat?.id
+      ? db.select({ id: diktatMateri.id }).from(diktatMateri).where(and(eq(diktatMateri.id, selection.diktatId), eq(diktatMateri.mataKuliahId, course.id), eq(diktatMateri.babId, first.id), eq(diktatMateri.status, "published"))).limit(1) : Promise.resolve(null),
+    selection.flashcardSetId && selection.flashcardSetId !== fallbackSet?.id
+      ? findPublicFlashcardSet(course.id, first.id, selection.flashcardSetId) : Promise.resolve(null),
+  ]);
+  if ((selectedArticle && !selectedArticle.length) || (selectedDiktat && !selectedDiktat.length) || selectedSet === false) return null;
+
+  const placeholderId = course.id;
+  const placeholderArticle: PublicArticleReadModel = {
+    id: articleId ?? placeholderId, slug: articleId ?? placeholderId, courseId: course.id, chapterId: first.id,
+    title: firstArticle?.title ?? fallbackArticle?.title ?? first.title, courseTitle: course.title, chapterTitle: first.title,
+    chapterNumber: first.orderIndex, version: 1, sections: [], totalEstimatedReadingMinutes: 0,
+  };
+  const [article, diktat, cardRows] = await Promise.all([
+    articleNeeded && articleId ? (articleId === fallbackArticle?.id ? fallbackArticle : resolveArticle(course, first, articleId, true)) : Promise.resolve(placeholderArticle),
+    diktatNeeded && diktatId ? (diktatId === fallbackDiktat?.id ? fallbackDiktat : resolveDiktat(course, first, diktatId, true)) : Promise.resolve({ title: firstDiktat?.title ?? fallbackDiktat?.title ?? first.title, sections: [] }),
+    cardsNeeded && flashcardSetId === fallbackSet?.id ? (flashcardOffset === 0 ? fallback?.flashcards ?? [] : [])
+      : cardsNeeded && flashcardSetId ? resolveFlashcards(course, first, flashcardSetId, flashcardOffset, FLASHCARD_PAGE_SIZE + 1) : Promise.resolve([]),
   ]);
   if (!article || !diktat || (flashcardOffset > 0 && cardRows.length === 0)) return null;
-  if (collectionOffset === 0) {
+  const articles: ProductMetadata[] = [...(lists?.articles ?? [])];
+  const diktats: ProductMetadata[] = [...(lists?.diktats ?? [])];
+  const flashcardSets: ProductMetadata[] = [...(lists?.flashcardSets ?? [])];
+  if (lists && collectionOffset === 0) {
     if (fallbackArticle) articles.push({ id: fallbackArticle.id, title: fallbackArticle.title });
     if (fallbackDiktat) diktats.push({ id: fallbackDiktat.id, title: fallbackDiktat.title });
     if (fallbackSet) flashcardSets.push(fallbackSet);
   }
-  const pieces = { course: courseSummary, article, diktat, flashcards: cardRows.slice(0, FLASHCARD_PAGE_SIZE), quiz: quizPage.questions,
-    collections: { articles: articles.slice(0, COLLECTION_PAGE_SIZE), diktats: diktats.slice(0, COLLECTION_PAGE_SIZE), flashcardSets: flashcardSets.slice(0, COLLECTION_PAGE_SIZE), quiz: quizPage.metadata,
-      page: { offset: collectionOffset, pageSize: COLLECTION_PAGE_SIZE, hasMore: articles.length > COLLECTION_PAGE_SIZE || diktats.length > COLLECTION_PAGE_SIZE || flashcardSets.length > COLLECTION_PAGE_SIZE, nextOffset: articles.length > COLLECTION_PAGE_SIZE || diktats.length > COLLECTION_PAGE_SIZE || flashcardSets.length > COLLECTION_PAGE_SIZE ? collectionOffset + COLLECTION_PAGE_SIZE : null },
+  const hasMore = articles.length > COLLECTION_PAGE_SIZE || diktats.length > COLLECTION_PAGE_SIZE || flashcardSets.length > COLLECTION_PAGE_SIZE;
+  return { course: courseSummary, article, diktat, flashcards: cardRows.slice(0, FLASHCARD_PAGE_SIZE), quiz: quizPage?.questions ?? [],
+    collections: { articles: articles.slice(0, COLLECTION_PAGE_SIZE), diktats: diktats.slice(0, COLLECTION_PAGE_SIZE), flashcardSets: flashcardSets.slice(0, COLLECTION_PAGE_SIZE),
+      quiz: quizPage?.metadata ?? { offset: 0, total: 0, pageSize: QUIZ_PAGE_SIZE, nextOffset: null, previousOffset: null },
+      page: { offset: collectionOffset, pageSize: COLLECTION_PAGE_SIZE, hasMore, nextOffset: hasMore ? collectionOffset + COLLECTION_PAGE_SIZE : null },
       flashcards: { offset: flashcardOffset, pageSize: FLASHCARD_PAGE_SIZE, nextOffset: cardRows.length > FLASHCARD_PAGE_SIZE ? flashcardOffset + FLASHCARD_PAGE_SIZE : null } },
-    selected: { articleId, diktatId, flashcardSetId } };
-  return pieces;
+    selected: { articleId: articleId ?? placeholderId, diktatId: diktatId ?? placeholderId, flashcardSetId } };
 }

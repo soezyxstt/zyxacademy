@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import {
+  assertCanonicalDimensions,
   CANONICAL_VECTOR_PROFILE,
   parseVersionedVectorId,
   type CanonicalVectorProvider,
@@ -219,6 +220,7 @@ export interface ExecuteSyncOptions {
   readonly dryRun?: boolean;
   readonly vectorProvider?: CanonicalVectorProvider;
   readonly embeddingAdapter?: CanonicalContentV2EmbeddingAdapter;
+  readonly embedDocuments?: (documents: readonly { title: string; content: string }[]) => Promise<number[][]>;
   readonly customSources?: CuratedSourceContent[];
   readonly existingSources?: AdminKnowledgeSourceRecord[];
   readonly existingChunks?: AdminKnowledgeChunk[];
@@ -279,6 +281,78 @@ export async function executeAdminKnowledgeSync(
   if (!dryRun) {
     const sourceMap = new Map(sources.map((s) => [s.id, s]));
 
+    // Commit external vectors before catalog hashes can make retries retain chunks.
+    if (options.vectorProvider && (options.embedDocuments || options.embeddingAdapter)) {
+      if (plan.chunkIdsToRetain.length > 0) {
+        const retainedIds = new Set(plan.chunkIdsToRetain);
+        const retained = manifests.flatMap(manifest => manifest.chunks).filter(chunk => retainedIds.has(chunk.id));
+        const vectorIds = new Set<string>();
+        for (let offset = 0; offset < retained.length; offset += 1000) {
+          const existing = await options.vectorProvider.get({ profileId: CANONICAL_VECTOR_PROFILE.id, ids: retained.slice(offset, offset + 1000).map(chunk => chunk.vectorId) });
+          existing.vectors.forEach(vector => vectorIds.add(vector.id));
+        }
+        const catalogById = new Map(existingChunks.map(chunk => [chunk.id, chunk]));
+        const missing = retained.filter(chunk => !vectorIds.has(chunk.vectorId)
+          || catalogById.get(chunk.id)?.status !== "active" || catalogById.get(chunk.id)?.contentHash !== chunk.contentHash);
+        if (missing.length > 0) {
+          const missingIds = new Set(missing.map(chunk => chunk.id));
+          plan.chunksToUpsert.push(...missing);
+          plan.chunkIdsToRetain = plan.chunkIdsToRetain.filter(id => !missingIds.has(id));
+          plan.operations = plan.operations.map(operation => missingIds.has(operation.chunkId)
+            ? { ...operation, action: "upsert" as const, reason: "Missing retained vector or catalog chunk" } : operation)
+            .sort((a, b) => `${a.action}:${a.vectorId}`.localeCompare(`${b.action}:${b.vectorId}`));
+          plan.manifestHash = createHash("sha256").update(plan.operations
+            .map(operation => `${operation.action}:${operation.sourceId}:${operation.chunkId}:${operation.vectorId}`).join("\n"), "utf-8").digest("hex");
+        }
+      }
+
+      // 5a. Upsert vectors
+      if (plan.chunksToUpsert.length > 0) {
+        for (let offset = 0; offset < plan.chunksToUpsert.length; offset += 50) {
+          const batch = plan.chunksToUpsert.slice(offset, offset + 50);
+          const embeddings: number[][] = [];
+          if (options.embedDocuments) {
+            embeddings.push(...await options.embedDocuments(batch.map(chunk => ({ title: chunk.locator, content: chunk.content }))));
+          } else {
+            for (const chunk of batch) embeddings.push(await options.embeddingAdapter!.embedDocument(chunk.locator, chunk.content));
+          }
+          if (embeddings.length !== batch.length) throw new Error("ADMIN_KNOWLEDGE_EMBEDDING_COUNT_MISMATCH");
+          const vectorRecords: CanonicalVectorRecord[] = batch.map((chunk, index) => {
+            const values = embeddings[index];
+            assertCanonicalDimensions(values, `Admin knowledge chunk ${chunk.id}`);
+            const parsedVectorId = parseVersionedVectorId(chunk.vectorId);
+            return {
+              id: chunk.vectorId,
+              values,
+              metadata: {
+                namespace: ADMIN_OPS_KNOWLEDGE_NAMESPACE,
+                entityType: ADMIN_DOCUMENT_ENTITY_TYPE,
+                entityId: parsedVectorId.entityId,
+                version: chunk.version,
+                status: "active",
+                accessClass: ADMIN_ACCESS_CLASS,
+                language: "id",
+                profileId: CANONICAL_VECTOR_PROFILE.id,
+                contentHash: chunk.contentHash,
+              },
+            };
+          });
+          await options.vectorProvider.upsert({
+            profileId: CANONICAL_VECTOR_PROFILE.id,
+            vectors: vectorRecords,
+          });
+        }
+      }
+
+      // 5b. Delete vectors
+      if (plan.chunkIdsToDelete.length > 0) {
+        await options.vectorProvider.delete({
+          profileId: CANONICAL_VECTOR_PROFILE.id,
+          ids: plan.operations.filter(operation => operation.action === "delete").map(operation => operation.vectorId),
+        });
+      }
+    }
+
     // Update sources in catalog
     for (const manifest of manifests) {
       const source = sourceMap.get(manifest.sourceId);
@@ -302,15 +376,6 @@ export async function executeAdminKnowledgeSync(
       }
     }
 
-    // Mark archived sources as stale
-    for (const sourceId of plan.sourcesToArchive) {
-      if (store) {
-        await store.markSourceStale(sourceId);
-      } else {
-        await markSourceStale(sourceId);
-      }
-    }
-
     // Upsert chunks in catalog
     if (plan.chunksToUpsert.length > 0) {
       if (store) {
@@ -329,45 +394,12 @@ export async function executeAdminKnowledgeSync(
       }
     }
 
-    // Vector operations
-    if (options.vectorProvider && options.embeddingAdapter) {
-      // 5a. Upsert vectors
-      if (plan.chunksToUpsert.length > 0) {
-        const vectorRecords: CanonicalVectorRecord[] = [];
-        for (const chunk of plan.chunksToUpsert) {
-          const values = await options.embeddingAdapter.embedDocument(
-            chunk.locator,
-            chunk.content
-          );
-          const parsedVectorId = parseVersionedVectorId(chunk.vectorId);
-          vectorRecords.push({
-            id: chunk.vectorId,
-            values,
-            metadata: {
-              namespace: ADMIN_OPS_KNOWLEDGE_NAMESPACE,
-              entityType: ADMIN_DOCUMENT_ENTITY_TYPE,
-              entityId: parsedVectorId.entityId,
-              version: chunk.version,
-              status: "active",
-              accessClass: ADMIN_ACCESS_CLASS,
-              language: "id",
-              profileId: CANONICAL_VECTOR_PROFILE.id,
-              contentHash: chunk.contentHash,
-            },
-          });
-        }
-        await options.vectorProvider.upsert({
-          profileId: CANONICAL_VECTOR_PROFILE.id,
-          vectors: vectorRecords,
-        });
-      }
-
-      // 5b. Delete vectors
-      if (plan.chunkIdsToDelete.length > 0) {
-        await options.vectorProvider.delete({
-          profileId: CANONICAL_VECTOR_PROFILE.id,
-          ids: plan.chunkIdsToDelete,
-        });
+    // Mark archived sources as stale
+    for (const sourceId of plan.sourcesToArchive) {
+      if (store) {
+        await store.markSourceStale(sourceId);
+      } else {
+        await markSourceStale(sourceId);
       }
     }
   }

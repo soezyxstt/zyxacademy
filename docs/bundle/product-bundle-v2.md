@@ -18,6 +18,8 @@ Each product declares:
 
 Validation is pure and fail-closed. It rejects unsafe ZIP entries, unknown fields, checksum drift, duplicate IDs, missing solution questions, non-atomic flashcards, invalid assessment scope, holdout markers, and unresolved manifest conflicts. Dependencies with `NEEDS_REVIEW` or `STALE` make publication ineligible.
 
+For every Product Bundle profile, each dependency targets a product in that bundle with the exact type, ID, version and generation hash. An upstream Product whose ID is present in the bundle must match that bundled revision. Readiness and publication also require external Ideas, source materials, source chunks and Products to belong to the resolved bundle course. Chunk, solution and flashcard course ownership comes from their parent source, question or flashcard set. Publication holds the corresponding records under share locks while checking current versions, hashes and existing status requirements. Legacy course IDs resolve to their canonical course.
+
 Every staged product must be complete enough to publish after admin inspection while remaining `draft`. External agents can use `$UPLOADER` and `$APPROVING_REVIEWER`; publication resolves those sentinels without exporting private user identity IDs. Legacy bundles containing `published` entities remain readable for compatibility, but new authoring must emit `draft`. A `withdrawn` entity cannot re-enter a draft bundle.
 
 Additional product invariants are explicit in the bundle contract:
@@ -38,7 +40,7 @@ Additional product invariants are explicit in the bundle contract:
 1. An admin uploads a ZIP at `/admin/materials/review?section=product` (the legacy `/admin/bundles/product` route redirects there). The first request validates and returns a complete editable projection without writing R2 or Turso.
 2. The workspace maps product counts, dependencies, Idea and source traceability, options, reasoning, relations, curation, and every content block. Admins edit the renderable content and allowed relationship metadata in place while identity, source, version, and attribution fields remain locked.
 3. Explicit save resubmits the original ZIP and browser draft. The server allowlist-merges edits, recomputes generation hashes and checksums, refreshes Article to Diktat lineage and product dependency hashes, repeats strict validation, then stores a draft ZIP and inventory.
-4. A draft may be replaced with the same bundle ID and a new checksum, deleted, or published directly by an admin. Internal review evidence is created at publication and is not a separate public state.
+4. A draft may be replaced with the same bundle ID and a new checksum or deleted. Article review requires the exact checksum, current policy and full-bundle fingerprint, a complete anchored rubric and explicit decisions for any structured sections. The publishing admin must submit the displayed checksum and have an explicit whole-bundle approval for that exact revision, in addition to the applicable pedagogic and PDF evidence. Admin and MCP use the same live readiness checks.
 5. Publication verifies current Ideas, source materials, excerpts, identities, and dependencies, then writes every product, link, dependency, canonical vector outbox entry, publication record, item status, and audit event in one transaction. Article, question, and solution content is routed to `published_articles`, `published_questions`, and `published_solutions`; Diktat, flashcard, and blueprint products do not use a generic `product` namespace.
 6. A published bundle cannot be replaced or deleted. Withdrawal keeps history, marks canonical products inactive or retired according to the target table contract, marks the bundle and items withdrawn, and queues vector deletion for article, question, and solution content.
 7. Identical retries are no-ops. A changed product version gets a physical versioned target ID such as `product-id:v2`; prior rows remain queryable.
@@ -87,6 +89,8 @@ The Authoring Context Pack exposes the required source metadata as `referenceId`
 
 Article products are compiled through `lib/materials/compiler.ts` after Product Bundle validation. The compiler orders prerequisite Ideas, normalizes each staged block into the typed article contract, and produces deterministic AST and Markdown output. Publication requires 100 percent required block coverage, source and Idea traceability for factual content, valid math delimiters, and current dependencies. Per-reviewer block status and notes are advisory admin metadata stored in `review_item_bundle`. Pending or `changes_requested` blocks trigger a warning but do not block approval or publication.
 
+Legacy multi-Article review fingerprints every Article and linked Diktat, independent of entity order. The review and PDF evaluator checks each linked pair and its evidence. The V2 flat-block review adapter does not invent structured section decisions.
+
 Block review metadata is never serialized into `manifest.json` or an entity file. It therefore does not affect product generation hashes, file checksums, or `manifest.bundleChecksum`. Restaging or discarding a draft clears its block review rows so decisions cannot attach to a replacement artifact.
 
 Diktat products are derived from the approved article representation through `compileDiktatFromApprovedArticle`. The compiler never reads raw source independently for diktat content. Its report records the source article version and hash, removed block IDs, preserved core statements, formulas, Idea IDs, and source references. Any mismatch returns a stable reason code and blocks publication.
@@ -96,6 +100,8 @@ Every external Diktat product carries the Article lineage fields. Product Bundle
 The admin pre-staging workspace previews every supported product type, including each Article block and full Diktat content. The local preview scripts require `--dry-run` or an explicit read-only input and do not mutate staging resources.
 
 ## Staging verification
+
+For an explicitly authorized V2 learning-only draft containing an Article, with or without a linked Diktat, the private local operator, input and readback contract are documented in [Product Bundle V3](product-bundle-v3.md#private-local-pdf-operator-for-legacy-drafts). It rejects assessment content and does not change review or publication gates.
 
 ```bash
 bun --env-file=.env.staging run staging:preflight
@@ -108,3 +114,5 @@ The staging fixture exercises all seven product types, identical retry, draft re
 ## Rollback
 
 Use the legacy importers as the rollback path. Do not delete imported versions or audit records. If a published test bundle must be withdrawn, use the normal audited lifecycle operation.
+
+Legacy PDF evidence preservation compares server-parsed Article and linked Diktat content, independently of declared generation hashes. A content change expires evidence for both linked products. Unchanged section decisions are read under the import lock, so restaging cannot restore a superseded decision.

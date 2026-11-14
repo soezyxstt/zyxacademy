@@ -1,14 +1,16 @@
 import { findUnmarkedScientificProse } from "@/lib/math/unmarked-scientific";
 import { z } from "zod";
-import type { ProductV4VerificationPorts } from "@/lib/bundle/product-v4-verification-service";
+import type { ProductV4VerificationPorts } from "@/lib/bundle/product-v4-verification-core";
 import type { ProductV4ObservedCheck } from "@/lib/bundle/product-v4-verification";
-import { loadProductV4StaticFigureAssets } from "./product-v4-runtime-binding";
+import { loadProductV4StaticFigureAssets, loadProductV4InteractiveDocumentAssets, readProductV4ExecutorRuntime, assertProductV4RuntimeFingerprint } from "./product-v4-runtime-binding";
+import { encodeProductV4DocumentWire } from "./product-v4-document-wire";
 import { articlePartsSchema, validateArticlePartReferences } from "@/lib/materials/article-parts";
 import { visualSpecSchema } from "@/lib/materials/visual-contract";
 import { deriveEpsilonDelta } from "@/lib/materials/epsilon-delta";
 import { validateAuthoredDiktat } from "@/lib/materials/diktat-v4";
 import { compileArticleProduct } from "@/lib/materials/compiler";
 import { runVerificationBrowserOperation } from "./product-v4-browser-session";
+import { isHostedComputeRuntime } from "./runtime";
 
 export { buildProductV4RuntimeBinding } from "./product-v4-runtime-binding";
 
@@ -24,11 +26,16 @@ const responseSchema = z.object({
 }).strict();
 
 /** The endpoint and credentials are server configuration, never MCP parameters. */
-export const executeProductV4VerificationCheck: ProductV4VerificationPorts["execute"] = async (input): Promise<ProductV4ObservedCheck> => {
+export const executeProductV4VerificationCheck = async (input: Parameters<ProductV4VerificationPorts["execute"]>[0], readDocumentAsset?: Parameters<typeof loadProductV4InteractiveDocumentAssets>[1], figurePorts?: Parameters<typeof loadProductV4StaticFigureAssets>[1]): Promise<ProductV4ObservedCheck> => {
   if (input.requirement.layer === "structure" || input.requirement.layer === "model") {
     const findings: string[] = [];
     const observations: unknown[] = [];
     if (input.requirement.layer === "structure") {
+      if (isHostedComputeRuntime()) {
+        const actual = await readProductV4ExecutorRuntime();
+        assertProductV4RuntimeFingerprint(input.plan.binding, actual);
+        observations.push({ executorRuntime: actual, host: "neon" });
+      }
       for (const product of input.bundle.products) {
         if (input.bundle.manifest.schemaVersion === "product-bundle.v4" || product.schemaVersion === "article.v4" || product.schemaVersion === "diktat.v4") findings.push(...findUnmarkedScientificProse(product).map((finding) => `UNMARKED_SCIENTIFIC_NOTATION:${product.id}:${finding.path}:${finding.notation}`));
         if (product.productType === "article") {
@@ -54,21 +61,23 @@ export const executeProductV4VerificationCheck: ProductV4VerificationPorts["exec
           observations.push({ epsilon, bound, method: "conservative polynomial analytic bound with floating-point guards" });
         }
       } else if (visual.kind === "source_figure") {
-        const assets = await loadProductV4StaticFigureAssets(input.bundle);
+        const assets = await loadProductV4StaticFigureAssets(input.bundle, figurePorts, true, readDocumentAsset);
         if (!assets[visual.assetId]) findings.push("SOURCE_FIGURE_NOT_VERIFIED");
         observations.push({ assetId: visual.assetId, sourceChecksum: visual.sourceChecksum });
-      } else observations.push({ kind: visual.kind, contract: "bounded typed geometry, expressions and units", semanticReview: "required separately" });
+      } else if (visual.kind === "interactive_document") observations.push({ kind: visual.kind, contract: "document metadata only", scientificModel: "NOT_TESTED", semanticReview: "required separately" });
+      else observations.push({ kind: visual.kind, contract: "bounded typed geometry, expressions and units", semanticReview: "required separately" });
     }
     return { checkId: input.requirement.id, status: findings.length ? "FAIL" : "PASS", expected: input.requirement.state,
-      observed: findings.length ? "Reference or model constraints failed" : "Application structural and supported model constraints passed; semantic review remains separate",
+      observed: findings.length ? "Reference or model constraints failed" : input.requirement.state === "document-metadata-only-scientific-review-required" ? "Document metadata passed; scientific model NOT_TESTED and requires separate review" : "Application structural and supported model constraints passed; semantic review remains separate",
       artifacts: [{ id: `${input.requirement.id}.json`, mediaType: "application/json", bytes: new TextEncoder().encode(JSON.stringify({ findings, observations })) }] };
   }
-  if (typeof (globalThis as { Deno?: unknown }).Deno !== "undefined") {
+  if (isHostedComputeRuntime()) {
     const { executeBrowserProductV4Check, closeProductV4BrowserRunner } = await import("./product-v4-browser-runner");
     return runVerificationBrowserOperation(async (signal) => {
-      const staticFigureAssets = await loadProductV4StaticFigureAssets(input.bundle);
+      const staticFigureAssets = await loadProductV4StaticFigureAssets(input.bundle, figurePorts, input.requirement.layer === "print", readDocumentAsset);
+      const interactiveDocumentAssets = await loadProductV4InteractiveDocumentAssets(input, readDocumentAsset);
       signal.throwIfAborted();
-      return executeBrowserProductV4Check({ ...input, signal, baseUrl: process.env.NEXT_PUBLIC_APP_URL ?? "", staticFigureAssets });
+      return executeBrowserProductV4Check({ ...input, signal, baseUrl: process.env.NEXT_PUBLIC_APP_URL ?? "", staticFigureAssets, interactiveDocumentAssets });
     }, closeProductV4BrowserRunner);
   }
   const endpoint = process.env.AUTHORING_VERIFICATION_RENDERER_URL;
@@ -79,12 +88,13 @@ export const executeProductV4VerificationCheck: ProductV4VerificationPorts["exec
   };
   const url = new URL(endpoint);
   if (url.username || url.password || url.search || url.hash || (url.protocol !== "https:" && !(url.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)))) throw new Error("PRODUCT_V4_RENDERER_URL_INVALID");
-  const figures = await loadProductV4StaticFigureAssets(input.bundle);
+  const figures = await loadProductV4StaticFigureAssets(input.bundle, figurePorts, input.requirement.layer === "print", readDocumentAsset);
+  const interactiveDocumentAssets = encodeProductV4DocumentWire(await loadProductV4InteractiveDocumentAssets(input, readDocumentAsset));
   const staticFigureAssets = Object.fromEntries(Object.entries(figures).map(([id, value]) => [id, { ...value, bytes: undefined, base64: Buffer.from(value.bytes).toString("base64") }]));
   const response = await fetch(`${endpoint.replace(/\/$/, "")}/verify`, {
     method: "POST", redirect: "error", signal: AbortSignal.timeout(120_000),
     headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ ...input, staticFigureAssets }),
+    body: JSON.stringify({ ...input, staticFigureAssets, interactiveDocumentAssets }),
   });
   if (!response.ok) throw new Error(`PRODUCT_V4_RENDERER_REJECTED:${response.status}`);
   const bytes = await response.arrayBuffer();

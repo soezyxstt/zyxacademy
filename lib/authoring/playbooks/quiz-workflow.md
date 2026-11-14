@@ -11,6 +11,7 @@ Author high-quality Zyx-original assessment questions (`origin: "zyx_original"`)
    - Call `catalog.list_courses` and `catalog.list_chapters` to obtain `courseKey` and `chapterKey`.
    - Call `workflow.start` with `workflow: "quiz_bank"`, `courseKey`, `chapterKey`, optional `sourcePackId` / `sourcePackToken`, and `bootstrapToken`.
    - Call `workflow.get_contract` with `runToken` and `bootstrapToken`.
+   - Read `outputs.quizDraft.visualAuthoring` and its checksum-pinned visual schema before writing a `zyx-visual` fence in a prompt, option, or explanation. Use the current typed scene examples and validator; do not put solution-only states or labels in prompts or options. Keep answers and solution visuals in their authorized assessment fields.
 3. **Inspect Published Ideas and Existing Question Bank:**
    - Call `assessment.list_ideas` with `runToken` (supports `query`, `knowledgeKinds`, `instructionalRoles`, `difficultyLevels`, `limit`, `offset`) to load the published Idea catalog and facets.
    - Call `assessment.get_idea` for specific Ideas to inspect incoming/outgoing prerequisite relations and provenance.
@@ -21,6 +22,8 @@ Author high-quality Zyx-original assessment questions (`origin: "zyx_original"`)
    - Use historical reference questions strictly for gap analysis and calibration. Never copy historical questions verbatim into `quiz_bank`. When a new Zyx-original question is inspired by or adapted from a historical question, record `referenceLinks` with `role: "inspired_by" | "adapted_from" | "derived_from"`.
 5. **Draft, Validate, and Submit `question-bank-draft.v2`:**
    - Construct the `question-bank-draft.v2` JSON string following the schema below and the quality rules in `quiz/quality`.
+   - For `interactive_document`, keep only its metadata in a `zyx-visual` fence. Pass `visualAssets` separately to validation and submission, and to `assessment.update_question` for new or changed visuals: an array of `{ path, sha256, bytes, base64 }`, one entry per unique `visuals/<sha256>.html` and `visuals/<sha256>.png`. The base64 must encode the exact HTML or PNG bytes. An update retaining only previously bound specs can omit the envelope and reuse verified original assets. Otherwise supply all referenced assets, with no orphans; the format limit is eight visual specs and 16 MiB total, with at most 6 MiB per HTML and 2 MiB per PNG. Provider and MCP transport capacity is not established by these limits. Never share either asset hash between visible prompt/options and hidden explanation, including across questions in the batch. Keep solution content only in explanation assets.
+   - `scripts/authoring/package-interactive-document.ts` shows a runnable local command for a reviewed pair, including the metadata fence and `visualAssets`. Obtain the live contract and author the question separately; the script does not approve it.
    - Call `assessment.validate_quiz_draft` with `runToken`, `draftJson`, and `bootstrapToken`.
    - Fix all blocking issues and address coverage/explanation warnings until `ok: true` and `valid: true`.
    - Call `assessment.submit_quiz_draft` with `runToken`, `draftJson`, and `bootstrapToken` (`authoring:stage`).

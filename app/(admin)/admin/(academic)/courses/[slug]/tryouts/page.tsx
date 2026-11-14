@@ -5,7 +5,7 @@ import { TryoutsClient } from "@/app/(tutor)/tutor/[courseId]/tryouts/tryouts-cl
 import { CourseDetailHeader } from "@/components/admin/course-detail/course-detail-header";
 import { db } from "@/db";
 import { aiQuestionBank, exams, questions } from "@/db/schema";
-import { assertAdmin } from "@/lib/auth/admin-guards";
+import { assertAdmin } from "@/lib/auth/admin-guards-server";
 import { getCourse } from "@/lib/course-utils";
 import { pageTitle } from "@/lib/site";
 import { getTranslations } from "@/lib/i18n/server";

@@ -1,5 +1,7 @@
 "use client";
 
+import { LeaderboardRowsSkeleton } from "@/components/admin/content-loading-skeletons";
+
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
@@ -344,10 +346,7 @@ export function AdminLeaderboardClient({
       {/* Content: Overview or Course leaderboard */}
       <AdminTable>
         {loading ? (
-          <div className="p-12 text-center text-body-sm text-muted-foreground space-y-3">
-            <RefreshCw className="size-6 animate-spin mx-auto text-brand-primary" />
-            <p>{tx("loading")}</p>
-          </div>
+          <LeaderboardRowsSkeleton label={tx("loading")} />
         ) : isOverview ? (
           /* ====== OVERVIEW MODE ====== */
           courseInsights.length === 0 ? (

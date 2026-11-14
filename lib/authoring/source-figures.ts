@@ -8,7 +8,7 @@ import { storage, type StorageProvider } from "@/lib/storage";
 import { buildSourceFigureKey, isSafeKey, slugifySegment } from "@/lib/storage/keys";
 import { inngest } from "@/jobs/client";
 import { resolveStoredSourceFile } from "./mcp-source-files";
-import { figureChecksum, normalizedCropSchema, renderSourceFigure, SOURCE_FIGURE_RENDERER } from "@/lib/compute/source-figure";
+import { figureChecksum, normalizedCropSchema, renderSourceFigure, SOURCE_FIGURE_RENDERER, LEGACY_SOURCE_FIGURE_RENDERER } from "@/lib/compute/source-figure";
 import { getSourcePackImport, readStoredSourcePack } from "@/lib/bundle/source-staging";
 import type { ValidatedSourcePack } from "./source-pack";
 
@@ -18,7 +18,7 @@ export const extractSourceFigureSchema = z.object({ fileKey: z.string().min(1), 
 export const sourceFigureRefSchema = z.object({ fileKey: z.string().min(1), assetId: hash });
 export const sourceFigureListSchema = z.object({ fileKey: z.string().min(1), cursor: hash.optional(), limit: z.number().int().min(1).max(50).default(20) });
 type Auth = { actorId: string; sessionId: string };
-const requestSchema = extractSourceFigureSchema.omit({ fileKey: true, retry: true }).extend({ assetId: hash, actorId: z.string().min(1), sessionId: z.string().min(1), courseId: z.string(), materialId: z.string(), storageKey: z.string().refine(key => isSafeKey(key) && !key.includes(":") && key.endsWith(".pdf")), sourceVersion: z.number(), sourceChecksum: hash, renderer: z.literal(SOURCE_FIGURE_RENDERER) });
+const requestSchema = extractSourceFigureSchema.omit({ fileKey: true, retry: true }).extend({ assetId: hash, actorId: z.string().min(1), sessionId: z.string().min(1), courseId: z.string(), materialId: z.string(), storageKey: z.string().refine(key => isSafeKey(key) && !key.includes(":") && key.endsWith(".pdf")), sourceVersion: z.number(), sourceChecksum: hash, renderer: z.enum([SOURCE_FIGURE_RENDERER, LEGACY_SOURCE_FIGURE_RENDERER]) });
 const identitySchema = requestSchema.omit({ assetId: true });
 function validatedRequest(value: unknown) {
   const request = requestSchema.parse(value);
@@ -143,6 +143,11 @@ export async function sourceFigureVariantBytes(input: z.input<typeof sourceFigur
 export async function processSourceFigure(data: unknown, deps = defaults) {
   const request = validatedRequest(data);
   if (!request.storageKey.startsWith(`courses/${slugifySegment(request.courseId)}/materials/`)) throw new Error("SOURCE_FIGURE_NOT_IN_SCOPE");
+  if (request.renderer !== SOURCE_FIGURE_RENDERER) {
+    if (!await deps.store.exists(keyFor(request, "manifest.json"))) throw new Error("SOURCE_FIGURE_RENDERER_CHANGED");
+    await verifiedFigure(request, deps);
+    return { status: "complete", assetId: request.assetId };
+  }
   await assertSourceFigureMapping(request, deps);
   if (!deps.store.download) throw new Error("STORAGE_DOWNLOAD_UNSUPPORTED");
   await writeJson(deps.store, keyFor(request, "state.json"), { status: "running" });

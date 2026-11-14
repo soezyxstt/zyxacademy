@@ -35,6 +35,13 @@ export function resourceUrl(): string {
   return `${publicMcpOrigin()}${MCP_OAUTH_RESOURCE_PATH}`;
 }
 
+/** MCP tool-level challenge for an authenticated client that needs additional consent. */
+export function insufficientScopeChallenge(scope: string): string {
+  if (!MCP_OAUTH_SCOPES.includes(scope)) throw new Error("invalid_scope");
+  const metadata = `${publicMcpOrigin()}/.well-known/oauth-protected-resource/api/mcp/authoring`;
+  return `Bearer resource_metadata="${metadata}", error="insufficient_scope", scope="${scope}"`;
+}
+
 export function isAllowedRedirectUri(value: string): boolean {
   try {
     const url = new URL(value);

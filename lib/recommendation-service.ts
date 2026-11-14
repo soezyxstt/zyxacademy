@@ -12,10 +12,20 @@ import {
   chapters,
   studentChapterProgress,
   knowledgeObjects,
+  artikel,
+  flashcard as canonicalFlashcard,
+  setFlashcard,
+  flashcardIde,
+  ide,
+  conceptLocalizations,
+  kemajuanFlashcardMurid,
 } from "@/db/schema";
 import { getMastery } from "@/lib/mastery-store";
 import { getOrComputeStudyPath } from "@/lib/study-path-service";
-import { eq, and, or, lte, isNull, gt, gte, notInArray, asc, inArray } from "drizzle-orm";
+import { eq, and, or, lte, isNull, gt, gte, notInArray, asc, inArray, sql } from "drizzle-orm";
+import { resolveStudentCourse } from "@/lib/student/course-catalog";
+import { getDueFlashcardCounts } from "@/lib/student/due-flashcards";
+import { canAccessCourseContent, resolveCourseAccess } from "@/lib/student/course-access";
 
 export interface PlanItem {
   id: string;
@@ -35,50 +45,19 @@ async function buildPlan(
   studentId: string,
   enrolledCourseIds: string[]
 ): Promise<PlanItem[]> {
-  if (enrolledCourseIds.length === 0) return [];
-
   const now = new Date();
   const items: PlanItem[] = [];
 
   // ── a. Flashcards: due + new, capped at 20 ─────────────────────────────────
-  const dueRows = await db
-    .selectDistinct({ cardId: flashcards.id, courseId: flashcardSets.courseId })
-    .from(flashcards)
-    .innerJoin(flashcardSets, eq(flashcards.setId, flashcardSets.id))
-    .innerJoin(
-      enrollments,
-      and(
-        eq(flashcardSets.courseId, enrollments.courseId),
-        eq(enrollments.userId, studentId),
-        gt(enrollments.expiresAt, now)
-      )
-    )
-    .leftJoin(
-      studentFlashcardProgress,
-      and(
-        eq(studentFlashcardProgress.flashcardId, flashcards.id),
-        eq(studentFlashcardProgress.studentId, studentId)
-      )
-    )
-    .where(
-      and(
-        eq(flashcards.status, "active"),
-        eq(flashcardSets.status, "published"),
-        or(
-          isNull(studentFlashcardProgress.id),
-          lte(studentFlashcardProgress.dueDate, now)
-        )
-      )
-    )
-    .limit(20);
-
-  if (dueRows.length > 0) {
-    const courseId = dueRows[0].courseId;
+  const dueCounts = await getDueFlashcardCounts(studentId, now);
+  const firstDue = [...dueCounts].find(([, count]) => count > 0);
+  if (firstDue) {
+    const [courseId] = firstDue;
     items.push({
       id: "flashcards",
       kind: "flashcards",
       title: "Review flashcards",
-      count: dueRows.length,
+      count: Math.min(20, [...dueCounts.values()].reduce((sum, count) => sum + count, 0)),
       href: `/courses/${courseId}/flashcard`,
     });
   }
@@ -122,11 +101,21 @@ async function buildPlan(
           if (!modulePicked && activeStep.actions.moduleHref) {
             const materialId = activeStep.actions.moduleHref.split("/").pop();
             if (materialId) {
-              const [material] = await db
+              let [material] = await db
                 .select({ id: websiteMaterials.id, title: websiteMaterials.title })
                 .from(websiteMaterials)
                 .where(eq(websiteMaterials.id, materialId))
                 .limit(1);
+
+              if (!material) {
+                const course = await resolveStudentCourse(courseId);
+                if (course?.canonicalId) {
+                  [material] = await db.select({ id: artikel.id, title: artikel.title })
+                    .from(artikel)
+                    .where(and(eq(artikel.id, materialId), eq(artikel.mataKuliahId, course.canonicalId), eq(artikel.status, "published")))
+                    .limit(1);
+                }
+              }
 
               if (material) {
                 moduleItem = {
@@ -285,8 +274,12 @@ export async function getOrBuildTodayRecommendation(
   if (existing) {
     const payload = existing.payload as Payload;
     const completed = (existing.completedItems as string[]) ?? [];
+    const dueCounts = await getDueFlashcardCounts(studentId);
+    const firstDue = [...dueCounts].find(([, count]) => count > 0);
+    const items = payload.items.filter((item) => item.kind !== "flashcards");
+    if (firstDue) items.unshift({ id: "flashcards", kind: "flashcards", title: "Review flashcards", count: Math.min(20, [...dueCounts.values()].reduce((sum, count) => sum + count, 0)), href: `/courses/${firstDue[0]}/flashcard` });
     return {
-      items: payload.items.map((item) => ({ ...item, done: completed.includes(item.id) })),
+      items: items.map((item) => ({ ...item, done: item.kind === "flashcards" ? false : completed.includes(item.id) })),
     };
   }
 
@@ -318,26 +311,14 @@ export async function markRecommendationDone(
 ): Promise<void> {
   const today = todayUtc();
 
-  const [rec] = await db
-    .select({ id: dailyRecommendations.id, completedItems: dailyRecommendations.completedItems })
-    .from(dailyRecommendations)
-    .where(
-      and(
-        eq(dailyRecommendations.studentId, studentId),
-        eq(dailyRecommendations.date, today)
-      )
-    )
-    .limit(1);
-
-  if (!rec) return;
-
-  const completed = (rec.completedItems as string[]) ?? [];
-  if (completed.includes(itemId)) return;
-
   await db
     .update(dailyRecommendations)
-    .set({ completedItems: [...completed, itemId] })
-    .where(eq(dailyRecommendations.id, rec.id));
+    .set({ completedItems: sql`coalesce(${dailyRecommendations.completedItems}, '[]'::jsonb) || jsonb_build_array(${itemId}::text)` })
+    .where(and(
+      eq(dailyRecommendations.studentId, studentId),
+      eq(dailyRecommendations.date, today),
+      sql`not (coalesce(${dailyRecommendations.completedItems}, '[]'::jsonb) @> jsonb_build_array(${itemId}::text))`,
+    ));
 }
 
 export async function buildPlanForConcepts(
@@ -351,8 +332,9 @@ export async function buildPlanForConcepts(
   const items: PlanItem[] = [];
 
   // 1. Flashcards covering these concepts
+  const access = await resolveCourseAccess({ courseId, userId: studentId, now });
   const dueRows = await db
-    .selectDistinct({ cardId: flashcards.id, courseId: flashcardSets.courseId })
+    .selectDistinct({ cardId: flashcards.id, courseId: flashcardSets.courseId, chapterId: flashcardSets.chapterId })
     .from(flashcards)
     .innerJoin(flashcardSets, eq(flashcards.setId, flashcardSets.id))
     .innerJoin(knowledgeObjects, eq(flashcards.koId, knowledgeObjects.id))
@@ -367,22 +349,35 @@ export async function buildPlanForConcepts(
       and(
         eq(flashcards.status, "active"),
         eq(flashcardSets.status, "published"),
-        eq(flashcardSets.courseId, courseId),
+        eq(flashcardSets.isStale, false),
+        eq(flashcardSets.courseId, access.legacyCourseId ?? courseId),
         inArray(knowledgeObjects.conceptName, conceptNames),
         or(
           isNull(studentFlashcardProgress.id),
           lte(studentFlashcardProgress.dueDate, now)
         )
       )
-    )
-    .limit(20);
+    );
 
-  if (dueRows.length > 0) {
+  const canonicalCards = access.canonicalCourseId ? await db.select({ id: canonicalFlashcard.id }).from(canonicalFlashcard)
+    .innerJoin(setFlashcard, eq(canonicalFlashcard.setFlashcardId, setFlashcard.id))
+    .where(and(eq(setFlashcard.mataKuliahId, access.canonicalCourseId), eq(setFlashcard.status, "published"), eq(canonicalFlashcard.status, "published"))).limit(1) : [];
+  const canonicalDue = canonicalCards.length ? await db.selectDistinct({ cardId: canonicalFlashcard.id, chapterId: setFlashcard.babId })
+    .from(canonicalFlashcard)
+    .innerJoin(setFlashcard, eq(canonicalFlashcard.setFlashcardId, setFlashcard.id))
+    .innerJoin(flashcardIde, eq(flashcardIde.flashcardId, canonicalFlashcard.id))
+    .innerJoin(ide, eq(ide.id, flashcardIde.ideId))
+    .innerJoin(conceptLocalizations, eq(conceptLocalizations.conceptId, ide.conceptId))
+    .leftJoin(kemajuanFlashcardMurid, and(eq(kemajuanFlashcardMurid.flashcardId, canonicalFlashcard.id), eq(kemajuanFlashcardMurid.penggunaId, studentId)))
+    .where(and(eq(setFlashcard.mataKuliahId, access.canonicalCourseId!), eq(setFlashcard.status, "published"), eq(canonicalFlashcard.status, "published"), inArray(conceptLocalizations.displayName, conceptNames), or(isNull(kemajuanFlashcardMurid.id), and(eq(kemajuanFlashcardMurid.status, "active"), lte(kemajuanFlashcardMurid.dueAt, now))))) : [];
+  const eligibleRows = (canonicalCards.length ? canonicalDue : dueRows).filter((row) => canAccessCourseContent(access, "flashcard", [row.chapterId]));
+
+  if (eligibleRows.length > 0) {
     items.push({
       id: "flashcards",
       kind: "flashcards",
       title: `Review flashcards (${conceptNames.slice(0, 2).join(", ")}${conceptNames.length > 2 ? "..." : ""})`,
-      count: dueRows.length,
+      count: Math.min(20, eligibleRows.length),
       href: `/courses/${courseId}/flashcard`,
     });
   }

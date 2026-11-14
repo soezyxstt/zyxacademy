@@ -4,7 +4,7 @@ import { getTranslations } from "@/lib/i18n/server";
 import { db } from "@/db";
 import { aiQuestionBank, courses, questionOptionStats } from "@/db/schema";
 import { inArray } from "drizzle-orm";
-import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
+import { assertTutorOrAdmin } from "@/lib/auth/admin-guards-server";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { MathText } from "@/components/course/math-text";

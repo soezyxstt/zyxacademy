@@ -1,9 +1,12 @@
+import { hasAuthoringActor } from "@/lib/auth/authoring-actor";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { formativeCheckLocatorSchema } from "@/lib/materials/formative-check-server";
 import { resolveDraftProductFormativeCheck } from "@/lib/materials/formative-check-draft-server";
-import type { FormativeCheckPayload } from "@/lib/materials/pedagogy-contract";
+import { formativeAnswerForReveal } from "@/lib/materials/formative-check-answer";
+import { interactiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-authorization";
+import { mintInteractiveDocumentGrant } from "@/lib/materials/interactive-document-grant";
 
 export const dynamic = "force-dynamic";
 
@@ -30,25 +33,13 @@ function resolutionError(code: string): { status: number; error: string } {
   }
 }
 
-function answerForReveal(formativeCheck: FormativeCheckPayload): string {
-  if (formativeCheck.checkKind !== "multiple_choice") return formativeCheck.answer;
-
-  const correctIndex = formativeCheck.options?.findIndex((option) => option.isCorrect) ?? -1;
-  const correctOption = correctIndex >= 0 ? formativeCheck.options?.[correctIndex] : undefined;
-  if (!correctOption) return formativeCheck.answer;
-
-  const label = correctIndex < 26 ? String.fromCharCode(65 + correctIndex) : String(correctIndex + 1);
-  return `${label}. ${correctOption.text}`;
-}
-
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user || session.user.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await hasAuthoringActor(session.user.id, ["admin"]))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   let body: unknown;
   try {
@@ -70,10 +61,13 @@ export async function POST(
       return NextResponse.json({ error: failure.error }, { status: failure.status });
     }
 
-    return NextResponse.json({
-      answer: answerForReveal(resolved.context.formativeCheck),
-      explanation: resolved.context.formativeCheck.explanation,
-    });
+    const answer = formativeAnswerForReveal(resolved.context.formativeCheck);
+    const explanation = resolved.context.formativeCheck.explanation;
+    const hasDocuments = interactiveDocumentsInMarkdown(answer).length || interactiveDocumentsInMarkdown(explanation).length;
+    const draft = hasDocuments ? await (await import("@/lib/bundle/product-staging")).getProductBundleImport(id) : null;
+    if (hasDocuments && (!draft || draft.status !== "draft")) return NextResponse.json({ error: "Draft tidak tersedia." }, { status: 409 });
+    const visualAccess = Object.fromEntries(([ ["answer", answer], ["explanation", explanation] ] as const).flatMap(([field, text]) => interactiveDocumentsInMarkdown(text).length ? [[field, mintInteractiveDocumentGrant({ userId: session.user.id, ...parsed.data, field, draftId: id, draftChecksum: draft!.checksum }, process.env.BETTER_AUTH_SECRET ?? "")]] : []));
+    return NextResponse.json({ answer, explanation, visualAccess }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error(
       "POST admin Product Bundle draft formative reveal failed:",

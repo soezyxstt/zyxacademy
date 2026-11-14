@@ -1,6 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import { extractStorageKey } from "@/lib/storage/keys";
-import { buildThumbnailEventId, enqueuePdfThumbnail } from "@/lib/thumbnail";
+import {
+  buildDiktatPdfStorageKey,
+  buildThumbnailEventId,
+  buildVersionedThumbnailKey,
+  canUseLegacyThumbnail,
+  enqueuePdfThumbnail,
+  thumbnailRecoveryAttemptId,
+} from "@/lib/thumbnail";
 
 describe("extractStorageKey", () => {
   it("returns raw keys untouched", () => {
@@ -87,6 +94,67 @@ describe("buildThumbnailEventId", () => {
     expect(retryOne).toBe(retryOneAgain);
     expect(retryOne).not.toBe(initial);
     expect(retryTwo).not.toBe(retryOne);
+  });
+});
+
+describe("Diktat PDF and thumbnail identity", () => {
+  const params = {
+    courseId: "MA1101",
+    diktatId: "diktat-1",
+    title: "Persamaan linear",
+    pdfBytes: new TextEncoder().encode("PDF compiled on day one"),
+  };
+  const request = (sourceVersion: string) => ({
+    materialId: params.diktatId,
+    sourceType: "diktat" as const,
+    sourceVersion,
+    sourceRevision: "unchanged-generation-hash",
+  });
+
+  it("derives stable safe keys from the actual PDF bytes and Diktat identity", () => {
+    const original = buildDiktatPdfStorageKey(params);
+    const sameBytes = buildDiktatPdfStorageKey({ ...params, pdfBytes: new Uint8Array(params.pdfBytes) });
+    const changedBytes = buildDiktatPdfStorageKey({ ...params, pdfBytes: new TextEncoder().encode("PDF compiled on day two") });
+    const differentDiktat = buildDiktatPdfStorageKey({ ...params, diktatId: "diktat-2" });
+
+    expect(original).toBe(sameBytes);
+    expect(original.startsWith("courses/ma1101/diktats/versions/")).toBe(true);
+    expect(original.endsWith("/persamaan-linear.pdf")).toBe(true);
+    expect(changedBytes).not.toBe(original);
+    expect(differentDiktat).not.toBe(original);
+    expect(buildThumbnailEventId(request(changedBytes))).not.toBe(buildThumbnailEventId(request(original)));
+    expect(buildVersionedThumbnailKey({ ...request(changedBytes), courseSlug: "ma1101" })).not.toBe(
+      buildVersionedThumbnailKey({ ...request(original), courseSlug: "ma1101" }),
+    );
+  });
+
+  it("does not revive an unversioned cover for a newly versioned Diktat PDF", () => {
+    expect(canUseLegacyThumbnail(request(buildDiktatPdfStorageKey(params)))).toBe(false);
+    expect(canUseLegacyThumbnail(request("courses/ma1101/diktats/persamaan-linear.pdf"))).toBe(true);
+    expect(canUseLegacyThumbnail({ ...request("courses/ma1101/materials/old.pdf"), sourceType: "course_material" })).toBe(true);
+  });
+});
+
+describe("thumbnail recovery windows", () => {
+  it("deduplicates simultaneous requests and permits another recovery after a short failure", () => {
+    const request = {
+      materialId: "mat-1",
+      sourceType: "course_material" as const,
+      sourceVersion: "courses/ma1101/materials/doc.pdf",
+    };
+    const idAt = (time: number) => buildThumbnailEventId({ ...request, attemptId: thumbnailRecoveryAttemptId(time) });
+    expect(idAt(1000)).toBe(idAt(9999));
+    expect(idAt(10000)).not.toBe(idAt(9999));
+    expect(idAt(1000)).not.toBe(buildThumbnailEventId(request));
+  });
+
+  it("permits recovery during the existing 2, 4, 8, 16 second retry sequence while bounding events", () => {
+    for (const offset of [0, 1_000, 5_000, 9_000]) {
+      const times = [0, 2_000, 6_000, 14_000, 30_000].map((time) => time + offset);
+      const ids = times.map((time) => thumbnailRecoveryAttemptId(time));
+      expect(ids[3]).not.toBe(ids[0]);
+      expect(new Set(ids).size).toBeLessThanOrEqual(4);
+    }
   });
 });
 

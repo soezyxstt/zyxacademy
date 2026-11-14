@@ -7,6 +7,7 @@ import { membershipIdFor, PERAN_SEEDS, peranIdFor } from "@/lib/auth/peran";
 import { requireMcpScope, type McpPrincipal } from "@/lib/authoring/mcp-auth";
 import { adminId, adminPagination, adminRevision, adminToolkit } from "./toolkit";
 import { AdminMcpError, revisionOf, type AdminTransaction } from "./mutations";
+import { lockAuthoringIdentityChange } from "@/lib/auth/authoring-actor";
 
 async function identity(client: typeof db | AdminTransaction, id: string) {
   const [row] = await client.select({ id: user.id, name: user.name, legacyRole: user.role, status: pengguna.status }).from(user).innerJoin(pengguna, eq(user.id, pengguna.id)).where(eq(user.id, id)).limit(1);
@@ -47,6 +48,7 @@ export function registerAccessTools(server: McpServer, principal: McpPrincipal):
     return { id: input.id, revision: revisionOf(await identity(tx, input.id)) };
   });
   write("users.set_roles", "users:roles:write", z.object({ id: adminId, expectedRevision: adminRevision, roles: z.array(z.enum(["admin", "tutor", "murid"])).min(1).max(3).refine(v => new Set(v).size === v.length) }), "Replace user roles. Granting admin requires users:roles:admin.", async (tx, input) => {
+    if (!(await lockAuthoringIdentityChange(tx, input.id))) throw new AdminMcpError("NOT_FOUND");
     const current = await identity(tx, input.id);
     if (revisionOf(current) !== input.expectedRevision) throw new AdminMcpError("REVISION_CONFLICT");
     if (input.roles.includes("admin") && !current.roles.includes("admin") && current.legacyRole !== "admin") requireMcpScope(principal, "users:roles:admin");

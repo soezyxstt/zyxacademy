@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { validateProductBundle } from "../../lib/bundle/product-validator";
+import { admitLocalV4Bundle, localV4DocumentReader } from "./local-v4-bundle";
 import path from "node:path";
 import { buildLocalVerificationFixture } from "./local-verification-fixture";
 import { createProductV4VerificationService, type ProductV4VerificationSnapshot } from "../../lib/bundle/product-v4-verification-service";
@@ -11,6 +11,7 @@ import { getProductV4VerificationReceiptSignature } from "../../lib/bundle/produ
 import { validateProductV4ReviewContext } from "../../lib/bundle/product-v4-review";
 import { computePedagogyContentFingerprint, QUALITY_POLICY_VERSION } from "../../lib/materials/quality-policy";
 import { buildProductVerificationKey } from "../../lib/storage/keys";
+import { isCurrentProductV4PdfAttachment, resolveProductV4PdfBinding } from "../../lib/bundle/product-pdf-selection";
 import { closeProductV4BrowserRunner, validateDeployedVerificationBaseUrl } from "../../lib/compute/product-v4-browser-runner";
 
 const flag = process.argv.indexOf("--renderer");
@@ -30,9 +31,7 @@ await mkdir(root, { recursive: true });
 const bundleFlag = process.argv.indexOf("--bundle");
 const fixture = bundleFlag < 0 ? buildLocalVerificationFixture() : await (async () => {
   const bytes = new Uint8Array(await readFile(process.argv[bundleFlag + 1]));
-  const parsed = validateProductBundle(bytes);
-  if (!parsed.success) throw new Error(`LOCAL_BUNDLE_INVALID:${parsed.issues.map(issue => issue.code).join(",")}`);
-  return { bytes, bundle: parsed.data };
+  return admitLocalV4Bundle(bytes);
 })();
 await writeFile(path.join(root, "bundle.zip"), fixture.bytes);
 const bundle = { manifest: fixture.bundle.manifest, products: fixture.bundle.products, dependencies: fixture.bundle.dependencies };
@@ -47,22 +46,36 @@ for (const product of bundle.products) {
 const row = { id: "local-verification-import", bundleType: "product" as const, bundleId: bundle.manifest.bundleId, courseId: "local-course", checksum: bundle.manifest.bundleChecksum };
 const runtimePorts = { course: async () => ({ id: bundle.manifest.courseId, legacyCourseId: "local-course" }), dependencies: async () => [...live.values()], runtime: readProductV4RuntimeFingerprint,
   figure: async (): Promise<never> => { throw new Error("LOCAL_FIXTURE_HAS_NO_SOURCE_FIGURES"); }, download: async (): Promise<never> => { throw new Error("REMOTE_STORAGE_FORBIDDEN"); } };
+const readDocumentAsset = localV4DocumentReader(fixture.bundle.files);
 const runId = "local-v4-verification";
-let snapshot: ProductV4VerificationSnapshot = { importId: row.id, checksum: row.checksum, sourceUriOrKey: "local-fixture.zip", bundle, binding: await buildProductV4RuntimeBinding({ row, bundle, runId }, runtimePorts) };
+let snapshot: ProductV4VerificationSnapshot = { importId: row.id, checksum: row.checksum, sourceUriOrKey: "local-fixture.zip", stagingAuditId: "local-fixture-stage", stagingRunId: runId, importState: { bundleType: row.bundleType, bundleId: row.bundleId, courseId: row.courseId, version: 4, status: "draft", validationReport: {} }, bundle, binding: await buildProductV4RuntimeBinding({ row, bundle, runId }, runtimePorts, readDocumentAsset) };
 const objects = new Map<string, Uint8Array>();
+let promotedPdf: ReturnType<typeof deriveProductV4PdfEvidence> = [];
 const queue: { importId: string; runId: string; planHash: string; attemptId: string }[] = [];
 const authority = { signingKey: "local-only-verification-receipt-key-not-for-deployment", executorId: "zyx-product-v4-server-runner.v1" };
 const service = createProductV4VerificationService({
-  async load() { snapshot = { ...snapshot, binding: await buildProductV4RuntimeBinding({ row, bundle, runId }, runtimePorts) }; return snapshot; },
+  async load() { snapshot = { ...snapshot, binding: await buildProductV4RuntimeBinding({ row, bundle, runId }, runtimePorts, readDocumentAsset) }; return snapshot; },
   async read(key) { return objects.get(key) ?? null; },
   async write(key, bytes) { objects.set(key, bytes); const output = path.join(root, "objects", key); await mkdir(path.dirname(output), { recursive: true }); await writeFile(output, bytes); },
   async enqueue(input) { queue.push(input); },
   async attach(_snapshot, planHash, attemptId, expectedAttemptId) {
     if ((snapshot.verificationAttemptId ?? null) !== expectedAttemptId) return false;
-    snapshot = { ...snapshot, verificationPlanHash: planHash, verificationAttemptId: attemptId };
+    snapshot = { ...snapshot, verificationPlanHash: planHash, verificationAttemptId: attemptId, importState: { ...snapshot.importState, validationReport: { ...snapshot.importState.validationReport, productV4Verification: { planHash, attemptId, runId, stagingAuditId: snapshot.stagingAuditId } } } };
     return true;
   },
-  execute: executeProductV4VerificationCheck,
+  async persistPdfEvidence(input) {
+    const artifactBytes = new Map(input.receipt.results.flatMap(result => result.artifacts.filter(artifact => artifact.mediaType === "application/pdf").map(artifact => [artifact.id, objects.get(buildProductVerificationKey(input.plan.planHash, artifact.id))!] as const)));
+    promotedPdf = deriveProductV4PdfEvidence({ ...input, authority, artifactBytes });
+    const attachment = { planHash: input.plan.planHash, attemptId: input.attemptId, receiptSignature: input.receipt.signature };
+    snapshot = { ...snapshot, pdfEvidenceAttachment: attachment, importState: { ...snapshot.importState, validationReport: { ...snapshot.importState.validationReport, productV4PdfEvidence: attachment } } };
+  },
+  async hasPdfEvidence({ plan, attemptId, receipt }) {
+    return promotedPdf.length > 0 && isCurrentProductV4PdfAttachment(snapshot.pdfEvidenceAttachment, plan.planHash, attemptId, receipt.signature) && promotedPdf.every(pdf => {
+      const binding = resolveProductV4PdfBinding({ importId: row.id, diktatId: pdf.productId, validationReport: snapshot.importState.validationReport, verification: { plan, attemptId, stagingAuditId: snapshot.stagingAuditId, receipt, evaluation: { ready: true } } });
+      return binding && pdf.status === "ready" && pdf.storageKey === binding.storageKey && pdf.pageCount === binding.pageCount && objects.has(binding.storageKey);
+    });
+  },
+  execute: input => executeProductV4VerificationCheck(input, readDocumentAsset, runtimePorts),
   authority: () => authority,
 });
 const before = await service.readiness(row.id, runId);

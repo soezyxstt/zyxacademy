@@ -5,6 +5,7 @@ import { Reveal } from "@/components/ui/reveal";
 import { Button } from "@/components/ui/button";
 import { TranslatedText } from "@/components/i18n/translated-text";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { InteractiveDocumentAttempt } from "@/components/course/interactive-document-context";
 import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 import { FormattedDate } from "@/components/ui/formatted-date";
@@ -19,10 +20,12 @@ function formatDuration(seconds: number | null) {
   const s = seconds % 60;
   return m > 0 ? `${m} menit ${s} detik` : `${s} detik`;
 }
-export function StudentQuizReview({ href = (path: string) => path,  id, quizId, template, targetAttempt, snapshot, answers, unseenSnapshot = [] }: { href?: (path: string) => string;
+export function StudentQuizReview({ href = (path: string) => path,  id, visualCourseId = id, quizId, template, targetAttempt, snapshot, answers, unseenSnapshot = [], discussionAvailable = true }: { href?: (path: string) => string;
  id: string; quizId: string; template: { title: string };
+ visualCourseId?: string;
  targetAttempt: { id: string; score: number | null; durationSeconds: number | null; submittedAt: Date | string | null; gradingStatus?: string | null } | null;
  snapshot: StudentReviewQuestion[]; answers: Record<string, any>; unseenSnapshot?: StudentReviewQuestion[];
+ discussionAvailable?: boolean;
 }) {
 
     return (
@@ -41,7 +44,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, quizId, 
                 </Link>
               </Button>
 
-              {targetAttempt && (
+              {targetAttempt && discussionAvailable && (
                 <Button asChild size="sm" className="rounded-md bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 font-semibold shadow-xs">
                   <Link href={href(`/courses/${id}/quiz/${quizId}/summary/${targetAttempt.id}`)}>
                     Lihat Diagnosis & Rencana Belajar
@@ -52,7 +55,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, quizId, 
 
             {targetAttempt && (
               <AdminStatStrip className="sm:grid-cols-3">
-                <AdminStatStripItem icon={Award} label={<TranslatedText namespace="learning" messageKey="quizTake.finalScore" />} value={`${targetAttempt.score}%`} tone="brand" />
+                <AdminStatStripItem icon={Award} label={<TranslatedText namespace="learning" messageKey="quizTake.finalScore" />} value={targetAttempt.score == null ? "-" : `${targetAttempt.score}%`} tone="brand" />
                 <AdminStatStripItem icon={Clock} label={<TranslatedText namespace="learning" messageKey="quizTake.duration" />} value={formatDuration(targetAttempt.durationSeconds)} tone="info" />
                 <AdminStatStripItem
                   icon={Calendar}
@@ -66,6 +69,10 @@ export function StudentQuizReview({ href = (path: string) => path,  id, quizId, 
                   tone="brand-secondary"
                 />
               </AdminStatStrip>
+            )}
+
+            {targetAttempt && !discussionAvailable && (
+              <p className="text-body-sm text-muted-foreground">Pembahasan tidak tersedia saat ini.</p>
             )}
 
             {!targetAttempt && (
@@ -198,7 +205,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, quizId, 
                               )}
                             </div>
                             <div className="mt-2 text-body-base leading-relaxed text-foreground/90 font-medium">
-                              <MarkdownRenderer content={q.prompt} className="space-y-3" />
+                              <InteractiveDocumentAttempt value={targetAttempt ? { courseId: visualCourseId, attemptId: targetAttempt.id, questionId: q.id, field: "prompt" } : null}><MarkdownRenderer content={q.prompt} className="space-y-3" /></InteractiveDocumentAttempt>
                             </div>
                           </div>
                         </div>
@@ -324,8 +331,8 @@ export function StudentQuizReview({ href = (path: string) => path,  id, quizId, 
                                 )}>
                                   {String.fromCharCode(65 + i)}
                                 </span>
-                                <div className="flex-1">
-                                  <MarkdownRenderer content={opt} className="space-y-3" />
+                                <div className="min-w-0 flex-1">
+                                  <InteractiveDocumentAttempt value={targetAttempt ? { courseId: visualCourseId, attemptId: targetAttempt.id, questionId: q.id, field: "option", option: i } : null}><MarkdownRenderer content={opt} className="space-y-3" /></InteractiveDocumentAttempt>
                                 </div>
                               </li>
                             );
@@ -338,7 +345,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, quizId, 
                         <div className="mt-4 ml-9 space-y-3 border-t border-border/80 pt-4">
                           <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground"><TranslatedText namespace="learning" messageKey="review.explanation" /></h4>
                           <div className="text-body-sm text-muted-foreground leading-relaxed">
-                            <MarkdownRenderer content={q.explanation} className="space-y-3" />
+                            <InteractiveDocumentAttempt value={targetAttempt ? { courseId: visualCourseId, attemptId: targetAttempt.id, questionId: q.id, field: "explanation" } : null}><MarkdownRenderer content={q.explanation} className="space-y-3" /></InteractiveDocumentAttempt>
                           </div>
                         </div>
                       )}
@@ -417,14 +424,14 @@ export function StudentQuizReview({ href = (path: string) => path,  id, quizId, 
                               >
                                 {String.fromCharCode(65 + i)}
                               </span>
-                              <span
+                              <div
                                 className={cn(
-                                  "text-body-sm font-medium",
+                                  "min-w-0 flex-1 text-body-sm font-medium",
                                   isCorrectChoice ? "text-foreground" : "text-muted-foreground"
                                 )}
                               >
-                                <MarkdownRenderer content={opt} className="inline-block" />
-                              </span>
+                                <MarkdownRenderer content={opt} />
+                              </div>
                               {isCorrectChoice && (
                                   <div className="ml-auto flex items-center text-status-success text-body-xs font-bold gap-1 uppercase tracking-wider">
                                   <CheckCircle2 className="size-4" />

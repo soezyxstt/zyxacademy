@@ -33,6 +33,9 @@ import type { TutorSource } from "@/lib/tutor-rag";
 import { redactQuestionAnswerKeys } from "@/lib/asesmen/question-options";
 import { hasChapterScopeWithin } from "@/lib/student/course-access";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
+import { hasLegacyPrivateFormativeEnvelope } from "@/lib/materials/legacy-article-public";
+import { articleIndexableMarkdown } from "@/lib/articles/structured-read-model";
+import { canonicalVectorContent } from "@/lib/vectorize/content";
 
 export const CANONICAL_RUNTIME_REASON_CODES = [
   "INVALID_VECTOR_ID",
@@ -51,6 +54,7 @@ export const CANONICAL_RUNTIME_REASON_CODES = [
   "ACTIVE_ATTEMPT_ANSWER_DENIED",
   "UNRESOLVED_COURSE_SCOPE",
   "CANONICAL_RUNTIME_UNAVAILABLE",
+  "PRIVATE_ARTICLE_PAYLOAD",
 ] as const;
 
 export type CanonicalRuntimeReasonCode = (typeof CANONICAL_RUNTIME_REASON_CODES)[number];
@@ -159,7 +163,7 @@ const SOURCE_TYPE_BY_ENTITY: Record<CanonicalEntityType, TutorSource["type"]> = 
 };
 
 function hashContent(content: string): string {
-  return createHash("sha256").update(content, "utf8").digest("hex");
+  return createHash("sha256").update(canonicalVectorContent(content), "utf8").digest("hex");
 }
 
 function stableSerialize(value: unknown): string {
@@ -387,6 +391,10 @@ export function hydrateCanonicalCandidates(
       reject(rejected, candidate.id, "CONTENT_HASH_MISMATCH");
       continue;
     }
+    if (record.entityType === "article" && hasLegacyPrivateFormativeEnvelope(record.content)) {
+      reject(rejected, candidate.id, "PRIVATE_ARTICLE_PAYLOAD");
+      continue;
+    }
 
     const source = sourceFromRecord(candidate, record, request);
     if (!source.content.trim()) {
@@ -513,6 +521,8 @@ async function loadCanonicalRecords(
   }
 
   for (const row of articleRows) {
+    if (hasLegacyPrivateFormativeEnvelope(row.contentMarkdown)) continue;
+    const content = articleIndexableMarkdown(row.contentMarkdown);
     records.push({
       namespace: "published_articles",
       entityType: "article",
@@ -523,8 +533,8 @@ async function loadCanonicalRecords(
       courseId: row.mataKuliahId,
       chapterId: row.babId ?? undefined,
       title: row.title,
-      content: row.contentMarkdown,
-      contentHash: hashContent(row.contentMarkdown),
+      content,
+      contentHash: hashContent(content),
       href: `/courses/${courseId}/articles/${row.slug}`,
     });
   }

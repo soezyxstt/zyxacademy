@@ -1,5 +1,6 @@
 "use client";
 
+import { AiAnalyticsSkeleton } from "@/components/admin/content-loading-skeletons";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
@@ -8,7 +9,6 @@ import { ZyraUsageCharts } from "@/components/admin/zyra-usage-charts";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 
 type GatewayMode = "gateway" | "direct" | "unknown";
@@ -75,25 +75,7 @@ export function AiAnalyticsClient() {
       ? "gateway"
       : "direct";
 
-  if (isLoading) {
-    return (
-      <div role="status" aria-label={t("analyticsUI.loading")} className="space-y-5">
-        <div className="flex justify-between gap-3">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-8 w-24" />
-        </div>
-        <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="space-y-2 bg-card p-4">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-6 w-16" />
-            </div>
-          ))}
-        </div>
-        <Skeleton className="h-48 w-full rounded-lg" />
-      </div>
-    );
-  }
+  if (isLoading) return <AiAnalyticsSkeleton label={t("analyticsUI.loading")} />;
 
   if (error) {
     return (

@@ -9,7 +9,8 @@ import {
   peran,
 } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards";
-import { eq, desc } from "drizzle-orm";
+import { lockAuthoringIdentityChange } from "@/lib/auth/authoring-actor";
+import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import {
   PERAN_CODES,
   PERAN_SEEDS,
@@ -43,103 +44,77 @@ export type AdminUserStats = {
   suspendedCount: number;
 };
 
-export async function getAdminUsersData(): Promise<{
+export type AdminUsersQuery = { page?: number; search?: string; role?: string; status?: string };
+const USERS_PAGE_SIZE = 30;
+
+// Match the compatibility projection: canonical recognized roles win, then the
+// legacy role, and finally the student fallback.
+function hasRole(code: PeranCode) {
+  const canonical = sql`exists (select 1 from ${penggunaPeran} inner join ${peran} on ${penggunaPeran.peranId} = ${peran.id} where ${penggunaPeran.penggunaId} = ${user.id} and ${peran.code} = ${code})`;
+  const anyCanonical = sql`exists (select 1 from ${penggunaPeran} inner join ${peran} on ${penggunaPeran.peranId} = ${peran.id} where ${penggunaPeran.penggunaId} = ${user.id} and ${peran.code} in ('admin', 'tutor', 'murid'))`;
+  const fallback = code === "admin" ? sql`${user.role} = 'admin'`
+    : code === "tutor" ? sql`${user.role} = 'teacher'`
+      : sql`coalesce(${user.role}, 'student') not in ('admin', 'teacher')`;
+  return sql`(${canonical} or (not ${anyCanonical} and ${fallback}))`;
+}
+
+export async function getAdminUsersData(input: AdminUsersQuery = {}): Promise<{
   users: AdminUserItem[];
   stats: AdminUserStats;
   currentUserId: string;
+  total: number;
+  page: number;
 }> {
   const { user: currentAdmin } = await assertAdmin();
-
-  // Query all users and left join pengguna
-  const [userRows, roleRows] = await Promise.all([
-    db
-      .select({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        image: user.image,
-        emailVerified: user.emailVerified,
-        legacyRole: user.role,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-        lastActivityAt: user.lastActivityAt,
-        penggunaStatus: pengguna.status,
-      })
-      .from(user)
-      .leftJoin(pengguna, eq(user.id, pengguna.id))
-      .orderBy(desc(user.createdAt)),
-    db
-      .select({
-        penggunaId: penggunaPeran.penggunaId,
-        code: peran.code,
-      })
-      .from(penggunaPeran)
-      .innerJoin(peran, eq(penggunaPeran.peranId, peran.id)),
+  const page = Number.isSafeInteger(input.page) ? Math.max(1, Math.min(input.page!, 100000)) : 1;
+  const search = (typeof input.search === "string" ? input.search : "").trim().slice(0, 200).replace(/[\\%_]/g, "\\$&");
+  const role = PERAN_CODES.find((code) => code === input.role);
+  const condition = and(
+    search ? or(ilike(user.name, `%${search}%`), ilike(user.email, `%${search}%`)) : undefined,
+    role ? hasRole(role) : undefined,
+    input.status === "suspended" ? eq(pengguna.status, "suspended")
+      : input.status === "active" ? sql`coalesce(${pengguna.status}, 'active') <> 'suspended'` : undefined,
+  );
+  const [userRows, [countRow], [summary]] = await Promise.all([
+    db.select({ id: user.id, name: user.name, email: user.email, image: user.image,
+      emailVerified: user.emailVerified, legacyRole: user.role, createdAt: user.createdAt,
+      updatedAt: user.updatedAt, lastActivityAt: user.lastActivityAt, penggunaStatus: pengguna.status,
+    }).from(user).leftJoin(pengguna, eq(user.id, pengguna.id)).where(condition)
+      .orderBy(desc(user.createdAt), asc(user.id)).limit(USERS_PAGE_SIZE).offset((page - 1) * USERS_PAGE_SIZE),
+    db.select({ count: sql<number>`count(*)` }).from(user).leftJoin(pengguna, eq(user.id, pengguna.id)).where(condition),
+    db.select({
+      totalUsers: sql<number>`count(*)`,
+      adminCount: sql<number>`count(*) filter (where ${hasRole("admin")})`,
+      tutorCount: sql<number>`count(*) filter (where ${hasRole("tutor")})`,
+      muridCount: sql<number>`count(*) filter (where ${hasRole("murid")})`,
+      activeCount: sql<number>`count(*) filter (where coalesce(${pengguna.status}, 'active') <> 'suspended')`,
+      suspendedCount: sql<number>`count(*) filter (where ${pengguna.status} = 'suspended')`,
+    }).from(user).leftJoin(pengguna, eq(user.id, pengguna.id)),
   ]);
-
+  const roleRows = userRows.length ? await db.select({ penggunaId: penggunaPeran.penggunaId, code: peran.code })
+    .from(penggunaPeran).innerJoin(peran, eq(penggunaPeran.peranId, peran.id))
+    .where(inArray(penggunaPeran.penggunaId, userRows.map((row) => row.id))) : [];
   const rolesByUser = new Map<string, PeranCode[]>();
   for (const row of roleRows) {
     if (PERAN_CODES.includes(row.code as PeranCode)) {
       const list = rolesByUser.get(row.penggunaId) ?? [];
-      const code = row.code as PeranCode;
-      if (!list.includes(code)) list.push(code);
+      if (!list.includes(row.code as PeranCode)) list.push(row.code as PeranCode);
       rolesByUser.set(row.penggunaId, list);
     }
   }
-
-  const users: AdminUserItem[] = userRows.map((u) => {
-    let roles = rolesByUser.get(u.id) ?? [];
-    if (roles.length === 0 && u.legacyRole) {
-      const mapped = mapLegacyRole(u.legacyRole);
-      if (mapped) roles = [mapped];
-    }
-    if (roles.length === 0) {
-      roles = ["murid"];
-    }
-
-    const status: "active" | "suspended" = u.penggunaStatus === "suspended" ? "suspended" : "active";
-
-    return {
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      image: u.image ?? null,
-      emailVerified: Boolean(u.emailVerified),
-      legacyRole: u.legacyRole ?? null,
-      roles,
-      status,
-      createdAt: toIsoTimestamp(u.createdAt),
-      updatedAt: toIsoTimestamp(u.updatedAt),
-      lastActivityAt: u.lastActivityAt ? toIsoTimestamp(u.lastActivityAt) : null,
-    };
+  const users = userRows.map((u): AdminUserItem => {
+    const roles = rolesByUser.get(u.id) ?? [mapLegacyRole(u.legacyRole) ?? "murid"];
+    return { id: u.id, name: u.name, email: u.email, image: u.image ?? null,
+      emailVerified: Boolean(u.emailVerified), legacyRole: u.legacyRole ?? null, roles,
+      status: u.penggunaStatus === "suspended" ? "suspended" : "active",
+      createdAt: toIsoTimestamp(u.createdAt), updatedAt: toIsoTimestamp(u.updatedAt),
+      lastActivityAt: u.lastActivityAt ? toIsoTimestamp(u.lastActivityAt) : null };
   });
-
-  let adminCount = 0;
-  let tutorCount = 0;
-  let muridCount = 0;
-  let activeCount = 0;
-  let suspendedCount = 0;
-
-  for (const u of users) {
-    if (u.roles.includes("admin")) adminCount++;
-    if (u.roles.includes("tutor")) tutorCount++;
-    if (u.roles.includes("murid")) muridCount++;
-    if (u.status === "active") activeCount++;
-    else suspendedCount++;
-  }
-
-  return {
-    users,
-    stats: {
-      totalUsers: users.length,
-      adminCount,
-      tutorCount,
-      muridCount,
-      activeCount,
-      suspendedCount,
-    },
-    currentUserId: currentAdmin.id,
-  };
+  return { users, stats: {
+    totalUsers: Number(summary.totalUsers), adminCount: Number(summary.adminCount),
+    tutorCount: Number(summary.tutorCount), muridCount: Number(summary.muridCount),
+    activeCount: Number(summary.activeCount), suspendedCount: Number(summary.suspendedCount),
+  }, currentUserId: currentAdmin.id, total: Number(countRow.count), page };
 }
 
 export async function updateUserRolesAction(
@@ -162,6 +137,7 @@ export async function updateUserRolesAction(
 
   try {
     await db.transaction(async (tx) => {
+      if (!(await lockAuthoringIdentityChange(tx, targetUserId))) throw new Error("Pengguna tidak ditemukan.");
       // Ensure seed roles exist
       for (const seed of PERAN_SEEDS) {
         const existing = await tx

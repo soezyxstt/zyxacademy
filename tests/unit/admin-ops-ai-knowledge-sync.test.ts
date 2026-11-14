@@ -29,6 +29,7 @@ function createInMemoryCatalogStore(): {
     },
     upsertChunks: async (newChunks: AdminKnowledgeChunk[]) => {
       for (const chunk of newChunks) {
+        if (!sources.some(source => source.id === chunk.sourceId)) throw new Error("Knowledge source FK missing");
         const idx = chunks.findIndex((c) => c.id === chunk.id);
         if (idx >= 0) chunks[idx] = chunk;
         else chunks.push(chunk);
@@ -213,6 +214,120 @@ describe("Admin Ops Knowledge Pipeline - Sync Diff Planner", () => {
 });
 
 describe("Admin Ops Knowledge Pipeline - Sync Execution with Hermetic Store", () => {
+  const retrySources: CuratedSourceContent[] = [{
+    id: "doc:retry", sourcePath: "docs/retry.md", sourceType: "doc", title: "Retry",
+    rawContent: "# Retry\n\nKnowledge sync fixture.", normalizedContent: "# Retry\n\nKnowledge sync fixture.",
+    contentHash: "a1".repeat(32), isVirtual: false,
+  }];
+  const retryAdapter = {
+    profileId: CANONICAL_VECTOR_PROFILE.id,
+    embed: async () => new Array(768).fill(0.2),
+    embedDocument: async () => new Array(768).fill(0.2),
+    embedQuery: async () => new Array(768).fill(0.2),
+  };
+
+  test("optional worker embedder batches at most 50 documents and preserves vector positions", async () => {
+    const fakeProvider = new FakeCanonicalVectorProvider();
+    const { store, sources } = createInMemoryCatalogStore();
+    const customSources = Array.from({ length: 51 }, (_, index) => ({
+      ...retrySources[0], id: `doc:batch-${index}`, sourcePath: `docs/batch-${index}.md`,
+      normalizedContent: `# Batch ${index}\n\nCanonical document ${index}.`,
+    }));
+    const batches: Array<readonly { title: string; content: string }[]> = [];
+    const result = await executeAdminKnowledgeSync({
+      customSources, catalogStore: store, vectorProvider: fakeProvider,
+      embeddingAdapter: { ...retryAdapter, embedDocument: async () => { throw new Error("single adapter must not run"); } },
+      embedDocuments: async (documents) => {
+        batches.push(documents);
+        return documents.map((_, index) => new Array(768).fill(index / 100));
+      },
+    });
+    expect(batches.map(batch => batch.length)).toEqual([50, 1]);
+    expect(fakeProvider.calls.upsert.map(call => call.vectors.length)).toEqual([50, 1]);
+    expect(result.chunks.upserted).toBe(51);
+    expect(sources).toHaveLength(51);
+    expect(fakeProvider.calls.upsert[0].vectors[1].values[0]).toBe(0.01);
+    expect(batches[0][1]).toEqual({ title: "docs/batch-1.md#batch-1:0", content: "# Batch 1\n\nCanonical document 1." });
+  });
+
+  test("malformed batch embedding responses cannot advance catalog hashes", async () => {
+    for (const response of [[], [new Array(767).fill(0.2)]]) {
+      const fakeProvider = new FakeCanonicalVectorProvider();
+      const { store, sources, chunks } = createInMemoryCatalogStore();
+      await expect(executeAdminKnowledgeSync({
+        customSources: retrySources, catalogStore: store, vectorProvider: fakeProvider,
+        embedDocuments: async () => response,
+      })).rejects.toThrow();
+      expect(fakeProvider.calls.upsert).toHaveLength(0);
+      expect(sources).toHaveLength(0);
+      expect(chunks).toHaveLength(0);
+    }
+  });
+
+  test("vector failure leaves the catalog retryable and missing retained vectors are repaired by exact ID", async () => {
+    const fakeProvider = new FakeCanonicalVectorProvider();
+    const { store, sources, chunks } = createInMemoryCatalogStore();
+    const upsert = fakeProvider.upsert.bind(fakeProvider);
+    fakeProvider.upsert = async () => { throw new Error("synthetic upsert failure"); };
+    const options = { customSources: retrySources, catalogStore: store, vectorProvider: fakeProvider, embeddingAdapter: retryAdapter };
+
+    await expect(executeAdminKnowledgeSync(options)).rejects.toThrow("synthetic upsert failure");
+    expect(sources).toHaveLength(0);
+    expect(chunks).toHaveLength(0);
+
+    fakeProvider.upsert = upsert;
+    const retried = await executeAdminKnowledgeSync(options);
+    expect(retried.chunks.upserted).toBeGreaterThan(0);
+    expect(sources).toHaveLength(1);
+    expect(fakeProvider.listRecords().length).toBe(chunks.length);
+
+    const missingId = chunks[0].vectorId;
+    await fakeProvider.delete({ profileId: CANONICAL_VECTOR_PROFILE.id, ids: [missingId] });
+    const repaired = await executeAdminKnowledgeSync(options);
+    expect(fakeProvider.calls.get.at(-1)?.ids).toEqual(chunks.map(chunk => chunk.vectorId));
+    expect(repaired.chunks.upserted).toBe(1);
+    expect(repaired.operations.find(operation => operation.vectorId === missingId)?.action).toBe("upsert");
+    expect(fakeProvider.calls.upsert.at(-1)?.vectors.map(vector => vector.id)).toEqual([missingId]);
+    expect(fakeProvider.getRecord(missingId)).toBeDefined();
+
+    const retained = await executeAdminKnowledgeSync(options);
+    expect(retained.chunks.upserted).toBe(0);
+    expect(retained.chunks.unchanged).toBe(chunks.length);
+
+    chunks.splice(0, 1);
+    const catalogRepaired = await executeAdminKnowledgeSync(options);
+    expect(catalogRepaired.chunks.upserted).toBe(1);
+    expect(chunks.length).toBe(fakeProvider.listRecords().length);
+  });
+
+  test("failed vector deletion does not archive catalog records before a successful retry", async () => {
+    const fakeProvider = new FakeCanonicalVectorProvider();
+    const { store, sources, chunks } = createInMemoryCatalogStore();
+    const options = { catalogStore: store, vectorProvider: fakeProvider, embeddingAdapter: retryAdapter };
+    await executeAdminKnowledgeSync({ ...options, customSources: retrySources });
+    chunks[0].id = "catalog-row-with-distinct-vector-id";
+    const remove = fakeProvider.delete.bind(fakeProvider);
+    fakeProvider.delete = async () => { throw new Error("synthetic delete failure"); };
+
+    await expect(executeAdminKnowledgeSync({ ...options, customSources: [] })).rejects.toThrow("synthetic delete failure");
+    expect(sources[0].status).toBe("active");
+    expect(chunks[0].status).toBe("active");
+
+    fakeProvider.delete = remove;
+    const markChunksStale = store.markChunksStale;
+    store.markChunksStale = async () => { throw new Error("synthetic catalog failure"); };
+    await expect(executeAdminKnowledgeSync({ ...options, customSources: [] })).rejects.toThrow("synthetic catalog failure");
+    expect(sources[0].status).toBe("active");
+    expect(chunks[0].status).toBe("active");
+    store.markChunksStale = markChunksStale;
+    const retried = await executeAdminKnowledgeSync({ ...options, customSources: [] });
+    expect(retried.sources.deleted).toBe(1);
+    expect(fakeProvider.calls.delete.at(-1)?.ids).toEqual([chunks[0].vectorId]);
+    expect(fakeProvider.listRecords()).toHaveLength(0);
+    expect(sources[0].status).toBe("stale");
+    expect(chunks[0].status).toBe("stale");
+  });
+
   test("executes dry-run sync without vector provider calls", async () => {
     const fakeProvider = new FakeCanonicalVectorProvider();
     const { store } = createInMemoryCatalogStore();

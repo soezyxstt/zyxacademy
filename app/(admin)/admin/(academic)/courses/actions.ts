@@ -37,6 +37,7 @@ import {
   saveChapterWithCanonicalProjection,
   saveCourseWithCanonicalProjection,
 } from "@/lib/academic/course-canonical-sync";
+import { PREMIUM_PRICING, parseCoursePricingInput, type CoursePricing } from "@/lib/student/course-pricing";
 import { getDemoCourseEligibility } from "@/app/(marketing)/demo/demo-data";
 
 export async function getCourses() {
@@ -57,6 +58,7 @@ export async function getCourses() {
         id: mk.id,
         title: mk.title,
         category: legacy?.category ?? "Umum",
+        pricing: { category: mk.pricingCategory, startsAt: mk.freeStartsAt, endsAt: mk.freeEndsAt },
         description: legacy?.description ?? null,
         status: mk.status,
         createdAt: mk.createdAt,
@@ -65,7 +67,8 @@ export async function getCourses() {
     });
   }
 
-  return db.select().from(courses).orderBy(asc(courses.title));
+  return (await db.select().from(courses).orderBy(asc(courses.title)))
+    .map((course) => ({ ...course, pricing: PREMIUM_PRICING }));
 }
 
 export async function getCoursesWithStats() {
@@ -104,6 +107,7 @@ export async function getCoursesWithStats() {
         id: mk.id,
         title: mk.title,
         category: legacy?.category ?? "Umum",
+        pricing: { category: mk.pricingCategory, startsAt: mk.freeStartsAt, endsAt: mk.freeEndsAt },
         description: legacy?.description ?? null,
         status: mk.status,
         createdAt: mk.createdAt,
@@ -123,6 +127,7 @@ export async function getCoursesWithStats() {
 
   return legacyList.map((c) => ({
     ...c,
+    pricing: PREMIUM_PRICING,
     chapterCount: legacyChapterCountMap[c.id] || 0,
     materialCount: materialCountMap[c.id] || 0,
     quizCount: quizCountMap[c.id] || 0,
@@ -137,7 +142,8 @@ export async function saveCourse(
   title: string,
   category: string,
   description: string | null,
-  isNew: boolean
+  isNew: boolean,
+  pricing?: CoursePricing
 ) {
   const { user: admin } = await assertAdmin();
 
@@ -155,17 +161,36 @@ export async function saveCourse(
   if (!cleanCategory) {
     return { success: false, error: "Kategori tidak boleh kosong" };
   }
-  if (!(allowedCategories as readonly string[]).includes(cleanCategory)) {
+  // Canonical-only records have no stored legacy category; loaders display Umum.
+  const [canonicalOnly] = !isNew
+    ? await db.select({ id: mataKuliah.id }).from(mataKuliah)
+        .leftJoin(courses, or(eq(courses.id, mataKuliah.legacyCourseId), eq(courses.id, mataKuliah.id)))
+        .where(and(eq(mataKuliah.id, cleanId), sql`${courses.id} IS NULL`)).limit(1)
+    : [];
+  if (canonicalOnly && (cleanCategory !== "Umum" || cleanDesc)) {
+    return { success: false, error: "Kategori dan deskripsi belum dapat diubah untuk mata kuliah ini." };
+  }
+  if (!(allowedCategories as readonly string[]).includes(cleanCategory) && !(canonicalOnly && cleanCategory === "Umum")) {
     return { success: false, error: "Kategori tidak valid. Pilih dari daftar yang tersedia." };
+  }
+
+  let validatedPricing: CoursePricing | undefined;
+  if (pricing !== undefined) {
+    try {
+      validatedPricing = parseCoursePricingInput(pricing);
+    } catch {
+      return { success: false, error: "Pilih kategori akses yang valid dan pastikan waktu akhir setelah waktu mulai." };
+    }
   }
 
   try {
     await saveCourseWithCanonicalProjection({
       id: cleanId,
       title: cleanTitle,
-      category: cleanCategory as Category,
+      category: cleanCategory as Category | "Umum",
       description: cleanDesc,
       isNew,
+      pricing: validatedPricing,
       actorId: admin.id,
     });
 
@@ -299,6 +324,37 @@ export async function setDemoCourse(courseId: string, enabled: boolean) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Detailed Course Hub Server Action
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** Loads the course projection needed by settings without the course hub lists. */
+export async function getCourseSettingsData(courseId: string) {
+  await assertAdmin();
+
+  const cleanCourseId = courseId.trim().toLowerCase();
+  const canonicalCourse = await db
+      .select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId, title: mataKuliah.title, isDemo: mataKuliah.isDemo, pricingCategory: mataKuliah.pricingCategory, freeStartsAt: mataKuliah.freeStartsAt, freeEndsAt: mataKuliah.freeEndsAt })
+      .from(mataKuliah)
+      .where(and(eq(mataKuliah.status, "active"), or(eq(mataKuliah.id, cleanCourseId), eq(mataKuliah.legacyCourseId, cleanCourseId))))
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+  const legacyCourse = await db
+      .select({ id: courses.id, title: courses.title, category: courses.category, description: courses.description })
+      .from(courses)
+      .where(eq(courses.id, canonicalCourse?.legacyCourseId ?? canonicalCourse?.id ?? cleanCourseId))
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+
+  if (!canonicalCourse && !legacyCourse) return null;
+
+  return {
+    id: canonicalCourse?.id ?? legacyCourse!.id,
+    title: canonicalCourse?.title ?? legacyCourse!.title,
+    category: legacyCourse?.category ?? "Umum",
+    description: legacyCourse?.description ?? null,
+    isDemo: canonicalCourse?.isDemo ?? false,
+    pricing: canonicalCourse ? { category: canonicalCourse.pricingCategory, startsAt: canonicalCourse.freeStartsAt, endsAt: canonicalCourse.freeEndsAt } : PREMIUM_PRICING,
+    demoEligibility: canonicalCourse ? await getDemoCourseEligibility(canonicalCourse.id) : null,
+  };
+}
 
 /**
  * Retrieves full course detail data including chapters, materials, quiz templates, and active question bank records.

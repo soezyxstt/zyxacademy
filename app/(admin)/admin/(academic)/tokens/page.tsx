@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { pageTitle } from "@/lib/site";
-import { assertAdmin } from "@/lib/auth/admin-guards";
+import { assertAdmin } from "@/lib/auth/admin-guards-server";
 import { db } from "@/db";
 import { courses } from "@/db/schema";
 import { getEnrollmentTokens } from "./actions";

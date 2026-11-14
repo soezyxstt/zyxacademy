@@ -10,7 +10,7 @@ export async function requireCodingAccess(request: Request, courseId: string) {
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session?.user?.id) throw new Error("CODING_UNAUTHORIZED");
   const access = await resolveCourseAccess({ courseId, userId: session.user.id });
-  if (!access.hasCourseAccess || !access.canonicalCourseId || (access.tier !== "enrolled" && access.tier !== "staff")) throw new Error("CODING_FORBIDDEN");
+  if (!access.hasCourseAccess || !access.canonicalCourseId || !access.hasFullContentAccess) throw new Error("CODING_FORBIDDEN");
   return { userId: session.user.id, courseId: access.canonicalCourseId };
 }
 export async function loadPublishedCodingProblem(courseId: string, problemId: string, version: number) {

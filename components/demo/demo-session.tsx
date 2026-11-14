@@ -1,6 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { addDemoEvent, emptyOverlay, overlayKey, parseOverlay, scopedDemoReviewId, type DemoEvent, type DemoOverlay } from "@/lib/demo/session-overlay";
+import { emptyOverlay, overlayKey, scopedDemoReviewId, type DemoEvent, type DemoOverlay } from "@/lib/demo/session-overlay";
+import { getBrowserDemoOverlayStore } from "@/lib/demo/session-store";
 import { clearDemoTryoutCompletions } from "@/lib/demo/assessment/tryout";
 import { todayUtc } from "@/lib/date-utils";
 
@@ -11,47 +12,59 @@ export function DemoSession({ courseId, revision, scopes, reviewScope, children 
   const [overlay, setOverlay] = useState(emptyOverlay);
   const [overlays, setOverlays] = useState<Record<string, DemoOverlay>>({});
   const scopeKey = JSON.stringify(scopes.map((scope) => [scope.courseId, scope.revision]));
-  const current = useRef(overlay);
+  const storeRef = useRef<ReturnType<typeof getBrowserDemoOverlayStore> | null>(null);
   const [ready, setReady] = useState(false);
   const [generation, setGeneration] = useState(0);
   useEffect(() => {
-    const loadedOverlays: Record<string, DemoOverlay> = {};
-    for (const [id, rev] of JSON.parse(scopeKey) as [string, string][]) {
-      try { loadedOverlays[id] = parseOverlay(sessionStorage.getItem(overlayKey(id, rev))); } catch { loadedOverlays[id] = emptyOverlay(); }
-    }
-    const loaded = loadedOverlays[courseId] ?? emptyOverlay();
-    setOverlays(loadedOverlays);
-    current.current = loaded;
-    setOverlay(loaded);
+    const store = getBrowserDemoOverlayStore();
+    const activeScopes = (JSON.parse(scopeKey) as [string, string][]).map(([id, rev]) => ({ courseId: id, revision: rev }));
+    const keys = new Set(activeScopes.map(scope => overlayKey(scope.courseId, scope.revision)));
+    keys.add(key);
+    const sync = () => {
+      const loadedOverlays: Record<string, DemoOverlay> = {};
+      for (const scope of activeScopes) loadedOverlays[scope.courseId] = store.read(scope);
+      const loaded = store.read({ courseId, revision });
+      setOverlays(loadedOverlays);
+      setOverlay(loaded);
+    };
+    const unsubscribe = store.subscribe(change => {
+      if (change.keys && !change.keys.some(changed => keys.has(changed))) return;
+      sync();
+      if (change.kind === "reset") setGeneration(n => n + 1);
+    });
+    storeRef.current = store;
+    sync();
     setReady(true);
-  }, [key, courseId, scopeKey]);
+    return () => { storeRef.current = null; unsubscribe(); };
+  }, [key, courseId, revision, scopeKey]);
   const record = (kind: DemoEvent["kind"], id: string, grade?: number) => {
-    if (!ready) return;
+    if (!ready || !storeRef.current) return;
     const eventId = kind === "review" && reviewScope ? scopedDemoReviewId(reviewScope.setId, reviewScope.offset, id) : id;
-    const next = addDemoEvent(current.current, { kind, id: eventId, date: todayUtc(), ...(grade === undefined ? {} : { grade }) });
-    current.current = next;
-    setOverlay(next);
-    setOverlays((currentOverlays) => ({ ...currentOverlays, [courseId]: next }));
-    try { sessionStorage.setItem(key, JSON.stringify(next)); } catch {}
+    storeRef.current.record({ courseId, revision }, { kind, id: eventId, date: todayUtc(), ...(grade === undefined ? {} : { grade }) });
   };
   const reset = () => {
-    const next = emptyOverlay();
-    current.current = next;
-    setOverlay(next);
-    const cleared: Record<string, DemoOverlay> = {};
-    for (const [id, rev] of JSON.parse(scopeKey) as [string, string][]) {
-      cleared[id] = emptyOverlay();
-      try { sessionStorage.removeItem(overlayKey(id, rev)); } catch {}
-      clearDemoTryoutCompletions(id);
-    }
-    setOverlays(cleared);
-    setGeneration(n => n + 1);
+    const subscribed = storeRef.current !== null;
+    const store = storeRef.current ?? getBrowserDemoOverlayStore();
+    const activeScopes = (JSON.parse(scopeKey) as [string, string][]).map(([id, rev]) => ({ courseId: id, revision: rev }));
+    if (!activeScopes.some(scope => scope.courseId === courseId && scope.revision === revision)) activeScopes.push({ courseId, revision });
+    for (const scope of activeScopes) clearDemoTryoutCompletions(scope.courseId);
     try {
       const owned = ["zyx-demo-quiz-result:v2:", "zyx-demo-profile:", "zyx-quiz-answers-demo:", "zyx-quiz-flags-demo:", "zyx-quiz-timer-deadline-demo:"];
       const keys = Array.from({ length: sessionStorage.length }, (_, index) => sessionStorage.key(index)).filter((item): item is string => Boolean(item && owned.some(prefix => item.startsWith(prefix))));
       keys.forEach(item => sessionStorage.removeItem(item));
     } catch { /* Reset also works when browser storage is unavailable. */ }
+    store.reset(activeScopes);
+    if (!subscribed) {
+      setOverlay(store.read({ courseId, revision }));
+      setOverlays(Object.fromEntries(activeScopes.map(scope => [scope.courseId, store.read(scope)])));
+      setGeneration(n => n + 1);
+    }
   };
   return <Context.Provider value={{ overlay, overlays, record, reset, generation, ready }}>{children}</Context.Provider>;
 }
 export function useDemoSession() { const value = useContext(Context); if (!value) throw new Error("DemoSession missing"); return value; }
+
+export function DemoReviewScope({ setId, offset, children }: { setId: string; offset: number; children: ReactNode }) {
+  const session = useDemoSession();
+  return <Context.Provider value={{ ...session, record: (kind, id, grade) => session.record(kind, kind === "review" ? scopedDemoReviewId(setId, offset, id) : id, grade) }}>{children}</Context.Provider>;
+}

@@ -7,6 +7,9 @@ import {
 } from "@/db/schema";
 import { eq, desc, and, inArray, ilike } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
+import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
+import { enqueueQuestionReviewVectorTx, transitionQuestionReviewTx } from "@/lib/question-review-lifecycle";
+import { rejectQuestionVisualReferences } from "@/lib/authoring/question-visual-references";
 
 export interface ListQuizzesInput {
   courseId?: string;
@@ -340,6 +343,7 @@ export async function executeCreateQuestion(input: CreateQuestionInput, _actorId
   if (!cleanCourseId) throw new Error("ID Mata Kuliah wajib diisi.");
   if (!cleanPrompt) throw new Error("Teks soal (prompt) tidak boleh kosong.");
   if (!input.options || input.options.length < 2) throw new Error("Pilihan jawaban minimal harus 2 opsi.");
+  rejectQuestionVisualReferences([{ ...input, explanation: input.explanation?.trim() || `Kunci jawaban benar adalah opsi ${input.correctAnswer}.` }]);
 
   const questionId = randomUUID();
   const difficulty = input.difficulty || "medium";
@@ -349,20 +353,24 @@ export async function executeCreateQuestion(input: CreateQuestionInput, _actorId
   );
   const correctIndices = [correctIdx >= 0 ? correctIdx : 0];
 
-  await db.insert(aiQuestionBank).values({
-    id: questionId,
-    courseId: cleanCourseId,
-    prompt: cleanPrompt,
-    options: input.options,
-    correctIndices,
-    distractorMap: [],
-    explanation: input.explanation?.trim() || `Kunci jawaban benar adalah opsi ${input.correctAnswer}.`,
-    difficulty,
-    questionType: "multiple_choice",
-    reviewStatus: "published",
-    origin: "zyx_original",
-    tags: input.tags || [],
+  await db.transaction(async (tx) => {
+    await tx.insert(aiQuestionBank).values({
+      id: questionId,
+      courseId: cleanCourseId,
+      prompt: cleanPrompt,
+      options: input.options,
+      correctIndices,
+      distractorMap: [],
+      explanation: input.explanation?.trim() || `Kunci jawaban benar adalah opsi ${input.correctAnswer}.`,
+      difficulty,
+      questionType: "multiple_choice",
+      reviewStatus: "published",
+      origin: "zyx_original",
+      tags: input.tags || [],
+    });
+    await enqueueQuestionReviewVectorTx(tx, { id: questionId, courseId: cleanCourseId, version: 1, reviewStatus: "published", prompt: cleanPrompt });
   });
+  await dispatchVectorSync(cleanCourseId);
 
   return {
     summary: `Soal baru berhasil dibuat di bank soal (ID: ${questionId}) untuk '${cleanCourseId}' dengan tingkat kesulitan '${difficulty}'.`,
@@ -374,17 +382,18 @@ export interface PublishQuestionInput {
   questionId: string;
 }
 
-export async function executePublishQuestion(input: PublishQuestionInput, _actorId?: string) {
+export async function executePublishQuestion(input: PublishQuestionInput, actorId?: string) {
   const cleanId = input.questionId.trim();
   if (!cleanId) throw new Error("ID Soal wajib diisi.");
 
   const existing = await db.query.aiQuestionBank.findFirst({ where: eq(aiQuestionBank.id, cleanId) });
   if (!existing) throw new Error(`Soal '${cleanId}' tidak ditemukan.`);
 
-  await db
-    .update(aiQuestionBank)
-    .set({ reviewStatus: "published" })
-    .where(eq(aiQuestionBank.id, cleanId));
+  rejectQuestionVisualReferences([{ prompt: existing.prompt, options: Array.isArray(existing.options) ? existing.options.map(String) : [], explanation: existing.explanation }]);
+
+  const result = await db.transaction((tx) => transitionQuestionReviewTx(tx, { id: cleanId, reviewStatus: "published", actorId }));
+  if (!result) throw new Error(`Soal '${cleanId}' tidak ditemukan.`);
+  await dispatchVectorSync(result.courseId);
 
   return {
     summary: `Soal '${cleanId}' berhasil dipublikasikan ('published').`,

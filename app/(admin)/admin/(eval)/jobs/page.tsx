@@ -4,7 +4,7 @@ import { getTranslations } from "@/lib/i18n/server";
 import { db } from "@/db";
 import { aiGenerationJobs, courses, chapters, mataKuliah, bab, knowledgeObjects } from "@/db/schema";
 import { desc, eq, asc } from "drizzle-orm";
-import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
+import { assertTutorOrAdmin } from "@/lib/auth/admin-guards-server";
 import { GenerationJobsClient } from "./jobs-client";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { Zap } from "lucide-react";

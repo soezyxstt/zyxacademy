@@ -1,3 +1,4 @@
+import { listPublishedSolutionCollections } from "@/lib/solutions/repository";
 import { StudentDocumentsView } from "@/components/course/student-documents-view";
 import { Suspense } from "react";
 import type { Metadata } from "next";
@@ -11,9 +12,9 @@ import {
   extractFreeQuizChapterScope,
   isFreeChapterScoped,
   isFreeQuizTemplate,
-  getCachedCanonicalPublishedArticlesForCourse,
 } from "@/lib/course-utils";
 import { CourseDocumentsClient } from "./course-documents-client";
+import { getMaterialArticleSummaries } from "./canonical-summaries";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { db } from "@/db";
 import { aiMaterialInstances, websiteMaterials, diktats, diktatMateri, bab, courseMaterials, progress, studentMaterialProgress, quizTemplates, studentQuizAttempts, exams } from "@/db/schema";
@@ -106,10 +107,11 @@ async function loadCourseMaterialData({
     courseQuizzes,
     courseTryouts,
     completedQuizIds,
+    solutionCollections,
   ] = await Promise.all([
     getStudentCourseAccess(studentId, id),
     progressPromise,
-    getCachedCanonicalPublishedArticlesForCourse(id, studentId),
+    getMaterialArticleSummaries(id, studentId),
     getCourseChapterOutline(id),
     db
       .select({ id: aiMaterialInstances.id, title: aiMaterialInstances.title, chapterIds: aiMaterialInstances.chapterIds, thumbnailUrl: aiMaterialInstances.thumbnailUrl })
@@ -127,7 +129,7 @@ async function loadCourseMaterialData({
           .where(and(eq(diktatMateri.mataKuliahId, course.canonicalId), eq(diktatMateri.status, "published")))
       : Promise.resolve([]),
     db
-      .select({ id: websiteMaterials.id, title: websiteMaterials.title, chapterId: websiteMaterials.chapterId, canonicalMarkdown: websiteMaterials.canonicalMarkdown, thumbnailUrl: websiteMaterials.thumbnailUrl })
+      .select({ id: websiteMaterials.id, title: websiteMaterials.title, chapterId: websiteMaterials.chapterId, thumbnailUrl: websiteMaterials.thumbnailUrl })
       .from(websiteMaterials)
       .where(and(eq(websiteMaterials.courseId, compatibilityCourseId), eq(websiteMaterials.status, "published"))),
     db
@@ -151,9 +153,10 @@ async function loadCourseMaterialData({
       .from(exams)
       .where(and(eq(exams.courseId, compatibilityCourseId), eq(exams.type, "tryout"), eq(exams.status, "published"))),
     attemptsPromise,
+    listPublishedSolutionCollections({ courseId: id, userId: studentId }),
   ]);
 
-  const isFreeAccess = studentAccess?.tier === "free";
+  const isFreeAccess = studentAccess?.tier === "free" && !studentAccess.hasFullContentAccess;
   const canDownloadDiktat = Boolean(studentAccess?.policy.capabilities.canDownloadDiktat);
   const freeChapterIds = new Set(studentAccess?.freeChapterIds ?? []);
 
@@ -266,7 +269,7 @@ async function loadCourseMaterialData({
 
   const mappedWeb = webMaterials.filter((m) => !canonicalMappedChapterIds.has(m.chapterId)).map((m) => ({
     id: m.id, courseId: id, title: sanitizeMaterialTitle(m.title), kind: "article" as const, docCategory: "materi" as const, tabGroup: "materi" as const,
-    fileSize: undefined, body: m.canonicalMarkdown, completed: completedMaterialIds.has(m.id), isPastYear: false, isPreview: true,
+    fileSize: undefined, completed: completedMaterialIds.has(m.id), isPastYear: false, isPreview: true,
     thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined, chapterId: m.chapterId, chapterIds: m.chapterId ? [m.chapterId] : [], href: `/courses/${id}/material/${m.id}`,
   }));
 
@@ -311,8 +314,24 @@ async function loadCourseMaterialData({
     return { id: t.id, courseId: id, title: t.title, kind: "tryout" as const, docCategory: "soal" as const, tabGroup: "bank_soal" as const, subcategory: "tryout", fileSize: `${duration} Menit \u00b7 Tryout Ujian`, completed: false, isPastYear: false, isPreview: false, chapterIds: [], href: `/courses/${id}/tryout/${t.id}` };
   });
 
-  const allMaterials = [...mappedCanonical, ...mappedCanonicalDiktats, ...mappedDiktats, ...mappedDb, ...mappedWeb, ...mappedManual, ...mappedQuizzes, ...mappedTryouts];
-  const isEnrolled = studentAccess?.tier === "standard";
+  const mappedSolutions = solutionCollections.map((collection) => ({
+    id: collection.id,
+    courseId: id,
+    title: collection.title,
+    kind: "solution_collection" as const,
+    docCategory: "solusi" as const,
+    tabGroup: "bank_soal" as const,
+    source: "canonical-solution-collection",
+    completed: false,
+    isPastYear: false,
+    isPreview: false,
+    chapterId: collection.chapterId,
+    chapterIds: [collection.chapterId, collection.legacyChapterId].filter((chapterId): chapterId is string => Boolean(chapterId)),
+    href: `/courses/${encodeURIComponent(id)}/solutions/${encodeURIComponent(collection.id)}`,
+  }));
+
+  const allMaterials = [...mappedSolutions, ...mappedCanonical, ...mappedCanonicalDiktats, ...mappedDiktats, ...mappedDb, ...mappedWeb, ...mappedManual, ...mappedQuizzes, ...mappedTryouts];
+  const hasFullContentAccess = Boolean(studentAccess?.hasFullContentAccess);
   const materialsWithLockState = allMaterials.map((material) => {
     const materialChapterIds = [
       ...("chapterIds" in material && Array.isArray(material.chapterIds) ? material.chapterIds : []),
@@ -321,11 +340,12 @@ async function loadCourseMaterialData({
     const isFreeChapterContent = isFreeChapterScoped(materialChapterIds, freeChapterIds);
     // PDF materials (materi PDF, bank soal ITB / lembar soal tutorial / ujian), qualifying free quizzes,
     // and all first-chapter materials (artikel, diktat, kuis) are free
-    const isFreeContent =
+    const isFreeContent = Boolean(studentAccess) && (
       (material.kind === "pdf" && material.docCategory !== "diktat") ||
       (material.kind === "quiz" && freeQuizIds.has(material.id)) ||
-      isFreeChapterContent;
-    const locked = !isEnrolled && !isFreeContent;
+      isFreeChapterContent
+    );
+    const locked = !hasFullContentAccess && !isFreeContent;
     return {
       ...material,
       locked,
@@ -334,9 +354,9 @@ async function loadCourseMaterialData({
   const lockedMaterialCount = materialsWithLockState.filter((m) => m.locked).length;
 
   return {
-    isEnrolled,
+    hasFullContentAccess,
     isFreeAccess,
-    accessTier: studentAccess?.tier,
+    accessTier: studentAccess?.hasFullContentAccess ? "standard" as const : studentAccess?.tier,
     materialsWithLockState,
     courseChapters,
     lockedMaterialCount,
@@ -353,7 +373,7 @@ async function CourseMaterialListContent({
   dataPromise: ReturnType<typeof loadCourseMaterialData>;
 }) {
   const {
-    isEnrolled,
+    hasFullContentAccess,
     accessTier,
     materialsWithLockState,
     courseChapters,
@@ -362,7 +382,7 @@ async function CourseMaterialListContent({
 
   return (
     <>
-      {!isEnrolled && (
+      {!hasFullContentAccess && (
         <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
             <div>

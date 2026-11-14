@@ -18,7 +18,8 @@ import { auth } from "@/lib/auth";
 import { eq, and } from "drizzle-orm";
 import { getSiteSearchDocuments, isMarketingHref } from "@/lib/site-search-index";
 import type { SiteSearchDocument } from "@/lib/site-search-index";
-import { listStudentCourses, listStudentEnrollments } from "@/lib/student/course-catalog";
+import { listStudentCourses } from "@/lib/student/course-catalog";
+import { resolveStudentSearchCandidates, type StudentSearchCandidate } from "@/lib/search/student-course-results";
 
 export async function getStudentSearchDocuments(): Promise<SiteSearchDocument[]> {
   const staticDocs = getSiteSearchDocuments();
@@ -29,9 +30,8 @@ export async function getStudentSearchDocuments(): Promise<SiteSearchDocument[]>
     const session = await auth.api.getSession({ headers: h });
     const user = session?.user;
 
-    const dbCourses = !user?.id || user.role === "admin"
-      ? await listStudentCourses()
-      : await listStudentEnrollments(user.id);
+    if (!user?.id) return staticDocs.filter((doc) => isMarketingHref(doc.href));
+    const dbCourses = await listStudentCourses();
 
     for (const course of dbCourses) {
       docs.push({
@@ -243,6 +243,29 @@ export async function getStudentSearchDocuments(): Promise<SiteSearchDocument[]>
       });
     }
 
+    if (user.role !== "admin" && user.role !== "teacher") {
+      const candidates = new Map<SiteSearchDocument, StudentSearchCandidate>();
+      for (const doc of docs) {
+        const match = /^\/courses\/([^/]+)(?:\/(material|quiz|tryout)\/([^/]+))?/.exec(doc.href);
+        if (!match) continue;
+        const [, courseId, section, entityId] = match;
+        candidates.set(doc, { courseId, entityId: entityId ?? courseId, type: section === "tryout" ? "exam" : section ?? "course" });
+      }
+      const allowed = await resolveStudentSearchCandidates(user.id, [...candidates.values()]);
+      for (let index = docs.length - 1; index >= 0; index--) {
+        const candidate = candidates.get(docs[index]);
+        if (!candidate) continue;
+        const title = allowed.get(candidate);
+        if (!title) docs.splice(index, 1);
+        else {
+          const section = candidate.type === "course" ? docs[index].href.split("/")[3] : undefined;
+          const label: Record<string, string> = { mastery: "Penguasaan", path: "Jalur belajar", flashcard: "Flashcard", leaderboard: "Papan skor" };
+          const safeTitle = section && label[section] ? `${label[section]}; ${title}` : title;
+          docs[index] = { ...docs[index], title: safeTitle, subtitle: "", keywords: safeTitle, content: safeTitle };
+        }
+      }
+    }
+
     // Fetch published blog articles
     const dbArticles = await db
       .select({
@@ -272,7 +295,7 @@ export async function getStudentSearchDocuments(): Promise<SiteSearchDocument[]>
     return docs;
   } catch (error) {
     console.error("Error fetching student search documents, falling back to static:", error);
-    return staticDocs;
+    return staticDocs.filter((doc) => isMarketingHref(doc.href));
   }
 }
 

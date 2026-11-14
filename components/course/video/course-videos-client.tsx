@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import dynamic from "next/dynamic";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Video as VideoIcon,
@@ -54,12 +55,17 @@ import {
   type VideoItem,
   type VideoPlaylistItem,
 } from "@/app/actions/video-actions";
-import { PlaylistDialog } from "./playlist-dialog";
-import { AdminVideoDialog } from "./admin-video-dialog";
 import { VideoPlayerModal } from "./video-player-modal";
 import { getYouTubeThumbnailUrl } from "@/lib/video/youtube";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
+
+const PlaylistDialog = dynamic(() =>
+  import("./playlist-dialog").then((mod) => mod.PlaylistDialog)
+);
+const AdminVideoDialog = dynamic(() =>
+  import("./admin-video-dialog").then((mod) => mod.AdminVideoDialog)
+);
 
 type ChapterOption = {
   id: string;
@@ -74,7 +80,7 @@ type CourseVideosClientProps = {
   initialPlaylists: VideoPlaylistItem[];
   chapters: ChapterOption[];
   canManage?: boolean;
-  isEnrolled?: boolean;
+  hasFullContentAccess?: boolean;
 };
 
 /**
@@ -87,7 +93,7 @@ export function CourseVideosClient({
   initialPlaylists,
   chapters,
   canManage = false,
-  isEnrolled = true,
+  hasFullContentAccess = true,
 }: CourseVideosClientProps) {
   const t = useTranslations("studentCourse");
   const router = useRouter();
@@ -110,6 +116,12 @@ export function CourseVideosClient({
   const [editingPlaylist, setEditingPlaylist] = useState<VideoPlaylistItem | null>(null);
 
   const [videoDialogOpen, setVideoDialogOpen] = useState(false);
+  const [playlistDialogMounted, setPlaylistDialogMounted] = useState(false);
+  const [videoDialogMounted, setVideoDialogMounted] = useState(false);
+  useEffect(() => {
+    if (playlistDialogOpen) setPlaylistDialogMounted(true);
+    if (videoDialogOpen) setVideoDialogMounted(true);
+  }, [playlistDialogOpen, videoDialogOpen]);
   const [editingVideo, setEditingVideo] = useState<VideoItem | null>(null);
   const [defaultPlaylistForVideo, setDefaultPlaylistForVideo] = useState<string | undefined>(undefined);
 
@@ -225,7 +237,7 @@ export function CourseVideosClient({
   };
 
   const handlePlayVideo = (video: VideoItem, playlist: VideoPlaylistItem) => {
-    const isLocked = !canManage && !isEnrolled && (video.locked ?? true);
+    const isLocked = !canManage && !hasFullContentAccess && (video.locked ?? true);
     if (isLocked) {
       setLockedVideo(video);
       return;
@@ -438,7 +450,7 @@ export function CourseVideosClient({
                   ) : (
                     <div className="divide-y divide-border/40 border-t border-border/40 bg-card/30">
                       {playlist.videos.map((video) => {
-                        const isLocked = !canManage && !isEnrolled && (video.locked ?? true);
+                        const isLocked = !canManage && !hasFullContentAccess && (video.locked ?? true);
                         const thumbnail = video.thumbnailUrl || getYouTubeThumbnailUrl(video.videoUrl);
                         return (
                           <div
@@ -453,7 +465,7 @@ export function CourseVideosClient({
                               {/* Landscape Video Thumbnail */}
                               <div className="relative w-28 sm:w-36 aspect-video shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted/20">
                                 {thumbnail ? (
-                                  <Image unoptimized loading="eager" width={160} height={90}
+                                  <Image unoptimized loading="lazy" width={160} height={90}
                                     src={thumbnail}
                                     alt={video.title}
                                     className="size-full object-cover transition-transform group-hover:scale-105 duration-200"
@@ -570,26 +582,30 @@ export function CourseVideosClient({
       )}
 
       {/* Playlist Create/Edit Dialog */}
-      <PlaylistDialog
-        open={playlistDialogOpen}
-        onOpenChange={setPlaylistDialogOpen}
-        courseId={courseId}
-        playlist={editingPlaylist}
-        onSuccess={() => router.refresh()}
-      />
+      {canManage && (playlistDialogOpen || playlistDialogMounted) && (
+        <PlaylistDialog
+          open={playlistDialogOpen}
+          onOpenChange={setPlaylistDialogOpen}
+          courseId={courseId}
+          playlist={editingPlaylist}
+          onSuccess={() => router.refresh()}
+        />
+      )}
 
       {/* Video Upload/Edit Dialog */}
-      <AdminVideoDialog
-        open={videoDialogOpen}
-        onOpenChange={setVideoDialogOpen}
-        courseId={courseId}
-        playlists={initialPlaylists}
-        chapters={chapters}
-        video={editingVideo}
-        defaultPlaylistId={defaultPlaylistForVideo}
-        onOpenCreatePlaylist={handleOpenCreatePlaylist}
-        onSuccess={() => router.refresh()}
-      />
+      {canManage && (videoDialogOpen || videoDialogMounted) && (
+        <AdminVideoDialog
+          open={videoDialogOpen}
+          onOpenChange={setVideoDialogOpen}
+          courseId={courseId}
+          playlists={initialPlaylists}
+          chapters={chapters}
+          video={editingVideo}
+          defaultPlaylistId={defaultPlaylistForVideo}
+          onOpenCreatePlaylist={handleOpenCreatePlaylist}
+          onSuccess={() => router.refresh()}
+        />
+      )}
 
       {/* Video Player Modal */}
       <VideoPlayerModal
@@ -606,26 +622,30 @@ export function CourseVideosClient({
       />
 
       {/* Delete Playlist Confirmation */}
-      <AdminConfirmDialog
-        open={Boolean(playlistToDelete)}
-        onOpenChange={(open) => !open && setPlaylistToDelete(null)}
-        title={t("courseVideos.deletePlaylist")}
-        description={t("courseVideos.deletePlaylistConfirm", { title: playlistToDelete?.title ?? "" })}
-        confirmLabel={t("courseVideos.deletePlaylist")}
-        loading={deleteLoading}
-        onConfirm={handleConfirmDeletePlaylist}
-      />
+      {canManage && playlistToDelete && (
+        <AdminConfirmDialog
+          open={Boolean(playlistToDelete)}
+          onOpenChange={(open) => !open && setPlaylistToDelete(null)}
+          title={t("courseVideos.deletePlaylist")}
+          description={t("courseVideos.deletePlaylistConfirm", { title: playlistToDelete.title })}
+          confirmLabel={t("courseVideos.deletePlaylist")}
+          loading={deleteLoading}
+          onConfirm={handleConfirmDeletePlaylist}
+        />
+      )}
 
       {/* Delete Video Confirmation */}
-      <AdminConfirmDialog
-        open={Boolean(videoToDelete)}
-        onOpenChange={(open) => !open && setVideoToDelete(null)}
-        title={t("courseVideos.deleteVideo")}
-        description={t("courseVideos.deleteVideoConfirm", { title: videoToDelete?.title ?? "" })}
-        confirmLabel={t("courseVideos.deleteVideo")}
-        loading={deleteLoading}
-        onConfirm={handleConfirmDeleteVideo}
-      />
+      {canManage && videoToDelete && (
+        <AdminConfirmDialog
+          open={Boolean(videoToDelete)}
+          onOpenChange={(open) => !open && setVideoToDelete(null)}
+          title={t("courseVideos.deleteVideo")}
+          description={t("courseVideos.deleteVideoConfirm", { title: videoToDelete.title })}
+          confirmLabel={t("courseVideos.deleteVideo")}
+          loading={deleteLoading}
+          onConfirm={handleConfirmDeleteVideo}
+        />
+      )}
 
       {/* Locked Video Activation Dialog */}
       <Dialog open={Boolean(lockedVideo)} onOpenChange={(open) => !open && setLockedVideo(null)}>

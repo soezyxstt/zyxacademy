@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { enrollments, searchDocuments } from "@/db/schema";
-import { eq, and, gt, lte, or, ilike } from "drizzle-orm";
+import { searchDocuments } from "@/db/schema";
+import { eq, and, lte, or, ilike, inArray } from "drizzle-orm";
 import { getPeranCodes } from "@/lib/auth/authorization";
 import { embedSearchQuery, querySearchVectors } from "@/lib/search/service";
 import { parseSearchQueryString } from "@/lib/search/parser";
@@ -14,6 +14,7 @@ import type {
   SiteSearchResponse,
 } from "@/lib/search/contracts";
 import { isMarketingHref } from "@/lib/site-search-index";
+import { resolveStudentSearchCandidates, type StudentSearchCandidate } from "@/lib/search/student-course-results";
 
 export async function GET(request: NextRequest) {
   try {
@@ -84,22 +85,6 @@ export async function GET(request: NextRequest) {
           grouped: emptyGrouped,
         });
       }
-    }
-
-    // 5. If student (role 1): fetch user's active enrolledCourseIds
-    let enrolledCourseIds: string[] = [];
-    if (user && userRoleLevel === 1) {
-      const now = new Date();
-      const activeEnrollments = await db
-        .select({ courseId: enrollments.courseId })
-        .from(enrollments)
-        .where(
-          and(
-            eq(enrollments.userId, user.id),
-            gt(enrollments.expiresAt, now)
-          )
-        );
-      enrolledCourseIds = activeEnrollments.map((r) => r.courseId);
     }
 
     const limitParam = request.nextUrl.searchParams.get("limit");
@@ -186,12 +171,31 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 8. Post-filter: If student and item has course_id and item min_role >= 1, verify enrolledCourseIds.includes(item.course_id)
-    //    If public (userRoleLevel === 0), strictly restrict to marketing pages
+    const candidates = new Map<SiteSearchMatch, StudentSearchCandidate>();
+    if (user && userRoleLevel === 1) {
+      const indexed = matches.length ? await db.select().from(searchDocuments).where(inArray(searchDocuments.id, matches.map((item) => item.id))) : [];
+      const byId = new Map(indexed.map((doc) => [doc.id, doc]));
+      for (const item of matches) {
+        const doc = byId.get(item.id);
+        if (!doc || doc.minRole > userRoleLevel) {
+          candidates.set(item, { courseId: "", entityId: "", type: "" });
+          continue;
+        }
+        const type = String(doc?.entityType ?? item.metadata?.entity_type ?? "").toLowerCase();
+        const href = String(item.metadata?.href ?? item.metadata?.path ?? "");
+        const courseId = doc?.courseId;
+        const entityId = doc?.entityId;
+        if (["course", "chapter", "material", "quiz", "exam"].includes(type) || courseId || /^\/courses\/[^/]+/.test(href) || /^(course|chapter|material|quiz|exam)_/.test(item.id)) {
+          if (typeof courseId === "string" && typeof entityId === "string") candidates.set(item, { courseId, entityId, type });
+          else candidates.set(item, { courseId: "", entityId: "", type });
+        }
+      }
+    }
+    const current = user && userRoleLevel === 1 ? await resolveStudentSearchCandidates(user.id, [...candidates.values()]) : new Map<StudentSearchCandidate, string>();
+
     const filteredMatches: SiteSearchMatch[] = [];
     for (const item of matches) {
       const itemRole = typeof item.metadata?.min_role === "number" ? item.metadata.min_role : 0;
-      const courseId = (item.metadata?.course_id || item.metadata?.courseId) as string | undefined;
       const href = (item.metadata?.href || item.metadata?.path || "") as string;
 
       if (userRoleLevel === 0) {
@@ -200,10 +204,14 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      if (userRoleLevel === 1 && courseId && itemRole >= 1) {
-        if (!enrolledCourseIds.includes(courseId)) {
-          continue;
-        }
+      if (itemRole > userRoleLevel) continue;
+      const candidate = candidates.get(item);
+      if (candidate) {
+        const title = current.get(candidate);
+        if (!title) continue;
+        const suffix = candidate.type === "material" ? `/material/${encodeURIComponent(candidate.entityId)}` : candidate.type === "quiz" ? `/quiz/${encodeURIComponent(candidate.entityId)}` : candidate.type === "exam" ? `/tryout/${encodeURIComponent(candidate.entityId)}` : "";
+        filteredMatches.push({ id: item.id, score: item.score, metadata: { title, href: `/courses/${encodeURIComponent(candidate.courseId)}${suffix}`, category: candidate.type, entity_type: candidate.type, entity_id: candidate.entityId, course_id: candidate.courseId, min_role: 1 } });
+        continue;
       }
       filteredMatches.push(item);
     }

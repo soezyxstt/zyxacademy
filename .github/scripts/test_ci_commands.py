@@ -102,15 +102,15 @@ class DeploymentGateTest(unittest.TestCase):
         block = text.split(f'  {job}:\n', 1)[1]
         return re.search(r'^    if: (.+)$', block, re.MULTILINE).group(1)
 
-    def allowed(self, job, gate='success', impact='success', event='push', cancelled=False, **outputs):
+    def allowed(self, job, gate='success', impact='success', event='push', cancelled=False, worker_result='success', web_hold='', **outputs):
         expression = self.expression(job)
         # An explicit status function prevents implicit success() from suppressing
         # releases when an optional ancestor was skipped. Keep the gate authoritative.
         self.assertIn('!cancelled()', expression)
         expression = expression.removeprefix('${{').removesuffix('}}').strip()
-        values = {'needs.gate.result': gate, 'needs.impact.result': impact,
-                  'github.event_name': event, **{f'needs.impact.outputs.{k}': v for k, v in outputs.items()}}
-        expression = re.sub(r'(?:needs|github)\.[a-zA-Z0-9_.]+', lambda m: repr(values.get(m.group(), '')), expression)
+        values = {'needs.gate.result': gate, 'needs.impact.result': impact, 'needs.deploy-worker.result': worker_result,
+                  'github.event_name': event, 'vars.HOLD_WEB_DEPLOYMENT': web_hold, **{f'needs.impact.outputs.{k}': v for k, v in outputs.items()}}
+        expression = re.sub(r'(?:needs|github|vars)\.[a-zA-Z0-9_.-]+', lambda m: repr(values.get(m.group(), '')), expression)
         expression = expression.replace('!cancelled()', repr(not cancelled)).replace('&&', 'and').replace('||', 'or')
         return eval(expression, {'__builtins__': {}})
 
@@ -134,6 +134,21 @@ class DeploymentGateTest(unittest.TestCase):
         self.assertFalse(self.allowed('deploy-worker', event='pull_request', worker='true'))
         self.assertFalse(self.allowed('deploy-web', web='false'))
         self.assertFalse(self.allowed('deploy-worker', worker='false', v4='false'))
+
+    def test_web_waits_for_successful_or_unselected_worker_release(self):
+        for result in ('success', 'skipped'):
+            with self.subTest(worker_result=result):
+                self.assertTrue(self.allowed('deploy-web', worker_result=result, web='true'))
+        for result in ('failure', 'cancelled', 'queued', 'in_progress', ''):
+            with self.subTest(worker_result=result):
+                self.assertFalse(self.allowed('deploy-web', worker_result=result, web='true'))
+
+    def test_worker_only_recovery_holds_every_web_entry_point(self):
+        self.assertFalse(self.allowed('deploy-web', web_hold='true', web='true'))
+        self.assertTrue(self.allowed('deploy-worker', web_hold='true', worker='true'))
+        text = (ROOT / '.github/workflows/deploy-web.yml').read_text()
+        for branch in ('main', 'staging'):
+            self.assertIn(f"if: github.ref == 'refs/heads/{branch}' && vars.HOLD_WEB_DEPLOYMENT != 'true'", text)
 
 if __name__ == '__main__':
     unittest.main()

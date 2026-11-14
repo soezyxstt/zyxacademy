@@ -1,3 +1,4 @@
+import { getPeranCodes } from "@/lib/auth/authorization";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
@@ -49,6 +50,7 @@ export type DbExecutor = {
 export async function resolveTutorCourseAccess(
   input: TutorCourseAccessInput,
   executor?: DbExecutor,
+  readPeranCodes: typeof getPeranCodes = getPeranCodes,
 ): Promise<TutorCourseAccessResult> {
   const client = (executor ?? db) as typeof db;
   const rawPenggunaId = typeof input.penggunaId === "string" ? input.penggunaId.trim() : "";
@@ -195,13 +197,14 @@ export async function resolveTutorCourseAccess(
     resolvedLegacyCourseId = activeMappedRows[0].legacyCourseId ?? null;
   }
 
-  const roleRows = await client
-    .select({ code: peran.code })
-    .from(penggunaPeran)
-    .innerJoin(peran, eq(penggunaPeran.peranId, peran.id))
-    .where(eq(penggunaPeran.penggunaId, rawPenggunaId));
-
-  const roleCodes = roleRows.map((r: { code: string }) => r.code);
+  const roleCodes = executor
+    ? (await client
+        .select({ code: peran.code })
+        .from(penggunaPeran)
+        .innerJoin(peran, eq(penggunaPeran.peranId, peran.id))
+        .where(eq(penggunaPeran.penggunaId, rawPenggunaId)))
+        .map((r: { code: string }) => r.code)
+    : await readPeranCodes(rawPenggunaId);
   const isTutor = roleCodes.includes("tutor");
   const isAdmin = roleCodes.includes("admin");
 
@@ -349,6 +352,7 @@ export async function listTutorAccessibleCourses(
   penggunaId: string,
   options?: TutorCourseAccessOptions,
   executor?: DbExecutor,
+  readPeranCodes: typeof getPeranCodes = getPeranCodes,
 ): Promise<
   Array<{
     courseId: string;
@@ -371,13 +375,14 @@ export async function listTutorAccessibleCourses(
 
   if (userRows.length === 0 || userRows[0].status !== "active") return [];
 
-  const roleRows = await client
-    .select({ code: peran.code })
-    .from(penggunaPeran)
-    .innerJoin(peran, eq(penggunaPeran.peranId, peran.id))
-    .where(eq(penggunaPeran.penggunaId, rawPenggunaId));
-
-  const roleCodes = roleRows.map((r: { code: string }) => r.code);
+  const roleCodes = executor
+    ? (await client
+        .select({ code: peran.code })
+        .from(penggunaPeran)
+        .innerJoin(peran, eq(penggunaPeran.peranId, peran.id))
+        .where(eq(penggunaPeran.penggunaId, rawPenggunaId)))
+        .map((r: { code: string }) => r.code)
+    : await readPeranCodes(rawPenggunaId);
   const isTutor = roleCodes.includes("tutor");
   const isAdmin = roleCodes.includes("admin");
 

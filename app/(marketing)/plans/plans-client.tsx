@@ -87,14 +87,12 @@ export default function PlansClient() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Reveal>
-        <MarketingPageHero
-          className="py-8 md:py-10"
-          sectionId="plans"
-          title={t("plans.title")}
-          description={t("plans.description")}
-        />
-      </Reveal>
+      <MarketingPageHero
+        className="py-8 md:py-10"
+        sectionId="plans"
+        title={t("plans.title")}
+        description={t("plans.description")}
+      />
 
       <div className="sticky top-[52px] z-30 w-full border-y border-border bg-background py-2 md:top-[56px] md:py-3">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

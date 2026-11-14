@@ -19,6 +19,7 @@ import {
   getMaterialsProgress,
   getStudentSubmissions,
 } from "@/app/(student)/dashboard/actions";
+import { CoursePricingLabel } from "@/components/course/course-pricing-label";
 import { DashboardWeakConcepts } from "@/components/course/dashboard-weak-concepts";
 import { MathText } from "@/components/course/math-text";
 import { ActivateClassModal } from "@/components/dashboard/activate-class-modal";
@@ -65,6 +66,8 @@ import {
   type StudentEnrollmentRecord,
 } from "@/lib/student/course-catalog";
 import { getDashboardCourseMaterialsBatch } from "@/lib/student/dashboard-materials";
+import { resolveCourseAccessBatch } from "@/lib/student/course-access";
+import type { StudentCourseAccess } from "@/lib/course-utils";
 import {
   getCatalogCourseSummaries,
   getDashboardCourseExamsBatch,
@@ -266,9 +269,8 @@ export async function loadOnboardingData(
   deps?: Partial<DashboardSectionDeps>,
 ): Promise<{ catalogCourses: CatalogCourse[]; studentTargetCategory: string | null }> {
   const d = withDeps(deps);
-  const [profile, , dbCourses] = await Promise.all([
+  const [profile, dbCourses] = await Promise.all([
     getStudentAcademicProfile(user, deps),
-    syncDashboardStreak(user?.id, deps),
     user?.id ? d.listStudentCourses() : Promise.resolve([]),
   ]);
 
@@ -285,16 +287,35 @@ export async function loadOnboardingData(
       isCourseMatchingMajor(c.category, profile.major, profile.entryYear),
   );
 
-  const summaries = await d.getCatalogCourseSummaries(activeCourses);
-  const summaryById = new Map(summaries.map((summary) => [summary.id, summary]));
-
-  const catalogCourses = await Promise.all(
-    activeCourses.map(async (course) => {
-      const [chapterOutline, freeMaterials, freeQuizzes] = await Promise.all([
-        d.getCourseChapterOutline(course.id, userId),
-        d.getCourseMaterials(course.id, userId),
-        d.getCourseQuizzes(course.id, userId),
-      ]);
+  const courseIds = activeCourses.map((course) => course.id);
+  const useIndividualReaders = Boolean(deps?.getCourseChapterOutline || deps?.getCourseMaterials || deps?.getCourseQuizzes);
+  const [summaries, courseDetails] = await Promise.all([
+    d.getCatalogCourseSummaries(activeCourses),
+    (async () => {
+      const policies = useIndividualReaders ? null : await resolveCourseAccessBatch(userId, courseIds);
+      const preloaded = policies ? new Map(activeCourses.map((course) => {
+        const policy = policies.get(course.id);
+        const access: StudentCourseAccess | null = policy?.isAuthenticated && policy.hasCourseAccess && policy.tier !== "anonymous"
+          ? { courseId: policy.courseId ?? course.id, canonicalCourseId: policy.canonicalCourseId,
+              legacyCourseId: policy.legacyCourseId, tier: policy.tier === "free" ? "free" : "standard",
+              isEnrolled: policy.isEnrolled, hasFullContentAccess: policy.hasFullContentAccess, freeChapterIds: policy.freeChapterIds, policy }
+          : null;
+        return [course.id, { course, access }] as const;
+      })) : undefined;
+      const [materialEntries, examEntries] = useIndividualReaders
+        ? [null, null]
+        : await Promise.all([
+            d.getDashboardCourseMaterialsBatch(courseIds, userId, undefined, { includeOutline: true, preloaded }),
+            d.getDashboardCourseExamsBatch(courseIds, userId, { quizCountOnly: true, preloaded }),
+          ]);
+      return Promise.all(activeCourses.map(async (course, index) => {
+      const [chapterOutline, freeMaterials, freeQuizzes] = useIndividualReaders
+        ? await Promise.all([
+            d.getCourseChapterOutline(course.id, userId),
+            d.getCourseMaterials(course.id, userId),
+            d.getCourseQuizzes(course.id, userId),
+          ])
+        : [materialEntries![index].chapterOutline ?? [], materialEntries![index].materials, examEntries![index].quizzes] as const;
       const completedMaterialCount = freeMaterials.filter(
         (material) =>
           material.completed ||
@@ -305,18 +326,7 @@ export async function loadOnboardingData(
       const firstIncompleteChapter = chapterOutline.find(
         (chapter) => chapter.hasMaterial && !chapter.completed,
       );
-      const summary = summaryById.get(course.id);
-
       return {
-        ...(summary ?? {
-          id: course.id,
-          title: course.title,
-          category: course.category,
-          description: course.description,
-          materialsCount: 0,
-          quizzesCount: 0,
-          tryoutsCount: 0,
-        }),
         freeChapters: chapterOutline.map((chapter) => ({
           id: chapter.id,
           title: chapter.title,
@@ -329,8 +339,23 @@ export async function loadOnboardingData(
         freeQuizCount: freeQuizzes.length,
         firstIncompleteMaterialId: firstIncompleteChapter?.materialId ?? null,
       };
+      }));
+    })(),
+  ]);
+  const summaryById = new Map(summaries.map((summary) => [summary.id, summary]));
+  const catalogCourses = activeCourses.map((course, index) => ({
+    ...(summaryById.get(course.id) ?? {
+      id: course.id,
+      title: course.title,
+      category: course.category,
+      description: course.description,
+      materialsCount: 0,
+      quizzesCount: 0,
+      tryoutsCount: 0,
     }),
-  );
+    ...courseDetails[index],
+    pricing: course.pricing,
+  }));
 
   return { catalogCourses, studentTargetCategory: profile.targetCategory };
 }
@@ -461,7 +486,7 @@ export async function loadRecommendedCoursesData(
       ? await Promise.all(
           unenrolledMatching.slice(0, 4).map(async (c) => {
             const materials = await d.getCourseMaterials(c.id);
-            return { id: c.id, title: c.title, category: c.category, materialsCount: materials.length };
+            return { id: c.id, title: c.title, category: c.category, pricing: c.pricing, materialsCount: materials.length };
           }),
         )
       : [];
@@ -577,14 +602,12 @@ export async function DashboardOnboardingSection({
 export async function TodayPlanSection({
   userId,
   firstName,
-  deps,
 }: {
   userId: string;
   firstName: string;
   deps?: Partial<DashboardSectionDeps>;
 }) {
-  await syncDashboardStreak(userId, deps);
-  return <TodayPlan firstName={firstName} />;
+  return <TodayPlan firstName={firstName} serverUserId={userId} />;
 }
 
 export async function WeeklyReflectionSection({
@@ -654,6 +677,7 @@ export async function PrimaryLearningSection({
                       <span className="inline-flex rounded-md bg-brand-primary/10 px-2 py-0.5 text-[10px] font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20 shrink-0">
                         {course.category}
                       </span>
+                      <CoursePricingLabel pricing={course.pricing} />
                       <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors break-words min-w-0">
                         {course.title}
                       </h3>
@@ -794,6 +818,7 @@ export async function RecommendedCoursesSection({
                   <span className="inline-flex rounded-md bg-brand-primary/10 px-2 py-0.5 text-[10px] font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20">
                     {course.category}
                   </span>
+                  <CoursePricingLabel pricing={course.pricing} />
                   <span className="text-body-xs text-muted-foreground">
                     <TranslatedText namespace="student" messageKey="dashboard.materialCount" values={{ count: course.materialsCount }} />
                   </span>

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { isProtectedCourseDiktatPdfKey } from "@/lib/storage/keys";
 
 const routeSource = readFileSync("app/api/storage/file/[...key]/route.ts", "utf8");
 
@@ -23,4 +24,18 @@ describe("storage file authorization boundary", () => {
     expect(routeSource).not.toContain('.where(eq(diktats.status, "ready")),');
     expect(routeSource).toContain("function storageKeyCandidates(key: string)");
   });
+});
+
+
+test("unreferenced course Diktat keys fail closed, including rollback PDFs", () => {
+  expect(routeSource).toContain("const protectedKey = isProtectedCourseDiktatPdfKey(key)");
+  expect(routeSource).toContain("return { matched: protectedKey, allowed: !protectedKey }");
+});
+
+
+test("classifies current and historical Diktat paths without protecting unrelated media", () => {
+  expect(isProtectedCourseDiktatPdfKey("courses/calculus/diktats/lesson.pdf")).toBe(true);
+  expect(isProtectedCourseDiktatPdfKey(`courses/calculus/diktats/versions/${"a".repeat(64)}/${"b".repeat(64)}/lesson.pdf`)).toBe(true);
+  expect(isProtectedCourseDiktatPdfKey("courses/calculus/materials/lesson.pdf")).toBe(false);
+  expect(isProtectedCourseDiktatPdfKey("courses/calculus/diktats/cover.png")).toBe(false);
 });

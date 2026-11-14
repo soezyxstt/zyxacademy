@@ -50,6 +50,10 @@ const fixtureCourses: ReadonlyArray<{ id: string; title: string }> = [
 ];
 
 export type DemoProductSelection = { articleId?: string; diktatId?: string; flashcardSetId?: string; quizOffset?: number; collectionOffset?: number; flashcardOffset?: number };
+export async function fixtureDelay(multiplier = 1) {
+  const delay = Number(process.env.DEMO_VISUAL_DELAY_MS ?? 0);
+  if (Number.isFinite(delay) && delay > 0) await new Promise(resolve => setTimeout(resolve, Math.min(delay, 10000) * multiplier));
+}
 export type DemoContent = {
   collections: { articles: { id: string; title: string }[]; diktats: { id: string; title: string }[]; flashcardSets: { id: string; title: string }[]; quiz: { offset: number; total: number; pageSize: number; nextOffset: number | null; previousOffset: number | null }; page: { offset: number; pageSize: number; hasMore: boolean; nextOffset: number | null }; flashcards: { offset: number; pageSize: number; nextOffset: number | null } };
   selected: { articleId: string; diktatId: string; flashcardSetId: string | null };
@@ -86,12 +90,14 @@ function makeExperience(item: FixtureCourse, selection: DemoProductSelection = {
 }
 export async function getDemoExperiences(): Promise<DemoExperience[]> { return fixtureCourses.map((item) => makeExperience(item)).filter((item): item is DemoExperience => item !== null); }
 export async function getDemoCatalogue(courseId: string): Promise<DemoCatalogue | null> {
+  await fixtureDelay();
   const item = fixtureCourses.find(course => course.id === courseId);
   if (!item) return null;
   const chapters = Array.from({ length: item.id === "fictional-berpikir" ? 1 : 4 }, (_, index) => ({ id: `${item.id}-chapter-${index + 1}`, title: index ? `Bab ${index + 1}: Penerapan ${item.title}` : "Konsep dasar", orderIndex: index + 1 }));
   return padDemoCatalogue(item.title, chapters, chapters.slice(1).map((chapter, index) => ({ id: `${item.id}-later-${index}`, title: `Materi ${chapter.title}`, chapterId: chapter.id, kind: index % 2 ? "diktat" : "article" })));
 }
 export async function getDemoExperience(courseId?: string, selection?: DemoProductSelection): Promise<DemoExperience | null> {
+  await fixtureDelay();
   const item = courseId === undefined ? (fixtureCourses.length === 1 ? fixtureCourses[0] : undefined) : fixtureCourses.find((entry) => entry.id === courseId);
   return item ? makeExperience(item, selection) : null;
 }

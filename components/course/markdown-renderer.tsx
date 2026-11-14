@@ -12,7 +12,9 @@ import {
   Copy, 
   Check 
 } from "lucide-react";
-import { useTranslations } from "@/lib/i18n/client";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import idLearningMessages from "@/messages/id/learning.json";
+import enLearningMessages from "@/messages/en/learning.json";
 import { cn } from "@/lib/utils";
 import { getYoutubeEmbedUrl } from "@/lib/youtube";
 import dynamic from "next/dynamic";
@@ -23,7 +25,24 @@ import { splitScientificText } from "@/lib/math/text-segments";
 import { scientificValueToMathText } from "@/lib/math/scientific-format";
 import { MathText } from "@/components/course/math-text";
 import { ArticleParts } from "@/components/course/article-parts";
+import { ArticleCodeExample, ArticleMarkdownScope, useArticleMarkdownScope, ScrollableStaticCode, useStaticCodeLabels } from "@/components/coding/article-coding";
+import { markdownPythonId } from "@/lib/coding/article-markdown-scope";
 import { extractEmbeddedArticleParts } from "@/lib/tutor/answer-sanitizer";
+import { EMBEDDED_VISUAL_LANGUAGE, parseEmbeddedVisual } from "@/lib/materials/embedded-visuals";
+import { ProductLearningVisual } from "@/components/course/product-learning-visual";
+
+function EmbeddedLearningVisual({ source }: { source: string }) {
+  const spec = React.useMemo(() => parseEmbeddedVisual(source), [source]);
+  return (
+    <div className="min-w-0 max-w-full" data-learning-visual>
+      {spec ? <ProductLearningVisual spec={spec} /> : (
+        <p role="status" data-content-visual-error className="rounded-md border border-border bg-muted/30 p-3 text-body-sm text-muted-foreground">
+          Visual tidak dapat ditampilkan. Periksa format data visual.
+        </p>
+      )}
+    </div>
+  );
+}
 
 function CanvasLoading({ labelKey }: { labelKey: "chartLoading" | "diagramLoading" | "interactiveGraphLoading" }) {
   const t = useTranslations("studentCourse");
@@ -66,6 +85,12 @@ const MarkdownDensityContext = React.createContext<MarkdownDensity>("default");
 
 export function useMarkdownDensity(): MarkdownDensity {
   return React.useContext(MarkdownDensityContext);
+}
+
+function MathRegion({ as: Element = "div", primary = false, ...props }: React.HTMLAttributes<HTMLElement> & { as?: "div" | "span"; primary?: boolean }) {
+  const { locale } = useAppLocale();
+  const labels = (locale === "en" ? enLearningMessages : idLearningMessages).solutionCollection;
+  return <Element {...props} aria-label={labels[primary ? "primaryFormula" : "mathFormula"]} />;
 }
 
 export interface MarkdownRendererProps {
@@ -217,9 +242,9 @@ function parseInline(text: string): ReactNode[] {
       let content = mathBlockMatch[1] || mathBlockMatch[2] || "";
       if (content.endsWith("`")) content = content.substring(0, content.length - 1);
       result.push(
-        <span
+        <MathRegion as="span"
           key={`mathblk-${index}`}
-          data-math-scroll role="region" aria-label="Rumus matematika" tabIndex={0}
+          data-math-scroll role="region" tabIndex={0}
           className="my-2 block max-w-full overflow-x-auto overflow-y-hidden py-1 text-left [&_.katex-display]:my-0 [&_.katex-display]:text-left"
           dangerouslySetInnerHTML={{ __html: renderMath(content, true) }}
         />
@@ -423,8 +448,11 @@ export function renderRichText(content: any): React.ReactNode {
 // --- Inner Components ---
 
 function CodeBlock({ language, code, density }: { language: string; code: string; density?: MarkdownDensity }) {
+  const staticCodeLabels = useStaticCodeLabels();
   const isCompact = density === "compact";
   const [copied, setCopied] = useState(false);
+
+  if (staticCodeLabels) return <ScrollableStaticCode code={code} labels={staticCodeLabels} language={language === "plaintext" ? undefined : language} />;
 
   const handleCopy = async () => {
     try {
@@ -872,22 +900,22 @@ function parseMermaidToDiagramData(content: string) {
 /** Renders a parsed Markdown block, including standalone formulas and formula lists. */
 function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: MarkdownDensity }) {
   const isCompact = density === "compact";
+  const pythonScope = useArticleMarkdownScope();
 
   switch (block.type) {
     case "p":
       if (isStandaloneMathBlock(block.content)) {
         return (
-          <div
+          <MathRegion primary
             className={cn(
               "formula-focus max-w-full overflow-x-auto overflow-y-hidden rounded-lg border-l-3 border-primary bg-primary/[0.03] px-3.5 py-2 text-left [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left",
               isCompact ? "my-1.5" : "my-2.5",
             )}
             data-content-kind="formula"
             data-math-scroll role="region" tabIndex={0}
-            aria-label="Rumus utama"
           >
             <span dangerouslySetInnerHTML={{ __html: renderMath(standaloneMathSource(block.content), true) }} />
-          </div>
+          </MathRegion>
         );
       }
       return (
@@ -959,10 +987,10 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
                     key={itemIdx}
                     className="min-w-0 space-y-1"
                   >
-                    <div className="article-formula-row"
-                    data-math-scroll role="region" aria-label="Rumus matematika" tabIndex={0}>
+                    <MathRegion className="article-formula-row"
+                    data-math-scroll role="region" tabIndex={0}>
                       <span className="block" dangerouslySetInnerHTML={{ __html: renderMath(parsed.math, true) }} />
-                    </div>
+                    </MathRegion>
                     {parsed.note ? (
                       <div className="text-body-xs text-muted-foreground leading-relaxed">
                         {renderRichText(parsed.note)}
@@ -998,8 +1026,8 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
                   key={itemIdx}
                   className="list-none my-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2"
                 >
-                  <span
-                    data-math-scroll role="region" aria-label="Rumus matematika" tabIndex={0}
+                  <MathRegion as="span"
+                    data-math-scroll role="region" tabIndex={0}
                     className="block max-w-full overflow-x-auto overflow-y-hidden [&_.katex-display]:my-0 [&_.katex-display]:text-left"
                     dangerouslySetInnerHTML={{ __html: renderMath(standaloneMathSource(item.text), true) }}
                   />
@@ -1161,6 +1189,12 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
     }
 
     case "code":
+      if (pythonScope && ["python", "py"].includes(block.language?.toLowerCase() ?? "")) {
+        return <ArticleCodeExample draftNamespace="markdown-example" part={{ id: markdownPythonId(pythonScope, block.id), kind: "code_example", language: "python", code: block.content, runnable: true }} />;
+      }
+      if (block.language === EMBEDDED_VISUAL_LANGUAGE) {
+        return <EmbeddedLearningVisual source={block.content} />;
+      }
       if (block.language === "desmos" || block.language === "desmos-graph") {
         return (
           <InteractiveGraphWidget
@@ -1199,7 +1233,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
           isCompact ? "p-3.5 rounded-lg my-3" : "p-5 rounded-xl my-6"
         )}>
           <h3 className={cn("text-body-base font-heading font-bold text-foreground", isCompact ? "mb-2" : "mb-3")}>{renderRichText(block.content.title)}</h3>
-          <MarkdownRenderer content={block.content.bodyMarkdown} density={density} />
+          <ArticleMarkdownScope id="body"><MarkdownRenderer content={block.content.bodyMarkdown} density={density} /></ArticleMarkdownScope>
         </div>
       );
 
@@ -1211,17 +1245,16 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
           isCompact ? "p-3 rounded-lg my-2" : "p-3.5 rounded-xl my-2.5"
         )}>
           <h4 className={cn("text-body-sm font-heading font-bold text-foreground", isCompact ? "mb-1.5" : "mb-2")}>{block.content.title ? renderRichText(block.content.title) : "Formula"}</h4>
-          <div
+          <MathRegion
             className={cn("article-formula-row w-full max-w-full [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left", isCompact ? "my-1.5" : "my-2")}
             data-math-scroll
             role="region"
-            aria-label="Rumus matematika"
             tabIndex={0}
             dangerouslySetInnerHTML={{ __html: formulaHtml }}
           />
           {block.content.interpretation && (
             <div className={cn("text-body-xs text-muted-foreground leading-relaxed", isCompact ? "mt-1.5" : "mt-2")}>
-              <MarkdownRenderer content={block.content.interpretation} density={density} />
+              <ArticleMarkdownScope id="interpretation"><MarkdownRenderer content={block.content.interpretation} density={density} /></ArticleMarkdownScope>
             </div>
           )}
           {block.content.symbols && block.content.symbols.length > 0 && (
@@ -1275,7 +1308,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
             <span>Wawasan Teknik ({block.metadata.discipline})</span>
           </div>
           <h4 className={cn("text-body-base font-bold text-foreground", isCompact ? "mb-1.5" : "mb-2")}>{renderRichText(block.content.title)}</h4>
-          <MarkdownRenderer content={block.content.applicationMarkdown} density={density} />
+          <ArticleMarkdownScope id="application"><MarkdownRenderer content={block.content.applicationMarkdown} density={density} /></ArticleMarkdownScope>
         </div>
       );
 
@@ -1287,7 +1320,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
         )}>
           <div className={cn("text-body-xs font-bold font-heading uppercase tracking-wider text-brand-primary", isCompact ? "mb-1.5" : "mb-2")}>Contoh Soal ({block.metadata.difficulty})</div>
           <div className={cn("text-body-base text-foreground", isCompact ? "mb-2.5" : "mb-4")}>
-            <MarkdownRenderer content={block.content.problemStatement} density={density} />
+            <ArticleMarkdownScope id="problem"><MarkdownRenderer content={block.content.problemStatement} density={density} /></ArticleMarkdownScope>
           </div>
           <div className={cn(
             "border-t border-border/45",
@@ -1300,7 +1333,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
                 <div className="flex-1">
                   <div className="font-semibold text-body-sm mb-1">{renderRichText(step.label)}</div>
                   <div className="text-body-sm text-foreground/80">
-                    <MarkdownRenderer content={step.explanationMarkdown} density={density} />
+                    <ArticleMarkdownScope id={`step:${idx}`}><MarkdownRenderer content={step.explanationMarkdown} density={density} /></ArticleMarkdownScope>
                   </div>
                 </div>
               </div>
@@ -1329,7 +1362,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
             <div className={cn("bg-emerald-500/5 text-left", isCompact ? "p-3.5" : "p-5")}>
               <strong className="text-emerald-600 dark:text-emerald-400 font-heading text-body-xs uppercase tracking-wider block mb-2">Koreksi ilmiah:</strong>
               <div className="text-body-sm text-foreground/90 font-medium leading-relaxed">
-                <MarkdownRenderer content={block.content.correctionMarkdown} density={density} />
+                <ArticleMarkdownScope id="correction"><MarkdownRenderer content={block.content.correctionMarkdown} density={density} /></ArticleMarkdownScope>
               </div>
             </div>
           </div>
@@ -1337,7 +1370,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
             <div className={cn("bg-muted/10 text-left border-t border-border", isCompact ? "p-3.5" : "p-5")}>
               <strong className="text-muted-foreground font-heading text-body-xs uppercase tracking-wider block mb-2">Rasionalisasi Fisika:</strong>
               <div className="text-body-sm text-muted-foreground leading-relaxed">
-                <MarkdownRenderer content={block.content.physicalRationaleMarkdown} density={density} />
+                <ArticleMarkdownScope id="rationale"><MarkdownRenderer content={block.content.physicalRationaleMarkdown} density={density} /></ArticleMarkdownScope>
               </div>
             </div>
           )}
@@ -1352,7 +1385,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
         )}>
           <div className={cn("text-body-xs font-bold font-heading uppercase tracking-wider text-brand-secondary", isCompact ? "mb-1.5" : "mb-2")}>Latihan Mandiri</div>
           <div className={cn("text-body-base text-foreground leading-relaxed", isCompact ? "mb-2.5" : "mb-4")}>
-            <MarkdownRenderer content={block.content.questionMarkdown} density={density} />
+            <ArticleMarkdownScope id="question"><MarkdownRenderer content={block.content.questionMarkdown} density={density} /></ArticleMarkdownScope>
           </div>
         </div>
       );
@@ -1367,7 +1400,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
           <ul className={cn("list-disc pl-5 text-body-sm text-foreground/80 leading-relaxed", isCompact ? "space-y-1.5" : "space-y-2")}>
             {block.content.bullets.map((bullet, idx) => (
               <li key={idx} className="pl-1">
-                <MarkdownRenderer content={bullet} density={density} />
+                <ArticleMarkdownScope id={`bullet:${idx}`}><MarkdownRenderer content={bullet} density={density} /></ArticleMarkdownScope>
               </li>
             ))}
           </ul>
@@ -1478,18 +1511,18 @@ export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
                 data-content-kind="formula-group"
               >
                 {item.blocks.map((mathBlock, bIdx) => (
-                  <div
+                  <MathRegion
                     key={mathBlock.id || bIdx}
                     className="article-formula-row"
-                    data-math-scroll role="region" aria-label="Rumus matematika" tabIndex={0}
+                    data-math-scroll role="region" tabIndex={0}
                   >
                     <span className="block" dangerouslySetInnerHTML={{ __html: renderMath(standaloneMathSource(mathBlock.content), true) }} />
-                  </div>
+                  </MathRegion>
                 ))}
               </div>
             );
           }
-          return <ASTBlockRenderer key={item.block.id || idx} block={item.block} density={activeDensity} />;
+          return <ArticleMarkdownScope key={item.block.id || idx} id={item.block.id || String(idx)}><ASTBlockRenderer block={item.block} density={activeDensity} /></ArticleMarkdownScope>;
         })}
       </div>
     </MarkdownDensityContext.Provider>

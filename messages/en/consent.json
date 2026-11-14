@@ -17,6 +17,8 @@
     "stageDescription": "Create and upload Idea Bundles, structured Article drafts, Diktat materials, and quiz questions.",
     "reviewTitle": "Submit for pedagogical review",
     "reviewDescription": "Evaluate 8 learning quality criteria and record draft review decisions.",
+    "publishTitle": "Publish solution collections",
+    "publishDescription": "Publish a V5 solution collection after review of the same revision.",
     "withdrawTitle": "Withdraw materials and delete drafts",
     "withdrawDescription": "Withdraw published material bundles and delete unpublished drafts.",
     "unknownScopeTitle": "Access authoring resources",

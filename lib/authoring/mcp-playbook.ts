@@ -86,7 +86,7 @@ const PLAYBOOK_MODULE_ALLOWLIST: Record<AuthoringPlaybookModuleKey, PlaybookModu
     filename: "pipeline-orchestration.md",
     title: "End-to-End Authoring Pipeline Orchestration",
     stage: "pipeline",
-    summary: "Checkpoint sequence from Source Pack to Idea Bundle V3, admin Idea publication gate, and Product Bundle V4 staging with trusted verification.",
+    summary: "Checkpoint sequence from Source Pack to Idea Bundle V3, admin Idea publication gate, V4 learning materials and V5 standalone solution collections.",
   },
   "source/workflow": {
     key: "source/workflow",
@@ -119,9 +119,9 @@ const PLAYBOOK_MODULE_ALLOWLIST: Record<AuthoringPlaybookModuleKey, PlaybookModu
   "product/workflow": {
     key: "product/workflow",
     filename: "product-workflow.md",
-    title: "Product Bundle V4 Workflow and Archive Contract",
+    title: "Product Bundle Workflow and Archive Contract",
     stage: "product",
-    summary: "Capability gates, Creator/Critic/Student POV verification, product-bundle.v4 schema, ordered parts, lineage, trusted verification and staging rules.",
+    summary: "V4 Article/Diktat and V5 standalone solution collection authoring, provenance, exact-revision review and publication boundaries.",
   },
   "product/editorial": {
     key: "product/editorial",

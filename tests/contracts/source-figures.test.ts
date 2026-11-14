@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { figureChecksum, figurePixelCrop, normalizedCropSchema, renderSourceFigure } from "@/lib/compute/source-figure";
+import { figureChecksum, figurePixelCrop, normalizedCropSchema, renderSourceFigure, LEGACY_SOURCE_FIGURE_RENDERER } from "@/lib/compute/source-figure";
 import { extractSourceFigure, getSourceFigure, getSourceFigureJob, processSourceFigure } from "@/lib/authoring/source-figures";
 import type { ValidatedSourcePack } from "@/lib/authoring/source-pack";
 
@@ -76,6 +76,20 @@ test("scoped job commits only complete checksum-verified variants", async () => 
   files.set(manifestKey, originalManifest);
   const requestKey = [...files.keys()].find(key => key.endsWith("request.json"))!;
   const originalRequest = files.get(requestKey)!;
+  const { assetId: _id, attemptId: _attempt, ...legacyIdentity } = JSON.parse(new TextDecoder().decode(originalRequest));
+  legacyIdentity.renderer = LEGACY_SOURCE_FIGURE_RENDERER;
+  const legacyId = figureChecksum(JSON.stringify(legacyIdentity));
+  const legacyRequest = { ...legacyIdentity, assetId: legacyId };
+  const legacyManifestKey = manifestKey.replace(result.assetId, legacyId);
+  const legacyManifest = { ...JSON.parse(new TextDecoder().decode(originalManifest)), renderer: LEGACY_SOURCE_FIGURE_RENDERER, assetId: legacyId,
+    variants: figure.variants.map(variant => ({ ...variant, key: variant.key.replace(result.assetId, legacyId) })) };
+  for (const [index, variant] of legacyManifest.variants.entries()) files.set(variant.key, files.get(figure.variants[index].key)!);
+  files.set(requestKey.replace(result.assetId, legacyId), new TextEncoder().encode(JSON.stringify(legacyRequest)));
+  files.set(legacyManifestKey, new TextEncoder().encode(JSON.stringify(legacyManifest)));
+  expect((await getSourceFigure({ fileKey: input.fileKey, assetId: legacyId }, deps)).renderer).toBe(LEGACY_SOURCE_FIGURE_RENDERER);
+  expect((await processSourceFigure(legacyRequest, deps)).status).toBe("complete");
+  files.delete(legacyManifestKey);
+  await expect(processSourceFigure(legacyRequest, deps)).rejects.toThrow("RENDERER_CHANGED");
   files.set(requestKey, new TextEncoder().encode(JSON.stringify({ ...JSON.parse(new TextDecoder().decode(originalRequest)), permission: "licensed" })));
   files.set(manifestKey, new TextEncoder().encode(JSON.stringify({ ...JSON.parse(new TextDecoder().decode(originalManifest)), permission: "licensed" })));
   await expect(getSourceFigure(ref, deps)).rejects.toThrow("REQUEST_INVALID");

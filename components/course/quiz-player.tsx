@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Flag, Timer, Clock, BookOpen, AlertCircle, ChevronLeft, ChevronRight, Loader2, UploadCloud, FileText, Trash2, Check, CheckSquare, CircleDot } from "lucide-react";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { InteractiveDocumentAttempt } from "@/components/course/interactive-document-context";
 import { quizOptionClasses, quizOptionLetterClasses, quizOptionIndicatorClasses } from "@/components/course/quiz-option-styles";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import { useTutor } from "@/components/course/tutor-drawer";
@@ -24,6 +25,7 @@ import { useTranslations } from "@/lib/i18n/client";
 
 export type QuizPlayerProps = {
   courseId: string;
+  visualCourseId?: string;
   /** Isolated client transport. No student endpoints or uploads are used when supplied. */
   transport?: { submit: (answers: Record<string, unknown>, durationSeconds: number) => Promise<void> };
   exam: {
@@ -74,7 +76,7 @@ function isMultipleChoiceQuestion(type?: string): boolean {
 /**
  * Interactive student quiz player component with timer, navigation, file uploads, and submission handling.
  */
-export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirectBasePath, initialAnswers, startedAtMs, closeAtMs, transport }: QuizPlayerProps) {
+export function QuizPlayer({ courseId, visualCourseId = courseId, exam, attemptId, getRedirectPath, redirectBasePath, initialAnswers, startedAtMs, closeAtMs, transport }: QuizPlayerProps) {
   const t = useTranslations("learning");
   const storage = useMemo(() => {
     const fallback = new Map<string, string>();
@@ -670,7 +672,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
             </span>
             <div className="space-y-1 flex-1 leading-relaxed text-foreground">
               <div className="font-sans text-body-base font-bold leading-normal">
-                <MarkdownRenderer content={q.prompt} className="space-y-3" />
+                <InteractiveDocumentAttempt value={transport ? null : { courseId: visualCourseId, attemptId, questionId: q.id, field: "prompt" }}><MarkdownRenderer content={q.prompt} className="space-y-3" /></InteractiveDocumentAttempt>
               </div>
             </div>
           </div>
@@ -826,14 +828,28 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
 
                   return (
                     <li key={i}>
-                      <button
-                        type="button"
-                        role={isMultiple ? "checkbox" : "radio"}
-                        aria-checked={selected}
-                        disabled={submitting || isSubmitted}
-                        onClick={() => selectOption(q.id, i, isMultiple)}
+                      <div
+                        data-question-option
                         className={quizOptionClasses(selected ? "selected" : "idle")}
+                        onClick={(event) => {
+                          if (submitting || isSubmitted) return;
+                          // Visual controls and plot gestures must not select an answer.
+                          if (!event.currentTarget.contains(event.target as Node) || (event.target as Element).closest("button, input, select, textarea, a, figure, [data-learning-visual]")) return;
+                          selectOption(q.id, i, isMultiple);
+                        }}
                       >
+                        <button
+                          type="button"
+                          role={isMultiple ? "checkbox" : "radio"}
+                          aria-checked={selected}
+                          aria-labelledby={`quiz-letter-${q.id}-${i} quiz-option-${q.id}-${i}`}
+                          disabled={submitting || isSubmitted}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            selectOption(q.id, i, isMultiple);
+                          }}
+                          className="flex shrink-0 items-center gap-2.5 self-start rounded-md py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed md:gap-3"
+                        >
                         {/* Circle (Radio) vs Boxie (Checkbox) Option Indicator */}
                         <span
                           aria-hidden="true"
@@ -851,6 +867,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
 
                         {/* Letter Badge */}
                         <span
+                          id={`quiz-letter-${q.id}-${i}`}
                           className={quizOptionLetterClasses(
                             selected ? "selected" : "idle",
                             isMultiple ? "rounded-md" : "rounded-full",
@@ -859,10 +876,11 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                           {String.fromCharCode(65 + i)}
                         </span>
 
-                        <div className="min-w-0 flex-1 break-words leading-normal text-foreground">
-                          <MarkdownRenderer content={opt} className="space-y-3" />
+                        </button>
+                        <div id={`quiz-option-${q.id}-${i}`} className="min-w-0 flex-1 break-words leading-normal text-foreground">
+                          <InteractiveDocumentAttempt value={transport ? null : { courseId: visualCourseId, attemptId, questionId: q.id, field: "option", option: i }}><MarkdownRenderer content={opt} className="space-y-3" /></InteractiveDocumentAttempt>
                         </div>
-                      </button>
+                      </div>
                     </li>
                   );
                 })}

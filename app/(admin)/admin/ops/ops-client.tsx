@@ -1,9 +1,10 @@
 "use client";
 
+import { OpsMetricsSkeleton } from "@/components/admin/content-loading-skeletons";
+
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
 import type { OpsMetrics } from "@/lib/ops-metrics";
 import { useTranslations } from "@/lib/i18n/client";
@@ -94,16 +95,7 @@ export function OpsClient() {
     staleTime: 55_000,
   });
 
-  if (isLoading) {
-    return (
-      <div role="status" aria-label="Memuat" className="space-y-5">
-        <div className="flex justify-end"><Skeleton className="h-9 w-24" /></div>
-        <div className="divide-y divide-border rounded-xl border border-border bg-card px-4 sm:px-5">
-          {[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="space-y-3 py-4"><div className="flex justify-between gap-3"><Skeleton className="h-5 w-40" /><Skeleton className="h-4 w-20" /></div><div className="flex flex-wrap gap-6">{[0, 1, 2].map((stat) => <div key={stat} className="space-y-2"><Skeleton className="h-3 w-20" /><Skeleton className="h-5 w-14" /></div>)}</div></div>)}
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <OpsMetricsSkeleton />;
 
   if (error || !data) {
     return (

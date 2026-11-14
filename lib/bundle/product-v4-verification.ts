@@ -1,14 +1,32 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
-import { deriveEpsilonDelta } from "@/lib/materials/epsilon-delta";
 import { deterministicProductSerialization, type ProductBundleManifest, type ProductDependency, type ProductEntity } from "./product-validator";
+import { parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
+import { formativeAnswerForReveal } from "@/lib/materials/formative-check-answer";
 
-export const PRODUCT_V4_VERIFICATION_POLICY = "product-v4-verification.v1";
+export const PRODUCT_V4_VERIFICATION_POLICY = "product-v4-verification.v2";
 export { CLOUDFLARE_VERIFICATION_BROWSER_VERSION as PRODUCT_V4_DEPLOYED_BROWSER_VERSION } from "@/lib/compute/product-v4-browser-config";
 export const PRODUCT_V4_VIEWPORTS = [{ width: 380, height: 844 }, { width: 1536, height: 864 }] as const;
 const digest = (value: unknown) => createHash("sha256").update(deterministicProductSerialization(value)).digest("hex");
 const sha256 = z.string().regex(/^[a-f0-9]{64}$/);
 const name = z.string().trim().min(1).max(500);
+
+export function formativeDocumentFields(products: readonly ProductEntity[]) {
+  return products.flatMap(article => article.productType !== "article" ? [] : article.sections.flatMap(section => section.blocks.flatMap(block => {
+    const payload = block.formativeCheckPayload;
+    if (!payload) return [];
+    const fields = [
+      ...(block.parts ?? []).flatMap(part => part.kind === "markdown" ? [{ field: `prompt:${part.id}`, value: part.markdown }] : []),
+      ...(payload.options ?? []).map((option, index) => ({ field: `option:${index}`, value: option.text })),
+      { field: "answer", value: formativeAnswerForReveal(payload) },
+      { field: "explanation", value: payload.explanation },
+    ];
+    return fields.flatMap(({ field, value }) => parseInteractiveDocumentsInMarkdown(value).map((spec, index) => ({
+      target: `formative-document/${digest({ articleId: article.id, sectionId: section.id, blockId: block.id, field, index, spec })}`,
+      article, section, block, field, value, spec, index,
+    })));
+  })));
+}
 
 export interface ProductV4VerificationBinding {
   importId: string;
@@ -24,7 +42,7 @@ export interface ProductV4VerificationBinding {
   printProfile: string;
   policyRevision: string;
   browserVersion?: string;
-  browserProvider?: "cloudflare" | "steel";
+  browserProvider?: "cloudflare" | "steel" | "local_playwright";
 }
 export interface ProductV4VerificationRequirement {
   id: string;
@@ -42,6 +60,10 @@ export interface ProductV4VerificationPlan {
   planHash: string;
 }
 
+export function productV4VerificationRequirementId(check: Omit<ProductV4VerificationRequirement, "id">): string {
+  return digest(check);
+}
+
 export function computeProductV4VerificationContentHash(bundle: {
   manifest: ProductBundleManifest; products: readonly ProductEntity[]; dependencies: readonly ProductDependency[];
 }): string {
@@ -56,11 +78,11 @@ export function deriveProductV4VerificationPlan(input: {
   const { bundle, binding } = input;
   if (bundle.manifest.schemaVersion !== "product-bundle.v4") throw new Error("PRODUCT_V4_REQUIRED");
   if (bundle.manifest.courseId !== binding.courseId) throw new Error("PRODUCT_V4_VERIFICATION_SCOPE_MISMATCH");
-  z.object({ importId: name, courseId: name, runId: name, revision: z.number().int().positive(), rendererChecksum: sha256, dependencyChecksum: sha256, contractChecksum: sha256, playbookChecksum: sha256, fontChecksum: sha256, assetChecksum: sha256, printProfile: name, policyRevision: name, browserProvider: z.enum(["cloudflare", "steel"]).optional(), browserVersion: z.string().regex(/^\d+\.\d+\.\d+\.\d+$/).optional() }).strict().parse(binding);
+  z.object({ importId: name, courseId: name, runId: name, revision: z.number().int().positive(), rendererChecksum: sha256, dependencyChecksum: sha256, contractChecksum: sha256, playbookChecksum: sha256, fontChecksum: sha256, assetChecksum: sha256, printProfile: name, policyRevision: name, browserProvider: z.enum(["cloudflare", "steel", "local_playwright"]).optional(), browserVersion: z.string().regex(/^\d+\.\d+\.\d+\.\d+$/).optional() }).strict().parse(binding);
   const requirements: ProductV4VerificationRequirement[] = [];
   const add = (target: string, layer: ProductV4VerificationRequirement["layer"], state: string, viewport: ProductV4VerificationRequirement["viewport"], artifactType: ProductV4VerificationRequirement["artifactType"]) => {
     const check = { target, layer, state, viewport, artifactType };
-    requirements.push({ id: digest(check), ...check });
+    requirements.push({ id: productV4VerificationRequirementId(check), ...check });
   };
   add(bundle.manifest.bundleId, "structure", "contract-and-dependency-closure", null, "application/json");
   for (const product of bundle.products) {
@@ -70,19 +92,12 @@ export function deriveProductV4VerificationPlan(input: {
         add(product.id, "web", "keyboard-and-text-zoom", viewport, "image/png");
       }
       for (const visual of product.visuals ?? []) {
-        add(`${product.id}/${visual.id}`, "model", "domain-units-and-model", null, "application/json");
-        const interactive = visual.kind === "epsilon_delta_graph" || (visual.kind === "learning_canvas" && ["function_plot", "data_plot"].includes(visual.canvas.type));
-        const states = ["default", "fallback", ...(interactive ? ["changed", "reset", "keyboard"] : [])];
-        if (visual.kind === "epsilon_delta_graph") {
-          states.push("epsilon-minimum", "epsilon-maximum");
-          const minimum = visual.defaultEpsilon * 0.1 || visual.defaultEpsilon;
-          const maximum = Math.min(visual.bounds.yMax - visual.limitValue, visual.limitValue - visual.bounds.yMin, visual.defaultEpsilon * 2.2);
-          if ([minimum, visual.defaultEpsilon, maximum].some((epsilon) => deriveEpsilonDelta(visual, epsilon).status === "resolution_limited")) states.push("resolution-limited");
-        }
+        add(`${product.id}/${visual.id}`, "model", visual.kind === "interactive_document" ? "document-metadata-only-scientific-review-required" : "domain-units-and-model", null, "application/json");
         for (const viewport of PRODUCT_V4_VIEWPORTS) {
-          for (const state of states) add(`${product.id}/${visual.id}`, "web", state, viewport, "image/png");
+          add(`${product.id}/${visual.id}`, "web", "visual-smoke", viewport, "image/png");
         }
       }
+      for (const field of formativeDocumentFields([product])) for (const viewport of PRODUCT_V4_VIEWPORTS) add(field.target, "web", "formative-document-field", viewport, "image/png");
     }
     if (product.productType === "diktat") {
       add(product.id, "print", "pdf-fonts-assets-lineage-and-pages", null, "application/pdf");
@@ -126,6 +141,14 @@ export interface ProductV4VerificationAuthority { signingKey: string; executorId
 function sign(body: unknown, authority: ProductV4VerificationAuthority): string {
   if (Buffer.byteLength(authority.signingKey) < 32) throw new Error("PRODUCT_V4_VERIFICATION_KEY_INVALID");
   return createHmac("sha256", authority.signingKey).update("zyx-product-v4-verification\n").update(deterministicProductSerialization(body)).digest("hex");
+}
+
+/** Historical byte proof only; this does not establish current plan readiness. */
+export function authenticProductV4VerificationReceipt(value: unknown, authority: ProductV4VerificationAuthority): ProductV4VerificationReceipt | null {
+  const parsed = receiptSchema.safeParse(value);
+  if (!parsed.success || parsed.data.executorId !== authority.executorId || parsed.data.origin !== "server_observed") return null;
+  const { signature, ...body } = parsed.data;
+  return timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(sign(body, authority), "hex")) ? parsed.data : null;
 }
 
 function issue(plan: ProductV4VerificationPlan, checks: readonly (ProductV4ObservedCheck | ProductV4VerificationResult)[], origin: ProductV4VerificationReceipt["origin"], authority: ProductV4VerificationAuthority): ProductV4VerificationReceipt {

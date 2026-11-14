@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { BookOpenCheck, CheckCircle2, XCircle, BrainCircuit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { MathText } from "@/components/course/math-text";
+import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { cn } from "@/lib/utils";
 import { jakartaDay } from "@/lib/date-utils";
 import { useTranslations } from "@/lib/i18n/client";
@@ -139,19 +139,18 @@ export function DailyQuizPopup({
 
         {!submitted ? (
           <div className="mt-4">
-            <p className="text-body-base font-semibold text-foreground leading-relaxed">
-              <MathText>{trivia.question}</MathText>
-            </p>
+            <MarkdownRenderer content={trivia.question} className="text-body-base font-semibold text-foreground leading-relaxed" />
 
             <ul className="mt-4 space-y-2">
               {trivia.options.map((opt, idx) => {
                 const selected = selectedIdx === idx;
                 return (
                   <li key={idx}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedIdx(idx)}
-                      aria-pressed={selected}
+                    <div
+                      onClick={(event) => {
+                        if ((event.target as Element).closest("button, input, select, textarea, a, figure, [data-learning-visual]")) return;
+                        setSelectedIdx(idx);
+                      }}
                       className={cn(
                         "flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-body-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                         selected
@@ -159,16 +158,20 @@ export function DailyQuizPopup({
                           : "border-border bg-muted/20 hover:border-brand-primary/30 hover:bg-muted/40"
                       )}
                     >
-                      <span
+                      <button
+                        type="button"
+                        onClick={() => setSelectedIdx(idx)}
+                        aria-pressed={selected}
+                        aria-labelledby={`daily-quiz-letter-${idx} daily-quiz-option-${idx}`}
                         className={cn(
-                          "flex size-7 shrink-0 items-center justify-center rounded-lg text-body-xs font-bold transition-colors",
+                          "flex size-7 shrink-0 items-center justify-center self-start rounded-lg text-body-xs font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                           selected ? "bg-brand-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                         )}
                       >
-                        {String.fromCharCode(65 + idx)}
-                      </span>
-                      <MathText className="min-w-0 break-words text-foreground">{opt}</MathText>
-                    </button>
+                        <span id={`daily-quiz-letter-${idx}`}>{String.fromCharCode(65 + idx)}</span>
+                      </button>
+                      <div id={`daily-quiz-option-${idx}`} className="min-w-0 flex-1 break-words text-foreground"><MarkdownRenderer content={opt} density="compact" /></div>
+                    </div>
                   </li>
                 );
               })}
@@ -206,16 +209,16 @@ export function DailyQuizPopup({
                 <p className="font-bold text-body-base leading-none">
                   {isCorrect ? t("course.dailyQuiz.correct") : t("course.dailyQuiz.incorrect")}
                 </p>
-                <p className="text-body-xs mt-1 text-foreground/80">
+                <div className="text-body-xs mt-1 text-foreground/80">
                   {isCorrect
                     ? t("course.dailyQuiz.success")
                     : (
                       <>
                         {t("course.dailyQuiz.correctAnswer")}{" "}
-                        <MathText>{trivia.options[trivia.correctIndex]}</MathText>
+                        <MarkdownRenderer content={trivia.options[trivia.correctIndex]} density="compact" />
                       </>
                     )}
-                </p>
+                </div>
               </div>
             </div>
 
@@ -224,9 +227,7 @@ export function DailyQuizPopup({
                 <BookOpenCheck className="size-3.5" />
                 {t("course.dailyQuiz.explanation")}
               </h4>
-              <p className="mt-2 text-body-xs text-muted-foreground leading-relaxed">
-                <MathText>{trivia.explanation}</MathText>
-              </p>
+              <MarkdownRenderer content={trivia.explanation} density="compact" className="mt-2 text-body-xs text-muted-foreground leading-relaxed" />
             </div>
 
             <div className="flex justify-end gap-2 pt-2">

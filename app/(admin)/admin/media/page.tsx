@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Images } from "lucide-react";
 
 import { pageTitle } from "@/lib/site";
-import { assertAdmin } from "@/lib/auth/admin-guards";
+import { assertAdmin } from "@/lib/auth/admin-guards-server";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { MediaManager } from "@/components/admin/media-manager";
 import { getTranslations } from "@/lib/i18n/server";

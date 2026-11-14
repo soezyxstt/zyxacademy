@@ -1,5 +1,6 @@
-"""Check planner coverage against the independent worker audit's impact list."""
+"""Check Neon release guards and independent background-worker planner coverage."""
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 import unittest
@@ -8,24 +9,54 @@ from test_ci_scope import ci
 ROOT = Path(__file__).resolve().parents[2]
 
 
-class DenoDeployTriggersTest(unittest.TestCase):
-    def test_diktat_asset_smoke_uses_local_postgres_placeholder(self):
-        text = (ROOT / '.github/workflows/deploy.yml').read_text()
-        step = text.split("- name: Verify Diktat Runtime Assets", 1)[1].split("- name:", 1)[0]
-        self.assertIn("DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder", step)
-        preparation = text.split("- name: Prepare V4 build identity for Deno", 1)[1].split("- name:", 1)[0]
-        self.assertIn("ZYX_POSTGRES_BUILD_PLACEHOLDER: '1'", preparation)
+class BackgroundDeployTriggersTest(unittest.TestCase):
+    def test_worker_checks_use_the_neon_runtime_toolchain(self):
+        text = (ROOT / '.github/workflows/ci.yml').read_text()
+        block = text.split('  worker-check:\n', 1)[1].split('  gate:\n', 1)[0]
+        self.assertNotIn('denoland/setup-deno', block)
+        self.assertNotIn('deno check', block)
+        self.assertIn('node scripts/neon/build-worker.mjs', block)
+        self.assertIn('bun workers/deno-background/diktat-assets-smoke.ts', block)
 
-    def test_only_release_branches_can_mutate_worker_and_staging_guard_runs_first(self):
-        text = (ROOT / '.github/workflows/deploy.yml').read_text()
-        self.assertIn("&& (github.ref_name == 'main' || github.ref_name == 'staging')", text)
-        self.assertLess(text.index("name: Validate staging Neon target before Deno mutation"),
-                        text.index("name: Provision Deno Deploy App"))
-        self.assertLess(text.index("name: Validate production Neon target before Deno mutation"),
-                        text.index("name: Provision Deno Deploy App"))
-        production = text.split("- name: Validate production Neon target before Deno mutation", 1)[1].split("- name:", 1)[0]
-        for key in ("DATABASE_URL", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_ENDPOINT_URL_S3", "NEON_STORAGE_BUCKET"):
-            self.assertIn(key + ":", production)
+    def test_archive_build_uses_placeholder_and_prepares_matching_verification_identity(self):
+        text = (ROOT / '.github/workflows/deploy-neon-worker.yml').read_text()
+        preparation = text.split("- name: Build bounded worker archive", 1)[1].split("- name:", 1)[0]
+        self.assertIn("ZYX_POSTGRES_BUILD_PLACEHOLDER: '1'", preparation)
+        self.assertLess(preparation.index("prepare-web-verification.ts"), preparation.index("build-worker.mjs"))
+        self.assertNotIn("toJSON(secrets)", preparation)
+
+    def test_automatic_calls_are_release_scoped_and_manual_dispatch_is_explicit(self):
+        text = (ROOT / '.github/workflows/deploy-neon-worker.yml').read_text()
+        condition = re.search(r'^    if: (.+)$', text, re.MULTILINE).group(1)
+
+        def allowed(event, branch, environment):
+            values = {'github.event_name': event, 'github.ref_name': branch, 'inputs.environment': environment}
+            expression = re.sub(r'(?:github|inputs)\.[\w.]+', lambda match: repr(values[match.group()]), condition)
+            return eval(expression.replace('&&', 'and').replace('||', 'or'), {'__builtins__': {}})
+
+        for branch in ('main', 'staging', 'agent/worker-repair'):
+            for environment in ('production', 'staging'):
+                with self.subTest(branch=branch, environment=environment):
+                    self.assertEqual(allowed('push', branch, environment),
+                                     (branch, environment) in (('main', 'production'), ('staging', 'staging')))
+                    self.assertTrue(allowed('workflow_dispatch', branch, environment))
+        inputs = text.split('  workflow_call:', 1)[1].split('permissions:', 1)[0]
+        self.assertIn('environment:', inputs)
+        self.assertIn('required: true', inputs)
+        self.assertIn('options: [production, staging]', inputs)
+
+    def test_target_validation_and_preflight_precede_inngest_cutover(self):
+        text = (ROOT / '.github/workflows/deploy-neon-worker.yml').read_text()
+        prepare = text.index('prepare_worker_runtime.py artifacts/neon-worker/.env.runtime.json')
+        deploy = text.index('node scripts/neon/deploy-worker.mjs')
+        preflight = text.index('smoke-worker.ts "$COMPUTE_ENVIRONMENT" --preflight')
+        sync = text.index('sync-worker.mjs "$COMPUTE_ENVIRONMENT"')
+        self.assertLess(prepare, deploy)
+        self.assertLess(deploy, preflight)
+        self.assertLess(preflight, sync)
+        self.assertIn('environment: ${{ inputs.environment }}', text)
+        self.assertIn('deploy-neon-${{ inputs.environment }}', text)
+        self.assertNotIn('Provision Deno Deploy App', text)
 
     def test_all_audited_worker_and_fingerprint_inputs_are_planned(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -34,17 +65,19 @@ class DenoDeployTriggersTest(unittest.TestCase):
                                      f'--impact-output={impact}'], cwd=ROOT, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             paths = ci.scope_paths(ci.Snapshot())
-            covered = paths['worker'] | paths['v4'] | {'.github/workflows/deploy.yml'}
+            covered = paths['worker'] | paths['v4'] | {'.github/workflows/deploy.yml', '.github/workflows/deploy-neon-worker.yml'}
             # These Python tests run in the planner job; changing them alone
             # must not require deploying the worker.
             covered |= {'.github/scripts/test_deno_deploy_triggers.py', '.github/scripts/test_deploy_env_filter.py'}
             self.assertEqual(sorted(set(impact.read_text().splitlines()) - covered), [])
 
     def test_reusable_deploy_has_no_independent_automatic_trigger(self):
-        text = (ROOT / '.github/workflows/deploy.yml').read_text()
-        self.assertIn('  workflow_call:', text)
-        self.assertNotIn('  push:', text)
-        self.assertNotIn('  pull_request:', text)
+        for file in ('deploy.yml', 'deploy-neon-worker.yml'):
+            text = (ROOT / '.github/workflows' / file).read_text()
+            with self.subTest(file=file):
+                self.assertIn('  workflow_call:', text)
+                self.assertNotIn('  push:', text)
+                self.assertNotIn('  pull_request:', text)
 
 
 if __name__ == '__main__':

@@ -30,7 +30,8 @@ export const AUTHORING_CONTEXT_CONTRACT = {
   outputContracts: {
     ideaBundle: "idea-bundle.v3",
     productBundle: "product-bundle.v4",
-    compatibleReadVersions: ["idea-bundle.v2", "idea-bundle.v3", "product-bundle.v2", "product-bundle.v3", "product-bundle.v4"],
+    solutionCollectionBundle: "product-bundle.v5",
+    compatibleReadVersions: ["idea-bundle.v2", "idea-bundle.v3", "product-bundle.v2", "product-bundle.v3", "product-bundle.v4", "product-bundle.v5"],
   },
   included: [
     "published current Ideas",
@@ -52,7 +53,7 @@ export const AUTHORING_CONTEXT_CONTRACT = {
 
 export const EXTERNAL_AUTHORING_WORKFLOW = {
   workflowVersion: "external-authoring.v1",
-  outputContracts: { ideaBundle: "idea-bundle.v3", productBundle: "product-bundle.v4" },
+  outputContracts: { ideaBundle: "idea-bundle.v3", productBundle: "product-bundle.v4", solutionCollectionBundle: "product-bundle.v5" },
   sequence: [
     "Use the Idea Bundle contract when creating or revising canonical Ideas from operator-supplied source files.",
     "Upload and publish the Idea Bundle before creating products that reference those Ideas.",
@@ -77,8 +78,8 @@ export const EXTERNAL_AUTHORING_WORKFLOW = {
     "Every entity is final and uses the publishable lifecycle status required by its bundle contract.",
     "Every factual claim is traceable to an included source excerpt.",
     "Every Product Idea link uses the exact current version and semantic hash.",
-    "Every Product Bundle question is copied from an ITB example in the Source Pack and never authored as a Zyx-original question.",
-    "Questions include a solution, valid options when applicable, Idea relations, a dedicated allowed ITB reference ID, an exact source event label, and allowed benchmark curation.",
+    "New Product Bundles never contain assessment questions or implicitly release protected assessment answers. Standalone V5 learning examples require separate problem and solution provenance and explicit release review for each item.",
+    "Do not index solution collections in public search, quiz, or Zyra. Only an admin may publish a reviewed exact revision.",
     "Flashcards test one Idea and one prompt only.",
     "Diktat content locks its approved Article lineage when Article lineage fields are present.",
     "No unresolved conflict, placeholder, holdout content, or invented ID remains.",

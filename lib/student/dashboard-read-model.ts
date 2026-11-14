@@ -11,7 +11,7 @@ import {
   soal,
   submissions,
 } from "@/db/schema";
-import { eq, and, notLike, sql, inArray, asc, desc, or } from "drizzle-orm";
+import { eq, and, notLike, sql, inArray, asc, desc } from "drizzle-orm";
 import { requireAuthUser } from "@/lib/auth-session";
 import {
   getStudentCourseAccess,
@@ -101,14 +101,16 @@ export type DashboardCourseExamsEntry = {
 export async function getDashboardCourseExamsBatch(
   courseIds: readonly string[],
   studentId?: string,
+  options?: { quizCountOnly?: boolean; preloaded?: ReadonlyMap<string, { course: StudentCourseRecord; access: StudentCourseAccess | null }> },
 ): Promise<DashboardCourseExamsEntry[]> {
   if (courseIds.length === 0) return [];
 
   const resolved = await Promise.all(
     courseIds.map(async (courseId) => {
+      const preloaded = options?.preloaded?.get(courseId);
       const [course, access] = await Promise.all([
-        resolveStudentCourse(courseId),
-        studentId ? getStudentCourseAccess(studentId, courseId) : Promise.resolve<StudentCourseAccess | null>(null),
+        preloaded ? Promise.resolve(preloaded.course) : resolveStudentCourse(courseId),
+        preloaded ? Promise.resolve(preloaded.access) : studentId ? getStudentCourseAccess(studentId, courseId) : Promise.resolve<StudentCourseAccess | null>(null),
       ]);
       return {
         courseId,
@@ -148,7 +150,7 @@ export async function getDashboardCourseExamsBatch(
           ),
         ).then((rows) => rows.flat())
       : Promise.resolve([]),
-    allCompatibilityIds.length > 0
+    !options?.quizCountOnly && allCompatibilityIds.length > 0
       ? Promise.all(
           chunks(allCompatibilityIds).map((ids) =>
             db
@@ -170,7 +172,7 @@ export async function getDashboardCourseExamsBatch(
           ),
         ).then((rows) => rows.flat())
       : Promise.resolve([]),
-    allCanonicalIds.length > 0
+    !options?.quizCountOnly && allCanonicalIds.length > 0
       ? Promise.all(
           chunks(allCanonicalIds).map((ids) =>
             db
@@ -187,7 +189,7 @@ export async function getDashboardCourseExamsBatch(
           ),
         ).then((rows) => rows.flat())
       : Promise.resolve([]),
-    allChapterCourseIds.length > 0
+    !options?.quizCountOnly && allChapterCourseIds.length > 0
       ? Promise.all(
           chunks(allChapterCourseIds).map((ids) =>
             db
@@ -220,7 +222,7 @@ export async function getDashboardCourseExamsBatch(
   }
 
   const [cakupanRows, soalRows] = await Promise.all([
-    templateIds.length > 0
+    !options?.quizCountOnly && templateIds.length > 0
       ? Promise.all(
           chunks(templateIds).map((ids) =>
             db
@@ -233,7 +235,7 @@ export async function getDashboardCourseExamsBatch(
           ),
         ).then((rows) => rows.flat())
       : Promise.resolve([]),
-    allFixedQuestionIds.size > 0
+    !options?.quizCountOnly && allFixedQuestionIds.size > 0
       ? Promise.all(
           chunks([...allFixedQuestionIds]).map((ids) =>
             db
@@ -298,7 +300,7 @@ export async function getDashboardCourseExamsBatch(
           : []),
       ].sort((a, b) => a.orderIndex - b.orderIndex);
 
-      let sortedTemplates = await sortQuizTemplatesByChapter(
+      let sortedTemplates = options?.quizCountOnly ? courseTemplates : await sortQuizTemplatesByChapter(
         courseTemplates,
         entry.courseId,
         {
@@ -313,7 +315,7 @@ export async function getDashboardCourseExamsBatch(
       if (studentId && !entry.access) {
         mappedQuizzes = [];
       } else {
-        if (studentId && entry.access?.tier === "free") {
+        if (studentId && entry.access?.tier === "free" && !entry.access.hasFullContentAccess) {
           sortedTemplates = sortedTemplates.filter((template) =>
             isFreeQuizTemplate(template, entry.access!.freeChapterIds),
           );
@@ -365,6 +367,10 @@ export async function getCatalogCourseSummaries(
 ): Promise<CatalogCourseSummary[]> {
   if (activeCourses.length === 0) return [];
 
+  const legacyIds = [...new Set(activeCourses.map((course) => course.legacyId ?? course.id))];
+  const canonicalIds = [...new Set(activeCourses.flatMap((course) => course.canonicalId ? [course.canonicalId] : []))];
+  const assessmentIds = [...new Set([...legacyIds, ...canonicalIds])];
+
   const [
     quizCounts,
     tryoutCounts,
@@ -378,6 +384,7 @@ export async function getCatalogCourseSummaries(
         count: sql<number>`count(*)`,
       })
       .from(quizTemplates)
+      .where(inArray(quizTemplates.courseId, assessmentIds))
       .groupBy(quizTemplates.courseId),
     db
       .select({
@@ -385,7 +392,7 @@ export async function getCatalogCourseSummaries(
         count: sql<number>`count(*)`,
       })
       .from(exams)
-      .where(and(eq(exams.type, "tryout"), eq(exams.status, "published")))
+      .where(and(inArray(exams.courseId, assessmentIds), eq(exams.type, "tryout"), eq(exams.status, "published")))
       .groupBy(exams.courseId),
     db
       .select({
@@ -393,7 +400,7 @@ export async function getCatalogCourseSummaries(
         count: sql<number>`count(*)`,
       })
       .from(aiMaterialInstances)
-      .where(notLike(aiMaterialInstances.title, "[DRAF]%"))
+      .where(and(inArray(aiMaterialInstances.courseId, legacyIds), notLike(aiMaterialInstances.title, "[DRAF]%")))
       .groupBy(aiMaterialInstances.courseId),
     db
       .select({
@@ -401,7 +408,7 @@ export async function getCatalogCourseSummaries(
         count: sql<number>`count(*)`,
       })
       .from(websiteMaterials)
-      .where(eq(websiteMaterials.status, "published"))
+      .where(and(inArray(websiteMaterials.courseId, legacyIds), eq(websiteMaterials.status, "published")))
       .groupBy(websiteMaterials.courseId),
     db
       .select({
@@ -409,7 +416,7 @@ export async function getCatalogCourseSummaries(
         count: sql<number>`count(*)`,
       })
       .from(artikel)
-      .where(eq(artikel.status, "published"))
+      .where(and(inArray(artikel.mataKuliahId, canonicalIds), eq(artikel.status, "published")))
       .groupBy(artikel.mataKuliahId),
   ]);
 

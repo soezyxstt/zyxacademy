@@ -6,7 +6,7 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { hasAnyPeran } from "@/lib/auth/authorization";
+import { hasAnyPeran } from "@/lib/auth/request-cache";
 import { Calendar, Clock, Bot, BookOpen, FileText, CreditCard, Target } from "lucide-react";
 import { MarketingPageHero } from "@/components/marketing-page-hero";
 import { PageOrnaments } from "@/components/ui/page-ornaments";

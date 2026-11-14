@@ -7,7 +7,7 @@ import {
   computeProductBundleChecksum,
   deterministicProductSerialization,
   productEntitySchema,
-  validateProductBundle,
+  parseProductBundle,
   type ProductDependency,
   type ProductEntity,
   type ProductBundleValidation,
@@ -41,6 +41,9 @@ function mergeProduct(original: ProductEntity, submitted: ProductEntity): Produc
   if (original.productType !== submitted.productType) throw new Error("PRODUCT_DRAFT_IDENTITY_CHANGED");
   const common = { ...original, ideaLinks: mergeIdeaLinks(original, submitted) };
   switch (original.productType) {
+    case "solution_collection":
+      if (submitted.productType !== "solution_collection") throw new Error("PRODUCT_DRAFT_IDENTITY_CHANGED");
+      return productEntitySchema.parse({ ...common, title: submitted.collection.title, collection: submitted.collection });
     case "article": {
       if (submitted.productType !== "article") throw new Error("PRODUCT_DRAFT_IDENTITY_CHANGED");
       const isV2 = original.blocks.length > 0 && original.sections.length === 0;
@@ -209,7 +212,7 @@ export function finalizeProductBundleDraft(original: ValidProductBundle, draft: 
   files.set("manifest.json", strToU8(`${deterministicProductSerialization(manifest)}\n`));
   const entries = Object.fromEntries([...files.entries()].sort(([left], [right]) => left.localeCompare(right)));
   const bytes = zipSync(entries, { level: 6 });
-  const validation = validateProductBundle(bytes);
+  const validation = parseProductBundle(files);
   if (!validation.success) throw new Error(`${validation.issues[0]?.code ?? "PRODUCT_DRAFT_INVALID"}:${validation.issues[0]?.message ?? "Draft tidak valid"}`);
   return { bytes, bundle: validation.data };
 }

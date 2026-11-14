@@ -82,7 +82,7 @@ export const env = createEnv({
  /** Server-only bearer token for the Zyra control-plane Worker. */
  ZYRA_CONTROL_PLANE_TOKEN: z.string().optional(),
  /** Cloudflare account ID (used for KV REST API and Workers) */
- AUTHORING_VERIFICATION_BROWSER_PROVIDER: z.enum(["cloudflare", "steel"]).optional(),
+ AUTHORING_VERIFICATION_BROWSER_PROVIDER: z.enum(["cloudflare", "steel", "local_playwright"]).optional(),
  AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION: z.string().regex(/^\d+\.\d+\.\d+\.\d+$/).optional(),
  STEEL_API_KEY: z.string().optional(),
  /** Python Submit provider, independent of V4 authoring verification. Local is forbidden in production. */

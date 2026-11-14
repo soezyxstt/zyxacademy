@@ -18,7 +18,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MarkdownRenderer, type MarkdownDensity } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
+import { ArticleMarkdownScope } from "@/components/coding/article-coding";
 import { useFormativeCheckEndpointBase } from "@/components/course/formative-check-endpoint-context";
+import { InteractiveDocumentArticleLocation, InteractiveDocumentGrant } from "@/components/course/interactive-document-context";
 import type {
   PublicFormativeCheckPayload,
   PublicLearningTimeEstimate,
@@ -67,7 +69,7 @@ export function ProductWorkedExample({
       {/* Problem Prompt */}
       {contentNode || content ? (
         <div className="rounded-lg border border-border/60 bg-muted/20 p-3.5 text-body-base leading-relaxed text-foreground">
-          {contentNode ?? <MarkdownRenderer content={content} density={density} />}
+          {contentNode ?? <ArticleMarkdownScope id="content"><MarkdownRenderer content={content} density={density} /></ArticleMarkdownScope>}
         </div>
       ) : null}
 
@@ -86,12 +88,12 @@ export function ProductWorkedExample({
               </h4>
 
               <div className="text-body-sm leading-relaxed text-foreground">
-                <MarkdownRenderer content={step.explanation} density={density} />
+                <ArticleMarkdownScope id={`step:${step.stepIndex}:explanation`}><MarkdownRenderer content={step.explanation} density={density} /></ArticleMarkdownScope>
               </div>
 
               {step.reason ? (
                 <div className="text-body-sm leading-relaxed text-muted-foreground">
-                  <MarkdownRenderer content={step.reason} density={density} />
+                  <ArticleMarkdownScope id={`step:${step.stepIndex}:reason`}><MarkdownRenderer content={step.reason} density={density} /></ArticleMarkdownScope>
                 </div>
               ) : null}
             </div>
@@ -107,7 +109,7 @@ export function ProductWorkedExample({
             <span className="mb-0.5 block text-body-xs font-semibold text-status-success">
               Kesimpulan dan Verifikasi
             </span>
-            <MarkdownRenderer content={workedExample.verification} density={density} />
+            <ArticleMarkdownScope id="verification"><MarkdownRenderer content={workedExample.verification} density={density} /></ArticleMarkdownScope>
           </div>
         </div>
       ) : null}
@@ -132,6 +134,14 @@ export interface ProductFormativeCheckProps {
 
 type FormativeCheckUiState = "idle" | "answering" | "submitting" | "evaluated" | "revealed" | "error";
 
+export function isFormativeOptionInteractiveTarget(target: Element, option?: Element): boolean {
+  return Boolean((option && !option.contains(target)) || target.closest("button, input, select, textarea, a, figure, [data-learning-visual]"));
+}
+
+export function isFormativeVisualInputEnter(key: string, target: Element): boolean {
+  return key === "Enter" && Boolean(target.closest("[data-learning-visual] input"));
+}
+
 interface FormativeCheckResult {
   verdict: "correct" | "partial" | "incorrect" | "ungradable";
   feedback: string;
@@ -144,6 +154,20 @@ interface FormativeCheckResult {
 interface FormativeCheckReveal {
   answer: string;
   explanation: string;
+  visualAccess?: { answer?: string; explanation?: string };
+}
+
+export function ProductFormativeReveal({ reveal }: { reveal: FormativeCheckReveal }) {
+  return <div className="space-y-3 rounded-lg border border-border/80 bg-muted/30 p-4 animate-fade-in">
+    <div>
+      <span className="mb-1 block text-body-2xs font-bold uppercase tracking-wider text-muted-foreground">Jawaban</span>
+      <div className="text-body-sm font-semibold text-foreground"><ArticleMarkdownScope id="answer"><InteractiveDocumentGrant grant={reveal.visualAccess?.answer}><MarkdownRenderer content={reveal.answer} density="compact" /></InteractiveDocumentGrant></ArticleMarkdownScope></div>
+    </div>
+    <div className="border-t border-border/60 pt-2.5">
+      <span className="mb-1 block text-body-2xs font-bold uppercase tracking-wider text-muted-foreground">Penjelasan dan pembahasan</span>
+      <div className="text-body-sm leading-relaxed text-foreground"><ArticleMarkdownScope id="reveal"><InteractiveDocumentGrant grant={reveal.visualAccess?.explanation}><MarkdownRenderer content={reveal.explanation} /></InteractiveDocumentGrant></ArticleMarkdownScope></div>
+    </div>
+  </div>;
 }
 
 const verdictLabels: Record<FormativeCheckResult["verdict"], string> = {
@@ -154,9 +178,9 @@ const verdictLabels: Record<FormativeCheckResult["verdict"], string> = {
 };
 
 const verdictClasses: Record<FormativeCheckResult["verdict"], string> = {
-  correct: "border-status-success/40 bg-status-success/10 text-status-success",
-  partial: "border-status-warning/40 bg-status-warning/10 text-status-warning",
-  incorrect: "border-status-error/40 bg-status-error/10 text-status-error",
+  correct: "border-status-success/40 bg-status-success/10 text-foreground",
+  partial: "border-status-warning/40 bg-status-warning/10 text-foreground",
+  incorrect: "border-status-error/40 bg-status-error/10 text-foreground",
   ungradable: "border-border/80 bg-muted/30 text-muted-foreground",
 };
 
@@ -173,6 +197,7 @@ export function ProductFormativeCheck({
 }: ProductFormativeCheckProps) {
   const endpointBase = useFormativeCheckEndpointBase();
   const experience = useStudentExperience();
+  const optionIdPrefix = React.useId();
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [textValue, setTextValue] = useState("");
   const [numericValue, setNumericValue] = useState("");
@@ -263,7 +288,7 @@ export function ProductFormativeCheck({
       if (!serverResponse.ok || typeof body.answer !== "string" || typeof body.explanation !== "string") {
         throw new Error(typeof body.error === "string" ? body.error : "Pembahasan tidak dapat dibuka.");
       }
-      setReveal({ answer: body.answer, explanation: body.explanation });
+      setReveal({ answer: body.answer, explanation: body.explanation, visualAccess: body.visualAccess });
       setUiState("revealed");
     } catch (revealError) {
       const message = revealError instanceof Error && revealError.message.length <= 240
@@ -306,47 +331,41 @@ export function ProductFormativeCheck({
             <HelpCircle className="size-3.5" />
           </span>
           <h3 className="font-heading text-body-sm font-bold text-foreground">
-            <MathText className="normal-case">{title || "Cek Pemahaman Mandiri"}</MathText>
+            <MathText className="normal-case">{title || "Cek pemahaman"}</MathText>
           </h3>
         </div>
-        <span className="rounded-md px-2 py-0.5 text-body-xs font-semibold uppercase tracking-wider text-status-warning bg-status-warning/10">
-          Cek Pemahaman
-        </span>
       </div>
 
       {/* Question prompt */}
       {contentNode || content ? (
         <div className="text-body-base leading-relaxed text-foreground">
-          {contentNode ?? <MarkdownRenderer content={content} />}
+          {contentNode ?? <ArticleMarkdownScope id="content"><MarkdownRenderer content={content} /></ArticleMarkdownScope>}
         </div>
       ) : null}
 
-      <form onSubmit={(event) => { event.preventDefault(); void submitResponse(); }} className="space-y-4" aria-busy={isSubmitting}>
+      <form onSubmit={(event) => { event.preventDefault(); void submitResponse(); }} onKeyDown={(event) => { if (isFormativeVisualInputEnter(event.key, event.target as Element)) event.preventDefault(); }} className="space-y-4" aria-busy={isSubmitting}>
         {formativeCheck.checkKind === "multiple_choice" && formativeCheck.options?.length ? (
           <div className="space-y-2 pt-1" role="radiogroup" aria-label="Pilihan jawaban">
             {formativeCheck.options.map((option, index) => {
               const isSelected = selectedOptionId === option.id;
               return (
-                <button
+                <div
                   key={option.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={isSelected}
-                  disabled={isEvaluated || isSubmitting || Boolean(reveal)}
-                  onClick={() => { setSelectedOptionId(option.id); setAnswering(); }}
+                  data-formative-option
+                  onClick={(event) => {
+                    if (isEvaluated || isSubmitting || reveal || isFormativeOptionInteractiveTarget(event.target as Element, event.currentTarget)) return;
+                    setSelectedOptionId(option.id); setAnswering();
+                  }}
                   className={cn(
                     "w-full text-left rounded-lg border p-3 transition-colors flex items-start gap-3 text-body-sm text-foreground",
                     isSelected ? "border-primary bg-primary/10" : "border-border/70 hover:border-primary/40 hover:bg-muted/40",
                   )}
                 >
-                  <span className={cn(
-                    "flex size-6 shrink-0 items-center justify-center rounded-md font-mono text-body-xs font-bold",
-                    isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
-                  )}>
-                    {optionLetters[index] ?? String(index + 1)}
-                  </span>
-                  <MathText as="span" className="min-w-0 flex-1 pt-0.5 leading-snug">{option.text}</MathText>
-                </button>
+                  <button id={`${optionIdPrefix}-${index}-letter`} type="button" role="radio" aria-checked={isSelected} aria-labelledby={`${optionIdPrefix}-${index}-letter ${optionIdPrefix}-${index}`} disabled={isEvaluated || isSubmitting || Boolean(reveal)} onClick={() => { setSelectedOptionId(option.id); setAnswering(); }} className="-m-2 flex size-10 shrink-0 items-center justify-center rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                    <span className={cn("flex size-6 items-center justify-center rounded-md font-mono text-body-sm font-bold", isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>{optionLetters[index] ?? String(index + 1)}</span>
+                  </button>
+                  <div id={`${optionIdPrefix}-${index}`} className="min-w-0 flex-1 pt-0.5 leading-snug"><ArticleMarkdownScope id={`option:${option.id}`}><InteractiveDocumentArticleLocation optionId={option.id}><MarkdownRenderer content={option.text} density="compact" /></InteractiveDocumentArticleLocation></ArticleMarkdownScope></div>
+                </div>
               );
             })}
           </div>
@@ -459,18 +478,7 @@ export function ProductFormativeCheck({
         </div>
       ) : null}
 
-      {reveal ? (
-        <div className="space-y-3 rounded-lg border border-border/80 bg-muted/30 p-4 animate-fade-in">
-          <div>
-            <span className="mb-1 block text-body-2xs font-bold uppercase tracking-wider text-muted-foreground">Jawaban</span>
-            <div className="text-body-sm font-semibold text-foreground"><MathText as="span">{reveal.answer}</MathText></div>
-          </div>
-          <div className="border-t border-border/60 pt-2.5">
-            <span className="mb-1 block text-body-2xs font-bold uppercase tracking-wider text-muted-foreground">Penjelasan dan pembahasan</span>
-            <div className="text-body-sm leading-relaxed text-foreground"><MarkdownRenderer content={reveal.explanation} /></div>
-          </div>
-        </div>
-      ) : null}
+      {reveal ? <ProductFormativeReveal reveal={reveal} /> : null}
     </div>
   );
 }

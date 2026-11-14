@@ -12,7 +12,7 @@ import { sourcePackManifestSchema, validateSourcePack, type SourcePackDocumentAn
 import type { AuthoringCourseOption } from "./catalog";
 
 export const AUTHORING_JOB_SCHEMA_VERSION = "zyx-authoring-job.v1";
-export const authoringProductTypeSchema = z.enum(["article", "diktat", "flashcard", "question", "solution", "assessment_blueprint"]);
+export const authoringProductTypeSchema = z.enum(["article", "diktat", "flashcard", "question", "solution", "assessment_blueprint", "solution_collection"]);
 
 export const authoringSectionMappingSchema = z.object({
   sectionId: z.string().min(1),
@@ -42,12 +42,17 @@ export const authoringJobSchema = z.object({
     ideaPublicationRequiredBeforeProducts: z.literal(true),
     freshAuthoringContextRequired: z.literal(true),
     ideaBundleSchemaVersion: z.literal("idea-bundle.v3"),
-    productBundleSchemaVersion: z.enum(["product-bundle.v3", "product-bundle.v4"]),
+    productBundleSchemaVersion: z.enum(["product-bundle.v3", "product-bundle.v4", "product-bundle.v5"]),
   }).strict(),
 }).strict().superRefine((job, context) => {
   const products = new Set(job.requestedProducts);
   if (products.size !== job.requestedProducts.length) context.addIssue({ code: "custom", message: "requestedProducts must be unique", path: ["requestedProducts"] });
-  if (!products.has("article")) context.addIssue({ code: "custom", message: "article is required", path: ["requestedProducts"] });
+  if (products.has("solution_collection")) {
+    if (products.size !== 1 || job.workflow.productBundleSchemaVersion !== "product-bundle.v5") context.addIssue({ code: "custom", message: "solution_collection requires a standalone product-bundle.v5", path: ["requestedProducts"] });
+  } else {
+    if (!products.has("article")) context.addIssue({ code: "custom", message: "article is required", path: ["requestedProducts"] });
+    if (job.workflow.productBundleSchemaVersion === "product-bundle.v5") context.addIssue({ code: "custom", message: "product-bundle.v5 requires solution_collection", path: ["workflow", "productBundleSchemaVersion"] });
+  }
   if (products.has("question") !== products.has("solution")) context.addIssue({ code: "custom", message: "question and solution must be requested together", path: ["requestedProducts"] });
   if (products.has("assessment_blueprint") && !products.has("question")) context.addIssue({ code: "custom", message: "assessment_blueprint requires question", path: ["requestedProducts"] });
 });
@@ -163,7 +168,7 @@ export function buildAuthoringJobPack(input: AuthoringJobPackInput): AuthoringJo
     sectionMappings,
     requestedProducts: input.requestedProducts,
     attribution: { creatorId: "$UPLOADER", curatorId: "$APPROVING_REVIEWER" },
-    workflow: { ideaPublicationRequiredBeforeProducts: true, freshAuthoringContextRequired: true, ideaBundleSchemaVersion: "idea-bundle.v3", productBundleSchemaVersion: "product-bundle.v4" },
+    workflow: { ideaPublicationRequiredBeforeProducts: true, freshAuthoringContextRequired: true, ideaBundleSchemaVersion: "idea-bundle.v3", productBundleSchemaVersion: input.requestedProducts.includes("solution_collection") ? "product-bundle.v5" : "product-bundle.v4" },
   });
 
   const files = new Map<string, Uint8Array>();

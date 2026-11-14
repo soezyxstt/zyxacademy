@@ -42,8 +42,13 @@ class ScopeTest(unittest.TestCase):
             self.assertFalse(result[key], key)
 
     def test_new_worker_and_shared_job_are_worker_inputs(self):
-        for path in ['workers/deno-background/new.ts', 'jobs/new.ts']:
+        for path in ['workers/deno-background/new.ts', 'workers/neon-background/new.ts', 'scripts/neon/build-worker.mjs', 'jobs/new.ts']:
             self.assertTrue(self.plan(path)['worker'])
+
+    def test_neon_deployment_workflow_selects_worker_validation(self):
+        result = self.plan('.github/workflows/deploy-neon-worker.yml')
+        self.assertTrue(result['worker'])
+        self.assertTrue(result['ci'])
 
     def test_other_worker_is_not_a_web_or_deno_background_change(self):
         result = self.plan('workers/zyra-control-plane/index.ts')
@@ -101,6 +106,14 @@ class ScopeTest(unittest.TestCase):
     def test_dependency_and_planner_changes_fail_conservatively(self):
         for path in ['bun.lock', 'scripts/ci/plan.py', '.github/workflows/ci.yml']:
             self.assertTrue(all(self.plan(path)[key] for key in ci.SCOPES), path)
+
+    def test_server_only_preload_revalidates_the_contract_context(self):
+        result = self.plan('tests/helpers/server-only-preload.ts')
+        self.assertEqual(result['tests'], self.plan('tests/helpers/postgres-preload.ts')['tests'])
+        self.assertIn('tests/contracts/cp2-publication-integration.test.ts', result['tests'])
+        self.assertIn('tests/contracts/product-v4-browser-runner.test.ts', result['tests'])
+        self.assertTrue(result['authoring'])
+        self.assertTrue(result['schedule'])
 
     def test_changed_test_is_selected_without_deployment(self):
         path = 'tests/contracts/group-name-policy.test.ts'

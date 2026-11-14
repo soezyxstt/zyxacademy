@@ -17,6 +17,10 @@ import { recordQuestionOptionStats } from '@/lib/option-stats';
 import { buildRemediation } from '@/lib/remediation';
 import { PKA_COURSE_ID } from '@/lib/pka-config';
 import { normalizeDate } from '@/lib/date-utils';
+import { canViewAttemptDiscussion } from '@/lib/quiz/review-release';
+import { resolveCourseAccess } from '@/lib/student/course-access';
+import { canAccessStudentQuizTemplate } from '@/lib/quiz/student-access';
+import { canAccessQuizSnapshot } from '@/lib/quiz/question-scope';
 import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
 import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
 import { gradeStableOptionAnswer } from '@/lib/asesmen/attempt';
@@ -108,33 +112,22 @@ export async function GET(_req: NextRequest, { params }: Context) {
 
   if (!attempt) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const feedbackRows = await db
-  .select()
-  .from(attemptFeedback)
-  .where(eq(attemptFeedback.attemptId, id));
+  const [template] = await db.select().from(quizTemplates).where(eq(quizTemplates.id, attempt.templateId)).limit(1);
+  const access = template && await resolveCourseAccess({ courseId: template.courseId, userId: session.user.id });
+  if (!template || !access || !canAccessStudentQuizTemplate(access, template) || !await canAccessQuizSnapshot(access, attempt.questionsSnapshot)) return NextResponse.json({ error: "Akses kuis tidak tersedia." }, { status: 403 });
+  const released = canViewAttemptDiscussion(template, attempt.status);
+  const feedbackRows = released
+    ? await db.select().from(attemptFeedback).where(eq(attemptFeedback.attemptId, id))
+    : [];
 
-  // E2: deterministic remediation (mastery delta + root cause + misconceptions)
   let remediation = null;
-  if (attempt.status === "completed") {
-    const [tpl] = await db
-      .select({ courseId: quizTemplates.courseId })
-      .from(quizTemplates)
-      .where(eq(quizTemplates.id, attempt.templateId))
-      .limit(1);
-    if (tpl?.courseId) {
-      remediation = await buildRemediation(
-        {
-          id: attempt.id,
-          studentId: attempt.studentId,
-          masteryBefore: attempt.masteryBefore as Record<string, number> | null,
-          weakAreas: attempt.weakAreas as string[] | null,
-        },
-        tpl.courseId,
-      ).catch((err) => {
-        console.error("buildRemediation failed:", err);
-        return null;
-      });
-    }
+  if (released && template?.courseId) {
+    remediation = await buildRemediation({
+      id: attempt.id,
+      studentId: attempt.studentId,
+      masteryBefore: attempt.masteryBefore as Record<string, number> | null,
+      weakAreas: attempt.weakAreas as string[] | null,
+    }, template.courseId).catch(() => null);
   }
 
   const rawPayload = {
@@ -143,7 +136,7 @@ export async function GET(_req: NextRequest, { params }: Context) {
     remediation,
   };
 
-  return NextResponse.json(serializeStudentQuizAttempt(rawPayload));
+  return NextResponse.json(serializeStudentQuizAttempt(rawPayload, { releaseState: released ? 'released' : 'hidden' }));
 }
 
 const AnswerValueSchema = z.union([
@@ -190,10 +183,12 @@ export async function POST(req: NextRequest, { params }: Context) {
   }
 
   const [templateMeta] = await db
-    .select({ timeLimitSeconds: quizTemplates.timeLimitSeconds })
+    .select()
     .from(quizTemplates)
     .where(eq(quizTemplates.id, attempt.templateId))
     .limit(1);
+  const access = templateMeta && await resolveCourseAccess({ courseId: templateMeta.courseId, userId: session.user.id });
+  if (!templateMeta || !access || !canAccessStudentQuizTemplate(access, templateMeta) || !await canAccessQuizSnapshot(access, attempt.questionsSnapshot)) return NextResponse.json({ error: "Akses kuis tidak tersedia." }, { status: 403 });
 
  const body = await req.json();
  const parsed = SubmitSchema.safeParse(body);

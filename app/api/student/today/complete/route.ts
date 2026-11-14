@@ -11,6 +11,10 @@ export async function POST(req: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const expectedUserId = req.headers.get("x-student-id");
+  if (expectedUserId && expectedUserId !== session.user.id) {
+    return NextResponse.json({ error: "Account changed" }, { status: 409 });
+  }
 
   const body = await req.json();
   const parsed = Schema.safeParse(body);

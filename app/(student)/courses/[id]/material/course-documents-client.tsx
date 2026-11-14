@@ -92,9 +92,10 @@ function materialChapterIds(material: CourseMaterial): string[] {
   return material.chapterId ? [material.chapterId] : [];
 }
 
-export type MaterialHierarchyTier = "article" | "diktat" | "materi_pdf" | "soal_pdf";
+export type MaterialHierarchyTier = "solution_collection" | "article" | "diktat" | "materi_pdf" | "soal_pdf";
 
 export function getMaterialHierarchyTier(material: CourseMaterial): MaterialHierarchyTier {
+  if (material.kind === "solution_collection") return "solution_collection";
   // 1. Artikel: Structured / canonical article, or written interactive reading
   if (
     material.kind === "article" ||
@@ -132,6 +133,13 @@ export const HIERARCHY_TIER_STYLES: Record<
     iconColor: string;
   }
 > = {
+  solution_collection: {
+    label: "Pembahasan soal",
+    textColor: "text-primary font-medium",
+    borderAccent: "border-l-primary",
+    icon: BookOpenCheck,
+    iconColor: "text-primary",
+  },
   article: {
     label: "Artikel",
     textColor: "text-blue-600 dark:text-blue-400 font-medium",
@@ -407,6 +415,7 @@ function isUpMaterial(material: CourseMaterial): boolean {
 }
 
 const HIERARCHY_TIER_RANK: Record<MaterialHierarchyTier, number> = {
+  solution_collection: 2,
   article: 1,
   diktat: 2,
   materi_pdf: 3,

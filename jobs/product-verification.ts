@@ -1,5 +1,5 @@
 import { inngest } from "./client";
-import { failProductV4VerificationJob, processProductV4VerificationJob } from "@/lib/bundle/product-v4-verification-service";
+import { failProductV4VerificationJob, processProductV4VerificationJob } from "@/lib/bundle/product-v4-verification-worker";
 import { z } from "zod";
 import { executeProductV4VerificationCheck } from "@/lib/compute/product-v4-verification-executor";
 

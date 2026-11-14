@@ -12,6 +12,10 @@ import {
   workedExamplePayloadSchema,
 } from "@/lib/materials/pedagogy-contract";
 import { visualSpecSchema } from "@/lib/materials/visual-contract";
+import { solutionCollectionSchema } from "@/lib/materials/solution-collection";
+import { inspectPayloadSecurity } from "@/lib/materials/visual-contract";
+import { parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
+import type { InteractiveDocumentSpec } from "@/lib/materials/interactive-document";
 
 export const productBundleEntityTypeSchema = z.enum(["products", "dependencies"]);
 export type ProductBundleEntityType = z.infer<typeof productBundleEntityTypeSchema>;
@@ -58,7 +62,7 @@ export const productSourceRefSchema = z.object({ sourceId: id, version: positive
 
 const commonProduct = z.object({
   id,
-  productType: z.enum(["article", "diktat", "question", "solution", "flashcard_set", "flashcard", "assessment_blueprint"]),
+  productType: z.enum(["article", "diktat", "question", "solution", "flashcard_set", "flashcard", "assessment_blueprint", "solution_collection"]),
   courseId: id,
   chapterId: id.optional(),
   version: positive,
@@ -127,6 +131,7 @@ export const productEntitySchema = z.discriminatedUnion("productType", [
   commonProduct.extend({ productType: z.literal("flashcard_set"), title: z.string().min(1), cards: z.array(id).min(1) }),
   commonProduct.extend({ productType: z.literal("flashcard"), setId: z.string().min(1).optional(), front: z.string().min(1), back: z.string().min(1), explanation: z.string().optional(), atomic: z.literal(true) }),
   commonProduct.extend({ productType: z.literal("assessment_blueprint"), title: z.string().min(1), assessmentType: z.enum(["quiz", "tryout"]), chapterIds: z.array(id), questionIds: z.array(id).min(1) }),
+  commonProduct.extend({ productType: z.literal("solution_collection"), schemaVersion: z.literal("solution_collection.v1"), chapterId: id, title: z.string().trim().min(1), collection: solutionCollectionSchema }).strict(),
 ]);
 export type ProductEntity = z.infer<typeof productEntitySchema>;
 
@@ -136,7 +141,7 @@ export const productDependencySchema = z.object({
   upstreamEntityId: id,
   upstreamVersion: positive,
   upstreamHash: hash,
-  downstreamEntityType: z.enum(["article", "diktat", "question", "solution", "flashcard_set", "flashcard", "assessment_blueprint"]),
+  downstreamEntityType: z.enum(["article", "diktat", "question", "solution", "flashcard_set", "flashcard", "assessment_blueprint", "solution_collection"]),
   downstreamEntityId: id,
   downstreamVersion: positive,
   downstreamHash: hash,
@@ -144,16 +149,35 @@ export const productDependencySchema = z.object({
 }).strict();
 export type ProductDependency = z.infer<typeof productDependencySchema>;
 
+export function findInvalidProductDependency(dependencies: readonly ProductDependency[], products: readonly ProductEntity[]): { dependency: ProductDependency; code: string } | null {
+  const byRevision = new Map(products.map(product => [`${product.id}:${product.version}`, product]));
+  const localIds = new Set(products.map(product => product.id));
+  for (const dependency of dependencies) {
+    const downstream = byRevision.get(`${dependency.downstreamEntityId}:${dependency.downstreamVersion}`);
+    if (!downstream || downstream.productType !== dependency.downstreamEntityType || downstream.version !== dependency.downstreamVersion || downstream.generationHash !== dependency.downstreamHash) {
+      return { dependency, code: "PRODUCT_DEPENDENCY_TARGET_MISMATCH" };
+    }
+    if (dependency.upstreamEntityType === "product") {
+      const upstream = byRevision.get(`${dependency.upstreamEntityId}:${dependency.upstreamVersion}`);
+      if (localIds.has(dependency.upstreamEntityId) && (!upstream || upstream.generationHash !== dependency.upstreamHash || (downstream.productType === "diktat" && downstream.sourceArticleId === upstream.id && upstream.productType !== "article"))) {
+        return { dependency, code: "PRODUCT_DEPENDENCY_LOCAL_UPSTREAM_MISMATCH" };
+      }
+    }
+  }
+  return null;
+}
+
 export const productBundleManifestSchema = z.object({
   bundleId: id,
   bundleType: z.literal("product"),
-  schemaVersion: z.enum(["product-bundle.v2", "product-bundle.v3", "product-bundle.v4"]),
+  schemaVersion: z.enum(["product-bundle.v2", "product-bundle.v3", "product-bundle.v4", "product-bundle.v5"]),
   courseId: id,
   entityFiles: z.array(z.object({ path: id, entityType: productBundleEntityTypeSchema, checksum: hash, stableIds: z.array(id) }).strict()).length(2),
   creatorId: id,
   curatorId: id.optional(),
   createdAt: timestamp,
   bundleChecksum: hash,
+  visualAssets: z.array(z.object({ path: id, sha256: z.string().regex(/^[a-f0-9]{64}$/), bytes: positive }).strict()).max(16).optional(),
   conflicts: z.array(z.object({ id, entityType: id, stableId: id, reason: id }).strict()).default([]),
 }).strict();
 export type ProductBundleManifest = z.infer<typeof productBundleManifestSchema>;
@@ -161,6 +185,10 @@ export type ProductBundleManifest = z.infer<typeof productBundleManifestSchema>;
 export type ProductValidationIssue = { code: string; message: string; path?: string };
 export type ProductBundleFiles = ReadonlyMap<string, Uint8Array>;
 export type ProductBundleValidation = { success: true; data: { manifest: ProductBundleManifest; products: readonly ProductEntity[]; dependencies: readonly ProductDependency[]; files: ProductBundleFiles; checksum: string; publicationBlocked: boolean; issues: readonly ProductValidationIssue[] } } | { success: false; issues: readonly ProductValidationIssue[] };
+
+export function hasProductBundleDependencyBlock(bundle: Pick<Extract<ProductBundleValidation, { success: true }>["data"], "manifest" | "dependencies" | "publicationBlocked">): boolean {
+  return bundle.publicationBlocked && (bundle.manifest.schemaVersion !== "product-bundle.v4" || bundle.dependencies.some((dependency) => dependency.freshness !== "UP_TO_DATE"));
+}
 
 class ProductValidationError extends Error {
   readonly issue: ProductValidationIssue;
@@ -173,6 +201,27 @@ class ProductValidationError extends Error {
 
 function issue(code: string, message: string, path?: string): ProductValidationIssue {
   return { code, message, path };
+}
+
+function containsInteractiveDocument(value: unknown): boolean {
+  if (typeof value === "string") return value.replace(/\\u([a-f0-9]{4})/gi, (_, hex: string) => String.fromCharCode(parseInt(hex, 16))).includes("interactive_document");
+  if (Array.isArray(value)) return value.some(containsInteractiveDocument);
+  return value !== null && typeof value === "object" && Object.values(value).some(containsInteractiveDocument);
+}
+
+export function productInteractiveDocuments(products: readonly ProductEntity[]): InteractiveDocumentSpec[] {
+  return products.flatMap(product => product.productType === "article" ? [
+    ...(product.visuals ?? []).filter((visual): visual is InteractiveDocumentSpec => visual.kind === "interactive_document"),
+    ...product.sections.flatMap(section => section.blocks.flatMap(block => {
+      if (!block.formativeCheckPayload) return [];
+      return [
+        ...(block.parts ?? []).flatMap(part => part.kind === "markdown" ? parseInteractiveDocumentsInMarkdown(part.markdown) : []),
+        ...(block.formativeCheckPayload.options ?? []).flatMap(option => parseInteractiveDocumentsInMarkdown(option.text)),
+        ...parseInteractiveDocumentsInMarkdown(block.formativeCheckPayload.answer),
+        ...parseInteractiveDocumentsInMarkdown(block.formativeCheckPayload.explanation),
+      ];
+    })),
+  ] : []);
 }
 
 export function deterministicProductSerialization(value: unknown): string {
@@ -216,11 +265,14 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
     };
     const products = readEntities("products", productEntitySchema);
     const dependencies = readEntities("dependencies", productDependencySchema);
+    const isV5 = manifest.schemaVersion === "product-bundle.v5";
+    if (isV5 ? products.length !== 1 || products[0]?.productType !== "solution_collection" : products.some(product => product.productType === "solution_collection") || dependencies.some(dependency => dependency.downstreamEntityType === "solution_collection")) return { success: false, issues: [issue("PRODUCT_V5_PROFILE_MISMATCH", "V5 contains exactly one standalone solution collection; earlier profiles cannot contain it")] };
     if (manifest.schemaVersion === "product-bundle.v4" && (products.filter(product => product.productType === "article").length !== 1 || products.filter(product => product.productType === "diktat").length > 1)) return { success: false, issues: [issue("PRODUCT_V4_SINGLE_ARTICLE_REQUIRED", "V4 bundles contain one chapter Article and at most one traced Diktat")] };
     const productKeys = new Set<string>();
     const bundleSectionIds = new Set<string>();
     const bundleV3BlockIds = new Set<string>();
     for (const product of products) {
+      if ((product.productType === "question" || product.productType === "solution") && containsInteractiveDocument(product)) return { success: false, issues: [issue("PRODUCT_QUESTION_INTERACTIVE_DOCUMENT_UNBOUND", "Product Bundle questions cannot bind interactive document assets")] };
       if (
         manifest.schemaVersion !== "product-bundle.v2"
         && (product.productType === "question" || product.productType === "solution" || product.productType === "assessment_blueprint")
@@ -240,9 +292,47 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
       if (new Set(product.ideaLinks.map((link) => link.id)).size !== product.ideaLinks.length) return { success: false, issues: [issue("PRODUCT_IDEA_LINK_INVALID", `product ${product.id} has duplicate Idea links`)] };
       const weightSum = product.ideaLinks.reduce((sum, link) => sum + link.weight, 0);
       if (Math.abs(weightSum - 1) > 0.000001) return { success: false, issues: [issue("PRODUCT_IDEA_WEIGHT_SUM_INVALID", `product ${product.id} Idea-link weights must sum to 1`)] };
+      if (product.productType === "solution_collection") {
+        const collection = product.collection;
+        if (collection.id !== product.id || collection.title !== product.title || collection.course.id !== product.courseId || collection.chapter.id !== product.chapterId) return { success: false, issues: [issue("PRODUCT_V5_ENVELOPE_MISMATCH", "Collection identity, title, course and chapter must match the Product envelope")] };
+        if (!collection.items.length) return { success: false, issues: [issue("PRODUCT_V5_ITEMS_REQUIRED", "A collection must contain at least one item")] };
+        if (new Set(product.sourceRefs.map(ref => ref.sourceId)).size !== product.sourceRefs.length) return { success: false, issues: [issue("PRODUCT_V5_SOURCE_DUPLICATE", "Source references must be unique")] };
+        if (collection.items.some(item => item.visuals.some(visual => visual.kind === "source_figure"))) return { success: false, issues: [issue("PRODUCT_V5_SOURCE_FIGURE_UNSUPPORTED", "Source figures require a dedicated authorized delivery path")] };
+        if (!inspectPayloadSecurity(collection).safe || /data:|!\[[^\]]*\]\(https?:|<script|<iframe/i.test(JSON.stringify(collection))) return { success: false, issues: [issue("PRODUCT_V5_CONTENT_UNSAFE", "Collection contains unsupported executable or external media content")] };
+        const { generationHash: _generationHash, ...content } = product;
+        const actualHash = createHash("sha256").update(deterministicProductSerialization(content), "utf8").digest("hex");
+        if (actualHash !== product.generationHash) return { success: false, issues: [issue("PRODUCT_V5_GENERATION_HASH_MISMATCH", "Collection generation hash does not match its envelope and content")] };
+        const edges = dependencies.filter(dep => dep.downstreamEntityType === product.productType && dep.downstreamEntityId === product.id && dep.downstreamVersion === product.version && dep.downstreamHash === product.generationHash);
+        if (edges.length !== dependencies.length || edges.some(dep => !(dep.upstreamEntityType === "idea" && product.ideaLinks.some(link => link.id === dep.upstreamEntityId && link.version === dep.upstreamVersion && link.semanticHash === dep.upstreamHash)) && !(dep.upstreamEntityType === "source_material" && product.sourceRefs.some(ref => ref.sourceId === dep.upstreamEntityId && ref.version === dep.upstreamVersion && ref.checksum === dep.upstreamHash)))) return { success: false, issues: [issue("PRODUCT_V5_DEPENDENCY_INVALID", "Every dependency must target this exact collection revision and a declared Idea or source")] };
+        const matches = (type: string, entityId: string, version: number, entityHash: string) => edges.some(dep => dep.upstreamEntityType === type && dep.upstreamEntityId === entityId && dep.upstreamVersion === version && dep.upstreamHash === entityHash);
+        if (product.ideaLinks.some(link => !matches("idea", link.id, link.version, link.semanticHash)) || product.sourceRefs.some(ref => !matches("source_material", ref.sourceId, ref.version, ref.checksum))) return { success: false, issues: [issue("PRODUCT_V5_DEPENDENCY_MISSING", "Every linked Idea and source must have a locked dependency")] };
+      }
       if (product.productType === "article") {
         const isV4 = manifest.schemaVersion === "product-bundle.v4";
-        if (!isV4 && product.visuals?.some(visual => visual.kind === "geometry_2d" || visual.kind === "source_figure")) return { success: false, issues: [issue("PRODUCT_VISUAL_REQUIRES_V4", "Geometry and source figures require an explicit V4 bundle")] };
+        if (product.blocks.some(block => parseInteractiveDocumentsInMarkdown(block.content).length || block.content.includes("<!--__ZYX_V4_"))) return { success: false, issues: [issue("PRODUCT_EMBEDDED_INTERACTIVE_DOCUMENT_UNBOUND", "Legacy Article blocks cannot bind interactive documents")] };
+        if (JSON.stringify(product.sections).includes("<!--__ZYX_V4_")) return { success: false, issues: [issue("PRODUCT_EMBEDDED_INTERACTIVE_DOCUMENT_UNBOUND", "Embedded Article payloads are not allowed")] };
+        const visible: InteractiveDocumentSpec[] = (product.visuals ?? []).filter((visual): visual is InteractiveDocumentSpec => visual.kind === "interactive_document");
+        const hidden: InteractiveDocumentSpec[] = [];
+        for (const section of product.sections) {
+          const { blocks, ...sectionMetadata } = section;
+          if (containsInteractiveDocument(sectionMetadata)) return { success: false, issues: [issue("PRODUCT_EMBEDDED_INTERACTIVE_DOCUMENT_UNBOUND", "Unbound Article document")] };
+          for (const block of blocks) {
+            const { parts, contentMarkdown, formativeCheckPayload, ...metadata } = block;
+            const formative = isV4 && !!formativeCheckPayload && (block.blockType === "retrieval_prompt" || block.blockType === "retrieval_close");
+            if (containsInteractiveDocument(metadata) || (!formative && containsInteractiveDocument({ parts, contentMarkdown, formativeCheckPayload }))) return { success: false, issues: [issue("PRODUCT_EMBEDDED_INTERACTIVE_DOCUMENT_UNBOUND", "Unbound Article document")] };
+            if (!formative || !formativeCheckPayload) continue;
+            const { options, answer, explanation, ...payloadMetadata } = formativeCheckPayload;
+            if (containsInteractiveDocument(payloadMetadata) || (options ?? []).some(({ text: _text, ...option }) => containsInteractiveDocument(option)) || (parts ?? []).some(part => part.kind !== "markdown" && containsInteractiveDocument(part))) return { success: false, issues: [issue("PRODUCT_EMBEDDED_INTERACTIVE_DOCUMENT_UNBOUND", "Unbound formative document")] };
+            const prompt = (parts ?? []).flatMap(part => part.kind === "markdown" ? [part.markdown] : []);
+            const fields = [...prompt, ...(options ?? []).map(option => option.text), answer, explanation];
+            if (fields.some(text => text.includes("<!--__ZYX_V4_"))) return { success: false, issues: [issue("PRODUCT_EMBEDDED_INTERACTIVE_DOCUMENT_UNBOUND", "Embedded Article payloads are not allowed in formative fields")] };
+            visible.push(...prompt.flatMap(parseInteractiveDocumentsInMarkdown), ...(options ?? []).flatMap(option => parseInteractiveDocumentsInMarkdown(option.text)));
+            hidden.push(...parseInteractiveDocumentsInMarkdown(answer), ...parseInteractiveDocumentsInMarkdown(explanation));
+          }
+        }
+        const visibleHashes = new Set(visible.flatMap(spec => [spec.documentSha256, spec.printSha256]));
+        if (hidden.some(spec => visibleHashes.has(spec.documentSha256) || visibleHashes.has(spec.printSha256))) return { success: false, issues: [issue("QUESTION_VISUAL_DISCLOSURE", "Visible and hidden formative documents cannot share assets")] };
+        if (!isV4 && product.visuals?.some(visual => visual.kind === "geometry_2d" || visual.kind === "source_figure" || visual.kind === "interactive_scene" || visual.kind === "interactive_document")) return { success: false, issues: [issue("PRODUCT_VISUAL_REQUIRES_V4", "This visual requires an explicit V4 bundle")] };
         if (isV4 && (product.blocks.length > 0 || !product.sections.length)) return { success: false, issues: [issue("PRODUCT_ARTICLE_V4_SHAPE_INVALID", "V4 requires sections and ordered parts")] };
         if (isV4 !== (product.schemaVersion === "article.v4")) return { success: false, issues: [issue("PRODUCT_ARTICLE_VERSION_MISMATCH", "V4 Articles require the V4 manifest and article.v4 schema")] };
         const articleParts = product.sections.flatMap((section) => section.blocks.flatMap((block) => block.parts ?? []));
@@ -492,6 +582,8 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
       const serialized = deterministicProductSerialization(product);
       if (/HOLDOUT_CANARY|authoringVisibility\s*[:=]\s*["']holdout|questionSnapshot|answerSnapshot/i.test(serialized)) return { success: false, issues: [issue("PRODUCT_HOLDOUT_LEAK", `product ${product.id} contains holdout content`)] };
     }
+    const invalidDependency = findInvalidProductDependency(dependencies, products);
+    if (invalidDependency) return { success: false, issues: [issue(invalidDependency.code, `dependency ${invalidDependency.dependency.id} does not match its bundled product revision`, declared.get("dependencies")?.path)] };
     for (const product of products) {
       if (product.productType !== "diktat") continue;
       const sourceArticle = products.find((candidate) => candidate.productType === "article" && candidate.id === product.sourceArticleId && candidate.version === product.sourceArticleVersion);
@@ -543,7 +635,11 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
 
 export function validateProductBundle(bytes: Uint8Array): ProductBundleValidation {
   try {
-    return parseProductBundle(readSecureZip(bytes));
+    const result = parseProductBundle(readSecureZip(bytes, {}, { allowInteractiveDocuments: true }));
+    if (result.success && (result.data.manifest.visualAssets !== undefined || [...result.data.files.keys()].some(path => path.startsWith("visuals/")) || productInteractiveDocuments(result.data.products).length > 0)) {
+      return { success: false, issues: [issue("INTERACTIVE_DOCUMENT_ASYNC_VALIDATION_REQUIRED", "Interactive document assets require asynchronous admission")] };
+    }
+    return result;
   } catch (error) {
     return { success: false, issues: [issue(error instanceof Error && "code" in error ? String((error as { code: unknown }).code) : "PRODUCT_ZIP_INVALID", error instanceof Error ? error.message : String(error))] };
   }
