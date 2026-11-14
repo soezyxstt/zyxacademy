@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { chromium, type Browser, type Page } from "playwright";
+import { chromium, errors, type Browser, type Page } from "playwright";
 
 /** Prefer the pinned browser; hosted CI can also provide an installed Chrome binary. */
 export function contractChromiumPath(
@@ -31,7 +31,13 @@ export async function renderContractPdf(html: string, options: {
   }));
   const timeoutMs = options.renderTimeoutMs ?? 10_000;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const browser = await launch();
+    let browser: PdfBrowser;
+    try {
+      browser = await launch();
+    } catch (error) {
+      if (!(error instanceof errors.TimeoutError) || attempt === 1) throw error;
+      continue;
+    }
     const stalled = new Error("CONTRACT_PDF_RENDER_TIMEOUT");
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
