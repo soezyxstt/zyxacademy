@@ -20,7 +20,7 @@ const db: any = {
     const result: any = Promise.resolve(rows.shift() ?? []);
     result.for = () => result;
     return result;
-  } }) }) }),
+  }, orderBy: () => ({ for: () => Promise.resolve((rows.shift() ?? []).map(row => ({ ...row, mataKuliahId: row.courseId, babId: row.chapterId }))) }) }) }) }),
   transaction: async (fn: (tx: unknown) => unknown) => fn(db),
   insert: () => ({ values: async (values: unknown) => { writes.push(values); } }),
   delete: () => ({ where: async () => {} }),
@@ -41,7 +41,7 @@ const originalRow = (question = makeQuestion()) => ({ courseId: "course", chapte
 const course = { id: "course", legacyCourseId: "legacy", status: "active" };
 const identity = { id: "admin", status: "active" };
 const inputRows = (row = originalRow(), solution = "Jawaban A") => { rows = [[course], [{ id: "legacy" }], [identity], [row], [{ content: solution }]]; };
-const successRows = () => rows.push([identity], [{ id: "q1" }], [originalRow()], [{ ...originalRow(), id: "q1", creatorId: "admin", status: "draft", generationHash: "old" }], [{ id: "q1", origin: "zyx_original", courseId: "legacy", reviewStatus: "generated", generationHash: "old" }]);
+const successRows = () => rows.push([identity], [originalRow()], [{ id: "q1" }], [{ ...originalRow(), id: "q1", creatorId: "admin", status: "draft", generationHash: "old" }], [{ id: "q1", origin: "zyx_original", courseId: "legacy", reviewStatus: "generated", generationHash: "old" }]);
 const stage = async (question = makeQuestion(), spec = makeSpec(), document = html, print = png) => {
   const pairs = [{ spec, document, print }];
   await stageInteractiveDocumentAssets(pairs);
@@ -142,7 +142,7 @@ test("disclosure is checked after normalization and a changed stored version can
   inputRows();
   offload.mockImplementationOnce(async question => ({ ...question, explanation: fence(makeSpec()) }));
   await expect(update()).rejects.toThrow("QUESTION_VISUAL_DISCLOSURE");
-  inputRows(); rows.push([identity], [{ id: "q1" }], [{ ...originalRow(), version: 2 }]);
+  inputRows(); rows.push([identity], [{ ...originalRow(), version: 2 }], [{ id: "q1" }]);
   await expect(update()).rejects.toMatchObject({ code: "QUESTION_AUTHORING_CONFLICT" });
   expect(writes).toHaveLength(0);
 });
@@ -150,7 +150,7 @@ test("disclosure is checked after normalization and a changed stored version can
 test("fresh explicit assets permit a changed reference", async () => {
   const document = Buffer.from("<!doctype html><p>New</p>"), spec = makeSpec(document), question = makeQuestion(spec);
   const entry = (bytes: Buffer, ext: string) => ({ path: `visuals/${hash(bytes)}.${ext}`, sha256: hash(bytes), bytes: bytes.length, base64: bytes.toString("base64") });
-  inputRows(); rows.pop(); rows.push([identity], [{ ...originalRow(), id: "q1", creatorId: "admin", status: "draft", generationHash: "old" }], [{ id: "q1", origin: "zyx_original", courseId: "legacy", reviewStatus: "generated", generationHash: "old" }]);
+  inputRows(); rows.pop(); successRows();
   await update(question, [entry(document, "html"), entry(png, "png")]);
   expect(await verifyQuestionVisualBinding("legacy", question)).toBe(true);
 });
@@ -165,7 +165,7 @@ test("MCP scope is checked before any retained asset read and under the final lo
     expect(downloads).toHaveLength(0);
   }
   for (const changed of [{ chapterId: "other" }, { courseId: "other" }, { origin: "historical_reference" }, { status: "published" }, { status: "retired" }]) {
-    inputRows(); rows.push([identity], [{ id: "q1" }], [{ ...originalRow(), ...changed }]);
+    inputRows(); rows.push([identity], [{ ...originalRow(), ...changed }], [{ id: "q1" }]);
     await expect(updateCanonicalQuestion(makeQuestion(), "admin", "q1", undefined, expected)).rejects.toThrow();
     expect(writes).toHaveLength(0);
   }
@@ -173,14 +173,14 @@ test("MCP scope is checked before any retained asset read and under the final lo
 
 test("same-version bulk publication conflicts with a retained Admin edit", async () => {
   await stage(); inputRows();
-  rows.push([identity], [{ id: "q1" }], [{ ...originalRow(), status: "published" }]);
+  rows.push([identity], [{ ...originalRow(), status: "published" }], [{ id: "q1" }]);
   await expect(update()).rejects.toMatchObject({ code: "QUESTION_AUTHORING_CONFLICT" });
   expect(writes).toHaveLength(0);
 });
 
 test("retained edits detect a changed timestamp even when status returns to its baseline", async () => {
   await stage(); inputRows();
-  rows.push([identity], [{ id: "q1" }], [{ ...originalRow(), updatedAt: new Date("2026-01-01T00:00:01Z") }]);
+  rows.push([identity], [{ ...originalRow(), updatedAt: new Date("2026-01-01T00:00:01Z") }], [{ id: "q1" }]);
   await expect(update()).rejects.toMatchObject({ code: "QUESTION_AUTHORING_CONFLICT" });
   expect(writes).toHaveLength(0);
 });
@@ -190,7 +190,7 @@ test("fresh envelope MCP update rechecks scope under the final lock", async () =
   const assets = [entry(html, "html"), entry(png, "png")];
   for (const changed of [{ chapterId: "other" }, { courseId: "other" }, { origin: "historical_reference" }, { status: "published" }, { status: "retired" }]) {
     inputRows(); rows.pop();
-    rows.push([identity], [{ id: "q1" }], [{ ...originalRow(), ...changed }]);
+    rows.push([identity], [{ ...originalRow(), ...changed }], [{ id: "q1" }]);
     await expect(updateCanonicalQuestion(makeQuestion(), "admin", "q1", assets, { courseId: "course", chapterId: null })).rejects.toThrow();
     expect(writes).toHaveLength(0);
   }

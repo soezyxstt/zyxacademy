@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { gamificationQuestionExposures, gamificationQuestionExposureInitializations, gamificationQuestionBankDisclosures, gamificationQuestionExposureProjection, gamificationQuestionExposureObservations, gamificationQuestionLegacyIndex, gamificationQuestionHistoryCutover, soal, studentQuizAttempts, quizTemplates } from '@/db/schema';
 import { resolveCourseAccess } from '@/lib/student/course-access';
 import { snapshotExposureIdentity, submissionResultIdentity, UNCERTAIN_EXPOSURE_IDENTITY } from './question-exposure-policy';
+import { lockCanonicalQuestionRows } from '@/lib/question-row-locks';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type HistoryInput = { userId: string; canonicalQuestionId: string; courseId: string; sourceVersion: string; attemptId: string; occurredAt: Date };
@@ -34,9 +35,7 @@ export async function lockQuestionExposures(tx: Transaction, userId: string, can
 /** Lock canonical rows in deterministic order after the viewer lock. Deletions and edits
  * wait until all reward decisions and disclosures in this transaction are complete. */
 export async function lockCanonicalQuestions(tx: Transaction, ids: readonly string[]) {
- const unique = [...new Set(ids)].sort();
- if (!unique.length) return [];
- return tx.select().from(soal).where(inArray(soal.id, unique)).orderBy(asc(soal.id)).for('share');
+ return lockCanonicalQuestionRows(tx, ids, 'share');
 }
 
 const orderedExposureId = () => `ordered:${crypto.randomUUID()}`;

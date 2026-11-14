@@ -8,7 +8,7 @@ import { courseCreditMicro, rankForTotals } from './policy';
 import { crossedBadgeTiers, rewardForEvent, sameIds, recallDecision } from './processor-policy';
 import { ensureGamificationMissions, advanceGamificationMissions } from './missions';
 import { snapshotExposureIdentity } from './question-exposure-policy';
-import { getQuestionExposureObservation, lockQuestionExposure } from './question-exposure';
+import { getQuestionExposureObservation, lockCanonicalQuestions, lockQuestionExposure, lockQuestionExposures } from './question-exposure';
 import { checkAnswerCorrectness } from './question-grading';
 import { isEligibleQuestionRetry } from './evidence';
 import type { BadgeFamily } from './contracts';
@@ -147,6 +147,9 @@ export async function processGamificationOutbox({ limit = 100 }: { limit?: numbe
    return db.transaction(async tx => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${userId}, 0))`);
     const pending = await tx.select().from(gamificationEventOutbox).where(and(eq(gamificationEventOutbox.userId, userId), eq(gamificationEventOutbox.status, 'pending'))).orderBy(asc(gamificationEventOutbox.occurredAt), asc(gamificationEventOutbox.createdAt), asc(gamificationEventOutbox.id)).limit(budget);
+    const questionIds = pending.filter(event => event.source === 'question').map(event => event.sourceId);
+    await lockQuestionExposures(tx, userId, questionIds);
+    await lockCanonicalQuestions(tx, questionIds);
     let done = 0, denied = 0;
     for (const event of pending) {
      try { await processOne(tx, event); } catch (error) {

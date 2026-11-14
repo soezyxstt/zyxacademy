@@ -3,6 +3,7 @@ import {
   LEGACY_IDEA_EVIDENCE_RUBRIC_VERSION,
   buildLegacyGradingPolicySnapshot,
   buildLegacyResponseSnapshot,
+  canonicalEvidencePlanStillValid,
   deriveLegacyAnswerEvidence,
   isCanonicalIdeaEvidenceEnabled,
   legacyAnswerEvidenceId,
@@ -39,6 +40,18 @@ const canonicalQuestion: CanonicalQuestionForLegacyEvidence = {
 };
 
 describe("live assessment to Idea evidence adapter", () => {
+  it("rejects deleted, edited or re-mapped questions after the candidate read", () => {
+    const provenanced = { ...question, gamificationProvenance: { marker: 'canonical-objective-v1', canonicalQuestionId: question.id, courseId: 'course', sourceVersion: '1', answerProof: { questionType: 'multiple_choice', correctIndices: [1] } } };
+    const row = { id: question.id, mataKuliahId: 'course', version: 1, quizEligible: true, questionType: 'multiple_choice', optionsSnapshot: [{ text: 'A', isCorrect: false }, { text: 'B', isCorrect: true }] };
+    const initial = mapLegacyQuizSnapshotToCanonicalIdeas({ questions: [provenanced], canonicalQuestions: [canonicalQuestion] });
+    const check = (current: typeof initial, canonicalRows = [row]) => canonicalEvidencePlanStillValid({ initial, current, questions: [provenanced], canonicalRows });
+    expect(check(initial)).toBe(true);
+    expect(check(mapLegacyQuizSnapshotToCanonicalIdeas({ questions: [provenanced], canonicalQuestions: [] }), [])).toBe(false);
+    expect(check(mapLegacyQuizSnapshotToCanonicalIdeas({ questions: [provenanced], canonicalQuestions: [{ ...canonicalQuestion, ideaLinks: [{ ...canonicalQuestion.ideaLinks[0], ideaVersion: 2 }] }] }))).toBe(false);
+    expect(check(initial, [{ ...row, version: 2 }])).toBe(false);
+    expect(check(initial, [{ ...row, optionsSnapshot: [{ text: 'A', isCorrect: true }, { text: 'B', isCorrect: false }] }])).toBe(false);
+    expect(canonicalEvidencePlanStillValid({ initial, current: initial, canonicalRows: [row], questions: [{ ...provenanced, gamificationProvenance: {} }] })).toBe(false);
+  });
   it("maps only an exact published question and published Idea link", () => {
     const plan = mapLegacyQuizSnapshotToCanonicalIdeas({ questions: [question], canonicalQuestions: [canonicalQuestion] });
 

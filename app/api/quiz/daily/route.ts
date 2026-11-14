@@ -33,7 +33,8 @@ import {
 import { canonicalObjectiveProvenance } from "@/lib/gamification/question-snapshot-provenance";
 import { writeQuestionRewards } from "@/lib/gamification/question-writer";
 import { checkAnswerCorrectness } from "@/lib/gamification/question-grading";
-import { lockQuestionExposures, recordAttemptDisclosures } from "@/lib/gamification/question-exposure";
+import { lockCanonicalQuestions, lockQuestionExposures, recordAttemptDisclosures } from "@/lib/gamification/question-exposure";
+import { lockQuestionBankRows } from "@/lib/question-row-locks";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { resolveAuthSecret } from "@/lib/auth-secret";
 
@@ -529,6 +530,7 @@ export async function POST(req: NextRequest) {
 
   await db.transaction(async (tx) => {
     await lockQuestionExposures(tx, session.user.id, serverSnapshot.map(question => question.id));
+    await lockCanonicalQuestions(tx, serverSnapshot.map(question => question.id));
     const submittedAt = new Date();
     await tx.insert(studentQuizAttempts).values({
       id: attemptId,
@@ -555,6 +557,7 @@ export async function POST(req: NextRequest) {
       submittedAt,
     }, session.user.id);
 
+    await lockQuestionBankRows(tx, serverQuestions.map(question => question.id));
     await tx
       .update(aiQuestionBank)
       .set({ useCount: sql`${aiQuestionBank.useCount} + 1` })

@@ -6,11 +6,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/db';
-import { lockQuestionExposureUser, lockQuestionExposures, recordAttemptDisclosures } from '@/lib/gamification/question-exposure';
+import { lockCanonicalQuestions, lockQuestionExposureUser, lockQuestionExposures, recordAttemptDisclosures } from '@/lib/gamification/question-exposure';
+import { lockQuestionBankRows } from '@/lib/question-row-locks';
 import { studentQuizAttempts, aiQuestionBank, quizTemplates, knowledgeObjects, attemptFeedback, soal, soalIde, ide, itemAsesmen, jawabanMurid, buktiIdeJawaban } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { recordLearningEvents } from '@/lib/learning-events';
 import { inngest } from '@/lib/inngest';
 import { markRecommendationDone, buildPlanForConcepts } from '@/lib/recommendation-service';
@@ -31,6 +32,7 @@ import {
   buildLegacyGradingPolicySnapshot,
   buildLegacyRenderedQuestionSnapshot,
   buildLegacyResponseSnapshot,
+  canonicalEvidencePlanStillValid,
   deriveLegacyAnswerEvidence,
   isCanonicalIdeaEvidenceEnabled,
   legacyAnswerEvidenceId,
@@ -44,10 +46,18 @@ import { requestIdeaMasteryRecompute } from '@/lib/pemahaman/evidence';
 
 type Context = { params: Promise<{ id: string }> };
 
-async function loadCanonicalQuestionsForEvidence(questionIds: readonly string[]): Promise<CanonicalQuestionForLegacyEvidence[]> {
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function loadCanonicalQuestionsForEvidence(executor: typeof db | Tx, questionIds: readonly string[], lockIdeas = false): Promise<CanonicalQuestionForLegacyEvidence[]> {
   if (questionIds.length === 0) return [];
+  const ids = [...new Set(questionIds)];
+  if (lockIdeas) {
+    const links = await executor.select({ id: soalIde.ideId }).from(soalIde).where(inArray(soalIde.soalId, ids));
+    const ideaIds = [...new Set(links.map(link => link.id))].sort();
+    if (ideaIds.length) await executor.select({ id: ide.id }).from(ide).where(inArray(ide.id, ideaIds)).orderBy(asc(ide.id)).for('share');
+  }
   const [questionRows, linkRows] = await Promise.all([
-    db
+    executor
       .select({
         id: soal.id,
         status: soal.status,
@@ -56,8 +66,8 @@ async function loadCanonicalQuestionsForEvidence(questionIds: readonly string[])
         generationHash: soal.generationHash,
       })
       .from(soal)
-      .where(inArray(soal.id, [...new Set(questionIds)])),
-    db
+      .where(inArray(soal.id, ids)),
+    executor
       .select({
         questionId: soalIde.soalId,
         ideaId: soalIde.ideId,
@@ -68,7 +78,7 @@ async function loadCanonicalQuestionsForEvidence(questionIds: readonly string[])
       })
       .from(soalIde)
       .innerJoin(ide, eq(soalIde.ideId, ide.id))
-      .where(inArray(soalIde.soalId, [...new Set(questionIds)])),
+      .where(inArray(soalIde.soalId, ids)),
   ]);
   const linksByQuestion = new Map<string, CanonicalQuestionForLegacyEvidence['ideaLinks'][number][]>();
   const orderedLinkRows = [...linkRows].sort(
@@ -248,12 +258,7 @@ export async function POST(req: NextRequest, { params }: Context) {
   const questionIds = snapshot.map((q) => q.id);
   const questionKoMap: Map<string, { koId: string; conceptName: string | null }> = new Map();
   if (questionIds.length > 0) {
-    const [, bankRows] = await Promise.all([
-      db
-        .update(aiQuestionBank)
-        .set({ useCount: sql`${aiQuestionBank.useCount} + 1` })
-        .where(inArray(aiQuestionBank.id, questionIds)),
-      db
+    const bankRows = await db
         .select({
           id: aiQuestionBank.id,
           koId: aiQuestionBank.knowledgeObjectId,
@@ -261,8 +266,7 @@ export async function POST(req: NextRequest, { params }: Context) {
         })
         .from(aiQuestionBank)
         .leftJoin(knowledgeObjects, eq(aiQuestionBank.knowledgeObjectId, knowledgeObjects.id))
-        .where(inArray(aiQuestionBank.id, questionIds)),
-    ]);
+        .where(inArray(aiQuestionBank.id, questionIds));
     for (const row of bankRows) {
       if (row.koId) {
         questionKoMap.set(row.id, { koId: row.koId, conceptName: row.conceptName ?? null });
@@ -308,7 +312,7 @@ export async function POST(req: NextRequest, { params }: Context) {
   let canonicalEvidencePlan: ReturnType<typeof mapLegacyQuizSnapshotToCanonicalIdeas> | null = null;
   if (canonicalEvidenceEnabled) {
     try {
-      const canonicalQuestions = await loadCanonicalQuestionsForEvidence(snapshot.map((question) => question.id));
+      const canonicalQuestions = await loadCanonicalQuestionsForEvidence(db, questionIds);
       canonicalEvidencePlan = mapLegacyQuizSnapshotToCanonicalIdeas({ questions: snapshot, canonicalQuestions });
       if (canonicalEvidencePlan.status === "blocked") {
         console.warn("Canonical Idea evidence skipped for legacy quiz attempt", { attemptId: id, issues: canonicalEvidencePlan.issues });
@@ -331,6 +335,16 @@ export async function POST(req: NextRequest, { params }: Context) {
     if (!locked || locked.status !== 'in_progress') return false;
     if (JSON.stringify(locked.questionsSnapshot) !== JSON.stringify(attempt.questionsSnapshot) || JSON.stringify(locked.answersSnapshot) !== JSON.stringify(attempt.answersSnapshot)) return false;
     await lockQuestionExposures(tx, session.user.id, snapshot.map(q => q.id));
+    const lockedCanonical = await lockCanonicalQuestions(tx, questionIds);
+    // A plan built before the transaction is only a candidate. Rebuild it while
+    // the canonical and linked Idea rows are held, and reject any version drift.
+    if (canonicalEvidencePlan?.status === 'mapped') {
+      const current = mapLegacyQuizSnapshotToCanonicalIdeas({ questions: snapshot, canonicalQuestions: await loadCanonicalQuestionsForEvidence(tx, questionIds, true) });
+      if (!canonicalEvidencePlanStillValid({ initial: canonicalEvidencePlan, current, questions: snapshot, canonicalRows: lockedCanonical })) canonicalEvidencePlan = null;
+      else canonicalEvidencePlan = current;
+    }
+    await lockQuestionBankRows(tx, questionIds);
+    if (questionIds.length) await tx.update(aiQuestionBank).set({ useCount: sql`${aiQuestionBank.useCount} + 1` }).where(inArray(aiQuestionBank.id, questionIds));
     const now = new Date();
     const elapsedSeconds = Math.max(0, Math.floor((now.getTime() - normalizeDate(attempt.startedAt).getTime()) / 1000));
     const finalDurationSeconds = templateMeta.timeLimitSeconds != null ? Math.min(elapsedSeconds, templateMeta.timeLimitSeconds) : elapsedSeconds;

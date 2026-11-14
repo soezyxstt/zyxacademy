@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { answerToStableOptionIds } from "@/lib/asesmen/attempt";
+import { snapshotExposureIdentity } from "@/lib/gamification/question-exposure-policy";
 
 export const LEGACY_IDEA_EVIDENCE_RUBRIC_VERSION = "legacy-quiz-idea.v1";
 
@@ -72,6 +73,28 @@ export type LegacyQuizIdeaMappingPlan =
       mappings: readonly MappedLegacyQuestion[];
       issues: readonly LegacyMappingIssue[];
     };
+
+/** Keep a pre-transaction candidate only when the locked question and Idea
+ * mapping still match, including the answer proof on provenanced snapshots. */
+export function canonicalEvidencePlanStillValid(input: {
+  initial: LegacyQuizIdeaMappingPlan;
+  current: LegacyQuizIdeaMappingPlan;
+  questions: readonly LegacyQuizQuestionSnapshot[];
+  canonicalRows: readonly { id: string; mataKuliahId: string; version: number; quizEligible: boolean; questionType: string; optionsSnapshot: unknown }[];
+}): boolean {
+  if (input.initial.status !== 'mapped' || input.current.status !== 'mapped' || JSON.stringify(input.initial.mappings) !== JSON.stringify(input.current.mappings)) return false;
+  const byId = new Map(input.canonicalRows.map(row => [row.id, row]));
+  return input.questions.every(question => {
+    if (!Object.hasOwn(question, 'gamificationProvenance')) return true;
+    const identity = snapshotExposureIdentity(question);
+    const row = byId.get(question.id);
+    const options = row?.optionsSnapshot as { text?: unknown; isCorrect?: unknown }[] | undefined;
+    return Boolean(identity && row && row.quizEligible && identity.courseId === row.mataKuliahId && identity.sourceVersion === String(row.version)
+      && row.questionType === question.question_type && Array.isArray(options) && options.every(option => option && typeof option === 'object')
+      && JSON.stringify(options.map(option => option.text)) === JSON.stringify(question.options)
+      && JSON.stringify(options.flatMap((option, index) => option.isCorrect ? [index] : [])) === JSON.stringify(question.correct_indices));
+  });
+}
 
 export type LegacyAnswerEvidenceContribution = {
   ideaId: string;
