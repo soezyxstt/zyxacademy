@@ -6,6 +6,7 @@ const chain: Record<string, unknown> = {};
 for (const name of ["from", "where", "orderBy", "limit", "offset"]) chain[name] = () => name === "offset" ? Promise.resolve([Object.fromEntries(Object.keys(selected).map((key) => [key, key]))]) : chain;
 mock.module("@/lib/db", () => ({ db: { select: (fields: Record<string, unknown>) => { selected = fields; return chain; } } }));
 mock.module("@/lib/authoring/mcp-auth", () => ({
+  MCP_MANUAL_CLIENT_ID: "zyx-admin-connection",
   requireMcpScope: (principal: { scopes: string[] }, scope: string) => { if (!principal.scopes.includes(scope)) throw new Error(`AUTHORING_MCP_SCOPE_REQUIRED:${scope}`); },
   resolveMcpAdmin: async () => { if (!live) throw new Error("AUTHORING_MCP_ADMIN_REQUIRED"); },
 }));
@@ -21,7 +22,7 @@ describe("operation handlers", () => {
   test("revalidates live admin and sanitizes failures", async () => {
     live = false;
     const result = await handlers.get("tokens.list")!({ expectedEnvironment: "local", expectedOrigin: "http://localhost:3000", limit: 1, offset: 0 });
-    expect(result.structuredContent.error).toBe("ADMIN_MCP_REQUEST_FAILED");
+    expect(result.structuredContent).toMatchObject({ error: "AUTHORING_MCP_ADMIN_REQUIRED", action: "reauthorize", retryable: false });
     live = true;
   });
   test("executes bounded metadata read without token values", async () => {
