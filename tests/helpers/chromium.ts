@@ -17,44 +17,120 @@ export function contractChromiumPath(
   return executablePath;
 }
 
+type PdfPage = Pick<Page, "setContent" | "pdf" | "close">;
 type PdfBrowser = Pick<Browser, "close"> & {
-  newPage(): Promise<Pick<Page, "setContent" | "pdf">>;
+  newPage(): Promise<PdfPage>;
 };
+type StageLogger = (stage: string) => void;
 
-/** Retry only a stalled browser operation, never an assertion or an invalid PDF. */
-export async function renderContractPdf(html: string, options: {
+async function boundedCleanup(operation: () => Promise<void>, timeoutMs: number, label: string): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      operation(),
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(`CONTRACT_PDF_${label}_CLOSE_TIMEOUT`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Reuse a browser across sequential PDFs, isolating each render in a fresh page. */
+export function createContractPdfRenderer(options: {
   launch?: () => Promise<PdfBrowser>;
   renderTimeoutMs?: number;
-} = {}): Promise<Uint8Array> {
+  cleanupTimeoutMs?: number;
+} = {}) {
   const launch = options.launch ?? (() => chromium.launch({
     executablePath: contractChromiumPath(), headless: true, timeout: 15_000, args: ["--no-sandbox"],
   }));
   const timeoutMs = options.renderTimeoutMs ?? 10_000;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    let browser: PdfBrowser;
+  const cleanupTimeoutMs = options.cleanupTimeoutMs ?? 2_000;
+  let browser: PdfBrowser | undefined;
+  let cleanupFailure: unknown;
+  let unusable = false;
+
+  async function closeBrowser(log: StageLogger = () => {}): Promise<void> {
+    if (!browser) return;
+    const closing = browser;
+    browser = undefined;
+    log("browser close started");
     try {
-      browser = await launch();
+      await boundedCleanup(() => closing.close(), cleanupTimeoutMs, "BROWSER");
+      log("browser close completed");
     } catch (error) {
-      if (!(error instanceof errors.TimeoutError) || attempt === 1) throw error;
-      continue;
-    }
-    const stalled = new Error("CONTRACT_PDF_RENDER_TIMEOUT");
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      return new Uint8Array(await Promise.race([
-        (async () => {
-          const page = await browser.newPage();
-          await page.setContent(html, { waitUntil: "load", timeout: timeoutMs });
-          return page.pdf({ format: "A4", printBackground: true });
-        })(),
-        new Promise<never>((_resolve, reject) => { timer = setTimeout(() => reject(stalled), timeoutMs); }),
-      ]));
-    } catch (error) {
-      if (error !== stalled || attempt === 1) throw error;
-    } finally {
-      clearTimeout(timer);
-      await browser.close();
+      // Do not launch another browser if the previous one could still be alive.
+      cleanupFailure = error;
+      unusable = true;
+      throw error;
     }
   }
-  throw new Error("CONTRACT_PDF_RENDER_TIMEOUT");
+
+  async function render(html: string, log: StageLogger = () => {}): Promise<Uint8Array> {
+    if (unusable) throw new Error("CONTRACT_PDF_RENDERER_CLEANUP_FAILED", { cause: cleanupFailure });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (!browser) {
+        log(`browser launch started (attempt ${attempt + 1})`);
+        try {
+          browser = await launch();
+          log("browser launch completed");
+        } catch (error) {
+          if (!(error instanceof errors.TimeoutError) || attempt === 1) throw error;
+          log("browser launch timed out, retrying");
+          continue;
+        }
+      }
+
+      let stage = "newPage";
+      let timedOut = false;
+      let page: PdfPage | undefined;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const bytes = await Promise.race([
+          (async () => {
+            log("newPage started");
+            page = await browser!.newPage();
+            if (timedOut) return;
+            log("newPage completed");
+            stage = "setContent";
+            log("setContent started");
+            await page.setContent(html, { waitUntil: "load", timeout: timeoutMs });
+            if (timedOut) return;
+            log("setContent completed");
+            stage = "pdf";
+            log("pdf started");
+            const result = await page.pdf({ format: "A4", printBackground: true });
+            if (timedOut) return;
+            log("pdf completed");
+            return result;
+          })(),
+          new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(() => {
+              timedOut = true;
+              reject(new Error(`CONTRACT_PDF_RENDER_TIMEOUT:${stage}`));
+            }, timeoutMs);
+          }),
+        ]);
+        clearTimeout(timer);
+        log("page close started");
+        await boundedCleanup(() => page!.close(), cleanupTimeoutMs, "PAGE");
+        log("page close completed");
+        return new Uint8Array(bytes!);
+      } catch (error) {
+        clearTimeout(timer);
+        try {
+          await closeBrowser(log);
+        } catch (cleanupError) {
+          throw new AggregateError([error, cleanupError], `CONTRACT_PDF_RENDER_AND_CLEANUP_FAILED: ${String(error)}; ${String(cleanupError)}`);
+        }
+        if (!timedOut || attempt === 1) throw error;
+        log(`render timed out at ${stage}, retrying`);
+      }
+    }
+    throw new Error("CONTRACT_PDF_RENDER_TIMEOUT");
+  }
+
+  return { render, close: closeBrowser };
 }
