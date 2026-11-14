@@ -1,0 +1,80 @@
+name: PR 333 staging read-only inventory
+
+on:
+  push:
+    branches:
+      - soezyxst/plan-student-achievements-social
+    paths:
+      - .github/workflows/pr333-staging-inventory.yml
+      - .github/scripts/pr333-staging-inventory.py
+      - .github/scripts/test_pr333_staging_inventory.py
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    if: github.repository == 'soezyxstt/zyxacademy' && github.event_name == 'push' && github.ref == 'refs/heads/soezyxst/plan-student-achievements-social'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment:
+      name: staging
+      deployment: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Check inventory guards
+        run: python3 .github/scripts/test_pr333_staging_inventory.py -v
+      - name: Guard Google staging identity
+        id: google-guard
+        continue-on-error: true
+        env:
+          GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+        run: python3 .github/scripts/pr333-staging-inventory.py google-key-guard
+      - name: Authenticate Google
+        id: google-auth
+        if: steps.google-guard.outcome == 'success'
+        continue-on-error: true
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: zyx-academy
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+      - name: Set up Google Cloud CLI
+        id: google-cli
+        if: steps.google-auth.outcome == 'success'
+        continue-on-error: true
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+        with:
+          project_id: zyx-academy
+      - name: Inventory exact staging Cloud Run service
+        id: google-inventory
+        if: steps.google-cli.outcome == 'success'
+        continue-on-error: true
+        run: python3 .github/scripts/pr333-staging-inventory.py google
+      - name: Inventory exact staging Inngest environment and app
+        id: inngest-inventory
+        if: always()
+        continue-on-error: true
+        env:
+          INNGEST_SIGNING_KEY: ${{ secrets.INNGEST_SIGNING_KEY }}
+        run: python3 .github/scripts/pr333-staging-inventory.py inngest
+      - name: Inventory known staging Deno app revisions
+        id: deno-inventory
+        if: always()
+        continue-on-error: true
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+        run: python3 .github/scripts/pr333-staging-inventory.py deno
+      - name: Fail if an inventory boundary was unavailable
+        if: always()
+        env:
+          GOOGLE_OUTCOME: ${{ steps.google-inventory.outcome }}
+          INNGEST_OUTCOME: ${{ steps.inngest-inventory.outcome }}
+          DENO_OUTCOME: ${{ steps.deno-inventory.outcome }}
+        run: |
+          if [[ "$GOOGLE_OUTCOME" != success || "$INNGEST_OUTCOME" != success || "$DENO_OUTCOME" != success ]]; then
+            echo 'One or more inventory boundaries are unavailable or incomplete.'
+            exit 1
+          fi
