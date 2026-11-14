@@ -23,7 +23,7 @@ DENO_REVISION_IDS = set()
 GOOGLE_STAGING_JOBS = set()
 TIMEOUT = 4
 DENO_PAGE_BUDGET = 12
-DENO_TIMELINE_BUDGET = 80
+DENO_TIMELINE_BUDGET = 120
 SAFE = re.compile(r'^[A-Za-z0-9_.:/@-]{1,256}$')
 HOST = re.compile(r'^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$')
 UUID = re.compile(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
@@ -415,7 +415,7 @@ def pages(path, token, params, headers, max_pages=3):
 
 def inngest_environment(environments, complete):
     # /envs is documented as an account list, not an echo of the selected
-    # header. Emit only staging-named TEST candidates and valid UUIDs.
+    # header. Emit only staging-named TEST candidates and bounded identifiers.
     candidates = []
     for env in environments:
         if not isinstance(env, dict) or env.get('type') != 'TEST':
@@ -423,15 +423,17 @@ def inngest_environment(environments, complete):
         name, ident = env.get('name'), env.get('id')
         if not isinstance(name, str) or name.lower() not in ('staging', INNGEST_ENV):
             continue
-        candidates.append({'id': ident.lower() if isinstance(ident, str) and UUID.fullmatch(ident) else None,
+        candidates.append({'id': ident if isinstance(ident, str) and re.fullmatch(r'[A-Za-z0-9_-]{1,128}', ident) else None,
                            'name': name, 'type': 'TEST',
                            'archived': env.get('isArchived') if type(env.get('isArchived')) is bool else None})
     emit('inngest_environment', {'requestedHeader': INNGEST_ENV, 'listComplete': complete,
                                  'environmentsListed': len(environments), 'candidates': candidates,
                                  'headerSelection': 'requested_not_echoed_by_environment_list'})
     # An account-wide list alone does not relate a display name to a slug.
-    # Only an exact name match is sufficient to continue scoped reads.
-    exact = [env for env in candidates if env['name'] == INNGEST_ENV and env['id'] and env['archived'] is not True]
+    # Match the configured identity directly when the API returns a slug.
+    # UUID identities still require the previously pinned exact environment name.
+    exact = [env for env in candidates if env['id'] and env['archived'] is not True
+             and (env['id'] == INNGEST_ENV or (UUID.fullmatch(env['id']) and env['name'] == INNGEST_ENV))]
     if not complete or len(environments) != 1 or len(exact) != 1:
         raise ValueError('INNGEST_ENVIRONMENT_UNVERIFIED')
     return exact[0]

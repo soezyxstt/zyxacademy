@@ -133,6 +133,15 @@ class InventoryTests(unittest.TestCase):
         with patch.object(inv, 'request', return_value=response):
             self.assertFalse(inv.pages('/v2/envs', 'synthetic', {}, {}, max_pages=1)[1])
 
+    def test_inngest_slug_identity_requires_exact_configured_id(self):
+        with contextlib.redirect_stdout(io.StringIO()):
+            actual = inv.inngest_environment([{'id': inv.INNGEST_ENV, 'name': 'Staging', 'type': 'TEST'}], True)
+        self.assertEqual(actual['id'], inv.INNGEST_ENV)
+        for ident in ('other-staging', 'production', 'unsafe/id'):
+            with self.subTest(ident=ident), contextlib.redirect_stdout(io.StringIO()):
+                with self.assertRaisesRegex(ValueError, 'INNGEST_ENVIRONMENT_UNVERIFIED'):
+                    inv.inngest_environment([{'id': ident, 'name': 'Staging', 'type': 'TEST'}], True)
+
     def test_unknown_shape_diagnostic_does_not_emit_values_or_unknown_key(self):
         payload = {'data': [{'id': 'secret-env-value'}],
                    'pagination': {'nextCursor': 'secret-cursor', 'secret-key': 'secret-value'},
@@ -241,7 +250,8 @@ class InventoryTests(unittest.TestCase):
                     if page_index < 2 else '')
             pages.append((rows, link))
         timeline = ([{'slug': 'production', 'domains': [{'domain': inv.DENO_HOST}]}], '')
-        with patch.dict(os.environ, {'DENO_DEPLOY_TOKEN': 'synthetic'}, clear=True), \
+        with patch.object(inv, 'DENO_TIMELINE_BUDGET', 80), \
+             patch.dict(os.environ, {'DENO_DEPLOY_TOKEN': 'synthetic'}, clear=True), \
              patch.object(inv, 'request', side_effect=pages + [timeline] * 80) as request, \
              contextlib.redirect_stdout(io.StringIO()) as output:
             with self.assertRaisesRegex(ValueError, 'DENO_PARTIAL'):
@@ -261,6 +271,21 @@ class InventoryTests(unittest.TestCase):
         inv.DENO_REVISION_IDS.clear()
         with self.assertRaisesRegex(ValueError, 'ENDPOINT_NOT_ALLOWED'):
             inv.request('api.deno.com', '/v2/revisions/foreign/timelines', 'synthetic')
+
+    def test_deno_current_revision_volume_fits_bounded_detail_budget(self):
+        rows = [{'id': f'rev{i}', 'status': 'succeeded', 'deleted_at': None} for i in range(107)]
+        pages = [(rows[:40], '<' + inv.DENO_REVISION_PATH + '?cursor=a&limit=40>; rel="next"'),
+                 (rows[40:80], '<' + inv.DENO_REVISION_PATH + '?cursor=b&limit=40>; rel="next"'),
+                 (rows[80:], '')]
+        timeline = ([{'slug': 'production', 'domains': [{'domain': inv.DENO_HOST}]}], '')
+        with patch.dict(os.environ, {'DENO_DEPLOY_TOKEN': 'synthetic'}, clear=True), \
+             patch.object(inv, 'request', side_effect=pages + [timeline] * 107) as request, \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            inv.deno()
+        result = json.loads(output.getvalue())
+        self.assertTrue(result['revisionsComplete'])
+        self.assertEqual(result['timelinesInspected'], 107)
+        self.assertEqual(request.call_count, 110)
 
     def test_no_redirect_no_error_body_and_get_only(self):
         handler = inv.NoRedirect()
