@@ -118,3 +118,8 @@ Run adoption locks the import row before reading its staging audit. It rechecks 
 All Product staging, replacement and run-adoption audits receive a strictly increasing timestamp under the import or bundle-creation lock. Equal or skewed process clocks cannot reorder the current staging identity read by MCP and local operators.
 
 Idempotent staging retries return success only after locking and rereading the requested import identity and checksum; a concurrent replacement or discard returns a stale-context conflict. The synthetic local fixture harness supplies an in-memory staging identity and exact PDF attachment selection. Its reports do not establish canonical database promotion or trusted deployed verification.
+
+
+## Flexible revision workflow
+
+The [flexible revision contract](authoring-revisions.md) defines stable-ID MCP edits, persistent drafts separate from live content, release-impact planning, explicit affected review, mixed reference manifests and atomic replacement for Idea V3 and learning Product V3/V4/V5. The original profile-specific schema, source and publication gates remain required. Restoration creates a new draft rather than mutating history. The implementation is in progress; remote deployment acceptance is separate.

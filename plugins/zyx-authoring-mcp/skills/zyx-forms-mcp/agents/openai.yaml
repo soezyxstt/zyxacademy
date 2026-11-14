@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zyx Forms MCP"
+  short_description: "Manage Zyx forms, previews and response exports"
+  default_prompt: "Use $zyx-forms-mcp to manage the requested form through the intended MCP environment, validate its behavior without submitting responses, and handle exports within the granted permissions."

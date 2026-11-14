@@ -9,7 +9,7 @@ import {
   tutorChatMessages,
 } from "@/db/schema";
 import { and, eq, sql, type AnyColumn } from "drizzle-orm";
-import { daysAgo, formatIsoDateUtc } from "@/lib/date-utils";
+import { elapsedDaysAgo, formatIsoDateUtc } from "@/lib/date-utils";
 
 export const FEATURE_USAGE_RANGES = [7, 30, 90] as const;
 export type FeatureUsageRange = (typeof FEATURE_USAGE_RANGES)[number];
@@ -28,7 +28,7 @@ export type FeatureUsageRow = {
   events: number;
   users: number;
   lastUsedAt: string | null;
-  detail: string | null;
+  detailCount?: number;
 };
 
 export type FeatureUsageDailyPoint = {
@@ -60,14 +60,20 @@ const isoFromEpochSeconds = (value: unknown): string | null => {
   return seconds > 0 ? new Date(seconds * 1000).toISOString() : null;
 };
 
-const withinWindow = (column: AnyColumn, startEpochSeconds: number) =>
-  sql`${column} >= to_timestamp(${startEpochSeconds})`;
+const withinWindow = (column: AnyColumn, startEpochSeconds: number, endEpochSeconds: number) =>
+  sql`${column} >= to_timestamp(${startEpochSeconds}) and ${column} <= to_timestamp(${endEpochSeconds})`;
 
 const maxEpochSeconds = (column: AnyColumn) =>
   sql<number>`extract(epoch from max(${column}))`;
 
 const dayExpr = (column: AnyColumn) =>
   sql<string>`to_char(${column} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`;
+
+export function featureUsageDailyDates(rangeDays: FeatureUsageRange, now: Date): string[] {
+  return Array.from({ length: rangeDays + 1 }, (_, i) =>
+    formatIsoDateUtc(elapsedDaysAgo(rangeDays - i, now)),
+  );
+}
 
 /**
  * Cross-feature student usage read model. Aggregates existing per-domain
@@ -76,8 +82,10 @@ const dayExpr = (column: AnyColumn) =>
 export async function getFeatureUsageMetrics(
   rangeDays: FeatureUsageRange
 ): Promise<FeatureUsageMetrics> {
-  const windowStart = daysAgo(rangeDays);
-  const startEpochSeconds = Math.floor(windowStart.getTime() / 1000);
+  const now = new Date();
+  const windowStart = elapsedDaysAgo(rangeDays, now);
+  const startEpochSeconds = windowStart.getTime() / 1000;
+  const endEpochSeconds = now.getTime() / 1000;
 
   const [
     materiStats,
@@ -102,7 +110,7 @@ export async function getFeatureUsageMetrics(
         lastUsedAt: maxEpochSeconds(studentMaterialProgress.lastOpenedAt),
       })
       .from(studentMaterialProgress)
-      .where(withinWindow(studentMaterialProgress.lastOpenedAt, startEpochSeconds)),
+      .where(withinWindow(studentMaterialProgress.lastOpenedAt, startEpochSeconds, endEpochSeconds)),
 
     db
       .select({
@@ -111,7 +119,7 @@ export async function getFeatureUsageMetrics(
         lastUsedAt: maxEpochSeconds(flashcardReviews.reviewedAt),
       })
       .from(flashcardReviews)
-      .where(withinWindow(flashcardReviews.reviewedAt, startEpochSeconds)),
+      .where(withinWindow(flashcardReviews.reviewedAt, startEpochSeconds, endEpochSeconds)),
 
     db
       .select({
@@ -121,7 +129,7 @@ export async function getFeatureUsageMetrics(
         lastUsedAt: maxEpochSeconds(studentQuizAttempts.startedAt),
       })
       .from(studentQuizAttempts)
-      .where(withinWindow(studentQuizAttempts.startedAt, startEpochSeconds)),
+      .where(withinWindow(studentQuizAttempts.startedAt, startEpochSeconds, endEpochSeconds)),
 
     db
       .select({
@@ -131,7 +139,7 @@ export async function getFeatureUsageMetrics(
         lastUsedAt: maxEpochSeconds(percobaanAsesmen.createdAt),
       })
       .from(percobaanAsesmen)
-      .where(withinWindow(percobaanAsesmen.createdAt, startEpochSeconds)),
+      .where(withinWindow(percobaanAsesmen.createdAt, startEpochSeconds, endEpochSeconds)),
 
     db
       .select({
@@ -140,7 +148,7 @@ export async function getFeatureUsageMetrics(
         lastUsedAt: maxEpochSeconds(liveQuizResults.completedAt),
       })
       .from(liveQuizResults)
-      .where(withinWindow(liveQuizResults.completedAt, startEpochSeconds)),
+      .where(withinWindow(liveQuizResults.completedAt, startEpochSeconds, endEpochSeconds)),
 
     db
       .select({
@@ -152,43 +160,43 @@ export async function getFeatureUsageMetrics(
       .where(
         and(
           eq(tutorChatMessages.role, "student"),
-          withinWindow(tutorChatMessages.createdAt, startEpochSeconds)
+          withinWindow(tutorChatMessages.createdAt, startEpochSeconds, endEpochSeconds)
         )
       ),
 
     db
       .select({ count: sql<number>`count(*)` })
       .from(chatSessions)
-      .where(withinWindow(chatSessions.startedAt, startEpochSeconds)),
+      .where(withinWindow(chatSessions.startedAt, startEpochSeconds, endEpochSeconds)),
 
     db
       .select({ date: dayExpr(studentMaterialProgress.lastOpenedAt), count: sql<number>`count(*)` })
       .from(studentMaterialProgress)
-      .where(withinWindow(studentMaterialProgress.lastOpenedAt, startEpochSeconds))
+      .where(withinWindow(studentMaterialProgress.lastOpenedAt, startEpochSeconds, endEpochSeconds))
       .groupBy(dayExpr(studentMaterialProgress.lastOpenedAt)),
 
     db
       .select({ date: dayExpr(flashcardReviews.reviewedAt), count: sql<number>`count(*)` })
       .from(flashcardReviews)
-      .where(withinWindow(flashcardReviews.reviewedAt, startEpochSeconds))
+      .where(withinWindow(flashcardReviews.reviewedAt, startEpochSeconds, endEpochSeconds))
       .groupBy(dayExpr(flashcardReviews.reviewedAt)),
 
     db
       .select({ date: dayExpr(studentQuizAttempts.startedAt), count: sql<number>`count(*)` })
       .from(studentQuizAttempts)
-      .where(withinWindow(studentQuizAttempts.startedAt, startEpochSeconds))
+      .where(withinWindow(studentQuizAttempts.startedAt, startEpochSeconds, endEpochSeconds))
       .groupBy(dayExpr(studentQuizAttempts.startedAt)),
 
     db
       .select({ date: dayExpr(percobaanAsesmen.createdAt), count: sql<number>`count(*)` })
       .from(percobaanAsesmen)
-      .where(withinWindow(percobaanAsesmen.createdAt, startEpochSeconds))
+      .where(withinWindow(percobaanAsesmen.createdAt, startEpochSeconds, endEpochSeconds))
       .groupBy(dayExpr(percobaanAsesmen.createdAt)),
 
     db
       .select({ date: dayExpr(liveQuizResults.completedAt), count: sql<number>`count(*)` })
       .from(liveQuizResults)
-      .where(withinWindow(liveQuizResults.completedAt, startEpochSeconds))
+      .where(withinWindow(liveQuizResults.completedAt, startEpochSeconds, endEpochSeconds))
       .groupBy(dayExpr(liveQuizResults.completedAt)),
 
     db
@@ -197,7 +205,7 @@ export async function getFeatureUsageMetrics(
       .where(
         and(
           eq(tutorChatMessages.role, "student"),
-          withinWindow(tutorChatMessages.createdAt, startEpochSeconds)
+          withinWindow(tutorChatMessages.createdAt, startEpochSeconds, endEpochSeconds)
         )
       )
       .groupBy(dayExpr(tutorChatMessages.createdAt)),
@@ -206,30 +214,30 @@ export async function getFeatureUsageMetrics(
       db
         .selectDistinct({ id: studentMaterialProgress.studentId })
         .from(studentMaterialProgress)
-        .where(withinWindow(studentMaterialProgress.lastOpenedAt, startEpochSeconds)),
+        .where(withinWindow(studentMaterialProgress.lastOpenedAt, startEpochSeconds, endEpochSeconds)),
       db
         .selectDistinct({ id: flashcardReviews.studentId })
         .from(flashcardReviews)
-        .where(withinWindow(flashcardReviews.reviewedAt, startEpochSeconds)),
+        .where(withinWindow(flashcardReviews.reviewedAt, startEpochSeconds, endEpochSeconds)),
       db
         .selectDistinct({ id: studentQuizAttempts.studentId })
         .from(studentQuizAttempts)
-        .where(withinWindow(studentQuizAttempts.startedAt, startEpochSeconds)),
+        .where(withinWindow(studentQuizAttempts.startedAt, startEpochSeconds, endEpochSeconds)),
       db
         .selectDistinct({ id: percobaanAsesmen.penggunaId })
         .from(percobaanAsesmen)
-        .where(withinWindow(percobaanAsesmen.createdAt, startEpochSeconds)),
+        .where(withinWindow(percobaanAsesmen.createdAt, startEpochSeconds, endEpochSeconds)),
       db
         .selectDistinct({ id: liveQuizResults.studentId })
         .from(liveQuizResults)
-        .where(withinWindow(liveQuizResults.completedAt, startEpochSeconds)),
+        .where(withinWindow(liveQuizResults.completedAt, startEpochSeconds, endEpochSeconds)),
       db
         .selectDistinct({ id: tutorChatMessages.studentId })
         .from(tutorChatMessages)
         .where(
           and(
           eq(tutorChatMessages.role, "student"),
-          withinWindow(tutorChatMessages.createdAt, startEpochSeconds)
+          withinWindow(tutorChatMessages.createdAt, startEpochSeconds, endEpochSeconds)
         )
         ),
     ]),
@@ -244,7 +252,6 @@ export async function getFeatureUsageMetrics(
       events: num(materiStats[0]?.events),
       users: num(materiStats[0]?.users),
       lastUsedAt: isoFromEpochSeconds(materiStats[0]?.lastUsedAt),
-      detail: "Dibuka berdasarkan progres baca terakhir",
     },
     {
       key: "flashcard",
@@ -252,7 +259,6 @@ export async function getFeatureUsageMetrics(
       events: num(flashcardStats[0]?.events),
       users: num(flashcardStats[0]?.users),
       lastUsedAt: isoFromEpochSeconds(flashcardStats[0]?.lastUsedAt),
-      detail: "Kartulir direview (SM-2)",
     },
     {
       key: "kuis",
@@ -260,7 +266,7 @@ export async function getFeatureUsageMetrics(
       events: num(quizStats[0]?.events),
       users: num(quizStats[0]?.users),
       lastUsedAt: isoFromEpochSeconds(quizStats[0]?.lastUsedAt),
-      detail: `${num(quizStats[0]?.completed)} percobaan selesai`,
+      detailCount: num(quizStats[0]?.completed),
     },
     {
       key: "asesmen",
@@ -268,7 +274,7 @@ export async function getFeatureUsageMetrics(
       events: num(assessmentStats[0]?.events),
       users: num(assessmentStats[0]?.users),
       lastUsedAt: isoFromEpochSeconds(assessmentStats[0]?.lastUsedAt),
-      detail: `${num(assessmentStats[0]?.submitted)} disubmit`,
+      detailCount: num(assessmentStats[0]?.submitted),
     },
     {
       key: "kuisLive",
@@ -276,7 +282,6 @@ export async function getFeatureUsageMetrics(
       events: num(liveQuizStats[0]?.events),
       users: num(liveQuizStats[0]?.users),
       lastUsedAt: isoFromEpochSeconds(liveQuizStats[0]?.lastUsedAt),
-      detail: "Hasil kuis live yang diselesaikan",
     },
     {
       key: "zyra",
@@ -284,13 +289,12 @@ export async function getFeatureUsageMetrics(
       events: num(zyraMessageStats[0]?.events),
       users: num(zyraMessageStats[0]?.users),
       lastUsedAt: isoFromEpochSeconds(zyraMessageStats[0]?.lastUsedAt),
-      detail: `${newZyraSessions} sesi baru dimulai`,
+      detailCount: newZyraSessions,
     },
   ].sort((a, b) => b.events - a.events || a.label.localeCompare(b.label));
 
   const dailyByDate = new Map<string, FeatureUsageDailyPoint>();
-  for (let i = rangeDays - 1; i >= 0; i -= 1) {
-    const date = formatIsoDateUtc(daysAgo(i));
+  for (const date of featureUsageDailyDates(rangeDays, now)) {
     dailyByDate.set(date, {
       date,
       materi: 0,

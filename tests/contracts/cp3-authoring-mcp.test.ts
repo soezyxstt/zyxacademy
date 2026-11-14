@@ -1167,14 +1167,18 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
 
       // New explicit tools do not grant their scope to an existing principal.
       const publishTools = toolNames.filter((name) => name.toLowerCase().includes("publish"));
-      expect(publishTools.sort()).toEqual(["authoring.publish_idea_bundle", "authoring.publish_product_bundle", "authoring.publish_solution_collection"]);
+      expect(publishTools.sort()).toEqual(["authoring.publish_idea_bundle", "authoring.publish_product_bundle", "authoring.publish_release", "authoring.publish_solution_collection"]);
 
       expect(requestedScopes("authoring:publish")).toEqual(["authoring:publish"]);
       expect(adminPrincipal.scopes).not.toContain("authoring:publish");
       for (const name of publishTools) {
-        const denied = await callMcpTool(adminPrincipal, name, { runToken: "not-used", bootstrapToken: "not-used", importId: "not-used", expectedRevision: HASH_A });
+        const args = name === "authoring.publish_release"
+          ? { entries: [{ kind: "product", importId: "not-used", expectedRevision: HASH_A }], bootstrapTokens: { product: "not-used" }, expectedPlanHash: HASH_A }
+          : { runToken: "not-used", bootstrapToken: "not-used", importId: "not-used", expectedRevision: HASH_A };
+        const denied = await callMcpTool(adminPrincipal, name, args);
         expect(denied.isError).toBe(true);
         expect(denied.data.error).toContain("AUTHORING_MCP_SCOPE_REQUIRED");
+        if (name === "authoring.publish_release") expect(denied.data.requiredScope).toBe("authoring:publish");
       }
 
       // Verify publikasi_bundle table has zero records

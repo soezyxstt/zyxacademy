@@ -1,3 +1,5 @@
+import { adminMcpFailure } from "./errors";
+import { registerOperationDescriptor } from "./operation-contracts";
 import { assertMcpTarget } from "@/lib/authoring/mcp-environment";
 import { timestampRange } from "@/lib/db/timestamp-condition";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -26,10 +28,12 @@ export function registerFormsTools(server: McpServer, principal: McpPrincipal): 
   registerFormsUi(server);
   const registrar = server as unknown as Registrar;
   function register<T extends z.ZodObject>(name: string, scope: string, schema: T, description: string, execute: (input: z.infer<T>) => Promise<unknown>, write = false, ui?: string) {
-    registrar.registerTool(name, { description, inputSchema: schema.extend({ expectedEnvironment: z.enum(["staging", "production", "local"]), expectedOrigin: z.url().max(2048) }).shape, annotations: { readOnlyHint: !write, destructiveHint: write, openWorldHint: false }, ...(ui ? { _meta: formsUiMeta(ui) } : {}) }, async (raw) => {
+    const scopedSchema = schema.safeExtend({ expectedEnvironment: z.enum(["staging", "production", "local"]), expectedOrigin: z.url().max(2048) });
+    const descriptor = registerOperationDescriptor(server, { name, scope, description, schema: scopedSchema, write });
+    registrar.registerTool(name, { description, inputSchema: scopedSchema.shape, annotations: descriptor.annotations, ...(ui ? { _meta: formsUiMeta(ui) } : {}) }, async (raw) => {
       try {
         requireMcpScope(principal, scope);
-        const { expectedEnvironment, expectedOrigin, ...businessInput } = schema.extend({ expectedEnvironment: z.enum(["staging", "production", "local"]), expectedOrigin: z.url().max(2048) }).strict().parse(raw);
+        const { expectedEnvironment, expectedOrigin, ...businessInput } = scopedSchema.strict().parse(raw);
         try { assertMcpTarget(expectedEnvironment, expectedOrigin); } catch { throw new AdminMcpError("MCP_TARGET_ENVIRONMENT_MISMATCH"); }
         const input = businessInput as z.infer<T>;
         if (Buffer.byteLength(JSON.stringify(input)) > 1000000) throw new AdminMcpError("INPUT_TOO_LARGE");
@@ -39,14 +43,12 @@ export function registerFormsTools(server: McpServer, principal: McpPrincipal): 
         const payload = { ok: true, data };
         return { content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload };
       } catch (error) {
-        const code = error instanceof AdminMcpError ? error.code : error instanceof Error && error.message.startsWith("AUTHORING_MCP_SCOPE_REQUIRED:") ? "AUTHORING_MCP_SCOPE_REQUIRED" : error instanceof z.ZodError ? "INVALID_INPUT" : "ADMIN_MCP_REQUEST_FAILED";
-        const payload = { ok: false, error: code, recovery: code === "REVISION_CONFLICT" ? "Ambil versi terbaru lalu siapkan ulang perubahan." : code === "INVALID_INPUT" ? "Periksa format masukan." : code === "SLUG_CONFLICT" ? "Gunakan slug lain." : "Periksa akses dan coba lagi." };
-        return { content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload, isError: true };
+        return adminMcpFailure(error);
       }
     });
   }
   function write<T extends z.ZodObject>(name: string, scope: string, schema: T, description: string, execute: (input: z.infer<T>, requestKey: string) => Promise<unknown>) {
-    register(name, scope, schema.extend(mutationControls), description + " dryRun=true mengembalikan rencana dan token; jalankan input yang sama dengan dryRun=false dan confirmationToken.", async raw => {
+    register(name, scope, schema.safeExtend(mutationControls), description + " dryRun=true mengembalikan rencana dan token; jalankan input yang sama dengan dryRun=false dan confirmationToken.", async raw => {
       const { dryRun, confirmationToken, requestKey, ...input } = raw;
       const target = input as z.infer<T>;
       const key = z.string().parse(requestKey);

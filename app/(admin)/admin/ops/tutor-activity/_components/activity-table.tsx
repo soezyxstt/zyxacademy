@@ -8,6 +8,7 @@ import { FormattedDate } from "@/components/ui/formatted-date";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/client";
 import { ActivityDetail } from "./activity-detail";
+import { activityLabel } from "./activity-label";
 import {
   ChevronLeft,
   ChevronRight,
@@ -130,14 +131,14 @@ export function ActivityTable({
                   <td className="px-4 py-3 max-w-[220px]">
                     <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                       <span className="inline-flex rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground shrink-0">
-                        {item.entityType}
+                        {activityLabel(item.entityType, t)}
                       </span>
                       <span className="text-body-xs font-mono text-muted-foreground truncate max-w-[120px]" title={item.entityId}>
                         {item.entityId}
                       </span>
                     </div>
                     <p className="text-body-xs font-mono text-foreground truncate mt-0.5" title={item.action}>
-                      {item.action}
+                      {activityLabel(item.action, t)}
                     </p>
                   </td>
 
@@ -198,14 +199,14 @@ export function ActivityTable({
               <div className="flex items-center justify-between gap-2 min-w-0">
                 <span className="text-muted-foreground shrink-0">{t("tutorActivityUI.entity")}:</span>
                 <span className="font-mono text-foreground truncate text-right min-w-0" title={`${item.entityType} (${item.entityId})`}>
-                  <span className="font-semibold">{item.entityType}</span>{" "}
+                  <span className="font-semibold">{activityLabel(item.entityType, t)}</span>{" "}
                   <span className="text-muted-foreground">({item.entityId})</span>
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2 min-w-0">
                 <span className="text-muted-foreground shrink-0">{t("tutorActivityUI.action")}:</span>
                 <span className="font-mono text-foreground truncate text-right min-w-0" title={item.action}>
-                  {item.action}
+                  {activityLabel(item.action, t)}
                 </span>
               </div>
             </div>

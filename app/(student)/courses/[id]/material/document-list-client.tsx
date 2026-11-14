@@ -413,26 +413,29 @@ function DocumentItemWrapper({
     return false;
   };
 
-  if (isPageNav) {
-    return (
-      <Link href={itemHref} className={className} onClick={handleMobilePdf}>
-        {children}
-      </Link>
-    );
-  }
-
   return (
-    <button
-      type="button"
-      onClick={(e) => {
-        if (!handleMobilePdf(e)) {
-          onSelectPdf(material);
-        }
-      }}
-      className={cn(className, "text-left cursor-pointer w-full")}
-    >
-      {children}
-    </button>
+    <div className={cn(className, "relative w-full")}>
+      {isPageNav ? (
+        <Link
+          href={itemHref}
+          onClick={handleMobilePdf}
+          aria-label={material.title}
+          className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+        />
+      ) : (
+        <button
+          type="button"
+          aria-label={material.title}
+          onClick={(e) => {
+            if (!handleMobilePdf(e)) onSelectPdf(material);
+          }}
+          className="absolute inset-0 z-10 cursor-pointer rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+        />
+      )}
+      <div className="contents [&_a]:relative [&_a]:z-20 [&_button]:relative [&_button]:z-20">
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -544,7 +547,7 @@ export function DocumentListClient({
   };
 
   return (
-    <div className="space-y-3 font-sans">
+    <div className="@container/documents space-y-3 font-sans">
       {accessTier === "free" && lockedMaterialCount > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-primary/25 bg-brand-primary/5 px-3 py-2.5">
           <div className="flex min-w-0 items-center gap-2 text-body-xs text-muted-foreground">
@@ -714,15 +717,10 @@ export function DocumentListClient({
 
       {/* Grid View Mode */}
       {viewMode === "grid" ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 @min-[29rem]/documents:grid-cols-2 @min-[44rem]/documents:grid-cols-3 @min-[59rem]/documents:grid-cols-4 @min-[74rem]/documents:grid-cols-5">
           {filteredMaterials.map((material) => {
             const itemHref = material.href ?? `/courses/${courseId}/material/${material.id}`;
             const isPageNav = forcePageNavigation || isPageNavigationMaterial(material);
-            const subLabel = material.kind === "solution_collection"
-              ? t("documents.materialTypes.solution_collection")
-              : material.subcategory
-                ? getSubcategoryLabel(material.subcategory as any) ?? material.subcategory
-                : categoryLabel[material.docCategory ?? "materi"];
             const { babBadge, title: cleanTitle } = parseMaterialTitle(material.title, courseTitle);
 
             return (
@@ -735,32 +733,18 @@ export function DocumentListClient({
                 className={cn("group flex flex-col min-w-0 overflow-hidden rounded-xl border border-border/50 bg-card transition-all duration-150 hover:border-border/90 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary text-left", material.kind === "solution_collection" && "self-start")}
               >
                 {/* Header */}
-                <div className="flex items-center gap-2.5 px-3 py-2.5">
-                  <DocumentHeaderIcon
-                    kind={material.kind}
-                    docCategory={material.docCategory}
-                    subcategory={material.subcategory}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {babBadge && (
-                        <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-body-2xs font-semibold text-foreground/80 ring-1 ring-border">
-                          {babBadge}
-                        </span>
-                      )}
-                      <p
-                        className="min-w-0 break-words text-body-sm font-medium text-foreground group-hover:text-primary leading-tight"
-                        title={material.title}
-                      >
-                        {cleanTitle}
-                      </p>
-                    </div>
-                    <p className="mt-0.5 truncate text-body-xs text-muted-foreground leading-none">
-                      {subLabel}
-                      {material.year ? ` · ${material.year}` : ""}
-                      {material.fileSize && !/^diktat(\s+resmi|\s+canonical)?$/i.test(material.fileSize.trim()) ? ` · ${displayFileSizeLabel(material.fileSize, t)}` : ""}
-                    </p>
-                  </div>
+                <div className="px-3 py-2.5">
+                  <div className="flex min-h-7 items-center gap-1.5">
+                    <DocumentHeaderIcon
+                      kind={material.kind}
+                      docCategory={material.docCategory}
+                      subcategory={material.subcategory}
+                    />
+                    {babBadge && (
+                      <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-body-2xs font-semibold text-foreground/80 ring-1 ring-border">
+                        {babBadge}
+                      </span>
+                    )}
                   {isAdmin ? (
                     <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                       {material.status ? (
@@ -792,7 +776,7 @@ export function DocumentListClient({
                           <DropdownMenuItem asChild>
                             <Link href={`${itemHref}?mode=edit`}>
                               <Pencil className="size-3.5 mr-2" />
-                              Edit Dokumen
+                              {t("documents.editDocument")}
                             </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
@@ -805,7 +789,7 @@ export function DocumentListClient({
                             <DropdownMenuItem asChild>
                               <a href={material.url} target="_blank" rel="noopener noreferrer">
                                 <ExternalLink className="size-3.5 mr-2" />
-                                Buka Berkas PDF
+                                {t("documents.openPdf")}
                               </a>
                             </DropdownMenuItem>
                           ) : null}
@@ -817,7 +801,7 @@ export function DocumentListClient({
                                 onClick={() => setDeleteTarget(material)}
                               >
                                 <Trash2 className="size-3.5 mr-2" />
-                                Hapus Dokumen
+                                {t("documents.delete")}
                               </DropdownMenuItem>
                             </>
                           ) : null}
@@ -827,7 +811,7 @@ export function DocumentListClient({
                               <DropdownMenuItem asChild>
                                 <Link href={`/admin/courses/${encodeURIComponent(courseSlug || courseId)}/review?tab=product`}>
                                   <BookOpenCheck className="size-3.5 mr-2" />
-                                  Kelola Review
+                                  {t("documents.manageReview")}
                                 </Link>
                               </DropdownMenuItem>
                             </>
@@ -856,7 +840,7 @@ export function DocumentListClient({
                           className="size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
                           asChild
                           title={t("documents.downloadPdf")}
-                          aria-label={`Unduh PDF ${material.title}`}
+                          aria-label={`${t("documents.downloadPdf")} ${material.title}`}
                         >
                           <a href={material.url} download target="_blank" rel="noopener noreferrer">
                             <Download className="size-3.5" />
@@ -872,6 +856,13 @@ export function DocumentListClient({
                       )}
                     </div>
                   )}
+                  </div>
+                  <p
+                    className="mt-1 h-[3.75em] line-clamp-3 break-words text-body-sm font-medium leading-tight text-foreground group-hover:text-primary"
+                    title={material.title}
+                  >
+                    {cleanTitle}
+                  </p>
                 </div>
 
                 {/* Body (Preview or Placeholder) */}
@@ -981,7 +972,7 @@ export function DocumentListClient({
                           <DropdownMenuItem asChild>
                             <Link href={`${itemHref}?mode=edit`}>
                               <Pencil className="size-3.5 mr-2" />
-                              Edit Dokumen
+                              {t("documents.editDocument")}
                             </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
@@ -994,7 +985,7 @@ export function DocumentListClient({
                             <DropdownMenuItem asChild>
                               <a href={material.url} target="_blank" rel="noopener noreferrer">
                                 <ExternalLink className="size-3.5 mr-2" />
-                                Buka Berkas PDF
+                                {t("documents.openPdf")}
                               </a>
                             </DropdownMenuItem>
                           ) : null}
@@ -1006,7 +997,7 @@ export function DocumentListClient({
                                 onClick={() => setDeleteTarget(material)}
                               >
                                 <Trash2 className="size-3.5 mr-2" />
-                                Hapus Dokumen
+                                {t("documents.delete")}
                               </DropdownMenuItem>
                             </>
                           ) : null}
@@ -1016,7 +1007,7 @@ export function DocumentListClient({
                               <DropdownMenuItem asChild>
                                 <Link href={`/admin/courses/${encodeURIComponent(courseSlug || courseId)}/review?tab=product`}>
                                   <BookOpenCheck className="size-3.5 mr-2" />
-                                  Kelola Review
+                                  {t("documents.manageReview")}
                                 </Link>
                               </DropdownMenuItem>
                             </>
@@ -1034,7 +1025,7 @@ export function DocumentListClient({
                           className="size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
                           asChild
                           title={t("documents.downloadPdf")}
-                          aria-label={`Unduh PDF ${material.title}`}
+                          aria-label={`${t("documents.downloadPdf")} ${material.title}`}
                         >
                           <a href={material.url} download target="_blank" rel="noopener noreferrer">
                             <Download className="size-3.5" />

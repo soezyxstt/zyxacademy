@@ -73,8 +73,9 @@ function StepRow({ step, courseId }: { step: StudyPathStep; courseId: string }) 
   const content = (
     <div
       className={cn(
-        "group flex items-center justify-between gap-3 px-4 py-3 transition-colors",
-        isLocked
+        "flex items-center justify-between gap-3 px-4 py-3 transition-colors",
+        href && !isLocked && "group/step",
+        isLocked || !href
           ? "bg-muted/15"
           : "hover:bg-muted/30 active:bg-muted/50",
       )}
@@ -82,7 +83,7 @@ function StepRow({ step, courseId }: { step: StudyPathStep; courseId: string }) 
       <div className="flex min-w-0 flex-1 items-center gap-3">
         {statusIndicator}
         <div className="min-w-0 flex-1">
-          <p className="break-words text-body-sm font-medium leading-snug text-foreground transition-colors group-hover:text-brand-primary">
+          <p className="break-words text-body-sm font-medium leading-snug text-foreground transition-colors group-hover/step:text-brand-primary">
             <MathText as="span">{step.conceptName}</MathText>
           </p>
           {isLocked && step.prerequisites.length > 0 && (
@@ -95,8 +96,8 @@ function StepRow({ step, courseId }: { step: StudyPathStep; courseId: string }) 
 
       <div className="flex items-center gap-1.5 shrink-0 text-body-xs text-muted-foreground">
         <span>{t("course.studyPath.minutesShort", { count: step.estimatedMinutes })}</span>
-        {!isLocked && (
-          <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground group-hover:text-brand-primary" />
+        {href && !isLocked && (
+          <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground group-hover/step:text-brand-primary" />
         )}
       </div>
     </div>

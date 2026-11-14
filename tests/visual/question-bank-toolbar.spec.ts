@@ -29,6 +29,13 @@ test("bank soal toolbar and filter states", async ({ page }, testInfo) => {
   expect(new URL(page.url()).pathname).toBe(ROUTE);
   await expect(page.getByRole("heading", { name: "Bank Soal" })).toBeVisible();
   await page.waitForTimeout(1500);
+  if ((page.viewportSize()?.width ?? 0) >= 1000) {
+    const tabs = await page.getByRole("tablist").boundingBox();
+    const search = await page.getByPlaceholder(/Cari isi soal/).boundingBox();
+    expect(tabs).not.toBeNull();
+    expect(search).not.toBeNull();
+    expect(Math.abs(tabs!.y + tabs!.height / 2 - search!.y - search!.height / 2)).toBeLessThan(2);
+  }
   await assertAndCapture(page, testInfo, "active-closed");
 
   await page.getByRole("button", { name: "Filter soal" }).click();
@@ -41,6 +48,12 @@ test("bank soal toolbar and filter states", async ({ page }, testInfo) => {
   await assertAndCapture(page, testInfo, "active-applied");
   await page.getByRole("button", { name: "Reset" }).click();
   await expect(page.getByRole("button", { name: "Filter soal" })).toBeVisible();
+
+  const activeTab = page.getByRole("tab", { name: "Bank soal aktif" });
+  await activeTab.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page).toHaveURL(/tab=historical/);
+  await expect(page.getByRole("tab", { name: "Referensi historis" })).toBeFocused();
 
   const historicalResponse = await page.goto(`${ROUTE}?tab=historical`, { waitUntil: "domcontentloaded" });
   expect(historicalResponse?.status()).toBeLessThan(400);

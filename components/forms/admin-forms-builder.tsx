@@ -27,7 +27,6 @@ import {
   Clock,
   Plus,
   ArrowUpRight,
-  ChevronRight,
   UploadCloud,
   Star,
   Grid,
@@ -65,6 +64,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -813,11 +814,11 @@ export default function AdminFormsBuilder({
 
               {/* Compact Toolbar Row: Category, Short Link Slug & Preset Load */}
               <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1 text-body-xs">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-1.5">
+                <div className="flex min-w-0 flex-wrap items-center gap-3">
+                  <div className="flex min-w-0 items-center gap-1.5">
                     <span className="text-body-xs font-semibold text-muted-foreground">{t("ui.category")}</span>
                     <Select value={category} onValueChange={(val: any) => setCategory(val)}>
-                      <SelectTrigger className="w-40 h-7 text-body-sm font-semibold">
+                      <SelectTrigger aria-label={t("ui.category")} className="h-auto min-h-9 w-48 max-w-full gap-2 text-body-sm [&>span]:min-w-0 [&>span]:whitespace-normal [&>span]:text-left [&>svg]:shrink-0">
                         <SelectValue placeholder={t("ui.chooseCategory")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -1444,15 +1445,11 @@ export default function AdminFormsBuilder({
 
           {/* Floating Actions Sidebar Column */}
           <div className="md:col-span-3 space-y-3 md:sticky md:top-24">
-            <div className="border-l border-border pl-3.5 space-y-2">
-              <p className="text-body-xs font-bold text-foreground uppercase tracking-wider">
-                {editingFormId ? t("ui.editActions") : t("ui.formActions")}
-              </p>
-
+            <div className="flex flex-wrap gap-2 md:border-l md:border-border md:pl-3.5">
               <button
                 type="button"
                 onClick={handleAddQuestion}
-                className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-brand-primary/40 bg-brand-primary/10 px-3 py-2 text-body-xs font-bold text-brand-primary hover:bg-brand-primary/20 transition-colors cursor-pointer"
+                className="flex-[1_1_140px] md:flex-none md:w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-brand-primary/40 bg-brand-primary/10 px-3 py-2 text-body-sm font-semibold text-brand-primary hover:bg-brand-primary/20 transition-colors cursor-pointer"
               >
                 <PlusCircle className="size-3.5" />
                 {t("ui.addQuestion")}
@@ -1461,7 +1458,7 @@ export default function AdminFormsBuilder({
               <button
                 type="button"
                 onClick={handleAddStatement}
-                className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-brand-primary/40 bg-brand-primary/10 px-3 py-2 text-body-xs font-bold text-brand-primary hover:bg-brand-primary/20 transition-colors cursor-pointer"
+                className="flex-[1_1_140px] md:flex-none md:w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-brand-primary/40 bg-brand-primary/10 px-3 py-2 text-body-sm font-semibold text-brand-primary hover:bg-brand-primary/20 transition-colors cursor-pointer"
               >
                 <Info className="size-3.5" />
                 {t("ui.addInformation")}
@@ -1470,7 +1467,7 @@ export default function AdminFormsBuilder({
               <button
                 type="button"
                 onClick={handleAddSection}
-                className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-brand-secondary/40 bg-brand-secondary/10 px-3 py-2 text-body-xs font-bold text-brand-secondary hover:bg-brand-secondary/20 transition-colors cursor-pointer"
+                className="flex-[1_1_140px] md:flex-none md:w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-brand-secondary/40 bg-brand-secondary/10 px-3 py-2 text-body-sm font-semibold text-brand-secondary hover:bg-brand-secondary/20 transition-colors cursor-pointer"
               >
                 <Layers className="size-3.5" />
                 {t("ui.addSection")}
@@ -1479,7 +1476,7 @@ export default function AdminFormsBuilder({
               <button
                 type="button"
                 onClick={() => setActiveTab("preview")}
-                className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
+                className="flex-[1_1_140px] md:flex-none md:w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-body-sm font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
               >
                 <Eye className="size-3.5" />
                 {t("ui.previewForm")}
@@ -1864,21 +1861,11 @@ export default function AdminFormsBuilder({
 
         <TabsContent value="forms">
         <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-border pb-3">
-            <div>
-                <h2 className="font-heading text-body-base font-bold text-foreground">
-                {t("ui.published")}
-              </h2>
-            </div>
-            <button
-              type="button"
-              onClick={fetchForms}
-              disabled={loadingForms}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors disabled:opacity-50 cursor-pointer"
-            >
+          <div className="flex justify-end">
+            <Button type="button" variant="outline" size="sm" onClick={fetchForms} disabled={loadingForms}>
               <RefreshCw className={`size-3.5 ${loadingForms ? "animate-spin" : ""}`} />
               {t("ui.reload")}
-            </button>
+            </Button>
           </div>
 
           {loadingForms ? (
@@ -1898,140 +1885,55 @@ export default function AdminFormsBuilder({
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
-              {forms.map((f) => {
-                const isDeleting = deletingId === f.id;
-                const shortPath = `/f/${f.slug}`;
-                const fullPath = `/forms/${f.id}`;
-                const isShortCopied = copiedId === `short_${f.id}`;
-                const isFullCopied = copiedId === `full_${f.id}`;
-
-                return (
-                  <article
-                    key={f.id}
-                    className="min-w-0 p-4 transition-colors hover:bg-muted/20"
-                  >
-                    <div className="flex min-w-0 flex-col gap-4">
-                      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0">
-                          <p className="break-words font-heading text-body-base font-bold text-foreground">
-                            {f.title}
-                          </p>
-                          <p className="mt-1 break-all font-mono text-body-xs text-muted-foreground">
-                            {t("ui.slugLabel", { slug: f.slug })}
-                          </p>
-                        </div>
-
-                        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
-                          <span className="rounded-md bg-muted px-2.5 py-1 text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            {t(`ui.${f.category}`)}
-                          </span>
-                          <span className="font-mono text-body-sm font-bold text-brand-primary">
-                            {t("ui.responseCount", { count: f.totalResponses || 0 })}
-                          </span>
+            <TooltipProvider>
+              <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+                {forms.map((f) => {
+                  const isDeleting = deletingId === f.id;
+                  const shortPath = `/f/${f.slug}`;
+                  const fullPath = `/forms/${f.id}`;
+                  return (
+                    <article key={f.id} className="flex min-w-0 flex-wrap items-center justify-between gap-3 p-3 transition-colors hover:bg-muted/20">
+                      <div className="min-w-0 flex-1 basis-48 space-y-1">
+                        <p className="break-words font-heading text-body-sm font-semibold text-foreground">{f.title}</p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-xs text-muted-foreground">
+                          <span>{t(`ui.${f.category}`)}</span>
+                          <span>{t("ui.responseCount", { count: f.totalResponses || 0 })}</span>
                         </div>
                       </div>
-
-                      <div className="grid min-w-0 gap-3 border-t border-border/60 pt-4 sm:grid-cols-2">
-                        <div className="min-w-0">
-                          <p className="mb-1 text-body-xs font-semibold text-muted-foreground">{t("ui.shortLink")}</p>
-                          <div className="flex min-w-0 items-start gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => handleCopyLink(shortPath, `short_${f.id}`)}
-                              className="flex min-w-0 w-full items-start gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-left text-body-sm font-semibold text-foreground transition-colors hover:bg-muted cursor-pointer"
-                            >
-                              {isShortCopied ? (
-                                <Check className="mt-0.5 size-3.5 shrink-0 text-status-success" />
-                              ) : (
-                                <Copy className="mt-0.5 size-3.5 shrink-0" />
-                              )}
-                              <span className="min-w-0 break-all">
-                                {isShortCopied ? t("ui.copied") : shortPath}
-                              </span>
-                            </button>
-                            <a
-                              href={shortPath}
-                              target="_blank"
-                              rel="noreferrer"
-                              aria-label={t("ui.openShortLink", { path: shortPath })}
-                              className="mt-2 shrink-0 text-brand-primary hover:underline"
-                            >
-                              <ExternalLink className="size-3.5" aria-hidden="true" />
-                            </a>
-                          </div>
-                        </div>
-
-                        <div className="min-w-0">
-                          <p className="mb-1 text-body-xs font-semibold text-muted-foreground">{t("ui.fullLink")}</p>
-                          <div className="flex min-w-0 items-start gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => handleCopyLink(fullPath, `full_${f.id}`)}
-                              className="flex min-w-0 w-full items-start gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-left text-body-sm font-semibold text-foreground transition-colors hover:bg-muted cursor-pointer"
-                            >
-                              {isFullCopied ? (
-                                <Check className="mt-0.5 size-3.5 shrink-0 text-status-success" />
-                              ) : (
-                                <Copy className="mt-0.5 size-3.5 shrink-0" />
-                              )}
-                              <span className="min-w-0 break-all">
-                                {isFullCopied ? t("ui.copied") : fullPath}
-                              </span>
-                            </button>
-                            <a
-                              href={fullPath}
-                              target="_blank"
-                              rel="noreferrer"
-                              aria-label={t("ui.openFullLink", { path: fullPath })}
-                              className="mt-2 shrink-0 text-brand-primary hover:underline"
-                            >
-                              <ExternalLink className="size-3.5" aria-hidden="true" />
-                            </a>
-                          </div>
-                        </div>
+                      <div className="flex max-w-full flex-wrap items-center gap-1">
+                        <Button asChild size="sm">
+                          <Link href={`/admin/forms/${f.id}`}><BarChart3 className="size-3.5" />{t("ui.viewResponses")}</Link>
+                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild><Button type="button" variant="outline" size="icon" aria-label={t("ui.editForm")} onClick={() => handleStartEdit(f)}><Edit3 className="size-3.5" /></Button></TooltipTrigger>
+                          <TooltipContent>{t("ui.editForm")}</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild><Button type="button" variant="outline" size="icon" aria-label={t("ui.copyShortLink")} onClick={() => handleCopyLink(shortPath, `short_${f.id}`)}>{copiedId === `short_${f.id}` ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}</Button></TooltipTrigger>
+                          <TooltipContent>{copiedId === `short_${f.id}` ? t("ui.copied") : t("ui.copyShortLink")}</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild><Button asChild variant="outline" size="icon"><a href={shortPath} target="_blank" rel="noreferrer" aria-label={t("ui.openShortLink", { path: shortPath })}><ExternalLink className="size-3.5" /></a></Button></TooltipTrigger>
+                          <TooltipContent className="break-all">{t("ui.openShortLink", { path: shortPath })}</TooltipContent>
+                        </Tooltip>
+                        <DropdownMenu>
+                          <Tooltip>
+                            <TooltipTrigger asChild><DropdownMenuTrigger asChild><Button type="button" variant="outline" size="icon" aria-label={t("ui.moreActions")} disabled={isDeleting}>{isDeleting ? <RefreshCw className="size-3.5 animate-spin" /> : <MoreVertical className="size-3.5" />}</Button></DropdownMenuTrigger></TooltipTrigger>
+                            <TooltipContent>{t("ui.moreActions")}</TooltipContent>
+                          </Tooltip>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem onSelect={() => handleCopyLink(fullPath, `full_${f.id}`)}><Copy className="size-4" />{t("ui.copyFullLink")}</DropdownMenuItem>
+                            <DropdownMenuItem asChild><a href={fullPath} target="_blank" rel="noreferrer"><ExternalLink className="size-4" />{t("ui.openFullLink", { path: fullPath })}</a></DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive" onSelect={() => setConfirmDeleteFormId(f.id)}><Trash2 className="size-4" />{t("ui.deleteForm")}</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
-
-                      <div className="flex flex-col gap-2 border-t border-border/60 pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-                        <button
-                          type="button"
-                          onClick={() => handleStartEdit(f)}
-                          title={t("ui.editForm")}
-                          className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-body-sm font-semibold text-foreground transition-colors hover:bg-muted cursor-pointer sm:w-auto"
-                        >
-                          <Edit3 className="size-3.5 text-brand-primary" />
-                          {t("ui.editForm")}
-                        </button>
-
-                        <Link
-                          href={`/admin/forms/${f.id}`}
-                          className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-brand-primary/30 bg-brand-primary/10 px-3 py-1.5 text-body-sm font-semibold text-brand-primary transition-colors hover:bg-brand-primary/20 sm:w-auto"
-                        >
-                          <BarChart3 className="size-3.5" />
-                          {t("ui.viewResponses")}
-                          <ChevronRight className="size-3.5" />
-                        </Link>
-
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDeleteFormId(f.id)}
-                          disabled={isDeleting}
-                          title={t("ui.deleteForm")}
-                          aria-label={t("ui.deleteForm")}
-                          className="inline-flex min-h-9 min-w-9 shrink-0 items-center justify-center self-end rounded-lg border border-status-error/30 bg-status-error/10 p-1.5 text-status-error transition-colors hover:bg-status-error/20 disabled:opacity-50 cursor-pointer sm:self-auto"
-                        >
-                          {isDeleting ? (
-                            <RefreshCw className="size-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="size-3.5" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </TooltipProvider>
           )}
         </div>
         </TabsContent>

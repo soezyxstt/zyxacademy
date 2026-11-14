@@ -1,3 +1,4 @@
+import { adminMcpTestPrincipal, seedAdminMcpAuthority } from "../helpers/admin-mcp-authority";
 import { beforeAll, afterAll, expect, mock, test } from "bun:test";
 import { createPostgresTestDb } from "../helpers/postgres";
 import { eq, like } from "drizzle-orm";
@@ -26,7 +27,7 @@ const principal = { userId: "admin", actorId: "admin", sessionId: "session", aut
 registerExternalTools({ registerTool: (name: string, _config: unknown, fn: (input: Record<string, unknown>) => Promise<any>) => handlers.set(name, fn) } as never, principal);
 const call = async (name: string, input: Record<string, unknown>) => (await handlers.get(name)!({ expectedEnvironment: "local", expectedOrigin: process.env.BETTER_AUTH_URL || "http://localhost:3000", ...input })).structuredContent;
 async function commit(name: string, input: Record<string, unknown>) { const plan = await call(name, input); expect(plan.ok).toBe(true); return call(name, { ...input, dryRun: false, confirmationToken: plan.data.confirmationToken }); }
-beforeAll(async () => {  for (const id of ["admin", "one", "two", "suspended"]) { await database.insert(schema.user).values({ id, name: id, email: `${id}@example.test` }); await database.insert(schema.pengguna).values({ id, status: id === "suspended" ? "suspended" : "active" }); } await grant(); });
+beforeAll(async () => {  for (const id of ["admin", "one", "two", "suspended"]) { await database.insert(schema.user).values({ id, name: id, email: `${id}@example.test` }); await database.insert(schema.pengguna).values({ id, status: id === "suspended" ? "suspended" : "active" }); } await seedAdminMcpAuthority(database, principal); await grant(); });
 afterAll(async () => { await client.close(); });
 let jobId = "";
 test("audience is explicit, excludes suspended users, never widens malformed targets", async () => {

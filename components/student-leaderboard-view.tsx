@@ -48,7 +48,7 @@ export function StudentLeaderboardView({ href = (path: string) => path,  allCour
                 </div>
 
                 {rows.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed border-border bg-muted/10">
+                  <div className="flex flex-col items-center justify-center py-10 text-center">
                     <Trophy className="size-8 text-muted-foreground/25 mb-2" />
                     <p className="text-body-sm text-muted-foreground"><TranslatedText namespace="student" messageKey="leaderboard.emptyCourse" /></p>
                   </div>

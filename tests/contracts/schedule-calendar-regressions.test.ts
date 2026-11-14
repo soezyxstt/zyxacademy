@@ -12,8 +12,8 @@ describe("schedule calendar regression contracts", () => {
     const tutor = source("components/tutor/tutor-schedule-view.tsx");
 
     expect(student).not.toContain('from "@/lib/schedule-lock"');
-    expect(student).toContain('if (experience.mode !== "demo") return getScheduleData(offset);');
-    expect(student).toContain("weekInfo: getWeekScheduleDays(daysFrom(offset * 7, getJakartaNow()))");
+    expect(student).toContain('if (experience.mode !== "demo") return getScheduleData(offset, selectedCourse?.id);');
+    expect(student).toContain("const weekInfo = getWeekScheduleDays(daysFrom(offset * 7, getJakartaNow()))");
     expect(student).not.toContain("isTutorialWeekLocked");
     expect(student).toContain("weekInfo={activeData.weekInfo}");
     expect(student).toContain("isWeekLocked={activeData.isWeekLocked}");

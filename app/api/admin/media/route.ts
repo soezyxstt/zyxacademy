@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { storage } from "@/lib/storage";
-import { assertSafeKey, buildMediaKey, leafFilename, slugifySegment } from "@/lib/storage/keys";
+import { assertSafeKey, buildMediaKey, buildMediaFolderPath, existingMediaFolderPath, leafFilename } from "@/lib/storage/keys";
 import {
   baseFolderName,
   buildFolderTree,
@@ -10,7 +10,6 @@ import {
   isFolderMarkerKey,
   kindFromKey,
   MEDIA_MAX_UPLOAD_BYTES,
-  normalizeFolderPath,
   parentFolderPath,
   type MediaFile,
   type MediaFolder,
@@ -19,17 +18,6 @@ import {
 export const dynamic = "force-dynamic";
 
 const MEDIA_DOMAIN = "media";
-
-function slugifyFolderPath(path?: string | null): string {
-  const raw = (path || "").trim();
-  if (raw) assertSafeKey(raw);
-  const cleaned = normalizeFolderPath(raw);
-  return cleaned
-    .split("/")
-    .map((seg) => slugifySegment(seg, ""))
-    .filter(Boolean)
-    .join("/");
-}
 
 function assertMediaPath(folderPath: string): void {
   assertSafeKey(folderPath ? `${MEDIA_DOMAIN}/${folderPath}` : MEDIA_DOMAIN);
@@ -46,7 +34,7 @@ export async function GET(req: Request) {
     await assertAdmin();
 
     const url = new URL(req.url);
-    const folder = slugifyFolderPath(url.searchParams.get("folder"));
+    const folder = existingMediaFolderPath(url.searchParams.get("folder"));
     assertMediaPath(folder);
 
     if (typeof storage.list !== "function") {
@@ -129,7 +117,7 @@ export async function POST(req: Request) {
     }
 
     if (action === "mkdir") {
-      const folder = slugifyFolderPath(folderPath);
+      const folder = buildMediaFolderPath(folderPath);
       if (!folder) {
         return NextResponse.json({ error: "Nama folder wajib diisi" }, { status: 400 });
       }
@@ -149,9 +137,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const folder = slugifyFolderPath(folderPath);
+    const folder = existingMediaFolderPath(folderPath);
     assertMediaPath(folder);
-    const key = buildMediaKey({ folderPath: folder, filename: file.name });
+    const key = buildMediaKey({ folderPath: folder, filename: file.name, preserveFolderPath: true });
     const uploadRes = await storage.upload(file, file.name, file.type, { key });
 
     return NextResponse.json({

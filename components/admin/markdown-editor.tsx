@@ -19,6 +19,7 @@ import { useTranslations } from "@/lib/i18n/client";
 
 interface MarkdownEditorProps {
   initialData?: any;
+  initialRevision?: string;
 }
 
 function BlogThumbnailPreview({
@@ -68,7 +69,7 @@ function BlogThumbnailPreview({
   );
 }
 
-export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
+export function MarkdownEditor({ initialData, initialRevision }: MarkdownEditorProps) {
   const router = useRouter();
   const t = useTranslations("adminAcademic");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -228,7 +229,7 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
     e.preventDefault();
     setIsSubmitting(true);
     
-    const res = await saveArticle(formData);
+    const res = await saveArticle({ ...formData, ...(formData.id ? { expectedRevision: initialRevision } : {}) });
     setIsSubmitting(false);
     
     if (res.success) {
@@ -236,7 +237,7 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
       router.push("/admin/blog");
       router.refresh();
     } else {
-      toast.error(t("editor.articleSaveFailed"));
+      toast.error(t(res.code === "REVISION_CONFLICT" ? "editor.articleChanged" : "editor.articleSaveFailed"));
     }
   };
 

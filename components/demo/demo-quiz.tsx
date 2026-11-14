@@ -14,6 +14,7 @@ import { fictionalQuizCorrectCount } from "@/lib/demo/assessment/history";
 import { useTranslations } from "@/lib/i18n/client";
 import { useDemoSession } from "./demo-session";
 import { useStudentExperience } from "@/components/student-experience-provider";
+import { ApplicationPage } from "@/components/application-page";
 
 // Fictional historical attempts never invent answers for real course questions.
 const historicalQuestions: DemoQuizQuestion[] = [
@@ -48,11 +49,11 @@ export function DemoQuiz({ pages, courseId, view = "quiz" }: {
     if (!ready || !revision || experience.mode !== "demo" || experience.selectedCourseId !== courseId) return;
     let stored: { result: DemoQuizResult; answers: Record<string, number[]> } | null = memoryResult.current?.identity === identity && memoryResult.current.key === resultKey ? memoryResult.current : null;
     if (overlay.events.some((event) => event.kind === "quiz" && event.id === questionKey)) {
-      try { stored = parseDemoQuizAttempt(sessionStorage.getItem(resultKey), identity, questions.length) ?? stored; } catch { /* Storage is optional. */ }
+      try { stored = parseDemoQuizAttempt(localStorage.getItem(resultKey), identity, questions.length) ?? stored; } catch { /* Storage is optional. */ }
     } else {
       stored = null;
       memoryResult.current = null;
-      try { sessionStorage.removeItem(resultKey); } catch { /* Storage is optional. */ }
+      try { localStorage.removeItem(resultKey); } catch { /* Storage is optional. */ }
     }
     setLoaded({ identity, key: resultKey, generation, result: stored?.result ?? null, answers: stored?.answers ?? {} });
   }, [ready, revision, generation, overlay, questionKey, resultKey, identity, questions.length, experience.mode, experience.selectedCourseId, courseId]);
@@ -63,7 +64,7 @@ export function DemoQuiz({ pages, courseId, view = "quiz" }: {
       const value = answers[question.id];
       return [question.id, Array.isArray(value) ? value.filter((index): index is number => typeof index === "number") : typeof value === "number" ? [value] : []];
     }));
-    try { sessionStorage.setItem(resultKey, serializeDemoQuizResult(identity, graded, submitted)); } catch { /* Keep the result in memory. */ }
+    localStorage.setItem(resultKey, serializeDemoQuizResult(identity, graded, submitted));
     memoryResult.current = { identity, key: resultKey, result: graded, answers: submitted };
     record("quiz", questionKey);
     setLoaded({ identity, key: resultKey, generation, result: graded, answers: submitted });
@@ -89,7 +90,7 @@ export function DemoQuiz({ pages, courseId, view = "quiz" }: {
     return <DemoQuizResults result={baselineResult} questions={historicalQuestions} answers={Object.fromEntries(historicalQuestions.map((question, index) => [question.id, [index < baselineCorrect ? 0 : 1]]))} courseId={courseId} />;
   }
   if (loaded.result) return <DemoQuizResults result={loaded.result} questions={questions} answers={loaded.answers} courseId={courseId} />;
-  return <QuizPlayer key={`${questionKey}:${generation}`} courseId={courseId} exam={exam} attemptId={`demo:${questionKey}:${generation}`} transport={transport} />;
+  return <ApplicationPage><QuizPlayer key={`${questionKey}:${generation}`} courseId={courseId} exam={exam} attemptId={`demo:${questionKey}:${generation}`} transport={transport} /></ApplicationPage>;
 }
 
 /** Route owners may reuse this after loading a validated local result. */

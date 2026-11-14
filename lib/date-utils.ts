@@ -347,6 +347,10 @@ export function daysAgo(n: number, from: Date = new Date()): Date {
   return subDays(from, n);
 }
 
+export function elapsedDaysAgo(n: number, from: Date = new Date()): Date {
+  return addMilliseconds(from, -n * DAY_MS);
+}
+
 export function daysFrom(n: number, from: Date = new Date()): Date {
   return addDays(from, n);
 }

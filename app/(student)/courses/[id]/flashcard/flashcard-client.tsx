@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Brain, Check, X, RotateCw, RefreshCw, SkipForward } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { toast } from "@/components/ui/toast";
 import { emitActivityUpdated } from "@/lib/activity-signal";
 import { appendFlashcardRetry, skipFlashcardInSession } from "@/lib/flashcard-session";
 import { useTranslations } from "@/lib/i18n/client";
+import { FLASHCARD_BATCH_SIZE, type FlashcardSessionState } from "@/lib/demo/flashcard-resume";
 
 interface Flashcard {
   id: string;
@@ -42,23 +43,27 @@ type FlashcardClientProps = {
   courseId: string;
   initialQueue: QueueItem[];
   studentId: string;
-  adapter?: { onReview: (cardId: string, grade: number) => void | Promise<void>; backHref: string; onRestart?: () => void };
+  adapter?: { onReview: (cardId: string, grade: number) => void | Promise<void>; backHref: string; onRestart?: () => void; resume?: FlashcardSessionState | null; onStateChange?: (state: FlashcardSessionState) => void };
 };
 
-const BATCH_SIZE = 10;
+const BATCH_SIZE = FLASHCARD_BATCH_SIZE;
 
 export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: FlashcardClientProps) {
   const t = useTranslations("learning");
-  const [queue, setQueue] = useState<QueueItem[]>(initialQueue);
-  const [batchOffset, setBatchOffset] = useState(0);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isFlipped, setIsFlipped] = useState(false);
-  const [mode, setMode] = useState<"standard" | "exam">("standard");
-  const [typedAnswer, setTypedAnswer] = useState("");
-  const [isChecked, setIsChecked] = useState(false);
-  const [passedExam, setPassedExam] = useState<boolean | null>(null);
+  const [queue, setQueue] = useState<QueueItem[]>(() => adapter?.resume ? adapter.resume.queue.map(({ id, dueStatus }) => ({ ...initialQueue.find(item => item.card.id === id)!, dueStatus })) : initialQueue);
+  const [batchOffset, setBatchOffset] = useState(adapter?.resume?.batchOffset ?? 0);
+  const [currentIndex, setCurrentIndex] = useState(adapter?.resume?.currentIndex ?? 0);
+  const [isFlipped, setIsFlipped] = useState(adapter?.resume?.isFlipped ?? false);
+  const [mode, setMode] = useState<"standard" | "exam">(adapter?.resume?.mode ?? "standard");
+  const [typedAnswer, setTypedAnswer] = useState(adapter?.resume?.typedAnswer ?? "");
+  const [isChecked, setIsChecked] = useState(adapter?.resume?.isChecked ?? false);
+  const [passedExam, setPassedExam] = useState<boolean | null>(adapter?.resume?.passedExam ?? null);
   const [loading, setLoading] = useState(false);
-  const [completedCount, setCompletedCount] = useState(0);
+  const [completedCount, setCompletedCount] = useState(adapter?.resume?.completedCount ?? 0);
+  const onStateChange = adapter?.onStateChange;
+  useEffect(() => {
+    onStateChange?.({ queue: queue.map(item => ({ id: item.card.id, dueStatus: item.dueStatus })), batchOffset, currentIndex, isFlipped, mode, typedAnswer, isChecked, passedExam, completedCount });
+  }, [onStateChange, queue, batchOffset, currentIndex, isFlipped, mode, typedAnswer, isChecked, passedExam, completedCount]);
 
   const activeBatch = queue.slice(batchOffset, batchOffset + BATCH_SIZE);
   const currentItem = activeBatch[currentIndex];
@@ -140,8 +145,8 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
   };
 
   const handleSkip = () => {
-    if (!currentItem || queue.length - currentIndex <= 1 || loading) return;
-    setQueue((current) => skipFlashcardInSession(current, currentIndex));
+    if (!currentItem || queue.length - (batchOffset + currentIndex) <= 1 || loading) return;
+    setQueue((current) => skipFlashcardInSession(current, batchOffset + currentIndex));
     setIsFlipped(false);
     setTypedAnswer("");
     setIsChecked(false);
@@ -256,6 +261,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
             setIsFlipped(false);
             setTypedAnswer("");
             setIsChecked(false);
+            setPassedExam(null);
           }}>
             <label className="flex items-center gap-2 text-body-sm"><RadioGroupItem value="standard" disabled={loading} />{t("flashcards.standard")}</label>
             <label className="flex items-center gap-2 text-body-sm"><RadioGroupItem value="exam" disabled={loading} />{t("flashcards.typeAnswer")}</label>
@@ -369,7 +375,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
       </div>
 
       <div className="flex items-center justify-end">
-        <Button type="button" variant="ghost" size="sm" onClick={handleSkip} disabled={loading || queue.length - currentIndex <= 1} className="rounded-md text-body-sm text-muted-foreground hover:text-foreground">
+        <Button type="button" variant="ghost" size="sm" onClick={handleSkip} disabled={loading || queue.length - (batchOffset + currentIndex) <= 1} className="rounded-md text-body-sm text-muted-foreground hover:text-foreground">
           {t("flashcards.skip")} <SkipForward className="ml-1.5 size-4" />
         </Button>
       </div>

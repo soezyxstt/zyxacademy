@@ -20,6 +20,7 @@ describe("admin MCP scope isolation", () => {
     expect([...handlers.keys()]).toContain("courses.list");
     const result = await handlers.get("courses.list")!({});
     expect(result.isError).toBe(true);
-    expect(result.structuredContent).toEqual({ ok: false, error: "AUTHORING_MCP_SCOPE_REQUIRED" });
+    expect(result.structuredContent).toMatchObject({ ok: false, error: "AUTHORING_MCP_SCOPE_REQUIRED", requiredScope: "courses:read", action: "reauthorize", retryable: false });
+    expect(result).toHaveProperty("_meta.mcp/www_authenticate");
   });
 });

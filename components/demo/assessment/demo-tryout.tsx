@@ -17,7 +17,7 @@ export function DemoTryout({ courseId, exam: suppliedExam }: { courseId: string;
  return <CoursePageShell title={exam.title} hideHeader><Reveal><TryoutForm key={`${courseId}:${revision}:${generation}`} courseId={courseId} exam={exam} transport={{
    afterSubmitHref: experience.route("results"),
    submit: async answers => {
-     try { sessionStorage.setItem(demoTryoutAnswersKey(courseId, revision), JSON.stringify(answers)); } catch { /* The local submission still completes. */ }
+     localStorage.setItem(demoTryoutAnswersKey(courseId, revision), JSON.stringify(answers));
      record("quiz", "fictional-tryout-complete");
    },
  }} /></Reveal></CoursePageShell>;

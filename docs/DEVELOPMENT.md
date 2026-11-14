@@ -683,3 +683,15 @@ The candidate build passed before subsequent test selector and animation changes
 The historical mixed-assessment `scripts/staging/test-product-bundle.ts` probe is retired and fails before environment access. It does not validate the current learning-only authoring, review or publication workflow. Use focused contract suites and the documented scoped operators instead.
 
 The private V2/V3 local PDF operator accepts a linked `diktatId` or an unlinked `articleId`, with an explicit ID required for multiple export targets. Article-only evidence uses the Article generation hash as self-lineage in the legacy Diktat hash column and preserves the existing review gate. See the [legacy operator contract](bundle/product-bundle-v3.md#private-local-pdf-operator-for-legacy-drafts). Local Product verifier launchers share one machine lock across imports, checkouts and legacy/V4 profiles, including capability discovery. The lock is acquired before bundling; each launch uses a private temporary module and cleans it up on exit. If a process is forcibly killed, first verify that no operator remains, then remove the per-user `zyx-product-local-<uid>.lock` directory under the operating system temporary directory before retrying. Per-import locks still protect the exact V4 attempt.
+
+
+## Existing-content revision development
+
+Status: `ACTIVE`, implemented with focused local verification; rollout is separate. See the [flexible authoring revision contract](bundle/authoring-revisions.md). Existing Idea/Product content uses stable-ID MCP patches and durable draft successors, while new authoring retains its Source Pack workflow. Read `authoring.get_edit_context` and use the returned import ID and checksum after each edit; patching can return a new import ID. Obtain a new bootstrap for the current account and session when resuming. The context provides the persisted draft execution run and a fresh bound run token for applicable V4 verification, without adopting another run.
+
+Use the profile-specific review context and explicit decisions. When the server supplies `reviewReuse`, request unchanged-decision reuse only with its current token and explicit `reuseUnchanged` consent; changed units, current final approval, rubric and verification requirements still apply. Replan and publish the exact manifest through `authoring.publish_release` with `authoring:publish`. No MCP capability grants implicit permission to publish content. V1/V2 editing and legacy expansion are outside scope. Keep local verification sequential and resource-bounded; do not run a full local build, lint or typecheck for this implementation without a later explicit instruction.
+
+
+## Agent-first content checks
+
+The repository plugin source is `plugins/zyx-authoring-mcp`, version 0.5.0. Run its Python distribution tests and focused blog, media and operation-discovery contracts in separate processes. Local candidate packaging does not publish the plugin or advance the server external-source pin. See [agent-first content operations](operations/agent-first-content.md).
