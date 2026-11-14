@@ -35,7 +35,7 @@ const noopModules: Record<string, string> = {
 };
 async function bundle(actor: 'submit' | 'edit') {
  const entry = actor === 'submit'
-  ? `export { POST as daily } from './app/api/quiz/daily/route'; export { POST as standard } from './app/api/quiz/attempts/[id]/route'; export { processGamificationOutbox } from './lib/gamification/processor'; export { lockQuestionExposures, lockCanonicalQuestions } from './lib/gamification/question-exposure'; export { lockQuestionBankRows } from './lib/question-row-locks';`
+  ? `export { POST as daily } from './app/api/quiz/daily/route'; export { POST as standard } from './app/api/quiz/attempts/[id]/route'; export { processGamificationOutbox } from './lib/gamification/processor'; export { lockQuestionExposures, lockCanonicalQuestions } from './lib/gamification/question-exposure'; export { lockQuestionBankRows } from './lib/question-row-locks'; export { gradeQuizAttempt, getQuizAttemptDetailsForGrading } from './lib/tutor/quiz-grading';`
   : `export { updateCanonicalQuestion, createCanonicalQuestionBatch } from './lib/question-authoring'; export { setQuizQuestions } from './lib/authoring/quiz-assembly'; export { stageInteractiveDocumentAssets } from './lib/materials/interactive-document-assets'; export { stageQuestionVisualBinding } from './lib/materials/question-visual-binding';`;
  const result = await build({ stdin: { contents: entry, resolveDir: root, loader: 'ts' }, bundle: true, platform: 'node', format: 'cjs', write: false, packages: 'external', tsconfig: path.join(root, 'tsconfig.json'), plugins: [{ name: 'fixture-boundaries', setup(b) {
   b.onResolve({ filter: /.*/ }, args => {
@@ -62,8 +62,9 @@ function instrument(client: pg.Client, releases: Array<() => void>) {
  const query = client.query.bind(client) as any;
  let gate: Gate | null = null;
  (client as any).query = async (...args: any[]) => {
-  const result = await query(...args);
   const statement = typeof args[0] === 'string' ? args[0] : args[0]?.text ?? '';
+  if ((globalThis as any).__raceFixture?.failDisclosure && /insert into "gamification_question_(exposures|bank_disclosures)"/i.test(statement)) throw new Error('FORCED_DISCLOSURE_FAILURE');
+  const result = await query(...args);
   if (gate && gate.matches(statement)) { const held = gate; gate = null; held.entered.resolve(); await timeout(held.release.promise, 'GATE'); }
   return result;
  };
@@ -100,7 +101,7 @@ async function main() {
  const migrations = readMigrationFiles({ migrationsFolder: 'drizzle-postgres' });
  if (migrations.length !== 24 || migrations[23]?.hash !== PENDING[7][1]) throw new Error('LOCAL_MIGRATION_MISMATCH');
  const prefix = `zyx-submit-race-${randomUUID()}`;
- const user = `${prefix}-user`, course = `${prefix}-course`, chapter = `${prefix}-chapter`, idea = `${prefix}-idea`, checklist = `${prefix}-checklist`;
+ const user = `${prefix}-user`, tutor = `${prefix}-tutor`, course = `${prefix}-course`, chapter = `${prefix}-chapter`, idea = `${prefix}-idea`, checklist = `${prefix}-checklist`;
  const submit = new pg.Client({ connectionString: url }), edit = new pg.Client({ connectionString: url }), control = new pg.Client({ connectionString: url });
  const objects = new Map<string, Uint8Array>();
  const storage = { exists: async (key: string) => objects.has(key), upload: async (bytes: Uint8Array, _name: string, _type: string, options: { key: string }) => { objects.set(options.key, bytes); }, download: async (key: string) => { const bytes = objects.get(key); if (!bytes) throw new Error('FIXTURE_ASSET_MISSING'); return bytes; } };
@@ -141,11 +142,16 @@ async function main() {
   await control.query('begin'); seeded = true;
   await control.query('insert into "user" (id,name,email,role) values ($1,$1,$2,\'student\')', [user,`${user}@example.invalid`]);
   await control.query('insert into pengguna (id) values ($1)', [user]);
+  await control.query("insert into \"user\" (id,name,email,role) values ($1,$1,$2,'teacher')",[tutor,`${tutor}@example.invalid`]);
+  await control.query('insert into pengguna (id) values ($1)',[tutor]);
+  const tutorRole = await control.query("select id from peran where code='tutor'"); assert.equal(tutorRole.rowCount,1);
+  await control.query("insert into pengguna_peran (id,pengguna_id,peran_id,source) values ($1,$2,$3,'fixture')",[`${prefix}-tutor-role`,tutor,tutorRole.rows[0].id]);
   const role = await control.query("select id from peran where code='murid'"); assert.equal(role.rowCount, 1);
   await control.query("insert into pengguna_peran (id,pengguna_id,peran_id,source) values ($1,$2,$3,'fixture')", [`${prefix}-role`,user,role.rows[0].id]);
   await control.query("insert into courses (id,title,category) values ($1,'Fixture','Matematika')",[course]);
   await control.query("insert into mata_kuliah (id,code,title,status,is_demo,legacy_course_id) values ($1,$1,'Fixture','active',false,$1)",[course]);
   await control.query("insert into bab (id,mata_kuliah_id,code,title,order_index,status) values ($1,$2,$1,'Fixture',0,'active')",[chapter,course]);
+  await control.query("insert into penugasan_tutor (id,pengguna_id,mata_kuliah_id,status) values ($1,$2,$3,'active')",[`${prefix}-assignment`,tutor,course]);
   await control.query("insert into pendaftaran_murid (id,pengguna_id,mata_kuliah_id,status) values ($1,$2,$3,'active')",[`${prefix}-enrollment`,user,course]);
   await control.query("insert into ide (id,mata_kuliah_id,bab_id,stable_key,code,canonical_statement,concise_explanation,difficulty_metadata,version,status,semantic_hash,generation_hash,creator_id) values ($1,$2,$3,$1,$1,'Fixture','Fixture','{}',1,'published','fixture','fixture',$4)",[idea,course,chapter,user]);
   await control.query("insert into gamification_checklists (id,course_id,version,status,total_xp_micro) values ($1,$2,1,'approved',20000000)",[checklist,course]);
@@ -245,7 +251,13 @@ async function main() {
   // in both orders while the submission retains its original absent-row set.
   for (const first of ['bank','editor'] as const) {
    const id = `${prefix}-late-${first}`, template = `${id}-template`, attempt = `${id}-attempt`;
-   await seedQuestion(id,template,{canonical:false}); await seedAttempt(attempt,template,[makeSnapshot(id,false)]);
+   await seedQuestion(id,template,{canonical:false});
+   // This is the older legacy attempt path: both canonical assessment and its
+   // attempt mirror are absent, so submission must execute the real fallback.
+   await control.query('delete from asesmen where id=$1',[template]);
+   await control.query('delete from blueprint_asesmen where id=$1',[`${template}-blueprint`]);
+   await control.query('update quiz_templates set selection_rules=$2::jsonb where id=$1',[template,JSON.stringify({fixedQuestionIds:[id]})]);
+   await seedAttempt(attempt,template,[makeSnapshot(id,false)]);
    const read = setSubmitGate(canonicalShare);
    const pending = post(`/api/quiz/attempts/${attempt}`,{answers:{[id]:0}});
    await timeout(read.entered.promise,'LATE_ABSENT_READ');
@@ -265,6 +277,7 @@ async function main() {
    assert.equal((await control.query('select status from student_quiz_attempts where id=$1',[attempt])).rows[0].status,'completed');
    assert.equal(Number((await control.query('select count(*) n from gamification_question_bank_disclosures where user_id=$1 and question_id=$2',[user,id])).rows[0].n),1);
    assert.equal(Number((await control.query('select count(*) n from item_asesmen where asesmen_id=$1',[template])).rows[0].n),0);
+   assert.equal(Number((await control.query('select count(*) n from percobaan_asesmen where id=$1 and asesmen_id=$2',[attempt,template])).rows[0].n),1);
   }
   {
    const id = `${prefix}-parallel-question`, template = `${id}-template`; await seedQuestion(id,template);
@@ -325,6 +338,66 @@ async function main() {
    assert.equal(Number((await control.query('select count(*) n from gamification_question_exposure_projection where user_id=$1 and question_id=any($2::text[])',[user,ids.slice(0,4)])).rows[0].n),4);
    assert.equal((await control.query('select soal_id from item_asesmen where id=$1',[`${prefix}-occupant-item`])).rows[0].soal_id,ids[4]);
   }
+  // Same options cannot prove the historical prompt, course, version or Idea.
+  {
+   const template = `${prefix}-provenance-template`, attempt = `${prefix}-provenance-attempt`;
+   const ids = ['legacy','valid'].map(s => `${prefix}-provenance-${s}`);
+   for (let i=0;i<ids.length;i++) await seedQuestion(ids[i],template,{template:i===0});
+   await seedAttempt(attempt,template,[makeSnapshot(ids[0],false),makeSnapshot(ids[1])]);
+   const changedIdea=`${prefix}-provenance-idea`;
+   await control.query("insert into ide (id,mata_kuliah_id,bab_id,stable_key,code,canonical_statement,concise_explanation,difficulty_metadata,version,status,semantic_hash,generation_hash,creator_id) values ($1,$2,$3,$1,$1,'Fixture','Fixture','{}',1,'published','fixture','fixture',$4)",[changedIdea,course,chapter,user]);
+   await author.updateCanonicalQuestion({...original,prompt:`${prompt}\n\nNew version`,ideaLinks:[{ideaId:changedIdea,weight:1,role:'primary'}]},user,ids[0]);
+   mastery.length=0;
+   const response=await post(`/api/quiz/attempts/${attempt}`,{answers:{[ids[0]]:0,[ids[1]]:0}});
+   assert.equal(response.status,200); assert.equal((await response.json() as any).score,100);
+   const evidence=await control.query('select i.soal_id from item_asesmen i join jawaban_murid j on j.item_asesmen_id=i.id join bukti_ide_jawaban b on b.jawaban_murid_id=j.id where j.percobaan_asesmen_id=$1',[attempt]);
+   assert.deepEqual(evidence.rows.map(row=>row.soal_id),[ids[1]]); assert.equal(mastery.length,1);
+  }
+  // Each malformed objective answer remains in the submitted snapshot and does
+  // not suppress a valid neighbour or create evidence for a stale version.
+  for (const [name, bad] of [['index',99],['indices',[-1,99]],['unknown','unknown-option'],['duplicates',[0,0]]] as const) {
+   const template=`${prefix}-invalid-${name}-template`, attempt=`${prefix}-invalid-${name}-attempt`;
+   const ids=['invalid','valid','stale'].map(part=>`${prefix}-invalid-${name}-${part}`);
+   for(let i=0;i<ids.length;i++) await seedQuestion(ids[i],template,{template:i===0});
+   await seedAttempt(attempt,template,ids.map(id=>makeSnapshot(id)));
+   await author.updateCanonicalQuestion({...original,prompt:`${prompt}\n\nNew version`},user,ids[2]);
+   mastery.length=0;
+   const response=await post(`/api/quiz/attempts/${attempt}`,{answers:{[ids[0]]:bad,[ids[1]]:0,[ids[2]]:0}});
+   assert.equal(response.status,200); assert.equal((await response.json() as any).score,67);
+   const saved=await control.query('select status,answers_snapshot from student_quiz_attempts where id=$1',[attempt]);
+   assert.equal(saved.rows[0].status,'completed'); assert.deepEqual(saved.rows[0].answers_snapshot[ids[0]],bad);
+   const evidence=await control.query('select i.soal_id from item_asesmen i join jawaban_murid j on j.item_asesmen_id=i.id join bukti_ide_jawaban b on b.jawaban_murid_id=j.id where j.percobaan_asesmen_id=$1',[attempt]);
+   assert.deepEqual(evidence.rows.map(row=>row.soal_id),[ids[1]]); assert.equal(mastery.length,1);
+   assert.equal(Number((await control.query('select count(*) n from gamification_question_exposure_projection where user_id=$1 and question_id=any($2::text[])',[user,ids])).rows[0].n),3);
+  }
+  // Real service grading of a mixed quiz with a compatible hashed item and two
+  // occupied orders. The essay has no canonical answer and remains reviewable.
+  {
+   const template=`${prefix}-tutor-template`,attempt=`${prefix}-tutor-attempt`;
+   const ids=['hashed','collision','essay','occupant1','occupant2'].map(part=>`${prefix}-tutor-${part}`);
+   for(let i=0;i<ids.length;i++) await seedQuestion(ids[i],template,{template:i===0});
+   await control.query("update soal set question_type='essay',options_snapshot='[]' where id=$1",[ids[2]]);
+   await control.query("update ai_question_bank set question_type='essay',options='[]',correct_indices='[]' where id=$1",[ids[2]]);
+   const hashed=`item-${createHash('sha256').update(`item:${template}:${ids[0]}`).digest('hex').slice(0,24)}`;
+   const canonical=(await control.query('select options_snapshot from soal where id=$1',[ids[0]])).rows[0];
+   await control.query("insert into item_asesmen (id,asesmen_id,soal_id,order_index,rendered_question_snapshot,option_order_snapshot,grading_policy_snapshot,content_version,generation_hash) values ($1,$2,$3,0,$4::jsonb,$5::jsonb,$6::jsonb,1,'fixture')",[hashed,template,ids[0],JSON.stringify({id:ids[0],prompt,questionType:'multiple_choice',optionsSnapshot:canonical.options_snapshot}),JSON.stringify(['0','1']),JSON.stringify({source:'legacy',questionId:ids[0]})]);
+   for (const [index, occupant] of [[1,ids[3]],[2,ids[4]]] as const) await control.query("insert into item_asesmen (id,asesmen_id,soal_id,order_index,rendered_question_snapshot,option_order_snapshot,grading_policy_snapshot,content_version,generation_hash) values ($1,$2,$3,$4,'{}','[]','{}',1,'fixture')",[`${occupant}-item`,template,occupant,index]);
+   const essay={id:ids[2],prompt:'Explain',question_type:'essay',options:[],stable_option_ids:[],correct_indices:[]};
+   await seedAttempt(attempt,template,[makeSnapshot(ids[0]),makeSnapshot(ids[1]),essay]);
+   const submitted=await post(`/api/quiz/attempts/${attempt}`,{answers:{[ids[0]]:0,[ids[1]]:0,[ids[2]]:'Response'}}); assert.equal(submitted.status,200);
+   const answers=await control.query('select item_asesmen_id from jawaban_murid where percobaan_asesmen_id=$1',[attempt]); assert.deepEqual(answers.rows.map(r=>r.item_asesmen_id),[hashed]);
+   const grade=()=>routes.gradeQuizAttempt(tutor,['tutor'],{courseId:course,attemptId:attempt,items:[{questionId:ids[2],score:80,expectedRevision:0,reviewNotes:'Good'}]});
+   (globalThis as any).__raceFixture.failDisclosure=true;
+   await assert.rejects(grade());
+   (globalThis as any).__raceFixture.failDisclosure=false;
+   const before=await control.query('select grading_status,score from student_quiz_attempts where id=$1',[attempt]); assert.equal(before.rows[0].grading_status,'pending'); assert.equal(before.rows[0].score,null);
+   let details=await routes.getQuizAttemptDetailsForGrading(course,attempt,tutor); assert.equal(details.questions[2].reviewRevision,0);
+   const result=await grade(); assert.equal(result.gradingStatus,'graded'); assert.equal(result.score,93);
+   details=await routes.getQuizAttemptDetailsForGrading(course,attempt,tutor); assert.equal(details.questions[2].reviewRevision,1); assert.equal(details.questions[2].currentScore,80); assert.equal(details.questions[2].reviewNotes,'Good');
+   await assert.rejects(grade(),/CAS_CONFLICT/);
+   assert.equal(Number((await control.query('select count(*) n from bukti_ide_jawaban b join jawaban_murid j on b.jawaban_murid_id=j.id join item_asesmen i on j.item_asesmen_id=i.id where j.percobaan_asesmen_id=$1 and i.soal_id=$2',[attempt,ids[2]])).rows[0].n),0);
+   assert.equal(Number((await control.query('select count(*) n from gamification_question_exposure_projection where user_id=$1 and question_id=any($2::text[])',[tutor,ids.slice(0,3)])).rows[0].n),3);
+  }
   // Eligibility is fixed at the server submission instant for both checks.
   // Expiry after that instant retains the reward; expiry before it skips reward.
   for (const timing of ['after','before'] as const) {
@@ -352,12 +425,12 @@ async function main() {
   if (seeded) {
    await control.query('rollback').catch(()=>{}); await control.query('begin');
    try {
-    for (const table of ['notifications','gamification_xp_ledger','gamification_lp_ledger','gamification_badge_activities','gamification_badges','gamification_qualified_days','gamification_missions','gamification_leaderboard_periods','gamification_event_outbox','gamification_evidence_receipts','gamification_learning_facts','gamification_question_exposures','gamification_question_exposure_initializations','gamification_question_exposure_projection','gamification_question_exposure_observations','gamification_question_bank_disclosures','gamification_question_legacy_index','gamification_course_starts','gamification_accounts']) await control.query(`delete from ${table} where user_id=$1`,[user]);
+    for (const table of ['notifications','gamification_xp_ledger','gamification_lp_ledger','gamification_badge_activities','gamification_badges','gamification_qualified_days','gamification_missions','gamification_leaderboard_periods','gamification_event_outbox','gamification_evidence_receipts','gamification_learning_facts','gamification_question_exposures','gamification_question_exposure_initializations','gamification_question_exposure_projection','gamification_question_exposure_observations','gamification_question_bank_disclosures','gamification_question_legacy_index','gamification_course_starts','gamification_accounts']) await control.query(`delete from ${table} where user_id in ($1,$2)`,[user,tutor]);
     await control.query('delete from bukti_ide_jawaban where jawaban_murid_id in (select j.id from jawaban_murid j join percobaan_asesmen p on p.id=j.percobaan_asesmen_id where p.pengguna_id=$1)',[user]);
     await control.query('delete from jawaban_murid where percobaan_asesmen_id in (select id from percobaan_asesmen where pengguna_id=$1)',[user]);
     await control.query('delete from item_asesmen where asesmen_id like $1',[`${prefix}%`]);
     await control.query('delete from percobaan_asesmen where pengguna_id=$1',[user]);
-    await control.query('delete from audit_mutasi where actor_id=$1',[user]);
+    await control.query('delete from audit_mutasi where actor_id in ($1,$2)',[user,tutor]);
     await control.query('delete from vector_sync_queue where course_id=$1',[course]);
     await control.query('delete from student_quiz_attempts where student_id=$1',[user]);
     await control.query('delete from asesmen where id like $1',[`${prefix}%`]);
@@ -370,8 +443,9 @@ async function main() {
     await control.query('delete from ide where id like $1',[`${prefix}%`]);
     await control.query('delete from bab where id=$1',[chapter]);
     await control.query('delete from pendaftaran_murid where pengguna_id=$1',[user]);
+    await control.query('delete from penugasan_tutor where pengguna_id=$1',[tutor]);
     await control.query('delete from mata_kuliah where id=$1',[course]); await control.query('delete from courses where id=$1',[course]);
-    await control.query('delete from pengguna_peran where pengguna_id=$1',[user]); await control.query('delete from pengguna where id=$1',[user]); await control.query('delete from "user" where id=$1 and email=$2',[user,`${user}@example.invalid`]);
+    await control.query('delete from pengguna_peran where pengguna_id in ($1,$2)',[user,tutor]); await control.query('delete from pengguna where id in ($1,$2)',[user,tutor]); await control.query('delete from \"user\" where id=$1 and email=$2',[tutor,`${tutor}@example.invalid`]); await control.query('delete from "user" where id=$1 and email=$2',[user,`${user}@example.invalid`]);
     await control.query('commit');
     assert.equal(Number((await control.query('select count(*) n from "user" where id=$1',[user])).rows[0].n),0);
    } catch (e) { await control.query('rollback'); throw e; }

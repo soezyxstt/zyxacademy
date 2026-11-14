@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
@@ -8,9 +9,6 @@ import {
   jawabanMurid,
   itemAsesmen,
   percobaanAsesmen,
-  buktiIdeJawaban,
-  soalIde,
-  ide,
   user,
   pengguna,
 } from "@/db/schema";
@@ -18,15 +16,10 @@ import { requireTutorCourseAccess } from "@/lib/auth/tutor-access";
 import { checkCourseMatch } from "@/lib/tutor/assessment-policy";
 import { recordTutorMutationAudit } from "@/lib/audit/mutasi";
 import {
-  LEGACY_IDEA_EVIDENCE_RUBRIC_VERSION,
-  legacyAnswerEvidenceId,
   legacyAnswerId,
-  legacyItemId,
   type LegacyQuizQuestionSnapshot,
   buildLegacyRenderedQuestionSnapshot,
 } from "@/lib/asesmen/live-idea-evidence";
-import { requestIdeaMasteryRecompute } from "@/lib/pemahaman/evidence";
-import { answerToStableOptionIds } from "@/lib/asesmen/attempt";
 import { normalizeDate } from "@/lib/date-utils";
 import { recordAuthorizedStaffAttemptDisclosures } from "@/lib/gamification/question-exposure";
 import { checkAnswerCorrectness } from "@/lib/gamification/question-grading";
@@ -73,25 +66,21 @@ function parseJsonSafe<T>(val: unknown, fallback: T): T {
   return val as T;
 }
 
-function safeResponseSnapshot(
-  question: LegacyQuizQuestionSnapshot,
-  answer: unknown,
-): Record<string, unknown> {
-  const stableOptionIds = question.stable_option_ids ?? [];
-  let mappedStableOptionIds: string[] = [];
+type TutorReview = {
+  score: number;
+  status: "correct" | "incorrect" | "partial";
+  reviewRevision: number;
+  reviewerId: string;
+  reviewNotes: string | null;
+};
 
-  if (stableOptionIds.length > 0) {
-    try {
-      mappedStableOptionIds = answerToStableOptionIds(stableOptionIds, answer);
-    } catch {
-      mappedStableOptionIds = [];
-    }
-  }
-
-  return {
-    value: answer ?? null,
-    stableOptionIds: mappedStableOptionIds,
-  };
+// This server-owned policy is stored on the mirrored attempt, never in the
+// student-supplied answers snapshot. It preserves reviews when no safe item
+// exists without attributing a legacy answer to a current canonical version.
+function tutorReviews(policy: unknown): Record<string, TutorReview> {
+  if (!policy || typeof policy !== "object" || Array.isArray(policy)) return {};
+  const value = (policy as Record<string, unknown>).tutorReviews;
+  return value && typeof value === "object" && !Array.isArray(value) ? { ...value as Record<string, TutorReview> } : {};
 }
 
 /**
@@ -196,313 +185,96 @@ export async function gradeQuizAttempt(
     }).onConflictDoNothing();
   }
 
-  const affectedIdeaIds = new Set<string>();
   const now = new Date();
   let finalCalculatedScore: number | null = null;
   let nextGradingStatus: "pending" | "graded" = "pending";
 
   await db.transaction(async (tx) => {
-    // 5. Fetch current canonical jawabanMurid for this attempt to verify CAS
-    const existingAnswers = await tx
-      .select({
-        id: jawabanMurid.id,
-        itemAsesmenId: jawabanMurid.itemAsesmenId,
-        score: jawabanMurid.score,
-        status: jawabanMurid.status,
-        reviewRevision: jawabanMurid.reviewRevision,
-      })
-      .from(jawabanMurid)
-      .where(eq(jawabanMurid.percobaanAsesmenId, attemptId));
-
-    // Ensure student pengguna exists
-    await tx.insert(pengguna).values({
-      id: attempt.studentId,
-      status: "active",
-      createdAt: now,
-      updatedAt: now,
-    }).onConflictDoNothing();
-
-    // Ensure percobaanAsesmen exists for this attempt
-    await tx.insert(percobaanAsesmen).values({
-      id: attemptId,
-      asesmenId: attempt.templateId,
-      penggunaId: attempt.studentId,
-      status: "submitted",
-      renderedQuestionSnapshot: (attempt.questionsSnapshot ?? {}) as Record<string, unknown>,
-      optionOrderSnapshot: {},
-      gradingPolicySnapshot: { source: "legacy" },
-      contentVersion: 1,
-      startedAt: normalizeDate(attempt.startedAt),
-      submittedAt: normalizeDate(attempt.submittedAt ?? attempt.startedAt),
-    }).onConflictDoNothing();
-
-    const existingAnswerMap = new Map(existingAnswers.map((a) => [a.id, a]));
-
-    // 6. Ensure itemAsesmen and jawabanMurid rows exist, and apply updates with CAS
-    for (const question of questions) {
-      const qId = question.id;
-      const itemId = legacyItemId(attempt.templateId, qId);
-      const answerId = legacyAnswerId(attemptId, qId);
-      const qType = question.question_type || question.questionType;
-      const submittedAnswer = answers[qId];
-      const deterministicCorrect = checkDeterministicCorrectness(question, submittedAnswer);
-
-      // Ensure itemAsesmen row exists
-      await tx.insert(itemAsesmen).values({
-        id: itemId,
-        asesmenId: attempt.templateId,
-        soalId: qId,
-        orderIndex: questions.findIndex((q) => q.id === qId),
-        renderedQuestionSnapshot: buildLegacyRenderedQuestionSnapshot(question),
-        optionOrderSnapshot: question.stable_option_ids ?? [],
-        gradingPolicySnapshot: { questionType: qType },
-        contentVersion: 1,
-        generationHash: `legacy-review:${attempt.templateId}:${qId}`,
-      }).onConflictDoNothing();
-
-      // Ensure jawabanMurid row exists
-      const existing = existingAnswerMap.get(answerId);
-      if (!existing) {
-        const initialScore = qType === "essay" ? null : deterministicCorrect ? 1 : 0;
-        const initialStatus = qType === "essay" ? "needs_review" : deterministicCorrect ? "correct" : "incorrect";
-        await tx.insert(jawabanMurid).values({
-          id: answerId,
-          percobaanAsesmenId: attemptId,
-          itemAsesmenId: itemId,
-          renderedQuestionSnapshot: buildLegacyRenderedQuestionSnapshot(question),
-          optionOrderSnapshot: question.stable_option_ids ?? [],
-          responseSnapshot: safeResponseSnapshot(question, submittedAnswer),
-          gradingPolicySnapshot: { questionType: qType },
-          contentVersion: 1,
-          score: initialScore,
-          status: initialStatus,
-          reviewRevision: 0,
-          answeredAt: normalizeDate(attempt.submittedAt ?? attempt.startedAt),
-        }).onConflictDoNothing();
-      }
-
-      // If this item is being graded now:
-      const gradeItem = itemsMap.get(qId);
-      if (gradeItem) {
-        // CAS check
-        const currentRevision = existing ? existing.reviewRevision : 0;
-        if (gradeItem.expectedRevision !== currentRevision) {
-          throw new Error(TUTOR_QUIZ_GRADING_ERRORS.CAS_CONFLICT);
-        }
-
-        const normalizedScore = gradeItem.score / 100;
-        const newStatus = gradeItem.score === 100 ? "correct" : gradeItem.score === 0 ? "incorrect" : "partial";
-        const nextRevision = currentRevision + 1;
-
-        const updatedRows = await tx
-          .update(jawabanMurid)
-          .set({
-            score: normalizedScore,
-            status: newStatus,
-            reviewerId: tutorPenggunaId,
-            reviewNotes: gradeItem.reviewNotes?.trim() || null,
-            reviewedAt: now,
-            reviewRevision: nextRevision,
-          })
-          .where(
-            and(
-              eq(jawabanMurid.id, answerId),
-              eq(jawabanMurid.reviewRevision, gradeItem.expectedRevision),
-            ),
-          )
-          .returning({ id: jawabanMurid.id });
-
-        if (updatedRows.length === 0) {
-          throw new Error(TUTOR_QUIZ_GRADING_ERRORS.CAS_CONFLICT);
-        }
-
-        // Check canonical Idea mapping for this question
-        const ideaLinks = await tx
-          .select({
-            ideaId: soalIde.ideId,
-            weight: soalIde.weight,
-            ideaStatus: ide.status,
-          })
-          .from(soalIde)
-          .innerJoin(ide, eq(soalIde.ideId, ide.id))
-          .where(eq(soalIde.soalId, qId));
-
-        if (ideaLinks.length > 0 && ideaLinks.every((l) => l.ideaStatus === "published")) {
-          for (const link of ideaLinks) {
-            affectedIdeaIds.add(link.ideaId);
-            const evidenceId = legacyAnswerEvidenceId(answerId, link.ideaId);
-
-            const [existingEvidence] = await tx
-              .select({ id: buktiIdeJawaban.id })
-              .from(buktiIdeJawaban)
-              .where(
-                and(
-                  eq(buktiIdeJawaban.jawabanMuridId, answerId),
-                  eq(buktiIdeJawaban.ideId, link.ideaId),
-                ),
-              )
-              .limit(1);
-
-            if (existingEvidence) {
-              await tx
-                .update(buktiIdeJawaban)
-                .set({
-                  scoreContribution: normalizedScore,
-                  derivationStatus: "reviewed",
-                  ambiguous: false,
-                  affectsMastery: true,
-                  confidence: 100,
-                  evidenceSource: "tutor_rubric",
-                })
-                .where(eq(buktiIdeJawaban.id, existingEvidence.id));
-            } else {
-              await tx.insert(buktiIdeJawaban).values({
-                id: evidenceId,
-                jawabanMuridId: answerId,
-                ideId: link.ideaId,
-                scoreContribution: normalizedScore,
-                weight: link.weight,
-                confidence: 100,
-                evidenceSource: "tutor_rubric",
-                rubricVersion: LEGACY_IDEA_EVIDENCE_RUBRIC_VERSION,
-                derivationStatus: "reviewed",
-                ambiguous: false,
-                affectsMastery: true,
-                createdAt: now,
-              }).onConflictDoNothing();
-            }
-          }
-        }
-      }
-    }
-
-    // 7. Check if all essay questions have been reviewed
-    // Reload answers state from DB
-    const refreshedAnswers = await tx
-      .select({
-        id: jawabanMurid.id,
-        score: jawabanMurid.score,
-        status: jawabanMurid.status,
-      })
-      .from(jawabanMurid)
-      .where(eq(jawabanMurid.percobaanAsesmenId, attemptId));
-
-    const refreshedAnswerMap = new Map(refreshedAnswers.map((a) => [a.id, a]));
-
-    const essayQuestions = questions.filter((q) => (q.question_type || q.questionType) === "essay");
-    const allEssaysReviewed = essayQuestions.every((q) => {
-      const answerId = legacyAnswerId(attemptId, q.id);
-      const ans = refreshedAnswerMap.get(answerId);
-      return ans && ans.score !== null && ans.status !== "needs_review";
-    });
-
-    if (allEssaysReviewed) {
-      // Finalize attempt
-      nextGradingStatus = "graded";
-      let totalNormalizedScore = 0;
-
-      for (const question of questions) {
-        const qId = question.id;
-        const qType = question.question_type || question.questionType;
-        const answerId = legacyAnswerId(attemptId, qId);
-        const ans = refreshedAnswerMap.get(answerId);
-
-        if (qType === "essay") {
-          totalNormalizedScore += ans?.score ?? 0;
-        } else if (qType === "short_answer") {
-          // If manually reviewed, use ans.score; otherwise deterministic
-          if (ans && ans.score !== null && ans.status !== "needs_review") {
-            totalNormalizedScore += ans.score;
-          } else {
-            const isCorrect = checkDeterministicCorrectness(question, answers[qId]);
-            totalNormalizedScore += isCorrect ? 1 : 0;
-          }
-        } else {
-          const isCorrect = checkDeterministicCorrectness(question, answers[qId]);
-          totalNormalizedScore += isCorrect ? 1 : 0;
-        }
-      }
-
-      finalCalculatedScore = questions.length > 0
-        ? Math.round((totalNormalizedScore / questions.length) * 100)
-        : 0;
-
-      await tx
-        .update(studentQuizAttempts)
-        .set({
-          gradingStatus: "graded",
-          score: finalCalculatedScore,
-        })
-        .where(eq(studentQuizAttempts.id, attemptId));
-
-      await tx
-        .update(percobaanAsesmen)
-        .set({
-          status: "graded",
-        })
-        .where(eq(percobaanAsesmen.id, attemptId));
-    } else {
-      // Partial save: keep pending and score null
-      nextGradingStatus = "pending";
-      finalCalculatedScore = null;
-
-      await tx
-        .update(studentQuizAttempts)
-        .set({
-          gradingStatus: "pending",
-          score: null,
-        })
-        .where(eq(studentQuizAttempts.id, attemptId));
-    }
-
-    // 8. Record sanitized mutation audit
-    await recordTutorMutationAudit(
-      {
-        actorId: tutorPenggunaId,
-        actorRoles: tutorRoles,
-        courseId: access.courseId ?? courseId,
-        entityType: "quiz_attempt",
-        entityId: attemptId,
-        entityVersion: 1,
-        requestId: `req-grade-${attemptId}-${randomUUID()}`,
-        action: "quiz_attempt:grade",
-        outcome: "success",
-        reason: allEssaysReviewed ? "Quiz attempt graded and finalized" : "Quiz attempt partially graded",
-        before: {
-          attemptId,
-          gradingStatus: attempt.gradingStatus,
-          score: attempt.score,
-        },
-        after: {
-          attemptId,
-          gradingStatus: nextGradingStatus,
-          score: finalCalculatedScore,
-          reviewedCount: items.length,
-        },
-      },
-      tx,
-    );
-  });
-
-  // 9. After commit: trigger per-Idea mastery recomputation for affected ideas
-  if (affectedIdeaIds.size > 0) {
-    await Promise.all(
-      [...affectedIdeaIds].map((ideaId) =>
-        requestIdeaMasteryRecompute({
-          penggunaId: attempt.studentId,
-          ideId: ideaId,
-          evidenceId: `${attemptId}:${ideaId}`,
-        }),
-      ),
-    );
-  }
-
-  if (finalCalculatedScore !== null) {
-    await db.transaction(tx => recordAuthorizedStaffAttemptDisclosures(tx, {
+    // Acquire the viewer lock and question locks before any grading row locks.
+    // Disclosure failure therefore rolls back the review and its revision.
+    await recordAuthorizedStaffAttemptDisclosures(tx, {
       userId: tutorPenggunaId, attemptOwnerId: attempt.studentId, courseId: template.courseId,
-      attemptId, questionIds: questions.map(q => q.id), occurredAt: new Date(), requestId: randomUUID(),
+      attemptId, questionIds: questions.map(q => q.id), occurredAt: now, requestId: randomUUID(),
+    });
+    const [lockedAttempt] = await tx.select().from(studentQuizAttempts)
+      .where(eq(studentQuizAttempts.id, attemptId)).for("update");
+    if (!lockedAttempt || lockedAttempt.studentId !== attempt.studentId || lockedAttempt.templateId !== attempt.templateId
+      || lockedAttempt.status !== "completed" || !isDeepStrictEqual(lockedAttempt.questionsSnapshot, attempt.questionsSnapshot)
+      || !isDeepStrictEqual(lockedAttempt.answersSnapshot, attempt.answersSnapshot)) {
+      throw new Error(TUTOR_QUIZ_GRADING_ERRORS.CAS_CONFLICT);
+    }
+
+    await tx.insert(pengguna).values({ id: attempt.studentId, status: "active", createdAt: now, updatedAt: now }).onConflictDoNothing();
+    await tx.insert(percobaanAsesmen).values({
+      id: attemptId, asesmenId: attempt.templateId, penggunaId: attempt.studentId, status: "submitted",
+      renderedQuestionSnapshot: (attempt.questionsSnapshot ?? {}) as Record<string, unknown>,
+      optionOrderSnapshot: {}, gradingPolicySnapshot: { source: "legacy" }, contentVersion: 1,
+      startedAt: normalizeDate(attempt.startedAt), submittedAt: normalizeDate(attempt.submittedAt ?? attempt.startedAt),
+    }).onConflictDoNothing();
+    const [mirror] = await tx.select().from(percobaanAsesmen).where(eq(percobaanAsesmen.id, attemptId)).for("update");
+    if (!mirror || mirror.asesmenId !== attempt.templateId || mirror.penggunaId !== attempt.studentId) {
+      throw new Error(TUTOR_QUIZ_GRADING_ERRORS.CAS_CONFLICT);
+    }
+    const reviews = tutorReviews(mirror.gradingPolicySnapshot);
+    // An existing answer is usable only when its actual item and immutable
+    // rendered snapshot identify this question. Never assume a generated item ID
+    // survived an order or identity conflict during submission.
+    const existing = await tx.select({ answer: jawabanMurid, item: itemAsesmen })
+      .from(jawabanMurid).innerJoin(itemAsesmen, eq(jawabanMurid.itemAsesmenId, itemAsesmen.id))
+      .where(eq(jawabanMurid.percobaanAsesmenId, attemptId));
+    const answerByQuestion = new Map(existing.flatMap(({ answer, item }) => {
+      const question = questionMap.get(item.soalId);
+      return question && item.asesmenId === attempt.templateId && answer.id === legacyAnswerId(attemptId, question.id)
+        && isDeepStrictEqual(answer.renderedQuestionSnapshot, buildLegacyRenderedQuestionSnapshot(question))
+        ? [[question.id, answer] as const] : [];
     }));
-  }
+
+    for (const [questionId, grade] of itemsMap) {
+      const answer = answerByQuestion.get(questionId);
+      const prior = reviews[questionId];
+      const revision = prior?.reviewRevision ?? answer?.reviewRevision ?? 0;
+      if (grade.expectedRevision !== revision) throw new Error(TUTOR_QUIZ_GRADING_ERRORS.CAS_CONFLICT);
+      const score = grade.score / 100;
+      const status = grade.score === 100 ? "correct" : grade.score === 0 ? "incorrect" : "partial";
+      const review: TutorReview = { score, status, reviewRevision: revision + 1, reviewerId: tutorPenggunaId, reviewNotes: grade.reviewNotes?.trim() || null };
+      if (answer && !prior) {
+        const updated = await tx.update(jawabanMurid).set({ ...review, reviewedAt: now })
+          .where(and(eq(jawabanMurid.id, answer.id), eq(jawabanMurid.reviewRevision, revision))).returning({ id: jawabanMurid.id });
+        if (!updated.length) throw new Error(TUTOR_QUIZ_GRADING_ERRORS.CAS_CONFLICT);
+        answerByQuestion.set(questionId, { ...answer, ...review, reviewedAt: now });
+      } else {
+        reviews[questionId] = review;
+      }
+      // Legacy free-response snapshots have no server-proven canonical version.
+      // A manual grade is valid, but cannot be assigned to today's Idea links.
+    }
+    const policy = { ...mirror.gradingPolicySnapshot, tutorReviews: reviews };
+    const allEssaysReviewed = questions.filter(q => (q.question_type || q.questionType) === "essay")
+      .every(q => reviews[q.id]?.score != null || (answerByQuestion.get(q.id)?.score != null && answerByQuestion.get(q.id)?.status !== "needs_review"));
+    if (allEssaysReviewed) {
+      nextGradingStatus = "graded";
+      const total = questions.reduce((sum, q) => {
+        const type = q.question_type || q.questionType;
+        const reviewed = reviews[q.id] ?? answerByQuestion.get(q.id);
+        if (type === "essay") return sum + (reviewed?.score ?? 0);
+        if (type === "short_answer" && reviewed?.score != null && reviewed.status !== "needs_review") return sum + reviewed.score;
+        return sum + (checkDeterministicCorrectness(q, answers[q.id]) ? 1 : 0);
+      }, 0);
+      finalCalculatedScore = questions.length ? Math.round(total / questions.length * 100) : 0;
+    }
+    await tx.update(studentQuizAttempts).set({ gradingStatus: nextGradingStatus, score: finalCalculatedScore })
+      .where(eq(studentQuizAttempts.id, attemptId));
+    await tx.update(percobaanAsesmen).set({ gradingPolicySnapshot: policy, ...(allEssaysReviewed ? { status: "graded" as const } : {}) })
+      .where(eq(percobaanAsesmen.id, attemptId));
+    await recordTutorMutationAudit({
+      actorId: tutorPenggunaId, actorRoles: tutorRoles, courseId: access.courseId ?? courseId,
+      entityType: "quiz_attempt", entityId: attemptId, entityVersion: 1,
+      requestId: `req-grade-${attemptId}-${randomUUID()}`, action: "quiz_attempt:grade", outcome: "success",
+      reason: allEssaysReviewed ? "Quiz attempt graded and finalized" : "Quiz attempt partially graded",
+      before: { attemptId, gradingStatus: lockedAttempt.gradingStatus, score: lockedAttempt.score },
+      after: { attemptId, gradingStatus: nextGradingStatus, score: finalCalculatedScore, reviewedCount: items.length },
+    }, tx);
+  });
 
   return {
     success: true,
@@ -557,14 +329,20 @@ export async function getCoursePendingQuizAttempts(
     ? await db
         .select({
           percobaanAsesmenId: jawabanMurid.percobaanAsesmenId,
-          itemAsesmenId: jawabanMurid.itemAsesmenId,
+          id: jawabanMurid.id,
+          questionId: itemAsesmen.soalId,
+          assessmentId: itemAsesmen.asesmenId,
+          rendered: jawabanMurid.renderedQuestionSnapshot,
           score: jawabanMurid.score,
           status: jawabanMurid.status,
         })
         .from(jawabanMurid)
+        .innerJoin(itemAsesmen, eq(jawabanMurid.itemAsesmenId, itemAsesmen.id))
         .where(inArray(jawabanMurid.percobaanAsesmenId, attemptIds))
     : [];
 
+  const mirrors = attemptIds.length ? await db.select({ id: percobaanAsesmen.id, policy: percobaanAsesmen.gradingPolicySnapshot }).from(percobaanAsesmen).where(inArray(percobaanAsesmen.id, attemptIds)) : [];
+  const policies = new Map(mirrors.map(row => [row.id, tutorReviews(row.policy)]));
   const answersByAttempt = new Map<string, typeof answers>();
   for (const a of answers) {
     const list = answersByAttempt.get(a.percobaanAsesmenId) ?? [];
@@ -576,11 +354,12 @@ export async function getCoursePendingQuizAttempts(
     const questions = parseJsonSafe<LegacyQuizQuestionSnapshot[]>(r.questionsSnapshot, []);
     const essayQuestions = questions.filter((q) => (q.question_type || q.questionType) === "essay");
     const attemptAnswers = answersByAttempt.get(r.id) ?? [];
-    const answerMap = new Map(attemptAnswers.map((a) => [a.itemAsesmenId, a]));
+    const answerMap = new Map(attemptAnswers.map((a) => [a.id, a]));
+    const reviews = policies.get(r.id) ?? {};
 
     const remainingEssayCount = essayQuestions.filter((q) => {
-      const itemId = legacyItemId(r.templateId, q.id);
-      const ans = answerMap.get(itemId);
+      const candidate = answerMap.get(legacyAnswerId(r.id, q.id));
+      const ans = reviews[q.id] ?? (candidate && candidate.questionId === q.id && candidate.assessmentId === r.templateId && isDeepStrictEqual(candidate.rendered, buildLegacyRenderedQuestionSnapshot(q)) ? candidate : undefined);
       return !ans || ans.score === null || ans.status === "needs_review";
     }).length;
 
@@ -650,10 +429,15 @@ export async function getQuizAttemptDetailsForGrading(
   const questions = parseJsonSafe<LegacyQuizQuestionSnapshot[]>(attempt.questionsSnapshot, []);
   const answers = parseJsonSafe<Record<string, unknown>>(attempt.answersSnapshot, {});
 
+  const [mirror] = await db.select({ policy: percobaanAsesmen.gradingPolicySnapshot }).from(percobaanAsesmen).where(eq(percobaanAsesmen.id, attemptId)).limit(1);
+  const reviews = tutorReviews(mirror?.policy);
   const canonicalAnswers = await db
     .select({
       id: jawabanMurid.id,
       itemAsesmenId: jawabanMurid.itemAsesmenId,
+      questionId: itemAsesmen.soalId,
+      assessmentId: itemAsesmen.asesmenId,
+      rendered: jawabanMurid.renderedQuestionSnapshot,
       score: jawabanMurid.score,
       status: jawabanMurid.status,
       reviewerId: jawabanMurid.reviewerId,
@@ -662,6 +446,7 @@ export async function getQuizAttemptDetailsForGrading(
       reviewRevision: jawabanMurid.reviewRevision,
     })
     .from(jawabanMurid)
+    .innerJoin(itemAsesmen, eq(jawabanMurid.itemAsesmenId, itemAsesmen.id))
     .where(eq(jawabanMurid.percobaanAsesmenId, attemptId));
 
   const canonicalMap = new Map(canonicalAnswers.map((a) => [a.id, a]));
@@ -670,7 +455,8 @@ export async function getQuizAttemptDetailsForGrading(
     const qId = q.id;
     const qType = q.question_type || q.questionType || "multiple_choice";
     const answerId = legacyAnswerId(attemptId, qId);
-    const existing = canonicalMap.get(answerId);
+    const candidate = canonicalMap.get(answerId);
+    const existing = reviews[qId] ?? (candidate && candidate.questionId === qId && candidate.assessmentId === attempt.templateId && isDeepStrictEqual(candidate.rendered, buildLegacyRenderedQuestionSnapshot(q)) ? candidate : undefined);
     const submitted = answers[qId];
     const isDeterministicCorrect = checkDeterministicCorrectness(q, submitted);
 

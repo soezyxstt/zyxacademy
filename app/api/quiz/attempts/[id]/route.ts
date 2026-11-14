@@ -50,8 +50,7 @@ async function loadCanonicalQuestionsForEvidence(executor: typeof db | Tx, quest
     const ideaIds = [...new Set(links.map(link => link.id))].sort();
     if (ideaIds.length) await executor.select({ id: ide.id }).from(ide).where(inArray(ide.id, ideaIds)).orderBy(asc(ide.id)).for('share');
   }
-  const [questionRows, linkRows] = await Promise.all([
-    executor
+  const questionRows = await executor
       .select({
         id: soal.id,
         status: soal.status,
@@ -60,8 +59,8 @@ async function loadCanonicalQuestionsForEvidence(executor: typeof db | Tx, quest
         generationHash: soal.generationHash,
       })
       .from(soal)
-      .where(inArray(soal.id, ids)),
-    executor
+      .where(inArray(soal.id, ids));
+  const linkRows = await executor
       .select({
         questionId: soalIde.soalId,
         ideaId: soalIde.ideId,
@@ -72,8 +71,7 @@ async function loadCanonicalQuestionsForEvidence(executor: typeof db | Tx, quest
       })
       .from(soalIde)
       .innerJoin(ide, eq(soalIde.ideId, ide.id))
-      .where(inArray(soalIde.soalId, ids)),
-  ]);
+      .where(inArray(soalIde.soalId, ids));
   const linksByQuestion = new Map<string, CanonicalQuestionForLegacyEvidence['ideaLinks'][number][]>();
   const orderedLinkRows = [...linkRows].sort(
     (left, right) => left.questionId.localeCompare(right.questionId) || left.ideaId.localeCompare(right.ideaId),
@@ -375,7 +373,7 @@ export async function POST(req: NextRequest, { params }: Context) {
       },
       startedAt: normalizeDate(attempt.startedAt),
       submittedAt: now,
-    }, attempt.studentId);
+    }, attempt.studentId, { heldCanonicalRows: lockedCanonical });
 
     const evidenceIdeas = await writeLegacyIdeaEvidence(tx, { assessmentId: attempt.templateId, attemptId: id, snapshot, answers, mappings: validMappings, canonicalRows: lockedCanonical, now });
     evidenceIdeas.forEach(ideaId => canonicalEvidenceIdeaIds.add(ideaId));
@@ -400,6 +398,8 @@ export async function POST(req: NextRequest, { params }: Context) {
         studentId: attempt.studentId,
         courseId: template.courseId,
         eventType: 'quiz_answer' as const,
+        // The transaction already handled canonical Idea evidence against held versions.
+        canonicalIdeaEvidenceHandled: true,
         koId: ko?.koId ?? null,
         conceptName: ko?.conceptName ?? null,
         correctness: isCorrect ? 1 : 0,

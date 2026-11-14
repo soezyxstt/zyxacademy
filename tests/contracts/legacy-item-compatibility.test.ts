@@ -51,4 +51,25 @@ describe('assessment item compatibility', () => {
   expect(evidence).toHaveLength(2);
   expect(items.find(row => row.id === 'occupied')).toEqual(occupant);
  });
+ it('skips malformed option evidence without discarding a valid neighbour', async () => {
+  for (const bad of [99, [-1, 99], 'unknown', [0, 0], ['a', 'missing']]) {
+   const questions = ['bad', 'good'].map(id => ({ ...question, id }));
+   const mappings = questions.map(q => ({ ...mapping, questionId: q.id }));
+   const items: any[] = [], answers: any[] = [], evidence: any[] = [];
+   const tx = {
+    insert: (table: unknown) => ({ values: (values: any[]) => ({ onConflictDoNothing: async () => {
+     (table === itemAsesmen ? items : table === jawabanMurid ? answers : evidence).push(...values);
+    } }) }),
+    select: () => ({ from: (table: unknown) => ({ where: () => {
+     const rows = table === itemAsesmen ? items : table === jawabanMurid ? answers : evidence;
+     return Object.assign(Promise.resolve(rows), { for: async () => rows });
+    } }) }),
+   };
+   const result = await writeLegacyIdeaEvidence(tx as any, { assessmentId: 'quiz', attemptId: 'attempt', snapshot: questions, answers: { bad, good: 0 }, mappings, canonicalRows: questions.map(q => ({ id: q.id, optionsSnapshot: options })) as any, now: new Date() });
+   expect(answers).toHaveLength(1);
+   expect(answers[0].id).toBe('answer-attempt_good');
+   expect([...result]).toEqual(['idea']);
+  }
+ });
+
 });

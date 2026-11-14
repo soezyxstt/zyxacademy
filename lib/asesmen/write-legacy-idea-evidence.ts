@@ -47,6 +47,15 @@ export async function writeLegacyIdeaEvidence(tx: Tx, input: {
     const entry = questions.get(mapping.questionId), row = canonical.get(mapping.questionId);
     if (!entry || !row) return [];
     const { question, orderIndex } = entry;
+    // A malformed objective response is still graded and retained by the legacy
+    // attempt, but cannot be represented as canonical option evidence.
+    const submitted = input.answers[question.id];
+    if (mapping.questionType === 'multiple_choice' || mapping.questionType === 'multiple_choices') {
+      const values = Array.isArray(submitted) ? submitted : submitted == null ? [] : [submitted];
+      const ids = question.stable_option_ids ?? [];
+      if (values.some(value => typeof value === 'number' ? !Number.isInteger(value) || value < 0 || value >= ids.length : typeof value !== 'string' || !ids.includes(value))
+        || new Set(values).size !== values.length || new Set(values.map(value => typeof value)).size > 1) return [];
+    }
     return [{ question, mapping, canonical: row, item: {
       id: legacyItemId(input.assessmentId, question.id), asesmenId: input.assessmentId, soalId: question.id, orderIndex,
       renderedQuestionSnapshot: buildLegacyRenderedQuestionSnapshot(question), optionOrderSnapshot: question.stable_option_ids ?? [],

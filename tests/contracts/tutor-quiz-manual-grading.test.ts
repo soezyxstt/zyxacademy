@@ -595,7 +595,7 @@ describe("Tutor Quiz Manual Grading Contracts", () => {
    * 5. Canonical Evidence & Mastery Trigger Boundary
    * ──────────────────────────────────────────────────────────────────────── */
   describe("Canonical Evidence & Recomputation Trigger", () => {
-    it("creates reviewed bukti_ide_jawaban only after human review and triggers recompute", async () => {
+    it("grades an unprovenanced essay without attributing it to current Ideas", async () => {
       const now = new Date();
       await testDb.insert(schema.studentQuizAttempts).values({
         id: "att-evidence-test",
@@ -624,19 +624,13 @@ describe("Tutor Quiz Manual Grading Contracts", () => {
         items: [{ questionId: "q-essay-1", score: 85, expectedRevision: 0 }],
       });
 
-      // Evidence should now exist with reviewed derivationStatus
+      // The historical snapshot proves neither canonical version nor Idea links.
       const evidenceAfter = await testDb.select().from(schema.buktiIdeJawaban);
-      expect(evidenceAfter.length).toBe(1);
-      expect(evidenceAfter[0].ideId).toBe("ide-calc-deriv");
-      expect(evidenceAfter[0].derivationStatus).toBe("reviewed");
-      expect(evidenceAfter[0].ambiguous).toBe(false);
-      expect(evidenceAfter[0].affectsMastery).toBe(true);
-      expect(evidenceAfter[0].scoreContribution).toBe(0.85);
-
-      // Recompute must be triggered
-      expect(recomputeCalls.length).toBe(1);
-      expect(recomputeCalls[0].penggunaId).toBe("usr-student");
-      expect(recomputeCalls[0].ideId).toBe("ide-calc-deriv");
+      expect(evidenceAfter).toHaveLength(0);
+      expect(recomputeCalls).toHaveLength(0);
+      const details = await getQuizAttemptDetailsForGrading("mk-calc", "att-evidence-test", "usr-tutor-assigned");
+      expect(details?.questions[0].currentScore).toBe(85);
+      expect(details?.questions[0].reviewRevision).toBe(1);
     });
 
     it("preserves grade without error or invented evidence when question has no canonical Idea mapping", async () => {
