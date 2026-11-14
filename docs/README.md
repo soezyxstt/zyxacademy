@@ -12,7 +12,7 @@ The `TRANSITIONAL / LEGACY` Product V2/V3 contracts and the `ACTIVE` development
 
 The `ACTIVE` [Product Bundle V5 contract](bundle/product-bundle-v5.md) describes standalone solution collections, revision-bound headless Idea and V5 review and publication, active canonical actor authorization, serialized tutor assignment and role changes, monotonic staging audits, recovery of notes from changed items, draft-preserving question history, OAuth publication consent, learner access and current release limitations. Its generated migration 0008 follows the course-access migration from main and is not evidence of deployment.
 
-`ACTIVE`: The [feature catalog](features.md) records course-scoped Admin visits to the student schedule, and the [architecture guide](ARCHITECTURE.md) records the read-only Tutor material list and its existing Admin authoring override. These source changes have not been verified against authenticated services.
+`ACTIVE`: The [feature catalog](features.md) records route-owned Student, course, Tutor and Admin calendar perspectives, course filtering across canonical and legacy IDs, and mutation-triggered weekly cache invalidation. The [architecture guide](ARCHITECTURE.md) records the read-only Tutor material list and its existing Admin authoring override. These source changes have not been verified against authenticated services.
 
 `ACTIVE`: The [feature catalog](features.md) and [schema guide](DB_SCHEMA.md#mata_kuliah) describe admin-managed course access categories, scheduled free access, and current-policy search and recommendations. The additive PostgreSQL migration remains a deployment prerequisite; local checks do not establish remote rollout.
 

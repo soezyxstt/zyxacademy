@@ -159,6 +159,15 @@ describe("chapter identity and ordering with a fake transaction", () => {
     expect(data.chapters).toHaveLength(0);
     expect(data.audit.at(-1)?.actorId).toBe("admin");
   });
+  it("preserves legacy KO vector deletion identity before the chapter cascade", async () => {
+    fixtures();
+    data.knowledgeObjects.push({ id: "ko-a", chapterId: "legacy-a", version: 7 });
+    await archive("canonical-a");
+    expect(data.vectorSyncQueue.map(row => row.payload.version)).toEqual([1, 7]);
+    expect(data.vectorSyncQueue.every(row => row.payload.entityId === "ko-a" && row.payload.legacyKind === "knowledge_object" && row.koId === null)).toBe(true);
+    expect(dispatched).toEqual(["legacy-course"]);
+    expect(data.chapters).toHaveLength(0);
+  });
   it("projects an existing legacy-only list before creating or editing a chapter", async () => {
     reset();
     data.chapters.push(

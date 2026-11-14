@@ -533,7 +533,7 @@ Zyra uses bounded, session-scoped conversation context to interpret follow-up qu
 
 ### Scheduling & Calendar System (Model Kelompok Belajar)
 
-The canonical scheduling workflow uses concrete, date-specific 90-minute tutor slots. The dedicated tutor surface is `/tutor/schedule`; `/dashboard/schedule` redirects tutor accounts there. An Admin opening `/dashboard/schedule?course=<id>` retains the student course perspective and account-scoped memberships and enrollments; an Admin visit without a course redirects to `/admin/schedules`. Authenticated runtime verification remains open.
+The canonical scheduling workflow uses concrete, date-specific 90-minute tutor slots. The route determines the perspective: `/dashboard/schedule` remains the global student calendar for every signed-in role, `/dashboard/schedule?course=<id>` shows only that course's slots, bookings, academic events and eligible groups, `/tutor/schedule` is the tutor workspace, and `/admin/schedules` is the administrative global calendar. Course scope accepts mapped canonical and legacy IDs. Student booking details remain limited to the account's memberships; visiting this route with an Admin role does not grant administrative calendar controls. After booking or session mutations, the client clears all cached weeks and rejects older prefetch results. Authenticated runtime verification remains open.
 
 - Group Ownership & Collaborative Booking:
   - Tutoring sessions are booked on behalf of Study Groups.

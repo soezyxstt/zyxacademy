@@ -19,7 +19,6 @@ import {
   academicSchedules,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { getPeranCodes } from "@/lib/auth/authorization";
 import { eq, and, desc, inArray, sql, gte, lte, lt, gt, isNotNull, isNull, or } from "drizzle-orm";
 import { daysFrom } from "@/lib/date-utils";
 import { canBookTutorialSlot } from "@/lib/schedule/week-policy";
@@ -85,13 +84,6 @@ export async function getScheduleData(weekOffset = 0) {
 
   if (!dbUser) {
     throw new Error("USER_NOT_FOUND");
-  }
-
-  const peranCodes = await getPeranCodes(dbUser.id);
-  const isAdmin = dbUser.role === "admin" || peranCodes.includes("admin");
-  const isTutor = dbUser.role === "teacher" || peranCodes.includes("tutor");
-  if (!isAdmin && isTutor) {
-    throw new Error("FORBIDDEN_STUDENT_SCHEDULE");
   }
 
   // Calculate week range

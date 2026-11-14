@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import { matchesScheduleCourse } from "@/lib/schedule/course-filter";
 import {
   CalendarDays,
   ChevronLeft,
@@ -86,6 +87,7 @@ export type ScheduleCalendarProps = {
   onAssignTutorialSlot?: (slot: any) => void;
   onOpenSessionDetail?: (booking: any) => void;
   initialCourseFilter?: string;
+  compatibleCourseIds?: readonly string[];
 };
 
 type CalendarViewMode = "day" | "week" | "month";
@@ -411,6 +413,7 @@ export function ScheduleCalendarView({
   onAssignTutorialSlot,
   onOpenSessionDetail,
   initialCourseFilter = "all",
+  compatibleCourseIds,
   allowPastBooking = false,
 }: ScheduleCalendarProps) {
   const t = useTranslations("schedule");
@@ -549,9 +552,9 @@ export function ScheduleCalendarView({
     if (courseFilter !== "all") {
       if (event.kind === "availability") {
         const tutorCourses = event.source?.tutor?.tutorCourses || [];
-        const hasCourse = tutorCourses.some((entry: any) => (entry.courseId || entry.course?.id) === courseFilter);
+        const hasCourse = tutorCourses.some((entry: any) => matchesScheduleCourse(entry.courseId || entry.course?.id, courseFilter, compatibleCourseIds));
         if (!hasCourse) return false;
-      } else if (event.courseId !== courseFilter) {
+      } else if (!matchesScheduleCourse(event.courseId, courseFilter, compatibleCourseIds)) {
         return false;
       }
     }
@@ -559,7 +562,7 @@ export function ScheduleCalendarView({
     if (role === "admin" && adminMode === "academic" && event.kind !== "academic") return false;
     if (role === "admin" && adminMode === "tutorial" && event.kind === "academic") return false;
     return true;
-  }), [adminMode, courseFilter, normalizedEvents, role, tutorFilter]);
+  }), [adminMode, courseFilter, normalizedEvents, role, tutorFilter, compatibleCourseIds]);
 
   const visibleDays = useMemo(() => {
     if (viewMode === "day") {
