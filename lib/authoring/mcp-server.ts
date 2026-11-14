@@ -8,13 +8,16 @@ import { registerGroupTools } from "@/lib/admin-mcp/group-tools";
 import { registerSchedulingTools } from "@/lib/admin-mcp/scheduling-tools";
 import { registerAccessTools } from "@/lib/admin-mcp/access-tools";
 import { registerCommunicationsTools } from "@/lib/admin-mcp/communications-tools";
+import { registerBlogTools } from "@/lib/admin-mcp/blog-tools";
 import { registerSystemTools } from "@/lib/admin-mcp/system-tools";
+import { registerMediaTools } from "@/lib/admin-mcp/media-tools";
 import { registerExternalTools } from "@/lib/admin-mcp/external-tools";
 import { formsUiResources } from "@/lib/admin-mcp/forms-ui";
 import { registerFormPresetsTools } from "@/lib/admin-mcp/form-presets-tools";
 import { registerAcademicTools } from "@/lib/admin-mcp/academic-tools";
 import { registerFormsTools } from "@/lib/admin-mcp/forms-tools";
 import { registerOperationsTools } from "@/lib/admin-mcp/operations-tools";
+import { registerAgentTools } from "@/lib/admin-mcp/agent-tools";
 import { sourceReadJob } from "@/lib/authoring/source-read-jobs";
 import { sourcePageMetadata } from "@/lib/authoring/source-page-metadata";
 import { readSourceFileMetadata } from "@/lib/authoring/source-file-metadata";
@@ -23,6 +26,7 @@ import { isSourceReadTimeout, timePdfStage } from "@/lib/compute/pdf-read-option
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAuthoringSkills } from "./mcp-skills";
 import { registerProductV4Tools } from "./mcp-v4-tools";
+import { registerRevisionTools } from "./revision-mcp";
 import { computeProductV4VerificationContentHash, getProductV4VerificationReceiptSignature } from "@/lib/bundle/product-v4-verification";
 import { computeProductV4SectionSemanticHash, productV4ReviewContextShape, sectionDecisionsSchema } from "@/lib/bundle/product-v4-review";
 import type { SkillCatalogProfile } from "./skill-catalog";
@@ -2898,7 +2902,7 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
           verificationContentHash: computeProductV4VerificationContentHash(bundle),
           reviewContext: { expectedRevision: row.checksum, policyVersion: quality.policyVersion, contentFingerprint: quality.contentFingerprint,
             verificationPlanHash: validVerification?.plan.planHash ?? null, verificationReceiptSignature: getProductV4VerificationReceiptSignature(validVerification?.receipt),
-            sections: article?.productType === "article" ? article.sections.map(section => ({ sectionId: section.id, semanticHash: computeProductV4SectionSemanticHash(article, section.id) })) : [],
+            sections: article?.productType === "article" ? article.sections.map(section => ({ productId: article.id, sectionId: section.id, semanticHash: computeProductV4SectionSemanticHash(article, section.id) })) : [],
           }, verification,
         } };
       }
@@ -3069,7 +3073,7 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
       items: row.items.map(item => ({ entityType: item.entityType, entityId: item.entityId, entityVersion: item.entityVersion, entityHash: item.entityHash })),
       policyVersion: quality.policyVersion, contentFingerprint: quality.contentFingerprint,
       criterionIds: article ? PEDAGOGIC_CRITERION_IDS : [],
-      sections: bundle.products.flatMap(product => product.productType === "article" ? product.sections.map(section => ({ articleId: product.id, sectionId: section.id, semanticHash: computeProductV4SectionSemanticHash(product, section.id), blockIds: section.blocks.map(block => block.id) })) : []),
+      sections: bundle.products.flatMap(product => product.productType === "article" ? product.sections.map(section => ({ articleId: product.id, productId: product.id, sectionId: section.id, semanticHash: computeProductV4SectionSemanticHash(product, section.id), blockIds: section.blocks.map(block => block.id) })) : []),
       verificationContentHash: row.version === 4 ? computeProductV4VerificationContentHash(bundle) : null,
       stagingRunId, currentRunMatchesStaging: stagingRunId ? stagingRunId === run.runId : null,
       verification: verification ? { ready: verification.evaluation.ready && ref?.planHash === verification.plan.planHash, runId: ref?.runId, planHash: verification.plan.planHash, receiptSignature: getProductV4VerificationReceiptSignature(verification.receipt) } : null,
@@ -4561,12 +4565,15 @@ export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: st
   registerAcademicTools(server, principal);
   registerExternalTools(server, principal);
   registerSystemTools(server, principal);
+  registerMediaTools(server, principal);
   registerSchedulingTools(server, principal);
   registerAccessTools(server, principal);
   registerGroupTools(server, principal);
   registerCommunicationsTools(server, principal);
+  registerBlogTools(server, principal);
   registerWorkflowTools(server, principal, requestId);
   registerProductV4Tools(server, principal);
+  registerRevisionTools(server, principal);
   registerAuthoringSkills(server, skillsProfile, undefined, resolveAuthoringMcpEnvironment(), formsUiResources);
   registerValidationTools(server, principal);
   registerReferenceQuestionTools(server, principal);
@@ -4575,5 +4582,6 @@ export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: st
   registerAnalysisTools(server, principal);
   registerAssessmentAnalysisTools(server, principal);
   registerQuizAssemblyTools(server, principal);
+  registerAgentTools(server, principal);
   return server;
 }

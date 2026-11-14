@@ -1,3 +1,4 @@
+import { adminMcpTestPrincipal, seedAdminMcpAuthority } from "../helpers/admin-mcp-authority";
 // Run in its own Bun process: the database and authentication modules are intentionally isolated.
 import { beforeAll, afterAll, expect, mock, test } from "bun:test";
 import { createPostgresTestDb } from "../helpers/postgres";
@@ -6,7 +7,7 @@ import * as schema from "@/db/schema";
 const { client, testDb: database } = await createPostgresTestDb();
 let active = true;
 mock.module("@/lib/db", () => ({ db: database }));
-mock.module("@/lib/authoring/mcp-auth", () => ({
+mock.module("@/lib/authoring/mcp-auth", () => ({ MCP_MANUAL_CLIENT_ID: "zyx-admin-connection",
   requireMcpScope: (p: { scopes: string[] }, scope: string) => { if (!p.scopes.includes(scope)) throw new Error(`AUTHORING_MCP_SCOPE_REQUIRED:${scope}`); },
   resolveMcpAdmin: async () => { if (!active) throw new Error("private revoked session"); },
 }));
@@ -16,15 +17,16 @@ const { registerFormPresetsTools } = await import("@/lib/admin-mcp/form-presets-
 const { registerFormsTools } = await import("@/lib/admin-mcp/forms-tools");
 const handlers = new Map<string, (input: Record<string, unknown>) => Promise<any>>();
 const scopes = ["shortlinks:read", "shortlinks:write", "forms:read", "forms:write", "forms:responses:read", "forms:responses:export"];
-registerFormsTools({ registerResource: () => undefined, registerTool: (name: string, _config: unknown, handler: (input: Record<string, unknown>) => Promise<any>) => handlers.set(name, handler) } as never, { userId: "admin", actorId: "admin", sessionId: "session", authMethod: "oauth", scopes });
-registerFormPresetsTools({ registerTool: (name: string, _config: unknown, fn: (input: Record<string, unknown>) => Promise<any>) => handlers.set(name, fn) } as never, { userId: "admin", actorId: "admin", sessionId: "session", authMethod: "oauth", scopes });
+const principal = adminMcpTestPrincipal({ userId: "admin", actorId: "admin", sessionId: "session", authMethod: "oauth", scopes });
+registerFormsTools({ registerResource: () => undefined, registerTool: (name: string, _config: unknown, handler: (input: Record<string, unknown>) => Promise<any>) => handlers.set(name, handler) } as never, principal);
+registerFormPresetsTools({ registerTool: (name: string, _config: unknown, fn: (input: Record<string, unknown>) => Promise<any>) => handlers.set(name, fn) } as never, principal);
 const call = async (name: string, input: Record<string, unknown>) => (await handlers.get(name)!({ expectedEnvironment: "local", expectedOrigin: process.env.BETTER_AUTH_URL || "http://localhost:3000", ...input })).structuredContent;
 const commit = async (name: string, input: Record<string, unknown>) => {
   const plan = await call(name, input);
   expect(plan.ok).toBe(true);
   return call(name, { ...input, dryRun: false, confirmationToken: plan.data.confirmationToken });
 };
-beforeAll(async () => { await database.insert(schema.user).values({ id: "admin", name: "Admin", email: "admin@example.test", role: "admin" }); await database.insert(schema.pengguna).values({ id: "admin" }); });
+beforeAll(async () => { await database.insert(schema.user).values({ id: "admin", name: "Admin", email: "admin@example.test", role: "admin" }); await database.insert(schema.pengguna).values({ id: "admin" }); await seedAdminMcpAuthority(database, principal); });
 afterAll(async () => { await client.close(); });
 const definition = { title: "Pendaftaran", slug: "pendaftaran", category: "registration", questions: [{ title: "Nama", type: "TEXT", required: true }, { title: "Jadwal", type: "CHECKBOX", options: ["Sabtu", "Minggu"] }], settings: { acceptingResponses: true, collectEmail: "input" } };
 let form: any;

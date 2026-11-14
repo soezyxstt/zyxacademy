@@ -1,3 +1,4 @@
+import { revisionPublicationConnection, revisionPublicationTransaction, dispatchRevisionPublication, revisionPublicationVerification, inRevisionPublication, reusesRevisionProduct } from "@/lib/authoring/revision-publication-context";
 import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
 import { assertSolutionImportScope, lockSolutionImportScope, type SolutionImportScope } from "@/lib/solutions/import-scope";
 import { productVersionId } from "./product-identity";
@@ -53,7 +54,6 @@ import { redactQuestionAnswerKeys } from "@/lib/asesmen/question-options";
 import { canonicalNamespaceForProductType } from "@/lib/vectorize/outbox";
 import type { CanonicalEntityType, CanonicalNamespace } from "@/lib/vectorize/contracts";
 import { resolveBundleIdentity } from "./attribution";
-import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 import { parseStagedProductBundle, getProductBundleImport, productBundleLifecycleStatus } from "./product-staging";
 import { deterministicProductSerialization, findInvalidProductDependency, hasProductBundleDependencyBlock, productInteractiveDocuments, type ProductDependency, type ProductEntity } from "./product-validator";
 import { z } from "zod";
@@ -116,7 +116,7 @@ function sortedById<T extends { id: string }>(rows: readonly T[]): T[] {
 
 // Lock the persisted identity, including rows that do not exist yet. Every
 // publisher and withdrawer takes the complete set in the same order.
-async function lockCanonicalProducts(tx: Tx, products: readonly ProductEntity[], dependencies: readonly ProductDependency[] = []): Promise<void> {
+export async function productPublicationLockIdentities(tx: Tx, products: readonly ProductEntity[], dependencies: readonly ProductDependency[] = []): Promise<CanonicalLock[]> {
   const locks: CanonicalLock[] = products.map(product => ({ domain: "product", entityType: product.productType, entityId: targetId(product) }));
   const sourceIds = new Set(products.flatMap(product => product.sourceRefs.map(source => source.sourceId)));
   const chunkIds = new Set(products.flatMap(product => product.sourceRefs.flatMap(source => source.excerptIds)));
@@ -141,7 +141,11 @@ async function lockCanonicalProducts(tx: Tx, products: readonly ProductEntity[],
   for (const entityId of sourceIds) locks.push({ domain: "idea", entityType: "source_material", entityId });
   // One complete sorted set: Product identities, then Idea/source identities.
   // Never hold an Idea row while waiting for an advisory lock used by withdrawal.
-  await lockCanonicalIdentities(tx, locks);
+  return locks;
+}
+
+async function lockCanonicalProducts(tx: Tx, products: readonly ProductEntity[], dependencies: readonly ProductDependency[] = []): Promise<void> {
+  await lockCanonicalIdentities(tx, await productPublicationLockIdentities(tx, products, dependencies));
 }
 
 async function productsOwnedByOtherPublishedImports(tx: Tx, importId: string, products: readonly ProductEntity[]): Promise<Set<string>> {
@@ -454,6 +458,10 @@ async function insertArticle(tx: Tx, product: Extract<ProductEntity, { productTy
   }
   if (existing) {
     await requireMatchingPublishedProduct(tx, originalProduct);
+    if (reusesRevisionProduct(product.productType, product.id, product.version)) {
+      values.creatorId = existing.creatorId;
+      values.curatorId = existing.curatorId;
+    }
     const { publishedAt: _publishedAt, createdAt: _createdAt, updatedAt: _updatedAt, ...articleProjection } = values;
     const existingIdeas = await tx.select({ id: artikelIde.id, artikelId: artikelIde.artikelId, ideId: artikelIde.ideId, weight: artikelIde.weight }).from(artikelIde).where(eq(artikelIde.artikelId, articleId));
     const existingSections = await tx.select({ id: bagianArtikel.id, artikelId: bagianArtikel.artikelId, bagianPembelajaranId: bagianArtikel.bagianPembelajaranId, parentSectionId: bagianArtikel.parentSectionId, sectionKey: bagianArtikel.sectionKey, sectionKind: bagianArtikel.sectionKind, slug: bagianArtikel.slug, title: bagianArtikel.title, learningObjective: bagianArtikel.learningObjective, orderIndex: bagianArtikel.orderIndex, estimatedReadingMinutes: bagianArtikel.estimatedReadingMinutes, version: bagianArtikel.version, status: bagianArtikel.status }).from(bagianArtikel).where(eq(bagianArtikel.artikelId, articleId));
@@ -486,6 +494,10 @@ async function insertDiktat(tx: Tx, product: Extract<ProductEntity, { productTyp
   const ideaValues = product.ideaLinks.map((link) => ({ id: id("diktat-ide", `${materialId}:${link.id}`), diktatMateriId: materialId, ideId: link.id, weight: link.weight }));
   if (existing) {
     // An existing canonical version can only be reused with the reviewed PDF.
+    if (reusesRevisionProduct(product.productType, product.id, product.version)) {
+      values.creatorId = existing.creatorId;
+      values.curatorId = existing.curatorId;
+    }
     const { fileKey: existingFileKey, ...existingProjection } = existing;
     const { fileKey: _fileKey, publishedAt: _publishedAt, createdAt: _createdAt, updatedAt: _updatedAt, ...projection } = values;
     const existingIdeas = await tx.select({ id: diktatIde.id, diktatMateriId: diktatIde.diktatMateriId, ideId: diktatIde.ideId, weight: diktatIde.weight }).from(diktatIde).where(eq(diktatIde.diktatMateriId, materialId));
@@ -571,6 +583,10 @@ async function insertFlashcardSet(tx: Tx, product: Extract<ProductEntity, { prod
   const values = { id: setId, mataKuliahId: course.targetId, babId: chapterId, title: product.title, version: product.version, status: "published" as const, generationHash: product.generationHash, creatorId: product.creatorId, curatorId: product.curatorId ?? null, publishedAt: now, createdAt: now, updatedAt: now };
   const [existing] = await tx.select({ id: setFlashcard.id, mataKuliahId: setFlashcard.mataKuliahId, babId: setFlashcard.babId, title: setFlashcard.title, version: setFlashcard.version, status: setFlashcard.status, generationHash: setFlashcard.generationHash, creatorId: setFlashcard.creatorId, curatorId: setFlashcard.curatorId }).from(setFlashcard).where(eq(setFlashcard.id, setId)).limit(1);
   if (existing) {
+    if (reusesRevisionProduct(product.productType, product.id, product.version)) {
+      values.creatorId = existing.creatorId;
+      values.curatorId = existing.curatorId;
+    }
     const { publishedAt: _publishedAt, createdAt: _createdAt, updatedAt: _updatedAt, ...projection } = values;
     if (!equal(existing, projection)) throw new Error(`PRODUCT_BUNDLE_VERSION_CONFLICT:${product.id}`);
     await requireMatchingPublishedProduct(tx, originalProduct);
@@ -672,13 +688,13 @@ export async function assertCurrentProductV4Review(input: {
  */
 export async function publishProductBundle(input: { importId: string; publishedBy: string; expectedRevision: string; solutionScope?: SolutionImportScope; testFailureAfter?: FailureStage }): Promise<{ publicationId: string; importId: string; published: boolean; productCount: number; vectorJobCount: number }> {
   enabled();
-  await assertAuthoringActor(db, input.publishedBy, { roles: ["admin"], error: "PRODUCT_BUNDLE_PUBLISH_FORBIDDEN", requireLegacyAdmin: true });
+  await assertAuthoringActor(revisionPublicationConnection(), input.publishedBy, { roles: ["admin"], error: "PRODUCT_BUNDLE_PUBLISH_FORBIDDEN", requireLegacyAdmin: true });
   const snapshot = await getProductBundleImport(input.importId);
   if (!snapshot) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
   if (!/^[a-f0-9]{64}$/.test(input.expectedRevision ?? "") || input.expectedRevision !== snapshot.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
   if (input.solutionScope) assertSolutionImportScope(snapshot, null, input.solutionScope);
   if (snapshot.status === "published") {
-    return db.transaction(async tx => {
+    return revisionPublicationTransaction(async tx => {
       await assertAuthoringActor(tx, input.publishedBy, { roles: ["admin"], error: "PRODUCT_BUNDLE_PUBLISH_FORBIDDEN", lock: true, requireLegacyAdmin: true });
       if (input.solutionScope) {
         const locked = await lockSolutionImportScope(tx, input.importId, input.solutionScope);
@@ -708,11 +724,11 @@ export async function publishProductBundle(input: { importId: string; publishedB
   if (isV4) {
     const ref = snapshot.validationReport.productV4Verification as { runId?: unknown; planHash?: unknown } | undefined;
     if (typeof ref?.runId !== "string" || typeof ref.planHash !== "string") throw new Error("PRODUCT_V4_VERIFICATION_REQUIRED");
-    v4Verification = await (await import("./product-v4-verification-service")).getProductV4VerificationReadiness(input.importId, ref.runId);
+    v4Verification = (revisionPublicationVerification(input.importId) as typeof v4Verification) ?? await (await import("./product-v4-verification-service")).getProductV4VerificationReadiness(input.importId, ref.runId);
     if (!v4Verification.evaluation.ready || v4Verification.plan.planHash !== ref.planHash) throw new Error("PRODUCT_V4_VERIFICATION_REQUIRED");
   }
   let courseLegacyId: string | undefined;
-  const result = await db.transaction(async (tx) => {
+  const result = await revisionPublicationTransaction(async (tx) => {
     await assertAuthoringActor(tx, input.publishedBy, { roles: ["admin"], error: "PRODUCT_BUNDLE_PUBLISH_FORBIDDEN", lock: true, requireLegacyAdmin: true });
     if (input.solutionScope) await lockSolutionImportScope(tx, input.importId, input.solutionScope);
     const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1);
@@ -740,14 +756,14 @@ export async function publishProductBundle(input: { importId: string; publishedB
     }
 
     if (usesPedagogicApproval) {
-      const requiredSectionIds = bundle.products.flatMap((product) => product.productType === "article" ? product.sections.map((section) => section.id) : []);
-      if (requiredSectionIds.length > 0) {
-        const sectionReviews = await tx.select({ reviewerId: reviewItemBundle.reviewerId, targetType: reviewItemBundle.targetType, targetId: reviewItemBundle.targetId, status: reviewItemBundle.status }).from(reviewItemBundle).where(and(
+      const requiredSections = bundle.products.flatMap((product) => product.productType === "article" ? product.sections.map((section) => ({ productId: product.id, sectionId: section.id })) : []);
+      if (requiredSections.length > 0) {
+        const sectionReviews = await tx.select({ productId: reviewItemBundle.productId, reviewerId: reviewItemBundle.reviewerId, targetType: reviewItemBundle.targetType, targetId: reviewItemBundle.targetId, status: reviewItemBundle.status }).from(reviewItemBundle).where(and(
           eq(reviewItemBundle.imporBundleId, input.importId),
           eq(reviewItemBundle.reviewerId, input.publishedBy),
           eq(reviewItemBundle.targetType, "article_section"),
         ));
-        assertProductSectionReviews({ requiredSectionIds, reviewerId: input.publishedBy, reviews: sectionReviews });
+        assertProductSectionReviews({ requiredSections, reviewerId: input.publishedBy, reviews: sectionReviews });
       }
 
       const qualityEvaluation = await evaluateProductBundleQualityPolicy(
@@ -885,8 +901,22 @@ export async function publishProductBundle(input: { importId: string; publishedB
       }
       maybeFail(input.testFailureAfter, product.productType);
     }
-    const dependencyValues = bundle.dependencies.map((dependency) => ({ id: dependency.id, upstreamEntityType: dependency.upstreamEntityType, upstreamEntityId: dependency.upstreamEntityId, upstreamVersion: dependency.upstreamVersion, upstreamHash: dependency.upstreamHash, downstreamEntityType: dependency.downstreamEntityType, downstreamEntityId: dependency.downstreamEntityId, downstreamVersion: dependency.downstreamVersion, downstreamHash: dependency.downstreamHash, freshness: dependency.freshness, reason: null, createdAt: now, updatedAt: now }));
-    if (!isV5) for (const batch of chunksOf(dependencyValues)) await tx.insert(ketergantunganProduk).values(batch).onConflictDoNothing();
+    const dependencyCandidates = bundle.dependencies.map((dependency) => ({ id: id("canonical-dependency", serializeDeterministically([dependency.upstreamEntityType, dependency.upstreamEntityId, dependency.upstreamVersion, dependency.downstreamEntityType, dependency.downstreamEntityId, dependency.downstreamVersion])), upstreamEntityType: dependency.upstreamEntityType, upstreamEntityId: dependency.upstreamEntityId, upstreamVersion: dependency.upstreamVersion, upstreamHash: dependency.upstreamHash, downstreamEntityType: dependency.downstreamEntityType, downstreamEntityId: dependency.downstreamEntityId, downstreamVersion: dependency.downstreamVersion, downstreamHash: dependency.downstreamHash, freshness: dependency.freshness, reason: null, createdAt: now, updatedAt: now }));
+    const dependencyProjection = ({ id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...value }: typeof ketergantunganProduk.$inferSelect) => value;
+    const uniqueDependencies = new Map<string, typeof dependencyCandidates[number]>();
+    for (const dependency of dependencyCandidates) {
+      const previous = uniqueDependencies.get(dependency.id);
+      if (previous && !equal(dependencyProjection(previous), dependencyProjection(dependency))) throw new Error(`PRODUCT_BUNDLE_DEPENDENCY_VERSION_CONFLICT:${dependency.downstreamEntityId}`);
+      uniqueDependencies.set(dependency.id, dependency);
+    }
+    const dependencyValues = [...uniqueDependencies.values()];
+    for (const product of bundle.products) {
+      const expected = dependencyValues.filter(value=>value.downstreamEntityType === product.productType && value.downstreamEntityId === product.id && value.downstreamVersion === product.version);
+      const existing = await tx.select().from(ketergantunganProduk).where(and(eq(ketergantunganProduk.downstreamEntityType, product.productType),eq(ketergantunganProduk.downstreamEntityId, product.id),eq(ketergantunganProduk.downstreamVersion, product.version))).for("share");
+      const comparable = (values: typeof existing) => values.map(dependencyProjection).map(value=>serializeDeterministically(value)).sort();
+      if (existing.length && !equal(comparable(existing),comparable(expected))) throw new Error(`PRODUCT_BUNDLE_DEPENDENCY_VERSION_CONFLICT:${product.id}`);
+      if (!existing.length && expected.length) for (const batch of chunksOf(expected)) await tx.insert(ketergantunganProduk).values(batch);
+    }
     const vectorChapters = new Map<string, string | null>();
     for (const product of products) if (product.chapterId && !vectorChapters.has(product.chapterId)) vectorChapters.set(product.chapterId, await resolveChapter(tx, product.chapterId, course.targetId));
     const vectorJobs = products.flatMap((product) => {
@@ -929,30 +959,30 @@ export async function publishProductBundle(input: { importId: string; publishedB
     return { publicationId, importId: input.importId, published: true, productCount: bundle.products.length, vectorJobCount: insertedVectorJobCount };
   });
   if (courseLegacyId && !isV5) {
-    dispatchVectorSync(courseLegacyId);
+    dispatchRevisionPublication(courseLegacyId);
   }
   return result;
 }
 
 export async function withdrawProductBundle(input: { importId: string; withdrawnBy: string; expectedRevision: string; expectedCourseId?: string }): Promise<{ importId: string; withdrawn: boolean; productCount: number; vectorJobCount: number }> {
   enabled();
-  await assertAuthoringActor(db, input.withdrawnBy, { roles: ["admin"], error: "PRODUCT_BUNDLE_WITHDRAW_FORBIDDEN", requireLegacyAdmin: true });
-  const [withdrawer] = await db.select({ id: pengguna.id }).from(pengguna).where(eq(pengguna.id, input.withdrawnBy)).limit(1);
+  await assertAuthoringActor(revisionPublicationConnection(), input.withdrawnBy, { roles: ["admin"], error: "PRODUCT_BUNDLE_WITHDRAW_FORBIDDEN", requireLegacyAdmin: true });
+  const [withdrawer] = await revisionPublicationConnection().select({ id: pengguna.id }).from(pengguna).where(eq(pengguna.id, input.withdrawnBy)).limit(1);
   if (!withdrawer) throw new Error(`PRODUCT_BUNDLE_WITHDRAWER_NOT_FOUND:${input.withdrawnBy}`);
 
   const snapshot = await getProductBundleImport(input.importId);
   if (!snapshot) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
   if (!/^[a-f0-9]{64}$/.test(input.expectedRevision ?? "") || snapshot.checksum !== input.expectedRevision || (input.expectedCourseId !== undefined && input.expectedCourseId !== snapshot.courseId)) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
   if (productBundleLifecycleStatus(snapshot.status) === "withdrawn") {
-    await db.transaction(async tx => {
+    await revisionPublicationTransaction(async tx => {
       await assertAuthoringActor(tx, input.withdrawnBy, { roles: ["admin"], error: "PRODUCT_BUNDLE_WITHDRAW_FORBIDDEN", lock: true, requireLegacyAdmin: true });
       const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1).for("update");
       if (!row || row.status !== snapshot.status || row.checksum !== input.expectedRevision || row.courseId !== snapshot.courseId || row.sourceUriOrKey !== snapshot.sourceUriOrKey) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
     });
     const bundle = await parseStagedProductBundle(input.importId);
-    const course = await resolveCourse(db, bundle.manifest.courseId);
+    const course = await resolveCourse(revisionPublicationConnection(), bundle.manifest.courseId);
     if (course.legacyId && bundle.manifest.schemaVersion !== "product-bundle.v5") {
-      await dispatchVectorSync(course.legacyId);
+      await dispatchRevisionPublication(course.legacyId);
     }
     return { importId: input.importId, withdrawn: false, productCount: 0, vectorJobCount: 0 };
   }
@@ -961,7 +991,7 @@ export async function withdrawProductBundle(input: { importId: string; withdrawn
   if (bundle.checksum !== input.expectedRevision || bundle.manifest.bundleId !== snapshot.bundleId) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
 
   let courseLegacyId: string | undefined;
-  const result = await db.transaction(async (tx) => {
+  const result = await revisionPublicationTransaction(async (tx) => {
     await assertAuthoringActor(tx, input.withdrawnBy, { roles: ["admin"], error: "PRODUCT_BUNDLE_WITHDRAW_FORBIDDEN", lock: true, requireLegacyAdmin: true });
     const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1).for("update");
     if (!row || row.bundleType !== "product") throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
@@ -976,6 +1006,7 @@ export async function withdrawProductBundle(input: { importId: string; withdrawn
     const productIds = bundle.products.map(targetId);
     const ownedElsewhere = await productsOwnedByOtherPublishedImports(tx, input.importId, bundle.products);
     const retiringProducts = bundle.products.filter((product) => !ownedElsewhere.has(productOwnershipKey(product)));
+    for (const product of retiringProducts) await tx.delete(ketergantunganProduk).where(and(eq(ketergantunganProduk.downstreamEntityType, product.productType),eq(ketergantunganProduk.downstreamEntityId, product.id),eq(ketergantunganProduk.downstreamVersion, product.version)));
     const byType = <T extends ProductEntity["productType"]>(type: T) => retiringProducts.filter((product): product is Extract<ProductEntity, { productType: T }> => product.productType === type).map(targetId);
     const articleIds = byType("article");
     const diktatIds = byType("diktat");
@@ -1001,7 +1032,7 @@ export async function withdrawProductBundle(input: { importId: string; withdrawn
     if (cardIds.length > 0) await tx.update(flashcard).set({ status: "retired", updatedAt: now }).where(inArray(flashcard.id, cardIds));
     if (blueprintIds.length > 0) await tx.update(blueprintAsesmen).set({ status: "retired", updatedAt: now }).where(inArray(blueprintAsesmen.id, blueprintIds));
     if (collectionIds.length > 0) {
-      const withdrawn = await tx.update(solutionCollections).set({ status: "withdrawn", updatedAt: now }).where(and(eq(solutionCollections.importId, input.importId), eq(solutionCollections.status, "published"), inArray(solutionCollections.id, collectionIds))).returning({ id: solutionCollections.id });
+      const withdrawn = await tx.update(solutionCollections).set({ status: "withdrawn", updatedAt: now }).where(and(eq(solutionCollections.importId, input.importId), inArray(solutionCollections.status, inRevisionPublication() ? ["published", "withdrawn"] : ["published"]), inArray(solutionCollections.id, collectionIds))).returning({ id: solutionCollections.id });
       if (withdrawn.length !== collectionIds.length) throw new Error("PRODUCT_V5_PUBLICATION_MISSING");
     }
 
@@ -1026,7 +1057,7 @@ export async function withdrawProductBundle(input: { importId: string; withdrawn
     return { importId: input.importId, withdrawn: true, productCount: productIds.length, vectorJobCount: vectorJobs.length };
   });
   if (courseLegacyId && bundle.manifest.schemaVersion !== "product-bundle.v5") {
-    await dispatchVectorSync(courseLegacyId);
+    await dispatchRevisionPublication(courseLegacyId);
   }
   return result;
 }

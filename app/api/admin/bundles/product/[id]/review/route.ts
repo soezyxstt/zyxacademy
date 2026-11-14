@@ -42,7 +42,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     if (!row) return NextResponse.json({ error: "PRODUCT_BUNDLE_NOT_FOUND" }, { status: 404 });
     const bundle = await parseStagedProductBundle(id);
     if (bundle.checksum !== row.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
-    return NextResponse.json({ expectedRevision: row.checksum, policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: productPedagogyFingerprint(bundle.products), sections: bundle.products.flatMap(product => product.productType === "article" ? product.sections.map(section => ({ articleId: product.id, sectionId: section.id, title: section.title, semanticHash: computeProductV4SectionSemanticHash(product, section.id) })) : []) });
+    return NextResponse.json({ expectedRevision: row.checksum, policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: productPedagogyFingerprint(bundle.products), sections: bundle.products.flatMap(product => product.productType === "article" ? product.sections.map(section => ({ articleId: product.id, productId: product.id, sectionId: section.id, title: section.title, semanticHash: computeProductV4SectionSemanticHash(product, section.id) })) : []) });
   } catch {
     return NextResponse.json({ error: "PRODUCT_BUNDLE_REVIEW_CONTEXT_FAILED" }, { status: 422 });
   }

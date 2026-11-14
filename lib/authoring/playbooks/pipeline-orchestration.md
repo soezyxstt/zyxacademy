@@ -6,6 +6,8 @@ Use this playbook when orchestrating the complete Zyx authoring pipeline from ra
 
 Do not use this pipeline for standalone Question Bank authoring (`quiz_bank`) or Historical Reference ingestion (`reference_question_ingest`); those workflows have dedicated stage playbooks (`quiz` and `reference`).
 
+For changes to existing Idea V3 or learning Product V3/V4/V5, prefer the flexible revision lifecycle in the Idea and Product stage playbooks. Obtain each relevant stage's fresh bootstrap, read `authoring.get_edit_context`, create a draft, patch stable IDs, plan the exact release, review and explicitly publish. This path uses stored admitted source evidence and does not require a new Source Pack, the original unexpired run or an Admin web visit. Use `authoring.prepare_revision_verification` before trusted V4 verification when the release includes prospective Idea dependencies. The checkpoint sequence below is for initial source-grounded authoring; it must not force a complete rebuild merely to update existing content.
+
 ## 2. Mandatory Checkpoint Sequence
 
 Execute the pipeline in strict checkpoint order. Never skip a gate or start a downstream stage before its upstream dependency satisfies the required state:

@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { PenLine } from "lucide-react";
 import { TranslatedText } from "@/components/i18n/translated-text";
+import { revisionOf } from "@/lib/admin-mcp/revision";
 
 export default async function EditArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -23,7 +24,7 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
         description={article.title}
         backHref="/admin/blog"
       />
-      <MarkdownEditor initialData={article} />
+      <MarkdownEditor initialData={article} initialRevision={revisionOf(article)} />
     </div>
   );
 }

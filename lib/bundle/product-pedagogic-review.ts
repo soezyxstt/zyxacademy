@@ -1,3 +1,4 @@
+import { assertRevisionReviewGuard } from "@/lib/authoring/revision-review-context";
 import crypto from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -22,10 +23,10 @@ import {
 import { claimProductReviewSnapshot } from "./product-review-snapshot";
 import { getProductV4VerificationReadiness } from "./product-v4-verification-service";
 import { getProductV4VerificationReceiptSignature } from "./product-v4-verification";
-import { assertProductV4ReviewCardinality, computeProductV4SectionSemanticHash, validateProductV4ReviewContext, type ProductV4SectionDecision } from "./product-v4-review";
+import { assertProductV4ReviewCardinality, validateProductV4ReviewContext, type ProductV4SectionDecision } from "./product-v4-review";
 import { deterministicProductSerialization } from "./product-validator";
 import { productPedagogyFingerprint } from "./product-review-gate";
-import { sectionDecisionsSchema } from "./product-v4-review";
+import { normalizeProductSectionDecisions, productSectionReviewKey, type ScopedProductSectionDecision } from "./product-v4-review";
 
 function stableId(prefix: string, value: string): string {
   return `${prefix}-${crypto.createHash("sha256").update(value).digest("hex").slice(0, 16)}`;
@@ -157,7 +158,7 @@ export async function executePedagogicReview(
   }
 
   const isV4 = stagedBundle.manifest.schemaVersion === "product-bundle.v4";
-  let sectionDecisions: ProductV4SectionDecision[] = [];
+  let sectionDecisions: ScopedProductSectionDecision[] = [];
   if (isV4) {
     const registered = row.validationReport.productV4Verification as { runId?: unknown; planHash?: unknown } | undefined;
     const evidence = input.decision === "approved" && typeof registered?.runId === "string"
@@ -165,15 +166,8 @@ export async function executePedagogicReview(
     sectionDecisions = validateProductV4ReviewContext({ article, importId: input.importId, checksum: row.checksum, fingerprint: freshFingerprint, review: input,
       verification: evidence ? { ready: evidence.evaluation.ready && registered?.planHash === evidence.plan.planHash, planHash: evidence.plan.planHash, importId: evidence.plan.binding.importId, receiptSignature: getProductV4VerificationReceiptSignature(evidence.receipt) } : undefined });
   } else {
-    sectionDecisions = input.sectionDecisions!.map(decision => sectionDecisionsSchema.element.parse(decision));
-    const seen = new Set<string>();
-    for (const decision of sectionDecisions) {
-      if (seen.has(decision.sectionId)) throw new Error("PRODUCT_REVIEW_SECTION_DUPLICATE");
-      seen.add(decision.sectionId);
-      const owner = articles.find(art => art.sections.some(section => section.id === decision.sectionId));
-      if (!owner || computeProductV4SectionSemanticHash(owner, decision.sectionId) !== decision.semanticHash) throw new Error("PRODUCT_REVIEW_SECTION_STALE");
-      if (decision.decision === "changes_requested" && !decision.notes?.trim()) throw new Error("PRODUCT_REVIEW_SECTION_REASON_REQUIRED");
-    }
+    sectionDecisions = normalizeProductSectionDecisions(articles, input.sectionDecisions!);
+    const seen = new Set(sectionDecisions.map(decision => productSectionReviewKey(decision.productId, decision.sectionId)));
     if (seen.size !== articles.reduce((n, art) => n + art.sections.length, 0) || (input.decision === "approved" && sectionDecisions.some(decision => decision.decision !== "approved"))) throw new Error("PRODUCT_REVIEW_ALL_SECTIONS_REQUIRED");
   }
   if (isV4 && sectionDecisions.length !== article.sections.length) throw new Error("PRODUCT_REVIEW_ALL_SECTIONS_REQUIRED");
@@ -186,6 +180,7 @@ export async function executePedagogicReview(
 
   const recordedAt = await db.transaction(async (tx) => {
     await assertAuthoringActor(tx, input.reviewerId, { roles: [role], error: "PRODUCT_BUNDLE_REVIEW_FORBIDDEN", lock: true });
+    await assertRevisionReviewGuard(tx);
     if (role === "tutor" && (!row.courseId || !(await checkTutorCourseAccess(input.reviewerId, row.courseId, undefined, tx)).hasAccess)) throw new Error("PRODUCT_BUNDLE_REVIEW_COURSE_FORBIDDEN");
     await claimProductReviewSnapshot(tx, row, now);
     {
@@ -245,8 +240,8 @@ export async function executePedagogicReview(
 
     {
       for (const decision of sectionDecisions) {
-        const owner = articles.find(art => art.sections.some(section => section.id === decision.sectionId))!;
-        await tx.insert(reviewItemBundle).values({ id: stableId("review-product-item", `${input.importId}:${input.reviewerId}:article_section:${decision.sectionId}`), imporBundleId: input.importId, reviewerId: input.reviewerId, productId: owner.id, blockId: decision.sectionId, targetType: "article_section", targetId: decision.sectionId, status: decision.decision, notes: decision.notes ?? null, createdAt: now, updatedAt: now }).onConflictDoUpdate({ target: [reviewItemBundle.imporBundleId, reviewItemBundle.reviewerId, reviewItemBundle.targetType, reviewItemBundle.targetId], set: { status: decision.decision, notes: decision.notes ?? null, updatedAt: now } });
+        const owner = articles.find(art => art.id === decision.productId)!;
+        await tx.insert(reviewItemBundle).values({ id: stableId("review-product-item", JSON.stringify([input.importId, input.reviewerId, "article_section", owner.id, decision.sectionId])), imporBundleId: input.importId, reviewerId: input.reviewerId, productId: owner.id, blockId: decision.sectionId, targetType: "article_section", targetId: decision.sectionId, status: decision.decision, notes: decision.notes ?? null, createdAt: now, updatedAt: now }).onConflictDoUpdate({ target: [reviewItemBundle.imporBundleId, reviewItemBundle.reviewerId, reviewItemBundle.targetType, reviewItemBundle.targetId, reviewItemBundle.productId], set: { status: decision.decision, notes: decision.notes ?? null, updatedAt: now } });
       }
     }
 

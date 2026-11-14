@@ -1,3 +1,4 @@
+import { assertRevisionReviewGuard } from "@/lib/authoring/revision-review-context";
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -61,6 +62,7 @@ export async function reviewSolutionCollection(input: { importId: string; review
   const now = new Date();
   const saved = await db.transaction(async tx => {
     await assertAuthoringActor(tx, input.reviewerId, { roles: ["admin"], error: "PRODUCT_BUNDLE_REVIEW_FORBIDDEN", lock: true, requireLegacyAdmin: true });
+    await assertRevisionReviewGuard(tx);
     if (input.scope) {
       const locked = await lockSolutionImportScope(tx, input.importId, input.scope);
       if (locked.status !== row.status || JSON.stringify(locked.validationReport) !== JSON.stringify(row.validationReport)) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");

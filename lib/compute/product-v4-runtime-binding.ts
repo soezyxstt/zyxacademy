@@ -16,10 +16,12 @@ import type { InteractiveDocumentSpec } from "@/lib/materials/interactive-docume
 import { buildInteractiveDocumentAdmissionKey, buildInteractiveDocumentAssetKey } from "@/lib/storage/keys";
 import { verifyInteractiveDocumentAdmissionReceipt } from "@/lib/materials/interactive-document-verified";
 import { productV4DocumentPairKey } from "./product-v4-document-wire";
+import type { db as applicationDb } from "@/db";
 
 declare const __ZYX_VERIFICATION_BUILD_RUNTIME__: { fingerprint: ProductV4RuntimeFingerprint } | undefined;
 
 type Bundle = ProductV4VerificationSnapshot["bundle"];
+export type ProductV4RuntimeConnection = typeof applicationDb | Parameters<Parameters<typeof applicationDb.transaction>[0]>[0];
 type ImportRow = { id: string; bundleType: string; bundleId: string; courseId: string; checksum: string };
 type Figure = Awaited<ReturnType<typeof resolveSourceFigureForCourse>>;
 type VerifiedFigureVariant = Omit<Figure["variants"][number], "deliveryUrl"> & { bytes: Uint8Array };
@@ -31,6 +33,7 @@ interface FigurePorts {
 }
 interface RuntimePorts extends FigurePorts {
   dependencies(bundle: Bundle): Promise<ProductV4LiveDependency[]>;
+  revisionDependencies?(input: { row: ImportRow; bundle: Bundle; rows: readonly ProductV4LiveDependency[] }): Promise<{ rows: ProductV4LiveDependency[]; contextDigest?: string }>;
   runtime(): Promise<ProductV4RuntimeFingerprint>;
 }
 export type ProductV4RuntimeFingerprint = Pick<ProductV4VerificationBinding, "rendererChecksum" | "fontChecksum" | "contractChecksum" | "playbookChecksum" | "printProfile">;
@@ -74,7 +77,7 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "components/course/question-image.tsx", "lib/articles/source-figure-resolver.ts", "app/api/courses/[id]/articles/[articleId]/source-figures/[visualId]/route.ts",
   "lib/articles/structured-read-model.ts", "lib/articles/structured-repository.ts", "lib/materials/compiler.ts", "lib/materials/pedagogy-contract.ts",
   "lib/authoring/source-figures.ts", "lib/compute/source-figure.ts", "lib/authoring/mcp-contract-revision.ts", "lib/authoring/mcp-workflows.ts", "lib/authoring/interactive-visual-guidance.ts", "lib/authoring/mcp-playbook.ts",
-  "lib/authoring/source-pack.ts", "lib/authoring/question-bank-draft.ts", "lib/authoring/reference-question-draft.ts", "lib/question-authoring-contract.ts", "lib/ide/contracts.ts", "lib/sumber/contracts.ts", "lib/bundle/idea-bundle-v2.ts", "lib/bundle/validator.ts", "lib/bundle/zip-reader.ts", "lib/materials/quality-policy.ts", "lib/materials/quality-policy-constants.ts", "lib/materials/pdf-artifact-contract.ts",
+  "lib/authoring/source-pack.ts", "lib/authoring/revision-verification-context.ts", "lib/authoring/question-bank-draft.ts", "lib/authoring/reference-question-draft.ts", "lib/question-authoring-contract.ts", "lib/ide/contracts.ts", "lib/sumber/contracts.ts", "lib/bundle/idea-bundle-v2.ts", "lib/bundle/validator.ts", "lib/bundle/zip-reader.ts", "lib/materials/quality-policy.ts", "lib/materials/quality-policy-constants.ts", "lib/materials/pdf-artifact-contract.ts",
   "lib/math/katex.ts", "lib/math/katex-render.ts", "lib/math/scientific-format.ts", "lib/math/text-segments.ts", "lib/math/unmarked-scientific.ts", "lib/math/visual-function-latex.ts", "lib/math/math-normalizer.ts", "lib/math/scientific-answer-normalizer.ts",
   "lib/materials/article-parts.ts", "lib/materials/article-contract.ts", "lib/materials/visual-contract.ts", "lib/materials/interactive-scene.ts", "lib/materials/interactive-document-markdown.ts", "lib/materials/epsilon-delta.ts",
   "lib/materials/diktat-v4.ts", "lib/materials/diktat-visual-snapshot.ts", "lib/materials/diktat-static-visual.ts", "lib/materials/diktat-print-readiness.ts", "lib/materials/verification-preview.ts",
@@ -198,13 +201,16 @@ export function productV4DependencyChecksum(bundle: Bundle, rows: readonly Produ
   return hash({ dependencies: [...bundle.dependencies].sort((a, b) => a.id.localeCompare(b.id)), live: [...rows].sort((a, b) => `${a.type}:${a.id}`.localeCompare(`${b.type}:${b.id}`)) });
 }
 
-export async function buildProductV4RuntimeBinding(input: { row: ImportRow; bundle: Bundle; runId: string }, injected?: RuntimePorts, read?: DocumentAssetReader): Promise<ProductV4VerificationBinding> {
+export async function buildProductV4RuntimeBinding(input: { row: ImportRow; bundle: Bundle; runId: string }, injected?: RuntimePorts, read?: DocumentAssetReader, connection?: ProductV4RuntimeConnection): Promise<ProductV4VerificationBinding> {
   const { row, bundle, runId } = input;
   if (bundle.manifest.schemaVersion !== "product-bundle.v4" || row.bundleType !== "product" || row.bundleId !== bundle.manifest.bundleId || !/^[a-f0-9]{64}$/i.test(row.checksum)) throw new Error("PRODUCT_V4_IMPORT_MISMATCH");
-  const ports = injected ?? await defaultPorts();
+  const ports = injected ?? await defaultPorts(connection);
   const course = await ports.course(bundle.manifest.courseId);
   if (course.id !== bundle.manifest.courseId || row.courseId !== course.legacyCourseId) throw new Error("PRODUCT_V4_COURSE_MISMATCH");
   const [rows, figures, runtime] = await Promise.all([ports.dependencies(bundle), verifiedFigures(bundle, ports), ports.runtime()]);
+  const resolved = ports.revisionDependencies ? await ports.revisionDependencies({ row, bundle, rows }) : { rows };
+  const liveChecksum = productV4DependencyChecksum(bundle, resolved.rows);
+  const dependencyChecksum = resolved.contextDigest ? hash({ liveChecksum, revisionVerificationContext: resolved.contextDigest }) : liveChecksum;
   const documents = productInteractiveDocuments(bundle.products);
   const documentAssets: Array<{ id: string; document: string; print: string }> = [];
   if (documents.length) {
@@ -218,7 +224,7 @@ export async function buildProductV4RuntimeBinding(input: { row: ImportRow; bund
   }
   return { importId: row.id, courseId: course.id, runId, revision: Number.parseInt(row.checksum.slice(0, 8), 16) + 1,
     ...(process.env.NODE_ENV === "production" || typeof (globalThis as { Deno?: unknown }).Deno !== "undefined" || process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER ? verificationBrowserIdentity() : {}),
-    ...runtime, policyRevision: PRODUCT_V4_VERIFICATION_POLICY, dependencyChecksum: productV4DependencyChecksum(bundle, rows),
+    ...runtime, policyRevision: PRODUCT_V4_VERIFICATION_POLICY, dependencyChecksum,
     assetChecksum: hash({ figures: figures.map(figure => ({ metadata: figure.metadata, variants: figure.variants.map(({ bytes, ...variant }) => ({ ...variant, byteLength: bytes.length, readbackChecksum: bytesHash(bytes) })) })), documents: documentAssets }),
   };
 }
@@ -282,34 +288,39 @@ export async function readProductV4RuntimeFingerprint(): Promise<ProductV4Runtim
   };
 }
 
-async function defaultPorts(): Promise<RuntimePorts> {
+async function defaultPorts(connection?: ProductV4RuntimeConnection): Promise<RuntimePorts> {
   const [{ db }, schema, { eq, inArray }, { storage }, { resolveSourceFigureForCourse }] = await Promise.all([import("@/db"), import("@/db/schema"), import("drizzle-orm"), import("@/lib/storage"), import("@/lib/authoring/source-figures")]);
+  const database = connection ?? db;
   return {
     async course(id) {
-      const [course] = await db.select({ id: schema.mataKuliah.id, legacyCourseId: schema.mataKuliah.legacyCourseId }).from(schema.mataKuliah).where(eq(schema.mataKuliah.id, id)).limit(1);
+      const [course] = await database.select({ id: schema.mataKuliah.id, legacyCourseId: schema.mataKuliah.legacyCourseId }).from(schema.mataKuliah).where(eq(schema.mataKuliah.id, id)).limit(1);
       if (!course?.legacyCourseId) throw new Error("PRODUCT_V4_COURSE_ALIAS_REQUIRED");
       return { id: course.id, legacyCourseId: course.legacyCourseId };
     },
-    figure: resolveSourceFigureForCourse,
+    figure: input => resolveSourceFigureForCourse(input, undefined, database),
     async download(key) { if (!storage.download) throw new Error("STORAGE_DOWNLOAD_UNSUPPORTED"); return storage.download(key); },
     runtime: readProductV4ExecutorRuntime,
+    async revisionDependencies(input) {
+      const { resolveRevisionVerificationContext } = await import("@/lib/authoring/revision-verification-context");
+      return resolveRevisionVerificationContext(input, database);
+    },
     async dependencies(bundle) {
       const rows: ProductV4LiveDependency[] = [];
       const ids = (type: ProductV4LiveDependency["type"]) => bundle.dependencies.filter(item => item.upstreamEntityType === type).map(item => item.upstreamEntityId);
       const ideaIds = unique([...ids("idea"), ...bundle.products.flatMap(product => product.ideaLinks.map(idea => idea.id))]);
       const chunkIds = unique([...ids("source_chunk"), ...bundle.products.flatMap(product => product.sourceRefs.flatMap(source => source.excerptIds))]);
-      const chunks = chunkIds.length ? await db.select({ id: schema.potonganSumber.id, version: schema.potonganSumber.sourceVersion, hash: schema.potonganSumber.checksum, sourceId: schema.potonganSumber.sumberMateriId, courseId: schema.sumberMateri.mataKuliahId, status: schema.sumberMateri.status }).from(schema.potonganSumber).innerJoin(schema.sumberMateri, eq(schema.potonganSumber.sumberMateriId, schema.sumberMateri.id)).where(inArray(schema.potonganSumber.id, chunkIds)) : [];
+      const chunks = chunkIds.length ? await database.select({ id: schema.potonganSumber.id, version: schema.potonganSumber.sourceVersion, hash: schema.potonganSumber.checksum, sourceId: schema.potonganSumber.sumberMateriId, courseId: schema.sumberMateri.mataKuliahId, status: schema.sumberMateri.status }).from(schema.potonganSumber).innerJoin(schema.sumberMateri, eq(schema.potonganSumber.sumberMateriId, schema.sumberMateri.id)).where(inArray(schema.potonganSumber.id, chunkIds)) : [];
       rows.push(...chunks.map(row => ({ ...row, type: "source_chunk" as const })));
       const sourceIds = unique([...ids("source_material"), ...chunks.map(row => row.sourceId), ...bundle.products.flatMap(product => product.sourceRefs.map(source => source.sourceId))]);
-      if (ideaIds.length) rows.push(...(await db.select({ id: schema.ide.id, version: schema.ide.version, hash: schema.ide.semanticHash, status: schema.ide.status, courseId: schema.ide.mataKuliahId }).from(schema.ide).where(inArray(schema.ide.id, ideaIds))).map(row => ({ ...row, type: "idea" as const })));
-      if (sourceIds.length) rows.push(...(await db.select({ id: schema.sumberMateri.id, version: schema.sumberMateri.version, hash: schema.sumberMateri.checksum, status: schema.sumberMateri.status, courseId: schema.sumberMateri.mataKuliahId }).from(schema.sumberMateri).where(inArray(schema.sumberMateri.id, sourceIds))).map(row => ({ ...row, type: "source_material" as const })));
+      if (ideaIds.length) rows.push(...(await database.select({ id: schema.ide.id, version: schema.ide.version, hash: schema.ide.semanticHash, status: schema.ide.status, courseId: schema.ide.mataKuliahId }).from(schema.ide).where(inArray(schema.ide.id, ideaIds))).map(row => ({ ...row, type: "idea" as const })));
+      if (sourceIds.length) rows.push(...(await database.select({ id: schema.sumberMateri.id, version: schema.sumberMateri.version, hash: schema.sumberMateri.checksum, status: schema.sumberMateri.status, courseId: schema.sumberMateri.mataKuliahId }).from(schema.sumberMateri).where(inArray(schema.sumberMateri.id, sourceIds))).map(row => ({ ...row, type: "source_material" as const })));
       const productIds = unique(bundle.dependencies.filter(dependency => dependency.upstreamEntityType === "product" && !bundle.products.some(product => product.id === dependency.upstreamEntityId && product.version === dependency.upstreamVersion)).map(dependency => productVersionId(dependency.upstreamEntityId, dependency.upstreamVersion)));
       for (const table of [schema.artikel, schema.diktatMateri, schema.soal, schema.setFlashcard, schema.blueprintAsesmen]) if (productIds.length) {
-        rows.push(...(await db.select({ id: table.id, version: table.version, hash: table.generationHash, status: table.status, courseId: table.mataKuliahId }).from(table).where(inArray(table.id, productIds))).map(row => ({ ...row, type: "product" as const })));
+        rows.push(...(await database.select({ id: table.id, version: table.version, hash: table.generationHash, status: table.status, courseId: table.mataKuliahId }).from(table).where(inArray(table.id, productIds))).map(row => ({ ...row, type: "product" as const })));
       }
       if (productIds.length) {
-        rows.push(...(await db.select({ id: schema.flashcard.id, version: schema.flashcard.version, hash: schema.flashcard.generationHash, status: schema.flashcard.status, courseId: schema.setFlashcard.mataKuliahId }).from(schema.flashcard).innerJoin(schema.setFlashcard, eq(schema.flashcard.setFlashcardId, schema.setFlashcard.id)).where(inArray(schema.flashcard.id, productIds))).map(row => ({ ...row, type: "product" as const })));
-        rows.push(...(await db.select({ id: schema.pembahasanSoal.id, version: schema.pembahasanSoal.version, hash: schema.pembahasanSoal.generationHash, status: schema.pembahasanSoal.status, courseId: schema.soal.mataKuliahId }).from(schema.pembahasanSoal).innerJoin(schema.soal, eq(schema.pembahasanSoal.soalId, schema.soal.id)).where(inArray(schema.pembahasanSoal.id, productIds))).map(row => ({ ...row, type: "product" as const })));
+        rows.push(...(await database.select({ id: schema.flashcard.id, version: schema.flashcard.version, hash: schema.flashcard.generationHash, status: schema.flashcard.status, courseId: schema.setFlashcard.mataKuliahId }).from(schema.flashcard).innerJoin(schema.setFlashcard, eq(schema.flashcard.setFlashcardId, schema.setFlashcard.id)).where(inArray(schema.flashcard.id, productIds))).map(row => ({ ...row, type: "product" as const })));
+        rows.push(...(await database.select({ id: schema.pembahasanSoal.id, version: schema.pembahasanSoal.version, hash: schema.pembahasanSoal.generationHash, status: schema.pembahasanSoal.status, courseId: schema.soal.mataKuliahId }).from(schema.pembahasanSoal).innerJoin(schema.soal, eq(schema.pembahasanSoal.soalId, schema.soal.id)).where(inArray(schema.pembahasanSoal.id, productIds))).map(row => ({ ...row, type: "product" as const })));
       }
       return rows;
     },

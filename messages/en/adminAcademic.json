@@ -974,6 +974,7 @@
     "fileUploadFailed": "Could not upload the file. Try again.",
     "mediaUrlRequired": "Enter a media URL first.",
     "articleSaved": "Article saved.",
+    "articleChanged": "The article changed. Copy your edits, then reload.",
     "articleSaveFailed": "Could not save the article. Check the required fields and try again."
   },
   "metadata": {

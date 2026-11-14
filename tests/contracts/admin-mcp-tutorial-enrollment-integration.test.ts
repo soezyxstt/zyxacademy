@@ -3,7 +3,7 @@ import { createPostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
 const { client, testDb: database } = await createPostgresTestDb();
 mock.module("@/lib/db", () => ({ db: database }));
-mock.module("@/lib/authoring/mcp-auth", () => ({ requireMcpScope: (p: { scopes: string[] }, scope: string) => { if (!p.scopes.includes(scope)) throw new Error(`AUTHORING_MCP_SCOPE_REQUIRED:${scope}`); }, resolveMcpAdmin: async () => undefined }));
+mock.module("@/lib/authoring/mcp-auth", () => ({ MCP_MANUAL_CLIENT_ID: "zyx-admin-connection", requireMcpScope: (p: { scopes: string[] }, scope: string) => { if (!p.scopes.includes(scope)) throw new Error(`AUTHORING_MCP_SCOPE_REQUIRED:${scope}`); }, resolveMcpAdmin: async () => undefined }));
 const { registerTutorialTools } = await import("@/lib/admin-mcp/tutorial-tools");
 const { registerEnrollmentTools } = await import("@/lib/admin-mcp/enrollment-tools");
 const handlers = new Map<string, (input: Record<string, unknown>) => Promise<any>>();

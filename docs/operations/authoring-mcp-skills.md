@@ -4,13 +4,15 @@ Status: `ACTIVE`
 
 The server serves a build-time snapshot of the separate `soezyxstt/zyx-authoring-mcp` repository. `authoring-skills.lock.json` pins a full Git commit for each environment. Builds fetch that commit once, reject dirty checkouts, verify environment-specific connection instructions, and write `dist/skills/manifest.json`, resource files, and `chatgpt-skills.zip`. No request fetches GitHub. The existing plugin mirror still publishes from this repository; updating the mirror does not update the server pin automatically.
 
+The repository candidate now includes seven existing skills and five focused agent-first skills for blog, content revisions, forms, media and operation recovery. See [agent-first content operations](agent-first-content.md). Mirroring remains manually dispatched; pinned server artifacts and installed clients are separate release targets.
+
 ## Catalogs and more than five skills
 
 - `POST /api/mcp/authoring` defaults to the `chatgpt` catalog. It lists one `zyx-authoring` router containing every original skill and supporting file under `references/<original-name>/`. Original bytes and sibling-directory links are preserved. The router selects the original workflow and bootstrap skill ID; runtime playbooks remain authoritative.
 - `POST /api/mcp/authoring?skills=all` lists every original skill separately, five per page. There is no five-skill server cap. Clients retain the query parameter for every request. Tools and authentication are identical in both profiles.
-- The native plugin package retains all six independent skills. Uploading bundled skills is a separate path from MCP Scan Tools.
+- The native plugin package retains all 12 independent skills. Uploading bundled skills is a separate path from MCP Scan Tools.
 
-OpenAI's MCP importer accepts at most five uniquely named skills across ten pages, not five per page. A plugin with many bundled skills does not establish that MCP scans can exceed that limit. The default router preserves all workflows within one imported skill; it does not create six independent imported entries. GPT loads the matching workflow reference on demand.
+OpenAI's MCP importer accepts at most five uniquely named skills across ten pages, not five per page. A plugin with many bundled skills does not establish that MCP scans can exceed that limit. The default router preserves all workflows within one imported skill; it does not create 12 independent imported entries. GPT loads the matching workflow reference on demand.
 
 Build limits: 100 files per skill, 256 KiB for root `SKILL.md`, 1 MiB per supporting file, 5 MiB total per skill, and 8 MiB for the generated scan ZIP including packaging overhead. Both independent entries and the combined router are validated. Growth beyond the router limits fails the build; use the full native package instead of silently omitting workflows.
 
@@ -42,7 +44,7 @@ To update, inspect the external commit, update its matching lock entry, and revi
 
 ## Local V4 candidate packages
 
-The workspace mirror `plugins/zyx-authoring-mcp` contains a local `0.4.1` candidate, bootstrap protocol 1. Product V4 is the default for new Article/Diktat authoring. Existing V3 revisions retain their version unless the operator requests a reviewed conversion. The primary runtime contract exposes V4 schemas and verification; the pilot descriptor remains a compatibility alias. Product/Pipeline skills require runtime contracts, ordered mathematical representations, traced Diktat, independent review roles and trusted renderer evidence. Runtime playbooks remain authoritative.
+The workspace mirror `plugins/zyx-authoring-mcp` contains a local `0.5.0` candidate, bootstrap protocol 1. Product V4 is the default for new Article/Diktat authoring. Existing V3 revisions retain their version unless the operator requests a reviewed conversion. The primary runtime contract exposes V4 schemas and verification; the pilot descriptor remains a compatibility alias. Product/Pipeline skills require runtime contracts, ordered mathematical representations, traced Diktat, independent review roles and trusted renderer evidence. Runtime playbooks remain authoritative.
 
 Render each environment package before building its MCP catalog:
 
@@ -53,7 +55,7 @@ bun scripts/build-authoring-skills.ts --local-candidate --environment staging --
 
 Use matching `production` arguments for a separate production-identity candidate. This only writes local artifacts. The manifest records `kind: local-candidate`, workspace source, base commit and source digest instead of claiming an upstream commit contains uncommitted edits. Candidate builds require explicit source/output, reject CI/deployment execution and cannot replace `dist/skills`. A deployed server rejects candidate catalogs; local verification may serve them with environment `local`. Normal build behavior and external lock entries remain unchanged.
 
-The generated native package keeps six skills; each MCP compact ZIP imports one router containing all six workflows. Archive receipts and local logs live under ignored `artifacts/authoring-plugin/`. Updating source or creating these artifacts does not install a host package or publish an external Git commit.
+The generated native package keeps 12 skills; each MCP compact ZIP imports one router containing all 12 workflows. Archive receipts and local logs live under ignored `artifacts/authoring-plugin/`. Updating source or creating these artifacts does not install a host package or publish an external Git commit.
 
 ## Attested local renderer
 

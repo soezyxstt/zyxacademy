@@ -11,6 +11,10 @@ The existing `/api/mcp/authoring` endpoint now registers admin domain tools alon
 - Keep one request key per intended change. Business changes and the success/idempotency receipt commit in the same PostgreSQL transaction. Changed payloads under a prior key fail. Stale revisions require rereading and a new plan.
 - API credentials and provider errors are never returned. Response data, user email, activation-token values and related operations have separate scopes. Legacy group labels containing activation tokens are redacted. Inputs and results are capped at 1 MB; list pagination is bounded.
 
+## Agent-first content and recovery
+
+See [agent-first content operations](agent-first-content.md) for registered capability discovery, structured scope recovery, own-operation receipts, shared blog revision checks and public media resolution. Repository plugin 0.5.0 adds five focused skills without changing environment identity or automatically granting scopes.
+
 ## External effects
 
 `admin_operation_jobs` is the durable outbox. The existing Deno Inngest registry runs `admin-operations-outbox` every minute, processes at most 25 queued jobs and allows only one function instance at a time. Jobs bind the originating live admin session, OAuth client, resource, required scopes and environment. Enqueue and execution both check persisted OAuth consent, including secondary response-read permission for exports. Revoked or narrowed consent prevents queued provider effects. Manual/session connections cannot delegate these admin provider operations; legacy jobs without client/resource binding fail closed. No bearer token is stored. Missing provider configuration fails before an effect.
@@ -35,6 +39,8 @@ Media listing uses bounded provider pagination. Small media uploads support at m
 
 | Tool | Scope |
 | --- | --- |
+| `admin.capabilities` | Live admin session, metadata only |
+| `admin.operation_receipt` | Original operation scopes and live authority |
 | `admin.environment` | Live admin session, no data grant required |
 | `adminjobs.cancel` | `jobs:write` |
 | `adminjobs.get` | `jobs:read` |
@@ -43,6 +49,9 @@ Media listing uses bounded provider pagination. Small media uploads support at m
 | `analytics.courses` | `analytics:read` |
 | `analytics.overview` | `analytics:read` |
 | `blog.create` | `blog:write` |
+| `blog.get_edit_context` | `blog:read` |
+| `blog.search` | `blog:read` |
+| `blog.validate` | `blog:read` |
 | `blog.get` | `blog:read` |
 | `blog.list` | `blog:read` |
 | `blog.set_publication` | `blog:write` |
@@ -103,6 +112,7 @@ Media listing uses bounded provider pagination. Small media uploads support at m
 | `materials.get` | `materials:read` |
 | `materials.list` | `materials:read` |
 | `materials.update_metadata` | `materials:write` |
+| `media.get` | `media:read` |
 | `media.list` | `media:read` |
 | `media.upload` | `media:write` |
 | `meet.create` | `meet:write` |

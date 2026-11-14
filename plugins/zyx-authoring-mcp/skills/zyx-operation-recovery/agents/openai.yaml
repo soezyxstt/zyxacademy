@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zyx Operation Recovery"
+  short_description: "Resume Zyx mutations and reconcile uncertain jobs"
+  default_prompt: "Use $zyx-operation-recovery to recover the existing MCP operation with its original environment, request key and payload, distinguish committed changes from uncertain provider work, and avoid duplicate effects."
