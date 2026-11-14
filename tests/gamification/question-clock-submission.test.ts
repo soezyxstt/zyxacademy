@@ -42,3 +42,20 @@ test('a causally prior disclosure with an ahead clock preserves fact and receipt
  expect(enqueued).toHaveLength(1);
  expect(isEligibleQuestionRetry({ correct: fact.correct, attemptId: fact.attemptId, occurredAt: submission, lastReveal: { attemptId: fact.lastRevealAttemptId, occurredAt: fact.lastRevealAt } })).toBe(false);
 });
+
+
+test('an unverified cutover skips reward writes while submission can proceed', async () => {
+ const identity = { canonicalQuestionId: 'q', courseId: 'c', sourceVersion: '1' };
+ const question = { id: 'q' };
+ const source = readFileSync('lib/gamification/question-writer.ts', 'utf8');
+ const writeQuestionRewards = compile(source, 'export async function writeQuestionRewards(', '', {
+  studentQuizAttempts: {}, gamificationLearningFacts: {}, eq: () => ({}), and: () => ({}),
+  matchRewardSnapshots: () => [{ q: question, identity }], lockQuestionExposures: async () => {},
+  initializeQuestionExposureHistoryBatch: async () => false,
+  recordSubmissionBoundaries: () => { throw new Error('UNTRUSTED_BOUNDARY'); },
+  getLatestQuestionExposures: () => { throw new Error('UNTRUSTED_HISTORY'); },
+  resolveCourseAccess: () => { throw new Error('UNEXPECTED_REWARD'); }, startLearningRewards: () => {}, checkAnswerCorrectness, recordGamificationEvidenceBatch: () => {},
+ });
+ const tx = { select: () => ({ from: () => ({ where: () => ({ limit: async () => [{ snapshot: [question] }] }) }) }), insert: () => { throw new Error('UNEXPECTED_REWARD_WRITE'); } };
+ await expect(writeQuestionRewards(tx, { userId: 'u', attemptId: 'a', snapshot: [question], answers: {}, occurredAt: new Date() })).resolves.toBeUndefined();
+});

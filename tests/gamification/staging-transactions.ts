@@ -36,10 +36,12 @@ async function main() {
    const identity = await client.query("select current_database() as db, current_setting('transaction_read_only') as ro");
    assert.equal(identity.rows[0].db, 'neondb'); assert.equal(identity.rows[0].ro, 'on');
    const journal = JSON.parse(await readFile(path.join(root, 'drizzle-postgres/meta/_journal.json'), 'utf8'));
-   const expected = await Promise.all(journal.entries.filter((e: any) => e.idx >= 9 && e.idx <= 15).map(async (e: any) => ({ when: String(e.when), hash: createHash('sha256').update(await readFile(path.join(root, `drizzle-postgres/${e.tag}.sql`))).digest('hex') })));
-   assert.equal(expected.length, 7);
+   const expected = await Promise.all(journal.entries.filter((e: any) => e.idx >= 9 && e.idx <= 22).map(async (e: any) => ({ when: String(e.when), hash: createHash('sha256').update(await readFile(path.join(root, `drizzle-postgres/${e.tag}.sql`))).digest('hex') })));
+   assert.equal(expected.length, 14);
    const migrations = await client.query('select hash, created_at from drizzle.__drizzle_migrations');
    for (const e of expected) assert(migrations.rows.some(r => r.hash === e.hash && String(r.created_at) === e.when), 'Required migration missing or mismatched');
+   const historyReady = await client.query("select exists(select 1 from gamification_question_history_cutover where id='v1') as ready");
+   assert.equal(historyReady.rows[0]?.ready,true, 'Question history cutover not ready');
    const schema = await client.query("select table_name, column_name from information_schema.columns where table_schema='public' and table_name = any($1::text[])", [['user','gamification_accounts','gamification_profiles','gamification_cosmetics','gamification_inventory','gamification_lp_ledger','gamification_leaderboard_periods','gamification_follows','gamification_blocks','gamification_social_rate_limits']]);
    const columns = new Set(schema.rows.map(r => `${r.table_name}.${r.column_name}`));
    for (const col of ['user.role','gamification_accounts.lp_balance','gamification_profiles.leaderboard_opt_in','gamification_cosmetics.price_lp','gamification_inventory.cosmetic_id','gamification_lp_ledger.reward_key','gamification_leaderboard_periods.base_xp_micro','gamification_follows.following_id','gamification_blocks.blocked_id','gamification_social_rate_limits.attempts']) assert(columns.has(col), `Missing schema column ${col}`);
@@ -59,13 +61,13 @@ async function main() {
    (select count(*) from gamification_social_rate_limits where user_id like $1) as rates`, [`${prefix}%`])).rows[0];
   const numericCounts = async () => {
    const result = Object.fromEntries(Object.entries(await counts()).map(([key, value]) => [key, Number(value)]));
-   for (const table of ['gamification_xp_ledger','gamification_badge_activities','gamification_badges','gamification_qualified_days','gamification_missions','gamification_event_outbox','gamification_evidence_receipts','gamification_article_completions','gamification_course_starts','gamification_learning_facts','gamification_question_exposures','gamification_question_exposure_initializations']) result[table] = Number((await pool.query(`select count(*) n from ${table} where user_id like $1`, [`${prefix}%`])).rows[0].n);
+   for (const table of ['gamification_xp_ledger','gamification_badge_activities','gamification_badges','gamification_qualified_days','gamification_missions','gamification_event_outbox','gamification_evidence_receipts','gamification_article_completions','gamification_course_starts','gamification_learning_facts','gamification_question_exposures','gamification_question_exposure_initializations','gamification_question_exposure_projection','gamification_question_exposure_observations','gamification_question_bank_disclosures','gamification_question_legacy_index']) result[table] = Number((await pool.query(`select count(*) n from ${table} where user_id like $1`, [`${prefix}%`])).rows[0].n);
    for (const table of ['mata_kuliah','artikel','bagian_artikel','pendaftaran_murid','pengguna_peran','pengguna','gamification_checklists','gamification_checklist_items','courses','soal','quiz_templates','student_quiz_attempts']) result[table] = Number((await pool.query(`select count(*) n from ${table} where id like $1`, [`${prefix}%`])).rows[0].n);
    return result;
   };
   const before = await numericCounts(); assert(Object.values(before).every(v => v === 0));
   // Resolve only the actor and server-only marker to test stubs. The actual db adapter remains in use.
-  const bundle = await build({ stdin: { contents: `export { purchaseGamificationCosmetic, equipGamificationCosmetics } from './lib/gamification/rewards'; export { getGamificationLeaderboard } from './lib/gamification/leaderboard'; export { pool, db } from './lib/db'; export { writeQuestionRewards } from './lib/gamification/question-writer'; export { processGamificationOutbox } from './lib/gamification/processor'; export { reconcileGamificationAccount } from './lib/gamification/reconciliation'; export { resolveCourseAccess } from './lib/student/course-access';`, resolveDir: root, loader: 'ts' }, bundle: true, platform: 'node', format: 'cjs', write: false, packages: 'external', tsconfig: path.join(root, 'tsconfig.json'), plugins: [{ name: 'fixture-session', setup(b) {
+  const bundle = await build({ stdin: { contents: `export { purchaseGamificationCosmetic, equipGamificationCosmetics } from './lib/gamification/rewards'; export { getGamificationLeaderboard } from './lib/gamification/leaderboard'; export { pool, db } from './lib/db'; export { writeQuestionRewards } from './lib/gamification/question-writer'; export { recordAuthorizedGlobalDisclosures } from './lib/gamification/question-exposure'; export { processGamificationOutbox } from './lib/gamification/processor'; export { reconcileGamificationAccount } from './lib/gamification/reconciliation'; export { resolveCourseAccess } from './lib/student/course-access';`, resolveDir: root, loader: 'ts' }, bundle: true, platform: 'node', format: 'cjs', write: false, packages: 'external', tsconfig: path.join(root, 'tsconfig.json'), plugins: [{ name: 'fixture-session', setup(b) {
    b.onResolve({ filter: /^server-only$/ }, () => ({ path: 'server-only', namespace: 'fixture' }));
    b.onResolve({ filter: /^\.\/access$/ }, args => args.resolveDir.endsWith('/lib/gamification') ? { path: 'access', namespace: 'fixture' } : undefined);
    b.onLoad({ filter: /.*/, namespace: 'fixture' }, args => ({ contents: args.path === 'access' ? 'export async function requireStudentGamificationAccess(){return {user:{id:globalThis.__gamificationFixtureActor}}}' : '', loader: 'js' }));
@@ -174,7 +176,11 @@ async function main() {
    const fact = await pool.query('select correct,source_version,last_reveal_attempt_id,last_reveal_at from gamification_learning_facts where user_id=$1', [questionActor]);
    assert.deepEqual(fact.rows,[{correct:true,source_version:'1',last_reveal_attempt_id:null,last_reveal_at:null}]);
    assert.equal(Number((await pool.query('select count(*) n from gamification_question_exposure_initializations where user_id=$1 and question_id=$2', [questionActor,fixtureQ])).rows[0].n),1);
-   assert.equal(Number((await pool.query('select count(*) n from gamification_question_exposures where user_id=$1', [questionActor])).rows[0].n),0);
+   assert.equal(Number((await pool.query('select count(*) n from gamification_question_exposures where user_id=$1', [questionActor])).rows[0].n),1);
+   assert.equal(Number((await pool.query('select count(*) n from gamification_question_exposure_observations where user_id=$1', [questionActor])).rows[0].n),1);
+   await app.db.transaction((tx:any) => app.recordAuthorizedGlobalDisclosures(tx, {userId:questionActor, questions:[{questionId:fixtureQ,courseId:course}],requestId:'after-submission'}));
+   await writeQuestion();
+   assert.equal(Number((await pool.query('select count(*) n from gamification_evidence_receipts where user_id=$1', [questionActor])).rows[0].n),1);
    assert.equal(Number((await pool.query('select count(*) n from gamification_evidence_receipts where user_id=$1', [questionActor])).rows[0].n),1);
    await pool.query("update gamification_event_outbox set created_at='1900-01-01' where user_id=$1 and status='pending'", [questionActor]);
    const candidate = await pool.query("select user_id from gamification_event_outbox where status='pending' order by created_at,id limit 1");
@@ -192,7 +198,7 @@ async function main() {
    if (wrote) {
     const c = await pool.connect(); try { await c.query('begin');
      const actor = `${prefix}-processor`, course = `${prefix}-course`, checklist = `${prefix}-checklist`, questionActor = `${prefix}-question`;
-     for (const table of ['gamification_xp_ledger','gamification_lp_ledger','gamification_badge_activities','gamification_badges','gamification_qualified_days','gamification_missions','gamification_leaderboard_periods','gamification_accounts','gamification_event_outbox','gamification_evidence_receipts','gamification_article_completions','gamification_course_starts','gamification_question_exposures','gamification_question_exposure_initializations','gamification_learning_facts']) await c.query(`delete from ${table} where user_id = any($1::text[])`,[[actor,questionActor]]);
+     for (const table of ['gamification_xp_ledger','gamification_lp_ledger','gamification_badge_activities','gamification_badges','gamification_qualified_days','gamification_missions','gamification_leaderboard_periods','gamification_accounts','gamification_event_outbox','gamification_evidence_receipts','gamification_article_completions','gamification_course_starts','gamification_question_exposures','gamification_question_exposure_initializations','gamification_question_exposure_projection','gamification_question_exposure_observations','gamification_question_bank_disclosures','gamification_question_legacy_index','gamification_learning_facts']) await c.query(`delete from ${table} where user_id = any($1::text[])`,[[actor,questionActor]]);
      await c.query('delete from gamification_checklist_items where checklist_id = any($1::text[])',[[checklist,`${prefix}-checklist-v2`]]);
      await c.query('delete from gamification_checklists where id = any($1::text[])',[[checklist,`${prefix}-checklist-v2`]]);
      await c.query('delete from student_quiz_attempts where student_id=$1',[questionActor]);

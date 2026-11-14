@@ -335,3 +335,6 @@ Expanded cosmetic update: `gamification.md`, `features.md`, `ARCHITECTURE.md` an
 `ACTIVE` gamification evidence contract: generated migrations 0018 through 0020 add persisted disclosure ordering and unresolved staff bank disclosures. The updated staging-only bridge requires all five pending migrations and renewed independent review, backup and preflight. Runtime and staging acceptance remain `OPEN / IN PROGRESS`.
 
 `ACTIVE` gamification disclosure reconciliation and demo shared renderers: authorized learner and authoring disclosures are retained, reconciliation is set-based, and demo profile and participation rankings use current student presentation. Runtime, staging and visual acceptance remain `OPEN / IN PROGRESS`.
+
+
+The active [gamification](gamification.md), [schema](DB_SCHEMA.md), and [deployment](DEPLOYMENT.md) documents describe the compact question exposure cutover. Local implementation remains subject to review; staging migration, backfill, fixture execution, and rollout remain OPEN / IN PROGRESS.

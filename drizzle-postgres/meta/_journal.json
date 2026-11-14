@@ -148,6 +148,20 @@
       "when": 1794684833202,
       "tag": "0020_sparkling_lady_vermin",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794687691693,
+      "tag": "0021_superb_magus",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1794688351346,
+      "tag": "0022_rich_lady_vermin",
+      "breakpoints": true
     }
   ]
 }

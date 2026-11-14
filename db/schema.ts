@@ -6356,3 +6356,38 @@ export const gamificationQuestionBankDisclosures = pgTable('gamification_questio
  courseId: text('course_id').notNull(),
  exposedAt: timestamp('exposed_at', { withTimezone: true }).notNull(),
 }, t => [index('gamification_question_bank_disclosure_lookup_idx').on(t.userId, t.questionId)]);
+
+/** Compact maximum-time disclosure per viewer, course and question (or course wildcard). */
+export const gamificationQuestionExposureProjection = pgTable('gamification_question_exposure_projection', {
+ userId: text('user_id').notNull().references(() => user.id),
+ courseId: text('course_id').notNull(),
+ questionId: text('question_id').notNull(),
+ attemptIdentity: text('attempt_identity').notNull(),
+ exposedAt: timestamp('exposed_at', { withTimezone: true }).notNull(),
+ causalOrder: bigserial('causal_order', { mode: 'bigint' }).notNull(),
+}, t => [primaryKey({ columns: [t.userId, t.courseId, t.questionId] })]);
+
+/** Immutable evidence selected under the viewer lock before the submission result is disclosed. */
+export const gamificationQuestionExposureObservations = pgTable('gamification_question_exposure_observations', {
+ userId: text('user_id').notNull().references(() => user.id),
+ attemptId: text('attempt_id').notNull().references(() => studentQuizAttempts.id),
+ questionId: text('question_id').notNull().references(() => soal.id),
+ courseId: text('course_id').notNull().references(() => mataKuliah.id),
+ sourceVersion: text('source_version').notNull(),
+ attemptIdentity: text('attempt_identity'),
+ exposedAt: timestamp('exposed_at', { withTimezone: true }),
+}, t => [primaryKey({ columns: [t.userId, t.attemptId, t.questionId] }), check('gamification_question_observation_pair_check', sql`(${t.attemptIdentity} is null) = (${t.exposedAt} is null)`)]);
+
+/** Frozen pre-cutover attempt reverse index. Two distinct IDs prove history excluding the current attempt. */
+export const gamificationQuestionLegacyIndex = pgTable('gamification_question_legacy_index', {
+ userId: text('user_id').notNull().references(() => user.id),
+ questionId: text('question_id').notNull(),
+ firstAttemptId: text('first_attempt_id').notNull(),
+ lastAttemptId: text('last_attempt_id').notNull(),
+}, t => [primaryKey({ columns: [t.userId, t.questionId] })]);
+
+/** Absent until a verified, quiesced backfill commits. */
+export const gamificationQuestionHistoryCutover = pgTable('gamification_question_history_cutover', {
+ id: text('id').primaryKey(),
+ completedAt: timestamp('completed_at', { withTimezone: true }).notNull(),
+}, t => [check('gamification_question_history_cutover_singleton', sql`${t.id} = 'v1'`)]);

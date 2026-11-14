@@ -1,4 +1,5 @@
 import { jakartaDay } from '../date-utils';
+import { UNCERTAIN_EXPOSURE_IDENTITY } from './question-exposure-policy';
 
 /** Pure chronology rules. These do not establish ownership, access, or authenticity. */
 export function isEligibleQuestionRetry(input: {
@@ -7,6 +8,7 @@ export function isEligibleQuestionRetry(input: {
 }): boolean {
  if (!input.correct || !input.attemptId || !Number.isFinite(input.occurredAt.getTime())) return false;
  if (!input.lastReveal) return true;
+ if (input.lastReveal.attemptId === UNCERTAIN_EXPOSURE_IDENTITY) return false;
  if (!Number.isFinite(input.lastReveal.occurredAt.getTime()) || input.attemptId === input.lastReveal.attemptId || input.occurredAt <= input.lastReveal.occurredAt) return false;
  return jakartaDay(input.occurredAt) > jakartaDay(input.lastReveal.occurredAt);
 }

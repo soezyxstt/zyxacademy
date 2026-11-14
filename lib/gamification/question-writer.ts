@@ -20,7 +20,7 @@ export async function writeQuestionRewards(tx: Tx, input: { userId: string; atte
  const valid = matchRewardSnapshots(input.snapshot, attempt.snapshot);
  await lockQuestionExposures(tx, input.userId, valid.map(row => row.identity.canonicalQuestionId));
  const histories = valid.map(({ identity }) => ({ ...identity, userId: input.userId, attemptId: input.attemptId, occurredAt: input.occurredAt }));
- await initializeQuestionExposureHistoryBatch(tx, histories);
+ if (await initializeQuestionExposureHistoryBatch(tx, histories) === false) return;
  await recordSubmissionBoundaries(tx, histories);
  const latest = await getLatestQuestionExposures(tx, input.userId, valid.map(row => row.identity.canonicalQuestionId), input.attemptId);
  const approved = new Map<string, boolean>();

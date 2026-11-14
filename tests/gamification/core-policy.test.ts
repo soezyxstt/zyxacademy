@@ -30,3 +30,8 @@ test('baseline exposure still requires a later Jakarta day', () => {
  expect(isEligibleQuestionRetry({ correct: true, attemptId: 'a', occurredAt: new Date('2026-01-01T17:00:00Z'), lastReveal: reveal })).toBe(true);
  expect(isEligibleQuestionRetry({ correct: false, attemptId: 'a', occurredAt: new Date('2026-01-01T17:00:00Z'), lastReveal: reveal })).toBe(false);
 });
+
+
+test('ambiguous legacy evidence denies a reward even on a later day', () => {
+ expect(isEligibleQuestionRetry({ correct: true, attemptId: 'a', occurredAt: new Date('2026-01-04T00:00:00Z'), lastReveal: { attemptId: '__zyx_uncertain_exposure__', occurredAt: new Date('2026-01-01T00:00:00Z') } })).toBe(false);
+});

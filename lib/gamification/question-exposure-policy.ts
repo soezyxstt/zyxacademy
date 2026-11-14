@@ -1,5 +1,7 @@
 import { isDeepStrictEqual } from 'node:util';
 
+export const UNCERTAIN_EXPOSURE_IDENTITY = '__zyx_uncertain_exposure__';
+
 /** Stable marker for the score disclosed after a submission's evidence is written. */
 export const submissionResultIdentity = (attemptId: string) => JSON.stringify([attemptId, 'submission-result']);
 
