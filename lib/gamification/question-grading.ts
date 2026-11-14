@@ -1,13 +1,20 @@
 import { answerToStableOptionIds, gradeStableOptionAnswer } from '@/lib/asesmen/attempt';
 import { isShortAnswerCorrect } from '@/lib/quiz/short-answer';
 
+export function questionAnswerType(q: any): string | undefined {
+  const declared = q.question_type || q.questionType || q.type;
+  if (declared) return declared;
+  const acceptable = q.acceptable_answers ?? q.acceptableAnswers;
+  return Array.isArray(acceptable) && acceptable.length > 0 ? 'short_answer' : undefined;
+}
+
 export function checkAnswerCorrectness(q: any, submitted: any): boolean {
-  const qType = q.question_type || q.questionType;
+  const qType = questionAnswerType(q);
   if (qType === "essay") {
     return false;
   }
-  if (qType === "short_answer" || (Array.isArray(q.acceptable_answers) && q.acceptable_answers.length > 0)) {
-    return isShortAnswerCorrect(submitted, q.acceptable_answers);
+  if (qType === "short_answer") {
+    return isShortAnswerCorrect(submitted, q.acceptable_answers ?? q.acceptableAnswers);
   }
   const indices = Array.isArray(submitted) ? submitted : typeof submitted === 'number' ? [submitted] : [];
   const correct = Array.isArray(q.correct_indices) ? q.correct_indices : Array.isArray(q.correctIndices) ? q.correctIndices : [];

@@ -53,8 +53,7 @@ describe("Quiz Multi-Choice and Option Indicator Invariants", () => {
   });
 
   it("ensures completed review scoring in pages and submit route treats multiple correct indices as multi-select", () => {
-    expect(studentQuizReviewCode).toContain('const isMultiple = qType === "multiple_choices" || correctIndices.length > 1;');
-    expect(studentQuizReviewCode).toContain('} else if (!isMultiple && (qType === "multiple_choice" || !qType)) {');
+    expect(studentQuizReviewCode).toContain('checkAnswerCorrectness(q, rawSubmitted)');
 
     expect(pkaPageCode).toContain('const isMultiple = qType === "multiple_choices" || correct.length > 1;');
     expect(pkaPageCode).toContain('} else if (!isMultiple && (qType === "multiple_choice" || !qType)) {');
