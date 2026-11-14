@@ -44,3 +44,9 @@ test('both score responses record disclosure after evidence inside the submissio
  }
  expect(source('lib/gamification/processor.ts')).toContain('event.sourceId, fact.attemptId');
 });
+test('tutor final grading delegates to the same initial scoring rule', () => {
+ const grading = source('lib/tutor/quiz-grading.ts');
+ expect(grading).toContain('return checkAnswerCorrectness(q, submitted)');
+ expect(source('app/api/quiz/attempts/[id]/route.ts')).toContain('checkAnswerCorrectness(q, submitted)');
+ expect(grading).toContain('ESSAY_REVIEW_REQUIRED');
+});

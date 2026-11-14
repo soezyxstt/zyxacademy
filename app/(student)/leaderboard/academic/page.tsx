@@ -1,4 +1,4 @@
-import { StudentLeaderboardView } from "@/components/student-leaderboard-view";
+import { StudentAcademicLeaderboardView } from "@/components/student-academic-leaderboard-view";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -51,5 +51,5 @@ export default async function LeaderboardPage() {
     { rank: number; name: string; avgScore: number; attempts: number }[]
   > = Object.fromEntries(leaderboardEntries.map((e) => [e.courseId, e.rows]));
 
-  return <StudentLeaderboardView allCourses={allCourses} leaderboardByCourse={leaderboardByCourse} />;
+  return <StudentAcademicLeaderboardView allCourses={allCourses} leaderboardByCourse={leaderboardByCourse} />;
 }

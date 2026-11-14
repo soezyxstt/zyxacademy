@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { demoStudentHref } from "@/lib/demo/routes";
 const read = (path: string) => readFileSync(path, "utf8");
 test("live student and demo routes use the same page renderers", () => {
  const surfaces = [
@@ -23,4 +24,21 @@ test("demo Zyra opens the actual student drawer with a local conversation transp
  expect(read("components/demo/demo-zyra.tsx")).toContain("useTutor");
  expect(read("components/course/tutor-drawer-view.tsx")).toContain("<StudentAccountBoundary");
  expect(read("components/course/tutor-drawer-view.tsx")).toContain("fictionalHistory");
+});
+test("shared profile and leaderboard render current gamification with isolated demo data", () => {
+ const profile = read("components/student-profile-view.tsx");
+ const liveProfile = read("app/(student)/profile/page.tsx");
+ const demo = read("components/demo/demo-student-pages.tsx");
+ const liveLeaderboard = read("components/gamification/leaderboard-list.tsx");
+ expect(profile).toContain("<ProfileHero");
+ expect(profile).toContain("<AchievementBoard");
+ expect(liveProfile).toContain("followSection={<ProfileFollowList />}");
+ expect(demo).not.toContain("<ProfileFollowList");
+ expect(liveLeaderboard).toContain("<LeaderboardResults");
+ expect(demo).toContain("<LeaderboardResults");
+ expect(demo).toContain("page={{ entries: [], ownEntry: null, nextCursor: null }}");
+ expect(demo).toContain("searchParams.get(\"academic\")");
+ expect(demo).toContain("<StudentAcademicLeaderboardView");
+ expect(demoStudentHref("en", "/leaderboard/academic", "course")).toBe("/en/demo/leaderboard?course=course&academic=1");
+ expect(demoStudentHref("id", "/leaderboard", "course")).toBe("/id/demo/leaderboard?course=course");
 });

@@ -547,7 +547,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         userId: studentId, attemptId: targetAttempt.id, questionIds,
         outsideSnapshot: { questionIds: unseenSnapshot.map(question => question.id), canonicalCourseId: course.canonicalId ?? course.id },
         occurredAt: new Date(), requestId: crypto.randomUUID(),
-      }) : course.canonicalId ? recordAuthorizedCourseDisclosures(tx, { userId: studentId, canonicalCourseId: course.canonicalId, questionIds: unseenSnapshot.map(question => question.id), contextId: quizId, occurredAt: new Date(), requestId: crypto.randomUUID() }) : Promise.resolve());
+      }) : recordAuthorizedCourseDisclosures(tx, { userId: studentId, canonicalCourseId: course.canonicalId ?? course.id, questionIds: unseenSnapshot.map(question => question.id), contextId: quizId, occurredAt: new Date(), requestId: crypto.randomUUID() }));
     }
 
     return <StudentQuizReview id={id} visualCourseId={template.courseId} quizId={quizId} template={{ title: template.title }} targetAttempt={targetAttempt ? { id: targetAttempt.id, score: targetAttempt.score, durationSeconds: targetAttempt.durationSeconds, submittedAt: targetAttempt.submittedAt, gradingStatus: targetAttempt.gradingStatus } : null} snapshot={snapshot} answers={answers} unseenSnapshot={unseenSnapshot} discussionAvailable={isDiscussionOpen} />;

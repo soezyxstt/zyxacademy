@@ -2,8 +2,9 @@ import type { ReactNode } from "react";
 import { LockKeyhole } from "lucide-react";
 import { BadgeArtwork } from "./artwork";
 import type { BadgeFamily } from "@/lib/gamification/contracts";
+import { profileBadgeFamilies } from "@/lib/gamification/profile-badges";
 
-export const profileBadgeFamilies: BadgeFamily[] = ["warrior_reader", "practice_knight", "memory_guardian", "steady_scholar", "comeback_champion", "consistency_captain"];
+export { profileBadgeFamilies } from "@/lib/gamification/profile-badges";
 
 type AchievementBoardProps = {
   badges: { family: string; tier: number }[];

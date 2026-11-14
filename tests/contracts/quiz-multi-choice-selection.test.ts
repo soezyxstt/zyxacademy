@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
+import { checkAnswerCorrectness } from "@/lib/gamification/question-grading";
 
 describe("Quiz Multi-Choice and Option Indicator Invariants", () => {
   const normalize = (s: string) => s.replace(/\r\n/g, "\n");
@@ -58,8 +59,10 @@ describe("Quiz Multi-Choice and Option Indicator Invariants", () => {
     expect(pkaPageCode).toContain('const isMultiple = qType === "multiple_choices" || correct.length > 1;');
     expect(pkaPageCode).toContain('} else if (!isMultiple && (qType === "multiple_choice" || !qType)) {');
 
-    expect(submitRouteCode).toContain('const isMultiple = qType === "multiple_choices" || correct.length > 1;');
-    expect(submitRouteCode).toContain('if (!isMultiple && (qType === "multiple_choice" || !qType)) {');
+    expect(submitRouteCode).toContain("checkAnswerCorrectness(q, submitted)");
+    expect(checkAnswerCorrectness({ question_type: "multiple_choice", correct_indices: [0, 2] }, [2, 0])).toBe(true);
+    expect(checkAnswerCorrectness({ question_type: "multiple_choice", correct_indices: [0, 2] }, [0])).toBe(false);
+    expect(checkAnswerCorrectness({ question_type: "multiple_choice", correct_indices: [0] }, [0, 1])).toBe(false);
 
     expect(attemptReviewCode).toContain('const isMultiple = qType === "multiple_choices" || correct.length > 1;');
     expect(attemptReviewCode).toContain('if (!isMultiple && (qType === "multiple_choice" || !qType)) {');

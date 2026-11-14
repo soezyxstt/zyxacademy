@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { Trophy } from "lucide-react";
 import { redirect } from "next/navigation";
 import { ApplicationPage } from "@/components/application-page";
 import { PageHeader } from "@/components/page-header";
+import { StudentLeaderboardView } from "@/components/student-leaderboard-view";
 import { LeaderboardList } from "@/components/gamification/leaderboard-list";
 import { requireStudentGamificationAccess } from "@/lib/gamification/access";
 import { AdminEmptyState as AccessErrorState } from "@/components/admin/state-panels";
@@ -13,5 +13,5 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
   const t = await getTranslations("student");
   let user;
   try { ({ user } = await requireStudentGamificationAccess()); } catch (error) { if (error instanceof Error && error.message === "Unauthorized") redirect("/sign-in?next=%2Fleaderboard"); return <ApplicationPage><PageHeader title={locale === "en" ? "Leaderboard" : "Papan peringkat"} icon={Trophy} /><AccessErrorState title={t(error instanceof Error && error.message === "Forbidden" ? "achievementPage.forbidden" : "achievementPage.unavailable")} /></ApplicationPage>; }
-  return <ApplicationPage><PageHeader title={locale === "en" ? "Leaderboard" : "Papan peringkat"} icon={Trophy} actions={<Link className="text-body-sm text-primary underline" href="/leaderboard/academic">{locale === "en" ? "Course rankings" : "Peringkat kelas"}</Link>} /><LeaderboardList userId={user.id} query={query} locale={locale} /></ApplicationPage>;
+  return <StudentLeaderboardView title={locale === "en" ? "Leaderboard" : "Papan peringkat"} courseRankings={locale === "en" ? "Course rankings" : "Peringkat kelas"} courseRankingsHref="/leaderboard/academic"><LeaderboardList userId={user.id} query={query} locale={locale} /></StudentLeaderboardView>;
 }

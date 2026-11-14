@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
 import { getTableName } from 'drizzle-orm';
 import { PgDialect } from 'drizzle-orm/pg-core';
+import { isEligibleQuestionRetry } from '../../lib/gamification/evidence';
 import { gamificationQuestionExposures as exposure, gamificationQuestionExposureInitializations as initialization, gamificationQuestionBankDisclosures as bankTable, soal, mataKuliah, studentQuizAttempts } from '../../db/schema';
 
 mock.module('@/db', () => ({ db: {} }));
 let staffAllowed = true;
 let legacyOnly = false;
 mock.module('@/lib/student/course-access', () => ({ resolveCourseAccess: async () => ({ tier: staffAllowed ? 'staff' : 'free', hasCourseAccess: staffAllowed, canonicalCourseId: legacyOnly ? null : 'c', legacyCourseId: 'legacy-c', courseId: legacyOnly ? 'legacy-c' : 'c' }) }));
-const { lockQuestionExposures, recordSubmissionBoundaries, getLatestQuestionExposures, recordStaffCourseDisclosures, initializeQuestionExposureHistoryBatch, recordAuthorizedStaffAttemptDisclosures, recordAuthorizedGlobalDisclosures } = await import('../../lib/gamification/question-exposure');
+const { lockQuestionExposures, recordSubmissionBoundaries, getLatestQuestionExposures, recordStaffCourseDisclosures, initializeQuestionExposureHistoryBatch, recordAuthorizedStaffAttemptDisclosures, recordAuthorizedGlobalDisclosures, recordAttemptDisclosures, recordAuthorizedCourseDisclosures } = await import('../../lib/gamification/question-exposure');
 const dialect = new PgDialect();
 type Row = { id: string; userId: string; questionId: string; courseId: string; sourceVersion: string; kind: 'baseline' | 'disclosure'; attemptIdentity: string; exposedAt: Date; causalOrder: bigint };
 const time = new Date('2026-01-01T12:00:00.000Z');
@@ -17,9 +18,11 @@ let locks: Map<string, Promise<void>>;
 let trace: string[];
 let bankRows: { id: string; userId: string; questionId: string; courseId: string; exposedAt: Date }[];
 let canonical: Set<string>;
+let drafts: Set<string>;
+let reconciliationParameters: number[];
 const heldQuestion = { id: 'a', question_type: 'multiple_choice', options: ['a', 'b'], correct_indices: [1], gamificationProvenance: { marker: 'canonical-objective-v1', canonicalQuestionId: 'a', courseId: 'c', sourceVersion: '1', answerProof: { questionType: 'multiple_choice', correctIndices: [1] } } };
 
-beforeEach(() => { rows = []; sequence = 0n; locks = new Map(); trace = []; bankRows = []; canonical = new Set(); staffAllowed = true; legacyOnly = false; });
+beforeEach(() => { rows = []; sequence = 0n; locks = new Map(); trace = []; bankRows = []; canonical = new Set(); drafts = new Set(); reconciliationParameters = []; staffAllowed = true; legacyOnly = false; });
 
 /** Minimal transaction adapter: it executes the production Drizzle predicates,
  * enforces unique disclosure identities, and queues advisory locks until commit. */
@@ -34,7 +37,7 @@ function transaction(name: string) {
   const ids = [...list.matchAll(/\$(\d+)/g)].map(match => String(params[Number(match[1]) - 1]));
   if (getTableName(table) === getTableName(mataKuliah)) return [{ id: 'c', legacyId: 'legacy-c' }];
   if (getTableName(table) === getTableName(initialization)) return ids.map(questionId => ({ userId: owner, questionId, initializedAt: time }));
-  if (getTableName(table) === getTableName(soal)) return ids.filter(id => canonical.has(id)).map(id => ({ id, courseId: 'c', version: 1 }));
+  if (getTableName(table) === getTableName(soal)) return ids.filter(id => canonical.has(id) && (!sql.includes('"status"') || !drafts.has(id))).map(id => ({ id, courseId: 'c', version: 1 }));
   if (getTableName(table) === getTableName(bankTable)) return bankRows.filter(row => row.userId === owner && ids.includes(row.questionId));
   let result = rows.filter(row => row.userId === owner && ids.includes(row.questionId));
   const kind = sql.match(/"kind" = \$(\d+)/);
@@ -49,7 +52,19 @@ function transaction(name: string) {
  };
  const tx = {
   async execute(statement: any) {
-   const { params } = dialect.sqlToQuery(statement);
+   const { sql, params } = dialect.sqlToQuery(statement);
+   if (sql.startsWith('insert into gamification_question_exposures')) {
+    reconciliationParameters.push(params.length);
+    const requested = JSON.parse(params[0] as string) as { question_id: string; course_id: string; source_version: string }[];
+    const existing = new Set(rows.map(row => JSON.stringify([row.userId, row.questionId, row.kind, row.attemptIdentity])));
+    for (const identity of requested) for (const bank of bankRows) {
+     if (bank.userId !== params[1] || (bank.questionId !== identity.question_id && bank.questionId !== params[2]) || ![identity.course_id, 'legacy-c'].includes(bank.courseId)) continue;
+     const attemptIdentity = JSON.stringify(['staff-bank', bank.id]);
+     const key = JSON.stringify([bank.userId, identity.question_id, 'disclosure', attemptIdentity]);
+     if (!existing.has(key)) { existing.add(key); rows.push({ id: `ordered:${crypto.randomUUID()}`, userId: bank.userId, questionId: identity.question_id, courseId: identity.course_id, sourceVersion: identity.source_version, kind: 'disclosure', attemptIdentity, exposedAt: bank.exposedAt, causalOrder: ++sequence }); }
+    }
+    return;
+   }
    if (typeof params[0] !== 'string' || params[0].startsWith('[')) { trace.push(`${name}:questions`); return; }
    const key = params[0];
    if (held.has(key)) return;
@@ -187,6 +202,57 @@ describe('question evidence transaction ordering', () => {
   const t = transaction('denied'); staffAllowed = false;
   await expect(recordStaffCourseDisclosures(t.tx, { userId: 'u', courseId: 'c', questionIds: ['a'], contextId: 'bank', requestId: 'r' })).rejects.toThrow('QUESTION_EXPOSURE_COURSE_ACCESS_DENIED');
   expect(bankRows).toHaveLength(0); expect(rows).toHaveLength(0); t.commit();
+ });
+
+ for (const state of ['missing', 'draft'] as const) for (const route of ['attempt', 'course'] as const) test(`${route} review retains ${state} compatibility answers until publication`, async () => {
+  const t = transaction('learner');
+  if (state === 'draft') { canonical.add('a'); drafts.add('a'); }
+  if (route === 'attempt') await recordAttemptDisclosures(t.tx, { userId: 'learner', attemptId: 'attempt-owner', questionIds: [], outsideSnapshot: { questionIds: ['a'], canonicalCourseId: 'c' }, occurredAt: time, requestId: 'review' });
+  else await recordAuthorizedCourseDisclosures(t.tx, { userId: 'learner', canonicalCourseId: 'c', questionIds: ['a'], contextId: 'review', occurredAt: time, requestId: 'review' });
+  expect(bankRows.map(row => row.questionId)).toEqual(['a']);
+  canonical.add('a'); drafts.delete('a');
+  const later = [{ ...inputs('later')[0], userId: 'learner', occurredAt: new Date(bankRows[0].exposedAt.getTime() + 1000) }];
+  await initializeQuestionExposureHistoryBatch(t.tx, later);
+  await recordSubmissionBoundaries(t.tx, later);
+  const revealed = (await getLatestQuestionExposures(t.tx, 'learner', ['a'], 'later')).get('a');
+  expect(revealed?.exposedAt).toEqual(bankRows[0].exposedAt);
+  expect(isEligibleQuestionRetry({ correct: true, attemptId: 'later', occurredAt: later[0].occurredAt, lastReveal: revealed ? { attemptId: revealed.attemptIdentity, occurredAt: revealed.exposedAt } : null })).toBe(false);
+  t.commit();
+ });
+ test('denied learner review cannot write tombstones', async () => {
+  const t = transaction('denied-learner'); staffAllowed = false;
+  await expect(recordAttemptDisclosures(t.tx, { userId: 'learner', attemptId: 'attempt-owner', questionIds: [], outsideSnapshot: { questionIds: ['a'], canonicalCourseId: 'c' }, occurredAt: time, requestId: 'review' })).rejects.toThrow('QUESTION_EXPOSURE_COURSE_ACCESS_DENIED');
+  expect(bankRows).toHaveLength(0); t.commit();
+ });
+ for (const route of ['attempt', 'course'] as const) test(`${route} legacy-only review reconciles after the course becomes canonical`, async () => {
+  const t = transaction('legacy-learner'); legacyOnly = true;
+  if (route === 'attempt') await recordAttemptDisclosures(t.tx, { userId: 'learner', attemptId: 'attempt-owner', questionIds: [], outsideSnapshot: { questionIds: ['a'], canonicalCourseId: 'legacy-c' }, occurredAt: time, requestId: 'review' });
+  else await recordAuthorizedCourseDisclosures(t.tx, { userId: 'learner', canonicalCourseId: 'legacy-c', questionIds: ['a'], contextId: 'review', occurredAt: time, requestId: 'review' });
+  expect(bankRows[0].courseId).toBe('legacy-c');
+  legacyOnly = false; canonical.add('a');
+  const later = [{ ...inputs('later')[0], userId: 'learner', occurredAt: bankRows[0].exposedAt }];
+  await initializeQuestionExposureHistoryBatch(t.tx, later);
+  await recordSubmissionBoundaries(t.tx, later);
+  const revealed = (await getLatestQuestionExposures(t.tx, 'learner', ['a'], 'later')).get('a');
+  expect(revealed?.exposedAt).toEqual(bankRows[0].exposedAt);
+  expect(isEligibleQuestionRetry({ correct: true, attemptId: 'later', occurredAt: later[0].occurredAt, lastReveal: revealed ? { attemptId: revealed.attemptIdentity, occurredAt: revealed.exposedAt } : null })).toBe(false);
+  t.commit();
+ });
+ test('reconciles large repeated disclosure history with constant SQL parameters and no duplicate rows', async () => {
+  const t = transaction('large');
+  for (let i = 0; i < 12000; i++) bankRows.push({ id: `view:${i}`, userId: 'u', questionId: 'a', courseId: 'c', exposedAt: time });
+  await initializeQuestionExposureHistoryBatch(t.tx, inputs('later'));
+  expect(rows).toHaveLength(12000);
+  await initializeQuestionExposureHistoryBatch(t.tx, inputs('later'));
+  expect(rows).toHaveLength(12000);
+  expect(reconciliationParameters).toEqual([3, 3]);
+  await recordSubmissionBoundaries(t.tx, inputs('later'));
+  await recordAuthorizedGlobalDisclosures(t.tx, { userId: 'u', questions: [{ questionId: 'a', courseId: 'c' }], requestId: 'after' });
+  await initializeQuestionExposureHistoryBatch(t.tx, inputs('later'));
+  expect((await getLatestQuestionExposures(t.tx, 'u', ['a'], 'later')).get('a')?.attemptIdentity).not.toBe(JSON.stringify(['staff-bank', bankRows.at(-1)!.id]));
+  await recordSubmissionBoundaries(t.tx, inputs('next'));
+  expect((await getLatestQuestionExposures(t.tx, 'u', ['a'], 'next')).get('a')?.attemptIdentity).toBe(JSON.stringify(['staff-bank', bankRows.at(-1)!.id]));
+  t.commit();
  });
 
 });

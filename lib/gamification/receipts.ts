@@ -12,7 +12,9 @@ type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export function validateGamificationEvidence(input: GamificationEvidenceInput) {
  if (![input.userId, input.courseId, input.sourceId, input.sourceVersion, input.sourceEvidenceId].every(v => typeof v === 'string' && v.trim()) || !(input.occurredAt instanceof Date) || !Number.isFinite(input.occurredAt.getTime())) throw new Error('INVALID_GAMIFICATION_RECEIPT');
  if (input.source === 'flashcard' && (!Number.isInteger(input.details.grade) || input.details.grade < 0 || input.details.grade > 4 || !['canonical', 'legacy'].includes(input.details.adapter) || !Number.isFinite(Date.parse(input.details.previousDueAt)))) throw new Error('INVALID_GAMIFICATION_RECEIPT');
- if (input.source === 'question' && (typeof input.details.correct !== 'boolean' || !input.details.attemptId || (input.details.lastReveal && (!input.details.lastReveal.attemptId || !Number.isFinite(Date.parse(input.details.lastReveal.occurredAt)) || new Date(input.details.lastReveal.occurredAt) > input.occurredAt)))) throw new Error('INVALID_GAMIFICATION_RECEIPT');
+ // A causally earlier disclosure can have a later wall time after clock skew.
+ // Preserve it; the reward policy denies such a retry without rejecting submission.
+ if (input.source === 'question' && (typeof input.details.correct !== 'boolean' || !input.details.attemptId || (input.details.lastReveal && (!input.details.lastReveal.attemptId || !Number.isFinite(Date.parse(input.details.lastReveal.occurredAt)))))) throw new Error('INVALID_GAMIFICATION_RECEIPT');
  if (input.source === 'article' && !input.details.sectionIds.length) throw new Error('INVALID_GAMIFICATION_RECEIPT');
  if (input.source === 'explanation' && (!input.details.completionId || !input.details.itemIds.length || input.details.completionId !== input.sourceEvidenceId)) throw new Error('INVALID_GAMIFICATION_RECEIPT');
 }

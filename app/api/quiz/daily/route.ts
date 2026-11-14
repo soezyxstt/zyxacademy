@@ -32,6 +32,7 @@ import {
 } from "@/lib/student/course-access";
 import { canonicalObjectiveProvenance } from "@/lib/gamification/question-snapshot-provenance";
 import { writeQuestionRewards } from "@/lib/gamification/question-writer";
+import { checkAnswerCorrectness } from "@/lib/gamification/question-grading";
 import { lockQuestionExposures, recordAttemptDisclosures } from "@/lib/gamification/question-exposure";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { resolveAuthSecret } from "@/lib/auth-secret";
@@ -378,35 +379,8 @@ function publicOptions(value: unknown): string[] {
     });
 }
 
-function submittedText(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) return String(value[0] ?? "");
-  return "";
-}
-
 function isAnswerCorrect(question: ServerQuestion, submitted: unknown): boolean {
-  if (question.questionType === "short_answer") {
-    const answer = submittedText(submitted).trim().toLowerCase();
-    return answer.length > 0 && (question.acceptableAnswers ?? []).some((expected) => expected.trim().toLowerCase() === answer);
-  }
-  if (question.questionType === "essay") return false;
-
-  const submittedIndices = Array.isArray(submitted)
-    ? submitted.filter((value): value is number => typeof value === "number" && Number.isInteger(value) && value >= 0)
-    : typeof submitted === "number"
-      ? Number.isInteger(submitted) && submitted >= 0 ? [submitted] : []
-      : [];
-  const correctIndices = Array.isArray(question.correctIndices)
-    ? question.correctIndices.filter((value): value is number => typeof value === "number" && Number.isInteger(value) && value >= 0)
-    : [];
-  if (correctIndices.length === 0) return false;
-  if (question.questionType === "multiple_choice") {
-    return submittedIndices.length === 1 && correctIndices.length === 1 && submittedIndices[0] === correctIndices[0];
-  }
-  const submittedSet = [...new Set(submittedIndices)];
-  const correctSet = [...new Set(correctIndices)];
-  return submittedSet.length === correctSet.length
-    && submittedSet.every((index) => correctSet.includes(index));
+  return checkAnswerCorrectness({ question_type: question.questionType, correct_indices: question.correctIndices, acceptable_answers: question.acceptableAnswers }, submitted);
 }
 
 const SubmitSchema = z.object({

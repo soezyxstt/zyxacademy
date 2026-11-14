@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, lt, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { gamificationQuestionExposures, gamificationQuestionExposureInitializations, gamificationQuestionBankDisclosures, mataKuliah, soal, studentQuizAttempts } from '@/db/schema';
+import { gamificationQuestionExposures, gamificationQuestionExposureInitializations, gamificationQuestionBankDisclosures, soal, studentQuizAttempts } from '@/db/schema';
 import { resolveCourseAccess } from '@/lib/student/course-access';
 import { snapshotExposureIdentity, submissionResultIdentity } from './question-exposure-policy';
 
@@ -65,18 +65,23 @@ export async function initializeQuestionExposureHistoryBatch(tx: Transaction, in
  const first = inputs[0];
  if (inputs.some(i => i.userId !== first.userId || i.attemptId !== first.attemptId || i.occurredAt.getTime() !== first.occurredAt.getTime())) throw new Error('INVALID_QUESTION_EXPOSURE_INPUT');
  const unique = [...new Map(inputs.map(i => [i.canonicalQuestionId, i])).values()];
- // Materialize previously unmapped staff-bank disclosures once the canonical row exists.
- // Stable identities make repeated reconciliation idempotent and preserve original times.
- const bank = await tx.select().from(gamificationQuestionBankDisclosures).where(and(eq(gamificationQuestionBankDisclosures.userId, first.userId), inArray(gamificationQuestionBankDisclosures.questionId, [...unique.map(i => i.canonicalQuestionId), UNMAPPED_COURSE_DISCLOSURE])));
- const byQuestion = new Map(unique.map(i => [i.canonicalQuestionId, i]));
- const courses = bank.length ? await tx.select({ id: mataKuliah.id, legacyId: mataKuliah.legacyCourseId }).from(mataKuliah).where(inArray(mataKuliah.id, [...new Set(unique.map(i => i.courseId))])) : [];
- const legacyByCourse = new Map(courses.map(course => [course.id, course.legacyId]));
- const sameCourse = (identity: HistoryInput, courseId: string) => identity.courseId === courseId || legacyByCourse.get(identity.courseId) === courseId;
- const reconciled = bank.flatMap(row => {
-  const matches = row.questionId === UNMAPPED_COURSE_DISCLOSURE ? unique.filter(i => sameCourse(i, row.courseId)) : [byQuestion.get(row.questionId)].filter((i): i is HistoryInput => Boolean(i && sameCourse(i, row.courseId)));
-  return matches.map(identity => ({ id: orderedExposureId(), userId: row.userId, questionId: identity.canonicalQuestionId, courseId: identity.courseId, sourceVersion: identity.sourceVersion, kind: 'disclosure' as const, attemptIdentity: JSON.stringify(['staff-bank', row.id]), exposedAt: row.exposedAt }));
- });
- if (reconciled.length) await tx.insert(gamificationQuestionExposures).values(reconciled).onConflictDoNothing();
+ // Reconcile in the database, including disclosures added after initialization.
+ // The anti-join avoids recreating existing rows; no disclosure history is loaded
+ // into the application or expanded into one parameter list per historical view.
+ const requested = unique.map(i => ({ question_id: i.canonicalQuestionId, course_id: i.courseId, source_version: i.sourceVersion }));
+ await tx.execute(sql`insert into gamification_question_exposures
+  (id, user_id, question_id, course_id, source_version, kind, attempt_identity, exposed_at)
+  select 'ordered:' || gen_random_uuid()::text, b.user_id, r.question_id, r.course_id, r.source_version,
+   'disclosure', ('["staff-bank",' || to_json(b.id)::text || ']'), b.exposed_at
+  from jsonb_to_recordset(${JSON.stringify(requested)}::jsonb) as r(question_id text, course_id text, source_version text)
+  join mata_kuliah c on c.id = r.course_id
+  join gamification_question_bank_disclosures b on b.user_id = ${first.userId}
+   and (b.question_id = r.question_id or b.question_id = ${UNMAPPED_COURSE_DISCLOSURE})
+   and (b.course_id = r.course_id or b.course_id = c.legacy_course_id)
+  where not exists (select 1 from gamification_question_exposures e
+   where e.user_id = b.user_id and e.question_id = r.question_id and e.kind = 'disclosure'
+    and e.attempt_identity = ('["staff-bank",' || to_json(b.id)::text || ']'))
+  on conflict do nothing`);
  const states = await tx.select().from(gamificationQuestionExposureInitializations).where(and(eq(gamificationQuestionExposureInitializations.userId, first.userId), inArray(gamificationQuestionExposureInitializations.questionId, unique.map(i => i.canonicalQuestionId))));
  const initialized = new Set(states.map(s => s.questionId));
  const pending = unique.filter(i => !initialized.has(i.canonicalQuestionId));
@@ -207,13 +212,18 @@ async function recordAttemptDisclosuresForOwner(tx: Transaction, ownerId: string
    if (row?.courseId && Number.isSafeInteger(row.version) && row.version > 0) identities.push({ ...input, canonicalQuestionId: row.id, courseId: row.courseId, sourceVersion: String(row.version) });
   }
  }
- // Outside-snapshot questions must be resolved from published canonical rows in the
- // already-authorized course, never from a client-provided version or answer.
+ // Outside-snapshot IDs come from the authorized review, not client input.
+ // Retain unresolved ones as tombstones until a canonical question is available.
+ let unresolvedOutside: string[] = [];
  if (input.outsideSnapshot?.questionIds.length) {
+  const access = await resolveCourseAccess({ userId: input.userId, courseId: input.outsideSnapshot.canonicalCourseId }, tx);
+  if (!access.hasCourseAccess || ![access.canonicalCourseId, access.legacyCourseId].includes(input.outsideSnapshot.canonicalCourseId)) throw new Error('QUESTION_EXPOSURE_COURSE_ACCESS_DENIED');
   const outsideIds = [...new Set(input.outsideSnapshot.questionIds)].filter(id => !requested.has(id));
   if (outsideIds.length) {
-   const rows = await tx.select({ id: soal.id, courseId: soal.mataKuliahId, version: soal.version }).from(soal).where(and(inArray(soal.id, outsideIds), eq(soal.mataKuliahId, input.outsideSnapshot.canonicalCourseId), eq(soal.status, 'published')));
+   const rows = access.canonicalCourseId ? await tx.select({ id: soal.id, courseId: soal.mataKuliahId, version: soal.version }).from(soal).where(and(inArray(soal.id, outsideIds), eq(soal.mataKuliahId, access.canonicalCourseId), eq(soal.status, 'published'))) : [];
    for (const row of rows) if (row.courseId && Number.isSafeInteger(row.version) && row.version > 0) identities.push({ ...input, canonicalQuestionId: row.id, courseId: row.courseId, sourceVersion: String(row.version) });
+   const resolved = new Set(rows.filter(row => row.courseId && Number.isSafeInteger(row.version) && row.version > 0).map(row => row.id));
+   unresolvedOutside = outsideIds.filter(id => !resolved.has(id));
   }
  }
  await lockQuestionExposures(tx, input.userId, identities.map(identity => identity.canonicalQuestionId));
@@ -221,6 +231,7 @@ async function recordAttemptDisclosuresForOwner(tx: Transaction, ownerId: string
  // use a timestamp captured while waiting for the lock.
  const occurredAt = input.requestId === 'submission-result' ? input.occurredAt : new Date();
  identities.forEach(identity => { identity.occurredAt = occurredAt; });
+ if (unresolvedOutside.length && input.outsideSnapshot) await recordAuthorizedGlobalDisclosures(tx, { userId: input.userId, questions: unresolvedOutside.map(questionId => ({ questionId, courseId: input.outsideSnapshot!.canonicalCourseId })), requestId: input.requestId });
  await initializeQuestionExposureHistoryBatch(tx, identities);
  if (identities.length) await tx.insert(gamificationQuestionExposures).values(identities.map(identity => ({ id: orderedExposureId(), userId: identity.userId, questionId: identity.canonicalQuestionId, courseId: identity.courseId, sourceVersion: identity.sourceVersion, kind: 'disclosure' as const, attemptIdentity: JSON.stringify([identity.attemptId, input.requestId]), exposedAt: identity.occurredAt }))).onConflictDoNothing();
 }
@@ -265,14 +276,17 @@ async function recordCourseDisclosures(tx: Transaction, input: CourseDisclosureI
  if (!input.userId || !input.canonicalCourseId || !input.contextId || !input.requestId || !(input.occurredAt instanceof Date) || !Number.isFinite(input.occurredAt.getTime())) throw new Error('INVALID_QUESTION_EXPOSURE_INPUT');
  await lockQuestionExposureUser(tx, input.userId);
  const access = await resolveCourseAccess({ userId: input.userId, courseId: input.canonicalCourseId }, tx);
- if (!access.hasCourseAccess || access.canonicalCourseId !== input.canonicalCourseId) throw new Error('QUESTION_EXPOSURE_COURSE_ACCESS_DENIED');
+ if (!access.hasCourseAccess || ![access.canonicalCourseId, access.legacyCourseId].includes(input.canonicalCourseId)) throw new Error('QUESTION_EXPOSURE_COURSE_ACCESS_DENIED');
  const ids = [...new Set(input.questionIds.filter(Boolean))];
  if (!ids.length) return;
- const rows = await tx.select({ id: soal.id, courseId: soal.mataKuliahId, version: soal.version }).from(soal).where(and(inArray(soal.id, ids), eq(soal.mataKuliahId, input.canonicalCourseId), includeUnpublished ? undefined : eq(soal.status, 'published')));
+ const rows = access.canonicalCourseId ? await tx.select({ id: soal.id, courseId: soal.mataKuliahId, version: soal.version }).from(soal).where(and(inArray(soal.id, ids), eq(soal.mataKuliahId, access.canonicalCourseId), includeUnpublished ? undefined : eq(soal.status, 'published'))) : [];
  const identities: HistoryInput[] = rows.filter(row => row.courseId && Number.isSafeInteger(row.version) && row.version > 0).map(row => ({ userId: input.userId, canonicalQuestionId: row.id, courseId: row.courseId!, sourceVersion: String(row.version), attemptId: JSON.stringify(['course-review', input.contextId]), occurredAt: input.occurredAt }));
  await lockQuestionExposures(tx, input.userId, identities.map(identity => identity.canonicalQuestionId));
  const occurredAt = new Date();
  identities.forEach(identity => { identity.occurredAt = occurredAt; });
+ const known = new Set(identities.map(identity => identity.canonicalQuestionId));
+ const unresolved = ids.filter(id => !known.has(id));
+ if (unresolved.length) await recordAuthorizedGlobalDisclosures(tx, { userId: input.userId, questions: unresolved.map(questionId => ({ questionId, courseId: input.canonicalCourseId })), requestId: input.requestId });
  await initializeQuestionExposureHistoryBatch(tx, identities);
  if (identities.length) await tx.insert(gamificationQuestionExposures).values(identities.map(identity => ({ id: orderedExposureId(), userId: identity.userId, questionId: identity.canonicalQuestionId, courseId: identity.courseId, sourceVersion: identity.sourceVersion, kind: 'disclosure' as const, attemptIdentity: JSON.stringify([identity.attemptId, input.requestId]), exposedAt: identity.occurredAt }))).onConflictDoNothing();
 }

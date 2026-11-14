@@ -26,10 +26,10 @@ import {
   buildLegacyRenderedQuestionSnapshot,
 } from "@/lib/asesmen/live-idea-evidence";
 import { requestIdeaMasteryRecompute } from "@/lib/pemahaman/evidence";
-import { answerToStableOptionIds, gradeStableOptionAnswer } from "@/lib/asesmen/attempt";
+import { answerToStableOptionIds } from "@/lib/asesmen/attempt";
 import { normalizeDate } from "@/lib/date-utils";
 import { recordAuthorizedStaffAttemptDisclosures } from "@/lib/gamification/question-exposure";
-import { isShortAnswerCorrect } from "@/lib/quiz/short-answer";
+import { checkAnswerCorrectness } from "@/lib/gamification/question-grading";
 
 export const TUTOR_QUIZ_GRADING_ERRORS = {
   UNAUTHORIZED: "Unauthorized: Silakan masuk terlebih dahulu.",
@@ -98,34 +98,7 @@ function safeResponseSnapshot(
  * Evaluates if a submitted answer is deterministically correct for supported question types.
  */
 export function checkDeterministicCorrectness(q: LegacyQuizQuestionSnapshot, submitted: unknown): boolean {
-  const qType = q.question_type || q.questionType;
-  if (qType === "short_answer" || (Array.isArray(q.acceptable_answers) && q.acceptable_answers.length > 0)) {
-    return isShortAnswerCorrect(submitted, q.acceptable_answers);
-  }
-  if (qType === "essay") {
-    return false;
-  }
-  const indices = Array.isArray(submitted)
-    ? submitted
-    : typeof submitted === "number"
-    ? [submitted]
-    : [];
-  const correct = Array.isArray(q.correct_indices) ? q.correct_indices : [];
-  if (correct.length === 0) return false;
-  const isMultiple = qType === "multiple_choices" || correct.length > 1;
-  if (Array.isArray(q.stable_option_ids)) {
-    return gradeStableOptionAnswer({
-      stableOptionIds: q.stable_option_ids,
-      correctIndices: correct,
-      submitted,
-      questionType: isMultiple ? "multiple_choices" : qType,
-    });
-  }
-  if (!isMultiple && (qType === "multiple_choice" || !qType)) {
-    const firstIdx = indices[0];
-    return firstIdx !== undefined && correct.includes(firstIdx);
-  }
-  return indices.length === correct.length && indices.every((i: number) => correct.includes(i));
+  return checkAnswerCorrectness(q, submitted);
 }
 
 export async function gradeQuizAttempt(

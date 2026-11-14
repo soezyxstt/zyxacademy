@@ -333,3 +333,5 @@ Expanded cosmetic update: `gamification.md`, `features.md`, `ARCHITECTURE.md` an
 `ACTIVE` frame motion contract: `gamification.md`, `features.md` and `ARCHITECTURE.md` record v40 independent ornament choreography replacing faint glows and full-scene parallax. Primary component-fixture temporal verification passed; full application and deployment acceptance remain `OPEN / IN PROGRESS`.
 
 `ACTIVE` gamification evidence contract: generated migrations 0018 through 0020 add persisted disclosure ordering and unresolved staff bank disclosures. The updated staging-only bridge requires all five pending migrations and renewed independent review, backup and preflight. Runtime and staging acceptance remain `OPEN / IN PROGRESS`.
+
+`ACTIVE` gamification disclosure reconciliation and demo shared renderers: authorized learner and authoring disclosures are retained, reconciliation is set-based, and demo profile and participation rankings use current student presentation. Runtime, staging and visual acceptance remain `OPEN / IN PROGRESS`.
