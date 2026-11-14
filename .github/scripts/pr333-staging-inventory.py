@@ -22,8 +22,14 @@ DENO_REVISION_PATH = '/v2/apps/' + DENO_APP + '/revisions'
 DENO_REVISION_IDS = set()
 GOOGLE_STAGING_JOBS = set()
 TIMEOUT = 4
+DENO_PAGE_BUDGET = 12
+DENO_TIMELINE_BUDGET = 80
 SAFE = re.compile(r'^[A-Za-z0-9_.:/@-]{1,256}$')
 HOST = re.compile(r'^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$')
+UUID = re.compile(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+GOOGLE_403_REASONS = frozenset(('SERVICE_DISABLED', 'IAM_PERMISSION_DENIED', 'BILLING_DISABLED',
+                                'SECURITY_POLICY_VIOLATED', 'ACCESS_TOKEN_SCOPE_INSUFFICIENT',
+                                'ACCOUNT_STATE_INVALID', 'API_KEY_SERVICE_BLOCKED'))
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -33,6 +39,31 @@ class NoRedirect(HTTPRedirectHandler):
 
 class BudgetExceeded(Exception):
     pass
+
+
+class GoogleForbidden(ValueError):
+    def __init__(self, reason):
+        super().__init__('HTTP_403')
+        self.reason = reason if reason in GOOGLE_403_REASONS else 'UNKNOWN'
+
+
+def google_forbidden_reason(exc):
+    # Parse only the bounded structured ErrorInfo reason. Never retain or emit
+    # messages, metadata, principals, URLs, or the response body.
+    try:
+        body = exc.read(65537)
+        if len(body) > 65536:
+            return 'UNKNOWN'
+        payload = json.loads(body)
+        error = payload.get('error') if isinstance(payload, dict) else None
+        if not isinstance(error, dict) or error.get('code') != 403 or not isinstance(error.get('details'), list):
+            return 'UNKNOWN'
+        reasons = {item.get('reason') for item in error['details']
+                   if isinstance(item, dict) and item.get('@type') == 'type.googleapis.com/google.rpc.ErrorInfo'
+                   and isinstance(item.get('reason'), str)}
+        return next(iter(reasons)) if len(reasons) == 1 and next(iter(reasons)) in GOOGLE_403_REASONS else 'UNKNOWN'
+    except (ValueError, TypeError, OSError):
+        return 'UNKNOWN'
 
 
 def safe(value):
@@ -81,6 +112,9 @@ def request(host, path, token, params=None, headers=None):
                 raise ValueError('RESPONSE_LIMIT')
             return json.loads(body), response.headers.get('Link', '')
     except HTTPError as exc:
+        if exc.code == 403 and host in ('run.googleapis.com', 'cloudscheduler.googleapis.com',
+                                         'eventarc.googleapis.com', 'cloudtasks.googleapis.com'):
+            raise GoogleForbidden(google_forbidden_reason(exc)) from None
         raise ValueError('HTTP_' + str(exc.code)) from None
     except (URLError, TimeoutError, json.JSONDecodeError, OSError):
         raise ValueError('NETWORK_OR_RESPONSE_ERROR') from None
@@ -275,7 +309,10 @@ def google_regional(token):
             emit('google_' + section, {'resources': out, 'complete': exhausted})
             complete = complete and exhausted
         except ValueError as exc:
-            emit('google_' + section, {'complete': False, 'error': str(exc)})
+            diagnostic = {'complete': False, 'error': str(exc)}
+            if isinstance(exc, GoogleForbidden):
+                diagnostic['reason'] = exc.reason
+            emit('google_' + section, diagnostic)
             complete = False
     jobs = sorted(GOOGLE_STAGING_JOBS)
     if len(jobs) > 3:
@@ -337,25 +374,37 @@ def inngest_shape(path, payload):
 
 
 def pages(path, token, params, headers, max_pages=3):
-    # The v2 spec documents page.hasMore and page.cursor for these lists.
-    # Missing pagination is not completion, even on a short page.
+    # Inngest's proto3 Page.hasMore is a non-optional bool; the upstream
+    # REST JSONPb marshaler omits zero values. An absent flag on an otherwise
+    # valid page without a cursor therefore means false. Do not infer that
+    # from a missing page, an unknown shape, a cursor, or a short data array.
+    # https://github.com/inngest/inngest/blob/661f8f230f4095e713c1755427b9260043075aac/proto/api/v2/service.proto
+    # https://github.com/inngest/inngest/blob/661f8f230f4095e713c1755427b9260043075aac/pkg/api/v2/enum_json.go
     rows, cursor, seen = [], None, set()
     for _ in range(max_pages):
         query = dict(params)
         if cursor:
             query['cursor'] = cursor
         payload, link = request('api.inngest.com', path, token, query, headers)
-        if not isinstance(payload, dict) or not isinstance(payload.get('data'), list):
+        if (not isinstance(payload, dict) or set(payload) - {'data', 'metadata', 'page'}
+                or ('data' in payload and not isinstance(payload['data'], list))
+                or ('metadata' in payload and not isinstance(payload['metadata'], dict))
+                or ('data' not in payload and not isinstance(payload.get('metadata'), dict))):
             inngest_shape(path, payload)
             raise ValueError('INNGEST_BAD_RESPONSE')
-        if len(payload['data']) > params.get('limit', 100):
+        # The same protobuf JSON marshaler omits an empty repeated data field.
+        data = payload.get('data', [])
+        if len(data) > params.get('limit', 100):
             raise ValueError('INNGEST_RECORD_LIMIT')
         page = payload.get('page')
-        if not isinstance(page, dict) or type(page.get('hasMore')) is not bool or link:
+        if (not isinstance(page, dict) or set(page) - {'hasMore', 'cursor', 'limit'} or link
+                or ('hasMore' in page and type(page['hasMore']) is not bool)
+                or ('limit' in page and (type(page['limit']) is not int or not 1 <= page['limit'] <= 250))
+                or ('hasMore' not in page and 'cursor' in page)):
             inngest_shape(path, payload)
             raise ValueError('INNGEST_PAGINATION_UNKNOWN')
-        rows.extend(payload['data'])
-        if not page['hasMore']:
+        rows.extend(data)
+        if not page.get('hasMore', False):
             return rows, True
         cursor = page.get('cursor')
         if not valid_cursor(cursor) or cursor in seen:
@@ -364,14 +413,37 @@ def pages(path, token, params, headers, max_pages=3):
     return rows, False
 
 
+def inngest_environment(environments, complete):
+    # /envs is documented as an account list, not an echo of the selected
+    # header. Emit only staging-named TEST candidates and valid UUIDs.
+    candidates = []
+    for env in environments:
+        if not isinstance(env, dict) or env.get('type') != 'TEST':
+            continue
+        name, ident = env.get('name'), env.get('id')
+        if not isinstance(name, str) or name.lower() not in ('staging', INNGEST_ENV):
+            continue
+        candidates.append({'id': ident.lower() if isinstance(ident, str) and UUID.fullmatch(ident) else None,
+                           'name': name, 'type': 'TEST',
+                           'archived': env.get('isArchived') if type(env.get('isArchived')) is bool else None})
+    emit('inngest_environment', {'requestedHeader': INNGEST_ENV, 'listComplete': complete,
+                                 'environmentsListed': len(environments), 'candidates': candidates,
+                                 'headerSelection': 'requested_not_echoed_by_environment_list'})
+    # An account-wide list alone does not relate a display name to a slug.
+    # Only an exact name match is sufficient to continue scoped reads.
+    exact = [env for env in candidates if env['name'] == INNGEST_ENV and env['id'] and env['archived'] is not True]
+    if not complete or len(environments) != 1 or len(exact) != 1:
+        raise ValueError('INNGEST_ENVIRONMENT_UNVERIFIED')
+    return exact[0]
+
+
 def inngest():
     token = os.environ.get('INNGEST_SIGNING_KEY', '')
     if not token:
         raise ValueError('INNGEST_CREDENTIAL_UNAVAILABLE')
     headers = {'X-Inngest-Env': INNGEST_ENV}
     environments, complete = pages('/v2/envs', token, {'limit': 250}, headers)
-    if not complete or len(environments) != 1 or not isinstance(environments[0], dict) or environments[0].get('id') != INNGEST_ENV:
-        raise ValueError('INNGEST_ENVIRONMENT_MISMATCH')
+    environment = inngest_environment(environments, complete)
     app_payload, _ = request('api.inngest.com', '/v2/apps/' + INNGEST_APP, token, headers=headers)
     app = app_payload.get('data') if isinstance(app_payload, dict) else None
     # The documented detail path and response use the user-defined app ID.
@@ -388,7 +460,8 @@ def inngest():
         if not isinstance(row, dict) or not isinstance(row.get('app'), dict) or row['app'].get('id') != INNGEST_APP or row.get('status') not in statuses:
             raise ValueError('INNGEST_RUN_SCOPE_MISMATCH')
     emit('inngest', {
-        'environment': INNGEST_ENV, 'app': INNGEST_APP,
+        'environment': INNGEST_ENV, 'environmentId': environment['id'],
+        'headerSelection': 'requested_not_echoed_by_environment_list', 'app': INNGEST_APP,
         'archived': app.get('isArchived') if type(app.get('isArchived')) is bool else None,
         'latestSyncOrigin': origin((app.get('latestSync') or {}).get('url')),
         'functionCount': app.get('functionCount') if type(app.get('functionCount')) is int else None,
@@ -447,22 +520,26 @@ def deno():
         raise ValueError('DENO_CREDENTIAL_UNAVAILABLE')
     DENO_REVISION_IDS.clear()
     revisions, params, seen, exhausted = [], {'limit': 40}, set(), False
-    problem = None
-    # Two pages, 80 revisions and 80 timeline requests at most.
+    list_problem, timeline_problem = None, None
+    # List up to 480 revision identities before spending the separate bounded
+    # timeline budget. Neither inventory proves that writers have drained.
     deadline = time.monotonic() + 95
-    for _ in range(2):
+    for _ in range(DENO_PAGE_BUDGET):
         if time.monotonic() >= deadline:
-            problem = 'DENO_TIME_LIMIT'
+            list_problem = 'DENO_TIME_LIMIT'
             break
         try:
             page, link = request('api.deno.com', DENO_REVISION_PATH, token, params)
             if not isinstance(page, list) or len(page) > 40:
                 raise ValueError('DENO_BAD_RESPONSE')
+            page_ids = set()
             for r in page:
                 rev = r.get('id') if isinstance(r, dict) else None
-                if not isinstance(rev, str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', rev) or rev in DENO_REVISION_IDS:
+                if (not isinstance(rev, str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', rev)
+                        or rev in DENO_REVISION_IDS or rev in page_ids):
                     raise ValueError('DENO_BAD_REVISION_ID')
-                DENO_REVISION_IDS.add(rev)
+                page_ids.add(rev)
+            DENO_REVISION_IDS.update(page_ids)
             revisions.extend(page)
             params = deno_next(link)
             if params is None:
@@ -476,40 +553,55 @@ def deno():
                 raise ValueError('DENO_PAGE_LIMIT')
             params.setdefault('limit', 40)
         except ValueError as exc:
-            problem = str(exc)
+            list_problem = str(exc)
             break
-    output, matched = [], False
-    for r in revisions:
+    if not exhausted and list_problem is None:
+        list_problem = 'DENO_PAGE_LIMIT'
+
+    def deletion_state(r):
+        return ('ACTIVE' if 'deleted_at' in r and r['deleted_at'] is None else
+                'DELETED' if safe(r.get('deleted_at')) else 'UNKNOWN')
+
+    # Inspect active or unknown revisions first, then deleted ones if budget
+    # remains. Retain every listed identity even when details are incomplete.
+    ordered = sorted(revisions, key=lambda r: deletion_state(r) == 'DELETED')
+    details, matched = {}, False
+    for r in ordered[:DENO_TIMELINE_BUDGET]:
         if time.monotonic() >= deadline:
-            problem = 'DENO_TIME_LIMIT'
+            timeline_problem = 'DENO_TIME_LIMIT'
             break
         try:
             timelines, link = request('api.deno.com', '/v2/revisions/' + r['id'] + '/timelines', token)
             if not isinstance(timelines, list) or link:
                 raise ValueError('DENO_BAD_TIMELINES')
-            timeline_rows = []
+            timeline_rows, page_matched = [], False
             for t in timelines:
                 if not isinstance(t, dict) or not isinstance(t.get('domains'), list):
                     raise ValueError('DENO_BAD_TIMELINES')
                 hosts = sorted({origin(d.get('domain')) for d in t['domains'] if isinstance(d, dict)} - {None})
-                matched = matched or 'https://' + DENO_HOST in hosts
+                page_matched = page_matched or 'https://' + DENO_HOST in hosts
                 timeline_rows.append({'slug': safe(t.get('slug')), 'origins': hosts})
-            deletion = ('ACTIVE' if 'deleted_at' in r and r['deleted_at'] is None else
-                        'DELETED' if safe(r.get('deleted_at')) else 'UNKNOWN')
-            output.append({'id': r['id'], 'status': r.get('status') if r.get('status') in ('skipped', 'queued', 'building', 'succeeded', 'failed') else None,
-                           'createdAt': safe(r.get('created_at')), 'deletedAt': safe(r.get('deleted_at')),
-                           'deletionState': deletion,
-                           'timelines': timeline_rows})
+            details[r['id']] = timeline_rows
+            matched = matched or page_matched
         except ValueError as exc:
-            problem = str(exc)
+            timeline_problem = str(exc)
             break
     if not matched:
         raise ValueError('DENO_ORGANIZATION_HOST_UNVERIFIED')
-    complete = exhausted and len(output) == len(revisions) and problem is None
+    if len(details) < len(revisions) and timeline_problem is None:
+        timeline_problem = 'DENO_TIMELINE_LIMIT'
+    output = [{'id': r['id'], 'status': r.get('status') if r.get('status') in ('skipped', 'queued', 'building', 'succeeded', 'failed') else None,
+               'createdAt': safe(r.get('created_at')), 'deletedAt': safe(r.get('deleted_at')),
+               'deletionState': deletion_state(r), 'timelines': details.get(r['id'])} for r in revisions]
+    listed_details_complete = len(details) == len(revisions) and timeline_problem is None
+    details_complete = exhausted and listed_details_complete and list_problem is None
+    complete = details_complete
     emit('deno', {'expectedHost': DENO_HOST, 'app': DENO_APP, 'revisions': output,
                   'revisionsComplete': complete, 'revisionListExhausted': exhausted,
-                  'revisionsListed': len(revisions), 'timelinesInspected': len(output),
-                  'partialReason': problem if problem else (None if complete else 'DENO_PAGE_LIMIT'),
+                  'revisionDetailsComplete': details_complete, 'listedRevisionDetailsComplete': listed_details_complete,
+                  'revisionsListed': len(revisions), 'timelinesInspected': len(details),
+                  'revisionListError': list_problem, 'timelineError': timeline_problem,
+                  'partialReason': list_problem or timeline_problem,
                   'cronAndExecutions': 'unknown_not_exposed_by_documented_endpoints'})
     if not complete:
         raise ValueError('DENO_PARTIAL')
