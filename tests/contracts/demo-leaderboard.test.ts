@@ -16,5 +16,41 @@ test("per-course leaderboard uses validated completed attempts independently of 
   expect(rows.find(row => row.name === "Kamu")?.attempts).toBe(baseline.attempts + 1);
   expect(rows.map(row => row.rank)).toEqual([1, 2, 3, 4]);
   expect(demoLeaderboard({ ...snapshot, revision: "changed" }, overlay, () => saved, "Kamu").find(row => row.name === "Kamu")?.attempts).toBe(baseline.attempts);
+  const otherCourse = fictionalDemoSnapshot("course-b", "Fisika Dasar I");
+  const otherBaseline = demoLeaderboard(otherCourse, emptyOverlay(), () => null, "Kamu");
+  expect(demoLeaderboard(otherCourse, overlay, () => saved, "Kamu")).toEqual(otherBaseline);
+  expect(demoLeaderboard(snapshot, overlay, () => saved, "Kamu", "simulation")).toEqual(demoLeaderboard(snapshot, emptyOverlay(), () => null, "Kamu", "simulation"));
   expect(demoLeaderboard(snapshot, overlay, () => "{bad", "Kamu").find(row => row.name === "Kamu")?.attempts).toBe(baseline.attempts);
+});
+
+test("course and assessment seeds have distinct stable peers, scores and activity", () => {
+  const courseIds = ["ma1101", "fi1101", "ki1101", "wi1102", "fictional-berpikir", "fictional-fisika", "fictional-kimia", "fictional-matematika"];
+  for (const type of ["quiz", "simulation"]) {
+    const rankings = courseIds.map(courseId => {
+      const snapshot = fictionalDemoSnapshot(courseId);
+      const rows = demoLeaderboard(snapshot, emptyOverlay(), () => null, "Kamu", type);
+      expect(demoLeaderboard(JSON.parse(JSON.stringify(snapshot)), emptyOverlay(), () => null, "Kamu", type)).toEqual(rows);
+      const peers = rows.filter(row => row.studentId !== "fictional-demo-student");
+      expect(new Set(peers.map(row => row.studentId)).size).toBe(3);
+      for (const row of peers) {
+        expect(row.avgScore).toBeGreaterThanOrEqual(62);
+        expect(row.avgScore).toBeLessThanOrEqual(96);
+        expect(row.attemptCount).toBeGreaterThan(0);
+        expect(row.avgDuration).toBeGreaterThan(0);
+        expect(row.correctHardCount).toBeGreaterThan(0);
+        expect(row.attemptedMediumCount).toBeGreaterThan(0);
+      }
+      return peers;
+    });
+    for (const metric of ["studentId", "avgScore", "attemptCount", "avgDuration", "correctHardCount", "attemptedMediumCount"] as const) {
+      expect(new Set(rankings.map(rows => JSON.stringify(rows.map(row => row[metric])))).size).toBe(courseIds.length);
+    }
+  }
+  for (const courseId of courseIds) {
+    const snapshot = fictionalDemoSnapshot(courseId);
+    const quiz = demoLeaderboard(snapshot, emptyOverlay(), () => null, "Kamu");
+    const simulation = demoLeaderboard(snapshot, emptyOverlay(), () => null, "Kamu", "simulation");
+    expect(simulation.map(row => row.studentId)).not.toEqual(quiz.map(row => row.studentId));
+    expect(simulation.map(row => row.avgScore)).not.toEqual(quiz.map(row => row.avgScore));
+  }
 });

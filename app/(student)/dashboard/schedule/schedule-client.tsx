@@ -24,7 +24,7 @@ import {
 import { useTranslations } from "@/lib/i18n/client";
 
 import { useDemoCommunity } from "@/components/demo/use-demo-community";
-import { communityKey, demoWeek, parseCommunity } from "@/lib/demo/community-state";
+import { demoCommunitySchedule } from "@/lib/demo/community-schedule";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { daysFrom, getJakartaNow, getWeekScheduleDays } from "@/lib/date-utils";
 
@@ -104,19 +104,14 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
   const loadSchedule = useCallback(async (offset: number) => {
     if (experience.mode !== "demo") return getScheduleData(offset, selectedCourse?.id);
     const weekInfo = getWeekScheduleDays(daysFrom(offset * 7, getJakartaNow()));
-    const scope = { courseId: community.scope.courseId, revision: community.scope.revision };
-    const localState = parseCommunity(localStorage.getItem(communityKey(scope)));
-    const week = demoWeek(scope, weekInfo.startOfWeekIso, localState);
-    const course = experience.courses?.find(row => row.id === community.scope.courseId);
-    const group = { id: "demo-group", ...localState.group, totalQuotaSessions: 9999, usedQuotaSessions: 0, courses: [{ course }] };
+    const calendar = demoCommunitySchedule(experience.baseline, experience.courses ?? [], weekInfo.startOfWeekIso, key => localStorage.getItem(key));
     return {
       role: "student", user: { id: "fictional-demo-student", ...experience.account },
-      weekInfo, isWeekLocked: false, groups: [group],
+      weekInfo, isWeekLocked: false, ...calendar,
       enrollments: (experience.courses ?? []).map((course) => ({ course })),
-      availableSlots: week.slots.map(slot => ({ ...slot, tutor: { ...slot.tutor, tutorCourses: [{ courseId: community.scope.courseId }] } })),
-      groupBookings: week.bookings.map(row => ({ ...row, course, group, mode: "online", slot: { tutor: { name: "Kak Nara" } } })), academicSchedules: [],
+      academicSchedules: [],
     };
-  }, [experience, community.scope.courseId, community.scope.revision, selectedCourse?.id]);
+  }, [experience, selectedCourse?.id]);
   const t = useTranslations("student");
   const tRef = useRef(t);
   useEffect(() => {
@@ -264,7 +259,7 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
         slot={bookingSlotData?.slot || null}
         dateIso={bookingSlotData?.dateIso || ""}
         courses={coursesList}
-        groups={activeData.groups || []}
+        groups={experience.mode === "demo" && bookingSlotData ? (activeData.groups || []).filter((group: any) => group.courses.some((entry: any) => entry.course?.id === bookingSlotData.slot.courseId)) : activeData.groups || []}
         onSuccess={async ({ bookingId, pendingResources }) => {
           setPendingSessionResources(pendingResources);
           invalidateScheduleCache();

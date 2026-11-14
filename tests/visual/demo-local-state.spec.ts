@@ -88,7 +88,7 @@ test("weekly sessions persist context, pre/post files and links, moves, completi
     await expect(page.getByRole("button").filter({ hasText: "Diskusi materi" }).first()).toBeVisible();
   }
   await capture(page, info, "future-week");
-  await page.getByRole("button").filter({ hasText: /^10:00-11:30/ }).first().click();
+  await page.getByRole("button").filter({ hasText: /^\d{2}:\d{2}-/ }).first().click();
   await expect(page.getByRole("dialog").getByText("Pesan sesi tutorial", { exact: true })).toBeVisible();
   await page.locator("#booking-topic").fill("Pemesanan baru");
   await page.getByRole("dialog").getByRole("button").filter({ hasText: "Berpikir Komputasional" }).click();
@@ -190,7 +190,7 @@ test("failed file storage rolls back metadata and reset clears scoped files", as
   await expect.poll(() => page.evaluate(key => localStorage.getItem(key), key)).toBeNull();
   await expect.poll(countFiles).toBe(0);
   await visit(page, "groups");
-  await expect(page.locator("#demo-group-name")).toHaveValue("Kelompok belajar");
+  await expect(page.locator("#demo-group-name")).toHaveValue("Logika runtut");
   await capture(page, info, "demo-reset"); expect(errors).toEqual([]);
 });
 test("rescheduling rejects a seeded conflict and releases the original slot", async ({ page }, info) => {
@@ -204,7 +204,7 @@ test("rescheduling rejects a seeded conflict and releases the original slot", as
   await page.locator("#demo-move-date").fill(addCalendarDays(original, 8));
   await page.getByRole("button", { name: "Ubah jadwal", exact: true }).click();
   await expect(page.locator("#session-topic")).toHaveCount(0);
-  await page.getByRole("button").filter({ hasText: /^10:00-11:30/ }).first().click();
+  await page.getByRole("button").filter({ hasText: /^\d{2}:\d{2}-/ }).first().click();
   await page.getByRole("dialog").getByRole("button").filter({ hasText: "Berpikir Komputasional" }).click();
   await page.locator("#booking-topic").fill("Mengisi slot asal");
   await page.getByRole("button", { name: "Konfirmasi pemesanan", exact: true }).click();

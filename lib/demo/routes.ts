@@ -3,7 +3,8 @@ import { localizedPublicPath } from "@/lib/public-locale-routes";
 export type DemoRouteView = "dashboard" | "courses" | "overview" | "documents" | "progress" | "history" | "article" | "diktat" | "flashcards" | "quiz" | "quiz-review" | "quiz-summary" | "quiz-list" | "quiz-start" | "tryout" | "tryout-review" | "tryout-list" | "zyra" | "schedule" | "groups" | "leaderboard" | "course-leaderboard" | "profile" | "profile-edit" | "feedback" | "reflections" | "settings" | "notifications" | "video" | "playground" | "path" | "mastery" | "results" | "live";
 export function demoRoute(locale: Locale, view: DemoRouteView, courseId: string): string {
   const path = view === "dashboard" ? "/demo" : `/demo/${view}`;
-  return `${localizedPublicPath(locale, path) ?? `/${locale}${path}`}?course=${encodeURIComponent(courseId)}`;
+  const destination = localizedPublicPath(locale, path) ?? `/${locale}${path}`;
+  return view === "schedule" ? destination : `${destination}?course=${encodeURIComponent(courseId)}`;
 }
 
 export function demoCoursePath(courseId: string): string { return `/courses/${encodeURIComponent(courseId)}`; }
@@ -46,7 +47,11 @@ export function demoStudentHref(locale: Locale, studentPath: string, selectedCou
     return `${destination.pathname}${destination.search}`;
   }
   const view = accountViews[url.pathname];
-  if (view) return demoRoute(locale, view, url.searchParams.get("course") ?? selectedCourseId);
+  if (view) {
+    const courseId = url.searchParams.get("course");
+    const destination = demoRoute(locale, view, courseId ?? selectedCourseId);
+    return view === "schedule" && courseId ? `${destination}?course=${encodeURIComponent(courseId)}` : destination;
+  }
   if (["/plans", "/sign-in"].includes(url.pathname)) return studentPath;
   return demoRoute(locale, "dashboard", selectedCourseId);
   } catch { return demoRoute(locale, "dashboard", selectedCourseId); }

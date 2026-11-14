@@ -102,7 +102,7 @@ export function DemoStudentPage({ view, experience: { content, snapshot }, maste
    <div className="mt-6"><NotificationPreferencesForm accountEmail={account.email} initialPreferences={DEFAULT_EMAIL_NOTIFICATION_PREFERENCES} /></div>
  </ApplicationPage>;
  if (view === "groups") return <DemoGroups />;
- if (view === "schedule") return <StudentScheduleClient />;
+ if (view === "schedule") return <StudentScheduleClient selectedCourse={experience.courses?.find(course => course.id === searchParams.get("course"))} />;
  if (view === "video") return <CoursePageShell title={t("videoPage.title", { course: content.course.title })} icon={Video} backHref={href(`/courses/${courseId}`)} backLabel={t("videoPage.backToCourse")}>
    <CourseVideosClient courseId={courseId} courseTitle={content.course.title} initialPlaylists={[]} chapters={[]} canManage={false} hasFullContentAccess />
  </CoursePageShell>;
