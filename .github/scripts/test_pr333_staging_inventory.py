@@ -83,8 +83,9 @@ class InventoryTests(unittest.TestCase):
         self.assertTrue(complete)
         self.assertEqual(request.call_args_list[1].args[3]['cursor'], 'abc')
 
-    def test_inngest_proto_default_false_and_ambiguous_cursor(self):
-        for page in ({}, {'limit': 250}, {'hasMore': False, 'limit': 250}):
+    def test_inngest_proto_default_false_and_terminal_cursor(self):
+        for page in ({}, {'limit': 250}, {'hasMore': False, 'limit': 250},
+                     {'cursor': ''}, {'cursor': 'last-cursor'}, {'cursor': None}):
             with self.subTest(page=page), patch.object(inv, 'request', return_value=(
                     {'data': [{'id': 'a'}], 'metadata': {}, 'page': page}, '')):
                 self.assertEqual(inv.pages('/v2/envs', 'synthetic', {'limit': 250}, {})[1], True)
@@ -94,7 +95,8 @@ class InventoryTests(unittest.TestCase):
              contextlib.redirect_stdout(io.StringIO()):
             with self.assertRaisesRegex(ValueError, 'INNGEST_BAD_RESPONSE'):
                 inv.pages('/v2/runs', 'synthetic', {'limit': 100}, {})
-        for page in ({'cursor': 'abc'}, {'hasMore': None}, {'limit': True}, {'unknown': 'private'}):
+        for page in ({'cursor': True}, {'cursor': 'x' * 1025}, {'cursor': 'with space'},
+                     {'hasMore': None}, {'limit': True}, {'unknown': 'private'}):
             with self.subTest(page=page), patch.object(inv, 'request', return_value=(
                     {'data': [], 'page': page}, '')), contextlib.redirect_stdout(io.StringIO()):
                 with self.assertRaisesRegex(ValueError, 'INNGEST_PAGINATION_UNKNOWN'):

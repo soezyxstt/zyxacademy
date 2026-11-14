@@ -376,8 +376,8 @@ def inngest_shape(path, payload):
 def pages(path, token, params, headers, max_pages=3):
     # Inngest's proto3 Page.hasMore is a non-optional bool; the upstream
     # REST JSONPb marshaler omits zero values. An absent flag on an otherwise
-    # valid page without a cursor therefore means false. Do not infer that
-    # from a missing page, an unknown shape, a cursor, or a short data array.
+    # valid page therefore means false, including a retained terminal cursor.
+    # Do not infer that from a missing page, unknown shape, or short data array.
     # https://github.com/inngest/inngest/blob/661f8f230f4095e713c1755427b9260043075aac/proto/api/v2/service.proto
     # https://github.com/inngest/inngest/blob/661f8f230f4095e713c1755427b9260043075aac/pkg/api/v2/enum_json.go
     rows, cursor, seen = [], None, set()
@@ -400,7 +400,7 @@ def pages(path, token, params, headers, max_pages=3):
         if (not isinstance(page, dict) or set(page) - {'hasMore', 'cursor', 'limit'} or link
                 or ('hasMore' in page and type(page['hasMore']) is not bool)
                 or ('limit' in page and (type(page['limit']) is not int or not 1 <= page['limit'] <= 250))
-                or ('hasMore' not in page and 'cursor' in page)):
+                or (page.get('cursor') not in (None, '') and not valid_cursor(page['cursor']))):
             inngest_shape(path, payload)
             raise ValueError('INNGEST_PAGINATION_UNKNOWN')
         rows.extend(data)
