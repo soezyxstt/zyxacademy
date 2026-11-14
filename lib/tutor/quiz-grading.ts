@@ -77,7 +77,7 @@ type TutorReview = {
 // This server-owned policy is stored on the mirrored attempt, never in the
 // student-supplied answers snapshot. It preserves reviews when no safe item
 // exists without attributing a legacy answer to a current canonical version.
-function tutorReviews(policy: unknown): Record<string, TutorReview> {
+function tutorReviews(policy: unknown): Partial<Record<string, TutorReview>> {
   if (!policy || typeof policy !== "object" || Array.isArray(policy)) return {};
   const value = (policy as Record<string, unknown>).tutorReviews;
   return value && typeof value === "object" && !Array.isArray(value) ? { ...value as Record<string, TutorReview> } : {};
