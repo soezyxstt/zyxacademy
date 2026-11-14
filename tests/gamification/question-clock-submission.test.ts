@@ -4,6 +4,10 @@ import { isEligibleQuestionRetry } from '../../lib/gamification/evidence';
 import { checkAnswerCorrectness } from '../../lib/gamification/question-grading';
 
 const transpiler = new Bun.Transpiler({ loader: 'ts' });
+const canonicalQuestion = {
+ id: 'q', mataKuliahId: 'c', status: 'published', quizEligible: true, version: 1,
+ questionType: 'multiple_choice', optionsSnapshot: [{ text: 'A', isCorrect: false }, { text: 'B', isCorrect: true }],
+};
 function compile(source: string, start: string, end: string, dependencies: Record<string, unknown>) {
  const body = source.slice(source.indexOf(start), end ? source.indexOf(end) : undefined).replace('export ', '');
  return Function(...Object.keys(dependencies), transpiler.transformSync(`${body}\nreturn ${start.split('function ')[1].split('(')[0]};`))(...Object.values(dependencies));
@@ -13,7 +17,7 @@ test('a causally prior disclosure with an ahead clock preserves fact and receipt
  const earlier = new Date('2026-01-02T12:00:00Z');
  const submission = new Date('2026-01-01T12:00:00Z');
  const identity = { canonicalQuestionId: 'q', courseId: 'c', sourceVersion: '1' };
- const question = { id: 'q', question_type: 'multiple_choice', correct_indices: [1] };
+ const question = { id: 'q', question_type: 'multiple_choice', options: ['A', 'B'], correct_indices: [1] };
  const receipts = readFileSync('lib/gamification/receipts.ts', 'utf8');
  const validateGamificationEvidence = compile(receipts, 'export function validateGamificationEvidence(', '/** Internal only.', {});
  let enqueued: unknown[] = [];
@@ -21,7 +25,7 @@ test('a causally prior disclosure with an ahead clock preserves fact and receipt
  const writer = readFileSync('lib/gamification/question-writer.ts', 'utf8');
  const writeQuestionRewards = compile(writer, 'export async function writeQuestionRewards(', '', {
   studentQuizAttempts: {}, gamificationLearningFacts: {}, eq: () => ({}), and: () => ({}),
-  matchRewardSnapshots: () => [{ q: question, identity }], lockQuestionExposures: async () => {}, initializeQuestionExposureHistoryBatch: async () => {}, recordSubmissionBoundaries: async () => {},
+  matchRewardSnapshots: () => [{ q: question, identity }], lockQuestionExposures: async () => {}, lockCanonicalQuestions: async () => [canonicalQuestion], initializeQuestionExposureHistoryBatch: async () => {}, recordSubmissionBoundaries: async () => {},
   getLatestQuestionExposures: async () => new Map([['q', { attemptIdentity: 'prior', exposedAt: earlier }]]),
   resolveCourseAccess: async () => ({ isAuthenticated: true, isEnrolled: true, hasFullContentAccess: true, isDemo: false, canonicalCourseId: 'c' }),
   startLearningRewards: async () => true, checkAnswerCorrectness, recordGamificationEvidenceBatch,
@@ -46,11 +50,11 @@ test('a causally prior disclosure with an ahead clock preserves fact and receipt
 
 test('an unverified cutover skips reward writes while submission can proceed', async () => {
  const identity = { canonicalQuestionId: 'q', courseId: 'c', sourceVersion: '1' };
- const question = { id: 'q' };
+ const question = { id: 'q', question_type: 'multiple_choice', options: ['A', 'B'], correct_indices: [1] };
  const source = readFileSync('lib/gamification/question-writer.ts', 'utf8');
  const writeQuestionRewards = compile(source, 'export async function writeQuestionRewards(', '', {
   studentQuizAttempts: {}, gamificationLearningFacts: {}, eq: () => ({}), and: () => ({}),
-  matchRewardSnapshots: () => [{ q: question, identity }], lockQuestionExposures: async () => {},
+  matchRewardSnapshots: () => [{ q: question, identity }], lockQuestionExposures: async () => {}, lockCanonicalQuestions: async () => [canonicalQuestion],
   initializeQuestionExposureHistoryBatch: async () => false,
   recordSubmissionBoundaries: () => { throw new Error('UNTRUSTED_BOUNDARY'); },
   getLatestQuestionExposures: () => { throw new Error('UNTRUSTED_HISTORY'); },
