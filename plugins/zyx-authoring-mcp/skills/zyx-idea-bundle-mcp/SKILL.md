@@ -8,7 +8,7 @@ description: Menghasilkan Idea Bundle V3 dari Source Pack tervalidasi dengan Ide
 Skill ini menyusun, memvalidasi, dan men-stage `idea-bundle.v3` dari Source Pack tervalidasi pada workflow `idea_product`. Seluruh aturan dekomposisi split/merge, skema JSON, perhitungan offset chunk, dan relasi bebas siklus disajikan oleh server saat runtime melalui `workflow.get_playbook` dan `workflow.get_contract`.
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.4.1"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.0"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 <!-- END:environment-connection -->
 
 ## Identitas bootstrap dan protokol
@@ -16,8 +16,19 @@ Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpo
 - **Skill ID**: `zyx-idea-bundle-mcp`
 - **Stage**: `idea`
 - **Bootstrap protocol**: `1`
-- **Plugin version**: `0.4.1`
+- **Plugin version**: `0.5.0`
 - **Modul playbook wajib**: `common/execution`, `idea/workflow`, `idea/decomposition`
+
+
+## Revisi konten yang sudah ada, mulai V3
+
+Untuk mengubah Idea atau Product yang sudah tersimpan, prioritaskan tool revisi pada kontrak runtime: `authoring.get_edit_context`, `authoring.create_revision`, `authoring.patch_revision`, `authoring.plan_release`, `authoring.review_revision`, dan `authoring.publish_release`. Gunakan `authoring.list_revisions` serta `authoring.restore_revision` untuk riwayat dan pemulihan sebagai draft baru. Jalur ini mendukung Idea V3 dan Product belajar V3/V4/V5; bundle di bawah V3 berada di luar cakupan.
+
+Ambil bootstrap kompatibel untuk jenis konten tersebut. Baca import dan checksum tepat, buat draft tanpa mengubah versi live, lalu ubah unit dengan ID stabil. Server menghitung hash, versi dan arsipnya. Scope serta sumber berasal dari artifact tersimpan; revisi tidak memerlukan Source Pack baru atau run authoring lama. Untuk V4, gunakan identitas eksekusi draft yang dikembalikan server untuk verifikasi tepercaya.
+
+Periksa dampak pada review, provenance, dependensi, Diktat dan PDF. Pertahankan hanya keputusan yang masih dinyatakan berlaku oleh server. Review isi yang berubah secara independen dan lengkapi gate yang diminta. Susun rilis dari revisi Idea/Product yang perlu berubah bersama. Publikasi memerlukan keputusan eksplisit, `authoring:publish`, checksum setiap entry dan hash plan terbaru. Pemulihan tidak pernah mempublikasikan otomatis. Tidak perlu membuka web Admin.
+
+Gunakan instruksi pembuatan Source Pack serta ZIP di bawah untuk authoring awal. Jika server belum mengiklankan tool revisi, laporkan kapabilitas yang belum tersedia; jangan mengklaim jalur baru sudah terpasang.
 
 ## Langkah bootstrap wajib (fail-closed)
 
@@ -27,7 +38,7 @@ Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpo
      "skill": "zyx-idea-bundle-mcp",
      "stage": "idea",
      "bootstrapProtocol": 1,
-     "pluginVersion": "0.4.1",
+     "pluginVersion": "0.5.0",
      "clientCapabilities": {
        "independentSubagents": true,
        "localArtifactFiles": true,

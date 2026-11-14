@@ -52,7 +52,7 @@
     "liveQuiz": "Live quiz",
     "tryoutGrading": "Tryout grading",
     "overview": "Overview",
-    "materialsDescription": "Manage teaching modules and materials for course {courseId}.",
+    "materialsDescription": "Teaching materials for course {courseId}.",
     "videosDescription": "Manage playlists and learning videos for course {courseId}.",
     "participantsDescription": "View participants and active study groups for course {courseId}.",
     "manageQuizzes": "Manage quizzes",

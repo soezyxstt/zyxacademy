@@ -37,6 +37,7 @@ interface MaterialInstance {
 interface Props {
   courseId: string;
   initialMaterials: MaterialInstance[];
+  canManage: boolean;
 }
 
 function reconstructMarkdown(material: MaterialInstance): string {
@@ -50,7 +51,7 @@ function reconstructMarkdown(material: MaterialInstance): string {
     .join("\n\n");
 }
 
-export function MaterialsClient({ courseId, initialMaterials }: Props) {
+export function MaterialsClient({ courseId, initialMaterials, canManage }: Props) {
   const t = useTranslations("tutor.materials");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -128,15 +129,17 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
       {/* Action Row */}
       <div className="flex flex-wrap justify-between items-center gap-2">
         <h2 className="font-heading text-body-base font-semibold text-foreground">{t("materialsCount", { count: initialMaterials.length })}</h2>
-        <Button onClick={handleOpenAdd} className="gap-2">
-          <Plus className="size-4" />
-          {t("addMaterial")}
-        </Button>
+        {canManage && (
+          <Button onClick={handleOpenAdd} className="gap-2">
+            <Plus className="size-4" />
+            {t("addMaterial")}
+          </Button>
+        )}
       </div>
 
       {/* Grid List */}
       {initialMaterials.length === 0 ? (
-        <AdminEmptyState icon={BookOpen} title={t("noMaterials")} action={<Button onClick={handleOpenAdd} size="sm"><Plus className="size-4" />{t("addMaterial")}</Button>} />
+        <AdminEmptyState icon={BookOpen} title={t("noMaterials")} />
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
           {initialMaterials.map((m) => (
@@ -146,17 +149,19 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
                 <h3 className="font-heading text-body-sm font-bold text-foreground break-words">{m.title}</h3>
                 <p className="mt-0.5 text-body-xs text-muted-foreground line-clamp-2">{cleanSummary(m.summary)}</p>
               </div>
-              <div className="flex shrink-0 gap-2">
-                <Button variant="outline" size="sm" onClick={() => handleOpenEdit(m)}><Edit2 className="size-3.5" />{t("edit")}</Button>
-                <Button variant="outline" size="sm" onClick={() => setDeleteId(m.id)} className="text-destructive"><Trash2 className="size-3.5" />{t("delete")}</Button>
-              </div>
+              {canManage && (
+                <div className="flex shrink-0 gap-2">
+                  <Button variant="outline" size="sm" onClick={() => handleOpenEdit(m)}><Edit2 className="size-3.5" />{t("edit")}</Button>
+                  <Button variant="outline" size="sm" onClick={() => setDeleteId(m.id)} className="text-destructive"><Trash2 className="size-3.5" />{t("delete")}</Button>
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
 
       {/* Add / Edit Dialog */}
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      {canManage && <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-3xl rounded-2xl border-border bg-card">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
@@ -212,10 +217,10 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog>}
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteId !== null} onOpenChange={(open) => !open && setDeleteId(null)}>
+      {canManage && <Dialog open={deleteId !== null} onOpenChange={(open) => !open && setDeleteId(null)}>
         <DialogContent className="max-w-md rounded-2xl border-border bg-card">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("deleteTitle", { title: initialMaterials.find((material) => material.id === deleteId)?.title ?? "" })}</DialogTitle>
@@ -232,7 +237,7 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog>}
     </div>
   );
 }

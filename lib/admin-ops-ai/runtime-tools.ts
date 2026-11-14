@@ -1231,11 +1231,11 @@ export const OPS_TOOL_DEFINITIONS: Record<string, OpsToolDefinition<any>> = {
     description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_blog_articles.description,
     security: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_blog_articles,
     inputSchema: z.object({
-      status: z.enum(["published", "draft"]).optional().describe("Status artikel"),
-      search: z.string().optional().describe("Kata kunci judul artikel"),
+      status: z.enum(["published", "draft", "scheduled"]).optional().describe("Filter status artikel, scheduled bukan penjadwalan aktif"),
+      search: z.string().max(200).optional().describe("Kata kunci judul atau slug"),
     }),
-    execute: async (input) => {
-      const res = await executeListBlogArticles(input as any);
+    execute: async (input, context) => {
+      const res = await executeListBlogArticles(input, context?.actorId);
       return { summary: res.summary, data: res.data };
     },
   }),
@@ -1245,13 +1245,17 @@ export const OPS_TOOL_DEFINITIONS: Record<string, OpsToolDefinition<any>> = {
     description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.create_blog_article.description,
     security: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.create_blog_article,
     inputSchema: z.object({
-      title: z.string().describe("Judul artikel blog"),
-      content: z.string().describe("Konten teks artikel (format Markdown)"),
-      category: z.string().optional().describe("tips_kuliah, pojok_kampus, fakta_seru, kegiatan_zyx"),
-      status: z.string().optional().describe("draft atau published"),
+      title: z.string().max(500).optional().describe("Judul, atau gunakan H1 di awal konten"),
+      content: z.string().min(1).max(200000).describe("Konten Markdown"),
+      category: z.enum(["tips_kuliah", "pojok_kampus", "fakta_seru", "kegiatan_zyx"]).optional(),
+      slug: z.string().max(200).optional(),
+      summary: z.string().max(2000).optional(),
+      thumbnailUrl: z.string().max(2048).nullable().optional(),
+      tags: z.array(z.string().max(100)).max(30).optional(),
+      status: z.enum(["draft", "published"]).optional().describe("Terbit hanya setelah konfirmasi publikasi yang berlaku"),
     }),
     execute: async (input, context) => {
-      const res = await executeCreateBlogArticle(input as any, context?.actorId);
+      const res = await executeCreateBlogArticle(input, context?.actorId);
       return { summary: res.summary, data: res.data };
     },
   }),
@@ -1261,11 +1265,12 @@ export const OPS_TOOL_DEFINITIONS: Record<string, OpsToolDefinition<any>> = {
     description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.publish_blog_article.description,
     security: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.publish_blog_article,
     inputSchema: z.object({
-      articleId: z.string().describe("ID artikel blog"),
-      publish: z.boolean().optional().describe("true untuk publikasikan, false untuk draf"),
+      articleId: z.string().min(1).describe("ID artikel dari pembacaan terakhir"),
+      expectedRevision: z.string().regex(/^[a-f0-9]{64}$/).describe("Revision dari pembacaan artikel terakhir"),
+      publish: z.boolean().describe("true untuk publikasikan, false untuk draf"),
     }),
-    execute: async (input) => {
-      const res = await executePublishBlogArticle(input as any);
+    execute: async (input, context) => {
+      const res = await executePublishBlogArticle(input, context?.actorId);
       return { summary: res.summary, data: res.data };
     },
   }),

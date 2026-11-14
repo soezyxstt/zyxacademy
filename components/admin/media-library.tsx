@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { scheduleAdminListRequest } from "@/lib/admin/list-request";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -255,26 +256,32 @@ export function MediaLibrary() {
   const listRef = useRef<HTMLDivElement>(null);
   const marqueeStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragRefsRef = useRef<string[]>([]);
+  const cancelLoad = useRef<(() => void) | null>(null);
+  const requestedFolder = useRef("");
 
-  const load = useCallback(async (target: string) => {
+  const load = useCallback((target: string) => {
+    cancelLoad.current?.();
+    requestedFolder.current = target;
     setLoading(true);
     setError(null);
-    try {
+    cancelLoad.current = scheduleAdminListRequest(async () => {
       const res = await fetch(`/api/admin/media?folder=${encodeURIComponent(target)}`, { cache: "no-store" });
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(tRef.current("media.error.load"));
-      setData(body as unknown as MediaListing);
-      setFolder(target);
-      setSelected([]);
-    } catch {
-      setError(tRef.current("media.error.load"));
-    } finally {
-      setLoading(false);
-    }
+      return await res.json() as MediaListing;
+    }, {
+      onSuccess: (body) => {
+        setData(body);
+        setFolder(target);
+        setSelected([]);
+      },
+      onError: () => setError(tRef.current("media.error.load")),
+      onSettled: () => setLoading(false),
+    }, 0);
   }, []);
 
   useEffect(() => {
-    void load("");
+    load("");
+    return () => cancelLoad.current?.();
   }, [load]);
 
   useEffect(() => {
@@ -304,12 +311,12 @@ export function MediaLibrary() {
   }, []);
 
   const refresh = useCallback(() => {
-    void load(folder);
-  }, [folder, load]);
+    load(requestedFolder.current);
+  }, [load]);
 
   const navigate = useCallback(
     (path: string) => {
-      void load(path);
+      load(path);
     },
     [load]
   );
@@ -396,10 +403,10 @@ export function MediaLibrary() {
         if (!res.ok) throw new Error(t("media.error.upload"));
       }
       toast.success(t("media.uploaded", { count: files.length }));
-      refresh();
     } catch {
       toast.error(t("media.error.upload"));
     } finally {
+      refresh();
       setUploading(false);
       if (uploadInputRef.current) uploadInputRef.current.value = "";
     }
@@ -422,10 +429,10 @@ export function MediaLibrary() {
       await postOp(payload);
       toast.success(successMessage);
       close?.();
-      refresh();
     } catch {
       toast.error(t("media.error.operation"));
     } finally {
+      refresh();
       setBusy(null);
     }
   }
@@ -1186,11 +1193,7 @@ export function MediaLibrary() {
               <AdminEmptyState
                 icon={Folder}
                 title={query ? t("media.noResults") : t("media.emptyFolder")}
-                description={
-                  query
-                    ? t("media.noMatches")
-                    : t("media.emptyHelp")
-                }
+                description={query ? undefined : t("media.emptyHelp")}
               />
             </div>
           ) : (

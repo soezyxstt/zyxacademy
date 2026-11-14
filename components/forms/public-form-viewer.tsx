@@ -111,7 +111,19 @@ export function PublicFormViewer({
 
   const [uploadingQIdx, setUploadingQIdx] = useState<number | null>(null);
   const uploadInFlightRef = useRef(false);
+  const uploadPreviews = useRef<Record<number, { url: string; name: string }>>({});
+  const mounted = useRef(true);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
+
+  const clearUploadPreviews = () => {
+    Object.values(uploadPreviews.current).forEach(({ url }) => URL.revokeObjectURL(url));
+    uploadPreviews.current = {};
+  };
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; clearUploadPreviews(); };
+  }, []);
 
   // Email collection state
   const [responderEmail, setResponderEmail] = useState("");
@@ -262,6 +274,10 @@ export function PublicFormViewer({
   };
 
   const handleClearAnswer = (qIdx: number) => {
+    if (uploadPreviews.current[qIdx]) {
+      URL.revokeObjectURL(uploadPreviews.current[qIdx].url);
+      delete uploadPreviews.current[qIdx];
+    }
     delete answersRef.current[qIdx];
     delete otherTextsRef.current[qIdx];
     setAnswers((prev) => {
@@ -339,6 +355,9 @@ export function PublicFormViewer({
 
       const data = await res.json();
       if (data.success && data.url) {
+        if (!mounted.current) return;
+        if (uploadPreviews.current[qIdx]) URL.revokeObjectURL(uploadPreviews.current[qIdx].url);
+        uploadPreviews.current[qIdx] = { url: URL.createObjectURL(new Blob([file], { type: "application/octet-stream" })), name: file.name };
         handleAnswerChange(qIdx, data.url);
         toast.success(t("publicForm.uploadSuccess"));
       } else {
@@ -486,6 +505,7 @@ export function PublicFormViewer({
 
     if (isPreview) {
       setConfirmSubmitOpen(false);
+      clearUploadPreviews();
       answersRef.current = {};
       otherTextsRef.current = {};
       setAnswers({});
@@ -531,6 +551,7 @@ export function PublicFormViewer({
         setErrorMsg(t("publicForm.loginDescription"));
       } else if (data.success) {
         setConfirmSubmitOpen(false);
+        clearUploadPreviews();
         answersRef.current = {};
         otherTextsRef.current = {};
         setAnswers({});
@@ -1483,7 +1504,8 @@ export function PublicFormViewer({
                                   {t("publicForm.uploadedFile")}
                                 </p>
                                 <a
-                                  href={String(answerVal)}
+                                  href={uploadPreviews.current[qIdx]?.url ?? String(answerVal)}
+                                  download={uploadPreviews.current[qIdx]?.name}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="text-body-xs font-mono text-brand-primary hover:underline truncate block"

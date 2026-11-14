@@ -2037,7 +2037,7 @@ export const ketergantunganProduk = pgTable(
    .notNull(),
  },
  (table) => [
-  uniqueIndex("ketergantungan_produk_edge_idx").on(table.upstreamEntityType, table.upstreamEntityId, table.downstreamEntityType, table.downstreamEntityId),
+  uniqueIndex("ketergantungan_produk_edge_idx").on(table.upstreamEntityType, table.upstreamEntityId, table.upstreamVersion, table.downstreamEntityType, table.downstreamEntityId, table.downstreamVersion),
   index("ketergantungan_produk_upstream_idx").on(table.upstreamEntityType, table.upstreamEntityId),
   index("ketergantungan_produk_downstream_idx").on(table.downstreamEntityType, table.downstreamEntityId),
   check("ketergantungan_produk_upstream_version_check", sql`${table.upstreamVersion} > 0`),
@@ -2899,7 +2899,7 @@ export const reviewItemBundle = pgTable(
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
  },
  (table) => [
-  uniqueIndex("review_item_bundle_target_idx").on(table.imporBundleId, table.reviewerId, table.targetType, table.targetId),
+  unique("review_item_bundle_target_scoped_unique").on(table.imporBundleId, table.reviewerId, table.targetType, table.targetId, table.productId).nullsNotDistinct(),
   index("review_item_bundle_import_idx").on(table.imporBundleId),
   index("review_item_bundle_status_idx").on(table.status),
   check("review_item_bundle_target_type_check", sql`${table.targetType} IN ('idea', 'article_section', 'article_block')`),

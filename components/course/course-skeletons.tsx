@@ -14,17 +14,19 @@ export function CourseOverviewPrimaryActionsSkeleton() {
   return (
     <div
       data-testid="course-overview-highlights-skeleton"
-      className="mb-6 grid grid-cols-1 divide-y divide-border/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0 overflow-hidden rounded-xl border border-border/70 bg-card"
+      className="@container/course-actions mb-6"
     >
-      {[1, 2, 3].map((i) => (
-        <div key={i} className="flex min-w-0 items-center gap-2 p-2.5">
-          <Skeleton className="hidden size-7 shrink-0 rounded-lg sm:flex" />
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="h-3 w-24" />
+      <div className="grid grid-cols-1 divide-y divide-border/60 @min-[36rem]/course-actions:grid-cols-3 @min-[36rem]/course-actions:divide-x @min-[36rem]/course-actions:divide-y-0 overflow-hidden rounded-xl border border-border/70 bg-card">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex min-w-0 items-center gap-2 p-2.5">
+            <Skeleton className="hidden size-7 shrink-0 rounded-lg @min-[36rem]/course-actions:flex" />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-3 w-24" />
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

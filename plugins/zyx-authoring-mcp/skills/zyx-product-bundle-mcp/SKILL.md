@@ -8,7 +8,7 @@ description: Menyusun Product Bundle V4 untuk Artikel, Diktat dan flashcard, ata
 Skill ini menyusun, mengaudit secara multi-agent, memvalidasi, dan men-stage `product-bundle.v4` untuk Artikel/Diktat atau `product-bundle.v5` untuk Pembahasan soal mandiri, serta menjaga kompatibilitas revisi V3. Gunakan Source Pack valid dan Idea yang sudah published. Panduan dan kontrak aktif disajikan oleh server melalui `workflow.get_playbook` dan `workflow.get_contract`.
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.4.1"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.0"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 <!-- END:environment-connection -->
 
 ## Identitas bootstrap dan protokol
@@ -16,8 +16,21 @@ Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpo
 - **Skill ID**: `zyx-product-bundle-mcp`
 - **Stage**: `product`
 - **Bootstrap protocol**: `1`
-- **Plugin version**: `0.4.1`
+- **Plugin version**: `0.5.0`
 - **Modul playbook wajib**: `common/execution`, `product/workflow`, `product/editorial`, `product/quality-rubric`, `product/flashcards`, `product/derivation-audit`
+
+
+## Revisi konten yang sudah ada, mulai V3
+
+Untuk mengubah Idea atau Product yang sudah tersimpan, prioritaskan tool revisi pada kontrak runtime: `authoring.get_edit_context`, `authoring.create_revision`, `authoring.patch_revision`, `authoring.plan_release`, `authoring.review_revision`, dan `authoring.publish_release`. Gunakan `authoring.list_revisions` serta `authoring.restore_revision` untuk riwayat dan pemulihan sebagai draft baru. Jalur ini mendukung Idea V3 dan Product belajar V3/V4/V5; bundle di bawah V3 berada di luar cakupan.
+
+Ambil bootstrap kompatibel untuk jenis konten tersebut. Baca import dan checksum tepat, buat draft tanpa mengubah versi live, lalu ubah unit dengan ID stabil. Server menghitung hash, versi dan arsipnya. Scope serta sumber berasal dari artifact tersimpan; revisi tidak memerlukan Source Pack baru atau run authoring lama. Untuk V4, gunakan identitas eksekusi draft yang dikembalikan server untuk verifikasi tepercaya.
+
+Lanjutkan dengan import ID dan checksum penerus dari setiap patch. Untuk V4 yang bergantung pada revisi Idea dalam rilis yang sama, panggil `authoring.prepare_revision_verification` dengan entry tepat sebelum menjalankan operator. Attestation server mengikat kandidat tersebut; receipt dan review tetap wajib.
+
+Periksa dampak pada review, provenance, dependensi, Diktat dan PDF. Pertahankan hanya keputusan yang masih dinyatakan berlaku oleh server. Review isi yang berubah secara independen dan lengkapi gate yang diminta. Susun rilis dari revisi Idea/Product yang perlu berubah bersama. Publikasi memerlukan keputusan eksplisit, `authoring:publish`, checksum setiap entry dan hash plan terbaru. Pemulihan tidak pernah mempublikasikan otomatis. Tidak perlu membuka web Admin.
+
+Gunakan instruksi pembuatan Source Pack serta ZIP di bawah untuk authoring awal. Jika server belum mengiklankan tool revisi, laporkan kapabilitas yang belum tersedia; jangan mengklaim jalur baru sudah terpasang.
 
 ## Langkah bootstrap wajib (fail-closed)
 
@@ -27,7 +40,7 @@ Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpo
      "skill": "zyx-product-bundle-mcp",
      "stage": "product",
      "bootstrapProtocol": 1,
-     "pluginVersion": "0.4.1",
+     "pluginVersion": "0.5.0",
      "clientCapabilities": {
        "independentSubagents": true,
        "localArtifactFiles": true,
@@ -45,7 +58,7 @@ Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpo
 
 Gunakan `product-bundle.v4`, `article.v4` dan `diktat.v4` untuk authoring Artikel/Diktat baru. Pertahankan versi V3 untuk revisi materi lama kecuali pengguna meminta konversi V4 yang disusun dan direview ulang. Kontrak runtime harus menyatakan V4 sebagai jalur utama; bila kontrak masih menyatakan default V3, laporkan ketidaksesuaian sebelum membuat materi baru. Setelah bootstrap, ambil schema serta capabilities aktif melalui `workflow.get_contract`; gunakan nama field persis dari kontrak, termasuk bukti dan tool verifikasi yang diwajibkan. Jika server tidak mendukung V4, hentikan cabang V4 dan laporkan kapabilitas yang kurang.
 
-Untuk revisi V2/V3 learning-only, gunakan `productBundle.legacyLocalOperator` untuk PDF setiap Diktat terkait atau Artikel tanpa Diktat. Jika ada beberapa target, pilih tepat satu `diktatId` atau `articleId` untuk setiap proses. Periksa seluruh halaman sebelum review; jangan membuat Diktat atau bukti palsu hanya untuk memenuhi gate.
+Untuk revisi V3 learning-only, gunakan `productBundle.legacyLocalOperator` untuk PDF setiap Diktat terkait atau Artikel tanpa Diktat. Jika ada beberapa target, pilih tepat satu `diktatId` atau `articleId` untuk setiap proses. Periksa seluruh halaman sebelum review; jangan membuat Diktat atau bukti palsu hanya untuk memenuhi gate.
 
 Untuk Pembahasan soal mandiri gunakan `product-bundle.v5`, `productType: "solution_collection"`, `schemaVersion: "solution_collection.v1"` pada produk, dan `schemaVersion: "solution_collection.v1"` pada collection. Ambil `productBundle.solutionCollection.schemaDocuments` dan aturan runtime. Jangan membuat Artikel atau Diktat yang tidak diminta. Susun soal, jawaban, dan alasan sesuai jenis soal serta disiplin; gunakan bagian dan visual yang didukung. Catat provenance soal dan solusi secara terpisah dengan locator dan dasar hak/rilis yang tepat. Soal asesmen yang dilindungi beserta jawabannya tidak boleh dirilis secara implisit. Setiap contoh memerlukan review kebenaran, penalaran, provenance, dan kelayakan rilis pada checksum terbaru. Bila bukti atau keputusan belum ada, pertahankan draft. Produk ini tidak masuk indeks pencarian publik, kuis, atau Zyra. Admin dengan scope yang tepat dapat mereview dan mempublikasikan revisi V5 melalui tool MCP setelah semua gate lulus.
 

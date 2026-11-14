@@ -123,3 +123,7 @@ The public projection is checked again after worked-example fields and all order
 An unlinked Article PDF target requires self-lineage, including `diktatHash` equal to the current Article generation hash. Removing, adding or changing linked Diktat identities invalidates Article-owned PDF evidence. Old Diktat fallback rows cannot mask a pending or failed Article-only retry.
 
 Article print preserves literal media syntax inside code while rejecting actual unsupported media. Its HTML includes semantic MathML and the authored TeX annotation alongside the visual formula. Extracted PDF text is a content-presence check, not mathematical verification: fractions, powers and layout may flatten. The reviewing agent must inspect every exported page image against the authored formula before recording its review; no Admin website visit is required.
+
+## Flexible existing-content revisions
+
+Status: `ACTIVE`, locally verified with rollout separate. Use the [V3+ revision contract](authoring-revisions.md) to patch stored learning Products through MCP, retain immutable draft history, explicitly reuse applicable review evidence and atomically release exact successors. The Admin website and a replacement Source Pack are not mandatory for existing-content changes. Generated migrations 0009 and 0010 must be applied before rollout.

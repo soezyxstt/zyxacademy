@@ -120,6 +120,13 @@
       "when": 1794663999331,
       "tag": "0016_smiling_grandmaster",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794682179689,
+      "tag": "0017_quiet_the_hand",
+      "breakpoints": true
     }
   ]
 }

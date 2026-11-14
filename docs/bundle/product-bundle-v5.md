@@ -54,3 +54,8 @@ During review-context refresh, the last visible decisions remain displayed with 
 The user-row lock precedes identity and membership writes. The identity row uses `FOR NO KEY UPDATE`, which conflicts with authoring shared locks while allowing foreign-key key-share checks, following the [PostgreSQL row-lock compatibility rules](https://www.postgresql.org/docs/current/explicit-locking.html#LOCKING-ROWS). This does not replace a real multi-session contention check.
 
 Browser Back and Forward between tracked question entries in the same mounted review preserve its drafts without a leave warning. The exception allows only a changed `item` parameter with the same route, hash and remaining query parameters. Pending operations, untracked history entries and navigation away from the review retain their guards.
+
+
+## Flexible revision workflow
+
+The [flexible revision contract](authoring-revisions.md) defines stable-ID MCP edits, persistent drafts separate from live content, release-impact planning, explicit affected review, mixed reference manifests and atomic replacement for Idea V3 and learning Product V3/V4/V5. The original profile-specific schema, source and publication gates remain required. Restoration creates a new draft rather than mutating history. The implementation is in progress; remote deployment acceptance is separate.

@@ -44,7 +44,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Grades quiz essays and may override deterministic short-answer scores (`/tutor/[courseId]/quizzes/grading`). Final quiz totals remain hidden from students until every essay has been reviewed.
 - Inspects student attempt spreadsheets and exports CSV records (`/tutor/[courseId]/quizzes/[templateId]/attempts`)
 - Reviews enrolled students, active study groups, and group representatives (`/tutor/[courseId]/participants`)
-- Cannot author or upload course materials (materials authoring is disabled for tutors; `/tutor/[courseId]/materials` redirects to the course overview)
+- Cannot author or upload course materials. `/tutor/[courseId]/materials` retains a read-only material list; its authoring controls require the existing Admin override.
 - Cannot author simulations or tryouts (tryout authoring is disabled for tutors; `/tutor/[courseId]/tryouts` redirects to the course overview)
 
 ### Admin
@@ -83,7 +83,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 
 - The approved public demo policy permits real Free-eligible products from the first active chapter only, matching the current Free chapter scope. Product-specific publication, visibility and chapter-scope checks must be enforced on reads and grading. Diktat is read-only with no download; generic uploaded PDFs remain unavailable unless an existing explicit Free eligibility path covers the exact file and first chapter.
 - Authored fictional fallback products are authorized only where eligible real products are unavailable. They do not change real publication, chapter or Free permissions.
-- Progress and monthly history are fictional. Active chapter titles and published product metadata, including student-visible upload titles, are shown by chapter; later content and uploaded files remain locked. The demo uses the same student page renderers and components with a fictional identity and local transactions. Zyra replies are scripted; uploads and inline formative grading require an account. Product access stays behind the Free first-chapter resolver. The student-page correction is deployed; the catalogue and fictional baseline update is under verification. See [the seeding guide](operations/public-demo-seeding.md).
+- Progress and monthly history are fictional. Active chapter titles and published product metadata, including student-visible upload titles, are shown by chapter; later content and uploaded files remain locked. The demo uses the same student page renderers and components with a fictional identity and local transactions. Zyra replies are scripted. Schedule bookings, rescheduling, cancellation, completion, notes, links and pre/post-session files use browser-local storage. Every selected week has course-specific slots, tutors, topics and a study group. The global schedule combines all courses; an explicit course query scopes the calendar and sidebar to that course. Leaderboard participants, scores and activity differ by course and assessment type and remain stable across reloads. Group edits, quiz drafts and completed results, flashcard resume and progress persist across browser sessions; per-course rankings include validated completed quiz attempts. File bytes stay in IndexedDB, metadata in localStorage. Reset clears this local state; browser data deletion removes it. Inline formative grading requires an account. Product access stays behind the Free first-chapter resolver. The student-page correction is deployed; the catalogue and fictional baseline update is under verification. See [the seeding guide](operations/public-demo-seeding.md).
 - The legacy admin `isDemo` singleton remains separate from the snapshot allowlist.
 - The Free chapter resolver selects the first active chapter, including eligible Article, Diktat, Kuis, and Flashcard content. Diktat is readable without download. Zyra allows 5 questions per day, and authenticated learning progress is stored.
 - Admins select the legacy singleton demo course from course settings. Selection is allowed only when the course is active, its canonical and legacy mapping is unambiguous, and it has a complete published Article, two-section Diktat, at least five published Flashcards, and at least three published Kuis questions. The selection is transactional and singleton-scoped.
@@ -186,6 +186,10 @@ Zyra accepts an allowlisted response language, honors explicit English or Indone
    - `/admin/materials/manual` redirects permanently to `/admin/courses`.
    - Retired browser-only manual authoring APIs return HTTP 410 Gone.
 3. Sidebar isolation guarantee: no old route can render an active global course workspace or reset the contextual sidebar back to global while viewing a course-owned resource.
+
+### Flexible existing-content revisions
+
+The [revision contract](bundle/authoring-revisions.md) describes MCP editing for Idea V3 and learning Product V3/V4/V5. Agents fork a stored artifact into a separate draft, edit entities and reading units by stable ID, inspect affected reviews and dependencies, and explicitly publish a reference-based release. A release can replace related Idea and Product revisions atomically while keeping the old content live until it succeeds. History and restoration use immutable artifacts; restoration creates a new draft. Existing-content edits use stored source context and a fresh bound bootstrap, without a replacement Source Pack or expired original run. Unchanged review evidence requires server-proven applicability and explicit reviewer consent. Profile-specific correctness, release, source, PDF and trusted-verification gates remain in place. No Admin website visit is mandatory. Implemented with focused local verification; remote migrations, deployment and live-service acceptance remain pending.
 
 ### Idea Bundle Workflow
 
@@ -445,8 +449,9 @@ Zyra uses bounded, session-scoped conversation context to interpret follow-up qu
 
 ### Structured Form Upload Storage System
 
-- All public form file response uploads and admin form builder question attachments are saved under a structured R2 storage key hierarchy: `forms/[slugified-judul-forms]/question-[number]/[timestamp]-[hash]-[filename]`.
+- Form response uploads and builder question images use the active object storage provider with keys under `forms/[slugified-judul-forms]/question-[number]/[timestamp]-[hash]-[filename]`.
 - Path key resolution is handled deterministically via `lib/forms/storage-utils.ts` (`buildFormStorageKey`) and `/api/forms/upload`.
+- The storage proxy serves a question image publicly only while a non-deleted form references its proxy URL. Other form files require an active canonical admin role; response answers cannot prove upload ownership. A respondent can download a local copy of a new upload. External legacy URLs retain their own access policy and query strings.
 
 ### Course Material Batch Upload (Admin)
 
@@ -532,7 +537,7 @@ Zyra uses bounded, session-scoped conversation context to interpret follow-up qu
 
 ### Scheduling & Calendar System (Model Kelompok Belajar)
 
-The canonical scheduling workflow uses concrete, date-specific 90-minute tutor slots. The dedicated tutor surface is `/tutor/schedule`; `/dashboard/schedule` is student-only and redirects tutor accounts to the canonical route.
+The canonical scheduling workflow uses concrete, date-specific 90-minute tutor slots. The route determines the perspective: `/dashboard/schedule` remains the global student calendar for every signed-in role, `/dashboard/schedule?course=<id>` shows only that course's slots, bookings, academic events and eligible groups, `/tutor/schedule` is the tutor workspace, and `/admin/schedules` is the administrative global calendar. Course scope accepts mapped canonical and legacy IDs. Student booking details remain limited to the account's memberships; visiting this route with an Admin role does not grant administrative calendar controls. The client loads weeks on demand and clears cached weeks after booking or session mutations, rejecting older responses. Authenticated runtime verification remains open.
 
 - Group Ownership & Collaborative Booking:
   - Tutoring sessions are booked on behalf of Study Groups.
@@ -752,3 +757,6 @@ Reviewed solution collections can be published headlessly for a course chapter a
 Pembahasan soal displays the authored hint beside the optional Admin review decisions. Markdown fenced code in prompts and reasoning shares the static-code keyboard scrolling controls used by typed examples.
 
 Pembahasan review supports Indonesian and English, detects tab-draft conflicts against the saved server baseline, and requires explicit recovery before reusing conflicting choices. Bounded question pages support normal Tab navigation. Static typed and Markdown code retain their language and localized copy controls, with visible fallback when the clipboard is unavailable.
+
+
+Agent-first content tools expose paginated registered capabilities, permission recovery and actor-scoped database receipts. Blog creation, validation, editing and explicit publication use MCP with observed revisions; public edits report their live impact. Media resolution returns served paths without private storage credentials. Repository plugin 0.5.0 adds five focused skills. See [agent-first content operations](operations/agent-first-content.md) for limits and release boundaries.

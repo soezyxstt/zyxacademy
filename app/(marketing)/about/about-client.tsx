@@ -194,11 +194,6 @@ export function AboutClient() {
                       <h3 className="mt-1 font-heading text-body-base font-bold leading-tight text-foreground">{founder.name}</h3>
                     </div>
                     <p className="text-body-sm leading-relaxed text-muted-foreground">{t(`about.founder${founder.id === "adi" ? "Adi" : founder.id === "dawam" ? "Dawam" : founder.id === "heidi" ? "Heidi" : "Raihan"}Bio`)}</p>
-                    {founder.id === "adi" ? (
-                      <p className="border-t border-border pt-4 text-body-sm leading-relaxed text-foreground">
-                        <span className="font-semibold">{t("about.productContribution")}</span> {t("about.founderAdiContribution")}
-                      </p>
-                    ) : null}
                     <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-border pt-4">
                       {founder.socials.website ? (
                         <ExternalProfileLink href={founder.socials.website} icon={<Globe className="size-3.5" />}>

@@ -20,7 +20,7 @@ export function sectionReviewFingerprint(section: ArticleProduct["sections"][num
   });
 }
 
-export function unchangedArticleSectionIds(previous: ValidProductBundle, next: ValidProductBundle): Set<string> {
+export function unchangedArticleSectionIds(previous: ValidProductBundle, next: ValidProductBundle, productId?: string): Set<string> {
   const previousArticles = new Map(
     previous.products
       .filter((product) => product.productType === "article")
@@ -28,7 +28,7 @@ export function unchangedArticleSectionIds(previous: ValidProductBundle, next: V
   );
   const unchanged = new Set<string>();
   for (const product of next.products) {
-    if (product.productType !== "article") continue;
+    if (product.productType !== "article" || (productId !== undefined && product.id !== productId)) continue;
     const previousArticle = previousArticles.get(product.id);
     if (!previousArticle || previousArticle.productType !== "article") continue;
     const previousSections = new Map(previousArticle.sections.map((section) => [section.id, section]));

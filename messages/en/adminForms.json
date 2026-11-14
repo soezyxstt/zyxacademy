@@ -1,5 +1,6 @@
 {
   "ui": {
+    "moreActions": "More actions",
     "editor": "Question Editor",
     "editorEdit": "Question Editor (Edit)",
     "preview": "Preview",
@@ -11,7 +12,7 @@
     "cancelEdit": "Cancel edit",
     "formTitle": "Form title",
     "formDescription": "Form description or instructions for respondents...",
-    "category": "Category:",
+    "category": "Category",
     "chooseCategory": "Choose category",
     "survey": "Survey & Research",
     "feedback": "Feedback",
@@ -109,7 +110,7 @@
     "fullLink": "Full link",
     "copied": "Copied",
     "editForm": "Edit form",
-    "viewResponses": "View response analytics",
+    "viewResponses": "View responses",
     "deleteForm": "Delete form",
     "deletePublished": "Delete published form",
     "deletePublishedHelp": "Are you sure you want to remove this form from the published list? Access to its response analytics will also be removed.",
@@ -151,7 +152,9 @@
     "matrixHeading": "Grid matrix settings ({type})",
     "openShortLink": "Open short link {path}",
     "openFullLink": "Open full link {path}",
-    "newSectionName": "New section"
+    "newSectionName": "New section",
+    "copyShortLink": "Copy short link",
+    "copyFullLink": "Copy full link"
   },
   "messages": {
     "uploadFailedTitle": "Image upload failed",

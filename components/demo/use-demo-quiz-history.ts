@@ -8,7 +8,7 @@ export function useDemoQuizHistory(snapshot: PublicDemoSnapshot): DemoQuizHistor
  const [local, setLocal] = useState<DemoQuizHistoryRow[]>([]);
  useEffect(() => {
   if (!ready) return;
-  setLocal(localQuizHistory(snapshot, overlay, key => sessionStorage.getItem(key)));
+  setLocal(localQuizHistory(snapshot, overlay, key => localStorage.getItem(key)));
  }, [snapshot, overlay, ready, generation]);
  return [...local, ...fictionalQuizHistory(snapshot)];
 }

@@ -172,7 +172,10 @@ describe("authoring skills distribution", () => {
       kind: "local-candidate", repository: "workspace:plugins/zyx-authoring-mcp", baseCommit: "b".repeat(40),
       digest: localSkillSourceDigest(candidateSource), environment: "staging",
     });
-    expect(candidate.catalogs.all).toHaveLength(7);
+    expect(candidate.catalogs.all).toHaveLength(12);
+    for (const name of ["zyx-blog-mcp", "zyx-content-revisions", "zyx-forms-mcp", "zyx-media-mcp", "zyx-operation-recovery"]) {
+      expect(candidate.catalogs.all.some(entry => entry.frontmatter.name === name)).toBe(true);
+    }
     expect(candidate.catalogs.all.some((entry) => entry.frontmatter.name === "zyx-admin-operations")).toBe(true);
     const product = loadSkillCatalog(candidateRoot, "all").resources.get("skill://zyx-authoring/all/zyx-product-bundle-mcp/SKILL.md")!.text!;
     const release = JSON.parse(readFileSync(resolve(candidateSource, "release.json"), "utf8"));

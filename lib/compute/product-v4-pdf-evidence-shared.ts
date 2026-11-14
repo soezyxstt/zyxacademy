@@ -52,7 +52,7 @@ export async function persistProductV4PdfEvidence(input: { snapshot: ProductV4Ve
     const current = currentProductV4VerificationRef(row.validationReport, input.snapshot.stagingAuditId, input.snapshot.stagingRunId);
     if (current?.attemptId !== input.attemptId || current.planHash !== input.plan.planHash || input.snapshot.stagingRunId !== input.plan.binding.runId) throw new Error("PRODUCT_V4_PDF_EVIDENCE_CONFLICT");
     if (!row.courseId) throw new Error("PRODUCT_V4_COURSE_MISMATCH");
-    const binding = await buildProductV4RuntimeBinding({ row: { ...row, courseId: row.courseId }, bundle: input.snapshot.bundle, runId: input.plan.binding.runId });
+    const binding = await buildProductV4RuntimeBinding({ row: { ...row, courseId: row.courseId }, bundle: input.snapshot.bundle, runId: input.plan.binding.runId }, undefined, undefined, tx);
     assertProductV4VerificationCurrent(input.plan, deriveProductV4VerificationPlan({ bundle: input.snapshot.bundle, binding }));
     const claimed = await tx.update(imporBundle).set({ validationReport: { ...row.validationReport, productV4PdfEvidence: { planHash: input.plan.planHash, attemptId: input.attemptId, receiptSignature: receipt.signature } }, updatedAt: new Date() }).where(and(eq(imporBundle.id, row.id), eq(imporBundle.status, "draft"), eq(imporBundle.checksum, row.checksum), eq(imporBundle.sourceUriOrKey, row.sourceUriOrKey), eq(imporBundle.validationReport, row.validationReport))).returning({ id: imporBundle.id });
     if (claimed.length !== 1) throw new Error("PRODUCT_V4_PDF_EVIDENCE_CONFLICT");

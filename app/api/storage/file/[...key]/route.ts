@@ -1,12 +1,14 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { headers as nextHeaders } from "next/headers";
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { diktatMateri, diktats, mataKuliah, studentQuizAttempts, quizTemplates, courseVideos } from "@/db/schema";
+import { customForms, diktatMateri, diktats, mataKuliah, studentQuizAttempts, quizTemplates, courseVideos } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { hasPeran } from "@/lib/auth/authorization";
+import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { canAccessCourseContent, resolveCourseAccess } from "@/lib/student/course-access";
-import { isProtectedCourseDiktatPdfKey, isProtectedProductDiktatPdfKey, leafFilename, quizAttachmentPrefix } from "@/lib/storage/keys";
+import { isProtectedCourseDiktatPdfKey, isProtectedProductDiktatPdfKey, isSafeKey, leafFilename, quizAttachmentPrefix } from "@/lib/storage/keys";
 import { getS3StorageConfig } from "@/lib/storage/r2";
 
 const config = getS3StorageConfig(process.env.STORAGE_PROVIDER_MODE === "neon" ? "neon" : "r2");
@@ -48,6 +50,30 @@ type DiktatAuthorization = {
   matched: boolean;
   allowed: boolean;
 };
+
+async function canAccessFormFile(key: string, search: string): Promise<boolean> {
+  try {
+    if (!isSafeKey(key)) return false;
+    const origin = new URL(resolveAuthBaseUrl()).origin;
+    const paths = new Set([key, encodeURI(key), key.split("/").map(encodeURIComponent).join("/")]);
+    const urls = [...paths].flatMap((path) => {
+      const relative = `/api/storage/file/${path}`;
+      return [relative, `${origin}${relative}`, ...(search.length <= 2048 && search ? [`${relative}${search}`, `${origin}${relative}${search}`] : [])];
+    });
+    // shortcut: image references have no JSONB index, add indexed references if form volume makes this lookup slow.
+    const [publicReference] = await db.select({ id: customForms.id }).from(customForms).where(and(
+      isNull(customForms.deletedAt),
+      or(...urls.map((url) => sql`${customForms.questions} @> ${JSON.stringify([{ imageUrl: url }])}::jsonb`)),
+    )).limit(1);
+    if (publicReference) return true;
+
+    const session = await auth.api.getSession({ headers: await nextHeaders() });
+    // Submission answers are client-supplied and do not prove upload ownership.
+    return Boolean(session?.user?.id && await hasPeran(session.user.id, "admin"));
+  } catch {
+    return false;
+  }
+}
 
 function storageKeyCandidates(key: string): string[] {
   const candidates = new Set<string>();
@@ -261,6 +287,10 @@ export async function GET(
 
     const urlObj = new URL(req.url);
     const isDownload = urlObj.searchParams.get("download") === "1" || urlObj.searchParams.get("download") === "true";
+    const isFormFile = key === "forms" || key.startsWith("forms/") || normalizedPath === "forms" || normalizedPath.startsWith("forms/");
+    if (isFormFile && !(await canAccessFormFile(key, urlObj.search))) {
+      return new Response("File not found", { status: 404, headers: { "Cache-Control": "private, no-store" } });
+    }
     // Authorize Diktat delivery before fetching the object. The disposition
     // query only changes a browser hint and must never decide authorization.
     const diktatAuthorization = await resolveDiktatAuthorization(key);
@@ -320,9 +350,10 @@ export async function GET(
     
     // Only protected delivery depends on the current session. Keep unrelated
     // public storage objects on the cacheable response path.
-    if (diktatAuthorization.matched || quizAuthorization.matched) {
+    if (isFormFile || diktatAuthorization.matched || quizAuthorization.matched || videoAuthorization.matched) {
       headers.set("Cache-Control", "private, no-store");
     }
+    if (isFormFile) headers.set("Content-Security-Policy", "sandbox");
 
     // Extract clean filename (last path segment minus the {timestamp}-{hash}- prefix)
     const filename = leafFilename(key);
