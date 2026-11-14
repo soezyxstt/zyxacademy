@@ -52,7 +52,9 @@ mock.module("@/lib/vector-sync-dispatch", () => ({ dispatchVectorSync: async () 
 mock.module("@/jobs/client", () => ({ inngest: { send: async () => { deliveries++; return { ids: [] }; } } }));
 const fixedHash = "a".repeat(64);
 mock.module("@/lib/compute/product-v4-runtime-binding", () => ({ ...originalRuntime, buildProductV4RuntimeBinding: async (input: Parameters<typeof buildRealBinding>[0], _ports?: Parameters<typeof buildRealBinding>[1], read?: Parameters<typeof buildRealBinding>[2], connection?: Parameters<typeof buildRealBinding>[3]) => {
-  const database = (connection ?? testDb) as typeof testDb;
+  // The mocked runtime executes against PGlite even when its public port is
+  // typed as the production driver. Keep that adapter local to this fixture.
+  const database = (connection ?? testDb) as unknown as typeof testDb;
   return buildRealBinding(input, {
   async course() { return { id: "course-physics", legacyCourseId: "legacy-physics" }; },
   async figure(): Promise<never> { throw new Error("NO_SOURCE_FIGURES_IN_FIXTURE"); },
@@ -73,12 +75,12 @@ mock.module("@/lib/compute/product-v4-runtime-binding", () => ({ ...originalRunt
     // Guard accidental fixture drift in the regular live case using the same
     // complete graph validator. Prospective references intentionally fail here.
     const [importRow] = await database.select().from(schema.imporBundle).where(eq(schema.imporBundle.id, input.row.id));
-    if (!importRow.validationReport.revisionVerificationContext) await assertProspectiveReleaseDependencies({ productBundle: bundle, ideaDrafts: [], scope: { courseId: "course-physics" }, connection: database });
+    if (!importRow.validationReport.revisionVerificationContext) await assertProspectiveReleaseDependencies({ productBundle: bundle, ideaDrafts: [], scope: { courseId: "course-physics" }, connection: database as unknown as NonNullable<Parameters<typeof assertProspectiveReleaseDependencies>[0]["connection"]> });
     return rows;
   },
   async revisionDependencies(value) {
     const { resolveRevisionVerificationContext } = await import("@/lib/authoring/revision-verification-context");
-    return resolveRevisionVerificationContext(value, database);
+    return resolveRevisionVerificationContext(value, database as unknown as NonNullable<Parameters<typeof resolveRevisionVerificationContext>[1]>);
   },
   }, read, connection);
 } }));

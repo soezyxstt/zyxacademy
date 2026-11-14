@@ -146,6 +146,6 @@ test("scheduled publication remains explicitly unsupported and invalid reference
 
 test("direct shared writes reject a suspended canonical identity", async () => {
   await testDb.update(schema.pengguna).set({ status: "suspended" }).where(eq(schema.pengguna.id, principal.actorId));
-  await expect(testDb.transaction(tx => service.createBlogArticle(tx, { actorId: principal.actorId, article: { title: "Ditolak", content: "Isi" } }))).rejects.toThrow("BLOG_FORBIDDEN");
+  await expect(testDb.transaction(tx => service.createBlogArticle(tx as unknown as Parameters<typeof service.createBlogArticle>[0], { actorId: principal.actorId, article: { title: "Ditolak", content: "Isi" } }))).rejects.toThrow("BLOG_FORBIDDEN");
   expect(await testDb.select().from(schema.blogArticles)).toHaveLength(0);
 });

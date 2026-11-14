@@ -67,7 +67,7 @@ const baseProduct = productArtifact(baseIdea.bundle, 1, "product-live");
 const candidateProduct = productArtifact(candidateIdea, 2, "product-candidate");
 const entries = [{ importId: "idea-candidate", expectedRevision: candidateIdea.canonicalChecksum }, { importId: "product-candidate", expectedRevision: candidateProduct.bundle.checksum }];
 const currentProduct = async () => (await testDb.select().from(schema.imporBundle).where(eq(schema.imporBundle.id, "product-candidate")))[0];
-async function addImport(id: string, kind: "idea" | "product", artifact: typeof baseIdea | typeof baseProduct, baseId?: string) {
+async function addImport(id: string, kind: "idea" | "product", artifact: { bundle: typeof baseIdea.bundle | typeof baseProduct.bundle; bytes: Uint8Array }, baseId?: string) {
   const bundle = artifact.bundle;
   const revision = "canonicalChecksum" in bundle ? bundle.canonicalChecksum : bundle.checksum;
   const key = `${id}.zip`; objects.set(key, artifact.bytes);
@@ -118,7 +118,7 @@ test("prepare writes an immutable attestation, invalidates old applicability, an
   expect(second.contextId).toBe(first.contextId);
   expect(second.invalidated).toBe(false);
   const rows = await testDb.select().from(schema.imporBundle);
-  await service.assertRevisionVerificationReleaseContext({ entries: rows.filter(row => entries.some(entry => entry.importId === row.id)).map(row => ({ row, bundle: row.bundleType === "idea" ? candidateIdea : candidateProduct.bundle })), connection: testDb });
+  await service.assertRevisionVerificationReleaseContext({ entries: rows.filter(row => entries.some(entry => entry.importId === row.id)).map(row => ({ row, bundle: row.bundleType === "idea" ? candidateIdea : candidateProduct.bundle })), connection: testDb as unknown as Parameters<typeof service.assertRevisionVerificationReleaseContext>[0]["connection"] });
 });
 
 test("forged pointer, changed draft, removed candidate and changed live head are rejected", async () => {

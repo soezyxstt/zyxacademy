@@ -215,9 +215,9 @@ test("a mixed Idea and V5 release validates exact future references and replaces
   const live = await testDb.select().from(schema.solutionCollections).where(eq(schema.solutionCollections.status, "published"));
   expect(live).toHaveLength(1);
   expect(live[0].importId).toBe(productNext.importId);
-  expect((live[0].trace.ideaLinks as any[])[0].version).toBe(nextIdea.version);
+  expect(live[0].trace).toMatchObject({ ideaLinks: [{ version: nextIdea.version }] });
   expect((await testDb.select().from(schema.imporBundle).where(eq(schema.imporBundle.id, "idea-live")))[0].status).toBe("withdrawn");
-  expect((await testDb.select().from(schema.vectorSyncQueue)).some(row => row.action === "delete" && row.namespace === "canonical_ideas" && row.payload.version === oldIdea.version)).toBe(true);
+  expect(await testDb.select().from(schema.vectorSyncQueue)).toContainEqual(expect.objectContaining({ action: "delete", namespace: "canonical_ideas", payload: expect.objectContaining({ version: oldIdea.version }) }));
 });
 
 test("a dependency-only revision advances its Product and coalesces equivalent authored edge identities", async () => {
