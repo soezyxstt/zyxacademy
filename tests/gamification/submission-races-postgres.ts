@@ -63,6 +63,10 @@ function instrument(client: pg.Client, releases: Array<() => void>) {
  let gate: Gate | null = null;
  (client as any).query = async (...args: any[]) => {
   const statement = typeof args[0] === 'string' ? args[0] : args[0]?.text ?? '';
+  if ((globalThis as any).__raceFixture?.failIdeaLookup && /from "soal_ide"/i.test(statement) && /join "ide"/i.test(statement)) {
+   (globalThis as any).__raceFixture.failIdeaLookup = false;
+   throw new Error('FORCED_IDEA_LOOKUP_FAILURE');
+  }
   if ((globalThis as any).__raceFixture?.failDisclosure && /insert into "gamification_question_(exposures|bank_disclosures)"/i.test(statement)) throw new Error('FORCED_DISCLOSURE_FAILURE');
   const result = await query(...args);
   if (gate && gate.matches(statement)) { const held = gate; gate = null; held.entered.resolve(); await timeout(held.release.promise, 'GATE'); }
@@ -245,6 +249,23 @@ async function main() {
   const makeSnapshot = (id: string, provenance = true) => ({ id,prompt,question_type:'multiple_choice',options:['A','B'],stable_option_ids:['option-01','option-02'],correct_indices:[0], ...(provenance ? {gamificationProvenance:{marker:'canonical-objective-v1',canonicalQuestionId:id,courseId:course,sourceVersion:'1',answerProof:{questionType:'multiple_choice',correctIndices:[0]}}} : {}) });
   async function seedAttempt(attempt: string, template: string, snapshot: unknown[]) {
    await control.query("insert into student_quiz_attempts (id,student_id,template_id,status,questions_snapshot,started_at) values ($1,$2,$3,'in_progress',$4::jsonb,now()-interval '1 minute')",[attempt,user,template,JSON.stringify(snapshot)]);
+  }
+  {
+   const id = `${prefix}-lookup-retry`, template = `${id}-template`, attempt = `${id}-attempt`;
+   await seedQuestion(id,template); await seedAttempt(attempt,template,[makeSnapshot(id)]);
+   mastery.length = 0;
+   (globalThis as any).__raceFixture.failIdeaLookup = true;
+   const failed = await post(`/api/quiz/attempts/${attempt}`,{answers:{[id]:0}});
+   assert.equal(failed.status,500);
+   assert.equal((globalThis as any).__raceFixture.failIdeaLookup,false);
+   assert.equal((await control.query('select status from student_quiz_attempts where id=$1',[attempt])).rows[0].status,'in_progress');
+   assert.equal(Number((await control.query('select count(*) n from gamification_learning_facts where user_id=$1 and source_id=$2',[user,id])).rows[0].n),0);
+   assert.equal(mastery.length,0);
+   const retried = await post(`/api/quiz/attempts/${attempt}`,{answers:{[id]:0}});
+   assert.equal(retried.status,200); assert.equal((await retried.json() as any).score,100);
+   assert.equal((await control.query('select status from student_quiz_attempts where id=$1',[attempt])).rows[0].status,'completed');
+   assert.equal(Number((await control.query('select count(*) n from bukti_ide_jawaban b join jawaban_murid j on j.id=b.jawaban_murid_id where j.percobaan_asesmen_id=$1',[attempt])).rows[0].n),1);
+   assert.equal(mastery.length,1);
   }
   // The authoring batch really creates the previously absent canonical row.
   // Then the editor and submitter acquire the new canonical and old bank locks

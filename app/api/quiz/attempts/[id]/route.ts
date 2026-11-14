@@ -303,14 +303,10 @@ export async function POST(req: NextRequest, { params }: Context) {
   const canonicalEvidenceEnabled = isCanonicalIdeaEvidenceEnabled();
   let canonicalEvidencePlan: ReturnType<typeof mapLegacyQuizSnapshotToCanonicalIdeas> | null = null;
   if (canonicalEvidenceEnabled) {
-    try {
-      const canonicalQuestions = await loadCanonicalQuestionsForEvidence(db, questionIds);
-      canonicalEvidencePlan = mapLegacyQuizSnapshotToCanonicalIdeas({ questions: snapshot, canonicalQuestions });
-      if (canonicalEvidencePlan.status === "blocked") {
-        console.warn("Canonical Idea evidence skipped for legacy quiz attempt", { attemptId: id, issues: canonicalEvidencePlan.issues });
-      }
-    } catch (error) {
-      console.error("Canonical Idea evidence lookup failed; preserving legacy quiz submission", error);
+    const canonicalQuestions = await loadCanonicalQuestionsForEvidence(db, questionIds);
+    canonicalEvidencePlan = mapLegacyQuizSnapshotToCanonicalIdeas({ questions: snapshot, canonicalQuestions });
+    if (canonicalEvidencePlan.status === "blocked") {
+      console.warn("Canonical Idea evidence skipped for legacy quiz attempt", { attemptId: id, issues: canonicalEvidencePlan.issues });
     }
   }
 

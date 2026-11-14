@@ -379,6 +379,7 @@ The standalone Admin material editor is retired. Existing website material remai
 - Quiz attempts include stable option IDs and grade through those IDs while accepting legacy numeric submissions for compatibility.
 - Canonical-first assessment lifecycle: all new quizzes created via Admin or Tutor interfaces write to canonical `asesmen`, `blueprint_asesmen`, and `cakupan_asesmen` first, then project to `quiz_templates` for backwards compatibility. Legacy `quiz_templates` is marked as a compatibility projection.
 - Legacy quiz submissions bridge each eligible question independently when its snapshot and current published canonical question and Idea links match. The bridge preserves compatible existing assessment items and writes immutable answer snapshots, per-Idea evidence, and deterministic mastery recompute events. Missing, stale, ambiguous, unreviewed, or incompatible items produce no mastery evidence for that question and leave the legacy grade intact.
+- A database failure during canonical lookup stops submission before grading writes. The same attempt can be retried without silently losing Idea evidence.
 
 ### Canonical Vectorize Retrieval V2
 
