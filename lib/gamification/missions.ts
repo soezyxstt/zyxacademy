@@ -1,4 +1,3 @@
-import 'server-only';
 import { and, eq, exists, gt, inArray, isNull, lte, notExists, sql, ne, or } from 'drizzle-orm';
 import { db } from '@/db';
 import { artikel, bagianArtikel, gamificationArticleCompletions, gamificationBadgeActivities, gamificationChecklists, gamificationChecklistItems, gamificationCourseStarts, gamificationLpLedger, gamificationMissions, gamificationQualifiedDays, gamificationXpLedger, mataKuliah, solutionCollections, gamificationExplanationCompletionsV2, flashcard, setFlashcard, kemajuanFlashcardMurid, gamificationEligibleRecalls } from '@/db/schema';

@@ -31,6 +31,9 @@ import {
   type CourseAccessResult,
 } from "@/lib/student/course-access";
 import { canonicalObjectiveProvenance } from "@/lib/gamification/question-snapshot-provenance";
+import { writeQuestionRewards } from "@/lib/gamification/question-writer";
+import { lockQuestionExposures } from "@/lib/gamification/question-exposure";
+import { snapshotExposureIdentity } from "@/lib/gamification/question-exposure-policy";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { resolveAuthSecret } from "@/lib/auth-secret";
 
@@ -524,7 +527,6 @@ export async function POST(req: NextRequest) {
   const total = serverQuestions.length;
   const score = total > 0 ? Math.round((correct / total) * 100) : 0;
   const attemptId = randomUUID();
-  const submittedAt = new Date();
   const courseIdentity = await resolveCourseIdentity(template.courseId);
   const canonicalRows = courseIdentity?.canonicalId
     ? await db.select().from(soal).where(and(inArray(soal.id, serverQuestions.map((question) => question.id)), eq(soal.mataKuliahId, courseIdentity.canonicalId)))
@@ -541,7 +543,7 @@ export async function POST(req: NextRequest) {
       sourceEventName: question.sourceEventName,
       sourceReferenceId: question.sourceReferenceId,
       prompt: question.prompt,
-      options: question.options,
+      options: publicOptions(question.options),
       difficulty: question.difficulty,
       question_type: question.questionType,
       tags: question.tags,
@@ -553,6 +555,11 @@ export async function POST(req: NextRequest) {
   });
 
   await db.transaction(async (tx) => {
+    await lockQuestionExposures(tx, session.user.id, serverSnapshot.flatMap(question => {
+      const identity = snapshotExposureIdentity(question);
+      return identity ? [identity.canonicalQuestionId] : [];
+    }));
+    const submittedAt = new Date();
     await tx.insert(studentQuizAttempts).values({
       id: attemptId,
       studentId: session.user.id,
@@ -565,6 +572,7 @@ export async function POST(req: NextRequest) {
       submittedAt,
       startedAt: submittedAt,
     });
+    await writeQuestionRewards(tx, { userId: session.user.id, attemptId, snapshot: serverSnapshot, answers, occurredAt: submittedAt });
     await dualWriteQuizAttempt(tx, {
       id: attemptId,
       templateId: template.id,

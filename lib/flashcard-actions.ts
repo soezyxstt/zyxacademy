@@ -137,7 +137,6 @@ export async function getReviewQueue(studentId: string, courseId: string) {
         .from(flashcardIde)
         .leftJoin(
           pemahamanIde,
-  gamificationLearningFacts,
           and(eq(pemahamanIde.ideId, flashcardIde.ideId), eq(pemahamanIde.penggunaId, studentId)),
         )
         .where(inArray(flashcardIde.flashcardId, canonicalCards.map((card) => card.id)));

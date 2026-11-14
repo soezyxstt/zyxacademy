@@ -541,7 +541,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       });
     }
 
-    if (isDiscussionOpen && !isStaff && (snapshot.length || unseenSnapshot.length)) {
+    if (isDiscussionOpen && (snapshot.length || unseenSnapshot.length)) {
       const questionIds = snapshot.map(question => question.id).filter((value): value is string => typeof value === "string" && value.length > 0);
       await db.transaction(tx => targetAttempt ? recordAttemptDisclosures(tx, {
         userId: studentId, attemptId: targetAttempt.id, questionIds,

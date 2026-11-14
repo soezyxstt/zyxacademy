@@ -9,7 +9,6 @@ import { db } from '@/db';
 import { lockQuestionExposures, recordAttemptDisclosures } from '@/lib/gamification/question-exposure';
 import { studentQuizAttempts, aiQuestionBank, quizTemplates, knowledgeObjects, attemptFeedback, soal, soalIde, ide, itemAsesmen, jawabanMurid, buktiIdeJawaban } from '@/db/schema';
 import { auth } from '@/lib/auth';
-import { hasAnyPeran } from '@/lib/auth/authorization';
 import { headers } from 'next/headers';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { recordLearningEvents } from '@/lib/learning-events';
@@ -140,8 +139,8 @@ export async function GET(_req: NextRequest, { params }: Context) {
   };
 
   const payload = serializeStudentQuizAttempt(rawPayload, { releaseState: released ? 'released' : 'hidden' });
-  if (released && session.user.role !== 'admin' && session.user.role !== 'teacher' && !await hasAnyPeran(session.user.id, ['admin', 'tutor'], { allowAdmin: true })) {
-    const questionIds = (payload.questionsSnapshot as Array<Record<string, unknown>>).filter(q => q.explanation || (Array.isArray(q.correct_indices) && q.correct_indices.length) || (Array.isArray(q.correctIndices) && q.correctIndices.length) || (Array.isArray(q.acceptable_answers) && q.acceptable_answers.length) || (Array.isArray(q.acceptableAnswers) && q.acceptableAnswers.length)).map(q => String(q.id));
+  if (released) {
+    const questionIds = Array.isArray(payload.questionsSnapshot) ? payload.questionsSnapshot.flatMap(q => q && typeof q === 'object' && typeof q.id === 'string' ? [q.id] : []) : [];
     try {
       await db.transaction(tx => recordAttemptDisclosures(tx, { userId: session.user.id, attemptId: id, questionIds, occurredAt: new Date(), requestId: crypto.randomUUID() }));
     } catch {

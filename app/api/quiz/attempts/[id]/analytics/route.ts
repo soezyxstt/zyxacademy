@@ -73,7 +73,7 @@ export async function GET(_req: NextRequest, { params }: Context) {
     .limit(1);
 
   if (analytics) {
-    if (isOwner && !isAdminOrTeacher && canViewAttemptDiscussion(template, attempt.status) && (hasDisclosurePayload(analytics.computedMetrics) || hasDisclosurePayload(analytics.aiDiagnosis))) {
+    if (isOwner && (hasDisclosurePayload(analytics.computedMetrics) || hasDisclosurePayload(analytics.aiDiagnosis))) {
       const questionIds = Array.isArray(attempt.questionsSnapshot) ? attempt.questionsSnapshot.flatMap(q => q && typeof q === "object" && typeof q.id === "string" ? [q.id] : []) : [];
       try {
         await db.transaction(tx => recordAttemptDisclosures(tx, { userId: session.user.id, attemptId, questionIds, occurredAt: new Date(), requestId: crypto.randomUUID() }));
