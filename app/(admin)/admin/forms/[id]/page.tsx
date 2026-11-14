@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { formatDatetimeLocal } from "@/lib/date-utils";
 import { slugifySegment } from "@/lib/storage/keys";
+import { formAttachmentUrl } from "@/lib/forms/attachment";
 import {
   Select,
   SelectContent,
@@ -207,10 +208,19 @@ function settingsForSave<T extends { openAt?: string; closeAt?: string }>(settin
   };
 }
 
-function RenderFormattedAnswer({ val }: { val: any }) {
+function RenderFormattedAnswer({ val, isFile = false }: { val: any; isFile?: boolean }) {
   const t = useTranslations("adminOps");
   if (val === null || val === undefined || val === "") {
     return <span className="text-muted-foreground italic">-</span>;
+  }
+
+  if (isFile) {
+    const href = formAttachmentUrl(val);
+    return href ? (
+      <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-body-sm font-medium text-primary hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+        <FileText className="size-4" /> {t("formDetailsUI.openAttachment")}
+      </a>
+    ) : <span className="text-body-sm text-muted-foreground">{t("formDetailsUI.attachmentUnavailable")}</span>;
   }
 
   if (typeof val === "string" && (val.startsWith("http://") || val.startsWith("https://"))) {
@@ -772,20 +782,8 @@ export default function DetailedFormAnalyticsPage({
                       </div>
                     ) : q.type === "FILE_UPLOAD" ? (
                       <div className="space-y-2">
-                        {allAnswers.map((fileUrl: any, fIdx: number) => (
-                          <div key={fIdx} className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3 text-body-xs">
-                            <span className="font-medium text-foreground truncate max-w-md">
-                              📄 {String(fileUrl)}
-                            </span>
-                            <a
-                              href={String(fileUrl)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-primary font-semibold hover:underline"
-                            >
-                              {t("formDetailsUI.openFile")} <ExternalLink className="size-3" />
-                            </a>
-                          </div>
+                        {allAnswers.map((fileUrl: unknown, fIdx: number) => (
+                          <div key={fIdx}><RenderFormattedAnswer val={fileUrl} isFile /></div>
                         ))}
                       </div>
                     ) : (
@@ -884,7 +882,7 @@ export default function DetailedFormAnalyticsPage({
                           <span className="font-mono">{new Date(item.submittedAt).toLocaleDateString(locale === "id" ? "id-ID" : "en-US")}</span>
                         </div>
                         <div className="pt-1">
-                          <RenderFormattedAnswer val={item.answer} />
+                          <RenderFormattedAnswer val={item.answer} isFile={targetQ.type === "FILE_UPLOAD"} />
                         </div>
                       </div>
                     ))}
@@ -957,7 +955,7 @@ export default function DetailedFormAnalyticsPage({
                               )}
                             </CardHeader>
                             <CardContent className="px-0 pt-2">
-                              <RenderFormattedAnswer val={userAns} />
+                              <RenderFormattedAnswer val={userAns} isFile={q.type === "FILE_UPLOAD"} />
                             </CardContent>
                           </section>
                         );

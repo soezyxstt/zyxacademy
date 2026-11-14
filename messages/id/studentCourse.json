@@ -195,6 +195,10 @@
       "prerequisite": "Prasyarat"
     },
     "recentActivity": {
+      "learning": "Aktivitas belajar",
+      "materialCompleted": "Menyelesaikan dokumen",
+      "quizAnswered": "Menjawab kuis",
+      "flashcardReviewed": "Mengulas kartu belajar",
       "title": "Aktivitas terbaru",
       "empty": "Belum ada aktivitas belajar.",
       "justNow": "Baru saja",

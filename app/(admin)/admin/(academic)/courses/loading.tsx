@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function CoursesLoading() {
   return (
-    <div role="status" aria-label="Memuat" className="space-y-6">
+    <div role="status" aria-label="Memuat" className="@container/courses min-w-0 space-y-6">
       <div className="flex items-center gap-3 border-b border-border pb-4">
         <Skeleton className="size-9 shrink-0" />
         <Skeleton className="h-7 w-40" />
@@ -12,7 +12,7 @@ export default function CoursesLoading() {
         <Skeleton className="h-9 w-32" />
         <Skeleton className="h-9 w-20" />
       </div>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 @min-[32rem]/courses:grid-cols-2 @min-[49rem]/courses:grid-cols-3">
         {[0, 1, 2, 3, 4, 5].map((item) => (
           <div key={item} className="space-y-3 rounded-xl border border-border bg-card p-4">
             <Skeleton className="h-5 w-3/4" />

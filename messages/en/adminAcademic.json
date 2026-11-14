@@ -77,7 +77,8 @@
         "create": "Could not add the chapter.",
         "update": "Could not save chapter changes.",
         "delete": "Could not delete the chapter.",
-        "reorder": "Could not update chapter order."
+        "reorder": "Could not update chapter order.",
+        "descriptionUnavailable": "Descriptions are not supported for this course yet. Clear the description to save the chapter."
       },
       "newTitle": "New chapter title...",
       "descriptionOptional": "Chapter description (optional)...",

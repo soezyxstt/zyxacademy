@@ -5,6 +5,8 @@ import { storage } from "@/lib/storage";
 import {
   assertSafeKey,
   buildMediaKey,
+  buildMediaFolderPath,
+  existingMediaFolderPath,
   isMediaKey,
   leafFilename,
   slugifySegment,
@@ -14,7 +16,6 @@ import {
   baseFolderName,
   folderPathOfKey,
   MEDIA_MAX_UPLOAD_BYTES,
-  normalizeFolderPath,
   parentFolderPath,
 } from "@/lib/media";
 
@@ -55,16 +56,7 @@ async function readPayload(req: Request): Promise<OpsPayload> {
 }
 
 function normalizeFolder(path?: string | null): string {
-  const raw = (path || "").trim();
-  if (raw) assertSafeKey(raw);
-  const cleaned = normalizeFolderPath(raw);
-  const slugged = cleaned
-    .split("/")
-    .map((seg) => slugifySegment(seg, ""))
-    .filter(Boolean)
-    .join("/");
-  assertSafeKey(slugged ? `${MEDIA_DOMAIN}/${slugged}` : MEDIA_DOMAIN);
-  return slugged;
+  return existingMediaFolderPath(path);
 }
 
 function assertFileKey(key?: string | null): string {
@@ -142,7 +134,7 @@ export async function POST(req: Request) {
 
     switch (action) {
       case "mkdir": {
-        const folderPath = normalizeFolder(payload.folderPath);
+        const folderPath = buildMediaFolderPath(payload.folderPath);
         if (!folderPath) {
           return NextResponse.json({ error: "Nama folder wajib diisi" }, { status: 400 });
         }
@@ -176,7 +168,7 @@ export async function POST(req: Request) {
           return NextResponse.json({ error: "Nama file baru wajib diisi" }, { status: 400 });
         }
         const folderPath = folderPathOfKey(key);
-        const newKey = buildMediaKey({ folderPath, filename: payload.newName });
+        const newKey = buildMediaKey({ folderPath, filename: payload.newName, preserveFolderPath: true });
         if (newKey === key) {
           return NextResponse.json({ error: "Nama baru sama dengan nama file saat ini" }, { status: 400 });
         }
@@ -207,7 +199,7 @@ export async function POST(req: Request) {
         }
 
         const key = assertFileKey(payload.key);
-        const newKey = buildMediaKey({ folderPath: target, filename: leafFilename(key) });
+        const newKey = buildMediaKey({ folderPath: target, filename: leafFilename(key), preserveFolderPath: true });
         if (newKey === key) {
           return NextResponse.json({ error: "Folder tujuan sama dengan lokasi saat ini" }, { status: 400 });
         }
@@ -238,7 +230,7 @@ export async function POST(req: Request) {
         }
 
         const key = assertFileKey(payload.key);
-        const newKey = buildMediaKey({ folderPath: target, filename: leafFilename(key) });
+        const newKey = buildMediaKey({ folderPath: target, filename: leafFilename(key), preserveFolderPath: true });
         if (newKey === key) {
           return NextResponse.json({ error: "Folder tujuan sama dengan lokasi saat ini" }, { status: 400 });
         }

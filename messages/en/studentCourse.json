@@ -141,11 +141,11 @@
       "studyTime": "Study time",
       "minutes": "{count} min",
       "completedDocuments": "Documents completed",
-      "materials": "{count} materials",
+      "materials": "{count, plural, one {# material} other {# materials}}",
       "reviewedCards": "Cards reviewed",
-      "reviews": "{count} reviews",
+      "reviews": "{count, plural, one {# review} other {# reviews}}",
       "streak": "Study streak",
-      "days": "{count} days"
+      "days": "{count, plural, one {# day} other {# days}}"
     },
     "continueReading": {
       "title": "Continue reading",
@@ -195,6 +195,10 @@
       "prerequisite": "Prerequisite"
     },
     "recentActivity": {
+      "learning": "Learning activity",
+      "materialCompleted": "Document completed",
+      "quizAnswered": "Quiz answered",
+      "flashcardReviewed": "Flashcards reviewed",
       "title": "Recent activity",
       "empty": "No learning activity yet.",
       "justNow": "Just now",

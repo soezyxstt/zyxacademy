@@ -24,12 +24,12 @@ export async function LandingDemoTutor() {
    id: "a1", role: "ai",
    content: <MathText>{t("home.tutorAnswer1")}</MathText>,
    sources: <>
-    <SourceTag icon={<BookOpen className="size-3 text-primary" aria-hidden />}>Bab 5 · Volume Benda Putar</SourceTag>
-    <SourceTag icon={<FileQuestion className="size-3 text-primary" aria-hidden />}>Kuis Mingguan #4 · Soal 8</SourceTag>
+    <SourceTag icon={<BookOpen className="size-3 text-primary" aria-hidden />}>{t("home.tutorSourceRevolution")}</SourceTag>
+    <SourceTag icon={<FileQuestion className="size-3 text-primary" aria-hidden />}>{t("home.tutorSourceQuiz")}</SourceTag>
    </>,
   },
   { id: "q2", role: "student", content: <>{t("home.tutorQuestion2")}</> },
-  { id: "a2", role: "ai", content: <>{t("home.tutorAnswer2")}</>, sources: <SourceTag icon={<BookOpen className="size-3 text-primary" aria-hidden />}>Bab 5.2 · Memilih Metode</SourceTag> },
+  { id: "a2", role: "ai", content: <>{t("home.tutorAnswer2")}</>, sources: <SourceTag icon={<BookOpen className="size-3 text-primary" aria-hidden />}>{t("home.tutorSourceMethod")}</SourceTag> },
  ];
  return (
  <SectionContainer

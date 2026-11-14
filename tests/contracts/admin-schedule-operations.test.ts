@@ -132,12 +132,13 @@ describe("admin scheduling operations", () => {
     expect(dashboard).toContain('adminMode={calendarMode as "all" | "tutorial" | "academic"}');
   });
 
-  it("routes tutor visits to the canonical tutor schedule page", () => {
+  it("keeps the Student calendar perspective independent of account roles", () => {
     const page = readFileSync(
       `${repoRoot}/app/(student)/dashboard/schedule/page.tsx`,
       "utf8",
     );
-    expect(page).toContain('redirect("/tutor/schedule")');
+    expect(page).not.toContain("/admin/schedules");
+    expect(page).toContain("selectedCourse.allIds");
   });
 
   it("requires structural validation and a reason for admin availability overrides", () => {

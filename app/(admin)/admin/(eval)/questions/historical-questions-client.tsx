@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { QuestionFilterField, QuestionFilterPopover } from "./question-filter-popover";
+import { QuestionBankToolbar } from "./question-bank-tabs";
 import { matchingHistoricalQuestionItems } from "./selection-actions";
 import {
   createHistoricalQueryCoordinator,
@@ -326,7 +327,7 @@ export function HistoricalQuestionsClient({
 
   return (
     <div className="w-full space-y-6">
-      <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
+      <QuestionBankToolbar>
         <SearchBar
           size="sm"
           placeholder={t("search")}
@@ -371,7 +372,7 @@ export function HistoricalQuestionsClient({
             </Select>
           </QuestionFilterField>
         </QuestionFilterPopover>
-      </div>
+      </QuestionBankToolbar>
 
       {selectedEntries.size > 0 ? (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/80 bg-background/90 px-4 py-3 shadow-sm">

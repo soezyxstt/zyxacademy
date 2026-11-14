@@ -74,7 +74,7 @@ test("renders valid, invalid, and updated custom price states", async ({ page },
   await expect(page.locator("[data-price-before-per-person]")).toContainText("Rp 2.066.667");
   await expect(page.locator("[data-price-after]")).toContainText("Rp 3.720.000");
   await expect(page.locator("[data-price-after-per-person]")).toContainText("Rp 1.240.000");
-  await expect(page.getByText("10 pertemuan", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Jumlah pertemuan")).toHaveValue("10");
   await assertNoOverflow(page);
   await captureEstimator(page, info, "custom-price-estimator-10-meetings");
 

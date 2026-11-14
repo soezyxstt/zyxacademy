@@ -23,6 +23,7 @@ import { AdminTable } from "@/components/admin/table";
 import { getAuthoringChapters, getAuthoringIdeas, matchingActiveQuestionIds } from "./selection-actions";
 import { createQuestionQueryCoordinator, normalizeQuestionQuery, questionParamsFromUrl, questionQueryUrl, toggleQuestionIds, type QuestionQuery } from "./question-query-state";
 import { QuestionFilterField, QuestionFilterPopover } from "./question-filter-popover";
+import { QuestionBankToolbar } from "./question-bank-tabs";
 
 type ReviewStatus = "generated" | "reviewed" | "published" | "flagged" | "retired";
 type Difficulty = "easy" | "medium" | "hard";
@@ -609,7 +610,7 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
   return (
     <div className="w-full space-y-6 font-sans">
       {/* Search, filters, and actions */}
-      <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
+      <QuestionBankToolbar>
         <SearchBar
           size="sm"
           placeholder={t("search")}
@@ -720,7 +721,7 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
             <TooltipContent>{t("addQuestion")}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
-      </div>
+      </QuestionBankToolbar>
 
       <div ref={tableRef} className="w-full space-y-6">
         {/* Bulk actions - Floating Overlay */}

@@ -77,7 +77,8 @@
         "create": "Bab gagal ditambahkan.",
         "update": "Perubahan bab gagal disimpan.",
         "delete": "Bab gagal dihapus.",
-        "reorder": "Urutan bab gagal diperbarui."
+        "reorder": "Urutan bab gagal diperbarui.",
+        "descriptionUnavailable": "Deskripsi belum didukung untuk mata kuliah ini. Kosongkan deskripsi untuk menyimpan bab."
       },
       "newTitle": "Judul bab baru...",
       "descriptionOptional": "Deskripsi bab (opsional)...",

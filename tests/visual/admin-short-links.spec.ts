@@ -36,7 +36,7 @@ test("creating a link after a load failure refreshes the list", async ({ page },
   page.on("response", response => { if (response.status() >= 400 && !response.url().endsWith("/api/admin/short-links")) errors.push(`${response.status()} ${response.url()}`); });
   let reads = 0;
   let created = false;
-  const link = { id: "visual-link", slug: "contoh", url: "https://example.com", title: "Tautan contoh", clicks: 0, createdAt: "2026-01-01T00:00:00Z" };
+  const link = { id: "visual-link", slug: "contoh", url: `https://example.com/${"long-path".repeat(30)}`, title: "Tautan contoh", clicks: 0, createdAt: "2026-01-01T00:00:00Z" };
   await page.route("**/api/admin/short-links", route => {
     if (route.request().method() === "POST") {
       created = true;
@@ -50,10 +50,18 @@ test("creating a link after a load failure refreshes the list", async ({ page },
   await page.getByLabel("URL tujuan").fill("https://example.com");
   await page.getByRole("button", { name: "Buat tautan", exact: true }).click();
   await expect(page.getByText("Tautan contoh")).toBeVisible();
+  await expect(page.getByText(link.url)).toHaveAttribute("title", link.url);
   expect(reads).toBeGreaterThanOrEqual(2);
   const path = info.outputPath("screenshots/created-after-error.png");
   await page.screenshot({ path, fullPage: true, animations: "disabled" });
   await info.attach("created-after-error", { path, contentType: "image/png" });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await page.getByRole("button", { name: "Kode QR" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  const qrPath = info.outputPath("screenshots/qr-open.png");
+  await page.screenshot({ path: qrPath, fullPage: true, animations: "disabled" });
+  await info.attach("qr-open", { path: qrPath, contentType: "image/png" });
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Kode QR" })).toBeFocused();
   expect(errors).toEqual([]);
 });

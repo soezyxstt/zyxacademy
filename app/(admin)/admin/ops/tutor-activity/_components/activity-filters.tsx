@@ -10,8 +10,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useTranslations } from "@/lib/i18n/client";
-import { RotateCcw, Search } from "lucide-react";
+import { ListFilter, RotateCcw, Search } from "lucide-react";
+import { activityLabel } from "./activity-label";
 import type {
   TutorActivityFilterInput,
   TutorActivityFilterOptions,
@@ -86,6 +88,11 @@ export function ActivityFilters({
       filters.endDate ||
       (filters.limit && filters.limit !== 25),
   );
+  const activeCount = [
+    filters.actorId, filters.courseId, filters.entityType, filters.action,
+    filters.outcome && filters.outcome !== "all", filters.startDate, filters.endDate,
+    filters.limit && filters.limit !== 25,
+  ].filter(Boolean).length;
 
   const handleTutorChange = (val: string) => {
     onFilterChange({
@@ -167,6 +174,15 @@ export function ActivityFilters({
         />
       </div>
 
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" size="sm" className="h-9 shrink-0 gap-2" aria-label={t("tutorActivityUI.filterCount", { count: activeCount })}>
+            <ListFilter className="size-4" aria-hidden />
+            {t("tutorActivityUI.filter")}
+            {activeCount > 0 && <span className="rounded-md bg-brand-primary px-1.5 text-body-xs text-primary-foreground">{activeCount}</span>}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-[min(22rem,calc(100vw-2rem))] max-h-[70vh] space-y-2 overflow-y-auto p-3">
       {/* Tutor Select */}
       <div className="min-w-[140px] shrink-0">
         <Select
@@ -220,7 +236,7 @@ export function ActivityFilters({
             <SelectItem value="all">{t("tutorActivityUI.allEntities")}</SelectItem>
             {options.entityTypes.map((et) => (
               <SelectItem key={et} value={et}>
-                {et}
+                {activityLabel(et, t)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -240,7 +256,7 @@ export function ActivityFilters({
             <SelectItem value="all">{t("tutorActivityUI.allActions")}</SelectItem>
             {options.actions.map((a) => (
               <SelectItem key={a} value={a}>
-                {a}
+                {activityLabel(a, t)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -301,6 +317,8 @@ export function ActivityFilters({
           </SelectContent>
         </Select>
       </div>
+        </PopoverContent>
+      </Popover>
 
       {/* Reset Filter Button */}
       {hasActiveFilters && (
@@ -308,7 +326,7 @@ export function ActivityFilters({
           type="button"
           variant="outline"
           size="sm"
-          onClick={onReset}
+          onClick={() => { setLocalCorrelationId(""); onReset(); }}
           disabled={isPending}
           className="h-9 gap-1 text-body-sm text-muted-foreground hover:text-foreground shrink-0"
         >

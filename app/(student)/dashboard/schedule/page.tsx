@@ -1,24 +1,22 @@
 import { Suspense } from "react";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { CalendarDays } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { hasAnyPeran } from "@/lib/auth/request-cache";
 import { ApplicationPage } from "@/components/application-page";
 import { PageHeader } from "@/components/page-header";
 import { StudentScheduleClient, ScheduleCalendarSkeleton } from "./schedule-client";
 import { TranslatedText } from "@/components/i18n/translated-text";
+import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 
-export default async function StudentSchedulePage() {
+export default async function StudentSchedulePage({ searchParams }: { searchParams: Promise<{ course?: string | string[] }> }) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.id) redirect("/");
 
-  const legacyRole = (session.user as { role?: string | null }).role;
-  const isAdmin = legacyRole === "admin" || await hasAnyPeran(session.user.id, ["admin"], { allowAdmin: false });
-  if (isAdmin) redirect("/admin/schedules");
-
-  const isTutor = legacyRole === "teacher" || await hasAnyPeran(session.user.id, ["tutor"], { allowAdmin: false });
-  if (isTutor) redirect("/tutor/schedule");
+  const course = (await searchParams).course;
+  const courseId = typeof course === "string" ? course.trim() : "";
+  const selectedCourse = courseId ? await resolveCourseIdentity(courseId) : null;
+  if (courseId && (!selectedCourse || selectedCourse.status !== "active")) notFound();
 
   return (
     <Suspense
@@ -29,7 +27,7 @@ export default async function StudentSchedulePage() {
         </ApplicationPage>
       }
     >
-      <StudentScheduleClient />
+      <StudentScheduleClient key={selectedCourse?.primaryId ?? "all"} selectedCourse={selectedCourse ? { id: selectedCourse.primaryId, title: selectedCourse.title, compatibleCourseIds: selectedCourse.allIds } : undefined} />
     </Suspense>
   );
 }

@@ -152,9 +152,6 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2 max-w-2xl">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="rounded-md border-brand-primary/40 bg-brand-primary/10 text-brand-primary text-body-xs font-semibold uppercase tracking-wider">
-                  {t("quizAnalytics.brandLabel")}
-                </Badge>
                 {metrics && (
                   <Badge variant="outline" className="rounded-md border-border bg-card text-muted-foreground text-body-xs">
                     {metrics.quizTitle}
@@ -214,15 +211,6 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
           LAYER 2: DIAGNOSIS TERPERINCI (DETAILED DIAGNOSTICS)
           ───────────────────────────────────────────────────────────────────────── */}
       <div className="space-y-6">
-        <div className="border-b border-border pb-3">
-          <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-            <Brain className="size-5 text-brand-primary" /> {t("quizAnalytics.detailedTitle")}
-          </h3>
-          <p className="text-body-sm text-muted-foreground">
-            {t("quizAnalytics.detailedDescription")}
-          </p>
-        </div>
-
         {/* SECTION A: PENGUASAAN KONSEP (CONCEPT MASTERY TABLE) */}
         {metrics && metrics.conceptMastery.length > 0 && (
           <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
@@ -294,13 +282,13 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
         )}
 
         {/* SECTION B: KEKUATAN SISWA & AREA FOKUS (STRENGTHS & FOCUS AREAS) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {(Boolean(diagnosis?.strengths?.length) || Boolean(diagnosis?.focus_areas?.length)) && <div className={`grid grid-cols-1 gap-6 ${diagnosis?.strengths?.length && diagnosis?.focus_areas?.length ? "md:grid-cols-2" : ""}`}>
           {/* Strengths Card */}
-          <div className="space-y-3 border-t border-border pt-4">
+          {Boolean(diagnosis?.strengths?.length) && <div className="space-y-3 border-t border-border pt-4">
             <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
               <ShieldCheck className="size-5 text-status-success" /> {t("quizAnalytics.strengths")}
             </h4>
-            {diagnosis?.strengths && diagnosis.strengths.length > 0 ? (
+            {diagnosis?.strengths && (
               <div className="space-y-3">
                 {diagnosis.strengths.map((item, i) => (
                   <div key={i} className="border-b border-border/60 py-3 space-y-1.5 last:border-0">
@@ -314,19 +302,15 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
                   </div>
                 ))}
               </div>
-            ) : (
-              <p className="text-body-sm text-muted-foreground">
-                {t("quizAnalytics.strengthsEmpty")}
-              </p>
             )}
-          </div>
+          </div>}
 
           {/* Focus Areas Card */}
-          <div className="space-y-3 border-t border-border pt-4">
+          {Boolean(diagnosis?.focus_areas?.length) && <div className="space-y-3 border-t border-border pt-4">
             <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
               <Target className="size-5 text-status-warning" /> {t("quizAnalytics.focusAreas")}
             </h4>
-            {diagnosis?.focus_areas && diagnosis.focus_areas.length > 0 ? (
+            {diagnosis?.focus_areas && (
               <div className="space-y-3">
                 {diagnosis.focus_areas.map((item, i) => (
                   <div key={i} className="border-b border-border/60 py-3 space-y-1.5 last:border-0">
@@ -338,13 +322,9 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
                   </div>
                 ))}
               </div>
-            ) : (
-              <p className="text-body-sm text-muted-foreground">
-                {t("quizAnalytics.focusAreasEmpty")}
-              </p>
             )}
-          </div>
-        </div>
+          </div>}
+        </div>}
 
         {/* SECTION C: POLA KESALAHAN (ERROR PATTERNS) */}
         {diagnosis?.error_patterns && diagnosis.error_patterns.length > 0 && (
@@ -432,18 +412,15 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
       {/* ─────────────────────────────────────────────────────────────────────────
           LAYER 3: RENCANA BELAJAR PERSONAL (3-STEP ACTION PLAN)
           ───────────────────────────────────────────────────────────────────────── */}
-      <div className="space-y-4 pt-4 border-t border-border">
+      <div className="@container/study-plan space-y-4 pt-4 border-t border-border">
         <div>
           <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <BookOpen className="size-5 text-brand-primary" /> {t("quizAnalytics.studyPlan")}
           </h3>
-          <p className="text-body-sm text-muted-foreground">
-            {t("quizAnalytics.studyPlanDescription")}
-          </p>
         </div>
 
         {diagnosis?.study_plan && diagnosis.study_plan.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 gap-5 @min-[36rem]/study-plan:grid-cols-2 @min-[55rem]/study-plan:grid-cols-3">
             {diagnosis.study_plan.map((step, idx) => (
               <div
                 key={idx}
@@ -454,7 +431,6 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
                     <Badge variant="outline" className="rounded-md border-brand-primary/40 bg-brand-primary/10 text-brand-primary font-bold text-body-xs">
                       {t("quizAnalytics.priority", { number: step.priority || idx + 1 })}
                     </Badge>
-                    <span className="text-body-xs text-muted-foreground font-semibold">{t("quizAnalytics.step", { number: idx + 1 })}</span>
                   </div>
 
                   <h4 className="font-heading text-body-base font-bold text-foreground group-hover:text-brand-primary transition-colors">
@@ -462,14 +438,10 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
                   </h4>
 
                   <p className="text-body-sm text-muted-foreground leading-snug">
-                    <span className="font-semibold text-foreground block mb-0.5">{t("quizAnalytics.reason")}</span>
                     <MathText as="span">{step.reason}</MathText>
                   </p>
 
-                  <div className="rounded-md bg-muted/60 p-3 text-body-xs text-foreground space-y-1 border border-border/40">
-                    <span className="font-bold text-brand-primary block">{t("quizAnalytics.concreteActivity")}</span>
-                    <p className="leading-snug"><MathText as="span">{step.action}</MathText></p>
-                  </div>
+                  <p className="text-body-sm font-medium leading-snug text-foreground"><MathText as="span">{step.action}</MathText></p>
 
                   <div className="text-body-xs text-foreground font-medium flex items-start gap-1.5">
                     <CheckCircle2 className="size-4 shrink-0 mt-0.5 text-status-success" />

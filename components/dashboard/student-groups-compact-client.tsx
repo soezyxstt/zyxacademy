@@ -148,15 +148,17 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
     setRenameOpen(true);
 
     startStatusTransition(async () => {
-      const result = await getGroupRenameStatus(activeGroup.id);
-      if (requestId !== statusRequest.current) return;
-      if (!result.success) {
+      try {
+        const result = await getGroupRenameStatus(activeGroup.id);
+        if (requestId !== statusRequest.current) return;
+        if (!result.success) throw new Error();
+        setDraftName(result.currentName);
+        setRenameStatus({ canRename: result.canRename, nextRenameAt: result.nextRenameAt });
+      } catch {
+        if (requestId !== statusRequest.current) return;
         toast.error(t("groups.renameFailure"));
         closeRename();
-        return;
       }
-      setDraftName(result.currentName);
-      setRenameStatus({ canRename: result.canRename, nextRenameAt: result.nextRenameAt });
     });
   };
 
@@ -165,17 +167,21 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
     const groupId = activeGroup.id;
 
     startSaveTransition(async () => {
-      const result = await renameStudentGroup(groupId, draftName);
-      if (!result.success) {
-        toast.error(t("groups.renameFailure"));
-        if ("nextRenameAt" in result && result.nextRenameAt) {
-          setRenameStatus({ canRename: false, nextRenameAt: result.nextRenameAt });
+      try {
+        const result = await renameStudentGroup(groupId, draftName);
+        if (!result.success) {
+          toast.error(t("groups.renameFailure"));
+          if ("nextRenameAt" in result && result.nextRenameAt) {
+            setRenameStatus({ canRename: false, nextRenameAt: result.nextRenameAt });
+          }
+          return;
         }
-        return;
+        if (result.changed) toast.success(t("groups.renameSuccess"));
+        closeRename();
+        router.refresh();
+      } catch {
+        toast.error(t("groups.renameFailed"));
       }
-      if (result.changed) toast.success(t("groups.renameSuccess"));
-      closeRename();
-      router.refresh();
     });
   };
 

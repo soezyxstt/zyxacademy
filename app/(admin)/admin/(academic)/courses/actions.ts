@@ -39,6 +39,7 @@ import {
 } from "@/lib/academic/course-canonical-sync";
 import { PREMIUM_PRICING, parseCoursePricingInput, type CoursePricing } from "@/lib/student/course-pricing";
 import { getDemoCourseEligibility } from "@/app/(marketing)/demo/demo-data";
+import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 
 export async function getCourses() {
   await assertAdmin();
@@ -366,7 +367,9 @@ export async function getCourseDetailData(courseId: string) {
   await assertAdmin();
 
   const cleanCourseId = courseId.trim().toLowerCase();
-  const [canonicalCourse, legacyCourse] = await Promise.all([
+  const identity = await resolveCourseIdentity(cleanCourseId);
+  if (!identity) return null;
+  const [canonicalCourse, directLegacyCourse] = await Promise.all([
     db
       .select()
       .from(mataKuliah)
@@ -380,6 +383,10 @@ export async function getCourseDetailData(courseId: string) {
       .limit(1)
       .then((rows) => rows[0] ?? null),
   ]);
+
+  const legacyCourse = canonicalCourse?.legacyCourseId && canonicalCourse.legacyCourseId !== cleanCourseId
+    ? await db.select().from(courses).where(eq(courses.id, canonicalCourse.legacyCourseId)).limit(1).then((rows) => rows[0] ?? null)
+    : directLegacyCourse;
 
   if (!canonicalCourse && !legacyCourse) {
     return null;
@@ -397,16 +404,16 @@ export async function getCourseDetailData(courseId: string) {
   };
 
   const canonicalCourseId = canonicalCourse?.id ?? cleanCourseId;
-  const legacyCourseId = legacyCourse?.id ?? cleanCourseId;
+  const legacyCourseId = canonicalCourse?.legacyCourseId ?? legacyCourse?.id ?? cleanCourseId;
   const demoEligibility = canonicalCourse
     ? await getDemoCourseEligibility(canonicalCourse.id)
     : null;
 
-  const [babList, legacyChapters, materialsList, quizTemplatesList, rawQuestions] = await Promise.all([
+  const [allBab, legacyChapters, materialsList, quizTemplatesList, rawQuestions] = await Promise.all([
     db
       .select()
       .from(bab)
-      .where(and(eq(bab.mataKuliahId, canonicalCourseId), eq(bab.status, "active")))
+      .where(eq(bab.mataKuliahId, canonicalCourseId))
       .orderBy(asc(bab.orderIndex)),
     db
       .select()
@@ -434,6 +441,9 @@ export async function getCourseDetailData(courseId: string) {
       )
       .orderBy(desc(aiQuestionBank.createdAt)),
   ]);
+  const babList = allBab.filter((chapter) => chapter.status === "active");
+  const representedLegacyIds = new Set(allBab.flatMap((chapter) => chapter.legacyChapterId ? [chapter.id, chapter.legacyChapterId] : [chapter.id]));
+  const unprojectedLegacy = legacyChapters.filter((chapter) => !representedLegacyIds.has(chapter.id));
 
   // Map chapters from canonical bab if available, preserving legacy descriptions
   let chaptersList: Array<{
@@ -450,7 +460,7 @@ export async function getCourseDetailData(courseId: string) {
 
   if (babList.length > 0) {
     const legacyMap = new Map(legacyChapters.map((lc) => [lc.id, lc]));
-    chaptersList = babList.map((b) => {
+    chaptersList = [...babList.map((b) => {
       const legacy = legacyMap.get(b.legacyChapterId ?? "") || legacyMap.get(b.id);
       return {
         id: b.id,
@@ -463,9 +473,14 @@ export async function getCourseDetailData(courseId: string) {
         updatedAt: b.updatedAt,
         legacyChapterId: b.legacyChapterId ?? null,
       };
-    });
+    }), ...unprojectedLegacy.map((ch) => ({
+      id: ch.id, courseId: canonicalCourseId, title: ch.title, orderIndex: ch.orderIndex,
+      description: ch.description, status: ch.status, createdAt: ch.createdAt,
+      updatedAt: ch.updatedAt, legacyChapterId: ch.id,
+    }))];
+    chaptersList.sort((a, b) => a.orderIndex - b.orderIndex || a.id.localeCompare(b.id));
   } else {
-    chaptersList = legacyChapters.map((ch) => ({
+    chaptersList = unprojectedLegacy.map((ch) => ({
       id: ch.id,
       courseId: canonicalCourseId,
       title: ch.title,
@@ -628,6 +643,19 @@ export async function getAllChapters() {
     .orderBy(asc(chapters.orderIndex));
 }
 
+function revalidateChapterPaths(courseIds: string[]) {
+  revalidatePath("/admin/courses");
+  // shortcut: layout patterns also invalidate other courses, narrow this when per-course tags cover nested reads.
+  revalidatePath("/(admin)/admin/(academic)/courses/[slug]", "layout");
+  revalidatePath("/(student)/courses/[id]", "layout");
+  for (const id of new Set(courseIds)) {
+    revalidatePath(`/admin/courses/${id}`);
+    revalidatePath(`/courses/${id}`);
+    revalidatePath(`/courses/${id}/material`);
+  }
+  revalidatePath("/dashboard");
+}
+
 export async function saveChapter(
   id: string | null,
   courseId: string,
@@ -645,6 +673,8 @@ export async function saveChapter(
   }
 
   try {
+    const identity = await resolveCourseIdentity(courseId);
+    if (!identity) throw new Error("COURSE_IDENTITY_AMBIGUOUS");
     const result = await saveChapterWithCanonicalProjection({
       id,
       courseId,
@@ -652,19 +682,21 @@ export async function saveChapter(
       orderIndex,
       description: cleanDesc,
       actorId: admin.id,
+      append: !id,
     });
 
-    revalidatePath("/admin/courses");
-    revalidatePath(`/admin/courses/${courseId}`);
-    revalidatePath(`/courses/${courseId}/material`);
+    revalidateChapterPaths(identity.allIds);
     return {
       success: true,
       chapter: id
         ? undefined
-        : { id: result.id, courseId, title: cleanTitle, orderIndex, description: cleanDesc },
+        : { id: result.id, courseId, title: cleanTitle, orderIndex: result.orderIndex, description: cleanDesc },
     };
   } catch (err: any) {
     console.error("Failed to save chapter:", err);
+    if (err?.message === "CHAPTER_PROJECTION_UNAVAILABLE") {
+      return { success: false, error: "Deskripsi bab belum didukung untuk mata kuliah ini.", code: "CHAPTER_DESCRIPTION_UNAVAILABLE" };
+    }
     return { success: false, error: "Gagal menyimpan bab" };
   }
 }
@@ -673,16 +705,8 @@ export async function deleteChapter(id: string) {
   const { user: admin } = await assertAdmin();
 
   try {
-    const [existing] = await db.select().from(chapters).where(eq(chapters.id, id)).limit(1);
-    if (!existing) {
-      return { success: false, error: "Bab tidak ditemukan" };
-    }
-
-    await archiveChapterWithLegacyDeletion(id, admin.id);
-
-    revalidatePath("/admin/courses");
-    revalidatePath(`/admin/courses/${existing.courseId}`);
-    revalidatePath(`/courses/${existing.courseId}/material`);
+    const result = await archiveChapterWithLegacyDeletion(id, admin.id);
+    revalidateChapterPaths([result.courseId, ...(result.legacyCourseId ? [result.legacyCourseId] : [])]);
     return { success: true };
   } catch (err: any) {
     console.error("Failed to delete chapter:", err);
@@ -698,11 +722,11 @@ export async function reorderChapters(courseId: string, chapterIds: string[]) {
   }
 
   try {
+    const identity = await resolveCourseIdentity(courseId);
+    if (!identity) throw new Error("COURSE_IDENTITY_AMBIGUOUS");
     await reorderChaptersWithCanonicalProjection(courseId, chapterIds, admin.id);
 
-    revalidatePath("/admin/courses");
-    revalidatePath(`/admin/courses/${courseId}`);
-    revalidatePath(`/courses/${courseId}/material`);
+    revalidateChapterPaths(identity.allIds);
     return { success: true };
   } catch (err: any) {
     console.error("Failed to reorder chapters:", err);

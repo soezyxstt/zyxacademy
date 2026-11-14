@@ -2,7 +2,8 @@
 
 import { Library } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/page-header";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { QuestionBankTabs } from "@/app/(admin)/admin/(eval)/questions/question-bank-tabs";
 import { HistoricalQuestionsClient } from "@/app/(admin)/admin/(eval)/questions/historical-questions-client";
 import { QuestionBankClient } from "@/app/(admin)/admin/(eval)/questions/questions-client";
 
@@ -69,15 +70,12 @@ export function QuestionBankToolbarVisualFixture({ initialTab }: { initialTab: "
     <main className="min-h-screen bg-background p-4 text-foreground sm:p-8">
       <div className="mx-auto max-w-[1440px] space-y-8">
         <AdminPageHeader icon={Library} title="Bank Soal" />
-        <Tabs
-          defaultValue={initialTab}
-          syncUrl={false}
-          className="w-full space-y-6"
-        >
+        <QuestionBankTabs value={initialTab} tabs={
           <TabsList>
             <TabsTrigger value="ai-generated">Bank soal aktif</TabsTrigger>
             <TabsTrigger value="historical">Referensi historis</TabsTrigger>
           </TabsList>
+        }>
           <TabsContent value="ai-generated" className="w-full space-y-6">
             <QuestionBankClient
               questions={questions}
@@ -91,7 +89,7 @@ export function QuestionBankToolbarVisualFixture({ initialTab }: { initialTab: "
           <TabsContent value="historical" className="w-full space-y-6">
             <HistoricalQuestionsClient questions={historicalQuestions} courses={courses} courseMap={courseMap} />
           </TabsContent>
-        </Tabs>
+        </QuestionBankTabs>
       </div>
     </main>
   );

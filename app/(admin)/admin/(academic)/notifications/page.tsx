@@ -37,9 +37,7 @@ export default async function AdminNotificationsPage() {
    icon={Bell}
    title={<TranslatedText namespace="notifications" messageKey="title" />}
   />
- <div className="max-w-3xl">
- {/* Left: Compose form (3/5 width) */}
- <div>
+ <section className="max-w-3xl">
  <div className="mb-3 flex items-center gap-2">
  <Bell className="size-4 text-brand-primary" aria-hidden />
  <h2 className="font-heading text-body-base font-semibold text-foreground">
@@ -47,9 +45,7 @@ export default async function AdminNotificationsPage() {
  </h2>
  </div>
  <NotificationBroadcastForm courses={courseList} />
- </div>
-
- </div>
+ </section>
 
  {/* Notification history table */}
  <div>
