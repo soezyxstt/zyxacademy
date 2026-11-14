@@ -32,15 +32,13 @@ export default async function AchievementsPage({ searchParams }: { searchParams:
   try {
   const [summary, badges, missions, rewards, settings] = await Promise.all([
     tab === "overview" || tab === "rewards" ? summaryForRequest(user.id) : null,
-    tab === "badges" || tab === "rewards" ? badgesForRequest(user.id) : [],
+    tab === "badges" ? badgesForRequest(user.id) : [],
     tab === "missions" ? getGamificationMissions(user.id) : [],
     tab === "rewards" ? rewardsForRequest(user.id) : [],
     tab === "rewards" ? settingsForRequest(user.id) : null,
   ]);
-  const selectedBadge = badges.find(b => b.family === settings?.avatarBadgeId && b.tier > 0);
   const appearance = settings ? {
-    name: settings.displayName || user.name, image: user.image, mode: settings.avatarMode,
-    badge: selectedBadge && settings.badgeTier && settings.badgeTier <= selectedBadge.tier ? { family: selectedBadge.family, tier: settings.badgeTier } : null,
+    name: settings.displayName || user.name, image: user.image,
     frameId: rewards.find(item => item.slot === "frame" && item.equipped && item.owned)?.id,
     themeId: rewards.find(item => item.slot === "theme" && item.equipped && item.owned)?.id,
   } : null;
