@@ -19,6 +19,7 @@ export type LegacyQuizQuestionSnapshot = {
   stable_option_ids?: string[];
   correct_indices?: number[];
   acceptable_answers?: string[];
+  gamificationProvenance?: unknown;
 };
 
 export type CanonicalIdeaLinkForLegacyQuestion = {
