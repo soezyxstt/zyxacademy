@@ -15,8 +15,15 @@ describe("Quiz Timeout and Submission Invariant Contracts", () => {
   });
 
   it("ensures submit route caps final duration to template timeLimitSeconds if defined", () => {
-    expect(submitRouteCode).toContain("templateMeta?.timeLimitSeconds != null");
-    expect(submitRouteCode).toContain("finalDurationSeconds = Math.min(finalDurationSeconds, templateMeta.timeLimitSeconds)");
+    const expression = submitRouteCode.match(/const finalDurationSeconds = ([^\n;]+);/)?.[1];
+    expect(expression).toBeDefined();
+    const recordedDuration = new Function("elapsedSeconds", "templateMeta", `return (${expression});`);
+    expect(recordedDuration(45, { timeLimitSeconds: 30 })).toBe(30);
+    expect(recordedDuration(45, { timeLimitSeconds: 60 })).toBe(45);
+    expect(recordedDuration(45, { timeLimitSeconds: 0 })).toBe(0);
+    expect(recordedDuration(45, { timeLimitSeconds: null })).toBe(45);
+    expect(recordedDuration(45, {})).toBe(45);
+    expect(submitRouteCode).toContain("durationSeconds: finalDurationSeconds");
   });
 
   it("ensures QuizPlayer supports timeLimitSeconds in settings and prioritizes it over minutes", () => {
