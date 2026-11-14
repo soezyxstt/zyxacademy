@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 import { db } from '@/db';
-import { quizTemplates, aiQuestionBank, studentQuizAttempts, knowledgeObjects, studentConceptMastery, bab } from '@/db/schema';
+import { quizTemplates, aiQuestionBank, studentQuizAttempts, knowledgeObjects, studentConceptMastery, bab, soal } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { and, or, eq, inArray, sql, desc, notInArray } from 'drizzle-orm';
@@ -18,6 +18,8 @@ import { canViewAttemptDiscussion } from '@/lib/quiz/review-release';
 import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
 import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
 import { buildStableOptionIds } from '@/lib/asesmen/attempt';
+import { recordAttemptDisclosures } from '@/lib/gamification/question-exposure';
+import { canonicalObjectiveProvenance } from '@/lib/gamification/question-snapshot-provenance';
 import { questionProvenanceSnapshot } from '@/lib/asesmen/question-provenance';
 import { matchesCourseIdentity, resolveCourseIdentity } from '@/lib/admin/course-identity';
 import {
@@ -486,21 +488,33 @@ export async function POST(req: NextRequest) {
  );
  }
 
+  const canonicalRows = courseIdentity.canonicalId
+    ? await db.select().from(soal).where(and(inArray(soal.id, selected.map((q) => q.id)), eq(soal.mataKuliahId, courseIdentity.canonicalId)))
+    : [];
+  const canonicalById = new Map(canonicalRows.map((row) => [row.id, row]));
+
   // Build deep snapshot (includes answers ; stored server-side only)
-  const snapshot = selected.map((q) => ({
-    id: q.id,
-    ...questionProvenanceSnapshot(q),
-    prompt: q.prompt,
-    question_type: q.questionType,
-    options: publicOptionTexts(q.options),
-    correct_indices: q.correctIndices,
-    acceptable_answers: q.acceptableAnswers,
-    explanation: q.explanation,
-    difficulty: q.difficulty,
-    ...(assessmentV2Enabled
-      ? { stable_option_ids: buildStableOptionIds(q.id, Array.isArray(q.options) ? q.options.length : 0) }
-      : {}),
-  }));
+  const snapshot = selected.map((q) => {
+    const canonical = canonicalById.get(q.id);
+    const provenance = canonical && canonicalObjectiveProvenance(
+      { ...q, options: Array.isArray(q.options) && publicOptionTexts(q.options).length === q.options.length ? publicOptionTexts(q.options) : null }, canonical, courseIdentity.canonicalId,
+    );
+    return {
+      id: q.id,
+      ...questionProvenanceSnapshot(q),
+      prompt: q.prompt,
+      question_type: q.questionType,
+      options: publicOptionTexts(q.options),
+      correct_indices: q.correctIndices,
+      acceptable_answers: q.acceptableAnswers,
+      explanation: q.explanation,
+      difficulty: q.difficulty,
+      ...(assessmentV2Enabled
+        ? { stable_option_ids: buildStableOptionIds(q.id, Array.isArray(q.options) ? q.options.length : 0) }
+        : {}),
+      ...(provenance ? { gamificationProvenance: provenance } : {}),
+    };
+  });
 
   // E2: snapshot current mastery for every concept this quiz covers (before/after delta).
   let masteryBefore: Record<string, number> | null = null;
@@ -669,5 +683,16 @@ export async function GET(req: NextRequest) {
  const serializedAttempts = visibleAttempts.map((attempt) => serializeStudentQuizAttempt(attempt, {
    releaseState: canViewAttemptDiscussion(templateById.get(attempt.templateId), attempt.status) ? 'released' : 'hidden',
  }));
+ try {
+   await db.transaction(async tx => {
+     for (const attempt of visibleAttempts) {
+       if (!canViewAttemptDiscussion(templateById.get(attempt.templateId), attempt.status)) continue;
+       const questionIds = Array.isArray(attempt.questionsSnapshot) ? attempt.questionsSnapshot.flatMap(q => q && typeof q === 'object' && typeof q.id === 'string' ? [q.id] : []) : [];
+       await recordAttemptDisclosures(tx, { userId: session.user.id, attemptId: attempt.id, questionIds, occurredAt: new Date(), requestId: crypto.randomUUID() });
+     }
+   });
+ } catch {
+   return NextResponse.json({ error: 'Pembahasan belum tersedia. Coba lagi.' }, { status: 500 });
+ }
  return NextResponse.json(serializedAttempts.map(stripAnswerMarkers));
 }

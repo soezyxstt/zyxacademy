@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { TutorAssistantLabel, TutorStudentMessage } from "@/components/course/tutor-message-frame";
+import { TutorAssistantSurface, TutorAssistantLabel, TutorStudentMessage } from "@/components/course/tutor-message-frame";
 import type { Followup } from "@/lib/zyra/followups";
 import {
   Compass,
@@ -1540,7 +1540,7 @@ function TutorDrawerContent({
 
                 return (
                   <div key={msg.id || index} className="space-y-2 select-text">
-                    <TutorAssistantLabel />
+                    <TutorAssistantSurface><TutorAssistantLabel />
 
                     {/* Message Content Flow (Synced with Artikel v4 renderer pipeline) */}
                     {msg.isError ? (
@@ -1664,7 +1664,7 @@ function TutorDrawerContent({
                         </button>
                       </div>
                     )}
-                  </div>
+                  </TutorAssistantSurface></div>
                 );
               })}
 

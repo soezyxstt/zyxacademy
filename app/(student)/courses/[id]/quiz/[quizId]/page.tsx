@@ -10,6 +10,7 @@ import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { createMetadata} from "@/lib/site";
 import { db } from "@/db";
+import { recordAttemptDisclosures, recordAuthorizedCourseDisclosures } from "@/lib/gamification/question-exposure";
 import { quizTemplates, studentQuizAttempts, aiQuestionBank } from "@/db/schema";
 import { and, or, eq, desc, sql, inArray, notInArray } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
@@ -538,6 +539,15 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
           sourceReferenceId: q.sourceReferenceId,
         };
       });
+    }
+
+    if (isDiscussionOpen && !isStaff && (snapshot.length || unseenSnapshot.length)) {
+      const questionIds = snapshot.map(question => question.id).filter((value): value is string => typeof value === "string" && value.length > 0);
+      await db.transaction(tx => targetAttempt ? recordAttemptDisclosures(tx, {
+        userId: studentId, attemptId: targetAttempt.id, questionIds,
+        outsideSnapshot: { questionIds: unseenSnapshot.map(question => question.id), canonicalCourseId: course.canonicalId ?? course.id },
+        occurredAt: new Date(), requestId: crypto.randomUUID(),
+      }) : course.canonicalId ? recordAuthorizedCourseDisclosures(tx, { userId: studentId, canonicalCourseId: course.canonicalId, questionIds: unseenSnapshot.map(question => question.id), contextId: quizId, occurredAt: new Date(), requestId: crypto.randomUUID() }) : Promise.resolve());
     }
 
     return <StudentQuizReview id={id} visualCourseId={template.courseId} quizId={quizId} template={{ title: template.title }} targetAttempt={targetAttempt ? { id: targetAttempt.id, score: targetAttempt.score, durationSeconds: targetAttempt.durationSeconds, submittedAt: targetAttempt.submittedAt, gradingStatus: targetAttempt.gradingStatus } : null} snapshot={snapshot} answers={answers} unseenSnapshot={unseenSnapshot} discussionAvailable={isDiscussionOpen} />;

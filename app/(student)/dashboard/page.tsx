@@ -1,3 +1,4 @@
+import { GamificationDashboardSummary } from "@/components/gamification/dashboard-summary";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { getStudentEnrollments } from "@/app/(student)/dashboard/actions";
@@ -68,6 +69,8 @@ export default async function DashboardPage() {
           <ProfilePromptSection user={user} />
         </Suspense>
       </DashboardSectionErrorBoundary>
+
+      {user?.id && <DashboardSectionErrorBoundary variant="silent"><Suspense fallback={null}><GamificationDashboardSummary userId={user.id} /></Suspense></DashboardSectionErrorBoundary>}
 
       {!isEnrolledInAny ? (
         <DashboardSectionErrorBoundary

@@ -1,146 +1,44 @@
-import { StudentProfileView } from "@/components/student-profile-view";
+import Link from "next/link";
 import type { Metadata } from "next";
+import { createMetadata } from "@/lib/site";
+import { BookOpen } from "lucide-react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-
-import { createMetadata} from "@/lib/site";
+import { eq } from "drizzle-orm";
+import { UserRound } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { eq, and } from "drizzle-orm";
-import {
- courses,
- progress,
- submissions,
- bookings,
- tutorSlots,
- groupMembers,
- groups,
- user as userTable,
-} from "@/db/schema";
-import { listStudentCourses, listStudentEnrollments } from "@/lib/student/course-catalog";
-import { getCanonicalPublishedArticlesForCourse } from "@/lib/articles/structured-repository";
-import { getTranslations } from "@/lib/i18n/server";
+import { user as userTable } from "@/db/schema";
+import { ApplicationPage } from "@/components/application-page";
+import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
+import { ProfileHero } from "@/components/gamification/profile-hero";
+import { AchievementBoard, profileBadgeFamilies } from "@/components/gamification/achievement-board";
+import { AdminEmptyState } from "@/components/admin/state-panels";
+import type { BadgeFamily } from "@/lib/gamification/contracts";
+import { ProfileFollowList } from "@/components/gamification/profile-follow-list";
+import { getStudentSocialSettings } from "@/lib/gamification/social";
+import { getAchievementBadges, getGamificationRewards, getGamificationSummary } from "@/lib/gamification/queries";
+import { getPrivateProfileAggregates } from "@/lib/gamification/profile-aggregate";
+import { listStudentEnrollments } from "@/lib/student/course-catalog";
+import { getTranslations, getAppLocale } from "@/lib/i18n/server";
+import { cosmeticNameKeys } from "@/lib/gamification/labels";
+import { MICRO } from "@/lib/gamification/catalog";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("student");
-  return createMetadata({ title: t("profile.metadataTitle"), description: t("profile.metadataDescription"), path: "/profile" });
-}
+export async function generateMetadata(): Promise<Metadata> { const t = await getTranslations("student"); return createMetadata({ title: t("profile.metadataTitle"), description: t("profile.metadataDescription"), path: "/profile" }); }
 
-
-/**
- * Server-rendered profile page displaying student user info, ITB academic data, course enrollments, and activity statistics.
- */
 export default async function ProfilePage() {
- const h = await headers();
- const session = await auth.api.getSession({ headers: h });
- 
- if (!session?.user) {
- redirect("/sign-in?next=/profile");
- }
+ const session = await auth.api.getSession({ headers: await headers() }); if (!session?.user) redirect("/sign-in?next=/profile");
+ const user = session.user; const [t, locale] = await Promise.all([getTranslations("student"), getAppLocale()]);
+ const [row] = await db.select({ name: userTable.name, email: userTable.email, image: userTable.image, faculty: userTable.faculty, major: userTable.major, entryYear: userTable.entryYear }).from(userTable).where(eq(userTable.id, user.id)).limit(1);
+ const [settings, badges, rewards, summary, enrollments] = await Promise.all([getStudentSocialSettings(user.id), getAchievementBadges(user.id), getGamificationRewards(user.id), getGamificationSummary(user.id), listStudentEnrollments(user.id)]);
+ const stats = await getPrivateProfileAggregates(user.id, enrollments.map(course => course.id));
 
- const user = session.user;
- const now = new Date();
-
- let activeEnrollments: any[] = [];
- let completedCount = 0;
- let submissionCount = 0;
- let averageScore: number | null = null;
- let userGroups: any[] = [];
- let studentBookings: any[] = [];
-
- try {
- if (process.env.NODE_ENV === "development" && user.role === "admin") {
- const all = await listStudentCourses();
- activeEnrollments = all.map((c) => ({
- id: c.id,
- title: c.title,
- category: c.category,
- enrolledAt: now,
- expiresAt: new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000),
- }));
- } else {
- activeEnrollments = await listStudentEnrollments(user.id);
- }
- } catch (err) {
- console.error("Failed to fetch enrollments:", err);
- }
-
- try {
- const [progressRes, articleGroups] = await Promise.all([
- db
- .select({ materialId: progress.materialId })
- .from(progress)
- .where(and(eq(progress.userId, user.id), eq(progress.status, "completed"))),
- Promise.all(activeEnrollments.map((course) => getCanonicalPublishedArticlesForCourse(course.id, user.id))),
- ]);
- const completedIds = new Set(progressRes.flatMap((row) => row.materialId ? [row.materialId] : []));
- for (const article of articleGroups.flat()) {
- if (article.completed) completedIds.add(article.id);
- }
- completedCount = completedIds.size;
- } catch (err) {
- console.error("Failed to fetch progress:", err);
- }
-
- try {
- const submissionsRes = await db
- .select()
- .from(submissions)
- .where(eq(submissions.userId, user.id));
- submissionCount = submissionsRes.length;
- const graded = submissionsRes.filter((s) => s.score !== null);
- averageScore = graded.length > 0
- ? Math.round(graded.reduce((acc, curr) => acc + (curr.score || 0), 0) / graded.length)
- : null;
- } catch (err) {
- console.error("Failed to fetch submissions:", err);
- }
-
- try {
- userGroups = await db
- .select({
- id: groups.id,
- name: groups.name,
- joinedAt: groupMembers.joinedAt,
- })
- .from(groupMembers)
- .innerJoin(groups, eq(groupMembers.groupId, groups.id))
- .where(eq(groupMembers.userId, user.id));
- } catch (err) {
- console.error("Failed to fetch groups:", err);
- }
-
- try {
- studentBookings = await db
- .select({
- id: bookings.id,
- bookedAt: bookings.bookedAt,
- courseTitle: courses.title,
- dayOfWeek: tutorSlots.dayOfWeek,
- startTime: tutorSlots.startTime,
- endTime: tutorSlots.endTime,
- tutorName: userTable.name,
- })
- .from(bookings)
- .innerJoin(tutorSlots, eq(bookings.slotId, tutorSlots.id))
- .innerJoin(courses, eq(bookings.courseId, courses.id))
- .innerJoin(userTable, eq(tutorSlots.tutorId, userTable.id))
- .where(eq(bookings.studentId, user.id));
- } catch (err) {
- console.error("Failed to fetch bookings:", err);
- }
-
- let dbUser: any = null;
- try {
- const [row] = await db
- .select()
- .from(userTable)
- .where(eq(userTable.id, user.id))
- .limit(1);
- dbUser = row;
- } catch (err) {
- console.error("Failed to fetch user profile:", err);
- }
-
- return <StudentProfileView user={user} activeEnrollments={activeEnrollments} completedCount={completedCount} submissionCount={submissionCount} averageScore={averageScore} userGroups={userGroups} studentBookings={studentBookings} dbUser={dbUser} />;
+ const frame = rewards.find(x => x.slot === "frame" && x.equipped)?.id; const theme = rewards.find(x => x.slot === "theme" && x.equipped)?.id; const titleItem = rewards.find(x => x.slot === "title" && x.equipped); const title = titleItem && (cosmeticNameKeys[titleItem.id] ? t(`gamificationUi.${cosmeticNameKeys[titleItem.id]}`) : titleItem.name);
+ const familyLabels = Object.fromEntries(profileBadgeFamilies.map(family => [family, t(`profileCustomization.families.${family}`)])) as Record<BadgeFamily, string>;
+ return <ApplicationPage><PageHeader title={t("profile.pageTitle")} icon={UserRound} /><div className="space-y-6">
+ <ProfileHero name={settings.displayName || row?.name || user.name} image={row?.image} frameId={frame} themeId={theme} title={title} academicInfo={[row?.faculty, row?.major, row?.entryYear].filter(Boolean).join(" · ")} rank={summary.rankKey} actions={<Button asChild variant="outline"><Link href="/profile/edit">{t("profile.editProfile")}</Link></Button>} details={<><span>{new Intl.NumberFormat().format((summary.baseXpMicro + summary.bonusXpMicro) / MICRO)} XP · {new Intl.NumberFormat().format(summary.lpBalance)} LP</span><p>{t("profile.activeClassesStat")}: {enrollments.length} · {t("profile.completedMaterialsStat")}: {stats.completedCount} · {t("profile.completedExamsStat")}: {stats.submissionCount} · {t("profile.averageScoreStat")}: {stats.averageScore ?? "-"}</p></>} />
+ <AchievementBoard badges={badges} featuredBadgeIds={settings.featuredBadgeIds} title={t("profileCustomization.badgeBoard")} familyLabels={familyLabels} lockedLabel={t("profileCustomization.locked")} tierLabel={tier => t("achievementPage.tier", { tier })} action={<Button variant="outline" size="sm" asChild><Link href="/achievements?tab=badges">{t("profileCustomization.achievements")}</Link></Button>} />
+ <section className="space-y-2"><h2 className="font-heading text-body-base font-bold">{t("profile.enrolledClasses")}</h2><div className="divide-y rounded-xl border bg-card">{enrollments.length ? enrollments.map(course => <Link className="block p-3 text-body-sm underline" key={course.id} href={`/courses/${course.id}`}>{course.title}</Link>) : <AdminEmptyState icon={BookOpen} title={locale === "en" ? "No enrolled classes" : "Belum ada kelas yang diikuti"} action={<Button asChild variant="outline"><Link href="/courses">{t("profile.enrolledClasses")}</Link></Button>} />}</div></section>
+ <ProfileFollowList /><div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link href="/dashboard/groups">{t("profile.groupsTitle")}</Link></Button><Button asChild variant="outline"><Link href="/dashboard/schedule">{t("profile.upcomingTutorials")}</Link></Button><Button asChild variant="outline"><Link href="/courses">{t("profile.enrolledClasses")}</Link></Button><Button asChild variant="outline"><Link href="/profile/reflections">{t("profile.reflections")}</Link></Button></div></div></ApplicationPage>;
 }

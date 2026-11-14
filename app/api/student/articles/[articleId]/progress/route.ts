@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { artikel, artikelIde, bagianArtikel, kemajuanBacaArtikel } from "@/db/schema";
-import { eq, and, or, gte, isNotNull } from "drizzle-orm";
+import { artikel, artikelIde, bagianArtikel, kemajuanBacaArtikel, gamificationArticleCompletions } from "@/db/schema";
+import { eq, and, or, gte, isNotNull, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { recordLearningEvidence } from "@/lib/pemahaman/evidence";
+import { startLearningRewards } from "@/lib/gamification/learning-start";
+import { recordGamificationEvidence } from "@/lib/gamification/receipts";
+import { resolveCourseAccess } from "@/lib/student/course-access";
 import { getStudentCourseAccess, isFreeChapterScoped } from "@/lib/course-utils";
 
 const progressUpdateSchema = z.object({
@@ -83,8 +86,13 @@ export async function PUT(req: NextRequest, { params }: RouteProps) {
     const clampedPercent = Math.max(0, Math.min(100, Math.round(percent)));
     const addedTimeSpent = Math.min(3_600, Math.max(0, Math.round(timeSpentSeconds)));
 
+    const progressResult = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`article:${userId}:${articleRecord.id}`}, 0))`);
+    const [current] = await tx.select({ id: artikel.id }).from(artikel).where(and(eq(artikel.id, articleRecord.id), eq(artikel.version, articleRecord.version), eq(artikel.status, "published"))).limit(1).for("share");
+    const [currentSection] = await tx.select({ id: bagianArtikel.id }).from(bagianArtikel).where(and(eq(bagianArtikel.id, sectionId), eq(bagianArtikel.artikelId, articleRecord.id), eq(bagianArtikel.version, articleRecord.version), eq(bagianArtikel.status, "published"))).limit(1).for("share");
+    if (!current || !currentSection) throw new Error("ARTICLE_UNAVAILABLE");
     // Look for existing progress
-    const [existing] = await db
+    const [existing] = await tx
       .select()
       .from(kemajuanBacaArtikel)
       .where(
@@ -102,12 +110,16 @@ export async function PUT(req: NextRequest, { params }: RouteProps) {
       : clampedPercent;
 
     const isCompleted = maxReadPercent >= 90 || completed === true || Boolean(existing?.completedAt);
-    const completedAt = isCompleted ? (existing?.completedAt ?? new Date()) : null;
-    const totalTimeSpent = (existing?.timeSpentSeconds ?? 0) + addedTimeSpent;
     const now = new Date();
+    const newlyCompleted = isCompleted && !existing?.completedAt;
+    const rewardAccess = newlyCompleted ? await resolveCourseAccess({ userId, courseId: articleRecord.courseId }, tx) : null;
+    const rewardStart = rewardAccess?.hasFullContentAccess && !rewardAccess.isDemo && rewardAccess.canonicalCourseId === articleRecord.courseId
+      ? await startLearningRewards(tx, userId, articleRecord.courseId, now) : null;
+    const completedAt = isCompleted ? (existing?.completedAt ?? now) : null;
+    const totalTimeSpent = (existing?.timeSpentSeconds ?? 0) + addedTimeSpent;
 
     if (existing) {
-      await db
+      await tx
         .update(kemajuanBacaArtikel)
         .set({
           maxReadPercent,
@@ -118,7 +130,7 @@ export async function PUT(req: NextRequest, { params }: RouteProps) {
         })
         .where(eq(kemajuanBacaArtikel.id, existing.id));
     } else {
-      await db.insert(kemajuanBacaArtikel).values({
+      await tx.insert(kemajuanBacaArtikel).values({
         id: randomUUID(),
         penggunaId: userId,
         artikelId: articleRecord.id,
@@ -132,6 +144,31 @@ export async function PUT(req: NextRequest, { params }: RouteProps) {
         updatedAt: now,
       });
     }
+
+    if (newlyCompleted && rewardStart) {
+      const sections = await tx.select({ id: bagianArtikel.id }).from(bagianArtikel).where(and(eq(bagianArtikel.artikelId, articleRecord.id), eq(bagianArtikel.version, articleRecord.version), eq(bagianArtikel.status, "published"))).for("share");
+      const completedRows = await tx.select({ id: kemajuanBacaArtikel.id, sectionId: kemajuanBacaArtikel.bagianArtikelId, completedAt: kemajuanBacaArtikel.completedAt }).from(kemajuanBacaArtikel).where(and(eq(kemajuanBacaArtikel.penggunaId, userId), eq(kemajuanBacaArtikel.artikelId, articleRecord.id), eq(kemajuanBacaArtikel.artikelVersion, articleRecord.version), isNotNull(kemajuanBacaArtikel.completedAt)));
+      const completedIds = new Set(completedRows.filter(row => row.completedAt && row.completedAt >= rewardStart.startedAt && row.completedAt <= now).map(row => row.sectionId));
+      if (sections.length && sections.every(section => completedIds.has(section.id))) {
+        const sectionIds = sections.map(section => section.id).sort();
+        const evidence = sectionIds.map(id => {
+          const row = completedRows.find(candidate => candidate.sectionId === id)!;
+          return { id: row.id, sectionId: id, completedAt: row.completedAt!.toISOString() };
+        });
+        const [completion] = await tx.insert(gamificationArticleCompletions).values({
+          id: randomUUID(), userId, courseId: articleRecord.courseId, articleId: articleRecord.id,
+          articleVersion: articleRecord.version, completedAt: now, sectionIds, evidence,
+        }).onConflictDoNothing().returning();
+        if (completion) await recordGamificationEvidence(tx, {
+          userId, courseId: articleRecord.courseId, source: "article", sourceId: articleRecord.id,
+          sourceVersion: String(articleRecord.version), sourceEvidenceId: completion.id,
+          occurredAt: completion.completedAt, details: { sectionIds },
+        });
+      }
+    }
+    return { maxReadPercent, isCompleted, totalTimeSpent, completedAt, now };
+    });
+    const { maxReadPercent, isCompleted, totalTimeSpent, completedAt, now } = progressResult;
 
     if (isCompleted) {
       const [allSections, completedSections] = await Promise.all([

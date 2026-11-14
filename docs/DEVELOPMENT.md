@@ -1,5 +1,8 @@
 # Development Guide
 
+For gamification source and focused verification boundaries, see the [gamification contract](gamification.md). Prepared visual specs do not establish a passed visual check.
+
+
 The [Neon Functions worker runbook](operations/neon-functions-cutover.md) documents archive building, guarded deployment, Inngest synchronization and synthetic PDF tests. Supply an explicit environment and use its verified Neon target. Legacy local environment files must not supply production Inngest settings.
 
 Staging and production use separate guarded Neon PostgreSQL targets, and `bun run db:migrate` applies `drizzle-postgres/`. The legacy production push and canonical backfill are disabled. Both serving environments explicitly use private Neon S3-compatible buckets with `STORAGE_PROVIDER_MODE=neon`. Use [.env.neon.example](../.env.neon.example), the [staging migration runbook](operations/neon-migration.md) and [production cutover runbook](operations/neon-production-cutover.md). Do not reuse production sessions or integration credentials for development. SQLite and R2 setup instructions below are legacy compatibility references.

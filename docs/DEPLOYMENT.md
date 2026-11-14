@@ -1,5 +1,8 @@
 # Deployment Guide
 
+The [gamification contract](gamification.md) records verified staging migrations 0009 through 0015 and outstanding application and deployment verification. It does not authorize production rollout.
+
+
 ## Web function region
 
 The main `vercel.json` pins web functions to `sin1`, near the Zyx Neon project in `aws-ap-southeast-1`. Read-only inspection on 2026-11-11 found the production deployment `dpl_BfnxeAy7T4TWojtcnNaH52fxNtkQ` (commit `04b9b61e5290b6c3c3013cd4ef5f38ed6bb70ce8`) reporting `iad1`. The local region correction requires a new authorized deployment; it does not relocate the existing deployment. After release, verify the serving deployment region and authenticated dashboard latency. Roll back through the previous deployment if required; that also restores its original region. No production latency improvement has been measured for this change.

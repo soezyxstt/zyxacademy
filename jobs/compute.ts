@@ -1,3 +1,7 @@
+import { gamificationMissionsCron, gamificationMissionsPage } from './gamification-missions';
+export { gamificationMissionsCron, gamificationMissionsPage } from './gamification-missions';
+import { gamificationOutboxCron } from "./gamification";
+export { gamificationOutboxCron } from "./gamification";
 import { adminOperationsWorker } from "./admin-operations";
 export { adminOperationsWorker } from "./admin-operations";
 export { inngest } from "./client";
@@ -63,6 +67,9 @@ import { productVerificationWorker } from "./product-verification";
  * All background functions for Deno/compute Inngest execution.
  */
 export const computeFunctions = [
+  gamificationOutboxCron,
+  gamificationMissionsCron,
+  gamificationMissionsPage,
   adminOperationsWorker,
   sourceReadPageWorker,
   sourceFigureWorker,

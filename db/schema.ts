@@ -6224,3 +6224,124 @@ export const aiModelSettings = pgTable("ai_model_settings", {
   updatedBy: text("updated_by").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+// Gamification projections and append-only evidence. All amounts are integer micro-XP.
+export const gamificationAccounts = pgTable('gamification_accounts', {
+ userId: text('user_id').primaryKey().references(() => user.id, { onDelete: 'cascade' }),
+ baseXpMicro: bigint('base_xp_micro', { mode: 'number' }).notNull().default(0),
+ bonusXpMicro: bigint('bonus_xp_micro', { mode: 'number' }).notNull().default(0),
+ courseCreditsMicro: bigint('course_credits_micro', { mode: 'number' }).notNull().default(0),
+ lpBalance: bigint('lp_balance', { mode: 'number' }).notNull().default(0),
+ rankKey: text('rank_key').notNull().default('rakyat'),
+ updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const gamificationProfiles = pgTable('gamification_profiles', {
+ userId: text('user_id').primaryKey().references(() => user.id, { onDelete: 'cascade' }),
+ publicId: text('public_id').notNull().unique(), displayName: text('display_name'),
+ visibility: text('visibility').$type<'private' | 'members'>().notNull().default('private'),
+ showMajor: boolean('show_major').notNull().default(false), showFaculty: boolean('show_faculty').notNull().default(false),
+ allowFollows: boolean('allow_follows').notNull().default(false), leaderboardOptIn: boolean('leaderboard_opt_in').notNull().default(false),
+ avatarMode: text('avatar_mode').$type<'photo' | 'badge'>().notNull().default('photo'), badgeTier: bigint('badge_tier', { mode: 'number' }),
+ avatarBadgeId: text('avatar_badge_id'), featuredBadgeIds: jsonb('featured_badge_ids').$type<string[]>().notNull().default([]),
+ equippedFrameId: text('equipped_frame_id'), equippedThemeId: text('equipped_theme_id'), equippedTitleId: text('equipped_title_id'),
+ equippedZyraSkinId: text('equipped_zyra_skin_id'), equippedZyraAvatarId: text('equipped_zyra_avatar_id'),
+ followerCount: bigint('follower_count', { mode: 'number' }).notNull().default(0), followingCount: bigint('following_count', { mode: 'number' }).notNull().default(0),
+ updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('gamification_profiles_leaderboard_eligibility_idx').on(t.visibility, t.leaderboardOptIn, t.userId), check('gamification_profiles_visibility_check', sql`${t.visibility} in ('private', 'members')`), check('gamification_profiles_featured_limit', sql`jsonb_typeof(${t.featuredBadgeIds}) = 'array' and jsonb_array_length(${t.featuredBadgeIds}) <= 3`)]);
+export const gamificationFollows = pgTable('gamification_follows', {
+ followerId: text('follower_id').notNull().references(() => user.id, { onDelete: 'cascade' }), followingId: text('following_id').notNull().references(() => user.id, { onDelete: 'cascade' }), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.followerId, t.followingId] }), index('gamification_follows_following_idx').on(t.followingId), check('gamification_follows_not_self', sql`${t.followerId} <> ${t.followingId}`)]);
+export const gamificationBlocks = pgTable('gamification_blocks', {
+ blockerId: text('blocker_id').notNull().references(() => user.id, { onDelete: 'cascade' }), blockedId: text('blocked_id').notNull().references(() => user.id, { onDelete: 'cascade' }), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.blockerId, t.blockedId] }), index('gamification_blocks_blocked_idx').on(t.blockedId), check('gamification_blocks_not_self', sql`${t.blockerId} <> ${t.blockedId}`)]);
+export const gamificationReports = pgTable('gamification_reports', {
+ id: text('id').primaryKey(), reporterId: text('reporter_id').notNull().references(() => user.id), targetUserId: text('target_user_id').notNull().references(() => user.id), reason: text('reason').notNull(), status: text('status').notNull().default('pending'), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('gamification_reports_status_idx').on(t.status, t.createdAt), index('gamification_reports_reporter_created_idx').on(t.reporterId, t.createdAt)]);
+export const gamificationSocialRateLimits = pgTable('gamification_social_rate_limits', {
+ userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }), action: text('action').notNull(), windowKey: text('window_key').notNull(), attempts: bigint('attempts', { mode: 'number' }).notNull().default(0), expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+}, t => [primaryKey({ columns: [t.userId, t.action, t.windowKey] }), index('gamification_social_rate_limits_expiry_idx').on(t.expiresAt), check('gamification_social_rate_limits_attempts_check', sql`${t.attempts} >= 0`)]);
+export const gamificationLeaderboardPeriods = pgTable('gamification_leaderboard_periods', {
+ userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }), periodKey: text('period_key').notNull(), baseXpMicro: bigint('base_xp_micro', { mode: 'number' }).notNull().default(0), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.userId, t.periodKey] }), index('gamification_leaderboard_score_idx').on(t.periodKey, t.baseXpMicro)]);
+export const gamificationChecklists = pgTable('gamification_checklists', {
+ id: text('id').primaryKey(), courseId: text('course_id').notNull().references(() => mataKuliah.id), version: bigint('version', { mode: 'number' }).notNull(), status: text('status').notNull().default('draft'), approvedBy: text('approved_by').references(() => user.id), approvedAt: timestamp('approved_at', { withTimezone: true }), totalXpMicro: bigint('total_xp_micro', { mode: 'number' }).notNull().default(0),
+}, t => [unique('gamification_checklists_course_version').on(t.courseId, t.version)]);
+export const gamificationChecklistItems = pgTable('gamification_checklist_items', {
+ id: text('id').primaryKey(), checklistId: text('checklist_id').notNull().references(() => gamificationChecklists.id), category: text('category').notNull(), sourceId: text('source_id').notNull(), contentVersion: text('content_version').notNull(), baseXpMicro: bigint('base_xp_micro', { mode: 'number' }).notNull(),
+}, t => [unique('gamification_checklist_items_identity').on(t.checklistId, t.category, t.sourceId)]);
+export const gamificationCourseStarts = pgTable('gamification_course_starts', {
+ userId: text('user_id').notNull().references(() => user.id), courseId: text('course_id').notNull().references(() => mataKuliah.id), checklistId: text('checklist_id').notNull().references(() => gamificationChecklists.id), startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(), completedAt: timestamp('completed_at', { withTimezone: true }),
+}, t => [primaryKey({ columns: [t.userId, t.courseId] })]);
+export const gamificationEventOutbox = pgTable('gamification_event_outbox', {
+ id: text('id').primaryKey(), userId: text('user_id').notNull().references(() => user.id), source: text('source').notNull(), sourceId: text('source_id').notNull(), evidenceId: text('evidence_id').notNull(), occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(), status: text('status').notNull().default('pending'), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(), processedAt: timestamp('processed_at', { withTimezone: true }), errorCode: text('error_code'),
+}, t => [unique('gamification_event_evidence_unique').on(t.userId, t.source, t.evidenceId), index('gamification_event_pending_idx').on(t.status, t.createdAt), index('gamification_event_pending_order_idx').on(t.status, t.createdAt, t.id), index('gamification_event_user_pending_order_idx').on(t.userId, t.status, t.occurredAt, t.createdAt, t.id)]);
+export const gamificationEvidenceReceipts = pgTable('gamification_evidence_receipts', {
+ id: text('id').primaryKey(), userId: text('user_id').notNull().references(() => user.id), courseId: text('course_id').notNull().references(() => mataKuliah.id), source: text('source').notNull(), sourceId: text('source_id').notNull(), sourceVersion: text('source_version').notNull(), sourceEvidenceId: text('source_evidence_id').notNull(), occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(), details: jsonb('details').$type<Record<string, unknown>>().notNull(), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [unique('gamification_receipt_source_evidence_unique').on(t.source, t.sourceEvidenceId), index('gamification_receipt_user_source_idx').on(t.userId, t.source, t.sourceId), check('gamification_receipt_source_check', sql`${t.source} IN ('article', 'explanation', 'question', 'flashcard')`)]);
+// Append-only by application contract; the database does not prohibit updates.
+export const gamificationArticleCompletions = pgTable('gamification_article_completions', {
+ id: text('id').primaryKey(), userId: text('user_id').notNull().references(() => user.id), courseId: text('course_id').notNull().references(() => mataKuliah.id), articleId: text('article_id').notNull().references(() => artikel.id), articleVersion: bigint('article_version', { mode: 'number' }).notNull(), completedAt: timestamp('completed_at', { withTimezone: true }).notNull(), sectionIds: jsonb('section_ids').$type<string[]>().notNull(), evidence: jsonb('evidence').$type<{ id: string; sectionId: string; completedAt: string }[]>().notNull(),
+}, t => [unique('gamification_article_completion_unique').on(t.userId, t.articleId, t.articleVersion), index('gamification_article_completion_owner_source_idx').on(t.userId, t.courseId, t.articleId), check('gamification_article_completion_version_check', sql`${t.articleVersion} > 0`)]);
+export const gamificationExplanationCompletions = pgTable('gamification_explanation_completions', {
+ id: text('id').primaryKey(), userId: text('user_id').notNull().references(() => user.id), collectionId: text('collection_id').notNull().references(() => solutionCollections.id), completedAt: timestamp('completed_at', { withTimezone: true }).notNull(), itemIds: jsonb('item_ids').$type<string[]>().notNull(),
+}, t => [unique('gamification_explanation_completion_unique').on(t.userId, t.collectionId)]);
+export const gamificationXpLedger = pgTable('gamification_xp_ledger', {
+ id: text('id').primaryKey(), userId: text('user_id').notNull().references(() => user.id), eventId: text('event_id').notNull().references(() => gamificationEventOutbox.id), rewardKey: text('reward_key').notNull(), baseXpMicro: bigint('base_xp_micro', { mode: 'number' }).notNull(), bonusXpMicro: bigint('bonus_xp_micro', { mode: 'number' }).notNull(), rankKey: text('rank_key').notNull(), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [unique('gamification_xp_award_unique').on(t.userId, t.rewardKey), unique('gamification_xp_event_unique').on(t.eventId)]);
+export const gamificationLpLedger = pgTable('gamification_lp_ledger', {
+ id: text('id').primaryKey(), userId: text('user_id').notNull().references(() => user.id), rewardKey: text('reward_key').notNull(), amount: bigint('amount', { mode: 'number' }).notNull(), reason: text('reason').notNull(), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [unique('gamification_lp_reward_unique').on(t.userId, t.rewardKey)]);
+export const gamificationBadges = pgTable('gamification_badges', {
+ userId: text('user_id').notNull().references(() => user.id), family: text('family').notNull(), count: bigint('count', { mode: 'number' }).notNull().default(0), tier: bigint('tier', { mode: 'number' }).notNull().default(0), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.userId, t.family] })]);
+export const gamificationMissions = pgTable('gamification_missions', {
+ id: text('id').primaryKey(), userId: text('user_id').notNull().references(() => user.id), kind: text('kind').notNull(), windowKey: text('window_key').notNull(), target: bigint('target', { mode: 'number' }).notNull(), progress: bigint('progress', { mode: 'number' }).notNull().default(0), rewardLp: bigint('reward_lp', { mode: 'number' }).notNull(), startsAt: timestamp('starts_at', { withTimezone: true }).notNull(), endsAt: timestamp('ends_at', { withTimezone: true }).notNull(), completedAt: timestamp('completed_at', { withTimezone: true }),
+}, t => [unique('gamification_mission_window_unique').on(t.userId, t.kind, t.windowKey), index('gamification_mission_user_end_idx').on(t.userId, t.endsAt)]);
+export const gamificationCosmetics = pgTable('gamification_cosmetics', {
+ id: text('id').primaryKey(), name: text('name').notNull(), slot: text('slot').notNull(), priceLp: bigint('price_lp', { mode: 'number' }).notNull(), active: boolean('active').notNull().default(true),
+}, t => [check('gamification_cosmetics_price_check', sql`${t.priceLp} >= 0`)]);
+export const gamificationInventory = pgTable('gamification_inventory', {
+ userId: text('user_id').notNull().references(() => user.id), cosmeticId: text('cosmetic_id').notNull().references(() => gamificationCosmetics.id), acquiredAt: timestamp('acquired_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.userId, t.cosmeticId] })]);
+export const gamificationQualifiedDays = pgTable('gamification_qualified_days', {
+ userId: text('user_id').notNull().references(() => user.id), dayKey: text('day_key').notNull(), weekKey: text('week_key').notNull(),
+}, t => [primaryKey({ columns: [t.userId, t.dayKey] }), index('gamification_qualified_week_idx').on(t.userId, t.weekKey)]);
+
+// Immutable server-written learning facts. Writers insert these in the same transaction as the domain action and receipt.
+export const gamificationLearningFacts = pgTable('gamification_learning_facts', {
+ id: text('id').primaryKey(), userId: text('user_id').notNull().references(() => user.id), courseId: text('course_id').notNull().references(() => mataKuliah.id),
+ source: text('source').$type<'question' | 'flashcard'>().notNull(), sourceId: text('source_id').notNull(), sourceVersion: text('source_version').notNull(), occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
+ attemptId: text('attempt_id'), correct: boolean('correct'), lastRevealAttemptId: text('last_reveal_attempt_id'), lastRevealAt: timestamp('last_reveal_at', { withTimezone: true }),
+ adapter: text('adapter').$type<'canonical' | 'legacy'>(), grade: bigint('grade', { mode: 'number' }), previousDueAt: timestamp('previous_due_at', { withTimezone: true }),
+}, t => [index('gamification_learning_facts_owner_source_idx').on(t.userId, t.source, t.sourceId, t.occurredAt), check('gamification_learning_facts_kind_check', sql`(${t.source} = 'question' and ${t.attemptId} is not null and ${t.correct} is not null and ((${t.lastRevealAttemptId} is null and ${t.lastRevealAt} is null) or (${t.lastRevealAttemptId} is not null and ${t.lastRevealAt} is not null)) and ${t.grade} is null and ${t.previousDueAt} is null and ${t.adapter} is null) or (${t.source} = 'flashcard' and ${t.grade} is not null and ${t.grade} between 0 and 4 and ${t.previousDueAt} is not null and ${t.adapter} in ('canonical', 'legacy') and ${t.attemptId} is null and ${t.correct} is null and ${t.lastRevealAttemptId} is null and ${t.lastRevealAt} is null)`)]);
+export const gamificationEligibleRecalls = pgTable('gamification_eligible_recalls', {
+ sourceEvidenceId: text('source_evidence_id').primaryKey().references(() => gamificationLearningFacts.id), userId: text('user_id').notNull().references(() => user.id), checklistItemId: text('checklist_item_id').notNull().references(() => gamificationChecklistItems.id), reviewedAt: timestamp('reviewed_at', { withTimezone: true }).notNull(), previousDueAt: timestamp('previous_due_at', { withTimezone: true }).notNull(),
+}, t => [index('gamification_eligible_recalls_lookup_idx').on(t.userId, t.checklistItemId, t.reviewedAt)]);
+export const gamificationBadgeActivities = pgTable('gamification_badge_activities', {
+ userId: text('user_id').notNull().references(() => user.id), family: text('family').notNull(), identity: text('identity').notNull(),
+}, t => [primaryKey({ columns: [t.userId, t.family, t.identity] })]);
+export const gamificationDailyRankSnapshots = pgTable('gamification_daily_rank_snapshots', {
+ userId: text('user_id').notNull().references(() => user.id), dayKey: text('day_key').notNull(), rankKey: text('rank_key').notNull(), capturedAt: timestamp('captured_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.userId, t.dayKey] })]);
+export const gamificationExplanationCompletionsV2 = pgTable('gamification_explanation_completions_v2', {
+ id: text('id').primaryKey(), userId: text('user_id').notNull().references(() => user.id), collectionId: text('collection_id').notNull().references(() => solutionCollections.id), collectionVersion: bigint('collection_version', { mode: 'number' }).notNull(), completedAt: timestamp('completed_at', { withTimezone: true }).notNull(), itemIds: jsonb('item_ids').$type<string[]>().notNull(),
+}, t => [unique('gamification_explanation_v2_identity').on(t.userId, t.collectionId, t.collectionVersion)]);
+
+/** Server-recorded answer disclosure history. Rows are append-only. */
+export const gamificationQuestionExposures = pgTable('gamification_question_exposures', {
+ id: text('id').primaryKey(),
+ userId: text('user_id').notNull().references(() => user.id),
+ questionId: text('question_id').notNull().references(() => soal.id),
+ courseId: text('course_id').notNull().references(() => mataKuliah.id),
+ sourceVersion: text('source_version').notNull(),
+ kind: text('kind').$type<'disclosure' | 'baseline'>().notNull(),
+ attemptIdentity: text('attempt_identity').notNull(),
+ exposedAt: timestamp('exposed_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [unique('gamification_question_exposure_identity').on(t.userId, t.questionId, t.kind, t.attemptIdentity), index('gamification_question_exposure_history_idx').on(t.userId, t.questionId, t.exposedAt), check('gamification_question_exposure_kind_check', sql`${t.kind} in ('disclosure', 'baseline')`)]);
+
+/** Marks that legacy history was checked, including when it was empty. */
+export const gamificationQuestionExposureInitializations = pgTable('gamification_question_exposure_initializations', {
+ userId: text('user_id').notNull().references(() => user.id),
+ questionId: text('question_id').notNull().references(() => soal.id),
+ initializedAt: timestamp('initialized_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.userId, t.questionId] })]);

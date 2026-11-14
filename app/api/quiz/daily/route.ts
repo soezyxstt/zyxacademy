@@ -19,6 +19,7 @@ import {
   bab,
   quizTemplates,
   studentQuizAttempts,
+  soal,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -29,6 +30,8 @@ import {
   resolveCourseAccess,
   type CourseAccessResult,
 } from "@/lib/student/course-access";
+import { canonicalObjectiveProvenance } from "@/lib/gamification/question-snapshot-provenance";
+import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { resolveAuthSecret } from "@/lib/auth-secret";
 
 const DAILY_QUESTION_COUNT = 5;
@@ -119,6 +122,7 @@ type DailyTemplateAccess = {
 
 type ServerQuestion = {
   id: string;
+  generationHash: string | null;
   origin: "zyx_original" | "historical_reference" | "itb_example";
   sourceEventName: string | null;
   sourceReferenceId: string | null;
@@ -135,6 +139,7 @@ type ServerQuestion = {
 
 const questionSelect = {
   id: aiQuestionBank.id,
+  generationHash: aiQuestionBank.generationHash,
   origin: aiQuestionBank.origin,
   sourceEventName: aiQuestionBank.sourceEventName,
   sourceReferenceId: aiQuestionBank.sourceReferenceId,
@@ -520,20 +525,32 @@ export async function POST(req: NextRequest) {
   const score = total > 0 ? Math.round((correct / total) * 100) : 0;
   const attemptId = randomUUID();
   const submittedAt = new Date();
-  const serverSnapshot = serverQuestions.map((question) => ({
-    id: question.id,
-    origin: question.origin,
-    sourceEventName: question.sourceEventName,
-    sourceReferenceId: question.sourceReferenceId,
-    prompt: question.prompt,
-    options: question.options,
-    difficulty: question.difficulty,
-    question_type: question.questionType,
-    tags: question.tags,
-    correct_indices: question.correctIndices,
-    acceptable_answers: question.acceptableAnswers,
-    explanation: question.explanation,
-  }));
+  const courseIdentity = await resolveCourseIdentity(template.courseId);
+  const canonicalRows = courseIdentity?.canonicalId
+    ? await db.select().from(soal).where(and(inArray(soal.id, serverQuestions.map((question) => question.id)), eq(soal.mataKuliahId, courseIdentity.canonicalId)))
+    : [];
+  const canonicalById = new Map(canonicalRows.map((row) => [row.id, row]));
+  const serverSnapshot = serverQuestions.map((question) => {
+    const canonical = canonicalById.get(question.id);
+    const provenance = canonical && canonicalObjectiveProvenance(
+      { ...question, options: publicOptions(question.options) }, canonical, courseIdentity?.canonicalId ?? null,
+    );
+    return {
+      id: question.id,
+      origin: question.origin,
+      sourceEventName: question.sourceEventName,
+      sourceReferenceId: question.sourceReferenceId,
+      prompt: question.prompt,
+      options: question.options,
+      difficulty: question.difficulty,
+      question_type: question.questionType,
+      tags: question.tags,
+      correct_indices: question.correctIndices,
+      acceptable_answers: question.acceptableAnswers,
+      explanation: question.explanation,
+      ...(provenance ? { gamificationProvenance: provenance } : {}),
+    };
+  });
 
   await db.transaction(async (tx) => {
     await tx.insert(studentQuizAttempts).values({

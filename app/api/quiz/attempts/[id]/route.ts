@@ -6,8 +6,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/db';
+import { lockQuestionExposures, recordAttemptDisclosures } from '@/lib/gamification/question-exposure';
 import { studentQuizAttempts, aiQuestionBank, quizTemplates, knowledgeObjects, attemptFeedback, soal, soalIde, ide, itemAsesmen, jawabanMurid, buktiIdeJawaban } from '@/db/schema';
 import { auth } from '@/lib/auth';
+import { hasAnyPeran } from '@/lib/auth/authorization';
 import { headers } from 'next/headers';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { recordLearningEvents } from '@/lib/learning-events';
@@ -23,9 +25,10 @@ import { canAccessStudentQuizTemplate } from '@/lib/quiz/student-access';
 import { canAccessQuizSnapshot } from '@/lib/quiz/question-scope';
 import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
 import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
-import { gradeStableOptionAnswer } from '@/lib/asesmen/attempt';
+import { snapshotExposureIdentity } from '@/lib/gamification/question-exposure-policy';
+import { checkAnswerCorrectness } from '@/lib/gamification/question-grading';
+import { writeQuestionRewards } from '@/lib/gamification/question-writer';
 import { quizAttachmentPrefix } from '@/lib/storage/keys';
-import { isShortAnswerCorrect } from '@/lib/quiz/short-answer';
 import {
   buildLegacyGradingPolicySnapshot,
   buildLegacyRenderedQuestionSnapshot,
@@ -136,7 +139,16 @@ export async function GET(_req: NextRequest, { params }: Context) {
     remediation,
   };
 
-  return NextResponse.json(serializeStudentQuizAttempt(rawPayload, { releaseState: released ? 'released' : 'hidden' }));
+  const payload = serializeStudentQuizAttempt(rawPayload, { releaseState: released ? 'released' : 'hidden' });
+  if (released && session.user.role !== 'admin' && session.user.role !== 'teacher' && !await hasAnyPeran(session.user.id, ['admin', 'tutor'], { allowAdmin: true })) {
+    const questionIds = (payload.questionsSnapshot as Array<Record<string, unknown>>).filter(q => q.explanation || (Array.isArray(q.correct_indices) && q.correct_indices.length) || (Array.isArray(q.correctIndices) && q.correctIndices.length) || (Array.isArray(q.acceptable_answers) && q.acceptable_answers.length) || (Array.isArray(q.acceptableAnswers) && q.acceptableAnswers.length)).map(q => String(q.id));
+    try {
+      await db.transaction(tx => recordAttemptDisclosures(tx, { userId: session.user.id, attemptId: id, questionIds, occurredAt: new Date(), requestId: crypto.randomUUID() }));
+    } catch {
+      return NextResponse.json({ error: 'Pembahasan belum tersedia. Coba lagi.' }, { status: 503 });
+    }
+  }
+  return NextResponse.json(payload);
 }
 
 const AnswerValueSchema = z.union([
@@ -219,35 +231,6 @@ export async function POST(req: NextRequest, { params }: Context) {
 
   const snapshot = attempt.questionsSnapshot as LegacyQuizQuestionSnapshot[];
 
-  /**
-   * Evaluates if a submitted answer is deterministically correct for supported question types.
-   */
-  function checkAnswerCorrectness(q: any, submitted: any): boolean {
-    const qType = q.question_type || q.questionType;
-    if (qType === "short_answer" || (Array.isArray(q.acceptable_answers) && q.acceptable_answers.length > 0)) {
-      return isShortAnswerCorrect(submitted, q.acceptable_answers);
-    }
-    if (qType === "essay") {
-      return false;
-    }
-    const indices = Array.isArray(submitted) ? submitted : [];
-    const correct = Array.isArray(q.correct_indices) ? q.correct_indices : Array.isArray(q.correctIndices) ? q.correctIndices : [];
-    if (correct.length === 0) return false;
-    const isMultiple = qType === "multiple_choices" || correct.length > 1;
-    if (Array.isArray(q.stable_option_ids)) {
-      return gradeStableOptionAnswer({
-        stableOptionIds: q.stable_option_ids,
-        correctIndices: correct,
-        submitted,
-        questionType: isMultiple ? "multiple_choices" : qType,
-      });
-    }
-    if (!isMultiple && (qType === "multiple_choice" || !qType)) {
-      const firstIdx = indices[0];
-      return firstIdx !== undefined && correct.includes(firstIdx);
-    }
-    return indices.length === correct.length && indices.every((i: number) => correct.includes(i));
-  }
 
   // Auto-grade
   let correct = 0;
@@ -344,15 +327,14 @@ export async function POST(req: NextRequest, { params }: Context) {
  ? await buildPlanForConcepts(attempt.studentId, courseId, weakAreas)
  : [];
 
-  const now = new Date();
-  const startedMs = normalizeDate(attempt.startedAt).getTime();
-  const elapsedSeconds = Math.max(0, Math.floor((now.getTime() - startedMs) / 1000));
-  let finalDurationSeconds = elapsedSeconds;
-  if (templateMeta?.timeLimitSeconds != null) {
-    finalDurationSeconds = Math.min(finalDurationSeconds, templateMeta.timeLimitSeconds);
-  }
-
-  await db.transaction(async (tx) => {
+  const submitted = await db.transaction(async (tx) => {
+    const [locked] = await tx.select().from(studentQuizAttempts).where(and(eq(studentQuizAttempts.id, id), eq(studentQuizAttempts.studentId, session.user.id))).for('update');
+    if (!locked || locked.status !== 'in_progress') return false;
+    if (JSON.stringify(locked.questionsSnapshot) !== JSON.stringify(attempt.questionsSnapshot) || JSON.stringify(locked.answersSnapshot) !== JSON.stringify(attempt.answersSnapshot)) return false;
+    await lockQuestionExposures(tx, session.user.id, snapshot.flatMap(q => { const identity = snapshotExposureIdentity(q); return identity ? [identity.canonicalQuestionId] : []; }));
+    const now = new Date();
+    const elapsedSeconds = Math.max(0, Math.floor((now.getTime() - normalizeDate(attempt.startedAt).getTime()) / 1000));
+    const finalDurationSeconds = templateMeta.timeLimitSeconds != null ? Math.min(elapsedSeconds, templateMeta.timeLimitSeconds) : elapsedSeconds;
     await tx
       .update(studentQuizAttempts)
       .set({
@@ -370,6 +352,7 @@ export async function POST(req: NextRequest, { params }: Context) {
         recommendedNextSteps: nextSteps,
       })
       .where(eq(studentQuizAttempts.id, id));
+    await writeQuestionRewards(tx, { userId: session.user.id, attemptId: id, snapshot, answers, occurredAt: now });
     await dualWriteQuizAttempt(tx, {
       id,
       templateId: attempt.templateId,
@@ -443,7 +426,9 @@ export async function POST(req: NextRequest, { params }: Context) {
         }
       }
     }
+    return true;
   });
+  if (!submitted) return NextResponse.json({ error: 'Attempt not found or already submitted' }, { status: 404 });
 
   if (canonicalEvidenceIdeaIds.size > 0) {
     await Promise.all([...canonicalEvidenceIdeaIds].map((ideaId) => requestIdeaMasteryRecompute({

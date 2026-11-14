@@ -13,8 +13,9 @@ import {
   kemajuanFlashcardMurid,
   reviewFlashcard,
   pemahamanIde,
+  gamificationLearningFacts,
 } from "@/db/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import { calculateSM2 } from "./flashcard-scheduler";
 import { randomUUID } from "crypto";
 import { markRecommendationDone } from "@/lib/recommendation-service";
@@ -24,6 +25,9 @@ import { resolveStudentCourse } from "@/lib/student/course-catalog";
 import { getStudentCourseAccess, isFreeChapterScoped } from "@/lib/course-utils";
 import { canAccessCourseContent } from "@/lib/student/course-access";
 import { rankFlashcardQueue, isReviewDue, weakestFlashcardIdea, type FlashcardQueuePriorityInput } from "@/lib/flashcard-ranking";
+import { startLearningRewards } from "@/lib/gamification/learning-start";
+import { recordGamificationEvidence } from "@/lib/gamification/receipts";
+import { resolveCourseAccess } from "@/lib/student/course-access";
 import { getDueFlashcardCounts } from "@/lib/student/due-flashcards";
 
 export interface FlashcardHistoryItem {
@@ -133,6 +137,7 @@ export async function getReviewQueue(studentId: string, courseId: string) {
         .from(flashcardIde)
         .leftJoin(
           pemahamanIde,
+  gamificationLearningFacts,
           and(eq(pemahamanIde.ideId, flashcardIde.ideId), eq(pemahamanIde.penggunaId, studentId)),
         )
         .where(inArray(flashcardIde.flashcardId, canonicalCards.map((card) => card.id)));
@@ -354,6 +359,7 @@ async function submitCanonicalFlashcardReviewTx(
   const [card] = await db
     .select({
       id: canonicalFlashcard.id,
+      version: canonicalFlashcard.version,
       status: canonicalFlashcard.status,
       setStatus: setFlashcard.status,
       courseId: setFlashcard.mataKuliahId,
@@ -378,8 +384,15 @@ async function submitCanonicalFlashcardReviewTx(
 
   const correctnessMap: Record<number, number> = { 1: 0, 2: 0.5, 3: 0.8, 4: 1 };
   const correctness = correctnessMap[grade] ?? 0;
-  const now = new Date();
   const result = await db.transaction(async (tx) => {
+    const now = new Date();
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`flashcard:${studentId}:${flashcardId}`}, 0))`);
+    const rewardAccess = await resolveCourseAccess({ userId: studentId, courseId: card.courseId }, tx);
+    const [current] = await tx.select({ version: canonicalFlashcard.version }).from(canonicalFlashcard)
+      .innerJoin(setFlashcard, eq(canonicalFlashcard.setFlashcardId, setFlashcard.id))
+      .where(and(eq(canonicalFlashcard.id, card.id), eq(canonicalFlashcard.version, card.version), eq(canonicalFlashcard.status, "published"), eq(setFlashcard.status, "published"), eq(setFlashcard.mataKuliahId, card.courseId))).limit(1);
+    const rewardStart = current && rewardAccess.hasFullContentAccess && !rewardAccess.isDemo
+      ? await startLearningRewards(tx, studentId, card.courseId, now) : null;
     const [existing] = await tx
       .select()
       .from(kemajuanFlashcardMurid)
@@ -429,6 +442,10 @@ async function submitCanonicalFlashcardReviewTx(
       nextDueAt: schedule.dueDate,
       reviewedAt: now,
     });
+    if (rewardStart && current && existing?.dueAt) {
+      await tx.insert(gamificationLearningFacts).values({ id: reviewId, userId: studentId, courseId: card.courseId, source: "flashcard", sourceId: card.id, sourceVersion: String(current.version), occurredAt: now, adapter: "canonical", grade, previousDueAt: existing.dueAt });
+      await recordGamificationEvidence(tx, { userId: studentId, courseId: card.courseId, source: "flashcard", sourceId: card.id, sourceVersion: String(current.version), sourceEvidenceId: reviewId, occurredAt: now, details: { grade, adapter: "canonical", previousDueAt: existing.dueAt.toISOString() } });
+    }
     return {
       review: { id: reviewId, grade, reviewedAt: now },
       progress: {
@@ -439,7 +456,7 @@ async function submitCanonicalFlashcardReviewTx(
     };
   });
 
-  await recordFlashcardIdeaEvidence(studentId, flashcardId, result.review.id, correctness, now);
+  await recordFlashcardIdeaEvidence(studentId, flashcardId, result.review.id, correctness, result.review.reviewedAt);
   return result;
 }
 
@@ -504,6 +521,7 @@ export async function submitFlashcardReviewTx(
   const correctness = correctnessMap[grade] ?? 0.0;
 
   const result = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`flashcard:${studentId}:${flashcardId}`}, 0))`);
     const [existing] = await tx
       .select()
       .from(studentFlashcardProgress)
@@ -574,6 +592,18 @@ export async function submitFlashcardReviewTx(
       reviewedAt: now,
     };
     await tx.insert(flashcardReviews).values(reviewRow);
+    // The compatibility adapter maps legacy cards to canonical cards by identical ID.
+    {
+      const [canonical] = await tx.select({ id: canonicalFlashcard.id, version: canonicalFlashcard.version, courseId: setFlashcard.mataKuliahId }).from(canonicalFlashcard).innerJoin(setFlashcard, eq(canonicalFlashcard.setFlashcardId, setFlashcard.id)).where(and(eq(canonicalFlashcard.id, flashcardId), eq(canonicalFlashcard.status, "published"), eq(setFlashcard.status, "published"))).limit(1).for("share");
+      if (canonical) {
+        const rewardAccess = await resolveCourseAccess({ userId: studentId, courseId: set.courseId }, tx);
+        const start = rewardAccess.canonicalCourseId === canonical.courseId && rewardAccess.hasFullContentAccess && !rewardAccess.isDemo ? await startLearningRewards(tx, studentId, canonical.courseId, now) : null;
+        if (start && existing?.dueDate) {
+          await tx.insert(gamificationLearningFacts).values({ id: reviewId, userId: studentId, courseId: canonical.courseId, source: "flashcard", sourceId: canonical.id, sourceVersion: String(canonical.version), occurredAt: now, adapter: "legacy", grade: reviewRow.grade, previousDueAt: existing.dueDate });
+          await recordGamificationEvidence(tx, { userId: studentId, courseId: canonical.courseId, source: "flashcard", sourceId: canonical.id, sourceVersion: String(canonical.version), sourceEvidenceId: reviewId, occurredAt: now, details: { grade: reviewRow.grade, adapter: "legacy", previousDueAt: existing.dueDate.toISOString() } });
+        }
+      }
+    }
 
     const eventId = randomUUID();
     const eventRow = {
@@ -679,6 +709,7 @@ export async function skipFlashcardTx(
   }
 
   const result = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`flashcard:${studentId}:${flashcardId}`}, 0))`);
     const [existing] = await tx
       .select()
       .from(studentFlashcardProgress)
@@ -731,6 +762,18 @@ export async function skipFlashcardTx(
       reviewedAt: now,
     };
     await tx.insert(flashcardReviews).values(reviewRow);
+    // The compatibility adapter maps legacy cards to canonical cards by identical ID.
+    {
+      const [canonical] = await tx.select({ id: canonicalFlashcard.id, version: canonicalFlashcard.version, courseId: setFlashcard.mataKuliahId }).from(canonicalFlashcard).innerJoin(setFlashcard, eq(canonicalFlashcard.setFlashcardId, setFlashcard.id)).where(and(eq(canonicalFlashcard.id, flashcardId), eq(canonicalFlashcard.status, "published"), eq(setFlashcard.status, "published"))).limit(1).for("share");
+      if (canonical) {
+        const rewardAccess = await resolveCourseAccess({ userId: studentId, courseId: set.courseId }, tx);
+        const start = rewardAccess.canonicalCourseId === canonical.courseId && rewardAccess.hasFullContentAccess && !rewardAccess.isDemo ? await startLearningRewards(tx, studentId, canonical.courseId, now) : null;
+        if (start && existing?.dueDate) {
+          await tx.insert(gamificationLearningFacts).values({ id: reviewId, userId: studentId, courseId: canonical.courseId, source: "flashcard", sourceId: canonical.id, sourceVersion: String(canonical.version), occurredAt: now, adapter: "legacy", grade: reviewRow.grade, previousDueAt: existing.dueDate });
+          await recordGamificationEvidence(tx, { userId: studentId, courseId: canonical.courseId, source: "flashcard", sourceId: canonical.id, sourceVersion: String(canonical.version), sourceEvidenceId: reviewId, occurredAt: now, details: { grade: reviewRow.grade, adapter: "legacy", previousDueAt: existing.dueDate.toISOString() } });
+        }
+      }
+    }
 
     const eventId = randomUUID();
     const eventRow = {

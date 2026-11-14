@@ -64,6 +64,62 @@
       "when": 1794585056992,
       "tag": "0008_moaning_mole_man",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794643137397,
+      "tag": "0009_glossy_black_tarantula",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794643491167,
+      "tag": "0010_confused_overlord",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794644106608,
+      "tag": "0011_cooing_dormammu",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794644373767,
+      "tag": "0012_late_wolverine",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794644822596,
+      "tag": "0013_lazy_microchip",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794644976050,
+      "tag": "0014_bent_shotgun",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1794646224492,
+      "tag": "0015_sticky_mandarin",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1794663999331,
+      "tag": "0016_smiling_grandmaster",
+      "breakpoints": true
     }
   ]
 }

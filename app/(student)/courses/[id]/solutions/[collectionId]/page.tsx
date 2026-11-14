@@ -15,7 +15,7 @@ export default async function SolutionCollectionPage({ params }: Props) {
   if (!session?.user?.id) redirect(`/sign-in?next=${encodeURIComponent(path)}`);
   const product = await getPublishedSolutionCollection({ courseId: id, collectionId, userId: session.user.id });
   if (!product) notFound();
-  return <SolutionCollectionReader collection={product.collection}
+  return <SolutionCollectionReader collection={product.collection} completion={{ collectionId: product.id, version: product.version }}
     courseHref={`/courses/${encodeURIComponent(id)}`}
     backHref={`/courses/${encodeURIComponent(id)}/material?tab=bank_soal`} />;
 }

@@ -480,6 +480,14 @@ function StudentSidebarContent({
         />
 
         <NavItem
+          href={href("/achievements")}
+          icon={Trophy}
+          label={t("navigation.achievements")}
+          active={pathname === "/achievements"}
+          collapsed={c}
+        />
+
+        <NavItem
           href={href("/leaderboard")}
           icon={Trophy}
           label={t("navigation.leaderboard")}
