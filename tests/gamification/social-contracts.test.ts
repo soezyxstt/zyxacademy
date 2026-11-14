@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { parseLeaderboardInput, parseSocialSettings, ownsSelectedBadges } from "../../lib/gamification/social-contracts";
+import { parseLeaderboardInput, parseSocialSettings, ownsSelectedBadges, type StudentSocialSettingsInput } from "../../lib/gamification/social-contracts";
 
-const settings = { displayName: "  Rani  ", visibility: "members", showMajor: false, showFaculty: false, allowFollows: false, leaderboardOptIn: true, avatarBadgeId: null, avatarMode: "photo", badgeTier: null, featuredBadgeIds: [] };
+const settings: StudentSocialSettingsInput = { displayName: "  Rani  ", visibility: "members", showMajor: false, showFaculty: false, allowFollows: false, leaderboardOptIn: true, avatarBadgeId: null, avatarMode: "photo", badgeTier: null, featuredBadgeIds: [] };
 test("social settings require explicit independent consent and reject unknown fields", () => {
   expect(parseSocialSettings(settings)).toEqual({ ...settings, displayName: "Rani" });
   expect(() => parseSocialSettings({ ...settings, allowFollows: undefined })).toThrow();

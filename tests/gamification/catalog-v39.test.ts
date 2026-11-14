@@ -4,7 +4,7 @@ import { cosmeticNameKeys } from '../../lib/gamification/labels';
 import id from '../../messages/id/student.json';
 import en from '../../messages/en/student.json';
 
-const originalPrices = [250,400,750,1000,1250,1750,1500,900,450,600,600,750,750,900,600,700,900,1000];
+const originalPrices = [250,400,750,1000,1250,1750,1500,900,450,600,600,750,750,900,600,700,900,1000] as const;
 const originalIds = ['frame-classic','title-scholar','frame-detailed','frame-laurel','frame-circuit','frame-celestial','theme-academy','frame-merah-putih','zyra-skin-orbit','zyra-skin-bara','zyra-skin-samudra','zyra-skin-lontar','zyra-skin-merah-putih','zyra-skin-rimba','zyra-avatar-komodo','zyra-avatar-jalak','zyra-avatar-harimau','zyra-avatar-orangutan'];
 describe('expanded cosmetic catalog', () => {
   test('retains every original persisted ID and LP price', () => {

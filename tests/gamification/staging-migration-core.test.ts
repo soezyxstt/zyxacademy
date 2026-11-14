@@ -18,7 +18,7 @@ describe('staging gamification migration history', () => {
   const migrations = readMigrationFiles({ migrationsFolder: 'drizzle-postgres' });
   expect(migrations.length).toBe(18);
   for (const [index, expected] of PENDING.entries()) {
-   expect([migrations[index + 16].folderMillis, migrations[index + 16].hash]).toEqual(expected);
+   expect([migrations[index + 16].folderMillis, migrations[index + 16].hash]).toEqual([...expected]);
    expect(migrations[index + 16].sql.length).toBe(index === 0 ? 2 : 4);
   }
  });

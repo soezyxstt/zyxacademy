@@ -44,7 +44,7 @@ test("ten unique model keys preserve the original IDs and valid local poster fal
     expect(MASCOT_MODEL_KEYS.includes(avatar.modelKey)).toBe(true);
     expect(existsSync(`public${avatar.src}`)).toBe(true);
   }
-  for(const key of ["komodo","jalak","harimau","orangutan"]) {
+  for(const key of ["komodo","jalak","harimau","orangutan"] as const) {
     const avatar=ZYRA_AVATARS.find(a=>a.id===`zyra-avatar-${key}`);
     expect(avatar?.modelKey).toBe(key);
     expect(existsSync(`public/gamification/collections/mascots/${key}-v37.webp`)).toBe(true);
