@@ -1,3 +1,4 @@
+import { expectedComputeFunctionCount } from "./worker-function-count.mjs";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { parseEnv } from "node:util";
 import { createHash } from "node:crypto";
@@ -59,7 +60,7 @@ for (let attempt = 0; attempt < 90; attempt++) {
     const response = await fetch(`${environment.INNGEST_SERVE_ORIGIN}/health?probe=${crypto.randomUUID()}`, { cache: "no-store", signal: AbortSignal.timeout(30_000) });
     if (!response.ok) throw new Error(`NEON_HEALTH_FAILED:${response.status}:${(await response.text()).slice(0, 300)}`);
     const health = await response.json();
-    healthyProbes = health.version === environment.ZYX_COMPUTE_REVISION && health.functions === 22 ? healthyProbes + 1 : 0;
+    healthyProbes = health.version === environment.ZYX_COMPUTE_REVISION && health.functions === expectedComputeFunctionCount ? healthyProbes + 1 : 0;
     if (healthyProbes >= 3) {
       const after = { project, branch, slug, deploymentId: current.active_deployment.id, url: current.invocation_url, checksum: health.version, functions: health.functions };
       await writeFile(`${target.output}/after.json`, JSON.stringify(after, null, 2));

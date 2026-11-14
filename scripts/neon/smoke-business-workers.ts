@@ -1,3 +1,4 @@
+import { expectedComputeFunctionCount } from "./worker-function-count.mjs";
 import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { randomUUID, createHash } from "node:crypto";
@@ -22,7 +23,7 @@ assert.ok((await eventKeys.json()).data?.some((entry: { key: string }) => entry.
 const health = await fetch(`${target.origin}/health`, { signal: AbortSignal.timeout(30_000) });
 assert.equal(health.status, 200, "Worker health preflight failed");
 const worker = await health.json();
-assert.equal(worker.functions, 22);
+assert.equal(worker.functions, expectedComputeFunctionCount);
 assert.equal(worker.version, config.ZYX_COMPUTE_REVISION);
 Object.assign(process.env, config);
 const [{ db, pool }, schema, { storage }, { joinKey, slugifySegment, buildCourseThumbnailKey, buildSourceFigureKey, extractStorageKey }, { inngest }] = await Promise.all([

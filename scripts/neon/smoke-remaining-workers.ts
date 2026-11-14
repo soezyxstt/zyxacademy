@@ -1,3 +1,4 @@
+import { expectedComputeFunctionCount } from "./worker-function-count.mjs";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
@@ -165,7 +166,7 @@ async function main() {
     const health = await fetch(`${target.origin}/health`, { signal: AbortSignal.timeout(30_000) });
     assert.equal(health.status, 200);
     const worker = await health.json();
-    assert.equal(worker.functions, 22);
+    assert.equal(worker.functions, expectedComputeFunctionCount);
     assert.match(config.ZYX_COMPUTE_REVISION, /^[a-f0-9]{64}$/);
     assert.equal(worker.version, config.ZYX_COMPUTE_REVISION);
     assert.equal(new URL(config.VECTORIZE_WORKER_URL).origin, "https://zyx-vector-api-background.16922204.workers.dev", "REMAINING_SEARCH_TARGET_MISMATCH");

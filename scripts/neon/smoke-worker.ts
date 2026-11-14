@@ -1,3 +1,4 @@
+import { expectedComputeFunctionCount } from "./worker-function-count.mjs";
 import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { sourcePdf, sourceJpeg2000Pdf } from "../../tests/helpers/source-pdf";
@@ -42,7 +43,7 @@ try {
       const response = await fetch(`${config.INNGEST_SERVE_ORIGIN}/health?probe=${crypto.randomUUID()}`, { cache: "no-store", signal: AbortSignal.timeout(30_000) });
       assert.equal(response.status, 200);
       const health = await response.json();
-      assert.equal(health.functions, 22);
+      assert.equal(health.functions, expectedComputeFunctionCount);
       if (health.version === config.ZYX_COMPUTE_REVISION) return;
       if (attempt === 14) assert.equal(health.version, config.ZYX_COMPUTE_REVISION);
       await new Promise(resolve => setTimeout(resolve, 2000));
