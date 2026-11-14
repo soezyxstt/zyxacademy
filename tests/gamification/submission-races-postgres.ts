@@ -250,6 +250,8 @@ async function main() {
    const pending = post(`/api/quiz/attempts/${attempt}`,{answers:{[id]:0}});
    await timeout(read.entered.promise,'LATE_ABSENT_READ');
    const created = await timeout(author.createCanonicalQuestionBatch({courseId:course,chapterId:chapter,reviewStatus:'published',creatorId:user,createOnly:true,visualAssets,items:[{questionId:id,question:original,ideaLinks:original.ideaLinks}]}),'LATE_CREATE');
+   assert(Array.isArray(created));
+   assert.equal(created.length,1);
    assert.equal(created[0].created,true);
    const editorGate = setEditGate(canonicalUpdate);
    let editing: Promise<any> | undefined;
