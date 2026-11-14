@@ -9,17 +9,20 @@ import { startLearningRewards } from './learning-start';
 import { recordGamificationEvidenceBatch } from './receipts';
 import { checkAnswerCorrectness } from './question-grading';
 import type { GamificationEvidenceInput } from './contracts';
+import type { HeldCanonicalQuestions } from './question-exposure';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 /** Called after locking and completing the owned attempt, in the submission transaction. */
-export async function writeQuestionRewards(tx: Tx, input: { userId: string; attemptId: string; snapshot: unknown[]; answers: Record<string, unknown>; occurredAt: Date }) {
+export async function writeQuestionRewards(tx: Tx, input: { userId: string; attemptId: string; snapshot: unknown[]; answers: Record<string, unknown>; occurredAt: Date; heldCanonical?: HeldCanonicalQuestions }) {
  const [attempt] = await tx.select({ snapshot: studentQuizAttempts.questionsSnapshot }).from(studentQuizAttempts).where(and(eq(studentQuizAttempts.id, input.attemptId), eq(studentQuizAttempts.studentId, input.userId))).limit(1);
  if (!attempt) throw new Error('QUESTION_EXPOSURE_ATTEMPT_NOT_FOUND');
  if (!Array.isArray(attempt.snapshot)) return;
  // The held snapshot is authoritative. Require a matching caller snapshot as well.
  const candidates = matchRewardSnapshots(input.snapshot, attempt.snapshot);
  await lockQuestionExposures(tx, input.userId, candidates.map(row => row.identity.canonicalQuestionId));
- const canonical = await lockCanonicalQuestions(tx, candidates.map(row => row.identity.canonicalQuestionId));
+ const candidateIds = candidates.map(row => row.identity.canonicalQuestionId);
+ if (input.heldCanonical && candidateIds.some(id => !input.heldCanonical!.ids.includes(id))) throw new Error('QUESTION_LOCK_SET_INCOMPLETE');
+ const canonical = input.heldCanonical ? input.heldCanonical.rows : await lockCanonicalQuestions(tx, candidateIds);
  const byId = new Map(canonical.map(row => [row.id, row]));
  const valid = candidates.filter(({ identity, q }) => {
   const row = byId.get(identity.canonicalQuestionId);

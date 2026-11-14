@@ -8,6 +8,8 @@ import { lockCanonicalQuestionRows } from '@/lib/question-row-locks';
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type HistoryInput = { userId: string; canonicalQuestionId: string; courseId: string; sourceVersion: string; attemptId: string; occurredAt: Date };
 type AttemptInput = { userId: string; attemptId: string; questionId: string; occurredAt: Date };
+/** IDs include absent rows. Use only the set acquired by this transaction. */
+export type HeldCanonicalQuestions = { ids: readonly string[]; rows: Awaited<ReturnType<typeof lockCanonicalQuestions>> };
 
 function assertInput(input: HistoryInput) {
  if (!input.userId || !input.canonicalQuestionId || !input.courseId || !input.attemptId || !/^[1-9]\d*$/.test(input.sourceVersion) || !Number.isSafeInteger(Number(input.sourceVersion)) || !(input.occurredAt instanceof Date) || !Number.isFinite(input.occurredAt.getTime())) throw new Error('INVALID_QUESTION_EXPOSURE_INPUT');
@@ -199,7 +201,7 @@ export async function recordQuestionDisclosure(tx: Transaction, input: AttemptIn
 }
 
 /** Record a response's disclosed snapshot questions using one owned-attempt lookup. */
-async function recordAttemptDisclosuresForOwner(tx: Transaction, ownerId: string, input: { userId: string; attemptId: string; questionIds: readonly string[]; occurredAt: Date; requestId: string; outsideSnapshot?: { questionIds: readonly string[]; canonicalCourseId: string } }) {
+async function recordAttemptDisclosuresForOwner(tx: Transaction, ownerId: string, input: { userId: string; attemptId: string; questionIds: readonly string[]; occurredAt: Date; requestId: string; outsideSnapshot?: { questionIds: readonly string[]; canonicalCourseId: string }; heldCanonical?: HeldCanonicalQuestions }) {
  if (!input.userId || !input.attemptId || !input.requestId || !Number.isFinite(input.occurredAt.getTime())) throw new Error('INVALID_QUESTION_EXPOSURE_INPUT');
  const ids = [...new Set(input.questionIds.filter(Boolean))];
  if (!ids.length && !input.outsideSnapshot?.questionIds.length) return;
@@ -224,7 +226,8 @@ async function recordAttemptDisclosuresForOwner(tx: Transaction, ownerId: string
  if (!disclosureCourseId) throw new Error('QUESTION_EXPOSURE_COURSE_ACCESS_DENIED');
  const matchedIds = ids.filter(id => matches.has(id));
  await lockQuestionExposures(tx, input.userId, matchedIds);
- const canonical = await lockCanonicalQuestions(tx, matchedIds);
+ if (input.heldCanonical && matchedIds.some(id => !input.heldCanonical!.ids.includes(id))) throw new Error('QUESTION_LOCK_SET_INCOMPLETE');
+ const canonical = input.heldCanonical ? input.heldCanonical.rows : await lockCanonicalQuestions(tx, matchedIds);
  const canonicalById = new Map(canonical.map(row => [row.id, row]));
  const identities: HistoryInput[] = [];
  const unresolvedSnapshot: string[] = [];

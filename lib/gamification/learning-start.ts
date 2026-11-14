@@ -15,5 +15,5 @@ export async function startLearningRewards(tx: Transaction, userId: string, cour
       .where(and(eq(gamificationChecklists.courseId, courseId), eq(gamificationChecklists.status, "approved"))).limit(1);
     if (!approved) return null;
   }
-  return ensureGamificationCourseStart(tx, userId, courseId, occurredAt);
+  return ensureGamificationCourseStart(tx, userId, courseId, occurredAt, { skipIneligible: true });
 }

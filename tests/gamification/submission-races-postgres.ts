@@ -31,12 +31,12 @@ const noopModules: Record<string, string> = {
  '@/lib/recommendation-service': 'export async function markRecommendationDone(){}; export async function buildPlanForConcepts(){return []}',
  '@/lib/option-stats': 'export async function recordQuestionOptionStats(){}',
  '@/lib/remediation': 'export async function buildRemediation(){return null}',
- '@/lib/pemahaman/evidence': 'export async function requestIdeaMasteryRecompute(){}',
+ '@/lib/pemahaman/evidence': 'export async function requestIdeaMasteryRecompute(input){ globalThis.__raceFixture.mastery.push(input) }',
 };
 async function bundle(actor: 'submit' | 'edit') {
  const entry = actor === 'submit'
-  ? `export { POST as daily } from './app/api/quiz/daily/route'; export { POST as standard } from './app/api/quiz/attempts/[id]/route'; export { processGamificationOutbox } from './lib/gamification/processor';`
-  : `export { updateCanonicalQuestion } from './lib/question-authoring'; export { stageInteractiveDocumentAssets } from './lib/materials/interactive-document-assets'; export { stageQuestionVisualBinding } from './lib/materials/question-visual-binding';`;
+  ? `export { POST as daily } from './app/api/quiz/daily/route'; export { POST as standard } from './app/api/quiz/attempts/[id]/route'; export { processGamificationOutbox } from './lib/gamification/processor'; export { lockQuestionExposures, lockCanonicalQuestions } from './lib/gamification/question-exposure'; export { lockQuestionBankRows } from './lib/question-row-locks';`
+  : `export { updateCanonicalQuestion, createCanonicalQuestionBatch } from './lib/question-authoring'; export { setQuizQuestions } from './lib/authoring/quiz-assembly'; export { stageInteractiveDocumentAssets } from './lib/materials/interactive-document-assets'; export { stageQuestionVisualBinding } from './lib/materials/question-visual-binding';`;
  const result = await build({ stdin: { contents: entry, resolveDir: root, loader: 'ts' }, bundle: true, platform: 'node', format: 'cjs', write: false, packages: 'external', tsconfig: path.join(root, 'tsconfig.json'), plugins: [{ name: 'fixture-boundaries', setup(b) {
   b.onResolve({ filter: /.*/ }, args => {
    if (args.path === '@/db' || args.path === '@/lib/db') return { path: `db-${actor}`, namespace: 'fixture' };
@@ -80,6 +80,11 @@ function appDb(client: pg.Client) {
 const canonicalShare = (s: string) => /from "soal"/i.test(s) && /for share/i.test(s);
 const canonicalUpdate = (s: string) => /from "soal"/i.test(s) && /for update/i.test(s);
 const ideaRead = (s: string) => /from "soal_ide"/i.test(s) && /join "ide"/i.test(s);
+const bankUpdate = (s: string) => /from "ai_question_bank"/i.test(s) && /for update/i.test(s);
+const attemptUpdate = (s: string) => /update "student_quiz_attempts"/i.test(s);
+const enrollmentRead = (s: string) => /from "pendaftaran_murid"/i.test(s);
+const itemInsert = (s: string) => /insert into "item_asesmen"/i.test(s);
+const itemKeyShare = (s: string) => /from "item_asesmen"/i.test(s) && /for key share/i.test(s);
 
 async function main() {
  const [submitSource, editSource] = await Promise.all([bundle('submit'), bundle('edit')]);
@@ -110,7 +115,8 @@ async function main() {
   if (preflight.rows[0]?.db !== 'neondb' || preflight.rows[0]?.ro !== 'on' || !preflight.rows[0]?.ready || classifyJournal(journal.rows) !== 'complete') throw new Error('PREFLIGHT_FAILED');
   await control.query('commit');
   const setSubmitGate = instrument(submit,releases), setEditGate = instrument(edit,releases);
-  (globalThis as any).__raceFixture = { user, storage, submitDb: appDb(submit), editDb: appDb(edit) };
+  const mastery: Array<{ ideId: string }> = [];
+  (globalThis as any).__raceFixture = { user, storage, mastery, submitDb: appDb(submit), editDb: appDb(edit) };
   const routes = load(submitSource, 'race-submit'), author = load(editSource, 'race-author');
   // Loopback HTTP transport exercises the actual exported route handlers. Next's
   // request context and session are isolated because this is not a Next server.
@@ -151,16 +157,23 @@ async function main() {
   const visual = { id:'fixture',kind:'interactive_document',version:1,label:'Fixture',description:'Fixture',documentSha256:hash(html),documentBytes:html.length,printSha256:hash(png),printBytes:png.length,height:400,staticFallback:{type:'text',summary:'Fixture',content:'Fixture'},printCaption:'Fixture' };
   const prompt = `\`\`\`zyx-visual\n${JSON.stringify(visual)}\n\`\`\``;
   const original = { prompt,options:['A','B'],correctIndices:[0],acceptableAnswers:[],explanation:'A',difficulty:'easy',questionType:'multiple_choice',cognitiveLevel:'understand',reasoningPattern:'fixture',tags:[],courseId:course,ideaLinks:[{ideaId:idea,weight:1,role:'primary'}],reviewStatus:'published' };
+  const visualAssets = [{ path:`visuals/${hash(html)}.html`,sha256:hash(html),bytes:html.length,base64:html.toString('base64') },{ path:`visuals/${hash(png)}.png`,sha256:hash(png),bytes:png.length,base64:png.toString('base64') }];
   await author.stageInteractiveDocumentAssets([{spec:visual,document:html,print:png}]);
   await author.stageQuestionVisualBinding(course,original,[{spec:visual,document:html,print:png}]);
-  async function seedQuestion(id: string, template: string) {
+  async function seedQuestion(id: string, template: string, options: { template?: boolean; canonical?: boolean; ideaId?: string } = {}) {
+   if (options.template !== false) {
    await control.query("insert into quiz_templates (id,course_id,title,category,selection_rules,status,manual_status) values ($1,$2,'Fixture','daily','{}','published','open')",[template,course]);
    await control.query("insert into blueprint_asesmen (id,mata_kuliah_id,title,assessment_type,blueprint,status,generation_hash,creator_id) values ($1,$2,'Fixture','quiz','{}','approved','fixture',$3)",[`${template}-blueprint`,course,user]);
    await control.query("insert into asesmen (id,blueprint_asesmen_id,mata_kuliah_id,title,assessment_type,status,generation_hash,creator_id) values ($1,$2,$3,'Fixture','quiz','published','fixture',$4)",[template,`${template}-blueprint`,course,user]);
+   }
+   if (options.canonical !== false) {
    await control.query("insert into soal (id,mata_kuliah_id,bab_id,question_type,prompt,options_snapshot,quiz_eligible,version,status,difficulty,cognitive_level,reasoning_pattern,generation_hash,creator_id,published_at) values ($1,$2,$3,'multiple_choice',$4,$5::jsonb,true,1,'published','easy','understand','fixture','fixture',$6,now())",[id,course,chapter,prompt,JSON.stringify([{id:'option-01',text:'A',isCorrect:true},{id:'option-02',text:'B',isCorrect:false}]),user]);
+   }
    await control.query("insert into ai_question_bank (id,course_id,origin,quiz_eligible,generation_hash,status,is_stale,difficulty,question_type,tags,prompt,options,correct_indices,acceptable_answers,explanation,review_status) values ($1,$2,'zyx_original',true,'fixture','active',false,'easy','multiple_choice','[]',$3,'[\"A\",\"B\"]','[0]','[]','A','published')",[id,course,prompt]);
+   if (options.canonical !== false) {
    await control.query("insert into pembahasan_soal (id,soal_id,version,content,status,generation_hash,creator_id) values ($1,$2,1,'A','published','fixture',$3)",[`${id}-solution`,id,user]);
-   await control.query("insert into soal_ide (id,soal_id,ide_id,weight,role) values ($1,$2,$3,1,'primary')",[`${id}-link`,id,idea]);
+   await control.query("insert into soal_ide (id,soal_id,ide_id,weight,role) values ($1,$2,$3,1,'primary')",[`${id}-link`,id,options.ideaId ?? idea]);
+   }
    await control.query("insert into gamification_checklist_items (id,checklist_id,category,source_id,content_version,base_xp_micro) values ($1,$2,'question',$3,'1',100000)",[`${id}-item`,checklist,id]);
   }
   async function processFixtureEvent(id: string, expected: { processed: number; rejected: number; failed: number }) {
@@ -223,7 +236,113 @@ async function main() {
    if (first === 'submit') await processFixtureEvent(id,{processed:1,rejected:0,failed:0});
    assert.equal(Number((await control.query('select count(*) n from gamification_xp_ledger where user_id=$1',[user])).rows[0].n),first === 'submit' ? 1 : 0);
   }
-  console.log('PASS actual daily route versus retained-visual edit and standard route versus delete, both lock orders');
+  const makeSnapshot = (id: string, provenance = true) => ({ id,prompt,question_type:'multiple_choice',options:['A','B'],stable_option_ids:['option-01','option-02'],correct_indices:[0], ...(provenance ? {gamificationProvenance:{marker:'canonical-objective-v1',canonicalQuestionId:id,courseId:course,sourceVersion:'1',answerProof:{questionType:'multiple_choice',correctIndices:[0]}}} : {}) });
+  async function seedAttempt(attempt: string, template: string, snapshot: unknown[]) {
+   await control.query("insert into student_quiz_attempts (id,student_id,template_id,status,questions_snapshot,started_at) values ($1,$2,$3,'in_progress',$4::jsonb,now()-interval '1 minute')",[attempt,user,template,JSON.stringify(snapshot)]);
+  }
+  // The authoring batch really creates the previously absent canonical row.
+  // Then the editor and submitter acquire the new canonical and old bank locks
+  // in both orders while the submission retains its original absent-row set.
+  for (const first of ['bank','editor'] as const) {
+   const id = `${prefix}-late-${first}`, template = `${id}-template`, attempt = `${id}-attempt`;
+   await seedQuestion(id,template,{canonical:false}); await seedAttempt(attempt,template,[makeSnapshot(id,false)]);
+   const read = setSubmitGate(canonicalShare);
+   const pending = post(`/api/quiz/attempts/${attempt}`,{answers:{[id]:0}});
+   await timeout(read.entered.promise,'LATE_ABSENT_READ');
+   const created = await timeout(author.createCanonicalQuestionBatch({courseId:course,chapterId:chapter,reviewStatus:'published',creatorId:user,createOnly:true,visualAssets,items:[{questionId:id,question:original,ideaLinks:original.ideaLinks}]}),'LATE_CREATE');
+   assert.equal(created[0].created,true);
+   const editorGate = setEditGate(canonicalUpdate);
+   let editing: Promise<any> | undefined;
+   if (first === 'editor') { editing = author.updateCanonicalQuestion({...original,prompt:`${prompt}\n\nEdited`},user,id); await timeout(editorGate.entered.promise,'LATE_EDITOR'); }
+   const bankGate = setSubmitGate(bankUpdate); read.release.resolve();
+   await timeout(bankGate.entered.promise,'LATE_BANK');
+   if (first === 'bank') { editing = author.updateCanonicalQuestion({...original,prompt:`${prompt}\n\nEdited`},user,id); await timeout(editorGate.entered.promise,'LATE_EDITOR'); }
+   editorGate.release.resolve(); await waitBlocked(pids.edit,pids.submit); bankGate.release.resolve();
+   const [response, edited] = await timeout(Promise.all([pending,editing!]),'LATE_RACE');
+   assert.equal(response.status,200); assert.equal((await response.json() as any).score,100); assert.equal(edited.version,2);
+   assert.equal((await control.query('select status from student_quiz_attempts where id=$1',[attempt])).rows[0].status,'completed');
+   assert.equal(Number((await control.query('select count(*) n from gamification_question_bank_disclosures where user_id=$1 and question_id=$2',[user,id])).rows[0].n),1);
+   assert.equal(Number((await control.query('select count(*) n from item_asesmen where asesmen_id=$1',[template])).rows[0].n),0);
+  }
+  {
+   const id = `${prefix}-parallel-question`, template = `${id}-template`; await seedQuestion(id,template);
+   const firstShare = setSubmitGate(canonicalShare), secondShare = setEditGate(canonicalShare);
+   const first = (globalThis as any).__raceFixture.submitDb.transaction(async (tx: unknown) => { await routes.lockQuestionExposures(tx,user,[id]); await routes.lockCanonicalQuestions(tx,[id]); await routes.lockQuestionBankRows(tx,[id]); });
+   const second = (globalThis as any).__raceFixture.editDb.transaction(async (tx: unknown) => { await routes.lockQuestionExposures(tx,`${user}-second`,[id]); await routes.lockCanonicalQuestions(tx,[id]); await routes.lockQuestionBankRows(tx,[id]); });
+   await timeout(Promise.all([firstShare.entered.promise,secondShare.entered.promise]),'PARALLEL_SHARED_CANONICAL');
+   const bank = setSubmitGate(bankUpdate); firstShare.release.resolve(); await timeout(bank.entered.promise,'PARALLEL_BANK');
+   secondShare.release.resolve(); await waitBlocked(pids.edit,pids.submit); bank.release.resolve();
+   await timeout(Promise.all([first,second]),'PARALLEL_BANK_COMPLETION');
+  }
+  // Exercise the real quiz assembly replacement while submission is inserting
+  // or using the same item. Existing answer history prevents destructive sync.
+  for (const first of ['sync','submit'] as const) {
+   const id = `${prefix}-sync-${first}`, template = `${id}-template`, attempt = `${id}-attempt`;
+   await seedQuestion(id,template); await seedAttempt(attempt,template,[makeSnapshot(id)]);
+   const hashed = `item-${createHash('sha256').update(`item:${template}:${id}`).digest('hex').slice(0,24)}`;
+   if (first === 'submit') {
+    const canonical = (await control.query('select options_snapshot from soal where id=$1',[id])).rows[0];
+    await control.query('insert into item_asesmen (id,asesmen_id,soal_id,order_index,rendered_question_snapshot,option_order_snapshot,grading_policy_snapshot,content_version,generation_hash) values ($1,$2,$3,0,$4::jsonb,$5::jsonb,$6::jsonb,1,\'fixture\')',[hashed,template,id,JSON.stringify({id,prompt,questionType:'multiple_choice',optionsSnapshot:canonical.options_snapshot}),JSON.stringify(['0','1']),JSON.stringify({source:'mcp_assembly',questionId:id})]);
+   }
+   let pending: Promise<Response>, syncing: Promise<unknown>;
+   if (first === 'sync') {
+    const gate = setEditGate(itemInsert); syncing = author.setQuizQuestions(template,[id],user); await timeout(gate.entered.promise,'SYNC_INSERT');
+    pending = post(`/api/quiz/attempts/${attempt}`,{answers:{[id]:0}}); await waitBlocked(pids.submit,pids.edit); gate.release.resolve();
+    await timeout(syncing,'SYNC_COMMIT');
+   } else {
+    const gate = setSubmitGate(itemKeyShare); pending = post(`/api/quiz/attempts/${attempt}`,{answers:{[id]:0}}); await timeout(gate.entered.promise,'ITEM_KEY_SHARE');
+    syncing = author.setQuizQuestions(template,[id],user);
+    const rejected = assert.rejects(syncing, (error: any) => error.code === '23503' || error.cause?.code === '23503');
+    await waitBlocked(pids.edit,pids.submit); gate.release.resolve(); await timeout(rejected,'SYNC_PROTECTED_HISTORY');
+   }
+   const response = await timeout(pending,'SYNC_SUBMISSION'); assert.equal(response.status,200); assert.equal((await response.json() as any).score,100);
+   const evidence = await control.query('select i.id from item_asesmen i join jawaban_murid j on j.item_asesmen_id=i.id join bukti_ide_jawaban b on b.jawaban_murid_id=j.id where j.percobaan_asesmen_id=$1',[attempt]);
+   assert.deepEqual(evidence.rows.map(row=>row.id),[hashed]);
+  }
+  // One revised question and one occupied order must not suppress either of the
+  // other questions, including the compatible item created by assessment sync.
+  {
+   const template = `${prefix}-mixed-template`, attempt = `${prefix}-mixed-attempt`, ids = ['valid','stale','existing','collision','occupant'].map(s => `${prefix}-mixed-${s}`), idea2 = `${prefix}-idea-two`;
+   await control.query("insert into ide (id,mata_kuliah_id,bab_id,stable_key,code,canonical_statement,concise_explanation,difficulty_metadata,version,status,semantic_hash,generation_hash,creator_id) values ($1,$2,$3,$1,$1,'Fixture','Fixture','{}',1,'published','fixture','fixture',$4)",[idea2,course,chapter,user]);
+   for (let i=0;i<ids.length;i++) await seedQuestion(ids[i],template,{template:i===0,ideaId:i===2 ? idea2 : idea});
+   const hashed = `item-${createHash('sha256').update(`item:${template}:${ids[2]}`).digest('hex').slice(0,24)}`;
+   const canonical = (await control.query('select * from soal where id=$1',[ids[2]])).rows[0];
+   const rendered = {id:ids[2],prompt,questionType:'multiple_choice',optionsSnapshot:canonical.options_snapshot};
+   await control.query('insert into item_asesmen (id,asesmen_id,soal_id,order_index,rendered_question_snapshot,option_order_snapshot,grading_policy_snapshot,content_version,generation_hash) values ($1,$2,$3,2,$4::jsonb,$5::jsonb,$6::jsonb,1,$7)',[hashed,template,ids[2],JSON.stringify(rendered),JSON.stringify(['0','1']),JSON.stringify({source:'legacy',questionId:ids[2]}),'fixture']);
+   await control.query('insert into item_asesmen (id,asesmen_id,soal_id,order_index,rendered_question_snapshot,option_order_snapshot,grading_policy_snapshot,content_version,generation_hash) values ($1,$2,$3,3,\'{}\',\'[]\',\'{}\',1,\'fixture\')',[`${prefix}-occupant-item`,template,ids[4]]);
+   await seedAttempt(attempt,template,ids.slice(0,4).map(id => makeSnapshot(id)));
+   mastery.length = 0;
+   const read = setSubmitGate(ideaRead), pending = post(`/api/quiz/attempts/${attempt}`,{answers:Object.fromEntries(ids.slice(0,4).map(id=>[id,0]))});
+   await timeout(read.entered.promise,'MIXED_MAPPING');
+   await author.updateCanonicalQuestion({...original,prompt:`${prompt}\n\nEdited`},user,ids[1]); read.release.resolve();
+   const response = await timeout(pending,'MIXED_SUBMISSION'); assert.equal(response.status,200); assert.equal((await response.json() as any).score,100);
+   const evidence = await control.query('select i.id,i.soal_id,b.ide_id from item_asesmen i join jawaban_murid j on j.item_asesmen_id=i.id join bukti_ide_jawaban b on b.jawaban_murid_id=j.id where j.percobaan_asesmen_id=$1 order by i.soal_id',[attempt]);
+   assert.deepEqual(evidence.rows.map(row=>row.soal_id).sort(),[ids[0],ids[2]].sort());
+   assert.equal(evidence.rows.find(row=>row.soal_id===ids[2]).id,hashed);
+   assert.deepEqual(mastery.map(row=>row.ideId).sort(),[idea,idea2].sort());
+   assert.equal(Number((await control.query('select count(*) n from gamification_question_exposure_projection where user_id=$1 and question_id=any($2::text[])',[user,ids.slice(0,4)])).rows[0].n),4);
+   assert.equal((await control.query('select soal_id from item_asesmen where id=$1',[`${prefix}-occupant-item`])).rows[0].soal_id,ids[4]);
+  }
+  // Eligibility is fixed at the server submission instant for both checks.
+  // Expiry after that instant retains the reward; expiry before it skips reward.
+  for (const timing of ['after','before'] as const) {
+   const id = `${prefix}-expiry-${timing}`, template = `${id}-template`, attempt = `${id}-attempt`;
+   await seedQuestion(id,template); await seedAttempt(attempt,template,[makeSnapshot(id)]);
+   await control.query("update pendaftaran_murid set end_at=now()+interval '3 seconds' where id=$1",[`${prefix}-enrollment`]);
+   const updated = setSubmitGate(attemptUpdate), pending = post(`/api/quiz/attempts/${attempt}`,{answers:{[id]:0}});
+   await timeout(updated.entered.promise,'EXPIRY_UPDATE');
+   if (timing === 'after') {
+    const enrollment = setSubmitGate(enrollmentRead); updated.release.resolve(); await timeout(enrollment.entered.promise,'EXPIRY_FIRST_RESOLVE');
+    await control.query('select pg_sleep(3.2)'); enrollment.release.resolve();
+   } else {
+    await control.query("update pendaftaran_murid set end_at=now()-interval '1 second' where id=$1",[`${prefix}-enrollment`]); updated.release.resolve();
+   }
+   const response = await timeout(pending,'EXPIRY_SUBMISSION'); assert.equal(response.status,200); assert.equal((await response.json() as any).score,100);
+   assert.equal(Number((await control.query('select count(*) n from gamification_learning_facts where user_id=$1 and source_id=$2',[user,id])).rows[0].n),timing==='after' ? 1 : 0);
+   assert.equal(Number((await control.query('select count(*) n from gamification_question_exposure_projection where user_id=$1 and question_id=$2',[user,id])).rows[0].n),1);
+   await control.query('update pendaftaran_murid set end_at=null where id=$1',[`${prefix}-enrollment`]);
+  }
+  console.log('PASS actual routes, authoring races, per-question evidence and eligibility clock');
  } finally {
   releases.forEach(release => release());
   if (server) await new Promise<void>(resolve => server!.close(() => resolve()));
@@ -246,7 +365,7 @@ async function main() {
     await control.query('delete from gamification_checklists where id=$1',[checklist]);
     await control.query('delete from ai_question_bank where id like $1',[`${prefix}%`]);
     await control.query('delete from soal where id like $1',[`${prefix}%`]);
-    await control.query('delete from ide where id=$1',[idea]);
+    await control.query('delete from ide where id like $1',[`${prefix}%`]);
     await control.query('delete from bab where id=$1',[chapter]);
     await control.query('delete from pendaftaran_murid where pengguna_id=$1',[user]);
     await control.query('delete from mata_kuliah where id=$1',[course]); await control.query('delete from courses where id=$1',[course]);

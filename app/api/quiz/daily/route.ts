@@ -530,7 +530,8 @@ export async function POST(req: NextRequest) {
 
   await db.transaction(async (tx) => {
     await lockQuestionExposures(tx, session.user.id, serverSnapshot.map(question => question.id));
-    await lockCanonicalQuestions(tx, serverSnapshot.map(question => question.id));
+    const canonicalIds = serverSnapshot.map(question => question.id);
+    const heldCanonical = { ids: canonicalIds, rows: await lockCanonicalQuestions(tx, canonicalIds) };
     const submittedAt = new Date();
     await tx.insert(studentQuizAttempts).values({
       id: attemptId,
@@ -544,8 +545,8 @@ export async function POST(req: NextRequest) {
       submittedAt,
       startedAt: submittedAt,
     });
-    await writeQuestionRewards(tx, { userId: session.user.id, attemptId, snapshot: serverSnapshot, answers, occurredAt: submittedAt });
-    await recordAttemptDisclosures(tx, { userId: session.user.id, attemptId, questionIds: serverSnapshot.map(question => question.id), occurredAt: submittedAt, requestId: 'submission-result' });
+    await writeQuestionRewards(tx, { userId: session.user.id, attemptId, snapshot: serverSnapshot, answers, occurredAt: submittedAt, heldCanonical });
+    await recordAttemptDisclosures(tx, { userId: session.user.id, attemptId, questionIds: canonicalIds, occurredAt: submittedAt, requestId: 'submission-result', heldCanonical });
     await dualWriteQuizAttempt(tx, {
       id: attemptId,
       templateId: template.id,

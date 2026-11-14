@@ -52,7 +52,7 @@ export async function completeGamificationExplanation(userId: string, collection
 
   const [source] = await tx.select({ collection: solutionCollections, chapter: bab }).from(solutionCollections).innerJoin(bab, eq(bab.id, solutionCollections.chapterId)).where(and(eq(solutionCollections.id, collectionId), eq(solutionCollections.status, 'published'), eq(bab.status, 'active'))).limit(1).for('share');
   if (!source || (expectedVersion !== undefined && source.collection.version !== expectedVersion) || source.chapter.mataKuliahId !== source.collection.courseId) throw new Error('EXPLANATION_UNAVAILABLE');
-  const access = await resolveCourseAccess({ userId, courseId: source.collection.courseId }, tx);
+  const access = await resolveCourseAccess({ userId, courseId: source.collection.courseId, now }, tx);
   if (!access.isAuthenticated || !access.isEnrolled || !access.hasFullContentAccess || access.isDemo || access.canonicalCourseId !== source.collection.courseId || !canAccessCourseContent(access, 'article', [source.chapter.id, source.chapter.legacyChapterId])) throw new Error('EXPLANATION_UNAVAILABLE');
   const parsed = solutionCollectionSchema.safeParse(source.collection.content);
   if (!parsed.success || parsed.data.id !== source.collection.productId || parsed.data.title !== source.collection.title || ![source.chapter.id, source.chapter.legacyChapterId].includes(parsed.data.chapter.id) || ![access.canonicalCourseId, access.legacyCourseId].includes(parsed.data.course.id) || parsed.data.items.some(item => item.visuals.some(visual => visual.kind === 'source_figure'))) throw new Error('EXPLANATION_UNAVAILABLE');

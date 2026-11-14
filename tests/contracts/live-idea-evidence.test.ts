@@ -4,6 +4,7 @@ import {
   buildLegacyGradingPolicySnapshot,
   buildLegacyResponseSnapshot,
   canonicalEvidencePlanStillValid,
+  canonicalEvidenceValidMappings,
   deriveLegacyAnswerEvidence,
   isCanonicalIdeaEvidenceEnabled,
   legacyAnswerEvidenceId,
@@ -40,6 +41,17 @@ const canonicalQuestion: CanonicalQuestionForLegacyEvidence = {
 };
 
 describe("live assessment to Idea evidence adapter", () => {
+  it("retains unchanged mappings when another question changes or is missing", () => {
+    const questions = ['a', 'b', 'c'].map(id => ({ ...question, id }));
+    const rows = questions.map(q => ({ ...canonicalQuestion, id: q.id }));
+    const initial = mapLegacyQuizSnapshotToCanonicalIdeas({ questions, canonicalQuestions: rows });
+    const current = mapLegacyQuizSnapshotToCanonicalIdeas({ questions, canonicalQuestions: [rows[0], { ...rows[1], version: 2 }, rows[2]] });
+    const locked = questions.map(q => ({ id: q.id, mataKuliahId: 'course', version: 1, quizEligible: true, questionType: 'multiple_choice', optionsSnapshot: [{ text: 'A', isCorrect: false }, { text: 'B', isCorrect: true }] }));
+    expect(canonicalEvidenceValidMappings({ initial, current, questions, canonicalRows: locked }).map(m => m.questionId)).toEqual(['a', 'c']);
+    const missing = mapLegacyQuizSnapshotToCanonicalIdeas({ questions, canonicalQuestions: [rows[0], rows[2]] });
+    expect(canonicalEvidenceValidMappings({ initial, current: missing, questions, canonicalRows: locked }).map(m => m.questionId)).toEqual(['a', 'c']);
+    expect(canonicalEvidenceValidMappings({ initial, current: initial, questions, canonicalRows: [locked[0], { ...locked[1], optionsSnapshot: [{ text: 'A', isCorrect: true }, { text: 'B', isCorrect: false }] }, locked[2]] }).map(m => m.questionId)).toEqual(['a', 'c']);
+  });
   it("rejects deleted, edited or re-mapped questions after the candidate read", () => {
     const provenanced = { ...question, gamificationProvenance: { marker: 'canonical-objective-v1', canonicalQuestionId: question.id, courseId: 'course', sourceVersion: '1', answerProof: { questionType: 'multiple_choice', correctIndices: [1] } } };
     const row = { id: question.id, mataKuliahId: 'course', version: 1, quizEligible: true, questionType: 'multiple_choice', optionsSnapshot: [{ text: 'A', isCorrect: false }, { text: 'B', isCorrect: true }] };

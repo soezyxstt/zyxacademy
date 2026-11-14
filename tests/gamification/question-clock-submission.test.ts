@@ -63,3 +63,38 @@ test('an unverified cutover skips reward writes while submission can proceed', a
  const tx = { select: () => ({ from: () => ({ where: () => ({ limit: async () => [{ snapshot: [question] }] }) }) }), insert: () => { throw new Error('UNEXPECTED_REWARD_WRITE'); } };
  await expect(writeQuestionRewards(tx, { userId: 'u', attemptId: 'a', snapshot: [question], answers: {}, occurredAt: new Date() })).resolves.toBeUndefined();
 });
+
+test('course start uses the same server instant and skips changed eligibility without hiding database errors', async () => {
+ const at = new Date('2026-01-01T00:00:00Z');
+ const source = readFileSync('lib/gamification/checklists.ts', 'utf8');
+ let eligible = true;
+ let seen: Date | undefined;
+ const ensure = compile(source, 'export async function ensureGamificationCourseStart(', 'export async function getGamificationCourseChecklist(', {
+  resolveCourseAccess: async ({ now }: { now: Date }) => { seen = now; return { isAuthenticated: true, isEnrolled: eligible, hasFullContentAccess: eligible, canonicalCourseId: 'c', isDemo: false }; },
+  canonicalCourse: async () => ({ id: 'c' }), gamificationCourseStarts: {}, eq: () => ({}), and: () => ({}),
+ });
+ const tx = { select: () => ({ from: () => ({ where: () => ({ limit: async () => [{ userId: 'u' }] }) }) }) };
+ expect(await ensure(tx, 'u', 'c', at, { skipIneligible: true })).toEqual({ userId: 'u' });
+ expect(seen).toBe(at);
+ eligible = false;
+ expect(await ensure(tx, 'u', 'c', at, { skipIneligible: true })).toBeNull();
+ await expect(ensure(tx, 'u', 'c', at)).rejects.toThrow('COURSE_ACCESS_REQUIRED');
+ const brokenTx = { select: () => { throw new Error('DB_FAILURE'); } };
+ eligible = true;
+ await expect(ensure(brokenTx, 'u', 'c', at, { skipIneligible: true })).rejects.toThrow('DB_FAILURE');
+});
+
+test('held absent canonical rows are never reacquired after the bank lock', async () => {
+ const identity = { canonicalQuestionId: 'q', courseId: 'c', sourceVersion: '1' };
+ const question = { id: 'q', question_type: 'multiple_choice', options: ['A', 'B'], correct_indices: [1] };
+ const source = readFileSync('lib/gamification/question-writer.ts', 'utf8');
+ const write = compile(source, 'export async function writeQuestionRewards(', '', {
+  studentQuizAttempts: {}, eq: () => ({}), and: () => ({}),
+  matchRewardSnapshots: () => [{ q: question, identity }], lockQuestionExposures: async () => {},
+  lockCanonicalQuestions: () => { throw new Error('LATE_CANONICAL_LOCK'); },
+  initializeQuestionExposureHistoryBatch: async () => false,
+ });
+ const tx = { select: () => ({ from: () => ({ where: () => ({ limit: async () => [{ snapshot: [question] }] }) }) }) };
+ await expect(write(tx, { userId: 'u', attemptId: 'a', snapshot: [question], answers: {}, occurredAt: new Date(), heldCanonical: { ids: ['q'], rows: [] } })).resolves.toBeUndefined();
+ await expect(write(tx, { userId: 'u', attemptId: 'a', snapshot: [question], answers: {}, occurredAt: new Date(), heldCanonical: { ids: [], rows: [] } })).rejects.toThrow('QUESTION_LOCK_SET_INCOMPLETE');
+});

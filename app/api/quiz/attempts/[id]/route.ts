@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { db } from '@/db';
 import { lockCanonicalQuestions, lockQuestionExposureUser, lockQuestionExposures, recordAttemptDisclosures } from '@/lib/gamification/question-exposure';
 import { lockQuestionBankRows } from '@/lib/question-row-locks';
-import { studentQuizAttempts, aiQuestionBank, quizTemplates, knowledgeObjects, attemptFeedback, soal, soalIde, ide, itemAsesmen, jawabanMurid, buktiIdeJawaban } from '@/db/schema';
+import { studentQuizAttempts, aiQuestionBank, quizTemplates, knowledgeObjects, attemptFeedback, soal, soalIde, ide } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
@@ -29,20 +29,14 @@ import { checkAnswerCorrectness } from '@/lib/gamification/question-grading';
 import { writeQuestionRewards } from '@/lib/gamification/question-writer';
 import { quizAttachmentPrefix } from '@/lib/storage/keys';
 import {
-  buildLegacyGradingPolicySnapshot,
-  buildLegacyRenderedQuestionSnapshot,
-  buildLegacyResponseSnapshot,
-  canonicalEvidencePlanStillValid,
-  deriveLegacyAnswerEvidence,
+  canonicalEvidenceValidMappings,
   isCanonicalIdeaEvidenceEnabled,
-  legacyAnswerEvidenceId,
-  legacyAnswerId,
-  legacyItemId,
   mapLegacyQuizSnapshotToCanonicalIdeas,
   type CanonicalQuestionForLegacyEvidence,
   type LegacyQuizQuestionSnapshot,
 } from '@/lib/asesmen/live-idea-evidence';
 import { requestIdeaMasteryRecompute } from '@/lib/pemahaman/evidence';
+import { writeLegacyIdeaEvidence } from '@/lib/asesmen/write-legacy-idea-evidence';
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -336,12 +330,13 @@ export async function POST(req: NextRequest, { params }: Context) {
     if (JSON.stringify(locked.questionsSnapshot) !== JSON.stringify(attempt.questionsSnapshot) || JSON.stringify(locked.answersSnapshot) !== JSON.stringify(attempt.answersSnapshot)) return false;
     await lockQuestionExposures(tx, session.user.id, snapshot.map(q => q.id));
     const lockedCanonical = await lockCanonicalQuestions(tx, questionIds);
+    const heldCanonical = { ids: questionIds, rows: lockedCanonical };
+    let validMappings: ReturnType<typeof canonicalEvidenceValidMappings> = [];
     // A plan built before the transaction is only a candidate. Rebuild it while
     // the canonical and linked Idea rows are held, and reject any version drift.
-    if (canonicalEvidencePlan?.status === 'mapped') {
-      const current = mapLegacyQuizSnapshotToCanonicalIdeas({ questions: snapshot, canonicalQuestions: await loadCanonicalQuestionsForEvidence(tx, questionIds, true) });
-      if (!canonicalEvidencePlanStillValid({ initial: canonicalEvidencePlan, current, questions: snapshot, canonicalRows: lockedCanonical })) canonicalEvidencePlan = null;
-      else canonicalEvidencePlan = current;
+    if (canonicalEvidencePlan) {
+      const current = mapLegacyQuizSnapshotToCanonicalIdeas({ questions: snapshot, canonicalQuestions: await loadCanonicalQuestionsForEvidence(tx, lockedCanonical.map(row => row.id), true) });
+      validMappings = canonicalEvidenceValidMappings({ initial: canonicalEvidencePlan, current, questions: snapshot, canonicalRows: lockedCanonical });
     }
     await lockQuestionBankRows(tx, questionIds);
     if (questionIds.length) await tx.update(aiQuestionBank).set({ useCount: sql`${aiQuestionBank.useCount} + 1` }).where(inArray(aiQuestionBank.id, questionIds));
@@ -365,9 +360,9 @@ export async function POST(req: NextRequest, { params }: Context) {
         recommendedNextSteps: nextSteps,
       })
       .where(eq(studentQuizAttempts.id, id));
-    await writeQuestionRewards(tx, { userId: session.user.id, attemptId: id, snapshot, answers, occurredAt: now });
+    await writeQuestionRewards(tx, { userId: session.user.id, attemptId: id, snapshot, answers, occurredAt: now, heldCanonical });
     // The returned score and correct count can reveal answers through repeated attempts.
-    await recordAttemptDisclosures(tx, { userId: session.user.id, attemptId: id, questionIds: snapshot.map(q => q.id), occurredAt: now, requestId: 'submission-result' });
+    await recordAttemptDisclosures(tx, { userId: session.user.id, attemptId: id, questionIds, occurredAt: now, requestId: 'submission-result', heldCanonical });
     await dualWriteQuizAttempt(tx, {
       id,
       templateId: attempt.templateId,
@@ -382,65 +377,8 @@ export async function POST(req: NextRequest, { params }: Context) {
       submittedAt: now,
     }, attempt.studentId);
 
-    if (canonicalEvidencePlan?.status === "mapped") {
-      const questionById = new Map(snapshot.map((question) => [question.id, question]));
-      for (const mapping of canonicalEvidencePlan.mappings) {
-        const question = questionById.get(mapping.questionId);
-        if (!question) continue;
-        const itemId = legacyItemId(attempt.templateId, question.id);
-        const answerId = legacyAnswerId(id, question.id);
-        const submitted = answers[question.id];
-        const isCorrect = checkAnswerCorrectness(question, submitted);
-        const derived = deriveLegacyAnswerEvidence({ question, mapping, isCorrect });
-        const questionType = mapping.questionType;
-        const isEssay = questionType === "essay";
-
-        await tx.insert(itemAsesmen).values({
-          id: itemId,
-          asesmenId: attempt.templateId,
-          soalId: mapping.questionId,
-          orderIndex: snapshot.findIndex((candidate) => candidate.id === question.id),
-          renderedQuestionSnapshot: buildLegacyRenderedQuestionSnapshot(question),
-          optionOrderSnapshot: question.stable_option_ids ?? [],
-          gradingPolicySnapshot: buildLegacyGradingPolicySnapshot(question, mapping),
-          contentVersion: mapping.questionVersion,
-          generationHash: mapping.generationHash,
-        }).onConflictDoNothing();
-
-        await tx.insert(jawabanMurid).values({
-          id: answerId,
-          percobaanAsesmenId: id,
-          itemAsesmenId: itemId,
-          renderedQuestionSnapshot: buildLegacyRenderedQuestionSnapshot(question),
-          optionOrderSnapshot: question.stable_option_ids ?? [],
-          responseSnapshot: buildLegacyResponseSnapshot(question, submitted),
-          gradingPolicySnapshot: buildLegacyGradingPolicySnapshot(question, mapping),
-          contentVersion: mapping.questionVersion,
-          score: isEssay ? null : isCorrect ? 1 : 0,
-          status: isEssay ? "needs_review" : isCorrect ? "correct" : "incorrect",
-          reviewRevision: 0,
-          answeredAt: now,
-        }).onConflictDoNothing();
-
-        if (derived.status !== "derived") continue;
-        for (const contribution of derived.contributions) {
-          canonicalEvidenceIdeaIds.add(contribution.ideaId);
-          await tx.insert(buktiIdeJawaban).values({
-            id: legacyAnswerEvidenceId(answerId, contribution.ideaId),
-            jawabanMuridId: answerId,
-            ideId: contribution.ideaId,
-            scoreContribution: contribution.scoreContribution,
-            weight: contribution.weight,
-            confidence: contribution.confidence,
-            evidenceSource: contribution.evidenceSource,
-            rubricVersion: contribution.rubricVersion,
-            derivationStatus: contribution.derivationStatus,
-            ambiguous: contribution.ambiguous,
-            affectsMastery: contribution.affectsMastery,
-          }).onConflictDoNothing();
-        }
-      }
-    }
+    const evidenceIdeas = await writeLegacyIdeaEvidence(tx, { assessmentId: attempt.templateId, attemptId: id, snapshot, answers, mappings: validMappings, canonicalRows: lockedCanonical, now });
+    evidenceIdeas.forEach(ideaId => canonicalEvidenceIdeaIds.add(ideaId));
     return true;
   });
   if (!submitted) return NextResponse.json({ error: 'Attempt not found or already submitted' }, { status: 404 });

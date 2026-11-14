@@ -83,17 +83,34 @@ export function canonicalEvidencePlanStillValid(input: {
   questions: readonly LegacyQuizQuestionSnapshot[];
   canonicalRows: readonly { id: string; mataKuliahId: string; version: number; quizEligible: boolean; questionType: string; optionsSnapshot: unknown }[];
 }): boolean {
-  if (input.initial.status !== 'mapped' || input.current.status !== 'mapped' || JSON.stringify(input.initial.mappings) !== JSON.stringify(input.current.mappings)) return false;
+  return input.initial.status === 'mapped' && input.current.status === 'mapped'
+    && canonicalEvidenceValidMappings(input).length === input.questions.length;
+}
+
+/** Revalidate each candidate independently against the rows held by the caller. */
+export function canonicalEvidenceValidMappings(input: {
+  initial: LegacyQuizIdeaMappingPlan;
+  current: LegacyQuizIdeaMappingPlan;
+  questions: readonly LegacyQuizQuestionSnapshot[];
+  canonicalRows: readonly { id: string; mataKuliahId: string; version: number; quizEligible: boolean; questionType: string; optionsSnapshot: unknown }[];
+}): MappedLegacyQuestion[] {
   const byId = new Map(input.canonicalRows.map(row => [row.id, row]));
-  return input.questions.every(question => {
-    if (!Object.hasOwn(question, 'gamificationProvenance')) return true;
-    const identity = snapshotExposureIdentity(question);
+  const initial = new Map(input.initial.mappings.map(mapping => [mapping.questionId, mapping]));
+  const current = new Map(input.current.mappings.map(mapping => [mapping.questionId, mapping]));
+  const invalid = new Set([...input.initial.issues, ...input.current.issues].map(issue => issue.questionId));
+  return input.questions.flatMap(question => {
+    const before = initial.get(question.id), mapping = current.get(question.id);
+    if (invalid.has(question.id) || !before || !mapping || JSON.stringify(before) !== JSON.stringify(mapping)) return [];
     const row = byId.get(question.id);
+    if (!row || !row.quizEligible || row.questionType !== mapping.questionType || row.version !== mapping.questionVersion) return [];
     const options = row?.optionsSnapshot as { text?: unknown; isCorrect?: unknown }[] | undefined;
-    return Boolean(identity && row && row.quizEligible && identity.courseId === row.mataKuliahId && identity.sourceVersion === String(row.version)
-      && row.questionType === question.question_type && Array.isArray(options) && options.every(option => option && typeof option === 'object')
+    const objective = mapping.questionType === 'multiple_choice' || mapping.questionType === 'multiple_choices';
+    if (objective && !(Array.isArray(options) && options.every(option => option && typeof option === 'object')
       && JSON.stringify(options.map(option => option.text)) === JSON.stringify(question.options)
-      && JSON.stringify(options.flatMap((option, index) => option.isCorrect ? [index] : [])) === JSON.stringify(question.correct_indices));
+      && JSON.stringify(options.flatMap((option, index) => option.isCorrect ? [index] : [])) === JSON.stringify(question.correct_indices))) return [];
+    if (!Object.hasOwn(question, 'gamificationProvenance')) return [mapping];
+    const identity = snapshotExposureIdentity(question);
+    return identity && identity.courseId === row.mataKuliahId && identity.sourceVersion === String(row.version) ? [mapping] : [];
   });
 }
 

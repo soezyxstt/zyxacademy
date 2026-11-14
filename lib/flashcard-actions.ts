@@ -386,7 +386,7 @@ async function submitCanonicalFlashcardReviewTx(
   const result = await db.transaction(async (tx) => {
     const now = new Date();
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`flashcard:${studentId}:${flashcardId}`}, 0))`);
-    const rewardAccess = await resolveCourseAccess({ userId: studentId, courseId: card.courseId }, tx);
+    const rewardAccess = await resolveCourseAccess({ userId: studentId, courseId: card.courseId, now }, tx);
     const [current] = await tx.select({ version: canonicalFlashcard.version }).from(canonicalFlashcard)
       .innerJoin(setFlashcard, eq(canonicalFlashcard.setFlashcardId, setFlashcard.id))
       .where(and(eq(canonicalFlashcard.id, card.id), eq(canonicalFlashcard.version, card.version), eq(canonicalFlashcard.status, "published"), eq(setFlashcard.status, "published"), eq(setFlashcard.mataKuliahId, card.courseId))).limit(1);
@@ -595,7 +595,7 @@ export async function submitFlashcardReviewTx(
     {
       const [canonical] = await tx.select({ id: canonicalFlashcard.id, version: canonicalFlashcard.version, courseId: setFlashcard.mataKuliahId }).from(canonicalFlashcard).innerJoin(setFlashcard, eq(canonicalFlashcard.setFlashcardId, setFlashcard.id)).where(and(eq(canonicalFlashcard.id, flashcardId), eq(canonicalFlashcard.status, "published"), eq(setFlashcard.status, "published"))).limit(1).for("share");
       if (canonical) {
-        const rewardAccess = await resolveCourseAccess({ userId: studentId, courseId: set.courseId }, tx);
+        const rewardAccess = await resolveCourseAccess({ userId: studentId, courseId: set.courseId, now }, tx);
         const start = rewardAccess.canonicalCourseId === canonical.courseId && rewardAccess.hasFullContentAccess && !rewardAccess.isDemo ? await startLearningRewards(tx, studentId, canonical.courseId, now) : null;
         if (start && existing?.dueDate) {
           await tx.insert(gamificationLearningFacts).values({ id: reviewId, userId: studentId, courseId: canonical.courseId, source: "flashcard", sourceId: canonical.id, sourceVersion: String(canonical.version), occurredAt: now, adapter: "legacy", grade: reviewRow.grade, previousDueAt: existing.dueDate });
@@ -765,7 +765,7 @@ export async function skipFlashcardTx(
     {
       const [canonical] = await tx.select({ id: canonicalFlashcard.id, version: canonicalFlashcard.version, courseId: setFlashcard.mataKuliahId }).from(canonicalFlashcard).innerJoin(setFlashcard, eq(canonicalFlashcard.setFlashcardId, setFlashcard.id)).where(and(eq(canonicalFlashcard.id, flashcardId), eq(canonicalFlashcard.status, "published"), eq(setFlashcard.status, "published"))).limit(1).for("share");
       if (canonical) {
-        const rewardAccess = await resolveCourseAccess({ userId: studentId, courseId: set.courseId }, tx);
+        const rewardAccess = await resolveCourseAccess({ userId: studentId, courseId: set.courseId, now }, tx);
         const start = rewardAccess.canonicalCourseId === canonical.courseId && rewardAccess.hasFullContentAccess && !rewardAccess.isDemo ? await startLearningRewards(tx, studentId, canonical.courseId, now) : null;
         if (start && existing?.dueDate) {
           await tx.insert(gamificationLearningFacts).values({ id: reviewId, userId: studentId, courseId: canonical.courseId, source: "flashcard", sourceId: canonical.id, sourceVersion: String(canonical.version), occurredAt: now, adapter: "legacy", grade: reviewRow.grade, previousDueAt: existing.dueDate });

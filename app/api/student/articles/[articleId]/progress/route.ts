@@ -112,7 +112,7 @@ export async function PUT(req: NextRequest, { params }: RouteProps) {
     const isCompleted = maxReadPercent >= 90 || completed === true || Boolean(existing?.completedAt);
     const now = new Date();
     const newlyCompleted = isCompleted && !existing?.completedAt;
-    const rewardAccess = newlyCompleted ? await resolveCourseAccess({ userId, courseId: articleRecord.courseId }, tx) : null;
+    const rewardAccess = newlyCompleted ? await resolveCourseAccess({ userId, courseId: articleRecord.courseId, now }, tx) : null;
     const rewardStart = rewardAccess?.hasFullContentAccess && !rewardAccess.isDemo && rewardAccess.canonicalCourseId === articleRecord.courseId
       ? await startLearningRewards(tx, userId, articleRecord.courseId, now) : null;
     const completedAt = isCompleted ? (existing?.completedAt ?? now) : null;

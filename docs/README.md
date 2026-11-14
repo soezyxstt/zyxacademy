@@ -1,4 +1,4 @@
-The `ACTIVE` [feature catalog](features.md) and [architecture guide](ARCHITECTURE.md) describe browser-persistent public demo schedules, groups, assessment progress and per-course rankings. Weekly course-specific slots are generated for any requested week. The global calendar combines courses, explicit course calendars stay scoped, and ranking seeds differ by course; attachments remain in the browser. Local validation is separate from production acceptance.
+The `ACTIVE` [feature catalog](features.md) describes per-question legacy quiz evidence validation and compatible assessment item reuse. The catalog and [architecture guide](ARCHITECTURE.md) also describe browser-persistent public demo schedules, groups, assessment progress and per-course rankings. Weekly course-specific slots are generated for any requested week. The global calendar combines courses, explicit course calendars stay scoped, and ranking seeds differ by course; attachments remain in the browser. Local validation is separate from production acceptance.
 
 # Zyx Academy Documentation Index
 

@@ -378,7 +378,7 @@ The standalone Admin material editor is retired. Existing website material remai
 - `lib/asesmen/benchmark-policy.ts` rejects exact duplicates, applies versioned similarity thresholds, and keeps holdout content inside the benchmark boundary. Missing thresholds produce `needs_review`.
 - Quiz attempts include stable option IDs and grade through those IDs while accepting legacy numeric submissions for compatibility.
 - Canonical-first assessment lifecycle: all new quizzes created via Admin or Tutor interfaces write to canonical `asesmen`, `blueprint_asesmen`, and `cakupan_asesmen` first, then project to `quiz_templates` for backwards compatibility. Legacy `quiz_templates` is marked as a compatibility projection.
-- Legacy quiz submissions are bridged when every snapshot question exactly matches a published canonical question and published Idea links. The bridge writes immutable canonical item and answer snapshots, per-Idea evidence, and deterministic mastery recompute events. Missing, stale, ambiguous, or unreviewed mappings leave the legacy submission intact and produce no canonical mastery evidence.
+- Legacy quiz submissions bridge each eligible question independently when its snapshot and current published canonical question and Idea links match. The bridge preserves compatible existing assessment items and writes immutable answer snapshots, per-Idea evidence, and deterministic mastery recompute events. Missing, stale, ambiguous, unreviewed, or incompatible items produce no mastery evidence for that question and leave the legacy grade intact.
 
 ### Canonical Vectorize Retrieval V2
 

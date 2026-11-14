@@ -89,11 +89,20 @@ export async function approveGamificationChecklist(adminId: string, checklistId:
   return approved;
  });
 }
-export async function ensureGamificationCourseStart(tx: Transaction, userId: string, courseId: string, occurredAt: Date = new Date()) {
+export async function ensureGamificationCourseStart(tx: Transaction, userId: string, courseId: string, occurredAt: Date = new Date(), options?: { skipIneligible?: boolean }) {
  if (!(occurredAt instanceof Date) || !Number.isFinite(occurredAt.getTime())) throw new Error('INVALID_START_TIME');
- const access = await resolveCourseAccess({ userId, courseId }, tx);
- if (!access.isAuthenticated || !access.isEnrolled || !access.hasFullContentAccess || !access.canonicalCourseId || access.isDemo) throw new Error('COURSE_ACCESS_REQUIRED');
- const course = await canonicalCourse(tx, access.canonicalCourseId, false);
+ const access = await resolveCourseAccess({ userId, courseId, now: occurredAt }, tx);
+ if (!access.isAuthenticated || !access.isEnrolled || !access.hasFullContentAccess || !access.canonicalCourseId || access.isDemo) {
+  if (options?.skipIneligible) return null;
+  throw new Error('COURSE_ACCESS_REQUIRED');
+ }
+ let course: Awaited<ReturnType<typeof canonicalCourse>>;
+ try {
+  course = await canonicalCourse(tx, access.canonicalCourseId, false);
+ } catch (error) {
+  if (options?.skipIneligible && error instanceof Error && error.message === 'COURSE_UNAVAILABLE_OR_AMBIGUOUS') return null;
+  throw error;
+ }
  const [started] = await tx.select().from(gamificationCourseStarts).where(and(eq(gamificationCourseStarts.userId, userId), eq(gamificationCourseStarts.courseId, course.id))).limit(1);
  if (started) return started;
  const [checklist] = await tx.select().from(gamificationChecklists).where(and(eq(gamificationChecklists.courseId, course.id), eq(gamificationChecklists.status, 'approved'))).orderBy(desc(gamificationChecklists.version)).limit(1);
