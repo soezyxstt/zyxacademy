@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import { StudentApplicationShell } from "@/components/student-application-shell";
 import { MobileNavTitle } from "@/components/mobile-nav-title";
 import { StudentExperienceProvider } from "@/components/student-experience-provider";
@@ -19,6 +20,7 @@ export function DemoShell({ experiences, selected, activeView, children, selecti
 }
 function Shell({ experiences, selected, activeView, children, selection = {}, showLive }: { experiences: DemoSummary[]; selected: DemoSummary; activeView: DemoView; children: ReactNode; selection?: DemoProductSelection; showLive: boolean }) {
   const { locale } = useAppLocale();
+  const scheduleCourse = useSearchParams().get("course");
   const { reset, record, generation, ready, overlay } = useDemoSession();
   const [today, setToday] = useState(selected.snapshot.asOf);
   useEffect(() => setToday(formatIsoDate(new Date())), []);
@@ -28,7 +30,7 @@ function Shell({ experiences, selected, activeView, children, selection = {}, sh
   };
   const href = (path: string) => demoStudentHref(locale, path, selected.snapshot.courseId);
   return <StudentExperienceProvider value={{
-    changeLocale: nextLocale => window.location.assign(demoSelectionHref(demoRoute(nextLocale, activeView, selected.snapshot.courseId), selection)),
+    changeLocale: nextLocale => window.location.assign(demoSelectionHref(activeView === "schedule" ? demoStudentHref(nextLocale, `/dashboard/schedule${scheduleCourse ? `?course=${encodeURIComponent(scheduleCourse)}` : ""}`, selected.snapshot.courseId) : demoRoute(nextLocale, activeView, selected.snapshot.courseId), selection)),
     mode: "demo", route, href, pathname: demoStudentPath(activeView, selected.snapshot.courseId),
     account: { name: selected.snapshot.displayName, email: "pelajar@example.test" },
     courses: experiences.map(item => item.content.course),

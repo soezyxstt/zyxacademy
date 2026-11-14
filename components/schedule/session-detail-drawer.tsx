@@ -419,7 +419,7 @@ export function SessionDetailDrawer({
             <li key={resource.id} className="flex min-w-0 items-center gap-2">
               <a
                 href={resource.url || "#"}
-                onClick={localOperations && resource.kind === "file" ? event => { event.preventDefault(); void localOperations.download(resource).catch(() => toast.error("Berkas tidak tersedia di browser ini.")); } : undefined}
+                onClick={localOperations && resource.kind === "file" ? event => { event.preventDefault(); void localOperations.download(resource, booking.courseId).catch(() => toast.error("Berkas tidak tersedia di browser ini.")); } : undefined}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex min-w-0 flex-1 items-center gap-1.5 text-body-xs font-semibold text-brand-primary hover:underline"
