@@ -246,12 +246,12 @@ function signature(body: string): string {
   return createHmac("sha256", signingSecret()).update(body, "utf8").digest("base64url");
 }
 
-function issueToken(payload: Omit<SignedTokenPayload, "issuedAt" | "expiresAt"> & { ttlMs: number }): string {
+function issueToken(payload: Omit<SignedTokenPayload, "issuedAt" | "expiresAt"> & { ttlMs: number }, expiresAt?: number): string {
   const now = Date.now();
   const body = encode({
     ...payload,
     issuedAt: now,
-    expiresAt: now + payload.ttlMs,
+    expiresAt: expiresAt ?? now + payload.ttlMs,
   });
   return `${body}.${signature(body)}`;
 }
@@ -1539,7 +1539,7 @@ export function workflowContract(
     throw new Error("AUTHORING_MCP_LEGACY_RUN_RESTART_REQUIRED");
   }
   const replacementRunToken = options.bootstrapToken && bootstrapCheck.bootstrap
-    ? issueToken({ ...run, bootstrap: bootstrapCheck.bootstrap, ttlMs: run.expiresAt - Date.now() })
+    ? issueToken({ ...run, bootstrap: bootstrapCheck.bootstrap, ttlMs: run.expiresAt - Date.now() }, run.expiresAt)
     : runToken;
 
   const defaultStageForWorkflow: AuthoringPlaybookStage =
