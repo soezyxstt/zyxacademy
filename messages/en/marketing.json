@@ -213,7 +213,14 @@
     "viewPlans": "View plans",
     "proofTitle": "Learn better, with Zyx",
     "proofDescription": "Hear from students who study with Zyx Academy.",
-    "readStories": "Read student stories"
+    "readStories": "Read student stories",
+    "quizWorkedStep1": "The antiderivative of $2x$ is $x^2$, but this is a definite integral.",
+    "quizWorkedStep2": "Evaluate the bounds:",
+    "quizDemoPrompt": "Evaluate $\\int_0^1 2x\\,dx$",
+    "quizReviewChapter": "Chapter 4 · Definite integrals",
+    "tutorSourceRevolution": "Chapter 5 · Solids of revolution",
+    "tutorSourceQuiz": "Weekly quiz #4 · Question 8",
+    "tutorSourceMethod": "Chapter 5.2 · Choosing a method"
   },
   "about": {
     "title": "About Zyx",
@@ -776,7 +783,7 @@
   },
   "plans": {
     "title": "Plans and services",
-    "description": "Choose a combination of courses and support. Payment takes place outside the website; an administrator activates access for the selected plan.",
+    "description": "Payment takes place outside the site. An administrator activates access for the selected plan.",
     "priceConfiguration": "Price configuration: {people} people and {courses} courses.",
     "peopleLabel": "Group size",
     "group": "Group",

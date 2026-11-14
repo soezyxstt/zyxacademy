@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/client";
 import { Check, Copy, FileCode, Layers, Shield, User, Clock, Hash } from "lucide-react";
 import type { TutorActivityItem } from "../dal";
+import { activityLabel } from "./activity-label";
 
 interface ActivityDetailProps {
   item: TutorActivityItem | null;
@@ -145,9 +146,9 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
                 <span>{t("tutorActivityUI.entityAndAction")}</span>
               </div>
               <p className="text-body-sm font-medium text-foreground">
-                <span className="font-semibold">{item.entityType}</span> : <span className="font-mono text-body-xs">{item.entityId}</span>
+                <span className="font-semibold">{activityLabel(item.entityType, t)}</span> : <span className="font-mono text-body-xs">{item.entityId}</span>
               </p>
-              <p className="text-body-xs font-mono text-muted-foreground">{item.action}</p>
+              <p className="text-body-xs text-muted-foreground">{activityLabel(item.action, t)}</p>
             </div>
 
             <div className="space-y-1">

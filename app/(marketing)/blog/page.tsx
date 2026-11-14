@@ -142,7 +142,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
           </nav>
 
           {activeCategory ? (
-            <section aria-labelledby="blog-category-heading" className="space-y-6">
+            <section aria-labelledby="blog-category-heading" className="@container/blog space-y-6">
               <div className="space-y-2">
                 <SectionHeading as="h2" id="blog-category-heading" tier="secondary" className="text-foreground">
                   {activeCategoryName}
@@ -153,7 +153,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
               </div>
 
               {filteredArticles.length > 0 ? (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-6 @2xl/blog:grid-cols-2 @4xl/blog:grid-cols-3">
                   {filteredArticles.map((article) => (
                     <ArticleCard key={article.id} article={article} t={t} />
                   ))}
@@ -164,23 +164,18 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
             </section>
           ) : (
             <>
-              <section aria-labelledby="blog-latest-heading" className="space-y-6">
+              <section aria-labelledby="blog-latest-heading" className="@container/blog space-y-6">
                 <div className="flex flex-wrap items-end justify-between gap-3">
-                  <div className="space-y-2">
-                    <SectionHeading as="h2" id="blog-latest-heading" tier="secondary" className="text-foreground">
-                      {t("blog.latest")}
-                    </SectionHeading>
-                    <p className="text-body-base text-muted-foreground">
-                      {t("blog.latestDescription")}
-                    </p>
-                  </div>
+                  <SectionHeading as="h2" id="blog-latest-heading" tier="secondary" className="text-foreground">
+                    {t("blog.latest")}
+                  </SectionHeading>
                   {allArticles.length > 0 ? (
                     <span className="text-body-xs text-muted-foreground">{t("blog.available", { count: allArticles.length })}</span>
                   ) : null}
                 </div>
 
                 {featuredArticles.length > 0 ? (
-                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid gap-6 @2xl/blog:grid-cols-2 @4xl/blog:grid-cols-3">
                     {featuredArticles.map((article) => (
                     <ArticleCard key={article.id} article={article} t={t} />
                     ))}
@@ -197,7 +192,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                 if (remainingArticles.length === 0) return null;
 
                 return (
-                  <section key={category.id} aria-labelledby={`blog-${category.id}-heading`} className="space-y-6">
+                  <section key={category.id} aria-labelledby={`blog-${category.id}-heading`} className="@container/blog space-y-6">
                     <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-3">
                       <SectionHeading as="h3" id={`blog-${category.id}-heading`} tier="secondary" className="text-foreground">
                         {t(`blog.categories.${category.key}`)}
@@ -209,7 +204,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                         {t("blog.viewAll")}
                       </LocalizedPublicLink>
                     </div>
-                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-6 @2xl/blog:grid-cols-2 @4xl/blog:grid-cols-3">
                       {remainingArticles.map((article) => (
                         <ArticleCard key={article.id} article={article} t={t} />
                       ))}
@@ -280,7 +275,7 @@ function ArticleCard({ article, t }: { article: any; t: Awaited<ReturnType<typeo
           {t("blog.draft")}
         </Badge>
       )}
-      <div className="relative aspect-[4/3] w-full overflow-hidden border-b border-border/50 bg-muted">
+      <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden border-b border-border/50 bg-muted">
         {article.thumbnailUrl ? (
           <Image
             src={article.thumbnailUrl.startsWith("http") ? storage.getUrl(article.thumbnailUrl) : article.thumbnailUrl}

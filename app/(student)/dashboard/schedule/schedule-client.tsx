@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AlertCircle, CalendarDays } from "lucide-react";
 import { toast } from "@/components/ui/toast";
@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { getScheduleData } from "./actions";
+import { scopeStudentSchedule } from "@/lib/schedule/student-schedule-scope";
 import { ScheduleCalendarView } from "@/components/schedule/schedule-calendar-view";
 import calendarStyles from "@/components/schedule/schedule-calendar-readability.module.css";
 import { CollaborativeBookingModal } from "@/components/schedule/collaborative-booking-modal";
@@ -22,6 +23,8 @@ import {
 } from "@/components/schedule/session-detail-drawer";
 import { useTranslations } from "@/lib/i18n/client";
 
+import { useDemoCommunity } from "@/components/demo/use-demo-community";
+import { demoCommunitySchedule } from "@/lib/demo/community-schedule";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { daysFrom, getJakartaNow, getWeekScheduleDays } from "@/lib/date-utils";
 
@@ -95,18 +98,20 @@ function getTutorFilterOptions(data: any, fallbackName: string) {
   return Array.from(byId.values()).sort((left, right) => left.name.localeCompare(right.name, "id"));
 }
 
-export function StudentScheduleClient() {
+export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { id: string; title: string; compatibleCourseIds?: string[] } } = {}) {
   const experience = useStudentExperience();
+  const community = useDemoCommunity();
   const loadSchedule = useCallback(async (offset: number) => {
-    if (experience.mode !== "demo") return getScheduleData(offset);
+    if (experience.mode !== "demo") return getScheduleData(offset, selectedCourse?.id);
+    const weekInfo = getWeekScheduleDays(daysFrom(offset * 7, getJakartaNow()));
+    const calendar = demoCommunitySchedule(experience.baseline, experience.courses ?? [], weekInfo.startOfWeekIso, key => localStorage.getItem(key));
     return {
       role: "student", user: { id: "fictional-demo-student", ...experience.account },
-      weekInfo: getWeekScheduleDays(daysFrom(offset * 7, getJakartaNow())),
-      isWeekLocked: false, groups: [],
+      weekInfo, isWeekLocked: false, ...calendar,
       enrollments: (experience.courses ?? []).map((course) => ({ course })),
-      availableSlots: [], groupBookings: [], academicSchedules: [],
+      academicSchedules: [],
     };
-  }, [experience]);
+  }, [experience, selectedCourse?.id]);
   const t = useTranslations("student");
   const tRef = useRef(t);
   useEffect(() => {
@@ -124,10 +129,16 @@ export function StudentScheduleClient() {
   const searchParams = useSearchParams();
   const weekCache = useRef(new Map<number, any>());
   const activeRequest = useRef(0);
+  const cacheVersion = useRef(0);
+  const invalidateScheduleCache = () => {
+    cacheVersion.current++;
+    weekCache.current.clear();
+  };
 
   const fetchData = useCallback(async (offset: number, force = false) => {
     const requestId = ++activeRequest.current;
-    const cached = !force ? weekCache.current.get(offset) : null;
+    const version = cacheVersion.current;
+    const cached = !force && experience.mode !== "demo" ? weekCache.current.get(offset) : null;
     if (cached) {
       setData(cached);
       setDataWeekOffset(offset);
@@ -140,7 +151,11 @@ export function StudentScheduleClient() {
       setLoading(true);
       setLoadError(false);
       const nextData = await loadSchedule(offset);
-      weekCache.current.set(offset, nextData);
+      if (version === cacheVersion.current) {
+        weekCache.current.delete(offset);
+        weekCache.current.set(offset, nextData);
+        if (weekCache.current.size > 5) weekCache.current.delete(weekCache.current.keys().next().value!);
+      }
       if (requestId === activeRequest.current) {
         setData(nextData);
         setDataWeekOffset(offset);
@@ -159,26 +174,15 @@ export function StudentScheduleClient() {
         setLoading(false);
       }
     }
-  }, [loadSchedule]);
+  }, [loadSchedule, experience.mode]);
 
   useEffect(() => {
     void fetchData(weekOffset);
-  }, [fetchData, weekOffset]);
+  }, [fetchData, weekOffset, community.state]);
 
-  useEffect(() => {
-    if (!data || loading || dataWeekOffset !== weekOffset) return;
-
-    for (const adjacentOffset of [weekOffset - 1, weekOffset + 1]) {
-      if (weekCache.current.has(adjacentOffset)) continue;
-      void loadSchedule(adjacentOffset)
-        .then((adjacentData) => {
-          weekCache.current.set(adjacentOffset, adjacentData);
-        })
-        .catch(() => undefined);
-    }
-  }, [data, dataWeekOffset, loading, weekOffset, loadSchedule]);
-
-  const activeData = dataWeekOffset === weekOffset ? data : null;
+  const courseParam = searchParams.get("course");
+  const courseIds = useMemo(() => selectedCourse?.compatibleCourseIds ?? (courseParam ? [courseParam] : []), [selectedCourse, courseParam]);
+  const activeData = useMemo(() => dataWeekOffset === weekOffset && data ? scopeStudentSchedule(data, courseIds) : null, [data, dataWeekOffset, weekOffset, courseIds]);
   if (!activeData) {
     if (loadError) {
       return (
@@ -211,9 +215,9 @@ export function StudentScheduleClient() {
   }
 
   const userObj = activeData.user || {};
-  const coursesList = getCourseFilterOptions(activeData, t("schedule.courseFallback"));
+  const coursesList = selectedCourse ? [{ id: selectedCourse.id, title: selectedCourse.title }] : getCourseFilterOptions(activeData, t("schedule.courseFallback"));
   const tutorsList = getTutorFilterOptions(activeData, t("schedule.tutorFallback"));
-  const initialCourseFilter = searchParams.get("course") || "all";
+  const initialCourseFilter = "all";
   const activeSessionBooking = activeSessionBookingId
     ? (activeData.groupBookings || []).find((booking: any) => booking.id === activeSessionBookingId) || null
     : null;
@@ -225,6 +229,7 @@ export function StudentScheduleClient() {
       <div className={calendarStyles.root} aria-busy={loading}>
         <ScheduleCalendarView
           role="student"
+          allowPastBooking={experience.mode === "demo"}
           currentUserId={userObj.id}
           weekInfo={activeData.weekInfo}
           isWeekLocked={activeData.isWeekLocked}
@@ -234,6 +239,7 @@ export function StudentScheduleClient() {
           tutorsList={tutorsList}
           groupsList={activeData.groups || []}
           initialCourseFilter={initialCourseFilter}
+          compatibleCourseIds={courseIds}
           slots={activeData.availableSlots || []}
           bookings={activeData.groupBookings || []}
           academicSchedules={activeData.academicSchedules || []}
@@ -243,7 +249,9 @@ export function StudentScheduleClient() {
         />
       </div>
 
+      {experience.mode === "demo" && community.error ? <p role="alert" className="text-body-xs text-destructive">{community.error}</p> : null}
       <CollaborativeBookingModal
+        localOperations={experience.mode === "demo" ? community.operations : undefined}
         open={Boolean(bookingSlotData)}
         onOpenChange={(open) => {
           if (!open) setBookingSlotData(null);
@@ -251,19 +259,20 @@ export function StudentScheduleClient() {
         slot={bookingSlotData?.slot || null}
         dateIso={bookingSlotData?.dateIso || ""}
         courses={coursesList}
-        groups={activeData.groups || []}
+        groups={experience.mode === "demo" && bookingSlotData ? (activeData.groups || []).filter((group: any) => group.courses.some((entry: any) => entry.course?.id === bookingSlotData.slot.courseId)) : activeData.groups || []}
         onSuccess={async ({ bookingId, pendingResources }) => {
           setPendingSessionResources(pendingResources);
-          weekCache.current.delete(weekOffset);
+          invalidateScheduleCache();
           await fetchData(weekOffset, true);
           setActiveSessionBookingId(bookingId);
         }}
         onSlotTaken={() => {
-          weekCache.current.delete(weekOffset);
+          invalidateScheduleCache();
           return fetchData(weekOffset, true);
         }}
       />
       <SessionDetailDrawer
+        localOperations={experience.mode === "demo" ? community.operations : undefined}
         open={Boolean(activeSessionBooking)}
         onOpenChange={(open) => {
           if (!open) {
@@ -278,7 +287,7 @@ export function StudentScheduleClient() {
         pendingResources={pendingSessionResources}
         onPendingResourcesChange={setPendingSessionResources}
         onSuccess={() => {
-          weekCache.current.delete(weekOffset);
+          invalidateScheduleCache();
           return fetchData(weekOffset, true);
         }}
       />

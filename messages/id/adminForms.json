@@ -1,5 +1,6 @@
 {
   "ui": {
+    "moreActions": "Tindakan lainnya",
     "editor": "Editor Pertanyaan",
     "editorEdit": "Editor Pertanyaan (Edit)",
     "preview": "Pratinjau",
@@ -11,7 +12,7 @@
     "cancelEdit": "Batal Edit",
     "formTitle": "Judul formulir",
     "formDescription": "Deskripsi formulir atau petunjuk bagi responden...",
-    "category": "Kategori:",
+    "category": "Kategori",
     "chooseCategory": "Pilih Kategori",
     "survey": "Survei & Riset",
     "feedback": "Umpan Balik",
@@ -109,7 +110,7 @@
     "fullLink": "Full link",
     "copied": "Tersalin",
     "editForm": "Edit formulir",
-    "viewResponses": "Visualisasi Data & Respon",
+    "viewResponses": "Lihat respons",
     "deleteForm": "Hapus formulir",
     "deletePublished": "Hapus Formulir Terbit",
     "deletePublishedHelp": "Apakah Anda yakin ingin menghapus formulir ini dari daftar terbit platform? Akses ke visualisasi respon pada formulir ini akan dihapus.",
@@ -133,7 +134,7 @@
     "formDescriptionLabel": "Deskripsi formulir",
     "slug": "slug",
     "slugLabel": "Slug: /f/{slug}",
-    "responseCount": "{count} Pengisian",
+    "responseCount": "{count} respons",
     "typeShortAnswer": "Jawaban Singkat",
     "typeParagraph": "Teks Panjang",
     "typeMultipleChoice": "Pilihan Ganda",
@@ -149,9 +150,11 @@
     "typeSection": "Judul Bagian",
     "typeStatement": "Slide Informasi (Teks & Gambar)",
     "matrixHeading": "Pengaturan Matriks Kisi ({type})",
-    "openShortLink": "Buka short link {path}",
-    "openFullLink": "Buka full link {path}",
-    "newSectionName": "Bagian Baru"
+    "openShortLink": "Buka tautan pendek {path}",
+    "openFullLink": "Buka tautan lengkap {path}",
+    "newSectionName": "Bagian Baru",
+    "copyShortLink": "Salin tautan pendek",
+    "copyFullLink": "Salin tautan lengkap"
   },
   "messages": {
     "uploadFailedTitle": "Gagal Mengunggah Gambar",

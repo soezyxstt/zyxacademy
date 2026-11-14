@@ -10,6 +10,22 @@ Each standalone example must be suitable for learner release independently of an
 
 Organize each example according to its problem type and discipline: preserve relevant givens, choices and answer format where applicable, show justified steps and assumptions, and verify the result with units, conditions or domain-specific checks. Do not force unrelated disciplines into a single numerical derivation. Use the supported Article parts and validated visual capabilities when they help explain the reasoning.
 
+
+## Existing-content revisions, V3 and later
+
+For edits to existing content, use the flexible revision tools advertised by the current workflow contract. This path supports Idea V3 and learning Product V3/V4/V5 only; do not create compatibility work or convert a bundle below V3 implicitly.
+
+1. Obtain the current compatible stage bootstrap, then call `authoring.get_edit_context` with the import and exact observed revision. Inspect stable IDs, existing source evidence, lineage, review context and blockers.
+2. Call `authoring.create_revision` to fork a live artifact or editable draft into a durable draft. The old publication stays live. Existing source evidence supplies the edit scope; no new Source Pack or expired original run is required. Use the returned draft execution identity for applicable trusted V4 verification.
+3. Call `authoring.patch_revision` with bounded set/add/remove/move operations addressed by stable IDs. The server rebuilds hashes and the ZIP. Continue with the returned successor import ID and revision after every accepted edit. A stale revision requires rereading and explicit reconciliation, never a blind retry with a substituted checksum.
+4. Call `authoring.plan_release` with the exact draft entries. A release can refer to multiple Idea and Product artifacts and profiles. Inspect changed units, preserved evidence, affected dependents, current blockers and next actions. Changed derived content still needs its applicable trusted verification; no receipt is synthesized.
+   For V4 referencing changed Ideas in the same release, call `authoring.prepare_revision_verification` with the exact mixed entries before running the trusted operator. The server binds its prospective Idea graph to admitted artifacts and the current live baseline. Changing an entry requires a new context and verification. Source documents and excerpts remain admitted, active canonical evidence; new source ingestion follows its source-grounded workflow.
+5. Independently review the actual changed content and affected reasoning or source context. Submit the explicit profile-specific evidence through `authoring.review_revision`. Reuse only the server-confirmed unchanged decisions attributed to the same reviewer; do not approve unseen changed units.
+6. Replan after review and verification. With explicit publication authorization and `authoring:publish`, call `authoring.publish_release` using the exact manifest entries and plan hash. Atomic replacement must leave the previous live release intact on failure. No Admin website visit is required.
+7. Use `authoring.list_revisions` for history. `authoring.restore_revision` creates a new draft from historical authored content against the observed current baseline. Restoration never publishes automatically or rewrites historical artifacts; follow the same plan, evidence, review and publication steps.
+
+The archive construction and Source Pack workflow below remains the path for initial authoring. The new editing workflow must not be replaced with repeated ZIP upload or run adoption merely to edit existing content. Runtime schemas are authoritative; if these tools are absent on an older server, report the missing capability and do not claim that the new workflow is deployed.
+
 ## 2. Bootstrap, scope and upstream gate
 
 1. Call `workflow.get_playbook` for `zyx-product-bundle-mcp`, stage `product`, with actual host capabilities. Independent Critic and Student POV subagents are required.

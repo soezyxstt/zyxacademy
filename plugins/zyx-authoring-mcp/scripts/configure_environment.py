@@ -24,7 +24,7 @@ ENVIRONMENTS: dict[str, dict[str, str]] = {
         "endpoint": "https://www.zyxacademy.com/api/mcp/authoring",
         "homepage": "https://www.zyxacademy.com/",
         "brand_color": "#2563EB",
-        "short_description": "Author production Zyx content through MCP quality gates.",
+        "short_description": "Zyx content and admin MCP",
     },
     "staging": {
         "environment": "staging",
@@ -34,7 +34,7 @@ ENVIRONMENTS: dict[str, dict[str, str]] = {
         "endpoint": "https://staging.zyxacademy.com/api/mcp/authoring",
         "homepage": "https://staging.zyxacademy.com/",
         "brand_color": "#F59E0B",
-        "short_description": "Author staging Zyx content through MCP quality gates.",
+        "short_description": "Zyx staging MCP workflows",
     },
 }
 
@@ -49,7 +49,22 @@ EXPECTED_SKILLS = (
     "zyx-question-authoring-mcp",
     "reference-question-ingest",
     "zyx-admin-operations",
+    "zyx-blog-mcp",
+    "zyx-content-revisions",
+    "zyx-forms-mcp",
+    "zyx-media-mcp",
+    "zyx-operation-recovery",
 )
+
+AUTHORING_BOOTSTRAP_SKILLS = frozenset({
+    "zyx-authoring-pipeline", "zyx-source-pack-mcp", "zyx-idea-bundle-mcp",
+    "zyx-product-bundle-mcp", "zyx-question-authoring-mcp",
+    "reference-question-ingest", "zyx-content-revisions",
+})
+ADMIN_IDENTITY_SKILLS = frozenset({
+    "zyx-admin-operations", "zyx-blog-mcp", "zyx-content-revisions",
+    "zyx-forms-mcp", "zyx-media-mcp", "zyx-operation-recovery",
+})
 
 BASE_ALLOWED_FILES = {
     "release.json",
@@ -360,6 +375,9 @@ def validate_rendered_package(target_root: Path, environment: str) -> dict[str, 
         raise ValueError(f"plugin.json displayName mismatch: {root_manifest.get('displayName')!r}")
     if root_manifest.get("description") != config["short_description"]:
         raise ValueError("plugin.json description mismatch")
+    interface = codex_manifest.get("interface", {})
+    if interface.get("shortDescription") != config["short_description"] or len(config["short_description"]) > 30:
+        raise ValueError("Plugin listing subtitle mismatch or longer than 30 characters")
 
     mcp_checks = [
         (".mcp.json", "url", "http"),
@@ -393,8 +411,10 @@ def validate_rendered_package(target_root: Path, environment: str) -> dict[str, 
             raise ValueError(f"skills/{skill}/SKILL.md is missing active environment connection block")
         if other_config["endpoint"] in skill_text or f"`{other_config['server_id']}`" in skill_text:
             raise ValueError(f"skills/{skill}/SKILL.md contains cross-environment endpoint or server ID")
-        if skill != "zyx-admin-operations" and "workflow.get_playbook" not in skill_text:
+        if skill in AUTHORING_BOOTSTRAP_SKILLS and "workflow.get_playbook" not in skill_text:
             raise ValueError(f"skills/{skill}/SKILL.md must require workflow.get_playbook bootstrap")
+        if skill in ADMIN_IDENTITY_SKILLS and "admin.environment" not in skill_text:
+            raise ValueError(f"skills/{skill}/SKILL.md must require admin.environment identity discovery")
         if "references/" in skill_text:
             raise ValueError(f"skills/{skill}/SKILL.md must not reference deleted local references/*.md")
 

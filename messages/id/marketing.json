@@ -213,7 +213,14 @@
     "viewPlans": "Lihat paket",
     "proofTitle": "Belajar lebih baik, bersama Zyx",
     "proofDescription": "Dengarkan pengalaman mahasiswa yang belajar bersama Zyx Academy.",
-    "readStories": "Baca cerita mahasiswa"
+    "readStories": "Baca cerita mahasiswa",
+    "quizWorkedStep1": "Antiturunan dari $2x$ adalah $x^2$, tetapi ini integral tentu.",
+    "quizWorkedStep2": "Evaluasi batasnya:",
+    "quizDemoPrompt": "Hitung $\\int_0^1 2x\\,dx$",
+    "quizReviewChapter": "Bab 4 · Integral Tentu",
+    "tutorSourceRevolution": "Bab 5 · Volume Benda Putar",
+    "tutorSourceQuiz": "Kuis Mingguan #4 · Soal 8",
+    "tutorSourceMethod": "Bab 5.2 · Memilih Metode"
   },
   "about": {
     "title": "Tentang Zyx",
@@ -776,7 +783,7 @@
   },
   "plans": {
     "title": "Paket & layanan",
-    "description": "Pilih kombinasi mata kuliah dan intensitas pendampingan. Pembayaran dilakukan di luar website; admin akan mengaktifkan akses sesuai paket.",
+    "description": "Pembayaran dilakukan di luar situs. Admin mengaktifkan akses sesuai paket.",
     "priceConfiguration": "Konfigurasi harga: {people} orang dan {courses} mata kuliah.",
     "peopleLabel": "Jumlah anggota kelompok",
     "group": "Grup",

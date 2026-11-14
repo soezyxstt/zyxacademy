@@ -11,13 +11,11 @@ export async function generateMetadata() {
 }
 
 export default async function KeysPage() {
-  const t = await getTranslations("adminOps");
   return (
     <div className="space-y-5">
       <AdminPageHeader
         icon={KeyRound}
         title={<TranslatedText namespace="adminOps" messageKey="keys.title" />}
-        description={t("keys.description")}
       />
       <KeysClient />
     </div>

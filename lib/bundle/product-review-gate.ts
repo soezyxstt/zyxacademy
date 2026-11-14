@@ -50,17 +50,32 @@ export function productPedagogyFingerprint(products: readonly ProductEntity[]): 
   return createHash("sha256").update(deterministicProductSerialization(pairs)).digest("hex");
 }
 
-export function assertProductSectionReviews(input: {
-  requiredSectionIds: readonly string[];
+export type ProductSectionTarget = { productId: string; sectionId: string };
+type ProductSectionReviewInput = {
+  requiredSections?: readonly ProductSectionTarget[];
+  requiredSectionIds?: readonly string[];
   reviewerId: string;
-  reviews: readonly { reviewerId: string; targetType: string; targetId: string | null; status: string }[];
-}): void {
-  const relevant = input.reviews.filter((review) => review.reviewerId === input.reviewerId && review.targetType === "article_section" && review.targetId);
-  const requestedChanges = new Set(relevant.filter((review) => review.status === "changes_requested").map((review) => review.targetId!));
-  if (requestedChanges.size > 0) throw new Error(`PRODUCT_BUNDLE_SECTION_CHANGES_REQUESTED:${[...requestedChanges].sort().join(",")}`);
-  const approved = new Set(relevant.filter((review) => review.status === "approved").map((review) => review.targetId!));
-  const missing = input.requiredSectionIds.filter((sectionId) => !approved.has(sectionId));
-  if (missing.length > 0) throw new Error(`PRODUCT_BUNDLE_SECTION_APPROVAL_REQUIRED:${missing.join(",")}`);
+  reviews: readonly { reviewerId: string; productId?: string | null; targetType: string; targetId: string | null; status: string }[];
+};
+export function productSectionReviewState(input: ProductSectionReviewInput) {
+  const scoped = input.requiredSections !== undefined;
+  const required = input.requiredSections ?? (input.requiredSectionIds ?? []).map(sectionId => ({ productId: "", sectionId }));
+  const counts = new Map<string, number>();
+  for (const section of required) counts.set(section.sectionId, (counts.get(section.sectionId) ?? 0) + 1);
+  if (!scoped && [...counts.values()].some(count => count > 1)) throw new Error("PRODUCT_BUNDLE_SECTION_SCOPE_REQUIRED");
+  const relevant = (section: ProductSectionTarget) => input.reviews.filter(review =>
+    review.reviewerId === input.reviewerId && review.targetType === "article_section" && review.targetId === section.sectionId
+    && (!scoped || (review.productId ? review.productId === section.productId : counts.get(section.sectionId) === 1)));
+  return {
+    missing: required.filter(section => !relevant(section).some(review => review.status === "approved")),
+    changesRequested: required.filter(section => relevant(section).some(review => review.status === "changes_requested")),
+  };
+}
+export function assertProductSectionReviews(input: ProductSectionReviewInput): void {
+  const state = productSectionReviewState(input);
+  const label = (section: ProductSectionTarget) => section.productId ? `${section.productId}/${section.sectionId}` : section.sectionId;
+  if (state.changesRequested.length) throw new Error(`PRODUCT_BUNDLE_SECTION_CHANGES_REQUESTED:${state.changesRequested.map(label).sort().join(",")}`);
+  if (state.missing.length) throw new Error(`PRODUCT_BUNDLE_SECTION_APPROVAL_REQUIRED:${state.missing.map(label).join(",")}`);
 }
 
 export interface ProductBundleEvaluationContext {

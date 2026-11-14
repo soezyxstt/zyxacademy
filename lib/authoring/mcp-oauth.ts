@@ -91,10 +91,11 @@ function consentId({ userId, sessionId, clientId, resource }: ConsentRequest): s
   return `mcp:oauth:consent:${key}`;
 }
 
-export async function hasMcpOAuthConsent(input: ConsentRequest, client: Pick<typeof db, "select"> = db): Promise<boolean> {
-  const [grant] = await client.select({ value: verification.value }).from(verification)
+export async function hasMcpOAuthConsent(input: ConsentRequest, client: Pick<typeof db, "select"> = db, options: { lock?: boolean } = {}): Promise<boolean> {
+  const query = client.select({ value: verification.value }).from(verification)
     .where(and(eq(verification.id, consentId(input)), gt(verification.expiresAt, new Date())))
     .limit(1);
+  const [grant] = await (options.lock ? query.for("share") : query);
   if (!grant) return false;
   const approved: unknown = JSON.parse(grant.value);
   return Array.isArray(approved) && input.scope.every((scope) => approved.includes(scope));

@@ -1,3 +1,5 @@
+import { assertRevisionReviewGuard } from "@/lib/authoring/revision-review-context";
+import { revisionPublicationConnection, revisionPublicationTransaction, dispatchRevisionPublication, canReplaceRevisionEntity } from "@/lib/authoring/revision-publication-context";
 import { createHash } from "node:crypto";
 import { and, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import { db } from "@/db";
@@ -29,7 +31,6 @@ import { sha256Text } from "@/lib/bundle/validator";
 import { readSecureZip } from "@/lib/bundle/zip-reader";
 import { resolveBundleIdentity } from "@/lib/bundle/attribution";
 import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
-import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 import { previewIdeaBundle } from "@/lib/bundle/idea-preview";
 import { ideaReviewAuditId, ideaReviewTargets, normalizeIdeaReviewItems, type IdeaReviewItem } from "@/lib/authoring/idea-review";
 import { lockCanonicalIdentities } from "@/lib/vectorize/canonical-locks";
@@ -106,12 +107,12 @@ function canonicalKey(entityType: string, entityId: string): string {
 }
 
 /** Lock all canonical identities in the same order, including records not yet inserted. */
-async function lockCanonicalItems(tx: Parameters<Parameters<typeof db.transaction>[0]>[0], items: CanonicalItem[]) {
-  await lockCanonicalIdentities(tx, items.map((item) => ({ domain: "idea", entityType: item.entityType, entityId: item.entityId })));
+async function lockCanonicalItems(tx: Parameters<Parameters<typeof db.transaction>[0]>[0], items: CanonicalItem[], chapterIds: string[] = []) {
+  await lockCanonicalIdentities(tx, [...items.map((item) => ({ domain: "idea" as const, entityType: item.entityType, entityId: item.entityId })),...chapterIds.map(entityId=>({domain:"idea" as const,entityType:"learning_section_layout",entityId}))]);
 }
 
 function rejectRetiredEntity(entityType: string, id: string, status: string | undefined) {
-  if (status && ["withdrawn", "superseded", "archived"].includes(status)) {
+  if (!canReplaceRevisionEntity(entityType, id) && status && ["withdrawn", "superseded", "archived"].includes(status)) {
     throw new Error(`IDEA_BUNDLE_ENTITY_RETIRED:${entityType}:${id}`);
   }
 }
@@ -214,7 +215,7 @@ async function claimIdeaSnapshot(tx: Parameters<Parameters<typeof db.transaction
 }
 
 async function requireIdeaAdmin(actorId: string) {
-  await assertAuthoringActor(db, actorId, { roles: ["admin"], error: "IDEA_BUNDLE_PUBLISH_FORBIDDEN", requireLegacyAdmin: true });
+  await assertAuthoringActor(revisionPublicationConnection(), actorId, { roles: ["admin"], error: "IDEA_BUNDLE_PUBLISH_FORBIDDEN", requireLegacyAdmin: true });
 }
 
 /** Read the reviewable content and hashes without returning storage locations or actor IDs. */
@@ -255,6 +256,7 @@ export async function reviewIdeaBundleRevision(input: {
   const auditId = ideaReviewAuditId(input.importId, input.reviewerId, evidence);
   return db.transaction(async (tx) => {
     await assertAuthoringActor(tx, input.reviewerId, { roles: ["admin"], error: "IDEA_BUNDLE_PUBLISH_FORBIDDEN", lock: true, requireLegacyAdmin: true });
+    await assertRevisionReviewGuard(tx);
     const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1).for("update");
     if (!row) throw new Error("IDEA_BUNDLE_NOT_FOUND");
     assertIdeaSnapshot(row, snapshot);
@@ -285,7 +287,7 @@ export async function reviewIdeaBundleRevision(input: {
         id: deterministicId("review-idea-item", `${input.importId}:${input.reviewerId}:${item.ideaId}`),
         imporBundleId: input.importId, reviewerId: input.reviewerId, productId: null, blockId: null,
         targetType: "idea", targetId: item.ideaId, status: item.status, notes: item.notes, createdAt: now, updatedAt: now,
-      }).onConflictDoUpdate({ target: [reviewItemBundle.imporBundleId, reviewItemBundle.reviewerId, reviewItemBundle.targetType, reviewItemBundle.targetId], set: { status: item.status, notes: item.notes, updatedAt: now } });
+      }).onConflictDoUpdate({ target: [reviewItemBundle.imporBundleId, reviewItemBundle.reviewerId, reviewItemBundle.targetType, reviewItemBundle.targetId, reviewItemBundle.productId], set: { status: item.status, notes: item.notes, updatedAt: now } });
     }
     if (!prior) await tx.insert(reviewBundle).values({ id: reviewId, imporBundleId: input.importId, reviewerId: input.reviewerId, status: input.decision, notes, reviewedAt: now });
     const status = input.decision === "approved" ? "approved" as const : "rejected" as const;
@@ -311,7 +313,7 @@ export async function publishIdeaBundle(input: {
   if (!importSnapshot) throw new Error("IDEA_BUNDLE_NOT_FOUND");
   if (input.expectedRevision !== importSnapshot.checksum) throw new Error("IDEA_BUNDLE_STALE_CONTEXT");
   if (importSnapshot.status === "published") {
-    const [existingPublication] = await db
+    const [existingPublication] = await revisionPublicationConnection()
       .select({ id: publikasiBundle.id, status: publikasiBundle.status, publicationHash: publikasiBundle.publicationHash })
       .from(publikasiBundle)
       .where(and(eq(publikasiBundle.imporBundleId, input.importId), eq(publikasiBundle.status, "published")))
@@ -319,7 +321,7 @@ export async function publishIdeaBundle(input: {
     if (!existingPublication) throw new Error("IDEA_BUNDLE_PUBLISHED_RECORD_MISSING");
     const publishedBundle = await loadAndValidate(input.importId, importSnapshot.bundleId, importSnapshot.checksum);
     if (existingPublication.publicationHash !== publicationHash(input.importId, publishedBundle)) throw new Error("IDEA_BUNDLE_PUBLICATION_CONFLICT");
-    return db.transaction(async (tx) => {
+    return revisionPublicationTransaction(async (tx) => {
       await assertAuthoringActor(tx, input.publishedBy, { roles: ["admin"], error: "IDEA_BUNDLE_PUBLISH_FORBIDDEN", lock: true, requireLegacyAdmin: true });
       return {
         publicationId: existingPublication.id,
@@ -342,7 +344,7 @@ export async function publishIdeaBundle(input: {
 
   const bundle = await loadAndValidate(input.importId, importSnapshot.bundleId, importSnapshot.checksum);
   if (bundle.manifest.courseId !== importSnapshot.courseId && importSnapshot.courseId !== null) {
-    const course = await db
+    const course = await revisionPublicationConnection()
       .select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId })
       .from(mataKuliah)
       .where(eq(mataKuliah.legacyCourseId, importSnapshot.courseId))
@@ -352,7 +354,7 @@ export async function publishIdeaBundle(input: {
 
   let courseLegacyId: string | undefined;
   const canonical = canonicalItems(bundle);
-  const result = await db.transaction(async (tx) => {
+  const result = await revisionPublicationTransaction(async (tx) => {
     await assertAuthoringActor(tx, input.publishedBy, { roles: ["admin"], error: "IDEA_BUNDLE_PUBLISH_FORBIDDEN", lock: true, requireLegacyAdmin: true });
     const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1).for("update");
     if (!row || row.bundleType !== "idea") throw new Error("IDEA_BUNDLE_NOT_FOUND");
@@ -383,7 +385,7 @@ export async function publishIdeaBundle(input: {
     }
     if (row.status !== "validated" && row.status !== "approved" && row.status !== "rejected") throw new Error("IDEA_BUNDLE_ADMIN_APPROVAL_REQUIRED");
     await claimIdeaSnapshot(tx, importSnapshot, row.status);
-    await lockCanonicalItems(tx, canonical);
+    await lockCanonicalItems(tx, canonical, bundle.entities.learningSections.map(section=>section.chapterId));
 
     await requireIdentity(tx, input.publishedBy, "IDEA_BUNDLE_PUBLISHER_NOT_FOUND");
 
@@ -451,6 +453,10 @@ export async function publishIdeaBundle(input: {
         creatorId,
       };
       const existing = existingSourceById.get(source.id);
+      if (existing && canReplaceRevisionEntity("source_material", source.id)) {
+        await tx.update(sumberMateri).set(sourcePayload).where(eq(sumberMateri.id, source.id));
+        continue;
+      }
       rejectRetiredEntity("source_material", source.id, existing?.status);
       if (!assertEqualFields(existing as Record<string, unknown> | undefined, sourcePayload, "IDEA_BUNDLE_SOURCE_VERSION_CONFLICT", ["canonicalUriOrR2Key", "creatorId"])) {
         sourcesToInsert.push(sourcePayload);
@@ -482,6 +488,10 @@ export async function publishIdeaBundle(input: {
         embeddingEligible: chunk.embeddingEligible,
       };
       const existing = existingChunkById.get(chunk.id);
+      if (existing && canReplaceRevisionEntity("source_chunk", chunk.id)) {
+        await tx.update(potonganSumber).set(chunkPayload).where(eq(potonganSumber.id, chunk.id));
+        continue;
+      }
       if (!assertEqualFields(existing as Record<string, unknown> | undefined, chunkPayload, "IDEA_BUNDLE_SOURCE_CHUNK_CONFLICT")) {
         chunksToInsert.push(chunkPayload);
       }
@@ -542,6 +552,10 @@ export async function publishIdeaBundle(input: {
         curatorId,
       };
       const existing = existingIdeaById.get(idea.id);
+      if (existing && canReplaceRevisionEntity("idea", idea.id)) {
+        await tx.update(ide).set(ideaPayload).where(eq(ide.id, idea.id));
+        continue;
+      }
       rejectRetiredEntity("idea", idea.id, existing?.status);
       if (!assertEqualFields(existing as Record<string, unknown> | undefined, ideaPayload, "IDEA_BUNDLE_IDEA_VERSION_CONFLICT", ["creatorId", "curatorId"])) {
         ideasToInsert.push(ideaPayload);
@@ -571,6 +585,10 @@ export async function publishIdeaBundle(input: {
         note: provenance.note ?? null,
       };
       const existing = existingProvById.get(provenance.id);
+      if (existing && canReplaceRevisionEntity("provenance", provenance.id)) {
+        await tx.update(asalIde).set(provenancePayload).where(eq(asalIde.id, provenance.id));
+        continue;
+      }
       if (!assertEqualFields(existing as Record<string, unknown> | undefined, provenancePayload, "IDEA_BUNDLE_PROVENANCE_CONFLICT")) {
         provsToInsert.push(provenancePayload);
       }
@@ -598,6 +616,10 @@ export async function publishIdeaBundle(input: {
         status: relation.status,
       };
       const existing = existingRelById.get(relation.id);
+      if (existing && canReplaceRevisionEntity("relation", relation.id)) {
+        await tx.update(relasiIde).set(relationPayload).where(eq(relasiIde.id, relation.id));
+        continue;
+      }
       rejectRetiredEntity("relation", relation.id, existing?.status);
       if (!assertEqualFields(existing as Record<string, unknown> | undefined, relationPayload, "IDEA_BUNDLE_RELATION_CONFLICT")) {
         relsToInsert.push(relationPayload);
@@ -654,7 +676,10 @@ export async function publishIdeaBundle(input: {
         };
         const existing = existingSectionById.get(section.id);
         rejectRetiredEntity("learning_section", section.id, existing?.status);
-        if (!assertEqualFields(existing as Record<string, unknown> | undefined, sectionPayload, "IDEA_BUNDLE_LEARNING_SECTION_CONFLICT")) {
+        if (existing && canReplaceRevisionEntity("learning_section", section.id)) {
+          await tx.update(bagianPembelajaran).set(sectionPayload).where(eq(bagianPembelajaran.id, section.id));
+          await tx.delete(bagianPembelajaranIde).where(eq(bagianPembelajaranIde.bagianPembelajaranId, section.id));
+        } else if (!assertEqualFields(existing as Record<string, unknown> | undefined, sectionPayload, "IDEA_BUNDLE_LEARNING_SECTION_CONFLICT")) {
           passSectionsToInsert.push(sectionPayload);
         }
 
@@ -666,7 +691,7 @@ export async function publishIdeaBundle(input: {
           expectedIdeas.set(ideaId, "supporting");
         }
 
-        if (existing) {
+        if (existing && !canReplaceRevisionEntity("learning_section", section.id)) {
           const currentIdeas = existingIdeasBySectionId.get(section.id) ?? new Map<string, "primary" | "supporting">();
           let matchesIdeas = currentIdeas.size === expectedIdeas.size;
           if (matchesIdeas) {
@@ -813,24 +838,24 @@ export async function publishIdeaBundle(input: {
     };
   });
   if (courseLegacyId) {
-    dispatchVectorSync(courseLegacyId);
+    dispatchRevisionPublication(courseLegacyId);
   }
   return result;
 }
 
 export async function withdrawIdeaBundle(input: { importId: string; withdrawnBy: string; expectedRevision?: string; expectedCourseId?: string }): Promise<IdeaBundleWithdrawalResult> {
   ensureFeatureEnabled();
-  await assertAuthoringActor(db, input.withdrawnBy, { roles: ["admin"], error: "IDEA_BUNDLE_WITHDRAW_FORBIDDEN" });
+  await assertAuthoringActor(revisionPublicationConnection(), input.withdrawnBy, { roles: ["admin"], error: "IDEA_BUNDLE_WITHDRAW_FORBIDDEN" });
   const snapshot = await getIdeaBundleImport(input.importId);
   if (!snapshot) throw new Error("IDEA_BUNDLE_NOT_FOUND");
   if (input.expectedRevision !== undefined && snapshot.checksum !== input.expectedRevision) throw new Error("IDEA_BUNDLE_STALE_CONTEXT");
   if (input.expectedCourseId !== undefined && snapshot.courseId !== input.expectedCourseId) throw new Error("IDEA_BUNDLE_STALE_CONTEXT");
   if (snapshot.status === "withdrawn") {
-    await db.transaction(async tx => { await assertAuthoringActor(tx, input.withdrawnBy, { roles: ["admin"], error: "IDEA_BUNDLE_WITHDRAW_FORBIDDEN", lock: true }); });
+    await revisionPublicationTransaction(async tx => { await assertAuthoringActor(tx, input.withdrawnBy, { roles: ["admin"], error: "IDEA_BUNDLE_WITHDRAW_FORBIDDEN", lock: true }); });
     const bundle = await loadAndValidate(input.importId, snapshot.bundleId, snapshot.checksum);
-    const course = await resolveCourse(db, bundle.manifest.courseId);
+    const course = await resolveCourse(revisionPublicationConnection(), bundle.manifest.courseId);
     if (course.legacyId) {
-      await dispatchVectorSync(course.legacyId);
+      await dispatchRevisionPublication(course.legacyId);
     }
     return { importId: input.importId, withdrawn: false, entityCount: 0, vectorJobCount: 0 };
   }
@@ -839,7 +864,7 @@ export async function withdrawIdeaBundle(input: { importId: string; withdrawnBy:
   const canonical = canonicalItems(bundle);
 
   let courseLegacyId: string | undefined;
-  const result = await db.transaction(async (tx) => {
+  const result = await revisionPublicationTransaction(async (tx) => {
     await assertAuthoringActor(tx, input.withdrawnBy, { roles: ["admin"], error: "IDEA_BUNDLE_WITHDRAW_FORBIDDEN", lock: true });
     const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1).for("update");
     if (!row || row.bundleType !== "idea") throw new Error("IDEA_BUNDLE_NOT_FOUND");
@@ -847,7 +872,7 @@ export async function withdrawIdeaBundle(input: { importId: string; withdrawnBy:
     if (row.status === "withdrawn") return { importId: input.importId, withdrawn: false, entityCount: 0, vectorJobCount: 0 };
     if (row.status !== "published") throw new Error("IDEA_BUNDLE_PUBLISHED_REQUIRED");
     await requireIdentity(tx, input.withdrawnBy, "IDEA_BUNDLE_WITHDRAWER_NOT_FOUND");
-    await lockCanonicalItems(tx, canonical);
+    await lockCanonicalItems(tx, canonical, bundle.entities.learningSections.map(section=>section.chapterId));
 
     // The import status is authoritative. Counting all its matching inventory
     // rows is conservative even if an old item's own status is inconsistent.
@@ -911,7 +936,7 @@ export async function withdrawIdeaBundle(input: { importId: string; withdrawnBy:
     }).onConflictDoNothing();
     return { importId: input.importId, withdrawn: true, entityCount, vectorJobCount: vectorJobs.length };
   });
-  if (courseLegacyId) await dispatchVectorSync(courseLegacyId);
+  if (courseLegacyId) await dispatchRevisionPublication(courseLegacyId);
   return result;
 }
 

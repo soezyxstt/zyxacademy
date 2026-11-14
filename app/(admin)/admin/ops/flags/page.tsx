@@ -13,13 +13,11 @@ export async function generateMetadata() {
 }
 
 export default async function FeatureFlagsPage() {
-  const t = await getTranslations("adminOps");
   return (
     <div className="w-full space-y-8">
       <AdminPageHeader
         icon={Flag}
         title={<TranslatedText namespace="adminOps" messageKey="flags.title" />}
-        description={t("flags.description")}
       />
       <FlagsClient />
     </div>

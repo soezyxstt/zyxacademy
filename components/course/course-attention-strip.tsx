@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertCircle, ArrowRight } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import type { CourseAttentionData } from "@/types/course-learning";
 import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
@@ -46,7 +46,6 @@ export function CourseAttentionStrip({ attention, className }: CourseAttentionSt
               className="inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline shrink-0"
             >
               <span>{item.actionLabel}</span>
-              <ArrowRight className="size-3 shrink-0" aria-hidden="true" />
             </Link>
           </div>
         ))}

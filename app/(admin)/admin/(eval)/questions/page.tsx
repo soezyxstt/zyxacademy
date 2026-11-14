@@ -362,11 +362,12 @@ export default async function AIQuestionsPage({ searchParams }: { searchParams: 
           </>
         }
       />
-      <QuestionBankTabs value={query.tab}>
+      <QuestionBankTabs value={query.tab} tabs={
         <TabsList>
           <TabsTrigger value="ai-generated"><TranslatedText namespace="adminEval" messageKey="routes.activeQuestions" /></TabsTrigger>
           <TabsTrigger value="historical"><TranslatedText namespace="adminEval" messageKey="routes.historicalQuestions" /></TabsTrigger>
         </TabsList>
+      }>
 
         <TabsContent value="ai-generated" className="w-full space-y-4">
           {query.tab === "ai-generated" && <QuestionBankClient

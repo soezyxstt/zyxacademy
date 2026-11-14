@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import { courseMaterials } from "@/db/schema";
+import { courseMaterials, imporBundle } from "@/db/schema";
 import { db } from "@/lib/db";
 import { normalizeDate } from "@/lib/date-utils";
 import { storage, type StorageProvider } from "@/lib/storage";
@@ -28,12 +28,21 @@ function validatedRequest(value: unknown) {
 const variantSchema = z.object({ name: z.enum(["preview", "print"]), key: z.string(), checksum: hash, width: z.number().int().positive(), height: z.number().int().positive() });
 export const sourceFigureManifestSchema = requestSchema.omit({ actorId: true, sessionId: true, storageKey: true }).extend({ schemaVersion: z.literal("source-figure.v1"), variants: z.array(variantSchema).length(2).refine(variants => new Set(variants.map(variant => variant.name)).size === 2), pdfPointBbox: z.array(z.number().finite()).length(4), cropBox: z.array(z.number().finite()).length(4), rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]), transform: z.array(z.number().finite()).length(6), rounding: z.literal("floor-start-ceil-end") });
 type Store = Pick<StorageProvider, "download" | "upload" | "exists" | "list" | "getSignedUrl">;
-type Dependencies = { store: Store; resolve: typeof resolveStoredSourceFile; enqueue: (request: z.infer<typeof requestSchema> & { attemptId?: string }) => Promise<unknown>; render: typeof renderSourceFigure; loadPack: (importId: string) => Promise<{ courseId: string | null; pack: ValidatedSourcePack }> };
+type SourceFigureConnection = Pick<typeof db, "select">;
+type Dependencies = { store: Store; resolve: typeof resolveStoredSourceFile; enqueue: (request: z.infer<typeof requestSchema> & { attemptId?: string }) => Promise<unknown>; render: typeof renderSourceFigure; loadPack: (importId: string, connection?: SourceFigureConnection) => Promise<{ courseId: string | null; pack: ValidatedSourcePack }> };
 const defaults: Dependencies = { store: storage, resolve: resolveStoredSourceFile, enqueue: request => inngest.send({ id: `source-figure-${request.assetId}-${request.attemptId ?? "initial"}`, name: "source.figure.requested", data: request }), render: renderSourceFigure,
-  async loadPack(importId) { const row = await getSourcePackImport(importId); if (!row || row.id !== importId || !row.validationReport.valid) throw new Error("SOURCE_FIGURE_SOURCE_PACK_INVALID"); const pack = await readStoredSourcePack(row.sourceUriOrKey); if (pack.archive.checksum !== row.checksum) throw new Error("SOURCE_FIGURE_SOURCE_PACK_INVALID"); return { courseId: row.courseId, pack }; } };
+  async loadPack(importId, connection) {
+    // Figure references carry the exact import ID, never a latest-pack selector.
+    // A caller already holding a transaction must keep this read on that client.
+    const row = connection ? (await connection.select().from(imporBundle).where(and(eq(imporBundle.id, importId), eq(imporBundle.bundleType, "source"))).limit(1))[0] : await getSourcePackImport(importId);
+    if (!row || row.id !== importId || row.validationReport.valid !== true) throw new Error("SOURCE_FIGURE_SOURCE_PACK_INVALID");
+    const pack = await readStoredSourcePack(row.sourceUriOrKey);
+    if (pack.archive.checksum !== row.checksum) throw new Error("SOURCE_FIGURE_SOURCE_PACK_INVALID");
+    return { courseId: row.courseId, pack };
+  } };
 
-async function assertSourceFigureMapping(input: z.infer<typeof requestSchema>, deps: Dependencies) {
-  const { courseId, pack } = await deps.loadPack(input.sourcePackImportId);
+async function assertSourceFigureMapping(input: z.infer<typeof requestSchema>, deps: Dependencies, connection?: SourceFigureConnection) {
+  const { courseId, pack } = await deps.loadPack(input.sourcePackImportId, connection);
   if (courseId !== input.courseId || pack.archive.checksum !== input.sourcePackChecksum) throw new Error("SOURCE_FIGURE_SOURCE_PACK_NOT_IN_SCOPE");
   const document = pack.manifest.documents.find(document => document.id === input.sourceDocumentId);
   if (!document || document.originalSha256 !== input.sourceChecksum || document.unitKind !== "page" || input.pageNumber > document.expectedUnits) throw new Error("SOURCE_FIGURE_SOURCE_DOCUMENT_MISMATCH");
@@ -94,11 +103,11 @@ export async function getSourceFigure(input: z.input<typeof sourceFigureRefSchem
   return verifiedFigure(request, deps);
 }
 
-async function verifiedFigure(request: z.infer<typeof requestSchema>, deps: Dependencies) {
+async function verifiedFigure(request: z.infer<typeof requestSchema>, deps: Dependencies, connection?: SourceFigureConnection) {
   const manifest = sourceFigureManifestSchema.parse(await readJson(deps.store, keyFor(request, "manifest.json")));
   const { actorId: _actor, sessionId: _session, storageKey: _storage, ...provenance } = request;
   if (Object.entries(provenance).some(([key, value]) => JSON.stringify(manifest[key as keyof typeof manifest]) !== JSON.stringify(value))) throw new Error("SOURCE_FIGURE_MANIFEST_INVALID");
-  await assertSourceFigureMapping(request, deps);
+  await assertSourceFigureMapping(request, deps, connection);
   if (!deps.store.download) throw new Error("STORAGE_DOWNLOAD_UNSUPPORTED");
   const variants = await Promise.all(manifest.variants.map(async variant => {
     if (variant.key !== keyFor(request, `${variant.name}.png`)) throw new Error("SOURCE_FIGURE_VARIANT_INVALID");
@@ -109,14 +118,14 @@ async function verifiedFigure(request: z.infer<typeof requestSchema>, deps: Depe
 }
 
 /** Server callers must authorize the learner/operator for this legacy course before resolving. */
-export async function resolveSourceFigureForCourse(input: { courseId: string; materialId: string; assetId: string }, deps = defaults) {
+export async function resolveSourceFigureForCourse(input: { courseId: string; materialId: string; assetId: string }, deps = defaults, connection: SourceFigureConnection = db) {
   hash.parse(input.assetId);
-  const [row] = await db.select({ id: courseMaterials.id, courseId: courseMaterials.courseId, fileUrl: courseMaterials.fileUrl, checksum: courseMaterials.checksum, updatedAt: courseMaterials.updatedAt })
+  const [row] = await connection.select({ id: courseMaterials.id, courseId: courseMaterials.courseId, fileUrl: courseMaterials.fileUrl, checksum: courseMaterials.checksum, updatedAt: courseMaterials.updatedAt })
     .from(courseMaterials).where(and(eq(courseMaterials.id, input.materialId), eq(courseMaterials.courseId, input.courseId))).limit(1);
   if (!row) throw new Error("SOURCE_FIGURE_NOT_IN_SCOPE");
   const request = validatedRequest(await readJson(deps.store, keyFor(input, "request.json")));
   if (request.courseId !== row.courseId || request.materialId !== row.id || request.storageKey !== row.fileUrl || request.sourceVersion !== normalizeDate(row.updatedAt).getTime() || (row.checksum && row.checksum !== request.sourceChecksum)) throw new Error("SOURCE_FIGURE_NOT_IN_SCOPE");
-  return verifiedFigure(request, deps);
+  return verifiedFigure(request, deps, connection);
 }
 
 export async function listSourceFigures(input: z.input<typeof sourceFigureListSchema>, deps = defaults) {

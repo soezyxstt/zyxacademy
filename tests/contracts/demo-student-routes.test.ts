@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { proxy } from "@/proxy";
 import { expect, test } from "bun:test";
-import { demoStudentHref, demoStudentPath } from "@/lib/demo/routes";
+import { demoRoute, demoStudentHref, demoStudentPath } from "@/lib/demo/routes";
 
 test("student navigation keeps its course context inside the demo", () => {
   expect(demoStudentHref("id", "/courses/ma1101", "fi1101")).toBe("/id/demo/overview?course=ma1101");
@@ -33,4 +33,11 @@ test("bare demo routes resolve browser language before account locale lookup", (
  const protectedPage = proxy(new NextRequest("http://localhost/profile", { headers: { "x-app-locale": "en" } }));
  expect(protectedPage.status).toBe(307);
  expect(protectedPage.headers.get("location")).toContain("/sign-in");
+});
+
+
+test("global schedule links do not inherit a selected course", () => {
+  expect(demoRoute("id", "schedule", "fi1101")).toBe("/id/demo/schedule");
+  expect(demoStudentHref("en", "/dashboard/schedule", "fi1101")).toBe("/en/demo/schedule");
+  expect(demoStudentPath("schedule", "fi1101")).toBe("/dashboard/schedule");
 });

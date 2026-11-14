@@ -1,3 +1,4 @@
+import { adminMcpTestPrincipal, seedAdminMcpAuthority } from "../helpers/admin-mcp-authority";
 import { beforeAll, afterAll, expect, mock, test } from "bun:test";
 import { createPostgresTestDb } from "../helpers/postgres";
 import { eq } from "drizzle-orm";
@@ -5,7 +6,7 @@ import * as schema from "@/db/schema";
 const { client, testDb: database } = await createPostgresTestDb();
 mock.module("@/lib/db", () => ({ db: database }));
 mock.module("@/db", () => ({ db: database }));
-mock.module("@/lib/authoring/mcp-auth", () => ({
+mock.module("@/lib/authoring/mcp-auth", () => ({ MCP_MANUAL_CLIENT_ID: "zyx-admin-connection",
   requireMcpScope: (p: { scopes: string[] }, scope: string) => { if (!p.scopes.includes(scope)) throw new Error(`AUTHORING_MCP_SCOPE_REQUIRED:${scope}`); },
   resolveMcpAdmin: async () => undefined,
 }));
@@ -13,7 +14,7 @@ process.env.BETTER_AUTH_SECRET = "local-only-academic-integration-signing-key";
 const { registerSchedulingTools } = await import("@/lib/admin-mcp/scheduling-tools");
 const { registerAcademicTools } = await import("@/lib/admin-mcp/academic-tools");
 const handlers = new Map<string, (input: Record<string, unknown>) => Promise<any>>();
-const principal = { userId: "admin", actorId: "admin", sessionId: "session", authMethod: "oauth" as const, scopes: ["courses:read", "courses:write", "chapters:read", "chapters:write", "videos:read", "videos:write", "materials:read", "materials:write"] };
+const principal = adminMcpTestPrincipal({ userId: "admin", actorId: "admin", sessionId: "session", authMethod: "oauth" as const, scopes: ["courses:read", "courses:write", "chapters:read", "chapters:write", "videos:read", "videos:write", "materials:read", "materials:write"] });
 const register = (scopes = principal.scopes) => registerAcademicTools({ registerTool: (name: string, _config: unknown, handler: (input: Record<string, unknown>) => Promise<any>) => handlers.set(name, handler) } as never, { ...principal, scopes });
 register();
 registerSchedulingTools({ registerTool: (name: string, _config: unknown, fn: (input: Record<string, unknown>) => Promise<any>) => handlers.set(name, fn) } as never, { ...principal, scopes: [...principal.scopes, "schedules:read", "schedules:write"] });
@@ -24,7 +25,7 @@ async function commit(name: string, input: Record<string, unknown>) {
   const plan = await call(name, target); expect(plan.ok).toBe(true);
   return call(name, { ...target, dryRun: false, confirmationToken: plan.data.confirmationToken });
 }
-beforeAll(async () => {  await database.insert(schema.user).values({ id: "admin", name: "Admin", email: "admin@example.test" }); await database.insert(schema.pengguna).values({ id: "admin" }); });
+beforeAll(async () => {  await database.insert(schema.user).values({ id: "admin", name: "Admin", email: "admin@example.test" }); await database.insert(schema.pengguna).values({ id: "admin" }); await seedAdminMcpAuthority(database, principal, [...principal.scopes, "schedules:read", "schedules:write"]); });
 afterAll(async () => { await client.close(); });
 let course: any, first: any, second: any;
 test("creates and updates both course representations, rejects stale writes", async () => {

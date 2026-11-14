@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import {
   Users,
-  Search,
   Plus,
   RefreshCw,
   BookOpen,
@@ -162,6 +161,8 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
   // Add Member search inside Detail Modal
   const [memberSearchQuery, setMemberSearchQuery] = useState("");
   const [searchedUsers, setSearchedUsers] = useState<any[]>([]);
+  const [memberSearchFailed, setMemberSearchFailed] = useState(false);
+  const cancelMemberSearch = useRef<(() => void) | null>(null);
   const [addingMemberId, setAddingMemberId] = useState<string | null>(null);
 
   const [groups, setGroups] = useState(initialGroups);
@@ -349,35 +350,36 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
     }
   };
 
-  const handleSearchUsers = async (q: string) => {
+  useEffect(() => () => cancelMemberSearch.current?.(), []);
+
+  const handleSearchUsers = (q: string) => {
+    cancelMemberSearch.current?.();
     setMemberSearchQuery(q);
+    setSearchedUsers([]);
+    setMemberSearchFailed(false);
     if (!q.trim()) {
-      setSearchedUsers([]);
       return;
     }
-
-    try {
-      const results = await searchStudents(q);
-      setSearchedUsers(results);
-    } catch {
-      setSearchedUsers([]);
-    }
+    cancelMemberSearch.current = scheduleAdminListRequest(() => searchStudents(q), {
+      onSuccess: setSearchedUsers,
+      onError: () => setMemberSearchFailed(true),
+      onSettled: () => {},
+    });
   };
 
   const handleAddMemberToGroup = async (userObj: any) => {
     if (!detailGroup) return;
+    const groupId = detailGroup.id;
 
     setAddingMemberId(userObj.id);
     try {
-      const res = await addGroupMember(detailGroup.id, userObj.id, "member");
+      const res = await addGroupMember(groupId, userObj.id, "member");
       if (res.success) {
         toast.success(`${userObj.name} berhasil ditambahkan`);
-        setMemberSearchQuery("");
-        setSearchedUsers([]);
         refreshGroups();
         // Update local detailGroup state
         setDetailGroup((prev) =>
-          prev
+          prev?.id === groupId
             ? {
                 ...prev,
                 members: [
@@ -391,7 +393,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
                   },
                 ],
               }
-            : null
+            : prev
         );
       } else {
         toast.error(translate("groupsUI.addMemberFailure"));
@@ -405,19 +407,20 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
 
   const handleRemoveMemberFromGroup = async (userId: string, userName: string) => {
     if (!detailGroup) return;
+    const groupId = detailGroup.id;
 
     try {
-      const res = await removeGroupMember(detailGroup.id, userId);
+      const res = await removeGroupMember(groupId, userId);
       if (res.success) {
         toast.success(`${userName} telah dikeluarkan dari kelompok`);
         refreshGroups();
         setDetailGroup((prev) =>
-          prev
+          prev?.id === groupId
             ? {
                 ...prev,
                 members: prev.members.filter((m) => m.userId !== userId),
               }
-            : null
+            : prev
         );
       } else {
         toast.error(translate("groupsUI.removeMemberFailure"));
@@ -1192,7 +1195,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
       </Dialog>
 
       {/* 6. Modal Detail & Kelola Anggota */}
-      <Dialog open={!!detailGroup} onOpenChange={(open) => { if (!open) { detailRequest.current++; setDetailGroup(null); } }}>
+      <Dialog open={!!detailGroup} onOpenChange={(open) => { if (!open) { detailRequest.current++; handleSearchUsers(""); setDetailGroup(null); } }}>
         <DialogContent className="max-w-2xl rounded-xl border border-border p-6 shadow-2xl max-h-[85vh] overflow-y-auto">
           {detailGroup && (
             <div className="space-y-4">
@@ -1312,25 +1315,18 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
 
                 {/* Add Member Search */}
                 <div className="space-y-2 pt-1">
-                  <label className="text-body-xs font-semibold text-foreground block">
+                  <label htmlFor="group-member-search" className="text-body-sm font-semibold text-foreground block">
                     {translate("groupsUI.searchStudents")}
                   </label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
-                    <Input
-                      placeholder={translate("groupsUI.studentSearchPlaceholder")}
-                      value={memberSearchQuery}
-                      onChange={(e) => handleSearchUsers(e.target.value)}
-                      className="pl-8 h-9 rounded-lg text-body-xs"
-                    />
-                  </div>
                   <SearchBar
                     size="sm"
+                    id="group-member-search"
                     placeholder={translate("groupsUI.studentSearchPlaceholder")}
                     value={memberSearchQuery}
                     onSearch={handleSearchUsers}
-                    onClear={() => handleSearchUsers("")}
                   />
+
+                  {memberSearchFailed && <AdminErrorState message={translate("groupsUI.systemError")} onRetry={() => handleSearchUsers(memberSearchQuery)} />}
 
                   {searchedUsers.length > 0 && (
                     <div className="divide-y divide-border border border-border rounded-lg bg-card max-h-40 overflow-y-auto">
