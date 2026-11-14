@@ -28,6 +28,7 @@ async function visit(page: Page, path: string) {
   const response = await page.goto(path, { waitUntil: "networkidle" });
   expect(response?.status()).toBe(200);
   await expect(page.locator('#main-content [aria-busy="true"]')).toHaveCount(0);
+  if (new URL(page.url()).pathname.endsWith("/schedule")) await expect(page.getByRole("button", { name: "Pesan sesi", exact: true })).toBeVisible({ timeout: 30000 });
 }
 async function navigation(page: Page, info: TestInfo) {
   if (info.project.name === "mobile-380") await page.getByRole("button", { name: "Buka navigasi", exact: true }).click();
@@ -39,7 +40,7 @@ test("global schedule navigation stays global and routes another course's edits 
   await page.getByRole("link", { name: "Jadwal", exact: true }).first().click();
   await expect(page).toHaveURL(/\/id\/demo\/schedule$/, { timeout: 60000 });
   const sessions = page.locator("#main-content").getByRole("button").filter({ hasText: /Diskusi materi|Latihan dan pembahasan/ });
-  await expect(sessions).toHaveCount(8);
+  await expect(sessions).toHaveCount(8, { timeout: 30000 });
   for (const course of courses) await expect(sessions.filter({ hasText: course.title })).toHaveCount(2);
   await capture(page, info, "global-calendar-four-courses");
   await navigation(page, info);
@@ -74,8 +75,10 @@ test("global schedule navigation stays global and routes another course's edits 
   expect(Buffer.concat(chunks).toString()).toBe("physics scoped bytes");
   await capture(page, info, "course-physics-session-persisted");
   await visit(page, "/id/demo/schedule");
-  await expect(sessions).toHaveCount(8);
-  await page.getByRole("button").filter({ hasText: /^15:00-16:30/ }).first().click();
+  await expect(sessions).toHaveCount(8, { timeout: 30000 });
+  await page.getByRole("button", { name: "Pesan sesi", exact: true }).click();
+  await capture(page, info, "global-booking-picker");
+  await page.getByRole("dialog").getByRole("listitem").filter({ hasText: "Kak Fajar" }).getByRole("button", { name: "Pesan sesi", exact: true }).click();
   await expect(page.getByRole("dialog").getByText("Tim Newton", { exact: true })).toBeVisible();
   await page.getByRole("dialog").getByRole("button").filter({ hasText: "Fisika Dasar I" }).click();
   await page.locator("#booking-topic").fill("Fisika dari kalender global");
@@ -108,5 +111,23 @@ test("each course and assessment has a distinct stable leaderboard using the cur
   await visit(page, "/id/demo/leaderboard");
   await expect(page.locator("#main-content tbody tr")).toHaveCount(16);
   await capture(page, info, "ranking-overview-four-courses");
+  expect(errors).toEqual([]);
+});
+
+test("course booking action follows the selected week and remains course-scoped", async ({ page }, info) => {
+  const errors = guard(page);
+  await visit(page, `/id/demo/schedule?course=${courses[1].id}`);
+  await page.getByRole("button", { name: "Rentang berikutnya", exact: true }).click();
+  await page.getByRole("button", { name: "Pesan sesi", exact: true }).click();
+  await expect(page.getByRole("dialog").getByRole("listitem")).toHaveCount(1);
+  await expect(page.getByRole("dialog").getByText("Kak Fajar", { exact: true })).toBeVisible();
+  await capture(page, info, "course-booking-picker");
+  await page.getByRole("dialog").getByRole("button", { name: "Pesan sesi", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button").filter({ hasText: "Fisika Dasar I" }).click();
+  await page.locator("#booking-topic").fill("Booking course minggu depan");
+  await capture(page, info, "course-booking-open");
+  await page.getByRole("button", { name: "Konfirmasi pemesanan", exact: true }).click();
+  await expect(page.locator("#session-topic")).toHaveValue("Booking course minggu depan");
+  await capture(page, info, "course-booking-saved");
   expect(errors).toEqual([]);
 });

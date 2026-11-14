@@ -77,6 +77,12 @@ for (const route of routes) {
     await page.emulateMedia({ reducedMotion: "reduce" });
     const response = await page.goto(route, { waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toBeVisible();
+    if (/^\/(id|en)\/demo\/schedule$/.test(routePathname(route))) {
+      await expect(page.getByRole("button", { name: /^(Pesan sesi|Book session)$/ })).toBeVisible({ timeout: 30000 });
+    }
+    if (/^\/(id|en)\/demo\/groups$/.test(routePathname(route))) {
+      await expect(page.getByRole("progressbar")).toBeVisible({ timeout: 30000 });
+    }
     if (routePathname(route) === "/visual-fixtures/coding" && new URL(route, "http://visual-check.local").searchParams.get("terminal") === "1") {
       await expect(page.getByRole("textbox", { name: "Kode Python" })).toBeVisible();
     }

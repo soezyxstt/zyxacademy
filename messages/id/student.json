@@ -181,7 +181,10 @@
     "saving": "Menyimpan…",
     "confirmRename": "Konfirmasi dan ganti nama",
     "metadataDescription": "Informasi kelompok belajar, kuota sesi pertemuan semester, rekan belajar, dan mata kuliah Anda.",
-    "title": "Kelompok belajar"
+    "title": "Kelompok belajar",
+    "nameLength": "Gunakan 3 sampai 80 karakter.",
+    "tutorialPackage": "Paket tutorial",
+    "weeklySessions": "{count} sesi per minggu"
   },
   "feedback": {
     "categoryCourseMaterials": "Materi kuliah",

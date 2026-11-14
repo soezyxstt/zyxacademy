@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { NextIntlClientProvider } from "next-intl";
 import schedule from "@/messages/id/schedule.json";
+import ui from "@/messages/id/ui.json";
 import { getWeekScheduleDays } from "@/lib/date-utils";
 import { ScheduleCalendarView } from "@/components/schedule/schedule-calendar-view";
 
@@ -16,7 +17,7 @@ const cancelled = {
 
 const root = document.getElementById("root")!;
 createRoot(root).render(
-  <NextIntlClientProvider locale="id" messages={{ schedule }} timeZone="Asia/Jakarta">
+  <NextIntlClientProvider locale="id" messages={{ schedule, ui }} timeZone="Asia/Jakarta">
     <ScheduleCalendarView
       role="student"
       currentUserId="student"

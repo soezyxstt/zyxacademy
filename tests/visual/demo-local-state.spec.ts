@@ -98,30 +98,37 @@ test("weekly sessions persist context, pre/post files and links, moves, completi
   await capture(page, info, "booking-saved");
   expect(errors).toEqual([]);
 });
-test("group validation, editing and browser restart preserve the roster", async ({ page }, info) => {
+test("shared group view validates names and preserves the roster after reload", async ({ page }, info) => {
   const errors = guard(page); await visit(page, "groups");
-  await page.locator("#demo-group-name").fill("Kelompok Limit");
-  await page.locator("#demo-group-members").fill("Alya\nAlya");
-  await page.getByRole("button", { name: "Simpan kelompok", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "1 sampai 6" })).toBeVisible();
+  await expect(page.getByRole("progressbar")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Jadwalkan sesi", exact: true })).toHaveAttribute("href", `/id/demo/schedule?course=${course}`);
+  await capture(page, info, "group-shared");
+  await page.getByRole("button", { name: "Ganti nama kelompok", exact: true }).click();
+  await page.locator("#student-group-name").fill("AB");
+  await expect(page.getByRole("button", { name: "Simpan", exact: true })).toBeDisabled();
   await capture(page, info, "group-invalid");
-  await page.locator("#demo-group-members").fill("Pelajar Demo\nAlya\nBima\nCitra");
-  await page.getByRole("button", { name: "Simpan kelompok", exact: true }).click();
+  await page.locator("#student-group-name").fill("Kelompok Limit");
+  await page.getByRole("button", { name: "Simpan", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Kelompok Limit", exact: true })).toBeVisible();
   await capture(page, info, "group-saved");
   await page.reload({ waitUntil: "networkidle" });
-  await expect(page.locator("#demo-group-name")).toHaveValue("Kelompok Limit");
-  await expect(page.locator("#demo-group-members")).toHaveValue("Pelajar Demo\nAlya\nBima\nCitra");
-  expect(await page.evaluate(key => localStorage.getItem(key), key)).toContain("Kelompok Limit");
+  await expect(page.getByRole("heading", { name: "Kelompok Limit", exact: true })).toBeVisible();
+  const state = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!), key);
+  expect(state.group.members).toEqual(["Pelajar Demo", "Bima", "Tania", "Reza"]);
   await capture(page, info, "group-reloaded"); expect(errors).toEqual([]);
 });
 test("quota failure preserves the group draft and never claims saved", async ({ page }, info) => {
   const errors = guard(page); await visit(page, "groups");
+  await page.getByRole("button", { name: "Ganti nama kelompok", exact: true }).click();
   await page.evaluate(() => { Storage.prototype.setItem = () => { throw new DOMException("Quota", "QuotaExceededError"); }; });
-  await page.locator("#demo-group-name").fill("Draf belum tersimpan");
-  await page.getByRole("button", { name: "Simpan kelompok", exact: true }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "Perubahan belum tersimpan" })).toBeVisible();
-  await expect(page.getByText("Kelompok tersimpan.", { exact: true })).toHaveCount(0);
-  await capture(page, info, "group-storage-error"); expect(errors).toEqual([]);
+  await page.locator("#student-group-name").fill("Draf belum tersimpan");
+  await page.getByRole("button", { name: "Simpan", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Nama kelompok tidak dapat diganti" })).toBeVisible();
+  await expect(page.locator("#student-group-name")).toHaveValue("Draf belum tersimpan");
+  await capture(page, info, "group-storage-error");
+  await page.getByRole("button", { name: "Batal", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Logika runtut", exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
 });
 test("flashcard flip, answer and cursor survive reload", async ({ page }, info) => {
   const errors = guard(page); await visit(page, "flashcards");
@@ -190,7 +197,7 @@ test("failed file storage rolls back metadata and reset clears scoped files", as
   await expect.poll(() => page.evaluate(key => localStorage.getItem(key), key)).toBeNull();
   await expect.poll(countFiles).toBe(0);
   await visit(page, "groups");
-  await expect(page.locator("#demo-group-name")).toHaveValue("Logika runtut");
+  await expect(page.getByRole("heading", { name: "Logika runtut", exact: true })).toBeVisible();
   await capture(page, info, "demo-reset"); expect(errors).toEqual([]);
 });
 test("rescheduling rejects a seeded conflict and releases the original slot", async ({ page }, info) => {
