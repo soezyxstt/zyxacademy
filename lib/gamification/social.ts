@@ -2,7 +2,7 @@ import 'server-only';
 import { sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { requireStudentGamificationAccess } from './access';
-import { parseSocialSettings, ownsSelectedBadges, type PublicStudentProfile, type StudentSocialSettingsInput } from './social-contracts';
+import { parseSocialSettings, ownsSelectedBadges, peopleSearchPattern, type PublicStudentProfile, type StudentIdentity, type StudentSocialSettingsInput } from './social-contracts';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 async function actor(id: string) { const { user } = await requireStudentGamificationAccess(); if (user.id !== id) throw new Error('Forbidden'); const result = await db.execute(sql`select 1 from "user" u where u.id = ${id} and ${eligibleStudent(sql.raw('u'))}`); if (!result.rows.length) throw new Error('Forbidden'); }
@@ -13,6 +13,33 @@ export const eligibleStudent = (alias: ReturnType<typeof sql.raw>) => sql`(
    and not exists (select 1 from pengguna_peran pp join peran r on r.id = pp.peran_id where pp.pengguna_id = ${alias}.id and r.code in ('admin','tutor')))
   or (not exists (select 1 from pengguna p where p.id = ${alias}.id) and not exists (select 1 from pengguna_peran pp where pp.pengguna_id = ${alias}.id) and ${alias}.role = 'student'))`;
 export const noBlock = (viewer: string, target: ReturnType<typeof sql.raw>) => sql`not exists (select 1 from gamification_blocks b where (b.blocker_id = ${viewer} and b.blocked_id = ${target}) or (b.blocked_id = ${viewer} and b.blocker_id = ${target}))`;
+const visibleMember = (viewer: string) => sql`p.visibility = 'members' and ${eligibleStudent(sql.raw('u'))} and ${noBlock(viewer, sql.raw('p.user_id'))}`;
+const identityColumns = sql`p.public_id, coalesce(p.display_name, u.name) as display_name, u.image, coalesce(a.rank_key, 'rakyat') as rank_key, p.equipped_frame_id, p.equipped_theme_id`;
+function identity(row: any): StudentIdentity {
+ return { publicId: row.public_id, displayName: row.display_name, avatarUrl: row.image, rankKey: row.rank_key, equippedFrameId: row.equipped_frame_id, equippedThemeId: row.equipped_theme_id };
+}
+
+/** Used only with IDs already authorized by a server-side surface, such as a group roster. */
+export async function getVisibleStudentIdentities(viewerId: string, userIds: readonly string[]): Promise<Map<string, StudentIdentity>> {
+ await actor(viewerId);
+ const ids = [...new Set(userIds)].filter(id => typeof id === 'string' && id.length > 0 && id.length <= 100);
+ const result = new Map<string, StudentIdentity>();
+ for (let offset = 0; offset < ids.length; offset += 100) {
+  const batch = ids.slice(offset, offset + 100);
+  const rows = await db.execute<any>(sql`select p.user_id, ${identityColumns} from gamification_profiles p join "user" u on u.id=p.user_id left join gamification_accounts a on a.user_id=p.user_id where p.user_id in (${sql.join(batch.map(id => sql`${id}`), sql`, `)}) and ${visibleMember(viewerId)}`);
+  for (const row of rows.rows) result.set(row.user_id, identity(row));
+ }
+ return result;
+}
+
+/** Bounded, literal-name search using the same membership and block rules as profile reads. */
+export async function searchVisibleStudents(viewerId: string, input: unknown): Promise<StudentIdentity[]> {
+ const pattern = peopleSearchPattern(input);
+ if (!pattern) return [];
+ await actor(viewerId);
+ const rows = await db.execute<any>(sql`select ${identityColumns} from gamification_profiles p join "user" u on u.id=p.user_id left join gamification_accounts a on a.user_id=p.user_id where ${visibleMember(viewerId)} and coalesce(p.display_name, u.name) ilike ${pattern} escape '\\' order by lower(coalesce(p.display_name, u.name)), p.public_id limit 10`);
+ return rows.rows.map(identity);
+}
 async function lock(tx: Tx, ids: string[]) {
  for (const id of [...new Set(ids)].sort()) await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${id}, 731947))`);
 }
@@ -40,9 +67,9 @@ async function rate(tx: Tx, id: string, action: string, limit: number, seconds: 
 export async function getPublicStudentProfile(viewerId: string, publicId: string): Promise<PublicStudentProfile | null> {
  if (!validPublicId(publicId)) return null;
  await actor(viewerId);
- const r = await db.execute<any>(sql`select p.public_id, coalesce(p.display_name,u.name) as display_name, u.image, p.avatar_badge_id, p.avatar_mode, case when exists (select 1 from gamification_badges where user_id=p.user_id and family=p.avatar_badge_id and tier >= p.badge_tier and p.badge_tier between 1 and 5) then p.badge_tier end as avatar_badge_tier, coalesce((select jsonb_agg(jsonb_build_object('family', family, 'tier', tier) order by family) from gamification_badges where user_id=p.user_id and tier > 0), '[]'::jsonb) as earned_badges, coalesce(a.rank_key,'rakyat') as rank_key, p.featured_badge_ids, p.equipped_frame_id, p.equipped_theme_id, p.equipped_title_id, case when p.show_major then u.major end as major, case when p.show_faculty then u.faculty end as faculty, p.follower_count, p.following_count, p.allow_follows, exists(select 1 from gamification_follows f where f.follower_id = ${viewerId} and f.following_id = p.user_id) as is_following, p.user_id = ${viewerId} as is_self from gamification_profiles p join "user" u on u.id=p.user_id left join gamification_accounts a on a.user_id=p.user_id where p.public_id=${publicId} and p.visibility='members' and ${eligibleStudent(sql.raw('u'))} and ${noBlock(viewerId,sql.raw('p.user_id'))} limit 1`);
+ const r = await db.execute<any>(sql`select p.public_id, coalesce(p.display_name,u.name) as display_name, u.image, p.avatar_badge_id, p.avatar_mode, case when exists (select 1 from gamification_badges where user_id=p.user_id and family=p.avatar_badge_id and tier >= p.badge_tier and p.badge_tier between 1 and 5) then p.badge_tier end as avatar_badge_tier, coalesce((select jsonb_agg(jsonb_build_object('family', family, 'tier', tier) order by family) from gamification_badges where user_id=p.user_id and tier > 0), '[]'::jsonb) as earned_badges, coalesce(a.rank_key,'rakyat') as rank_key, case when p.leaderboard_opt_in then coalesce(a.base_xp_micro, 0) end as base_xp_micro, p.featured_badge_ids, p.equipped_frame_id, p.equipped_theme_id, p.equipped_title_id, case when exists (select 1 from gamification_inventory i join gamification_cosmetics c on c.id=i.cosmetic_id where i.user_id=p.user_id and i.cosmetic_id=p.equipped_zyra_avatar_id and c.slot='zyra_avatar') then p.equipped_zyra_avatar_id end as equipped_zyra_avatar_id, case when p.show_major then u.major end as major, case when p.show_faculty then u.faculty end as faculty, p.follower_count, p.following_count, p.allow_follows, exists(select 1 from gamification_follows f where f.follower_id = ${viewerId} and f.following_id = p.user_id) as is_following, p.user_id = ${viewerId} as is_self from gamification_profiles p join "user" u on u.id=p.user_id left join gamification_accounts a on a.user_id=p.user_id where p.public_id=${publicId} and p.visibility='members' and ${eligibleStudent(sql.raw('u'))} and ${noBlock(viewerId,sql.raw('p.user_id'))} limit 1`);
  const p = r.rows[0]; if (!p) return null;
- return { publicId:p.public_id, displayName:p.display_name, avatarUrl:p.image, avatarBadgeId:null, avatarMode:'photo', avatarBadgeTier:null, earnedBadges:p.earned_badges.map((b: {family:string; tier:number}) => ({family:b.family,tier:Number(b.tier)})), rankKey:p.rank_key, featuredBadgeIds:p.featured_badge_ids, equippedFrameId:p.equipped_frame_id, equippedThemeId:p.equipped_theme_id, equippedTitleId:p.equipped_title_id, major:p.major, faculty:p.faculty, followerCount:Number(p.follower_count), followingCount:Number(p.following_count), canFollow:p.allow_follows && !p.is_self, isFollowing:p.is_following };
+ return { publicId:p.public_id, displayName:p.display_name, avatarUrl:p.image, avatarBadgeId:null, avatarMode:'photo', avatarBadgeTier:null, earnedBadges:p.earned_badges.map((b: {family:string; tier:number}) => ({family:b.family,tier:Number(b.tier)})), rankKey:p.rank_key, baseXpMicro:p.base_xp_micro == null ? null : Number(p.base_xp_micro), featuredBadgeIds:p.featured_badge_ids, equippedFrameId:p.equipped_frame_id, equippedThemeId:p.equipped_theme_id, equippedTitleId:p.equipped_title_id, equippedZyraAvatarId:p.equipped_zyra_avatar_id ?? null, major:p.major, faculty:p.faculty, followerCount:Number(p.follower_count), followingCount:Number(p.following_count), canFollow:p.allow_follows && !p.is_self, isFollowing:p.is_following };
 }
 export async function getStudentSocialSettings(userId:string) {
  await actor(userId);
@@ -92,6 +119,6 @@ export const reportStudent=(v:string,p:string,reason:string)=>relation(v,p,'repo
 export async function getStudentFollowList(userId:string, direction:'followers'|'following', cursor?:string, pageSize=20) {
  if (!['followers','following'].includes(direction) || !Number.isInteger(pageSize) || pageSize<1 || pageSize>50 || (cursor !== undefined && (typeof cursor!=='string' || cursor.length===0 || cursor.length>100))) throw new Error('Invalid pagination');
  await actor(userId);
- const r=await db.execute<any>(sql`select p.public_id, coalesce(p.display_name,u.name) as display_name, u.image, p.avatar_mode, p.avatar_badge_id, case when exists (select 1 from gamification_badges b where b.user_id=p.user_id and b.family=p.avatar_badge_id and b.tier >= p.badge_tier and p.badge_tier between 1 and 5) then p.badge_tier end as badge_tier, p.equipped_frame_id, p.equipped_theme_id from gamification_follows f join gamification_profiles p on p.user_id=${direction==='followers' ? sql.raw('f.follower_id') : sql.raw('f.following_id')} join "user" u on u.id=p.user_id where ${direction==='followers' ? sql`f.following_id=${userId}` : sql`f.follower_id=${userId}`} and p.visibility='members' and ${eligibleStudent(sql.raw('u'))} and ${noBlock(userId,sql.raw('p.user_id'))} ${cursor ? sql`and p.public_id > ${cursor}` : sql``} order by p.public_id limit ${pageSize+1}`);
- const rows=r.rows.slice(0,pageSize); return {entries:rows.map((p:any)=>({publicId:p.public_id,displayName:p.display_name,avatarUrl:p.image,avatarMode:'photo' as const,avatarBadgeId:null,badgeTier:null,equippedFrameId:p.equipped_frame_id,equippedThemeId:p.equipped_theme_id})),nextCursor:r.rows.length>pageSize ? rows.at(-1).public_id : null};
+ const r=await db.execute<any>(sql`select p.public_id, coalesce(p.display_name,u.name) as display_name, u.image, p.avatar_mode, p.avatar_badge_id, case when exists (select 1 from gamification_badges b where b.user_id=p.user_id and b.family=p.avatar_badge_id and b.tier >= p.badge_tier and p.badge_tier between 1 and 5) then p.badge_tier end as badge_tier, p.equipped_frame_id, p.equipped_theme_id, coalesce(a.rank_key, 'rakyat') as rank_key from gamification_follows f join gamification_profiles p on p.user_id=${direction==='followers' ? sql.raw('f.follower_id') : sql.raw('f.following_id')} join "user" u on u.id=p.user_id left join gamification_accounts a on a.user_id=p.user_id where ${direction==='followers' ? sql`f.following_id=${userId}` : sql`f.follower_id=${userId}`} and p.visibility='members' and ${eligibleStudent(sql.raw('u'))} and ${noBlock(userId,sql.raw('p.user_id'))} ${cursor ? sql`and p.public_id > ${cursor}` : sql``} order by p.public_id limit ${pageSize+1}`);
+ const rows=r.rows.slice(0,pageSize); return {entries:rows.map((p:any)=>({publicId:p.public_id,displayName:p.display_name,avatarUrl:p.image,avatarMode:'photo' as const,avatarBadgeId:null,badgeTier:null,equippedFrameId:p.equipped_frame_id,equippedThemeId:p.equipped_theme_id,rankKey:p.rank_key})),nextCursor:r.rows.length>pageSize ? rows.at(-1).public_id : null};
 }

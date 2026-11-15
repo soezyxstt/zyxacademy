@@ -33,6 +33,8 @@ import {
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 
+import { StudentIdentity } from "@/components/gamification/student-identity";
+import type { StudentIdentity as PublicStudentIdentity } from "@/lib/gamification/social-contracts";
 import { useStudentExperience } from "@/components/student-experience-provider";
 
 type StudentGroup = {
@@ -53,7 +55,7 @@ type StudentGroup = {
   myRole: string;
   isLeader: boolean;
   courses: Array<{ id: string; title: string; category?: string | null }>;
-  members: Array<{ id: string; name: string; role: string; isMe: boolean }>;
+  members: Array<{ id: string; name: string; role: string; isMe: boolean; identity?: PublicStudentIdentity | null }>;
   token: { token: string; capacity: number } | null;
 };
 
@@ -323,9 +325,9 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-body-sm font-semibold text-foreground">{t("groups.members")}</p>
-                <p className="truncate text-body-xs text-muted-foreground">
-                  {activeGroup.members.map((member) => member.isMe ? t("groups.memberYou", { name: member.name }) : member.name).join(", ")}
-                </p>
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+                  {activeGroup.members.map((member) => <StudentIdentity key={member.id} name={member.isMe ? t("groups.memberYou", { name: member.name }) : member.name} identity={member.identity} />)}
+                </div>
               </div>
               <span className="shrink-0 text-body-xs text-muted-foreground">
                 {activeGroup.members.length}{activeGroup.token ? `/${activeGroup.token.capacity}` : ""}

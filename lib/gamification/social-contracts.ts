@@ -6,12 +6,15 @@ export type PublicStudentProfile = {
   avatarBadgeId: string | null;
   avatarMode: "photo" | "badge";
   rankKey: string;
+  /** Base XP is visible only with leaderboard participation consent. */
+  baseXpMicro: number | null;
   avatarBadgeTier: number | null;
   earnedBadges: { family: string; tier: number }[];
   featuredBadgeIds: string[];
   equippedFrameId: string | null;
   equippedThemeId: string | null;
   equippedTitleId: string | null;
+  equippedZyraAvatarId: string | null;
   major: string | null;
   faculty: string | null;
   followerCount: number;
@@ -19,6 +22,24 @@ export type PublicStudentProfile = {
   canFollow: boolean;
   isFollowing: boolean;
 };
+
+/** The member directory exposes only this projection, never account identifiers. */
+export type StudentIdentity = {
+  publicId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  rankKey: string;
+  equippedFrameId: string | null;
+  equippedThemeId: string | null;
+};
+
+/** Bound directory work and treat SQL wildcard characters as literal text. */
+export function peopleSearchPattern(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const query = input.trim();
+  if (query.length < 2 || query.length > 80) return null;
+  return `%${query.replace(/[\\%_]/g, "\\$&")}%`;
+}
 
 export type StudentSocialSettings = {
   publicId: string | null;

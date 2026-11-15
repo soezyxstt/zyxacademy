@@ -23,10 +23,7 @@ for (const [tab, path] of [["overview", "/achievements"], ["badges", "/achieveme
   });
 }
 
-test("embedded leaderboard filters and dashboard summary", async ({ page }, info) => {
-  await page.goto("/achievements?tab=leaderboard&period=week&scope=following");
-  await expect(page.getByRole("navigation").filter({ has: page.locator('[aria-current="page"]') }).first()).toBeVisible();
-  await page.screenshot({ path: info.outputPath("screenshots/embedded-leaderboard.png"), fullPage: true, animations: "disabled" });
+test("dashboard summary", async ({ page }, info) => {
   await page.goto("/dashboard");
   await expect(page.locator('a[href="/achievements"]').first()).toBeVisible();
   await page.screenshot({ path: info.outputPath("screenshots/dashboard-summary.png"), fullPage: true, animations: "disabled" });

@@ -9,14 +9,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useDemoCommunity } from "./use-demo-community";
 import { demoCommunitySchema } from "@/lib/demo/community-state";
+import { demoIdentity, demoOwnIdentity } from "@/lib/demo/gamification";
+import { useStudentExperience } from "@/components/student-experience-provider";
+import { useDemoGamification } from "./demo-gamification-provider";
+import { StudentIdentity } from "@/components/gamification/student-identity";
+import { useAppLocale } from "@/lib/i18n/client";
 
 export function DemoGroups() {
   const { state, ready, error, save } = useDemoCommunity();
+  const { locale } = useAppLocale();
+  const experience = useStudentExperience();
+  const { state: gamification } = useDemoGamification();
+  const ownName = experience.account?.name ?? "Pelajar Demo";
   const [name, setName] = useState("");
   const [members, setMembers] = useState("");
   const [message, setMessage] = useState("");
   useEffect(() => { setName(state.group.name); setMembers(state.group.members.join("\n")); }, [state.group]);
   return <ApplicationPage><PageHeader icon={Users} title="Kelompok belajar" />
+    <section className="mb-6 max-w-xl space-y-3"><h2 className="font-heading text-body-base font-bold">{state.group.name}</h2><div className="divide-y rounded-xl border bg-card">{state.group.members.map(member => <div key={member} className="px-4 py-3"><StudentIdentity name={member} identity={member === ownName ? demoOwnIdentity(ownName, gamification.equipped) : demoIdentity(member)} /></div>)}</div><h2 className="font-heading text-body-base font-bold">{locale === "en" ? "Edit group" : "Ubah kelompok"}</h2></section>
     <form className="max-w-xl space-y-4" aria-busy={!ready} onSubmit={event => {
       event.preventDefault(); setMessage("");
       const group = { name: name.trim(), members: members.split("\n").map(row => row.trim()).filter(Boolean) };

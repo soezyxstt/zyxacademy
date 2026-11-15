@@ -581,7 +581,28 @@
     "unavailable": "Tidak dapat memuat. Coba lagi.",
     "invalidFilter": "Tautan peringkat tidak valid",
     "reset": "Lihat peringkat",
-    "retry": "Coba lagi"
+    "retry": "Coba lagi",
+    "promotionRequirement": "Kenaikan memerlukan XP dan kredit mata kuliah.",
+    "goToMissions": "Lihat misi",
+    "previewItem": "Lihat {name}",
+    "before": "Sebelum",
+    "after": "Sesudah",
+    "rewardGroups": {
+      "frame": "Bingkai avatar",
+      "title": "Gelar",
+      "theme": "Tema profil",
+      "zyra_skin": "Tema Zyra",
+      "zyra_avatar": "Maskot Zyra"
+    },
+    "missionCategory": {
+      "material": "Materi",
+      "question": "Latihan soal",
+      "recall": "Flashcard",
+      "qualified_days": "Konsistensi",
+      "unknown": "Misi"
+    },
+    "previewExplanation": "Untuk mencari turunan f(x) = x², gunakan aturan pangkat. Kalikan koefisien dengan pangkat x, lalu kurangi pangkat tersebut dengan satu. Karena koefisien awalnya 1 dan pangkatnya 2, hasilnya adalah 2 × 1 × x¹. Bentuk sederhananya adalah:",
+    "previewFollowup": "Aturan yang sama berlaku untuk pangkat lain. Coba terapkan pada f(x) = x³: berapa koefisien dan pangkat x setelah diturunkan?"
   },
   "celebration": {
     "badgeUnlocked": "Pencapaian terbuka",

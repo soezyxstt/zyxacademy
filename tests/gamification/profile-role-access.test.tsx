@@ -85,14 +85,14 @@ function pageFixture(student: boolean) {
   "@/components/i18n/translated-text": { TranslatedText: () => null },
   "@/components/gamification/profile-hero": { ProfileHero },
   "@/components/gamification/achievement-board": { profileBadgeFamilies: [] },
-  "@/components/student-profile-view": { StudentProfileView: () => <div>Student profile</div> },
+  "@/components/student-profile-view": { StudentProfileView: ({ zyraAvatarId }: { zyraAvatarId?: string }) => <div data-mascot={zyraAvatarId}>Student profile</div> },
   "@/components/gamification/profile-follow-list": { ProfileFollowList: () => null },
   "@/components/gamification/profile-settings": { ProfileSettings: ({ academicForm }: { academicForm?: React.ReactNode }) => <div>Student customization{academicForm}</div> },
   "./profile-edit-form": { ProfileEditForm: () => <form>Academic profile</form> },
   "@/lib/gamification/access": { getStudentGamificationAccess: async () => student ? { user } : null },
   "@/lib/gamification/social": { getStudentSocialSettings: guarded("social", { featuredBadgeIds: [] }) },
   "@/lib/gamification/queries": {
-   getAchievementBadges: guarded("badges", []), getGamificationRewards: guarded("rewards", []),
+   getAchievementBadges: guarded("badges", []), getGamificationRewards: guarded("rewards", [{ id: "zyra-avatar-jalak", slot: "zyra_avatar", equipped: true, owned: true }]),
    getGamificationSummary: guarded("summary", { rankKey: "rakyat", baseXpMicro: 0, bonusXpMicro: 0, lpBalance: 0 }),
   },
   "@/lib/gamification/profile-aggregate": { getPrivateProfileAggregates: guarded("stats", {}) },
@@ -100,6 +100,7 @@ function pageFixture(student: boolean) {
   "@/lib/gamification/labels": { cosmeticNameKeys: {}, rankLabels: { rakyat: "Rakyat" } },
   "@/lib/gamification/catalog": { MICRO: 1_000_000 },
   "./artwork": { RankArtwork: () => null },
+  "./dashboard-summary-content": { DashboardSummaryContent: () => <div>Summary</div> },
  };
  return { calls, common };
 }
@@ -111,6 +112,7 @@ for (const student of [false, true]) {
   const html = renderToStaticMarkup(await page());
   expect(html).toContain(student ? "Student profile" : "Akun staging");
   if (!student) expect(html).toContain('href="/profile/edit"');
+  else expect(html).toContain('data-mascot="zyra-avatar-jalak"');
   const edit = load("app/(student)/profile/edit/page.tsx", fixture.common).default;
   const editHtml = renderToStaticMarkup(await edit());
   expect(editHtml).toContain("Academic profile");
@@ -130,6 +132,7 @@ test("a staff profile has no fictional student rank, while student ranks remain 
  const { ProfileHero } = load("components/gamification/profile-hero.tsx", {
   "./student-avatar": { StudentAvatar: () => <span>Avatar</span> },
   "./artwork": { RankArtwork: () => <span>Rank</span> },
+  "./profile-mascot": { ProfileMascot: () => null },
  });
  expect(renderToStaticMarkup(<ProfileHero name="Staff" />)).not.toContain("Rank");
  expect(renderToStaticMarkup(<ProfileHero name="Student" rank="rakyat" />)).toContain("rakyat");

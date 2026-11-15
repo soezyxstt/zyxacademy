@@ -1,5 +1,7 @@
 import { Trophy } from "lucide-react";
 import { TranslatedText } from "@/components/i18n/translated-text";
+import { StudentIdentity } from "@/components/gamification/student-identity";
+import type { StudentIdentity as PublicStudentIdentity } from "@/lib/gamification/social-contracts";
 import type { getCourseLeaderboard } from "@/lib/course-utils";
 function formatDuration(seconds: number) {
   if (!seconds || seconds <= 0) return "0s";
@@ -11,9 +13,9 @@ function formatDuration(seconds: number) {
   return `${secs}s`;
 }
 
-export function StudentCourseLeaderboardContent({ rankedRows, userId, activeType, isPka = false }: {
+export function StudentCourseLeaderboardContent({ rankedRows, userId, activeType, isPka = false, identities = {} }: {
  rankedRows: Awaited<ReturnType<typeof getCourseLeaderboard>>; userId?: string;
- activeType: "quiz" | "simulation"; isPka?: boolean;
+ activeType: "quiz" | "simulation"; isPka?: boolean; identities?: Record<string, PublicStudentIdentity>;
 }) {
   const totalStudents = rankedRows.length;
   const myEntry = rankedRows.find((r) => r.studentId === userId);
@@ -64,7 +66,7 @@ export function StudentCourseLeaderboardContent({ rankedRows, userId, activeType
               <li key={entry.studentId} className="flex items-start gap-3 px-4 py-3">
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-body-sm font-semibold">{entry.rank}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="break-words text-body-sm font-semibold">{entry.studentName}</p>
+                  <StudentIdentity name={entry.studentName} identity={identities[entry.studentId]} />
                   <p className="mt-1 text-body-xs text-muted-foreground">
                     <TranslatedText namespace="learning" messageKey="leaderboard.attemptDuration" values={{ count: entry.attemptCount, type: typeLabel, duration: formatDuration(entry.avgDuration) }} />
                   </p>
