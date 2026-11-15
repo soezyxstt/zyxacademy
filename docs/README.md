@@ -2,6 +2,8 @@
 
 The `ACTIVE` [feature catalog](features.md) describes per-question legacy quiz evidence validation, compatible assessment item reuse, and retryable canonical lookup failures before grading writes. The catalog and [architecture guide](ARCHITECTURE.md) also describe browser-persistent public demo schedules, groups, assessment progress and per-course rankings. Weekly course-specific slots are generated for any requested week. The global calendar combines courses, explicit course calendars stay scoped, and ranking seeds differ by course; attachments remain in the browser. Local validation is separate from production acceptance.
 
+The `ACTIVE` [feature catalog](features.md) records the shared student/demo Groups view, booking-derived demo usage counters and the student calendar booking action with a filtered slot picker. Authenticated booking runtime remains unverified.
+
 # Zyx Academy Documentation Index
 
 The `ACTIVE` [feature catalog](features.md) documents basic profile access for authenticated staff, student-only gamification, grouped profile statistics and academic, privacy and appearance editor tabs. Academic drafts survive tab changes and failed saves; privacy and owned cosmetics save independently. Achievements and public student profiles retain student transition behavior without the cross-surface logo overlay. Focused access regressions and isolated profile/edit/dashboard-summary visuals cover 380 x 844 and 1536 x 864. Full application staging persistence acceptance remains separate.

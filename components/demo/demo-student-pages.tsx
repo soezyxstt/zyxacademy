@@ -27,7 +27,7 @@ import { DemoAchievements } from "./demo-achievements";
 import { DemoLeaderboard } from "./demo-leaderboard";
 import { DemoProfile } from "./demo-profile";
 import { useDemoGamification } from "./demo-gamification-provider";
-import { demoIdentity } from "@/lib/demo/gamification";
+import { demoIdentity, demoOwnIdentity } from "@/lib/demo/gamification";
 
 function DemoFeatureLoading() {
  return <div role="status" aria-busy="true" aria-label="Loading" className="space-y-4 py-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-12 w-full" /><Skeleton className="h-40 w-full" /></div>;

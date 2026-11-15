@@ -128,7 +128,7 @@ test("profile, follows, group roster and local people search", async ({ page }, 
   await expect(page.getByRole("button", { name: /Ayu Lestari/ })).toHaveCount(0);
   await capture(page, info, "profile-unfollowed");
   await page.goto(url("groups"));
-  await expect(page.getByRole("heading", { name: "Ubah kelompok" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Pelajar Demo/ })).toBeVisible();
   await capture(page, info, "group-roster");
   await page.goto(url("search"));
   await page.getByLabel("Cari orang").fill("Citra");

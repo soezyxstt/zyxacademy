@@ -13,7 +13,7 @@ import { demoStudentHref } from "@/lib/demo/routes";
 import type { StudentIdentity } from "@/lib/gamification/social-contracts";
 
 const courses = [{ id: "math", title: "Kalkulus I" }, { id: "logic", title: "Berpikir komputasional" }];
-const baseline = courses.map(course => ({ courseId: course.id, revision: "fixture-v1", course: { completedMaterials: 12 }, history: [{ quizzesCompleted: 8 }] }));
+const baseline = courses.map(course => ({ courseId: course.id, asOf: "2026-11-15", revision: "fixture-v1", course: { completedMaterials: 12 }, history: [{ quizzesCompleted: 8 }] }));
 const rankings = { math: [{ rank: 1, name: "Ayu", avgScore: 96, attempts: 8 }, { rank: 2, name: "Bima", avgScore: 89, attempts: 6 }, { rank: 3, name: "Pelajar Demo", studentId: "fictional-demo-student", avgScore: 84, attempts: 5 }], logic: [{ rank: 1, name: "Citra", avgScore: 94, attempts: 7 }] };
 function SearchFixture() {
   const social = useStudentSocial();

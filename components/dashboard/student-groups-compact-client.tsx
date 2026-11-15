@@ -37,7 +37,7 @@ import { StudentIdentity } from "@/components/gamification/student-identity";
 import type { StudentIdentity as PublicStudentIdentity } from "@/lib/gamification/social-contracts";
 import { useStudentExperience } from "@/components/student-experience-provider";
 
-type StudentGroup = {
+export type StudentGroup = {
   id: string;
   name: string;
   packageName: string;
@@ -61,6 +61,7 @@ type StudentGroup = {
 
 type Props = {
   initialGroups: StudentGroup[];
+  onLocalRename?: (name: string) => void;
 };
 
 type RenameStatus = {
@@ -89,7 +90,7 @@ function formatDate(value: Date, locale: "id" | "en") {
  *
  * @param props - Component props containing initial student groups.
  */
-export function StudentGroupsCompactClient({ initialGroups }: Props) {
+export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Props) {
   const t = useTranslations("student");
   const experience = useStudentExperience();
   const { locale } = useAppLocale();
@@ -102,6 +103,7 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
   const [renameOpen, setRenameOpen] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [renameStatus, setRenameStatus] = useState<RenameStatus>(null);
+  const [renameError, setRenameError] = useState(false);
   const [statusLoading, startStatusTransition] = useTransition();
   const [saving, startSaveTransition] = useTransition();
   const statusRequest = useRef(0);
@@ -146,8 +148,14 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
     if (!activeGroup) return;
     const requestId = ++statusRequest.current;
     setDraftName(activeGroup.name);
+    setRenameError(false);
     setRenameStatus(null);
     setRenameOpen(true);
+
+    if (onLocalRename) {
+      setRenameStatus({ canRename: true, nextRenameAt: null });
+      return;
+    }
 
     startStatusTransition(async () => {
       try {
@@ -170,6 +178,12 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
 
     startSaveTransition(async () => {
       try {
+        if (onLocalRename) {
+          onLocalRename(draftName.trim());
+          toast.success(t("groups.renameSuccess"));
+          closeRename();
+          return;
+        }
         const result = await renameStudentGroup(groupId, draftName);
         if (!result.success) {
           toast.error(t("groups.renameFailure"));
@@ -182,6 +196,7 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
         closeRename();
         router.refresh();
       } catch {
+        setRenameError(true);
         toast.error(t("groups.renameFailed"));
       }
     });
@@ -260,7 +275,7 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
 
           {activeGroup.totalQuotaSessions > 0 ? (
             <Button asChild size="sm" className="shrink-0 gap-1.5">
-              <Link href="/dashboard/schedule">
+              <Link href={experience.href?.(`/dashboard/schedule?course=${encodeURIComponent(activeGroup.courses[0]?.id ?? "")}`) ?? "/dashboard/schedule"}>
                 <CalendarRange className="size-3.5" />
                 {t("groups.scheduleSession")}
               </Link>
@@ -375,7 +390,7 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t("groups.rename")}</DialogTitle>
-            <DialogDescription>{t("groups.cooldown")}</DialogDescription>
+            <DialogDescription>{t(onLocalRename ? "groups.nameLength" : "groups.cooldown")}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2 py-1">
@@ -388,6 +403,7 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
               onChange={(event) => setDraftName(event.target.value)}
               autoComplete="off"
             />
+            {renameError ? <p role="alert" className="text-body-xs text-destructive">{t("groups.renameFailed")}</p> : null}
             {renameStatus?.canRename === false && renameStatus.nextRenameAt ? (
               <p className="text-body-xs text-muted-foreground">
                 {t("groups.cooldownUntil", { date: formatDateTime(renameStatus.nextRenameAt, locale) })}

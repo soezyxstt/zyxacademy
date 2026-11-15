@@ -182,7 +182,10 @@
     "saving": "Saving…",
     "confirmRename": "Confirm and rename",
     "metadataDescription": "Your study groups, semester meeting allotment, study partners, and courses.",
-    "title": "Study groups"
+    "title": "Study groups",
+    "nameLength": "Use 3 to 80 characters.",
+    "tutorialPackage": "Tutorial package",
+    "weeklySessions": "{count} sessions per week"
   },
   "feedback": {
     "categoryCourseMaterials": "Course materials",
