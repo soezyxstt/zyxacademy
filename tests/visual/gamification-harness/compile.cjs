@@ -20,6 +20,8 @@ const aliases = {
   '@/app/(student)/achievements/actions': process.env.ZYX_FIXTURE_REWARD_GUARD || (process.env.ZYX_FIXTURE_ACHIEVEMENTS === '1' ? 'shims.achievement-actions.ts' : 'shims.actions.ts'),
   '@/app/(student)/profile/edit/cosmetic-actions': 'shims.actions.ts',
   '@/lib/gamification/social-actions': process.env.ZYX_FIXTURE_SOCIAL_GUARD || 'shims.actions.ts',
+  '@/app/(student)/dashboard/groups/actions': process.env.ZYX_FIXTURE_SOCIAL_GUARD || 'shims.actions.ts',
+  '@/app/(student)/dashboard/groups/rename-actions': process.env.ZYX_FIXTURE_SOCIAL_GUARD || 'shims.actions.ts',
 };
 const plugin = { name: 'fixture-aliases', setup(build) {
   build.onResolve({ filter: /.*/ }, args => {

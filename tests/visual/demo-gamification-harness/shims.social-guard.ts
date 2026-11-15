@@ -7,3 +7,6 @@ export const getPublicStudentProfileAction = forbidden;
 export const getStudentFollowListAction = forbidden;
 export const searchVisibleStudentsAction = forbidden;
 export const changeReward = forbidden;
+export const joinGroupWithToken = forbidden;
+export const getGroupRenameStatus = forbidden;
+export const renameStudentGroup = forbidden;
