@@ -1,4 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { UserRound } from "lucide-react";
+import { ApplicationPage } from "@/components/application-page";
+import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
+import { ProfileHero } from "@/components/gamification/profile-hero";
+import { getStudentGamificationAccess } from "@/lib/gamification/access";
 import { createMetadata } from "@/lib/site";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -23,6 +30,14 @@ export default async function ProfilePage() {
  const session = await auth.api.getSession({ headers: await headers() }); if (!session?.user) redirect("/sign-in?next=/profile");
  const user = session.user; const [t, locale] = await Promise.all([getTranslations("student"), getAppLocale()]);
  const [row] = await db.select({ name: userTable.name, email: userTable.email, image: userTable.image, faculty: userTable.faculty, major: userTable.major, entryYear: userTable.entryYear }).from(userTable).where(eq(userTable.id, user.id)).limit(1);
+ const access = await getStudentGamificationAccess();
+ if (!access) {
+  return <ApplicationPage><PageHeader title={t("profile.pageTitle")} icon={UserRound} />
+   <ProfileHero name={row?.name || user.name} image={row?.image}
+    academicInfo={[row?.faculty, row?.major, row?.entryYear].filter(Boolean).join(" · ")}
+    actions={<Button asChild variant="outline"><Link href="/profile/edit">{t("profile.editProfile")}</Link></Button>} />
+  </ApplicationPage>;
+ }
  const [settings, badges, rewards, summary, enrollments] = await Promise.all([getStudentSocialSettings(user.id), getAchievementBadges(user.id), getGamificationRewards(user.id), getGamificationSummary(user.id), listStudentEnrollments(user.id)]);
  const stats = await getPrivateProfileAggregates(user.id, enrollments.map(course => course.id));
 

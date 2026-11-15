@@ -10,7 +10,7 @@ type ProfileHeroProps = {
   themeId?: string | null;
   title?: string | null;
   academicInfo?: string | null;
-  rank: RankKey;
+  rank?: RankKey;
   actions?: ReactNode;
   details?: ReactNode;
 };
@@ -26,10 +26,10 @@ export function ProfileHero({ name, image, frameId, themeId, title, academicInfo
         {details && <div className="pt-1 text-body-xs text-muted-foreground [&_p]:text-body-xs">{details}</div>}
         {actions && <div className="flex flex-wrap justify-center gap-2 pt-2 sm:justify-start">{actions}</div>}
       </div>
-      <div className="flex shrink-0 items-center gap-2 sm:flex-col sm:gap-0">
+      {rank && <div className="flex shrink-0 items-center gap-2 sm:flex-col sm:gap-0">
         <RankArtwork rank={rank} size={64} />
         <span className="text-body-sm font-semibold capitalize">{rank}</span>
-      </div>
+      </div>}
     </div>
   </section>;
 }
