@@ -1,6 +1,6 @@
 # Cloud Run staging setup
 
-Status: `ACTIVE`. Staging image publication, Cloud Run deployment and traffic promotion are verified. Staging uses Neon PostgreSQL and private Neon object storage; production is unchanged. Final feature acceptance and cutover evidence are recorded in the [migration runbook](neon-migration.md). Pricing below was checked on 2026-10-25.
+Status: `TRANSITIONAL / LEGACY`. Retained as a record of the former Google service. The Cloud Run deploy workflow, image files and deployment scripts have been removed. Use the [manual Vercel staging runbook](vercel-staging.md) for new releases. Google resources are not deleted by this change; the historical procedure below is not the active release path.
 
 ## Target and configuration
 

@@ -4,6 +4,7 @@ import { gamificationQuestionExposures, gamificationQuestionExposureInitializati
 import { resolveCourseAccess } from '@/lib/student/course-access';
 import { snapshotExposureIdentity, submissionResultIdentity, UNCERTAIN_EXPOSURE_IDENTITY } from './question-exposure-policy';
 import { lockCanonicalQuestionRows } from '@/lib/question-row-locks';
+import { normalizeDate } from '@/lib/date-utils';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type HistoryInput = { userId: string; canonicalQuestionId: string; courseId: string; sourceVersion: string; attemptId: string; occurredAt: Date };
@@ -120,7 +121,7 @@ export async function initializeQuestionExposureHistory(tx: Transaction, input: 
 /** At most four primary-key probes per question, including legacy course and wildcard. */
 async function selectProjectedExposures(tx: Transaction, userId: string, inputs: HistoryInput[]) {
  const requested = inputs.map(i => ({ question_id: i.canonicalQuestionId, course_id: i.courseId }));
- return tx.execute<{ question_id: string; attempt_identity: string | null; exposed_at: Date | null }>(sql`
+ return tx.execute<{ question_id: string; attempt_identity: string | null; exposed_at: Date | string | null }>(sql`
   select r.question_id, chosen.attempt_identity, chosen.exposed_at
   from jsonb_to_recordset(${JSON.stringify(requested)}::jsonb) r(question_id text, course_id text)
   join mata_kuliah c on c.id = r.course_id
@@ -153,7 +154,9 @@ export async function recordSubmissionBoundaries(tx: Transaction, inputs: Histor
  await tx.insert(gamificationQuestionExposureObservations).values(unique.map(i => {
   const row = byQuestion.get(i.canonicalQuestionId);
   if (!row || (row.attempt_identity === null) !== (row.exposed_at === null)) throw new Error('QUESTION_EXPOSURE_HISTORY_UNAVAILABLE');
-  return { userId: i.userId, attemptId: i.attemptId, questionId: i.canonicalQuestionId, courseId: i.courseId, sourceVersion: i.sourceVersion, attemptIdentity: row.attempt_identity, exposedAt: row.exposed_at };
+  const exposedAt = row.exposed_at === null ? null : normalizeDate(row.exposed_at);
+  if (exposedAt && !Number.isFinite(exposedAt.getTime())) throw new Error('QUESTION_EXPOSURE_HISTORY_UNAVAILABLE');
+  return { userId: i.userId, attemptId: i.attemptId, questionId: i.canonicalQuestionId, courseId: i.courseId, sourceVersion: i.sourceVersion, attemptIdentity: row.attempt_identity, exposedAt };
  })).onConflictDoNothing();
  await recordExposureRows(tx, unique.map(i => ({ id: orderedExposureId(), userId: i.userId, questionId: i.canonicalQuestionId, courseId: i.courseId, sourceVersion: i.sourceVersion, kind: 'disclosure' as const, attemptIdentity: submissionResultIdentity(i.attemptId), exposedAt: i.occurredAt })));
 }

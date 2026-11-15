@@ -130,8 +130,8 @@ def scope_paths(snapshot):
     web |= snapshot.closure(web | {'scripts/build-authoring-skills.ts', 'scripts/authoring/prepare-web-verification.ts'})
     web |= runtime | snapshot.under('lib/authoring/playbooks/')
     web |= {f for f in snapshot.files if '/' not in f and PurePosixPath(f).suffix in CODE}
-    web |= LOCKS | {'tsconfig.json', 'authoring-skills.lock.json', 'vercel.json', 'Dockerfile.cloud-run', 'Dockerfile.cloud-run.dockerignore', 'AGENTS.md'}
-    web |= snapshot.under('.github/scripts/') & {f for f in snapshot.files if 'cloud_run' in f or 'cloud-run' in f}
+    web |= LOCKS | {'tsconfig.json', 'authoring-skills.lock.json', 'vercel.json', 'AGENTS.md'}
+    web |= {'.github/scripts/sync_vercel_staging.py', '.github/scripts/prepare_worker_runtime.py', '.github/scripts/cloud_run_runtime.py'}
     authoring_roots = snapshot.under('lib/authoring/', 'app/api/mcp/authoring/') | AUTHORING_TESTS | {'scripts/build-authoring-skills.ts'}
     schedule_roots = snapshot.under('lib/schedule/', 'components/schedule/',
         'app/(admin)/admin/(academic)/schedules/', 'app/(student)/dashboard/groups/',

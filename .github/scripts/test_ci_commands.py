@@ -102,14 +102,14 @@ class DeploymentGateTest(unittest.TestCase):
         block = text.split(f'  {job}:\n', 1)[1]
         return re.search(r'^    if: (.+)$', block, re.MULTILINE).group(1)
 
-    def allowed(self, job, gate='success', impact='success', event='push', cancelled=False, worker_result='success', web_hold='', **outputs):
+    def allowed(self, job, gate='success', impact='success', event='push', cancelled=False, worker_result='success', web_hold='', branch='main', **outputs):
         expression = self.expression(job)
         # An explicit status function prevents implicit success() from suppressing
         # releases when an optional ancestor was skipped. Keep the gate authoritative.
         self.assertIn('!cancelled()', expression)
         expression = expression.removeprefix('${{').removesuffix('}}').strip()
         values = {'needs.gate.result': gate, 'needs.impact.result': impact, 'needs.deploy-worker.result': worker_result,
-                  'github.event_name': event, 'vars.HOLD_WEB_DEPLOYMENT': web_hold, **{f'needs.impact.outputs.{k}': v for k, v in outputs.items()}}
+                  'github.event_name': event, 'github.ref': 'refs/heads/' + branch, 'vars.HOLD_WEB_DEPLOYMENT': web_hold, **{f'needs.impact.outputs.{k}': v for k, v in outputs.items()}}
         expression = re.sub(r'(?:needs|github|vars)\.[a-zA-Z0-9_.-]+', lambda m: repr(values.get(m.group(), '')), expression)
         expression = expression.replace('!cancelled()', repr(not cancelled)).replace('&&', 'and').replace('||', 'or')
         return eval(expression, {'__builtins__': {}})
@@ -147,8 +147,24 @@ class DeploymentGateTest(unittest.TestCase):
         self.assertFalse(self.allowed('deploy-web', web_hold='true', web='true'))
         self.assertTrue(self.allowed('deploy-worker', web_hold='true', worker='true'))
         text = (ROOT / '.github/workflows/deploy-web.yml').read_text()
-        for branch in ('main', 'staging'):
-            self.assertIn(f"if: github.ref == 'refs/heads/{branch}' && vars.HOLD_WEB_DEPLOYMENT != 'true'", text)
+        self.assertIn("if: github.ref == 'refs/heads/main' && vars.HOLD_WEB_DEPLOYMENT != 'true'", text)
+
+    def test_staging_web_never_deploys_from_a_push(self):
+        self.assertFalse(self.allowed('deploy-web', branch='staging', web='true'))
+        text = (ROOT / '.github/workflows/deploy-web.yml').read_text()
+        staging = text.split('  staging:\n', 1)[1]
+        condition = re.search(r'^    if: (.+)$', staging, re.MULTILINE).group(1)
+        for event in ('push', 'workflow_dispatch', 'pull_request'):
+            for branch in ('main', 'staging', 'feature/example'):
+                expression = condition.replace('github.event_name', repr(event)).replace('github.ref', repr('refs/heads/' + branch))
+                self.assertEqual(eval(expression.replace('&&', 'and'), {'__builtins__': {}}),
+                                 event == 'workflow_dispatch' and branch == 'staging')
+        self.assertIn('environment: staging', staging)
+        self.assertIn('VERCEL_PROJECT_ID: prj_9wDdc36VFIH5wJT45jEXIHGst2pb', staging)
+        self.assertIn('vercel deploy --target=staging --yes --archive=tgz', staging)
+        self.assertNotIn('--prod', staging)
+        self.assertNotIn('google-github-actions', text)
+        self.assertNotIn('gcloud', text)
 
 if __name__ == '__main__':
     unittest.main()
