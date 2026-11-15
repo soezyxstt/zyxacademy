@@ -8,7 +8,7 @@ import runpy
 import unittest
 from unittest.mock import patch
 
-from sync_vercel_staging import PROJECT, TEAM, staging_env
+from sync_vercel_staging import ENVIRONMENT, PROJECT, TEAM, staging_env
 from test_prepare_worker_runtime import fixture
 
 
@@ -44,7 +44,8 @@ class VercelStagingTest(unittest.TestCase):
         self.assertEqual(result["FEATURE_PKA"]["value"], "0")
         self.assertEqual(result["NEXT_PUBLIC_FIREBASE_PROJECT_ID"]["type"], "encrypted")
         self.assertEqual(result["DATABASE_URL"]["type"], "sensitive")
-        self.assertTrue(all(item["target"] == ["production", "preview"] for item in result.values()))
+        self.assertTrue(all(item["customEnvironmentIds"] == [ENVIRONMENT] for item in result.values()))
+        self.assertTrue(all("target" not in item for item in result.values()))
         self.assertFalse(result.keys() & {"VERCEL_TOKEN", "NEON_API_KEY", "NODE_ENV", "SKIP_ENV_VALIDATION"})
 
     def test_production_configuration_is_rejected(self):

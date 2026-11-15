@@ -1,4 +1,4 @@
-"""Sync guarded staging runtime settings to the existing staging Vercel project."""
+"""Sync guarded runtime settings only to zyxacademy's custom staging environment."""
 import json
 import os
 import urllib.error
@@ -6,8 +6,9 @@ import urllib.request
 
 from prepare_worker_runtime import prepare_worker_runtime
 
-PROJECT = "prj_orC6CPtO0tyvUsrojntmGMSARHbd"
+PROJECT = "prj_9wDdc36VFIH5wJT45jEXIHGst2pb"
 TEAM = "team_rMFT8hSTCTObKzXirjJcbMFc"
+ENVIRONMENT = "env_puSffSpNjRY4ZXuB03j0H5Davx0X"
 
 
 def staging_env(secrets, variables):
@@ -15,7 +16,7 @@ def staging_env(secrets, variables):
     settings.pop("NODE_ENV", None)
     return [{"key": key, "value": value,
              "type": "encrypted" if key.startswith("NEXT_PUBLIC_") else "sensitive",
-             "target": ["production", "preview"]} for key, value in sorted(settings.items())]
+             "customEnvironmentIds": [ENVIRONMENT]} for key, value in sorted(settings.items())]
 
 
 if __name__ == "__main__":

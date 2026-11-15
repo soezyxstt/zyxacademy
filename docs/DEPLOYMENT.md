@@ -41,8 +41,8 @@ The [worker cutover runbook](operations/neon-functions-cutover.md) is OPEN / IN 
 
 ## Vercel staging
 
-Staging releases use the existing Vercel project `zyx-neon-migration`
-(`prj_orC6CPtO0tyvUsrojntmGMSARHbd`), separate from production. The intended origin
+Staging releases use the existing Vercel project `zyxacademy`
+(`prj_9wDdc36VFIH5wJT45jEXIHGst2pb`), using its custom `staging` environment. The intended origin
 remains `https://staging.zyxacademy.com`. Follow the [manual staging runbook](operations/vercel-staging.md).
 Cloud Run publication and deployment have been removed from the web workflow.
 The old Google service is retained for reference; this change does not delete it.
@@ -143,20 +143,20 @@ selected `main` pushes after its gates pass. Production behavior and its
 
 Staging web releases require `workflow_dispatch` on branch `staging`. A staging
 push, PR, or reusable workflow call cannot run the staging web job. Vercel Git
-integration remains disconnected for the staging project, and `vercel.json`
+branch tracking remains unset for custom staging, and `vercel.json`
 explicitly disables Git deployments for `staging`.
 
 The manual job validates the exact staging database, private storage, Inngest,
 and renderer using the shared worker target guard. It synchronizes only allowed
-runtime settings from GitHub Environment `staging` to the staging Vercel project,
+runtime settings from GitHub Environment `staging` to the custom staging environment,
 then submits a remote build with Node 24 and Bun 1.3.14. Values are never printed;
 CI-only credentials are excluded. Sensitive server settings remain on Vercel.
-The Vercel `production` deployment target belongs to this separate staging
-project; it does not target the production project `zyxacademy`.
+The job uses `--target=staging` in project `zyxacademy`; production environment
+variables, deployment and aliases are unchanged.
 
 | Branch | Trigger | Destination |
 | --- | --- | --- |
-| `staging` | Explicit dispatch only | Vercel project `zyx-neon-migration` |
+| `staging` | Explicit dispatch only | `zyxacademy`, custom `staging` environment |
 | `main` | Existing gated CI or dispatch | Vercel project `zyxacademy` |
 
 Before dispatch, complete the required staging cutover/backfill and coordinate

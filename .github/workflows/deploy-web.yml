@@ -84,7 +84,7 @@ jobs:
     env:
       # Non-secret IDs verified against the project's Vercel configuration.
       VERCEL_ORG_ID: team_rMFT8hSTCTObKzXirjJcbMFc
-      VERCEL_PROJECT_ID: prj_orC6CPtO0tyvUsrojntmGMSARHbd
+      VERCEL_PROJECT_ID: prj_9wDdc36VFIH5wJT45jEXIHGst2pb
       VERCEL_CLI_VERSION: '65.2.0'
       VERCEL_ENVIRONMENT: staging
       VERCEL_TELEMETRY_DISABLED: '1'
@@ -121,7 +121,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          vercel deploy --prod --yes --archive=tgz \
+          vercel deploy --target=staging --yes --archive=tgz \
             --meta githubDeployment=1 \
             --meta githubCommitOrg=soezyxstt \
             --meta githubCommitRepo=zyxacademy \

@@ -4,21 +4,21 @@ Status: `OPEN / IN PROGRESS`. The release path is implemented; hosted recovery a
 
 ## Target
 
-- Vercel project: `zyx-neon-migration`, `prj_orC6CPtO0tyvUsrojntmGMSARHbd`.
+- Vercel project: `zyxacademy`, `prj_9wDdc36VFIH5wJT45jEXIHGst2pb`.
 - Team: `team_rMFT8hSTCTObKzXirjJcbMFc`.
 - Branch and GitHub Environment: `staging`.
 - Origin: `https://staging.zyxacademy.com`.
 - Neon project `muddy-sky-44104897`, branch `br-gentle-scene-azq0gp91`, compute `ep-sparkling-lab-azrp3ymj`, database `neondb`, bucket `zyx-staging`.
 - Worker: Neon Function `zyxcompute` on that branch; Inngest environment `staging-40f1da25`.
 
-The Vercel production deployment target is used inside this staging-only project so its custom domain can serve normally. Never substitute the production project `zyxacademy` or its local `.vercel/project.json`.
+Use only `vercel deploy --target=staging` in this shared project. Custom environment ID: `env_puSffSpNjRY4ZXuB03j0H5Davx0X`. Runtime variables are scoped exclusively to this ID; never write production or generic preview variables or pass `--prod` for staging.
 
 ## Release and reopen
 
 1. Record current deployment IDs, project pause/protection/Git settings, domain assignment, DNS record, compute disabled state and Inngest pause states. Do not record secret values in reports.
 2. Complete the compact question-history gate in [DEPLOYMENT.md](../DEPLOYMENT.md), including backup, the migration journal, authorized backfill and ready marker, with old writers stopped. A migration-only result does not satisfy this gate. Keep traffic held until matching web and worker code are deployed.
-3. Keep Vercel Git integration disconnected. `vercel.json` explicitly rejects staging Git builds and CI calls the web workflow automatically only on `main`. Keep the production deployment hold unchanged.
-4. Ensure GitHub Environment `staging` has its existing runtime secrets and `VERCEL_TOKEN`. The shared worker guard rejects production database, storage, Inngest and renderer identities. The manual web workflow syncs allowed settings to the staging project, including origins and compute URL, before building. CI credentials are never runtime settings. Public build variables use encrypted storage; server values use sensitive storage.
+3. Keep custom staging branch tracking unset. `vercel.json` explicitly rejects staging Git builds and CI calls the web workflow automatically only on `main`. Keep the production deployment hold unchanged.
+4. Ensure GitHub Environment `staging` has its existing runtime secrets and `VERCEL_TOKEN`. The shared worker guard rejects production database, storage, Inngest and renderer identities. The manual web workflow syncs allowed settings only to the custom staging environment, including origins and compute URL, before building. CI credentials are never runtime settings. Public build variables use encrypted storage; server values use sensitive storage.
 5. Explicitly dispatch the staging web release, after its database cutover gate is satisfied:
 
    ```powershell
@@ -28,13 +28,14 @@ The Vercel production deployment target is used inside this staging-only project
    This dispatch is intentionally allowed while automated production web deployment is held. A staging push cannot run this job. The workflow does not run migrations, backfill or seed.
 
 6. Inspect the exact deployment's READY result, build revision and runtime logs. Deploy the matching Neon worker using its existing staging workflow. Do not resume the legacy Deno app. Keep Inngest paused until the matching worker passes its documented health/preflight checks.
-7. After validation, unpause only this staging Vercel project, restore the intended staging-domain protection policy, and assign the verified deployment to its staging domains. Avoid unpausing a paused project while an old deployment is still its active deployment: unpause can reactivate that old deployment.
-8. Update only the `staging.zyxacademy.com` CNAME from `ghs.googlehosted.com` to the currently recommended value returned by Vercel domain configuration. On 2026-11-15 this was `a18542420b32ac7a.vercel-dns-016.com`. Preserve all other DNS records. The available Cloudflare account did not have this zone, so this operation remains blocked on DNS access.
+7. Assign only `staging.zyxacademy.com` to the custom staging environment. Verify its latest deployment and leave production aliases, deployment and protection settings unchanged. The separate rehearsal project remains paused.
+8. Update only the `staging.zyxacademy.com` CNAME from `ghs.googlehosted.com` to the currently recommended value returned by Vercel domain configuration. Read the recommendation after assigning the domain to the shared project. Preserve all other DNS records. The available Cloudflare account did not have this zone, so this operation remains blocked on DNS access.
 9. Re-enable the exact staging compute only in the coordinated maintenance window. Verify landing/sign-in, read-only database-backed routes, static assets and application health over the selected domain. Verify OAuth callbacks separately. Resume staging Inngest only after successful matching-worker validation. Check no old Google/Deno deployment can resume writes.
 
 ## Read-only findings, 2026-11-15
 
-Remote `staging` was `869f20b9898b6391f6952ccf337d711ea402d267`, with PR 333 merged. The staging Vercel project was paused with no Git link and protection on all deployments. Its existing database variable did not match the current staging target. The domain was assigned to the correct Vercel project but DNS still targeted Google. The active staging Neon Function was deployment 7 from November 10, so a matching new worker must be deployed before reopening writers. The operator reported migrations 0016 through 0023 complete; this report is not a backfill or runtime acceptance result.
+Remote `staging` was `869f20b9898b6391f6952ccf337d711ea402d267`, with PR 333 merged. Project `zyxacademy` had no custom environments. The custom `staging` environment was created without branch tracking. Its production deployment was `dpl_HpDpfeEfdEs3grmPjvbzt3ymqPUT`. The separate rehearsal project `zyx-neon-migration` remains paused. DNS still targeted Google. The staging Neon Function still needed a matching release.
+
 
 ## Database cutover evidence, 2026-11-15
 

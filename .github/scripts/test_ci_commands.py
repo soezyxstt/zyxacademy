@@ -160,8 +160,9 @@ class DeploymentGateTest(unittest.TestCase):
                 self.assertEqual(eval(expression.replace('&&', 'and'), {'__builtins__': {}}),
                                  event == 'workflow_dispatch' and branch == 'staging')
         self.assertIn('environment: staging', staging)
-        self.assertIn('VERCEL_PROJECT_ID: prj_orC6CPtO0tyvUsrojntmGMSARHbd', staging)
-        self.assertNotIn('prj_9wDdc36VFIH5wJT45jEXIHGst2pb', staging)
+        self.assertIn('VERCEL_PROJECT_ID: prj_9wDdc36VFIH5wJT45jEXIHGst2pb', staging)
+        self.assertIn('vercel deploy --target=staging --yes --archive=tgz', staging)
+        self.assertNotIn('--prod', staging)
         self.assertNotIn('google-github-actions', text)
         self.assertNotIn('gcloud', text)
 

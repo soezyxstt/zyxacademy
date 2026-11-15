@@ -23,10 +23,10 @@ bun run dev                  # http://localhost:3000
 
 ## Manual Vercel staging build
 
-Staging uses Vercel project `zyx-neon-migration`, separate from production.
+Staging uses Vercel project `zyxacademy`, using its custom `staging` environment.
 Run `.github/workflows/deploy-web.yml` explicitly on branch `staging` after the
 required database and matching-worker gates pass. Staging pushes do not deploy
-web, and the staging project must remain disconnected from Vercel Git integration.
+web. Keep custom staging branch tracking unset and Git deployment disabled for staging.
 The job validates and syncs allowed GitHub staging runtime settings before a
 remote Vercel build; no Google service account or Docker image is required.
 See the [manual staging runbook](operations/vercel-staging.md).
