@@ -21,16 +21,16 @@ import type { DemoMastery } from "@/lib/demo/mastery";
 import { demoLeaderboard } from "@/lib/demo/leaderboard";
 import { emptyOverlay } from "@/lib/demo/session-overlay";
 import { useDemoSession } from "./demo-session";
-import { DemoGroups } from "./demo-groups";
-import { DemoAchievements } from "./demo-achievements";
-import { DemoLeaderboard } from "./demo-leaderboard";
-import { DemoProfile } from "./demo-profile";
 import { useDemoGamification } from "./demo-gamification-provider";
 import { demoIdentity, demoOwnIdentity } from "@/lib/demo/gamification";
 
 function DemoFeatureLoading() {
  return <div role="status" aria-busy="true" aria-label="Loading" className="space-y-4 py-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-12 w-full" /><Skeleton className="h-40 w-full" /></div>;
 }
+const DemoGroups = dynamic(() => import("./demo-groups").then(module => module.DemoGroups), { loading: DemoFeatureLoading });
+const DemoAchievements = dynamic(() => import("./demo-achievements").then(module => module.DemoAchievements), { loading: DemoFeatureLoading });
+const DemoLeaderboard = dynamic(() => import("./demo-leaderboard").then(module => module.DemoLeaderboard), { loading: DemoFeatureLoading });
+const DemoProfile = dynamic(() => import("./demo-profile").then(module => module.DemoProfile), { loading: DemoFeatureLoading });
 const FeedbackForm = dynamic(() => import("@/app/(student)/feedback/feedback-form").then(module => module.FeedbackForm), { loading: DemoFeatureLoading });
 const CourseVideosClient = dynamic(() => import("@/components/course/video/course-videos-client").then(module => module.CourseVideosClient), { loading: DemoFeatureLoading });
 const ProfileEditForm = dynamic(() => import("@/app/(student)/profile/edit/profile-edit-form").then(module => module.ProfileEditForm), { loading: DemoFeatureLoading });
