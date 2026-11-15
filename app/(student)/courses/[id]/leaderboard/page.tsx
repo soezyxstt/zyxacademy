@@ -8,6 +8,7 @@ import { CourseLeaderboardContentSkeleton } from "@/components/course/course-ske
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { createMetadata } from "@/lib/site";
 import { getCourse, getCourseLeaderboard } from "@/lib/course-utils";
+import { getVisibleStudentIdentities } from "@/lib/gamification/social";
 import { getAuthSession } from "@/lib/auth-session";
 import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
 import { EnrollmentForm } from "@/components/enrollment-form";
@@ -73,7 +74,10 @@ async function CourseLeaderboardContent({
     console.error("Error fetching course leaderboard:", err);
     rankedRows = [];
   }
-  return <StudentCourseLeaderboardContent rankedRows={rankedRows} userId={userId} activeType={activeType} isPka={id === PKA_COURSE_ID} />;
+  const identities = userId && rankedRows.length
+    ? await getVisibleStudentIdentities(userId, rankedRows.slice(0, 3).map(row => row.studentId)).catch(() => new Map())
+    : new Map();
+  return <StudentCourseLeaderboardContent identities={Object.fromEntries(identities)} rankedRows={rankedRows} userId={userId} activeType={activeType} isPka={id === PKA_COURSE_ID} />;
 }
 
 export default async function CourseLeaderboardPage({ params, searchParams }: Props) {

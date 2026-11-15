@@ -17,15 +17,17 @@ const aliases = {
   '@/app/(student)/courses/[id]/solutions/[collectionId]/actions': 'shims.actions.ts',
   '@/components/course/article-parts': 'shims.content.tsx', '@/components/course/markdown-renderer': 'shims.content.tsx', '@/components/course/math-text': 'shims.content.tsx', '@/components/coding/article-coding': 'shims.content.tsx', '@/lib/materials/article-parts': 'shims.parts.ts', 'next-intl': 'shims.i18n.ts',
   '@/lib/i18n/client': 'shims.i18n.ts', '@/lib/i18n/server': 'shims.i18n.ts',
-  '@/app/(student)/achievements/actions': 'shims.actions.ts',
+  '@/app/(student)/achievements/actions': process.env.ZYX_FIXTURE_REWARD_GUARD || (process.env.ZYX_FIXTURE_ACHIEVEMENTS === '1' ? 'shims.achievement-actions.ts' : 'shims.actions.ts'),
   '@/app/(student)/profile/edit/cosmetic-actions': 'shims.actions.ts',
-  '@/lib/gamification/social-actions': 'shims.actions.ts',
+  '@/lib/gamification/social-actions': process.env.ZYX_FIXTURE_SOCIAL_GUARD || 'shims.actions.ts',
+  '@/app/(student)/dashboard/groups/actions': process.env.ZYX_FIXTURE_SOCIAL_GUARD || 'shims.actions.ts',
+  '@/app/(student)/dashboard/groups/rename-actions': process.env.ZYX_FIXTURE_SOCIAL_GUARD || 'shims.actions.ts',
 };
 const plugin = { name: 'fixture-aliases', setup(build) {
   build.onResolve({ filter: /.*/ }, args => {
     if (args.path === './actions' && args.importer.endsWith('/gamification/ui.tsx')) return { path: path.join(__dirname, 'shims.actions.ts') };
     if (args.path === './entry' && process.env.ZYX_FIXTURE_ENTRY) return { path: process.env.ZYX_FIXTURE_ENTRY };
-    if (aliases[args.path]) return { path: path.join(__dirname, aliases[args.path]) };
+    if (aliases[args.path]) return { path: path.resolve(__dirname, aliases[args.path]) };
     if (args.path.startsWith('@/')) {
       const base = path.join(root, args.path.slice(2));
       const resolved = [base, ...['.tsx', '.ts', '.jsx', '.js', '.json'].map(ext => base + ext), ...['index.tsx', 'index.ts', 'index.js'].map(name => path.join(base, name))].find(p => fs.existsSync(p) && fs.statSync(p).isFile());

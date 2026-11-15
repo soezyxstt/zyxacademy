@@ -1,4 +1,8 @@
+`ACTIVE` local source: the [gamification contract](gamification.md#student-achievements-and-social-presentation), [feature catalog](features.md#student-leaderboard-and-social-identity) and [architecture guide](ARCHITECTURE.md#student-social-identity-projection) describe combined leaderboard tabs, compact achievements, grouped rewards and privacy-filtered student identity dialogs and people search. Owner profiles and authorized profile dialogs show the equipped Zyra mascot; live dialogs preserve access to profile moderation and refresh relationship lists after follow changes. The public demo reuses these views with fictional browser-local social and reward state. Full authenticated application, database and hosted acceptance remain `OPEN / IN PROGRESS`.
+
 The `ACTIVE` [feature catalog](features.md) describes per-question legacy quiz evidence validation, compatible assessment item reuse, and retryable canonical lookup failures before grading writes. The catalog and [architecture guide](ARCHITECTURE.md) also describe browser-persistent public demo schedules, groups, assessment progress and per-course rankings. Weekly course-specific slots are generated for any requested week. The global calendar combines courses, explicit course calendars stay scoped, and ranking seeds differ by course; attachments remain in the browser. Local validation is separate from production acceptance.
+
+The `ACTIVE` [feature catalog](features.md) records the shared student/demo Groups view, booking-derived demo usage counters and the student calendar booking action with a filtered slot picker. Authenticated booking runtime remains unverified.
 
 # Zyx Academy Documentation Index
 

@@ -17,7 +17,6 @@ test.beforeAll(async () => {
       import { NextIntlClientProvider } from 'next-intl';
       import student from './messages/id/student.json';
       import { RewardList } from './components/gamification/reward-list';
-      import { AdminEmptyState } from './components/admin/state-panels';
       const params = new URLSearchParams(location.search);
       const rewards = [
         {id:'frame-classic',name:'Frame',slot:'frame',priceLp:10,owned:true,equipped:true},
@@ -27,7 +26,7 @@ test.beforeAll(async () => {
         {id:'unknown-frame',name:'Bingkai lain',slot:'frame',priceLp:5,owned:false,equipped:false},
       ];
       const appearance = {name:'Nara',image:params.get('mode') === 'photo' ? '/photo.png' : null,mode:params.get('mode') === 'photo' ? 'photo' : 'badge',badge:{family:'warrior_reader',tier:2},frameId:'frame-classic',themeId:'theme-academy'};
-      createRoot(document.getElementById('root')).render(<NextIntlClientProvider locale="id" messages={{student}}><main className="p-4">{params.has('empty') ? <AdminEmptyState title={student.achievementPage.noRewards} /> : <RewardList rewards={rewards} balance={50} appearance={appearance} />}</main></NextIntlClientProvider>);
+      createRoot(document.getElementById('root')).render(<NextIntlClientProvider locale="id" messages={{student}}><main className="p-4"><RewardList rewards={params.has('empty') ? [] : rewards} balance={50} appearance={appearance} /></main></NextIntlClientProvider>);
     ` }, bundle: true, write: false, format: "iife", define: { "process.env.NODE_ENV": '"production"' }, plugins: [{
       name: "reward-boundaries", setup(builder) {
         const modules: Record<string, string> = {
@@ -49,7 +48,11 @@ for (const mode of ["photo", "badge", "empty"]) {
     const errors: string[] = [];
     page.on("pageerror", error => errors.push(error.message));
     page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
-    await page.route("**/gamification/*.svg", route => route.fulfill({ contentType: "image/svg+xml", body: readFileSync(`public${new URL(route.request().url()).pathname}`) }));
+    await page.route("**/gamification/**", route => {
+      const path = new URL(route.request().url()).pathname;
+      const contentType = path.endsWith(".svg") ? "image/svg+xml" : path.endsWith(".webp") ? "image/webp" : "image/png";
+      return route.fulfill({ contentType, body: readFileSync(`public${path}`) });
+    });
     await page.route("**/photo.png", route => route.fulfill({ contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48" fill="teal"/></svg>' }));
     await page.route(/^http:\/\/fixture\.test\/\?/, route => route.fulfill({ contentType: "text/html", body: '<!doctype html><html lang="id"><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><div id="root"></div></body></html>' }));
     await page.goto(`http://fixture.test/?${mode === "empty" ? "empty=1" : `mode=${mode}`}`);
@@ -63,6 +66,7 @@ for (const mode of ["photo", "badge", "empty"]) {
     else {
       await expect(page.getByRole("button", { name: "Dipakai" })).toBeDisabled();
       await expect(page.getByText("Dimiliki")).toBeVisible();
+      await page.getByRole("button", { name: "Tema profil" }).click();
       await expect(page.getByText("Saldo tidak cukup")).toBeVisible();
       await capture("initial");
       await page.getByRole("button", { name: "Pakai", exact: true }).click();

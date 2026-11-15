@@ -189,7 +189,12 @@
       "book": "Slot gagal dipesan.",
       "saveLink": "Link gagal disimpan.",
       "connection": "Pemesanan gagal diproses. Coba lagi."
-    }
+    },
+    "openPicker": "Pesan sesi",
+    "pickerTitle": "Pilih slot tutorial",
+    "pickerDescription": "Slot pada minggu dan filter yang dipilih, dalam WIB.",
+    "noSlots": "Belum ada slot tersedia",
+    "noSlotsHelp": "Pilih minggu atau filter lain, atau hubungi tutor untuk menambah slot."
   },
   "calendar": {
     "day": "Hari",

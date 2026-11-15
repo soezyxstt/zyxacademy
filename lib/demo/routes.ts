@@ -1,6 +1,6 @@
 import type { Locale } from "@/lib/i18n/locale";
 import { localizedPublicPath } from "@/lib/public-locale-routes";
-export type DemoRouteView = "dashboard" | "courses" | "overview" | "documents" | "progress" | "history" | "article" | "diktat" | "flashcards" | "quiz" | "quiz-review" | "quiz-summary" | "quiz-list" | "quiz-start" | "tryout" | "tryout-review" | "tryout-list" | "zyra" | "schedule" | "groups" | "leaderboard" | "course-leaderboard" | "profile" | "profile-edit" | "feedback" | "reflections" | "settings" | "notifications" | "video" | "playground" | "path" | "mastery" | "results" | "live";
+export type DemoRouteView = "dashboard" | "courses" | "overview" | "documents" | "progress" | "history" | "article" | "diktat" | "flashcards" | "quiz" | "quiz-review" | "quiz-summary" | "quiz-list" | "quiz-start" | "tryout" | "tryout-review" | "tryout-list" | "zyra" | "schedule" | "groups" | "leaderboard" | "achievements" | "course-leaderboard" | "profile" | "profile-edit" | "feedback" | "reflections" | "settings" | "notifications" | "video" | "playground" | "path" | "mastery" | "results" | "live";
 export function demoRoute(locale: Locale, view: DemoRouteView, courseId: string): string {
   const path = view === "dashboard" ? "/demo" : `/demo/${view}`;
   const destination = localizedPublicPath(locale, path) ?? `/${locale}${path}`;
@@ -17,7 +17,7 @@ const courseViews: Record<string, DemoRouteView> = {
 const detailViews: Record<string, DemoRouteView> = { material: "article", quiz: "quiz-start", tryout: "tryout" };
 const accountViews: Record<string, DemoRouteView> = {
   "/dashboard": "dashboard", "/courses": "courses", "/dashboard/schedule": "schedule",
-  "/dashboard/groups": "groups", "/leaderboard": "leaderboard", "/profile": "profile",
+  "/dashboard/groups": "groups", "/leaderboard": "leaderboard", "/achievements": "achievements", "/profile": "profile",
   "/feedback": "feedback", "/profile/edit": "profile-edit", "/profile/reflections": "reflections",
   "/settings": "settings", "/settings/notifications": "notifications",
 };
@@ -26,7 +26,13 @@ export function demoStudentHref(locale: Locale, studentPath: string, selectedCou
   try {
   const url = new URL(studentPath, "https://demo.invalid");
   if (url.origin !== "https://demo.invalid") return demoRoute(locale, "dashboard", selectedCourseId);
-  if (url.pathname === "/leaderboard/academic") return `${demoRoute(locale, "leaderboard", selectedCourseId)}&academic=1`;
+  if (url.pathname === "/leaderboard/academic") {
+    const destination = new URL(demoRoute(locale, "leaderboard", selectedCourseId), "https://demo.invalid");
+    destination.searchParams.set("academic", "1");
+    const course = url.searchParams.get("course");
+    if (course) destination.searchParams.set("academicCourse", course);
+    return `${destination.pathname}${destination.search}`;
+  }
   if (url.pathname.startsWith("/demo") || /^\/(?:en|id)\/demo(?:\/|$)/.test(url.pathname)) return studentPath;
   const summary = url.pathname.match(/^\/courses\/([^/]+)\/quiz\/[^/]+\/summary\/([^/]+)$/);
   if (summary) return `${demoRoute(locale, "quiz-summary", decodeURIComponent(summary[1]))}&attempt=${encodeURIComponent(decodeURIComponent(summary[2]))}`;
@@ -50,8 +56,16 @@ export function demoStudentHref(locale: Locale, studentPath: string, selectedCou
   const view = accountViews[url.pathname];
   if (view) {
     const courseId = url.searchParams.get("course");
-    const destination = demoRoute(locale, view, courseId ?? selectedCourseId);
-    return view === "schedule" && courseId ? `${destination}?course=${encodeURIComponent(courseId)}` : destination;
+    const destination = new URL(demoRoute(locale, view, view === "leaderboard" || view === "achievements" ? selectedCourseId : courseId ?? selectedCourseId), "https://demo.invalid");
+    if (view === "schedule" && courseId) destination.searchParams.set("course", courseId);
+    if (view === "achievements" || view === "leaderboard") {
+      for (const key of view === "achievements" ? ["tab"] : ["tab", "period", "scope", "cursor"]) {
+        const value = url.searchParams.get(key);
+        if (value) destination.searchParams.set(key, value);
+      }
+      if (view === "leaderboard" && courseId) destination.searchParams.set("academicCourse", courseId);
+    }
+    return `${destination.pathname}${destination.search}`;
   }
   if (["/plans", "/sign-in"].includes(url.pathname)) return studentPath;
   return demoRoute(locale, "dashboard", selectedCourseId);

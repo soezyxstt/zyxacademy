@@ -16,6 +16,7 @@ import { getIsoWeekRange, computeWeeklySessionStats } from "@/lib/schedule-lock"
 import { getGroupWeeklyUsage } from "@/lib/schedule/tutor-policy";
 import { getSemesterEndDate } from "@/lib/utils";
 import { PACKAGE_PRESETS, type PackageType } from "@/lib/group-constants";
+import { getVisibleStudentIdentities } from "@/lib/gamification/social";
 import { dualWriteEnrollment } from "@/lib/migrasi/repository-kompatibilitas";
 
 async function requireUser() {
@@ -83,6 +84,11 @@ export async function getStudentStudyGroups() {
   const validGroups = memberships
     .map((m) => m.group)
     .filter(Boolean);
+
+  // A roster grants access to its existing names, not to private social profiles.
+  // Resolve public IDs separately through the social visibility and block boundary.
+  const identities = await getVisibleStudentIdentities(currentUser.id, validGroups.flatMap(group => group.members.map(member => member.userId)))
+    .catch(() => new Map());
 
   const { startIso, endIso } = getIsoWeekRange(new Date());
   const weeklyUsage = await getGroupWeeklyUsage(validGroups.map((g) => g.id), startIso, endIso);
@@ -175,6 +181,7 @@ export async function getStudentStudyGroups() {
         id: m.id,
         userId: m.userId,
         name: m.user.name,
+        identity: identities.get(m.userId) ?? null,
         email: m.user.email,
         image: m.user.image,
         role: m.role,

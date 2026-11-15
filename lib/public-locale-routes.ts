@@ -30,6 +30,7 @@ export const PUBLIC_LOCALE_ROUTES = [
   "/demo/schedule",
   "/demo/groups",
   "/demo/leaderboard",
+  "/demo/achievements",
   "/demo/course-leaderboard",
   "/demo/feedback",
   "/demo/profile",
