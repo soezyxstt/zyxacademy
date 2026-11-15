@@ -30,6 +30,7 @@ interface SelectFieldProps {
   disabled?: boolean;
   name?: string;
   className?: string;
+  contentClassName?: string;
   id?: string;
 }
 
@@ -46,6 +47,7 @@ function SelectField({
   disabled,
   name,
   className,
+  contentClassName,
   id,
 }: SelectFieldProps) {
   const t = useTranslations("ui");
@@ -78,7 +80,7 @@ function SelectField({
         >
           <SelectValue placeholder={placeholder ?? t("selectPlaceholder")} />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className={contentClassName}>
           {options.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}

@@ -1,14 +1,13 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { GraduationCap, Mail, ShieldCheck, AlertCircle } from "lucide-react";
+import { GraduationCap, Mail, AlertCircle } from "lucide-react";
 import { updateStudentProfileAction, type StudentProfileActionState } from "@/app/(student)/profile/actions";
 import { ITB_FACULTIES, getMajorsForFaculty, generateEntryYears } from "@/lib/student/itb-academic-data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { SelectField } from "@/components/ui/select-field";
 import { toast } from "@/components/ui/toast";
 import { useTranslations } from "@/lib/i18n/client";
@@ -93,16 +92,13 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
   }));
 
   return (
-    <Card className="max-w-2xl border-border bg-card shadow-xs">
+    <Card className="border-border bg-card shadow-xs">
       <CardHeader className="border-b border-border pb-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <GraduationCap className="size-5 text-brand-primary shrink-0" />
             {t("profile.academicInfo")}
           </CardTitle>
-          <Badge variant="secondary" className="border-brand-primary/20 bg-brand-primary/10 text-brand-primary uppercase tracking-wider text-body-2xs font-semibold">
-            {t("profile.itbStudent")}
-          </Badge>
         </div>
         <CardDescription className="text-body-xs text-muted-foreground mt-1">
           {t("profile.recommendationDescription")}
@@ -110,8 +106,7 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
       </CardHeader>
 
       <CardContent className="pt-4">
-        {/* Google Identity Info Box */}
-        <div className="mb-4 border-b border-border pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-body-sm">
+        <div className="mb-4 border-b border-border pb-3 text-body-sm">
           <div>
             <p className="font-semibold text-foreground">{user.name}</p>
             <p className="text-body-xs text-muted-foreground flex items-center gap-1.5 mt-0.5 break-all">
@@ -119,29 +114,32 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
               {user.email}
             </p>
           </div>
-          <span className="inline-flex items-center gap-1.5 text-body-xs font-semibold text-status-success shrink-0">
-            <ShieldCheck className="size-4" />
-            {t("profile.googleVerified")}
-          </span>
         </div>
 
         {state.message && !state.success && (
-          <div className="mb-6 flex items-center gap-2 rounded-xl border border-status-error/30 bg-status-error/10 p-3 text-body-xs font-medium text-status-error">
+          <div role="alert" className="mb-6 flex items-center gap-2 rounded-xl border border-status-error/30 bg-status-error/10 p-3 text-body-xs font-medium text-status-error">
             <AlertCircle className="size-4 shrink-0" />
             <span>{state.errorCode ? t(`profile.errors.${state.errorCode}`) : t("profile.saveFailed")}</span>
           </div>
         )}
 
-        <form action={formAction} className="space-y-4">
-          {/* Fakultas */}
+        <form onSubmit={event => {
+          event.preventDefault();
+          // React's automatic form reset also resets Radix selects after failed saves.
+          const form = new FormData(event.currentTarget);
+          startTransition(() => formAction(form));
+        }} className="space-y-4">
+          <div className="grid min-w-0 gap-4 md:grid-cols-2 [&_button[role=combobox]]:h-auto [&_button[role=combobox]]:min-h-10 [&_button[role=combobox]>span]:text-left">
           <SelectField
             id="faculty"
             name="faculty"
             label={t("profile.facultyLabel")}
             placeholder={t("profile.facultyPlaceholder")}
             options={facultyOptions}
+            contentClassName="max-w-[var(--radix-popper-available-width)]"
             value={selectedFaculty}
             onValueChange={handleFacultyChange}
+            disabled={isPending}
             required
           />
 
@@ -153,9 +151,10 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
             description={t("profile.majorDescription")}
             placeholder={selectedFaculty ? t("profile.majorPlaceholder") : t("profile.selectFacultyFirst")}
             options={majorOptions}
+            contentClassName="max-w-[var(--radix-popper-available-width)]"
             value={selectedMajor}
             onValueChange={setSelectedMajor}
-            disabled={!selectedFaculty}
+            disabled={isPending || !selectedFaculty}
             required
           />
 
@@ -169,8 +168,10 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
             options={entryYearOptions}
             value={selectedEntryYear}
             onValueChange={setSelectedEntryYear}
+            disabled={isPending}
             required
           />
+          </div>
 
           {/* Form Actions */}
           <div className="flex flex-wrap items-center justify-end gap-2 pt-4 border-t border-border">

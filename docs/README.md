@@ -2,7 +2,7 @@ The `ACTIVE` [feature catalog](features.md) describes per-question legacy quiz e
 
 # Zyx Academy Documentation Index
 
-The `ACTIVE` [feature catalog](features.md) documents basic profile access for authenticated staff and student-only gamification. Focused access regressions and isolated profile/edit/dashboard-summary visuals passed at 380 x 844 and 1536 x 864. Full application staging acceptance remains separate.
+The `ACTIVE` [feature catalog](features.md) documents basic profile access for authenticated staff, student-only gamification, grouped profile statistics and academic, privacy and appearance editor tabs. Academic drafts survive tab changes and failed saves; privacy and owned cosmetics save independently. Achievements and public student profiles retain student transition behavior without the cross-surface logo overlay. Focused access regressions and isolated profile/edit/dashboard-summary visuals cover 380 x 844 and 1536 x 864. Full application staging persistence acceptance remains separate.
 
 The `ACTIVE` [deployment guide](DEPLOYMENT.md) records the completed PR 333 read-only inventory and removal of its temporary workflow. Inngest function and Deno revision enumeration succeeded; three disabled Google APIs prevented a complete regional inventory. The [staging Vercel runbook](operations/vercel-staging.md) records the subsequent database credential fence, verified complete migration journal, question-history backfill, 28-item catalog and passing isolated PostgreSQL fixtures. The manual release now targets custom environment `staging` inside existing project `zyxacademy`, with no branch tracking or automatic staging web deployment. Hosted recovery remains `OPEN / IN PROGRESS`; runtime process termination is not claimed.
 
