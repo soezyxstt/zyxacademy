@@ -16,8 +16,7 @@ import { DEFAULT_EMAIL_NOTIFICATION_PREFERENCES } from "@/lib/email-preferences/
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import type { StudyPathStep } from "@/components/course/study-path-timeline";
-import { useTranslations, useAppLocale } from "@/lib/i18n/client";
-import { demoProgress } from "@/lib/demo/progress-overlay";
+import { useTranslations } from "@/lib/i18n/client";
 import type { DemoMastery } from "@/lib/demo/mastery";
 import { demoLeaderboard } from "@/lib/demo/leaderboard";
 import { emptyOverlay } from "@/lib/demo/session-overlay";
@@ -74,7 +73,6 @@ export function DemoStudentPage({ view, experience: { content, snapshot }, maste
    setProfile(loaded);
  }, [profileKey, view]);
  const t = useTranslations("learning");
- const { locale } = useAppLocale();
  const account = experience.account ?? { name: "Pelajar Demo", email: "pelajar@example.test" };
  const href = (path: string) => experience.href?.(path) ?? path;
  const courseId = snapshot.courseId;

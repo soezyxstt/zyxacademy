@@ -10,7 +10,7 @@ export function DemoGamificationProvider({ name, children }: { name: string; chi
   const [state, setState] = useState(initialDemoGamification);
   const stateRef = useRef(state);
   const nameRef = useRef(name);
-  nameRef.current = name;
+  useEffect(() => { nameRef.current = name; }, [name]);
   useEffect(() => {
     const read = () => { try { const next = readDemoGamification(localStorage.getItem(demoGamificationKey)); stateRef.current = next; setState(next); } catch { /* Keep the in-memory fictional state. */ } };
     read();

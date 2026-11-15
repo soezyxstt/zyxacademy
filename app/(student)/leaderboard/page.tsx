@@ -64,13 +64,16 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
     }))]));
     content = <StudentAcademicLeaderboardView embedded allCourses={visibleCourses} leaderboardByCourse={leaderboardByCourse} />;
   } else {
+    let userId: string | undefined;
+    let accessError: "achievementPage.forbidden" | "achievementPage.unavailable" = "achievementPage.unavailable";
     try {
       const { user } = await requireStudentGamificationAccess();
-      content = <LeaderboardList userId={user.id} query={query} locale={locale} />;
+      userId = user.id;
     } catch (error) {
       if (error instanceof Error && error.message === "Unauthorized") redirect("/sign-in?next=%2Fleaderboard");
-      content = <AccessErrorState title={t(error instanceof Error && error.message === "Forbidden" ? "achievementPage.forbidden" : "achievementPage.unavailable")} />;
+      accessError = error instanceof Error && error.message === "Forbidden" ? "achievementPage.forbidden" : "achievementPage.unavailable";
     }
+    content = userId ? <LeaderboardList userId={userId} query={query} locale={locale} /> : <AccessErrorState title={t(accessError)} />;
   }
 
   return (
