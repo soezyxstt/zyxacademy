@@ -123,6 +123,19 @@ describe('question evidence transaction ordering', () => {
   replay.commit();
   expect(trace.filter(entry => entry.endsWith(':user')).slice(0, 2)).toEqual([`${first}:user`, `${first === 'disclosure' ? 'submission' : 'disclosure'}:user`]);
  });
+ test('raw PostgreSQL timestamps become Date values before storing observations', async () => {
+  const t = transaction('submit'); await lockQuestionExposures(t.tx, 'u', ['a']);
+  await disclose(t.tx, 'a', 'previous');
+  const execute = t.tx.execute.bind(t.tx);
+  t.tx.execute = async (query: any) => {
+   const result = await execute(query);
+   return result?.rows ? { ...result, rows: result.rows.map((row: any) => ({ ...row, exposed_at: row.exposed_at?.toISOString() ?? null })) } : result;
+  };
+  await recordSubmissionBoundaries(t.tx, inputs('attempt'));
+  expect(observations[0].exposedAt).toBeInstanceOf(Date);
+  expect(observations[0].exposedAt.getTime()).toBe(time.getTime());
+  t.commit();
+ });
  test('the boundary excludes only its own result, includes tied prior disclosures, and duplicate retries are immutable', async () => {
   const t = transaction('submit'); await lockQuestionExposures(t.tx, 'u', ['b', 'a']);
   await disclose(t.tx, 'a', 'previous');
