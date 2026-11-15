@@ -20,6 +20,9 @@ mock.module("@/lib/course-utils", () => ({ getStudentCourseAccess: async (_: str
 mock.module("@/lib/recommendation-service", () => ({ markRecommendationDone: async () => {} }));
 mock.module("@/lib/migrasi/repository-kompatibilitas", () => ({ dualWriteFlashcardReview: async () => {}, dualWriteLearningEvent: async () => {} }));
 mock.module("@/lib/pemahaman/evidence", () => ({ recordLearningEvidence: async () => {} }));
+const rejectRewardWrite = () => { throw new Error("UNEXPECTED_REWARD_WRITE_IN_REVIEW_READ"); };
+mock.module("@/lib/gamification/learning-start", () => ({ startLearningRewards: rejectRewardWrite }));
+mock.module("@/lib/gamification/receipts", () => ({ recordGamificationEvidence: rejectRewardWrite }));
 const { getReviewQueue } = await import("../../lib/flashcard-actions");
 const { getDashboardReviewSummary } = await import("../../lib/student/dashboard-review-summary");
 const now = Date.parse("2025-01-01T00:00:00Z");

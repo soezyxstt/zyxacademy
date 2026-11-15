@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, mock, spyOn } from "bun:test";
 import { createHmac } from "node:crypto";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 mock.module("server-only", () => ({}));
@@ -456,6 +456,21 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
     }
     const legacy = issueMcpRunToken({ courseId: "course", chapterId: "chapter" });
     expect(() => workflowContract(legacy, { ...testPrincipal, bootstrapToken: playbook.bootstrapToken! })).toThrow("AUTHORING_MCP_LEGACY_RUN_RESTART_REQUIRED");
+  });
+
+  it("preserves exact run expiry when the clock advances during refresh", () => {
+    const playbook = getMcpPlaybook({ ...testPrincipal, skill: "zyx-idea-bundle-mcp", clientCapabilities: fullCapabilities });
+    const { kind: _kind, issuedAt: _issuedAt, expiresAt: _expiresAt, ...bootstrap } = readMcpBootstrapToken(playbook.bootstrapToken!);
+    const token = issueMcpRunToken({ courseId: "course", chapterId: "chapter", bootstrap });
+    const before = readMcpRunToken(token);
+    let clock = Date.now();
+    const now = spyOn(Date, "now").mockImplementation(() => clock++);
+    try {
+      const refreshed = workflowContract(token, { ...testPrincipal, bootstrapToken: playbook.bootstrapToken! });
+      expect(readMcpRunToken(refreshed.runToken).expiresAt).toBe(before.expiresAt);
+    } finally {
+      now.mockRestore();
+    }
   });
 
   it("does not let a fresh token replace a different principal or session binding", () => {

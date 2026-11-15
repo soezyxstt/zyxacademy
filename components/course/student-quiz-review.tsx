@@ -10,10 +10,12 @@ import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
-import { isShortAnswerCorrect, deduplicateAcceptableAnswers } from "@/lib/quiz/short-answer";
+import { deduplicateAcceptableAnswers } from "@/lib/quiz/short-answer";
+import { checkAnswerCorrectness, questionAnswerType } from "@/lib/gamification/question-grading";
+import { answerToStableOptionIds } from "@/lib/asesmen/attempt";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
-export type StudentReviewQuestion = { id: string; prompt: string; options: string[]; correct_indices: number[]; explanation: string; difficulty: string; origin?: "zyx_original" | "historical_reference" | "itb_example"; sourceEventName?: string | null; sourceReferenceId?: string | null; gradedCorrect?: boolean };
+export type StudentReviewQuestion = { id: string; prompt: string; options: string[]; correct_indices: number[]; explanation: string; difficulty: string; question_type?: string; acceptable_answers?: string[]; stable_option_ids?: string[]; origin?: "zyx_original" | "historical_reference" | "itb_example"; sourceEventName?: string | null; sourceReferenceId?: string | null; gradedCorrect?: boolean };
 function formatDuration(seconds: number | null) {
   if (seconds == null) return "-";
   const m = Math.floor(seconds / 60);
@@ -92,12 +94,19 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
                 </h2>
                 {snapshot.map((q, idx) => {
                   const rawSubmitted = answers[q.id];
-                  const qType = (q as any).question_type || (q as any).questionType || (q as any).type;
-                  const studentSelected = Array.isArray(rawSubmitted)
+                  const qType = questionAnswerType(q);
+                  let studentSelected = Array.isArray(rawSubmitted)
                     ? rawSubmitted
                     : typeof rawSubmitted === "number"
                     ? [rawSubmitted]
                     : [];
+                  if (q.stable_option_ids && (typeof rawSubmitted === "string" || (Array.isArray(rawSubmitted) && rawSubmitted.some(value => typeof value === "string")))) {
+                    try {
+                      studentSelected = answerToStableOptionIds(q.stable_option_ids, rawSubmitted).map(id => q.stable_option_ids!.indexOf(id));
+                    } catch {
+                      studentSelected = [];
+                    }
+                  }
 
                   const correctIndices = q.correct_indices ?? (q as any).correctIndices ?? [];
 
@@ -121,22 +130,11 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
                     ? rawSubmitted.fileSize
                     : null;
 
-                  const isMultiple = qType === "multiple_choices" || correctIndices.length > 1;
-                  let isCorrect = false;
-                  if (qType === "short_answer" || (Array.isArray((q as any).acceptable_answers) && (q as any).acceptable_answers.length > 0)) {
-                    isCorrect = isShortAnswerCorrect(submittedText, (q as any).acceptable_answers);
-                  } else if (qType === "essay") {
-                    isCorrect = submittedText.trim().length > 0 || Boolean(submittedFileKey);
-                  } else if (!isMultiple && (qType === "multiple_choice" || !qType)) {
-                    const firstIdx = studentSelected[0];
-                    isCorrect = firstIdx !== undefined && correctIndices.includes(firstIdx);
-                  } else {
-                    isCorrect =
-                      studentSelected.length === correctIndices.length &&
-                      studentSelected.every((val: number) => correctIndices.includes(val));
-                  }
+                  let isCorrect = qType === "essay"
+                    ? submittedText.trim().length > 0 || Boolean(submittedFileKey)
+                    : checkAnswerCorrectness(q, rawSubmitted);
 
-                  if (typeof q.gradedCorrect === "boolean") isCorrect = q.gradedCorrect;
+                  if (qType === "essay" && typeof q.gradedCorrect === "boolean") isCorrect = q.gradedCorrect;
                   const isEssayPending = qType === "essay" && targetAttempt?.gradingStatus === "pending";
 
                   return (

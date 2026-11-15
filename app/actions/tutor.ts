@@ -1,5 +1,7 @@
 "use server";
 
+import { recordAttemptDisclosures } from "@/lib/gamification/question-exposure";
+
 import { finalizeTutorFollowups } from "@/lib/zyra/followup-safety";
 
 import { resolveCodingTutorContext, CODING_TUTOR_INSTRUCTIONS } from "@/lib/coding/tutor-context-server";
@@ -535,6 +537,7 @@ export async function askTutorRagAction(
   }
 
   let pageContext: TutorPageContext | null = null;
+  let reviewDisclosure: { attemptId: string; questionIds: string[] } | null = null;
   const reviewMatch = requestedAttachmentIds.length === 0
     ? pagePath?.match(/^\/courses\/([^/]+)\/my-results\/([^/]+)(?:\/.*)?$/)
     : null;
@@ -573,6 +576,11 @@ export async function askTutorRagAction(
             })
             .filter((value): value is string => value !== null)
         : [];
+      reviewDisclosure = { attemptId: reviewAttempt.id, questionIds: Array.isArray(reviewAttempt.questionsSnapshot) ? reviewAttempt.questionsSnapshot.slice(0, 30).flatMap(item => {
+        if (!item || typeof item !== "object") return [];
+        const q = item as Record<string, unknown>;
+        return typeof q.id === "string" && [q.prompt, q.questionText, q.text].some(value => typeof value === "string" && value.trim()) ? [q.id] : [];
+      }) : [] };
       const strongAreas = Array.isArray(reviewAttempt.strongAreas) ? reviewAttempt.strongAreas : [];
       const weakAreas = Array.isArray(reviewAttempt.weakAreas) ? reviewAttempt.weakAreas : [];
       pageContext = {
@@ -750,6 +758,9 @@ export async function askTutorRagAction(
     pageContext = { id: `coding:${generate ? "generate:" : ""}${user.id}:${sid}`, label: "Python", href: pagePath ?? `/courses/${courseId}/playground`, content: `${CODING_TUTOR_INSTRUCTIONS}\n\n${JSON.stringify({ recentConversation, ...coding.context })}` };
   }
 
+  if (reviewDisclosure && pageContext?.id === `quiz-review-${reviewDisclosure.attemptId}`) {
+    await db.transaction(tx => recordAttemptDisclosures(tx, { userId: user.id, ...reviewDisclosure, occurredAt: new Date(), requestId: crypto.randomUUID() }));
+  }
   const result = await askTutorRag({
     studentId: user.id,
     courseId,

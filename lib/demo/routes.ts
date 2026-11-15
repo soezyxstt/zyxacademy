@@ -26,6 +26,7 @@ export function demoStudentHref(locale: Locale, studentPath: string, selectedCou
   try {
   const url = new URL(studentPath, "https://demo.invalid");
   if (url.origin !== "https://demo.invalid") return demoRoute(locale, "dashboard", selectedCourseId);
+  if (url.pathname === "/leaderboard/academic") return `${demoRoute(locale, "leaderboard", selectedCourseId)}&academic=1`;
   if (url.pathname.startsWith("/demo") || /^\/(?:en|id)\/demo(?:\/|$)/.test(url.pathname)) return studentPath;
   const summary = url.pathname.match(/^\/courses\/([^/]+)\/quiz\/[^/]+\/summary\/([^/]+)$/);
   if (summary) return `${demoRoute(locale, "quiz-summary", decodeURIComponent(summary[1]))}&attempt=${encodeURIComponent(decodeURIComponent(summary[2]))}`;

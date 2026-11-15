@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
+import { authorizedSnapshotDisclosures, recordAuthorizedGlobalDisclosures } from "@/lib/gamification/question-exposure";
 import { quizTemplates, studentQuizAttempts, courses, quizAiInsights, QuizAiInsightData } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -236,6 +237,8 @@ Pastikan balasan Anda HANYA berupa objek JSON yang valid.`;
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+
+    await db.transaction(tx => recordAuthorizedGlobalDisclosures(tx, { userId: session.user.id, questions: authorizedSnapshotDisclosures(template.courseId, completed.map(attempt => attempt.questionsSnapshot)), requestId: crypto.randomUUID() }));
 
     return NextResponse.json({
       success: true,

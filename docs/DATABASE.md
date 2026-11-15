@@ -31,9 +31,9 @@ The generated `0001_source-import-order.sql` adds the internal `impor_bundle.ins
 
 Historical SQLite migration `0097_mushy_bushwacker.sql` changes the Diktat PDF evidence page-count constraint to accept 1 to 4 pages. It rebuilds `bukti_pdf_bundle`, copies every existing row and lineage field, and restores its indexes. It is not a PostgreSQL migration.
 
-The generated `0009_polite_wendigo.sql` scopes item-review uniqueness to Product identity as well as import, reviewer and target. Its `NULLS NOT DISTINCT` constraint retains Idea uniqueness when `product_id` is null. It is a schema prerequisite for the flexible V3+ revision workflow and remains unapplied to serving environments until separately verified and authorized.
+The generated `0017_quiet_the_hand.sql` scopes item-review uniqueness to Product identity as well as import, reviewer and target. Its `NULLS NOT DISTINCT` constraint retains Idea uniqueness when `product_id` is null. It is a schema prerequisite for the flexible V3+ revision workflow and remains unapplied to serving environments until separately verified and authorized.
 
-Generated `0010_silky_misty_knight.sql` includes upstream and downstream versions in canonical dependency-edge uniqueness. It preserves existing rows while allowing independently versioned successors to store their exact graph. Withdrawal removes only an unshared retiring version's active edges; immutable import artifacts retain its historical graph. Apply both migrations before deploying the revision services. Neither migration has been applied remotely as part of this task.
+The same migration includes upstream and downstream versions in canonical dependency-edge uniqueness. It preserves existing rows while allowing independently versioned successors to store their exact graph. Withdrawal removes only an unshared retiring version's active edges; immutable import artifacts retain its historical graph. Apply the reconciled migration before deploying the revision services, after checking its prerequisites. It has not been applied remotely as part of this task.
 
 ## Schema Reference
 

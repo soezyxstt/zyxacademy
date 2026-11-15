@@ -9,6 +9,8 @@ import { resolveCourseAccess } from "@/lib/student/course-access";
 import { canAccessStudentQuizTemplate } from "@/lib/quiz/student-access";
 import { canAccessQuizSnapshot } from "@/lib/quiz/question-scope";
 import { canViewAttemptDiscussion } from "@/lib/quiz/review-release";
+import { hasDisclosurePayload } from "@/lib/gamification/question-exposure-policy";
+import { recordAttemptDisclosures, recordAuthorizedStaffAttemptDisclosures } from "@/lib/gamification/question-exposure";
 import { inngest } from "@/lib/inngest";
 
 type Context = { params: Promise<{ id: string }> };
@@ -71,6 +73,17 @@ export async function GET(_req: NextRequest, { params }: Context) {
     .limit(1);
 
   if (analytics) {
+    if (hasDisclosurePayload(analytics.computedMetrics) || hasDisclosurePayload(analytics.aiDiagnosis)) {
+      const questionIds = Array.isArray(attempt.questionsSnapshot) ? attempt.questionsSnapshot.flatMap(q => q && typeof q === "object" && typeof q.id === "string" ? [q.id] : []) : [];
+      try {
+        const disclosure = { userId: session.user.id, attemptId, questionIds, occurredAt: new Date(), requestId: crypto.randomUUID() };
+        await db.transaction(tx => isOwner
+          ? recordAttemptDisclosures(tx, disclosure)
+          : recordAuthorizedStaffAttemptDisclosures(tx, { ...disclosure, attemptOwnerId: attempt.studentId, courseId: template.courseId }));
+      } catch {
+        return NextResponse.json({ error: "Pembahasan belum tersedia. Coba lagi." }, { status: 500 });
+      }
+    }
     return NextResponse.json(analytics);
   }
 

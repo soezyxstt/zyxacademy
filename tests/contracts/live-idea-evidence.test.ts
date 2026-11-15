@@ -3,6 +3,8 @@ import {
   LEGACY_IDEA_EVIDENCE_RUBRIC_VERSION,
   buildLegacyGradingPolicySnapshot,
   buildLegacyResponseSnapshot,
+  canonicalEvidencePlanStillValid,
+  canonicalEvidenceValidMappings,
   deriveLegacyAnswerEvidence,
   isCanonicalIdeaEvidenceEnabled,
   legacyAnswerEvidenceId,
@@ -39,6 +41,33 @@ const canonicalQuestion: CanonicalQuestionForLegacyEvidence = {
 };
 
 describe("live assessment to Idea evidence adapter", () => {
+  it("retains unchanged mappings when another question changes or is missing", () => {
+    const questions = ['a', 'b', 'c'].map(id => ({ ...question, id, gamificationProvenance: { marker: 'canonical-objective-v1', canonicalQuestionId: id, courseId: 'course', sourceVersion: '1', answerProof: { questionType: 'multiple_choice', correctIndices: [1] } } }));
+    const rows = questions.map(q => ({ ...canonicalQuestion, id: q.id }));
+    const initial = mapLegacyQuizSnapshotToCanonicalIdeas({ questions, canonicalQuestions: rows });
+    const current = mapLegacyQuizSnapshotToCanonicalIdeas({ questions, canonicalQuestions: [rows[0], { ...rows[1], version: 2 }, rows[2]] });
+    const locked = questions.map(q => ({ id: q.id, mataKuliahId: 'course', version: 1, quizEligible: true, questionType: 'multiple_choice', prompt: question.prompt!, optionsSnapshot: [{ text: 'A', isCorrect: false }, { text: 'B', isCorrect: true }] }));
+    expect(canonicalEvidenceValidMappings({ initial, current, questions, canonicalRows: locked }).map(m => m.questionId)).toEqual(['a', 'c']);
+    const missing = mapLegacyQuizSnapshotToCanonicalIdeas({ questions, canonicalQuestions: [rows[0], rows[2]] });
+    expect(canonicalEvidenceValidMappings({ initial, current: missing, questions, canonicalRows: locked }).map(m => m.questionId)).toEqual(['a', 'c']);
+    expect(canonicalEvidenceValidMappings({ initial, current: initial, questions, canonicalRows: [locked[0], { ...locked[1], optionsSnapshot: [{ text: 'A', isCorrect: true }, { text: 'B', isCorrect: false }] }, locked[2]] }).map(m => m.questionId)).toEqual(['a', 'c']);
+  });
+  it("rejects deleted, edited or re-mapped questions after the candidate read", () => {
+    const provenanced = { ...question, gamificationProvenance: { marker: 'canonical-objective-v1', canonicalQuestionId: question.id, courseId: 'course', sourceVersion: '1', answerProof: { questionType: 'multiple_choice', correctIndices: [1] } } };
+    const row = { id: question.id, mataKuliahId: 'course', version: 1, quizEligible: true, questionType: 'multiple_choice', prompt: question.prompt!, optionsSnapshot: [{ text: 'A', isCorrect: false }, { text: 'B', isCorrect: true }] };
+    const initial = mapLegacyQuizSnapshotToCanonicalIdeas({ questions: [provenanced], canonicalQuestions: [canonicalQuestion] });
+    const check = (current: typeof initial, canonicalRows = [row]) => canonicalEvidencePlanStillValid({ initial, current, questions: [provenanced], canonicalRows });
+    expect(check(initial)).toBe(true);
+    expect(canonicalEvidenceValidMappings({ initial, current: initial, canonicalRows: [row], questions: [question] })).toEqual([]);
+    expect(check(initial, [{ ...row, prompt: 'A different prompt' }])).toBe(false);
+    expect(check(initial, [{ ...row, mataKuliahId: 'other-course' }])).toBe(false);
+    expect(canonicalEvidenceValidMappings({ initial, current: initial, canonicalRows: [row], questions: [{ ...provenanced, gamificationProvenance: { ...provenanced.gamificationProvenance, sourceVersion: '2' } }] })).toEqual([]);
+    expect(check(mapLegacyQuizSnapshotToCanonicalIdeas({ questions: [provenanced], canonicalQuestions: [] }), [])).toBe(false);
+    expect(check(mapLegacyQuizSnapshotToCanonicalIdeas({ questions: [provenanced], canonicalQuestions: [{ ...canonicalQuestion, ideaLinks: [{ ...canonicalQuestion.ideaLinks[0], ideaVersion: 2 }] }] }))).toBe(false);
+    expect(check(initial, [{ ...row, version: 2 }])).toBe(false);
+    expect(check(initial, [{ ...row, optionsSnapshot: [{ text: 'A', isCorrect: true }, { text: 'B', isCorrect: false }] }])).toBe(false);
+    expect(canonicalEvidencePlanStillValid({ initial, current: initial, canonicalRows: [row], questions: [{ ...provenanced, gamificationProvenance: {} }] })).toBe(false);
+  });
   it("maps only an exact published question and published Idea link", () => {
     const plan = mapLegacyQuizSnapshotToCanonicalIdeas({ questions: [question], canonicalQuestions: [canonicalQuestion] });
 

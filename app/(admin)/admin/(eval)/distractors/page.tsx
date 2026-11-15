@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { pageTitle } from "@/lib/site";
 import { getTranslations } from "@/lib/i18n/server";
 import { db } from "@/db";
+import { recordAuthorizedGlobalDisclosures } from "@/lib/gamification/question-exposure";
 import { aiQuestionBank, courses, questionOptionStats } from "@/db/schema";
 import { inArray } from "drizzle-orm";
 import { assertTutorOrAdmin } from "@/lib/auth/admin-guards-server";
@@ -26,7 +27,7 @@ interface DistractorEntry {
 const QUESTION_TOTAL_INDEX = -1;
 
 export default async function DistractorAnalyticsPage() {
-  await assertTutorOrAdmin();
+  const { user } = await assertTutorOrAdmin();
 
   const stats = await db.select().from(questionOptionStats);
 
@@ -55,6 +56,9 @@ export default async function DistractorAnalyticsPage() {
     .map((id) => ({ id, agg: byQuestion.get(id)! }))
     .filter((x) => x.agg.total > 0 && questionMap.has(x.id))
     .sort((a, b) => b.agg.total - a.agg.total);
+
+  const disclosedIds = new Set(ordered.map(item => item.id));
+  await db.transaction(tx => recordAuthorizedGlobalDisclosures(tx, { userId: user.id, questions: questions.filter(q => disclosedIds.has(q.id)).map(q => ({ questionId: q.id, courseId: q.courseId })), requestId: crypto.randomUUID() }));
 
   return (
     <div className="space-y-5">

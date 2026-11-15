@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { db } from "@/db";
-import { submissions, exams, user, courses, mataKuliah } from "@/db/schema";
+import { submissions, exams, user, courses, mataKuliah, questions } from "@/db/schema";
+import { recordStaffCourseDisclosures } from "@/lib/gamification/question-exposure";
 import { eq, and, desc, or, inArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -107,6 +108,38 @@ export default async function TutorGradingPage({ params }: Props) {
       ),
     )
     .orderBy(desc(submissions.submittedAt));
+
+  // Older tryout snapshots retain the tryout question ID, not its bank ID.
+  // Resolve those IDs in one course-scoped query before releasing scores or keys.
+  let unmappedCourse = false;
+  const snapshotIds = new Set<string>();
+  const bankIds = new Set<string>();
+  for (const submission of submissionsList) {
+    let snapshot: unknown = submission.questionsSnapshot;
+    if (typeof snapshot === "string") {
+      try { snapshot = JSON.parse(snapshot); } catch { snapshot = null; }
+    }
+    if (!Array.isArray(snapshot)) { unmappedCourse = true; continue; }
+    for (const value of snapshot) {
+      if (!value || typeof value !== "object" || typeof value.id !== "string") { unmappedCourse = true; continue; }
+      snapshotIds.add(value.id);
+      if (typeof value.bankQuestionId === "string") bankIds.add(value.bankQuestionId);
+    }
+  }
+  const sourceQuestions = snapshotIds.size ? await db.select({ id: questions.id, content: questions.content }).from(questions)
+    .innerJoin(exams, eq(questions.examId, exams.id))
+    .where(and(inArray(questions.id, [...snapshotIds]), inArray(exams.courseId, courseIdsToQuery), eq(exams.type, "tryout"))) : [];
+  if (sourceQuestions.length !== snapshotIds.size) unmappedCourse = true;
+  for (const question of sourceQuestions) {
+    let content: unknown = question.content;
+    if (typeof content === "string") {
+      try { content = JSON.parse(content); } catch { content = null; }
+    }
+    if (!content || typeof content !== "object" || Array.isArray(content)) { unmappedCourse = true; continue; }
+    const bankId = (content as Record<string, unknown>).bankQuestionId;
+    if (typeof bankId === "string" && bankId) bankIds.add(bankId);
+  }
+  await db.transaction(tx => recordStaffCourseDisclosures(tx, { userId: session.user.id, courseId, questionIds: [...bankIds], contextId: "tryout-grading", requestId: crypto.randomUUID(), unmappedCourse }));
 
   return (
     <ApplicationPage spacing="space-y-5">

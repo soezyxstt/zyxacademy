@@ -1,3 +1,4 @@
+import { expectedComputeFunctionCount } from "./worker-function-count.mjs";
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
@@ -133,7 +134,7 @@ async function main() {
     const worker = await health.json();
     assert.match(config.ZYX_COMPUTE_REVISION, /^[a-f0-9]{64}$/);
     assert.equal(worker.version, config.ZYX_COMPUTE_REVISION);
-    assert.equal(worker.functions, 22);
+    assert.equal(worker.functions, expectedComputeFunctionCount);
     checks.preflight = { database: "neondb", workerRevision: worker.version };
     if (resume) {
       const [[owner], [course], [chapter], [mtd], [ko], [source], objects, [concept], [localization]] = await Promise.all([

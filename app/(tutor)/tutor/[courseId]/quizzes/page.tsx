@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/db";
+import { recordStaffCourseDisclosures } from "@/lib/gamification/question-exposure";
 import { courses, mataKuliah } from "@/db/schema";
 import { eq, or } from "drizzle-orm";
 import { verifyTutorAccess } from "@/lib/auth/tutor-session-access";
@@ -37,7 +38,7 @@ export default async function TutorQuizzesPage({ params }: Props) {
   const { courseId } = await params;
 
   // Verify tutor access
-  await verifyTutorAccess(courseId);
+  const { session } = await verifyTutorAccess(courseId);
 
   const [mk] = await db
     .select({ id: mataKuliah.id, title: mataKuliah.title })
@@ -61,6 +62,7 @@ export default async function TutorQuizzesPage({ params }: Props) {
 
   // Load question bank questions
   const questionBankList = await getTutorQuestionBank(courseId);
+  await db.transaction(tx => recordStaffCourseDisclosures(tx, { userId: session.user.id, courseId, questionIds: questionBankList.map((q: { id: string }) => q.id), contextId: "question-bank", requestId: crypto.randomUUID() }));
 
   return (
     <ApplicationPage>

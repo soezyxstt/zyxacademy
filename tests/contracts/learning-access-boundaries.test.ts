@@ -52,8 +52,12 @@ describe("student learning access boundaries", () => {
     expect(route).toContain("questionSetToken");
     expect(route).toContain("eq(bab.mataKuliahId, access.canonicalCourseId)");
     const clientStart = route.indexOf("function clientQuestion");
-    const clientEnd = route.indexOf("function submittedText", clientStart);
-    expect(route.slice(clientStart, clientEnd)).not.toContain("correctIndices");
+    const clientEnd = route.indexOf("function isAnswerCorrect", clientStart);
+    expect(clientStart).toBeGreaterThanOrEqual(0);
+    expect(clientEnd).toBeGreaterThan(clientStart);
+    const clientProjection = route.slice(clientStart, clientEnd);
+    expect(clientProjection).not.toContain("correctIndices");
+    expect(clientProjection).not.toContain("acceptableAnswers");
 
     const quizPage = source("app/(student)/courses/[id]/quiz/[quizId]/page.tsx");
     expect(quizPage).toContain("fixedQuestionCondition");

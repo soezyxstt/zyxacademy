@@ -10,6 +10,9 @@ import { pageTitle } from "@/lib/site";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
+import { getStudentSocialSettings } from "@/lib/gamification/social";
+import { getAchievementBadges, getGamificationRewards } from "@/lib/gamification/queries";
+import { ProfileSettings } from "@/components/gamification/profile-settings";
 import { ProfileEditForm } from "./profile-edit-form";
 import { TranslatedText } from "@/components/i18n/translated-text";
 import { getTranslations } from "@/lib/i18n/server";
@@ -36,6 +39,8 @@ export default async function ProfileEditPage() {
     .where(eq(userTable.id, session.user.id))
     .limit(1);
 
+  const [settings, badges, rewards] = await Promise.all([getStudentSocialSettings(session.user.id), getAchievementBadges(session.user.id), getGamificationRewards(session.user.id)]);
+
   const currentUser = {
     id: session.user.id,
     name: dbUser?.name ?? session.user.name ?? "",
@@ -54,7 +59,7 @@ export default async function ProfileEditPage() {
         backLabel={<TranslatedText namespace="student" messageKey="profile.pageTitle" />}
       />
       <Reveal className="mt-6">
-        <ProfileEditForm user={currentUser} />
+        <div className="space-y-6"><ProfileSettings initial={settings} badges={badges} rewards={rewards} name={currentUser.name} image={dbUser?.image ?? null} /><ProfileEditForm user={currentUser} /></div>
       </Reveal>
     </ApplicationPage>
   );

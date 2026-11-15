@@ -178,7 +178,7 @@ The following visual sizes are the approved cross-surface baseline. Keep semanti
 
 ### Apples-to-apples ranking
 
-- Overview or cross-course aggregate views must never rank individual students across courses. Per-course or single-course views may rank students.
+- Overview or cross-course aggregate views must never rank individual students academically across courses. Per-course or single-course views may rank students. The approved global gamification participation leaderboard is a narrow exception, ranking opted-in members by base XP; it is not an academic ranking.
 - When an overview aggregates metrics per entity (e.g. per course), include all entities eligible for the view from the source table, even those with zero activity, so the administrator sees the full scope.
 - Sort overview rows alphabetically by entity label unless an explicit metric sort is requested.
 - Count unique users across the visible set using a single Set, not by summing per-entity unique counts which double-count shared users.

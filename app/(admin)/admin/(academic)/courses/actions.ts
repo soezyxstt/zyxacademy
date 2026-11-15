@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
+import { recordAuthorizedGlobalDisclosures } from "@/lib/gamification/question-exposure";
 import {
   courses,
   chapters,
@@ -363,8 +364,8 @@ export async function getCourseSettingsData(courseId: string) {
  * @param courseId - The course identifier (canonical or legacy).
  * @returns The structured course detail dataset, or null if the course does not exist.
  */
-export async function getCourseDetailData(courseId: string) {
-  await assertAdmin();
+export async function getCourseDetailData(courseId: string, includeQuestions = false) {
+  const { user } = await assertAdmin();
 
   const cleanCourseId = courseId.trim().toLowerCase();
   const identity = await resolveCourseIdentity(cleanCourseId);
@@ -553,6 +554,7 @@ export async function getCourseDetailData(courseId: string) {
   const overallAvgScore = totalCompletedAttempts > 0 ? Math.round(allScores.reduce((a, b) => a + b, 0) / totalCompletedAttempts) : 0;
   const overallPassRate = totalCompletedAttempts > 0 ? Math.round((allScores.filter((s) => s >= 70).length / totalCompletedAttempts) * 100) : 0;
 
+  if (includeQuestions) await db.transaction(tx => recordAuthorizedGlobalDisclosures(tx, { userId: user.id, questions: rawQuestions.map(q => ({ questionId: q.id, courseId: q.courseId })), requestId: randomUUID() }));
   return {
     course: {
       ...course,
@@ -561,7 +563,7 @@ export async function getCourseDetailData(courseId: string) {
     chapters: chaptersList,
     materials: materialsList,
     quizzes: quizzesWithMetrics,
-    questions: rawQuestions,
+    questions: includeQuestions ? rawQuestions : [],
     stats: {
       totalChapters: chaptersList.length,
       totalMaterials: materialsList.length,

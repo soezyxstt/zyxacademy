@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
+import { authorizedSnapshotDisclosures, recordAuthorizedGlobalDisclosures } from "@/lib/gamification/question-exposure";
 import { quizTemplates, studentQuizAttempts, courses, mataKuliah, quizAiInsights } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -205,6 +206,8 @@ export async function GET(_req: NextRequest, { params }: Context) {
     .where(eq(quizAiInsights.templateId, templateId))
     .orderBy(desc(quizAiInsights.createdAt))
     .limit(1);
+
+  await db.transaction(tx => recordAuthorizedGlobalDisclosures(tx, { userId: session.user.id, questions: authorizedSnapshotDisclosures(template.courseId, completedAttempts.map(attempt => attempt.questionsSnapshot)), requestId: crypto.randomUUID() }));
 
   return NextResponse.json({
     template: {

@@ -81,6 +81,7 @@ export function projectQuizReviewSnapshot(snapshot: unknown, released: boolean) 
       sourceEventName: question.sourceEventName ?? question.source_event_name,
       sourceReferenceId: question.sourceReferenceId ?? question.source_reference_id,
       correct_indices: question.correct_indices ?? question.correctIndices,
+      stable_option_ids: question.stable_option_ids ?? question.stableOptionIds,
       acceptable_answers: question.acceptable_answers ?? question.acceptableAnswers,
       explanation: question.explanation,
     }], "completed", "released");
@@ -91,6 +92,7 @@ export function projectQuizReviewSnapshot(snapshot: unknown, released: boolean) 
       options: clean.options,
       question_type: clean.question_type,
       correct_indices: clean.correct_indices ?? [],
+      stable_option_ids: clean.stable_option_ids,
       acceptable_answers: clean.acceptable_answers,
       explanation: clean.explanation ?? "",
       difficulty: clean.difficulty ?? "",

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { completeExplanationAction } from "@/app/(student)/courses/[id]/solutions/[collectionId]/actions";
 import { useSearchParams } from "next/navigation";
 import { BookOpen, CheckCircle2, Circle, ChevronLeft, ChevronRight, List, Search } from "lucide-react";
 import { useLocale } from "next-intl";
@@ -20,6 +21,7 @@ import type { SolutionCollection, SolutionCollectionItem, SolutionProvenance } f
 
 export interface SolutionCollectionReaderProps {
   collection: SolutionCollection;
+  completion?: { collectionId: string; version: number };
   courseHref?: string;
   backHref?: string;
   initialRevealed?: boolean;
@@ -195,7 +197,7 @@ function Provenance({ label, provenance }: { label: string; provenance: Solution
   </div>;
 }
 
-function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initialRevealed, renderItemReview }: {
+function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initialRevealed, renderItemReview, onCompleteItem, itemCompleted }: {
   item: SolutionCollectionItem;
   index: number;
   total: number;
@@ -204,6 +206,8 @@ function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initia
   headingRef: RefObject<HTMLHeadingElement | null>;
   initialRevealed?: boolean;
   renderItemReview?: (item: SolutionCollectionItem) => ReactNode;
+  onCompleteItem?: () => void;
+  itemCompleted?: boolean;
 }) {
   const t = useTranslations("learning.solutionCollection");
   const [revealed, setRevealed] = useState(Boolean(initialRevealed));
@@ -268,6 +272,7 @@ function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initia
         <summary className="cursor-pointer rounded-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{t("sources")}</summary>
         <div className="mt-3 space-y-3"><Provenance label={t("question")} provenance={item.provenance.problem} /><Provenance label={t("solution")} provenance={item.provenance.solution} /></div>
       </details>
+      {revealed && onCompleteItem ? <Button type="button" variant="outline" onClick={onCompleteItem} disabled={itemCompleted}>{itemCompleted ? "Selesai dibaca" : "Tandai selesai dibaca"}</Button> : null}
       {renderItemReview?.(item)}
       <nav aria-label={t("navigation")} className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
         <Button type="button" variant="outline" className="h-auto min-h-8 whitespace-normal py-1" onClick={onPrevious} disabled={index === 0}><ChevronLeft aria-hidden="true" />{t("previous")}</Button>
@@ -277,10 +282,12 @@ function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initia
   );
 }
 
-function ReaderContent({ collection, courseHref, backHref, initialRevealed, renderItemReview, embedded = false, itemReviewStatus }: SolutionCollectionReaderProps) {
+function ReaderContent({ collection, courseHref, backHref, initialRevealed, renderItemReview, embedded = false, itemReviewStatus, completion }: SolutionCollectionReaderProps) {
   const t = useTranslations("learning.solutionCollection");
   const searchParams = useSearchParams();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [completedItems, setCompletedItems] = useState<string[]>([]);
+  const [completionState, setCompletionState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const requestedId = searchParams.get("item");
   const requestedIndex = collection.items.findIndex((item) => item.id === requestedId);
   const activeIndex = requestedIndex < 0 ? 0 : requestedIndex;
@@ -324,7 +331,14 @@ function ReaderContent({ collection, courseHref, backHref, initialRevealed, rend
       <aside className="hidden min-w-0 lg:block"><div className="sticky top-6 space-y-3"><h2 className="font-heading text-body-base font-bold">{t("itemList")}</h2><ItemList collection={collection} activeId={active.id} onSelect={selectItem} itemReviewStatus={itemReviewStatus} /></div></aside>
       <div className="min-w-0 max-w-3xl">
         {requestedId && requestedIndex < 0 ? <p role="status" className="mb-5 rounded-lg border border-border p-3 text-body-sm text-muted-foreground">{t("invalidItem")}</p> : null}
-        <ActiveItem key={active.id} initialRevealed={initialRevealed} renderItemReview={renderItemReview} item={active} index={activeIndex} total={collection.items.length} headingRef={headingRef} onPrevious={() => selectItem(collection.items[activeIndex - 1].id)} onNext={() => selectItem(collection.items[activeIndex + 1].id)} />
+        <ActiveItem key={active.id} itemCompleted={completedItems.includes(active.id)} onCompleteItem={completion ? () => setCompletedItems(ids => ids.includes(active.id) ? ids : [...ids, active.id]) : undefined} initialRevealed={initialRevealed} renderItemReview={renderItemReview} item={active} index={activeIndex} total={collection.items.length} headingRef={headingRef} onPrevious={() => selectItem(collection.items[activeIndex - 1].id)} onNext={() => selectItem(collection.items[activeIndex + 1].id)} />
+        {completion && completedItems.length === collection.items.length ? <div className="space-y-2 border-t border-border pt-5"><Button type="button" disabled={completionState === "saving" || completionState === "saved"} onClick={async () => {
+          setCompletionState("saving");
+          try {
+            await completeExplanationAction(completion.collectionId, completion.version, completedItems);
+            setCompletionState("saved");
+          } catch { setCompletionState("error"); }
+        }}>{completionState === "saved" ? "Pembahasan selesai" : completionState === "saving" ? "Menyimpan" : "Selesaikan pembahasan"}</Button>{completionState === "error" ? <p role="alert" className="text-body-xs text-destructive">Belum dapat menyimpan. Coba lagi.</p> : null}</div> : null}
       </div>
     </div> : <div role="status"><AdminEmptyState icon={BookOpen} title={t("emptyCollection")} /></div>}
   </div>;
