@@ -41,7 +41,7 @@ test.afterEach(async ({ page }) => {
 async function capture(page: Page, info: TestInfo, state: string) {
   await page.evaluate(async () => { await document.fonts.ready; await Promise.all([...document.images].map(image => image.complete ? Promise.resolve() : new Promise<void>(resolve => { image.onload = () => resolve(); image.onerror = () => resolve(); }))); });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-  expect(await page.locator("img").evaluateAll(images => images.filter(image => !image.complete || image.naturalWidth === 0).map(image => image.getAttribute("src")))).toEqual([]);
+  expect(await page.locator("img").evaluateAll(images => images.filter(image => !(image instanceof HTMLImageElement) || !image.complete || image.naturalWidth === 0).map(image => image.getAttribute("src")))).toEqual([]);
   await page.screenshot({ path: info.outputPath(`screenshots/${state}.png`), fullPage: true, animations: "disabled" });
 }
 const url = (view: string, query = "") => `http://demo-fixture.local/id/demo/${view}?course=math${query}`;

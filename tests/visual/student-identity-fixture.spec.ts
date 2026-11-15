@@ -42,7 +42,7 @@ for (const view of ['leaderboard', 'group', 'search']) {
     await page.screenshot({ path: info.outputPath(`screenshots/${view}-followed.png`), fullPage: true, animations: 'disabled' });
    }
    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-   expect(await page.locator('img').evaluateAll(images => images.filter(image => !image.complete || image.naturalWidth === 0).length)).toBe(0);
+   expect(await page.locator('img').evaluateAll(images => images.filter(image => !(image instanceof HTMLImageElement) || !image.complete || image.naturalWidth === 0).length)).toBe(0);
    expect(failures).toEqual([]);
   });
  }
