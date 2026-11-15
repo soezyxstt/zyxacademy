@@ -21,22 +21,15 @@ cp .env.example .env.local  # fill in secrets
 bun run dev                  # http://localhost:3000
 ```
 
-## Cloud Run staging build
+## Manual Vercel staging build
 
-The existing `.github/workflows/deploy-web.yml` builds `staging` as a standalone
-Node runtime image for Taiwan Artifact Registry. Only that build sets
-`NEXT_OUTPUT=standalone`; the production Vercel build retains its existing mode.
-`Dockerfile.cloud-run` expects an already completed `bun run build`; it does not
-compile the application. GitHub Environment `staging` supplies the public build
-settings, V4 browser identity, and the `GCP_SERVICE_ACCOUNT_KEY` JSON Secret. The account email is read from that key
-and used for both CI and the Cloud Run runtime. Application runtime credentials are synchronized from GitHub staging Secrets
-and Variables during deployment, using the explicit runtime allowlist and a
-private temporary environment file. They are not embedded in the image. Existing
-unmanaged settings and unreplaced Secret Manager references remain available. Follow the
-[Cloud Run staging runbook](operations/cloud-run-staging.md) before running the
-workflow or changing the staging origin. After one-time service/secret setup, each eligible staging push deploys the exact
-published digest and switches traffic only after readiness checks. Cloud Build
-is not used.
+Staging uses Vercel project `zyx-neon-migration`, separate from production.
+Run `.github/workflows/deploy-web.yml` explicitly on branch `staging` after the
+required database and matching-worker gates pass. Staging pushes do not deploy
+web, and the staging project must remain disconnected from Vercel Git integration.
+The job validates and syncs allowed GitHub staging runtime settings before a
+remote Vercel build; no Google service account or Docker image is required.
+See the [manual staging runbook](operations/vercel-staging.md).
 
 ## CI scope and incremental checks
 

@@ -35,14 +35,15 @@ The main `vercel.json` pins web functions to `sin1`, near the Zyx Neon project i
 
 ## Neon Functions background execution
 
-The [worker cutover runbook](operations/neon-functions-cutover.md) is OPEN / IN PROGRESS. Production Inngest execution was restored on Neon Functions on 2026-11-10 through `.github/workflows/deploy-neon-worker.yml`, using Cloudflare Browser Run for PDFs. The worker-only recovery registered 22 functions and passed 10 HTTP/PDF checks including a completed durable job. No web rebuild or Vercel configuration change was made; Zyra chat and Playground were unchanged. Existing source-figure v1, V4 verification and direct web RPC compatibility limits remain in the runbook. PR 309 integrated the production workflow into main. Main CI run 42845350696 released deployment 3 successfully while skipping web deployment. The Deno instructions below are retained legacy references. Staging web/DNS work is deferred.
+The [worker cutover runbook](operations/neon-functions-cutover.md) is OPEN / IN PROGRESS. Production Inngest execution was restored on Neon Functions on 2026-11-10 through `.github/workflows/deploy-neon-worker.yml`, using Cloudflare Browser Run for PDFs. The worker-only recovery registered 22 functions and passed 10 HTTP/PDF checks including a completed durable job. No web rebuild or Vercel configuration change was made; Zyra chat and Playground were unchanged. Existing source-figure v1, V4 verification and direct web RPC compatibility limits remain in the runbook. PR 309 integrated the production workflow into main. Main CI run 42845350696 released deployment 3 successfully while skipping web deployment. The Deno instructions below are retained legacy references. Manual Vercel staging recovery and DNS acceptance remain in progress.
 
-## Cloud Run staging
+## Vercel staging
 
-Release jobs explicitly evaluate cancellation and the successful impact/gate results. Optional skipped ancestors must not suppress a selected push deployment after the CI gate passes. Pull requests, failed gates, cancellation, and unselected surfaces remain blocked. A successful CI run alone is not proof of deployment; verify the deployment job and ready revision traffic.
-
-The [Cloud Run staging runbook](operations/cloud-run-staging.md) is `ACTIVE` for project `zyx-academy` in Taiwan (`asia-east1`). Staging serves Neon PostgreSQL and private Neon object storage following a verified frozen import. Its Deno worker uses the same guarded target. Target identity, hosted acceptance and rollback evidence are in the [migration runbook](operations/neon-migration.md).
-The separate Vercel migration project is paused after rehearsal. Production Vercel now serves its own Neon PostgreSQL branch and private Neon object storage.
+Staging releases use the existing Vercel project `zyx-neon-migration`
+(`prj_orC6CPtO0tyvUsrojntmGMSARHbd`), separate from production. The intended origin
+remains `https://staging.zyxacademy.com`. Follow the [manual staging runbook](operations/vercel-staging.md).
+Cloud Run publication and deployment have been removed from the web workflow.
+The old Google service is retained for reference; this change does not delete it.
 
 The production cutover is complete; follow [the active production runbook](operations/neon-production-cutover.md) for targets, evidence and recovery boundaries. Vercel and Neon Functions use the protected production root and private `zyx-production` bucket. Both deployment paths reject a mismatched target. Source Turso/R2 and the old deployment unit remain available for recovery, subject to reconciliation of any Neon writes.
 
@@ -134,99 +135,34 @@ The read-only `/v4` page presents a version-specific Article preview and its ins
 
 ### Web builds in GitHub Actions
 
-The central CI planner calls `.github/workflows/deploy-web.yml` only for web
-inputs on push, after the selected checks pass. The reusable workflow also keeps
-manual dispatch and retains the production Vercel prebuilt job for
-`main`. Its `staging-image` job builds branch `staging` with Node 24 and Bun 1.3.14,
-then packages the standalone output in `Dockerfile.cloud-run`, smoke tests it,
-and pushes an immutable commit-tagged image to
-`asia-east1-docker.pkg.dev/zyx-academy/zyx-staging/zyx-academy`.
-Cloud Build is not used. The same staging job deploys that digest to `zyx-academy` in Taiwan,
-waits for the new revision to be ready without traffic, verifies the revision's
-image, then directs 100 percent of staging traffic to it. The workflow synchronizes application runtime values from GitHub Environment
-`staging` and preserves unmanaged settings, remaining Secret Manager references,
-and invocation IAM. It does not
-change DNS. The CI summary records the image, revision, URL and previous traffic
-for rollback.
+The central CI calls `.github/workflows/deploy-web.yml` automatically only for
+selected `main` pushes after its gates pass. Production behavior and its
+`HOLD_WEB_DEPLOYMENT` gate remain unchanged.
 
-| Git branch | GitHub Environment | Build and destination |
+Staging web releases require `workflow_dispatch` on branch `staging`. A staging
+push, PR, or reusable workflow call cannot run the staging web job. Vercel Git
+integration remains disconnected for the staging project, and `vercel.json`
+explicitly disables Git deployments for `staging`.
+
+The manual job validates the exact staging database, private storage, Inngest,
+and renderer using the shared worker target guard. It synchronizes only allowed
+runtime settings from GitHub Environment `staging` to the staging Vercel project,
+then submits a remote build with Node 24 and Bun 1.3.14. Values are never printed;
+CI-only credentials are excluded. Sensitive server settings remain on Vercel.
+The Vercel `production` deployment target belongs to this separate staging
+project; it does not target the production project `zyxacademy`.
+
+| Branch | Trigger | Destination |
 | --- | --- | --- |
-| `staging` | `staging` | Build, push to Taiwan Artifact Registry, automatically deploy Cloud Run staging |
-| `main` | `production` | Vercel Production, `www.zyxacademy.com` |
+| `staging` | Explicit dispatch only | Vercel project `zyx-neon-migration` |
+| `main` | Existing gated CI or dispatch | Vercel project `zyxacademy` |
 
-Production uses the existing Vercel project `zyxacademy`
-(`prj_9wDdc36VFIH5wJT45jEXIHGst2pb`) in team
-`team_rMFT8hSTCTObKzXirjJcbMFc`. Keep `VERCEL_TOKEN` and production app variables
-in their existing places. Production still runs `vercel pull`, `vercel build`
-and `vercel deploy --prebuilt` with CLI 65.2.0. The existing Deno worker retains
-its separate `.github/workflows/deploy.yml` pipeline.
-
-Before enabling staging CI/CD, follow the
-[Console setup runbook](operations/cloud-run-staging.md). Use one service
-account for CI and runtime. Grant it Artifact Registry Writer, Cloud Run Developer
-and Service Account User through project IAM. Existing project-level grants
-cover the project resources; repository-level grants are not additionally
-required. If the service references Secret Manager, this same account needs
-access to its staging secrets. Store the complete CI service-account JSON key in
-GitHub Environment `staging` as Secret `GCP_SERVICE_ACCOUNT_KEY`. The workflow
-validates the key type and project without printing it and authenticates only
-after packaging and testing the image. It does not use OIDC, a Workload Identity
-provider, or a Cloud Build trigger. Keep `NEXT_PUBLIC_APP_URL` as a staging
-Environment Variable or the existing matching Secret.
-
-Staging builds receive explicitly listed public browser settings from GitHub
-Variables or Secrets, the non-secret V4 browser provider/version, and the existing
-staging Turso URL/token. Sitemap generation reads published blog metadata at
-build time. The build rejects any database hostname other than the allowlisted
-staging Turso host. Configure `TURSO_DATABASE_URL`, `TURSO_CONNECTION_URL`, or
-`DATABASE_URL`, plus `TURSO_AUTH_TOKEN`, in GitHub Environment `staging`; prefer a
-read-only database token for builds. These credentials are process environment
-values, not image build arguments, copied files, or image environment settings.
-Set `NEXT_PUBLIC_APP_URL` to the chosen staging origin and mirror the existing
-public integration settings. Empty optional public settings are unset so app
-defaults apply. The deployment step passes the staging Secrets/Variables to a
-strict application-runtime allowlist in `.github/scripts/cloud_run_runtime.py`.
-It writes a mode-0600 temporary environment file after image publication and
-supplies it to `gcloud run deploy`. GitHub application credentials become runtime
-environment values in Cloud Run; they are not included in Docker image layers.
-CI-only keys/tokens are excluded. Existing unmanaged settings and Secret Manager
-references are preserved unless explicitly replaced by GitHub values. All three
-Turso URL aliases are synchronized to the verified staging endpoint, preventing
-an old local URL from taking precedence. Temporary files are deleted on exit. Only the isolated build process uses
-`SKIP_ENV_VALIDATION=1`; the final image leaves runtime validation enabled.
-
-Both builds run the complete `bun run build`, including authoring skills and V4
-runtime preparation. Only the staging build sets `NEXT_OUTPUT=standalone`.
-The Docker context allowlist accepts the traced runtime, static assets, and
-`public`; environment files, local databases, keys, and generated Google
-credentials are excluded. No application compilation runs during the Docker
-packaging step or in Cloud Run. The staging image uses an unprivileged Node user.
-The workflow validates native canvas, PDF/KaTeX assets, authoring skills, and
-HTTP static serving with a 1 GiB memory limit before authenticating and pushing.
-This smoke check does not establish database, OAuth, SSR load, or remote success.
-
-The one-time service bootstrap remains in Console for the service identity and
-invocation policy. Application variables do not need to be manually entered there:
-CI synchronizes them from GitHub before deploying the next revision. If the
-service is absent, CI publishes the image but refuses to create an unconfigured
-app; use that image for initial setup and rerun. Subsequent pushes build, push and
-deploy automatically. The deployment script rejects a wrong project/service,
-an explicit non-staging marker, a non-staging database/origin, or missing required
-runtime settings. Missing staging markers and origins are repaired from the
-reviewed GitHub staging settings. Build-only validation bypass is removed from
-the runtime configuration. A failed/unready
-revision or a digest mismatch prevents the traffic update. Editor and Owner are not required. The single account needs secret-value
-access when its Cloud Run runtime reads Secret Manager references.
-
-Restrict GitHub Environment `staging` to branch `staging` and `production` to
-`main`. Workflow jobs also enforce those branch identities; PRs do not publish
-images or receive deployment credentials. Releases remain serialized by branch.
-`vercel.json` continues to disable automatic Vercel Git deployments, preventing a
-duplicate remote build. Existing staging Vercel revisions remain available, but
-this workflow no longer updates them once the change reaches `staging`. Do not
-remove the old deployment or move DNS until Cloud Run acceptance and rollback
-checks pass. See the runbook for runtime secrets, cron, cost, OAuth, and origin
-checks before cutover.
+Before dispatch, complete the required staging cutover/backfill and coordinate
+matching worker deployment. Keep production held during staging recovery. The
+staging manual job deliberately permits this explicitly requested release while
+the production hold is active. DNS and project pause/protection settings are
+operator-controlled and are not changed by CI. See the runbook for checks and
+rollback before reopening traffic.
 
 ## Turso Database
 
@@ -592,7 +528,7 @@ The always-on PDF page reader requires `source-read-page` in the Deno compute ap
 
 Interactive Playground and runnable Article examples use the shared Render
 Python worker on the public staging and production origins. Set
-`PYTHON_RUNTIME_TOKEN_SECRET` in GitHub Environment `staging`, Cloud Run staging,
+`PYTHON_RUNTIME_TOKEN_SECRET` in GitHub Environment `staging`, Vercel staging,
 and Vercel Production to the key configured on the Render worker. Configure the
 worker's `PYTHON_RUNTIME_ORIGIN` as the comma-separated exact origins
 `https://staging.zyxacademy.com,https://www.zyxacademy.com,https://zyxacademy.com`.
