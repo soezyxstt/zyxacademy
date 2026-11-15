@@ -87,7 +87,7 @@ function pageFixture(student: boolean) {
   "@/components/gamification/achievement-board": { profileBadgeFamilies: [] },
   "@/components/student-profile-view": { StudentProfileView: () => <div>Student profile</div> },
   "@/components/gamification/profile-follow-list": { ProfileFollowList: () => null },
-  "@/components/gamification/profile-settings": { ProfileSettings: () => <div>Student customization</div> },
+  "@/components/gamification/profile-settings": { ProfileSettings: ({ academicForm }: { academicForm?: React.ReactNode }) => <div>Student customization{academicForm}</div> },
   "./profile-edit-form": { ProfileEditForm: () => <form>Academic profile</form> },
   "@/lib/gamification/access": { getStudentGamificationAccess: async () => student ? { user } : null },
   "@/lib/gamification/social": { getStudentSocialSettings: guarded("social", { featuredBadgeIds: [] }) },

@@ -17,6 +17,8 @@ export function getLayoutGroup(pathname: string): string {
     "/calendar",
     "/feedback",
     "/leaderboard",
+    "/achievements",
+    "/students",
     "/profile",
     "/settings",
     "/courses",

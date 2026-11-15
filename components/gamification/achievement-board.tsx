@@ -14,21 +14,22 @@ type AchievementBoardProps = {
   tierLabel: (tier: number) => string;
   action?: ReactNode;
   featuredBadgeIds?: string[];
+  compact?: boolean;
 };
 
-export function AchievementBoard({ badges, title, familyLabels, lockedLabel, tierLabel, action, featuredBadgeIds = [] }: AchievementBoardProps) {
+export function AchievementBoard({ badges, title, familyLabels, lockedLabel, tierLabel, action, featuredBadgeIds = [], compact = false }: AchievementBoardProps) {
   const families = [...profileBadgeFamilies].sort((a, b) => {
     const aIndex = featuredBadgeIds.indexOf(a);
     const bIndex = featuredBadgeIds.indexOf(b);
     return (aIndex < 0 ? profileBadgeFamilies.length : aIndex) - (bIndex < 0 ? profileBadgeFamilies.length : bIndex);
   });
-  return <section className="space-y-3">
+  return <section className="@container/badges min-w-0 space-y-3">
     <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-heading text-body-base font-bold">{title}</h2>{action}</div>
-    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3 lg:grid-cols-6">
+    <div className={`grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border ${compact ? "@sm/badges:grid-cols-3" : "sm:grid-cols-3 lg:grid-cols-6"}`}>
       {families.map(family => {
         const tier = Math.max(0, ...badges.filter(badge => badge.family === family && Number.isInteger(badge.tier) && badge.tier <= 5).map(badge => badge.tier));
         return <div key={family} className="flex min-w-0 flex-col items-center gap-1 bg-card p-3 text-center">
-          {tier > 0 ? <BadgeArtwork family={family} tier={tier} size={72} /> : <div className="flex size-[72px] items-center justify-center rounded-lg bg-muted text-muted-foreground"><LockKeyhole className="size-6" aria-hidden /></div>}
+          {tier > 0 ? <BadgeArtwork family={family} tier={tier} size={compact ? 56 : 72} /> : <div className={`flex items-center justify-center ${compact ? "size-14 text-muted-foreground/60" : "size-[72px] rounded-lg bg-muted text-muted-foreground"}`}><LockKeyhole className="size-6" aria-hidden /></div>}
           <p className="text-body-xs font-semibold">{familyLabels[family]}</p>
           <p className="text-body-xs text-muted-foreground">{tier > 0 ? tierLabel(tier) : lockedLabel}</p>
         </div>;

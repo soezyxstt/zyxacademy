@@ -126,7 +126,7 @@
     "saveFailed": "Profil tidak dapat disimpan. Periksa data Anda dan coba lagi.",
     "metadataTitle": "Profil pengguna",
     "metadataDescription": "Profil akademis, statistik belajar, kelompok belajar, dan jadwal tutorial Anda di Zyx Academy.",
-    "editTitle": "Edit profil akademis",
+    "editTitle": "Edit profil",
     "errors": {
       "sessionExpired": "Sesi telah berakhir. Silakan masuk kembali.",
       "facultyRequired": "Pilih fakultas atau sekolah ITB Anda.",
@@ -439,8 +439,8 @@
     "metadataDescription": "Perkembangan belajar mingguan, aktivitas yang diselesaikan, dan pertumbuhan pemahaman materi Anda di Zyx Academy."
   },
   "metadata": {
-    "profileEditTitle": "Edit profil akademis",
-    "profileEditDescription": "Lengkapi identitas akademis ITB Anda untuk personalisasi rekomendasi materi dan kelas."
+    "profileEditTitle": "Edit profil",
+    "profileEditDescription": "Atur informasi akademis, privasi, dan tampilan profil Anda."
   },
   "leaderboard": {
     "title": "Papan peringkat",
@@ -454,6 +454,16 @@
     "quizzes": "Kuis"
   },
   "profileCustomization": {
+    "academicTab": "Akademis",
+    "privacyTab": "Privasi",
+    "appearanceTab": "Tampilan",
+    "savePrivacy": "Simpan privasi",
+    "saveAppearance": "Simpan tampilan",
+    "photoSource": "Foto mengikuti akun Google Anda.",
+    "nameFallback": "Kosongkan untuk menggunakan nama akun Google.",
+    "privacyEffect": "Profil privat menyembunyikan Anda dari pencarian dan peringkat, serta menghapus hubungan pengikut. Mematikan pengikut menghapus pengikut Anda.",
+    "ownedOnly": "Pilihan menampilkan kosmetik yang sudah Anda miliki.",
+    "getCosmetics": "Koleksi kosmetik",
     "save": "Simpan preferensi",
     "saved": "Preferensi profil berhasil disimpan.",
     "yourFrame": "Bingkai Anda",

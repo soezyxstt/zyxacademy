@@ -126,7 +126,7 @@
     "saveFailed": "Could not save your profile. Check your details and try again.",
     "metadataTitle": "User profile",
     "metadataDescription": "Your academic profile, study statistics, learning groups, and tutorial schedule at Zyx Academy.",
-    "editTitle": "Edit academic profile",
+    "editTitle": "Edit profile",
     "errors": {
       "sessionExpired": "Your session has expired. Please sign in again.",
       "facultyRequired": "Select your ITB faculty or school.",
@@ -439,8 +439,8 @@
     "metadataDescription": "Your weekly study progress, completed activities, and growth in course mastery at Zyx Academy."
   },
   "metadata": {
-    "profileEditTitle": "Edit academic profile",
-    "profileEditDescription": "Add your ITB academic details to personalize course and material recommendations."
+    "profileEditTitle": "Edit profile",
+    "profileEditDescription": "Manage your academic details, privacy, and profile appearance."
   },
   "leaderboard": {
     "title": "Leaderboard",
@@ -454,6 +454,16 @@
     "quizzes": "Quizzes"
   },
   "profileCustomization": {
+    "academicTab": "Academic",
+    "privacyTab": "Privacy",
+    "appearanceTab": "Appearance",
+    "savePrivacy": "Save privacy",
+    "saveAppearance": "Save appearance",
+    "photoSource": "Your photo comes from your Google account.",
+    "nameFallback": "Leave blank to use your Google account name.",
+    "privacyEffect": "A private profile hides you from search and rankings and removes follow connections. Turning off followers removes your followers.",
+    "ownedOnly": "Options show cosmetics you already own.",
+    "getCosmetics": "Cosmetic collection",
     "save": "Save preferences",
     "saved": "Profile preferences saved.",
     "yourFrame": "Your frame",
