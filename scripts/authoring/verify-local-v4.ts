@@ -17,14 +17,8 @@ import { closeProductV4BrowserRunner, validateDeployedVerificationBaseUrl } from
 const flag = process.argv.indexOf("--renderer");
 const renderer = new URL(flag >= 0 ? process.argv[flag + 1] : "http://127.0.0.1:3101");
 if (renderer.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(renderer.hostname) || renderer.pathname !== "/" || renderer.username || renderer.password || renderer.search || renderer.hash) throw new Error("LOCAL_RENDERER_ORIGIN_REQUIRED");
-const webFlag = process.argv.indexOf("--web");
-if (typeof (globalThis as { Deno?: unknown }).Deno !== "undefined") {
-  if (webFlag < 0) throw new Error("DEPLOYED_WEB_ORIGIN_REQUIRED");
-  process.env.NEXT_PUBLIC_APP_URL = validateDeployedVerificationBaseUrl(process.argv[webFlag + 1]);
-} else {
-  if (!process.env.AUTHORING_VERIFICATION_RENDERER_SECRET) throw new Error("AUTHORING_VERIFICATION_RENDERER_SECRET_REQUIRED");
-  process.env.AUTHORING_VERIFICATION_RENDERER_URL = renderer.origin;
-}
+if (!process.env.AUTHORING_VERIFICATION_RENDERER_SECRET) throw new Error("AUTHORING_VERIFICATION_RENDERER_SECRET_REQUIRED");
+process.env.AUTHORING_VERIFICATION_RENDERER_URL = renderer.origin;
 const outputFlag = process.argv.indexOf("--output");
 const root = path.resolve(outputFlag >= 0 ? process.argv[outputFlag + 1] : "artifacts/authoring-verification/local-run");
 await mkdir(root, { recursive: true });

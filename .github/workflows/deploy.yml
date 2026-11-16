@@ -8,14 +8,6 @@ on:
         default: true
   workflow_dispatch:
     inputs:
-      runtime_diagnostics:
-        description: "Read the production worker rollback identity without deploying or exporting secrets"
-        type: boolean
-        default: false
-      restore_turso_worker:
-        description: "Restore the recorded pre-Neon production worker and its original storage/database routing"
-        type: boolean
-        default: false
       browser_diagnostics:
         description: "Probe Browser Run only, without deploying or changing application data"
         type: boolean
@@ -49,19 +41,19 @@ permissions:
   actions: read
 
 concurrency:
-  group: deploy-deno-${{ github.ref }}-${{ inputs.maintenance || 'none' }}
+  group: deploy-worker-${{ github.ref }}-${{ inputs.maintenance || 'none' }}
   cancel-in-progress: false
 
 jobs:
   deploy-neon-staging:
-    if: github.event_name != 'pull_request' && (!inputs.maintenance || inputs.maintenance == 'none') && !inputs.business_acceptance && !inputs.browser_diagnostics && !inputs.runtime_diagnostics && !inputs.restore_turso_worker && github.ref_name == 'staging'
+    if: github.event_name != 'pull_request' && (!inputs.maintenance || inputs.maintenance == 'none') && !inputs.business_acceptance && !inputs.browser_diagnostics && github.ref_name == 'staging'
     uses: ./.github/workflows/deploy-neon-worker.yml
     with:
       environment: staging
     secrets: inherit
 
   deploy-neon-production:
-    if: github.event_name != 'pull_request' && (!inputs.maintenance || inputs.maintenance == 'none') && !inputs.business_acceptance && !inputs.browser_diagnostics && !inputs.runtime_diagnostics && !inputs.restore_turso_worker && (github.ref_name == 'main' || (github.event_name == 'workflow_dispatch' && inputs.diagnostic_environment == 'production'))
+    if: github.event_name != 'pull_request' && (!inputs.maintenance || inputs.maintenance == 'none') && !inputs.business_acceptance && !inputs.browser_diagnostics && (github.ref_name == 'main' || (github.event_name == 'workflow_dispatch' && inputs.diagnostic_environment == 'production'))
     uses: ./.github/workflows/deploy-neon-worker.yml
     with:
       environment: production
@@ -157,26 +149,6 @@ jobs:
             artifacts/neon-worker/production/admin-knowledge-smoke.json
             artifacts/neon-worker/production/assessment-smoke.json
             artifacts/neon-worker/production/assessment-retained.json
-          retention-days: 7
-
-  runtime-diagnostics:
-    if: github.event_name == 'workflow_dispatch' && (!inputs.maintenance || inputs.maintenance == 'none') && (inputs.runtime_diagnostics || inputs.restore_turso_worker)
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-    timeout-minutes: 3
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          persist-credentials: false
-      - run: python3 .github/scripts/inspect_production_deno.py ${{ inputs.restore_turso_worker && '--restore-turso' || '' }}
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-      - uses: actions/upload-artifact@v4
-        if: ${{ !inputs.restore_turso_worker }}
-        with:
-          name: neon-production-deno-before
-          path: artifacts/neon-production/deno-before.json
           retention-days: 7
 
   browser-diagnostics:

@@ -59,7 +59,7 @@ async function readAdmittedDocumentAsset(spec: InteractiveDocumentSpec, kind: "d
 export const PRODUCT_V4_RUNTIME_FILES = [
   "next.config.ts", "scripts/authoring/prepare-web-verification.ts",
   "scripts/authoring/verify-product-v4-local.ts", "scripts/authoring/run-product-v4-local.mjs", "lib/compute/product-v4-local-operator.ts", "scripts/neon/validate-production-target.ts", "scripts/neon/import-core.ts",
-  "deno.json", "workers/deno-background/deno.json", "lib/compute/runtime.ts", "lib/compute/pdf-pages.ts", "lib/compute/pdf-worker.ts",
+  "lib/compute/runtime.ts", "lib/compute/pdf-pages.ts", "lib/compute/pdf-worker.ts",
   "lib/compute/browser-pdf.ts", "lib/compute/pdf-inspection.ts", "scripts/neon/build-worker.mjs",
   "app/globals.css", "app/layout.tsx", "app/authoring-verification/page.tsx",
   "components/providers/telemetry-boundary.tsx", "components/providers/posthog-provider.tsx", "lib/env.ts",
@@ -223,7 +223,7 @@ export async function buildProductV4RuntimeBinding(input: { row: ImportRow; bund
     }
   }
   return { importId: row.id, courseId: course.id, runId, revision: Number.parseInt(row.checksum.slice(0, 8), 16) + 1,
-    ...(process.env.NODE_ENV === "production" || typeof (globalThis as { Deno?: unknown }).Deno !== "undefined" || process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER ? verificationBrowserIdentity() : {}),
+    ...(process.env.NODE_ENV === "production" || process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER ? verificationBrowserIdentity() : {}),
     ...runtime, policyRevision: PRODUCT_V4_VERIFICATION_POLICY, dependencyChecksum,
     assetChecksum: hash({ figures: figures.map(figure => ({ metadata: figure.metadata, variants: figure.variants.map(({ bytes, ...variant }) => ({ ...variant, byteLength: bytes.length, readbackChecksum: bytesHash(bytes) })) })), documents: documentAssets }),
   };
@@ -260,11 +260,9 @@ function runtimePackageManifest(name: string): string {
 }
 
 export async function readProductV4RuntimeFingerprint(): Promise<ProductV4RuntimeFingerprint> {
-  if (typeof (globalThis as { Deno?: unknown }).Deno !== "undefined" || process.env.ZYX_COMPUTE_RUNTIME === "neon" || process.env.NEXT_PUBLIC_V4_WEB_RUNTIME) {
+  if (process.env.ZYX_COMPUTE_RUNTIME === "neon" || process.env.NEXT_PUBLIC_V4_WEB_RUNTIME) {
     // Next embeds the build identity; serverless bundles do not retain source module URLs.
-    const fingerprint = JSON.parse(typeof (globalThis as { Deno?: unknown }).Deno !== "undefined"
-      ? readFileSync(new URL("./product-v4-build-runtime.json", import.meta.url), "utf8")
-      : process.env.ZYX_COMPUTE_RUNTIME === "neon" ? process.env.ZYX_COMPUTE_BUILD_RUNTIME! : process.env.NEXT_PUBLIC_V4_WEB_RUNTIME!);
+    const fingerprint = JSON.parse(process.env.ZYX_COMPUTE_RUNTIME === "neon" ? process.env.ZYX_COMPUTE_BUILD_RUNTIME! : process.env.NEXT_PUBLIC_V4_WEB_RUNTIME!);
     for (const key of ["rendererChecksum", "fontChecksum", "contractChecksum", "playbookChecksum"]) if (!/^[a-f0-9]{64}$/.test(fingerprint[key] ?? "")) throw new Error("PRODUCT_V4_BUILD_RUNTIME_INVALID");
     if (!fingerprint.printProfile) throw new Error("PRODUCT_V4_BUILD_RUNTIME_INVALID");
     return fingerprint;

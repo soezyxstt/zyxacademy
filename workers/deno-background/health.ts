@@ -7,11 +7,7 @@ import { computeFunctions } from "@/jobs/compute";
  */
 export function healthHandler(c: Context) {
   c.header("Cache-Control", "no-store");
-  const version =
-    process.env.ZYX_COMPUTE_REVISION ||
-    (typeof process !== "undefined" && process.env?.DENO_DEPLOYMENT_ID) ||
-    (typeof (globalThis as any).Deno !== "undefined" && (globalThis as any).Deno.env.get("DENO_DEPLOYMENT_ID")) ||
-    "dev";
+  const version = process.env.ZYX_COMPUTE_REVISION || "dev";
 
   return c.json({
     status: "ok",

@@ -13,7 +13,7 @@ tracked = set(subprocess.check_output(['git', 'ls-files', '-z', '--cached'], cwd
 untracked = set(subprocess.check_output(['git', 'ls-files', '-z', '--others', '--exclude-standard'], cwd=root).decode().split('\0'))
 paths = tracked | untracked
 allowed_roots = {'app', 'components', 'lib', 'db', 'public', 'messages', 'i18n', 'hooks', 'types', 'prompts', 'jobs', 'workers', 'scripts', 'tests'}
-root_files = {'package.json', 'bun.lock', 'bun.lockb', 'tsconfig.json', 'next.config.ts', 'postcss.config.mjs', 'components.json', 'proxy.ts', 'instrumentation.ts', 'playwright.config.ts', 'deno.json', 'sentry.client.config.ts', 'sentry.server.config.ts', 'sentry.edge.config.ts'}
+root_files = {'package.json', 'bun.lock', 'bun.lockb', 'tsconfig.json', 'next.config.ts', 'postcss.config.mjs', 'components.json', 'proxy.ts', 'instrumentation.ts', 'playwright.config.ts', 'sentry.client.config.ts', 'sentry.server.config.ts', 'sentry.edge.config.ts'}
 for name in set(paths):
     if not name:
         continue

@@ -14,7 +14,7 @@ import { PRODUCT_DIKTAT_RENDERER_VERSION, PRODUCT_DIKTAT_PRINT_PROFILE } from "@
 export { PRODUCT_DIKTAT_RENDERER_VERSION, PRODUCT_DIKTAT_PRINT_PROFILE };
 
 export function buildSelfContainedKatexCss(): string {
-  const require = createRequire("Deno" in globalThis ? new URL("../../workers/deno-background/package.json", import.meta.url) : import.meta.url);
+  const require = createRequire(import.meta.url);
   const distDir = path.dirname(require.resolve("katex"));
   const rawCss = readFileSync(path.join(distDir, "katex.min.css"), "utf8");
   return rawCss.replace(/url\(fonts\/(KaTeX_[^)]+\.woff2)\) format\("woff2"\)(?:,url\([^)]+\) format\("[^"]+"\))*/g, (_match, filename) => {

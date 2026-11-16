@@ -28,8 +28,6 @@ const FORBIDDEN_PATTERNS = [
 ];
 
 const CONFIG_FILES = [
-  "deno.json",
-  "deno.lock",
   "package.json",
   "bun.lock",
   "next.config.ts",

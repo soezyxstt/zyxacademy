@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = (ROOT / ".github/workflows/deploy.yml").read_text()
 JOBS = dict(re.findall(r"(?ms)^  ([\w-]+):\n(.*?)(?=^  [\w-]+:\n|\Z)", WORKFLOW.split("\njobs:\n", 1)[1]))
 MODES = ("vector-plan", "vector-apply", "vector-apply-short", "vector-verify", "remaining", "remaining-independent", "product-pdf", "admin-knowledge", "assessment")
-FLAGS = ("business_acceptance", "browser_diagnostics", "runtime_diagnostics", "restore_turso_worker")
+FLAGS = ("business_acceptance", "browser_diagnostics")
 
 
 def allowed(job, maintenance, branch="main", event="workflow_dispatch", **flags):
@@ -23,7 +23,7 @@ def allowed(job, maintenance, branch="main", event="workflow_dispatch", **flags)
 
 class WorkerMaintenanceTest(unittest.TestCase):
     def test_maintenance_blocks_every_other_job_even_with_mixed_flags(self):
-        for mode, branch, bits in product(MODES, ("main", "staging", "agent/recovery"), product((False, True), repeat=4)):
+        for mode, branch, bits in product(MODES, ("main", "staging", "agent/recovery"), product((False, True), repeat=len(FLAGS))):
             flags = dict(zip(FLAGS, bits))
             with self.subTest(mode=mode, branch=branch, flags=flags):
                 self.assertTrue(allowed("maintain-existing-worker", mode, branch=branch, **flags))
@@ -39,8 +39,6 @@ class WorkerMaintenanceTest(unittest.TestCase):
                 self.assertTrue(allowed("deploy-neon-staging", mode, branch="staging"))
                 self.assertTrue(allowed("verify-existing-worker", mode, business_acceptance=True))
                 self.assertTrue(allowed("browser-diagnostics", mode, browser_diagnostics=True))
-                self.assertTrue(allowed("runtime-diagnostics", mode, runtime_diagnostics=True))
-                self.assertTrue(allowed("runtime-diagnostics", mode, restore_turso_worker=True))
         for mode, event in product(MODES, ("push", "pull_request")):
             self.assertFalse(allowed("maintain-existing-worker", mode, event=event))
 
