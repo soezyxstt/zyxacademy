@@ -189,7 +189,12 @@
       "book": "Could not book the slot.",
       "saveLink": "Could not save the link.",
       "connection": "Booking failed. Try again."
-    }
+    },
+    "openPicker": "Book session",
+    "pickerTitle": "Choose a tutorial slot",
+    "pickerDescription": "Slots for the selected week and filters, in Jakarta time.",
+    "noSlots": "No available slots",
+    "noSlotsHelp": "Choose another week or filter, or ask your tutor to add a slot."
   },
   "calendar": {
     "day": "Day",

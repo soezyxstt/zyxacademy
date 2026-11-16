@@ -182,7 +182,10 @@
     "saving": "Saving…",
     "confirmRename": "Confirm and rename",
     "metadataDescription": "Your study groups, semester meeting allotment, study partners, and courses.",
-    "title": "Study groups"
+    "title": "Study groups",
+    "nameLength": "Use 3 to 80 characters.",
+    "tutorialPackage": "Tutorial package",
+    "weeklySessions": "{count} sessions per week"
   },
   "feedback": {
     "categoryCourseMaterials": "Course materials",
@@ -581,7 +584,28 @@
     "unavailable": "Could not load. Try again.",
     "invalidFilter": "Invalid leaderboard link",
     "reset": "View leaderboard",
-    "retry": "Try again"
+    "retry": "Try again",
+    "promotionRequirement": "Promotion requires both XP and course credits.",
+    "goToMissions": "View missions",
+    "previewItem": "View {name}",
+    "before": "Before",
+    "after": "After",
+    "rewardGroups": {
+      "frame": "Avatar frames",
+      "title": "Titles",
+      "theme": "Profile themes",
+      "zyra_skin": "Zyra themes",
+      "zyra_avatar": "Zyra mascots"
+    },
+    "missionCategory": {
+      "material": "Materials",
+      "question": "Practice questions",
+      "recall": "Flashcards",
+      "qualified_days": "Consistency",
+      "unknown": "Missions"
+    },
+    "previewExplanation": "To find the derivative of f(x) = x², use the power rule. Multiply the coefficient by the power of x, then reduce that power by one. The original coefficient is 1 and the power is 2, so the result is 2 × 1 × x¹. In its simplest form:",
+    "previewFollowup": "The same rule applies to other powers. Try it with f(x) = x³: what are the coefficient and the power of x after differentiating?"
   },
   "celebration": {
     "badgeUnlocked": "Achievement unlocked",

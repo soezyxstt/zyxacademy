@@ -41,15 +41,18 @@ import {
   getStudentSearchDocuments,
   getMarketingSearchDocuments,
 } from "@/app/(student)/dashboard/search-actions";
-import { StudentAccountBoundary, type StudentAccountState } from "@/components/student-account-boundary";
+import { StudentAccountBoundary, isStudentSocialAccount, type StudentAccountState } from "@/components/student-account-boundary";
 import { useStudentExperience } from "@/components/student-experience-provider";
+import { useStudentSocial } from "@/components/gamification/social-provider";
 import {
   parseSearchQueryString,
   SEARCH_PREFIX_DEFINITIONS,
 } from "@/lib/search/parser";
 import { rankSearchDocuments } from "@/lib/search/ranking";
 import Fuse from "fuse.js";
-import { useTranslations } from "@/lib/i18n/client";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import type { StudentIdentity } from "@/lib/gamification/social-contracts";
+import { StudentIdentityContent } from "@/components/gamification/student-identity";
 
 export interface SearchItem {
   id: string;
@@ -410,15 +413,17 @@ const MARKETING_SUGGESTED_TOPICS = [
   },
 ];
 
-type CommandMenuDialogProps = { open: boolean; onOpenChange: (open: boolean) => void };
+type CommandMenuDialogProps = { open: boolean; onOpenChange: (open: boolean) => void; onSelectStudent: (publicId: string) => void; studentSurface: boolean };
 export function CommandMenuDialog(props: CommandMenuDialogProps) {
   return <StudentAccountBoundary>{account => <CommandMenuDialogContent {...props} account={account} />}</StudentAccountBoundary>;
 }
-function CommandMenuDialogContent({ open, onOpenChange, account }: CommandMenuDialogProps & { account: StudentAccountState }) {
+function CommandMenuDialogContent({ open, onOpenChange, onSelectStudent, studentSurface, account }: CommandMenuDialogProps & { account: StudentAccountState }) {
   const router = useRouter();
   const t = useTranslations("search");
+  const { locale } = useAppLocale();
   const { data: session } = account;
   const experience = useStudentExperience();
+  const social = useStudentSocial();
   const demo = experience.mode === "demo";
   const recentStorageKey = demo ? `demo_${RECENT_STORAGE_KEY}` : RECENT_STORAGE_KEY;
   const favoritesStorageKey = demo ? `demo_${FAVORITES_STORAGE_KEY}` : FAVORITES_STORAGE_KEY;
@@ -442,6 +447,8 @@ function CommandMenuDialogContent({ open, onOpenChange, account }: CommandMenuDi
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [apiResults, setApiResults] = useState<SiteSearchDocument[]>([]);
+  const [people, setPeople] = useState<StudentIdentity[]>([]);
+  const [peopleLoading, setPeopleLoading] = useState(false);
   const resultListRef = useRef<HTMLDivElement>(null);
 
   // Local storage states
@@ -544,6 +551,23 @@ function CommandMenuDialogContent({ open, onOpenChange, account }: CommandMenuDi
 
   const trimmed = search.trim();
   const parsedQuery = useMemo(() => parseSearchQueryString(trimmed), [trimmed]);
+  const studentAccount = isStudentSocialAccount(account);
+  const peopleQuery = !parsedQuery.isScoped || parsedQuery.prefixType === "user" ? parsedQuery.cleanQuery : "";
+  useEffect(() => {
+    setPeople([]);
+    if (!open || !studentSurface || !studentAccount || peopleQuery.length < 2 || peopleQuery.length > 80) {
+      setPeopleLoading(false);
+      return;
+    }
+    let active = true;
+    setPeopleLoading(true);
+    const timer = window.setTimeout(() => {
+      social.search(peopleQuery).then(result => { if (active) setPeople(result); })
+        .catch(() => { if (active) setPeople([]); })
+        .finally(() => { if (active) setPeopleLoading(false); });
+    }, 250);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [open, studentSurface, studentAccount, peopleQuery, social]);
   const activePrefixLabel = parsedQuery.prefixType
     ? t(`prefixLabels.${parsedQuery.prefixType}`)
     : parsedQuery.prefixLabel;
@@ -1128,7 +1152,7 @@ function CommandMenuDialogContent({ open, onOpenChange, account }: CommandMenuDi
                   )}
 
                   {/* State 3: Empty / No Results (search !== "" && flatResults.length === 0 && !loading) */}
-                  {trimmed && !isHelpMode && flatResults.length === 0 && !isLoading && (
+                  {trimmed && !isHelpMode && flatResults.length === 0 && people.length === 0 && !isLoading && !peopleLoading && (
                     <div className="py-4">
                       <div className="flex flex-col items-center justify-center gap-2 px-4 py-8 text-center">
                         <FolderSearch
@@ -1323,6 +1347,13 @@ function CommandMenuDialogContent({ open, onOpenChange, account }: CommandMenuDi
                       </div>
                     </div>
                   )}
+
+                  {trimmed && !isHelpMode && people.length > 0 && <Command.Group
+                    heading={locale === "en" ? "People" : "Orang"}
+                    className="mt-2 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-muted-foreground"
+                  >{people.map(person => <Command.Item key={person.publicId} value={`person ${person.publicId} ${person.displayName}`} onSelect={() => onSelectStudent(person.publicId)} className="group my-1 flex cursor-pointer items-center gap-3 rounded-lg border border-transparent bg-muted/40 px-3 py-2 text-body-sm outline-none aria-selected:border-primary/20 aria-selected:bg-primary aria-selected:text-primary-foreground">
+                    <StudentIdentityContent name={person.displayName} identity={person} />
+                  </Command.Item>)}</Command.Group>}
 
                   {/* State 2: Active Search Results with Parent-Children Hierarchy */}
                   {trimmed &&

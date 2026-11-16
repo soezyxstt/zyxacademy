@@ -4,20 +4,17 @@ import { Reveal } from "@/components/ui/reveal";
 import { PageHeader } from "@/components/page-header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { studentCardClass } from "@/components/course/course-surfaces";
+import { StudentIdentity } from "@/components/gamification/student-identity";
+import type { StudentIdentity as PublicStudentIdentity } from "@/lib/gamification/social-contracts";
 import { TranslatedText } from "@/components/i18n/translated-text";
-export function StudentAcademicLeaderboardView({ href = (path: string) => path,  allCourses, leaderboardByCourse }: { href?: (path: string) => string;
+export function StudentAcademicLeaderboardView({ href = (path: string) => path, embedded = false, allCourses, leaderboardByCourse }: { href?: (path: string) => string;
+ embedded?: boolean;
  allCourses: { id: string; title: string }[];
- leaderboardByCourse: Record<string, { rank: number; name: string; avgScore: number; attempts: number }[]>;
+ leaderboardByCourse: Record<string, { rank: number; name: string; avgScore: number; attempts: number; identity?: PublicStudentIdentity | null }[]>;
 }) {
 
-  return (
-    <Reveal className="w-full px-4 py-8 sm:px-6 lg:px-8 space-y-6">
-      <PageHeader
-        title={<TranslatedText namespace="student" messageKey="leaderboard.title" />}
-        icon={Trophy}
-      />
-
-      {allCourses.length === 0 ? (
+  const content = (
+      allCourses.length === 0 ? (
         <div className={studentCardClass("py-16 text-center max-w-md mx-auto bg-card/50 p-8 shadow-xs")}>
           <Trophy className="size-10 text-muted-foreground/30 mx-auto mb-4" />
           <p className="text-body-sm text-muted-foreground">
@@ -63,7 +60,7 @@ export function StudentAcademicLeaderboardView({ href = (path: string) => path, 
                     <TableBody>{rows.map((row) => (
                       <TableRow key={`${course.id}-${row.rank}`}>
                         <TableCell className="tabular-nums">{row.rank}</TableCell>
-                        <TableCell className="font-medium">{row.name}</TableCell>
+                        <TableCell><StudentIdentity name={row.name} identity={row.identity} /></TableCell>
                         <TableCell className="text-right tabular-nums text-primary">{row.avgScore}%</TableCell>
                         <TableCell className="text-right tabular-nums">{row.attempts}</TableCell>
                       </TableRow>
@@ -74,7 +71,14 @@ export function StudentAcademicLeaderboardView({ href = (path: string) => path, 
             );
           })}
         </div>
-      )}
+      )
+  );
+
+  if (embedded) return content;
+  return (
+    <Reveal className="w-full px-4 py-8 sm:px-6 lg:px-8 space-y-6">
+      <PageHeader title={<TranslatedText namespace="student" messageKey="leaderboard.title" />} icon={Trophy} />
+      {content}
     </Reveal>
   );
 }

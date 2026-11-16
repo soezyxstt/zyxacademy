@@ -2,6 +2,22 @@
 
 Status: ACTIVE source contract. Verification: OPEN / IN PROGRESS. This describes the current local implementation, not a deployment or runtime acceptance.
 
+## Student achievements and social presentation
+
+Status: ACTIVE local source. Full application acceptance: OPEN / IN PROGRESS.
+
+`/leaderboard` uses URL-addressable Rank and Academic tabs with one filter button at the far right of the same row. Rank filters period and global/following scope; Academic filters eligible courses while keeping academic rankings within each course. `/leaderboard/academic` redirects to `?tab=academic` and preserves query values. Changing filters clears the pagination cursor.
+
+`/achievements` has Overview, Badges, Missions and Rewards tabs. Overview shows the current and next rank, XP, LP, promotion requirements and collected badges. Badge dialogs show a horizontally scrollable tier sequence followed by progress. Missions retain the existing active-mission query and group by activity because the mission projection has no course identity. Rewards use collapsible slot groups and shared animated frame, draggable 3D mascot and before/after chat skin previews. The LP plus control links to Missions. Purchase, inventory and equip contracts remain unchanged.
+
+`StudentIdentity` and `StudentIdentityContent` share the avatar, frame, name and subtle rank presentation. Authorized identities open `StudentProfileDialog` from participation, academic and course leaderboards, study group rosters, follow lists and student command-menu search. Profile access is checked again on opening. The profile page and public dialog include the equipped, owned Zyra mascot using the selected large viewer. The public dialog contains rank, badge board, following controls and counts. Its full-profile link preserves access to Block and Report; successful follow changes refresh open relationship lists. Both locales use Follow and Unfollow for actions; base XP is returned only for participation leaderboard opt-in. LP and private academic statistics are not public fields. Names already authorized by a course or group retain their existing fallback when public profile enrichment is unavailable.
+
+The public demo uses the same achievement, leaderboard and identity renderers with deterministic fictional data. Its social lookup, profiles, follows and reward transactions use a demo-only browser adapter; reset clears this state. The demo context course remains separate from the academic filter.
+
+People search runs after 250 ms for literal names of 2 to 80 characters and returns at most 10 public identities. Both search and roster enrichment require eligible student access, member-visible profiles and no block in either direction. Staff, marketing and public demo search do not query the student directory. Search results expose public IDs without email or internal account IDs. No AI quota is used.
+
+The local fixtures use fictional people and mocked actions. They do not establish full Next.js routing, PostgreSQL execution, authentication, hosted search, persistence or deployment acceptance.
+
 ## Rewards and ranks
 
 XP and course credits use integer millionths. Each eligible event receives base XP and a bonus calculated from the rank before that event; a rank earned by it affects later events. LP is a separate integer currency earned through badge tiers, missions and eligible discussion answers and spent on cosmetics. Rank art and achievement badge art are distinct.

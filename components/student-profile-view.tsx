@@ -13,12 +13,12 @@ import type { BadgeFamily, RankKey } from "@/lib/gamification/contracts";
 
 type ProfileLabels = { pageTitle: string; edit: string; active: string; completed: string; exams: string; average: string; badgeBoard: string; locked: string; tiers: string[]; achievements: string; enrolled: string; noCourses: string; groups: string; tutorials: string; reflections: string; familyLabels: Record<BadgeFamily, string> };
 type ProfileLinks = { edit: string; achievements?: string; courses: string; course: string; groups: string; schedule: string; reflections: string };
-export function StudentProfileView({ name, image, frameId, themeId, title, academicInfo, rank, baseXpMicro, bonusXpMicro, lpBalance, stats, enrollments, badges, featuredBadgeIds, labels, links, followSection }: {
- name: string; image?: string | null; frameId?: string | null; themeId?: string | null; title?: string | null; academicInfo: string; rank: RankKey; baseXpMicro: number; bonusXpMicro: number; lpBalance: number;
+export function StudentProfileView({ name, image, frameId, themeId, title, zyraAvatarId, academicInfo, rank, baseXpMicro, bonusXpMicro, lpBalance, stats, enrollments, badges, featuredBadgeIds, labels, links, followSection, locale }: {
+ locale?: string; name: string; image?: string | null; frameId?: string | null; themeId?: string | null; title?: string | null; zyraAvatarId?: string | null; academicInfo: string; rank: RankKey; baseXpMicro: number; bonusXpMicro: number; lpBalance: number;
  stats: { completedCount: number; submissionCount: number; averageScore: number | null }; enrollments: { id: string; title: string; href?: string }[]; badges: { family: string; tier: number }[]; featuredBadgeIds: string[]; labels: ProfileLabels; links: ProfileLinks; followSection?: ReactNode;
 }) {
  return <ApplicationPage maxWidth="7xl"><PageHeader title={labels.pageTitle} icon={UserRound} actions={<Button asChild variant="outline"><Link href={links.edit}>{labels.edit}</Link></Button>} />
- <ProfileHero name={name} image={image} frameId={frameId} themeId={themeId} title={title} academicInfo={academicInfo} rank={rank} details={<span className="inline-flex flex-wrap gap-x-4 gap-y-1 text-body-sm"><span>{new Intl.NumberFormat().format((baseXpMicro + bonusXpMicro) / MICRO)} XP</span><span>{new Intl.NumberFormat().format(lpBalance)} LP</span></span>} />
+ <ProfileHero name={name} image={image} frameId={frameId} themeId={themeId} title={title} zyraAvatarId={zyraAvatarId} academicInfo={academicInfo} rank={rank} details={<span className="inline-flex flex-wrap gap-x-4 gap-y-1 text-body-sm"><span>{new Intl.NumberFormat(locale).format((baseXpMicro + bonusXpMicro) / MICRO)} XP</span><span>{new Intl.NumberFormat(locale).format(lpBalance)} LP</span></span>} />
  <AdminStatStrip className="grid-cols-2 lg:grid-cols-4">
   <AdminStatStripItem label={labels.active} value={enrollments.length} />
   <AdminStatStripItem label={labels.completed} value={stats.completedCount} />

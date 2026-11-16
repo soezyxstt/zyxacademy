@@ -8,6 +8,13 @@ export type StudentAccountState = {
   data: { user: { id: string; name: string; email: string; image?: string | null; role?: string | null; roles?: string[] | null } } | null;
   isPending: boolean;
 };
+/** UI gate only; server actions independently enforce canonical student access. */
+export function isStudentSocialAccount(state: StudentAccountState): boolean {
+  const user = state.data?.user;
+  if (!user) return false;
+  if (user.roles?.length) return user.roles.includes("murid") && !user.roles.some(role => role === "admin" || role === "tutor");
+  return user.role === "student" || user.role === "murid";
+}
 type Props = { children: (state: StudentAccountState) => ReactNode };
 
 export function StudentAccountBoundary({ children }: Props) {

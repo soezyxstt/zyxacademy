@@ -28,6 +28,8 @@ import { joinGroupWithToken } from "@/app/(student)/dashboard/groups/actions";
 import { formatIsoDate } from "@/lib/date-utils";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { cn } from "@/lib/utils";
+import { StudentIdentity } from "@/components/gamification/student-identity";
+import type { StudentIdentity as PublicStudentIdentity } from "@/lib/gamification/social-contracts";
 
 type StudentGroup = {
   id: string;
@@ -68,6 +70,7 @@ type StudentGroup = {
     id: string;
     userId: string;
     name: string;
+    identity?: PublicStudentIdentity | null;
     email: string;
     image: string | null;
     role: string;
@@ -512,14 +515,9 @@ export function StudentGroupsClient({ initialGroups }: Props) {
             {activeGroup.members.map((m) => (
               <div key={m.userId} className="py-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="size-9 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center font-bold text-body-sm shrink-0 uppercase">
-                    {m.name.charAt(0)}
-                  </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <p className="font-heading text-body-sm font-bold text-foreground truncate">
-                        {m.name}
-                      </p>
+                      <StudentIdentity name={m.name} identity={m.identity} />
                       {m.isMe && (
                         <span className="text-[10px] bg-brand-primary/15 text-brand-primary font-bold px-1.5 py-0.2 rounded shrink-0">
                           Anda

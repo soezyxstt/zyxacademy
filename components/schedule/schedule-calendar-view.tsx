@@ -14,6 +14,8 @@ import {
   Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AdminEmptyState } from "@/components/admin/state-panels";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Popover,
   PopoverContent,
@@ -423,6 +425,7 @@ export function ScheduleCalendarView({
   const [courseFilter, setCourseFilter] = useState(initialCourseFilter || "all");
   const [tutorFilter, setTutorFilter] = useState("all");
   const [now, setNow] = useState(() => new Date());
+  const [bookingPickerOpen, setBookingPickerOpen] = useState(false);
   const today = getJakartaCalendarDate(now);
   const nowMinutes = getJakartaClock(now);
 
@@ -633,6 +636,9 @@ export function ScheduleCalendarView({
   return (
     <div className="min-w-0 space-y-2">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
+        {role === "student" && onSelectSlotToBook ? (
+          <Button size="sm" className="h-9 shrink-0" onClick={() => setBookingPickerOpen(true)}>{t("booking.openPicker")}</Button>
+        ) : null}
         <Select value={viewMode} onValueChange={(value: CalendarViewMode) => setViewMode(value)}>
           <SelectTrigger className="h-9 w-[106px] shrink-0 text-body-sm font-semibold">
             <SelectValue />
@@ -709,6 +715,32 @@ export function ScheduleCalendarView({
           </Popover>
         </div>
       </div>
+
+      {role === "student" && onSelectSlotToBook ? (
+        <Dialog open={bookingPickerOpen} onOpenChange={setBookingPickerOpen}>
+          <DialogContent className="max-h-[85dvh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{t("booking.pickerTitle")}</DialogTitle>
+              <DialogDescription>{t("booking.pickerDescription")}</DialogDescription>
+            </DialogHeader>
+            {filteredEvents.some(event => event.kind === "availability" && !event.locked) ? (
+              <ul className="divide-y divide-border">
+                {filteredEvents.filter(event => event.kind === "availability" && !event.locked)
+                  .sort((a, b) => a.dateIso.localeCompare(b.dateIso) || a.startMinutes - b.startMinutes)
+                  .map(event => (
+                    <li key={event.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                      <div className="min-w-0 text-body-sm">
+                        <p className="font-semibold">{event.source.tutor?.name || t("session.tutorFallback")}</p>
+                        <p className="text-body-xs text-muted-foreground">{formatCalendarDateLabel(event.dateIso, { weekday: "short", day: "numeric", month: "short" }, locale)}, {minutesToTime(event.startMinutes)} - {minutesToTime(event.endMinutes)} WIB</p>
+                      </div>
+                      <Button size="sm" onClick={() => { setBookingPickerOpen(false); openEvent(event); }}>{t("booking.openPicker")}</Button>
+                    </li>
+                  ))}
+              </ul>
+            ) : <AdminEmptyState icon={CalendarDays} title={t("booking.noSlots")} description={t("booking.noSlotsHelp")} />}
+          </DialogContent>
+        </Dialog>
+      ) : null}
 
       {viewMode === "month" ? (
         <MonthView

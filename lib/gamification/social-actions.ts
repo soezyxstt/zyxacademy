@@ -12,6 +12,7 @@ async function safe<T>(fn: () => Promise<T>): Promise<T> {
 }
 async function actor() { return (await requireStudentGamificationAccess()).user.id; }
 export async function getPublicStudentProfileAction(publicId:string) { return safe(async () => social.getPublicStudentProfile(await actor(),publicId)); }
+export async function searchVisibleStudentsAction(query:string) { return safe(async () => social.searchVisibleStudents(await actor(),query)); }
 export async function getStudentSocialSettingsAction() { return safe(async () => social.getStudentSocialSettings(await actor())); }
 export async function updateStudentSocialSettingsAction(input:StudentSocialSettingsInput) { return safe(async () => social.updateStudentSocialSettings(await actor(),input)); }
 export async function followStudentAction(publicId:string) { return safe(async () => social.followStudent(await actor(),publicId)); }
