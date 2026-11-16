@@ -20,7 +20,7 @@ export const WorkerEnvSchema = z.object({
   // Inngest
   INNGEST_EVENT_KEY: optionalString,
   INNGEST_SIGNING_KEY: optionalString,
-  INNGEST_SERVE_ORIGIN: optionalUrl.default("https://zyx-background.soezyxst.deno.net"),
+  INNGEST_SERVE_ORIGIN: optionalUrl,
   INNGEST_SERVE_PATH: z.string().default("/api/inngest"),
 
   // Diktat PDF renderer (Cloudflare Browser Run Quick Action Worker)
@@ -64,7 +64,6 @@ export const WorkerEnvSchema = z.object({
   RESEND_API_KEY: optionalString,
   NEXT_PUBLIC_BRAND_EMAIL: optionalString,
   COMPUTE_SERVICE_SECRET: optionalString,
-  DENO_DEPLOYMENT_ID: optionalString,
   NODE_ENV: z.string().default("production"),
 });
 
@@ -73,9 +72,6 @@ export type WorkerEnv = z.infer<typeof WorkerEnvSchema>;
 function getRuntimeEnv(): Record<string, string | undefined> {
   if (typeof process !== "undefined" && process.env) {
     return process.env;
-  }
-  if (typeof (globalThis as any).Deno !== "undefined") {
-    return (globalThis as any).Deno.env.toObject();
   }
   return {};
 }

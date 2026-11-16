@@ -106,7 +106,7 @@ def prepare_runtime(service, secrets, variables, origin):
     validate_staging_target({key: item.get("value", "") for key, item in merged.items()}, variables)
     merged.pop("SKIP_ENV_VALIDATION", None)
     # Never propagate CI-only secrets, including anything accidentally set manually.
-    for name in ("GCP_SERVICE_ACCOUNT_KEY", "GITHUB_TOKEN", "VERCEL_TOKEN", "DENO_DEPLOY_TOKEN"):
+    for name in ("GCP_SERVICE_ACCOUNT_KEY", "GITHUB_TOKEN", "VERCEL_TOKEN"):
         merged.pop(name, None)
     for key in REQUIRED:
         item = merged.get(key, {})

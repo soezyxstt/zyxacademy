@@ -28,9 +28,3 @@ app.on(
 );
 
 export default app;
-
-// When invoked directly by Deno runtime
-if ((import.meta as any).main) {
-  // @ts-ignore Deno global is present at runtime
-  Deno.serve(app.fetch);
-}

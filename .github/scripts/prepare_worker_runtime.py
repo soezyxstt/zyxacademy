@@ -27,7 +27,7 @@ TARGETS = {
     },
 }
 CI_KEYS = {"NEON_API_KEY", "GITHUB_TOKEN", "VERCEL_TOKEN", "GCP_SERVICE_ACCOUNT_KEY",
-           "DENO_DEPLOY_TOKEN", "SKIP_ENV_VALIDATION"}
+           "SKIP_ENV_VALIDATION"}
 
 
 def prepare_worker_runtime(environment, secrets, variables):

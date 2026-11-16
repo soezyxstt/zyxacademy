@@ -24,12 +24,12 @@ class RuntimeSettingsTest(unittest.TestCase):
         multiline = 'line one,="value"\nline two\\literal'
         self.secrets.update(GA_PRIVATE_KEY=multiline, GCP_SERVICE_ACCOUNT_KEY="ci-key",
                             PYTHON_RUNTIME_TOKEN_SECRET="runtime-key",
-                            DENO_DEPLOY_TOKEN="deno-token", GITHUB_TOKEN="github-token",
+                            GITHUB_TOKEN="github-token",
                             SKIP_ENV_VALIDATION="1", ALLOW_STAGING_MUTATION="1", UNKNOWN_SECRET="unknown")
         plain, refs = prepare_runtime(self.service, self.secrets, VARIABLES, ORIGIN)
         self.assertEqual(plain["GA_PRIVATE_KEY"], multiline)
         self.assertEqual(plain["PYTHON_RUNTIME_TOKEN_SECRET"], "runtime-key")
-        for key in ("GCP_SERVICE_ACCOUNT_KEY", "DENO_DEPLOY_TOKEN", "GITHUB_TOKEN", "SKIP_ENV_VALIDATION", "ALLOW_STAGING_MUTATION", "UNKNOWN_SECRET"):
+        for key in ("GCP_SERVICE_ACCOUNT_KEY", "GITHUB_TOKEN", "SKIP_ENV_VALIDATION", "ALLOW_STAGING_MUTATION", "UNKNOWN_SECRET"):
             self.assertNotIn(key, plain)
         self.assertEqual(refs, [])
 
