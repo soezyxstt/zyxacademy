@@ -123,7 +123,7 @@ describe("discussion composer contract", () => {
       const html = renderToStaticMarkup(<DiscussionI18nFixture locale={locale}><TooltipProvider><DiscussionComposer draft={state} update={update} channelId="course" questionId="thread" viewer={viewer} onSearchMentions={async () => []} onUpload={async () => ({ ok: false, error: "unknown" })} onSubmit={noop} submitLabel="Send" /></TooltipProvider></DiscussionI18nFixture>);
       expect(html).toContain('/discussions?thread=thread&amp;message=message');
       expect(html).toContain('target="_blank"');
-      expect(html).toContain(locale === "id" ? "duplikat" : "duplicate");
+      expect(html).toContain(locale === "id" ? "terkirim dua kali" : "duplicate");
       expect(html).toContain(locale === "id" ? "Buang draf tertunda" : "Discard pending draft");
       expect(html).toMatch(/<textarea[^>]*disabled/);
     }
@@ -147,13 +147,13 @@ describe("discussion composer contract", () => {
     expect(html).toContain("Unggah gagal");
     expect(html).toContain("Coba lagi");
     expect(html).toContain("pesan ini dan kutipan hingga 5 pesan sebelumnya");
-    expect(html).toContain("gambar sebelumnya tidak disertakan; gambar pada pesan ini membuat permintaan Zyra gagal");
+    expect(html).toContain("Free: teks saja. Jika paket mendukung gambar, maksimal 4");
     expect(html).toContain("1 giliran kuota");
     expect(html.indexOf("Unggah gagal")).toBeLessThan(html.indexOf("Kirim jawaban"));
     for (const role of ["tutor", "admin"] as const) {
       const staff = renderToStaticMarkup(<DiscussionI18nFixture><TooltipProvider><DiscussionComposer draft={draft} update={() => {}} channelId="course" viewer={{ ...viewer, role }} onSearchMentions={async () => []} onUpload={async () => ({ ok: false, error: "unknown" })} onSubmit={noop} submitLabel="Kirim" /></TooltipProvider></DiscussionI18nFixture>);
       expect(staff).toContain("pesan ini dan kutipan hingga 5 pesan sebelumnya");
-      expect(staff).toContain("Hingga 4 gambar sesuai paket, pesan ini diutamakan");
+      expect(staff).toContain("Maksimal 4 gambar sesuai paket; gambar pesan ini diutamakan");
       expect(staff).not.toContain("1 giliran kuota");
       expect(staff).not.toContain("Free:");
     }

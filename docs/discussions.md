@@ -1,5 +1,7 @@
 # Discussions
 
+The composer keeps formatting actions in one menu and labels replies and answers on the send button. It omits the repeated reward warning. Attachment status shares the filename row, and audience and channel controls share a row when space allows. Indonesian and English guidance retains privacy, effective Zyra policy, quota and actionable recovery details.
+
 Local acceptance, post35: all five independent Terra xhigh aspects passed 9.5. After the UI lane preserved pending read observations on explicit retry, the actual production effect and retry callback passed a controlled integration with the real service and signed receipt. A later visible message saves at watermark 0 before the earlier gap closes to 2. Root's eight-case visual rerun passed at both standard viewports, with all 16 replacement screenshots directly inspected. The production React lifecycle and authenticated shell remain unverified; the final independent UI recheck passed 9.5. Remote migration and deployment remain held.
 
 The post35 source repairs stop ordinary provider fallback immediately after an unconfirmed response, including malformed output. Structured repair and conversational tutoring preserve uncertainty in their failure result and telemetry. Admin and Tutor layout guards await creation-winner-only legacy identity provisioning before canonical role checks. Sign-in and sign-up pages verify the server session before redirecting; an invalid cookie can reach authentication without losing the safe local `next` target.
@@ -13,7 +15,7 @@ Storage cleanup now retains an `expired` ownership tombstone after its second ob
 New notification payloads retain the event message target; history preserves that target while normalizing role-neutral URLs. Successful read signals refresh the mounted notification bell, with identity and response-version guards. Exhausted read acknowledgements show a retry action that starts a fresh visible-content observation. Signed message observations can acknowledge a visible revision on a targeted later page independently of the contiguous read watermark. They clear or suppress only that message's observed revisions; earlier unseen edits, newer revisions and status events remain unread. The watermark advances only after every intervening message has an accepted observation, and status events retain their separate revision and sequence checks. Report pagination survives opening a thread and returning within the mounted workspace; reported targets regain focus when their page returns. Reaction controls include the message reference. Mathematical spans remain atomic inside emphasis, including multiplication asterisks.
 
 
-Status: OPEN / IN PROGRESS. This describes the local source. Isolated database tests and primary-agent fixture visual checks have passed. Remote database application, authenticated runtime, external services and final independent review remain unverified.
+Status: OPEN / IN PROGRESS. This describes the local source. Isolated database tests, independent local reviews and primary-agent fixture visual checks have passed. Remote database application, authenticated runtime and external services remain unverified.
 
 ## Scope and access
 

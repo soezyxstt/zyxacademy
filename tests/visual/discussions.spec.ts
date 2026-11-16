@@ -72,7 +72,7 @@ for (const locale of ["id", "en"] as const) {
   await dialog.getByRole("button", { name: en ? "Forward" : "Teruskan", exact: true }).click();
   await expect(dialog.getByRole("alert")).toContainText(en ? "Delivery status is unknown" : "Status pengiriman belum diketahui");
   await dialog.getByRole("button", { name: en ? "Forward" : "Teruskan", exact: true }).click();
-  await expect(dialog.getByRole("alert")).toContainText(en ? "The destination is resolved" : "Tujuan sudah selesai");
+  await expect(dialog.getByRole("alert")).toContainText(en ? "The destination discussion is resolved" : "Diskusi tujuan sudah selesai");
   const attempts = JSON.parse((await page.locator("main").getAttribute("data-fixture-forward-attempts"))!);
   expect(attempts[1].requestId).toBe(attempts[0].requestId);
   await capture(page, info, `${locale}-resolved-forward-uncertain`);
@@ -83,7 +83,7 @@ for (const locale of ["id", "en"] as const) {
   test(`global Zyra guidance identifies its effective Free lane in ${locale}`, async ({ page }, info) => {
     await open(page, `?locale=${locale}&question=study`);
     await page.getByRole("textbox", { name: locale === "en" ? "Write a message" : "Tulis pesan" }).fill("@Zyra jelaskan topiknya");
-    await expect(page.getByText(locale === "en" ? /This channel uses Free for Zyra/ : /Kanal ini memakai Free untuk Zyra/)).toBeVisible();
+    await expect(page.getByText(locale === "en" ? /This channel uses Free for all accounts/ : /Kanal ini memakai Free untuk semua akun/)).toBeVisible();
     await expectUnclipped(page.getByRole("button", { name: locale === "en" ? "Send answer" : "Kirim jawaban", exact: true }));
     await capture(page, info, `${locale}-global-zyra-effective-free`);
   });
@@ -252,24 +252,34 @@ test("student question list and course mute", async ({ page }, info) => {
   await capture(page, info, "course-muted-unread");
 });
 
-test("thread actions reply and rich text credit warning", async ({ page }, info) => {
+test("thread actions reply and compact rich text composer", async ({ page }, info) => {
   await open(page);
   await capture(page, info, "student-course-thread");
+  const initialMessagesHeight = (await page.locator("[data-discussion-messages]").boundingBox())!.height;
   const message = page.locator('[data-message-id="m2"]');
   await message.getByRole("button", { name: /Tindakan pesan/ }).click();
   await expectMenuGutter(page, page.getByRole("menu"));
   await capture(page, info, "message-actions");
   await page.getByRole("menuitem", { name: "Balas", exact: true }).click();
+  expect((await page.locator("[data-discussion-messages]").boundingBox())!.height).toBeGreaterThanOrEqual(initialMessagesHeight - 56);
+  await expect(page.getByText(/Balasan bukan jawaban/)).toHaveCount(0);
+  const toolbar = page.locator("[data-discussion-toolbar]");
+  const toolbarBox = await toolbar.boundingBox();
+  expect(toolbarBox!.height).toBeLessThanOrEqual(44);
+  await page.getByRole("button", { name: "Format teks", exact: true }).click();
+  await expectMenuGutter(page, page.getByRole("menu"));
+  await capture(page, info, "formatting-menu");
+  await page.getByRole("menuitem", { name: "Tebal", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "Tulis pesan" })).toHaveValue("****");
   await page.getByRole("textbox", { name: "Tulis pesan" }).fill("**Terima kasih**, @Zyra bagaimana jika penyebutnya berbeda?");
-  await expect(page.getByText(/@Zyra: pesan ini dan kutipan hingga 5 pesan sebelumnya/)).toBeVisible();
-  await expect(page.getByText(/Balasan bukan jawaban dan tidak berhadiah/)).toBeVisible();
+  await expect(page.getByText(/@Zyra membaca pesan ini dan kutipan hingga 5 pesan sebelumnya/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Kirim balasan", exact: true })).toBeInViewport({ ratio: 1 });
   const editor = page.getByRole("textbox", { name: "Tulis pesan" });
   const editorBox = await editor.boundingBox();
   const regionBox = await page.getByRole("region", { name: "Isi penyunting pesan" }).boundingBox();
   expect(editorBox!.height).toBeGreaterThanOrEqual(96);
   expect(editorBox!.y + editorBox!.height).toBeLessThanOrEqual(regionBox!.y + regionBox!.height + 1);
-  await capture(page, info, "reply-credit-warning");
+  await capture(page, info, "reply-zyra-guidance");
   await page.getByRole("tab", { name: "Pratinjau", exact: true }).click();
   await expect(page.getByText("Terima kasih", { exact: true })).toBeVisible();
   await capture(page, info, "composer-rich-preview");
@@ -281,11 +291,17 @@ test("thread actions reply and rich text credit warning", async ({ page }, info)
   await capture(page, info, "reply-image-zyra-combined");
 });
 
-test("English reply guidance explains how to send an answer", async ({ page }, info) => {
+test("English reply and answer labels remain distinct", async ({ page }, info) => {
   await open(page, "?locale=en");
   await page.locator('[data-message-id="m2"]').getByRole("button", { name: /Actions for/ }).click();
   await page.getByRole("menuitem", { name: "Reply", exact: true }).click();
-  await expect(page.getByText("Replies are not answers and earn no rewards. Cancel to answer.")).toBeVisible();
+  await expect(page.getByText(/Replies are not answers/)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Send reply", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Text formatting", exact: true }).click();
+  await expectMenuGutter(page, page.getByRole("menu"));
+  await expect(page.getByRole("menuitem", { name: "Formula", exact: true })).toBeVisible();
+  await capture(page, info, "en-formatting-menu");
+  await page.keyboard.press("Escape");
   await capture(page, info, "en-reply-guidance");
   await page.getByRole("button", { name: "Cancel reply", exact: true }).click();
   await expect(page.getByRole("button", { name: "Send answer", exact: true })).toBeVisible();
@@ -528,7 +544,7 @@ for (const locale of ["id", "en"] as const) {
     await page.getByRole("button", { name: en ? "Try sending again" : "Coba kirim lagi", exact: true }).click();
     await expect(input).toBeDisabled();
     await expect(input).toHaveValue("@Zyra pending discussion payload");
-    await expect(page.getByText(en ? /new submission may create a duplicate/ : /pengiriman baru dapat membuat duplikat/)).toBeVisible();
+    await expect(page.getByText(en ? /Check it before sending again to avoid a duplicate/ : /Periksa sebelum mengirim ulang agar tidak terkirim dua kali/)).toBeVisible();
     await expect(page.getByRole("alert").locator("p")).toHaveCSS("font-size", "12px");
     const inspect = page.getByRole("link", { name: en ? "Inspect message" : "Periksa pesan" });
     await expect(inspect).toHaveAttribute("href", "/discussions?thread=limit&message=m2");
@@ -669,7 +685,8 @@ test("expired attachment retains its bytes for re-upload", async ({ page }, info
   await page.locator('input[type="file"]').setInputFiles("public/visual-fixtures/discussion-problem.png");
   await expect(page.getByText("Siap", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Kirim jawaban", exact: true }).click();
-  await expect(page.getByText("Gambar kedaluwarsa. Unggah ulang gambar, lalu kirim lagi.")).toBeVisible();
+  await expect(page.getByText("Gambar kedaluwarsa. Unggah lagi.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Gambar kedaluwarsa. Unggah ulang gambar, lalu kirim lagi.", { exact: true })).toHaveCount(0);
   await expect(input).toHaveValue("Mohon periksa gambar ini.");
   await capture(page, info, "attachment-expired-retry");
   await page.getByRole("button", { name: "Coba lagi", exact: true }).click();
@@ -890,6 +907,12 @@ test("course question can prepare private academic and technical help", async ({
   const dialog = page.getByRole("dialog", { name: "Pertanyaan baru" });
   const audience = dialog.getByRole("combobox", { name: "Tujuan pertanyaan" });
   await expect(audience).toContainText("Diskusi bersama");
+  const audienceBox = await audience.boundingBox();
+  const channelBox = await dialog.getByRole("combobox", { name: "Kanal", exact: true }).boundingBox();
+  if (page.viewportSize()!.width >= 640) expect(Math.abs(audienceBox!.y - channelBox!.y)).toBeLessThan(2);
+  else expect(channelBox!.y).toBeGreaterThan(audienceBox!.y);
+  await expectUnclipped(audience);
+  await expectUnclipped(dialog.getByRole("combobox", { name: "Kanal", exact: true }));
   await expect(dialog.getByText("Terlihat oleh murid dengan akses penuh, tutor pengampu, dan admin yang berwenang.")).toBeVisible();
   await dialog.getByRole("textbox", { name: "Judul" }).fill("Meminta bantuan tentang mata kuliah");
   await dialog.getByRole("textbox", { name: "Tulis pesan" }).fill("Saya ingin bertanya secara privat.");
@@ -1102,6 +1125,13 @@ test("discussion container breakpoint", async ({ page }, info) => {
   await expect(page.getByRole("complementary", { name: "Daftar pertanyaan" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Isi diskusi" })).toBeVisible();
   await capture(page, info, "container-breakpoint-900");
+  await page.locator('[data-message-id="m2"]').getByRole("button", { name: /Tindakan pesan/ }).click();
+  await page.getByRole("menuitem", { name: "Balas", exact: true }).click();
+  await page.getByRole("textbox", { name: "Tulis pesan" }).fill("@Zyra bantu jelaskan.");
+  await page.locator('input[type="file"]').setInputFiles("public/visual-fixtures/discussion-problem.png");
+  await expect(page.getByText("Siap", { exact: true })).toBeVisible();
+  await expectComposerBounds(page);
+  await capture(page, info, "container-breakpoint-900-combined");
 });
 
 test("edit conflict preserves the draft and offers a new revision", async ({ page }, info) => {
@@ -1234,7 +1264,7 @@ test("server namesake metadata shows context and blocks ambiguous candidates acr
   await open(page, "?state=namesake-metadata");
   await page.getByRole("button", { name: "Sebut orang", exact: true }).click();
   await page.getByRole("textbox", { name: "Cari orang untuk disebut" }).fill("Alice");
-  const candidate = page.getByRole("button", { name: "Alice, Murid, Saya belajar limit., Identitas tidak dapat dibedakan dari nama dan konteks yang tersedia", exact: true });
+  const candidate = page.getByRole("button", { name: "Alice, Murid, Saya belajar limit., Nama dan konteks belum cukup untuk membedakan orang ini", exact: true });
   await expect(candidate).toBeDisabled();
   await capture(page, info, "server-namesake-ambiguous");
 });
@@ -1251,7 +1281,7 @@ test("English namesake ambiguity explains that identity is unavailable", async (
   await open(page, "?locale=en&state=namesake-metadata");
   await page.getByRole("button", { name: "Mention someone", exact: true }).click();
   await page.getByRole("textbox", { name: "Search people to mention" }).fill("Alice");
-  await expect(page.getByRole("button", { name: /Identity cannot be distinguished from the available name and context/ })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /The name and context are not enough to identify this person/ })).toBeDisabled();
   await capture(page, info, "en-server-namesake-unavailable");
 });
 

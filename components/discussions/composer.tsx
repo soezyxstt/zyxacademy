@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState, type ChangeEvent, type ComponentType, type ReactNode } from "react";
 import { useTranslations } from "@/lib/i18n/client";
-import { AtSign, Bold, Code2, ImageOff, ImagePlus, Italic, Link2, List, Loader2, Send, Sigma, X } from "lucide-react";
+import { AtSign, Bold, Code2, ImageOff, ImagePlus, Italic, Link2, List, Loader2, MoreHorizontal, Send, Sigma, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -283,15 +284,17 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
     {beforeContent}
     {draft.replyTo && <div data-discussion-reply-target className="flex min-w-0 items-center gap-2 rounded-md border-l-2 border-primary bg-muted/50 px-2 py-1 text-body-xs"><div className="flex min-w-0 flex-1 items-center gap-1.5"><span className="min-w-0 shrink break-words font-semibold">{t("replyingTo", { name: draft.replyTo.authorName })}</span><div className="line-clamp-1 min-w-0 flex-1 break-words text-muted-foreground [&_div]:text-body-xs [&_p]:text-body-xs"><DiscussionMarkdown content={draft.replyTo.imageOnly ? t("image") : draft.replyTo.excerpt.slice(0, 600)} /></div></div><Button type="button" variant="ghost" size="icon-sm" aria-label={t("cancelReply")} disabled={editingDisabled} onClick={() => update((current) => setComposerReplyTarget(current))}><X /></Button></div>}
     <Tabs value={mode} onValueChange={setMode} syncUrl={false}>
-      <div className="flex flex-wrap items-center justify-between gap-1">
+      <div data-discussion-toolbar className="flex flex-wrap items-center justify-between gap-1">
         <TabsList><TabsTrigger value="write">{t("write")}</TabsTrigger><TabsTrigger value="preview">{t("preview")}</TabsTrigger></TabsList>
         <div className="flex flex-wrap items-center">
-          <ToolButton label={t("bold")} icon={Bold} disabled={editingDisabled} onClick={() => insert("**", "**")} />
-          <ToolButton label={t("italic")} icon={Italic} disabled={editingDisabled} onClick={() => insert("*", "*")} />
-          <ToolButton label={t("list")} icon={List} disabled={editingDisabled} onClick={() => insert("\n- ")} />
-          <ToolButton label={t("code")} icon={Code2} disabled={editingDisabled} onClick={() => insert("`", "`")} />
-          <ToolButton label={t("link")} icon={Link2} disabled={editingDisabled} onClick={() => insert("[", "](https://)")} />
-          <ToolButton label={t("formula")} icon={Sigma} disabled={editingDisabled} onClick={() => insert("$", "$")} />
+          <DropdownMenu><Tooltip disableHoverableContent><TooltipTrigger asChild><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={t("formatting")} disabled={editingDisabled}><MoreHorizontal /></Button></DropdownMenuTrigger></TooltipTrigger><TooltipContent>{t("formatting")}</TooltipContent></Tooltip><DropdownMenuContent collisionPadding={16} onCloseAutoFocus={(event) => { if (textRef.current) { event.preventDefault(); textRef.current.focus(); } }}>
+            <DropdownMenuItem onSelect={() => insert("**", "**")}><Bold />{t("bold")}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => insert("*", "*")}><Italic />{t("italic")}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => insert("\n- ")}><List />{t("list")}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => insert("`", "`")}><Code2 />{t("code")}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => insert("[", "](https://)")}><Link2 />{t("link")}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => insert("$", "$")}><Sigma />{t("formula")}</DropdownMenuItem>
+          </DropdownMenuContent></DropdownMenu>
           <Popover open={mentionOpen} onOpenChange={setMentionOpen}><Tooltip><TooltipTrigger asChild><PopoverTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={t("mentionPerson")} disabled={editingDisabled}><AtSign /></Button></PopoverTrigger></TooltipTrigger><TooltipContent>{t("mentionPerson")}</TooltipContent></Tooltip><PopoverContent aria-label={t("mentionPerson")} align="end" collisionPadding={16} className="max-w-[calc(100vw-2rem)] space-y-2 p-2">
             <Button type="button" variant="ghost" className="w-full [&>span]:justify-start" onClick={() => { insert("@Zyra "); setMentionOpen(false); }}>@Zyra</Button>
             <Input value={mentionSearch} onChange={(event) => { setMentionSearch(event.target.value.slice(0, 80)); setMentionPage(0); }} aria-label={t("searchPeople")} placeholder={t("searchPeoplePlaceholder")} />
@@ -311,17 +314,17 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
     </Tabs>
     {fileError && <p role="alert" className="text-body-xs text-destructive">{fileError === "maxImages" ? t("maxImages", { count: MAX_IMAGES }) : t("fileRequirements")}</p>}
     {invalidContent && !staleMentions && <p role="alert" className="text-body-xs text-destructive">{t("contentLimit")}</p>}
-    {draft.error && !replayUnverified && (draft.error !== "resolved" || submitDisabled) && <p role="alert" className="text-body-xs text-destructive">{t(discussionSendErrorKey(draft.error))}</p>}
+    {draft.error && !replayUnverified && !(draft.error === "attachment_expired" && draft.images.some(image => image.error === "expired")) && (draft.error !== "resolved" || submitDisabled) && <p role="alert" className="text-body-xs text-destructive">{t(discussionSendErrorKey(draft.error))}</p>}
     </div>
     <div className="shrink-0 space-y-2 pt-2">
       {staleMentions && <p role="alert" className="text-body-xs text-destructive">{t("staleMentions")}</p>}
       {draft.images.length > 0 && <div className="max-h-28 space-y-1 overflow-y-auto">{[...draft.images].sort((a, b) => Number(b.status === "error") - Number(a.status === "error")).map((image) => <div key={image.id} className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-muted/40 p-1.5">
         <div className="relative size-8 shrink-0 overflow-hidden rounded-md bg-muted"><img src={image.previewUrl} alt={t("imagePreview", { name: image.file.name })} className="size-full object-cover" onError={(event) => { event.currentTarget.style.display = "none"; const fallback = event.currentTarget.nextElementSibling as HTMLElement | null; if (fallback) fallback.style.display = "flex"; }} /><span style={{ display: "none" }} role="status" aria-label={t("imageDisplayError")} className="absolute inset-0 items-center justify-center text-muted-foreground"><ImageOff className="size-4" /></span></div>
-        <div className="min-w-0 flex-1"><p tabIndex={0} className="overflow-x-auto whitespace-nowrap text-body-sm focus-visible:outline-2 focus-visible:outline-ring" title={image.file.name}>{image.file.name}</p><div className="flex flex-wrap items-center gap-2"><p className={image.status === "error" ? "text-body-xs text-destructive" : "text-body-xs text-muted-foreground"}>{image.status === "error" ? t("uploadFailed") : image.status === "uploading" ? <><Loader2 className="mr-1 inline size-3 animate-spin motion-reduce:animate-none" />{t("uploading")}</> : t("ready")}</p>{image.status === "error" && <Button type="button" variant="outline" size="sm" disabled={editingDisabled} onClick={() => void upload(image)}>{t("retry")}</Button>}</div>{image.status === "error" && <p role="alert" className="break-words text-body-xs text-destructive">{t(discussionUploadErrorKey(image.error))}</p>}</div>
+        <div className="min-w-0 flex-1"><div className="flex min-w-0 flex-wrap items-center gap-x-2"><p tabIndex={0} className="min-w-0 overflow-x-auto whitespace-nowrap text-body-sm focus-visible:outline-2 focus-visible:outline-ring" title={image.file.name}>{image.file.name}</p><p className={image.status === "error" ? "text-body-xs text-destructive" : "text-body-xs text-muted-foreground"}>{image.status === "error" ? t("uploadFailed") : image.status === "uploading" ? <><Loader2 className="mr-1 inline size-3 animate-spin motion-reduce:animate-none" />{t("uploading")}</> : t("ready")}</p>{image.status === "error" && <Button type="button" variant="outline" size="sm" disabled={editingDisabled} onClick={() => void upload(image)}>{t("retry")}</Button>}</div>{image.status === "error" && <p role="alert" className="break-words text-body-xs text-destructive">{t(discussionUploadErrorKey(image.error))}</p>}</div>
         <Button type="button" variant="ghost" size="icon-sm" aria-label={t("removeFile", { name: image.file.name })} disabled={editingDisabled} onClick={() => removeImage(image)}><X /></Button>
       </div>)}</div>}
       {draft.images.filter((image) => image.status === "error").length > 1 && <div role="alert" className="flex items-center justify-between gap-2 text-body-xs text-destructive"><span>{t("multipleUploadsFailed")}</span><Button type="button" variant="outline" size="sm" disabled={editingDisabled} onClick={() => draft.images.filter((image) => image.status === "error").forEach((image) => void upload(image))}>{t("retryAll")}</Button></div>}
-      {mentions.askZyra && <p className="rounded-md border border-status-warning/50 bg-status-warning/10 px-2 py-1 text-body-xs">{t("zyraContext")}{viewer.role === "student" && ` ${t(zyraUnscoped ? "zyraUnscopedFreeText" : "zyraFreeText")} ${t("zyraQuota")}`}</p>}
+      {mentions.askZyra && <p className="rounded-md border border-status-warning/50 bg-status-warning/10 px-2 py-1 text-body-xs">{t("zyraContext")} {t(viewer.role === "student" ? zyraUnscoped ? "zyraUnscopedFreeText" : "zyraFreeText" : "zyraImages")}{viewer.role === "student" && ` ${t("zyraQuota")}`}</p>}
       {replayUnverified && draft.replayTarget ? <div role="alert" className="space-y-2 text-body-xs"><p className="text-body-xs">{t("sendError_replay_unverified")}</p><div className="flex flex-wrap gap-2"><Button asChild type="button" variant="outline" size="sm"><a href={discussionMessageHref(draft.replayTarget)} target="_blank" rel="noopener noreferrer">{t("inspectPrevious")}</a></Button><Button type="button" variant="outline" size="sm" onClick={() => { draft.images.forEach(image => URL.revokeObjectURL(image.previewUrl)); update(() => emptyComposerDraft()); }}>{t("discardPending")}</Button></div></div> : <div className="flex flex-wrap justify-end gap-2">{(uncertain || draft.error === "resolved" && submitDisabled) && <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => { draft.images.forEach(image => URL.revokeObjectURL(image.previewUrl)); update(() => emptyComposerDraft()); }}>{t(uncertain ? "discardPending" : "discardDraft")}</Button>}<Button type="button" onClick={() => void submit()} isLoading={draft.sending} disabled={busy || submitDisabled || replayUnverified || (uncertain ? !canReplay : uploading || failedImage || invalidContent || (!draft.body.trim() && draft.images.length === 0))}><Send />{draft.sending ? t("sending") : uploading ? t("uploadingImages") : draft.error ? t("retrySend") : submitLabel}</Button></div>}
     </div>
   </div>;
