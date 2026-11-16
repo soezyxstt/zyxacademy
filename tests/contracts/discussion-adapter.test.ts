@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import { advanceObserved, aiStatusKey, beginChannelMetadataRequest, beginPageRequest, canSuggestForwardChannel, channelIdBatches, channelOptionIndex, discussionPrivateQuestionHref, discussionUploadError, discussionViewerState, initialDiscussionMessageCursors, loadDiscussionChannelMetadata, mentionHandle, mergeById, nextDiscussionMessageCursor, observeDiscussionSnapshot, prepareDiscussionTeamChannel, replyQuote, searchDiscussionChannels, searchDiscussionForwardTargets, searchDiscussionMentions, toQuestion, toUiChannel, visibleDiscussionReadSnapshot } from "@/components/discussions/discussion-adapter";
+import { advanceObserved, aiStatusKey, beginChannelMetadataRequest, beginPageRequest, canSuggestForwardChannel, channelIdBatches, channelOptionIndex, discussionPrivateQuestionHref, discussionUploadError, discussionViewerState, initialDiscussionMessageCursors, listDiscussionQuestionPage, loadDiscussionChannelMetadata, mentionHandle, mergeById, nextDiscussionMessageCursor, observeDiscussionSnapshot, prepareDiscussionTeamChannel, replyQuote, searchDiscussionChannels, searchDiscussionForwardTargets, searchDiscussionMentions, toQuestion, toUiChannel, visibleDiscussionReadSnapshot } from "@/components/discussions/discussion-adapter";
 import type { DiscussionChannel, DiscussionThread } from "@/lib/discussions/contracts";
 
 const channels: DiscussionChannel[] = [
@@ -77,6 +77,15 @@ describe("discussion adapter", () => {
     const targets = await searchDiscussionForwardTargets({ listThreadsAcrossChannels }, { channelId: "a", search: "limit", cursor: "thread-cursor" });
     expect(listThreadsAcrossChannels).toHaveBeenCalledWith({ channelId: "a", search: "limit", cursor: "thread-cursor", status: "open" });
     expect(targets).toEqual({ items: [{ questionId: "thread", channelId: "global", title: "Tanya" }], nextCursor: "next-thread" });
+  });
+  test("loads separate status pages with the same scoped search and cursor", async () => {
+    const listThreadsAcrossChannels = mock(async () => ({ items: [thread], nextCursor: "next" }));
+    for (const status of ["open", "resolved"] as const) {
+      await listDiscussionQuestionPage({ listThreadsAcrossChannels }, { channelId: "a", search: "  limit  ", cursor: `${status}-cursor`, status });
+      expect(listThreadsAcrossChannels).toHaveBeenLastCalledWith({ channelId: "a", search: "limit", cursor: `${status}-cursor`, status });
+    }
+    await listDiscussionQuestionPage({ listThreadsAcrossChannels }, { search: "  ", status: "resolved" });
+    expect(listThreadsAcrossChannels).toHaveBeenLastCalledWith({ channelId: undefined, search: undefined, cursor: undefined, status: "resolved" });
   });
   test("prepares only the requester's reauthorized team channel in the requested course", async () => {
     const ensureTeamChannel = mock(async (team: "academic" | "technical", courseId?: string) => ({ id: "own", kind: team, courseId: courseId ?? null, title: "Tim" }));

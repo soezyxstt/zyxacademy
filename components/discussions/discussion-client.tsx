@@ -8,7 +8,7 @@ import { useSession } from "@/lib/auth-client";
 import * as actions from "@/lib/discussions/actions";
 import type { DiscussionChannel as Channel, DiscussionMessage as Message, DiscussionReport as Report, DiscussionThread as Thread } from "@/lib/discussions/contracts";
 import { DISCUSSION_COUNTS_CHANGED } from "./discussion-count-badge";
-import { aiStatusKey, beginChannelMetadataRequest, beginPageRequest, discussionPrivateQuestionHref, discussionStatusUncovered, discussionUploadError, discussionVisibilityBlocked, initialDiscussionMessageCursors, loadDiscussionChannelMetadata, mergeById, nextDiscussionMessageCursor, observeDiscussionSnapshot, prepareDiscussionTeamChannel, replyQuote, retryDiscussionRead, searchDiscussionChannels, searchDiscussionForwardTargets, searchDiscussionMentions, toQuestion, toUiChannel, visibleDiscussionReadSnapshot, watchDiscussionVisibility } from "./discussion-adapter";
+import { aiStatusKey, beginChannelMetadataRequest, beginPageRequest, discussionPrivateQuestionHref, discussionStatusUncovered, discussionUploadError, discussionVisibilityBlocked, initialDiscussionMessageCursors, listDiscussionQuestionPage, loadDiscussionChannelMetadata, mergeById, nextDiscussionMessageCursor, observeDiscussionSnapshot, prepareDiscussionTeamChannel, replyQuote, retryDiscussionRead, searchDiscussionChannels, searchDiscussionForwardTargets, searchDiscussionMentions, toQuestion, toUiChannel, visibleDiscussionReadSnapshot, watchDiscussionVisibility } from "./discussion-adapter";
 import { listDiscussionAiStatuses } from "./discussion-ai-status";
 import { getDiscussionReadThrough } from "./discussion-read-state";
 import { DiscussionWorkspace, type DiscussionDraftState } from "./discussion-workspace";
@@ -56,6 +56,11 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
   const [retryChannelMetadata, setRetryChannelMetadata] = useState(0);
   const [pinnedChannel, setPinnedChannel] = useState<UiChannel | null>(null);
   const [channelsReady, setChannelsReady] = useState(false);
+  const [resolvedOpen, setResolvedOpen] = useState(false);
+  const [resolvedPage, setResolvedPage] = useState<ThreadPage>({ items: [], nextCursor: null });
+  const [resolvedState, setResolvedState] = useState<"loading" | "ready" | "error">("loading");
+  const [resolvedRevision, setResolvedRevision] = useState(0);
+  const [resolvedPaging, setResolvedPaging] = useState<{ key: string; index: number; cursors: Array<string | undefined> }>({ key: "", index: 0, cursors: [undefined] });
   const [threadPage, setThreadPage] = useState<ThreadPage>({ items: [], nextCursor: null });
   const [threadPageIndex, setThreadPageIndex] = useState(0);
   const threadPageIndexRef = useRef(0);
@@ -118,8 +123,10 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
 
   const courseChannelId = courseId ? channels.find((channel) => channel.kind === "course")?.id : undefined;
   const selectedChannel = courseId ? courseChannelId ?? null : requestedChannel;
+  const resolvedKey = JSON.stringify([selectedChannel, debouncedSearch, viewer.id, courseId]);
   const allThreads = threadPage.items;
-  const metadataIds = useMemo(() => [...new Set([...allThreads.map((item) => item.channelId), ...(thread?.id === selectedThread ? [thread.channelId] : []), ...(selectedChannel ? [selectedChannel] : [])])].sort(), [allThreads, thread, selectedThread, selectedChannel]);
+  const resolvedThreads = resolvedPaging.key === resolvedKey && resolvedState === "ready" ? resolvedPage.items : [];
+  const metadataIds = useMemo(() => [...new Set([...allThreads.map((item) => item.channelId), ...resolvedThreads.map((item) => item.channelId), ...(thread?.id === selectedThread ? [thread.channelId] : []), ...(selectedChannel ? [selectedChannel] : [])])].sort(), [allThreads, resolvedThreads, thread, selectedThread, selectedChannel]);
   const metadataKey = JSON.stringify(metadataIds);
   const currentMetadataKey = useRef(metadataKey);
   currentMetadataKey.current = metadataKey;
@@ -202,7 +209,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     refreshChannelMetadata();
     const current = beginPageRequest(listRequests.current);
     let page: ThreadPage;
-    try { page = await actions.listThreadsAcrossChannels({ channelId: selectedChannel ?? undefined, search: debouncedSearch.trim() || undefined, cursor }); }
+    try { page = await listDiscussionQuestionPage(actions, { channelId: selectedChannel ?? undefined, search: debouncedSearch, cursor, status: "open" }); }
     catch (error) { if (current()) throw error; return false; }
     if (!current()) return false;
     setThreadPage(page);
@@ -225,6 +232,29 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     return () => { listRequests.current.clear(); threadPagingVersion.current++; };
   }, [channelsReady, selectedChannel, fetchThreadPage]);
 
+  useEffect(() => {
+    setResolvedPaging({ key: resolvedKey, index: 0, cursors: [undefined] });
+    setResolvedPage({ items: [], nextCursor: null });
+    setResolvedState("loading");
+  }, [resolvedKey]);
+
+  useEffect(() => {
+    if (!resolvedOpen || !channelsReady || resolvedPaging.key !== resolvedKey) return;
+    let current = true;
+    setResolvedState("loading");
+    void listDiscussionQuestionPage(actions, { channelId: selectedChannel ?? undefined, search: debouncedSearch, cursor: resolvedPaging.cursors[resolvedPaging.index], status: "resolved" }).then(page => {
+      if (current) { setResolvedPage(page); setResolvedState("ready"); refreshChannelMetadata(); }
+    }).catch(() => { if (current) setResolvedState("error"); });
+    return () => { current = false; };
+  }, [resolvedOpen, channelsReady, resolvedKey, resolvedPaging, resolvedRevision, selectedChannel, debouncedSearch, refreshChannelMetadata]);
+
+  function changeResolvedPage(direction: "previous" | "next") {
+    if (resolvedState !== "ready") return;
+    const index = resolvedPaging.index + (direction === "next" ? 1 : -1);
+    if (index < 0 || (direction === "next" && !resolvedPage.nextCursor)) return;
+    setResolvedPaging(old => ({ ...old, index, cursors: direction === "next" ? [...old.cursors.slice(0, index), resolvedPage.nextCursor!] : old.cursors }));
+  }
+
   const refreshThreadPage = useCallback(async (id: string, cursor?: string) => {
     refreshChannelMetadata();
     const version = threadVersion.current;
@@ -235,7 +265,8 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       || messagePagesRef.current[0]?.cursor !== cursor) return;
     setLiveError(false);
     setThread(result.thread);
-    setThreadPage((old) => ({ ...old, items: old.items.map((item) => item.id === id ? result.thread : item) }));
+    setThreadPage((old) => ({ ...old, items: old.items.flatMap((item) => item.id === id ? result.thread.status === "open" ? [result.thread] : [] : [item]) }));
+    setResolvedPage((old) => ({ ...old, items: old.items.flatMap((item) => item.id === id ? result.thread.status === "resolved" ? [result.thread] : [] : [item]) }));
     setMessagePages([{ cursor, items: result.messages.items, observationReceipt: result.messages.observationReceipt }]);
     setMessageCursor(result.messages.nextCursor);
     setThreadState("ready");
@@ -316,7 +347,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     let timer: ReturnType<typeof setTimeout>;
     const refresh = async () => {
       if (document.visibilityState !== "visible" || threadPageBusyRef.current) return;
-      try { await fetchThreadPage(threadPageCursors.current[threadPageIndexRef.current]); }
+      try { if (await fetchThreadPage(threadPageCursors.current[threadPageIndexRef.current]) && !cancelled) setResolvedRevision(value => value + 1); }
       catch { if (!cancelled) setListRefreshError(true); }
     };
     const tick = () => { timer = setTimeout(() => { void refresh().finally(() => { if (!cancelled) tick(); }); }, 120_000); };
@@ -517,6 +548,8 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     {activeTab === "questions" && listState === "ready" && threadPageIndex > 0 && <div className="flex flex-wrap items-center gap-2"><Button type="button" variant="outline" size="sm" disabled={threadPageBusy} onClick={() => void changeQuestionPage("previous").catch(() => setListRefreshError(true))}>{t("previousQuestions")}</Button><span className="text-body-xs text-muted-foreground">{t("page", { page: threadPageIndex + 1 })}</span></div>}
     {thread?.id === selectedThread && (messagePageIndex > 0 || hasNextMessagePage) && <div className="flex flex-wrap items-center gap-2"><Button type="button" variant="outline" size="sm" disabled={messagePageBusy || messagePageIndex === 0} onClick={() => void changeMessagePage("previous")}>{t("previousMessages")}</Button>{!selectedMessage && <span className="text-body-xs text-muted-foreground">{t("page", { page: messagePageIndex + 1 })}</span>}<Button type="button" variant="outline" size="sm" disabled={messagePageBusy || !hasNextMessagePage} onClick={() => void changeMessagePage("next")}>{t("nextMessages")}</Button>{messagePageError && <span role="alert" className="text-body-xs text-destructive">{t("messagePageError")}</span>}</div>}
     <DiscussionWorkspace draftState={draftState} viewer={viewer} channels={uiChannels} questions={orderedThreads.map((item) => toQuestion(item, visibleChannels))}
+      resolvedQuestions={resolvedThreads.filter(item => item.title.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())).map(item => toQuestion(item, visibleChannels))}
+      resolvedOpen={resolvedOpen} resolvedState={resolvedPaging.key === resolvedKey ? resolvedState : "loading"} resolvedPageIndex={resolvedPaging.index} resolvedHasMore={!!resolvedPage.nextCursor} onResolvedOpenChange={setResolvedOpen} onResolvedPage={changeResolvedPage} onRetryResolved={() => setResolvedRevision(value => value + 1)}
       readError={readError} onRetryRead={() => { setReadError(false); setRetryRead(value => value + 1); }}
       selectedQuestion={selectedQuestion} messages={uiMessages} selectedChannelId={selectedChannel} selectedQuestionId={selectedThread} selectedMessageId={selectedMessage}
       search={search} listState={listState} threadState={renderedThreadState}
@@ -538,7 +571,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       onSendReply={async (input) => { const submit = { ...toSubmit({ ...input, channelId: thread?.channelId ?? "", title: "" }), threadId: input.questionId };
         if (input.messageType === "reply" && !input.replyToMessageId) return "invalid";
         const result = await actions.reply(input.messageType === "reply" ? { ...submit, messageType: "reply", replyTo: input.replyToMessageId! } : { ...submit, messageType: "answer" });
-        if (!result.ok) { if (result.error === "resolved") { if (currentThread.current === input.questionId) { setThread(old => old?.id === input.questionId ? { ...old, status: "resolved", canReply: false } : old); setThreadPage(old => ({ ...old, items: old.items.map(item => item.id === input.questionId ? { ...item, status: "resolved", canReply: false } : item) })); } await refreshMessage(input.questionId, undefined, true); } return result.error === "replay_unverified" ? { error: result.error, target: result.value } : result.error; }
+        if (!result.ok) { if (result.error === "resolved") { if (currentThread.current === input.questionId) { setThread(old => old?.id === input.questionId ? { ...old, status: "resolved", canReply: false } : old); setThreadPage(old => ({ ...old, items: old.items.filter(item => item.id !== input.questionId) })); setResolvedRevision(value => value + 1); } await refreshMessage(input.questionId, undefined, true); } return result.error === "replay_unverified" ? { error: result.error, target: result.value } : result.error; }
         const page = await refreshMessage(input.questionId); if (page && currentThread.current === input.questionId) setSentMessage({ threadId: input.questionId, id: result.value.messageId }); }}
       onUploadImage={async ({ channelId, file }) => { const form = new FormData(); form.set("channelId", channelId); form.set("file", file);
         const response = await fetch("/api/discussions/attachments", { method: "POST", body: form });
@@ -550,7 +583,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       onForwardMessage={async ({ questionId, messageId, targetQuestionId, requestId }) => { try { const result = await actions.forward(messageId, targetQuestionId, requestId); if (!result.ok) return result.error === "replay_unverified" ? { error: result.error, target: result.value } : result.error; await refreshMessage(questionId, messageId); } catch { return "unknown"; } }}
       onReportMessage={async ({ messageId, reason }) => { await actions.report(messageId, reason); }}
       onSetChannelMuted={async ({ channelId, muted }) => { await actions.setMute(channelId, muted); setChannels((old) => old.map((item) => item.id === channelId ? { ...item, muted } : item)); setChannelMetadata((old) => ({ ...old, items: old.items.map((item) => item.id === channelId ? { ...item, muted } : item) })); setPinnedChannel((old) => old?.id === channelId ? { ...old, muted } : old); }}
-      onSetQuestionStatus={async ({ questionId, status }) => { await actions.setResolved(questionId, status === "resolved"); await refreshMessage(questionId); }}
+      onSetQuestionStatus={async ({ questionId, status }) => { await actions.setResolved(questionId, status === "resolved"); setResolvedRevision(value => value + 1); void fetchThreadPage(threadPageCursors.current[threadPageIndexRef.current]).catch(() => setListRefreshError(true)); await refreshMessage(questionId); }}
       onSetReportStatus={async ({ reportId, status }) => { await actions.resolveReport(reportId, status); setReports((old) => old.filter((item) => item.id !== reportId)); }} />
     {activeTab === "reports" && (reportPageIndex > 0 || reportCursor) && <div className="flex flex-wrap items-center gap-2"><Button type="button" variant="outline" size="sm" disabled={reportBusy || reportPageIndex === 0} onClick={() => void changeReportPage("previous")}>{t("previousReports")}</Button><span className="text-body-xs text-muted-foreground">{t("page", { page: reportPageIndex + 1 })}</span><Button type="button" variant="outline" size="sm" disabled={reportBusy || !reportCursor} onClick={() => void changeReportPage("next")}>{t("nextReports")}</Button></div>}
   </div>;

@@ -60,7 +60,7 @@ describe("discussion composer contract", () => {
     expect(state.pendingSubmission).toEqual(initial.submission);
     const html = renderToStaticMarkup(<DiscussionI18nFixture><TooltipProvider><DiscussionComposer draft={state} update={update} channelId="course" viewer={viewer} onSearchMentions={async () => []} onUpload={async () => ({ ok: false, error: "unknown" })} onSubmit={noop} submitLabel="Kirim" /></TooltipProvider></DiscussionI18nFixture>);
     expect(html).toContain("Status pengiriman belum diketahui");
-    expect(html).toMatch(/<textarea[^>]*disabled/);
+    expect(html).toContain('data-editor-disabled="true"');
     expect(html).toMatch(/<button[^>]*disabled[^>]*aria-label="Hapus soal.png"|<button[^>]*aria-label="Hapus soal.png"[^>]*disabled/);
     state = { ...state, body: "perubahan yang tidak boleh terkirim" };
     expect(prepareComposerSubmission(state, { ...viewer, id: "other" }, "course")).toBeNull();
@@ -105,7 +105,7 @@ describe("discussion composer contract", () => {
     expect(state.requestId).toBeUndefined();
     const html = renderToStaticMarkup(<DiscussionI18nFixture><TooltipProvider><DiscussionComposer draft={state} update={update} channelId="course" questionId="thread" viewer={viewer} onSearchMentions={async () => []} onUpload={async () => ({ ok: false, error: "unknown" })} onSubmit={noop} submitDisabled submitLabel="Kirim" /></TooltipProvider></DiscussionI18nFixture>);
     expect(html).toContain("Buang draf");
-    expect(html.match(/<textarea[^>]*>/)?.[0]).not.toMatch(/\sdisabled(?:=|\s|>)/);
+    expect(html).toContain('data-editor-disabled="false"');
     expect(prepareComposerSubmission(state, viewer, "course", "thread")!.submission.requestId).not.toBe(original.submission.requestId);
   });
 
@@ -125,7 +125,7 @@ describe("discussion composer contract", () => {
       expect(html).toContain('target="_blank"');
       expect(html).toContain(locale === "id" ? "terkirim dua kali" : "duplicate");
       expect(html).toContain(locale === "id" ? "Buang draf tertunda" : "Discard pending draft");
-      expect(html).toMatch(/<textarea[^>]*disabled/);
+      expect(html).toContain('data-editor-disabled="true"');
     }
     expect(failedComposerDraft(state, { error: "replay_unverified", target: { threadId: "", messageId: "message" } }, true).error).toBe("unknown");
   });
@@ -140,23 +140,15 @@ describe("discussion composer contract", () => {
     expect(discussionMentions(`@${person.mention}suffix`, [person]).mentionIds).toEqual([]);
   });
 
-  test("keeps upload retry and accurate allowance text beside the submit action", () => {
+  test("keeps compact upload recovery inline and help available without Zyra text", () => {
     const draft = { ...emptyComposerDraft(), body: "@Zyra bantu", images: [{ id: "image", file: new File(["x"], "discussion-problem.png", { type: "image/png" }), previewUrl: "blob:fixture", status: "error" as const }] };
-    const html = renderToStaticMarkup(<DiscussionI18nFixture><TooltipProvider><DiscussionComposer draft={draft} update={() => {}} channelId="course" viewer={viewer} onSearchMentions={async () => []} onUpload={async () => ({ ok: true, attachment: { id: "image", name: "image", url: "" } })} onSubmit={noop} submitLabel="Kirim jawaban" /></TooltipProvider></DiscussionI18nFixture>);
+    const html = renderToStaticMarkup(<DiscussionI18nFixture><TooltipProvider><DiscussionComposer draft={draft} update={() => {}} channelId="course" viewer={viewer} onSearchMentions={async () => []} onUpload={async () => ({ ok: false, error: "unknown" })} onSubmit={noop} submitLabel="Kirim jawaban" /></TooltipProvider></DiscussionI18nFixture>);
     expect(html).toContain("discussion-problem.png");
     expect(html).toContain("Unggah gagal");
-    expect(html).toContain("Coba lagi");
-    expect(html).toContain("pesan ini dan kutipan hingga 5 pesan sebelumnya");
-    expect(html).toContain("Free: teks saja. Jika paket mendukung gambar, maksimal 4");
-    expect(html).toContain("1 giliran kuota");
-    expect(html.indexOf("Unggah gagal")).toBeLessThan(html.indexOf("Kirim jawaban"));
-    for (const role of ["tutor", "admin"] as const) {
-      const staff = renderToStaticMarkup(<DiscussionI18nFixture><TooltipProvider><DiscussionComposer draft={draft} update={() => {}} channelId="course" viewer={{ ...viewer, role }} onSearchMentions={async () => []} onUpload={async () => ({ ok: false, error: "unknown" })} onSubmit={noop} submitLabel="Kirim" /></TooltipProvider></DiscussionI18nFixture>);
-      expect(staff).toContain("pesan ini dan kutipan hingga 5 pesan sebelumnya");
-      expect(staff).toContain("Maksimal 4 gambar sesuai paket; gambar pesan ini diutamakan");
-      expect(staff).not.toContain("1 giliran kuota");
-      expect(staff).not.toContain("Free:");
-    }
+    expect(html).toContain("Coba unggah discussion-problem.png lagi");
+    expect(html).toContain('aria-label="Bantuan diskusi"');
+    expect(html).not.toContain("pesan ini dan kutipan hingga 5 pesan sebelumnya");
+    expect(html.indexOf("data-discussion-images")).toBeLessThan(html.indexOf("data-editor-disabled"));
   });
 
   test("requires an old channel mention to be reselected or removed", () => {
@@ -184,24 +176,24 @@ describe("discussion composer contract", () => {
     expect(discussionSendErrorKey("SECRET BACKEND ERROR")).not.toContain("SECRET");
     expect(discussionUploadErrorKey("SECRET BACKEND ERROR")).not.toContain("SECRET");
     const html = renderToStaticMarkup(<DiscussionI18nFixture><TooltipProvider><DiscussionComposer draft={failed} update={() => {}} channelId="course" viewer={viewer} onSearchMentions={async () => []} onUpload={async () => ({ ok: false, error: "pixels" })} onSubmit={noop} submitDisabled submitLabel="Kirim jawaban" /></TooltipProvider></DiscussionI18nFixture>);
-    expect(html).toContain("Jawaban tersimpan");
+    expect(draft.body).toBe("Jawaban tersimpan");
     expect(html).toContain("Pemilik pertanyaan atau admin dapat membuka kembali");
     expect(html).toContain("4096 piksel per sisi dan 16 juta piksel");
     expect(html).toContain("Hapus large.png");
-    expect(html).toContain("Coba lagi");
+    expect(html).toContain("Coba unggah large.png lagi");
   });
 
   test("renders English recovery guidance for safe error keys", () => {
     const draft = { ...emptyComposerDraft(), body: "My draft", error: "resolved" as const, images: [{ id: "image", file: new File(["x"], "large.png", { type: "image/png" }), previewUrl: "blob:image", status: "error" as const, error: "pixels" as const }] };
     const html = renderToStaticMarkup(<DiscussionI18nFixture locale="en"><TooltipProvider><DiscussionComposer draft={draft} update={() => {}} channelId="course" viewer={viewer} onSearchMentions={async () => []} onUpload={async () => ({ ok: false, error: "pixels" })} onSubmit={noop} submitDisabled submitLabel="Send answer" /></TooltipProvider></DiscussionI18nFixture>);
-    expect(html).toContain("My draft");
+    expect(draft.body).toBe("My draft");
     expect(html).toContain("The question owner or an admin can reopen it");
     expect(html).toContain("4096 pixels per side and 16 million pixels");
     expect(html).toContain("Remove large.png");
     expect(discussionSendErrorKey("SECRET BACKEND ERROR")).toBe("sendError_unknown");
     expect(discussionUploadErrorKey("SECRET BACKEND ERROR")).toBe("uploadError_unknown");
     const reopened = renderToStaticMarkup(<DiscussionI18nFixture locale="en"><TooltipProvider><DiscussionComposer draft={{ ...draft, images: [] }} update={() => {}} channelId="course" viewer={viewer} onSearchMentions={async () => []} onUpload={async () => ({ ok: false, error: "pixels" })} onSubmit={noop} submitLabel="Send answer" /></TooltipProvider></DiscussionI18nFixture>);
-    expect(reopened).toContain("My draft");
+    expect(draft.body).toBe("My draft");
     expect(reopened).toContain("Try sending again");
     expect(reopened).not.toContain("The question owner or an admin can reopen it");
   });

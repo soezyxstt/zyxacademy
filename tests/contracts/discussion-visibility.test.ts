@@ -3,14 +3,14 @@ import { discussionContentUncovered, visibleDiscussionReadSnapshot, watchDiscuss
 
 test("content needs a meaningful uncovered dwell, including after a modal or revision", async () => {
   const original = ["document", "window", "IntersectionObserver", "MutationObserver"].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)] as const);
-  let contentTop = 100, contentHeight = 40, blocked = false, covered = false, revision = 1;
+  let contentTop = 100, contentHeight = 40, blocked = false, covered = false, statusCovered = false, revision = 1;
   let refresh = () => {};
   const rect = (top: number, height: number) => ({ left: 10, top, right: 90, bottom: top + height, width: 80, height });
   const status = { getBoundingClientRect: () => rect(5, 10), contains: () => false };
   const parent = { parentElement: null, getBoundingClientRect: () => rect(20, 80) };
   const content = { parentElement: parent, getBoundingClientRect: () => rect(contentTop, contentHeight), contains: () => false, closest: () => ({ dataset: { messageId: "m1" } }) };
   const documentFake = { visibilityState: "visible", body: {}, querySelector: () => blocked ? {} : null,
-    elementFromPoint: (_x: number, y: number) => y < 20 ? status : covered ? {} : content, addEventListener: () => {}, removeEventListener: () => {} };
+    elementFromPoint: (_x: number, y: number) => y < 20 ? statusCovered ? {} : status : covered ? {} : content, addEventListener: () => {}, removeEventListener: () => {} };
   class IntersectionFake { constructor(callback: () => void) { refresh = callback; } observe() {} disconnect() {} }
   class MutationFake { constructor(callback: () => void) { refresh = callback; } observe() {} disconnect() {} }
   Object.defineProperty(globalThis, "document", { configurable: true, value: documentFake });
@@ -45,7 +45,10 @@ test("content needs a meaningful uncovered dwell, including after a modal or rev
     blocked = true; refresh(); revision = 2;
     await wait(650);
     expect(observed).toEqual([1]);
-    blocked = false; covered = true; refresh();
+    blocked = false; statusCovered = true; refresh();
+    await wait(650);
+    expect(observed).toEqual([1]);
+    statusCovered = false; covered = true; refresh();
     await wait(650);
     expect(observed).toEqual([1]);
     covered = false; refresh();
@@ -63,4 +66,4 @@ test("content needs a meaningful uncovered dwell, including after a modal or rev
       else Reflect.deleteProperty(globalThis, key);
     }
   }
-}, 7000);
+}, 8000);

@@ -124,6 +124,14 @@ export type DiscussionWorkspaceProps = {
   viewer: DiscussionPerson;
   channels: DiscussionChannel[];
   questions: DiscussionQuestion[];
+  resolvedQuestions?: DiscussionQuestion[];
+  resolvedOpen?: boolean;
+  resolvedState?: DiscussionLoadState;
+  resolvedPageIndex?: number;
+  resolvedHasMore?: boolean;
+  onResolvedOpenChange?: (open: boolean) => void;
+  onResolvedPage?: (direction: "previous" | "next") => void;
+  onRetryResolved?: () => void;
   selectedQuestion: DiscussionQuestion | null;
   messages: DiscussionMessage[];
   selectedChannelId: string | null;

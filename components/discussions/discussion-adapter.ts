@@ -54,6 +54,10 @@ export async function searchDiscussionMentions(actions: Pick<Actions, "searchMen
   return people.map((person) => ({ ...person, mention: mentionHandle(person.id, person.name) }));
 }
 
+export function listDiscussionQuestionPage(actions: Pick<Actions, "listThreadsAcrossChannels">, input: { channelId?: string; search: string; cursor?: string; status: "open" | "resolved" }) {
+  return actions.listThreadsAcrossChannels({ channelId: input.channelId, search: input.search.trim() || undefined, cursor: input.cursor, status: input.status });
+}
+
 export async function searchDiscussionForwardTargets(actions: Pick<Actions, "listThreadsAcrossChannels">, input: Parameters<DiscussionWorkspaceProps["onSearchForwardTargets"]>[0]) {
   const page = await actions.listThreadsAcrossChannels({ channelId: input.channelId, search: input.search || undefined, cursor: input.cursor, status: "open" });
   return { ...page, items: page.items.map((item) => ({ questionId: item.id, channelId: item.channelId, title: item.title })) };
