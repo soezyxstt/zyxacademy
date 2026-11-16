@@ -303,8 +303,7 @@ describe("student course access policy", () => {
       expect(tutor.tier).toBe("staff");
       expect(tutor.roles).toEqual(["tutor"]);
 
-      // A prior request may have committed the identity before its role
-      // membership. The next access resolution must repair that partial row.
+      // Existing roleless identities cannot be distinguished from revocation.
       await testDb.insert(schema.user).values({
         id: "roleless-legacy-admin",
         name: "Roleless Legacy Admin",
@@ -320,8 +319,8 @@ describe("student course access policy", () => {
         updatedAt: now,
       });
       const repairedAdmin = await resolveCourseAccess({ courseId: "mk-legacy-staff", userId: "roleless-legacy-admin" }, testDb);
-      expect(repairedAdmin.tier).toBe("staff");
-      expect(repairedAdmin.roles).toEqual(["admin"]);
+      expect(repairedAdmin.hasFullContentAccess).toBe(false);
+      expect(repairedAdmin.roles).toEqual([]);
     } finally {
       await client.close();
     }

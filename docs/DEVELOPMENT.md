@@ -11,6 +11,8 @@ The staging importer can consume a signed local source snapshot using `NEON_SOUR
 
 The serving staging target uses ignored `.env.neon-staging-cutover`; guarded source and import settings use `.env.neon-staging-cutover-source`. The earlier `.env.neon-staging` and `.env.neon-staging-source` refer to the separate preparation target. Do not substitute the production rehearsal environment. Apply generated migrations only to an independently verified target, and reconcile a frozen source before importing. The copy tool accepts only the pinned rehearsal, staging and production host/bucket pairs. Use forward slashes in Windows snapshot paths stored in dotenv files. Never upload environment files or real snapshots in deployment source archives.
 
+The background worker environment schema includes optional `ZYRA_CONTROL_PLANE_URL` and `ZYRA_CONTROL_PLANE_TOKEN`. The deployment archive filter derives its allowlist from that schema. Verify the intended environment and configured control plane before deployment; local schema projection tests do not prove deployed reachability.
+
 ## Quick Start
 
 This migration branch pins Bun 1.3.14 in `package.json`, matching its Vercel build. `bun run test:ai-contracts` runs every contract file sequentially in a fresh process with placeholder credentials. PostgreSQL fixtures use PGlite with the generated migrations, native constraints and shared numeric parsers. Install Playwright Chromium and run `bun run build:authoring-skills` before the complete suite. Use the sandbox router for heavy installs, suites and typechecks; upload only reviewed source and synthetic fixtures.

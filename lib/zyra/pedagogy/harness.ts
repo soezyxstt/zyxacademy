@@ -34,7 +34,7 @@ export interface PedagogicalTurnResult {
   plan: TeachingPlan;
   providerCalls: number;
   usedFallback: boolean;
-  outcome: "composed" | "generated" | "rejected";
+  outcome: "composed" | "generated" | "rejected" | "uncertain";
   violationCodes: string[];
 }
 
@@ -147,8 +147,8 @@ export async function runPedagogicalTurn(params: RunPedagogicalTurnParams): Prom
     response: safeFallback(params.context, plan, parsedInput, "MODEL_OUTPUT_REJECTED"),
     plan,
     providerCalls: 1,
-    usedFallback: true,
-    outcome: "rejected",
+    usedFallback: result.outcome !== "uncertain",
+    outcome: result.outcome === "uncertain" ? "uncertain" : "rejected",
     violationCodes: result.violationCodes.length > 0 ? result.violationCodes : ["MODEL_OUTPUT_REJECTED"],
   };
 }

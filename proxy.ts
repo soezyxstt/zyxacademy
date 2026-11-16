@@ -30,6 +30,7 @@ export function proxy(request: NextRequest) {
 
   // Paths that require a user session (protected paths)
   const isProtectedRoute =
+    pathname === "/discussions" ||
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/courses") ||
     pathname.startsWith("/profile") ||
@@ -62,11 +63,6 @@ export function proxy(request: NextRequest) {
     // encodes the local path as one query value and prevents parameter injection.
     signInUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(signInUrl);
-  }
-
-  // 2. Authenticated users trying to access auth paths (/sign-in, /sign-up)
-  if (isAuthRoute && sessionToken) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   // Authoritative session verification and canonical role checks (hasPeran)

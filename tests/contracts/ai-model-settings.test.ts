@@ -301,8 +301,10 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
         },
       }),
       dispatch: async () => ({ status: "updated" as const, lease: {} as never }),
-      commit: async () => ({ status: "updated" as const, lease: {} as never }),
-      refund: async () => ({ status: "updated" as const, lease: {} as never }),
+      commit: async ({ leaseId, outcomeCode }: { leaseId: string; outcomeCode: string }) => ({
+        status: "updated" as const, lease: { leaseId, state: "committed", providerOutcomeCode: outcomeCode },
+      }),
+      refund: async (leaseId: string) => ({ status: "updated" as const, lease: { leaseId, state: "refunded" } }),
     } as unknown as ControlPlaneClient;
 
     const lifecycle = new RequestLifecycle({
@@ -315,6 +317,7 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
             code: "PROVIDER_ERROR",
             message: "503 service unavailable",
             retryClassification: "transient",
+            httpStatus: 503,
           });
         }
         return {

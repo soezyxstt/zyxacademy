@@ -20,7 +20,7 @@ import {
  enrollments,
  courses,
 } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { adminMessaging } from "@/lib/firebase/admin";
 import { randomUUID } from "crypto";
 import { getUserLocalePreference } from "@/lib/i18n/preferences";
@@ -93,7 +93,8 @@ async function persistNotification(
 
 async function sendMulticast(
  tokens: string[],
- payload: NotificationPayload
+ payload: NotificationPayload,
+ prune = true,
 ): Promise<{ succeeded: number; failedTokens: string[]; errors: string[] }> {
  if (tokens.length === 0) {
  return { succeeded: 0, failedTokens: [], errors: [] };
@@ -149,7 +150,7 @@ async function sendMulticast(
  }
 
  // Prune invalid tokens from the database
- await pruneInvalidTokens(failedTokens);
+ if (prune) await pruneInvalidTokens(failedTokens);
 
  return { succeeded, failedTokens, errors };
 }
@@ -167,6 +168,21 @@ export async function sendToUser(
 ): Promise<SendResult> {
  const locale = deliveryLocale ?? (payload.systemTemplate ? (await getUserLocalePreference(userId)) ?? DEFAULT_LOCALE : undefined);
  const renderedPayload = locale ? renderNotificationPayload(payload, locale) : payload;
+ const result = await sendPushToUser(userId, renderedPayload);
+
+ // Persist one notification record per user (not per token)
+ await persistNotification(userId, renderedPayload, {
+  attempted: result.attempted,
+  succeeded: result.succeeded,
+  failedCount: result.failedTokens.length,
+  sentAt: result.attempted > 0 ? new Date() : null,
+ });
+
+ return result;
+}
+
+/** Sends an already rendered payload without creating an inbox row. */
+export async function sendPushToUser(userId: string, renderedPayload: NotificationPayload): Promise<SendResult> {
  const rows = await db
  .select({ token: userPushTokens.token })
  .from(userPushTokens)
@@ -175,20 +191,54 @@ export async function sendToUser(
  const tokens = rows.map((r) => r.token);
  const result = await sendMulticast(tokens, renderedPayload);
 
- // Persist one notification record per user (not per token)
- await persistNotification(userId, renderedPayload, {
-  attempted: tokens.length,
-  succeeded: result.succeeded,
-  failedCount: result.failedTokens.length,
-  sentAt: tokens.length > 0 ? new Date() : null,
- });
-
  return {
  attempted: tokens.length,
  succeeded: result.succeeded,
  failedTokens: result.failedTokens,
  errors: result.errors,
  };
+}
+
+export type PushPageResult = SendResult & { nextCursor?: string };
+
+/** One durable page per recipient, at most 100 tokens each and ten recipients. */
+export async function sendPushToUsers(items: { userId: string; payload: NotificationPayload; after?: string }[]): Promise<Map<string, PushPageResult>> {
+ const results = new Map<string, PushPageResult>();
+ if (!items.length) return results;
+ const ids = items.map(item => item.userId);
+ if (items.length > 10 || new Set(ids).size !== ids.length) throw new Error("INVALID_PUSH_RECIPIENT_BATCH");
+ const rows = (await db.execute<{ id: string; userId: string; token: string }>(sql`
+  select registry.id, recipient.user_id as "userId", registry.token
+  from jsonb_to_recordset(${JSON.stringify(items.map(item => ({ user_id: item.userId, after_id: item.after ?? null })))}::jsonb) as recipient(user_id text, after_id text)
+  cross join lateral (
+   select id, token from ${userPushTokens} where user_id = recipient.user_id
+    and (user_id, id) >= (recipient.user_id, coalesce(recipient.after_id, ''))
+    and (recipient.after_id is null or id > recipient.after_id) order by user_id, id limit 101
+  ) registry
+ `)).rows;
+ const tokens = new Map<string, typeof rows>();
+ for (const row of rows) {
+  const userTokens = tokens.get(row.userId) ?? [];
+  userTokens.push(row);
+  tokens.set(row.userId, userTokens);
+ }
+ const invalid: string[] = [];
+ for (let i = 0; i < items.length; i += 10) {
+  await Promise.all(items.slice(i, i + 10).map(async ({ userId, payload }) => {
+   const page = tokens.get(userId) ?? [];
+   const userTokens = page.slice(0, 100).map(row => row.token);
+   try {
+    const result = await sendMulticast(userTokens, payload, false);
+    invalid.push(...result.failedTokens);
+    results.set(userId, { attempted: userTokens.length, ...result, ...(result.errors.length === 0 && page.length > 100 ? { nextCursor: page[99].id } : {}) });
+   } catch (error) {
+    results.set(userId, { attempted: userTokens.length, succeeded: 0, failedTokens: [],
+     errors: [error instanceof Error ? error.message : String(error)] });
+   }
+  }));
+ }
+ await pruneInvalidTokens(invalid);
+ return results;
 }
 
 // ─── Public: send to multiple users ──────────────────────────────────────────

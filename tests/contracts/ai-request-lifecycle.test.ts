@@ -75,8 +75,11 @@ function dependencies(overrides: Partial<RequestLifecycleDependencies> = {}) {
       return { status: "reserved" as const, lease: controlLease(input.modelId, input.routeClass) };
     },
     dispatch: async () => { events.push("cp.dispatch"); return { status: "updated" as const, lease: controlLease("gemini-3.5-flash-lite", "default") }; },
-    commit: async () => { events.push("cp.commit"); return { status: "updated" as const, lease: controlLease("gemini-3.5-flash-lite", "default") }; },
-    refund: async () => { events.push("cp.refund"); return { status: "updated" as const, lease: controlLease("gemini-3.5-flash-lite", "default") }; },
+    commit: async ({ leaseId, outcomeCode }: { leaseId: string; outcomeCode: string }) => {
+      events.push("cp.commit");
+      return { status: "updated" as const, lease: { ...controlLease("gemini-3.5-flash-lite", "default"), leaseId, state: "committed", providerOutcomeCode: outcomeCode } };
+    },
+    refund: async (leaseId: string) => { events.push("cp.refund"); return { status: "updated" as const, lease: { ...controlLease("gemini-3.5-flash-lite", "default"), leaseId, state: "refunded" } }; },
   } as unknown as ControlPlaneClient;
 
   return {
@@ -264,7 +267,7 @@ describe("Plan 005 request lifecycle", () => {
     expect(fixture.events).toEqual(["allowance.cache"]);
   });
 
-  it("tries bounded fallbacks and refunds a request that produces no answer", async () => {
+  it("tries bounded fallbacks and refunds the application after confirmed failures", async () => {
     const fixture = dependencies({
       invokeProvider: async () => {
         fixture.events.push("provider:failure");
@@ -272,6 +275,7 @@ describe("Plan 005 request lifecycle", () => {
           code: "PROVIDER_TRANSIENT",
           message: "masked",
           retryClassification: "transient",
+          httpStatus: 503,
         });
       },
     });

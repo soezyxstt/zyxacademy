@@ -96,6 +96,9 @@ for (const route of routes) {
     if (routePathname(route) === "/visual-fixtures/zyra-learning") {
       await expect(page.locator('[data-zyra-hydrated="true"]')).toBeVisible();
     }
+    if (routePathname(route) === "/visual-fixtures/discussions") {
+      await expect(page.getByRole("combobox", { name: "Peran fixture" })).toContainText(/Murid|Tutor|Admin/);
+    }
     if (routePathname(route) === "/visual-fixtures/article-graphs") {
       for (const figure of await page.getByRole("figure").all()) {
         await figure.scrollIntoViewIfNeeded();
@@ -120,7 +123,7 @@ for (const route of routes) {
     await page.screenshot({
       animations: "disabled",
       caret: "initial",
-      fullPage: true,
+      fullPage: !route.startsWith("/visual-fixtures/discussions"),
       path: screenshotPath,
       scale: "css",
     });

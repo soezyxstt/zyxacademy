@@ -15,6 +15,8 @@ import type { BadgeFamily } from './contracts';
 import { scheduleOutboxUsers } from './outbox-scheduling';
 import { announceBadge, announceRank } from './celebrations';
 import { RANKS } from './catalog';
+import { processDiscussionReward } from '@/lib/discussions/rewards';
+import { discussionRewardKind } from '@/lib/discussions/reward-policy';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 class Reject extends Error {
@@ -40,6 +42,10 @@ async function badge(tx: Tx, userId: string, family: BadgeFamily, identity: stri
 }
 
 async function processOne(tx: Tx, event: typeof gamificationEventOutbox.$inferSelect) {
+ if (discussionRewardKind(event.source)) {
+  if (!(await processDiscussionReward(tx, event))) throw new Reject();
+  return;
+ }
  const [receipt] = await tx.select().from(gamificationEvidenceReceipts).where(eq(gamificationEvidenceReceipts.id, event.evidenceId));
  if (!receipt || receipt.userId !== event.userId || receipt.source !== event.source || receipt.sourceId !== event.sourceId || receipt.occurredAt.getTime() !== event.occurredAt.getTime()) throw new Reject();
  if (event.occurredAt > new Date()) throw new Reject();

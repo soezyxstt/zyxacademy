@@ -30,7 +30,9 @@ import {
   BarChart3,
   Users,
   Bell,
+  MessageSquareText,
 } from "lucide-react";
+import { DiscussionCountBadge } from "@/components/discussions/discussion-count-badge";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { StudentAccountBoundary } from "@/components/student-account-boundary";
 import { useStudentExperience } from "@/components/student-experience-provider";
@@ -70,6 +72,7 @@ function StudentSidebarContent({
   session,
 }: StudentSidebarProps & { session: {user: {id: string; role?: string | null}} | null }) {
   const t = useTranslations("student");
+  const tDiscussion = useTranslations("tutor.schedule");
   const experience = useStudentExperience();
   const actualPathname = usePathname();
   const pathname = experience.pathname ?? actualPathname;
@@ -219,7 +222,7 @@ function StudentSidebarContent({
       if (pathname.startsWith(currentBase)) {
         const rest = pathname.slice(currentBase.length);
         const segment = rest.split("/").filter(Boolean)[0];
-        const commonSegments = ["material", "quiz", "flashcard", "leaderboard", "progress"];
+        const commonSegments = ["material", "quiz", "flashcard", "leaderboard", "progress", "discussions"];
         const normalCourseSegments = ["tryout", "my-results"];
         if (
           segment &&
@@ -267,12 +270,14 @@ function StudentSidebarContent({
         label: string;
         exact?: boolean;
         customActive?: boolean;
+        badge?: React.ReactNode;
       }> = isPka
         ? [
             { href: base, icon: LayoutDashboard, label: t("navigation.summary"), exact: true },
             { href: `${base}/jadwal`, icon: CalendarRange, label: t("navigation.pkaSchedule") },
             { href: `${base}/simulasi`, icon: ClipboardList, label: t("navigation.simulation") },
             { href: `${base}/laporan`, icon: BarChart3, label: t("navigation.diagnosticReport") },
+            ...(demo ? [] : [{ href: `${base}/discussions`, icon: MessageSquareText, label: tDiscussion("discussion"), badge: <DiscussionCountBadge courseId={activeCourseId} /> }]),
           ]
         : [
             { href: base, icon: LayoutDashboard, label: t("navigation.summary"), exact: true },
@@ -280,6 +285,7 @@ function StudentSidebarContent({
             { href: `${base}/video`, icon: Video, label: t("navigation.video") },
             { href: `${base}/playground`, icon: Code2, label: "Playground" },
             { href: `${base}/quiz`, icon: ClipboardList, label: t("navigation.quiz") },
+            ...(demo ? [] : [{ href: `${base}/discussions`, icon: MessageSquareText, label: tDiscussion("discussion"), badge: <DiscussionCountBadge courseId={activeCourseId} /> }]),
             {
               href: `/dashboard/schedule?course=${activeCourseId}`,
               icon: CalendarRange,
@@ -460,6 +466,10 @@ function StudentSidebarContent({
           active={pathname === "/dashboard/schedule"}
           collapsed={c}
         />
+
+        {!demo && <NavItem href={href("/dashboard/discussions")} icon={MessageSquareText} label={tDiscussion("discussion")}
+          active={pathname === "/dashboard/discussions" || pathname.startsWith("/dashboard/discussions/")}
+          badge={<DiscussionCountBadge />} collapsed={c} />}
 
         {(userRole === "teacher" || userRole === "tutor" || userRole === "admin") && (
           <NavItem

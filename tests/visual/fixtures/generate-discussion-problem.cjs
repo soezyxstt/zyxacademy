@@ -1,0 +1,34 @@
+const { createCanvas } = require("@napi-rs/canvas");
+const { mkdirSync, writeFileSync } = require("node:fs");
+const { join } = require("node:path");
+
+const canvas = createCanvas(840, 470);
+const ctx = canvas.getContext("2d");
+ctx.fillStyle = "#faf9f6";
+ctx.fillRect(0, 0, 840, 470);
+ctx.fillStyle = "#263445";
+ctx.font = "600 28px Arial";
+ctx.fillText("Latihan limit", 64, 80);
+ctx.font = "26px Arial";
+ctx.fillText("Tentukan nilai limit berikut:", 64, 140);
+ctx.textAlign = "center";
+ctx.font = "40px Arial";
+ctx.fillText("lim", 302, 249);
+ctx.font = "21px Arial";
+ctx.fillText("x → 2", 302, 279);
+ctx.font = "42px Arial";
+ctx.fillText("x² − 4", 453, 225);
+ctx.fillText("x − 2", 453, 298);
+ctx.strokeStyle = "#263445";
+ctx.lineWidth = 2;
+ctx.beginPath();
+ctx.moveTo(384, 244);
+ctx.lineTo(522, 244);
+ctx.stroke();
+ctx.textAlign = "left";
+ctx.font = "24px Arial";
+ctx.fillText("Jelaskan mengapa substitusi langsung tidak cukup.", 64, 388);
+
+const output = join(process.cwd(), "public", "visual-fixtures");
+mkdirSync(output, { recursive: true });
+writeFileSync(join(output, "discussion-problem.png"), canvas.toBuffer("image/png"));

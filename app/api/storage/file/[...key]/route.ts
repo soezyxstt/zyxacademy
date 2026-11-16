@@ -8,7 +8,7 @@ import { hasPeran } from "@/lib/auth/authorization";
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { canAccessCourseContent, resolveCourseAccess } from "@/lib/student/course-access";
-import { isProtectedCourseDiktatPdfKey, isProtectedProductDiktatPdfKey, isSafeKey, leafFilename, quizAttachmentPrefix } from "@/lib/storage/keys";
+import { isPrivateAttachmentKey, isProtectedCourseDiktatPdfKey, isProtectedProductDiktatPdfKey, isSafeKey, leafFilename, quizAttachmentPrefix } from "@/lib/storage/keys";
 import { getS3StorageConfig } from "@/lib/storage/r2";
 
 const config = getS3StorageConfig(process.env.STORAGE_PROVIDER_MODE === "neon" ? "neon" : "r2");
@@ -271,6 +271,10 @@ export async function GET(
     
     if (!key) {
       return new Response("Missing file key", { status: 400 });
+    }
+
+    if (isPrivateAttachmentKey(requestedKey) || isPrivateAttachmentKey(key)) {
+      return new Response("File not found", { status: 404, headers: { "Cache-Control": "private, no-store" } });
     }
 
     // Private interactive assets are available only through scoped routes.

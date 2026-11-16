@@ -5,7 +5,8 @@
     "pkaScheduleUpdate": { "title": "Pembaruan Tautan Meet: {scheduleTitle}", "body": "Tautan Google Meet ditambahkan untuk sesi {scheduleTitle} pada {sessionLabel}." },
     "tutorScheduleMoved": { "title": "Jadwal Tutorial Diperbarui", "body": "Sesi dipindahkan ke {dayOfWeek}, {sessionDate} pukul {startTime} sampai {endTime}." },
     "tutorTicketDecision": { "title": "Tiket {ticketType} {decision}", "body": "Pengajar telah memutuskan tiket {ticketType}." },
-    "tutorTicketMessage": { "title": "Balasan baru pada diskusi jadwal" }
+    "tutorTicketMessage": { "title": "Balasan baru pada diskusi jadwal" },
+    "discussion": { "title": "Pembaruan diskusi", "body": "Ada aktivitas baru di diskusi." }
   },
   "bell": "Notifikasi",
   "title": "Notifikasi",

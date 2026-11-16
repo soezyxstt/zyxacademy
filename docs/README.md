@@ -1,6 +1,11 @@
 The `ACTIVE` [feature catalog](features.md) describes per-question legacy quiz evidence validation, compatible assessment item reuse, and retryable canonical lookup failures before grading writes. The catalog and [architecture guide](ARCHITECTURE.md) also describe browser-persistent public demo schedules, groups, assessment progress and per-course rankings. Weekly course-specific slots are generated for any requested week. The global calendar combines courses, explicit course calendars stay scoped, and ranking seeds differ by course; attachments remain in the browser. Local validation is separate from production acceptance.
 
+`OPEN / IN PROGRESS`, discussion post35: [Discussion workflow](discussions.md), [architecture](ARCHITECTURE.md), [feature catalog](features.md), and [database schema](DB_SCHEMA.md) record the repairs after all five post34 reviews failed. Local migration 0034 adds indexed two-character name candidates, indexed token paging and retained attachment-expiry ownership. Signed observations now acknowledge individual visible message revisions beyond a read gap without advancing the contiguous watermark or clearing earlier unseen events. The updated local core and notification suites pass 34 and 26 cases. Current tests establish local behavior only; all 162 distinct visual cases passed on their final execution, and the primary directly inspected all 338 final PNGs. All five independent local acceptance aspects passed 9.5 after the final read-retry verification. Remote migration, writer drain, fenced backfill and deployment remain held.
+
+
 # Zyx Academy Documentation Index
+
+`OPEN / IN PROGRESS`, discussion final integration: all five Terra xhigh aspects passed 9.5. The UI lane repaired pending read observations; root's additional signed-receipt transaction regression and eight-case visual rerun passed. All 338 final screenshots were directly inspected, including the 16 refreshed read-state captures. The final independent UI recheck passed 9.5. [Discussion workflow](discussions.md) remains locally implemented, with remote migration and deployment held.
 
 The `ACTIVE` [feature catalog](features.md) documents basic profile access for authenticated staff, student-only gamification, grouped profile statistics and academic, privacy and appearance editor tabs. Academic drafts survive tab changes and failed saves; privacy and owned cosmetics save independently. Achievements and public student profiles retain student transition behavior without the cross-surface logo overlay. Focused access regressions and isolated profile/edit/dashboard-summary visuals cover 380 x 844 and 1536 x 864. Full application staging persistence acceptance remains separate.
 
@@ -77,10 +82,11 @@ The `ACTIVE` feature catalog and schema reference document permanent admin-manag
 
 ## 1. Documentation Taxonomy & Hierarchy
 
-The documentation is organized into clear functional layers:
+The documentation is organized into clear functional layers. The product-level [discussion contract](discussions.md) sits beside the feature catalog and gamification contract, including the equipped-default or explicitly selected owned participant skin boundary. The feature, architecture, schema and gamification guides remain `ACTIVE`; their discussion additions describe local work that is `OPEN / IN PROGRESS`.
 
 ```text
 docs/
+├── discussions.md                            # Structured Q&A contract and open integration
 â”œâ”€â”€ README.md                                 # Master Index and Status Authority (this file)
 â”œâ”€â”€ ARCHITECTURE.md                           # System Architecture, Data Flow, and Boundaries
 â”œâ”€â”€ DATABASE.md                               # Database Setup, Environments, and Adapters
@@ -135,6 +141,7 @@ Every document in this repository has one of the following explicit statuses:
 
 | Document | Category | Status | Updated / Date | Purpose and Scope |
 |---|---|---|---|---|
+| [discussions.md](discussions.md) | Product contract | `OPEN / IN PROGRESS` | 2026-11-16 | Bilingual Q&A, scoped private audiences, immutable retries, content-visible read receipts, targeted report navigation, authorization-bound badge reuse and single-dispatch Zyra. Local migrations through 0033, 32 Node core cases and focused database/accounting checks pass. Scoped read revisions and indexed notification clearing are documented in the architecture and schema guides. The historical post33 primary run passed 142 cases and inspected 300 PNGs. Metadata count reuse, bounded cache admission, repeated report back-navigation, explicit Free scope and worker AI configuration are documented; backend checks are separate from fixture visuals. Post34 fixes role revocation, caller-level AI uncertainty, count admission/discovery, scoped notification operations, mention pages, read retries and accessible message references; focused checks pass. Post34 has all 156 distinct visual cases passing on final execution, after two obsolete-selector failures were repaired and rerun; primary directly inspected all 326 PNGs. Rendered component hashes remained stable, with backend and test-only capture-to-final differences recorded separately. Independent five-aspect acceptance remains open. |
 | [operations/vercel-staging.md](operations/vercel-staging.md) | Operations | `OPEN / IN PROGRESS` | 2026-11-15 | Manual Vercel releases, exact target guards, verified database credential fence, backfill and catalog; hosted recovery and user-managed DNS remain pending. |
 | [operations/cloud-run-staging.md](operations/cloud-run-staging.md) | Operations | `TRANSITIONAL / LEGACY` | 2026-11-15 | Historical Google staging configuration; its CI/CD path has been removed. |
 | [README.md](README.md) | Index | `ACTIVE` | 2026-11-12 | Master documentation index, hierarchy map and lifecycle status ledger, including live Neon staging topology, per-feature AI model routing, production boundaries, bilingual evidence and open gates. |
