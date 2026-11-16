@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useTranslations } from "@/lib/i18n/client";
-import { ArrowLeft, Bell, BellOff, CheckCircle2, ChevronDown, ChevronRight, CircleHelp, Loader2, LockKeyhole, MessageSquareText, Plus, RotateCcw, Search } from "lucide-react";
+import { ArrowLeft, Bell, BellOff, CheckCircle2, ChevronDown, ChevronRight, CircleHelp, Loader2, LockKeyhole, MessageSquareText, RotateCcw, Search, SquarePen, X } from "lucide-react";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -59,6 +59,22 @@ export type DiscussionDraftState = {
 
 export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftState?: DiscussionDraftState }) {
   const t = useTranslations("discussions");
+  const ui = useTranslations("ui");
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const searchVisible = searchExpanded || !!props.search;
+  const searchTrigger = useRef<HTMLButtonElement>(null);
+  const restoreSearchFocus = useRef(false);
+  useEffect(() => {
+    if (!searchVisible && restoreSearchFocus.current) {
+      searchTrigger.current?.focus();
+      restoreSearchFocus.current = false;
+    }
+  }, [searchVisible]);
+  function closeSearch() {
+    restoreSearchFocus.current = true;
+    props.onSearchChange("");
+    setSearchExpanded(false);
+  }
   const [urlTab, setUrlTab] = useUrlTab("discussionTab", "questions");
   const localDrafts = useState<Record<string, ComposerDraft>>({});
   const [drafts, setDrafts] = props.draftState?.drafts ?? localDrafts;
@@ -212,7 +228,7 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
   function questionRow(item: DiscussionWorkspaceProps["questions"][number]) {
     const itemChannel = props.channels.find(value => value.id === item.channelId);
     const status = t(item.status === "open" ? "status_open" : item.status === "answered" ? "status_answered" : "status_resolved");
-    return <button type="button" key={item.id} data-question-status={item.status} aria-current={item.id === props.selectedQuestionId ? "true" : undefined} onClick={() => props.onSelectQuestion(item.id)} className={cn("w-full min-w-0 space-y-2 px-3 py-3 text-left transition-colors hover:bg-muted/60 focus-visible:relative focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none", item.id === props.selectedQuestionId && "bg-primary/8")}><span className="flex items-start justify-between gap-2"><span className={cn("min-w-0 break-words font-heading text-body-sm font-semibold", item.status !== "open" && "text-muted-foreground")}>{item.title}<span className="sr-only">, {status}</span></span>{item.unreadCount > 0 && <span aria-label={t("unreadMessages", { count: item.unreadCount })} className="shrink-0 rounded-md bg-primary px-1.5 py-0.5 text-body-xs font-semibold text-primary-foreground">{item.unreadCount}</span>}</span><span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body-xs text-muted-foreground">{itemChannel && <ChannelName channel={itemChannel} />}<span>{t("answers", { count: item.answerCount })}</span><FormattedDate date={item.lastActivityAt} options={{ day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }} /></span></button>;
+    return <button type="button" key={item.id} data-question-status={item.status} aria-current={item.id === props.selectedQuestionId ? "true" : undefined} onClick={() => props.onSelectQuestion(item.id)} className={cn("w-full min-w-0 space-y-2 px-3 py-3 text-left transition-colors hover:bg-muted/60 focus-visible:relative focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none", item.id === props.selectedQuestionId && "bg-primary/8")}><span className="flex items-start justify-between gap-2"><span className={cn("min-w-0 break-words font-heading text-body-sm font-semibold", item.status !== "open" && "text-muted-foreground")}>{item.title}<span className="sr-only">, {status}</span></span>{item.unreadCount > 0 && <span aria-label={t("unreadMessages", { count: item.unreadCount })} className="shrink-0 rounded-md bg-primary px-1.5 py-0.5 text-body-xs font-semibold text-primary-foreground">{item.unreadCount}</span>}</span><span data-question-metadata className="flex items-start justify-between gap-2 text-body-xs text-muted-foreground"><span className="min-w-0 flex-1">{itemChannel && <ChannelName channel={itemChannel} />}</span><span className="flex shrink-0 items-center gap-2"><span className="inline-flex items-center gap-1"><MessageSquareText aria-hidden className="size-3" /><span aria-hidden>{item.answerCount}</span><span className="sr-only">{t("answers", { count: item.answerCount })}</span></span><FormattedDate date={item.lastActivityAt} options={{ day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }} /></span></span></button>;
   }
 
   return <TooltipProvider><div className="@container/discussions min-w-0" data-discussion-workspace>
@@ -222,8 +238,8 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
       <TabsContent value="questions" className="mt-0">
         <div ref={setFrameElement} className="flex h-[48rem] min-w-0 overflow-hidden rounded-xl border border-border bg-card @min-[52rem]/discussions:h-[44rem]">
           <aside aria-label={t("questionList")} className={cn("min-w-0 flex-1 flex-col @min-[52rem]/discussions:flex @min-[52rem]/discussions:w-[21rem] @min-[52rem]/discussions:flex-none @min-[52rem]/discussions:border-r @min-[52rem]/discussions:border-border", props.selectedQuestionId ? "hidden" : "flex")}>
-            <div className="space-y-3 border-b border-border p-3"><div className="flex items-center justify-between gap-2"><h2 className="font-heading text-body-base font-bold">{t("questions")}</h2><Button type="button" onClick={openNew} disabled={!creatableChannels.length}><Plus /> {t("newQuestion")}</Button></div>
-              <div className="flex flex-wrap items-center gap-2"><div className="relative min-w-[140px] flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={props.search} onChange={(event) => props.onSearchChange(event.target.value)} aria-label={t("searchQuestion")} placeholder={t("search")} className="pl-9" /></div><div className="w-40 max-w-full shrink-0"><DiscussionChannelPicker value={props.channels.find((item) => item.id === props.selectedChannelId) ?? null} label={t("filterChannel")} placeholder={t("allChannels")} allowAll onSearch={props.onSearchChannels} onChange={props.onSelectChannel} /></div></div>
+            <div className="space-y-3 border-b border-border p-3">
+              <div className="flex min-w-0 items-center gap-2" onKeyDown={(event) => { if (searchVisible && event.key === "Escape") { event.preventDefault(); closeSearch(); } }}>{searchVisible ? <><Input autoFocus value={props.search} onChange={(event) => props.onSearchChange(event.target.value)} aria-label={t("searchQuestion")} placeholder={t("search")} className="min-w-0 flex-1" /><Tooltip><TooltipTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={ui("close")} onClick={closeSearch}><X /></Button></TooltipTrigger><TooltipContent>{ui("close")}</TooltipContent></Tooltip></> : <><div className="min-w-0 flex-1"><DiscussionChannelPicker value={props.channels.find((item) => item.id === props.selectedChannelId) ?? null} label={t("filterChannel")} placeholder={t("allChannels")} allowAll onSearch={props.onSearchChannels} onChange={props.onSelectChannel} /></div><Tooltip><TooltipTrigger asChild><Button ref={searchTrigger} type="button" variant="ghost" size="icon-sm" aria-label={t("searchQuestion")} onClick={() => setSearchExpanded(true)}><Search /></Button></TooltipTrigger><TooltipContent>{t("searchQuestion")}</TooltipContent></Tooltip><Tooltip><TooltipTrigger asChild><Button type="button" size="icon-sm" aria-label={t("newQuestion")} onClick={openNew} disabled={!creatableChannels.length}><SquarePen /></Button></TooltipTrigger><TooltipContent>{t("newQuestion")}</TooltipContent></Tooltip></>}</div>
               {selectedChannel && <div className="flex items-center justify-between gap-2 text-body-xs text-muted-foreground"><span className="min-w-0"><ChannelName channel={selectedChannel} />{selectedChannel.unreadCount > 0 && <span className="ml-2 inline-block">{t("unreadQuestions", { count: selectedChannel.unreadCount })}</span>}</span><Tooltip><TooltipTrigger asChild><Button type="button" variant="ghost" size="icon-sm" disabled={mutePending} aria-label={t(selectedChannel.muted ? "unmuteChannel" : "muteChannel", { name: discussionChannelLabel(selectedChannel, t) })} onClick={() => void toggleMute()}>{selectedChannel.muted ? <BellOff /> : <Bell />}</Button></TooltipTrigger><TooltipContent>{t(selectedChannel.muted ? "unmute" : "mute")}</TooltipContent></Tooltip></div>}
               {muteError && <p role="alert" className="text-body-xs text-destructive">{t("muteError")}</p>}
             </div>

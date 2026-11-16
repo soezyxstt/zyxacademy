@@ -1404,6 +1404,7 @@ test("compact discussion status sections and resolved pages", async ({ page }, i
   await page.getByRole("button", { name: "Muat pertanyaan lainnya", exact: true }).last().click();
   await expect(page.locator('[data-question-status="resolved"]')).toHaveCount(16);
   await capture(page, info, "resolved-next-page");
+  await page.getByRole("button", { name: "Cari pertanyaan", exact: true }).click();
   await page.getByRole("textbox", { name: "Cari pertanyaan" }).fill("Pertanyaan selesai 35");
   await expect(page.locator('[data-question-status="resolved"]')).toHaveCount(1);
   await capture(page, info, "resolved-search");
@@ -1428,6 +1429,64 @@ test("compact discussion status resolution, reopening and deep link", async ({ p
   await capture(page, info, "resolved-deep-link");
 });
 
+test("question metadata separates channel and answer count", async ({ page }, info) => {
+  await open(page, "?question=none");
+  const sidebar = page.getByRole("complementary", { name: "Daftar pertanyaan" });
+  const newQuestion = page.getByRole("button", { name: "Pertanyaan baru", exact: true });
+  const searchTrigger = sidebar.getByRole("button", { name: "Cari pertanyaan", exact: true });
+  const channelFilter = sidebar.getByRole("combobox", { name: "Filter kanal" });
+  const answeredCount = await page.locator('[data-question-status="answered"]').count();
+  await expect(sidebar.getByRole("heading", { name: "Pertanyaan", exact: true })).toHaveCount(0);
+  await expect(channelFilter).toBeVisible();
+  await expect(searchTrigger).toBeVisible();
+  await expect(newQuestion).toHaveCount(1);
+  await expect(newQuestion).toHaveText("");
+  await expect(newQuestion.locator("svg.lucide-square-pen")).toHaveCount(1);
+  for (const [title, count] of [["Cara membaca domain", 0], ["Mengapa limit", 1]] as const) {
+    const row = page.locator("[data-question-status]").filter({ hasText: title });
+    const metadata = row.locator("[data-question-metadata]");
+    await expect(row).toHaveAccessibleName(new RegExp(`${count} jawaban`));
+    const layout = await metadata.evaluate(element => {
+      const [channel, details] = Array.from(element.children);
+      const left = channel.getBoundingClientRect(), right = details.getBoundingClientRect(), bounds = element.getBoundingClientRect();
+      const count = details.querySelector('[aria-hidden="true"] + [aria-hidden="true"]');
+      const visibleDetails = details.cloneNode(true) as HTMLElement;
+      visibleDetails.querySelectorAll(".sr-only").forEach(node => node.remove());
+      return { left: left.x, leftRight: left.right, right: right.x, rightEdge: right.right, boundsLeft: bounds.x, boundsRight: bounds.right,
+        icon: details.querySelector("svg") !== null, count: count?.textContent, visible: visibleDetails.textContent };
+    });
+    expect(layout.left).toBeCloseTo(layout.boundsLeft, 0);
+    expect(layout.leftRight).toBeLessThanOrEqual(layout.right);
+    expect(layout.rightEdge).toBeCloseTo(layout.boundsRight, 0);
+    expect(layout.icon).toBe(true);
+    expect(layout.count).toBe(String(count));
+    expect(layout.visible).not.toMatch(/jawaban|answers/);
+  }
+  await capture(page, info, "question-metadata");
+  await searchTrigger.click();
+  const search = sidebar.getByRole("textbox", { name: "Cari pertanyaan" });
+  await expect(search).toBeFocused();
+  await expect(channelFilter).toHaveCount(0);
+  await expect(newQuestion).toHaveCount(0);
+  await capture(page, info, "question-search-expanded");
+  await search.fill("Cara membaca domain");
+  await expect(page.locator('[data-question-status="open"]')).toHaveCount(1);
+  await expect(page.locator('[data-question-status="answered"]')).toHaveCount(0);
+  await capture(page, info, "question-search-populated");
+  await sidebar.getByRole("button", { name: "Tutup", exact: true }).click();
+  await expect(searchTrigger).toBeFocused();
+  await expect(channelFilter).toBeVisible();
+  await expect(newQuestion).toBeVisible();
+  await expect(page.locator('[data-question-status="answered"]')).toHaveCount(answeredCount);
+  await capture(page, info, "question-search-restored");
+  await searchTrigger.click();
+  await expect(search).toHaveValue("");
+  await search.fill("Cara membaca domain");
+  await search.press("Escape");
+  await expect(searchTrigger).toBeFocused();
+  await expect(page.locator('[data-question-status="answered"]')).toHaveCount(answeredCount);
+});
+
 test("compact discussion live composer and four image recovery", async ({ page }, info) => {
   await open(page, "?fail=upload-mixed&question=function");
   const editor = page.getByRole("textbox", { name: "Tulis pesan" });
@@ -1440,6 +1499,27 @@ test("compact discussion live composer and four image recovery", async ({ page }
   await page.getByRole("button", { name: "Bantuan diskusi" }).focus();
   await expect(page.locator(".zyra-composer-bold")).toContainText("Tebal");
   await expect(page.locator(".zyra-composer-math")).toHaveAttribute("aria-label", "x^2");
+  const toolbar = page.locator("[data-discussion-toolbar]");
+  const send = page.getByRole("button", { name: "Kirim jawaban", exact: true });
+  const options = toolbar.getByRole("button", { name: "Bantuan diskusi", exact: true });
+  async function expectSendPlacement() {
+    await expect(send).toHaveCount(1);
+    await expect(send).toHaveText("");
+    await expect(send.locator("svg")).toHaveCount(1);
+    const toolbarBox = (await toolbar.boundingBox())!, sendBox = (await send.boundingBox())!;
+    const optionsBox = (await options.boundingBox())!, editorBox = (await page.locator("[data-editor-disabled]").boundingBox())!;
+    expect(toolbarBox.y + toolbarBox.height).toBeLessThanOrEqual(editorBox.y);
+    if (page.viewportSize()!.width === 380) {
+      expect(sendBox.y).toBeCloseTo(optionsBox.y, 0);
+      expect(sendBox.x).toBeGreaterThan(optionsBox.x + optionsBox.width);
+      expect(sendBox.x + sendBox.width).toBeCloseTo(editorBox.x + editorBox.width, 0);
+    } else {
+      expect(sendBox.x).toBeGreaterThanOrEqual(editorBox.x + editorBox.width);
+      expect(sendBox.y + sendBox.height / 2).toBeCloseTo(editorBox.y + editorBox.height / 2, 0);
+    }
+  }
+  await expectSendPlacement();
+  await capture(page, info, "composer-nonempty");
   const image = await readFile("public/visual-fixtures/discussion-problem.png");
   await page.locator('input[type="file"]').setInputFiles(["one.png", "two.png", "slow.png", "failed.png"].map(name => ({ name, mimeType: "image/png", buffer: image })));
   await expect(page.getByRole("status", { name: "slow.png: Mengunggah" })).toBeVisible();
@@ -1453,7 +1533,8 @@ test("compact discussion live composer and four image recovery", async ({ page }
   const tiles = await page.locator("[data-discussion-images] > div").evaluateAll(elements => elements.map(element => { const box = element.getBoundingClientRect(); return { y: box.y, bottom: box.bottom }; }));
   expect(tiles).toHaveLength(4);
   expect(new Set(tiles.map(tile => Math.round(tile.y))).size).toBe(1);
-  expect(Math.max(...tiles.map(tile => tile.bottom))).toBeLessThanOrEqual((await editor.boundingBox())!.y);
+  expect(Math.max(...tiles.map(tile => tile.bottom))).toBeLessThanOrEqual((await toolbar.boundingBox())!.y);
+  await expectSendPlacement();
   await capture(page, info, "four-images-ready");
   await page.getByRole("button", { name: "Hapus one.png" }).click();
   await expect(page.locator("[data-discussion-images] img")).toHaveCount(3);

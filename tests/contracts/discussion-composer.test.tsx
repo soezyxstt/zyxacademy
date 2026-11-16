@@ -155,7 +155,7 @@ describe("discussion composer contract", () => {
     const draft = { ...emptyComposerDraft(), body: `@${person.mention}`, mentionedPeople: [{ ...person, channelId: "old" }] };
     const html = renderToStaticMarkup(<DiscussionI18nFixture><TooltipProvider><DiscussionComposer draft={draft} update={() => {}} channelId="new" viewer={viewer} onSearchMentions={async () => []} onUpload={async () => ({ ok: true, attachment: { id: "image", name: "image", url: "" } })} onSubmit={noop} submitLabel="Kirim jawaban" /></TooltipProvider></DiscussionI18nFixture>);
     expect(html).toContain("Pilih ulang atau hapus orang yang disebut setelah mengganti kanal.");
-    expect(html).toMatch(/<button[^>]*disabled[^>]*>[^<]*.*Kirim jawaban/);
+    expect(html).toMatch(/<button(?=[^>]*disabled)(?=[^>]*aria-label="Kirim jawaban")[^>]*>/);
   });
 
   test("renders compact reply math instead of exposing Markdown syntax", () => {
