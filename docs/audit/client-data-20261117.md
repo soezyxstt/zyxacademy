@@ -1,10 +1,12 @@
 # Client data audit, 17 November 2026
 
-Status: OPEN / IN PROGRESS. Source implementation and local evidence are separate from PR review, deployment and authenticated staging acceptance. No production data or database schema changed.
+Status: implementation and local validation recorded in PR #344. Final-head CI, completed review, deployment and authenticated staging acceptance remain separate gates. No production/staging data or database schema changed.
 
 ## Scope and baseline
 
 Base: staging `c8f9e675a215e89103939970feeef89a0222d86a`. Initial source scan covered 1,767 TypeScript modules in app/components/hooks/lib, 408 explicit client modules and 152 API routes. The reproducible AST inventory also covers jobs, workers and database modules; its totals therefore use a broader denominator and include newly extracted hooks. Run `bun run audit:client-data artifacts/query-data-layer/inventory.json` for the current tree rather than treating this snapshot as a permanent count.
+
+The expanded inventory checkpoint contains 1,851 source modules, 419 explicit client modules, 662 conservatively browser-reachable modules and 152 API routes. It classifies 61 modules with manual browser transports, 26 with Query-layer calls, 47 server-action modules, 24 server/worker transport modules and eight specialized browser transport modules. These counts describe static source ownership, not production request volume.
 
 The npm registry resolved both `@tanstack/react-query` and `@tanstack/eslint-plugin-query` to 5.107.2 during implementation. Both direct dependencies and the Bun lockfile are updated. The official Query guides and the installed Next.js guides informed the ownership policy in [Browser data ownership](../client-data.md).
 
@@ -38,15 +40,21 @@ Quiz submission now locks before awaiting uploads, updates the answer snapshot s
 
 Article completion previously sent the current reading-time counter from more than one path and invented five seconds for other visible sections. The counter is now consumed once, other sections receive zero elapsed time, hidden-document ticks do not add time, and progress cannot regress on a late response. This does not add a durable offline outbox or server idempotency.
 
+Cold-session completion is also gated on an available, account-bound save transport. Query updates mutation observer options in an effect; the hook waits for that binding before child scroll effects can send or mark completion. The browser regression reproduces the failed first save without this guard and passes with it on mobile and desktop.
+
 ## Evidence and acceptance
 
-- Baseline application typecheck passed.
-- Baseline lint passed with 24 pre-existing warnings.
-- Focused Query tests: 25 passed, zero failed, 65 assertions at the initial checkpoint.
-- Broad single-process contract execution exposed shared `mock.module` contamination and unrelated environment-dependent imports. A passing full-suite claim is not made; affected files are being checked in fresh processes with an unchanged-source comparison for failures.
-- Current implementation typecheck, final lint, isolated contracts, browser interaction checks and build: verification in progress. Update this section with the final commands and outcomes before review.
+- Full application TypeScript check passed. The first CI run caught test-fixture typing errors; explicit cache payload types corrected them. Final-head CI remains authoritative.
+- Full lint passed with 24 pre-existing warnings. The final article hook/controller lint check also passed.
+- `bun test tests/unit/query-data-layer.test.ts tests/unit/student-today-query.test.ts`: 25 passed, zero failed, 65 assertions.
+- `bun scripts/test-contracts.ts <84 selected contract paths>`: 357 tests passed across 84 files, with no failures or timeouts. Each file runs in a fresh process. An earlier single-process experiment suffered shared mock contamination; this is not a claim that the entire repository suite passed.
+- `PLAYWRIGHT_BASE_URL=http://fixture.invalid bunx playwright test tests/visual/query-data-layer.spec.ts --config=playwright.config.ts`: 16 checks passed at 380px mobile and desktop, using real components with synthetic data and intercepted transports.
+- Desktop/mobile quiz answers, confirmation, save error, flashcards, article preview and reading screenshots were opened and inspected. This is isolated component evidence, not full authenticated staging acceptance.
+- A dedicated browser CI workflow repeats the suite and retains its screenshots/report for seven days. The earlier 14-check revision also passed on GitHub Actions.
+- `bun run build` passed using an empty, locally migrated PostgreSQL 16 database and placeholder credentials. The earlier database-free attempt compiled but failed sitemap prerendering because PostgreSQL was absent. A repeat for the final session-readiness edit is tracked in the PR, not inferred from this earlier build.
+- Frozen Bun install and diff whitespace checks passed. No real account, billing, staging or production database was used for these checks.
 - Production latency, actual server cost, authenticated staging writes and deployed cache behavior have not been measured. Local deduplication and cancellation tests prove their specific contracts, not a global speedup.
-- Review-bot completion and deployment checks remain release gates. Do not merge while review is processing or a valid thread remains open.
+- Review-bot completion and deployment checks remain release gates. Do not merge while review is processing, checks fail, or a valid thread remains open.
 
 ## Remaining direct browser transport inventory
 

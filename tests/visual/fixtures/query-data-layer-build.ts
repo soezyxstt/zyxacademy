@@ -8,7 +8,13 @@ export const boundary: Plugin = {
   name: "interactive-document-browser-boundaries",
   setup(build) {
     const modules: Record<string, string> = {
-      "@/lib/auth-client": `export const useSession=()=>({data:{user:{id:'fixture-student'}},isPending:false});`,
+      "@/lib/auth-client": `import {useSyncExternalStore} from 'react';
+const pending={data:null,isPending:true},ready={data:{user:{id:'fixture-student'}},isPending:false};
+let resolved=!new URLSearchParams(window.location.search).has('pendingSession');
+const listeners=new Set();
+window.resolveFixtureSession=()=>{resolved=true;listeners.forEach(listener=>listener());};
+const subscribe=listener=>{listeners.add(listener);return ()=>listeners.delete(listener);};
+export const useSession=()=>useSyncExternalStore(subscribe,()=>resolved?ready:pending,()=>pending);`,
       "./actions": `export async function submitReviewAction(){throw new Error('Live flashcard RPC is not available in the fixture');}`,
       "@/app/actions/tutor": `export async function quickExplainSnippetAction(){throw new Error('Tutor RPC is not available in the fixture');}`,
 

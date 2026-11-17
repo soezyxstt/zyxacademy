@@ -27,6 +27,7 @@ export function useArticleReader({
 }: StructuredArticleReaderProps & { saveProgress?: (update: ProgressUpdate) => Promise<SavedSectionProgress> }) {
   const t = useTranslations("studentCourse");
   const learnerMode = isLearnerReaderMode(mode);
+  const canTrackProgress = learnerMode && !adapter && Boolean(saveProgress);
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -332,7 +333,7 @@ export function useArticleReader({
 
   // Reset scroll & timer tracking on active section change
   useEffect(() => {
-    if (!learnerMode || adapter) return;
+    if (!canTrackProgress) return;
     activeTimeSpentRef.current = 0;
     maxScrollPercentRef.current = 0;
 
@@ -350,11 +351,11 @@ export function useArticleReader({
         );
       }
     };
-  }, [activeSection, learnerMode, adapter, sendProgressUpdate, takeReadingTime]);
+  }, [activeSection, canTrackProgress, sendProgressUpdate, takeReadingTime]);
 
   // Scroll listener to track read percentage and completion across all sections in continuous flow
   useEffect(() => {
-    if (!learnerMode || adapter) return;
+    if (!canTrackProgress) return;
     const handleScroll = () => {
       const el = contentContainerRef.current;
       if (!el) return;
@@ -395,7 +396,7 @@ export function useArticleReader({
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [activeSection, article.sections, learnerMode, adapter, sendProgressUpdate, takeReadingTime]);
+  }, [activeSection, article.sections, canTrackProgress, sendProgressUpdate, takeReadingTime]);
 
   // Selection listener for selection-to-Zyra toolbar using mouseup and keyup
   useEffect(() => {
@@ -538,6 +539,7 @@ export function useArticleReader({
   const overallPercent = Math.min(100, Math.round((completedCount / totalSections) * 100));
 
   const handleFinishArticle = () => {
+    if (learnerMode && !adapter && !saveProgress) return;
     if (adapter) { if (adapter.ready) { adapter.onComplete(); router.push(backHref ?? `/courses/${article.courseId}/material`); } return; }
     if (learnerMode) {
       for (const sec of article.sections) {
@@ -551,6 +553,7 @@ export function useArticleReader({
   };
 
   const handleNextMaterial = () => {
+    if (learnerMode && !adapter && !saveProgress) return;
     if (learnerMode) {
       for (const sec of article.sections) {
         if (!completedSectionsSentRef.current.has(sec.id)) {
@@ -565,6 +568,7 @@ export function useArticleReader({
   };
 
   const handlePrevMaterial = () => {
+    if (learnerMode && !adapter && !saveProgress) return;
     if (learnerMode) {
       for (const sec of article.sections) {
         if (!completedSectionsSentRef.current.has(sec.id)) {

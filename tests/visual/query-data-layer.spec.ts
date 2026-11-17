@@ -1,5 +1,13 @@
 import { expect, test, type Page, type TestInfo, type Route } from "@playwright/test";
 import { buildFixture } from "./fixtures/query-data-layer-build";
+import { sourceArticle } from "./fixtures/query-article-data";
+
+ declare global {
+  interface Window {
+    unmountQueryFixture: () => void;
+    resolveFixtureSession: () => void;
+  }
+}
 
 // The isolated bundle includes the real article graph renderer and CSS.
 test.setTimeout(60_000);
@@ -152,5 +160,31 @@ test("article progress consumes elapsed time once and ignores hidden document ti
   await expect.poll(() => writes.reduce((sum, item) => sum + item.timeSpentSeconds, 0)).toBeGreaterThan(0);
   expect(writes.reduce((sum, item) => sum + item.timeSpentSeconds, 0)).toBeLessThanOrEqual(7);
   expect(writes.every((item) => item.timeSpentSeconds >= 0)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+
+test("article completion waits for a pending session instead of marking an unsent save", async ({ page }, info) => {
+  const writes: { sectionId: string; completed?: boolean }[] = [];
+  const target = sourceArticle.sections.find((section) => !sourceArticle.progress?.sectionProgress[section.id]?.completed)!;
+  const errors = await boot(page, "surface=article&pendingSession=1", async (route, url) => {
+    if (!url.pathname.endsWith("/progress")) return false;
+    expect(route.request().headers()["x-student-id"]).toBe("fixture-student");
+    const data = route.request().postDataJSON(); writes.push(data);
+    await route.fulfill({ json: { success: true, sectionId: data.sectionId, maxReadPercent: data.percent, completed: Boolean(data.completed), timeSpentSeconds: data.timeSpentSeconds, completedAt: null } }); return true;
+  });
+  await expect(page.getByRole("heading", { name: "Bilangan real dan representasi desimal", exact: true })).toBeVisible();
+  await page.evaluate((slug) => {
+    const section = document.getElementById(`section-${slug}`)!;
+    section.getBoundingClientRect = () => new DOMRect(0, 0, 300, 100);
+    window.dispatchEvent(new Event("scroll"));
+  }, target.slug);
+  expect(writes).toHaveLength(0);
+  await page.evaluate(() => window.resolveFixtureSession());
+  await expect.poll(() => writes.filter((write) => write.sectionId === target.id && write.completed).length).toBe(1);
+  await page.evaluate(() => window.dispatchEvent(new Event("scroll")));
+  expect(writes.filter((write) => write.sectionId === target.id && write.completed)).toHaveLength(1);
+  await capture(page, info, "article-session-ready");
+  await page.evaluate(() => window.unmountQueryFixture());
   expect(errors).toEqual([]);
 });
