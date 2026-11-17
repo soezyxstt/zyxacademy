@@ -103,7 +103,14 @@ export function zyraImageFilesFromClipboard(
     if (seenKeys.has(key)) return;
     seenKeys.add(key);
     if (file.type !== mime || file.name !== resolvedName) {
-      results.push(new File([file], resolvedName, { type: mime, lastModified: file.lastModified }));
+      const normalized = new File([file], resolvedName, { type: mime, lastModified: file.lastModified });
+      if (normalized.name !== resolvedName) {
+        const descriptor = Object.getOwnPropertyDescriptor(normalized, "name");
+        if (!descriptor || descriptor.configurable) {
+          Object.defineProperty(normalized, "name", { value: resolvedName, configurable: true });
+        }
+      }
+      results.push(normalized);
     } else {
       results.push(file);
     }
