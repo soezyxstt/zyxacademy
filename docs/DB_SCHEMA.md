@@ -1,8 +1,8 @@
 # Zyx Database Schema Reference
 
-## Discussions, local source
+## Discussions, schema and staging status
 
-Generated PostgreSQL migrations `0024_strong_newton_destine.sql` through `0034_aromatic_silhouette.sql` define the discussion tables, version observations, participant summaries, serialized event cutoffs, help category, notification delivery queue, image previews, immutable submission fingerprints and transactional counters in `db/schema.ts`. Migration 0032 adds the nonnegative per-user/channel read revision and a partial notification index on user, type, read state and metadata thread ID. They have not been applied to a remote target in this work. Local isolated PostgreSQL tests apply these generated migrations; remote schema and runtime acceptance remain OPEN / IN PROGRESS. The [discussion contract](discussions.md) describes permissions and integration limits.
+Generated PostgreSQL migrations `0024_strong_newton_destine.sql` through `0034_aromatic_silhouette.sql` define the discussion tables, version observations, participant summaries, serialized event cutoffs, help category, notification delivery queue, image previews, immutable submission fingerprints and transactional counters in `db/schema.ts`. Migration 0032 adds the nonnegative per-user/channel read revision and a partial notification index on user, type, read state and metadata thread ID. Migrations 0024 through 0034 were applied to the verified Neon staging target on 2026-11-17, with 37 ledger entries and 13 discussion tables verified. No existing discussion rows required backfill. See the [migration record](discussions.md#staging-migration-2026-11-17) for the backup, baseline and role checks. Other environments and authenticated runtime acceptance remain OPEN / IN PROGRESS. The [discussion contract](discussions.md) describes permissions and integration limits.
 
 | Tables | Purpose and identity |
 | --- | --- |

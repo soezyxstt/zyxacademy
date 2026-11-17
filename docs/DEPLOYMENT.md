@@ -1,5 +1,7 @@
 # Deployment Guide
 
+PR #339 discussion migrations 0024 through 0034 passed rehearsal and staging application on 2026-11-17. The [discussion migration record](discussions.md#staging-migration-2026-11-17) identifies the exact target, backup and 37-entry ledger verification. No existing discussion data required backfill; targets with existing rows still need the documented fence and backfill before new writers start. This does not authorize production rollout or establish hosted application acceptance.
+
 The 2026-11-15 [staging recovery record](operations/vercel-staging.md#database-cutover-evidence-2026-11-15) supersedes the historical pending database status below: the 26-entry journal, compact history backfill, 28-item seed and rollback fixtures passed. Old staging database credentials are fenced. Matching web/worker release remains in progress; no production rollout is authorized.
 
 The [gamification contract](gamification.md) records verified staging migrations 0009 through 0015 and outstanding application and deployment verification. It does not authorize production rollout.
@@ -8,7 +10,7 @@ PR 333 completed its temporary read-only control-plane inventory on commit `6099
 
 The inventory does not establish a complete writer fence or drain. Cloud Run scaling and Inngest pause controls do not independently prove that old Neon or Deno executions have ended. The bridge, backfill and matching-code release remain blocked until a verified maintenance mechanism covers every writer and stays in place through deployment. Do not enable unused Google APIs or infer an empty resource list from a disabled API to clear this gate.
 
-A staging merge can trigger background worker and web deployment after affected checks pass, unless the web hold is set. Neither workflow applies migrations or seeds cosmetics. Verify the target, apply the prerequisites below, and verify the result before merging. No production rollout is authorized by these instructions.
+A staging merge can trigger its background worker deployment after affected checks pass. Staging web deployment requires an explicit manual dispatch; the automated web path is restricted to main and honors its production hold. Neither workflow applies migrations or seeds cosmetics. Verify the target, apply the prerequisites below, and verify the result before merging. No production rollout is authorized by these instructions.
 
 The 2026-11-14 staging preflight found 18 journal rows: the two upstream migrations `0009_polite_wendigo` and `0010_silky_misty_knight` and gamification migrations 0009 through 0015 are already applied. The new review constraint and six-column dependency index exist, migration 0016 is absent, and the catalog has seven rows. Evidence: `artifacts/gamification/pr333-staging-preflight-round2.json`. The stock migrator must not be used for this observed state: generated 0017 unconditionally drops the earlier indexes. Historical 0000 and 0002 hashes differ from the current files; neither old row is rewritten.
 
