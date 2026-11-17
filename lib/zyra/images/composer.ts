@@ -17,13 +17,32 @@ export interface PendingZyraImage {
   errorCode?: string;
 }
 
+function normalizeImageMimeType(raw?: string | null): string {
+  const base = (raw ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
+  if (base === "image/jpg") return "image/jpeg";
+  return base;
+}
+
+function defaultImageExtension(mime: string): string {
+  if (mime === "image/jpeg") return "jpg";
+  if (mime === "image/webp") return "webp";
+  return "png";
+}
+
+function normalizeImageFilename(name: string, mime: string): string {
+  const trimmed = name.trim();
+  if (trimmed.length > 0) return trimmed;
+  return `gambar.${defaultImageExtension(mime)}`;
+}
+
 function inferImageMimeType(file: Pick<File, "type" | "name">): string {
-  if (file.type) return file.type;
+  const normalizedType = normalizeImageMimeType(file.type);
+  if (normalizedType && normalizedType !== "application/octet-stream") return normalizedType;
   const lower = file.name.toLowerCase();
   if (lower.endsWith(".png")) return "image/png";
   if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
   if (lower.endsWith(".webp")) return "image/webp";
-  return "";
+  return normalizedType;
 }
 
 export function selectZyraImageFiles(
@@ -35,7 +54,8 @@ export function selectZyraImageFiles(
   for (const file of files) {
     const resolvedMime = inferImageMimeType(file);
     const mime = ZyraImageMimeSchema.safeParse(resolvedMime);
-    const key = `${file.name}:${file.size}:${file.lastModified}`;
+    const resolvedName = normalizeImageFilename(file.name, mime.success ? mime.data : resolvedMime);
+    const key = `${resolvedName}:${file.size}:${file.lastModified}`;
     if (!mime.success) {
       rejected.push("UNSUPPORTED_MIME");
       continue;
@@ -52,7 +72,7 @@ export function selectZyraImageFiles(
       rejected.push("IMAGE_COUNT_LIMIT");
       continue;
     }
-    accepted.push({ key, file, name: file.name, mimeType: mime.data, status: "uploading" });
+    accepted.push({ key, file, name: resolvedName, mimeType: mime.data, status: "uploading" });
   }
   return { accepted, rejected };
 }
@@ -73,13 +93,17 @@ export function zyraImageFilesFromClipboard(
 
   const pushIfImage = (file: File | null | undefined, declaredType?: string) => {
     if (!file) return;
-    const mime = declaredType || inferImageMimeType(file);
+    const normalizedDeclared = normalizeImageMimeType(declaredType);
+    const mime = (normalizedDeclared && normalizedDeclared !== "application/octet-stream")
+      ? normalizedDeclared
+      : inferImageMimeType(file);
     if (!mime.startsWith("image/")) return;
-    const key = `${file.name}:${file.size}:${mime}`;
+    const resolvedName = normalizeImageFilename(file.name, mime);
+    const key = `${resolvedName}:${file.size}:${mime}`;
     if (seenKeys.has(key)) return;
     seenKeys.add(key);
-    if (!file.type && mime) {
-      results.push(new File([file], file.name, { type: mime, lastModified: file.lastModified }));
+    if (file.type !== mime || file.name !== resolvedName) {
+      results.push(new File([file], resolvedName, { type: mime, lastModified: file.lastModified }));
     } else {
       results.push(file);
     }
@@ -103,4 +127,30 @@ export function zyraImageFilesFromClipboard(
   }
 
   return results;
+}
+
+export interface ZyraClipboardPasteEventLike {
+  defaultPrevented: boolean;
+  clipboardData?: {
+    items?: ArrayLike<Pick<DataTransferItem, "kind" | "type" | "getAsFile">> | null;
+    files?: ArrayLike<File> | null;
+  } | null;
+  preventDefault: () => void;
+  stopPropagation: () => void;
+}
+
+export function handleZyraImagePasteEvent(
+  event: ZyraClipboardPasteEventLike,
+  options: { disabled?: boolean; onFiles: (files: File[]) => void },
+): boolean {
+  if (event.defaultPrevented || options.disabled) return false;
+  const files = zyraImageFilesFromClipboard(
+    event.clipboardData?.items ?? null,
+    event.clipboardData?.files ?? null,
+  );
+  if (files.length === 0) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  options.onFiles(files);
+  return true;
 }

@@ -6,9 +6,9 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
+  handleZyraImagePasteEvent,
   readyZyraAttachmentIds,
   selectZyraImageFiles,
-  zyraImageFilesFromClipboard,
   type PendingZyraImage,
 } from "@/lib/zyra/images/composer";
 import type { ZyraMessageAttachment } from "@/lib/zyra/images/contracts";
@@ -57,7 +57,10 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
     setItems(itemsRef.current);
   }, []);
   const [previews, setPreviews] = React.useState<Record<string, string>>({});
-  const [composerError, setComposerError] = React.useState<string | null>(null);
+  const [composerError, setComposerError] = React.useState<{
+    message: string;
+    source: "selection" | "upload";
+  } | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const sessionIdRef = React.useRef<string | null>(sessionId);
   const uploadQueueRef = React.useRef<Promise<void>>(Promise.resolve());
@@ -82,7 +85,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
 
   const performUpload = React.useCallback(async (item: PendingZyraImage) => {
     if (experience.mode === "demo") {
-      setComposerError("Unggahan gambar memerlukan akun.");
+      setComposerError({ message: "Unggahan gambar memerlukan akun.", source: "upload" });
       updateItems(current => setItemStatus(current, item.key, { status: "failed", errorCode: "ATTACHMENT_UPLOAD_FAILED" }));
       return;
     }
@@ -105,7 +108,10 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
         error?: string;
       } | null;
       if (!response.ok || !payload?.id || !payload.width || !payload.height) {
-        setComposerError("Gambar gagal diunggah. Periksa format dan ukuran file, lalu coba lagi.");
+        setComposerError({
+          message: "Gambar gagal diunggah. Periksa format dan ukuran file, lalu coba lagi.",
+          source: "upload",
+        });
         updateItems((current) => setItemStatus(current, item.key, {
           status: "failed",
           errorCode: payload?.error ?? "ATTACHMENT_UPLOAD_FAILED",
@@ -123,9 +129,14 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
         height: payload.height,
         errorCode: undefined,
       }));
-      setComposerError(null);
+      if (!itemsRef.current.some((candidate) => candidate.status === "failed")) {
+        setComposerError((current) => current?.source === "upload" ? null : current);
+      }
     } catch {
-      setComposerError("Koneksi terputus saat mengunggah gambar. Coba lagi.");
+      setComposerError({
+        message: "Koneksi terputus saat mengunggah gambar. Coba lagi.",
+        source: "upload",
+      });
       updateItems((current) => setItemStatus(current, item.key, {
         status: "failed",
         errorCode: "ATTACHMENT_UPLOAD_FAILED",
@@ -148,13 +159,16 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
     const result = selectZyraImageFiles(current, files);
     if (result.rejected.length > 0) {
       const first = result.rejected[0];
-      setComposerError(first === "SOURCE_TOO_LARGE"
-        ? "Ukuran setiap gambar maksimal 8 MB."
-        : first === "IMAGE_COUNT_LIMIT"
-          ? "Maksimal 4 gambar untuk satu pertanyaan."
-          : first === "DUPLICATE_IMAGE"
-            ? "Gambar yang sama sudah dipilih."
-            : "Gunakan gambar berformat PNG, JPG, atau WebP.");
+      setComposerError({
+        message: first === "SOURCE_TOO_LARGE"
+          ? "Ukuran setiap gambar maksimal 8 MB."
+          : first === "IMAGE_COUNT_LIMIT"
+            ? "Maksimal 4 gambar untuk satu pertanyaan."
+            : first === "DUPLICATE_IMAGE"
+              ? "Gambar yang sama sudah dipilih."
+              : "Gunakan gambar berformat PNG, JPG, atau WebP.",
+        source: "selection",
+      });
     } else {
       setComposerError(null);
     }
@@ -176,21 +190,19 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
       await fetch(`/api/zyra/attachments/${encodeURIComponent(item.attachmentId)}?${query.toString()}`, { method: "DELETE" }).catch(() => undefined);
     }
     updateItems((current) => current.filter((candidate) => candidate.key !== item.key));
+    if (!itemsRef.current.some((candidate) => candidate.status === "failed")) {
+      setComposerError((current) => current?.source === "upload" ? null : current);
+    }
   };
 
   const retryItem = (item: PendingZyraImage) => {
+    setComposerError((current) => current?.source === "upload" ? null : current);
     updateItems((current) => setItemStatus(current, item.key, { status: "uploading", errorCode: undefined }));
     void uploadItem({ ...item, status: "uploading", attachmentId: undefined });
   };
 
   const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
-    if (event.defaultPrevented || disabled) return;
-    const files = zyraImageFilesFromClipboard(event.clipboardData?.items, event.clipboardData?.files);
-    if (files.length > 0) {
-      event.preventDefault();
-      event.stopPropagation();
-      addFiles(files);
-    }
+    handleZyraImagePasteEvent(event, { disabled, onFiles: addFiles });
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
@@ -268,7 +280,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
           <span className="text-body-xs text-muted-foreground">Unggah atau tempel gambar dengan Ctrl+V, maksimal 4</span>
         </div>
       )}
-      {composerError && <p className="flex items-center gap-1.5 text-body-xs text-status-error" role="alert"><AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />{composerError}</p>}
+      {composerError && <p className="flex items-center gap-1.5 text-body-xs text-status-error" role="alert"><AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />{composerError.message}</p>}
     </div>
   );
 });
