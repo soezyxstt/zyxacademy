@@ -3,8 +3,10 @@
 import { AiAnalyticsSkeleton } from "@/components/admin/content-loading-skeletons";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { analyticsQuery } from "@/lib/query/admin";
+import { useQueryAccount } from "@/hooks/use-query-account";
 import { RefreshCw } from "lucide-react";
-import type { AiRequestLog, AiStats } from "@/lib/ai/analytics";
+import type { AiRequestLog } from "@/lib/ai/analytics";
 import { ZyraUsageCharts } from "@/components/admin/zyra-usage-charts";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
@@ -41,15 +43,8 @@ function formatLatency(ms: number) {
   return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
 }
 
-async function fetchAiAnalytics(): Promise<AiStats> {
-  const res = await fetch("/api/admin/ai-analytics");
-  if (!res.ok) {
-    throw new Error("analytics load failed");
-  }
-  return res.json();
-}
-
 export function AiAnalyticsClient() {
+  const userId = useQueryAccount();
   const t = useTranslations("adminOps");
   const { locale } = useAppLocale();
   const [logPage, setLogPage] = useState(1);
@@ -57,17 +52,11 @@ export function AiAnalyticsClient() {
   const {
     data: stats,
     dataUpdatedAt,
-    isLoading,
+    isPending: isLoading,
     isFetching,
     error,
     refetch,
-  } = useQuery<AiStats>({
-    queryKey: ["admin-ai-analytics"],
-    queryFn: fetchAiAnalytics,
-    refetchInterval: 30_000,
-    staleTime: 25_000,
-    refetchIntervalInBackground: false,
-  });
+  } = useQuery(analyticsQuery(userId));
 
   const gatewayMode: GatewayMode = !stats
     ? "unknown"

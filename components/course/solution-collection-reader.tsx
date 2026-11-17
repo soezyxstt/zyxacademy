@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { completeExplanationAction } from "@/app/(student)/courses/[id]/solutions/[collectionId]/actions";
+import { useSolutionCompletion } from "@/hooks/use-solution-completion";
 import { useSearchParams } from "next/navigation";
 import { BookOpen, CheckCircle2, Circle, ChevronLeft, ChevronRight, List, Search } from "lucide-react";
 import { useLocale } from "next-intl";
@@ -282,12 +282,12 @@ function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initia
   );
 }
 
-function ReaderContent({ collection, courseHref, backHref, initialRevealed, renderItemReview, embedded = false, itemReviewStatus, completion }: SolutionCollectionReaderProps) {
+function ReaderContent({ collection, courseHref, backHref, initialRevealed, renderItemReview, embedded = false, itemReviewStatus, completion, completionAction }: SolutionCollectionReaderProps & { completionAction?: ReturnType<typeof useSolutionCompletion> }) {
   const t = useTranslations("learning.solutionCollection");
   const searchParams = useSearchParams();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [completedItems, setCompletedItems] = useState<string[]>([]);
-  const [completionState, setCompletionState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const completionState = completionAction?.state ?? "idle";
   const requestedId = searchParams.get("item");
   const requestedIndex = collection.items.findIndex((item) => item.id === requestedId);
   const activeIndex = requestedIndex < 0 ? 0 : requestedIndex;
@@ -333,15 +333,16 @@ function ReaderContent({ collection, courseHref, backHref, initialRevealed, rend
         {requestedId && requestedIndex < 0 ? <p role="status" className="mb-5 rounded-lg border border-border p-3 text-body-sm text-muted-foreground">{t("invalidItem")}</p> : null}
         <ActiveItem key={active.id} itemCompleted={completedItems.includes(active.id)} onCompleteItem={completion ? () => setCompletedItems(ids => ids.includes(active.id) ? ids : [...ids, active.id]) : undefined} initialRevealed={initialRevealed} renderItemReview={renderItemReview} item={active} index={activeIndex} total={collection.items.length} headingRef={headingRef} onPrevious={() => selectItem(collection.items[activeIndex - 1].id)} onNext={() => selectItem(collection.items[activeIndex + 1].id)} />
         {completion && completedItems.length === collection.items.length ? <div className="space-y-2 border-t border-border pt-5"><Button type="button" disabled={completionState === "saving" || completionState === "saved"} onClick={async () => {
-          setCompletionState("saving");
-          try {
-            await completeExplanationAction(completion.collectionId, completion.version, completedItems);
-            setCompletionState("saved");
-          } catch { setCompletionState("error"); }
+          await completionAction?.complete(completedItems);
         }}>{completionState === "saved" ? "Pembahasan selesai" : completionState === "saving" ? "Menyimpan" : "Selesaikan pembahasan"}</Button>{completionState === "error" ? <p role="alert" className="text-body-xs text-destructive">Belum dapat menyimpan. Coba lagi.</p> : null}</div> : null}
       </div>
     </div> : <div role="status"><AdminEmptyState icon={BookOpen} title={t("emptyCollection")} /></div>}
   </div>;
+}
+
+function LiveSolutionReader(props: SolutionCollectionReaderProps) {
+  const completionAction = useSolutionCompletion(props.completion);
+  return <ReaderContent {...props} completionAction={completionAction} />;
 }
 
 /** Pass only a parsed, authorized, explicitly released learning collection. */
@@ -349,6 +350,6 @@ export function SolutionCollectionReader(props: SolutionCollectionReaderProps) {
   const t = useTranslations("learning.solutionCollection");
   // A collection stays static even if a caller nests it in a coding-enabled article.
   return <ArticleCodingProvider value={{ courseId: props.collection.course.id, articleId: props.collection.id, articleVersion: 1, enabled: false }}>
-    <StaticCodeReadingProvider labels={{ region: t("staticCode"), overflow: t("codeOverflow"), left: t("codeLeft"), right: t("codeRight"), copy: t("copyCode"), copied: t("copiedCode"), copyFailed: t("copyCodeFailed"), plainText: t("plainCode") }}><Suspense fallback={<p role="status" className="p-6 text-body-sm text-muted-foreground">{t("loading")}</p>}><ReaderContent {...props} /></Suspense></StaticCodeReadingProvider>
+    <StaticCodeReadingProvider labels={{ region: t("staticCode"), overflow: t("codeOverflow"), left: t("codeLeft"), right: t("codeRight"), copy: t("copyCode"), copied: t("copiedCode"), copyFailed: t("copyCodeFailed"), plainText: t("plainCode") }}><Suspense fallback={<p role="status" className="p-6 text-body-sm text-muted-foreground">{t("loading")}</p>}><>{props.completion ? <LiveSolutionReader key={`${props.completion.collectionId}:${props.completion.version}`} {...props} /> : <ReaderContent key={props.collection.id} {...props} />}</></Suspense></StaticCodeReadingProvider>
   </ArticleCodingProvider>;
 }

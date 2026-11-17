@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { Check, ChevronDown, ChevronRight, CircleAlert, Lock, Play, TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -12,22 +12,10 @@ import { useTranslations } from "@/lib/i18n/client";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
 
-export interface StudyPathStep {
-  stepId: string;
-  ideaId: string | null;
-  chapterId: string;
-  chapterTitle: string;
-  chapterOrder: number;
-  conceptName: string;
-  status: "locked" | "available" | "in_progress" | "mastered";
-  actions: { moduleHref?: string; quizTemplateId?: string; flashcardCount?: number };
-  estimatedMinutes: number;
-  prerequisites: string[];
-  masteryScore?: number;
-  priorityReason: string;
-}
-
-interface StudyDayPlan { day: number; steps: StudyPathStep[]; totalMinutes: number }
+import type { StudyPathStep } from "@/lib/query/study-path";
+export type { StudyPathStep } from "@/lib/query/study-path";
+import { useStudyPath } from "@/hooks/use-study-path";
+import { useQueryAccount } from "@/hooks/use-query-account";
 
 function primaryHref(step: StudyPathStep, courseId: string): string | null {
   if (step.actions.moduleHref) return step.actions.moduleHref;
@@ -110,43 +98,23 @@ function StepRow({ step, courseId }: { step: StudyPathStep; courseId: string }) 
   return <div>{content}</div>;
 }
 
-export function StudyPathTimeline({ courseId, initialSteps }: { courseId: string; initialSteps?: StudyPathStep[] }) {
+type StudyPathProps = { courseId: string; initialSteps?: StudyPathStep[] };
+
+export function StudyPathTimeline(props: StudyPathProps) {
+  return props.initialSteps !== undefined
+    ? <StudyPathView key={props.courseId} {...props} userId={null} />
+    : <LiveStudyPath key={props.courseId} {...props} />;
+}
+function LiveStudyPath(props: StudyPathProps) {
+  const userId = useQueryAccount();
+  return <StudyPathView key={userId} {...props} userId={userId} />;
+}
+function StudyPathView({ courseId, initialSteps, userId }: StudyPathProps & { userId: string | null }) {
   const experience = useStudentExperience();
   const href = (path: string) => experience.href?.(path) ?? path;
   const t = useTranslations("studentCourse");
-  const [steps, setSteps] = useState<StudyPathStep[]>([]);
-  const [dayPlan, setDayPlan] = useState<StudyDayPlan[] | null>(null);
-  const [daysInput, setDaysInput] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [planning, setPlanning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchStudyPath = useCallback(async (days?: number) => {
-    const planningRequest = typeof days === "number";
-    if (planningRequest) setPlanning(true); else setLoading(true);
-    setError(null);
-    try {
-      if (initialSteps) {
-        setSteps(initialSteps);
-        setDayPlan(planningRequest ? Array.from({ length: Math.min(days!, initialSteps.length) }, (_, index) => {
-          const dailySteps = initialSteps.filter((_, stepIndex) => stepIndex % days! === index);
-          return { day: index + 1, steps: dailySteps, totalMinutes: dailySteps.reduce((total, step) => total + step.estimatedMinutes, 0) };
-        }) : null);
-        return;
-      }
-      const response = await fetch(`/api/student/study-path?courseId=${courseId}${planningRequest ? `&days=${days}` : ""}`);
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(t("course.studyPath.loadFailed"));
-      setSteps(data.steps ?? []);
-      setDayPlan(data.dayPlan ?? null);
-    } catch {
-      setError(t("course.studyPath.connectionError"));
-    } finally {
-      setLoading(false); setPlanning(false);
-    }
-  }, [courseId, t, initialSteps]);
-
-  useEffect(() => { void fetchStudyPath(); }, [fetchStudyPath]);
+  const { steps, dayPlan, daysInput, setDaysInput, loading, planning, failed, fetchStudyPath, clearPlan } = useStudyPath(userId, courseId, initialSteps);
+  const error = failed ? t("course.studyPath.connectionError") : null;
   const groups = useMemo(() => {
     const map = new Map<string, { title: string; order: number; steps: StudyPathStep[] }>();
     for (const step of steps) {
@@ -168,7 +136,7 @@ export function StudyPathTimeline({ courseId, initialSteps }: { courseId: string
         <Input id="study-path-days" type="number" min={1} max={60} value={daysInput} onChange={(event) => setDaysInput(event.target.value)} placeholder="7" className="h-9 w-16 rounded-md border border-input bg-background px-2 text-body-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
         <span className="text-body-sm text-muted-foreground">{t("course.studyPath.days")}</span>
         <Button type="button" size="sm" variant="outline" className="rounded-md" disabled={planning || !daysInput} onClick={() => { const days = Number.parseInt(daysInput, 10); if (days > 0) void fetchStudyPath(days); }}>{planning ? t("course.studyPath.planning") : t("course.studyPath.createPlan")}</Button>
-        {dayPlan ? <Button type="button" size="sm" variant="ghost" className="rounded-md" onClick={() => setDayPlan(null)}>{t("course.studyPath.viewRoadmap")}</Button> : null}
+        {dayPlan ? <Button type="button" size="sm" variant="ghost" className="rounded-md" onClick={clearPlan}>{t("course.studyPath.viewRoadmap")}</Button> : null}
       </div>
 
       {dayPlan ? (

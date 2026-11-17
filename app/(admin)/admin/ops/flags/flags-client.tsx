@@ -6,6 +6,8 @@ import { FlagsSkeleton } from "@/components/admin/content-loading-skeletons";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
+import { flagsQuery } from "@/lib/query/admin";
+import { useQueryAccount } from "@/hooks/use-query-account";
 import {
   RefreshCw,
   Search,
@@ -20,7 +22,6 @@ import {
   Activity,
   Zap,
 } from "lucide-react";
-import type { FeatureFlagStatus } from "@/lib/feature-flags";
 import { FEATURE_CATEGORIES, type FeatureCategory } from "@/lib/feature-flags";
 import { SearchBar } from "@/components/ui/search-bar";
 import { useTranslations } from "@/lib/i18n/client";
@@ -39,16 +40,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-interface FeatureFlagsApiResponse {
-  checkedAt: string;
-  posthogConfigured?: boolean;
-  total: number;
-  activeCount: number;
-  inactiveCount: number;
-  coveragePercent: number;
-  flags: FeatureFlagStatus[];
-}
-
 function relativeTime(iso: string, t: ReturnType<typeof useTranslations<"adminOps">>): string {
   if (!iso) return t("opsUI.never");
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -60,15 +51,8 @@ function relativeTime(iso: string, t: ReturnType<typeof useTranslations<"adminOp
   return t("opsUI.days", { count: Math.floor(diffH / 24) });
 }
 
-async function fetchFeatureFlags(): Promise<FeatureFlagsApiResponse> {
-  const res = await fetch("/api/admin/feature-flags");
-  if (!res.ok) {
-    throw new Error("Gagal memuat status feature flag");
-  }
-  return res.json();
-}
-
 export function FlagsClient() {
+  const userId = useQueryAccount();
   const t = useTranslations("adminOps");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
@@ -77,12 +61,7 @@ export function FlagsClient() {
   const [copiedEnvSnippet, setCopiedEnvSnippet] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const { data, isLoading, isFetching, error, refetch } = useQuery<FeatureFlagsApiResponse>({
-    queryKey: ["admin-feature-flags"],
-    queryFn: fetchFeatureFlags,
-    refetchInterval: 30_000,
-    staleTime: 20_000,
-  });
+  const { data, isPending: isLoading, isFetching, error, refetch } = useQuery(flagsQuery(userId));
 
   // Global hotkey '/' to focus search input
   useEffect(() => {

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query/keys";
+import { removeOtherAccounts } from "@/lib/query/client";
 import { studentTodayQuery } from "@/lib/student/today-query";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -164,6 +166,7 @@ function StudentSidebarContent({
 
   useEffect(() => {
     if (demo || !userId) return;
+    removeOtherAccounts(queryClient, userId);
     const options = studentTodayQuery(userId);
     const activity = createActivityRefresh(async (signal) => {
       await queryClient.invalidateQueries({ queryKey: options.queryKey, exact: true, refetchType: "none" });
@@ -174,13 +177,15 @@ function StudentSidebarContent({
     const handleVisibility = () => {
       if (document.visibilityState === "visible") handleFocus();
     };
-    const handleMutation = () => { void activity.refresh(true); };
+    const handleMutation = () => {
+      void activity.refresh(true);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.studyPathRoot(userId) });
+    };
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener(ZYX_ACTIVITY_UPDATED_EVENT, handleMutation);
     return () => {
       activity.dispose();
-      void queryClient.cancelQueries({ queryKey: options.queryKey, exact: true });
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener(ZYX_ACTIVITY_UPDATED_EVENT, handleMutation);

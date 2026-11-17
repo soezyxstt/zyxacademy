@@ -30,6 +30,10 @@ export async function PUT(req: NextRequest, { params }: RouteProps) {
       return NextResponse.json({ error: "Silakan masuk untuk menyimpan progres." }, { status: 401 });
     }
     const userId = session.user.id;
+    const expectedUserId = req.headers.get("x-student-id");
+    if (expectedUserId && expectedUserId !== userId) {
+      return NextResponse.json({ error: "Sesi berubah. Muat ulang halaman." }, { status: 403 });
+    }
 
     const { articleId } = await params;
     if (!articleId) {

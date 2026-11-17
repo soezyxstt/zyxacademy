@@ -20,10 +20,10 @@ describe("demo learning adapters", () => {
     expect(source("components/demo/demo-flashcards.tsx")).toContain("<FlashcardClient");
   });
   test("demo adapters preserve the learner presentation while blocking private services", () => {
-    const flashcard = source("app/(student)/courses/[id]/flashcard/flashcard-client.tsx");
+    const flashcard = source("app/(student)/courses/[id]/flashcard/use-flashcard-session.ts");
     expect(flashcard).toContain("if (adapter) await adapter.onReview");
     expect(flashcard).toContain("if (!adapter) emitActivityUpdated");
-    const article = source("components/course/structured-article-reader.tsx");
+    const article = source("components/course/structured-article-reader.tsx") + source("components/course/article/use-article-reader.ts");
     expect(article).toContain("if (!learnerMode || adapter) return;");
     expect(article).toContain("enabled: learnerMode && !adapter");
     expect(article).toContain("interactiveChecks");

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 describe("Quiz Timeout and Submission Invariant Contracts", () => {
   const normalize = (s: string) => s.replace(/\r\n/g, "\n");
   const submitRouteCode = normalize(readFileSync("app/api/quiz/attempts/[id]/route.ts", "utf8"));
-  const quizPlayerCode = normalize(readFileSync("components/course/quiz-player.tsx", "utf8"));
+  const quizPlayerCode = ["components/course/quiz-player.tsx", "components/course/quiz/use-quiz-player.ts", "lib/quiz/player-types.ts"].map(path => normalize(readFileSync(path, "utf8"))).join("\n");
   const studentQuizPageCode = normalize(readFileSync("app/(student)/courses/[id]/quiz/[quizId]/page.tsx", "utf8"));
   const featuresDocCode = normalize(readFileSync("docs/features.md", "utf8"));
 
@@ -36,14 +36,15 @@ describe("Quiz Timeout and Submission Invariant Contracts", () => {
   it("ensures QuizPlayer preserves draft in its selected storage until submission succeeds", () => {
     // The default student POST must succeed before the selected storage is cleared.
     const handleSubmitIndex = quizPlayerCode.indexOf("const handleSubmit = useCallback(");
-    const fetchIndex = quizPlayerCode.indexOf("const res = await fetch(`/api/quiz/attempts/${attemptId}`", handleSubmitIndex);
-    const resOkIndex = quizPlayerCode.indexOf("if (!res.ok)", fetchIndex);
+    const submitIndex = quizPlayerCode.indexOf("await submit({ answers: formattedAnswers", handleSubmitIndex);
     const answersRemoveIndex = quizPlayerCode.indexOf("storage.removeItem(`zyx-quiz-answers-${attemptId}`)", handleSubmitIndex);
-
+    const transport = normalize(readFileSync("lib/quiz/client.ts", "utf8"));
+    const http = normalize(readFileSync("lib/query/http.ts", "utf8"));
     expect(handleSubmitIndex).toBeGreaterThan(0);
-    expect(fetchIndex).toBeGreaterThan(handleSubmitIndex);
-    expect(resOkIndex).toBeGreaterThan(fetchIndex);
-    expect(answersRemoveIndex).toBeGreaterThan(resOkIndex);
+    expect(submitIndex).toBeGreaterThan(handleSubmitIndex);
+    expect(answersRemoveIndex).toBeGreaterThan(submitIndex);
+    expect(transport).toContain("requestVoid(`/api/quiz/attempts/");
+    expect(http).toContain("if (!response.ok) throw new ApiError(response.status)");
   });
 
   it("ensures student quiz page passes timeLimitSeconds to QuizPlayer", () => {

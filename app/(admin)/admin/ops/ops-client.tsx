@@ -3,10 +3,11 @@
 import { OpsMetricsSkeleton } from "@/components/admin/content-loading-skeletons";
 
 import { useQuery } from "@tanstack/react-query";
+import { opsQuery } from "@/lib/query/admin";
+import { useQueryAccount } from "@/hooks/use-query-account";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
-import type { OpsMetrics } from "@/lib/ops-metrics";
 import { useTranslations } from "@/lib/i18n/client";
 
 function relativeTime(iso: string | null, t: ReturnType<typeof useTranslations>): string {
@@ -80,20 +81,10 @@ function SectionHead({
   );
 }
 
-async function fetchMetrics(): Promise<OpsMetrics> {
-  const res = await fetch("/api/admin/ops");
-  if (!res.ok) throw new Error("Failed to load ops metrics");
-  return res.json();
-}
-
 export function OpsClient() {
+  const userId = useQueryAccount();
   const t = useTranslations("adminOps");
-  const { data, isLoading, isFetching, error, refetch } = useQuery<OpsMetrics>({
-    queryKey: ["ops-metrics"],
-    queryFn: fetchMetrics,
-    refetchInterval: 60_000,
-    staleTime: 55_000,
-  });
+  const { data, isPending: isLoading, isFetching, error, refetch } = useQuery(opsQuery(userId));
 
   if (isLoading) return <OpsMetricsSkeleton />;
 

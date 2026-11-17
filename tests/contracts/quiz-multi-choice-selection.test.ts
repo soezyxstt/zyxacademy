@@ -4,11 +4,11 @@ import { checkAnswerCorrectness } from "@/lib/gamification/question-grading";
 
 describe("Quiz Multi-Choice and Option Indicator Invariants", () => {
   const normalize = (s: string) => s.replace(/\r\n/g, "\n");
-  const quizPlayerCode = normalize(readFileSync("components/course/quiz-player.tsx", "utf8"));
+  const quizPlayerCode = ["components/course/quiz-player.tsx", "components/course/quiz/use-quiz-player.ts", "lib/quiz/player-types.ts"].map(path => normalize(readFileSync(path, "utf8"))).join("\n");
   const quizOptionStylesCode = normalize(readFileSync("components/course/quiz-option-styles.ts", "utf8"));
   const studentQuizPageCode = normalize(readFileSync("app/(student)/courses/[id]/quiz/[quizId]/page.tsx", "utf8"));
   const studentQuizReviewCode = normalize(readFileSync("components/course/student-quiz-review.tsx", "utf8"));
-  const attemptReviewCode = normalize(readFileSync("components/course/attempt-review.tsx", "utf8"));
+  const attemptReviewCode = ["components/course/attempt-review.tsx", "lib/quiz/review-query.ts"].map(path => normalize(readFileSync(path, "utf8"))).join("\n");
   const pkaPageCode = normalize(readFileSync("app/(student)/courses/tutorial-pka/simulasi/[subject]/[stage]/page.tsx", "utf8"));
   const submitRouteCode = normalize(readFileSync("app/api/quiz/attempts/[id]/route.ts", "utf8"));
 

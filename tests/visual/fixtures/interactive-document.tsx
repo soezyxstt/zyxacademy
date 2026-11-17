@@ -1,3 +1,4 @@
+import { QueryProvider } from "@/components/providers/query-provider";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { NextIntlClientProvider } from "next-intl";
@@ -27,4 +28,4 @@ function App() {
     <section data-fixture="markdown"><h2>Notasi</h2><MarkdownRenderer content="Untuk $n=64$, perhatikan perubahan simpangan baku." /></section>
   </main>;
 }
-createRoot(document.getElementById("root")!).render(<NextIntlClientProvider locale="id" timeZone="UTC" messages={{ learning, studentCourse, ui }}><App /></NextIntlClientProvider>);
+createRoot(document.getElementById("root")!).render(<NextIntlClientProvider locale="id" timeZone="UTC" messages={{ learning, studentCourse, ui }}><QueryProvider><App /></QueryProvider></NextIntlClientProvider>);

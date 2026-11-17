@@ -73,6 +73,7 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "app/api/materials/interactive-document/article/route.ts", "app/api/materials/interactive-document/reveal/route.ts",
   "components/course/learning-canvas/learning-canvas-renderer.tsx", "components/ui/slider.tsx",
   "components/course/markdown/flowchart-node.tsx", "lib/flowchart.ts",
+  "components/course/article/use-article-reader.ts", "hooks/use-article-progress.ts", "hooks/use-query-account.ts", "lib/query/keys.ts", "lib/articles/reader-types.ts", "lib/articles/progress-client.ts", "lib/query/http.ts", "lib/query/client.ts", "components/providers/query-provider.tsx",
   "components/course/product-learning-blocks.tsx", "components/course/article-reading-canvas.tsx", "components/course/structured-article-reader.tsx",
   "components/course/question-image.tsx", "lib/articles/source-figure-resolver.ts", "app/api/courses/[id]/articles/[articleId]/source-figures/[visualId]/route.ts",
   "lib/articles/structured-read-model.ts", "lib/articles/structured-repository.ts", "lib/materials/compiler.ts", "lib/materials/pedagogy-contract.ts",
@@ -269,7 +270,7 @@ export async function readProductV4RuntimeFingerprint(): Promise<ProductV4Runtim
   }
   const [{ getStagePlaybookManifest }, { PRODUCT_DIKTAT_PRINT_PROFILE }] = await Promise.all([import("@/lib/authoring/mcp-playbook"), import("@/lib/bundle/product-diktat-pdf")]);
   const require = createRequire(import.meta.url);
-  const packages = ["pyodide", "@codemirror/state", "@codemirror/view", "@codemirror/language", "@codemirror/lang-python", "@codemirror/commands", "react", "react-dom", "next", "katex", "jsxgraph", "zod", "mathjs", "sharp", "pngjs", "tailwindcss", "@tailwindcss/postcss", "@playwright/test", "playwright-core"];
+  const packages = ["pyodide", "@codemirror/state", "@codemirror/view", "@codemirror/language", "@codemirror/lang-python", "@codemirror/commands", "react", "react-dom", "@tanstack/react-query", "@tanstack/query-core", "next", "katex", "jsxgraph", "zod", "mathjs", "sharp", "pngjs", "tailwindcss", "@tailwindcss/postcss", "@playwright/test", "playwright-core"];
   const versions = packages.map(name => [name, JSON.parse(readFileSync(runtimePackageManifest(name), "utf8")).version]);
   const katexRoot = dirname(require.resolve("katex/package.json"));
   const browsers = readFileSync(join(dirname(require.resolve("playwright-core/package.json")), "browsers.json"));

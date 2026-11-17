@@ -9,7 +9,7 @@ describe("admin course reader mode contract", () => {
   test("defines explicit learner and admin preview modes", () => {
     const mode = source("lib/materials/reader-mode.ts");
     const materialViewer = source("components/course/material-viewer.tsx");
-    const structuredReader = source("components/course/structured-article-reader.tsx");
+    const structuredReader = source("components/course/structured-article-reader.tsx") + source("components/course/article/use-article-reader.ts");
 
     expect(mode).toContain('"learner" | "admin-preview"');
     expect(materialViewer).toContain('mode = "learner"');
@@ -28,8 +28,8 @@ describe("admin course reader mode contract", () => {
   });
 
   test("gates progress and Zyra paths in StructuredArticleReader", () => {
-    const content = source("components/course/structured-article-reader.tsx");
-    expect(content).toContain('if (!learnerMode || adapter) return;\n      try {\n        const res = await fetch(`/api/student/articles/');
+    const content = source("components/course/structured-article-reader.tsx") + source("components/course/article/use-article-reader.ts");
+    expect(content).toContain('if (!learnerMode || adapter || !saveProgress) return;\n      try {\n        const data = await saveProgress(');
     expect(content).toContain('if (!learnerMode || adapter) return;\n    activeTimeSpentRef.current = 0');
     expect(content).toContain('if (!learnerMode || !selectionAskEnabled || !isMobileSelection || isTutorOpen) return;\n');
     expect(content).toContain('if (!learnerMode || !selectionAskEnabled || isMobileSelection) return;\n');

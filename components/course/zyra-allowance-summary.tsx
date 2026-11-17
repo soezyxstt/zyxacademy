@@ -3,62 +3,31 @@
 import * as React from "react";
 import { CircleHelp, Gauge } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { ZyraAllowanceSummarySchema, type ZyraAllowanceSummary } from "@/lib/zyra/murid";
+import { useZyraAllowance } from "@/hooks/use-zyra-allowance";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
 
-type AllowanceSummaryView = ZyraAllowanceSummary & { accessTier: "free" | "standard" };
-
-export function ZyraAllowanceSummary({
-  refreshKey = 0,
-  courseId,
-  onAccessTierChange,
-}: {
+type AllowanceProps = {
   refreshKey?: number;
   courseId?: string | null;
   onAccessTierChange?: (tier: "free" | "standard") => void;
-}) {
+};
+
+export function ZyraAllowanceSummary(props: AllowanceProps) {
   const experience = useStudentExperience();
-  const [summary, setSummary] = React.useState<AllowanceSummaryView | null>(null);
-  const [unavailable, setUnavailable] = React.useState(false);
-
+  return experience.mode === "demo" ? <DemoAllowance {...props} /> : <LiveAllowance {...props} />;
+}
+function DemoAllowance({ onAccessTierChange }: AllowanceProps) {
+  React.useEffect(() => { onAccessTierChange?.("standard"); }, [onAccessTierChange]);
+  return null;
+}
+function LiveAllowance({ courseId, refreshKey = 0, onAccessTierChange }: AllowanceProps) {
+  const summary = useZyraAllowance(courseId, refreshKey);
+  const accessTier = summary?.accessTier;
   React.useEffect(() => {
-    setSummary(null);
-    setUnavailable(false);
-  }, [courseId]);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    if (experience.mode === "demo") { onAccessTierChange?.("standard"); return; }
-    const query = courseId ? `?courseId=${encodeURIComponent(courseId)}` : "";
-    fetch(`/api/zyra/allowance${query}`, { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("ALLOWANCE_UNAVAILABLE");
-        const body = await response.json() as { summary?: unknown };
-        const raw = body.summary && typeof body.summary === "object"
-          ? body.summary as Record<string, unknown>
-          : null;
-        const rawAccessTier = raw?.accessTier === "free" ? "free" : "standard";
-        const parsed = ZyraAllowanceSummarySchema.safeParse(body.summary);
-        const legacyParsed = parsed.success
-          ? parsed
-          : ZyraAllowanceSummarySchema.safeParse(raw ? (() => {
-              const { accessTier: _accessTier, ...legacy } = raw;
-              return legacy;
-            })() : body.summary);
-        if (!legacyParsed.success) throw new Error("ALLOWANCE_INVALID");
-        if (!cancelled) {
-          setSummary({ ...legacyParsed.data, accessTier: rawAccessTier });
-          onAccessTierChange?.(rawAccessTier);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setUnavailable(true);
-      });
-    return () => { cancelled = true; };
-  }, [courseId, onAccessTierChange, refreshKey, experience.mode]);
-
-  if (unavailable || !summary) return null;
+    if (accessTier) onAccessTierChange?.(accessTier);
+  }, [accessTier, onAccessTierChange]);
+  if (!summary) return null;
   const resetLabel = new Intl.DateTimeFormat("id-ID", {
     dateStyle: "short",
     timeStyle: "short",

@@ -1,3 +1,4 @@
+import { QueryProvider } from "@/components/providers/query-provider";
 ﻿import React from "react";
 import { createRoot } from "react-dom/client";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
@@ -27,4 +28,4 @@ function App() {
     <section data-fixture="invalid"><h2>Data tidak sah</h2><MarkdownRenderer content={`Teks sebelum visual.\n\n${embed(bad)}\n\n${embed(badShape)}\n\nTeks setelah visual.`} /></section>
   </main>;
 }
-createRoot(document.getElementById("root")!).render(<NextIntlClientProvider locale="id" timeZone="UTC" messages={{ learning, studentCourse, ui }}><App /></NextIntlClientProvider>);
+createRoot(document.getElementById("root")!).render(<NextIntlClientProvider locale="id" timeZone="UTC" messages={{ learning, studentCourse, ui }}><QueryProvider><App /></QueryProvider></NextIntlClientProvider>);

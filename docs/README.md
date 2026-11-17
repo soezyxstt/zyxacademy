@@ -8,6 +8,8 @@ The `ACTIVE` [feature catalog](features.md) records the shared student/demo Grou
 
 # Zyx Academy Documentation Index
 
+`ACTIVE`: [Browser data ownership](client-data.md) defines account-scoped TanStack Query keys, runtime response validation, cancellation, freshness, mutation safety and the split between Server Components, feature controllers and views. The [client data audit](audit/client-data-20261117.md) is `OPEN / IN PROGRESS` and records the repository-wide inventory, migration scope, local evidence and separate staging acceptance gates.
+
 `OPEN / IN PROGRESS`, discussion staging schema, 2026-11-17: migrations 0024 through 0034 passed rehearsal and one-transaction application to the verified staging branch. All 26 historical ledger rows were preserved; 11 new entries and 13 discussion tables were verified. No existing discussion rows required backfill. The [migration record](discussions.md#staging-migration-2026-11-17) identifies the backup and checks. Production remains unchanged; deployment and authenticated application acceptance are separate.
 
 The `ACTIVE` [feature catalog](features.md) documents basic profile access for authenticated staff, student-only gamification, grouped profile statistics and academic, privacy and appearance editor tabs. Academic drafts survive tab changes and failed saves; privacy and owned cosmetics save independently. Achievements and public student profiles retain student transition behavior without the cross-surface logo overlay. Focused access regressions and isolated profile/edit/dashboard-summary visuals cover 380 x 844 and 1536 x 864. Full application staging persistence acceptance remains separate.

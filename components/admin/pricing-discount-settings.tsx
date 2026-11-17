@@ -2,6 +2,7 @@
 
 import { useTranslations } from "@/lib/i18n/client";
 import { useState, useTransition } from "react";
+import { cachePricingResponse } from "@/lib/query/pricing";
 import { useQueryClient } from "@tanstack/react-query";
 import { savePricingDiscounts } from "@/app/(admin)/admin/pricing/actions";
 import { pricingDiscountsSchema, type PricingDiscounts } from "@/lib/pricing-discounts";
@@ -34,7 +35,7 @@ export function PricingDiscountSettings({ initialSettings, save = savePricingDis
         try {
           const result = await save(values);
           if (!result.success || !result.data) throw new Error();
-          queryClient.setQueryData(["pricing-discounts"], result.data);
+          await cachePricingResponse(queryClient, result.data);
           setMessage(t("discountSettings.saved"));
         } catch {
           setFailed(true);

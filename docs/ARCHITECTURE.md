@@ -1380,3 +1380,8 @@ Agent-first operation descriptors are recorded by the server registrars rather t
 Status: ACTIVE local source; hosted acceptance OPEN / IN PROGRESS.
 
 `lib/gamification/social.ts` provides bounded roster identity enrichment and literal-name directory search through the existing canonical student access boundary. Both queries enforce member visibility and mutual blocks, select explicit public identity fields, and omit account IDs and email. Command-menu lookup is debounced and restricted to student accounts outside Admin and Tutor surfaces; server actions independently authorize every request. The profile dialog re-fetches the existing public projection each time it opens, with base XP selected only when leaderboard consent is enabled. The explicit equipped Zyra mascot field is returned only for the same member-visible, unblocked profile and only when inventory and cosmetic slot match. Existing follow transactions remain the mutation boundary. Course leaderboard enrichment is optional and cannot change course ranking or access. See [gamification](gamification.md#student-achievements-and-social-presentation).
+
+
+## Browser data ownership
+
+The [client-data contract](client-data.md) defines the shared TanStack Query layer. Server Components and authorized server actions keep initial content, grades, entitlements, scheduling and durable progress authoritative. Browser queries use account-scoped keys, runtime response schemas and cancellation; local quiz/article/flashcard controllers own transient interaction state. Streams, workers and binary delivery retain their existing owners. The [migration audit](audit/client-data-20261117.md) separates implemented source behavior from deployment and authenticated staging acceptance.
