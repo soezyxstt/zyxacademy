@@ -131,7 +131,7 @@ The following visual sizes are the approved cross-surface baseline. Keep semanti
 |---|---:|---|
 | Marketing hero H1 | 56 px | `text-h1`; responsive marketing hero uses `text-h2 md:text-h1`, 48 to 56 px |
 | Marketing hero H2 | 48 px | `text-h2` |
-| Product page title | 24 px | `font-heading text-h5`; use `PageHeader` |
+| Product page title | 24 px | `font-heading text-h5`; use `PageHeader` only when a page has `actions`, `backHref`, or `breadcrumbs` |
 | App section title | 16 px | `font-heading text-body-base font-bold`; follow the compact Student dashboard pattern |
 | Dense card or subsection title | 14 px | `font-heading text-body-sm` when a 16 px section title is too large |
 | Main body text | 16 px | `text-body-base` |
@@ -148,7 +148,7 @@ The following visual sizes are the approved cross-surface baseline. Keep semanti
 - Body and UI text use `font-sans`; headings use `font-heading`. Use `text-body-*` and `text-h*` when an explicit scale is needed.
 - Prefer `bg-background`, `text-foreground`, `text-muted-foreground`, `bg-card`, `bg-muted`, `bg-primary`, `border-border`, and the `status-*` tokens. Use brand tokens for intentional marketing or accent treatment.
 - Use the existing `photo-hero`, `photo-card`, `photo-banner`, `photo-thumb`, and `photo-inline` classes for imagery. Prefer `next/image` with explicit dimensions or a sized `fill` container.
-- Use `PageHeader` from `@/components/page-header` for every Admin and Student page header. Do not hand-roll a page header or add an obvious subtitle.
+- `PageHeader` must not render a visible route-title banner (`h1` + icon) on Admin, Tutor, or Student pages because the sidebar and `MobileNavbar` already identify the route; retain only an accessible `<h1 data-sr-only-header="" className="sr-only">` route title, and when `actions`, `backHref`, or `breadcrumbs` are present render a slim inline controls bar. Keep Admin, Tutor, and Student content aligned inside one shared `max-w-7xl` `ApplicationPage` container width, and render vertical stacked rows (`md:hidden`) instead of horizontal-scroll tables on narrow mobile viewports.
 - Use Shadcn primitives from `components/ui/`. If a primitive is missing, add a reusable component there instead of using a raw control throughout a page.
 - Admin pages should use the shared components in `components/admin/` when the pattern fits:
 
@@ -230,6 +230,73 @@ The following visual sizes are the approved cross-surface baseline. Keep semanti
 - Do not create nested cards, local stat-card variants, new fonts, purple themes, or gradient backgrounds. `PageOrnaments` radial glows are the exception.
 - Dense admin and lesson-reader surfaces may skip `PageOrnaments`. Marketing and other standalone pages should use an existing ornament variant inside `relative overflow-hidden`.
 - Prefer semantic dark-mode tokens. Test responsive layouts at 380px when the change affects UI. Use `Reveal` for scroll entrance on non-admin pages and respect reduced motion.
+
+### Page header, tab row, and action placement
+
+These rules define where tabs and page actions go, so neither wraps badly when a page has many of both.
+
+- A page has at most three stacked chrome rows above its main content: an optional action/navigation `PageHeader` (visually omitted when title-only), one tab row, and one content toolbar. A fourth row (a caption, coverage strip, or second toolbar) is a defect. Merge it into an existing row or a popover.
+- Page-level actions belong in the `PageHeader` action slot (or top toolbar when no other header control exists), not in the tab row. The tab row holds only the `TabsList`, plus at most one icon-only control that belongs to the tabs themselves, such as a help popover.
+- The tab list must fit on one line at 1536 by 864. If it does not, shorten the trigger labels first (`Schedule list` becomes `List`), then move rarely used tabs, such as audit or history, into a trailing overflow menu inside the tab row. A tab that wraps alone onto a second line is a defect.
+- At 380 px, the tab list may scroll horizontally inside its strip (`overflow-x-auto`, no visible scrollbar, active trigger scrolled into view). It must not wrap into a two-row block or push the page wider than the viewport.
+- Filters that act only on one tab's content belong in that tab's toolbar, not in the page header or tab row.
+
+### Icon-only buttons and labeled actions
+
+This refines the compact-controls rule. Decide each action with this table, in order.
+
+| Action | Treatment |
+|---|---|
+| The single primary action of the page or section | Visible label plus icon, primary variant. Never icon-only. |
+| A familiar action whose meaning comes from its icon and position: search, filter, refresh, previous or next, today, settings, help, close, copy | Icon-only `Button` (`size="icon"` or the existing compact size), localized `aria-label`, existing `Tooltip`, visible focus ring. |
+| A secondary action that is not self-evident from an icon, such as "Add availability" or "Meet automation" | Labeled item in an overflow menu (`MoreHorizontal` or a `ChevronDown` split next to the primary). Do not make it icon-only. |
+| Per-row record actions in a table or list | Show at most one inline action per row. When there are two or more, put all of them in one per-row overflow menu with labeled items. |
+| Permission changes, destructive actions, payments | Always a visible label, either as a button or as a labeled overflow item, and still behind the existing confirmation dialog. A red action must not repeat on every row. |
+
+- A tooltip is not a substitute for a label on an ambiguous action. If you need to read the tooltip to know what the button does, use a labeled menu item instead.
+- Do not hard-code accent colors on action buttons (`text-blue-600`). Use button variants and semantic tokens.
+- Icon-only buttons keep the same hit area as labeled controls in the same row (at least `h-9` in toolbars) and show loading and disabled states.
+
+### Layout revamp when cards or chrome eat the content area
+
+Card count is not the only measure. When a page fails any trigger below, revise the layout instead of trimming padding.
+
+| Trigger at 1536 by 864 | Required change |
+|---|---|
+| The first row of the main content (table row, calendar hour, list item) starts lower than about 40 percent of the viewport height | Remove or merge chrome rows by applying the header and tab rules above. Do not shrink text. |
+| A badge, icon, or value is the same in more than about 80 percent of visible rows | Show only the exceptions. Treat the common value as the implicit default, and keep it available through filters and accessible names. |
+| A table needs two or more labeled buttons on every row | Use a per-row overflow menu, as in the action table above. |
+| A KPI equals another KPI or the total, such as "Active 138" next to "Total 138" | Replace it with a count you can act on, such as suspended, pending, or unassigned, or remove it. |
+| A caption or strip only restates what a control or heading already shows | Remove it with its wrapper. Move dynamic details into a popover on a compact indicator in an existing toolbar. |
+| An empty state shows a full-height blank grid or table with no message | Keep the structure and add an inline status (`0 sessions`) next to the existing primary action in the toolbar. Do not add an overlay card. |
+
+- Repeated records stay inside one shared surface as divided rows. Each section gets at most one surface border. A bordered strip inside a bordered card is a nested card.
+- KPI values use neutral `text-foreground` unless the color carries state, such as warning or error. Do not color-code role counts for decoration.
+
+### Case study: admin schedule and users density
+
+Treat these as concrete examples of the rules above. Reuse the principle, not the exact labels, on other surfaces.
+
+Shared schedule, [academic-schedules-dashboard.tsx](components/admin/academic-schedules-dashboard.tsx) and [schedule-calendar-view.tsx](components/schedule/schedule-calendar-view.tsx):
+
+| Before | Approved presentation | Retained |
+|---|---|---|
+| Tabs and four equal-weight actions share one row; "Audit trail" wraps alone onto a second line | `PageHeader` holds the primary `Create schedule`; "Add availability" and "Meet automation" are labeled items in an overflow menu next to it; tabs sit alone on one line with short labels | Every action and its loading state, the pending-ticket badge on the tickets tab, URL tab state |
+| "All schedules" select sits with page actions, far from the calendar `Filter` | Scope select moves into the calendar toolbar next to `Filter` | Same filter values and defaults |
+| A full-width coverage strip with a caption and one "Tutor: 0 available" badge per tutor | Compact `Users` icon plus "0/2" in the calendar toolbar that opens a popover listing each tutor; warning tone only when a tutor has 0 slots | Per-tutor availability counts |
+| Week select, Today, arrows, date range, info icon, Filter in a third row below the strip | One toolbar row: view select, icon-only `Today`, previous and next icons, date range on the left; scope, coverage, `CircleHelp` legend, `Filter` on the right | Keyboard access, tooltips, localized labels |
+| Empty week renders 17 blank 64 px hour rows; uppercase `MON` headers | Shorter hour rows, scroll to now or the first session, sticky sentence-case day header (`Mon 16`), inline `0 sessions` beside create | Current-time line, today highlight, slot booking |
+
+Users, [users-dashboard.tsx](components/admin/users-dashboard.tsx):
+
+| Before | Approved presentation | Retained |
+|---|---|---|
+| `STUDENT` and `ACTIVE` uppercase badges on almost every row | One `Access` column shows a badge only for admin or tutor roles and for suspended status; suspended rows are muted and badged | Role and status filters, accessible status text |
+| Labeled `Manage roles` and red `Suspend` buttons on all 30 rows | One per-row overflow menu with labeled `Manage roles` and `Suspend` or `Activate` | `AdminConfirmDialog`, the self-suspend guard, disabled-while-stale state |
+| KPI strip `Total 138` next to `Active users 138`, with blue and green values | `Total`, `Admins`, `Tutors`, `Students`, `Suspended`, all in neutral value color | `AdminStatStrip` typography |
+| A `Mail` icon before every email; a hard-coded `Anda` self badge | Email as muted second line without an icon; self badge from an i18n key | Full name and email identity |
+
+Before handoff on a revamp like this, list every removed element and show where it went: removed as duplicate, moved into a menu or popover, or still visible in the relevant state.
 
 ## Date and time handling
 

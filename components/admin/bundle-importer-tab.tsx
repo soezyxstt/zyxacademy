@@ -432,7 +432,7 @@ export function BundleImporterTab() {
             { label: "Ujian / Kuis", value: result.stats.asCount, icon: HelpCircle },
             { label: "Soal Terindex", value: result.stats.aoCount, icon: GitBranch },
           ].map((stat, idx) => (
-            <AdminStatStripItem key={idx} icon={stat.icon} label={stat.label} value={stat.value} tone="brand" />
+            <AdminStatStripItem key={idx} icon={stat.icon} label={stat.label} value={stat.value} />
           ))}
         </AdminStatStrip>
       )}

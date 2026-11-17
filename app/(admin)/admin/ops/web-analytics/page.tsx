@@ -43,9 +43,9 @@ export default async function WebAnalyticsPage() {
       ) : (
         <>
           <AdminStatStrip className="sm:grid-cols-3">
-            <AdminStatStripItem icon={Eye} label={t("webAnalytics.views")} value={metrics.summary.views.toLocaleString(locale === "id" ? "id-ID" : "en-US")} tone="brand" />
-            <AdminStatStripItem icon={Users} label={t("webAnalytics.activeUsers")} value={metrics.summary.activeUsers.toLocaleString(locale === "id" ? "id-ID" : "en-US")} tone="info" />
-            <AdminStatStripItem icon={MousePointerClick} label={t("webAnalytics.sessions")} value={metrics.summary.sessions.toLocaleString(locale === "id" ? "id-ID" : "en-US")} tone="brand-secondary" />
+            <AdminStatStripItem icon={Eye} label={t("webAnalytics.views")} value={metrics.summary.views.toLocaleString(locale === "id" ? "id-ID" : "en-US")} />
+            <AdminStatStripItem icon={Users} label={t("webAnalytics.activeUsers")} value={metrics.summary.activeUsers.toLocaleString(locale === "id" ? "id-ID" : "en-US")} />
+            <AdminStatStripItem icon={MousePointerClick} label={t("webAnalytics.sessions")} value={metrics.summary.sessions.toLocaleString(locale === "id" ? "id-ID" : "en-US")} />
           </AdminStatStrip>
 
           <div className="space-y-3">

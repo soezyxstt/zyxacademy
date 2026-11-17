@@ -6,10 +6,16 @@ import { useRouter } from "next/navigation";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { Plus, Edit2, Trash2, ClipboardList, HelpCircle, Loader2, Tag, Layers, Check, CheckSquare, Eye, Clock, FileSpreadsheet, UserCheck } from "lucide-react";
+import { Plus, Edit2, Trash2, ClipboardList, HelpCircle, Loader2, Tag, Layers, Check, CheckSquare, Eye, Clock, FileSpreadsheet, UserCheck, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -306,8 +312,8 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             ===================================================================== */}
         <TabsContent value="templates" className="space-y-4">
           <div className="flex flex-wrap justify-between items-center gap-2">
-            <h2 className="font-heading text-body-base font-semibold text-foreground">{tr("quizCount", { count: initialTemplates.length })}</h2>
-            <Button asChild className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
+            <span className="text-body-xs text-muted-foreground">{tr("quizCount", { count: initialTemplates.length })}</span>
+            <Button asChild size="sm" className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-lg font-semibold gap-2">
               <Link href={`/tutor/${courseId}/quizzes/new`}>
                 <Plus className="size-4" />
                 {tr("createQuiz")}
@@ -324,12 +330,12 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                 const isSimulation = t.category === "simulation";
 
                 return (
-                  <Card key={t.id} className="rounded-none border-0 bg-transparent py-0 shadow-none gap-0">
-                    <CardHeader className="px-4 pt-3 pb-2">
+                  <div key={t.id} className="px-4 py-3.5 space-y-2.5">
+                    <div className="space-y-1">
                       <div className="flex justify-between items-start gap-2">
-                        <CardTitle className="font-heading text-body-base font-bold text-foreground break-words">{t.title}</CardTitle>
+                        <h3 className="font-heading text-body-base font-bold text-foreground break-words">{t.title}</h3>
                         <div className="flex gap-1.5 flex-wrap items-center">
-                          <Badge variant="secondary" className="text-[10px] rounded-md px-2 py-0.5">
+                          <Badge variant="secondary" className="text-body-2xs rounded-md px-2 py-0.5">
                             {tr(quizCategoryLabelKey(t.category))}
                           </Badge>
                           <button
@@ -349,34 +355,34 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       </div>
 
                       {/* Creator attribution line */}
-                      <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground mt-1">
+                      <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground">
                         <UserCheck className="size-3 text-brand-primary shrink-0" />
                         <span>{tr("creator")}</span>
                         <span className="font-semibold text-foreground truncate">{t.creatorName || tr("system")}</span>
                         {t.creatorRole && (
-                          <Badge variant="outline" className="capitalize text-[10px] rounded-md px-1.5 py-0">
+                          <Badge variant="outline" className="capitalize text-body-2xs rounded-md px-1.5 py-0">
                             {t.creatorRole}
                           </Badge>
                         )}
                       </div>
 
-                      <p className="text-body-xs text-muted-foreground mt-0.5">
+                      <p className="text-body-xs text-muted-foreground">
                         {tr("attemptLimit", { attempts: t.maxAttempts ? `${t.maxAttempts}x` : tr("unlimited"), duration: t.timeLimitSeconds ? `${t.timeLimitSeconds / 60} ${locale === "id" ? "menit" : "minutes"}` : tr("free") })}
                       </p>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-3 space-y-2">
+                    </div>
+                    <div className="space-y-2">
                       <div className="flex flex-wrap gap-1">
                         <span className="text-body-xs font-semibold text-muted-foreground mr-1.5 flex items-center gap-1">
                           <Layers className="size-3" />
                           {tr("questionsCount", { count: rules?.count || 5 })} {rules?.fixedQuestionIds && rules.fixedQuestionIds.length > 0 && tr("specificQuestions")}
                         </span>
                         {rules?.fixedQuestionIds && rules.fixedQuestionIds.length > 0 ? (
-                          <Badge variant="outline" className="text-[10px] text-brand-primary border-brand-primary/30 rounded-md">
+                          <Badge variant="outline" className="text-body-2xs text-brand-primary border-brand-primary/30 rounded-md">
                             {tr("fixed")}
                           </Badge>
                         ) : (
                           rules?.tags?.map((tag: string) => (
-                            <Badge key={tag} variant="outline" className="text-[10px] text-muted-foreground rounded-md flex items-center gap-1">
+                            <Badge key={tag} variant="outline" className="text-body-2xs text-muted-foreground rounded-md flex items-center gap-1">
                               <Tag className="size-2.5" />
                               {tag}
                             </Badge>
@@ -385,19 +391,19 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       </div>
 
                       {/* Schedule & Manual Status Section */}
-                      <div className="mt-3 pt-3 border-t border-border/40 space-y-1.5 text-body-xs text-muted-foreground">
+                      <div className="pt-2 border-t border-border/40 space-y-1.5 text-body-xs text-muted-foreground">
                         <div className="flex items-center justify-between">
                           <span className="font-semibold text-muted-foreground flex items-center gap-1">
                             <Clock className="size-3" />
                             {tr("access")}
                           </span>
                           <span className={cn(
-                            "inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                            "inline-flex rounded-md border px-2 py-0.5 text-body-2xs font-semibold",
                             t.manualStatus === "open"
-                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+                              ? "bg-status-success/10 text-status-success border-status-success/20"
                               : t.manualStatus === "closed"
-                              ? "bg-destructive/10 text-destructive border-destructive/20"
-                              : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20"
+                              ? "bg-status-error/10 text-status-error border-status-error/20"
+                              : "bg-status-info/10 text-status-info border-status-info/20"
                           )}>
                             {t.manualStatus === "open" ? tr("manualOpen") : t.manualStatus === "closed" ? tr("manualClosed") : tr("followSchedule")}
                           </span>
@@ -422,8 +428,8 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       </div>
 
                       {rules?.fixedQuestionIds && rules.fixedQuestionIds.length > 0 && (
-                        <div className="mt-2.5 text-left border-t border-border/40 pt-2.5">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+                        <div className="mt-2 text-left border-t border-border/40 pt-2">
+                          <span className="text-body-2xs font-semibold text-muted-foreground block mb-1">
                             {tr("selectedQuestions")}
                           </span>
                           <ol className="list-decimal pl-4 space-y-1 text-body-xs text-foreground/80 leading-normal max-h-24 overflow-y-auto pr-1">
@@ -438,43 +444,52 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                           </ol>
                         </div>
                       )}
-                    </CardContent>
-                    <div className="flex flex-wrap gap-2 px-4 pb-3">
-                      <Button asChild variant="outline" size="sm" className="gap-1">
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <Button asChild variant="outline" size="sm" className="gap-1.5">
                         <Link href={`/tutor/${courseId}/quizzes/${t.id}/attempts`}>
                           <FileSpreadsheet className="size-3.5" />
-                          {tr("results")}
+                          <span>{tr("results")}</span>
                         </Link>
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleOpenPreviewTpl(t)} className="rounded-md border-border/80 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary gap-1 text-body-sm">
-                        <Eye className="size-3.5" />
-                        {tr("preview")}
-                      </Button>
-                      {isSimulation ? (
-                        <Button variant="outline" size="sm" disabled className="rounded-md border-border/80 text-muted-foreground gap-1 opacity-50 cursor-not-allowed text-body-sm">
-                          <Edit2 className="size-3.5" />
-                          {tr("editAdmin")}
-                        </Button>
-                      ) : (
-                        <Button asChild variant="outline" size="sm" className="rounded-md border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted gap-1 text-body-sm">
-                          <Link href={`/tutor/${courseId}/quizzes/${t.id}/edit`}>
-                            <Edit2 className="size-3.5" />
-                            {tr("edit")}
-                          </Link>
-                        </Button>
-                      )}
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        disabled={isSimulation}
-                        onClick={() => setDeleteTplId(t.id)}
-                        className="gap-1"
-                      >
-                        <Trash2 className="size-3.5" />
-                        {tr("delete")}
-                      </Button>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon-sm" aria-label={t.title} className="h-8 w-8 rounded-lg">
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuItem onSelect={() => handleOpenPreviewTpl(t)}>
+                            <Eye className="size-4 text-muted-foreground" />
+                            <span>{tr("preview")}</span>
+                          </DropdownMenuItem>
+                          {isSimulation ? (
+                            <DropdownMenuItem disabled>
+                              <Edit2 className="size-4" />
+                              <span>{tr("editAdmin")}</span>
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem asChild>
+                              <Link href={`/tutor/${courseId}/quizzes/${t.id}/edit`}>
+                                <Edit2 className="size-4 text-muted-foreground" />
+                                <span>{tr("edit")}</span>
+                              </Link>
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            disabled={isSimulation}
+                            onSelect={() => setDeleteTplId(t.id)}
+                            className="text-status-error focus:text-status-error"
+                          >
+                            <Trash2 className="size-4" />
+                            <span>{tr("delete")}</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                  </Card>
+                  </div>
                 );
               })}
             </div>
@@ -486,8 +501,8 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             ===================================================================== */}
         <TabsContent value="questionbank" className="space-y-4">
           <div className="flex flex-wrap justify-between items-center gap-2">
-            <h2 className="font-heading text-body-base font-semibold text-foreground">{tr("questionBankTitle", { count: initialQuestionBank.length })}</h2>
-            <Button onClick={handleOpenAddQ} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
+            <span className="text-body-xs text-muted-foreground">{tr("questionBankTitle", { count: initialQuestionBank.length })}</span>
+            <Button onClick={handleOpenAddQ} size="sm" className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-lg font-semibold gap-2">
               <Plus className="size-4" />
               {tr("addQuestion")}
             </Button>
@@ -505,19 +520,19 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                 const correct = typeof q.correctIndices === "string" ? JSON.parse(q.correctIndices) : q.correctIndices;
 
                 return (
-                  <Card key={q.id} className="relative rounded-none border-0 bg-transparent p-4 shadow-none">
+                  <div key={q.id} className="relative p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="space-y-1.5 flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-body-xs font-bold text-muted-foreground">{tr("questionNumber", { number: initialQuestionBank.length - questionOffset - idx })}</span>
-                          <Badge className={`text-[10px] rounded-md px-1.5 py-0.5 border ${
-                            q.difficulty === "easy" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20" :
-                            q.difficulty === "medium" ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20" :
-                            "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20"
+                          <Badge className={`text-body-2xs rounded-md px-1.5 py-0.5 border ${
+                            q.difficulty === "easy" ? "bg-status-success/10 text-status-success border-status-success/20" :
+                            q.difficulty === "medium" ? "bg-status-warning/10 text-status-warning border-status-warning/20" :
+                            "bg-status-error/10 text-status-error border-status-error/20"
                           }`}>
                             {tr(q.difficulty)}
                           </Badge>
-                          <Badge variant="outline" className="text-[10px] rounded-md text-muted-foreground">
+                          <Badge variant="outline" className="text-body-2xs rounded-md text-muted-foreground">
                             {q.questionType === "short_answer" ? tr("shortAnswer") :
                              q.questionType === "essay" ? tr("essay") :
                              q.questionType === "multiple_choices" ? tr("multiSelect") : tr("singleChoice")}
@@ -531,14 +546,24 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                           {tr("referenceOnly")}
                         </Badge>
                       ) : (
-                        <div className="flex gap-1.5">
-                          <Button variant="ghost" size="xs" onClick={() => handleOpenEditQ(q)} className="rounded-md text-muted-foreground hover:text-foreground" aria-label={tr("editQuestion")}>
-                            <Edit2 className="size-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="xs" onClick={() => setDeleteQId(q.id)} className="rounded-md text-destructive hover:bg-destructive/10 hover:text-destructive" aria-label={tr("deleteQuestion")}>
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon-sm" className="h-8 w-8 shrink-0 rounded-lg" aria-label={tr("editQuestion")}>
+                              <MoreHorizontal className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem onSelect={() => handleOpenEditQ(q)}>
+                              <Edit2 className="size-4 text-muted-foreground" />
+                              <span>{tr("editQuestion")}</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onSelect={() => setDeleteQId(q.id)} className="text-status-error focus:text-status-error">
+                              <Trash2 className="size-4" />
+                              <span>{tr("deleteQuestion")}</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
                     </div>
 
@@ -551,7 +576,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                             <div key={i} className={`flex items-center gap-2 text-body-xs px-3 py-1.5 rounded-lg border ${
                               isCorrect ? "bg-status-success/5 border-status-success/25 text-foreground" : "bg-muted/10 border-border/50 text-muted-foreground"
                             }`}>
-                              <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                              <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-body-2xs font-bold ${
                                 isCorrect ? "bg-status-success/15 text-foreground" : "bg-muted text-muted-foreground"
                               }`}>
                                 {String.fromCharCode(65 + i)}
@@ -574,7 +599,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                             : typeof q.acceptableAnswers === "string"
                             ? JSON.parse(q.acceptableAnswers)
                             : []).map((ans: string, i: number) => (
-                            <span key={i} className="text-body-xs font-mono font-semibold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 px-2 py-0.5 rounded-md">
+                            <span key={i} className="text-body-xs font-mono font-semibold bg-status-success/10 text-status-success border border-status-success/20 px-2 py-0.5 rounded-md">
                               {ans}
                             </span>
                           ))}
@@ -586,13 +611,13 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                     {Array.isArray(tagsArr) && tagsArr.length > 0 && (
                       <div className="mt-4 pt-3 border-t border-border/40 flex flex-wrap gap-1">
                         {tagsArr.map((t: string) => (
-                          <Badge key={t} variant="outline" className="text-[10px] text-muted-foreground rounded-md">
+                          <Badge key={t} variant="outline" className="text-body-2xs text-muted-foreground rounded-md">
                             {t}
                           </Badge>
                         ))}
                       </div>
                     )}
-                  </Card>
+                  </div>
                 );
               })}
             </div>

@@ -24,7 +24,8 @@ test("tryout question selection and bank pagination", async ({ page }, info) => 
   await page.getByRole("dialog").getByRole("button", { name: "Batal" }).click();
   await page.getByRole("button", { name: "Kelola soal" }).click();
   await capture("questions");
-  await page.getByRole("button", { name: "Hapus pertanyaan nomor 1" }).click();
+  await page.getByRole("button", { name: "Edit pertanyaan nomor 1" }).click();
+  await page.getByRole("menuitem", { name: "Hapus pertanyaan nomor 1" }).click();
   await capture("delete-question");
   await page.getByRole("dialog").getByRole("button", { name: "Batal" }).click();
   await page.getByRole("button", { name: "Tambah pertanyaan" }).click();

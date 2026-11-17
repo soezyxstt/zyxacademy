@@ -32,6 +32,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface FeatureFlagsApiResponse {
   checkedAt: string;
@@ -208,23 +214,32 @@ export function FlagsClient() {
             )}
           </Button>
 
-          <Button variant="ghost" size="sm"
-            type="button"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3.5 py-1.5 text-body-sm font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-50 cursor-pointer"
-          >
-            <RefreshCw className={`size-3.5 ${isFetching ? "animate-spin text-brand-primary" : ""}`} />
-            <span>{t("flagsUI.refresh")}</span>
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  type="button"
+                  onClick={() => refetch()}
+                  disabled={isFetching}
+                  aria-label={t("flagsUI.refresh")}
+                  className="h-9 w-9 shrink-0 rounded-lg"
+                >
+                  <RefreshCw className={`size-4 ${isFetching ? "animate-spin text-brand-primary" : ""}`} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("flagsUI.refresh")}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
       <AdminStatStrip className="lg:grid-cols-4">
         <AdminStatStripItem label={t("flagsUI.flags")} value={data.total} icon={Layers} />
-        <AdminStatStripItem label={t("flagsUI.active")} value={data.activeCount} icon={CheckCircle2} tone="success" />
+        <AdminStatStripItem label={t("flagsUI.active")} value={data.activeCount} icon={CheckCircle2} />
         <AdminStatStripItem label={t("flagsUI.inactive")} value={data.inactiveCount} icon={XCircle} />
-        <AdminStatStripItem label={t("flagsUI.coverage")} value={`${data.coveragePercent}%`} icon={Activity} tone="brand" />
+        <AdminStatStripItem label={t("flagsUI.coverage")} value={`${data.coveragePercent}%`} icon={Activity} />
       </AdminStatStrip>
 
       {/* Control Panel: Search & Filters */}
@@ -256,45 +271,17 @@ export function FlagsClient() {
           </SelectContent>
         </Select>
 
-        {/* Status Tabs (Segmented Button Bar) */}
-        <div className="flex flex-wrap items-center rounded-lg border border-border bg-muted/40 p-0.5">
-          <Button variant="ghost" size="sm"
-            type="button"
-            onClick={() => setStatusFilter("all")}
-            aria-pressed={statusFilter === "all"}
-            className={`rounded-md px-2.5 py-1 text-body-sm font-semibold transition-all cursor-pointer ${
-              statusFilter === "all"
-                ? "bg-background text-foreground shadow-xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t("flagsUI.all")} ({data.total})
-          </Button>
-          <Button variant="ghost" size="sm"
-            type="button"
-            onClick={() => setStatusFilter("active")}
-            aria-pressed={statusFilter === "active"}
-            className={`rounded-md px-2.5 py-1 text-body-sm font-semibold transition-all cursor-pointer ${
-              statusFilter === "active"
-                ? "bg-status-success/15 text-status-success shadow-xs border border-status-success/30"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t("flagsUI.active")} ({data.activeCount})
-          </Button>
-          <Button variant="ghost" size="sm"
-            type="button"
-            onClick={() => setStatusFilter("inactive")}
-            aria-pressed={statusFilter === "inactive"}
-            className={`rounded-md px-2.5 py-1 text-body-sm font-semibold transition-all cursor-pointer ${
-              statusFilter === "inactive"
-                ? "bg-background text-muted-foreground shadow-xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t("flagsUI.inactive")} ({data.inactiveCount})
-          </Button>
-        </div>
+        {/* Status Filter */}
+        <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val as "all" | "active" | "inactive")}>
+          <SelectTrigger aria-label={t("flagsUI.all")} className="w-[140px] h-9 text-body-sm rounded-lg shrink-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("flagsUI.all")} ({data.total})</SelectItem>
+            <SelectItem value="active">{t("flagsUI.active")} ({data.activeCount})</SelectItem>
+            <SelectItem value="inactive">{t("flagsUI.inactive")} ({data.inactiveCount})</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Main Flags List Card */}

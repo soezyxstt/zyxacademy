@@ -4,10 +4,17 @@ import { AdminEmptyState } from "@/components/admin/state-panels";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
-import { Plus, Edit2, Trash2, Trophy, Clock, Layers, ArrowLeft, Check, Library } from "lucide-react";
+import { Plus, Edit2, Trash2, Trophy, Clock, Layers, ArrowLeft, Check, Library, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,7 +22,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { toast } from "@/components/ui/toast";
@@ -309,28 +315,28 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
     }));
     return (
       <div className="space-y-4">
-        {/* Sub-view Header */}
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={() => setActiveExam(null)} className="rounded-md border-border/80">
-            <ArrowLeft className="mr-1.5 size-4" />
-            {tr("back")}
-          </Button>
-          <div>
-            <h2 className="font-heading text-body-base font-bold text-foreground">{tr("manageQuestions", { title: activeExam.title })}</h2>
-            <p className="text-body-xs text-muted-foreground">{tr("totalQuestions", { count: activeQuestions.length })}</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setActiveExam(null)} className="rounded-lg shrink-0">
+              <ArrowLeft className="mr-1.5 size-4" />
+              {tr("back")}
+            </Button>
+            <div className="min-w-0">
+              <p className="truncate font-heading text-body-sm font-bold text-foreground">{activeExam.title}</p>
+              <p className="text-body-xs text-muted-foreground">{tr("totalQuestions", { count: activeQuestions.length })}</p>
+            </div>
           </div>
-        </div>
 
-        {/* Action Row */}
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button variant="outline" onClick={() => { setSelectedBankIds(new Set()); setBankPage(0); setBankOpen(true); }} className="rounded-md border-border font-semibold gap-2">
-            <Library className="size-4" />
-            {tr("importFromBank")}
-          </Button>
-          <Button onClick={handleOpenAddQ} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
-            <Plus className="size-4" />
-            {tr("addQuestion")}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setSelectedBankIds(new Set()); setBankPage(0); setBankOpen(true); }} className="rounded-lg font-semibold gap-2">
+              <Library className="size-4" />
+              {tr("importFromBank")}
+            </Button>
+            <Button size="sm" onClick={handleOpenAddQ} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-lg font-semibold gap-2">
+              <Plus className="size-4" />
+              {tr("addQuestion")}
+            </Button>
+          </div>
         </div>
 
         {/* Questions List */}
@@ -341,14 +347,14 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
             {activeQuestions.map((q) => {
               const content = typeof q.content === "string" ? JSON.parse(q.content) : q.content;
               return (
-                <Card key={q.id} className="relative rounded-none border-0 bg-transparent p-4 shadow-none">
+                <div key={q.id} className="relative p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary text-body-xs font-bold font-mono">
                           {q.order}
                         </span>
-                        <Badge variant="outline" className="text-[10px] rounded-md text-muted-foreground capitalize">
+                        <Badge variant="outline" className="text-body-2xs rounded-md text-muted-foreground capitalize">
                           {tr(q.type)}
                         </Badge>
                       </div>
@@ -360,38 +366,24 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                       ) : null}
                     </div>
 
-                    <TooltipProvider>
-                      <div className="flex gap-1">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              aria-label={tr("editQuestion", { number: q.order })}
-                              onClick={() => handleOpenEditQ(q)}
-                              className="rounded-md text-muted-foreground hover:text-foreground"
-                            >
-                              <Edit2 className="size-3.5" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>{tr("editQuestion", { number: q.order })}</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              aria-label={tr("deleteQuestion", { number: q.order })}
-                              onClick={() => setDeleteQId(q.id)}
-                              className="rounded-md text-status-error hover:bg-status-error/10 hover:text-status-error"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>{tr("deleteQuestion", { number: q.order })}</TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </TooltipProvider>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon-sm" aria-label={tr("editQuestion", { number: q.order })} className="h-8 w-8 shrink-0 rounded-lg">
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem onSelect={() => handleOpenEditQ(q)}>
+                          <Edit2 className="size-4 text-muted-foreground" />
+                          <span>{tr("editQuestion", { number: q.order })}</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => setDeleteQId(q.id)} className="text-status-error focus:text-status-error">
+                          <Trash2 className="size-4" />
+                          <span>{tr("deleteQuestion", { number: q.order })}</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
 
                   {/* Options Preview for MC */}
@@ -405,7 +397,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                           <div key={i} className={`flex items-center gap-2 text-body-xs px-3 py-1.5 rounded-lg border ${
                             isCorrect ? "bg-status-success/10 border-status-success/30 text-foreground font-medium" : "bg-muted/10 border-border/50 text-muted-foreground"
                           }`}>
-                            <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                            <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-body-2xs font-bold ${
                               isCorrect ? "bg-status-success/15 text-foreground" : "bg-muted text-muted-foreground"
                             }`}>
                               {String.fromCharCode(65 + i)}
@@ -432,7 +424,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                       {tr("feature")} <span className="font-semibold text-foreground">{content.acceptsFile ? tr("fileEssay") : tr("textEssay")}</span>
                     </p>
                   )}
-                </Card>
+                </div>
               );
             })}
           </div>
@@ -649,8 +641,8 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
     <div className="space-y-4">
       {/* Header action */}
       <div className="flex flex-wrap justify-between items-center gap-2">
-        <h2 className="font-heading text-body-base font-semibold text-foreground">{tr("tryoutCount", { count: initialTryouts.length })}</h2>
-        <Button onClick={handleOpenAddT} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
+        <span className="text-body-xs text-muted-foreground">{tr("tryoutCount", { count: initialTryouts.length })}</span>
+        <Button size="sm" onClick={handleOpenAddT} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-lg font-semibold gap-2">
           <Plus className="size-4" />
           {tr("addTryout")}
         </Button>

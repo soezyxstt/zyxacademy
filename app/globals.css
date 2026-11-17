@@ -973,3 +973,8 @@
 body:has([data-plain-canvas]) [data-page-ornaments] {
   display: none;
 }
+
+/* Title-only sr-only PageHeader takes zero vertical space even inside space-y-* stacks. */
+[data-sr-only-header] + * {
+  margin-top: 0;
+}

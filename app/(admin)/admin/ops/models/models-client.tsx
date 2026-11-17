@@ -320,13 +320,11 @@ export function ModelsClient({
           label={t("modelsUI.customChains")}
           value={customCount}
           icon={SlidersHorizontal}
-          tone={customCount > 0 ? "brand" : "default"}
         />
         <AdminStatStripItem
           label={t("modelsUI.defaultChains")}
           value={defaultCount}
           icon={CheckCircle2}
-          tone="success"
         />
         <AdminStatStripItem
           label={t("modelsUI.availableModels")}

@@ -21,7 +21,7 @@ for (const [path, title] of [
     expect(response?.status()).toBeLessThan(400);
     await expect(page).toHaveURL(new RegExp(`/courses/visual-math/${path}$`));
     await expect(page.getByText("Memuat mata kuliah…")).toHaveCount(0, { timeout: 30_000 });
-    await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: title, includeHidden: true })).toBeAttached();
     const screenshot = info.outputPath(`screenshots/${path}.png`);
     await page.screenshot({ path: screenshot, fullPage: true, animations: "disabled" });
     await info.attach(path, { path: screenshot, contentType: "image/png" });

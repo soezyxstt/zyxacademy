@@ -89,11 +89,9 @@ export function KeysClient() {
 
   if (error) {
     return (
-      <div className="max-w-5xl">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-status-error">{t("keysUI.failedLoad")}</p>
-          <Button variant="ghost" size="sm" onClick={() => refetch()} className="mt-2 text-body-sm text-brand-primary underline">{t("keysUI.retry")}</Button>
-        </div>
+      <div className="rounded-xl border border-border bg-card p-4">
+        <p className="text-status-error">{t("keysUI.failedLoad")}</p>
+        <Button variant="ghost" size="sm" onClick={() => refetch()} className="mt-2 text-body-sm text-brand-primary underline">{t("keysUI.retry")}</Button>
       </div>
     );
   }
@@ -111,7 +109,7 @@ export function KeysClient() {
   });
 
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-body-sm text-muted-foreground">
           {t("keysUI.checked", { time: relativeTime(data.checkedAt, t), count: data.totalRequestsToday })}

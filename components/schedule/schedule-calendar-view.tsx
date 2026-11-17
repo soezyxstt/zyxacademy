@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { matchesScheduleCourse } from "@/lib/schedule/course-filter";
 import {
+  CalendarCheck2,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Info,
+  CircleHelp,
   MapPin,
   SlidersHorizontal,
   Trash2,
@@ -28,6 +29,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { canBookTutorialSlot } from "@/lib/schedule/week-policy";
 import {
@@ -44,7 +51,7 @@ import {
 
 const START_HOUR = 7;
 const END_HOUR = 24;
-const HOUR_HEIGHT = 64;
+const HOUR_HEIGHT = 48;
 const START_MINUTES = START_HOUR * 60;
 const END_MINUTES = END_HOUR * 60;
 const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, index) => START_HOUR + index);
@@ -90,6 +97,11 @@ export type ScheduleCalendarProps = {
   onOpenSessionDetail?: (booking: any) => void;
   initialCourseFilter?: string;
   compatibleCourseIds?: readonly string[];
+  toolbarControls?: ReactNode;
+  leadingToolbarControls?: ReactNode;
+  trailingToolbarControls?: ReactNode;
+  filterControls?: ReactNode;
+  hasExtraActiveFilter?: boolean;
 };
 
 type CalendarViewMode = "day" | "week" | "month";
@@ -417,6 +429,11 @@ export function ScheduleCalendarView({
   initialCourseFilter = "all",
   compatibleCourseIds,
   allowPastBooking = false,
+  toolbarControls,
+  leadingToolbarControls,
+  trailingToolbarControls,
+  filterControls,
+  hasExtraActiveFilter = false,
 }: ScheduleCalendarProps) {
   const t = useTranslations("schedule");
   const { locale } = useAppLocale();
@@ -426,6 +443,7 @@ export function ScheduleCalendarView({
   const [tutorFilter, setTutorFilter] = useState("all");
   const [now, setNow] = useState(() => new Date());
   const [bookingPickerOpen, setBookingPickerOpen] = useState(false);
+  const gridScrollRef = useRef<HTMLDivElement>(null);
   const today = getJakartaCalendarDate(now);
   const nowMinutes = getJakartaClock(now);
 
@@ -593,6 +611,31 @@ export function ScheduleCalendarView({
   });
   const gridTemplateColumns = ["56px", ...timedDays.map(({ minWidth }) => `minmax(${minWidth}px, 1fr)`)].join(" ");
   const gridMinWidth = timedDays.reduce((width, column) => width + column.minWidth, 56);
+  const visibleEventsCount = useMemo(
+    () => filteredEvents.filter((event) => visibleDays.some((day) => day.dateIso === event.dateIso)).length,
+    [filteredEvents, visibleDays],
+  );
+  const hasActiveFilter = courseFilter !== "all" || tutorFilter !== "all" || Boolean(hasExtraActiveFilter);
+
+  useEffect(() => {
+    const container = gridScrollRef.current;
+    if (!container || viewMode === "month") return;
+    const showsToday = visibleDays.some((day) => day.isToday);
+    const earliestTimed = timedDays.reduce<number | null>((min, col) => {
+      for (const ev of col.events) {
+        if (min === null || ev.startMinutes < min) min = ev.startMinutes;
+      }
+      return min;
+    }, null);
+    const anchorMinutes = showsToday && nowMinutes >= START_MINUTES && nowMinutes <= END_MINUTES
+      ? Math.max(START_MINUTES, nowMinutes - 90)
+      : earliestTimed !== null
+        ? Math.max(START_MINUTES, earliestTimed - 60)
+        : 8 * 60;
+    container.scrollTop = ((anchorMinutes - START_MINUTES) / 60) * HOUR_HEIGHT;
+    // Scroll when the visible week/day or viewMode changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, weekInfo.startOfWeekIso, activeDate]);
 
   const rangeLabel = viewMode === "day"
     ? formatCalendarDateLabel(activeDate, { weekday: "short", day: "numeric", month: "short", year: "numeric" }, locale)
@@ -634,85 +677,154 @@ export function ScheduleCalendarView({
   };
 
   return (
-    <div className="min-w-0 space-y-2">
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        {role === "student" && onSelectSlotToBook ? (
-          <Button size="sm" className="h-9 shrink-0" onClick={() => setBookingPickerOpen(true)}>{t("booking.openPicker")}</Button>
+    <TooltipProvider>
+    <div className="min-w-0 max-w-full space-y-2">
+      <div className="flex min-w-0 max-w-full flex-col gap-1.5 lg:flex-row lg:items-center lg:justify-between lg:gap-1.5">
+        {(leadingToolbarControls || trailingToolbarControls) ? (
+          <div className="flex min-w-0 items-center justify-between gap-1.5 lg:contents">
+            {leadingToolbarControls ? (
+              <div className="min-w-0 shrink-0 lg:order-1">{leadingToolbarControls}</div>
+            ) : null}
+            {trailingToolbarControls ? (
+              <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5 lg:order-4 lg:ml-0">
+                {trailingToolbarControls}
+              </div>
+            ) : null}
+          </div>
         ) : null}
-        <Select value={viewMode} onValueChange={(value: CalendarViewMode) => setViewMode(value)}>
-          <SelectTrigger className="h-9 w-[106px] shrink-0 text-body-sm font-semibold">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="day">{t("calendar.day")}</SelectItem>
-            <SelectItem value="week">{t("calendar.week")}</SelectItem>
-            <SelectItem value="month">{t("calendar.month")}</SelectItem>
-          </SelectContent>
-        </Select>
 
-        <Button type="button" variant="outline" size="sm" className="h-9 shrink-0" onClick={() => selectAnchor(today)}>{t("calendar.today")}</Button>
-        <div className="flex shrink-0 items-center">
-          <Button type="button" variant="ghost" size="icon-sm" onClick={() => navigate(-1)} aria-label={t("calendar.previousRange")}><ChevronLeft className="size-4" /></Button>
-          <Button type="button" variant="ghost" size="icon-sm" onClick={() => navigate(1)} aria-label={t("calendar.nextRange")}><ChevronRight className="size-4" /></Button>
-        </div>
+        <div className="flex min-w-0 items-center justify-between gap-1 sm:gap-1.5 lg:contents">
+          <div className="flex min-w-0 items-center gap-1 sm:gap-1.5 lg:order-2">
+            {role === "student" && onSelectSlotToBook ? (
+              <Button size="sm" className="h-8 sm:h-9 shrink-0" onClick={() => setBookingPickerOpen(true)}>{t("booking.openPicker")}</Button>
+            ) : null}
+            <Select value={viewMode} onValueChange={(value: CalendarViewMode) => setViewMode(value)}>
+              <SelectTrigger className="h-8 sm:h-9 w-auto min-w-[82px] sm:min-w-[88px] shrink-0 px-2.5 text-body-sm font-semibold">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="day">{t("calendar.day")}</SelectItem>
+                <SelectItem value="week">{t("calendar.week")}</SelectItem>
+                <SelectItem value="month">{t("calendar.month")}</SelectItem>
+              </SelectContent>
+            </Select>
 
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button type="button" variant="ghost" size="sm" className="min-h-9 h-auto min-w-0 max-w-full justify-start gap-2 px-2 text-body-sm font-semibold">
-              <CalendarDays className="size-4 shrink-0 text-brand-primary" />
-              <span className="whitespace-normal text-left">{rangeLabel}</span>
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-auto p-2">
-            <MonthPicker value={activeDate} viewMode={viewMode} onSelect={selectAnchor} locale={locale} labels={{ previous: t("calendar.previousMonth"), next: t("calendar.nextMonth"), today: t("calendar.today") }} />
-          </PopoverContent>
-        </Popover>
+            <div className="flex shrink-0 items-center">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-7 sm:h-9 sm:w-8" onClick={() => navigate(-1)} aria-label={t("calendar.previousRange")}>
+                    <ChevronLeft className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("calendar.previousRange")}</TooltipContent>
+              </Tooltip>
 
-        <div className="ml-auto flex shrink-0 items-center gap-1">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="icon-sm" aria-label={t("calendar.legendLabel")}><Info className="size-4" /></Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-60 space-y-2 p-3 text-body-xs">
-              <p className="font-semibold text-foreground">{t("calendar.legend")}</p>
-              <div className="space-y-1.5 text-muted-foreground">
-                <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-emerald-500" /> {t("calendar.availableSlots")}</p>
-                <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-indigo-500" /> {t("calendar.scheduledSessions")}</p>
-                <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-amber-500" /> {t("calendar.academicSchedules")}</p>
-                <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-zinc-500" /> {t("calendar.completedOrPast")}</p>
-              </div>
-            </PopoverContent>
-          </Popover>
+              <Popover>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 shrink-0" aria-label={rangeLabel}>
+                        <CalendarDays className="size-4 text-brand-primary" />
+                      </Button>
+                    </PopoverTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>{rangeLabel}</TooltipContent>
+                </Tooltip>
+                <PopoverContent align="start" className="w-auto p-2">
+                  <MonthPicker value={activeDate} viewMode={viewMode} onSelect={selectAnchor} locale={locale} labels={{ previous: t("calendar.previousMonth"), next: t("calendar.nextMonth"), today: t("calendar.today") }} />
+                </PopoverContent>
+              </Popover>
 
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button type="button" variant="outline" size="sm" aria-label={t("calendar.filter")} className="h-9 gap-1.5 px-2.5"><SlidersHorizontal className="size-4" /><span className="hidden sm:inline">{t("calendar.filter")}</span></Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-72 space-y-3 p-3">
-              <div className="space-y-1.5">
-                <p className="text-body-xs font-semibold">{t("academic.course")}</p>
-                <Select value={courseFilter} onValueChange={setCourseFilter}>
-                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("calendar.allCourses")}</SelectItem>
-                    {coursesList.map((course) => <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              {tutorsList.length > 0 ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-7 sm:h-9 sm:w-8" onClick={() => navigate(1)} aria-label={t("calendar.nextRange")}>
+                    <ChevronRight className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("calendar.nextRange")}</TooltipContent>
+              </Tooltip>
+            </div>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button type="button" variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 shrink-0" aria-label={t("calendar.today")} onClick={() => selectAnchor(today)}>
+                  <CalendarCheck2 className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("calendar.today")}</TooltipContent>
+            </Tooltip>
+          </div>
+
+          <div className="ml-auto flex shrink-0 flex-nowrap items-center gap-1 sm:gap-1.5 lg:order-3">
+            {visibleEventsCount === 0 ? (
+              <span className={`${trailingToolbarControls ? "hidden xl:inline-flex" : "hidden sm:inline-flex"} shrink-0 rounded-md border border-border bg-muted/40 px-2 py-1 text-body-xs text-muted-foreground`}>
+                {t("calendar.zeroSessions")}
+              </span>
+            ) : null}
+
+            {toolbarControls}
+
+            <Popover>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 shrink-0" aria-label={t("calendar.legendLabel")}>
+                      <CircleHelp className="size-4" />
+                    </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>{t("calendar.legendLabel")}</TooltipContent>
+              </Tooltip>
+              <PopoverContent align="end" className="w-60 space-y-2 p-3 text-body-xs">
+                <p className="font-semibold text-foreground">{t("calendar.legend")}</p>
+                <div className="space-y-1.5 text-muted-foreground">
+                  <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-emerald-500" /> {t("calendar.availableSlots")}</p>
+                  <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-indigo-500" /> {t("calendar.scheduledSessions")}</p>
+                  <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-amber-500" /> {t("calendar.academicSchedules")}</p>
+                  <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-zinc-500" /> {t("calendar.completedOrPast")}</p>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="outline" size="icon" aria-label={t("calendar.filter")} className="relative h-8 w-8 sm:h-9 sm:w-9 shrink-0">
+                      <SlidersHorizontal className="size-4" />
+                      {hasActiveFilter ? <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-brand-primary" /> : null}
+                    </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>{t("calendar.filter")}</TooltipContent>
+              </Tooltip>
+              <PopoverContent align="end" className="w-72 space-y-3 p-3">
+                {filterControls}
                 <div className="space-y-1.5">
-                  <p className="text-body-xs font-semibold">{t("audit.tutor")}</p>
-                  <Select value={tutorFilter} onValueChange={setTutorFilter}>
+                  <p className="text-body-xs font-semibold">{t("academic.course")}</p>
+                  <Select value={courseFilter} onValueChange={setCourseFilter}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">{t("calendar.allTutors")}</SelectItem>
-                      {tutorsList.map((tutor) => <SelectItem key={tutor.id} value={tutor.id}>{tutor.name}</SelectItem>)}
+                      <SelectItem value="all">{t("calendar.allCourses")}</SelectItem>
+                      {coursesList.map((course) => <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
-              ) : null}
-            </PopoverContent>
-          </Popover>
+                {tutorsList.length > 0 ? (
+                  <div className="space-y-1.5">
+                    <p className="text-body-xs font-semibold">{t("audit.tutor")}</p>
+                    <Select value={tutorFilter} onValueChange={setTutorFilter}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t("calendar.allTutors")}</SelectItem>
+                        {tutorsList.map((tutor) => <SelectItem key={tutor.id} value={tutor.id}>{tutor.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
       </div>
 
@@ -756,19 +868,19 @@ export function ScheduleCalendarView({
           labels={eventLabels}
         />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border/80 bg-card/55 shadow-xs">
+        <div ref={gridScrollRef} className="max-h-[76vh] overflow-auto rounded-xl border border-border/80 bg-card/55 shadow-xs">
           <div style={{ minWidth: gridMinWidth }}>
             <div
-              className="grid border-b border-border/70 bg-muted/20"
+              className="sticky top-0 z-30 grid border-b border-border/70 bg-card/95 backdrop-blur-sm"
               style={{ gridTemplateColumns }}
             >
-              <div className="flex flex-col items-center justify-center border-r border-border/70 py-2 text-[10px] font-semibold text-muted-foreground">
-                <span>WIB</span><span className="mt-0.5 text-[9px]">GMT+7</span>
+              <div className="flex flex-col items-center justify-center border-r border-border/70 py-1.5 text-body-2xs font-semibold text-muted-foreground">
+                <span>WIB</span><span className="text-[9px]">GMT+7</span>
               </div>
               {visibleDays.map((day) => (
-                <div key={day.dateIso} className={cn("border-r border-border/60 px-2 py-2 text-center", day.isToday && "bg-brand-primary/5") }>
-                  <p className="text-[10px] font-semibold uppercase text-muted-foreground">{formatCalendarDateLabel(day.dateIso as CalendarDate, { weekday: "short" }, locale)}</p>
-                  <p className={cn("mx-auto mt-1 flex size-7 items-center justify-center rounded-full text-body-sm font-bold", day.isToday && "bg-brand-primary text-white")}>{day.dayOfMonth}</p>
+                <div key={day.dateIso} className={cn("flex items-center justify-center gap-1.5 border-r border-border/60 px-2 py-2 text-center", day.isToday && "bg-brand-primary/5")}>
+                  <span className="text-body-xs font-medium text-muted-foreground">{formatCalendarDateLabel(day.dateIso as CalendarDate, { weekday: "short" }, locale)}</span>
+                  <span className={cn("flex size-6 items-center justify-center rounded-full text-body-sm font-bold", day.isToday && "bg-brand-primary text-white")}>{day.dayOfMonth}</span>
                 </div>
               ))}
             </div>
@@ -796,7 +908,7 @@ export function ScheduleCalendarView({
               </div>
             ) : null}
 
-            <div className="max-h-[72vh] overflow-y-auto">
+            <div>
               <div
                 className="grid relative"
                 style={{
@@ -869,6 +981,7 @@ export function ScheduleCalendarView({
       )}
 
     </div>
+    </TooltipProvider>
   );
 }
 

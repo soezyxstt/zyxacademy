@@ -769,6 +769,7 @@
     "processIngestion": "Proses ingest",
     "deleteTitle": "Hapus dokumen asesmen?",
     "deleteDescription": "Hapus dokumen asesmen dan bank soal ini? Tindakan ini akan menghapusnya secara permanen dan menyinkronkan profil asesmen kursus terkait.",
+    "delete": "Hapus",
     "confirmDelete": "Hapus permanen"
   },
   "assessmentDetail": {

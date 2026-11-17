@@ -1,6 +1,7 @@
 "use client";
 
 import { Library } from "lucide-react";
+import { ApplicationPage } from "@/components/application-page";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QuestionBankTabs } from "@/app/(admin)/admin/(eval)/questions/question-bank-tabs";
@@ -67,8 +68,8 @@ const historicalQuestions = [
  */
 export function QuestionBankToolbarVisualFixture({ initialTab }: { initialTab: "ai-generated" | "historical" }) {
   return (
-    <main className="min-h-screen bg-background p-4 text-foreground sm:p-8">
-      <div className="mx-auto max-w-[1440px] space-y-8">
+    <main className="min-h-screen bg-background text-foreground">
+      <ApplicationPage>
         <AdminPageHeader icon={Library} title="Bank Soal" />
         <QuestionBankTabs value={initialTab} tabs={
           <TabsList>
@@ -90,7 +91,7 @@ export function QuestionBankToolbarVisualFixture({ initialTab }: { initialTab: "
             <HistoricalQuestionsClient questions={historicalQuestions} courses={courses} courseMap={courseMap} />
           </TabsContent>
         </QuestionBankTabs>
-      </div>
+      </ApplicationPage>
     </main>
   );
 }

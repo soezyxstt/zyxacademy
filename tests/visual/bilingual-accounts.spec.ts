@@ -219,7 +219,7 @@ test.describe("admin and tutor app headers follow their account locale", () => {
           const header = page.getByRole("banner");
           await expect(header.getByText(role === "admin" ? englishMobileTitle : indonesianMobileTitle, { exact: true })).toBeVisible();
         } else {
-          await expect(page.getByRole("heading", { name: role === "admin" ? englishHeading : indonesianHeading })).toBeVisible();
+          await expect(page.getByRole("heading", { name: role === "admin" ? englishHeading : indonesianHeading, includeHidden: true })).toBeAttached();
         }
         await waitForVisualReadiness(page);
         await page.screenshot({ path: testInfo.outputPath(`${role}-route-before-switch.png`), fullPage: true });
@@ -230,7 +230,7 @@ test.describe("admin and tutor app headers follow their account locale", () => {
           const header = page.getByRole("banner");
           await expect(header.getByText(role === "admin" ? indonesianMobileTitle : englishMobileTitle, { exact: true })).toBeVisible();
         } else {
-          await expect(page.getByRole("heading", { name: role === "admin" ? indonesianHeading : englishHeading })).toBeVisible();
+          await expect(page.getByRole("heading", { name: role === "admin" ? indonesianHeading : englishHeading, includeHidden: true })).toBeAttached();
         }
         await waitForVisualReadiness(page);
         await page.screenshot({ path: testInfo.outputPath(`${role}-route-after-switch.png`), fullPage: true });

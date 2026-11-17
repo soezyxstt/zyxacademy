@@ -217,6 +217,7 @@
     "deleteSlot": "Hapus slot",
     "allDay": "Sepanjang hari",
     "offline": "Luring",
-    "createScheduleAt": "Buat jadwal pada {date} pukul {hour}"
+    "createScheduleAt": "Buat jadwal pada {date} pukul {hour}",
+    "zeroSessions": "0 sesi"
   }
 }

@@ -132,7 +132,7 @@ export default function DetailedMeetingLogPage({
               value={formatDurationSec(analytics.totalDurationSeconds)}
               caption={`${formatIsoDate(new Date(analytics.startTime))} (${formatTimeOnly(analytics.startTime)} - ${formatTimeOnly(analytics.endTime)})`}
             />
-            <AdminStatStripItem icon={TrendingUp} label={translate("meetDetailUI.peak")} value={analytics.peakConcurrentParticipants} tone="brand" />
+            <AdminStatStripItem icon={TrendingUp} label={translate("meetDetailUI.peak")} value={analytics.peakConcurrentParticipants} />
             <AdminStatStripItem icon={Users} label={translate("meetDetailUI.participants")} value={analytics.participantCount} />
             <AdminStatStripItem icon={PlayCircle} label={translate("meetDetailUI.recordings")} value={analytics.recordings.length} />
             <AdminStatStripItem icon={MessageSquare} label={translate("meetDetailUI.transcriptSpeech")} value={`${analytics.transcripts.reduce((acc, t) => acc + t.entries.length, 0)} ${translate("meetDetailUI.lines")}`} />

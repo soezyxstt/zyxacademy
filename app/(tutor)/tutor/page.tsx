@@ -57,23 +57,21 @@ export default async function TutorPage() {
   ];
 
   return (
-    <ApplicationPage spacing="space-y-5">
-      <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
-        <PageHeader
-          title={t("title")}
-          icon={LayoutDashboard}
-          divider={false}
-        />
-        <div className="flex shrink-0 flex-wrap gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/tutor/schedule">{t("openSchedule")}</Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link href="/tutor/schedule">
-              <Plus className="size-4" /> {t("addSlot")}
-            </Link>
-          </Button>
-        </div>
+    <ApplicationPage spacing="space-y-4">
+      <PageHeader
+        title={t("title")}
+        icon={LayoutDashboard}
+        divider={false}
+      />
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button asChild variant="outline" size="sm">
+          <Link href="/tutor/schedule">{t("openSchedule")}</Link>
+        </Button>
+        <Button asChild size="sm">
+          <Link href="/tutor/schedule">
+            <Plus className="size-4" /> {t("addSlot")}
+          </Link>
+        </Button>
       </div>
 
       <section aria-label={t("summary")} className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border lg:grid-cols-4">

@@ -2,10 +2,17 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Edit2, Trash2, BookOpen, FileText } from "lucide-react";
+import { Plus, Edit2, Trash2, BookOpen, FileText, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -128,9 +135,9 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
     <div className="space-y-4">
       {/* Action Row */}
       <div className="flex flex-wrap justify-between items-center gap-2">
-        <h2 className="font-heading text-body-base font-semibold text-foreground">{t("materialsCount", { count: initialMaterials.length })}</h2>
+        <span className="text-body-xs text-muted-foreground">{t("materialsCount", { count: initialMaterials.length })}</span>
         {canManage && (
-          <Button onClick={handleOpenAdd} className="gap-2">
+          <Button onClick={handleOpenAdd} size="sm" className="gap-2">
             <Plus className="size-4" />
             {t("addMaterial")}
           </Button>
@@ -150,10 +157,24 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
                 <p className="mt-0.5 text-body-xs text-muted-foreground line-clamp-2">{cleanSummary(m.summary)}</p>
               </div>
               {canManage && (
-                <div className="flex shrink-0 gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleOpenEdit(m)}><Edit2 className="size-3.5" />{t("edit")}</Button>
-                  <Button variant="outline" size="sm" onClick={() => setDeleteId(m.id)} className="text-destructive"><Trash2 className="size-3.5" />{t("delete")}</Button>
-                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon-sm" aria-label={m.title} className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground">
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-36">
+                    <DropdownMenuItem onSelect={() => handleOpenEdit(m)}>
+                      <Edit2 className="size-4 text-muted-foreground" />
+                      <span>{t("edit")}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => setDeleteId(m.id)} className="text-status-error focus:text-status-error">
+                      <Trash2 className="size-4" />
+                      <span>{t("delete")}</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
           ))}
