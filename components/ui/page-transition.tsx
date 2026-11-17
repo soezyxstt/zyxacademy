@@ -10,6 +10,7 @@ export function getTransitionConfig(pathname: string | null, reduceMotion: boole
     (/^(?:\/(?:en|id))?\/demo(?:\/|$)/.test(pathname) ||
       pathname.startsWith("/courses") ||
       pathname.startsWith("/dashboard") ||
+      pathname.startsWith("/discussions") ||
       pathname.startsWith("/calendar") ||
       pathname.startsWith("/feedback") ||
       pathname.startsWith("/leaderboard") ||

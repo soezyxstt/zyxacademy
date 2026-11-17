@@ -14,6 +14,7 @@ export function getLayoutGroup(pathname: string): string {
 
   const studentPrefixes = [
     "/dashboard",
+    "/discussions",
     "/calendar",
     "/feedback",
     "/leaderboard",
