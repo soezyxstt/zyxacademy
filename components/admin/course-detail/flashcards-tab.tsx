@@ -474,7 +474,6 @@ export function FlashcardsTab({
           icon={CheckCircle2}
           label={t("courseDetail.flashcards.status.published")}
           value={publishedCards}
-          tone="success"
           caption={t("courseDetail.flashcards.stats.availableToStudents")}
         />
         <AdminStatStripItem

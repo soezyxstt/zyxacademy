@@ -231,7 +231,7 @@ function EventCard({
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={cn(
-              "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+              "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-body-2xs font-bold uppercase tracking-wider",
               event.category === "tutorial"
                 ? "bg-muted text-foreground"
                 : "bg-muted text-foreground"

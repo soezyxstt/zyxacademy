@@ -769,6 +769,7 @@
     "processIngestion": "Process ingestion",
     "deleteTitle": "Delete assessment document?",
     "deleteDescription": "Delete this assessment document and question bank? This permanently removes it and syncs the related course assessment profile.",
+    "delete": "Delete",
     "confirmDelete": "Delete permanently"
   },
   "assessmentDetail": {

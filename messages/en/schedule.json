@@ -217,6 +217,7 @@
     "deleteSlot": "Delete slot",
     "allDay": "All day",
     "offline": "In person",
-    "createScheduleAt": "Create a schedule on {date} at {hour}"
+    "createScheduleAt": "Create a schedule on {date} at {hour}",
+    "zeroSessions": "0 sessions"
   }
 }

@@ -31,8 +31,16 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
+import { AdminEmptyState } from "@/components/admin/state-panels";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { uploadAdminPdfFile } from "@/lib/storage/admin-upload-client";
-import { RotateCcw } from "lucide-react";
+import { MoreHorizontal, RotateCcw } from "lucide-react";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import {
   Plus,
@@ -284,21 +292,14 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
           </TooltipProvider>
         )}
 
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                onClick={() => setShowUploadModal(true)}
-                size="sm"
-                aria-label={t("uploadAssessment")}
-                className="size-9 p-0 rounded-lg shrink-0 bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 shadow-2xs"
-              >
-                <Plus className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t("uploadAssessment")}</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Button
+          onClick={() => setShowUploadModal(true)}
+          size="sm"
+          className="h-9 gap-1.5 rounded-lg shrink-0 text-body-sm font-semibold"
+        >
+          <Plus className="size-3.5" />
+          <span>{t("uploadAssessment")}</span>
+        </Button>
       </div>
 
       {/* Table Surface */}
@@ -321,8 +322,8 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
           <tbody>
             {filteredSources.length === 0 ? (
               <tr>
-                <td colSpan={9} className="h-32 text-center text-body-sm text-muted-foreground px-4 py-3">
-                  {t("empty")}
+                <td colSpan={9} className="p-4">
+                  <AdminEmptyState compact icon={FileText} title={t("empty")} />
                 </td>
               </tr>
             ) : (
@@ -341,7 +342,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
                     {courseMap[source.courseId] || t("unknownCourse")}
                   </td>
                   <td className="text-body-sm px-4 py-3 align-middle">
-                    <Badge variant="outline" className="uppercase text-[10px] font-semibold tracking-wider">
+                    <Badge variant="outline" className="text-body-2xs font-semibold">
                       {t(`category.${source.category}`)}
                     </Badge>
                   </td>
@@ -390,22 +391,37 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
                     })}
                   </td>
                   <td className="px-4 py-3 align-middle text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Link href={`/admin/assessments/${source.id}`} className="text-muted-foreground hover:text-foreground inline-block">
-                        <ExternalLink size={16} />
-                      </Link>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-status-error hover:bg-status-error/10 cursor-pointer"
-                        onClick={() => {
-                          setDeletingId(source.id);
-                          setIsDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash2 size={16} />
-                      </Button>
-                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={source.title}
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem asChild>
+                          <Link href={`/admin/assessments/${source.id}`}>
+                            <ExternalLink className="size-4 text-muted-foreground" />
+                            <span>{t("examTitle")}</span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onSelect={() => {
+                            setDeletingId(source.id);
+                            setIsDeleteDialogOpen(true);
+                          }}
+                          className="text-status-error focus:text-status-error"
+                        >
+                          <Trash2 className="size-4" />
+                          <span>{t("delete")}</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </td>
                 </tr>
               ))

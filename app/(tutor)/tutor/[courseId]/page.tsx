@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -13,10 +12,8 @@ import { AnalyticsClient } from "@/components/tutor/analytics-client";
 import { Reveal } from "@/components/ui/reveal";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
-import { Button } from "@/components/ui/button";
 import { pageTitle } from "@/lib/site";
 import { ZyraProposalPanel } from "@/components/zyra/zyra-proposal-panel";
-import { CheckSquare, ClipboardList, Radio, Users, Video } from "lucide-react";
 
 import { db } from "@/db";
 import { mataKuliah } from "@/db/schema";
@@ -105,39 +102,7 @@ export default async function TutorCoursePage({ params }: Props) {
             backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.teaching" />}
             divider={false}
           />
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
-              <Link href={`/tutor/${courseId}/videos`}>
-                <Video className="size-4 mr-1.5" />
-                <TranslatedText namespace="tutor" messageKey="routeTitles.manageVideos" />
-              </Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
-              <Link href={`/tutor/${courseId}/quizzes`}>
-                <ClipboardList className="size-4 mr-1.5" />
-                <TranslatedText namespace="tutor" messageKey="routeTitles.manageQuizzes" />
-              </Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
-              <Link href={`/tutor/${courseId}/live`}>
-                <Radio className="size-4 mr-1.5" />
-                <TranslatedText namespace="tutor" messageKey="routeTitles.liveQuiz" />
-              </Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
-              <Link href={`/tutor/${courseId}/grading`}>
-                <CheckSquare className="size-4 mr-1.5" />
-                <TranslatedText namespace="tutor" messageKey="routeTitles.assessment" />
-              </Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
-              <Link href={`/tutor/${courseId}/participants`}>
-                <Users className="size-4 mr-1.5" />
-                <TranslatedText namespace="tutor" messageKey="routeTitles.participants" />
-              </Link>
-            </Button>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-x-8 gap-y-3 rounded-xl border border-border bg-card px-4 py-3">
+          <div className="mt-3 flex flex-wrap gap-x-8 gap-y-3 rounded-xl border border-border bg-card px-4 py-3">
             <div>
               <p className="font-heading text-h5 font-bold tabular-nums">
                 {analytics.enrolledCount}

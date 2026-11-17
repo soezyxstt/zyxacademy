@@ -177,21 +177,18 @@ export function QuizInsightsListClient({
           label={tx("totalQuizzes")}
           value={totalQuizzes}
           icon={BookOpen}
-          iconClassName="text-brand-primary"
         />
         <AdminStatStripItem
           label={tx("totalAttempts")}
           value={totalAttemptsSum}
           caption={tx("completedAttempts")}
           icon={TrendingUp}
-          iconClassName="text-status-info"
         />
         <AdminStatStripItem
           label={tx("averageScore")}
           value={`${avgOverallScore} / 100`}
           caption={tx("averageSelectedQuizzes")}
           icon={Award}
-          iconClassName="text-brand-secondary"
         />
         <AdminStatStripItem
           label={tx("analyzed")}
@@ -202,7 +199,6 @@ export function QuizInsightsListClient({
             </>
           }
           icon={BrainCircuit}
-          iconClassName="text-brand-primary"
         />
       </AdminStatStrip>
 
@@ -282,7 +278,44 @@ export function QuizInsightsListClient({
             }
           />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="md:hidden divide-y divide-border">
+            {filteredItems.map((item) => {
+              const detailHref = `${detailHrefPrefix}/${encodeURIComponent(item.id)}`;
+              return (
+                <div key={item.id} className="space-y-2 px-3.5 py-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="font-semibold text-body-sm text-foreground break-words">{item.title}</p>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {!lockedCourse && (
+                          <Badge variant="outline" className="rounded-md font-normal text-body-xs">{item.courseName}</Badge>
+                        )}
+                        <Badge variant="secondary" className="rounded-md text-body-xs capitalize">{tx(`category.${item.category}`)}</Badge>
+                      </div>
+                    </div>
+                    <Button asChild size="sm" variant={item.lastAiInsight ? "default" : "outline"} className="shrink-0 gap-1 rounded-lg text-body-sm">
+                      <Link href={detailHref}><span>{tx("viewAnalysis")}</span><ArrowRight className="size-3.5" /></Link>
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-body-xs text-muted-foreground">
+                    <span>
+                      {tx("studentAttempts", { count: item.totalAttempts })} · <strong className={item.avgScore >= 70 ? "text-status-success" : "text-status-warning"}>{item.avgScore}/100</strong> · {item.passRate}%
+                    </span>
+                    {item.lastAiInsight ? (
+                      <span className="inline-flex items-center gap-1 text-status-success font-medium">
+                        <CheckCircle2 className="size-3.5" />
+                        <FormattedDate date={item.lastAiInsight.createdAt} options={{ day: "numeric", month: "short" }} />
+                      </span>
+                    ) : (
+                      <span>{tx("notAnalyzed")}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-body-sm">
               <AdminTableHead className="text-body-xs font-semibold text-muted-foreground">
                 <tr>
@@ -361,6 +394,7 @@ export function QuizInsightsListClient({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </AdminTable>
     </div>

@@ -751,7 +751,7 @@ export function DocumentListClient({
                         <Badge
                           variant={material.status === "published" ? "default" : "secondary"}
                           className={cn(
-                            "rounded-md px-1.5 py-0 text-[10px] uppercase font-semibold",
+                            "rounded-md px-1.5 py-0 text-body-2xs uppercase font-semibold",
                             material.status === "published"
                               ? "bg-status-success/15 text-status-success border-status-success/30"
                               : "bg-muted text-muted-foreground border-border"
@@ -947,7 +947,7 @@ export function DocumentListClient({
                         <Badge
                           variant={material.status === "published" ? "default" : "secondary"}
                           className={cn(
-                            "rounded-md px-1.5 py-0 text-[10px] uppercase font-semibold",
+                            "rounded-md px-1.5 py-0 text-body-2xs uppercase font-semibold",
                             material.status === "published"
                               ? "bg-status-success/15 text-status-success border-status-success/30"
                               : "bg-muted text-muted-foreground border-border"

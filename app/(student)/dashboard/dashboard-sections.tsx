@@ -674,7 +674,7 @@ export async function PrimaryLearningSection({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex rounded-md bg-brand-primary/10 px-2 py-0.5 text-[10px] font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20 shrink-0">
+                      <span className="inline-flex rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-2xs font-bold uppercase tracking-wider text-brand-primary ring-1 ring-brand-primary/20 shrink-0">
                         {course.category}
                       </span>
                       <CoursePricingLabel pricing={course.pricing} />
@@ -736,7 +736,7 @@ export async function PrimaryLearningSection({
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex max-w-full break-words rounded-md border border-border/50 bg-muted/40 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+                        <span className="inline-flex max-w-full break-words rounded-md border border-border/50 bg-muted/40 px-2 py-0.5 text-body-2xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
                           {doc.courseTitle}
                         </span>
                         <span className="text-body-xs text-muted-foreground capitalize">({doc.kind})</span>
@@ -815,7 +815,7 @@ export async function RecommendedCoursesSection({
             <Link href={`/courses/${course.id}`} className="flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex rounded-md bg-brand-primary/10 px-2 py-0.5 text-[10px] font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20">
+                  <span className="inline-flex rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-2xs font-bold uppercase tracking-wider text-brand-primary ring-1 ring-brand-primary/20">
                     {course.category}
                   </span>
                   <CoursePricingLabel pricing={course.pricing} />
@@ -904,7 +904,7 @@ export async function ReviewQueueSection({
                 <div key={review.id} className="py-2.5 px-1">
                   <div className="flex items-start justify-between gap-2">
                     <span className={cn(
-                      "inline-flex rounded-md border px-1.5 py-0.2 text-[10px] font-bold uppercase tracking-wider shrink-0",
+                      "inline-flex rounded-md border px-1.5 py-0.2 text-body-2xs font-bold uppercase tracking-wider shrink-0",
                       gradeColors[review.grade] || "text-muted-foreground border-border bg-muted/40",
                     )}>
                       <TranslatedText namespace="student" messageKey={`dashboard.${gradeLabels[review.grade] || "recentReviews"}`} />

@@ -163,59 +163,60 @@ function CollapsibleBreadcrumbs({ items }: { items: BreadcrumbItem[] }) {
 
 export function PageHeader({
   title,
-  icon: Icon,
   actions,
   backHref,
   backLabel,
   breadcrumbs,
-  divider = true,
   className,
 }: PageHeaderProps) {
-  const hasMobileControls = Boolean(breadcrumbs || backHref || actions);
+  const hasControls = Boolean(breadcrumbs || backHref || actions);
+
+  // Route titles duplicate the active sidebar item and mobile navbar title,
+  // so keep an accessible h1 without rendering header banner chrome.
+  if (!hasControls) {
+    return (
+      <h1 data-sr-only-header="" className="sr-only">
+        {title}
+      </h1>
+    );
+  }
 
   return (
     <header
       className={cn(
-        "w-full min-w-0 flex-col items-stretch gap-2 text-left",
-        hasMobileControls ? "flex mb-3 md:mb-0" : "hidden md:flex",
-        divider && "md:pb-2.5 md:mb-3.5",
+        "w-full min-w-0 flex flex-wrap items-center justify-between gap-2 text-left mb-3",
         className,
       )}
     >
-      {breadcrumbs ? (
-        Array.isArray(breadcrumbs) ? (
-          <CollapsibleBreadcrumbs items={breadcrumbs} />
-        ) : (
-          breadcrumbs
-        )
-      ) : backHref ? (
-        <Link
-          href={backHref}
-          className="inline-flex w-fit shrink-0 items-center gap-1.5 text-body-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="size-3.5" aria-hidden />
-          {backLabel ?? "Kembali"}
-        </Link>
-      ) : null}
+      <h1 data-sr-only-header="" className="sr-only">
+        {title}
+      </h1>
 
-      <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 md:gap-3">
-        <div className="flex min-w-0 items-center gap-2 md:gap-2.5">
-          {Icon && (
-            <span className="flex size-7 sm:size-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
-              <Icon className="size-3.5 sm:size-4" aria-hidden />
-            </span>
-          )}
-          <h1 className="min-w-0 break-words font-heading text-body-base sm:text-h5 font-bold tracking-tight text-foreground leading-snug">
-            {title}
-          </h1>
+      {(breadcrumbs || backHref) && (
+        <div className="flex min-w-0 items-center gap-2">
+          {breadcrumbs ? (
+            Array.isArray(breadcrumbs) ? (
+              <CollapsibleBreadcrumbs items={breadcrumbs} />
+            ) : (
+              breadcrumbs
+            )
+          ) : backHref ? (
+            <Link
+              href={backHref}
+              className="inline-flex w-fit shrink-0 items-center gap-1.5 text-body-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="size-3.5" aria-hidden />
+              {backLabel ?? "Kembali"}
+            </Link>
+          ) : null}
         </div>
+      )}
 
-        {actions && (
-          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5 sm:gap-2 sm:shrink-0 ml-auto">
-            {actions}
-          </div>
-        )}
-      </div>
+      {actions && (
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5 sm:gap-2 sm:shrink-0 ml-auto">
+          {actions}
+        </div>
+      )}
     </header>
   );
 }

@@ -73,7 +73,22 @@ function Tabs({ paramKey, syncUrl, ...props }: TabsProps) {
 }
 
 function TabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.List>) {
-  return <TabsPrimitive.List data-slot="tabs-list" className={cn(tabListClassName, className)} {...props} />;
+  const listRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const scrollActiveIntoView = () => {
+      const active = list.querySelector<HTMLElement>('[data-state="active"], [aria-current="page"]');
+      active?.scrollIntoView({ inline: "nearest", block: "nearest" });
+    };
+    scrollActiveIntoView();
+    const observer = new MutationObserver(scrollActiveIntoView);
+    observer.observe(list, { attributes: true, subtree: true, attributeFilter: ["data-state", "aria-current"] });
+    return () => observer.disconnect();
+  }, []);
+
+  return <TabsPrimitive.List ref={listRef} data-slot="tabs-list" className={cn(tabListClassName, className)} {...props} />;
 }
 
 function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Trigger>) {

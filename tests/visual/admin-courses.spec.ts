@@ -18,13 +18,13 @@ test.describe("Admin course cards", () => {
     const response = await page.goto(ROUTE, { waitUntil: "domcontentloaded", timeout: 90_000 });
     expect(response?.status()).toBeLessThan(400);
     await expect(page.locator("[data-fixture-ready=true]")).toBeVisible();
-    await expect(page.getByText("Matematika I")).toBeVisible();
+    await expect(page.locator("a:visible", { hasText: "Matematika I" })).toBeVisible();
     await expect(page.getByText("Deskripsi ini tetap tersimpan")).toHaveCount(0);
     const search = page.getByPlaceholder("Cari mata kuliah atau kode slug...");
     await search.fill("Matematika");
-    await expect(page.getByText("Fisika Dasar I")).toHaveCount(0);
+    await expect(page.locator("a:visible", { hasText: "Fisika Dasar I" })).toHaveCount(0);
     await search.fill("");
-    await expect(page.getByText("Fisika Dasar I")).toBeVisible();
+    await expect(page.locator("a:visible", { hasText: "Fisika Dasar I" })).toBeVisible();
     await capture(page, testInfo, "admin-courses-grid");
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);

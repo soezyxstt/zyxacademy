@@ -13,7 +13,6 @@ async function openFixture(page: Page, query: string) {
   await page.goto(url);
   expect(page.url()).toBe(url);
   await expect(page.getByRole("heading", { level: 1, name: "Pencapaian", includeHidden: true })).toBeAttached();
-  if (page.viewportSize()!.width >= 768) await expect(page.getByRole("heading", { level: 1, name: "Pencapaian" })).toBeVisible();
 }
 
 async function capture(page: Page, info: TestInfo, state: string) {

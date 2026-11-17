@@ -65,14 +65,12 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
           label={t("featureUsageUI.total")}
           value={metrics.totals.events.toLocaleString("id-ID")}
           icon={Activity}
-          tone="brand"
         />
         <AdminStatStripItem
           label={t("featureUsageUI.activeUsers")}
           value={metrics.totals.activeUsers.toLocaleString("id-ID")}
           caption={t("featureUsageUI.touchesFeature")}
           icon={Users}
-          tone="info"
         />
         <AdminStatStripItem
           label={t("featureUsageUI.average")}
@@ -91,7 +89,6 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
               : t("featureUsageUI.noActivity")
           }
           icon={Trophy}
-          tone="warning"
         />
       </AdminStatStrip>
 

@@ -217,7 +217,7 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
       {/* Compact summary strip */}
       <AdminStatStrip className="sm:grid-cols-3">
         <AdminStatStripItem icon={Users} value={registrations.length} label={t("pkaRegistrationUI.total")} />
-        <AdminStatStripItem icon={BellRing} value={optedIn} label={t("pkaRegistrationUI.subscribed")} tone="brand" />
+        <AdminStatStripItem icon={BellRing} value={optedIn} label={t("pkaRegistrationUI.subscribed")} />
         <AdminStatStripItem icon={GraduationCap} value={facultyCount} label={t("pkaRegistrationUI.facultyCount")} />
       </AdminStatStrip>
 

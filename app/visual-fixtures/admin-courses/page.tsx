@@ -1,5 +1,7 @@
 "use client";
 
+import { ApplicationPage } from "@/components/application-page";
+import { PageHeader } from "@/components/page-header";
 import { CoursesDashboard } from "@/components/admin/courses-dashboard";
 import { useEffect, useState } from "react";
 
@@ -33,12 +35,12 @@ export default function AdminCoursesVisualFixturePage() {
     <main
       id="main-content"
       data-fixture-ready={ready ? "true" : "false"}
-      className="min-h-screen bg-background p-4 text-foreground sm:p-6"
+      className="min-h-screen bg-background text-foreground"
     >
-      <div className="mx-auto max-w-5xl space-y-4">
-        <h1 className="font-heading text-h5 font-bold">Mata Kuliah</h1>
+      <ApplicationPage>
+        <PageHeader title="Mata Kuliah" />
         <CoursesDashboard initialCourses={courses} />
-      </div>
+      </ApplicationPage>
     </main>
   );
 }

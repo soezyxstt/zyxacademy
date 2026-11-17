@@ -17,8 +17,26 @@ import {
   ShieldCheck,
   RotateCcw,
   MessageSquare,
+  MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -437,32 +455,72 @@ export function TutorScheduleView({
   };
 
   return (
-    <div className="space-y-4">
-      <header className="flex flex-col gap-3 border-b border-border pb-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h1 className="font-heading text-h5 font-bold text-foreground">{t("title")}</h1>
-            <span className="text-body-sm font-semibold text-foreground">
-              {formatWeekDate(weekInfo.days[0].dateIso, locale)} - {formatWeekDate(weekInfo.days[6].dateIso, locale)}
-            </span>
+    <TooltipProvider>
+    <div className="space-y-3">
+      <h1 className="sr-only">{t("title")}</h1>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
+            <TabsList>
+              <TabsTrigger value="calendar">{t("calendar")}</TabsTrigger>
+              <TabsTrigger value="tickets">{t("tickets")}</TabsTrigger>
+              <TabsTrigger value="groups">{t("classesGroups")}</TabsTrigger>
+              <TabsTrigger value="slots">{t("slots")}</TabsTrigger>
+              <TabsTrigger value="sessions">{t("sessions")}</TabsTrigger>
+            </TabsList>
           </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-xs text-muted-foreground">
-            <span><strong className="text-foreground">{openedSlotCount}</strong> {t("opened")}</span>
-            <span><strong className="text-foreground">{filledSlotCount}</strong> {t("filled")}</span>
-            <span><strong className="text-foreground">{availableSlotCount}</strong> {t("available")}</span>
+
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <Popover>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="outline" size="sm" className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm">
+                      <Users className="size-3.5" />
+                      <span>{filledSlotCount}/{openedSlotCount}</span>
+                    </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {formatWeekDate(weekInfo.days[0].dateIso, locale)} - {formatWeekDate(weekInfo.days[6].dateIso, locale)}
+                </TooltipContent>
+              </Tooltip>
+              <PopoverContent align="end" className="w-60 space-y-1.5 p-3 text-body-xs">
+                <p className="font-semibold text-foreground">
+                  {formatWeekDate(weekInfo.days[0].dateIso, locale)} - {formatWeekDate(weekInfo.days[6].dateIso, locale)}
+                </p>
+                <div className="flex justify-between text-muted-foreground"><span>{t("opened")}</span><strong className="text-foreground">{openedSlotCount}</strong></div>
+                <div className="flex justify-between text-muted-foreground"><span>{t("filled")}</span><strong className="text-foreground">{filledSlotCount}</strong></div>
+                <div className="flex justify-between text-muted-foreground"><span>{t("available")}</span><strong className="text-foreground">{availableSlotCount}</strong></div>
+              </PopoverContent>
+            </Popover>
+
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button type="button" variant="outline" size="icon" aria-label={t("copyPreviousWeek")} className="h-9 w-9 shrink-0 rounded-lg">
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>{t("copyPreviousWeek")}</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem disabled={isPending} onSelect={handleCopyPreviousWeek}>
+                  <CalendarDays className="size-4 text-muted-foreground" />
+                  <span>{t("copyPreviousWeek")}</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button type="button" size="sm" onClick={openAddSlotDialog} className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm">
+              <Plus className="size-4" />
+              <span>{t("addSlot")}</span>
+            </Button>
           </div>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <Button type="button" size="sm" variant="outline" disabled={isPending} onClick={handleCopyPreviousWeek} className="h-9 text-body-sm">
-            <CalendarDays className="size-3.5" />
-            {t("copyPreviousWeek")}
-          </Button>
-          <Button type="button" size="sm" onClick={openAddSlotDialog} className="h-9 text-body-sm">
-            <Plus className="size-4" />
-            {t("addSlot")}
-          </Button>
-        </div>
-      </header>
 
       {activeTab !== "calendar" && (
         <div className="flex flex-wrap items-center gap-2">
@@ -511,17 +569,6 @@ export function TutorScheduleView({
           )}
         </div>
       )}
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
-        <div>
-          <TabsList>
-            <TabsTrigger value="calendar">{t("calendar")}</TabsTrigger>
-            <TabsTrigger value="tickets">{t("tickets")}</TabsTrigger>
-            <TabsTrigger value="groups">{t("classesGroups")}</TabsTrigger>
-            <TabsTrigger value="slots">{t("slots")}</TabsTrigger>
-            <TabsTrigger value="sessions">{t("sessions")}</TabsTrigger>
-          </TabsList>
-        </div>
 
         <TabsContent value="calendar" className="space-y-3">
           <div className={calendarStyles.root}>
@@ -574,12 +621,20 @@ export function TutorScheduleView({
                       {slot.booking && <p className="pt-0.5 text-body-xs font-medium text-foreground">{t("topic")}: {slot.booking.topic || t("noSpecificTopic")}</p>}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      {isBooked ? (
-                        <Button variant="outline" size="sm" disabled className="h-8 rounded-lg text-body-sm opacity-60">{t("booked")}</Button>
-                      ) : !slotsWithHistory.has(slot.id) ? (
-                        <Button variant="ghost" size="sm" disabled={isPending} onClick={() => requestDeleteSlot(slot.id)} className="h-8 rounded-lg text-body-sm text-status-error hover:bg-status-error/10 hover:text-status-error">
-                          <Trash2 className="mr-1.5 size-4" />{t("delete")}
-                        </Button>
+                      {!isBooked && !slotsWithHistory.has(slot.id) ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon-sm" disabled={isPending} aria-label={t("delete")} className="h-8 w-8 rounded-lg">
+                              <MoreHorizontal className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-36">
+                            <DropdownMenuItem onSelect={() => requestDeleteSlot(slot.id)} className="text-status-error focus:text-status-error">
+                              <Trash2 className="size-4" />
+                              <span>{t("delete")}</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       ) : null}
                     </div>
                   </div>
@@ -869,5 +924,6 @@ export function TutorScheduleView({
         onSuccess={() => router.refresh()}
       />
     </div>
+    </TooltipProvider>
   );
 }

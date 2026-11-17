@@ -153,13 +153,11 @@ export function AiAnalyticsClient() {
         <AdminStatStripItem
           label={t("analyticsUI.totalRequests")}
           value={stats.totalRequests}
-          tone="brand"
         />
         <AdminStatStripItem
           label={t("analyticsUI.successful")}
           value={stats.successfulRequests}
           caption={`${((stats.successfulRequests / stats.totalRequests) * 100).toFixed(1)}%`}
-          tone="success"
         />
         <AdminStatStripItem
           label={t("analyticsUI.failed")}

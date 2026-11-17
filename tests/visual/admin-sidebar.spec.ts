@@ -35,7 +35,7 @@ test("admin navigation opens, closes and keeps accessible names", async ({ page 
     await sidebar.getByRole("button", { name: "Tutup sidebar" }).click();
     await expect(sidebar.getByRole("link", { name: "Panel admin", exact: true })).toBeVisible();
     await capture(page, info, "desktop-collapsed");
-    await sidebar.getByRole("button", { name: "Akademik dan konten" }).click();
+    await sidebar.getByRole("button", { name: "Akademik" }).click();
     await expect(page.getByRole("link", { name: "Mata kuliah", exact: true })).toBeVisible();
     await capture(page, info, "desktop-collapsed-menu");
   }
