@@ -15,6 +15,7 @@ import {
   User,
   CalendarRange,
   Trophy,
+  Medal,
   ArrowLeft,
   Compass,
   FileText,
@@ -304,7 +305,7 @@ function StudentSidebarContent({
         ? [
             { href: `${base}/flashcard`, icon: Brain, label: t("navigation.flashcard") },
             { href: `${base}/quiz`, icon: ClipboardList, label: t("navigation.quiz") },
-            { href: `${base}/leaderboard`, icon: Trophy, label: t("navigation.leaderboard") },
+            { href: `${base}/leaderboard`, icon: Medal, label: t("navigation.leaderboard") },
             { href: `${base}/material`, icon: FileText, label: t("navigation.materials") },
           ]
         : [
@@ -313,7 +314,7 @@ function StudentSidebarContent({
             ...(showStudyPath ? [{ href: `${base}/path`, icon: Compass, label: t("navigation.studyPath") }] : []),
             ...(showMastery ? [{ href: `${base}/mastery`, icon: Target, label: t("navigation.mastery") }] : []),
             { href: `${base}/progress`, icon: BarChart3, label: t("navigation.progress") },
-            { href: `${base}/leaderboard`, icon: Trophy, label: t("navigation.leaderboard") },
+            { href: `${base}/leaderboard`, icon: Medal, label: t("navigation.leaderboard") },
             { href: `${base}/my-results`, icon: History, label: t("navigation.examResults") },
             ...(showLive ? [{ href: `${base}/live`, icon: Play, label: t("navigation.liveQuiz"), badge: "Beta" }] : []),
           ];
@@ -499,7 +500,7 @@ function StudentSidebarContent({
 
         <NavItem
           href={href("/leaderboard")}
-          icon={Trophy}
+          icon={Medal}
           label={t("navigation.leaderboard")}
           active={pathname === "/leaderboard" || pathname.startsWith("/leaderboard")}
           collapsed={c}

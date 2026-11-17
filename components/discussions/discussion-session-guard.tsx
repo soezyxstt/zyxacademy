@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { discussionViewerState } from "./discussion-adapter";
 import type { ComposerDraft } from "./composer";
 import type { DiscussionDraftState } from "./discussion-workspace";
-import type { DiscussionChannel as UiChannel, DiscussionForwardDraft, DiscussionPrivateKind } from "./view-model";
+import type { DiscussionChannel as UiChannel, DiscussionForwardDraft } from "./view-model";
 
 export function useRetainedDiscussionDrafts(invalidated: { current: boolean }) {
   const [drafts, setDraftsRaw] = useState<Record<string, ComposerDraft>>({});
@@ -32,10 +32,7 @@ export function useRetainedDiscussionDrafts(invalidated: { current: boolean }) {
     });
   }, [invalidated]);
   const [newOpen, setNewOpen] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
   const [newChannel, setNewChannel] = useState<UiChannel | null>(null);
-  const [newHelpKind, setNewHelpKind] = useState<Exclude<DiscussionPrivateKind, "academic">>("operations");
-  const [newAudience, setNewAudience] = useState<"together" | "academic" | "technical">("together");
   const discard = useCallback(() => {
     if (purged.current) return;
     purged.current = true;
@@ -43,7 +40,7 @@ export function useRetainedDiscussionDrafts(invalidated: { current: boolean }) {
     draftsRef.current = {};
     setDraftsRaw({});
     setForwardDraftsRaw({});
-    setNewOpen(false); setNewTitle(""); setNewChannel(null); setNewHelpKind("operations"); setNewAudience("together");
+    setNewOpen(false); setNewChannel(null);
   }, []);
   useEffect(() => {
     disposed.current = false;
@@ -60,10 +57,7 @@ export function useRetainedDiscussionDrafts(invalidated: { current: boolean }) {
     drafts: [drafts, setDrafts],
     forwardDrafts: [forwardDrafts, setForwardDrafts],
     newOpen: [newOpen, setNewOpen],
-    newTitle: [newTitle, setNewTitle],
     newChannel: [newChannel, setNewChannel],
-    newHelpKind: [newHelpKind, setNewHelpKind],
-    newAudience: [newAudience, setNewAudience],
   };
   return { state, discard };
 }

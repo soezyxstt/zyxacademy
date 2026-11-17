@@ -70,12 +70,14 @@ describe("discussion authorization and transactions", () => {
   await expect(access.getDiscussionActor("suspended")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
   await expect(access.requireDiscussionChannelAccess(alice, "channel-a")).resolves.toBeDefined();
   await expect(access.requireDiscussionChannelAccess(bob, "channel-b")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
+  await expect(access.requireDiscussionChannelAccess(alice, "private-academic")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
   await expect(access.requireDiscussionChannelAccess(bob, "private-academic")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
   await expect(access.requireDiscussionChannelAccess({ id: "bob", role: "admin" }, "private-tech")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
   await expect(access.requireDiscussionChannelAccess(tutor, "private-tech")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
-  await expect(access.requireDiscussionChannelAccess(tutor, "private-academic")).resolves.toBeDefined();
-  await db.update(schema.penugasanTutor).set({ status: "revoked" }).where(eq(schema.penugasanTutor.id, "assignment"));
   await expect(access.requireDiscussionChannelAccess(tutor, "private-academic")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
+  await expect(access.requireDiscussionChannelAccess(tutor, "channel-a")).resolves.toBeDefined();
+  await db.update(schema.penugasanTutor).set({ status: "revoked" }).where(eq(schema.penugasanTutor.id, "assignment"));
+  await expect(access.requireDiscussionChannelAccess(tutor, "channel-a")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
   await db.update(schema.penugasanTutor).set({ status: "active" }).where(eq(schema.penugasanTutor.id, "assignment"));
   await db.insert(schema.mataKuliah).values({ id: "ambiguous", code: "AMB", title: "Ambiguous", legacyCourseId: "legacy-a" });
   await expect(access.requireDiscussionChannelAccess(alice, "channel-a")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
@@ -89,14 +91,12 @@ describe("discussion authorization and transactions", () => {
   expect(await service.searchChannelMentions("alice", "channel-a", "%_")).toEqual([]);
  });
 
- test("channel listing and team preparation create only the requester's authorized upload scopes", async () => {
+ test("channel listing excludes team channels and rejects team preparation", async () => {
   const channels = await service.listChannels("alice");
   expect(channels.some(channel => channel.id === "channel-a")).toBe(true);
   expect(channels.some(channel => channel.id === "channel-b")).toBe(false);
-  expect(channels.filter(channel => channel.kind === "technical").length).toBeGreaterThan(0);
-  const team = await service.ensureDiscussionTeamChannel("alice", "technical", "legacy-a");
-  expect(team.id).toBe("private-tech");
-  expect(await service.ensureDiscussionTeamChannel("alice", "technical", "course-a")).toEqual(team);
+  expect(channels.filter(channel => channel.kind === "technical" || channel.kind === "academic")).toEqual([]);
+  await expect(service.ensureDiscussionTeamChannel("alice", "technical", "legacy-a")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
   await expect(service.ensureDiscussionTeamChannel("bob", "academic", "course-b")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
  });
 
@@ -223,7 +223,7 @@ describe("discussion authorization and transactions", () => {
   const privateChannel = { id: "private", kind: "technical" as const, courseId: null, legacyCourseId: null };
   const global = { id: "global", kind: "global" as const, courseId: null, legacyCourseId: null };
   const course = { id: "course", kind: "course" as const, courseId: "a", legacyCourseId: "old-a" };
-  expect(policy.canForwardDiscussion(privateChannel, privateChannel)).toBe(true);
+  expect(policy.canForwardDiscussion(privateChannel, privateChannel)).toBe(false);
   expect(policy.canForwardDiscussion(privateChannel, global)).toBe(false);
   expect(policy.canForwardDiscussion(global, course)).toBe(true);
   expect(policy.canForwardDiscussion(course, global)).toBe(false);
@@ -233,7 +233,7 @@ describe("discussion authorization and transactions", () => {
   expect(policy.canEditDiscussionMessage({ id: "alice", role: "student" }, message, new Date(createdAt.getTime() + 300000))).toBe(false);
  });
 
- test("legacy course and team channels grow canonical aliases without changing thread identities", async () => {
+ test("legacy course channels grow canonical aliases without changing thread identities", async () => {
   await db.insert(schema.courses).values({ id: "legacy-growth", title: "Growth", category: "Matematika" });
   await db.insert(schema.enrollments).values({ id: "growth-enrollment", userId: "alice", courseId: "legacy-growth", expiresAt: new Date("2099-01-01") });
   await db.insert(schema.discussionChannels).values([
@@ -243,10 +243,10 @@ describe("discussion authorization and transactions", () => {
   await db.insert(schema.discussionThreads).values({ id: "growth-thread", channelId: "growth-course", authorId: "alice", title: "Preserved" });
   await db.insert(schema.mataKuliah).values({ id: "canonical-growth", code: "GROWTH", title: "Growth", legacyCourseId: "legacy-growth" });
   await expect(access.requireDiscussionChannelAccess(await access.getDiscussionActor("alice"), "growth-course")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
-  const team = await service.ensureDiscussionTeamChannel("alice", "academic", "legacy-growth");
-  expect(team.id).toBe("growth-team");
+  await expect(service.ensureDiscussionTeamChannel("alice", "academic", "legacy-growth")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
   const channels = await service.listChannels("alice");
   expect(channels.some(row => row.id === "growth-course" && row.courseId === "canonical-growth")).toBe(true);
+  expect(channels.some(row => row.id === "growth-team")).toBe(false);
   expect((await db.select().from(schema.discussionThreads).where(eq(schema.discussionThreads.id, "growth-thread")))[0].channelId).toBe("growth-course");
   await db.insert(schema.mataKuliah).values({ id: "growth-ambiguous", code: "GROWTH2", title: "Other", legacyCourseId: "legacy-growth" });
   expect((await access.getAccessibleDiscussionChannels("alice")).some(row => row.id === "growth-course")).toBe(false);
@@ -424,16 +424,14 @@ describe("discussion authorization and transactions", () => {
   } finally { client.query = original; }
  });
 
- test("explicit help kind survives classification and remains restricted to its team", async () => {
-  const input = { ...submit("help-feature"), channelId: "private-tech", title: "Feature", helpKind: "feature" as const };
-  const created = await service.createThread("alice", input);
-  await db.update(schema.discussionThreads).set({ labels: ["bug"] }).where(eq(schema.discussionThreads.id, created.threadId));
-  const view = await service.getThread("alice", created.threadId);
-  expect(view.thread.helpKind).toBe("feature");
-  expect(view.thread.labels[0]).toBe("feature");
-  await expect(service.createThread("alice", { ...input, helpKind: "bug" })).rejects.toThrow("DISCUSSION_CONFLICT");
-  await expect(service.createThread("alice", { ...input, requestId: "wrong-team", channelId: "private-academic" })).rejects.toThrow("DISCUSSION_INVALID");
-  await expect(service.createThread("alice", { ...input, requestId: "wrong-public", channelId: "global" })).rejects.toThrow("DISCUSSION_INVALID");
+ test("explicit help kind is rejected and omitted titles derive from the initial message", async () => {
+  await expect(service.createThread("alice", { ...submit("help-feature"), channelId: "private-tech", title: "Feature", helpKind: "feature" as const })).rejects.toThrow("DISCUSSION_INVALID");
+  await expect(service.createThread("alice", { ...submit("help-public"), channelId: "global", helpKind: "feature" as const })).rejects.toThrow("DISCUSSION_INVALID");
+  await expect(service.createThread("alice", { ...submit("help-team"), channelId: "global", team: "technical" } as never)).rejects.toThrow("DISCUSSION_INVALID");
+  const auto = await service.createThread("alice", { ...submit("auto-title-q", "Bagaimana cara menyelesaikan integral parsial ini? Saya bingung pada substitusi kedua."), channelId: "global" });
+  const view = await service.getThread("alice", auto.threadId);
+  expect(view.thread.title).toBe("Bagaimana cara menyelesaikan integral parsial ini?");
+  expect(view.thread.helpKind).toBeNull();
  });
 
  test("message DTOs resolve the author's active canonical role", async () => {
@@ -520,7 +518,7 @@ describe("discussion authorization and transactions", () => {
   expect(JSON.parse(event.recipientCursor!)).toEqual({ phase: "direct", after: null, mentions: [] });
  });
 
- test("mention eligibility precedes the limit and channel access stays batched for 1000 private scopes", async () => {
+ test("mention eligibility precedes the limit, team channels stay excluded, and course channels paginate cleanly", async () => {
   const candidates = Array.from({ length: 121 }, (_, index) => ({ id: `mention-${String(index).padStart(3, "0")}`, name: `Candidate ${String(index).padStart(3, "0")}` }));
   await db.insert(schema.user).values(candidates.map(row => ({ ...row, email: `${row.id}@example.test`, role: "student" as const })));
   await db.insert(schema.pengguna).values(candidates.map(row => ({ id: row.id })));
@@ -533,10 +531,11 @@ describe("discussion authorization and transactions", () => {
   await db.insert(schema.pengguna).values(staff.map(id => ({ id })));
   await db.insert(schema.penggunaPeran).values(staff.map(id => ({ id: `role-${id}`, penggunaId: id, peranId: "r-tutor", source: "test" })));
   await db.insert(schema.discussionChannels).values(staff.map(id => ({ id: `channel-${id}`, kind: "academic" as const, title: "Akademik", requesterId: id, courseId: "course-a", legacyCourseId: "legacy-a" })));
+  await expect(access.getDiscussionCandidateUserIdsPage("private-academic", { limit: 100 })).rejects.toThrow("DISCUSSION_UNAVAILABLE");
   let cursor: string | null = null;
   const found: string[] = [];
   do {
-   const page = await access.getDiscussionCandidateUserIdsPage("private-academic", { cursor, limit: 100 });
+   const page = await access.getDiscussionCandidateUserIdsPage("channel-a", { cursor, limit: 100 });
    found.push(...page.items); cursor = page.nextCursor;
   } while (cursor);
   expect(found).toContain("staff-0999");
@@ -547,17 +546,48 @@ describe("discussion authorization and transactions", () => {
   client.query = function (this: unknown, ...args: Parameters<typeof client.query>) { queries++; return originalQuery.apply(this, args); } as typeof client.query;
   try {
    const allowed = await access.getAccessibleDiscussionChannels("tutor");
-   expect(allowed.filter(row => row.id.startsWith("channel-staff-")).length).toBe(1000);
+   expect(allowed.filter(row => row.id.startsWith("channel-staff-"))).toHaveLength(0);
    expect(queries).toBeGreaterThan(0);
    expect(queries).toBeLessThan(30);
   } finally { client.query = originalQuery; }
   const counts = await service.getDiscussionCounts("tutor", { courseId: "legacy-a" });
   expect(Object.keys(counts.scopes).sort()).toEqual(["academic", "course", "global", "technical"]);
   expect(counts.course).not.toBeNull();
-  const firstPage = await service.listChannelsPage("tutor", { search: "Akademik", limit: 20 });
-  const secondPage = await service.listChannelsPage("tutor", { search: "Akademik", limit: 20, cursor: firstPage.nextCursor! });
+
+  const pageCourses = Array.from({ length: 45 }, (_, index) => `page-course-${String(index).padStart(2, "0")}`);
+  await db.insert(schema.mataKuliah).values(pageCourses.map(id => ({ id, code: id.toUpperCase(), title: `Diskusi ${id}`, pricingCategory: "free" as const })));
+  await db.insert(schema.discussionChannels).values(pageCourses.map(id => ({ id: `ch-${id}`, kind: "course" as const, title: `Diskusi ${id}`, courseId: id })));
+  const firstPage = await service.listChannelsPage("admin", { search: "Diskusi page-course-", limit: 20 });
+  const secondPage = await service.listChannelsPage("admin", { search: "Diskusi page-course-", limit: 20, cursor: firstPage.nextCursor! });
   expect(firstPage.items).toHaveLength(20);
   expect(secondPage.items).toHaveLength(20);
   expect(new Set([...firstPage.items, ...secondPage.items].map(item => item.id)).size).toBe(40);
+ });
+
+ test("author profile lookup enforces thread membership, privacy, block, staff, and soft-deletion boundaries", async () => {
+  const thread = await service.createThread("alice", { ...submit("profile-q"), channelId: "global", title: "Profil" });
+  const tutorAnswer = await service.reply("tutor", { ...submit("profile-tutor"), threadId: thread.threadId, messageType: "answer" });
+  const deletedAnswer = await service.reply("carol", { ...submit("profile-carol"), threadId: thread.threadId, messageType: "answer" });
+  await service.deleteMessage("carol", deletedAnswer.messageId);
+  await db.insert(schema.gamificationProfiles).values([
+   { userId: "alice", publicId: "pub-alice", displayName: "Alice Public", visibility: "members", leaderboardOptIn: true, allowFollows: true },
+   { userId: "bob", publicId: "pub-bob", displayName: "Bob Private", visibility: "private", leaderboardOptIn: false },
+  ]);
+  await service.reply("bob", { ...submit("profile-bob"), threadId: thread.threadId, messageType: "answer" });
+  expect(await service.getDiscussionAuthorProfile("bob", thread.threadId, "alice")).toMatchObject({
+   kind: "student", role: "student", profile: { publicId: "pub-alice", displayName: "Alice Public", canFollow: true },
+  });
+  expect(await service.getDiscussionAuthorProfile("alice", thread.threadId, "bob")).toMatchObject({
+   kind: "limited", id: "bob", role: "student", visibilityReason: "private",
+  });
+  expect(await service.getDiscussionAuthorProfile("bob", thread.threadId, "bob")).toMatchObject({
+   kind: "student", role: "student", profile: { displayName: "Bob Private", canFollow: false },
+  });
+  expect(await service.getDiscussionAuthorProfile("alice", thread.threadId, "tutor")).toMatchObject({
+   kind: "limited", id: tutorAnswer ? "tutor" : "tutor", role: "tutor", visibilityReason: "staff",
+  });
+  await expect(service.getDiscussionAuthorProfile("alice", thread.threadId, "carol")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
+  await expect(service.getDiscussionAuthorProfile("carol", (await service.createThread("alice", { ...submit("profile-course"), channelId: "channel-a", title: "Priv" })).threadId, "alice"))
+   .rejects.toThrow("DISCUSSION_UNAVAILABLE");
  });
 });

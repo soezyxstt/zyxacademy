@@ -85,9 +85,8 @@ function scopeAllowed(channel: Pick<Channel, "courseId" | "legacyCourseId">, acc
 }
 
 export function discussionChannelCandidateScope(actor: DiscussionActor) {
- if (actor.role === "admin") return undefined;
- const audience = or(inArray(discussionChannels.kind, actor.role === "tutor" ? ["global", "course", "academic"] : ["global", "course"]), eq(discussionChannels.requesterId, actor.id));
- if (actor.role !== "tutor") return audience;
+ const publicKinds = inArray(discussionChannels.kind, ["global", "course"]);
+ if (actor.role !== "tutor") return publicKinds;
  // Prune unassigned scopes before catalog discovery; the resolver still rejects ambiguous aliases and rechecks access.
  const assigned = sql`exists (select 1 from ${mataKuliah} candidate_course where candidate_course.status = 'active'
   and (candidate_course.id = ${discussionChannels.courseId} or candidate_course.legacy_course_id = ${discussionChannels.courseId}
@@ -96,7 +95,7 @@ export function discussionChannelCandidateScope(actor: DiscussionActor) {
     and assignment.mata_kuliah_id = candidate_course.id and assignment.status = 'active' and assignment.assignment_scope = 'course')
    or (not exists (select 1 from ${penugasanTutor} assignment where assignment.pengguna_id = ${actor.id} and assignment.mata_kuliah_id = candidate_course.id)
     and exists (select 1 from ${tutorCourses} fallback where fallback.tutor_id = ${actor.id} and fallback.course_id = candidate_course.legacy_course_id))))`;
- return and(audience, or(and(isNull(discussionChannels.courseId), isNull(discussionChannels.legacyCourseId)), assigned));
+ return and(publicKinds, or(and(isNull(discussionChannels.courseId), isNull(discussionChannels.legacyCourseId)), assigned));
 }
 
 export function discussionChannelsWithThreads() {
@@ -202,11 +201,9 @@ export async function requireDiscussionChannelAccess(actor: DiscussionActor, cha
  const [channel] = await client.select().from(discussionChannels).where(eq(discussionChannels.id, channelId)).limit(1);
  if (!channel) throw denied();
  if (channel.kind === "global") return channel;
+ if (channel.kind !== "course") throw denied();
  if (channel.courseId || channel.legacyCourseId) await requireDiscussionCourse(current, channel.courseId, channel.legacyCourseId, client);
- if (channel.kind === "course") return channel;
- if (current.role === "admin" || channel.requesterId === current.id) return channel;
- if (channel.kind === "academic" && current.role === "tutor") return channel;
- throw denied();
+ return channel;
 }
 
 export async function requireDiscussionThreadAccess(actor: DiscussionActor, threadId: string, tx?: DiscussionTransaction) {
@@ -245,15 +242,11 @@ export async function getDiscussionCandidateUserIdsPage(channelId: string, optio
  const limit = options.limit ?? 100;
  if (!Number.isInteger(limit) || limit < 1 || limit > 200) throw denied();
  const [channel] = await db.select().from(discussionChannels).where(eq(discussionChannels.id, channelId)).limit(1);
- if (!channel) throw denied();
- const privateChannel = channel.kind === "technical" || channel.kind === "academic";
- const roles = channel.kind === "technical" ? ["admin"] as const : ["admin", "tutor"] as const;
+ if (!channel || (channel.kind !== "global" && channel.kind !== "course")) throw denied();
  const rows = await db.selectDistinct({ id: pengguna.id }).from(pengguna)
   .innerJoin(penggunaPeran, eq(penggunaPeran.penggunaId, pengguna.id))
   .innerJoin(peran, eq(peran.id, penggunaPeran.peranId))
-  .where(and(eq(pengguna.status, "active"), options.cursor ? gt(pengguna.id, options.cursor) : undefined, privateChannel
-   ? or(eq(pengguna.id, channel.requesterId!), inArray(peran.code, [...roles]))
-   : inArray(peran.code, ["admin", "tutor", "murid"])))
+  .where(and(eq(pengguna.status, "active"), options.cursor ? gt(pengguna.id, options.cursor) : undefined, inArray(peran.code, ["admin", "tutor", "murid"])))
   .orderBy(pengguna.id).limit(limit + 1);
  const items = rows.slice(0, limit).map(row => row.id);
  return { items, nextCursor: rows.length > limit ? items[items.length - 1] : null };

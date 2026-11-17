@@ -1,3 +1,5 @@
+import type { PublicStudentProfile } from "@/lib/gamification/social-contracts";
+
 export type DiscussionRole = "student" | "tutor" | "admin";
 export type DiscussionChannelKind = "global" | "course" | "technical" | "academic";
 export type DiscussionActor = { id: string; role: DiscussionRole };
@@ -24,7 +26,7 @@ export type DiscussionAttachment = {
  size: number; width: number; height: number; url: string; downloadUrl: string; previewAvailable?: boolean;
 };
 export type DiscussionMessage = {
- id: string; threadId: string; seq: number; author: { id: string; name: string; role: DiscussionRole | null } | null;
+ id: string; threadId: string; seq: number; author: { id: string; name: string; role: DiscussionRole | null; avatarUrl?: string | null } | null;
  kind: "human" | "zyra"; messageType: "question" | "answer" | "reply" | "forward";
  body: string; bodyKind?: "body" | "deleted" | "source_unavailable"; createdAt: string; editedAt: string | null; revision: number;
  replyTo: { id: string; seq: number; authorName?: string; excerpt?: string; authorKind?: "name" | "deleted" | "unavailable"; excerptKind?: "body" | "deleted" | "image" | "source_unavailable" } | null;
@@ -38,7 +40,7 @@ export type DiscussionSubmit = {
  skinId?: string | null; requestId: string;
 };
 export type CreateDiscussionThread = DiscussionSubmit & {
- channelId?: string; team?: "technical" | "academic"; courseId?: string; title: string; helpKind?: DiscussionHelpKind | null;
+ channelId?: string; courseId?: string; title?: string; helpKind?: DiscussionHelpKind | null;
 };
 export type ReplyToDiscussion = DiscussionSubmit & { threadId: string } & (
  | { messageType: "answer"; replyTo?: null }
@@ -52,3 +54,13 @@ export type DiscussionReport = {
  status: "pending" | "resolved" | "dismissed"; createdAt: string;
  reporter: { id: string; name: string };
 };
+export type DiscussionAuthorProfile =
+ | { kind: "student"; name: string; role: DiscussionRole | null; profile: PublicStudentProfile }
+ | {
+   kind: "limited";
+   id: string;
+   name: string;
+   role: DiscussionRole | null;
+   avatarUrl: string | null;
+   visibilityReason: "staff" | "private" | "blocked" | "unavailable";
+  };

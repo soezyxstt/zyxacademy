@@ -145,12 +145,12 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
   { id: "gamification", label: "Gamification", href: "/admin/gamification", icon: Trophy, group: "akademik" },
   { id: "schedules", label: "Jadwal Umum", href: "/admin/schedules", icon: CalendarDays, group: "akademik" },
   { id: "bank-soal", label: "Bank Soal", href: "/admin/questions", icon: Library, group: "akademik" },
+  { id: "discussions", label: "Diskusi dan laporan", href: "/admin/discussions", icon: MessageSquareText, group: "akademik" },
 
   // Alat & Komunikasi
   { id: "pricing", label: "Kalkulator Harga", href: "/admin/pricing", icon: Calculator, group: "alat" },
   { id: "docs", label: "Dokumentasi", href: "/admin/docs", icon: BookOpen, group: "alat" },
   { id: "forms", label: "Form Studio", href: "/admin/forms", icon: FilePen, group: "alat" },
-  { id: "discussions", label: "Diskusi dan laporan", href: "/admin/discussions", icon: MessageSquareText, group: "alat" },
   { id: "meet", label: "Meet", href: "/admin/meet", icon: Video, group: "alat" },
   { id: "media", label: "Pustaka Media", href: "/admin/media", icon: ImageIcon, group: "alat" },
   { id: "tautan", label: "Tautan Publik", href: "/admin/tautan", icon: LinkIcon, group: "alat" },

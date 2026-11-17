@@ -27,6 +27,7 @@ export async function getDiscussionRecipientAccess(channelId: string, userIds: r
  ]);
  const channel = channelRows[0];
  if (!channel) throw new Error("DISCUSSION_UNAVAILABLE");
+ if (channel.kind !== "global" && channel.kind !== "course") return new Map();
  const roles = new Map<string, Set<string>>();
  for (const row of identities) {
   const codes = roles.get(row.id) ?? new Set<string>();
@@ -36,12 +37,11 @@ export async function getDiscussionRecipientAccess(channelId: string, userIds: r
  const actors = new Map<string, DiscussionActor>();
  for (const [id, codes] of roles) {
   const role = codes.has("admin") ? "admin" : codes.has("tutor") ? "tutor" : codes.has("murid") ? "student" : null;
-  if (role && (channel.kind === "global" || channel.kind === "course" || role === "admin"
-   || channel.requesterId === id || (channel.kind === "academic" && role === "tutor"))) actors.set(id, { id, role });
+  if (role) actors.set(id, { id, role });
  }
  if (channel.kind === "global" || !actors.size) return actors;
  const aliases = [...new Set([channel.courseId, channel.legacyCourseId].filter((id): id is string => !!id))];
- if (!aliases.length) return channel.kind === "course" ? new Map() : actors;
+ if (!aliases.length) return new Map();
 
  const [canonical, legacy] = await Promise.all([
   client.select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId, status: mataKuliah.status,

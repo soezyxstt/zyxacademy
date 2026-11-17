@@ -104,7 +104,10 @@ test("mention batches fail closed on assignment revocation and ambiguous course 
  const rows = [identity("alice", "murid"), identity("tutor", "tutor"), identity("admin", "admin")];
  const data: Record<string, Row[]> = {
   user: rows, pengguna: rows, penggunaPeran: rows,
-  discussionChannels: [channel({ id: "academic", kind: "academic", courseId: "canonical", legacyCourseId: "legacy", requesterId: "alice" })],
+  discussionChannels: [
+   channel({ id: "course", kind: "course", courseId: "canonical", legacyCourseId: "legacy", requesterId: null }),
+   channel({ id: "academic", kind: "academic", courseId: "canonical", legacyCourseId: "legacy", requesterId: "alice" }),
+  ],
   mataKuliah: [record("mataKuliah", { id: "canonical", legacyCourseId: "legacy", status: "active", pricingCategory: "premium", freeStartsAt: null, freeEndsAt: null })],
   courses: [record("courses", { id: "legacy" })],
   enrollments: [record("enrollments", { userId: "alice", courseId: "legacy", expiresAt: new Date("2099-01-01") })],
@@ -113,13 +116,14 @@ test("mention batches fail closed on assignment revocation and ambiguous course 
  };
  const { validate } = harness(data);
  const ids = ["alice", "tutor", "admin"];
- await validate("academic", ids);
+ await validate("course", ids);
+ await expect(validate("academic", ids)).rejects.toThrow("DISCUSSION_UNAVAILABLE");
  data.penugasanTutor[0]["penugasanTutor.status"] = "revoked";
- await expect(validate("academic", ids)).rejects.toThrow("DISCUSSION_UNAVAILABLE");
+ await expect(validate("course", ids)).rejects.toThrow("DISCUSSION_UNAVAILABLE");
  data.penugasanTutor = [];
- await validate("academic", ids);
+ await validate("course", ids);
  data.mataKuliah.push(record("mataKuliah", { id: "ambiguous", legacyCourseId: "legacy", status: "active" }));
- await expect(validate("academic", ids)).rejects.toThrow("DISCUSSION_UNAVAILABLE");
+ await expect(validate("course", ids)).rejects.toThrow("DISCUSSION_UNAVAILABLE");
 });
 
 test("course mentions stay bounded and PKA keeps student registration and tutor assignment rules", async () => {

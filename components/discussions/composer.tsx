@@ -44,7 +44,7 @@ export type ComposerDraft = {
 
 export type ComposerSubmission = {
   viewerId: string; channelId: string; questionId?: string;
-  questionDetails?: { title: string; helpKind?: DiscussionPrivateKind };
+  questionDetails?: { title?: string; helpKind?: DiscussionPrivateKind };
   body: string; attachments: DiscussionAttachment[]; mentionIds: string[]; askZyra: boolean;
   skinId?: string | null; requestId: string; replyToMessageId?: string;
 };

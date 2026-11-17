@@ -41,12 +41,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { SearchBar } from "@/components/ui/search-bar";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { FormattedDate } from "@/components/ui/formatted-date";
@@ -454,73 +448,100 @@ export function TutorScheduleView({
     setIsAddSlotOpen(true);
   };
 
+  const viewSelect = (
+    <Select value={activeTab} onValueChange={setActiveTab}>
+      <SelectTrigger
+        aria-label={t("calendar")}
+        className="h-8 sm:h-9 w-auto min-w-[116px] sm:min-w-[126px] max-w-[180px] shrink-0 rounded-lg px-2.5 text-body-sm font-semibold"
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="calendar">{t("calendar")}</SelectItem>
+        <SelectItem value="tickets">{t("tickets")}</SelectItem>
+        <SelectItem value="groups">{t("classesGroups")}</SelectItem>
+        <SelectItem value="slots">{t("slots")}</SelectItem>
+        <SelectItem value="sessions">{t("sessions")}</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+
+  const headerActions = (
+    <>
+      <Popover>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <Button type="button" variant="outline" size="sm" className="h-8 sm:h-9 shrink-0 gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-2.5 text-body-xs sm:text-body-sm">
+                <Users className="size-3.5" />
+                <span>{filledSlotCount}/{openedSlotCount}</span>
+              </Button>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent>
+            {formatWeekDate(weekInfo.days[0].dateIso, locale)} - {formatWeekDate(weekInfo.days[6].dateIso, locale)}
+          </TooltipContent>
+        </Tooltip>
+        <PopoverContent align="end" className="w-60 space-y-1.5 p-3 text-body-xs">
+          <p className="font-semibold text-foreground">
+            {formatWeekDate(weekInfo.days[0].dateIso, locale)} - {formatWeekDate(weekInfo.days[6].dateIso, locale)}
+          </p>
+          <div className="flex justify-between text-muted-foreground"><span>{t("opened")}</span><strong className="text-foreground">{openedSlotCount}</strong></div>
+          <div className="flex justify-between text-muted-foreground"><span>{t("filled")}</span><strong className="text-foreground">{filledSlotCount}</strong></div>
+          <div className="flex justify-between text-muted-foreground"><span>{t("available")}</span><strong className="text-foreground">{availableSlotCount}</strong></div>
+        </PopoverContent>
+      </Popover>
+
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" size="icon" aria-label={t("copyPreviousWeek")} className="h-8 w-8 sm:h-9 sm:w-9 shrink-0 rounded-lg">
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent>{t("copyPreviousWeek")}</TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuItem disabled={isPending} onSelect={handleCopyPreviousWeek}>
+            <CalendarDays className="size-4 text-muted-foreground" />
+            <span>{t("copyPreviousWeek")}</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            size="sm"
+            onClick={openAddSlotDialog}
+            aria-label={t("addSlot")}
+            className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 shrink-0 gap-1.5 rounded-lg p-0 text-body-sm font-semibold"
+          >
+            <Plus className="size-4 sm:size-3.5" />
+            <span className="hidden sm:inline">{t("addSlot")}</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent className="sm:hidden">{t("addSlot")}</TooltipContent>
+      </Tooltip>
+    </>
+  );
+
   return (
     <TooltipProvider>
-    <div className="space-y-3">
+    <div className="min-w-0 max-w-full space-y-3">
       <h1 className="sr-only">{t("title")}</h1>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="min-w-0">
-            <TabsList>
-              <TabsTrigger value="calendar">{t("calendar")}</TabsTrigger>
-              <TabsTrigger value="tickets">{t("tickets")}</TabsTrigger>
-              <TabsTrigger value="groups">{t("classesGroups")}</TabsTrigger>
-              <TabsTrigger value="slots">{t("slots")}</TabsTrigger>
-              <TabsTrigger value="sessions">{t("sessions")}</TabsTrigger>
-            </TabsList>
-          </div>
-
-          <div className="ml-auto flex shrink-0 items-center gap-1.5">
-            <Popover>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" size="sm" className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm">
-                      <Users className="size-3.5" />
-                      <span>{filledSlotCount}/{openedSlotCount}</span>
-                    </Button>
-                  </PopoverTrigger>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {formatWeekDate(weekInfo.days[0].dateIso, locale)} - {formatWeekDate(weekInfo.days[6].dateIso, locale)}
-                </TooltipContent>
-              </Tooltip>
-              <PopoverContent align="end" className="w-60 space-y-1.5 p-3 text-body-xs">
-                <p className="font-semibold text-foreground">
-                  {formatWeekDate(weekInfo.days[0].dateIso, locale)} - {formatWeekDate(weekInfo.days[6].dateIso, locale)}
-                </p>
-                <div className="flex justify-between text-muted-foreground"><span>{t("opened")}</span><strong className="text-foreground">{openedSlotCount}</strong></div>
-                <div className="flex justify-between text-muted-foreground"><span>{t("filled")}</span><strong className="text-foreground">{filledSlotCount}</strong></div>
-                <div className="flex justify-between text-muted-foreground"><span>{t("available")}</span><strong className="text-foreground">{availableSlotCount}</strong></div>
-              </PopoverContent>
-            </Popover>
-
-            <DropdownMenu>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuTrigger asChild>
-                    <Button type="button" variant="outline" size="icon" aria-label={t("copyPreviousWeek")} className="h-9 w-9 shrink-0 rounded-lg">
-                      <MoreHorizontal className="size-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
-                <TooltipContent>{t("copyPreviousWeek")}</TooltipContent>
-              </Tooltip>
-              <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuItem disabled={isPending} onSelect={handleCopyPreviousWeek}>
-                  <CalendarDays className="size-4 text-muted-foreground" />
-                  <span>{t("copyPreviousWeek")}</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <Button type="button" size="sm" onClick={openAddSlotDialog} className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm">
-              <Plus className="size-4" />
-              <span>{t("addSlot")}</span>
-            </Button>
+      {activeTab !== "calendar" && (
+        <div className="flex min-w-0 max-w-full flex-nowrap items-center justify-between gap-1.5 sm:gap-2">
+          {viewSelect}
+          <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5">
+            {headerActions}
           </div>
         </div>
+      )}
 
       {activeTab !== "calendar" && (
         <div className="flex flex-wrap items-center gap-2">
@@ -570,28 +591,31 @@ export function TutorScheduleView({
         </div>
       )}
 
-        <TabsContent value="calendar" className="space-y-3">
-          <div className={calendarStyles.root}>
-            <ScheduleCalendarView
-              role="teacher"
-              currentUserId={currentUserId}
-              weekInfo={weekInfo}
-              isWeekLocked={isWeekLocked}
-              weekOffset={weekOffset}
-              onWeekChange={handleWeekChange}
-              coursesList={initialData.assignedActiveCourses.map((c) => ({ id: c.courseId, title: c.title }))}
-              groupsList={initialData.eligibleGroups.map((g) => ({ id: g.id, name: g.name }))}
-              slots={scheduleData.ownedSlots}
-              bookings={scheduleData.ownedBookings}
-              onCreateScheduleDirect={handleCreateSlotDirect}
-              onMoveSession={handleOpenMoveModal}
-              onDeleteSlot={requestDeleteSlot}
-              onOpenSessionDetail={(booking) => setActiveSessionBookingId(booking.id)}
-            />
-          </div>
-        </TabsContent>
+      {activeTab === "calendar" && (
+        <div className={calendarStyles.root}>
+          <ScheduleCalendarView
+            role="teacher"
+            currentUserId={currentUserId}
+            weekInfo={weekInfo}
+            isWeekLocked={isWeekLocked}
+            weekOffset={weekOffset}
+            onWeekChange={handleWeekChange}
+            coursesList={initialData.assignedActiveCourses.map((c) => ({ id: c.courseId, title: c.title }))}
+            groupsList={initialData.eligibleGroups.map((g) => ({ id: g.id, name: g.name }))}
+            slots={scheduleData.ownedSlots}
+            bookings={scheduleData.ownedBookings}
+            onCreateScheduleDirect={handleCreateSlotDirect}
+            onMoveSession={handleOpenMoveModal}
+            onDeleteSlot={requestDeleteSlot}
+            onOpenSessionDetail={(booking) => setActiveSessionBookingId(booking.id)}
+            leadingToolbarControls={viewSelect}
+            trailingToolbarControls={headerActions}
+          />
+        </div>
+      )}
 
-        <TabsContent value="slots" className="space-y-3">
+      {activeTab === "slots" && (
+        <div className="space-y-3">
           {filteredSlots.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border bg-card">
               <AdminEmptyState icon={CalendarDays} title={t("noSlots")} description={t("noSlotsDescription")} />
@@ -642,9 +666,11 @@ export function TutorScheduleView({
               })}
             </div>
           )}
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="sessions" className="space-y-3">
+      {activeTab === "sessions" && (
+        <div className="space-y-3">
           {filteredBookings.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border bg-card"><AdminEmptyState icon={BookOpen} title={t("noSessions")} /></div>
           ) : (
@@ -679,9 +705,11 @@ export function TutorScheduleView({
               ))}
             </div>
           )}
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="tickets" className="space-y-3">
+      {activeTab === "tickets" && (
+        <div className="space-y-3">
           {filteredTickets.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border bg-card"><AdminEmptyState icon={ShieldCheck} title={t("noTickets")} /></div>
           ) : (
@@ -746,9 +774,11 @@ export function TutorScheduleView({
               })}
             </div>
           )}
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="groups" className="space-y-4">
+      {activeTab === "groups" && (
+        <div className="space-y-4">
           <div className="space-y-3">
             <h2 className="font-heading text-body-base font-bold text-foreground">{t("assignedCourses")}</h2>
             <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
@@ -779,8 +809,8 @@ export function TutorScheduleView({
               )}
             </div>
           </div>
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
 
       <Dialog open={isAddSlotOpen} onOpenChange={(open) => { if (!isPending) setIsAddSlotOpen(open); }}>
         <DialogContent className="sm:max-w-[460px]">

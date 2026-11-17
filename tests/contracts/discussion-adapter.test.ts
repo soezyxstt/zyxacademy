@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import { advanceObserved, aiStatusKey, beginChannelMetadataRequest, beginPageRequest, canSuggestForwardChannel, channelIdBatches, channelOptionIndex, discussionPrivateQuestionHref, discussionUploadError, discussionViewerState, initialDiscussionMessageCursors, listDiscussionQuestionPage, loadDiscussionChannelMetadata, mentionHandle, mergeById, nextDiscussionMessageCursor, observeDiscussionSnapshot, prepareDiscussionTeamChannel, replyQuote, searchDiscussionChannels, searchDiscussionForwardTargets, searchDiscussionMentions, toQuestion, toUiChannel, visibleDiscussionReadSnapshot } from "@/components/discussions/discussion-adapter";
+import { advanceObserved, aiStatusKey, beginChannelMetadataRequest, beginPageRequest, canSuggestForwardChannel, channelIdBatches, channelOptionIndex, discussionPrivateQuestionHref, discussionUploadError, discussionViewerState, initialDiscussionMessageCursors, listDiscussionQuestionPage, loadDiscussionChannelMetadata, mentionHandle, mergeById, nextDiscussionMessageCursor, observeDiscussionSnapshot, replyQuote, searchDiscussionChannels, searchDiscussionForwardTargets, searchDiscussionMentions, toQuestion, toUiChannel, visibleDiscussionReadSnapshot } from "@/components/discussions/discussion-adapter";
 import type { DiscussionChannel, DiscussionThread } from "@/lib/discussions/contracts";
 
 const channels: DiscussionChannel[] = [
@@ -37,13 +37,13 @@ describe("discussion adapter", () => {
   test("limits destinations to authorized audience shapes", () => {
     expect(toQuestion(thread, channels).allowedForwardChannelIds).toEqual(["global", "a", "b"]);
     expect(toQuestion({ ...thread, channelId: "a" }, channels).allowedForwardChannelIds).toEqual(["a"]);
-    expect(toQuestion({ ...thread, channelId: "private" }, channels).allowedForwardChannelIds).toEqual(["private"]);
+    expect(toQuestion({ ...thread, channelId: "private" }, channels).allowedForwardChannelIds).toEqual([]);
     const alias = { ...channels[1], id: "a-alias" };
     expect(toQuestion({ ...thread, channelId: "a" }, [...channels, alias]).allowedForwardChannelIds).toEqual(["a", "a-alias"]);
     expect(canSuggestForwardChannel(toUiChannel(channels[0]), toUiChannel(channels[1]))).toBe(true);
     expect(canSuggestForwardChannel(toUiChannel(channels[1]), toUiChannel(channels[2]))).toBe(false);
     expect(canSuggestForwardChannel(toUiChannel(channels[1]), toUiChannel(alias))).toBe(true);
-    expect(canSuggestForwardChannel(toUiChannel(channels[3]), toUiChannel(channels[3]))).toBe(true);
+    expect(canSuggestForwardChannel(toUiChannel(channels[3]), toUiChannel(channels[3]))).toBe(false);
     expect(canSuggestForwardChannel(toUiChannel(channels[3]), toUiChannel(channels[0]))).toBe(false);
   });
   test("batches channel metadata for the visible thread page, deep link and filter", () => {
@@ -87,20 +87,7 @@ describe("discussion adapter", () => {
     await listDiscussionQuestionPage({ listThreadsAcrossChannels }, { search: "  ", status: "resolved" });
     expect(listThreadsAcrossChannels).toHaveBeenLastCalledWith({ channelId: undefined, search: undefined, cursor: undefined, status: "resolved" });
   });
-  test("prepares only the requester's reauthorized team channel in the requested course", async () => {
-    const ensureTeamChannel = mock(async (team: "academic" | "technical", courseId?: string) => ({ id: "own", kind: team, courseId: courseId ?? null, title: "Tim" }));
-    let channel: DiscussionChannel = { ...channels[3], id: "own", courseId: "course-a" };
-    const getChannelsByIds = mock(async () => [channel]);
-    const actions = { ensureTeamChannel, getChannelsByIds };
-    expect(await prepareDiscussionTeamChannel(actions, "academic", "course-a")).toMatchObject({ id: "own", kind: "private", privacyLabel: "Hanya Anda, tutor pengampu, dan admin." });
-    expect(ensureTeamChannel).toHaveBeenCalledWith("academic", "course-a");
-    expect(getChannelsByIds).toHaveBeenCalledWith(["own"]);
-    channel = { ...channel, courseId: null };
-    expect((await prepareDiscussionTeamChannel(actions, "academic")).privacyLabel).toBe("Hanya Anda, semua tutor, dan admin.");
-    await expect(prepareDiscussionTeamChannel(actions, "academic", "course-a")).rejects.toThrow();
-    await expect(prepareDiscussionTeamChannel(actions, "technical")).rejects.toThrow();
-  });
-  test("opens newly created private course questions in the appropriate full workspace", () => {
+  test("opens newly created course questions in the appropriate full workspace", () => {
     expect(discussionPrivateQuestionHref("/courses/math/discussions", "private scope", "thread/1")).toBe("/dashboard/discussions?channel=private+scope&thread=thread%2F1");
     expect(discussionPrivateQuestionHref("/tutor/math/discussions", "private", "thread")).toBe("/tutor/discussions?channel=private&thread=thread");
   });
