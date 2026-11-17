@@ -4,7 +4,7 @@ import { z } from "zod";
 import { makeQueryClient, getQueryClient, removeOtherAccounts } from "@/lib/query/client";
 import { queryKeys } from "@/lib/query/keys";
 import { ApiError, ResponseValidationError, requestJson } from "@/lib/query/http";
-import { studentTodayQuery } from "@/lib/student/today-query";
+import { studentTodayQuery, type TodayData } from "@/lib/student/today-query";
 import { DEFAULT_PRICING_DISCOUNTS } from "@/lib/pricing-discounts";
 import { pricingQuery, cachePricingResponse } from "@/lib/query/pricing";
 import { opsQuery, opsSchema, analyticsSchema, flagsSchema, diagnosticsSchema } from "@/lib/query/admin";
@@ -21,7 +21,7 @@ const client = () => { const value = makeQueryClient(); clients.push(value); ret
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 const mockFetch = (fn: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) => { globalThis.fetch = fn as typeof fetch; };
-const today = { streak: { current: 2, longest: 5 }, items: [{ id: "one", kind: "quiz", title: "Quiz", href: "/quiz", done: false }] };
+const today: TodayData = { streak: { current: 2, longest: 5 }, items: [{ id: "one", kind: "quiz", title: "Quiz", href: "/quiz", done: false }] };
 const pricing = DEFAULT_PRICING_DISCOUNTS;
 const attempt = {
   id: "attempt-a", studentId: "alice", templateId: "quiz-a", score: 0, durationSeconds: 20, status: "graded", submittedAt: "2026-11-17T12:00:00Z",
@@ -46,7 +46,7 @@ describe("cache identity and lifetime", () => {
     const qc = client(); const options = studentTodayQuery("alice");
     await Promise.all([qc.fetchQuery(options), qc.fetchQuery(options)]);
     await qc.fetchQuery(options);
-    expect(calls).toBe(1); expect(qc.getQueryData(options.queryKey)).toEqual(today);
+    expect(calls).toBe(1); expect(qc.getQueryData<TodayData>(options.queryKey)).toEqual(today);
   });
   test("invalidation is targeted, not a global cache reset", async () => {
     const qc = client(); const a = studentTodayQuery("alice"), b = studentTodayQuery("bob");
@@ -59,9 +59,9 @@ describe("cache identity and lifetime", () => {
   test("account eviction preserves public and current account caches", () => {
     const qc = client(); qc.setQueryData(queryKeys.today("alice"), today); qc.setQueryData(queryKeys.today("bob"), today); qc.setQueryData(queryKeys.pricing(), pricing);
     removeOtherAccounts(qc, "bob");
-    expect(qc.getQueryData(queryKeys.today("alice"))).toBeUndefined(); expect(qc.getQueryData(queryKeys.today("bob"))).toEqual(today);
+    expect(qc.getQueryData<TodayData>(queryKeys.today("alice"))).toBeUndefined(); expect(qc.getQueryData<TodayData>(queryKeys.today("bob"))).toEqual(today);
     removeOtherAccounts(qc, null);
-    expect(qc.getQueryData(queryKeys.today("bob"))).toBeUndefined(); expect(qc.getQueryData(queryKeys.pricing())).toEqual(pricing);
+    expect(qc.getQueryData<TodayData>(queryKeys.today("bob"))).toBeUndefined(); expect(qc.getQueryData<typeof pricing>(queryKeys.pricing())).toEqual(pricing);
   });
 });
 
@@ -70,13 +70,13 @@ describe("validated HTTP and cancellation", () => {
     mockFetch(async () => json({ ...today, streak: { current: "2", longest: 5 } }));
     const qc = client(); const options = studentTodayQuery("alice");
     await expect(qc.fetchQuery(options)).rejects.toBeInstanceOf(ResponseValidationError);
-    expect(qc.getQueryData(options.queryKey)).toBeUndefined();
+    expect(qc.getQueryData<TodayData>(options.queryKey)).toBeUndefined();
   });
   test("keeps the last valid cache entry when a new payload fails validation", async () => {
     const qc = client(); const options = studentTodayQuery("alice"); qc.setQueryData(options.queryKey, today);
     mockFetch(async () => json({ broken: true }));
     await expect(qc.fetchQuery({ ...options, staleTime: 0 })).rejects.toBeInstanceOf(ResponseValidationError);
-    expect(qc.getQueryData(options.queryKey)).toEqual(today);
+    expect(qc.getQueryData<TodayData>(options.queryKey)).toEqual(today);
   });
   test("rejects HTML responses and conceals server error bodies", async () => {
     mockFetch(async () => new Response("<html>login</html>"));
@@ -99,7 +99,7 @@ describe("validated HTTP and cancellation", () => {
     const qc = client(), options = studentTodayQuery("alice");
     const pending = qc.fetchQuery(options).catch((error: unknown) => error);
     await tick(); await qc.cancelQueries({ queryKey: options.queryKey }); await pending;
-    expect(observedSignal?.aborted).toBe(true); expect(qc.getQueryData(options.queryKey)).toBeUndefined();
+    expect(observedSignal?.aborted).toBe(true); expect(qc.getQueryData<TodayData>(options.queryKey)).toBeUndefined();
   });
   test("rejects external transports", async () => {
     let calls = 0; mockFetch(async () => { calls++; return json({}); });
@@ -113,9 +113,9 @@ describe("write contracts", () => {
     mockFetch(async () => new Promise((resolve) => { resolveRead = resolve; }));
     const pending = qc.fetchQuery(pricingQuery()).catch(() => undefined);
     await tick(); await cachePricingResponse(qc, pricing); resolveRead?.(json({ invalid: true })); await pending; await tick();
-    expect(qc.getQueryData(pricingQuery().queryKey)).toEqual(pricing);
+    expect(qc.getQueryData<typeof pricing>(pricingQuery().queryKey)).toEqual(pricing);
     await expect(cachePricingResponse(qc, { invalid: true })).rejects.toThrow();
-    expect(qc.getQueryData(pricingQuery().queryKey)).toEqual(pricing);
+    expect(qc.getQueryData<typeof pricing>(pricingQuery().queryKey)).toEqual(pricing);
   });
   test("article progress never regresses on an out-of-order response", () => {
     expect(mergeSectionProgress({ maxReadPercent: 100, completed: true, timeSpentSeconds: 90 }, { maxReadPercent: 30, completed: false, timeSpentSeconds: 20 }))
