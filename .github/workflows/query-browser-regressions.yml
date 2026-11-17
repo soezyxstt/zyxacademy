@@ -12,8 +12,9 @@ on:
       - 'hooks/**'
       - 'components/providers/query-provider.tsx'
       - 'components/course/**'
-      - 'app/(student)/courses/[[]id]/flashcard/**'
+      - 'app/(student)/courses/*/flashcard/**'
       - 'app/globals.css'
+      - 'app/visual-fixtures/query-data-layer/**'
       - 'tests/visual/query-data-layer.spec.ts'
       - 'tests/visual/fixtures/**'
       - 'playwright.config.ts'
@@ -35,7 +36,7 @@ jobs:
     timeout-minutes: 15
     env:
       CI: '1'
-      # These tests intercept every request and use synthetic data. This value
+      # Every request is intercepted and uses synthetic data. This value
       # disables the Next dev server; no live credentials or database are needed.
       PLAYWRIGHT_BASE_URL: http://fixture.invalid
       PUPPETEER_SKIP_DOWNLOAD: 'true'
