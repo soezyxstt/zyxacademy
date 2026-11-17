@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getAuthSession } from "@/lib/auth-session";
+import { ensureLegacyIdentity } from "@/lib/auth/legacy-identity";
 import { hasAnyPeran } from "@/lib/auth/request-cache";
 import type { ReactNode } from "react";
 import { TutorSidebar, type AssignedTutorCourse } from "@/components/tutor/tutor-sidebar";
@@ -14,6 +15,7 @@ import { CommandMenuProvider } from "@/components/command-menu";
 export default async function TutorLayout({ children }: { children: ReactNode }) {
   const session = await getAuthSession();
   if (!session?.user) redirect("/");
+  await ensureLegacyIdentity(session.user.id);
 
   const isAuthorized = await hasAnyPeran(session.user.id, ["tutor"], { allowAdmin: false });
   if (!isAuthorized) redirect("/");

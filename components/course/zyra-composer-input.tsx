@@ -5,6 +5,7 @@ import { Annotation, Compartment, EditorState, StateEffect, StateField } from "@
 import { Decoration, EditorView, keymap, placeholder as editorPlaceholder, type DecorationSet, WidgetType } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, insertNewline, redo } from "@codemirror/commands";
 import katex from "@/lib/math/katex";
+import { safeDiscussionLink } from "@/lib/discussions/markdown-policy";
 import { composerMathRanges } from "./zyra-composer-math";
 import "katex/dist/katex.min.css";
 
@@ -21,6 +22,9 @@ type Props = {
   onChange: (value: string) => void;
   onSubmit: () => void;
   disabled?: boolean;
+  submitOnEnter?: boolean;
+  maxLength?: number;
+  renderFormatting?: boolean;
   placeholder?: string;
   className?: string;
   "aria-label"?: string;
@@ -62,7 +66,7 @@ function mathDecorations(state: EditorState, focused: boolean, composing: boolea
       }
     }));
 }
-const mathRendering = StateField.define<{ decorations: DecorationSet; focused: boolean; composing: boolean }>({
+export const mathRendering = StateField.define<{ decorations: DecorationSet; focused: boolean; composing: boolean }>({
   create: (state) => ({ decorations: mathDecorations(state, false, false), focused: false, composing: false }),
   update(value, transaction) {
     let { focused, composing } = value;
@@ -77,6 +81,38 @@ const mathRendering = StateField.define<{ decorations: DecorationSet; focused: b
     EditorView.atomicRanges.of(view => view.state.field(field).decorations),
   ],
 });
+
+export function composerFormattingRanges(text: string) {
+  const pattern = /```[\s\S]*?```|`[^`\n]+`|\*\*((?:\$[^$\n]+\$|[^*$\n])+?)\*\*|\*((?:\$[^$\n]+\$|[^*$\n])+?)\*|\[([^\]\n]{1,500})\]\(([^\s()]{1,2048})\)/g;
+  return Array.from(text.matchAll(pattern), match => {
+    const from = match.index, to = from + match[0].length;
+    if (match[0].startsWith("```")) return null;
+    const kind = match[0].startsWith("`") ? "code" : match[1] !== undefined ? "bold" : match[2] !== undefined ? "italic" : safeDiscussionLink(match[4]) ? "link" : "text";
+    const start = kind === "bold" ? 2 : 1;
+    const end = kind === "link" || kind === "text" ? match[0].indexOf("](") : match[0].length - start;
+    return { from, to, contentFrom: from + start, contentTo: from + end, kind };
+  }).filter((range): range is NonNullable<typeof range> => range !== null);
+}
+
+export const formattingRendering = StateField.define<DecorationSet>({
+  create: state => formattingDecorations(state),
+  update: (_value, transaction) => formattingDecorations(transaction.state),
+  provide: field => EditorView.decorations.from(field),
+});
+function formattingDecorations(state: EditorState) {
+  const decorations: ReturnType<Decoration["range"]>[] = [];
+  const { focused, composing } = state.field(mathRendering);
+  if (composing) return Decoration.none;
+  const math = composerMathRanges(state.doc.toString());
+  for (const range of composerFormattingRanges(state.doc.toString())) {
+    if (math.some(item => item.from <= range.from && item.to >= range.to)) continue;
+    if (focused && state.selection.ranges.some(selection => selection.from < range.to && selection.to > range.from || selection.empty && selection.from > range.from && selection.from < range.to)) continue;
+    decorations.push(Decoration.replace({}).range(range.from, range.contentFrom));
+    decorations.push(Decoration.mark({ class: `zyra-composer-${range.kind}` }).range(range.contentFrom, range.contentTo));
+    decorations.push(Decoration.replace({}).range(range.contentTo, range.to));
+  }
+  return Decoration.set(decorations, true);
+}
 
 /** Selection offsets refer to the original string, including math delimiters. */
 export const ZyraComposerInput = React.forwardRef<ZyraComposerInputHandle, Props>(function ZyraComposerInput(props, ref) {
@@ -115,6 +151,12 @@ export const ZyraComposerInput = React.forwardRef<ZyraComposerInputHandle, Props
       doc: latest.current.value,
       extensions: [
         undo.of(history()), mathRendering,
+        ...(latest.current.renderFormatting ? [formattingRendering] : []),
+        EditorState.transactionFilter.of(transaction => {
+          if (transaction.annotation(externalChange)) return transaction;
+          const limit = latest.current.maxLength;
+          return limit && transaction.newDoc.length > limit && transaction.newDoc.length > transaction.startState.doc.length ? [] : transaction;
+        }),
         EditorView.domEventHandlers({
           focus: (_event, view) => { view.dispatch({ effects: mathInteraction.of({ focused: true }) }); },
           blur: (_event, view) => { view.dispatch({ effects: mathInteraction.of({ focused: false }) }); },
@@ -123,8 +165,8 @@ export const ZyraComposerInput = React.forwardRef<ZyraComposerInputHandle, Props
         }),
         editable.of([EditorView.editable.of(!latest.current.disabled), EditorState.readOnly.of(!!latest.current.disabled)]),
         hint.of(editorPlaceholder(latest.current.placeholder ?? "")),
-        label.of(EditorView.contentAttributes.of({ "aria-label": latest.current["aria-label"] ?? latest.current.placeholder ?? "Pesan", "aria-multiline": "true" })),
-        keymap.of([{ key: "Shift-Enter", run: insertNewline }, { key: "Mod-Shift-z", run: redo, preventDefault: true }, { key: "Enter", run: (v) => { if (v.composing || v.state.field(mathRendering).composing || latest.current.disabled) return false; latest.current.onSubmit(); return true; } }, ...defaultKeymap, ...historyKeymap]),
+        label.of(EditorView.contentAttributes.of({ "aria-label": latest.current["aria-label"] ?? latest.current.placeholder ?? "Pesan", role: "textbox", "aria-multiline": "true", "aria-disabled": String(!!latest.current.disabled) })),
+        keymap.of([{ key: "Shift-Enter", run: insertNewline }, { key: "Mod-Shift-z", run: redo, preventDefault: true }, { key: "Enter", run: (v) => { if (v.composing || v.state.field(mathRendering).composing || latest.current.disabled || latest.current.submitOnEnter === false) return false; latest.current.onSubmit(); return true; } }, ...defaultKeymap, ...historyKeymap]),
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !update.transactions.some((tr) => tr.annotation(externalChange))) latest.current.onChange(update.state.doc.toString());
@@ -136,6 +178,10 @@ export const ZyraComposerInput = React.forwardRef<ZyraComposerInputHandle, Props
           ".cm-line": { lineHeight: "1.65" },
           "&.cm-focused": { outline: "none" },
           ".cm-placeholder": { color: "var(--muted-foreground)" },
+          ".zyra-composer-bold": { fontWeight: "bold" },
+          ".zyra-composer-italic": { fontStyle: "italic" },
+          ".zyra-composer-code": { fontFamily: "monospace", backgroundColor: "var(--muted)" },
+          ".zyra-composer-link": { color: "var(--primary)", textDecoration: "underline" },
           ".zyra-composer-math": { display: "inline-block", verticalAlign: "baseline", cursor: "text" },
         }),
       ],
@@ -154,7 +200,7 @@ export const ZyraComposerInput = React.forwardRef<ZyraComposerInputHandle, Props
   }, [props.value, undo]);
   React.useEffect(() => { editor.current?.dispatch({ effects: editable.reconfigure([EditorView.editable.of(!props.disabled), EditorState.readOnly.of(!!props.disabled)]) }); }, [props.disabled, editable]);
   React.useEffect(() => { editor.current?.dispatch({ effects: hint.reconfigure(editorPlaceholder(props.placeholder ?? "")) }); }, [props.placeholder, hint]);
-  React.useEffect(() => { editor.current?.dispatch({ effects: label.reconfigure(EditorView.contentAttributes.of({ "aria-label": ariaLabel, "aria-multiline": "true" })) }); }, [ariaLabel, label]);
+  React.useEffect(() => { editor.current?.dispatch({ effects: label.reconfigure(EditorView.contentAttributes.of({ "aria-label": ariaLabel, role: "textbox", "aria-multiline": "true", "aria-disabled": String(!!props.disabled) })) }); }, [ariaLabel, props.disabled, label]);
 
-  return <div ref={host} className={props.className} />;
+  return <div ref={host} data-editor-disabled={!!props.disabled} className={props.className} />;
 });

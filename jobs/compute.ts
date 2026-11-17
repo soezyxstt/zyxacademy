@@ -62,11 +62,21 @@ import { pdfThumbnailWorker } from "./pdf-thumbnail";
 import { sourceReadPageWorker } from "./source-read";
 import { sourceFigureWorker } from "./source-figure";
 import { productVerificationWorker } from "./product-verification";
+import { discussionAiCron } from "./discussion-ai";
+import { discussionNotificationsWorker } from "./discussion-notifications";
+import { discussionImageSweepCron } from "./discussion-image-sweep";
+
+export { discussionAiCron } from "./discussion-ai";
+export { discussionNotificationsWorker } from "./discussion-notifications";
+export { discussionImageSweepCron } from "./discussion-image-sweep";
 
 /**
  * All background functions for Deno/compute Inngest execution.
  */
 export const computeFunctions = [
+  discussionAiCron,
+  discussionNotificationsWorker,
+  discussionImageSweepCron,
   gamificationOutboxCron,
   gamificationMissionsCron,
   gamificationMissionsPage,

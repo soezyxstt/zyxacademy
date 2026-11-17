@@ -25,6 +25,7 @@ const catalogLoaders: Record<Locale, Record<string, CatalogLoader>> = {
     tutor: () => import("../../messages/id/tutor.json"),
     consent: () => import("../../messages/id/consent.json"),
     notifications: () => import("../../messages/id/notifications.json"),
+    discussions: () => import("../../messages/id/discussions.json"),
     search: () => import("../../messages/id/search.json"),
     publicForms: () => import("../../messages/id/publicForms.json"),
     marketing: () => import("../../messages/id/marketing.json"),
@@ -50,6 +51,7 @@ const catalogLoaders: Record<Locale, Record<string, CatalogLoader>> = {
     tutor: () => import("../../messages/en/tutor.json"),
     consent: () => import("../../messages/en/consent.json"),
     notifications: () => import("../../messages/en/notifications.json"),
+    discussions: () => import("../../messages/en/discussions.json"),
     search: () => import("../../messages/en/search.json"),
     publicForms: () => import("../../messages/en/publicForms.json"),
     marketing: () => import("../../messages/en/marketing.json"),
@@ -61,7 +63,7 @@ const catalogLoaders: Record<Locale, Record<string, CatalogLoader>> = {
 export const DEFAULT_NAMESPACES = [
   "core", "common", "auth", "student", "studentCourse", "studentExtras",
   "learning", "zyra", "admin", "adminAcademic", "adminReviewProduct", "adminOps", "adminEval",
-  "adminForms", "adminMedia", "tutor", "consent", "notifications", "search",
+  "adminForms", "adminMedia", "tutor", "consent", "notifications", "discussions", "search",
   "publicForms", "marketing", "schedule", "ui",
 ] as const;
 

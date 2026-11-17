@@ -47,7 +47,9 @@ export function TutorCourseSwitcher({
     }
 
     // Preserve sub-route if navigating within known course subpages
-    if (pathname.includes("/participants")) {
+    if (pathname.endsWith("/discussions") && activeCourseId) {
+      router.push(`/tutor/${targetCourseId}/discussions`);
+    } else if (pathname.includes("/participants")) {
       router.push(`/tutor/${targetCourseId}/participants`);
     } else if (pathname.includes("/live")) {
       router.push(`/tutor/${targetCourseId}/live`);

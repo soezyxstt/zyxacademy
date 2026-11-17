@@ -31,6 +31,7 @@ export type RequestLifecycleInput = {
   readonly cacheKey?: string;
   readonly cacheTtlSeconds?: number;
   readonly cacheLookup?: () => Promise<ProviderGenerationResult | null>;
+  readonly singleDispatch?: boolean;
 };
 
 export type RequestLifecycleResult = {
@@ -52,6 +53,7 @@ export type RequestLifecycleErrorCode =
   | "LIFECYCLE_RECONCILIATION_FAILURE"
   | "IDEMPOTENCY_IN_PROGRESS"
   | "IDEMPOTENCY_REPLAY_UNAVAILABLE"
+  | "PROVIDER_OUTCOME_UNCERTAIN"
   | "PROVIDER_REQUEST_FAILED";
 
 export class RequestLifecycleError extends Error {
@@ -63,6 +65,13 @@ export class RequestLifecycleError extends Error {
     this.name = "RequestLifecycleError";
     this.code = code;
     this.reason = reason;
+  }
+}
+
+export class ProviderNotDispatchedError extends Error {
+  constructor(message: string, cause?: unknown) {
+    super(message, { cause });
+    this.name = "ProviderNotDispatchedError";
   }
 }
 
@@ -81,7 +90,10 @@ export type RequestLifecycleDependencies = {
     readonly cachePolicy?: RequestLifecycleInput["cachePolicy"];
     readonly cacheKey?: string;
     readonly cacheTtlSeconds?: number;
+    readonly singleDispatch?: boolean;
   }) => Promise<ProviderGenerationResult>;
+  // Preparation must not call the provider; the returned closure runs after dispatch.
+  readonly prepareProvider?: (input: Parameters<RequestLifecycleDependencies["invokeProvider"]>[0]) => () => Promise<ProviderGenerationResult>;
   readonly requestIdFactory?: () => string;
   readonly resolveModelChain?: typeof configuredModelChain;
 };
@@ -104,14 +116,25 @@ function safeOutcomeCode(error: unknown): string {
   return "PROVIDER_ERROR";
 }
 
-function providerFailureAllowsFallback(error: unknown): boolean {
-  if (!(error instanceof ProviderAdapterError)) return true;
-  return !["invalid_request", "quarantined"].includes(error.retryClassification);
+export function providerFailureAllowsFallback(error: unknown): boolean {
+  if (!(error instanceof ProviderAdapterError)) return false;
+  if (error.retryClassification === "malformed_response") return true;
+  const status = error.httpStatus;
+  return status !== undefined && (status === 401 || status === 403 || status === 429 || status >= 500);
 }
 
-function assertTransition(result: ControlPlaneTransitionResult, expected: string): void {
+export function isConfirmedHttpFailure(error: unknown): boolean {
+  if (!(error instanceof ProviderAdapterError) || error.retryClassification === "timeout" || error.retryClassification === "malformed_response") return false;
+  const status = error.httpStatus;
+  return status !== undefined && Number.isInteger(status) && status >= 400 && status <= 599;
+}
+
+function assertTransition(result: ControlPlaneTransitionResult, expected: string, outcomeCode: string, leaseId: string): void {
   if (result.status === "rejected") {
     throw new RequestLifecycleError("LIFECYCLE_RECONCILIATION_FAILURE", `${expected} transition was rejected`, result.code);
+  }
+  if (result.lease.leaseId !== leaseId || result.lease.state !== "committed" || result.lease.providerOutcomeCode !== outcomeCode) {
+    throw new RequestLifecycleError("LIFECYCLE_RECONCILIATION_FAILURE", `${expected} transition did not match the provider outcome`);
   }
 }
 
@@ -206,6 +229,7 @@ function lifecycleInputFingerprint(input: RequestLifecycleInput): string {
     cachePolicy: input.cachePolicy ?? null,
     cacheKey: input.cacheKey ?? null,
     cacheTtlSeconds: input.cacheTtlSeconds ?? null,
+    singleDispatch: input.singleDispatch ?? false,
   }));
   return createHash("sha256").update(serialized).digest("hex");
 }
@@ -274,7 +298,7 @@ export class RequestLifecycle {
   }
 
   private async executeOnce(input: RequestLifecycleInput): Promise<RequestLifecycleResult> {
-    if (!input.userId || !input.feature || input.parts.length === 0) {
+    if (!input.userId || !input.feature || input.parts.length === 0 || (input.singleDispatch && !input.idempotencyKey?.trim())) {
       throw new RequestLifecycleError("ROUTER_INPUT_INVALID", "provider lifecycle input is incomplete");
     }
 
@@ -293,7 +317,9 @@ export class RequestLifecycle {
         visual: isVisual,
       },
       defaultRoute.models,
-    );
+    ).catch((error) => {
+      throw new RequestLifecycleError("LIFECYCLE_PRE_DISPATCH_FAILURE", "provider model selection failed", undefined, error);
+    });
     const route = hasImage
       ? {
           ...defaultRoute,
@@ -307,9 +333,9 @@ export class RequestLifecycle {
     if (route.models.length === 0) {
       throw new RequestLifecycleError("PROVIDER_CAPACITY_UNAVAILABLE", "no multimodal model is available");
     }
-    const cacheStatus = input.cacheStatus ?? "miss";
+    const cacheStatus = input.singleDispatch ? "bypass" : input.cacheStatus ?? "miss";
 
-    if (input.cacheLookup) {
+    if (input.cacheLookup && !input.singleDispatch) {
       const cached = await input.cacheLookup();
       if (cached) {
         const cacheAllowance = await this.allowance.recordCacheHit({
@@ -355,7 +381,7 @@ export class RequestLifecycle {
       runId: requestId,
     });
     if (!applicationAllowance.accepted) throw allowanceRejected(applicationAllowance);
-    if (applicationAllowance.idempotent) {
+    if (applicationAllowance.idempotent || applicationAllowance.lease.status !== "reserved") {
       const existingStatus = applicationAllowance.lease.status;
       if (existingStatus === "reserved" || existingStatus === "dispatched") {
         throw new RequestLifecycleError(
@@ -371,15 +397,19 @@ export class RequestLifecycle {
       );
     }
 
-    let applicationDispatched = applicationAllowance.lease.status === "dispatched";
+    let applicationDispatched = false;
     let providerResult: ProviderGenerationResult | null = null;
     let selectedModel: ModelId | null = null;
     let selectedProjectAlias: string | null = null;
     let selectedControlPlaneLeaseId: string | null = null;
     let lastProviderError: unknown = null;
+    let providerAttempted = false;
 
     for (const model of route.models) {
       let controlPlaneLease: Extract<ControlPlaneReserveResult, { status: "reserved" | "idempotent" }>['lease'] | null = null;
+      let refundApplication = true;
+      let reservationResolved = false;
+      let invokePreparedProvider: (() => Promise<ProviderGenerationResult>) | undefined;
       try {
         const reservation = await this.controlPlane.reserve({
           idempotencyKey: `${requestId}:${model}`,
@@ -390,44 +420,15 @@ export class RequestLifecycle {
           modelId: model,
           cacheStatus,
         });
-        if (reservation.status !== "reserved" && reservation.status !== "idempotent") continue;
+        reservationResolved = true;
+        if (reservation.status === "idempotent") {
+          refundApplication = false;
+          throw new RequestLifecycleError("IDEMPOTENCY_IN_PROGRESS", "provider lease is already in use");
+        }
+        if (reservation.status !== "reserved") continue;
         controlPlaneLease = reservation.lease;
 
-        const attached = await this.allowance.attachControlPlaneLease(
-          applicationAllowance.lease.id,
-          controlPlaneLease.leaseId,
-        );
-        if (!attached) {
-          await this.controlPlane.refund(controlPlaneLease.leaseId, "APPLICATION_LEASE_ATTACH_FAILED");
-          throw new RequestLifecycleError(
-            "LIFECYCLE_PRE_DISPATCH_FAILURE",
-            "application and provider leases could not be linked",
-          );
-        }
-
-        assertTransition(await this.controlPlane.dispatch(controlPlaneLease.leaseId), "control-plane dispatch");
-        if (!applicationDispatched) {
-          const applicationDispatch = await this.allowance.markDispatched(applicationAllowance.lease.id);
-          if (!applicationDispatch || applicationDispatch.status !== "dispatched") {
-            throw new RequestLifecycleError(
-              "LIFECYCLE_PRE_DISPATCH_FAILURE",
-              "application allowance dispatch was rejected",
-            );
-          }
-          applicationDispatched = true;
-        }
-      } catch (error) {
-        if (controlPlaneLease) {
-          await this.controlPlane.refund(controlPlaneLease.leaseId, "DISPATCH_FAILED_BEFORE_PROVIDER").catch(() => undefined);
-        }
-        await this.allowance.refund(applicationAllowance.lease.id).catch(() => undefined);
-        if (error instanceof RequestLifecycleError) throw error;
-        throw new RequestLifecycleError("LIFECYCLE_PRE_DISPATCH_FAILURE", "lease dispatch failed", undefined, error);
-      }
-
-      const startedAt = Date.now();
-      try {
-        providerResult = await this.dependencies.invokeProvider({
+        const providerInput = {
           requestId: `${requestId}:${model}`,
           userCohort: hashUserCohort(input.userId),
           feature: input.feature,
@@ -439,7 +440,71 @@ export class RequestLifecycle {
           cachePolicy: input.cachePolicy,
           cacheKey: input.cacheKey,
           cacheTtlSeconds: input.cacheTtlSeconds,
-        });
+          singleDispatch: input.singleDispatch,
+        };
+        invokePreparedProvider = this.dependencies.prepareProvider?.(providerInput)
+          ?? (() => this.dependencies.invokeProvider(providerInput));
+
+        if (!applicationDispatched) {
+          refundApplication = false;
+          const applicationDispatch = await this.allowance.markDispatched(applicationAllowance.lease.id);
+          if (!applicationDispatch || applicationDispatch.leaseId !== applicationAllowance.lease.id || applicationDispatch.status !== "dispatched" || !applicationDispatch.changed) {
+            throw new RequestLifecycleError(
+              "LIFECYCLE_PRE_DISPATCH_FAILURE",
+              "application allowance dispatch was rejected",
+            );
+          }
+          applicationDispatched = true;
+          refundApplication = !providerAttempted;
+        }
+
+        const attached = await this.allowance.attachControlPlaneLease(
+          applicationAllowance.lease.id,
+          controlPlaneLease.leaseId,
+        );
+        if (!attached) {
+          throw new RequestLifecycleError(
+            "LIFECYCLE_PRE_DISPATCH_FAILURE",
+            "application and provider leases could not be linked",
+          );
+        }
+
+        const controlDispatch = await this.controlPlane.dispatch(controlPlaneLease.leaseId);
+        if (controlDispatch.status === "idempotent") {
+          controlPlaneLease = null;
+          refundApplication = false;
+          throw new RequestLifecycleError("IDEMPOTENCY_IN_PROGRESS", "provider lease was already dispatched");
+        }
+        if (controlDispatch.status === "rejected") {
+          throw new RequestLifecycleError("LIFECYCLE_PRE_DISPATCH_FAILURE", "provider lease dispatch was rejected", controlDispatch.code);
+        }
+      } catch (error) {
+        let refundFailed = false;
+        const isReplay = error instanceof RequestLifecycleError && error.code === "IDEMPOTENCY_IN_PROGRESS";
+        if (controlPlaneLease) {
+          try {
+            const refund = await this.controlPlane.refund(controlPlaneLease.leaseId, "DISPATCH_FAILED_BEFORE_PROVIDER");
+            if (refund.status === "rejected" || refund.lease.leaseId !== controlPlaneLease.leaseId || !["refunded", "expired_refunded"].includes(refund.lease.state)) refundFailed = true;
+          } catch { refundFailed = true; }
+        }
+        if (refundApplication && !isReplay && (!providerAttempted || (reservationResolved && !refundFailed))) {
+          try {
+            const refund = await this.allowance.refund(applicationAllowance.lease.id);
+            if (!refund || refund.leaseId !== applicationAllowance.lease.id || refund.status !== "refunded") refundFailed = true;
+          } catch { refundFailed = true; }
+        }
+        if (refundFailed) throw new RequestLifecycleError("LIFECYCLE_RECONCILIATION_FAILURE", "pre-dispatch refund could not be reconciled", undefined, error);
+        if (isReplay) throw error;
+        if (providerAttempted && !reservationResolved) throw new RequestLifecycleError("LIFECYCLE_RECONCILIATION_FAILURE", "provider fallback reservation could not be reconciled", undefined, error);
+        if (providerAttempted) throw new RequestLifecycleError("PROVIDER_REQUEST_FAILED", "provider fallback could not be prepared", safeOutcomeCode(lastProviderError), error);
+        if (error instanceof RequestLifecycleError) throw error;
+        throw new RequestLifecycleError("LIFECYCLE_PRE_DISPATCH_FAILURE", "lease dispatch failed", undefined, error);
+      }
+
+      const startedAt = Date.now();
+      try {
+        providerAttempted = true;
+        providerResult = await invokePreparedProvider!();
         selectedModel = model;
         selectedProjectAlias = controlPlaneLease.projectAlias;
         selectedControlPlaneLeaseId = controlPlaneLease.leaseId;
@@ -448,13 +513,19 @@ export class RequestLifecycle {
         lastProviderError = error;
         const classification = error instanceof ProviderAdapterError ? error.retryClassification : "unknown";
         const latencyMs = Date.now() - startedAt;
-        await this.controlPlane.commit({
-          leaseId: controlPlaneLease.leaseId,
-          providerAttemptId: `${requestId}:${model}`,
-          outcomeCode: safeOutcomeCode(error),
-          outcomeClass: outcomeClass(classification),
-          latencyMs,
-        }).catch(() => undefined);
+        try {
+          assertTransition(await this.controlPlane.commit({
+            leaseId: controlPlaneLease.leaseId,
+            providerAttemptId: `${requestId}:${model}`,
+            outcomeCode: safeOutcomeCode(error),
+            outcomeClass: outcomeClass(classification),
+            latencyMs,
+          }), "control-plane attempt commit", safeOutcomeCode(error), controlPlaneLease.leaseId);
+        } catch (commitError) {
+          if (input.singleDispatch) throw new RequestLifecycleError("PROVIDER_OUTCOME_UNCERTAIN", "provider outcome requires reconciliation", undefined, commitError);
+          if (commitError instanceof RequestLifecycleError) throw commitError;
+          throw new RequestLifecycleError("LIFECYCLE_RECONCILIATION_FAILURE", "provider attempt could not be reconciled", undefined, commitError);
+        }
         emitLifecycleEvent({
           eventType: "provider_attempt",
           actorRole: applicationAllowance.lease.peran,
@@ -468,12 +539,18 @@ export class RequestLifecycle {
           cacheResult: hasImage ? "bypass" : cacheStatus,
           attachmentCount: input.parts.filter((part) => part.type === "image").length,
         });
-        if (!providerFailureAllowsFallback(error)) break;
+        if (!isConfirmedHttpFailure(error)) {
+          throw new RequestLifecycleError("PROVIDER_OUTCOME_UNCERTAIN", "provider outcome requires reconciliation", safeOutcomeCode(error), error);
+        }
+        if (input.singleDispatch || !providerFailureAllowsFallback(error)) break;
       }
     }
 
     if (!providerResult || !selectedModel || !selectedProjectAlias || !selectedControlPlaneLeaseId) {
-      await this.allowance.refund(applicationAllowance.lease.id).catch(() => undefined);
+      const refund = await this.allowance.refund(applicationAllowance.lease.id).catch(() => null);
+      if (!refund || refund.leaseId !== applicationAllowance.lease.id || refund.status !== "refunded") {
+        throw new RequestLifecycleError("LIFECYCLE_RECONCILIATION_FAILURE", "application allowance refund failed");
+      }
       if (lastProviderError) {
         throw new RequestLifecycleError(
           "PROVIDER_REQUEST_FAILED",
@@ -493,17 +570,18 @@ export class RequestLifecycle {
         outcomeCode: "PROVIDER_SUCCESS",
         outcomeClass: "success",
         latencyMs,
-      }), "control-plane commit");
+      }), "control-plane commit", "PROVIDER_SUCCESS", selectedControlPlaneLeaseId);
       const applicationCommit = await this.allowance.commit(applicationAllowance.lease.id, {
         model: selectedModel,
         inputTokens: providerResult.usage?.promptTokens ?? 0,
         outputTokens: providerResult.usage?.outputTokens ?? 0,
         requestType: "provider:success",
       });
-      if (!applicationCommit || !["committed"].includes(applicationCommit.status)) {
+      if (!applicationCommit || applicationCommit.leaseId !== applicationAllowance.lease.id || applicationCommit.status !== "committed") {
         throw new RequestLifecycleError("LIFECYCLE_RECONCILIATION_FAILURE", "application allowance commit was rejected");
       }
     } catch (error) {
+      if (input.singleDispatch) throw new RequestLifecycleError("PROVIDER_OUTCOME_UNCERTAIN", "provider result requires reconciliation", undefined, error);
       if (error instanceof RequestLifecycleError) throw error;
       throw new RequestLifecycleError("LIFECYCLE_RECONCILIATION_FAILURE", "provider and application ledgers diverged", undefined, error);
     }

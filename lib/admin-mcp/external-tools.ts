@@ -1,6 +1,6 @@
 import { buildMediaKey } from "@/lib/storage/keys";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { and, asc, eq, gt, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, ne } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { adminOperationJobs, enrollments, groupMembers, googleMeetSessions, notifications, user, pengguna, aiGenerationJobs } from "@/db/schema";
@@ -37,7 +37,7 @@ export function registerExternalTools(server: McpServer, principal: McpPrincipal
     const [row] = await tx.update(adminOperationJobs).set({ status: input.reportedOutcome, errorCode: input.reportedOutcome === "failed" ? "OPERATOR_RECONCILED_FAILURE" : null, result: { ...old.result, operatorReconciled: true, reconciledBy: principal.actorId, reason: input.reason, evidenceReference: input.evidenceReference }, ...(old.kind === "media_upload" ? { payload: { key: old.payload.key, mimeType: old.payload.mimeType } } : {}), updatedAt: new Date() }).where(and(eq(adminOperationJobs.id, input.id), eq(adminOperationJobs.status, "unknown"))).returning();
     if (!row) throw new AdminMcpError("REVISION_CONFLICT"); return externalJobView(row);
   });
-  read("notifications.history", "notifications:read", z.object(adminPagination), "Lihat status pengiriman notifikasi tanpa identitas penerima atau token perangkat.", async ({ limit, offset }) => db.select({ id: notifications.id, title: notifications.title, type: notifications.type, attempted: notifications.attempted, succeeded: notifications.succeeded, failedCount: notifications.failedCount, createdAt: notifications.createdAt }).from(notifications).orderBy(asc(notifications.id)).limit(limit).offset(offset));
+  read("notifications.history", "notifications:read", z.object(adminPagination), "Lihat status pengiriman notifikasi tanpa identitas penerima atau token perangkat.", async ({ limit, offset }) => db.select({ id: notifications.id, title: notifications.title, type: notifications.type, attempted: notifications.attempted, succeeded: notifications.succeeded, failedCount: notifications.failedCount, createdAt: notifications.createdAt }).from(notifications).where(ne(notifications.type, "discussion")).orderBy(asc(notifications.id)).limit(limit).offset(offset));
   read("notifications.audience", "notifications:send", z.object({ target: z.enum(["all", "course", "group", "users"]), targetId: adminId.optional(), userIds: z.array(adminId).min(1).max(1000).optional() }), "Siapkan snapshot penerima aktif untuk konfirmasi pengiriman. Maksimal 1000 penerima.", async input => {
     let selected: string[] | undefined;
     if (input.target === "course" || input.target === "group") {

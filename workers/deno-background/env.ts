@@ -13,6 +13,8 @@ const optionalUrl = z.preprocess(
 export const WorkerEnvSchema = z.object({
   // Database
   DATABASE_URL: optionalString,
+  ZYRA_CONTROL_PLANE_URL: optionalUrl,
+  ZYRA_CONTROL_PLANE_TOKEN: optionalString,
   TURSO_CONNECTION_URL: optionalString,
   TURSO_DATABASE_URL: optionalString,
   TURSO_AUTH_TOKEN: optionalString,

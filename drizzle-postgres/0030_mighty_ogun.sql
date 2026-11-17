@@ -1,0 +1,2 @@
+ALTER TABLE "discussion_events" ADD COLUMN "participant_through_seq" integer;--> statement-breakpoint
+ALTER TABLE "discussion_events" ADD CONSTRAINT "discussion_events_participant_through_seq_check" CHECK ("discussion_events"."participant_through_seq" is null or "discussion_events"."participant_through_seq" >= 0);

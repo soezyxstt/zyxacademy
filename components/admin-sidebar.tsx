@@ -45,6 +45,7 @@ import {
   ChevronDown,
   Cpu,
   Search,
+  MessageSquareText,
 } from "lucide-react";
 import {
   SidebarShell,
@@ -149,6 +150,7 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
   { id: "pricing", label: "Kalkulator Harga", href: "/admin/pricing", icon: Calculator, group: "alat" },
   { id: "docs", label: "Dokumentasi", href: "/admin/docs", icon: BookOpen, group: "alat" },
   { id: "forms", label: "Form Studio", href: "/admin/forms", icon: FilePen, group: "alat" },
+  { id: "discussions", label: "Diskusi dan laporan", href: "/admin/discussions", icon: MessageSquareText, group: "alat" },
   { id: "meet", label: "Meet", href: "/admin/meet", icon: Video, group: "alat" },
   { id: "media", label: "Pustaka Media", href: "/admin/media", icon: ImageIcon, group: "alat" },
   { id: "tautan", label: "Tautan Publik", href: "/admin/tautan", icon: LinkIcon, group: "alat" },
@@ -192,6 +194,7 @@ const ADMIN_TAB_MESSAGE_KEYS: Record<string, string> = {
 
 function AdminSidebarInner() {
   const t = useTranslations("admin.navigation");
+  const tDiscussion = useTranslations("tutor.schedule");
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
@@ -427,7 +430,7 @@ function AdminSidebarInner() {
   const isArchived = (id: string) => mounted && archivedTabs.includes(id);
   const isPinned = (id: string) => mounted && pinnedTabs.includes(id);
 
-  const tabLabel = (tab: AdminTabDef) => tab.id === "gamification" ? tab.label : t(ADMIN_TAB_MESSAGE_KEYS[tab.id] ?? "dashboard");
+  const tabLabel = (tab: AdminTabDef) => tab.id === "gamification" ? tab.label : tab.id === "discussions" ? tDiscussion("discussion") : t(ADMIN_TAB_MESSAGE_KEYS[tab.id] ?? "dashboard");
 
   const renderTabItem = (tab: AdminTabDef, collapsed: boolean, isChild = false) => {
     const active = isTabActive(tab);

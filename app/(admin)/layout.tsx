@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getAuthSession } from "@/lib/auth-session";
+import { ensureLegacyIdentity } from "@/lib/auth/legacy-identity";
 import { hasPeran } from "@/lib/auth/request-cache";
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { ApplicationShell } from "@/components/application-shell";
@@ -11,7 +12,9 @@ import { CommandMenuProvider } from "@/components/command-menu";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await getAuthSession();
-  if (!session?.user || !(await hasPeran(session.user.id, "admin"))) redirect("/");
+  if (!session?.user) redirect("/");
+  await ensureLegacyIdentity(session.user.id);
+  if (!(await hasPeran(session.user.id, "admin"))) redirect("/");
 
   return (
     <CommandMenuProvider>

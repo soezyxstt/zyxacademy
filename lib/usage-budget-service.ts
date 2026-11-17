@@ -376,36 +376,27 @@ async function transitionLease(
   leaseId: string,
   nextStatus: "dispatched" | "committed" | "refunded",
   now: Date,
+  metadata?: { model?: string; inputTokens?: number; outputTokens?: number; requestType?: string },
 ): Promise<LeaseTransitionResult | null> {
-  const existing = await readLease(leaseId);
-  if (!existing) return null;
-
-  if (nextStatus === "dispatched") {
-    if (existing.status !== "reserved") {
-      return { leaseId, status: existing.status, changed: false };
-    }
-    await db
-      .update(aiAllowanceLeases)
-      .set({ status: "dispatched", dispatchedAt: now })
-      .where(and(eq(aiAllowanceLeases.id, leaseId), eq(aiAllowanceLeases.status, "reserved")));
-    return { leaseId, status: "dispatched", changed: true };
-  }
-
-  if (existing.status === "committed" || existing.status === "refunded") {
-    return { leaseId, status: existing.status, changed: false };
-  }
-
-  await db
+  const [updated] = await db
     .update(aiAllowanceLeases)
-    .set({ status: nextStatus, resolvedAt: now })
+    .set(nextStatus === "dispatched"
+      ? { status: nextStatus, dispatchedAt: now }
+      : { ...metadata, status: nextStatus, resolvedAt: now })
     .where(and(
       eq(aiAllowanceLeases.id, leaseId),
-      inArray(aiAllowanceLeases.status, ["reserved", "dispatched"]),
-    ));
+      nextStatus === "dispatched"
+        ? eq(aiAllowanceLeases.status, "reserved")
+        : inArray(aiAllowanceLeases.status, ["reserved", "dispatched"]),
+    ))
+    .returning({ status: aiAllowanceLeases.status });
 
-  if (nextStatus === "committed") await writeCompatibilityEvent(leaseId);
-  const updated = await readLease(leaseId);
-  return updated ? { leaseId, status: updated.status, changed: updated.status === nextStatus } : null;
+  if (updated) {
+    if (nextStatus === "committed") await writeCompatibilityEvent(leaseId);
+    return { leaseId, status: updated.status, changed: true };
+  }
+  const existing = await readLease(leaseId);
+  return existing ? { leaseId, status: existing.status, changed: false } : null;
 }
 
 /** Single source of truth for legacy per-feature AI budgets. */
@@ -578,15 +569,7 @@ export class UsageBudgetService {
     metadata: { model?: string; inputTokens?: number; outputTokens?: number; requestType?: string } = {},
     now = new Date(),
   ): Promise<LeaseTransitionResult | null> {
-    if (metadata.model || metadata.inputTokens !== undefined || metadata.outputTokens !== undefined || metadata.requestType) {
-      await db.update(aiAllowanceLeases).set({
-        model: metadata.model,
-        inputTokens: metadata.inputTokens,
-        outputTokens: metadata.outputTokens,
-        requestType: metadata.requestType,
-      }).where(eq(aiAllowanceLeases.id, leaseId));
-    }
-    return transitionLease(leaseId, "committed", now);
+    return transitionLease(leaseId, "committed", now, metadata);
   }
 
   static async commitAllowance(leaseId: string, metadata?: Parameters<typeof UsageBudgetService.commit>[1], now?: Date) {

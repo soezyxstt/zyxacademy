@@ -18,6 +18,11 @@ afterAll(() => client.close());
 test("expired preview authorizes every stored question at the detail and list boundaries", async () => {
   await testDb.insert(schema.user).values(["student", "other", "suspended"].map((id) => ({ id: `snapshot-${id}`, name: id, email: `snapshot-${id}@test.local`, role: "student" as const })));
   await testDb.insert(schema.pengguna).values([{ id: "snapshot-student" }, { id: "snapshot-other" }, { id: "snapshot-suspended", status: "suspended" }]);
+  await testDb.insert(schema.peran).values({ id: "role-murid", code: "murid" });
+  await testDb.insert(schema.penggunaPeran).values([
+    { id: "membership-snapshot-student", penggunaId: "snapshot-student", peranId: "role-murid", source: "test" },
+    { id: "membership-snapshot-other", penggunaId: "snapshot-other", peranId: "role-murid", source: "test" },
+  ]);
   await testDb.insert(schema.courses).values([{ id: "snapshot-course", title: "Course", category: "Fisika" }, { id: "snapshot-foreign", title: "Other", category: "Fisika" }]);
   await testDb.insert(schema.mataKuliah).values([
     { id: "snapshot-canonical", code: "SNAP", title: "Course", legacyCourseId: "snapshot-course", pricingCategory: "limited_time_free", freeStartsAt: new Date("2020-01-01Z"), freeEndsAt: new Date("2020-01-02Z") },

@@ -1,0 +1,2 @@
+CREATE INDEX "discussion_messages_thread_author_idx" ON "discussion_messages" USING btree ("thread_id","author_id") WHERE "discussion_messages"."author_id" is not null;--> statement-breakpoint
+CREATE INDEX "idx_notifications_discussion_pending_push" ON "notifications" USING btree (("metadata"->>'eventId'),"user_id") WHERE "notifications"."type" = 'discussion' and "notifications"."metadata"->>'pushState' = 'pending';

@@ -11,7 +11,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { db } from "@/db";
 import { notifications, courses, user } from "@/db/schema";
-import { desc, eq, count } from "drizzle-orm";
+import { desc, eq, count, sql } from "drizzle-orm";
 import { sendAdminBroadcast } from "@/lib/notifications/send";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -138,10 +138,11 @@ export async function getNotificationHistoryAction(
       })
       .from(notifications)
       .leftJoin(user, eq(notifications.userId, user.id))
+      .where(sql`${notifications.type} <> 'discussion'`)
       .orderBy(desc(notifications.createdAt))
       .limit(limit)
       .offset(offset),
-    db.select({ count: count() }).from(notifications),
+    db.select({ count: count() }).from(notifications).where(sql`${notifications.type} <> 'discussion'`),
   ]);
 
   return { rows, total: Number(totalRows[0]?.count ?? 0) };

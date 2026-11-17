@@ -1,15 +1,23 @@
 import { describe, expect, it, mock, beforeEach, afterAll } from "bun:test";
 import { createPostgresTestDb } from "../helpers/postgres";
 import { NextRequest } from "next/server";
+import { sql } from "drizzle-orm";
 
 let mockSession: any = null;
 let mockHeaders = new Headers();
+let discussionVisible = false;
 
 const {client,testDb}=await createPostgresTestDb();
 afterAll(()=>client.close());
 
 mock.module("@/db", () => ({
   db: testDb,
+}));
+mock.module("@/lib/discussions/access", () => ({
+  getDiscussionChannelVisibility: async () => {
+    if (!discussionVisible) throw new Error("DISCUSSION_UNAVAILABLE");
+    return { actor: { role: "student" }, predicate: sql`true` };
+  },
 }));
 
 mock.module("@/lib/auth", () => ({
@@ -31,9 +39,11 @@ const {GET}=await import("@/app/api/notifications/history/route");
 describe("GET /api/notifications/history fluid CPU optimizations", () => {
   beforeEach(async () => {
     await client.exec("DELETE FROM notifications;");
+    await client.exec("DELETE FROM discussion_channels;");
     await client.exec('DELETE FROM "user";');
     mockSession = null;
     mockHeaders = new Headers();
+    discussionVisible = false;
   });
 
   it("fast-fails with 401 when no cookie or authorization header is present without touching session", async () => {
@@ -63,12 +73,30 @@ describe("GET /api/notifications/history fluid CPU optimizations", () => {
     const res = await GET(req);
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toContain("stale-while-revalidate=15");
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
 
     const json = await res.json();
     expect(json.unreadCount).toBe(2);
     expect(json.notifications).toEqual([]);
     expect(json.limit).toBe(0);
+  });
+
+  it("replaces stored role-specific discussion URLs after a role change", async () => {
+    await client.exec(`
+      INSERT INTO "user" (id, name, email, role) VALUES ('former-tutor', 'Former tutor', 'former@example.test', 'student');
+      INSERT INTO discussion_channels (id, kind, title) VALUES ('global', 'global', 'Global');
+      INSERT INTO notifications (id, user_id, title, body, type, metadata)
+      VALUES ('discussion-old', 'former-tutor', 'Activity', 'Activity', 'discussion',
+        '{"channelId":"global","threadId":"thread-45","messageId":"message-450","url":"/tutor/discussions?thread=thread-45"}');
+    `);
+    discussionVisible = true;
+    mockHeaders = new Headers({ cookie: "better-auth.session_token=test" });
+    mockSession = { user: { id: "former-tutor", role: "student" } };
+    const response = await GET(new NextRequest("http://localhost/api/notifications/history"));
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.notifications).toHaveLength(1);
+    expect(data.notifications[0].metadata.url).toBe("/discussions?thread=thread-45&message=message-450");
   });
 
   it("serves full notification rows on demand when requested without countOnly", async () => {
@@ -89,7 +117,7 @@ describe("GET /api/notifications/history fluid CPU optimizations", () => {
     const res = await GET(req);
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toContain("stale-while-revalidate=15");
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
 
     const json = await res.json();
     expect(json.unreadCount).toBe(1);

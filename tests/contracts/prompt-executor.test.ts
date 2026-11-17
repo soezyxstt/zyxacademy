@@ -17,6 +17,7 @@ import { POLICY_JSON_STRICT, POLICY_ZYX_VOICE, POLICY_MATH_LATEX } from "@/lib/a
 import { SemanticValidator } from "@/lib/ai/validation";
 import * as geminiModule from "@/lib/gemini";
 import { RequestLifecycleError } from "@/lib/ai/request-lifecycle";
+import { ProviderAdapterError } from "@/lib/ai/provider/errors";
 import { z } from "zod";
 
 describe("PromptExecutor Contract Tests", () => {
@@ -414,7 +415,12 @@ describe("PromptExecutor Contract Tests", () => {
 
   it("AI-PROMPT-008: Handle provider failure gracefully and return provider_failure outcome", async () => {
     const spy = spyOn(geminiModule, "generateContentWithFallback");
-    spy.mockRejectedValueOnce(new Error("Gemini API key quota / 503 Service Unavailable"));
+    spy.mockRejectedValueOnce(new ProviderAdapterError({
+      code: "PROVIDER_TRANSIENT",
+      message: "Gemini API key quota / 503 Service Unavailable",
+      retryClassification: "transient",
+      httpStatus: 503,
+    }));
 
     const schema = z.object({ result: z.string() });
     const contract: PromptContract<any, z.infer<typeof schema>> = {

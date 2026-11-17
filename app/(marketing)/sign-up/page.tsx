@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { getAuthSession } from "@/lib/auth-session";
 import { SignUpForm } from "@/components/auth/sign-up-form";
 import {
   getOAuthCallbackErrorKey,
@@ -27,6 +29,7 @@ export default async function SignUpPage({
 }) {
   const sp = await searchParams;
   const callbackURL = getSafeRedirectPath(sp.next);
+  if ((await getAuthSession())?.user) redirect(callbackURL);
   const urlErrorCode = getOAuthCallbackErrorKey(sp.error);
   const requestedLocale: Locale | null = sp.locale === "id" || sp.locale === "en" ? sp.locale : null;
 

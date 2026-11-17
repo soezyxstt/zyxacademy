@@ -5,7 +5,8 @@
     "pkaScheduleUpdate": { "title": "Meet Link Update: {scheduleTitle}", "body": "A Google Meet link was added for {scheduleTitle} on {sessionLabel}." },
     "tutorScheduleMoved": { "title": "Tutorial schedule updated", "body": "Your session moved to {dayOfWeek}, {sessionDate}, {startTime} to {endTime}." },
     "tutorTicketDecision": { "title": "{ticketType} request {decision}", "body": "Your tutor has decided on the {ticketType} request." },
-    "tutorTicketMessage": { "title": "New reply in schedule discussion" }
+    "tutorTicketMessage": { "title": "New reply in schedule discussion" },
+    "discussion": { "title": "Discussion update", "body": "There is new activity in a discussion." }
   },
   "bell": "Notifications",
   "title": "Notifications",
