@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import katex from "@/lib/math/katex";
@@ -13,16 +13,45 @@ import { renderDiktatStaticVisual, type DiktatSourceFigureAssets } from "@/lib/m
 import { PRODUCT_DIKTAT_RENDERER_VERSION, PRODUCT_DIKTAT_PRINT_PROFILE } from "@/lib/materials/diktat-renderer-policy";
 export { PRODUCT_DIKTAT_RENDERER_VERSION, PRODUCT_DIKTAT_PRINT_PROFILE };
 
+/** Resolves the KaTeX `dist` directory without letting Turbopack rewrite `require.resolve` to a numeric module ID. */
+function resolveKatexDistDir(): string {
+  const pkgName = ["ka", "tex"].join("");
+  for (const base of [import.meta.url, path.join(process.cwd(), "package.json")]) {
+    try {
+      const require = createRequire(base);
+      const resolved = require.resolve(pkgName);
+      if (typeof resolved === "string") {
+        const dir = path.dirname(resolved);
+        if (existsSync(path.join(dir, "katex.min.css"))) {
+          return dir;
+        }
+      }
+    } catch {
+      // Fall back to the next resolution root when running in bundled lambdas or outside repo cwd.
+    }
+  }
+  const cwdDistDir = path.join(process.cwd(), "node_modules", "katex", "dist");
+  if (existsSync(path.join(cwdDistDir, "katex.min.css"))) {
+    return cwdDistDir;
+  }
+  throw new Error("KATEX_ASSETS_NOT_FOUND");
+}
+
 export function buildSelfContainedKatexCss(): string {
-  const require = createRequire(import.meta.url);
-  const distDir = path.dirname(require.resolve("katex"));
+  const distDir = resolveKatexDistDir();
   const rawCss = readFileSync(path.join(distDir, "katex.min.css"), "utf8");
   return rawCss.replace(/url\(fonts\/(KaTeX_[^)]+\.woff2)\) format\("woff2"\)(?:,url\([^)]+\) format\("[^"]+"\))*/g, (_match, filename) => {
     const font = readFileSync(path.join(distDir, "fonts", filename)).toString("base64");
     return `url("data:font/woff2;base64,${font}") format("woff2")`;
   });
 }
-const KATEX_CSS = buildSelfContainedKatexCss();
+
+let cachedKatexCss: string | null = null;
+
+function getKatexCss(): string {
+  cachedKatexCss ??= buildSelfContainedKatexCss();
+  return cachedKatexCss;
+}
 
 type ArticleProduct = Extract<ProductEntity, { productType: "article" }>;
 type DiktatProduct = Extract<ProductEntity, { productType: "diktat" }>;
@@ -140,7 +169,7 @@ export function compileProductDiktatHtml(source: ProductDiktatRenderSource): str
 function productPrintShell(title: string, content: string, label: string): string {
   return `<!doctype html>
 <html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title>
-<style>${KATEX_CSS}
+<style>${getKatexCss()}
 ${WATERMARK_CSS}
 @page { size: A4; margin: 9mm 12mm 15mm; }
 * { box-sizing: border-box; }
@@ -662,7 +691,7 @@ export function compileCanonicalDiktatHtml(title: string, markdown: string): str
 
   return `<!doctype html>
 <html lang="id"><head><meta charset="utf-8"><title>${safeTitle}</title>
-<style>${KATEX_CSS}
+<style>${getKatexCss()}
 ${WATERMARK_CSS}
 @page {
   size: A4;
