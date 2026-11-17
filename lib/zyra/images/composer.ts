@@ -69,12 +69,13 @@ export function zyraImageFilesFromClipboard(
 ): File[] {
   const results: File[] = [];
   const seenKeys = new Set<string>();
+  let hasClipboardItemFiles = false;
 
   const pushIfImage = (file: File | null | undefined, declaredType?: string) => {
     if (!file) return;
     const mime = declaredType || inferImageMimeType(file);
     if (!mime.startsWith("image/")) return;
-    const key = `${file.name}:${file.size}:${file.lastModified}`;
+    const key = `${file.name}:${file.size}:${mime}`;
     if (seenKeys.has(key)) return;
     seenKeys.add(key);
     if (!file.type && mime) {
@@ -87,11 +88,15 @@ export function zyraImageFilesFromClipboard(
   if (items) {
     for (const item of Array.from(items)) {
       if (item.kind !== "file") continue;
-      pushIfImage(item.getAsFile(), item.type);
+      const file = item.getAsFile();
+      if (file) {
+        hasClipboardItemFiles = true;
+        pushIfImage(file, item.type);
+      }
     }
   }
 
-  if (fallbackFiles) {
+  if (!hasClipboardItemFiles && fallbackFiles) {
     for (const file of Array.from(fallbackFiles)) {
       pushIfImage(file, file.type);
     }

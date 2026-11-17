@@ -848,6 +848,7 @@ function TutorDrawerContent({
       );
       if (files.length === 0) return;
       e.preventDefault();
+      e.stopPropagation();
       void attachmentComposerRef.current?.addFiles(files);
     },
     [imageInputEnabled, courseIdFromPath, chatLoading],

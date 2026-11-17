@@ -18,13 +18,29 @@ describe("Zyra image composer contract", () => {
     expect(files).toEqual([image]);
   });
 
-  test("merges matching clipboard item and file representations without dropping distinct images", () => {
-    const image = new File(["one"], "clipboard.png", { type: "image/png", lastModified: 5 });
-    const sameImage = new File(["one"], "clipboard.png", { type: "image/png", lastModified: 5 });
-    const other = new File(["two"], "other.png", { type: "image/png", lastModified: 6 });
+  test("does not duplicate a pasted file when clipboard items and FileList represent the same paste with different metadata", () => {
+    const image = new File(["one"], "image.png", { type: "image/png", lastModified: 5 });
+    const fileListCopy = new File(["one"], "screenshot.png", { type: "image/png", lastModified: 6 });
     expect(zyraImageFilesFromClipboard([
       { kind: "file", type: "image/png", getAsFile: () => image },
-    ], [sameImage, other])).toEqual([image, other]);
+    ], [fileListCopy])).toEqual([image]);
+  });
+
+  test("falls back to FileList when clipboard items yield no files and keeps multiple distinct pasted items", () => {
+    const first = new File(["one"], "first.png", { type: "image/png", lastModified: 5 });
+    const duplicateFirst = new File(["one"], "first.png", { type: "image/png", lastModified: 7 });
+    const second = new File(["two"], "second.png", { type: "image/png", lastModified: 6 });
+
+    expect(zyraImageFilesFromClipboard([
+      { kind: "file", type: "image/png", getAsFile: () => first },
+      { kind: "file", type: "image/png", getAsFile: () => duplicateFirst },
+      { kind: "file", type: "image/png", getAsFile: () => second },
+    ])).toEqual([first, second]);
+
+    expect(zyraImageFilesFromClipboard([
+      { kind: "string", type: "text/plain", getAsFile: () => null },
+      { kind: "file", type: "image/png", getAsFile: () => null },
+    ], [first, second])).toEqual([first, second]);
   });
 
   test("successive selections reject a duplicate and retain distinct files within the limit", () => {
