@@ -13,11 +13,6 @@ export function DashboardHeaderShell({ firstName }: { firstName: string }) {
             <span className="text-primary">{firstName}</span>
           </>
         }
-        actions={
-          <div className="hidden sm:block">
-            <div className="h-9 w-32 animate-pulse rounded-xl bg-muted" />
-          </div>
-        }
       />
     </div>
   );

@@ -74,6 +74,7 @@ function fixture() {
   event: async (...args) => events.push(args),
   aiRequest: async (_tx, messageId, _actor, ask) => { if (ask) ai.push([messageId, "zyra"]); },
   labelRequest: async (_tx, messageId) => ai.push([messageId, "label"]),
+  deriveInitialDiscussionTitle: (body, hasImages) => (body || (hasImages ? "Lampiran gambar" : "Pertanyaan baru")).slice(0, 160),
   canForwardDiscussion: () => true,
  });
  return { ...exports, messages, threads, rewards, ai, events,
@@ -105,9 +106,11 @@ test("questions replay after edits and deletion and bind each normalized submit 
  assert.equal(f.events.length, 1);
  assert.equal(f.ai.filter(([, kind]) => kind === "zyra").length, 1);
  assert.equal(f.ai.filter(([, kind]) => kind === "label").length, 1);
- const help = { ...submit("help"), channelId: "tech", title: "Help", helpKind: "bug" };
- await f.createThread("alice", help);
- await assert.rejects(f.createThread("alice", { ...help, helpKind: "feature" }), /DISCUSSION_CONFLICT/);
+ await assert.rejects(f.createThread("alice", { ...submit("help-rejected"), channelId: "global", helpKind: "bug" }), /DISCUSSION_INVALID/);
+ const auto = { ...submit("auto-title", "Apa turunan fungsi ini? Jelaskan langkahnya."), channelId: "global" };
+ const autoResult = await f.createThread("alice", auto);
+ sameResult(await f.createThread("alice", auto), autoResult);
+ await assert.rejects(f.createThread("alice", { ...auto, body: "Pertanyaan berbeda" }), /DISCUSSION_CONFLICT/);
 });
 
 test("answers and contextual replies replay after edits, deletion, and deleted parents", async () => {

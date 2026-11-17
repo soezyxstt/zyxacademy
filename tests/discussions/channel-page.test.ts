@@ -86,17 +86,17 @@ test("kind filtering precedes limits and searched pages read only enough candida
  await expect(listChannelsPage("viewer", { kinds: ["course", "course"] })).rejects.toThrow("DISCUSSION_INVALID");
 });
 
-test("searches authorized private labels in the SQL predicate before limiting", async () => {
+test("searches course labels in the SQL predicate before limiting without team scopes", async () => {
  candidateConditions.length = 0;
  await listChannelsPage("viewer", { search: "Nadia_%", limit: 1 });
  const adminQuery = candidateConditions[0];
- expect(adminQuery.sql).toContain('from "user" requester');
+ expect(adminQuery.sql).not.toContain('from "user" requester');
  expect(adminQuery.sql).toContain('from "mata_kuliah" course');
  expect(adminQuery.sql).toContain('from "courses" course');
  expect(adminQuery.sql).toContain('not exists (select 1 from "mata_kuliah" canonical');
  expect(adminQuery.params).toContain("%Nadia\\_\\%%");
- expect(adminQuery.params).toContain("academic");
- expect(adminQuery.params).toContain("technical");
+ expect(adminQuery.params).not.toContain("academic");
+ expect(adminQuery.params).not.toContain("technical");
  viewerRole = "student";
  candidateConditions.length = 0;
  try {

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { DiscussionSendError, DiscussionSendFailure } from "@/lib/discussions/contracts";
+import type { DiscussionAuthorProfile, DiscussionSendError, DiscussionSendFailure } from "@/lib/discussions/contracts";
 
 export type DiscussionRole = "student" | "tutor" | "admin" | "zyra";
 export type DiscussionPrivateKind = "academic" | "bug" | "feature" | "operations";
@@ -12,6 +12,7 @@ export type DiscussionPerson = {
   role: DiscussionRole;
   mention?: string;
   skinId?: string | null;
+  avatarUrl?: string | null;
 };
 
 type DiscussionChannelBase = {
@@ -108,7 +109,7 @@ export type DiscussionDraftInput = {
   requestId: string;
 };
 
-export type DiscussionForwardTarget = { questionId: string; channelId: string; title: string };
+export type DiscussionForwardTarget = { questionId: string; channelId: string; channelName?: string; title: string };
 export type DiscussionForwardDraft = {
   targetChannel: DiscussionChannel | null;
   targetQuestion: string;
@@ -156,13 +157,12 @@ export type DiscussionWorkspaceProps = {
   onRetryRead?: () => void;
   onLoadMoreQuestions?: () => Promise<void>;
   onLoadMoreMessages?: () => Promise<void>;
-  onCreateQuestion: (input: DiscussionDraftInput & { channelId: string; title: string; helpKind?: DiscussionPrivateKind }) => Promise<DiscussionSendFailure | void>;
+  onCreateQuestion: (input: DiscussionDraftInput & { channelId: string; title?: string }) => Promise<DiscussionSendFailure | void>;
   onSendReply: (input: DiscussionDraftInput & { questionId: string; messageType: "answer" | "reply"; replyToMessageId?: string }) => Promise<DiscussionSendFailure | void>;
   onUploadImage: (input: { file: File; channelId: string; questionId?: string }) => Promise<DiscussionUploadResult>;
   onSearchMentions: (input: { channelId: string; questionId?: string; query: string }) => Promise<DiscussionMention[]>;
   onSearchChannels: (input: { search: string; cursor?: string; courseId?: string; kind?: "course"; kinds?: ("global" | "course")[] }) => Promise<{ items: DiscussionChannel[]; nextCursor: string | null }>;
-  onPrepareTeamChannel?: (team: "academic" | "technical") => Promise<DiscussionChannel>;
-  onSearchForwardTargets: (input: { channelId: string; search: string; cursor?: string }) => Promise<{ items: DiscussionForwardTarget[]; nextCursor: string | null }>;
+  onSearchForwardTargets: (input: { channelId?: string; search: string; cursor?: string }) => Promise<{ items: DiscussionForwardTarget[]; nextCursor: string | null }>;
   onEditMessage: (input: { questionId: string; messageId: string; body: string; revision: number }) => Promise<void>;
   onDeleteMessage: (input: { questionId: string; messageId: string }) => Promise<void>;
   onToggleReaction: (input: { questionId: string; messageId: string; emoji: string; selected: boolean }) => Promise<void>;
@@ -171,6 +171,7 @@ export type DiscussionWorkspaceProps = {
   onSetChannelMuted: (input: { channelId: string; muted: boolean }) => Promise<void>;
   onSetQuestionStatus?: (input: { questionId: string; status: DiscussionQuestionStatus }) => Promise<void>;
   onSetReportStatus?: (input: { reportId: string; status: "resolved" | "dismissed" }) => Promise<void>;
+  onLoadAuthorProfile?: (input: { questionId: string; authorId: string }) => Promise<DiscussionAuthorProfile>;
   /** Local fixtures may render their own non-sensitive asset; adapters use the default. */
   renderAttachment?: (attachment: DiscussionAttachment) => ReactNode;
 };

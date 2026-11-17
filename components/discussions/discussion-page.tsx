@@ -19,7 +19,9 @@ export async function DiscussionPage({ courseId, surface }: { courseId?: string;
   const t = await getTranslations("discussions");
   let actor;
   let courseKey: string | undefined;
-  const pageClassName = surface === "admin" ? "px-0 pb-0 pt-0 sm:px-0 sm:py-0 lg:px-0" : undefined;
+  const pageClassName = surface === "admin"
+    ? "px-0 pb-2 pt-0 sm:px-0 sm:pb-2 sm:pt-0 lg:px-0"
+    : "pb-2 pt-2 sm:pb-3 sm:pt-3";
   try {
     actor = await getSessionDiscussionActor();
     if ((surface === "admin" && actor.role !== "admin") || (surface === "tutor" && actor.role !== "tutor" && actor.role !== "admin")) throw new Error();
@@ -31,12 +33,12 @@ export async function DiscussionPage({ courseId, surface }: { courseId?: string;
       if (!courseKey) throw new Error();
     }
   } catch {
-    return <ApplicationPage className={pageClassName}><PageHeader title={t("title")} /><AdminEmptyState icon={MessageSquareText} title={t("pageUnavailable")} description={t("accessChanged")} action={<Button asChild variant="outline"><Link href={surface === "student" ? "/dashboard" : surface === "tutor" ? "/tutor" : "/admin"}>{t("backDashboard")}</Link></Button>} /></ApplicationPage>;
+    return <ApplicationPage data-discussion-page spacing="space-y-2" className={pageClassName}><PageHeader title={t("title")} /><AdminEmptyState icon={MessageSquareText} title={t("pageUnavailable")} description={t("accessChanged")} action={<Button asChild variant="outline"><Link href={surface === "student" ? "/dashboard" : surface === "tutor" ? "/tutor" : "/admin"}>{t("backDashboard")}</Link></Button>} /></ApplicationPage>;
   }
   const appearance = await getEquippedZyraAppearance(actor.id).catch(() => ({ skinId: null }));
   const backHref = courseId ? surface === "tutor" ? `/tutor/${encodeURIComponent(courseId)}` : `/courses/${encodeURIComponent(courseId)}` : undefined;
-  return <ApplicationPage className={pageClassName}>
-    <PageHeader title={t("title")} backHref={backHref} />
+  return <ApplicationPage data-discussion-page spacing="space-y-2" className={pageClassName}>
+    <PageHeader title={t("title")} backHref={backHref} className="mb-2" />
     <Suspense fallback={<p role="status">{t("loadingThread")}</p>}>
       <DiscussionClient key={`${actor.id}:${courseKey ?? "all"}:${surface}`} viewer={{ id: actor.id, name: session.user.name || t("unknownUser"), role: actor.role, skinId: appearance.skinId }} courseId={courseKey} />
     </Suspense>

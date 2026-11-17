@@ -8,7 +8,7 @@ mock.module("@/lib/i18n/actions", () => ({ saveLocaleSelection: async () => ({ s
 mock.module("@/components/ui/formatted-date", () => ({ FormattedDate: () => <span>15 Nov</span> }));
 const { DiscussionChannelPicker, DiscussionMessage, deliverDiscussionForward } = await import("@/components/discussions/discussion-message");
 
-const channel: DiscussionChannel = { id: "private", name: "Bantuan akademik", kind: "private", privateKind: "academic", privacyLabel: "Tim akademik", unreadCount: 0, muted: false, canCreate: true };
+const channel: DiscussionChannel = { id: "math", name: "Matematika I", kind: "course", courseId: "math", unreadCount: 0, muted: false, canCreate: true };
 
 test("forward recovery retries the immutable destination and request after a remount", async () => {
   let draft: DiscussionForwardDraft | undefined = { targetChannel: channel, targetQuestion: "destination", targetTitle: "Title", requestId: "request", status: "ready" };
@@ -51,7 +51,7 @@ test("legacy forward recovery remains locked and stale callbacks cannot replace 
 test("renders a labelled searchable channel picker", () => {
   const html = renderToStaticMarkup(<DiscussionI18nFixture><TooltipProvider><DiscussionChannelPicker value={channel} label="Kanal tujuan" placeholder="Pilih kanal" onChange={() => {}} onSearch={async () => ({ items: [], nextCursor: null })} /></TooltipProvider></DiscussionI18nFixture>);
   expect(html).toContain('aria-label="Kanal tujuan"');
-  expect(html).toContain("Bantuan akademik");
+  expect(html).toContain("Matematika I");
 });
 
 test("renders an off-page quote", () => {
@@ -63,12 +63,13 @@ test("renders an off-page quote", () => {
 });
 
 test("deleted messages expose no unusable actions", () => {
-  const message: Message = { id: "deleted", author: { id: "author", name: "Nadia", role: "student" }, body: "Pesan dihapus.", createdAt: "2026-01-01T00:00:00Z", revision: 2, messageType: "answer", attachments: [], reactions: [], canEdit: false, canDelete: false, canReport: false, canReply: false, canForward: false, canReact: false };
+  const message: Message = { id: "deleted", author: { id: "author", name: "Nadia", role: "student" }, body: "Pesan dihapus.", bodyKind: "deleted", createdAt: "2026-01-01T00:00:00Z", revision: 2, messageType: "answer", attachments: [], reactions: [], canEdit: false, canDelete: false, canReport: false, canReply: false, canForward: false, canReact: false };
   const noop = async () => {};
-  const html = renderToStaticMarkup(<DiscussionI18nFixture><TooltipProvider><DiscussionMessage message={message} questionId="thread" viewer={message.author} sourceChannel={channel} updateForwardDraft={() => {}} onSearchChannels={async () => ({ items: [], nextCursor: null })} onSearchForwardTargets={async () => ({ items: [], nextCursor: null })} canReply onReply={() => {}} onEdit={noop} onDelete={noop} onReact={noop} onForward={noop} onReport={noop} /></TooltipProvider></DiscussionI18nFixture>);
+  const html = renderToStaticMarkup(<DiscussionI18nFixture><TooltipProvider><DiscussionMessage message={message} questionId="thread" viewer={message.author} sourceChannel={channel} updateForwardDraft={() => {}} onSearchChannels={async () => ({ items: [], nextCursor: null })} onSearchForwardTargets={async () => ({ items: [], nextCursor: null })} canReply onReply={() => {}} onEdit={noop} onDelete={noop} onReact={noop} onForward={noop} onReport={noop} onViewProfile={() => {}} /></TooltipProvider></DiscussionI18nFixture>);
   expect(html).toContain("Pesan dihapus.");
   expect(html).not.toContain('aria-label="Tindakan pesan');
   expect(html).not.toContain('aria-label="Tambah reaksi');
+  expect(html).not.toContain('aria-label="Lihat profil');
 });
 
 test("reaction controls identify repeated messages from the same author", () => {
@@ -82,4 +83,94 @@ test("reaction controls identify repeated messages from the same author", () => 
   expect(labels[n].find(label => label.startsWith("Add reaction."))).toContain(`Message ${n + 2} from Nadia: Langkah ${n + 2}`);
   expect(labels[n].find(label => label.startsWith("Reaction "))).toContain(`Message ${n + 2} from Nadia: Langkah ${n + 2}`);
  }
+});
+
+test("distinguishes own chat bubbles from others and renders profile triggers for human authors", () => {
+  const noop = async () => {};
+  const viewer = { id: "nadia", name: "Nadia Putri", role: "student" as const };
+  const other = { id: "raka", name: "Raka Pratama", role: "tutor" as const };
+  const zyra = { id: "zyra", name: "Zyra", role: "zyra" as const };
+
+  const ownHtml = renderToStaticMarkup(
+    <DiscussionI18nFixture>
+      <TooltipProvider>
+        <DiscussionMessage
+          message={{ id: "m-own", author: viewer, body: "Pertanyaan saya", createdAt: "2026-01-01T00:00:00Z", revision: 1, messageType: "question", attachments: [], reactions: [], canEdit: false, canDelete: false, canReport: false }}
+          questionId="thread"
+          viewer={viewer}
+          sourceChannel={channel}
+          updateForwardDraft={() => {}}
+          onSearchChannels={async () => ({ items: [], nextCursor: null })}
+          onSearchForwardTargets={async () => ({ items: [], nextCursor: null })}
+          canReply
+          onReply={() => {}}
+          onEdit={noop}
+          onDelete={noop}
+          onReact={noop}
+          onForward={noop}
+          onReport={noop}
+          onViewProfile={() => {}}
+        />
+      </TooltipProvider>
+    </DiscussionI18nFixture>
+  );
+  expect(ownHtml).toContain('data-own-message="true"');
+  expect(ownHtml).toContain("flex-row-reverse");
+  expect(ownHtml).toContain("bg-primary/10");
+  expect(ownHtml).toContain("border-primary/25");
+  expect(ownHtml).toContain('aria-label="Lihat profil Nadia Putri"');
+
+  const otherHtml = renderToStaticMarkup(
+    <DiscussionI18nFixture locale="en">
+      <TooltipProvider>
+        <DiscussionMessage
+          message={{ id: "m-other", author: other, body: "Penjelasan tutor", createdAt: "2026-01-01T00:00:00Z", revision: 1, messageType: "answer", attachments: [], reactions: [], canEdit: false, canDelete: false, canReport: false }}
+          questionId="thread"
+          viewer={viewer}
+          sourceChannel={channel}
+          updateForwardDraft={() => {}}
+          onSearchChannels={async () => ({ items: [], nextCursor: null })}
+          onSearchForwardTargets={async () => ({ items: [], nextCursor: null })}
+          canReply
+          onReply={() => {}}
+          onEdit={noop}
+          onDelete={noop}
+          onReact={noop}
+          onForward={noop}
+          onReport={noop}
+          onViewProfile={() => {}}
+        />
+      </TooltipProvider>
+    </DiscussionI18nFixture>
+  );
+  expect(otherHtml).not.toContain('data-own-message="true"');
+  expect(otherHtml).not.toContain("flex-row-reverse");
+  expect(otherHtml).toContain("border-border bg-card");
+  expect(otherHtml).toContain("View Raka Pratama&#x27;s profile");
+
+  const zyraHtml = renderToStaticMarkup(
+    <DiscussionI18nFixture>
+      <TooltipProvider>
+        <DiscussionMessage
+          message={{ id: "m-zyra", author: zyra, body: "Penjelasan Zyra", createdAt: "2026-01-01T00:00:00Z", revision: 1, messageType: "answer", attachments: [], reactions: [], canEdit: false, canDelete: false, canReport: false }}
+          questionId="thread"
+          viewer={viewer}
+          sourceChannel={channel}
+          updateForwardDraft={() => {}}
+          onSearchChannels={async () => ({ items: [], nextCursor: null })}
+          onSearchForwardTargets={async () => ({ items: [], nextCursor: null })}
+          canReply
+          onReply={() => {}}
+          onEdit={noop}
+          onDelete={noop}
+          onReact={noop}
+          onForward={noop}
+          onReport={noop}
+          onViewProfile={() => {}}
+        />
+      </TooltipProvider>
+    </DiscussionI18nFixture>
+  );
+  expect(zyraHtml).not.toContain('data-own-message="true"');
+  expect(zyraHtml).not.toContain('aria-label="Lihat profil');
 });

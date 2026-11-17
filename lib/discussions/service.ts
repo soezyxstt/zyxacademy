@@ -9,6 +9,8 @@ import {
 } from "@/db/schema";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { resolveAuthSecret } from "@/lib/auth-secret";
+import { eligibleStudent, noBlock } from "@/lib/gamification/social-sql";
+import type { PublicStudentProfile } from "@/lib/gamification/social-contracts";
 import { attachDiscussionImages, listDiscussionAttachmentsForMessages } from "./images";
 import { enqueueDiscussionReward } from "./rewards";
 import { clearDiscussionNotificationsThroughSeq } from "./notifications";
@@ -18,8 +20,8 @@ import { signDiscussionReadReceipt, verifyDiscussionReadReceipt } from "./read-r
 import { getAccessibleDiscussionChannels, getDiscussionActor, getDiscussionChannelVisibility, requireDiscussionChannelAccess, requireDiscussionCourse, requireDiscussionMessageAccess, requireDiscussionThreadAccess, resolveDiscussionCourses, type DiscussionTransaction } from "./access";
 import { getDiscussionRecipientAccess } from "./recipient-access";
 import * as discussionAccess from "./access";
-import { canDeleteDiscussionMessage, canEditDiscussionMessage, canForwardDiscussion, DISCUSSION_REACTIONS, validDiscussionId, validDiscussionReplyType, validDiscussionText } from "./policy";
-import type { CreateDiscussionThread, DiscussionActor, DiscussionChannel, DiscussionChannelKind, DiscussionMessage, DiscussionPage, DiscussionReport, DiscussionSubmit, DiscussionThread, ReplyToDiscussion } from "./contracts";
+import { canDeleteDiscussionMessage, canEditDiscussionMessage, canForwardDiscussion, deriveInitialDiscussionTitle, DISCUSSION_REACTIONS, validDiscussionId, validDiscussionReplyType, validDiscussionText } from "./policy";
+import type { CreateDiscussionThread, DiscussionActor, DiscussionAuthorProfile, DiscussionChannel, DiscussionChannelKind, DiscussionMessage, DiscussionPage, DiscussionReport, DiscussionRole, DiscussionSubmit, DiscussionThread, ReplyToDiscussion } from "./contracts";
 
 const PAGE_SIZE = 30;
 const unavailable = () => new Error("DISCUSSION_UNAVAILABLE");
@@ -81,16 +83,15 @@ async function admit(actorId: string, category: "write" | "report" | "read") {
 }
 
 async function channelForScope(actor: DiscussionActor, kind: DiscussionChannelKind, courseId: string | null, legacyCourseId: string | null, title: string): Promise<ChannelRow> {
- const requesterId = kind === "technical" || kind === "academic" ? actor.id : null;
- const condition = and(eq(discussionChannels.kind, kind),
-  requesterId ? eq(discussionChannels.requesterId, requesterId) : isNull(discussionChannels.requesterId),
+ if (kind !== "global" && kind !== "course") throw unavailable();
+ const condition = and(eq(discussionChannels.kind, kind), isNull(discussionChannels.requesterId),
   courseId || legacyCourseId ? or(courseId ? eq(discussionChannels.courseId, courseId) : undefined,
    legacyCourseId ? eq(discussionChannels.legacyCourseId, legacyCourseId) : undefined)
    : and(isNull(discussionChannels.courseId), isNull(discussionChannels.legacyCourseId)));
  let matches = await db.select().from(discussionChannels).where(condition).limit(2);
  if (matches.length > 1) throw unavailable();
  if (!matches.length) {
-  await db.insert(discussionChannels).values({ id: id(), kind, courseId, legacyCourseId, requesterId, title }).onConflictDoNothing();
+  await db.insert(discussionChannels).values({ id: id(), kind, courseId, legacyCourseId, requesterId: null, title }).onConflictDoNothing();
   matches = await db.select().from(discussionChannels).where(condition).limit(2);
  }
  let [channel] = matches;
@@ -111,40 +112,25 @@ async function channelForScope(actor: DiscussionActor, kind: DiscussionChannelKi
  return channel;
 }
 
-export async function ensureDiscussionTeamChannel(actorId: string, team: "technical" | "academic", requestedCourseId?: string) {
- const actor = await getDiscussionActor(actorId);
- if (team !== "technical" && team !== "academic") throw invalid();
- let courseId: string | null = null, legacyCourseId: string | null = null;
- if (requestedCourseId !== undefined) {
-  checkId(requestedCourseId);
-  const access = (await resolveDiscussionCourses(actor, [requestedCourseId])).get(requestedCourseId);
-  if (!access?.hasFullContentAccess || access.reason) throw unavailable();
-  courseId = access.canonicalCourseId; legacyCourseId = access.legacyCourseId;
-  await requireDiscussionCourse(actor, courseId, legacyCourseId);
- }
- const title = team === "technical" ? "Tim teknis" : "Tim akademik";
- const channel = await channelForScope(actor, team, courseId, legacyCourseId, title);
- return { id: channel.id, kind: channel.kind, courseId: channel.courseId ?? channel.legacyCourseId, title: channel.title };
+export async function ensureDiscussionTeamChannel(actorId: string, _team: "technical" | "academic", _requestedCourseId?: string): Promise<never> {
+ await getDiscussionActor(actorId);
+ throw unavailable();
 }
 
 async function ensureVisibleChannels(actor: DiscussionActor) {
  const [canonical, legacy, existing] = await Promise.all([
   db.select({ id: mataKuliah.id }).from(mataKuliah).where(eq(mataKuliah.status, "active")),
   db.select({ id: courses.id }).from(courses),
-  db.select().from(discussionChannels).where(or(inArray(discussionChannels.kind, ["global", "course"]), eq(discussionChannels.requesterId, actor.id))),
+  db.select().from(discussionChannels).where(inArray(discussionChannels.kind, ["global", "course"])),
  ]);
  const base: Array<typeof discussionChannels.$inferInsert> = [];
  if (!existing.some(row => row.kind === "global")) base.push({ id: id(), kind: "global", title: "Umum" });
- for (const kind of ["technical", "academic"] as const) {
-  if (!existing.some(row => row.kind === kind && row.requesterId === actor.id && !row.courseId && !row.legacyCourseId))
-   base.push({ id: id(), kind, title: kind === "technical" ? "Tim teknis" : "Tim akademik", requesterId: actor.id });
- }
  if (base.length) await db.insert(discussionChannels).values(base).onConflictDoNothing();
  const ids = [...new Set([...canonical, ...legacy].map(row => row.id))];
  const access = await resolveDiscussionCourses(actor, ids);
  for (const row of existing) {
   if (Boolean(row.courseId) === Boolean(row.legacyCourseId)) continue;
-  if (row.kind !== "course" && actor.role !== "admin" && row.requesterId !== actor.id && !(row.kind === "academic" && actor.role === "tutor")) continue;
+  if (row.kind !== "course") continue;
   const entry = access.get((row.courseId ?? row.legacyCourseId)!);
   if (!entry?.hasFullContentAccess || entry.reason || !entry.canonicalCourseId || !entry.legacyCourseId ||
    (row.courseId && row.courseId !== entry.canonicalCourseId) || (row.legacyCourseId && row.legacyCourseId !== entry.legacyCourseId)) continue;
@@ -212,46 +198,30 @@ export async function listChannels(actorId: string, channelIds?: string[]): Prom
   .where(inArray(discussionChannels.id, allowed.map(channel => channel.id)))
   .orderBy(asc(discussionChannels.kind), asc(discussionChannels.title), asc(discussionChannels.id));
  const authorized = new Map(allowed.map(channel => [channel.id, channel]));
- const unchanged = rows.filter(({ channel }) => {
+ const visible = rows.filter(({ channel }) => {
   const checked = authorized.get(channel.id);
   return checked && checked.kind === channel.kind && checked.requesterId === channel.requesterId
    && checked.courseId === channel.courseId && checked.legacyCourseId === channel.legacyCourseId;
  });
- const privateRows = unchanged.filter(({ channel }) => channel.kind === "academic" || channel.kind === "technical");
- const scopes = await resolveDiscussionCourses(actor, privateRows.flatMap(({ channel }) => [channel.courseId, channel.legacyCourseId].filter((value): value is string => !!value)));
- const visible = unchanged.filter(({ channel }) => channel.kind !== "academic" && channel.kind !== "technical" ||
-  [channel.courseId, channel.legacyCourseId].filter((value): value is string => !!value).every(alias => {
-   const scope = scopes.get(alias);
-   return scope?.hasFullContentAccess && !scope.reason && scope.canonicalCourseId === channel.courseId && scope.legacyCourseId === channel.legacyCourseId;
-  }));
- const requesterIds = actor.role === "student" ? [] : [...new Set(visible.flatMap(({ channel }) =>
-  (channel.kind === "academic" || channel.kind === "technical") && channel.requesterId ? [channel.requesterId] : []))];
- const requesters = requesterIds.length ? await db.select({ id: user.id, name: user.name }).from(user).where(inArray(user.id, requesterIds)) : [];
- const names = new Map(requesters.map(person => [person.id, person.name]));
  const counts = await getDiscussionCounts(actorId, { channelIds: visible.map(({ channel }) => channel.id) });
  return visible.map(({ channel, muted }): DiscussionChannel => ({
   id: channel.id, kind: channel.kind, title: channel.title, courseId: channel.courseId ?? channel.legacyCourseId,
-  ...((channel.kind === "academic" || channel.kind === "technical") ? {
-   courseTitle: scopes.get((channel.courseId ?? channel.legacyCourseId) || "")?.courseTitle ?? null,
-   isRequester: channel.requesterId === actor.id,
-   ...(actor.role === "student" ? {} : { requesterName: names.get(channel.requesterId ?? "") ?? null }),
-  } : {}),
   muted: muted ?? false, unreadThreads: counts.channels?.[channel.id]?.unreadThreads ?? 0, activeThreads: counts.channels?.[channel.id]?.activeThreads ?? 0,
  }));
 }
 
 export async function listChannelsPage(actorId: string, options: { cursor?: string; search?: string; courseId?: string; kind?: DiscussionChannelKind; kinds?: DiscussionChannelKind[]; limit?: number } = {}): Promise<DiscussionPage<DiscussionChannel>> {
  const actor = await getDiscussionActor(actorId);
- const kinds = ["global", "course", "academic", "technical"] as const;
+ const isAllowedKind = (kind: DiscussionChannelKind): kind is "global" | "course" => kind === "global" || kind === "course";
  if (options.courseId !== undefined) checkId(options.courseId);
- if (options.kind !== undefined && !kinds.includes(options.kind)) throw invalid();
- if (options.kinds !== undefined && (!Array.isArray(options.kinds) || options.kinds.length > 4 ||
-  !options.kinds.every(kind => kinds.includes(kind)) || new Set(options.kinds).size !== options.kinds.length)) throw invalid();
+ if (options.kind !== undefined && !isAllowedKind(options.kind)) throw invalid();
+ if (options.kinds !== undefined && (!Array.isArray(options.kinds) || options.kinds.length > 2 ||
+  !options.kinds.every(isAllowedKind) || new Set(options.kinds).size !== options.kinds.length)) throw invalid();
  if (options.search !== undefined && (typeof options.search !== "string" || options.search.length > 160 || options.search.includes("\0"))) throw invalid();
  const limit = options.limit ?? 50;
  if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw invalid();
  const after = decodeCursor(options.cursor) as { kind?: unknown; title?: unknown; id?: unknown } | null;
- if (after && (!kinds.includes(after.kind as DiscussionChannelKind) || typeof after.title !== "string" || !validDiscussionId(after.id))) throw invalid();
+ if (after && (!isAllowedKind(after.kind as DiscussionChannelKind) || typeof after.title !== "string" || !validDiscussionId(after.id))) throw invalid();
  if (options.kinds?.length === 0 || (options.kind && options.kinds && !options.kinds.includes(options.kind))) return { items: [], nextCursor: null };
  let courseAliases: string[] | undefined;
  const courseEntry = options.courseId ? (await resolveDiscussionCourses(actor, [options.courseId])).get(options.courseId) : undefined;
@@ -281,8 +251,7 @@ export async function listChannelsPage(actorId: string, options: { cursor?: stri
    options.kind ? eq(discussionChannels.kind, options.kind) : undefined, options.kinds ? inArray(discussionChannels.kind, options.kinds) : undefined,
    courseAliases ? or(inArray(discussionChannels.courseId, courseAliases), inArray(discussionChannels.legacyCourseId, courseAliases)) : undefined,
    pattern ? or(sql`${discussionChannels.title} ilike ${pattern} escape '\\'`, and(
-    inArray(discussionChannels.kind, ["academic", "technical"]), or(
-     actor.role === "student" ? undefined : sql`exists (select 1 from ${user} requester where requester.id = ${discussionChannels.requesterId} and requester.name ilike ${pattern} escape '\\')`,
+    eq(discussionChannels.kind, "course"), or(
      sql`exists (select 1 from ${mataKuliah} course where (course.id = ${discussionChannels.courseId}
       or (${discussionChannels.courseId} is null and course.legacy_course_id = ${discussionChannels.legacyCourseId})) and course.title ilike ${pattern} escape '\\')`,
      sql`${discussionChannels.courseId} is null and exists (select 1 from ${courses} course where course.id = ${discussionChannels.legacyCourseId}
@@ -302,6 +271,7 @@ export async function listChannelsPage(actorId: string, options: { cursor?: stri
     or(gt(discussionChannels.title, cursor.title as string), and(eq(discussionChannels.title, cursor.title as string), gt(discussionChannels.id, cursor.id as string))))) : undefined))
    .orderBy(asc(discussionChannels.kind), asc(discussionChannels.title), asc(discussionChannels.id)).limit(batchSize);
   if (!candidates.length) break;
+  if ((await getDiscussionActor(actor.id)).role !== actor.role) throw unavailable();
   await repairChannelAliases(actor, candidates);
   const allowed = new Map((await getAccessibleDiscussionChannels(actor.id, { channelIds: candidates.map(row => row.id) })).map(row => [row.id, row]));
   for (const candidate of candidates) {
@@ -450,7 +420,7 @@ export async function getThread(actorId: string, threadId: string, cursor?: stri
  const refs = [...new Set(visible.flatMap(row => row.replyToId ? [row.replyToId] : []))];
  const ids = visible.map(row => row.id);
  const [names, replies, reactions] = await Promise.all([
-  authors.length ? db.select({ id: user.id, name: user.name, role: peran.code }).from(user)
+  authors.length ? db.select({ id: user.id, name: user.name, image: user.image, role: peran.code }).from(user)
    .leftJoin(pengguna, and(eq(pengguna.id, user.id), eq(pengguna.status, "active")))
    .leftJoin(penggunaPeran, eq(penggunaPeran.penggunaId, pengguna.id)).leftJoin(peran, eq(peran.id, penggunaPeran.peranId))
    .where(inArray(user.id, authors)) : [],
@@ -473,7 +443,7 @@ export async function getThread(actorId: string, threadId: string, cursor?: stri
  for (const name of names) {
   const existing = authorMap.get(name.id), role = name.role === "murid" ? "student" : name.role;
   const priority = { student: 1, tutor: 2, admin: 3 };
-  if (!existing) authorMap.set(name.id, { id: name.id, name: name.name, role: role ?? null });
+  if (!existing) authorMap.set(name.id, { id: name.id, name: name.name, role: role ?? null, avatarUrl: name.image ?? null });
   else if (role && (!existing.role || priority[role] > priority[existing.role])) existing.role = role;
  }
  const allowedSources = new Set((await getAccessibleDiscussionChannels(actor.id, { channelIds: sources.map(row => row.channel.id) })).map(row => row.id));
@@ -595,24 +565,25 @@ async function requireAvailableForward(actor: DiscussionActor, channel: ChannelR
 export async function createThread(actorId: string, raw: CreateDiscussionThread) {
  const actor = await getDiscussionActor(actorId);
  const input = parseSubmit(raw);
- if (!validDiscussionText(raw.title, 160) || Boolean(raw.channelId) === Boolean(raw.team)) throw invalid();
- if (raw.helpKind != null && !["academic", "bug", "feature", "operations"].includes(raw.helpKind)) throw invalid();
- const channelId = raw.team ? (await ensureDiscussionTeamChannel(actor.id, raw.team, raw.courseId)).id : raw.channelId!;
+ const hasManualTitle = raw.title !== undefined;
+ if (hasManualTitle && !validDiscussionText(raw.title, 160)) throw invalid();
+ if (raw.helpKind != null || !raw.channelId || "team" in raw) throw invalid();
+ const channelId = raw.channelId;
  checkId(channelId);
+ const title = hasManualTitle ? raw.title!.trim() : deriveInitialDiscussionTitle(input.body, input.attachmentIds.length > 0);
  await requireDiscussionChannelAccess(actor, channelId);
  await admit(actor.id, "write");
  return db.transaction(async tx => {
   const current = await getDiscussionActor(actor.id, tx);
   const channel = await requireDiscussionChannelAccess(current, channelId, tx);
-  if (raw.helpKind != null && (channel.kind === "academic" ? raw.helpKind !== "academic"
-   : channel.kind === "technical" ? raw.helpKind === "academic" : true)) throw invalid();
+  if (channel.kind === "academic" || channel.kind === "technical") throw unavailable();
   await lockRequest(tx, current.id, input.requestId);
-  const fingerprint = submissionFingerprint(current.id, input.requestId, ["question", channelId, raw.title.trim(), raw.helpKind ?? null], input);
+  const fingerprint = submissionFingerprint(current.id, input.requestId, ["question", channelId, title, null], input);
   const prior = await replay(tx, current, input.requestId, fingerprint);
   if (prior) return prior;
   await validateSubmit(tx, current, channel.id, input);
   const threadId = id(), messageId = id(), now = new Date();
-  await tx.insert(discussionThreads).values({ id: threadId, channelId, authorId: current.id, title: raw.title.trim(), helpKind: raw.helpKind ?? null, nextSeq: 2, createdAt: now, lastActivityAt: now });
+  await tx.insert(discussionThreads).values({ id: threadId, channelId, authorId: current.id, title, helpKind: null, nextSeq: 2, createdAt: now, lastActivityAt: now });
   await tx.insert(discussionMessages).values({ id: messageId, threadId, authorId: current.id, kind: "human", messageType: "question", body: input.body,
    seq: 1, requestId: input.requestId, submissionFingerprint: fingerprint, mentionIds: input.mentionIds, askZyra: input.askZyra, skinId: input.skinId, createdAt: now });
   await recordDiscussionParticipant(tx, messageId);
@@ -851,12 +822,10 @@ export async function searchChannelMentions(actorId: string, channelId: string, 
   (course.pricing_category = 'free' or (course.pricing_category = 'limited_time_free' and course.free_starts_at <= now() and now() < course.free_ends_at)))` : sql`false`;
  const courseAudience = channel.courseId || channel.legacyCourseId
   ? sql`(${admin} or (${tutor} and ${assignment}) or (not ${tutor} and ${student} and (${enrollment} or ${free})))` : sql`(${admin} or ${tutor} or ${student})`;
- const privateAudience = channel.kind === "technical" ? sql`(${admin} or ${user.id} = ${channel.requesterId})`
-  : channel.kind === "academic" ? sql`(${admin} or ${tutor} or ${user.id} = ${channel.requesterId})` : sql`true`;
  const pkaAudience = channel.courseId === PKA_COURSE_ID || channel.legacyCourseId === PKA_COURSE_ID
   ? sql`(${admin} or ${tutor} or exists (select 1 from ${enrollments} registration where registration.user_id = ${user.id} and registration.course_id = ${PKA_COURSE_ID}))` : undefined;
  const rows = await db.select({ id: user.id, name: user.name }).from(user).innerJoin(pengguna, eq(pengguna.id, user.id))
-  .where(and(eq(pengguna.status, "active"), courseAudience, privateAudience, pkaAudience,
+  .where(and(eq(pengguna.status, "active"), courseAudience, pkaAudience,
    sql`${nameSearchBigrams(user.name)} @> array(select distinct pair from unnest(${nameSearchBigrams(sql`${query.trim()}`)}) as terms(pair) where char_length(pair) = 2)`,
    sql`${user.name} ilike ${pattern} escape '\\'`)).orderBy(asc(user.name), asc(user.id)).limit(101);
  const candidates = rows.slice(0, 100);
@@ -999,6 +968,139 @@ export async function resolveReport(actorId: string, reportId: string, resolutio
   else if (item.status !== resolution) throw new Error("DISCUSSION_CONFLICT");
   return { status: resolution };
  });
+}
+
+export async function getDiscussionAuthorProfile(actorId: string, threadId: string, authorId: string): Promise<DiscussionAuthorProfile> {
+ const actor = await getDiscussionActor(actorId);
+ checkId(threadId);
+ checkId(authorId);
+ await requireDiscussionThreadAccess(actor, threadId);
+ const [authored] = await db.select({ id: discussionMessages.id })
+  .from(discussionMessages)
+  .where(and(
+   eq(discussionMessages.threadId, threadId),
+   eq(discussionMessages.authorId, authorId),
+   eq(discussionMessages.kind, "human"),
+   isNull(discussionMessages.deletedAt),
+  ))
+  .limit(1);
+ if (!authored) throw unavailable();
+ const result = await db.execute<{
+  id: string;
+  name: string;
+  image: string | null;
+  is_student: boolean;
+  is_staff: boolean;
+  top_role: "admin" | "tutor" | "murid" | null;
+  is_blocked: boolean;
+  is_self: boolean;
+  public_id: string | null;
+  display_name: string | null;
+  visibility: string | null;
+  rank_key: string | null;
+  base_xp_micro: number | null;
+  earned_badges: { family: string; tier: number }[] | null;
+  featured_badge_ids: string[] | null;
+  equipped_frame_id: string | null;
+  equipped_theme_id: string | null;
+  equipped_title_id: string | null;
+  equipped_zyra_avatar_id: string | null;
+  major: string | null;
+  faculty: string | null;
+  follower_count: number | null;
+  following_count: number | null;
+  allow_follows: boolean | null;
+  is_following: boolean | null;
+ }>(sql`
+  select
+   u.id,
+   u.name,
+   u.image,
+   ${eligibleStudent(sql.raw("u"))} as is_student,
+   exists (
+    select 1 from pengguna_peran pp
+    join peran r on r.id = pp.peran_id
+    where pp.pengguna_id = u.id and r.code in ('admin', 'tutor')
+   ) as is_staff,
+   (
+    select r.code from pengguna_peran pp
+    join peran r on r.id = pp.peran_id
+    where pp.pengguna_id = u.id
+    order by case r.code when 'admin' then 1 when 'tutor' then 2 when 'murid' then 3 else 4 end
+    limit 1
+   ) as top_role,
+   not ${noBlock(actor.id, sql.raw("u.id"))} as is_blocked,
+   u.id = ${actor.id} as is_self,
+   p.public_id,
+   coalesce(p.display_name, u.name) as display_name,
+   p.visibility,
+   coalesce(a.rank_key, 'rakyat') as rank_key,
+   case when p.leaderboard_opt_in then coalesce(a.base_xp_micro, 0) end as base_xp_micro,
+   coalesce((
+    select jsonb_agg(jsonb_build_object('family', b.family, 'tier', b.tier) order by b.family)
+    from gamification_badges b
+    where b.user_id = u.id and b.tier > 0
+   ), '[]'::jsonb) as earned_badges,
+   coalesce(p.featured_badge_ids, '[]'::jsonb) as featured_badge_ids,
+   p.equipped_frame_id,
+   p.equipped_theme_id,
+   p.equipped_title_id,
+   case when exists (
+    select 1 from gamification_inventory i
+    join gamification_cosmetics c on c.id = i.cosmetic_id
+    where i.user_id = u.id and i.cosmetic_id = p.equipped_zyra_avatar_id and c.slot = 'zyra_avatar'
+   ) then p.equipped_zyra_avatar_id end as equipped_zyra_avatar_id,
+   case when p.show_major then u.major end as major,
+   case when p.show_faculty then u.faculty end as faculty,
+   coalesce(p.follower_count, 0) as follower_count,
+   coalesce(p.following_count, 0) as following_count,
+   coalesce(p.allow_follows, false) as allow_follows,
+   case when ${actor.role === "student"} then exists (
+    select 1 from gamification_follows f where f.follower_id = ${actor.id} and f.following_id = u.id
+   ) else false end as is_following
+  from "user" u
+  left join gamification_profiles p on p.user_id = u.id
+  left join gamification_accounts a on a.user_id = u.id
+  where u.id = ${authorId}
+  limit 1
+ `);
+ const row = result.rows[0];
+ if (!row) {
+  return { kind: "limited", id: authorId, name: "Pengguna tidak tersedia", role: null, avatarUrl: null, visibilityReason: "unavailable" };
+ }
+ const mappedRole: DiscussionRole | null = row.top_role === "admin" ? "admin" : row.top_role === "tutor" ? "tutor" : row.top_role === "murid" ? "student" : null;
+ if (row.is_blocked) {
+  return { kind: "limited", id: row.id, name: row.name, role: mappedRole, avatarUrl: null, visibilityReason: "blocked" };
+ }
+ if (row.is_staff || !row.is_student) {
+  return { kind: "limited", id: row.id, name: row.name, role: mappedRole, avatarUrl: row.image ?? null, visibilityReason: "staff" };
+ }
+ if (!row.is_self && row.visibility !== "members") {
+  return { kind: "limited", id: row.id, name: row.display_name ?? row.name, role: "student", avatarUrl: row.image ?? null, visibilityReason: "private" };
+ }
+ const profile: PublicStudentProfile = {
+  publicId: row.public_id ?? row.id,
+  displayName: row.display_name ?? row.name,
+  avatarUrl: row.image ?? null,
+  avatarBadgeId: null,
+  avatarMode: "photo",
+  avatarBadgeTier: null,
+  rankKey: row.rank_key ?? "rakyat",
+  baseXpMicro: row.base_xp_micro == null ? null : Number(row.base_xp_micro),
+  earnedBadges: Array.isArray(row.earned_badges) ? row.earned_badges.map(badge => ({ family: badge.family, tier: Number(badge.tier) })) : [],
+  featuredBadgeIds: Array.isArray(row.featured_badge_ids) ? row.featured_badge_ids : [],
+  equippedFrameId: row.equipped_frame_id ?? null,
+  equippedThemeId: row.equipped_theme_id ?? null,
+  equippedTitleId: row.equipped_title_id ?? null,
+  equippedZyraAvatarId: row.equipped_zyra_avatar_id ?? null,
+  major: row.major ?? null,
+  faculty: row.faculty ?? null,
+  followerCount: Number(row.follower_count ?? 0),
+  followingCount: Number(row.following_count ?? 0),
+  canFollow: Boolean(actor.role === "student" && !row.is_self && row.allow_follows && row.public_id),
+  isFollowing: Boolean(actor.role === "student" && row.is_following),
+ };
+ return { kind: "student", name: profile.displayName, role: "student", profile };
 }
 
 export { publishDiscussionZyraAnswer } from "./ai-publication";

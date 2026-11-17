@@ -1,8 +1,11 @@
 "use server";
 
+import { after } from "next/server";
+import { inngest } from "@/jobs/client";
 import { getSessionDiscussionActor } from "./session";
 import * as service from "./service";
-import { validDiscussionId } from "./policy";
+import { deriveInitialDiscussionTitle, validDiscussionId } from "./policy";
+import { generateDiscussionThreadTitle } from "./title-ai";
 import type { CreateDiscussionThread, DiscussionChannelKind, DiscussionSendResult, DiscussionThreadStatus, ReplyToDiscussion } from "./contracts";
 
 async function safe<T>(work: (actorId: string) => Promise<T>): Promise<T> {
@@ -45,13 +48,29 @@ async function send(work: (actorId: string) => Promise<{ threadId: string; messa
 export async function listChannels() { return safe(id => service.listChannels(id)); }
 export async function getChannelsByIds(channelIds: string[]) { return safe(id => service.listChannels(id, channelIds)); }
 export async function listChannelsPage(input: { cursor?: string; search?: string; courseId?: string; kind?: DiscussionChannelKind; kinds?: DiscussionChannelKind[]; limit?: number } = {}) { return safe(id => service.listChannelsPage(id, input)); }
-export async function ensureTeamChannel(team: "technical" | "academic", courseId?: string) { return safe(id => service.ensureDiscussionTeamChannel(id, team, courseId)); }
 export async function listThreads(channelId: string, cursor?: string) { return safe(id => service.listThreads(id, channelId, cursor)); }
 export async function listThreadsAcrossChannels(input: { channelId?: string; search?: string; cursor?: string; status?: DiscussionThreadStatus } | string = {}) {
  return safe(id => service.listThreadsAcrossChannels(id, typeof input === "string" ? { cursor: input } : input));
 }
 export async function getThread(threadId: string, cursor?: string, targetMessageId?: string) { return safe(id => service.getThread(id, threadId, cursor, targetMessageId)); }
-export async function createThread(input: CreateDiscussionThread) { return send(id => service.createThread(id, input)); }
+export async function createThread(input: CreateDiscussionThread) {
+ const result = await send(id => service.createThread(id, input));
+ if (result.ok && (!input.title || !input.title.trim())) {
+  const threadId = result.value.threadId;
+  const expectedTitle = deriveInitialDiscussionTitle(input.body, input.attachmentIds.length > 0);
+  inngest.send({
+   id: `discussion-thread-title-${threadId}`,
+   name: "discussion/thread.title.requested",
+   data: { threadId, expectedTitle },
+  }).catch(() => {});
+  try {
+   after(() => generateDiscussionThreadTitle(threadId, expectedTitle).catch(() => {}));
+  } catch {
+   // Unit tests outside Next request scope do not provide an after() context.
+  }
+ }
+ return result;
+}
 export async function reply(input: ReplyToDiscussion) { return send(id => service.reply(id, input)); }
 export async function edit(messageId: string, body: string, revision: number) { return safe(id => service.edit(id, messageId, body, revision)); }
 export async function deleteMessage(messageId: string) { return safe(id => service.deleteMessage(id, messageId)); }
@@ -62,6 +81,7 @@ export async function setMute(channelId: string, muted: boolean) { return safe(i
 export async function setResolved(threadId: string, resolved: boolean) { return safe(id => service.setResolved(id, threadId, resolved)); }
 export async function searchMentions(threadId: string, query: string) { return safe(id => service.searchMentions(id, threadId, query)); }
 export async function searchChannelMentions(channelId: string, query: string) { return safe(id => service.searchChannelMentions(id, channelId, query)); }
+export async function getAuthorProfile(threadId: string, authorId: string) { return safe(id => service.getDiscussionAuthorProfile(id, threadId, authorId)); }
 export async function report(messageId: string, reason: string) { return safe(id => service.report(id, messageId, reason)); }
 export async function listReports(cursor?: string) { return safe(id => service.listReports(id, cursor)); }
 export async function resolveReport(reportId: string, resolution: "resolved" | "dismissed") { return safe(id => service.resolveReport(id, reportId, resolution)); }

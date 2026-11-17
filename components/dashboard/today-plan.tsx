@@ -7,7 +7,6 @@ import Link from "next/link";
 import { Layers, ListChecks, BookOpen, Check, ArrowRight, CalendarCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { StreakTag } from "@/components/dashboard/streak-tag";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
@@ -95,15 +94,6 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
           <>
             {t("dashboard.helloPrefix")}, <span className="text-primary">{firstName}</span>
           </>
-        }
-        actions={
-          <div className="hidden sm:block">
-            {loading ? (
-              <div className="h-9 w-32 animate-pulse rounded-xl bg-muted" />
-            ) : (
-              <StreakTag current={data?.streak.current ?? 0} />
-            )}
-          </div>
         }
       />
 

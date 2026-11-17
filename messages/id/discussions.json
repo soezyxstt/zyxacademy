@@ -251,5 +251,21 @@
   "privacyAdminStaff": "Hanya pemilik dan admin.",
   "messageReference": "Pesan {seq} dari {name}: {excerpt}",
   "forwardResolvedUnknown": "Diskusi tujuan sudah selesai. Status penerusan belum pasti; periksa diskusi sebelum membuang draf.",
-  "formatting": "Format teks"
+  "formatting": "Format teks",
+  "forwardPreview": "Pesan yang diteruskan",
+  "selectDestinationPrompt": "Pilih pertanyaan tujuan",
+  "viewProfile": "Lihat profil {name}",
+  "profileTitle": "Profil pengguna",
+  "profileStudentTitle": "Profil siswa",
+  "loadingProfile": "Memuat profil",
+  "profileUnavailable": "Profil tidak tersedia",
+  "profileStaffNote": "Anggota tim Zyx",
+  "profilePrivateNote": "Profil siswa bersifat privat.",
+  "profileBlockedNote": "Profil tidak tersedia.",
+  "followers": "pengikut",
+  "following": "diikuti",
+  "badges": "lencana",
+  "follow": "Ikuti",
+  "unfollow": "Batal ikuti",
+  "followError": "Gagal memperbarui status mengikuti. Coba lagi."
 }

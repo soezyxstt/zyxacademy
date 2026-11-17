@@ -48,14 +48,16 @@ test("bounded recipient access matches current single-user channel authorization
   expect(actual).toEqual(expected);
  }
  for (const channel of ["global", "course", "technical", "academic", "pka"]) await compare(channel);
+ expect((await getDiscussionRecipientAccess("technical", users)).size).toBe(0);
+ expect((await getDiscussionRecipientAccess("academic", users)).size).toBe(0);
  expect((await getDiscussionRecipientAccess("global", users)).get("dual")?.role).toBe("admin");
  await db.insert(schema.tutorCourses).values({ id: "legacy-assignment", tutorId: "tutor", courseId: "legacy" });
  await db.update(schema.penugasanTutor).set({ status: "revoked" }).where(eq(schema.penugasanTutor.id, "assignment"));
- await compare("academic");
- expect((await getDiscussionRecipientAccess("academic", users)).has("tutor")).toBe(false);
+ await compare("course");
+ expect((await getDiscussionRecipientAccess("course", users)).has("tutor")).toBe(false);
  await db.delete(schema.penugasanTutor).where(eq(schema.penugasanTutor.id, "assignment"));
- await compare("academic");
- expect((await getDiscussionRecipientAccess("academic", users)).has("tutor")).toBe(true);
+ await compare("course");
+ expect((await getDiscussionRecipientAccess("course", users)).has("tutor")).toBe(true);
  await db.insert(schema.mataKuliah).values({ id: "ambiguous", code: "AMB", title: "Ambiguous", legacyCourseId: "legacy" });
  await compare("course");
  expect((await getDiscussionRecipientAccess("course", users)).size).toBe(0);

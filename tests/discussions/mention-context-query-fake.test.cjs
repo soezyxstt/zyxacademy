@@ -54,6 +54,7 @@ if (isBun) {
  bunTest.mock.module("@/lib/discussions/recipient-access", () => ({ getDiscussionRecipientAccess: async (_id, ids) => new Map(ids.map(id => [id, { role: "student" }])) }));
  bunTest.mock.module("@/lib/discussions/policy", () => ({
   canDeleteDiscussionMessage: () => false, canEditDiscussionMessage: () => false, canForwardDiscussion: () => false,
+  deriveInitialDiscussionTitle: () => "Pertanyaan baru",
   DISCUSSION_REACTIONS: ["👍", "❤️", "🎉", "🤔", "🙏"], validDiscussionId: id => typeof id === "string" && id.length > 0,
   validDiscussionReplyType: () => true, validDiscussionText: () => true,
  }));

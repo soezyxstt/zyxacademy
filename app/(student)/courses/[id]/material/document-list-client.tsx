@@ -730,7 +730,7 @@ export function DocumentListClient({
                 itemHref={itemHref}
                 isPageNav={isPageNav}
                 onSelectPdf={setSelectedPdf}
-                className={cn("group flex flex-col min-w-0 overflow-hidden rounded-xl border border-border/50 bg-card transition-all duration-150 hover:border-border/90 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary text-left", material.kind === "solution_collection" && "self-start")}
+                className="group flex flex-col self-start min-w-0 overflow-hidden rounded-xl border border-border/50 bg-card transition-all duration-150 hover:border-border/90 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary text-left"
               >
                 {/* Header */}
                 <div className="px-3 py-2.5">
@@ -858,7 +858,7 @@ export function DocumentListClient({
                   )}
                   </div>
                   <p
-                    className="mt-1 h-[3.75em] line-clamp-3 break-words text-body-sm font-medium leading-tight text-foreground group-hover:text-primary"
+                    className="mt-1 line-clamp-3 break-words text-body-sm font-medium leading-tight text-foreground group-hover:text-primary"
                     title={material.title}
                   >
                     {cleanTitle}
