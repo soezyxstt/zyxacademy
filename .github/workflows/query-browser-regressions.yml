@@ -15,6 +15,8 @@ on:
       - 'app/(student)/courses/*/flashcard/**'
       - 'app/globals.css'
       - 'app/visual-fixtures/query-data-layer/**'
+      - 'tests/unit/query-data-layer.test.ts'
+      - 'tests/unit/student-today-query.test.ts'
       - 'tests/visual/query-data-layer.spec.ts'
       - 'tests/visual/fixtures/**'
       - 'playwright.config.ts'
@@ -56,6 +58,8 @@ jobs:
           key: ${{ runner.os }}-bun-1.3.14-${{ hashFiles('bun.lock') }}
           restore-keys: ${{ runner.os }}-bun-1.3.14-
       - run: bun install --frozen-lockfile
+      - name: Verify response validation and cache isolation
+        run: bun test tests/unit/query-data-layer.test.ts tests/unit/student-today-query.test.ts
       - run: bunx playwright install --with-deps chromium
       - name: Verify shared caches and learning sessions
         run: bunx playwright test tests/visual/query-data-layer.spec.ts --config=playwright.config.ts
