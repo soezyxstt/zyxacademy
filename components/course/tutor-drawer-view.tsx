@@ -68,7 +68,7 @@ import { pythonReply } from "@/lib/coding/python-reply";
 import { composerMathRanges } from "@/components/course/zyra-composer-math";
 import { LearningCanvasRenderer } from "@/components/course/learning-canvas/learning-canvas-renderer";
 import type { CanvasSpec } from "@/lib/zyra/canvas";
-import { zyraImageFilesFromClipboard } from "@/lib/zyra/images/composer";
+import { handleZyraImagePasteEvent } from "@/lib/zyra/images/composer";
 import type { ZyraMessageAttachment } from "@/lib/zyra/images/contracts";
 import { ZyraMessageAttachments } from "@/components/course/zyra-message-attachments";
 import { consumeZyraStream } from "@/lib/zyra/stream-consumer";
@@ -841,14 +841,10 @@ function TutorDrawerContent({
 
   const handlePaste = React.useCallback(
     (e: React.ClipboardEvent<HTMLElement>) => {
-      if (e.defaultPrevented || !imageInputEnabled || !courseIdFromPath || chatLoading) return;
-      const files = zyraImageFilesFromClipboard(
-        e.clipboardData?.items ?? null,
-        e.clipboardData?.files ?? null,
-      );
-      if (files.length === 0) return;
-      e.preventDefault();
-      void attachmentComposerRef.current?.addFiles(files);
+      handleZyraImagePasteEvent(e, {
+        disabled: !imageInputEnabled || !courseIdFromPath || chatLoading,
+        onFiles: (files) => attachmentComposerRef.current?.addFiles(files),
+      });
     },
     [imageInputEnabled, courseIdFromPath, chatLoading],
   );
