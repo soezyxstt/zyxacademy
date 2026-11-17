@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { buildSelfContainedKatexCss, PRODUCT_DIKTAT_FOOTER_TEMPLATE } from "@/lib/bundle/product-diktat-pdf";
 import worker, { type BrowserRun } from "../../workers/diktat-renderer/src/index";
 
@@ -25,4 +27,12 @@ test("renderer places supplied contacts in the PDF footer with no default header
   expect(PRODUCT_DIKTAT_FOOTER_TEMPLATE).toContain('class="pageNumber"');
   expect(PRODUCT_DIKTAT_FOOTER_TEMPLATE).toContain('class="totalPages"');
   expect(captured?.pdfOptions).toMatchObject({displayHeaderFooter:true,headerTemplate:"<span></span>",footerTemplate:PRODUCT_DIKTAT_FOOTER_TEMPLATE,preferCSSPageSize:true});
+});
+
+test("next build keeps KaTeX externalized and free of eager static require.resolve", () => {
+  const nextConfig = readFileSync(join(process.cwd(), "next.config.ts"), "utf8");
+  const pdfModule = readFileSync(join(process.cwd(), "lib/bundle/product-diktat-pdf.ts"), "utf8");
+  expect(nextConfig).toContain('"katex"');
+  expect(pdfModule).not.toContain('require.resolve("katex")');
+  expect(pdfModule).not.toContain("const KATEX_CSS = buildSelfContainedKatexCss()");
 });

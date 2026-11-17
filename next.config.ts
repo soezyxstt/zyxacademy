@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   skipProxyUrlNormalize: true,
   env: { NEXT_PUBLIC_V4_WEB_RUNTIME: existsSync(webRuntimePath) ? readFileSync(webRuntimePath, "utf8") : "" },
-  serverExternalPackages: ["pyodide", "puppeteer", "@napi-rs/canvas", "pdfjs-dist", "pdf-parse", "pg", "drizzle-orm"],
+  serverExternalPackages: ["pyodide", "puppeteer", "@napi-rs/canvas", "pdfjs-dist", "pdf-parse", "pg", "drizzle-orm", "katex"],
   outputFileTracingIncludes: {
     "/*": ["./lib/materials/interactive-document-png-worker.cjs", "./node_modules/pngjs/**"],
     "/coding/runtime-frame": ["./lib/coding/frame.html"],
