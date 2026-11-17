@@ -26,7 +26,7 @@ function getAllFiles(dir: string, extensions: string[]): string[] {
 
 describe("CP5: Retirement of browser manual authoring and clean global navigation", () => {
   describe("1. Navigation exactness", () => {
-    it("sidebar Akademik & Konten contains the four approved destinations", () => {
+    it("sidebar Akademik & Konten contains the five approved destinations", () => {
       const sidebar = source("components/admin-sidebar.tsx");
 
       // Check group definition
@@ -38,13 +38,14 @@ describe("CP5: Retirement of browser manual authoring and clean global navigatio
       expect(sidebar).toContain('{ id: "schedules", label: "Jadwal Umum", href: "/admin/schedules", icon: CalendarDays, group: "akademik" }');
       expect(sidebar).toContain('{ id: "bank-soal", label: "Bank Soal", href: "/admin/questions", icon: Library, group: "akademik" }');
 
-      // Gamification is an approved non-authoring destination. Retired authoring
+      // Gamification and Discussions are approved non-authoring destinations. Retired authoring
       // surfaces remain forbidden by the separate retirement checks below.
       expect(sidebar).toContain('{ id: "gamification", label: "Gamification", href: "/admin/gamification", icon: Trophy, group: "akademik" }');
+      expect(sidebar).toContain('{ id: "discussions", label: "Diskusi dan laporan", href: "/admin/discussions", icon: MessageSquareText, group: "akademik" }');
 
-      // Reject any destination outside the explicit four-item list.
+      // Reject any destination outside the explicit five-item list.
       const matches = sidebar.match(/group:\s*"akademik"/g);
-      expect(matches?.length).toBe(4);
+      expect(matches?.length).toBe(5);
     });
 
     it("admin dashboard category Akademik & Konten retains the three core academic destinations", () => {
