@@ -1,0 +1,70 @@
+name: Query browser regressions
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/query-browser-regressions.yml'
+      - 'lib/query/**'
+      - 'lib/student/today-query.ts'
+      - 'lib/articles/**'
+      - 'lib/quiz/**'
+      - 'lib/flashcards/**'
+      - 'hooks/**'
+      - 'components/providers/query-provider.tsx'
+      - 'components/course/**'
+      - 'app/(student)/courses/[[]id]/flashcard/**'
+      - 'app/globals.css'
+      - 'tests/visual/query-data-layer.spec.ts'
+      - 'tests/visual/fixtures/**'
+      - 'playwright.config.ts'
+      - 'package.json'
+      - 'bun.lock'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: query-browser-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  query-browser:
+    name: Query and learning browser regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: '1'
+      # These tests intercept every request and use synthetic data. This value
+      # disables the Next dev server; no live credentials or database are needed.
+      PLAYWRIGHT_BASE_URL: http://fixture.invalid
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-1.3.14-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-1.3.14-
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - name: Verify shared caches and learning sessions
+        run: bunx playwright test tests/visual/query-data-layer.spec.ts --config=playwright.config.ts
+      - name: Save synthetic screenshots and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: query-browser-report
+          path: |
+            artifacts/visual-quality/report/
+            artifacts/visual-quality/results/**/attachments/*.png
+          if-no-files-found: error
+          retention-days: 7
