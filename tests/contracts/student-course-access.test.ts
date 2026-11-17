@@ -121,7 +121,7 @@ describe("student course access policy", () => {
         { id: "bab-other-2", mataKuliahId: "mk-other", code: "02", title: "Dua", orderIndex: 2, status: "active", createdAt: now, updatedAt: now },
         { id: "bab-other-3", mataKuliahId: "mk-other", code: "03", title: "Tiga", orderIndex: 3, status: "active", createdAt: now, updatedAt: now },
       ]);
-      await insertUser(testDb, { id: "free-user" });
+      await insertUser(testDb, { id: "free-user", peran: "murid" });
 
       const anonymous = await resolveCourseAccess({ courseId: "mk-demo" }, testDb);
       expect(anonymous.tier).toBe("anonymous");
@@ -185,7 +185,7 @@ describe("student course access policy", () => {
         { id: "legacy-chapter-3", courseId: "legacy-chapter-course", title: "Tiga", orderIndex: 3, status: "published", createdAt: now, updatedAt: now },
         { id: "legacy-chapter-draft", courseId: "legacy-chapter-course", title: "Draft", orderIndex: 0, status: "draft", createdAt: now, updatedAt: now },
       ]);
-      await insertUser(testDb, { id: "legacy-free-user" });
+      await insertUser(testDb, { id: "legacy-free-user", peran: "murid" });
 
       const access = await resolveCourseAccess({ courseId: "mk-legacy-chapter", userId: "legacy-free-user" }, testDb);
       expect(access.freeChapters.map((chapter) => chapter.id)).toEqual(["legacy-chapter-1"]);
@@ -344,12 +344,12 @@ describe("student course access policy", () => {
         { id: "bab-staff-1", mataKuliahId: "mk-staff", code: "01", title: "Satu", orderIndex: 1, status: "active", createdAt: now, updatedAt: now },
         { id: "bab-staff-3", mataKuliahId: "mk-staff", code: "03", title: "Tiga", orderIndex: 3, status: "active", createdAt: now, updatedAt: now },
       ]);
-      await insertUser(testDb, { id: "enrolled-user" });
-      await insertUser(testDb, { id: "legacy-enrolled-user" });
+      await insertUser(testDb, { id: "enrolled-user", peran: "murid" });
+      await insertUser(testDb, { id: "legacy-enrolled-user", peran: "murid" });
       await insertUser(testDb, { id: "admin-user", peran: "admin", role: "admin" });
       await insertUser(testDb, { id: "tutor-user", peran: "tutor", role: "teacher" });
       await insertUser(testDb, { id: "unassigned-tutor", peran: "tutor", role: "teacher" });
-      await insertUser(testDb, { id: "role-hint-admin", role: "student" });
+      await insertUser(testDb, { id: "role-hint-admin", role: "student", peran: "murid" });
       await testDb.insert(schema.user).values({
         id: "suspended-user",
         name: "suspended-user",
@@ -455,7 +455,7 @@ describe("student course access policy", () => {
         createdAt: now,
         updatedAt: now,
       });
-      await insertUser(testDb, { id: "collision-user" });
+      await insertUser(testDb, { id: "collision-user", peran: "murid" });
       await testDb.insert(schema.enrollments).values({
         id: "collision-legacy-enrollment",
         userId: "collision-user",

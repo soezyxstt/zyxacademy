@@ -156,7 +156,7 @@ export function DiscussionFixture({ query }: { query: { role?: string; question?
       }, 1500);
     });
     return () => { cancelled = true; stop(); if (timer) clearTimeout(timer); };
-  }, [query.state, selectedQuestionId, messages, fixtureReadRetry]);
+  }, [query.state, query.fail, selectedQuestionId, messages, fixtureReadRetry]);
 
   function failOnce(kind: string) {
     if (query.fail === kind && !failed.current.has(kind)) { failed.current.add(kind); throw new Error("Fixture failure"); }

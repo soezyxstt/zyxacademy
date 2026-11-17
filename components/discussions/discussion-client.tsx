@@ -91,6 +91,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
   const [reports, setReports] = useState<Report[]>([]);
   const [reportCursor, setReportCursor] = useState<string | null>(null);
   const [reportPageIndex, setReportPageIndex] = useState(0);
+  const reportPageIndexRef = useRef(0);
   const reportPageCursors = useRef<Array<string | undefined>>([undefined]);
   const [reportError, setReportError] = useState(false);
   const [reportBusy, setReportBusy] = useState(true);
@@ -114,7 +115,14 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
   const selectionKey = `${viewer.id}:${courseId ?? ""}:${requestedChannel ?? ""}:${selectedThread ?? ""}:${selectedMessage ?? ""}`;
   const previousSelection = useRef(selectionKey);
   if (previousSelection.current !== selectionKey) { previousSelection.current = selectionKey; selectionVersion.current++; }
-  useEffect(() => () => { selectionVersion.current++; currentThread.current = null; }, []);
+  useEffect(() => () => {
+    selectionVersion.current++;
+    channelsVersion.current++;
+    threadPagingVersion.current++;
+    threadVersion.current++;
+    reportVersion.current++;
+    currentThread.current = null;
+  }, []);
   const refreshChannelMetadata = useCallback(() => { channelMetadataVersion.current++; setRetryChannelMetadata((value) => value + 1); }, []);
   useEffect(() => {
     window.addEventListener(DISCUSSION_COUNTS_CHANGED, refreshChannelMetadata);
@@ -125,7 +133,10 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
   const selectedChannel = courseId ? courseChannelId ?? null : requestedChannel;
   const resolvedKey = JSON.stringify([selectedChannel, debouncedSearch, viewer.id, courseId]);
   const allThreads = threadPage.items;
-  const resolvedThreads = resolvedPaging.key === resolvedKey && resolvedState === "ready" ? resolvedPage.items : [];
+  const resolvedThreads = useMemo(
+    () => (resolvedPaging.key === resolvedKey && resolvedState === "ready" ? resolvedPage.items : []),
+    [resolvedPaging.key, resolvedKey, resolvedState, resolvedPage.items],
+  );
   const metadataIds = useMemo(() => [...new Set([...allThreads.map((item) => item.channelId), ...resolvedThreads.map((item) => item.channelId), ...(thread?.id === selectedThread ? [thread.channelId] : []), ...(selectedChannel ? [selectedChannel] : [])])].sort(), [allThreads, resolvedThreads, thread, selectedThread, selectedChannel]);
   const metadataKey = JSON.stringify(metadataIds);
   const currentMetadataKey = useRef(metadataKey);
@@ -179,6 +190,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const version = ++channelsVersion.current;
     setChannelsReady(false);
     setListState("loading");
@@ -186,12 +198,12 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       try {
         const result = await actions.listChannelsPage({ courseId, kind: courseId ? "course" : undefined, limit: 20 });
         if (courseId && !result.items.length) throw new Error();
-        if (version !== channelsVersion.current) return;
+        if (cancelled || version !== channelsVersion.current) return;
         setChannels(result.items);
         setChannelsReady(true);
-      } catch { if (version === channelsVersion.current) setListState("error"); }
+      } catch { if (!cancelled && version === channelsVersion.current) setListState("error"); }
     })();
-    return () => { channelsVersion.current++; };
+    return () => { cancelled = true; };
   }, [courseId, retryLists, viewer.id]);
 
   useEffect(() => {
@@ -203,7 +215,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       if (!cancelled && isCurrent()) setChannelMetadata({ key: metadataKey, items, status: "ready" });
     }).catch(() => { if (!cancelled && isCurrent()) setChannelMetadata({ key: metadataKey, items: [], status: "error" }); });
     return () => { cancelled = true; };
-  }, [metadataKey, retryChannelMetadata]);
+  }, [metadataIds, metadataKey, retryChannelMetadata]);
 
   const fetchThreadPage = useCallback(async (cursor?: string) => {
     refreshChannelMetadata();
@@ -220,6 +232,8 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
 
   useEffect(() => {
     if (!channelsReady) return;
+    const requests = listRequests.current;
+    let cancelled = false;
     threadPagingVersion.current++;
     threadPageBusyRef.current = false;
     threadPageIndexRef.current = 0;
@@ -228,8 +242,8 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     setThreadPageIndex(0);
     setThreadPage({ items: [], nextCursor: null });
     setListState("loading");
-    void fetchThreadPage().catch(() => setListState("error"));
-    return () => { listRequests.current.clear(); threadPagingVersion.current++; };
+    void fetchThreadPage().catch(() => { if (!cancelled) setListState("error"); });
+    return () => { cancelled = true; requests.clear(); };
   }, [channelsReady, selectedChannel, fetchThreadPage]);
 
   useEffect(() => {
@@ -275,6 +289,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
   }, [refreshAiStatuses, refreshChannelMetadata]);
 
   useEffect(() => {
+    let cancelled = false;
     const version = ++threadVersion.current;
     messagePageVersion.current++;
     const pageVersion = messagePageVersion.current;
@@ -302,7 +317,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     setThreadState("loading");
     const current = beginPageRequest(pageVersions.current);
     void Promise.all([actions.getThread(selectedThread, undefined, selectedMessage ?? undefined), getDiscussionReadThrough(selectedThread)]).then(([result, throughSeq]) => {
-      if (version !== threadVersion.current || pageVersion !== messagePageVersion.current || currentThread.current !== selectedThread || !current()) return;
+      if (cancelled || version !== threadVersion.current || pageVersion !== messagePageVersion.current || currentThread.current !== selectedThread || !current()) return;
       if (courseId && result.thread.channelId !== courseChannelId) { setThreadState("error"); return; }
       observation.current.through = throughSeq;
       acknowledgedThrough.current = throughSeq;
@@ -314,9 +329,9 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       setMessagePages([{ cursor: result.messages.startCursor, items: result.messages.items, observationReceipt: result.messages.observationReceipt }]);
       setMessageCursor(result.messages.nextCursor);
       setThreadState("ready");
-      void refreshAiStatuses(selectedThread, result.messages.items, () => version === threadVersion.current && pageVersion === messagePageVersion.current && current());
-    }).catch(() => { if (version === threadVersion.current && pageVersion === messagePageVersion.current && current()) setThreadState("error"); });
-    return () => { threadVersion.current++; };
+      void refreshAiStatuses(selectedThread, result.messages.items, () => !cancelled && version === threadVersion.current && pageVersion === messagePageVersion.current && current());
+    }).catch(() => { if (!cancelled && version === threadVersion.current && pageVersion === messagePageVersion.current && current()) setThreadState("error"); });
+    return () => { cancelled = true; };
   }, [selectedThread, selectedMessage, activeTab, retryThread, courseId, courseChannelId, channelsReady, refreshAiStatuses]);
 
   useEffect(() => {
@@ -436,14 +451,15 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
 
   useEffect(() => {
     if (viewer.role !== "admin" || activeTab !== "reports") return;
+    let cancelled = false;
     const version = ++reportVersion.current;
     setReportBusy(true); setReportError(false);
-    void actions.listReports(reportPageCursors.current[reportPageIndex]).then((page) => {
-      if (version !== reportVersion.current) return;
+    void actions.listReports(reportPageCursors.current[reportPageIndexRef.current]).then((page) => {
+      if (cancelled || version !== reportVersion.current) return;
       setReports(page.items); setReportCursor(page.nextCursor);
-    }).catch(() => { if (version === reportVersion.current) setReportError(true); })
-      .finally(() => { if (version === reportVersion.current) setReportBusy(false); });
-    return () => { reportVersion.current++; };
+    }).catch(() => { if (!cancelled && version === reportVersion.current) setReportError(true); })
+      .finally(() => { if (!cancelled && version === reportVersion.current) setReportBusy(false); });
+    return () => { cancelled = true; };
   }, [activeTab, viewer.role, retryReports]);
 
   async function changeQuestionPage(direction: "previous" | "next") {
@@ -479,6 +495,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       const page = await actions.listReports(cursor);
       if (version !== reportVersion.current) return;
       if (direction === "next") reportPageCursors.current = [...reportPageCursors.current.slice(0, index), cursor];
+      reportPageIndexRef.current = index;
       setReports(page.items); setReportCursor(page.nextCursor); setReportPageIndex(index);
     } catch { if (version === reportVersion.current) setReportError(true); }
     finally { if (version === reportVersion.current) setReportBusy(false); }

@@ -2,31 +2,43 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const Module = require("node:module");
-const { before, after, test } = require("node:test");
 const ts = require("typescript");
 const { PGlite } = require("@electric-sql/pglite");
 const { drizzle } = require("drizzle-orm/pglite");
 const { eq } = require("drizzle-orm");
 
+const isBun = typeof Bun !== "undefined";
+const bunTest = isBun ? require("bun:test") : null;
+const nodeTest = isBun ? null : require("node:test");
+const test = (name, optsOrFn, maybeFn) => isBun
+ ? (typeof optsOrFn === "function" ? bunTest.test(name, optsOrFn) : bunTest.test(name, maybeFn, optsOrFn?.timeout))
+ : nodeTest.test(name, optsOrFn, maybeFn);
+const before = (fn, optsOrTimeout = 300000) => isBun
+ ? bunTest.beforeAll(fn, typeof optsOrTimeout === "number" ? optsOrTimeout : (optsOrTimeout?.timeout ?? 300000))
+ : nodeTest.before(fn, typeof optsOrTimeout === "object" ? optsOrTimeout : { timeout: optsOrTimeout });
+const after = fn => isBun ? bunTest.afterAll(fn) : nodeTest.after(fn);
+
 const root = path.resolve(__dirname, "../..");
-require.extensions[".ts"] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, "utf8"), {
- compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-}).outputText, filename);
 const load = Module._load;
 let client, db, service;
 const pushedTokens = [];
-Module._load = function (request, parent, isMain) {
- if (request === "@/db" || request === "@/lib/db") return { db };
- if (request === "server-only") return {};
- if (request === "@/lib/firebase/admin") return { adminMessaging: () => ({ sendEachForMulticast: async ({ tokens }) => { pushedTokens.push(...tokens); return { responses: tokens.map(() => ({ success: true })) }; } }) };
- if (request === "@/lib/auth-secret") return { resolveAuthSecret: () => "discussion-test-secret" };
- if (parent?.filename.endsWith(path.join("lib", "discussions", "service.ts"))) {
-  if (request === "./images") return { attachDiscussionImages: async () => {}, listDiscussionAttachmentsForMessages: async () => new Map() };
-  if (request === "./rewards") return { enqueueDiscussionReward: async () => {} };
-  if (request === "./notifications") return { clearDiscussionNotificationsThroughSeq: async () => {} };
- }
- return load.call(this, request.startsWith("@/") ? path.join(root, request.slice(2)) : request, parent, isMain);
-};
+if (!isBun) {
+ require.extensions[".ts"] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, "utf8"), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+ }).outputText, filename);
+ Module._load = function (request, parent, isMain) {
+  if (request === "@/db" || request === "@/lib/db") return { db };
+  if (request === "server-only") return {};
+  if (request === "@/lib/firebase/admin") return { adminMessaging: () => ({ sendEachForMulticast: async ({ tokens }) => { pushedTokens.push(...tokens); return { responses: tokens.map(() => ({ success: true })) }; } }) };
+  if (request === "@/lib/auth-secret") return { resolveAuthSecret: () => "discussion-test-secret" };
+  if (parent?.filename.endsWith(path.join("lib", "discussions", "service.ts"))) {
+   if (request === "./images") return { attachDiscussionImages: async () => {}, listDiscussionAttachmentsForMessages: async () => new Map() };
+   if (request === "./rewards") return { enqueueDiscussionReward: async () => {} };
+   if (request === "./notifications") return { clearDiscussionNotificationsThroughSeq: async () => {} };
+  }
+  return load.call(this, request.startsWith("@/") ? path.join(root, request.slice(2)) : request, parent, isMain);
+ };
+}
 const schema = require("../../db/schema.ts");
 const originalPka = process.env.FEATURE_PKA;
 const nodes = plan => [plan, ...(plan.Plans ?? []).flatMap(nodes)];
@@ -38,6 +50,16 @@ const participantVisits = plan => nodes(plan).filter(node => node["Relation Name
 before(async () => {
  client = await PGlite.create();
  db = drizzle(client, { schema });
+ if (isBun) {
+  bunTest.mock.module("server-only", () => ({}));
+  bunTest.mock.module("@/db", () => ({ db }));
+  bunTest.mock.module("@/lib/db", () => ({ db }));
+  bunTest.mock.module("@/lib/firebase/admin", () => ({ adminMessaging: () => ({ sendEachForMulticast: async ({ tokens }) => { pushedTokens.push(...tokens); return { responses: tokens.map(() => ({ success: true })) }; } }) }));
+  bunTest.mock.module("@/lib/auth-secret", () => ({ resolveAuthSecret: () => "discussion-test-secret" }));
+  bunTest.mock.module("@/lib/discussions/images", () => ({ attachDiscussionImages: async () => {}, listDiscussionAttachmentsForMessages: async () => new Map() }));
+  bunTest.mock.module("@/lib/discussions/rewards", () => ({ enqueueDiscussionReward: async () => {} }));
+  bunTest.mock.module("@/lib/discussions/notifications", () => ({ clearDiscussionNotificationsThroughSeq: async () => {} }));
+ }
  service = require("../../lib/discussions/service.ts");
  for (const file of fs.readdirSync(path.join(root, "drizzle-postgres")).filter(file => file.endsWith(".sql")).sort())
   await client.exec(fs.readFileSync(path.join(root, "drizzle-postgres", file), "utf8"));

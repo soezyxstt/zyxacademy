@@ -2,27 +2,39 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const Module = require("node:module");
-const { before, after, test } = require("node:test");
 const ts = require("typescript");
 const { PGlite } = require("@electric-sql/pglite");
 const { drizzle } = require("drizzle-orm/pglite");
 const { eq } = require("drizzle-orm");
 
+const isBun = typeof Bun !== "undefined";
+const bunTest = isBun ? require("bun:test") : null;
+const nodeTest = isBun ? null : require("node:test");
+const test = (name, optsOrFn, maybeFn) => isBun
+ ? (typeof optsOrFn === "function" ? bunTest.test(name, optsOrFn) : bunTest.test(name, maybeFn, optsOrFn?.timeout))
+ : nodeTest.test(name, optsOrFn, maybeFn);
+const before = (fn, optsOrTimeout = 300000) => isBun
+ ? bunTest.beforeAll(fn, typeof optsOrTimeout === "number" ? optsOrTimeout : (optsOrTimeout?.timeout ?? 300000))
+ : nodeTest.before(fn, typeof optsOrTimeout === "object" ? optsOrTimeout : { timeout: optsOrTimeout });
+const after = fn => isBun ? bunTest.afterAll(fn) : nodeTest.after(fn);
+
 const root = path.resolve(__dirname, "../..");
-require.extensions[".ts"] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, "utf8"), {
- compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-}).outputText, filename);
 const load = Module._load;
 let client, db, service;
 const storage = new Proxy({}, { get() { throw new Error("Unexpected external storage access"); } });
-Module._load = function (request, parent, isMain) {
- if (request === "@/db" || request === "@/lib/db") return { db };
- if (request === "server-only") return {};
- if (request === "@/lib/auth-secret") return { resolveAuthSecret: () => "discussion-test-secret" };
- if (request === "@/lib/auth-session") return { getAuthSession: async () => null };
- if (request === "@/lib/storage") return { storage, STORAGE_PROVIDER_MODE: "neon" };
- return load.call(this, request.startsWith("@/") ? path.join(root, request.slice(2)) : request, parent, isMain);
-};
+if (!isBun) {
+ require.extensions[".ts"] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, "utf8"), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+ }).outputText, filename);
+ Module._load = function (request, parent, isMain) {
+  if (request === "@/db" || request === "@/lib/db") return { db };
+  if (request === "server-only") return {};
+  if (request === "@/lib/auth-secret") return { resolveAuthSecret: () => "discussion-test-secret" };
+  if (request === "@/lib/auth-session") return { getAuthSession: async () => null };
+  if (request === "@/lib/storage") return { storage, STORAGE_PROVIDER_MODE: "neon" };
+  return load.call(this, request.startsWith("@/") ? path.join(root, request.slice(2)) : request, parent, isMain);
+ };
+}
 const schema = require("../../db/schema.ts");
 const extras = require("../../db/schedule-extras.ts");
 const { parsePostgresNumber } = require("../../lib/db/postgres-result.ts");
@@ -37,6 +49,14 @@ before(async () => {
   await client.exec(fs.readFileSync(path.join(directory, file), "utf8"));
  }
  db = drizzle(client, { schema: { ...schema, ...extras } });
+ if (isBun) {
+  bunTest.mock.module("server-only", () => ({}));
+  bunTest.mock.module("@/db", () => ({ db }));
+  bunTest.mock.module("@/lib/db", () => ({ db }));
+  bunTest.mock.module("@/lib/auth-secret", () => ({ resolveAuthSecret: () => "discussion-test-secret" }));
+  bunTest.mock.module("@/lib/auth-session", () => ({ getAuthSession: async () => null }));
+  bunTest.mock.module("@/lib/storage", () => ({ storage, STORAGE_PROVIDER_MODE: "neon" }));
+ }
  service = require("../../lib/discussions/service.ts");
  await db.insert(schema.peran).values({ id: "role-student", code: "murid" });
  for (const id of ["owner", "participant"]) {
@@ -48,7 +68,7 @@ before(async () => {
 });
 
 after(async () => {
- try { if (client) await client.close(); } finally { Module._load = load; }
+ try { if (client) await client.close(); } finally { if (!isBun) Module._load = load; }
 });
 
 const submit = (requestId, body) => ({ body, attachmentIds: [], mentionIds: [], askZyra: false, requestId });

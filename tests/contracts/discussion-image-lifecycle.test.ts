@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import sharp from "sharp";
-import * as imagePolicy from "@/lib/discussions/image-policy";
+import * as imageSanitizer from "@/lib/discussions/image-sanitizer";
 
 type Row = Record<string, any>;
 let rows: Row[] = [];
@@ -18,10 +18,10 @@ let rateAttempts = 0;
 const table = new Proxy({}, { get: (_, key) => key });
 const eq = (field: string, value: unknown) => (row: Row) => row[field] === value;
 const and = (...conditions: Array<(row: Row) => boolean>) => (row: Row) => conditions.every((condition) => condition(row));
-const realImagePolicy = { ...imagePolicy };
-mock.module("@/lib/discussions/image-policy", () => ({ ...realImagePolicy, makeDiscussionImagePreview: async (input: Uint8Array) => {
+const realImageSanitizer = { ...imageSanitizer };
+mock.module("@/lib/discussions/image-sanitizer", () => ({ ...realImageSanitizer, makeDiscussionImagePreview: async (input: Uint8Array) => {
   if (previewGenerationFails) throw new Error("preview generation failed");
-  return realImagePolicy.makeDiscussionImagePreview(input);
+  return realImageSanitizer.makeDiscussionImagePreview(input);
 } }));
 
 mock.module("drizzle-orm", () => ({
@@ -95,7 +95,8 @@ mock.module("@/lib/storage", () => ({
   },
 }));
 
-const { uploadDiscussionImage, sweepDiscussionImages } = await import("@/lib/discussions/images");
+const { uploadDiscussionImage } = await import("@/lib/discussions/image-upload");
+const { sweepDiscussionImages } = await import("@/lib/discussions/images");
 
 beforeEach(() => { rows = []; uploadFails = false; previewUploadFails = false; previewGenerationFails = false; deleteFails = false; previewDeleteFails = false; originalDeleteFails = false; readyUpdateFails = false; deleteCalls = 0; deletedKeys = []; objects = new Map(); rateAttempts = 0; });
 

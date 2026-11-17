@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { DiscussionSendFailure } from "@/lib/discussions/contracts";
+import type { DiscussionSendError, DiscussionSendFailure } from "@/lib/discussions/contracts";
 
 export type DiscussionRole = "student" | "tutor" | "admin" | "zyra";
 export type DiscussionPrivateKind = "academic" | "bug" | "feature" | "operations";

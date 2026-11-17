@@ -23,7 +23,7 @@ function resultFor(table: unknown): Row[] {
   return [];
 }
 
-const db = {
+const db: any = {
   select() {
     let table: unknown;
     let locked = false;

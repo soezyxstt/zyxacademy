@@ -16,7 +16,7 @@ const dialect = new PgDialect();
 function harness(count: number, tokenFor: (index: number) => boolean = () => true) {
  const ids = Array.from({ length: count }, (_, i) => `member-${String(i).padStart(3, "0")}`);
  const tokenRows = ids.flatMap((userId, i) => tokenFor(i) ? [{ userId, token: `token-${userId}` }] : []);
- const inbox = new Map(ids.map(userId => [userId, { id: `inbox-${userId}`, userId, read: false, metadata: { pushState: "pending" } }]));
+ const inbox = new Map<string, { id: string; userId: string; read: boolean; metadata: { pushState: string; pushContinue?: boolean; pushCursor?: string }; attempted?: number; succeeded?: number; failedCount?: number; sentAt?: Date | null }>(ids.map(userId => [userId, { id: `inbox-${userId}`, userId, read: false, metadata: { pushState: "pending" } }]));
  const denied = new Set<string>(), muted = new Set<string>();
  const providerCalls: string[] = [];
  const persisted: Row[] = [];
@@ -59,7 +59,7 @@ function harness(count: number, tokenFor: (index: number) => boolean = () => tru
    if (!row) throw new Error("unknown inbox row");
    Object.assign(row, { attempted: (row.attempted ?? 0) + Number(params[i + 1]), succeeded: (row.succeeded ?? 0) + Number(params[i + 2]), failedCount: (row.failedCount ?? 0) + Number(params[i + 3]), sentAt: params[i + 4] ?? row.sentAt ?? null });
    row.metadata.pushContinue = params[i + 6] !== null;
-   if (params[i + 6]) row.metadata.pushCursor = params[i + 6];
+   if (params[i + 6]) row.metadata.pushCursor = String(params[i + 6]);
    else if (params[i + 5]) row.metadata.pushState = "done";
   }
  };

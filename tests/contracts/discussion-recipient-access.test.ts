@@ -43,7 +43,7 @@ test("bounded recipient access matches current single-user channel authorization
   { id: "pka", kind: "course", title: "PKA", courseId: "pka-canonical", legacyCourseId: "tutorial-pka" },
  ]);
  async function compare(channel: string) {
-  const expected = (await Promise.all(users.map(async id => await canAccessDiscussionChannel(id, channel) ? id : null))).filter(Boolean).sort();
+  const expected = (await Promise.all(users.map(async id => await canAccessDiscussionChannel(id, channel) ? id : null))).filter((id): id is string => Boolean(id)).sort();
   const actual = [...(await getDiscussionRecipientAccess(channel, users)).keys()].sort();
   expect(actual).toEqual(expected);
  }

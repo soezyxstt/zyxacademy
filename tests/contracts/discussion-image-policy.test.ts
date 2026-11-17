@@ -1,7 +1,9 @@
 import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "bun:test";
 import sharp from "sharp";
-import { DISCUSSION_IMAGE_MAX_BYTES, DISCUSSION_IMAGE_PREVIEW_MAX_BYTES, DISCUSSION_IMAGE_PREVIEW_MAX_EDGE, makeDiscussionImagePreview, parseDiscussionImageUpload, requireDiscussionPrivateStorage, sanitizeDiscussionImage } from "@/lib/discussions/image-policy";
+import { DISCUSSION_IMAGE_MAX_BYTES, DISCUSSION_IMAGE_PREVIEW_MAX_BYTES, DISCUSSION_IMAGE_PREVIEW_MAX_EDGE, parseDiscussionImageUpload, requireDiscussionPrivateStorage } from "@/lib/discussions/image-policy";
+import { makeDiscussionImagePreview, sanitizeDiscussionImage } from "@/lib/discussions/image-sanitizer";
 import { buildDiscussionImageKey, isPrivateAttachmentKey } from "@/lib/storage/keys";
 
 function pngChunk(name: string, data: Buffer): Buffer {
@@ -128,5 +130,20 @@ describe("private prefixes and upload body", () => {
     await expect(parseDiscussionImageUpload(cross)).rejects.toBeDefined();
     const forged = new Request("https://example.com/api/discussions/attachments", { method: "POST", headers: { origin: "https://example.com", "content-length": "1", "content-type": "multipart/form-data; boundary=x" }, body: Buffer.alloc(DISCUSSION_IMAGE_MAX_BYTES + 64 * 1024 + 1) });
     await expect(parseDiscussionImageUpload(forged)).rejects.toMatchObject({ code: "size" });
+  });
+
+  test("keeps non-upload discussion modules free of sharp and the upload sanitizer", () => {
+    for (const file of [
+      "lib/discussions/image-policy.ts",
+      "lib/discussions/images.ts",
+      "lib/discussions/service.ts",
+      "lib/discussions/actions.ts",
+      "app/api/discussions/attachments/[id]/route.ts",
+    ]) {
+      const source = readFileSync(file, "utf8");
+      expect(source).not.toMatch(/["']sharp["']/);
+      expect(source).not.toContain("image-sanitizer");
+      expect(source).not.toContain("image-upload");
+    }
   });
 });

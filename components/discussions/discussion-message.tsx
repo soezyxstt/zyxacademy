@@ -18,7 +18,20 @@ import { canSuggestForwardChannel, channelOptionIndex, discussionMessageHref } f
 import { DiscussionMarkdown } from "./discussion-markdown";
 import type { DiscussionChannel, DiscussionForwardDraft, DiscussionForwardTarget, DiscussionMessage as Message, DiscussionPerson, DiscussionWorkspaceProps } from "./view-model";
 
-export function discussionChannelName(channel: DiscussionChannel, t: ReturnType<typeof useTranslations>) {
+export type DiscussionChannelTranslator = (
+  key:
+    | "channelGlobal"
+    | "channelAcademicTeam"
+    | "channelTechnicalTeam"
+    | "channelAcademicHelp"
+    | "channelBug"
+    | "channelFeature"
+    | "channelOperations"
+    | "channelCourseUnavailable"
+    | "role_unknown"
+) => string;
+
+export function discussionChannelName(channel: DiscussionChannel, t: DiscussionChannelTranslator) {
   if (channel.kind === "global") return t("channelGlobal");
   if (channel.kind === "course") return channel.name;
   switch (channel.name) {
@@ -31,7 +44,7 @@ export function discussionChannelName(channel: DiscussionChannel, t: ReturnType<
     default: return channel.name;
   }
 }
-export function discussionChannelLabel(channel: DiscussionChannel, t: ReturnType<typeof useTranslations>) {
+export function discussionChannelLabel(channel: DiscussionChannel, t: DiscussionChannelTranslator) {
   const name = discussionChannelName(channel, t);
   if (channel.kind !== "private") return name;
   const audience = channel.courseId ? channel.courseTitle || t("channelCourseUnavailable") : t("channelGlobal");
@@ -61,27 +74,37 @@ export function DiscussionChannelPicker({ value, label, placeholder, onChange, o
   const [page, setPage] = useState<{ items: DiscussionChannel[]; nextCursor: Record<string, string | null> | null }>({ items: [], nextCursor: null });
   const optionsRef = useRef<HTMLDivElement>(null);
   const searchChannels = useRef(onSearch);
-  searchChannels.current = onSearch;
+  const sourceRef = useRef(source);
+  const tRef = useRef(t);
+  useEffect(() => {
+    searchChannels.current = onSearch;
+    sourceRef.current = source;
+    tRef.current = t;
+  }, [onSearch, source, t]);
   useEffect(() => { setCursors([{}]); setIndex(0); }, [locale]);
   useEffect(() => {
     if (!open) return;
-    if (source?.kind === "private") { setPage({ items: discussionChannelLabel(source, t).toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()) ? [source] : [], nextCursor: null }); setState("ready"); return; }
+    const activeSource = sourceRef.current;
+    const translate = tRef.current;
+    if (activeSource?.kind === "private") { setPage({ items: discussionChannelLabel(activeSource, translate).toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()) ? [activeSource] : [], nextCursor: null }); setState("ready"); return; }
     let cancelled = false;
     setPage({ items: [], nextCursor: null });
     setState("loading");
     const timer = setTimeout(() => {
+      const currentSource = sourceRef.current;
+      const currentT = tRef.current;
       const query = search.trim();
       const cursor = cursors[index];
-      const input = { search: query, courseId: source?.kind === "course" ? source.courseId ?? undefined : undefined, kind: source?.kind === "course" ? "course" as const : undefined, kinds: source?.kind === "global" ? ["global", "course"] as ("global" | "course")[] : undefined };
+      const input = { search: query, courseId: currentSource?.kind === "course" ? currentSource.courseId ?? undefined : undefined, kind: currentSource?.kind === "course" ? "course" as const : undefined, kinds: currentSource?.kind === "global" ? ["global", "course"] as ("global" | "course")[] : undefined };
       const aliases = [["channelGlobal", "Umum"], ["channelAcademicTeam", "akademik"], ["channelAcademicHelp", "akademik"], ["channelTechnicalTeam", "teknis"], ["channelBug", "kendala"], ["channelFeature", "fitur"], ["channelOperations", "operasional"]] as const;
-      const matches = locale === "en" && query.length >= 2 && source?.kind !== "course"
-        ? new Set(aliases.filter(([key]) => t(key).toLocaleLowerCase().includes(query.toLocaleLowerCase())).map(([, value]) => value)) : new Set<string>();
+      const matches = locale === "en" && query.length >= 2 && currentSource?.kind !== "course"
+        ? new Set(aliases.filter(([key]) => currentT(key).toLocaleLowerCase().includes(query.toLocaleLowerCase())).map(([, value]) => value)) : new Set<string>();
       const streams = [["raw", query], ...[...matches].filter((value) => value.toLocaleLowerCase() !== query.toLocaleLowerCase()).map((value) => [`alias:${value}`, value])] as [string, string][];
       void Promise.all(streams.map(([key, value]) => cursor[key] === null ? null : searchChannels.current({ ...input, search: value, cursor: cursor[key] ?? undefined }))).then((results) => {
         if (cancelled) return;
         const items = [...new Map(results.flatMap((result, stream) => (result?.items ?? []).filter((item) =>
-          (stream === 0 || item.kind !== "course" && discussionChannelName(item, t).toLocaleLowerCase().includes(query.toLocaleLowerCase())) &&
-          (!source || canSuggestForwardChannel(source, item)))).map((item) => [item.id, item] as const)).values()];
+          (stream === 0 || item.kind !== "course" && discussionChannelName(item, currentT).toLocaleLowerCase().includes(query.toLocaleLowerCase())) &&
+          (!currentSource || canSuggestForwardChannel(currentSource, item)))).map((item) => [item.id, item] as const)).values()];
         const nextCursor = results.some((result) => result?.nextCursor) ? Object.fromEntries(streams.map(([key], stream) => [key, results[stream]?.nextCursor ?? null])) : null;
         setPage({ items, nextCursor }); setState("ready");
       }).catch(() => { if (!cancelled) setState("error"); });
@@ -163,11 +186,11 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
   const [targetState, setTargetState] = useState<"loading" | "ready" | "error">("ready");
   const [targetRetry, setTargetRetry] = useState(0);
   const searchForwardTargets = useRef(onSearchForwardTargets);
-  searchForwardTargets.current = onSearchForwardTargets;
+  useEffect(() => { searchForwardTargets.current = onSearchForwardTargets; }, [onSearchForwardTargets]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<"" | "actionError" | "editExpired" | "emptyMessage" | "sendError_unknown">("");
   const forwardLocked = !!forwardDraft && forwardDraft.status !== "ready";
-  const [retry, setRetry] = useState<(() => Promise<void>) | null>(null);
+  const [retry, setRetry] = useState<(() => Promise<void | false>) | null>(null);
   const forwardInFlight = useRef(false);
   const gesture = useRef<{ pointerId: number; x: number; y: number; moved: boolean; vertical: boolean; longPressed: boolean; timer: ReturnType<typeof setTimeout> } | null>(null);
   const canDelete = message.canDelete && (viewer.role === "admin" || viewer.id === message.author.id);

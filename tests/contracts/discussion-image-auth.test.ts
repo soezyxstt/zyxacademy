@@ -19,6 +19,7 @@ const predicate = (field: string | symbol, expected: unknown) => (item: Row) => 
 mock.module("drizzle-orm", () => ({
   eq: predicate,
   and: (...conditions: Array<(item: Row) => boolean>) => (item: Row) => conditions.every((condition) => condition(item)),
+  or: (...conditions: Array<(item: Row) => boolean>) => (item: Row) => conditions.some((condition) => condition(item)),
   inArray: (field: string, values: unknown[]) => (item: Row) => values.includes(item[field]),
   isNull: (field: string) => (item: Row) => item[field] === null,
   gt: (field: string, value: Date) => (item: Row) => item[field] > value,

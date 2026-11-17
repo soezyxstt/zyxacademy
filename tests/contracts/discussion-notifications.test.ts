@@ -43,8 +43,8 @@ const discussionMessageObservations = pgTable("discussion_message_observations",
 }, t => [primaryKey({ columns: [t.messageId, t.userId] })]);
 const notifications = pgTable("notifications", {
  id: text("id").primaryKey(), userId: text("user_id").notNull(), title: text("title").notNull(), body: text("body").notNull(),
- type: text("type").notNull(), read: boolean("read").notNull(), metadata: jsonb("metadata").notNull(),
- attempted: integer("attempted").notNull(), succeeded: integer("succeeded").notNull(), failedCount: integer("failed_count").notNull(),
+ type: text("type").notNull(), read: boolean("read").notNull(), metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull(),
+ attempted: integer("attempted").default(0).notNull(), succeeded: integer("succeeded").default(0).notNull(), failedCount: integer("failed_count").default(0).notNull(),
  sentAt: timestamp("sent_at", { withTimezone: true }), createdAt: time("created_at"),
 });
 

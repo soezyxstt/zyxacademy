@@ -10,7 +10,6 @@ import { getDiscussionRecipientAccess } from "@/lib/discussions/recipient-access
 import { validDiscussionId } from "@/lib/discussions/policy";
 import { DEFAULT_LOCALE, normalizeLocale } from "@/lib/i18n/locale";
 import { discussionPayload, renderNotificationPayload } from "@/lib/notifications/templates";
-import type { SendResult } from "@/lib/notifications/types";
 import type { PushPageResult } from "@/lib/notifications/send";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];

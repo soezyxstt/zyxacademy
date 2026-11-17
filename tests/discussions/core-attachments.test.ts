@@ -54,7 +54,7 @@ test("attachment metadata is batched and excludes inaccessible or revoked messag
  const ids = Array.from({ length: 30 }, (_, index) => `message-${index}`);
  const originalQuery = client.query;
  let queries = 0;
- client.query = function (...args: Parameters<typeof client.query>) { queries++; return originalQuery.apply(this, args); } as typeof client.query;
+ client.query = function (this: unknown, ...args: Parameters<typeof client.query>) { queries++; return originalQuery.apply(this, args); } as typeof client.query;
  try {
   const result = await images.listDiscussionAttachmentsForMessages("alice", [...ids, "secret"]);
   expect(result.size).toBe(30);
@@ -74,7 +74,7 @@ test("repeated forwards reuse authorized source and attachment reads", async () 
  expect(first.messages.nextCursor).toBeTruthy();
  const originalQuery = client.query;
  let queries = 0;
- client.query = function (...args: Parameters<typeof client.query>) { queries++; return originalQuery.apply(this, args); } as typeof client.query;
+ client.query = function (this: unknown, ...args: Parameters<typeof client.query>) { queries++; return originalQuery.apply(this, args); } as typeof client.query;
  try {
   const page = await service.getThread("alice", "thread-a", first.messages.nextCursor!);
   expect(page.messages.items).toHaveLength(30);

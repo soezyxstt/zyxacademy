@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ChangeEvent, type ComponentType, type ReactNode } from "react";
+import Image from "next/image";
 import { useTranslations } from "@/lib/i18n/client";
 import { AlertCircle, AtSign, Bold, Check, CircleHelp, Code2, ImageOff, ImagePlus, Italic, Link2, List, Loader2, MoreHorizontal, RotateCcw, Send, Sigma, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -180,13 +181,14 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
   const inFlight = useRef(new Set<string>());
   const uploadsInFlight = useRef(new Set<string>());
   const [fileError, setFileError] = useState<"" | "maxImages" | "fileRequirements">("");
+  const [failedPreviewIds, setFailedPreviewIds] = useState<Record<string, boolean>>({});
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionSearch, setMentionSearch] = useState("");
   const [mentionRetry, setMentionRetry] = useState(0);
   const [mentionPage, setMentionPage] = useState(0);
   const [mentionResult, setMentionResult] = useState<{ key: string; status: "loading" | "ready" | "error"; items: DiscussionMention[] }>({ key: "", status: "ready", items: [] });
   const searchMentions = useRef(onSearchMentions);
-  searchMentions.current = onSearchMentions;
+  useEffect(() => { searchMentions.current = onSearchMentions; }, [onSearchMentions]);
   const mentionKey = JSON.stringify([channelId, questionId, mentionSearch.trim()]);
   useEffect(() => {
     const query = mentionSearch.trim();
@@ -283,7 +285,7 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
     {beforeContent}
     {draft.replyTo && <div data-discussion-reply-target className="flex min-w-0 items-center gap-2 rounded-md border-l-2 border-primary bg-muted/50 px-2 py-1 text-body-xs"><div className="flex min-w-0 flex-1 items-center gap-1.5"><span className="min-w-0 shrink break-words font-semibold">{t("replyingTo", { name: draft.replyTo.authorName })}</span><div className="line-clamp-1 min-w-0 flex-1 break-words text-muted-foreground [&_div]:text-body-xs [&_p]:text-body-xs"><DiscussionMarkdown content={draft.replyTo.imageOnly ? t("image") : draft.replyTo.excerpt.slice(0, 600)} /></div></div><Button type="button" variant="ghost" size="icon-sm" aria-label={t("cancelReply")} disabled={editingDisabled} onClick={() => update((current) => setComposerReplyTarget(current))}><X /></Button></div>}
     {draft.images.length > 0 && <div data-discussion-images className="flex gap-2 overflow-x-auto py-1">{draft.images.map(image => <div key={image.id} className="relative size-16 shrink-0 rounded-md border border-border bg-muted">
-      <img src={image.previewUrl} alt={t("imagePreview", { name: image.file.name })} className="size-full rounded-md object-cover" onError={(event) => { event.currentTarget.style.display = "none"; const fallback = event.currentTarget.nextElementSibling as HTMLElement | null; if (fallback) fallback.style.display = "flex"; }} /><span style={{ display: "none" }} role="status" aria-label={t("imageDisplayError")} className="absolute inset-0 items-center justify-center text-muted-foreground"><ImageOff className="size-4" /></span>
+      {failedPreviewIds[image.id] ? <span role="status" aria-label={t("imageDisplayError")} className="flex size-full items-center justify-center text-muted-foreground"><ImageOff className="size-4" /></span> : <Image src={image.previewUrl} alt={t("imagePreview", { name: image.file.name })} fill sizes="64px" unoptimized className="rounded-md object-cover" onError={() => setFailedPreviewIds((current) => ({ ...current, [image.id]: true }))} />}
       <span role="status" aria-label={`${image.file.name}: ${t(image.status === "error" ? "uploadFailed" : image.status === "uploading" ? "uploading" : "ready")}`} className="absolute bottom-0 left-0 rounded-md bg-background p-1">{image.status === "error" ? <AlertCircle className="size-4 text-destructive" /> : image.status === "uploading" ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : <Check className="size-4" />}</span>
       <Tooltip><TooltipTrigger asChild><Button type="button" variant="secondary" size="icon-sm" className="absolute right-0 top-0" aria-label={t("removeFile", { name: image.file.name })} disabled={editingDisabled} onClick={() => removeImage(image)}><X /></Button></TooltipTrigger><TooltipContent>{t("removeFile", { name: image.file.name })}</TooltipContent></Tooltip>
     </div>)}</div>}

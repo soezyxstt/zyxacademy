@@ -95,7 +95,7 @@ beforeEach(() => {
   spyOn(geminiKeyPool, "getBestKey").mockReturnValue(key);
   spyOn(geminiKeyPool, "markSuccess").mockImplementation(() => {});
   spyOn(geminiKeyPool, "markFailure").mockImplementation(() => {});
-  spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+  spyOn(globalThis, "fetch").mockImplementation((async (_url: URL | RequestInfo, init?: RequestInit | BunFetchRequestInit) => {
     state.providerCalls++;
     state.requests.push(init ?? {});
     state.providerStarted?.();
@@ -106,7 +106,7 @@ beforeEach(() => {
     }
     const text = state.provider === "malformed" ? "not json" : '{"answer":"ok"}';
     return new Response(JSON.stringify({ candidates: [{ content: { role: "model", parts: [{ text }] }, finishReason: "STOP" }] }), { status: 200, headers: { "content-type": "application/json" } });
-  });
+  }) as unknown as typeof fetch);
 });
 afterEach(() => mock.restore());
 afterAll(() => { for (const key of envKeys) { if (originalEnv[key] === undefined) delete process.env[key]; else process.env[key] = originalEnv[key]; } });
@@ -515,10 +515,10 @@ describe("single dispatch through the real executor, Gemini adapter and lifecycl
 
   for (const status of [400, 422]) it(`settles ordinary terminal legacy HTTP ${status} without fallback`, async () => {
     state.models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
-    spyOn(globalThis, "fetch").mockImplementation(async () => {
+    spyOn(globalThis, "fetch").mockImplementation((async () => {
       state.providerCalls++;
       return new Response(JSON.stringify({ error: { code: status, message: "rejected", status: "INVALID_ARGUMENT" } }), { status, headers: { "content-type": "application/json" } });
-    });
+    }) as unknown as typeof fetch);
     const id = `legacy-terminal-${status}`;
     expect((await run(id, false)).outcome).toBe("provider_failure");
     expect(state.providerCalls).toBe(1);

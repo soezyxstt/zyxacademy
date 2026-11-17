@@ -2,28 +2,36 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const Module = require("node:module");
-const { test } = require("node:test");
 const ts = require("typescript");
 const { PGlite } = require("@electric-sql/pglite");
 const { drizzle } = require("drizzle-orm/pglite");
 
+const isBun = typeof Bun !== "undefined";
+const bunTest = isBun ? require("bun:test") : null;
+const nodeTest = isBun ? null : require("node:test");
+const test = (name, optsOrFn, maybeFn) => isBun
+ ? (typeof optsOrFn === "function" ? bunTest.test(name, optsOrFn) : bunTest.test(name, maybeFn, optsOrFn?.timeout))
+ : nodeTest.test(name, optsOrFn, maybeFn);
+
 const root = path.resolve(__dirname, "../..");
-require.extensions[".ts"] = (module, filename) => {
- const source = fs.readFileSync(filename, "utf8");
- module._compile(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, filename);
-};
 const load = Module._load;
 let db;
-Module._load = function (request, parent, isMain) {
- if (request === "@/db" || request === "@/lib/db") return { db };
- if (request === "server-only") return {};
- if (parent?.filename.endsWith(path.join("lib", "discussions", "service.ts"))) {
-  if (request === "./images") return { attachDiscussionImages: async () => {}, listDiscussionAttachmentsForMessages: async () => new Map() };
-  if (request === "./rewards") return { enqueueDiscussionReward: async () => {} };
-  if (request === "./notifications") return {};
- }
- return load.call(this, request.startsWith("@/") ? path.join(root, request.slice(2)) : request, parent, isMain);
-};
+if (!isBun) {
+ require.extensions[".ts"] = (module, filename) => {
+  const source = fs.readFileSync(filename, "utf8");
+  module._compile(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, filename);
+ };
+ Module._load = function (request, parent, isMain) {
+  if (request === "@/db" || request === "@/lib/db") return { db };
+  if (request === "server-only") return {};
+  if (parent?.filename.endsWith(path.join("lib", "discussions", "service.ts"))) {
+   if (request === "./images") return { attachDiscussionImages: async () => {}, listDiscussionAttachmentsForMessages: async () => new Map() };
+   if (request === "./rewards") return { enqueueDiscussionReward: async () => {} };
+   if (request === "./notifications") return { clearDiscussionNotificationsThroughSeq: async () => {} };
+  }
+  return load.call(this, request.startsWith("@/") ? path.join(root, request.slice(2)) : request, parent, isMain);
+ };
+}
 const schema = require("../../db/schema.ts");
 
 function nodes(plan) {
@@ -33,6 +41,14 @@ function nodes(plan) {
 test("PostgreSQL channel pagination and scoped unread aggregates", { timeout: 300000 }, async () => {
  const client = await PGlite.create();
  db = drizzle(client, { schema });
+ if (isBun) {
+  bunTest.mock.module("server-only", () => ({}));
+  bunTest.mock.module("@/db", () => ({ db }));
+  bunTest.mock.module("@/lib/db", () => ({ db }));
+  bunTest.mock.module("@/lib/discussions/images", () => ({ attachDiscussionImages: async () => {}, listDiscussionAttachmentsForMessages: async () => new Map() }));
+  bunTest.mock.module("@/lib/discussions/rewards", () => ({ enqueueDiscussionReward: async () => {} }));
+  bunTest.mock.module("@/lib/discussions/notifications", () => ({ clearDiscussionNotificationsThroughSeq: async () => {} }));
+ }
  const service = require("../../lib/discussions/service.ts");
  try {
   for (const file of fs.readdirSync(path.join(root, "drizzle-postgres")).filter(file => file.endsWith(".sql")).sort())

@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { uploadDiscussionImage } from "@/lib/discussions/images";
+import { uploadDiscussionImage } from "@/lib/discussions/image-upload";
 import { DiscussionImageError, parseDiscussionImageUpload } from "@/lib/discussions/image-policy";
 
 export const runtime = "nodejs";

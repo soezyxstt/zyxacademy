@@ -4,12 +4,14 @@ import { safeDiscussionLink } from "@/lib/discussions/markdown-policy";
 
 function MathValue({ value, display = false }: { value: string; display?: boolean }) {
   if (value.length > 1000) return <code>{value}</code>;
+  let html: string | null = null;
   try {
-    const html = renderKatexToString(value, { displayMode: display, throwOnError: false, trust: false, strict: "ignore", maxExpand: 100, maxSize: 20 });
-    return <span className="inline-block max-w-full overflow-x-auto align-middle" dangerouslySetInnerHTML={{ __html: html }} />;
+    html = renderKatexToString(value, { displayMode: display, throwOnError: false, trust: false, strict: "ignore", maxExpand: 100, maxSize: 20 });
   } catch {
-    return <code>{value}</code>;
+    html = null;
   }
+  if (html === null) return <code>{value}</code>;
+  return <span className="inline-block max-w-full overflow-x-auto align-middle" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 function inline(text: string, mathBudget: { remaining: number }, depth = 0): ReactNode[] {

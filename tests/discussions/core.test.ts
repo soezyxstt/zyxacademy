@@ -401,7 +401,7 @@ describe("discussion authorization and transactions", () => {
   ]);
   const original = client.query;
   const reads: Array<{ sql: string; rows: number }> = [];
-  client.query = function (...args: Parameters<typeof client.query>) {
+  client.query = function (this: unknown, ...args: Parameters<typeof client.query>) {
    return original.apply(this, args).then(result => {
     reads.push({ sql: String(args[0]), rows: result.rows.length });
     return result;
@@ -544,7 +544,7 @@ describe("discussion authorization and transactions", () => {
 
   const originalQuery = client.query;
   let queries = 0;
-  client.query = function (...args: Parameters<typeof client.query>) { queries++; return originalQuery.apply(this, args); } as typeof client.query;
+  client.query = function (this: unknown, ...args: Parameters<typeof client.query>) { queries++; return originalQuery.apply(this, args); } as typeof client.query;
   try {
    const allowed = await access.getAccessibleDiscussionChannels("tutor");
    expect(allowed.filter(row => row.id.startsWith("channel-staff-")).length).toBe(1000);

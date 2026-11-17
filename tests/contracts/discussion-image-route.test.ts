@@ -11,8 +11,10 @@ let requestedPreview: boolean | undefined;
 const image = { id: "image", name: 'soal".png', mime: "image/png", size: 3, width: 1, height: 1, url: "/api/discussions/attachments/image", downloadUrl: "/api/discussions/attachments/image?download=1" };
 
 mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => signedIn ? { user: { id: "owner" } } : null } } }));
-mock.module("@/lib/discussions/images", () => ({
+mock.module("@/lib/discussions/image-upload", () => ({
   uploadDiscussionImage: async ({ actorId, channelId }: { actorId: string; channelId: string }) => { uploads++; expect(actorId).toBe("owner"); expect(channelId).toBe("channel"); if (uploadFailure) throw uploadFailure; if (rateLimited) throw new Error("DISCUSSION_IMAGE_RATE_LIMIT"); if (pixelLimit) throw new DiscussionImageError("pixels"); return image; },
+}));
+mock.module("@/lib/discussions/images", () => ({
   readDiscussionImage: async (_actorId: string, _id: string, preview: boolean) => { requestedPreview = preview; return readable ? { image, bytes: new Uint8Array([1, 2, 3]) } : null; },
 }));
 

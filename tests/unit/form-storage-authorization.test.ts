@@ -35,7 +35,7 @@ test("form proxy checks public image references or canonical admin before fetchi
     "@/lib/auth/authorization": { hasPeran: async (_id: string, role: string) => { roleChecks++; expect(role).toBe("admin"); return admin; } },
     "@/lib/auth-site-url": { resolveAuthBaseUrl: () => "https://zyx.example" },
     "@/lib/admin/course-identity": {}, "@/lib/student/course-access": {},
-    "@/lib/storage/keys": { isProtectedCourseDiktatPdfKey: () => false, isProtectedProductDiktatPdfKey: () => false, isSafeKey: (key: string) => Boolean(key) && !key.startsWith("/") && !key.includes("\\") && !key.includes(".."), leafFilename: () => "file.png", quizAttachmentPrefix: () => "" },
+    "@/lib/storage/keys": { isPrivateAttachmentKey: (key: string) => key.startsWith("discussions/") || key.startsWith("zyx-attachments/"), isProtectedCourseDiktatPdfKey: () => false, isProtectedProductDiktatPdfKey: () => false, isSafeKey: (key: string) => Boolean(key) && !key.startsWith("/") && !key.includes("\\") && !key.includes(".."), leafFilename: () => "file.png", quizAttachmentPrefix: () => "" },
     "@/lib/storage/r2": { getS3StorageConfig: () => ({ bucket: "mock", client: {} }) },
   };
   const module = { exports: {} as any };

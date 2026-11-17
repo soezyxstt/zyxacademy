@@ -69,7 +69,7 @@ describe("mention search", () => {
   const original = client.query;
   const capturePlan = async () => {
    let statement: { text: string; params: unknown[] } | undefined;
-   client.query = function (...args: Parameters<typeof client.query>) {
+   client.query = function (this: unknown, ...args: Parameters<typeof client.query>) {
     if (/join lateral/i.test(String(args[0])) && /discussion_thread_participants/.test(String(args[0])))
      statement = { text: String(args[0]), params: args[1] as unknown[] };
     return original.apply(this, args);

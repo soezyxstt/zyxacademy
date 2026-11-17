@@ -25,7 +25,7 @@ test("discussion catalogs load, match keys and interpolate values in both locale
   for (const locale of ["id", "en"] as const) {
     const messages = await loadMessages(locale);
     expect(messages.discussions).toEqual(locale === "id" ? id : en);
-    const t = createTranslator({ locale, messages, namespace: "discussions" });
+    const t = createTranslator({ locale, messages: { discussions: locale === "id" ? id : en }, namespace: "discussions" });
     expect(t("unreadQuestions", { count: 2 })).toContain("2");
     expect(t("messageActionsFor", { name: "Nadia", seq: 1, excerpt: "Teks" })).toContain("Nadia");
     expect(t("messageNumber", { name: "Raka", number: 45 })).toContain("45");

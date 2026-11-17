@@ -105,11 +105,11 @@ describe("discussion adapter", () => {
     expect(discussionPrivateQuestionHref("/tutor/math/discussions", "private", "thread")).toBe("/tutor/discussions?channel=private&thread=thread");
   });
   test("searches mentions in the active thread or the newly selected channel", async () => {
-    const searchMentions = mock(async () => [{ id: "user-a", name: "A" }]);
-    const searchChannelMentions = mock(async () => [{ id: "user-b", name: "B", hasNamesake: true, ambiguous: true, context: "Visible context" }]);
+    const searchMentions = mock(async () => [{ id: "user-a", name: "A", role: "student" as const }]);
+    const searchChannelMentions = mock(async () => [{ id: "user-b", name: "B", role: "student" as const, hasNamesake: true, ambiguous: true, context: "Visible context" }]);
     const api = { searchMentions, searchChannelMentions };
-    expect(await searchDiscussionMentions(api, { channelId: "channel-a", questionId: "thread-a", query: "Al" })).toEqual([{ id: "user-a", name: "A", mention: mentionHandle("user-a", "A") }]);
-    expect(await searchDiscussionMentions(api, { channelId: "channel-b", query: "Bo" })).toEqual([{ id: "user-b", name: "B", hasNamesake: true, ambiguous: true, context: "Visible context", mention: mentionHandle("user-b", "B") }]);
+    expect(await searchDiscussionMentions(api, { channelId: "channel-a", questionId: "thread-a", query: "Al" })).toEqual([{ id: "user-a", name: "A", role: "student", mention: mentionHandle("user-a", "A") }]);
+    expect(await searchDiscussionMentions(api, { channelId: "channel-b", query: "Bo" })).toEqual([{ id: "user-b", name: "B", role: "student", hasNamesake: true, ambiguous: true, context: "Visible context", mention: mentionHandle("user-b", "B") }]);
     expect(searchMentions).toHaveBeenCalledWith("thread-a", "Al");
     expect(searchChannelMentions).toHaveBeenCalledWith("channel-b", "Bo");
   });

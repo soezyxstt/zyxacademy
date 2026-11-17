@@ -1,18 +1,19 @@
-import { after, before, beforeEach, mock, test } from 'node:test';
+import { afterAll, beforeAll, beforeEach, mock, test } from 'bun:test';
 import assert from 'node:assert/strict';
 import { PGlite } from '@electric-sql/pglite';
 import { drizzle } from 'drizzle-orm/pglite';
 import { sql } from 'drizzle-orm';
+import * as schema from '@/db/schema';
 
-const client = new PGlite({ parsers: { 20: Number } });
-const fixtureDb = drizzle(client);
-mock.module('@/db', { exports: { db: fixtureDb } });
-mock.module('server-only', { exports: {} });
+const client = await PGlite.create({ parsers: { 20: Number } });
+const fixtureDb = drizzle(client, { schema }) as unknown as typeof import('@/db').db;
+mock.module('@/db', () => ({ db: fixtureDb }));
+mock.module('server-only', () => ({}));
 
 const { enqueueDiscussionReward } = await import('../../lib/discussions/rewards');
 const { processGamificationOutbox } = await import('../../lib/gamification/processor');
 
-before(async () => {
+beforeAll(async () => {
  await client.exec(`
   create table "user" (id text primary key, role text);
   create table pengguna (id text primary key, status text not null);
@@ -48,7 +49,7 @@ beforeEach(async () => {
   gamification_event_outbox, gamification_accounts, gamification_xp_ledger, gamification_lp_ledger,
   gamification_leaderboard_periods, notifications`);
 });
-after(async () => { await client.close(); });
+afterAll(async () => { await client.close(); });
 
 async function actor(id: string, roles: string[] = ['murid'], status = 'active') {
  await client.query('insert into "user" (id, role) values ($1, $2)', [id, 'student']);

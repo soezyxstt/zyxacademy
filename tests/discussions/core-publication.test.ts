@@ -4,8 +4,8 @@ import { PgDialect } from "drizzle-orm/pg-core";
 
 const request: { id: string; requestId: string; kind: string; status: string; requestedById: string; messageId: string; answerMessageId: string | null } =
  { id: "request", requestId: "provider-key", kind: "zyra", status: "processing", requestedById: "author", messageId: "source", answerMessageId: null };
-const source = { id: "source", threadId: "thread", authorId: "author", askZyra: true, deletedAt: null, revision: 1, seq: 2, forwardedFromId: null, skinId: null };
-const previous = { id: "previous", threadId: "thread", authorId: "other", askZyra: false, deletedAt: null, revision: 3, seq: 1, forwardedFromId: null, skinId: null };
+const source = { id: "source", threadId: "thread", authorId: "author", askZyra: true, deletedAt: null, revision: 1, seq: 2, forwardedFromId: null as string | null, skinId: null };
+const previous = { id: "previous", threadId: "thread", authorId: "other", askZyra: false, deletedAt: null, revision: 3, seq: 1, forwardedFromId: null as string | null, skinId: null };
 const thread = { id: "thread", status: "open", nextSeq: 3 };
 let rows = [source, previous], attempts: { id: string }[] = [], attachments: { id: string; messageId: string }[] = [], revoked = false;
 let trace: string[] = [], writes: string[] = [];
@@ -51,7 +51,7 @@ describe("AI publication transaction", () => {
   const result = await publishDiscussionZyraAnswer("request", "Answer", [{ id: "source", revision: 1 }, { id: "previous", revision: 3 }], snapshot);
   expect(result.threadId).toBe("thread");
   expect(trace.indexOf("discussion_threads:update")).toBeLessThan(trace.indexOf("discussion_messages:share"));
-  expect(writes).toEqual(["update:discussion_threads", "insert:discussion_messages", "update:discussion_ai_requests", "insert:discussion_events"]);
+  expect(writes).toEqual(["update:discussion_threads", "insert:discussion_messages", "update:discussion_ai_requests", "insert:discussion_events", "update:discussion_channels"]);
   expect(inserted.discussion_messages.revision).toBe(1);
   expect(inserted.discussion_events.messageRevision).toBe(1);
   expect(inserted.discussion_events.participantThroughSeq).toBe(3);

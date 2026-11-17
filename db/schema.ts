@@ -4410,7 +4410,7 @@ export const notifications = pgTable(
   /** Whether the user has read/dismissed this notification. */
   read: boolean("read").default(false).notNull(),
   /** Arbitrary JSON payload (e.g. quizId, courseId, bookingId). */
-  metadata: jsonb("metadata").$defaultFn(() => ({})).notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().$defaultFn(() => ({})).notNull(),
   /** FCM delivery stats for the push attempt to this user's devices. */
   attempted: bigint("attempted", { mode: "number" }).default(0).notNull(),
   succeeded: bigint("succeeded", { mode: "number" }).default(0).notNull(),

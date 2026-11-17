@@ -20,7 +20,7 @@ mock.module("@/lib/usage-budget-service", () => ({
   },
 }));
 mock.module("@/lib/ai-router", () => ({ providerRouterV2Enabled: () => false }));
-mock.module("@/lib/ai/request-lifecycle", () => ({ RequestLifecycleError: class extends Error {}, ProviderNotDispatchedError: class extends Error {} }));
+mock.module("@/lib/ai/request-lifecycle", () => ({ RequestLifecycleError: class extends Error {}, ProviderNotDispatchedError: class extends Error {}, isConfirmedHttpFailure: () => false }));
 mock.module("@/lib/gemini", () => ({
   generateContentWithFallback: async (input: any) => {
     calls.providers.push(input);

@@ -148,7 +148,7 @@ test("an interrupted private channel preparation can be retried after the same s
   await dialog.getByRole("combobox", { name: "Tujuan pertanyaan" }).click();
   await page.getByRole("option", { name: "Bantuan akademik", exact: true }).click();
   await expect(dialog.getByText("Memuat kanal", { exact: true })).toBeVisible();
-  await page.locator("button").filter({ hasText: "Expire fixture session" }).evaluate(button => button.click());
+  await page.locator("button").filter({ hasText: "Expire fixture session" }).evaluate(button => (button as HTMLElement).click());
   await expect(dialog).toHaveCount(0);
   await page.getByRole("button", { name: "Resume same account" }).click();
   dialog = page.getByRole("dialog", { name: "Pertanyaan baru" });
@@ -585,12 +585,12 @@ test("an uncertain forward survives source remount and temporary session absence
   await page.getByRole("menuitem", { name: "Teruskan", exact: true }).click();
   dialog = page.getByRole("dialog", { name: "Teruskan pesan" });
   await expect(dialog.getByRole("alert")).toContainText("belum diketahui");
-  await page.getByRole("button", { name: "Hide fixture source", includeHidden: true }).evaluate(button => button.click());
+  await page.getByRole("button", { name: "Hide fixture source", includeHidden: true }).evaluate(button => (button as HTMLElement).click());
   await expect(dialog).toHaveCount(0);
   await page.getByRole("button", { name: "Show fixture source" }).click();
   dialog = page.getByRole("dialog", { name: "Teruskan pesan" });
   await expect(dialog.getByRole("alert")).toContainText("belum diketahui");
-  await page.getByRole("button", { name: "Expire fixture session", includeHidden: true }).evaluate(button => button.click());
+  await page.getByRole("button", { name: "Expire fixture session", includeHidden: true }).evaluate(button => (button as HTMLElement).click());
   await expect(dialog).toHaveCount(0);
   await capture(page, info, "forward-session-absent");
   await page.getByRole("button", { name: "Resume same account" }).click();
@@ -614,7 +614,7 @@ test("a legacy forward remains inspectable after the same session returns", asyn
   await expect(dialog.getByRole("alert")).toContainText("belum diketahui");
   await dialog.getByRole("button", { name: "Teruskan", exact: true }).click();
   await expect(dialog.getByRole("link", { name: "Periksa pesan" })).toBeVisible();
-  await page.getByRole("button", { name: "Expire fixture session", includeHidden: true }).evaluate(button => button.click());
+  await page.getByRole("button", { name: "Expire fixture session", includeHidden: true }).evaluate(button => (button as HTMLElement).click());
   await page.getByRole("button", { name: "Resume same account" }).click();
   dialog = page.getByRole("dialog", { name: "Teruskan pesan" });
   await expect(dialog.getByRole("link", { name: "Periksa pesan" })).toHaveAttribute("href", "/discussions?thread=function&message=existing-forward");
@@ -631,7 +631,7 @@ test("a different verified account purges an in-flight forward even when its old
   const dialog = await openFixtureForward(page);
   await dialog.getByRole("button", { name: "Teruskan", exact: true }).click();
   await expect.poll(async () => JSON.parse((await page.locator("main").getAttribute("data-fixture-forward-attempts"))!).length).toBe(1);
-  await page.getByRole("button", { name: "Switch fixture account", includeHidden: true }).evaluate(button => button.click());
+  await page.getByRole("button", { name: "Switch fixture account", includeHidden: true }).evaluate(button => (button as HTMLElement).click());
   await expect(dialog).toHaveCount(0);
   await page.getByRole("button", { name: "Finish fixture forward" }).click();
   await expect(page.locator("main").getByRole("alert")).toContainText("Sesi berubah");

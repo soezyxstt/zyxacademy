@@ -2,15 +2,23 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const Module = require("node:module");
-const { test } = require("node:test");
 const ts = require("typescript");
 const orm = require("drizzle-orm");
 const { drizzle } = require("drizzle-orm/pg-proxy");
 
+const isBun = typeof Bun !== "undefined";
+const bunTest = isBun ? require("bun:test") : null;
+const nodeTest = isBun ? null : require("node:test");
+const test = (name, optsOrFn, maybeFn) => isBun
+ ? (typeof optsOrFn === "function" ? bunTest.test(name, optsOrFn) : bunTest.test(name, maybeFn, optsOrFn?.timeout))
+ : nodeTest.test(name, optsOrFn, maybeFn);
+
 const root = path.resolve(__dirname, "../..");
-require.extensions[".ts"] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, "utf8"), {
- compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-}).outputText, filename);
+if (!isBun) {
+ require.extensions[".ts"] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, "utf8"), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+ }).outputText, filename);
+}
 const schema = require("../../db/schema.ts");
 const channels = [
  { id: "global", kind: "global", courseId: null, legacyCourseId: null, countRevision: 1n },
@@ -61,17 +69,42 @@ const access = {
  },
 };
 const load = Module._load;
-Module._load = function (request, parent, isMain) {
- if (request === "server-only") return {};
- if (request === "@/db") return { db };
- if (parent?.filename.endsWith(path.join("lib", "discussions", "service.ts"))) {
-  if (request === "./access") return access;
-  if (request === "./policy") return { validDiscussionId: id => typeof id === "string" && id.length > 0 };
-  if (request.startsWith("./") && request !== "./count-cache") return {};
-  if (request === "@/lib/auth-secret" || request === "@/lib/pka-config") return {};
- }
- return load.call(this, request.startsWith("@/") ? path.join(root, request.slice(2)) : request, parent, isMain);
-};
+if (isBun) {
+ bunTest.mock.module("server-only", () => ({}));
+ bunTest.mock.module("@/db", () => ({ db }));
+ bunTest.mock.module("@/lib/db", () => ({ db }));
+ bunTest.mock.module("@/lib/auth-secret", () => ({ resolveAuthSecret: () => "" }));
+ bunTest.mock.module("@/lib/pka-config", () => ({ PKA_COURSE_ID: "tutorial-pka" }));
+ bunTest.mock.module("@/lib/discussions/access", () => ({
+  ...access, requireDiscussionChannelAccess: async () => ({}), requireDiscussionCourse: async () => ({}),
+  requireDiscussionMessageAccess: async () => ({}), requireDiscussionThreadAccess: async () => ({}),
+  resolveDiscussionCourses: async () => new Map(), discussionChannelsWithThreads: () => undefined,
+  discussionChannelsWithPendingReports: () => undefined, discussionChannelCandidateScope: () => undefined,
+ }));
+ bunTest.mock.module("@/lib/discussions/policy", () => ({
+  canDeleteDiscussionMessage: () => false, canEditDiscussionMessage: () => false, canForwardDiscussion: () => false,
+  DISCUSSION_REACTIONS: ["👍", "❤️", "🎉", "🤔", "🙏"], validDiscussionId: id => typeof id === "string" && id.length > 0,
+  validDiscussionReplyType: () => true, validDiscussionText: () => true,
+ }));
+ bunTest.mock.module("@/lib/discussions/images", () => ({ attachDiscussionImages: async () => {}, listDiscussionAttachmentsForMessages: async () => new Map() }));
+ bunTest.mock.module("@/lib/discussions/rewards", () => ({ enqueueDiscussionReward: async () => {} }));
+ bunTest.mock.module("@/lib/discussions/notifications", () => ({ clearDiscussionNotificationsThroughSeq: async () => {} }));
+ bunTest.mock.module("@/lib/discussions/participants", () => ({ recordDiscussionParticipant: async () => {} }));
+ bunTest.mock.module("@/lib/discussions/read-receipt", () => ({ signDiscussionReadReceipt: () => "", verifyDiscussionReadReceipt: () => null }));
+ bunTest.mock.module("@/lib/discussions/recipient-access", () => ({ getDiscussionRecipientAccess: async () => new Map() }));
+} else {
+ Module._load = function (request, parent, isMain) {
+  if (request === "server-only") return {};
+  if (request === "@/db") return { db };
+  if (parent?.filename.endsWith(path.join("lib", "discussions", "service.ts"))) {
+   if (request === "./access") return access;
+   if (request === "./policy") return { validDiscussionId: id => typeof id === "string" && id.length > 0 };
+   if (request.startsWith("./") && request !== "./count-cache") return {};
+   if (request === "@/lib/auth-secret" || request === "@/lib/pka-config") return {};
+  }
+  return load.call(this, request.startsWith("@/") ? path.join(root, request.slice(2)) : request, parent, isMain);
+ };
+}
 const { getDiscussionCounts } = require("../../lib/discussions/service.ts");
 const cache = require("../../lib/discussions/count-cache.ts");
 
