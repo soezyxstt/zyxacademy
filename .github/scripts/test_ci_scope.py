@@ -158,7 +158,7 @@ class ScopeTest(unittest.TestCase):
         broad = ci.plan([], self.head, force=True)
         self.assertTrue(broad['static'])
         self.assertTrue(broad['has_tests'])
-        self.assertEqual(broad['test_shards'], [0, 1, 2, 3, 4, 5])
+        self.assertEqual(broad['test_shards'], [0, 1, 2, 3, 4, 5, 6, 7])
 
 
 class HistoryTest(unittest.TestCase):

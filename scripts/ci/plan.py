@@ -245,7 +245,7 @@ def plan(changed, head, base=None, force=False):
     elif total_tests <= 220:
         shard_count = 4
     else:
-        shard_count = 6
+        shard_count = 8
     result['static'] = (
         result['typecheck']
         or result['test_typecheck']
