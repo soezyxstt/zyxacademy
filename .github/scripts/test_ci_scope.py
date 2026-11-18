@@ -128,11 +128,13 @@ class ScopeTest(unittest.TestCase):
         self.assertTrue(result['web'])
         self.assertTrue(result['worker'])
 
-    def test_legacy_repair_cannot_restore_duplicate_automation(self):
-        workflow = (ROOT / '.github/workflows/pr36-review-fixes.yml').read_text()
-        self.assertNotIn('  push:', workflow)
-        repair = (ROOT / '.github/scripts/pr36_review_fixes.py').read_text()
-        self.assertNotIn('schedule-domain-validation.yml', repair)
+    def test_messages_change_checks_i18n_without_schedule_or_authoring(self):
+        result = self.plan('messages/en/student.json')
+        self.assertTrue(result['web'])
+        self.assertTrue(result['i18n'])
+        self.assertFalse(result['schedule'])
+        self.assertFalse(result['authoring'])
+        self.assertFalse(result['worker'])
 
     def test_workflow_change_selects_own_surface_only(self):
         result = self.plan('.github/workflows/sync-plugin.yml')

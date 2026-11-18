@@ -88,7 +88,8 @@ class Snapshot:
         text = self.read(source)
         references = [next(value for value in match if value) for match in IMPORT.findall(text)]
         edges = frozenset(resolved for literal in references
-                          if (resolved := self.resolve(literal, source)))
+                          if (resolved := self.resolve(literal, source))
+                          and not (source == 'lib/i18n/catalogs.ts' and resolved.startswith('messages/')))
         self._edges[source] = edges
         return edges
 

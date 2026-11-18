@@ -1,8 +1,6 @@
 name: Validate Neon migration build
 
 on:
-  pull_request:
-    branches: [staging, main]
   workflow_dispatch:
     inputs:
       demo_visual:

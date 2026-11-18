@@ -44,8 +44,13 @@ class CheckCommandsTest(unittest.TestCase):
     def test_typegen_precedes_both_compiler_checks(self):
         commands, config = self.run_plan(typecheck=True, test_typecheck=True, compiler_tests=['tests/a.test.ts'])
         self.assertEqual(commands[0], ['run', 'typegen'])
-        self.assertEqual(commands[1], ['run', 'typecheck'])
-        self.assertIn('tests-selected.json', commands[2][-3])
+        self.assertCountEqual(
+            [commands[1][0], commands[2][0]],
+            ['run', '--max-old-space-size=4096'],
+        )
+        self.assertIn(['run', 'typecheck'], commands[1:])
+        selected_cmd = next(cmd for cmd in commands[1:] if 'tests-selected.json' in ' '.join(cmd))
+        self.assertIn('tests-selected.json', selected_cmd[-3])
         self.assertTrue(config['include'][0].endswith('/tests/a.test.ts'))
         self.assertEqual(config['extends'], '../../tsconfig.test.json')
 
@@ -53,13 +58,17 @@ class CheckCommandsTest(unittest.TestCase):
         commands, _ = self.run_plan(structured_typecheck=True)
         self.assertEqual(commands, [['run', 'typegen'], ['run', 'typecheck:structured-articles']])
 
-    def test_contracts_use_staging_postgres_fixture_runner(self):
-        commands, _ = self.run_plan(tests=['tests/contracts/db.test.ts'])
-        self.assertEqual(commands, [['scripts/test-contracts.ts', 'tests/contracts/db.test.ts']])
+    def test_structured_typecheck_skipped_when_full_typecheck_runs(self):
+        commands, _ = self.run_plan(typecheck=True, structured_typecheck=True)
+        self.assertEqual(commands, [['run', 'typegen'], ['run', 'typecheck']])
+
+    def test_contracts_batch_into_one_runner_invocation(self):
+        commands, _ = self.run_plan(tests=['tests/contracts/a.test.ts', 'tests/contracts/db.test.ts'])
+        self.assertEqual(commands, [['scripts/test-contracts.ts', 'tests/contracts/a.test.ts', 'tests/contracts/db.test.ts']])
 
     def test_bun_test_files_run_in_separate_processes(self):
         commands, _ = self.run_plan(tests=['tests/a.test.ts', 'tests/b.test.ts'])
-        self.assertEqual(commands, [['test', 'tests/a.test.ts'], ['test', 'tests/b.test.ts']])
+        self.assertCountEqual(commands, [['test', 'tests/a.test.ts'], ['test', 'tests/b.test.ts']])
 
 class GateTest(unittest.TestCase):
     @classmethod
