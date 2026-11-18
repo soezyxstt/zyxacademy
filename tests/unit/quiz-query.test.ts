@@ -22,7 +22,7 @@ function attempt(overrides: Record<string, unknown> = {}) {
 describe("quiz query cache", () => {
   test("deduplicates the same private attempt and reuses fresh validated data", async () => {
     const fetch = mock(async () => Response.json(attempt()));
-    globalThis.fetch = fetch as typeof globalThis.fetch;
+    globalThis.fetch = fetch as unknown as typeof globalThis.fetch;
     const options = quizAttemptQuery("student-a", "attempt-1");
     const [first, second] = await Promise.all([client.query(options), client.query(options)]);
     expect(first).toEqual(second);
@@ -32,19 +32,19 @@ describe("quiz query cache", () => {
   });
 
   test("rejects a mismatched account or attempt before caching the response", async () => {
-    globalThis.fetch = mock(async () => Response.json(attempt({ studentId: "student-b" }))) as typeof globalThis.fetch;
+    globalThis.fetch = mock(async () => Response.json(attempt({ studentId: "student-b" }))) as unknown as typeof globalThis.fetch;
     const options = quizAttemptQuery("student-a", "attempt-1");
     await expect(client.query(options)).rejects.toThrow("Quiz attempt identity changed");
     expect(client.getQueryData(options.queryKey)).toBeUndefined();
-    globalThis.fetch = mock(async () => Response.json(attempt({ id: "attempt-2" }))) as typeof globalThis.fetch;
+    globalThis.fetch = mock(async () => Response.json(attempt({ id: "attempt-2" }))) as unknown as typeof globalThis.fetch;
     await expect(fetchQuizAttempt("student-a", "attempt-1")).rejects.toThrow("Quiz attempt identity changed");
   });
 
   test("an invalid refresh cannot replace an already validated cache entry", async () => {
     const options = quizAttemptQuery("student-a", "attempt-1");
-    globalThis.fetch = mock(async () => Response.json(attempt())) as typeof globalThis.fetch;
+    globalThis.fetch = mock(async () => Response.json(attempt())) as unknown as typeof globalThis.fetch;
     const saved = await client.query(options);
-    globalThis.fetch = mock(async () => Response.json(attempt({ questionsSnapshot: "broken" }))) as typeof globalThis.fetch;
+    globalThis.fetch = mock(async () => Response.json(attempt({ questionsSnapshot: "broken" }))) as unknown as typeof globalThis.fetch;
     await expect(client.query({ ...options, staleTime: 0 })).rejects.toThrow("invalid response");
     expect<unknown>(client.getQueryData(options.queryKey)).toEqual(saved);
   });
@@ -57,7 +57,7 @@ describe("quiz query cache", () => {
       signal = init?.signal;
       started();
       return new Promise<Response>((_resolve, reject) => signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true }));
-    }) as typeof globalThis.fetch;
+    }) as unknown as typeof globalThis.fetch;
     const options = quizAttemptQuery("student-a", "attempt-1");
     const request = client.query(options).catch(() => undefined);
     await start;
@@ -70,11 +70,11 @@ describe("quiz query cache", () => {
 
 describe("quiz mutation contracts", () => {
   test("accepts the real acknowledgement, including pending essay grading", async () => {
-    globalThis.fetch = mock(async () => Response.json({ score: null, correct: 0, total: 1, gradingStatus: "pending" })) as typeof globalThis.fetch;
+    globalThis.fetch = mock(async () => Response.json({ score: null, correct: 0, total: 1, gradingStatus: "pending" })) as unknown as typeof globalThis.fetch;
     const result = await submitQuizAttempt("attempt:1", { answers: { q1: { text: "work" } }, durationSeconds: 60 });
     expect(result.gradingStatus).toBe("pending");
     expect(globalThis.fetch).toHaveBeenCalledWith("/api/quiz/attempts/attempt%3A1", expect.objectContaining({ method: "POST" }));
-    globalThis.fetch = mock(async () => Response.json({ success: true })) as typeof globalThis.fetch;
+    globalThis.fetch = mock(async () => Response.json({ success: true })) as unknown as typeof globalThis.fetch;
     await expect(submitQuizAttempt("attempt-1", { answers: {}, durationSeconds: 60 })).rejects.toThrow("invalid response");
   });
 
@@ -86,13 +86,13 @@ describe("quiz mutation contracts", () => {
   });
 
   test("analytics validates pending payloads and scope, and disables automatic request retries", async () => {
-    globalThis.fetch = mock(async () => Response.json({ attemptId: "attempt-1", status: "processing", computedMetrics: null, aiDiagnosis: null })) as typeof globalThis.fetch;
+    globalThis.fetch = mock(async () => Response.json({ attemptId: "attempt-1", status: "processing", computedMetrics: null, aiDiagnosis: null })) as unknown as typeof globalThis.fetch;
     expect((await fetchQuizAnalytics("attempt-1")).status).toBe("processing");
     await expect(fetchQuizAnalytics("attempt-2")).rejects.toThrow("Quiz analytics identity changed");
     expect(quizAnalyticsQuery("student-a", "attempt-1").retry).toBe(false);
-    globalThis.fetch = mock(async () => Response.json({ attemptId: "attempt-1", status: "processing", message: "Queued" })) as typeof globalThis.fetch;
+    globalThis.fetch = mock(async () => Response.json({ attemptId: "attempt-1", status: "processing", message: "Queued" })) as unknown as typeof globalThis.fetch;
     expect((await recomputeQuizAnalytics("attempt-1")).status).toBe("processing");
-    globalThis.fetch = mock(async () => Response.json({ status: "completed", computedMetrics: { quizTitle: "Invalid" } })) as typeof globalThis.fetch;
+    globalThis.fetch = mock(async () => Response.json({ status: "completed", computedMetrics: { quizTitle: "Invalid" } })) as unknown as typeof globalThis.fetch;
     await expect(fetchQuizAnalytics("attempt-1")).rejects.toThrow("invalid response");
   });
 });

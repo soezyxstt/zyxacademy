@@ -8,6 +8,8 @@ on:
       - 'components/**'
       - 'hooks/**'
       - 'lib/**'
+      - 'db/**'
+      - 'drizzle-postgres/**'
       - 'tests/**'
       - 'messages/**'
       - 'package.json'
@@ -29,6 +31,20 @@ jobs:
     name: Query production build
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: placeholder
+          POSTGRES_PASSWORD: placeholder
+          POSTGRES_DB: placeholder
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U placeholder -d placeholder"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       ZYX_POSTGRES_BUILD_PLACEHOLDER: '1'
       SKIP_ENV_VALIDATION: '1'
@@ -55,6 +71,26 @@ jobs:
           key: ${{ runner.os }}-bun-1.3.14-${{ hashFiles('bun.lock') }}
           restore-keys: ${{ runner.os }}-bun-1.3.14-
       - run: bun install --frozen-lockfile
+      - name: Prepare disposable PostgreSQL build fixture
+        run: |
+          bun - <<'TS'
+          import assert from "node:assert/strict";
+          import { Client } from "pg";
+          import { drizzle } from "drizzle-orm/node-postgres";
+          import { migrate } from "drizzle-orm/node-postgres/migrator";
+          const target = new URL(process.env.DATABASE_URL!);
+          assert.equal(target.href, "postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder");
+          const client = new Client({ connectionString: target.href });
+          try {
+            await client.connect();
+            const identity = await client.query("SELECT current_database() AS database, current_user AS role");
+            assert.equal(identity.rows[0].database, "placeholder");
+            assert.equal(identity.rows[0].role, "placeholder");
+            await migrate(drizzle(client), { migrationsFolder: "drizzle-postgres" });
+            await client.query('SELECT "slug", "published_at" FROM "blog_articles" WHERE "status" = $1', ["published"]);
+            console.log("Disposable PostgreSQL schema is ready for prerendering");
+          } finally { await client.end(); }
+          TS
       - run: bun run build
 
   browser:
@@ -85,12 +121,13 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Install Chromium
         run: bun run test:visual:install
-      - name: Verify quiz, learning, and dashboard query flows
+      - name: Verify quiz, learning, dashboard, and admin query flows
         run: >-
           bun run test:visual
           tests/visual/quiz-query.spec.ts
           tests/visual/learning-query.spec.ts
           tests/visual/dashboard-query.spec.ts
+          tests/visual/admin-query.spec.ts
       - name: Upload report, screenshots, and traces
         if: always()
         uses: actions/upload-artifact@v4

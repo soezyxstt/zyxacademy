@@ -19,7 +19,7 @@ afterEach(() => {
 describe("article progress cache", () => {
   test("shares reads for one article revision and separates learner and revision keys", async () => {
     const requests: Array<{ url: string; userId: string | null }> = [];
-    globalThis.fetch = (async (url, init) => {
+    globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
       requests.push({ url: String(url), userId: new Headers(init?.headers).get("x-student-id") });
       return Response.json({ articleId: "article:v2", articleVersion: Number(new URL(String(url), "http://local.test").searchParams.get("version")), sectionProgress: {} });
     }) as unknown as typeof fetch;
@@ -48,7 +48,7 @@ describe("article progress cache", () => {
 
   test("passes cancellation to the progress read", async () => {
     let capturedSignal: AbortSignal | null | undefined;
-    globalThis.fetch = ((_, init) => {
+    globalThis.fetch = ((_: unknown, init?: RequestInit) => {
       capturedSignal = init?.signal;
       return new Promise<Response>((_, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true }));
     }) as unknown as typeof fetch;
@@ -63,7 +63,7 @@ describe("article progress cache", () => {
 
   test("sends a small actor-bound keepalive write and rejects a receipt for another section", async () => {
     let request: RequestInit | undefined;
-    globalThis.fetch = (async (_, init) => {
+    globalThis.fetch = (async (_: unknown, init?: RequestInit) => {
       request = init;
       return Response.json({ success: true, articleId: "article", articleVersion: 4, sectionId: "other", maxReadPercent: 100, completed: true, timeSpentSeconds: 9, completedAt: null });
     }) as unknown as typeof fetch;

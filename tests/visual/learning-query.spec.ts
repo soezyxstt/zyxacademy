@@ -12,6 +12,8 @@ async function boot(page: Page, config: Window["learningFixture"], respond?: (ro
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
   page.on("response", (response) => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
   await page.clock.install({ time: new Date("2026-11-18T00:00:00.000Z") });
+  // Pause the reading clocks. Query batches observer updates with setTimeout(0),
+  // so mutation assertions below advance one millisecond at each transition.
   await page.clock.pauseAt(new Date("2026-11-18T00:00:01.000Z"));
   await page.route("**/*", async (route) => {
     if (route.request().url() === `${origin}/`) {
@@ -52,10 +54,12 @@ test("flashcards keep the active card on an invalid receipt and accept one expli
   const grade = page.getByRole("button", { name: "Paham", exact: true });
   await grade.evaluate((button) => { (button as HTMLButtonElement).click(); (button as HTMLButtonElement).click(); });
   await expect.poll(() => posts.length).toBe(1);
+  await page.clock.runFor(1);
   expect(posts[0]).toMatchObject({ studentId: "fixture-student", courseId: "fixture-course", flashcardId: "card-0", grade: 3, isExamMode: false });
   await expect(grade).toBeDisabled();
   await capture(page, info, "flashcard-review-pending", errors);
   await acknowledge[0]({ unexpected: true });
+  await page.clock.runFor(1);
   await expect(page.getByText("Ulasan kartu tidak dapat disimpan.", { exact: true })).toBeVisible();
   await expect(grade).toBeEnabled();
   await expect(page.getByText("Apa arti limit fungsi?", { exact: true })).toHaveCount(0);
@@ -65,12 +69,13 @@ test("flashcards keep the active card on an invalid receipt and accept one expli
   await grade.click();
   await expect.poll(() => posts.length).toBe(2);
   await acknowledge[1](reviewReceipt);
+  await page.clock.runFor(1);
   await expect(page.getByText("Apa arti limit fungsi?", { exact: true })).toBeVisible();
   await expect(page.getByText("Penilaian berhasil disimpan.", { exact: true })).toBeVisible();
   await capture(page, info, "flashcard-review-saved", errors);
 });
 
-test("a late flashcard receipt cannot reveal or advance a previous account's session", async ({ page }) => {
+test("a late flashcard receipt cannot reveal or advance a previous account's session", async ({ page }, info) => {
   let acknowledge: (() => Promise<void>) | undefined;
   const errors = await boot(page, { mode: "flashcards" }, async (route) => {
     acknowledge = () => route.fulfill({ json: reviewReceipt });
@@ -78,18 +83,21 @@ test("a late flashcard receipt cannot reveal or advance a previous account's ses
   await page.getByText("Apa turunan fungsi kuadrat?", { exact: true }).click();
   await page.getByRole("button", { name: "Paham", exact: true }).click();
   await expect.poll(() => Boolean(acknowledge)).toBe(true);
+  await page.clock.runFor(1);
   await page.evaluate(() => window.changeLearningAccount("other-student"));
   await expect(page.locator("[data-flashcard-face]")).toHaveCount(0);
   await acknowledge!();
+  await page.clock.runFor(1);
   await expect(page.getByText("Apa arti limit fungsi?", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Penilaian berhasil disimpan.", { exact: true })).toHaveCount(0);
-  expect(errors).toEqual([]);
+  await capture(page, info, "flashcard-account-switch", errors);
 });
 
 test("demo flashcard reviews keep the shared presentation and stay local", async ({ page }, info) => {
   const errors = await boot(page, { mode: "flashcards", demo: true });
   await page.getByText("Apa turunan fungsi kuadrat?", { exact: true }).click();
   await page.getByRole("button", { name: "Paham", exact: true }).click();
+  await page.clock.runFor(1);
   await expect(page.getByText("1 ulasan demo", { exact: true })).toBeVisible();
   await expect(page.getByText("Apa arti limit fungsi?", { exact: true })).toBeVisible();
   await capture(page, info, "flashcard-demo-saved", errors);
@@ -118,16 +126,19 @@ test("article receipts validate the revision and elapsed time flushes only once 
   const finish = page.getByRole("button", { name: "Kembali ke daftar materi", exact: true });
   await finish.click();
   await expect.poll(() => posts.length).toBe(1);
+  await page.clock.runFor(1);
   expect(posts[0]).toMatchObject({ sectionId: "section", articleVersion: 3, percent: 100, completed: true, timeSpentSeconds: 12 });
   await expect(page.getByTitle("Progres membaca: 100%", { exact: true })).toHaveCount(1);
   await capture(page, info, "article-completion-pending", errors);
   await acknowledge[0](false);
+  await page.clock.runFor(1);
   await expect(page.getByTitle("Progres membaca: 0%", { exact: true })).toHaveCount(1);
   await capture(page, info, "article-completion-unconfirmed", errors);
   await finish.click();
   await expect.poll(() => posts.length).toBe(2);
   expect(posts[1].timeSpentSeconds).toBe(0);
   await acknowledge[1](true);
+  await page.clock.runFor(1);
   await expect(page.getByTitle("Progres membaca: 100%", { exact: true })).toHaveCount(1);
   await capture(page, info, "article-completed", errors);
   await page.clock.runFor(4_000);
@@ -157,10 +168,12 @@ test("legacy reading batches position writes and consumes the exit delta once", 
   });
   await expect(page.getByRole("heading", { name: "Ringkasan fungsi", exact: true }).first()).toBeVisible();
   await expect.poll(() => statuses.length).toBe(1);
+  await page.clock.runFor(1);
   expect(statuses[0]).toMatchObject({ materialId: "fixture-material", status: "in_progress", expectedUserId: "fixture-student" });
   await capture(page, info, "material-reading", errors);
   await page.clock.runFor(20_000);
   await expect.poll(() => posts.length).toBe(1);
+  await page.clock.runFor(1);
   expect(posts[0].timeSpentSeconds).toBe(20);
   await capture(page, info, "material-progress-saved", errors);
   await page.clock.runFor(24_000);
@@ -190,15 +203,19 @@ test("canonical material serializes completion and only generates a summary on a
     acknowledgeSummary.push((json) => route.fulfill({ json }));
   });
   await expect.poll(() => statuses.length).toBe(1);
+  await page.clock.runFor(1);
   const complete = page.getByRole("button", { name: "Tandai selesai", exact: true }).first();
   await complete.click();
+  await page.clock.runFor(1);
   await expect(complete).toBeDisabled();
   expect(statuses.map((status) => status.status)).toEqual(["in_progress"]);
   await acknowledgeStatus[0]();
   await expect.poll(() => statuses.length).toBe(2);
+  await page.clock.runFor(1);
   expect(statuses[1].status).toBe("completed");
   await capture(page, info, "material-completion-pending", errors);
   await acknowledgeStatus[1]();
+  await page.clock.runFor(1);
   await expect(page.getByText("Materi berhasil ditandai selesai!", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Selesai", exact: true }).first()).toBeDisabled();
   await capture(page, info, "material-completed", errors);
@@ -208,10 +225,12 @@ test("canonical material serializes completion and only generates a summary on a
   const summarize = page.getByRole("button", { name: "Ringkas", exact: true });
   await summarize.evaluate((button) => { (button as HTMLButtonElement).click(); (button as HTMLButtonElement).click(); });
   await expect.poll(() => summaries.length).toBe(1);
+  await page.clock.runFor(1);
   expect(summaries[0]).toEqual({ chapterId: "chapter" });
   await expect(page.getByRole("dialog")).toBeVisible();
   await capture(page, info, "chapter-summary-loading", errors);
   await acknowledgeSummary[0]({ unexpected: true });
+  await page.clock.runFor(1);
   await expect(page.getByText("Gagal memuat ringkasan.", { exact: true })).toBeVisible();
   await capture(page, info, "chapter-summary-failed", errors);
   await page.clock.runFor(20_000);
@@ -221,6 +240,7 @@ test("canonical material serializes completion and only generates a summary on a
   await summarize.click();
   await expect.poll(() => summaries.length).toBe(2);
   await acknowledgeSummary[1]({ cached: false, budgetExhausted: false, summary: { keyConcepts: ["Setiap masukan memiliki satu keluaran."], commonMistakes: ["Menyamakan fungsi dengan nilainya."], importantFormulas: ["f(x) = x^2"], practiceRecommendations: ["Bandingkan nilai fungsi pada dua masukan."] } });
+  await page.clock.runFor(1);
   await expect(page.getByText("Setiap masukan memiliki satu keluaran.", { exact: true })).toBeVisible();
   await capture(page, info, "chapter-summary-ready", errors);
 });

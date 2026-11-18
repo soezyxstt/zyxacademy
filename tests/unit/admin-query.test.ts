@@ -127,7 +127,7 @@ test("product and leaderboard keys normalize equivalent filters without merging 
 
 test("typed fetchers encode course and search filters and pass cancellation to fetch", async () => {
   const calls: Array<{ path: string; signal: AbortSignal | null | undefined }> = [];
-  globalThis.fetch = (async (input, init) => {
+  globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
     calls.push({ path: String(input), signal: init?.signal });
     return String(input).includes("/products")
       ? Response.json({ items: [], total: 0 })
@@ -148,7 +148,7 @@ test("typed fetchers encode course and search filters and pass cancellation to f
 
 test("a canceled old product filter cannot replace the current filter cache", async () => {
   let oldSignal: AbortSignal | null | undefined;
-  globalThis.fetch = (async (input, init) => {
+  globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
     if (String(input).includes("q=old")) {
       oldSignal = init?.signal;
       return new Promise<Response>((_, reject) => {

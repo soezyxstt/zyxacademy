@@ -64,7 +64,12 @@ test("quiz keeps recovery after an invalid acknowledgement, then clears it after
   await page.getByRole("button", { name: "Ya, kumpulkan", exact: true }).click();
   await expect.poll(() => posts.length).toBe(2);
   await expect.poll(() => page.evaluate(() => localStorage.getItem("zyx-quiz-answers-fixture-attempt"))).toBeNull();
-  await expect(page.getByRole("button", { name: "Ya, kumpulkan", exact: true })).toBeDisabled();
+  // The fixture stubs navigation. The confirmed attempt stays locked until it leaves this page.
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('button[aria-busy="true"]')).toBeDisabled();
+  await expect(page.locator("main button").filter({ hasText: "Kumpulkan kuis" })).toBeDisabled();
+  await expect(page.locator("textarea")).toBeDisabled();
   await capture(page, info, "quiz-submitted", errors);
 });
 
