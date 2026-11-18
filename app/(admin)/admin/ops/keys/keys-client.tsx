@@ -7,36 +7,8 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/client";
-
-interface KeyModelDiagnostics {
-  keyId: string;
-  modelId: string;
-  requestsMinute: number;
-  requestsToday: number;
-  rpdLimit: number;
-  successes: number;
-  failures: number;
-  consecutiveFailures: number;
-  circuitState: "CLOSED" | "HALF_OPEN" | "OPEN";
-  cooldownRemainingMs: number;
-  estimatedRpmLimit: number;
-  utilizationPercent: number;
-  activeRequestsCount: number;
-}
-
-interface UsageByModel {
-  model: string;
-  count: number;
-  totalTokens: number;
-}
-
-interface KeyDiagnosticsData {
-  checkedAt: string;
-  rpdLimits: Record<string, number>;
-  geminiKeys: KeyModelDiagnostics[];
-  usageByModel: UsageByModel[];
-  totalRequestsToday: number;
-}
+import { adminKeyDiagnosticsQuery } from "@/lib/admin/ops-query";
+import { useQueryAccountId } from "@/hooks/use-query-account";
 
 function relativeTime(iso: string, t: ReturnType<typeof useTranslations<"adminOps">>): string {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -70,22 +42,12 @@ function ProgressBar({ current, max }: { current: number; max: number }) {
   );
 }
 
-async function fetchData(): Promise<KeyDiagnosticsData> {
-  const res = await fetch("/api/admin/key-diagnostics");
-  if (!res.ok) throw new Error("Failed to load key diagnostics");
-  return res.json();
-}
-
 export function KeysClient() {
   const t = useTranslations("adminOps");
-  const { data, isLoading, isFetching, error, refetch } = useQuery<KeyDiagnosticsData>({
-    queryKey: ["key-diagnostics"],
-    queryFn: fetchData,
-    refetchInterval: 30_000,
-    staleTime: 25_000,
-  });
+  const userId = useQueryAccountId();
+  const { data, isPending, isFetching, error, refetch } = useQuery(adminKeyDiagnosticsQuery(userId ?? ""));
 
-  if (isLoading) return <KeysSkeleton />;
+  if (isPending || !userId) return <KeysSkeleton />;
 
   if (error) {
     return (

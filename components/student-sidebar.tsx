@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { studentTodayQuery } from "@/lib/student/today-query";
+import { useStudentSidebarData } from "@/hooks/use-student-sidebar-data";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -37,13 +36,9 @@ import { DiscussionCountBadge } from "@/components/discussions/discussion-count-
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { StudentAccountBoundary } from "@/components/student-account-boundary";
 import { useStudentExperience } from "@/components/student-experience-provider";
-import { getStudentEnrollments, getCourseAction } from "@/app/(student)/dashboard/actions";
 import { cn } from "@/lib/utils";
 import { StudentNavigationItems } from "@/components/student-navigation-items";
 import { SidebarShell, NavItem } from "@/components/sidebar-shell";
-import { createActivityRefresh } from "@/lib/student/activity-refresh";
-import { selectSidebarCourses, type SidebarFallbackCourses } from "@/lib/student/sidebar-courses";
-import { ZYX_ACTIVITY_UPDATED_EVENT } from "@/lib/activity-signal";
 import { StreakCalendarStrip } from "@/components/dashboard/streak-calendar-strip";
 import { SidebarTooltip } from "@/components/sidebar-shell";
 import { useTranslations } from "@/lib/i18n/client";
@@ -106,87 +101,13 @@ function StudentSidebarContent({
   // but the shell must switch on the same render as the route itself.
   const activeCourseId = courseIdFromPath ?? (pathname === "/dashboard/schedule" ? courseIdFromSchedule : undefined);
 
-  const [activeCourse, setActiveCourse] = useState<{ userId: string; course: { id: string; title: string } }>();
-  const [fallbackCourses, setFallbackCourses] = useState<SidebarFallbackCourses>();
   const [coursesOpen, setCoursesOpen] = useState(true);
-  const queryClient = useQueryClient();
   const userId = session?.user?.id;
-  const today = useQuery({ ...studentTodayQuery(userId ?? ""), enabled: !demo && !!userId });
-  const enrolledCourses = useMemo(() => demo ? experience.courses ?? [] : selectSidebarCourses(
-    userId ? { userId, pathname, activeCourseId, errorUpdateCount: today.errorUpdateCount } : undefined,
-    today.isError,
-    today.data?.enrollments,
-    fallbackCourses,
-  ), [demo, experience.courses, userId, pathname, activeCourseId, today.errorUpdateCount, today.isError, today.data?.enrollments, fallbackCourses]);
-  const streakCurrent = demo ? experience.streak?.current ?? 0 : today.data?.streak.current ?? null;
-  const weeklyActivity = demo ? experience.streak?.weeklyActivity ?? [] : today.data?.weeklyActivity ?? [];
-
-  useEffect(() => {
-    if (demo || !userId || !today.isError) return;
-    let cancelled = false;
-    const scope = { userId, pathname, activeCourseId, errorUpdateCount: today.errorUpdateCount };
-    getStudentEnrollments(userId).then((courses) => {
-      if (!cancelled) setFallbackCourses({ ...scope, courses });
-    }).catch((error) => { if (!cancelled) console.error(error); });
-    return () => { cancelled = true; };
-  }, [demo, userId, pathname, activeCourseId, today.isError, today.errorUpdateCount]);
-
-  const enrolledActiveCourse = activeCourseId
-    ? enrolledCourses.find((course) => course.id === activeCourseId)
-    : undefined;
-  const activeCourseMetadata = enrolledActiveCourse
-    ?? (activeCourse && activeCourse.userId === userId && activeCourse.course.id === activeCourseId ? activeCourse.course : undefined);
-
-  useEffect(() => {
-    if (demo || !userId) return;
-    if (!activeCourseId) {
-      setActiveCourse(undefined);
-      return;
-    }
-    const enrolled = enrolledCourses.find((c) => c.id === activeCourseId);
-    if (enrolled) {
-      setActiveCourse({ userId, course: enrolled });
-      return;
-    }
-
-    // Clear stale metadata immediately. navContent still renders course mode from
-    // activeCourseId, so switching A -> B cannot flash A or the general sidebar.
-    setActiveCourse(undefined);
-    let cancelled = false;
-    getCourseAction(activeCourseId)
-      .then((course) => {
-        if (!cancelled && course) setActiveCourse({ userId, course });
-      })
-      .catch(console.error);
-    return () => {
-      cancelled = true;
-    };
-  }, [activeCourseId, enrolledCourses, demo, userId]);
-
-  useEffect(() => {
-    if (demo || !userId) return;
-    const options = studentTodayQuery(userId);
-    const activity = createActivityRefresh(async (signal) => {
-      await queryClient.invalidateQueries({ queryKey: options.queryKey, exact: true, refetchType: "none" });
-      if (signal.aborted) return;
-      await queryClient.fetchQuery(options);
-    });
-    const handleFocus = () => { void activity.refresh(); };
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") handleFocus();
-    };
-    const handleMutation = () => { void activity.refresh(true); };
-    window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", handleVisibility);
-    window.addEventListener(ZYX_ACTIVITY_UPDATED_EVENT, handleMutation);
-    return () => {
-      activity.dispose();
-      void queryClient.cancelQueries({ queryKey: options.queryKey, exact: true });
-      window.removeEventListener("focus", handleFocus);
-      document.removeEventListener("visibilitychange", handleVisibility);
-      window.removeEventListener(ZYX_ACTIVITY_UPDATED_EVENT, handleMutation);
-    };
-  }, [userId, demo, queryClient]);
+  const liveData = useStudentSidebarData({ userId, activeCourseId, pathname, enabled: !demo });
+  const enrolledCourses = useMemo(() => demo ? experience.courses ?? [] : liveData.courses, [demo, experience.courses, liveData.courses]);
+  const activeCourseMetadata = demo ? enrolledCourses.find(course => course.id === activeCourseId) : liveData.activeCourse;
+  const streakCurrent = demo ? experience.streak?.current ?? 0 : liveData.streak;
+  const weeklyActivity = demo ? experience.streak?.weeklyActivity ?? [] : liveData.weeklyActivity;
 
   const coursesToDisplay = useMemo(() => {
     const list: Array<{ id: string; title: string }> = [];

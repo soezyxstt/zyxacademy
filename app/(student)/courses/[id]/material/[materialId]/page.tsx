@@ -186,6 +186,7 @@ async function fetchMaterial(
         : [];
       return {
         id: webMatRecord.id,
+        source: "website_material",
         courseId,
         title: webMatRecord.title,
         kind: "article" as const,
@@ -371,7 +372,7 @@ async function MaterialDetailContent({
       return <MaterialLocked id={id} course={course} title={canonicalArticle.title} />;
     }
 
-    return <StructuredArticleReader article={canonicalArticle} course={course} pythonBrowserOnly={isFreeChapter} />;
+    return <StructuredArticleReader article={canonicalArticle} studentId={studentId} course={course} pythonBrowserOnly={isFreeChapter} />;
   }
 
   // 2. Canonical text and legacy compatibility fallback
@@ -396,6 +397,7 @@ async function MaterialDetailContent({
     <Suspense fallback={<MaterialReaderContentSkeleton courseId={id} courseTitle={course.title} />}>
       <MaterialViewer
         material={material}
+        studentId={studentId}
         chapterId={material.chapterId}
         ragEnabled
         accessTier={access?.tier}

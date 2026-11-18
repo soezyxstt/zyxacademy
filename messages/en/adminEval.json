@@ -686,6 +686,7 @@
     "resetFilters": "Reset filters",
     "reset": "Reset",
     "loading": "Loading leaderboard...",
+    "loadFailed": "Could not load the leaderboard.",
     "noComparisonData": "No comparison data",
     "noComparisonDescription": "No attempts have been recorded. Data will appear after students complete a quiz.",
     "course": "Course",

@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { StudentAccountBoundary } from "@/components/student-account-boundary";
+import { useQuizAnalytics } from "@/hooks/use-quiz-analytics";
+import { ApiError } from "@/lib/query/http";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import type { ComputedQuizMetrics, StudentQuizDiagnosis } from "@/lib/student-quiz-analytics/types";
+import type { QuizAnalyticsData } from "@/lib/quiz/analytics-client";
+export type { QuizAnalyticsData } from "@/lib/quiz/analytics-client";
 import {
   BookOpen,
   Brain,
@@ -26,7 +29,6 @@ import { useTranslations } from "@/lib/i18n/client";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
 
-export type QuizAnalyticsData = { status: string; computedMetrics?: ComputedQuizMetrics; aiDiagnosis?: StudentQuizDiagnosis; errorMessage?: string };
 
 interface QuizAnalyticsViewProps {
   initialData?: QuizAnalyticsData;
@@ -35,56 +37,46 @@ interface QuizAnalyticsViewProps {
 }
 
 export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnalyticsViewProps) {
+  if (initialData) return <QuizAnalyticsContent courseId={courseId} data={initialData} loading={false} recomputing={false} fetchAnalytics={() => {}} handleRecompute={() => {}} />;
+  return <StudentAccountBoundary>{({ data }) => data?.user
+    ? <LiveQuizAnalytics key={`${data.user.id}:${attemptId}`} userId={data.user.id} attemptId={attemptId} courseId={courseId} />
+    : <div className="h-40 animate-pulse rounded-xl bg-muted" aria-busy="true" />}
+  </StudentAccountBoundary>;
+}
+
+function LiveQuizAnalytics({ userId, attemptId, courseId }: { userId: string; attemptId: string; courseId: string }) {
+  const { query, recompute } = useQuizAnalytics(userId, attemptId);
+  const accessDenied = [query.error, recompute.error].some((error) => error instanceof ApiError && [401, 403, 404, 409].includes(error.status));
+  return <QuizAnalyticsContent
+    courseId={courseId} data={accessDenied ? undefined : query.data} loading={query.isPending} recomputing={recompute.isPending}
+    error={Boolean(query.error || recompute.error)}
+    fetchAnalytics={() => {
+      void query.refetch().then((result) => { if (result.isSuccess) recompute.reset(); });
+    }}
+    handleRecompute={() => recompute.mutate()}
+  />;
+}
+
+function QuizAnalyticsContent({ courseId, data, loading, recomputing, error, fetchAnalytics, handleRecompute }: {
+  courseId: string;
+  data?: QuizAnalyticsData;
+  loading: boolean;
+  recomputing: boolean;
+  error?: boolean;
+  fetchAnalytics: () => void;
+  handleRecompute: () => void;
+}) {
   const t = useTranslations("studentCourse");
   const experience = useStudentExperience();
   const href = (path: string) => experience.href?.(path) ?? path;
-  const [data, setData] = useState<QuizAnalyticsData | null>(initialData ?? null);
-  const [loading, setLoading] = useState(true);
-  const [recomputing, setRecomputing] = useState(false);
 
-  const fetchAnalytics = useCallback(async () => {
-    try {
-      if (initialData) { setData(initialData); return; }
-      setLoading(true);
-      const res = await fetch(`/api/quiz/attempts/${attemptId}/analytics`);
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
-      }
-    } catch (err) {
-      console.error("Failed to load quiz analytics:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [attemptId, initialData]);
-
-  async function handleRecompute() {
-    try {
-      if (initialData) { setData(initialData); return; }
-      setRecomputing(true);
-      await fetch(`/api/quiz/attempts/${attemptId}/analytics`, { method: "POST" });
-      await fetchAnalytics();
-    } catch (err) {
-      console.error("Failed to trigger recompute:", err);
-    } finally {
-      setRecomputing(false);
-    }
+  if (error && !data) {
+    return <div className="flex items-center gap-2 py-4 text-body-sm text-status-error" role="alert">
+      <TriangleAlert className="size-4" />
+      <span>{t("attemptReview.loadFailed")}</span>
+      <Button variant="ghost" size="sm" onClick={fetchAnalytics}>{t("attemptReview.retry")}</Button>
+    </div>;
   }
-
-  const isStatusProcessing = data?.status === "processing";
-
-  useEffect(() => {
-    fetchAnalytics();
-
-    // Auto poll if processing
-    const timer = setInterval(() => {
-      if (isStatusProcessing) {
-        fetchAnalytics();
-      }
-    }, 4000);
-
-    return () => clearInterval(timer);
-  }, [attemptId, fetchAnalytics, isStatusProcessing]);
 
   if (loading && !data) {
     return (
@@ -128,6 +120,11 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
 
   return (
     <div className="space-y-8 font-sans">
+      {error && <div className="flex items-center gap-2 text-body-sm text-status-error" role="alert">
+        <TriangleAlert className="size-4" />
+        <span>{t("attemptReview.loadFailed")}</span>
+        <Button variant="ghost" size="sm" onClick={fetchAnalytics}>{t("attemptReview.retry")}</Button>
+      </div>}
       {/* Processing Banner if analysis is still running */}
       {isProcessing && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-primary/30 bg-brand-primary/10 p-4 text-brand-primary">

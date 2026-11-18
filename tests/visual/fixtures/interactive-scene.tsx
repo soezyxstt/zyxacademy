@@ -1,5 +1,6 @@
 ﻿import React from "react";
 import { createRoot } from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { ArticleParts } from "@/components/course/article-parts";
 import { NextIntlClientProvider } from "next-intl";
@@ -27,4 +28,4 @@ function App() {
     <section data-fixture="invalid"><h2>Data tidak sah</h2><MarkdownRenderer content={`Teks sebelum visual.\n\n${embed(bad)}\n\n${embed(badShape)}\n\nTeks setelah visual.`} /></section>
   </main>;
 }
-createRoot(document.getElementById("root")!).render(<NextIntlClientProvider locale="id" timeZone="UTC" messages={{ learning, studentCourse, ui }}><App /></NextIntlClientProvider>);
+createRoot(document.getElementById("root")!).render(<QueryClientProvider client={new QueryClient()}><NextIntlClientProvider locale="id" timeZone="UTC" messages={{ learning, studentCourse, ui }}><App /></NextIntlClientProvider></QueryClientProvider>);

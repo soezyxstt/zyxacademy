@@ -4,6 +4,28 @@ const ROUTE = "/visual-fixtures/structured-article";
 const HASH_A = "a".repeat(64);
 const HASH_B = "b".repeat(64);
 
+
+async function mockArticleProgress(page: Page) {
+  const sectionProgress: Record<string, { maxReadPercent: number; completed: boolean; timeSpentSeconds: number }> = {
+    "sec-overview": { maxReadPercent: 100, completed: true, timeSpentSeconds: 180 },
+  };
+  await page.route("**/api/student/articles/visual-article/progress*", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({ json: { articleId: "visual-article", articleVersion: 3, sectionProgress } });
+      return;
+    }
+    const update = route.request().postDataJSON();
+    const previous = sectionProgress[update.sectionId];
+    const next = {
+      maxReadPercent: Math.max(previous?.maxReadPercent ?? 0, update.percent),
+      completed: Boolean(previous?.completed || update.completed || update.percent >= 90),
+      timeSpentSeconds: (previous?.timeSpentSeconds ?? 0) + update.timeSpentSeconds,
+    };
+    sectionProgress[update.sectionId] = next;
+    await route.fulfill({ json: { success: true, articleId: "visual-article", articleVersion: 3, sectionId: update.sectionId, ...next, completedAt: next.completed ? "2026-11-18T00:00:00Z" : null } });
+  });
+}
+
 async function stabilize(page: Page) {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.waitForLoadState("networkidle");
@@ -217,7 +239,7 @@ function reviewedProductPayload(state: "incomplete" | "complete" | "stale") {
 test.describe("Structured Article V3 visual acceptance", () => {
   test("student reader, TOC, search, callouts, formula, and navigation", async ({ page }, testInfo) => {
     const errors = observeFailures(page);
-    await page.route("**/api/student/articles/visual-article/progress", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ maxReadPercent: 100, completed: true, timeSpentSeconds: 180 }) }));
+    await mockArticleProgress(page);
     const response = await page.goto(`${ROUTE}?mode=student&section=bilangan-real-dan-representasi`, { waitUntil: "domcontentloaded", timeout: 90_000 });
     expect(response?.status()).toBeLessThan(400);
     await expect(page.getByRole("heading", { name: "Bilangan real dan representasi desimal" })).toBeVisible();
@@ -239,7 +261,7 @@ test.describe("Structured Article V3 visual acceptance", () => {
 
   test("self study reader visual, formula emphasis, canvas, focus, and mobile navigation", async ({ page }, testInfo) => {
     const errors = observeFailures(page);
-    await page.route("**/api/student/articles/visual-article/progress", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ maxReadPercent: 50, completed: false, timeSpentSeconds: 120 }) }));
+    await mockArticleProgress(page);
     const response = await page.goto(`${ROUTE}?mode=student&section=aturan-pertaksamaan`, { waitUntil: "domcontentloaded", timeout: 90_000 });
     expect(response?.status()).toBeLessThan(400);
     await expect(page.getByRole("heading", { name: "Aturan operasi pertaksamaan" })).toBeVisible();
@@ -327,7 +349,7 @@ test.describe("Structured Article V3 visual acceptance", () => {
   test("formative check interaction states keep grading truth server-side", async ({ page }, testInfo) => {
     test.setTimeout(120_000);
     const errors = observeFailures(page);
-    await page.route("**/api/student/articles/visual-article/progress", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ maxReadPercent: 50, completed: false, timeSpentSeconds: 120 }) }));
+    await mockArticleProgress(page);
     await page.route("**/api/materials/formative-check/evaluate", (route) => route.fulfill({
       status: 200,
       contentType: "application/json",

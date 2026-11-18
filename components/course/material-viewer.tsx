@@ -31,14 +31,11 @@ import {
   Trash2,
   X,
   Check,
-  Loader2,
-  AlertTriangle,
   Menu,
   Circle,
 } from "lucide-react";
 import { SearchBar } from "@/components/ui/search-bar";
 import { toast } from "@/components/ui/toast";
-import { emitActivityUpdated } from "@/lib/activity-signal";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -56,11 +53,9 @@ import { useScrollProgress } from "@/hooks/useScrollProgress";
 // Fixture imports removed
 import { getYoutubeEmbedUrl } from "@/lib/youtube";
 import type { CourseMaterial } from "@/lib/student-course-fixtures";
-import { updateMaterialProgress } from "@/app/(student)/dashboard/actions";
 import { cn } from "@/lib/utils";
 import { getViewablePdfUrl } from "@/lib/pdf-utils";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
-import { MathText } from "@/components/course/math-text";
 import { useTutor } from "@/components/course/tutor-drawer";
 import { TermPopover } from "@/components/course/term-popover";
 import { matchTerm, type TermIndexEntry } from "@/lib/term-match";
@@ -70,9 +65,13 @@ import { isLearnerReaderMode, type MaterialReaderMode } from "@/lib/materials/re
 import { useTranslations } from "@/lib/i18n/client";
 import type { CourseAccessTier } from "@/lib/student/course-access";
 import type { StudentCourseAccessTier } from "@/lib/course-utils";
+import { ChapterSummarySheet } from "@/components/course/chapter-summary-sheet";
+import { useMaterialReadingProgress } from "@/hooks/use-material-reading-progress";
+import { useQueryAccountCurrent } from "@/hooks/use-query-account";
 
 type MaterialViewerProps = {
   material: CourseMaterial;
+  studentId?: string;
   /** Chapter to summarize. When absent, the Summarize action is hidden. */
   chapterId?: string;
   /** P3 grounded-tutor feature flag, resolved on the server. */
@@ -90,137 +89,6 @@ type MaterialViewerProps = {
   /** Free Diktat access is inline-only and must not expose a download action. */
   canDownload?: boolean;
 };
-
-interface ChapterSummary {
-  keyConcepts: string[];
-  commonMistakes: string[];
-  importantFormulas: string[];
-  practiceRecommendations: string[];
-}
-
-function SummarySkeleton() {
-  return (
-    <div className="space-y-6">
-      {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="space-y-2">
-          <div className="w-24 h-3 bg-muted rounded-md animate-pulse" />
-          <div className="space-y-1.5">
-            <div className="h-4 bg-muted rounded-md animate-pulse" />
-            <div className="h-4 bg-muted rounded-md animate-pulse" />
-            <div className="h-4 bg-muted rounded-md animate-pulse w-2/3" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function SummarySection({
-  title,
-  items,
-  asMath,
-}: {
-  title: string;
-  items: string[];
-  asMath?: boolean;
-}) {
-  if (!items || items.length === 0) return null;
-  return (
-    <div>
-      <h3 className="text-body-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-        {title}
-      </h3>
-      <ul className="list-disc pl-4 space-y-1 text-body-base">
-        {items.map((item, i) => (
-          <li key={i}>{asMath ? <MathText>{item}</MathText> : item}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function ChapterSummarySheet({
-  chapterId,
-  chapterTitle,
-}: {
-  chapterId: string;
-  chapterTitle: string;
-}) {
-  const t = useTranslations("learning");
-  const experience = useStudentExperience();
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [summary, setSummary] = useState<ChapterSummary | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function loadSummary() {
-    setOpen(true);
-    if (summary || loading) return;
-    if (experience.mode === "demo") {
-      setSummary({ keyConcepts: [chapterTitle], commonMistakes: ["Melewatkan definisi dan syarat penggunaan konsep."], importantFormulas: [], practiceRecommendations: ["Kerjakan contoh, lalu periksa setiap langkah."] });
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/student/summarize-chapter", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chapterId }),
-      });
-      if (!res.ok) throw new Error("request failed");
-      const data = await res.json();
-      if (data.budgetExhausted) {
-        setError(t("reader.dailyLimit"));
-      } else {
-        setSummary(data.summary as ChapterSummary);
-      }
-    } catch {
-      setError(t("reader.summaryFailed"));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <>
-      <Button
-        variant="outline"
-        size="sm"
-        className="rounded-md text-body-xs py-1 h-auto"
-        onClick={loadSummary}
-      >
-        {loading ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <FileText className="size-4 mr-1.5" />}
-        {t("reader.summary")}
-      </Button>
-
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-          <SheetHeader>
-          <SheetTitle className="text-body-base font-heading">{chapterTitle}</SheetTitle>
-          </SheetHeader>
-          <div className="px-4 pb-6">
-            {loading && <SummarySkeleton />}
-            {!loading && error && (
-              <div className="flex items-start gap-2 text-body-sm">
-                <AlertTriangle className="size-4 text-status-error shrink-0 mt-0.5" />
-                <span className="text-muted-foreground">{error}</span>
-              </div>
-            )}
-            {!loading && !error && summary && (
-              <div className="space-y-6">
-                <SummarySection title={t("reader.keyConcepts")} items={summary.keyConcepts} />
-                <SummarySection title={t("reader.commonMistakes")} items={summary.commonMistakes} />
-                <SummarySection title={t("reader.importantFormulas")} items={summary.importantFormulas} asMath />
-                <SummarySection title={t("reader.practice")} items={summary.practiceRecommendations} />
-              </div>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
-    </>
-  );
-}
 
 type ThemeMode = "light" | "sepia" | "cream" | "dark";
 
@@ -592,8 +460,15 @@ const getConceptTags = (courseId: string, materialTitle: string) => {
   return ["Kalkulus", "Sains"];
 };
 
-export function MaterialViewer({
+export function MaterialViewer(props: MaterialViewerProps) {
+  const currentAccount = useQueryAccountCurrent(props.studentId ?? "");
+  if (props.studentId && !currentAccount) return null;
+  return <MaterialViewerContent key={JSON.stringify([props.studentId ?? "preview", props.material.courseId, props.material.id])} {...props} />;
+}
+
+function MaterialViewerContent({
   material,
+  studentId,
   chapterId,
   ragEnabled,
   accessTier,
@@ -618,11 +493,6 @@ export function MaterialViewer({
       setItem: (key: string, value: string) => { try { (demo ? window.sessionStorage : window.localStorage).setItem(prefix + key,value); } catch { fallback.set(key,value); } },
     };
   }, [demo, material.courseId, revision]);
-  const [done, setDone] = useState(material.completed);
-  const doneRef = useRef(material.completed);
-  useEffect(() => {
-    doneRef.current = done;
-  }, [done]);
   const [viewerType, setViewerType] = useState<"custom" | "chrome">("chrome");
   const [showDemoViewer, setShowDemoViewer] = useState(false);
 
@@ -797,6 +667,13 @@ export function MaterialViewer({
   
   const articleScrollRef = useRef<HTMLDivElement>(null);
   const articleProgress = useScrollProgress(articleScrollRef);
+  const { done, markDone, markingDone } = useMaterialReadingProgress({
+    material, studentId, learnerMode,
+    sectionCount: articleSections.length,
+    sectionIndex: activeSectionIdx,
+    sectionTitle: articleSections[activeSectionIdx]?.title,
+    page,
+  });
   const progressPercent = useMemo(() => {
     if (material.kind === "article") return articleProgress;
     // PDFs and other kinds are binary: completed or not. The mock page counter
@@ -913,131 +790,6 @@ export function MaterialViewer({
     };
   }, [learnerMode]);
 
-  // Set document as in progress on mount
-  useEffect(() => {
-    if (!learnerMode || demo) return;
-    updateMaterialProgress(material.id, "in_progress").catch((err) =>
-      console.error("Error updating progress to in_progress:", err)
-    );
-  }, [learnerMode, material.id, demo]);
-
-  const lastSavedCompletionPercentRef = useRef<number | null>(null);
-  const lastSavedSectionIdxRef = useRef<number | null>(null);
-  const lastSavedPageRef = useRef<number | null>(null);
-
-  // Periodic tracking of material reading progress
-  useEffect(() => {
-    if (!learnerMode || demo) return;
-    let secondsSinceLastSave = 0;
-    const interval = setInterval(() => {
-      secondsSinceLastSave += 1;
-    }, 1000);
-
-    const saveProgress = async (finalTimeIncrement?: number, force: boolean = false) => {
-      const timeToReport = finalTimeIncrement !== undefined ? finalTimeIncrement : secondsSinceLastSave;
-      if (timeToReport <= 0) return;
-
-      let completionPercent = 0;
-      let lastSectionId = "";
-      let lastPosition: { type: "pdf" | "article"; page?: number; section?: string } | null = null;
-
-      if (material.kind === "article" && articleSections && articleSections.length > 0) {
-        completionPercent = Math.min(100, Math.round(((activeSectionIdx + 1) / articleSections.length) * 100));
-        lastSectionId = articleSections[activeSectionIdx]?.title || `Section ${activeSectionIdx}`;
-        lastPosition = { type: "article", section: activeSectionIdx.toString() };
-      } else {
-        // Real PDFs render in an iframe with no reliable page tracking, so
-        // completion is binary: only "Tandai Selesai" marks it done. Never
-        // derive a percentage from the dev-only mock pages.
-        completionPercent = doneRef.current ? 100 : 0;
-        lastSectionId = `Halaman ${page}`;
-        lastPosition = { type: "pdf", page: page };
-      }
-
-      // Delta check
-      const hasMeaningfulDelta =
-        lastSavedCompletionPercentRef.current === null ||
-        Math.abs(completionPercent - lastSavedCompletionPercentRef.current) >= 5 ||
-        (material.kind === "article" && activeSectionIdx !== lastSavedSectionIdxRef.current) ||
-        (material.kind === "pdf" && page !== lastSavedPageRef.current);
-
-      if (!force && !hasMeaningfulDelta) {
-        return; // Skip saving to respect write limits
-      }
-
-      if (finalTimeIncrement === undefined) {
-        secondsSinceLastSave = 0;
-      }
-
-      // Update last saved states
-      lastSavedCompletionPercentRef.current = completionPercent;
-      lastSavedSectionIdxRef.current = activeSectionIdx;
-      lastSavedPageRef.current = page;
-
-      try {
-        await fetch("/api/student/material-progress", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            materialId: material.id,
-            completionPercent,
-            lastSectionId,
-            lastPosition,
-            timeSpentSeconds: timeToReport,
-          }),
-        });
-      } catch (err) {
-        console.error("Failed to auto-save material progress:", err);
-      }
-    };
-
-    const periodicSaveInterval = setInterval(() => {
-      saveProgress(undefined, false);
-    }, 20000);
-
-    return () => {
-      clearInterval(interval);
-      clearInterval(periodicSaveInterval);
-      if (secondsSinceLastSave > 0) {
-        const finalTime = secondsSinceLastSave;
-        let completionPercent = 0;
-        let lastSectionId = "";
-        let lastPosition: { type: "pdf" | "article"; page?: number; section?: string } | null = null;
-
-        if (material.kind === "article" && articleSections && articleSections.length > 0) {
-          completionPercent = Math.min(100, Math.round(((activeSectionIdx + 1) / articleSections.length) * 100));
-          lastSectionId = articleSections[activeSectionIdx]?.title || `Section ${activeSectionIdx}`;
-          lastPosition = { type: "article", section: activeSectionIdx.toString() };
-        } else {
-          const total = MOCK_PAGES_META.length || 1;
-          completionPercent = Math.min(100, Math.round((visitedPages.size / total) * 100));
-          lastSectionId = `Page ${page}`;
-          lastPosition = { type: "pdf", page: page };
-        }
-
-        const payload = JSON.stringify({
-          materialId: material.id,
-          completionPercent,
-          lastSectionId,
-          lastPosition,
-          timeSpentSeconds: finalTime,
-        });
-
-        if (typeof navigator !== "undefined" && navigator.sendBeacon) {
-          navigator.sendBeacon("/api/student/material-progress", new Blob([payload], { type: "application/json" }));
-        } else {
-          fetch("/api/student/material-progress", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: payload,
-          }).catch(() => {});
-        }
-      }
-    };
-  }, [learnerMode, material.id, material.kind, articleSections, activeSectionIdx, visitedPages, page, demo]);
-
   // Load personalization states from localStorage
   useEffect(() => {
     if (!learnerMode) return;
@@ -1087,24 +839,6 @@ export function MaterialViewer({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [learnerMode, visitedPages]);
-
-  async function markDone() {
-    if (!learnerMode) return;
-    if (demo) { if (!experience.ready) return; experience.record?.("article", material.id); setDone(true); toast.success(t("reader.markedComplete")); return; }
-    try {
-      const res = await updateMaterialProgress(material.id, "completed");
-      if (res.success) {
-        setDone(true);
-toast.success(t("reader.markedComplete"));
-        emitActivityUpdated({ type: "material", courseId: material.courseId, materialId: material.id });
-      } else {
-        toast.error(t("reader.saveProgressFailed"));
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error(t("reader.connectionError"));
-    }
-  }
 
   // Toggle Fullscreen
   function toggleFullscreen() {
@@ -1475,7 +1209,7 @@ toast.success(t("reader.markedComplete"));
                 <span>{isArticleTocOpen ? t("reader.hideMenu") : t("reader.openMenu")}</span>
               </Button>
               {learnerMode && accessTier !== "free" && ragEnabled && chapterId && (
-                <ChapterSummarySheet chapterId={chapterId} chapterTitle={material.title} />
+                <ChapterSummarySheet studentId={studentId} chapterId={chapterId} chapterTitle={material.title} />
               )}
               {learnerMode && (
                 <Button
@@ -1483,7 +1217,7 @@ toast.success(t("reader.markedComplete"));
                   size="sm"
                   onClick={markDone}
                   aria-label={done ? t("reader.complete") : t("reader.markComplete")}
-                  disabled={done}
+                  disabled={done || markingDone}
                   className="interactive gap-1.5 text-body-xs font-semibold"
                 >
                   <CheckCircle2 className={cn("size-3.5", done ? "text-emerald-500 fill-emerald-500/10" : "text-muted-foreground")} />
@@ -1623,7 +1357,7 @@ toast.success(t("reader.markedComplete"));
                       <Button
                         variant="default"
                         onClick={markDone}
-                        disabled={done}
+                        disabled={done || markingDone}
                         className="gap-2 bg-status-success hover:bg-status-success/95 text-white font-bold"
                       >
                         <CheckCircle2 className="size-4" />
@@ -1685,7 +1419,7 @@ toast.success(t("reader.markedComplete"));
 
           <div className="flex items-center gap-2">
             {learnerMode && accessTier !== "free" && ragEnabled && chapterId && (
-              <ChapterSummarySheet chapterId={chapterId} chapterTitle={material.title} />
+              <ChapterSummarySheet studentId={studentId} chapterId={chapterId} chapterTitle={material.title} />
             )}
             {learnerMode && (
               <Button
@@ -1693,7 +1427,7 @@ toast.success(t("reader.markedComplete"));
                 size="sm"
                 onClick={markDone}
                 aria-label={done ? t("reader.complete") : t("reader.markComplete")}
-                disabled={done}
+                disabled={done || markingDone}
                 className="h-7 text-body-sm font-semibold flex items-center gap-1.5 rounded-md interactive"
               >
                 <CheckCircle2 className={cn("size-3.5", done ? "text-status-success fill-status-success/10" : "text-muted-foreground")} />

@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { savePricingDiscounts } from "@/app/(admin)/admin/pricing/actions";
 import { pricingDiscountsSchema, type PricingDiscounts } from "@/lib/pricing-discounts";
+import { pricingDiscountsQuery } from "@/lib/query/pricing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,7 +35,7 @@ export function PricingDiscountSettings({ initialSettings, save = savePricingDis
         try {
           const result = await save(values);
           if (!result.success || !result.data) throw new Error();
-          queryClient.setQueryData(["pricing-discounts"], result.data);
+          queryClient.setQueryData(pricingDiscountsQuery().queryKey, pricingDiscountsSchema.parse(result.data));
           setMessage(t("discountSettings.saved"));
         } catch {
           setFailed(true);

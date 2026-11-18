@@ -2,7 +2,8 @@
 
 import { LeaderboardRowsSkeleton } from "@/components/admin/content-loading-skeletons";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import {
@@ -27,12 +28,9 @@ import { Badge } from "@/components/ui/badge";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { SearchBar } from "@/components/ui/search-bar";
 import { AdminPageHeader } from "@/components/admin/page-header";
-import { AdminEmptyState } from "@/components/admin/state-panels";
+import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
-import {
-  CourseCombobox,
-  type CourseOption,
-} from "@/components/admin/course-combobox";
+import { CourseCombobox } from "@/components/admin/course-combobox";
 import {
   Dialog,
   DialogContent,
@@ -42,49 +40,8 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { LockedCourseInfo } from "@/lib/admin/course-identity";
-
-interface StudentAttemptItem {
-  id: string;
-  title: string;
-  category: string;
-  courseId: string;
-  courseTitle: string;
-  score: number;
-  durationSeconds: number;
-  submittedAt: string | null;
-}
-
-interface RankedStudent {
-  rank: number;
-  studentId: string;
-  studentName: string;
-  studentEmail: string;
-  studentImage: string | null;
-  attemptCount: number;
-  avgScore: number;
-  bestScore: number;
-  totalScore: number;
-  avgDuration: number;
-  lastAttemptAt: string | null;
-  courseNames: string[];
-  attempts: StudentAttemptItem[];
-}
-
-interface CourseInsight {
-  courseId: string;
-  courseTitle: string;
-  participatingStudents: number;
-  attemptCount: number;
-  averageScore: number;
-  highestScore: number;
-}
-
-interface LeaderboardSummary {
-  totalStudents: number;
-  totalAttempts: number;
-  avgOverallScore: number;
-  highestScore: number;
-}
+import { adminLeaderboardQuery, type RankedStudent } from "@/lib/admin/leaderboard-query";
+import { useQueryAccountId } from "@/hooks/use-query-account";
 
 function formatDuration(seconds: number, format: (key: "seconds" | "minutesSeconds", values: { seconds: number; minutes?: number }) => string): string {
   if (!seconds || seconds <= 0) return format("seconds", { seconds: 0 });
@@ -111,26 +68,19 @@ export interface AdminLeaderboardClientProps {
   hideHeader?: boolean;
 }
 
-export function AdminLeaderboardClient({
+export function AdminLeaderboardClient(props: AdminLeaderboardClientProps = {}) {
+  const userId = useQueryAccountId();
+  return <AdminLeaderboardContent key={userId ?? "pending"} {...props} userId={userId} />;
+}
+
+function AdminLeaderboardContent({
   lockedCourse,
   backHref,
   backLabel,
   hideHeader = Boolean(lockedCourse),
-}: AdminLeaderboardClientProps = {}) {
+  userId,
+}: AdminLeaderboardClientProps & { userId: string | undefined }) {
   const tx = useTranslations("adminEval.leaderboard");
-  const [courses, setCourses] = useState<CourseOption[]>([]);
-  const [courseInsights, setCourseInsights] = useState<CourseInsight[]>([]);
-  const [students, setStudents] = useState<RankedStudent[]>([]);
-  const [summary, setSummary] = useState<LeaderboardSummary>({
-    totalStudents: 0,
-    totalAttempts: 0,
-    avgOverallScore: 0,
-    highestScore: 0,
-  });
-  const [loading, setLoading] = useState(true);
-  const [responseMode, setResponseMode] = useState<"overview" | "course">(
-    lockedCourse ? "course" : "overview"
-  );
 
   const [selectedCourse, setSelectedCourse] = useState(
     lockedCourse ? lockedCourse.id : "all"
@@ -139,48 +89,19 @@ export function AdminLeaderboardClient({
   const [search, setSearch] = useState("");
 
   const [detailStudent, setDetailStudent] = useState<RankedStudent | null>(null);
-
-  const fetchLeaderboard = useCallback(async () => {
-    setLoading(true);
-    try {
-      const effectiveCourseId = lockedCourse ? lockedCourse.id : selectedCourse;
-      const params = new URLSearchParams();
-      if (effectiveCourseId && effectiveCourseId !== "all") {
-        params.set("courseId", effectiveCourseId);
-      }
-      if (selectedType && selectedType !== "all") {
-        params.set("type", selectedType);
-      }
-      if (search.trim()) {
-        params.set("search", search.trim());
-      }
-
-      const res = await fetch(`/api/admin/leaderboard?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setCourses(data.courses || []);
-        setResponseMode(lockedCourse ? "course" : (data.mode || "overview"));
-        setCourseInsights(data.courseInsights || []);
-        setStudents(data.students || []);
-        setSummary(
-          data.summary || {
-            totalStudents: 0,
-            totalAttempts: 0,
-            avgOverallScore: 0,
-            highestScore: 0,
-          }
-        );
-      }
-    } catch (err) {
-      console.error("Gagal memuat papan peringkat:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [lockedCourse, selectedCourse, selectedType, search]);
-
-  useEffect(() => {
-    fetchLeaderboard();
-  }, [fetchLeaderboard]);
+  const effectiveCourseId = lockedCourse ? lockedCourse.id : selectedCourse;
+  const { data, isPending, isFetching, error, refetch } = useQuery(adminLeaderboardQuery(userId ?? "", {
+    courseId: effectiveCourseId,
+    type: selectedType,
+    search,
+  }));
+  const loading = isPending || !userId;
+  const courses = data?.courses ?? [];
+  const courseInsights = data?.mode === "overview" ? data.courseInsights : [];
+  const students = data?.mode === "course" ? data.students : [];
+  const summary = data?.summary ?? { totalStudents: 0, totalAttempts: 0, avgOverallScore: 0, highestScore: 0 };
+  const responseMode = data?.mode ?? (effectiveCourseId === "all" ? "overview" : "course");
+  const fetchLeaderboard = () => { void refetch(); };
 
   const isOverview = !lockedCourse && responseMode === "overview";
 
@@ -212,11 +133,11 @@ export function AdminLeaderboardClient({
             variant="outline"
             size="sm"
             onClick={fetchLeaderboard}
-            disabled={loading}
+            disabled={loading || isFetching}
             className="gap-2 rounded-lg text-body-sm"
           >
             <RefreshCw
-              className={cn("size-3.5", loading && "animate-spin")}
+              className={cn("size-3.5", isFetching && "animate-spin")}
             />
             <span>{tx("refresh")}</span>
           </Button>
@@ -232,11 +153,11 @@ export function AdminLeaderboardClient({
               variant="outline"
               size="sm"
               onClick={fetchLeaderboard}
-              disabled={loading}
+              disabled={loading || isFetching}
               className="gap-2 rounded-lg text-body-sm"
             >
               <RefreshCw
-                className={cn("size-3.5", loading && "animate-spin")}
+                className={cn("size-3.5", isFetching && "animate-spin")}
               />
               <span>{tx("refresh")}</span>
             </Button>
@@ -331,11 +252,11 @@ export function AdminLeaderboardClient({
               variant="outline"
               size="sm"
               onClick={fetchLeaderboard}
-              disabled={loading}
+              disabled={loading || isFetching}
               className="h-9 gap-1.5 rounded-lg text-body-sm shrink-0"
             >
               <RefreshCw
-                className={cn("size-3.5", loading && "animate-spin")}
+                className={cn("size-3.5", isFetching && "animate-spin")}
               />
               <span>{tx("refresh")}</span>
             </Button>
@@ -347,6 +268,8 @@ export function AdminLeaderboardClient({
       <AdminTable>
         {loading ? (
           <LeaderboardRowsSkeleton label={tx("loading")} />
+        ) : error ? (
+          <AdminErrorState message={tx("loadFailed")} onRetry={fetchLeaderboard} />
         ) : isOverview ? (
           /* ====== OVERVIEW MODE ====== */
           courseInsights.length === 0 ? (

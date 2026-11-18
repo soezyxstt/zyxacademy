@@ -20,10 +20,11 @@ import {
   Activity,
   Zap,
 } from "lucide-react";
-import type { FeatureFlagStatus } from "@/lib/feature-flags";
 import { FEATURE_CATEGORIES, type FeatureCategory } from "@/lib/feature-flags";
 import { SearchBar } from "@/components/ui/search-bar";
 import { useTranslations } from "@/lib/i18n/client";
+import { adminFeatureFlagsQuery } from "@/lib/admin/ops-query";
+import { useQueryAccountId } from "@/hooks/use-query-account";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import {
   Select,
@@ -39,16 +40,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-interface FeatureFlagsApiResponse {
-  checkedAt: string;
-  posthogConfigured?: boolean;
-  total: number;
-  activeCount: number;
-  inactiveCount: number;
-  coveragePercent: number;
-  flags: FeatureFlagStatus[];
-}
-
 function relativeTime(iso: string, t: ReturnType<typeof useTranslations<"adminOps">>): string {
   if (!iso) return t("opsUI.never");
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -60,14 +51,6 @@ function relativeTime(iso: string, t: ReturnType<typeof useTranslations<"adminOp
   return t("opsUI.days", { count: Math.floor(diffH / 24) });
 }
 
-async function fetchFeatureFlags(): Promise<FeatureFlagsApiResponse> {
-  const res = await fetch("/api/admin/feature-flags");
-  if (!res.ok) {
-    throw new Error("Gagal memuat status feature flag");
-  }
-  return res.json();
-}
-
 export function FlagsClient() {
   const t = useTranslations("adminOps");
   const [search, setSearch] = useState("");
@@ -76,13 +59,9 @@ export function FlagsClient() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [copiedEnvSnippet, setCopiedEnvSnippet] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const userId = useQueryAccountId();
 
-  const { data, isLoading, isFetching, error, refetch } = useQuery<FeatureFlagsApiResponse>({
-    queryKey: ["admin-feature-flags"],
-    queryFn: fetchFeatureFlags,
-    refetchInterval: 30_000,
-    staleTime: 20_000,
-  });
+  const { data, isPending, isFetching, error, refetch } = useQuery(adminFeatureFlagsQuery(userId ?? ""));
 
   // Global hotkey '/' to focus search input
   useEffect(() => {
@@ -118,7 +97,7 @@ export function FlagsClient() {
     setTimeout(() => setCopiedEnvSnippet(false), 2500);
   };
 
-  if (isLoading) return <FlagsSkeleton />;
+  if (isPending || !userId) return <FlagsSkeleton />;
 
   if (error || !data) {
     return (

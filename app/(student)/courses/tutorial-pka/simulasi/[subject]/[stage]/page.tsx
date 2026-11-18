@@ -288,6 +288,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
             <Reveal>
               <QuizPlayer
                 courseId={template.courseId}
+                expectedUserId={userId}
                 exam={formattedExam}
                 attemptId={attempt.id}
                 redirectBasePath={stagePath(subject, stage)}

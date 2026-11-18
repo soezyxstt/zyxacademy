@@ -432,6 +432,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         <Reveal>
           <QuizPlayer
             courseId={id}
+            expectedUserId={session.user.id}
             visualCourseId={template.courseId}
             exam={formattedExam}
             attemptId={targetAttempt.id}

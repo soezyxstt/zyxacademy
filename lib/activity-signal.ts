@@ -7,6 +7,8 @@ export type ActivityDetail = {
   attemptId?: string;
   cardId?: string;
   sectionId?: string;
+  /** The feature already invalidated its scoped Query summaries. */
+  queryCacheUpdated?: boolean;
 };
 
 /**
