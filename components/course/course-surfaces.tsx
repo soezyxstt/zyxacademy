@@ -1,9 +1,9 @@
 import { cn } from "@/lib/utils";
 
-/** Base / static student card (dashboard panels, calendar panels, static lists) */
-export function studentCardClass(className?: string) {
+/** Gutter-aligned course section. Callers supply their own vertical spacing. */
+export function studentSectionClass(className?: string) {
   return cn(
-    "rounded-xl border border-border/70 bg-card p-4 min-w-0",
+    "min-w-0",
     className,
   );
 }

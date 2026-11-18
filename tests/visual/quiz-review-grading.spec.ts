@@ -2,6 +2,8 @@ import { expect, test } from '@playwright/test';
 import { stubVisualTelemetry } from './telemetry-stubs';
 import { waitForVisualReadiness } from './visual-readiness';
 
+test.setTimeout(90_000);
+
 test('review status and mistake actions follow the recorded score', async ({ page }, testInfo) => {
  const failures: string[] = [];
  page.on('pageerror', error => failures.push(error.message));
@@ -15,7 +17,13 @@ test('review status and mistake actions follow the recorded score', async ({ pag
  expect(new URL(page.url()).searchParams.get('mode')).toBe('review-grading');
  await waitForVisualReadiness(page);
  await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
- const questions = page.locator('div.rounded-xl.border').filter({ has: page.locator('span.uppercase.tracking-wider') });
+ const diagnosis = page.getByRole('link', { name: 'Lihat diagnosis dan rencana belajar' });
+ await expect(diagnosis).toHaveAttribute('href', '/courses/visual-content-course/quiz/visual-content-quiz/summary/visual-content-attempt');
+ await expect(diagnosis).toHaveCSS('width', '36px');
+ await diagnosis.focus();
+ await expect(page.getByRole('tooltip', { name: 'Lihat diagnosis dan rencana belajar' })).toBeVisible();
+ await diagnosis.blur();
+ const questions = page.getByRole('article');
  const rows = [
   ['Pilihan tunggal dengan jawaban tambahan', 'Salah', true],
   ['Pilihan jamak dengan jawaban berulang', 'Salah', true],

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Layers, ListChecks, BookOpen, ArrowRight, Flame } from "lucide-react";
-import { studentCardClass } from "@/components/course/course-surfaces";
+import { studentSectionClass } from "@/components/course/course-surfaces";
 import { MathText } from "@/components/course/math-text";
 import type { CourseDailyPlan } from "@/types/course-learning";
 import { getTranslations } from "@/lib/i18n/server";
@@ -20,7 +20,7 @@ export async function CourseTodayPlan({ plan }: { plan: CourseDailyPlan }) {
   const hasItems = plan.items.length > 0;
 
   return (
-    <section className={studentCardClass("text-left")}>
+    <section className={studentSectionClass("text-left")}>
       <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-3">
         <h2 className="font-heading text-body-base font-bold text-foreground">
           {t("course.todayPlan.title")}

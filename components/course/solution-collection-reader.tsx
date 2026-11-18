@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { completeExplanationAction } from "@/app/(student)/courses/[id]/solutions/[collectionId]/actions";
 import { useSearchParams } from "next/navigation";
-import { BookOpen, CheckCircle2, Circle, ChevronLeft, ChevronRight, List, Search } from "lucide-react";
+import { BookOpen, CheckCircle2, Circle, ChevronLeft, ChevronRight, Crosshair, List, Search } from "lucide-react";
 import { useLocale } from "next-intl";
 import { Component, Suspense, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { AdminEmptyState } from "@/components/admin/state-panels";
@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { materializeArticleParts, type ArticlePart } from "@/lib/materials/article-parts";
 import { useTranslations } from "@/lib/i18n/client";
 import type { SolutionCollection, SolutionCollectionItem, SolutionProvenance } from "@/lib/materials/solution-collection";
@@ -145,17 +146,36 @@ function ItemList({ collection, activeId, onSelect, itemReviewStatus }: {
     focusItem(matches[next].item.id);
   };
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <SearchBar size="sm" value={query} onSearch={(value) => { pendingFocus.current = null; focusActiveAfterSearch.current = false; setQuery(value); setPage(0); }} aria-label={t("search")} placeholder={t("search")} />
-      <Button type="button" variant="outline" size="sm" className="h-auto min-h-7 whitespace-normal py-1" onClick={goToActive}>{t("goToActive")}</Button>
-      {pageCount > 1 ? <div className="flex flex-wrap items-center justify-between gap-2">
-        <Button type="button" variant="outline" size="sm" className="h-auto min-h-7 whitespace-normal py-1" aria-label={t("previousPage")} disabled={currentPage === 0} onClick={() => { setPage(currentPage - 1); }}>{t("previous")}</Button>
-        <span role="status" className="text-body-xs text-muted-foreground">{t("pageProgress", { current: currentPage + 1, total: pageCount })}</span>
-        <Button type="button" variant="outline" size="sm" className="h-auto min-h-7 whitespace-normal py-1" aria-label={t("nextPage")} disabled={currentPage === pageCount - 1} onClick={() => { setPage(currentPage + 1); }}>{t("next")}</Button>
-      </div> : null}
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      <TooltipProvider>
+        <div className="flex flex-wrap items-center gap-1 border-b border-border pb-1">
+          <SearchBar collapsible size="sm" containerClassName="min-w-0 flex-1" value={query} onSearch={(value) => { pendingFocus.current = null; focusActiveAfterSearch.current = false; setQuery(value); setPage(0); }} aria-label={t("search")} placeholder={t("search")} />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" variant="ghost" size="icon-lg" onClick={goToActive} aria-label={t("goToActive")}><Crosshair aria-hidden /></Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("goToActive")}</TooltipContent>
+          </Tooltip>
+          {pageCount > 1 ? <div className="ml-auto flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button type="button" variant="ghost" size="icon-lg" aria-label={t("previousPage")} disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}><ChevronLeft aria-hidden /></Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("previousPage")}</TooltipContent>
+            </Tooltip>
+            <span role="status" className="text-body-xs text-muted-foreground">{t("pageProgress", { current: currentPage + 1, total: pageCount })}</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button type="button" variant="ghost" size="icon-lg" aria-label={t("nextPage")} disabled={currentPage === pageCount - 1} onClick={() => setPage(currentPage + 1)}><ChevronRight aria-hidden /></Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("nextPage")}</TooltipContent>
+            </Tooltip>
+          </div> : null}
+        </div>
+      </TooltipProvider>
       {matches.length ? (
         <nav ref={listRef} aria-label={t("itemList")} aria-describedby={listHelpId} className="min-h-0 overflow-y-auto lg:max-h-[calc(100dvh-14rem)]" data-solution-list>
-          <p id={listHelpId} className="px-3 pb-2 text-body-xs text-muted-foreground">{t("listKeyboardHelp")}</p>
+          <p id={listHelpId} className="pb-2 text-body-xs text-muted-foreground">{t("listKeyboardHelp")}</p>
           <ol className="space-y-1">
             {visibleMatches.map(({ item, index }) => (
               <li key={item.id} aria-posinset={index + 1} aria-setsize={collection.items.length}>
@@ -274,9 +294,21 @@ function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initia
       </details>
       {revealed && onCompleteItem ? <Button type="button" variant="outline" onClick={onCompleteItem} disabled={itemCompleted}>{itemCompleted ? "Selesai dibaca" : "Tandai selesai dibaca"}</Button> : null}
       {renderItemReview?.(item)}
-      <nav aria-label={t("navigation")} className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
-        <Button type="button" variant="outline" className="h-auto min-h-8 whitespace-normal py-1" onClick={onPrevious} disabled={index === 0}><ChevronLeft aria-hidden="true" />{t("previous")}</Button>
-        <Button type="button" variant="outline" className="h-auto min-h-8 whitespace-normal py-1" onClick={onNext} disabled={index === total - 1}>{t("next")}<ChevronRight aria-hidden="true" /></Button>
+      <nav aria-label={t("navigation")} className="flex items-center justify-between gap-2 border-t border-border pt-2">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" variant="outline" size="icon-lg" aria-label={t("previous")} onClick={onPrevious} disabled={index === 0}><ChevronLeft aria-hidden /></Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("previous")}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" variant="outline" size="icon-lg" aria-label={t("next")} onClick={onNext} disabled={index === total - 1}><ChevronRight aria-hidden /></Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("next")}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </nav>
     </article>
   );
@@ -311,10 +343,19 @@ function ReaderContent({ collection, courseHref, backHref, initialRevealed, rend
   return <div className={embedded ? "w-full space-y-6" : "mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6"}>
     {active ? <Button variant="outline" className="sr-only text-body-sm focus:not-sr-only" onClick={() => headingRef.current?.focus()}>{t("skipToQuestion")}</Button> : null}
     {!embedded ? <PageHeader title={collection.title} backHref={backHref ?? courseHref} backLabel={t("back")} /> : null}
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4 text-body-sm text-muted-foreground">
-      <p>{courseHref ? <Link href={courseHref} className="rounded-sm text-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{collection.course.title}</Link> : collection.course.title}<span aria-hidden="true"> / </span>{collection.chapter.title}</p>
+    <div className="flex items-center justify-between gap-2 border-b border-border pb-2 text-body-sm text-muted-foreground">
+      <p className="min-w-0 break-words">{courseHref ? <Link href={courseHref} className="rounded-sm text-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{collection.course.title}</Link> : collection.course.title}<span aria-hidden="true"> / </span>{collection.chapter.title}</p>
       {active ? <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetTrigger asChild><Button variant="outline" className="h-auto min-h-8 whitespace-normal py-1 lg:hidden"><List aria-hidden="true" />{t("itemList")}</Button></SheetTrigger>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon-lg" className="shrink-0 lg:hidden" aria-label={t("itemList")}><List aria-hidden /></Button>
+              </SheetTrigger>
+            </TooltipTrigger>
+            <TooltipContent>{t("itemList")}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <SheetContent side="left" className="w-[min(85vw,24rem)] gap-0" aria-describedby={undefined} onCloseAutoFocus={(event) => {
           if (selectingFromSheet.current) {
             event.preventDefault();
@@ -322,7 +363,7 @@ function ReaderContent({ collection, courseHref, backHref, initialRevealed, rend
           }
           selectingFromSheet.current = false;
         }}>
-          <SheetHeader><SheetTitle>{t("itemList")}</SheetTitle></SheetHeader>
+          <SheetHeader className="py-3 pr-14"><SheetTitle>{t("itemList")}</SheetTitle></SheetHeader>
           <div className="flex min-h-0 flex-1 flex-col px-4 pb-4"><ItemList collection={collection} activeId={active.id} onSelect={selectItem} itemReviewStatus={itemReviewStatus} /></div>
         </SheetContent>
       </Sheet> : null}

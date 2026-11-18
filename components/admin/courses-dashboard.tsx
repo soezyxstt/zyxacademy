@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "@/lib/i18n/client";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
+import { AdminIconAction } from "@/components/admin/icon-action";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +44,7 @@ import {
   BookOpen,
   MoreHorizontal,
 } from "lucide-react";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { SearchBar } from "@/components/ui/search-bar";
 import {
   DropdownMenu,
@@ -228,19 +230,24 @@ export function CoursesDashboard({ initialCourses }: Props) {
   return (
     <div className="@container/courses min-w-0 space-y-4">
       {/* Search, Filter, and View Controls */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex-1 min-w-[140px]">
-          <SearchBar
-            size="sm"
-            placeholder={t("courses.search")}
-            value={search}
-            onSearch={setSearch}
-            onClear={() => setSearch("")}
-          />
-        </div>
+      <div className="flex flex-wrap items-center gap-2 max-sm:[&:has(>[data-search-expanded=true])>:not([data-search-expanded=true]):not([data-active-filter])]:hidden">
+        <SearchBar
+          collapsible
+          size="sm"
+          containerClassName="min-w-[140px]"
+          placeholder={t("courses.search")}
+          value={search}
+          onSearch={setSearch}
+          onClear={() => setSearch("")}
+        />
 
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-[140px] sm:w-[170px] shrink-0 h-9 rounded-lg">
+          <SelectTrigger
+            variant="inline"
+            aria-label={t("courses.category")}
+            data-active-filter={categoryFilter === "all" ? undefined : ""}
+            className="max-w-44 shrink-0"
+          >
             <SelectValue placeholder={t("courses.allWithCount", { count: courses.length })} />
           </SelectTrigger>
           <SelectContent>
@@ -253,144 +260,109 @@ export function CoursesDashboard({ initialCourses }: Props) {
           </SelectContent>
         </Select>
 
-        {/* View mode toggle */}
-        <TooltipProvider>
-          <div className="flex shrink-0 items-center gap-0.5 bg-muted/50 p-0.5 rounded-lg border border-border/50">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant={viewMode === "grid" ? "secondary" : "ghost"}
-                  className="size-8 rounded-md"
-                  onClick={() => setViewMode("grid")}
-                  aria-pressed={viewMode === "grid"}
-                  aria-label={t("courses.cardView")}
-                >
-                  <LayoutGrid className="size-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">{t("courses.cardView")}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant={viewMode === "table" ? "secondary" : "ghost"}
-                  className="size-8 rounded-md"
-                  onClick={() => setViewMode("table")}
-                  aria-pressed={viewMode === "table"}
-                  aria-label={t("courses.tableView")}
-                >
-                  <List className="size-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">{t("courses.tableView")}</TooltipContent>
-            </Tooltip>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <div className="flex items-center gap-0.5 rounded-lg bg-muted/40">
+            <AdminIconAction
+              label={t("courses.cardView")}
+              variant={viewMode === "grid" ? "secondary" : "ghost"}
+              onClick={() => setViewMode("grid")}
+              aria-pressed={viewMode === "grid"}
+            >
+              <LayoutGrid className="size-4" />
+            </AdminIconAction>
+            <AdminIconAction
+              label={t("courses.tableView")}
+              variant={viewMode === "table" ? "secondary" : "ghost"}
+              onClick={() => setViewMode("table")}
+              aria-pressed={viewMode === "table"}
+            >
+              <List className="size-4" />
+            </AdminIconAction>
           </div>
-        </TooltipProvider>
-
-        <Button
-          size="sm"
-          onClick={() => setCreateModalOpen(true)}
-          className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm font-semibold"
-        >
-          <Plus className="size-3.5" />
-          <span>{t("courses.add")}</span>
-        </Button>
+          <AdminIconAction label={t("courses.add")} onClick={() => setCreateModalOpen(true)}>
+            <Plus className="size-4" />
+          </AdminIconAction>
+        </div>
       </div>
 
       {/* Course Items Display */}
       {filteredCourses.length === 0 ? (
-        <div className="text-center py-12 border border-dashed border-border rounded-xl bg-card">
-          <BookOpen className="size-8 text-muted-foreground/40 mx-auto mb-2" />
-          <p className="font-heading text-body-sm font-semibold text-foreground">
-            {t("courses.empty.title")}
-          </p>
-          <p className="text-body-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-            {search || categoryFilter !== "all"
-              ? t("courses.empty.filtered")
-              : t("courses.empty.first")}
-          </p>
-        </div>
+        <AdminEmptyState
+          icon={BookOpen}
+          title={t("courses.empty.title")}
+          description={search || categoryFilter !== "all" ? t("courses.empty.filtered") : t("courses.empty.first")}
+        />
       ) : viewMode === "grid" ? (
         /* Grid View */
-        <div className="grid grid-cols-1 gap-3 @min-[32rem]/courses:grid-cols-2 @min-[49rem]/courses:grid-cols-3">
+        <div className="grid grid-cols-1 gap-x-4 divide-y divide-border border-y border-border @min-[32rem]/courses:grid-cols-2 @min-[32rem]/courses:divide-y-0 @min-[49rem]/courses:grid-cols-3">
           {filteredCourses.map((c) => (
             <div
               key={c.id}
-              className="group rounded-xl border border-border bg-card p-3.5 hover:border-brand-primary/50 transition-colors flex flex-col justify-between gap-3"
+              className="flex min-w-0 items-start justify-between gap-2 py-3 @min-[32rem]/courses:border-b @min-[32rem]/courses:border-border"
             >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-1.5">
-                    <Badge
-                      variant="outline"
-                      className="font-mono text-body-xs font-semibold rounded-md bg-muted/40 px-2 py-0.5"
-                    >
-                      {c.id}
-                    </Badge>
-                    <Badge variant="secondary" className="text-body-xs rounded-md font-medium px-2 py-0.5 truncate">
-                      {c.category}
-                    </Badge>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="size-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
-                        aria-label={t("courses.actions")}
-                      >
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-40">
-                      <DropdownMenuItem onSelect={(e) => startEditCourse(c, e as unknown as React.MouseEvent)}>
-                        <Edit2 className="size-4 text-muted-foreground" />
-                        <span>{t("courses.edit")}</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onSelect={(e) => startDeleteCourse(c, e as unknown as React.MouseEvent)}
-                        className="text-status-error focus:text-status-error"
-                      >
-                        <Trash2 className="size-4" />
-                        <span>{t("courses.delete")}</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                <div>
-                  <Link href={`/admin/courses/${c.id}`} className="block">
-                    <h3 title={c.title} className="line-clamp-2 break-words font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors">
-                      {c.title}
-                    </h3>
-                  </Link>
+              <div className="min-w-0 space-y-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="min-w-0 break-words font-mono text-body-xs font-bold text-foreground">{c.id}</span>
+                  <Badge variant="secondary" className="min-w-0 whitespace-normal break-words rounded-md px-1.5 py-0.5 text-body-xs font-medium">
+                    {c.category}
+                  </Badge>
                   <span className="text-body-xs text-muted-foreground">{pricingCategoryLabel(c.pricing)}</span>
                 </div>
-              </div>
-
-              <div className="flex items-center justify-between gap-2 pt-1">
-                <span className="text-body-xs text-muted-foreground truncate">
+                <h3 className="break-words font-heading text-body-sm font-bold">
+                  <Link href={`/admin/courses/${c.id}`} className="text-foreground hover:text-primary">
+                    {c.title}
+                  </Link>
+                </h3>
+                <p className="text-body-xs text-muted-foreground">
                   {t("courses.chaptersWithCount", { count: c.chapterCount })} · {c.materialCount} PDF · {t("courses.quizzesWithCount", { count: c.quizCount })}
-                </span>
-                <Link href={`/admin/courses/${c.id}`} className="shrink-0">
-                  <Button size="sm" variant="outline" className="gap-1.5 rounded-lg text-body-sm font-medium h-8 px-2.5">
-                    <span>{t("courses.manage")}</span>
-                    <ArrowRight className="size-3" />
-                  </Button>
-                </Link>
+                </p>
               </div>
+              <DropdownMenu>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="icon-lg"
+                          variant="ghost"
+                          className="shrink-0 text-muted-foreground hover:text-foreground"
+                          aria-label={t("courses.actions")}
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("courses.actions")}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem asChild>
+                    <Link href={`/admin/courses/${c.id}`}>
+                      <ArrowRight className="size-4 text-muted-foreground" />
+                      <span>{t("courses.manage")}</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={(e) => startEditCourse(c, e as unknown as React.MouseEvent)}>
+                    <Edit2 className="size-4 text-muted-foreground" />
+                    <span>{t("courses.edit")}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={(e) => startDeleteCourse(c, e as unknown as React.MouseEvent)}
+                    className="text-status-error focus:text-status-error"
+                  >
+                    <Trash2 className="size-4" />
+                    <span>{t("courses.delete")}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           ))}
         </div>
       ) : (
         /* Table View (vertical list on mobile, full table on md+) */
         <>
-          <div className="md:hidden divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-2xs">
+          <div className="md:hidden divide-y divide-border border-y border-border">
             {filteredCourses.map((c) => (
               <div key={c.id} className="flex items-start justify-between gap-3 px-3.5 py-3">
                 <div className="min-w-0 flex-1 space-y-1">
@@ -444,7 +416,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
             ))}
           </div>
 
-          <div className="hidden md:block rounded-xl border border-border bg-card shadow-2xs overflow-x-auto">
+          <div className="hidden overflow-x-auto border-y border-border md:block">
             <table className="w-full text-left text-body-xs">
             <thead className="bg-muted text-body-xs font-semibold text-muted-foreground">
               <tr>

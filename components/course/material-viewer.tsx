@@ -45,6 +45,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetTrigger,
 } from "@/components/ui/sheet";
 import {
   Tooltip,
@@ -1286,7 +1287,7 @@ toast.success(t("reader.markedComplete"));
     }
   };
 
-  const openUrl = getViewablePdfUrl(material.url) || "#";
+  const openUrl = getViewablePdfUrl(material.url);
 
   const tutorPopover = learnerMode && selectionCoords && selectedText ? (
     <div
@@ -1339,170 +1340,160 @@ toast.success(t("reader.markedComplete"));
 
   if (material.kind === "article" && material.body) {
     const conceptTags = getConceptTags(material.courseId, material.title);
+    const summaryChapterId = !hideHeader && learnerMode && accessTier !== "free" && ragEnabled ? chapterId : undefined;
+    const articleTocSearch = (
+      <SearchBar
+        collapsible
+        type="search"
+        value={articleTocSearchQuery}
+        onSearch={setArticleTocSearchQuery}
+        onClear={() => setArticleTocSearchQuery("")}
+        aria-label={material.docCategory === "diktat" ? t("reader.searchDiktat") : t("reader.searchArticle")}
+        placeholder={material.docCategory === "diktat" ? t("reader.searchDiktat") : t("reader.searchArticle")}
+        variant="bordered"
+        size="sm"
+        containerClassName="min-w-0 flex-1"
+      />
+    );
+    const articleTocPosition = (
+      <span className="shrink-0 text-body-xs font-semibold text-muted-foreground group-has-[[data-search-expanded=true]]/toc:hidden">
+        {activeSectionIdx + 1}/{articleSections.length}
+      </span>
+    );
     const renderArticleTocContent = () => (
-      <div className="flex h-full flex-col">
-        <div className="border-b border-border/70 p-3">
-          <SearchBar
-            type="search"
-            value={articleTocSearchQuery}
-            onSearch={setArticleTocSearchQuery}
-            onClear={() => setArticleTocSearchQuery("")}
-            aria-label={material.docCategory === "diktat" ? t("reader.searchDiktat") : t("reader.searchArticle")}
-            placeholder={material.docCategory === "diktat" ? t("reader.searchDiktat") : t("reader.searchArticle")}
-            variant="bordered"
-            size="sm"
-          />
-        </div>
-        <div className="flex-1 space-y-1 overflow-y-auto p-3">
-          <div className="mb-1 flex items-center justify-between px-2 py-1">
-            <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Daftar Isi
-            </span>
-            <span className="text-body-xs font-semibold text-muted-foreground">
-              {activeSectionIdx + 1}/{articleSections.length}
-            </span>
-          </div>
-          {visibleArticleSections.length === 0 ? (
-            <p className="px-2 py-3 text-center text-body-xs text-muted-foreground">
-              Tidak ada bagian yang cocok.
-            </p>
-          ) : (
-            visibleArticleSections.map(({ section, index }) => {
-              const isActive = index === activeSectionIdx;
-              const isPassed = index < activeSectionIdx;
-              return (
-                <button
-                  key={`${section.title}-${index}`}
-                  type="button"
-                  aria-current={isActive ? "location" : undefined}
-                  onClick={() => {
-                    setActiveSectionIdx(index);
-                    setShowOutlineSheet(false);
-                    const el = document.getElementById(`diktat-section-${index}`);
-                    if (el) {
-                      el.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }
-                  }}
-                  className={cn(
-                    "flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left text-body-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                    isActive
-                      ? "border-l-2 border-primary bg-primary/10 text-primary"
-                      : "text-foreground hover:bg-muted/60",
-                  )}
-                >
-                  {isPassed ? (
-                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-status-success" />
-                  ) : isActive ? (
-                    <Circle className="mt-0.5 size-4 shrink-0 fill-primary/20 text-primary" />
-                  ) : (
-                    <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground/50" />
-                  )}
-                  <span className="min-w-0 break-words py-0.5 font-semibold leading-snug">
-                    {formatReaderTocTitle(section.title)}
-                  </span>
-                </button>
-              );
-            })
-          )}
-        </div>
+      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">
+        {visibleArticleSections.length === 0 ? (
+          <p className="px-2 py-3 text-center text-body-xs text-muted-foreground">
+            Tidak ada bagian yang cocok.
+          </p>
+        ) : (
+          visibleArticleSections.map(({ section, index }) => {
+            const isActive = index === activeSectionIdx;
+            const isPassed = index < activeSectionIdx;
+            return (
+              <button
+                key={`${section.title}-${index}`}
+                type="button"
+                aria-current={isActive ? "location" : undefined}
+                onClick={() => {
+                  setActiveSectionIdx(index);
+                  setShowOutlineSheet(false);
+                  const el = document.getElementById(`diktat-section-${index}`);
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }
+                }}
+                className={cn(
+                  "flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left text-body-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  isActive
+                    ? "border-l-2 border-primary bg-primary/10 text-primary"
+                    : "text-foreground hover:bg-muted/60",
+                )}
+              >
+                {isPassed ? (
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-status-success" />
+                ) : isActive ? (
+                  <Circle className="mt-0.5 size-4 shrink-0 fill-primary/20 text-primary" />
+                ) : (
+                  <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground/50" />
+                )}
+                <span className="min-w-0 break-words py-0.5 font-semibold leading-snug">
+                  {formatReaderTocTitle(section.title)}
+                </span>
+              </button>
+            );
+          })
+        )}
       </div>
     );
 
     return (
       <div className="flex flex-col h-full w-full overflow-hidden bg-background">
-        {!hideHeader && learnerMode && (
-          <header className="relative flex w-full shrink-0 items-center justify-between gap-3 border-b border-border/80 bg-background/95 px-4 py-2.5 backdrop-blur-sm">
-            <div className="flex min-w-0 items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className="shrink-0 gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground"
-              >
-                <Link href={backHref ?? `/courses/${material.courseId}/material`} aria-label={t("reader.backToMaterials")}>
-                  <ArrowLeft className="size-4" />
-                  <span className="hidden sm:inline">{t("reader.backToMaterial")}</span>
-                </Link>
-              </Button>
-              <div className="hidden h-4 w-px shrink-0 bg-border sm:block" />
-              <div className="min-w-0">
-                <p className="truncate text-body-xs font-medium text-muted-foreground">
-                  {course?.title ?? t("reader.courseMaterials")}
-                </p>
-                <h1 className="truncate font-heading text-body-sm font-bold text-foreground">
-                  {material.title}
-                </h1>
-              </div>
-            </div>
-
-            <div className="flex shrink-0 items-center gap-2">
-              <div className="hidden items-center gap-2 text-body-xs text-muted-foreground md:flex">
-                <div className="h-2 w-24 overflow-hidden rounded-md bg-muted">
-                  <div className="h-full rounded-md bg-primary transition-all duration-300" style={{ width: `${progressPercent}%` }} />
-                </div>
-                <span className="font-semibold text-foreground">{progressPercent}%</span>
-              </div>
-              {material.url && canDownload && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  asChild
-                  className="interactive gap-1.5 text-body-xs font-semibold"
-                >
-                  <a href={material.url} download target="_blank" rel="noopener noreferrer">
-                    <Download className="size-3.5" aria-hidden />
-                    <span className="hidden sm:inline">{t("reader.downloadPdf")}</span>
-                    <span className="sm:hidden">{t("reader.download")}</span>
-                  </a>
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowOutlineSheet(true)}
-                className="gap-1.5 text-body-xs md:hidden"
-              >
-                <Menu className="size-4" />
-                <span>{t("reader.tableOfContents")}</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsArticleTocOpen((open) => !open)}
-                className="hidden gap-1.5 text-body-xs md:flex"
-              >
-                {isArticleTocOpen ? <PanelRightClose className="size-4" /> : <PanelRight className="size-4" />}
-                <span>{isArticleTocOpen ? t("reader.hideMenu") : t("reader.openMenu")}</span>
-              </Button>
-              {learnerMode && accessTier !== "free" && ragEnabled && chapterId && (
-                <ChapterSummarySheet chapterId={chapterId} chapterTitle={material.title} />
-              )}
-              {learnerMode && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={markDone}
-                  aria-label={done ? t("reader.complete") : t("reader.markComplete")}
-                  disabled={done}
-                  className="interactive gap-1.5 text-body-xs font-semibold"
-                >
-                  <CheckCircle2 className={cn("size-3.5", done ? "text-emerald-500 fill-emerald-500/10" : "text-muted-foreground")} />
-                  <span className="hidden lg:inline">{done ? t("reader.complete") : t("reader.markComplete")}</span>
-                </Button>
-              )}
-            </div>
-            <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
-          </header>
-        )}
-
         <Sheet open={showOutlineSheet} onOpenChange={setShowOutlineSheet}>
-          <SheetContent side="right" className="flex h-full w-[300px] flex-col p-0 sm:w-[360px]">
-            <SheetHeader className="border-b border-border/80 p-4">
-              <SheetTitle className="font-heading text-body-sm font-bold">
-                {material.title}
-              </SheetTitle>
+          {!hideHeader && learnerMode && (
+            <header className="relative flex w-full shrink-0 items-center flex-wrap justify-between gap-x-2 gap-y-1 border-b border-border/80 bg-background/95 px-2 py-1 sm:px-4 backdrop-blur-sm">
+              <div className="flex min-w-0 flex-1 basis-32 items-center gap-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon-lg" asChild>
+                        <Link href={backHref ?? `/courses/${material.courseId}/material`} aria-label={t("reader.backToMaterials")}>
+                          <ArrowLeft aria-hidden />
+                        </Link>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("reader.backToMaterials")}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <div className="min-w-0">
+                  <p className="truncate text-body-xs font-medium text-muted-foreground">
+                    {course?.title ?? t("reader.courseMaterials")}
+                  </p>
+                  <h1 className="break-words font-heading text-body-sm font-bold text-foreground">
+                    {material.title}
+                  </h1>
+                </div>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-2">
+                <div className="hidden items-center gap-2 text-body-xs text-muted-foreground md:flex">
+                  <div className="h-2 w-24 overflow-hidden rounded-md bg-muted">
+                    <div className="h-full rounded-md bg-primary transition-all duration-300" style={{ width: `${progressPercent}%` }} />
+                  </div>
+                  <span className="font-semibold text-foreground">{progressPercent}%</span>
+                </div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <SheetTrigger asChild>
+                        <Button variant="ghost" size="icon-lg" className="md:hidden" aria-label={t("reader.tableOfContents")}>
+                          <Menu aria-hidden />
+                        </Button>
+                      </SheetTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("reader.tableOfContents")}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-lg"
+                        className="hidden md:inline-flex"
+                        aria-label={isArticleTocOpen ? t("reader.hideMenu") : t("reader.openMenu")}
+                        aria-expanded={isArticleTocOpen}
+                        onClick={() => setIsArticleTocOpen((open) => !open)}
+                      >
+                        {isArticleTocOpen ? <PanelRightClose aria-hidden /> : <PanelRight aria-hidden />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{isArticleTocOpen ? t("reader.hideMenu") : t("reader.openMenu")}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                {learnerMode && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={markDone}
+                    aria-label={done ? t("reader.complete") : t("reader.markComplete")}
+                    disabled={done}
+                    className="interactive gap-1.5 font-semibold"
+                  >
+                    <CheckCircle2 className={cn("size-3.5", done ? "text-emerald-500 fill-emerald-500/10" : "text-muted-foreground")} />
+                    <span>{done ? t("reader.complete") : t("reader.markComplete")}</span>
+                  </Button>
+                )}
+              </div>
+              <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
+            </header>
+          )}
+
+          <SheetContent side="right" className="gap-0" aria-describedby={undefined}>
+            <SheetHeader className="group/toc min-h-14 flex-row items-center gap-2 border-b border-border/80 py-2 pl-3 pr-14">
+              <SheetTitle className="min-w-0 flex-1 truncate text-body-sm group-has-[[data-search-expanded=true]]/toc:sr-only">{t("reader.tableOfContents")}</SheetTitle>
+              {articleTocPosition}
+              {articleTocSearch}
             </SheetHeader>
-            <div className="flex-1 overflow-hidden">{renderArticleTocContent()}</div>
+            {renderArticleTocContent()}
           </SheetContent>
         </Sheet>
 
@@ -1524,18 +1515,26 @@ toast.success(t("reader.markedComplete"));
                       </span>
                       {course?.title && <span>· {course.title}</span>}
                     </div>
-                    {material.url && canDownload && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                        className="gap-1.5 text-body-xs font-semibold"
-                      >
-                        <a href={material.url} download target="_blank" rel="noopener noreferrer">
-                          <Download className="size-3.5" aria-hidden />
-                          <span>{t("reader.downloadPdf")}</span>
-                        </a>
-                      </Button>
+                    {((material.url && canDownload) || summaryChapterId) && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {material.url && canDownload && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="outline" size="icon-lg" asChild>
+                                  <a href={material.url} download target="_blank" rel="noopener noreferrer" aria-label={t("reader.downloadPdf")}>
+                                    <Download aria-hidden />
+                                  </a>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>{t("reader.downloadPdf")}</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                        {summaryChapterId && (
+                          <ChapterSummarySheet chapterId={summaryChapterId} chapterTitle={material.title} />
+                        )}
+                      </div>
                     )}
                   </div>
                   <h1 className="font-heading text-h3 font-bold tracking-tight text-foreground sm:text-h2">
@@ -1648,7 +1647,12 @@ toast.success(t("reader.markedComplete"));
             </div>
           </div>
           {isArticleTocOpen && (
-            <aside className="hidden w-72 shrink-0 overflow-hidden border-l border-border/80 bg-card/40 md:block lg:w-80">
+            <aside className="hidden w-72 shrink-0 overflow-hidden border-l border-border/80 bg-card/40 md:flex md:flex-col lg:w-80">
+              <div className="group/toc flex items-center gap-2 border-b border-border/70 px-3 py-1">
+                <h2 className="min-w-0 flex-1 text-body-sm font-semibold group-has-[[data-search-expanded=true]]/toc:sr-only">{t("reader.tableOfContents")}</h2>
+                {articleTocPosition}
+                {articleTocSearch}
+              </div>
               {renderArticleTocContent()}
             </aside>
           )}
@@ -1711,14 +1715,18 @@ toast.success(t("reader.markedComplete"));
         {material.kind === "pdf" ? (
           <div className="flex flex-col w-full h-full relative bg-background overflow-hidden">
             {/* Viewer Engine Toggle (rendered at the top of PDF viewer container) */}
-            <div className="flex items-center justify-between gap-4 p-3 border-b border-border bg-card shrink-0">
-              <div className="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border border-border">
-                {showDemoViewer && (
+            <div className={cn(
+              "flex-wrap items-center gap-2 border-b border-border bg-card px-3 py-1.5 shrink-0",
+              showDemoViewer || (material.url && canDownload) ? "flex" : openUrl ? "hidden md:flex" : "hidden"
+            )}>
+              {showDemoViewer && (
+                <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/60 p-0.5">
                   <button
                     type="button"
                     onClick={() => setViewerType("custom")}
+                    aria-pressed={viewerType === "custom"}
                     className={cn(
-                      "px-2.5 py-1 rounded-md text-[10px] font-semibold flex items-center gap-1 transition-all",
+                      "px-2.5 py-1 rounded-md text-body-sm font-semibold flex items-center gap-1 transition-all",
                       viewerType === "custom"
                         ? "bg-card text-brand-primary shadow-xs"
                         : "text-muted-foreground hover:text-foreground"
@@ -1726,41 +1734,50 @@ toast.success(t("reader.markedComplete"));
                   >
                     Mode Interaktif
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setViewerType("chrome")}
-                  className={cn(
-                    "px-2.5 py-1 rounded-md text-[10px] font-semibold flex items-center gap-1 transition-all",
-                    viewerType === "chrome"
-                      ? "bg-card text-brand-primary shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Mode Dokumen
-                </button>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                {material.url && (
-                  <>
-                    {canDownload && (
-                      <Button asChild variant="outline" size="xs" className="rounded-md text-[10px] font-semibold h-7">
-                        <a href={material.url} download target="_blank" rel="noopener noreferrer">
-                          <Download className="mr-1 size-3" aria-hidden />
-                          <span className="hidden sm:inline">{t("reader.downloadPdf")}</span>
-                          <span className="sm:hidden">{t("reader.download")}</span>
-                        </a>
-                      </Button>
+                  <button
+                    type="button"
+                    onClick={() => setViewerType("chrome")}
+                    aria-pressed={viewerType === "chrome"}
+                    className={cn(
+                      "px-2.5 py-1 rounded-md text-body-sm font-semibold flex items-center gap-1 transition-all",
+                      viewerType === "chrome"
+                        ? "bg-card text-brand-primary shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
                     )}
-                    <Button asChild variant="outline" size="xs" className="rounded-md text-[10px] font-semibold h-7">
-                      <a href={openUrl} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="mr-1 size-3" aria-hidden />
-                        <span className="hidden sm:inline">{t("reader.openOriginal")}</span>
-                        <span className="sm:hidden">{t("reader.open")}</span>
-                      </a>
-                    </Button>
-                  </>
+                  >
+                    Mode Dokumen
+                  </button>
+                </div>
+              )}
+
+              <div className="ml-auto flex items-center gap-1.5">
+                {material.url && (
+                  <TooltipProvider>
+                    {canDownload && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button asChild variant="outline" size="icon-lg">
+                            <a href={material.url} download target="_blank" rel="noopener noreferrer" aria-label={t("reader.downloadPdf")}>
+                              <Download aria-hidden />
+                            </a>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t("reader.downloadPdf")}</TooltipContent>
+                      </Tooltip>
+                    )}
+                    {openUrl && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button asChild variant="outline" size="icon-lg" className={viewerType === "chrome" ? "hidden md:inline-flex" : undefined}>
+                            <a href={openUrl} target="_blank" rel="noopener noreferrer" aria-label={t("reader.openOriginal")}>
+                              <ExternalLink aria-hidden />
+                            </a>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t("reader.openOriginal")}</TooltipContent>
+                      </Tooltip>
+                    )}
+                  </TooltipProvider>
                 )}
               </div>
             </div>
@@ -2340,11 +2357,11 @@ toast.success(t("reader.markedComplete"));
                       Buka dokumen di penampil PDF peramban Anda.
                     </p>
                   </div>
-                  {openUrl && openUrl !== "#" ? (
+                  {openUrl ? (
                     <Button asChild size="sm" className="rounded-md font-semibold text-body-xs">
                       <a href={openUrl} target="_blank" rel="noopener noreferrer">
                         <ExternalLink className="mr-1.5 size-3.5" />
-                        Buka Dokumen PDF
+                        {t("reader.openOriginal")}
                       </a>
                     </Button>
                   ) : null}
@@ -2352,9 +2369,6 @@ toast.success(t("reader.markedComplete"));
 
                 {/* Native Browser PDF Viewer (iframe fallback for desktop) */}
                 <div className="hidden md:flex flex-col flex-1 w-full min-h-0">
-                  <p className="text-body-xs text-muted-foreground mb-2 shrink-0">
-                    Pratinjau PDF bawaan browser di bawah ini. Gunakan tombol unduh atau buka berkas jika pratinjau tidak termuat.
-                  </p>
                   <div className="flex-1 w-full overflow-hidden border border-border bg-[#333] dark:bg-black-3 rounded-xl sm:rounded-2xl relative shadow-md min-h-[500px]">
                     <iframe
                       title={material.title}

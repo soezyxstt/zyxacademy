@@ -192,7 +192,7 @@ export function TutorFeeEstimator() {
       className="grid gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]"
       data-tutor-fee-estimator
     >
-      <section className="rounded-xl border border-border bg-card p-4">
+      <section className="border-y border-border py-4">
         <AdminSectionTitle
           icon={Coins}
           title={t("pricingEstimatorUI.packageConfiguration")}
@@ -319,7 +319,7 @@ export function TutorFeeEstimator() {
       </section>
 
       <section
-        className="rounded-xl border border-border bg-card p-4"
+        className="border-y border-border py-4"
         data-tutor-price-state={quote ? "valid" : "invalid"}
       >
         <AdminSectionTitle

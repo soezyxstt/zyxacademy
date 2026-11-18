@@ -176,7 +176,7 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  {showForm && (
  <form
  onSubmit={handleCreate}
- className="mb-4 rounded-xl border border-border bg-card p-4 space-y-3"
+ className="mb-4 space-y-3 border-y border-border py-3"
  >
   <AdminSectionTitle size="h6" icon={Zap} iconClassName="text-status-warning" title={t("questionGeneration")} />
 

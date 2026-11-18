@@ -70,18 +70,17 @@ export default async function TutorQuizGradingPage({ params }: Props) {
   return (
     <ApplicationPage>
       <Reveal>
-        <PageHeader
-          icon={CheckSquare}
-          title={<TranslatedText namespace="tutor" messageKey="routeTitles.quizGrading" />}
-          backHref={`/tutor/${courseId}/quizzes`}
-          backLabel={<><TranslatedText namespace="tutor" messageKey="routeTitles.backToQuizzes" /> ({courseTitle})</>}
-        />
-      </Reveal>
-
-      <Reveal>
         <TutorQuizGradingClient
           courseId={courseId}
           pendingAttempts={pendingAttempts}
+          queueHeader={
+            <PageHeader
+              icon={CheckSquare}
+              title={<TranslatedText namespace="tutor" messageKey="routeTitles.quizGrading" />}
+              backHref={`/tutor/${courseId}/quizzes`}
+              backLabel={<><TranslatedText namespace="tutor" messageKey="routeTitles.backToQuizzes" /> ({courseTitle})</>}
+            />
+          }
         />
       </Reveal>
     </ApplicationPage>

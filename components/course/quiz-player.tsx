@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { emitActivityUpdated } from "@/lib/activity-signal";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { Flag, Timer, Clock, BookOpen, AlertCircle, ChevronLeft, ChevronRight, Loader2, UploadCloud, FileText, Trash2, Check, CheckSquare, CircleDot } from "lucide-react";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
@@ -144,6 +146,7 @@ export function QuizPlayer({ courseId, visualCourseId = courseId, exam, attemptI
   const submittingRef = useRef(false);
   const activeUploadPromisesRef = useRef<Map<string, Promise<void>>>(new Map());
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [questionMapOpen, setQuestionMapOpen] = useState(false);
 
   // Cloudflare R2 upload state for essay attachments
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
@@ -605,7 +608,7 @@ export function QuizPlayer({ courseId, visualCourseId = courseId, exam, attemptI
 
   if (!q) {
     return (
-      <div className="rounded-lg border border-dashed border-border bg-muted/15 py-10 text-center">
+      <div className="py-4 text-center">
         <p className="text-body-sm text-muted-foreground">{t("quiz.noQuestions")}</p>
       </div>
     );
@@ -622,6 +625,100 @@ export function QuizPlayer({ courseId, visualCourseId = courseId, exam, attemptI
   );
   const currentFlagged = !!flags[q.id];
 
+  const renderQuestionMap = (onSelect?: () => void) => (
+    <div className="space-y-3">
+      {/* Grid buttons list */}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(2.25rem,1fr))] gap-2 lg:grid-cols-5">
+        {sorted.map((question, idx) => {
+          const active = index === idx;
+          const isAnswered = isQuestionAnswered(question.id);
+          const isFlagged = !!flags[question.id];
+          const isAllowed = canGoBack || idx >= index;
+
+          return (
+            <button
+              key={question.id}
+              type="button"
+              aria-current={active ? "step" : undefined}
+              aria-label={isAllowed ? `${t("quiz.questionNumber", { number: idx + 1 })}, ${t(isFlagged ? "quiz.flagged" : isAnswered ? "quiz.answered" : "quiz.unanswered")}` : t("quiz.lockedQuestion", { number: idx + 1 })}
+              disabled={!isAllowed}
+              onClick={() => {
+                if (!isAllowed) return;
+                setIndex(idx);
+                onSelect?.();
+              }}
+              className={cn(
+                "flex size-9 items-center justify-center rounded-lg border font-heading text-body-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                !isAllowed && "opacity-40 cursor-not-allowed",
+                isAllowed && "cursor-pointer",
+                active
+                  ? "border-brand-primary ring-2 ring-brand-primary/20"
+                  : "border-transparent",
+                isFlagged
+                  ? "bg-brand-secondary/15 text-brand-secondary border-brand-secondary/60 hover:bg-brand-secondary/25"
+                  : isAnswered
+                  ? "bg-tertiary-1/15 text-tertiary-1 border-tertiary-1/50 hover:bg-tertiary-1/25"
+                  : "bg-muted/40 text-muted-foreground border-border/50 hover:bg-muted/80 hover:text-foreground"
+              )}
+              title={isAllowed ? t("quiz.questionNumber", { number: idx + 1 }) : t("quiz.lockedQuestion", { number: idx + 1 })}
+            >
+              {idx + 1}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Legend indicator */}
+      <div className="space-y-2 border-t border-border pt-3 text-body-xs md:pt-4">
+        <span className="font-semibold text-foreground block">{t("quiz.colorLegend")}:</span>
+        <div className="grid grid-cols-2 gap-2 text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <span className="size-3 rounded bg-muted/40 border border-border/50 shrink-0" />
+            <span>{t("quiz.unanswered")}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="size-3 rounded bg-tertiary-1/15 border border-tertiary-1/50 shrink-0" />
+            <span>{t("quiz.answered")}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="size-3 rounded bg-brand-secondary/15 border border-brand-secondary/60 shrink-0" />
+            <span>{t("quiz.flagged")}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="size-3 rounded border-2 border-brand-primary shrink-0" />
+            <span>{t("quiz.active")}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const mobileQuestionMap = (
+    <Sheet open={questionMapOpen} onOpenChange={setQuestionMapOpen}>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <SheetTrigger asChild>
+              <Button type="button" size="icon-lg" variant="outline" className="shrink-0 lg:hidden" aria-label={t("quiz.questionNavigation")}>
+                <BookOpen aria-hidden />
+              </Button>
+            </SheetTrigger>
+          </TooltipTrigger>
+          <TooltipContent>{t("quiz.questionNavigation")}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <SheetContent side="bottom" className="max-h-[75dvh] gap-0 rounded-t-xl" aria-describedby={undefined}>
+        <SheetHeader className="pr-14">
+          <SheetTitle>{t("quiz.questionNavigation")}</SheetTitle>
+        </SheetHeader>
+        <div className="min-h-0 overflow-y-auto px-4 pb-4">
+          {!canGoBack && <p className="mb-3 text-body-xs text-muted-foreground">{t("quiz.nextQuestionOnly")}</p>}
+          {renderQuestionMap(() => setQuestionMapOpen(false))}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+
   return (
     <div className="grid grid-cols-1 items-start gap-4 font-sans md:gap-6 lg:grid-cols-12">
       
@@ -629,8 +726,8 @@ export function QuizPlayer({ courseId, visualCourseId = courseId, exam, attemptI
       <div className="space-y-4 md:space-y-5 lg:col-span-8">
         
         {/* Progress Bar & Header */}
-        <div className="flex flex-col gap-2.5 border-b border-border pb-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 md:pb-4">
-          <div className="flex-1 space-y-1.5">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border pb-2 md:pb-3">
+          <div className="min-w-0 flex-1 basis-40 space-y-1.5">
             <div className="flex items-center justify-between gap-3 text-body-xs font-bold uppercase tracking-wider text-muted-foreground">
               <span>{t("quiz.progress")}</span>
               <span>{Math.round(progress)}% ({answeredCount} / {sorted.length} {t("quiz.filled")})</span>
@@ -643,24 +740,25 @@ export function QuizPlayer({ courseId, visualCourseId = courseId, exam, attemptI
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="ml-auto flex flex-wrap items-center gap-2">
             {perQuestionTimerEnabled && (
-              <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-primary/35 bg-brand-primary/10 px-2.5 py-1 font-mono text-body-sm font-bold text-brand-primary sm:px-3 sm:py-1.5" title={t("quiz.questionTimeLimit")}>
-                <Timer className="size-3.5 animate-pulse sm:size-4" />
-                <span>{t("quiz.questionNumber", { number: index + 1 })}: {questionTimeLeft}s</span>
+              <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-primary/35 bg-brand-primary/10 px-2.5 py-1 font-mono text-body-sm font-bold text-brand-primary sm:px-3 sm:py-1.5" role="timer" aria-label={t("quiz.questionTimeLimit")} title={t("quiz.questionTimeLimit")}>
+                <Timer aria-hidden className="size-3.5 sm:size-4" />
+                <span>{formatTime(questionTimeLeft)}</span>
               </div>
             )}
-            <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-secondary/35 bg-brand-secondary/10 px-2.5 py-1 font-mono text-body-sm font-bold text-brand-secondary sm:px-3 sm:py-1.5" title={t("quiz.totalTimeRemaining")}>
-              <Clock className="size-3.5 sm:size-4" />
+            <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-secondary/35 bg-brand-secondary/10 px-2.5 py-1 font-mono text-body-sm font-bold text-brand-secondary sm:px-3 sm:py-1.5" role="timer" aria-label={t("quiz.totalTimeRemaining")} title={t("quiz.totalTimeRemaining")}>
+              <Clock aria-hidden className="size-3.5 sm:size-4" />
               <span>{formatTime(timeLeft)}</span>
             </div>
+            {mobileQuestionMap}
           </div>
         </div>
 
         {/* Question Area Box */}
         <div
           className={cn(
-            "relative overflow-hidden rounded-xl border border-border/85 bg-card p-4 shadow-xs backdrop-blur-xs md:rounded-2xl md:p-6",
+            "relative min-w-0",
             "motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300",
             currentFlagged && "ring-1 ring-brand-secondary/35 border-brand-secondary/40"
           )}
@@ -889,7 +987,7 @@ export function QuizPlayer({ courseId, visualCourseId = courseId, exam, attemptI
           )}
 
           {/* Flagging Option Widget inside Card */}
-          <div className="mt-4 flex flex-col gap-2.5 border-t border-border/80 pt-3 sm:flex-row sm:items-center sm:justify-between md:mt-5 md:pt-4">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2.5 border-t border-border/80 pt-3">
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -915,19 +1013,21 @@ export function QuizPlayer({ courseId, visualCourseId = courseId, exam, attemptI
           <QuestionSourceCitation origin={q.origin} sourceEventName={q.sourceEventName} />
         </div>
 
-        {/* Navigation Action Buttons */}
-        <div className="flex items-center justify-between gap-2 sm:gap-3">
+        <TooltipProvider>
+        <div className="flex items-center justify-between gap-2">
           {canGoBack ? (
+            <Tooltip><TooltipTrigger asChild>
             <Button
               type="button"
-              variant="outline"
-              className="h-9 gap-1 rounded-md border-border/80 px-3 text-body-sm"
+              variant="ghost"
+              size="icon-lg"
+              aria-label={t("quiz.previous")}
               onClick={goPrev}
               disabled={index === 0}
             >
-              <ChevronLeft className="size-4" />
-              {t("quiz.previous")}
+              <ChevronLeft aria-hidden />
             </Button>
+            </TooltipTrigger><TooltipContent>{t("quiz.previous")}</TooltipContent></Tooltip>
           ) : (
             <span className="text-body-xs font-medium text-muted-foreground italic">
               {t("quiz.linearMode")}
@@ -936,10 +1036,11 @@ export function QuizPlayer({ courseId, visualCourseId = courseId, exam, attemptI
 
           <div className="flex gap-2">
             {index < sorted.length - 1 ? (
-              <Button type="button" className="h-9 gap-1 rounded-md bg-foreground px-4 text-body-sm text-background hover:bg-foreground/90 sm:px-6" onClick={goNext}>
-                {t("quiz.next")}
-                <ChevronRight className="size-4" />
-              </Button>
+              <Tooltip><TooltipTrigger asChild>
+                <Button type="button" size="icon-lg" aria-label={t("quiz.next")} onClick={goNext}>
+                  <ChevronRight aria-hidden />
+                </Button>
+              </TooltipTrigger><TooltipContent>{t("quiz.next")}</TooltipContent></Tooltip>
             ) : (
               <Button
                 type="button"
@@ -959,6 +1060,7 @@ export function QuizPlayer({ courseId, visualCourseId = courseId, exam, attemptI
             )}
           </div>
         </div>
+        </TooltipProvider>
 
       </div>
 
@@ -967,79 +1069,15 @@ export function QuizPlayer({ courseId, visualCourseId = courseId, exam, attemptI
         
         {/* Navigation Grid panel */}
         <div className="space-y-3 md:space-y-5">
-          <div>
+          <div className="hidden lg:block">
             <h3 className="flex items-center gap-2 font-heading text-body-sm font-bold text-foreground">
               <BookOpen className="size-4 text-brand-primary" />
               {t("quiz.questionNavigation")}
             </h3>
-            <p className="mt-1 text-body-xs text-muted-foreground">
-              {canGoBack
-                ? t("quiz.jumpToQuestion")
-                : t("quiz.nextQuestionOnly")}
-            </p>
+            {!canGoBack && <p className="mt-1 text-body-xs text-muted-foreground">{t("quiz.nextQuestionOnly")}</p>}
           </div>
 
-          {/* Grid buttons list */}
-          <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-8 md:gap-2 lg:grid-cols-5">
-            {sorted.map((question, idx) => {
-              const active = index === idx;
-              const isAnswered = isQuestionAnswered(question.id);
-              const isFlagged = !!flags[question.id];
-              const isAllowed = canGoBack || idx >= index;
-
-              return (
-                <button
-                  key={question.id}
-                  type="button"
-                  aria-current={active ? "step" : undefined}
-                  aria-label={isAllowed ? t("quiz.questionNumber", { number: idx + 1 }) : t("quiz.lockedQuestion", { number: idx + 1 })}
-                  disabled={!isAllowed}
-                  onClick={() => {
-                    if (isAllowed) setIndex(idx);
-                  }}
-                  className={cn(
-                    "flex size-8 items-center justify-center rounded-lg border font-heading text-body-xs font-bold transition-all md:size-9",
-                    !isAllowed && "opacity-40 cursor-not-allowed",
-                    isAllowed && "cursor-pointer",
-                    active
-                      ? "border-brand-primary ring-2 ring-brand-primary/20"
-                      : "border-transparent",
-                    isFlagged
-                      ? "bg-brand-secondary/15 text-brand-secondary border-brand-secondary/60 hover:bg-brand-secondary/25"
-                      : isAnswered
-                      ? "bg-tertiary-1/15 text-tertiary-1 border-tertiary-1/50 hover:bg-tertiary-1/25"
-                      : "bg-muted/40 text-muted-foreground border-border/50 hover:bg-muted/80 hover:text-foreground"
-                  )}
-                  title={isAllowed ? t("quiz.questionNumber", { number: idx + 1 }) : t("quiz.lockedQuestion", { number: idx + 1 })}
-                >
-                  {idx + 1}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Legend indicator */}
-          <div className="space-y-2 border-t border-border pt-3 text-body-xs md:pt-4">
-            <span className="font-semibold text-foreground block">{t("quiz.colorLegend")}:</span>
-            <div className="grid grid-cols-2 gap-2 text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <span className="size-3 rounded bg-muted/40 border border-border/50 shrink-0" />
-                <span>{t("quiz.unanswered")}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="size-3 rounded bg-tertiary-1/15 border border-tertiary-1/50 shrink-0" />
-                <span>{t("quiz.answered")}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="size-3 rounded bg-brand-secondary/15 border border-brand-secondary/60 shrink-0" />
-                <span>{t("quiz.flagged")}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="size-3 rounded border-2 border-brand-primary shrink-0" />
-                <span>{t("quiz.active")}</span>
-              </div>
-            </div>
-          </div>
+          <div className="hidden lg:block">{renderQuestionMap()}</div>
 
           {/* Sidebar Submit shortcut */}
           <div className="border-t border-border pt-3">
@@ -1074,44 +1112,37 @@ export function QuizPlayer({ courseId, visualCourseId = courseId, exam, attemptI
             </DialogDescription>
           </DialogHeader>
 
-          <div className="my-2 space-y-3">
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-xl border border-border bg-muted/30 p-2.5">
-                <span className="block text-body-xs font-semibold text-muted-foreground uppercase">{t("quiz.totalQuestions")}</span>
-                <span className="font-heading text-body-base font-bold text-foreground">{sorted.length}</span>
+          <div className="space-y-3">
+            <dl className="grid grid-cols-3 divide-x divide-border border-y border-border text-center">
+              <div className="min-w-0 px-2 py-2">
+                <dt className="break-words text-body-xs text-muted-foreground">{t("quiz.totalQuestions")}</dt>
+                <dd className="font-heading text-body-base font-bold tabular-nums">{sorted.length}</dd>
               </div>
-              <div className="rounded-xl border border-tertiary-1/30 bg-tertiary-1/10 p-2.5">
-                <span className="block text-body-xs font-semibold text-tertiary-1 uppercase">{t("quiz.answered")}</span>
-                <span className="font-heading text-body-base font-bold text-tertiary-1">{answeredCount}</span>
+              <div className="min-w-0 px-2 py-2">
+                <dt className="break-words text-body-xs text-muted-foreground">{t("quiz.answered")}</dt>
+                <dd className="font-heading text-body-base font-bold tabular-nums">{answeredCount}</dd>
               </div>
-              <div
-                className={cn(
-                  "rounded-xl border p-2.5",
-                  unansweredCount > 0
-                    ? "border-status-error/30 bg-status-error/10 text-status-error"
-                    : "border-border bg-muted/30 text-muted-foreground"
-                )}
-              >
-                <span className="block text-body-xs font-semibold uppercase">{t("quiz.empty")}</span>
-                <span className="font-heading text-body-base font-bold">{unansweredCount}</span>
+              <div className="min-w-0 px-2 py-2">
+                <dt className="break-words text-body-xs text-muted-foreground">{t("quiz.empty")}</dt>
+                <dd className={cn("font-heading text-body-base font-bold tabular-nums", unansweredCount > 0 && "text-status-error")}>{unansweredCount}</dd>
               </div>
-            </div>
+            </dl>
 
             {flaggedCount > 0 && (
-              <div className="flex items-center gap-2 rounded-xl border border-brand-secondary/35 bg-brand-secondary/10 px-3.5 py-2.5 text-body-xs font-semibold text-brand-secondary">
+              <div className="flex items-center gap-2 text-body-xs font-semibold text-brand-secondary">
                 <Flag className="size-4 shrink-0 fill-brand-secondary" />
                 <span>{t("quiz.flaggedCount", { count: flaggedCount })}</span>
               </div>
             )}
 
             {unansweredCount > 0 && (
-              <div className="flex items-start gap-2 rounded-xl border border-amber-500/35 bg-amber-500/10 p-3 text-body-xs text-amber-700 dark:text-amber-300">
+              <div className="flex items-start gap-2 border-l-2 border-status-warning pl-2 text-body-xs text-foreground">
                 <AlertCircle className="size-4 shrink-0 mt-0.5" />
                 <span>{t("quiz.unansweredWarning", { count: unansweredCount })}</span>
               </div>
             )}
 
-            <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-3.5 py-2 text-body-xs text-muted-foreground">
+            <div className="flex items-center justify-between gap-2 border-t border-border pt-2 text-body-xs text-muted-foreground">
               <span>{t("quiz.remainingTime")}</span>
               <span className="font-mono font-bold text-foreground">{formatTime(timeLeft)}</span>
             </div>
@@ -1121,7 +1152,7 @@ export function QuizPlayer({ courseId, visualCourseId = courseId, exam, attemptI
             </p>
           </div>
 
-          <DialogFooter className="mt-4 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2">
+          <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
             <Button
               type="button"
               variant="outline"

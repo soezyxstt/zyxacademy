@@ -205,6 +205,7 @@ export function QuizInsightsListClient({
       {/* Filter and Search Bar */}
       <div className="flex flex-row flex-wrap items-center gap-2">
         <SearchBar
+          collapsible
           size="sm"
           placeholder={
             lockedCourse
@@ -214,7 +215,6 @@ export function QuizInsightsListClient({
           value={search}
           onSearch={setSearch}
           onClear={() => setSearch("")}
-          containerClassName="flex-1 min-w-[140px]"
         />
 
         {!lockedCourse && (

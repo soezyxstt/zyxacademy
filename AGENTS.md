@@ -71,9 +71,9 @@ Use the tokens and components already defined in `app/globals.css`. Prefer seman
 - Before implementing a page, inspect at least one comparable page in the same surface, such as marketing, admin, or student. Follow its established component, spacing, typography, and interaction patterns unless the task explicitly changes the pattern.
 - Prefer the smallest useful component. Remove decorative UI, redundant wrappers, filler descriptions, and helper text that do not improve comprehension or function.
 - Optimize vertical space first. Keep related search, select, filter, and action controls in one inline row when the viewport allows it, and use the fewest rows that remain readable and accessible. Let the main content receive the available height.
-- Use cards selectively. Prefer a simple padded list or section when a card would only add a border, padding, and margin around the same content. Use cards when they create a meaningful grouping, hierarchy, or interaction boundary.
-- Apply less cards to every Admin, Tutor, and Student route, including detail pages, tabs, dialogs, loading states, and empty states. Use the Student `/courses` catalogue and its document and video lists as density references. Inspect the rendered feature components as well as the page file.
-- Less cards does not mean no cards. Keep a small number of clear section surfaces, such as Admin dashboard categories, editor groups, or independent tasks. Put repeated records inside one shared surface as divided rows or a table instead of one card per record. Do not put decorative cards inside another card.
+- Align ordinary content to the page gutter. Use headings, spacing and dividers to distinguish sections. Keep a card only when its boundary is needed to understand, compare or interact with an independent item.
+- Apply this to all routes, including detail pages, tabs, dialogs, loading states and empty states. Inspect the feature components as well as the route file. Use the Student `/courses` document and video lists as density references.
+- Use divided rows or a table for repeated records. Skip a padded outer wrapper around the list, form, editor or empty state. Preserve boundaries that are needed for a dialog, visual preview, selection or independent interaction.
 - Remove redundant wrappers and repeated headings before reducing padding or text size. Keep readable typography, touch targets, keyboard focus, and useful whitespace. Let toolbars wrap and long labels wrap on narrow screens instead of clipping essential information.
 - Apply the information-placement rules below to every role and state, including dialogs, loading states and recovery flows.
 - Prefer an existing Shadcn primitive or shared feature component for each interaction. Keep component behavior and accessibility intact when simplifying its surface; do not replace controls with styled native elements just to reduce markup.
@@ -97,7 +97,7 @@ Before adding a sentence, badge, heading or helper block, choose its placement:
 ### Compact interaction patterns
 
 - Spend available height on the task's content, such as the conversation, editor, records or learning material. Remove repeated headings and permanent helper rows before reducing typography, touch targets or useful spacing. A named list inside an already identified page can use its toolbar without another visible heading; retain its accessible landmark name.
-- In narrow list headers, prefer a channel/filter control and compact search/create actions in one row. Secondary search can expand in place and temporarily replace sibling controls. Focus the input on expansion; provide close and Escape behavior with focus restoration. On collapse, clear the query or keep an explicit visible indication of the active filter. Keep search expanded when it is the surface's primary task.
+- Start toolbar search as an icon button. Expand it in place on activation or keyboard focus, and temporarily replace sibling controls when needed. Focus the input on expansion, and provide close and Escape behavior with focus restoration. On collapse, clear the query or keep an explicit visible indication of the active filter. Keep the field expanded when search is the primary task or there is ample horizontal room.
 - Separate record identity from comparable metadata: keep the course, requester or item label on the left, and a compact count/time group on the right using `justify-between`, `min-w-0` and an appropriate nonshrinking metadata group. Let meaningful labels wrap. Use a representative icon plus number for an obvious repeated metric, including zero, with a localized accessible name. Preserve units where they affect interpretation, such as currency, file size or time duration.
 - Use normal emphasis for active work, readable muted text for handled work, and a named collapsible section for completed history when that matches the workflow. Keep state available through text, grouping and accessible names; color alone must not carry the distinction. Preserve actionable unread/error indicators and any status needed to choose the next action. Load collapsed history on demand and retain bounded pagination.
 - Reuse an existing live-rendering editor when it already supports the required format. Avoid separate write/preview controls that duplicate the same task. Preserve source text, math, selection, undo, keyboard/IME behavior and submission semantics; a preview remains appropriate when it reveals a materially different final output.
@@ -235,7 +235,7 @@ The following visual sizes are the approved cross-surface baseline. Keep semanti
 
 These rules define where tabs and page actions go, so neither wraps badly when a page has many of both.
 
-- A page has at most three stacked chrome rows above its main content: an optional action/navigation `PageHeader` (visually omitted when title-only), one tab row, and one content toolbar. A fourth row (a caption, coverage strip, or second toolbar) is a defect. Merge it into an existing row or a popover.
+- Fit navigation, page actions and search on one row where possible. Allow a second row when the controls cannot all fit, such as a dedicated tab strip or wrapped filters. Keep tab-specific controls in their own content toolbar if needed to preserve their scope, and fold extra captions and coverage indicators into existing controls.
 - Page-level actions belong in the `PageHeader` action slot (or top toolbar when no other header control exists), not in the tab row. The tab row holds only the `TabsList`, plus at most one icon-only control that belongs to the tabs themselves, such as a help popover.
 - The tab list must fit on one line at 1536 by 864. If it does not, shorten the trigger labels first (`Schedule list` becomes `List`), then move rarely used tabs, such as audit or history, into a trailing overflow menu inside the tab row. A tab that wraps alone onto a second line is a defect.
 - At 380 px, the tab list may scroll horizontally inside its strip (`overflow-x-auto`, no visible scrollbar, active trigger scrolled into view). It must not wrap into a two-row block or push the page wider than the viewport.
@@ -247,8 +247,8 @@ This refines the compact-controls rule. Decide each action with this table, in o
 
 | Action | Treatment |
 |---|---|
-| The single primary action of the page or section | Visible label plus icon, primary variant. Never icon-only. |
-| A familiar action whose meaning comes from its icon and position: search, filter, refresh, previous or next, today, settings, help, close, copy | Icon-only `Button` (`size="icon"` or the existing compact size), localized `aria-label`, existing `Tooltip`, visible focus ring. |
+| A familiar action whose meaning comes from its icon and position, including create in a named list, back, search, filter, refresh, previous or next, today, settings, help, close and copy | Icon-only `Button`, including for primary actions. Use a localized accessible name, the existing `Tooltip`, and a visible focus ring. Keep primary visual emphasis. |
+| A dialog or popover action, or an action whose intent needs wording | Use a visible label and an icon when it helps identify the action. The close affordance can stay icon-only. |
 | A secondary action that is not self-evident from an icon, such as "Add availability" or "Meet automation" | Labeled item in an overflow menu (`MoreHorizontal` or a `ChevronDown` split next to the primary). Do not make it icon-only. |
 | Per-row record actions in a table or list | Show at most one inline action per row. When there are two or more, put all of them in one per-row overflow menu with labeled items. |
 | Permission changes, destructive actions, payments | Always a visible label, either as a button or as a labeled overflow item, and still behind the existing confirmation dialog. A red action must not repeat on every row. |
@@ -270,7 +270,7 @@ Card count is not the only measure. When a page fails any trigger below, revise 
 | A caption or strip only restates what a control or heading already shows | Remove it with its wrapper. Move dynamic details into a popover on a compact indicator in an existing toolbar. |
 | An empty state shows a full-height blank grid or table with no message | Keep the structure and add an inline status (`0 sessions`) next to the existing primary action in the toolbar. Do not add an overlay card. |
 
-- Repeated records stay inside one shared surface as divided rows. Each section gets at most one surface border. A bordered strip inside a bordered card is a nested card.
+- Use dividers between repeated records. Avoid an outer card border and padding around a divided list unless the boundary is needed for interaction.
 - KPI values use neutral `text-foreground` unless the color carries state, such as warning or error. Do not color-code role counts for decoration.
 
 ### Case study: admin schedule and users density

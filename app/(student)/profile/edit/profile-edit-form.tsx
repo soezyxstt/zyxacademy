@@ -7,7 +7,6 @@ import { GraduationCap, Mail, AlertCircle } from "lucide-react";
 import { updateStudentProfileAction, type StudentProfileActionState } from "@/app/(student)/profile/actions";
 import { ITB_FACULTIES, getMajorsForFaculty, generateEntryYears } from "@/lib/student/itb-academic-data";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SelectField } from "@/components/ui/select-field";
 import { toast } from "@/components/ui/toast";
 import { useTranslations } from "@/lib/i18n/client";
@@ -92,20 +91,20 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
   }));
 
   return (
-    <Card className="border-border bg-card shadow-xs">
-      <CardHeader className="border-b border-border pb-3">
+    <section aria-labelledby="academic-profile-title">
+      <header className="space-y-1 border-b border-border pb-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
+          <h2 id="academic-profile-title" className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <GraduationCap className="size-5 text-brand-primary shrink-0" />
             {t("profile.academicInfo")}
-          </CardTitle>
+          </h2>
         </div>
-        <CardDescription className="text-body-xs text-muted-foreground mt-1">
+        <p className="text-body-xs text-muted-foreground mt-1">
           {t("profile.recommendationDescription")}
-        </CardDescription>
-      </CardHeader>
+        </p>
+      </header>
 
-      <CardContent className="pt-4">
+      <div className="pt-3">
         <div className="mb-4 border-b border-border pb-3 text-body-sm">
           <div>
             <p className="font-semibold text-foreground">{user.name}</p>
@@ -196,7 +195,7 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
             </Button>
           </div>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

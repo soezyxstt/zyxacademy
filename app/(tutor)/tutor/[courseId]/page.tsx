@@ -102,7 +102,7 @@ export default async function TutorCoursePage({ params }: Props) {
             backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.teaching" />}
             divider={false}
           />
-          <div className="mt-3 flex flex-wrap gap-x-8 gap-y-3 rounded-xl border border-border bg-card px-4 py-3">
+          <div className="mt-3 flex flex-wrap gap-x-8 gap-y-3 border-y border-border py-3">
             <div>
               <p className="font-heading text-h5 font-bold tabular-nums">
                 {analytics.enrolledCount}

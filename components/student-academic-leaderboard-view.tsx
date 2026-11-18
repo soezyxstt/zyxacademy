@@ -2,8 +2,6 @@ import Link from "next/link";
 import { Trophy, ChevronRight } from "lucide-react";
 import { Reveal } from "@/components/ui/reveal";
 import { PageHeader } from "@/components/page-header";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { studentCardClass } from "@/components/course/course-surfaces";
 import { StudentIdentity } from "@/components/gamification/student-identity";
 import type { StudentIdentity as PublicStudentIdentity } from "@/lib/gamification/social-contracts";
 import { TranslatedText } from "@/components/i18n/translated-text";
@@ -15,7 +13,7 @@ export function StudentAcademicLeaderboardView({ href = (path: string) => path, 
 
   const content = (
       allCourses.length === 0 ? (
-        <div className={studentCardClass("py-16 text-center max-w-md mx-auto bg-card/50 p-8 shadow-xs")}>
+        <div className="mx-auto max-w-md px-4 py-5 text-center">
           <Trophy className="size-10 text-muted-foreground/30 mx-auto mb-4" />
           <p className="text-body-sm text-muted-foreground">
             <TranslatedText namespace="student" messageKey="leaderboard.noEnrollment" />{" "}
@@ -25,12 +23,12 @@ export function StudentAcademicLeaderboardView({ href = (path: string) => path, 
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="divide-y divide-border/60 border-y border-border/60">
           {allCourses.map((course) => {
             const rows = leaderboardByCourse[course.id] ?? [];
 
             return (
-              <section key={course.id} className={studentCardClass("bg-card/45")}>
+              <section key={course.id} className="min-w-0 px-4 py-3">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <h2 className="font-heading text-body-base font-bold text-foreground">
                     {course.title}
@@ -45,27 +43,30 @@ export function StudentAcademicLeaderboardView({ href = (path: string) => path, 
                 </div>
 
                 {rows.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 text-center">
-                    <Trophy className="size-8 text-muted-foreground/25 mb-2" />
+                  <div className="flex items-center gap-2 pb-1">
+                    <Trophy className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                     <p className="text-body-sm text-muted-foreground"><TranslatedText namespace="student" messageKey="leaderboard.emptyCourse" /></p>
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader><TableRow>
-                      <TableHead className="w-12">#</TableHead>
-                      <TableHead><TranslatedText namespace="student" messageKey="leaderboard.name" /></TableHead>
-                      <TableHead className="text-right"><TranslatedText namespace="student" messageKey="leaderboard.score" /></TableHead>
-                      <TableHead className="text-right"><TranslatedText namespace="student" messageKey="leaderboard.quizzes" /></TableHead>
-                    </TableRow></TableHeader>
-                    <TableBody>{rows.map((row) => (
-                      <TableRow key={`${course.id}-${row.rank}`}>
-                        <TableCell className="tabular-nums">{row.rank}</TableCell>
-                        <TableCell><StudentIdentity name={row.name} identity={row.identity} /></TableCell>
-                        <TableCell className="text-right tabular-nums text-primary">{row.avgScore}%</TableCell>
-                        <TableCell className="text-right tabular-nums">{row.attempts}</TableCell>
-                      </TableRow>
-                    ))}</TableBody>
-                  </Table>
+                  <ul className="divide-y divide-border/60">
+                    {rows.map((row) => (
+                      <li key={row.rank} className="flex items-start gap-3 py-2">
+                        <span className="w-6 shrink-0 pt-1 text-body-sm tabular-nums">{row.rank}</span>
+                        <div className="min-w-0 flex-1">
+                          <StudentIdentity name={row.name} identity={row.identity} />
+                        </div>
+                        <div className="shrink-0 text-right text-body-xs tabular-nums">
+                          <div className="font-semibold text-primary">
+                            <span className="sr-only"><TranslatedText namespace="student" messageKey="leaderboard.score" /> </span>
+                            {row.avgScore}%
+                          </div>
+                          <div className="text-muted-foreground">
+                            <TranslatedText namespace="student" messageKey="leaderboard.quizzes" /> {row.attempts}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </section>
             );

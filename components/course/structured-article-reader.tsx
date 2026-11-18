@@ -13,7 +13,6 @@ import {
   ChevronRight,
   PanelRightClose,
   PanelRight,
-  Search,
   X,
   AlertTriangle,
   HelpCircle,
@@ -32,7 +31,7 @@ import {
   MessageSquareText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchBar } from "@/components/ui/search-bar";
 import {
   Sheet,
   SheetContent,
@@ -996,33 +995,21 @@ export function StructuredArticleReader({
 
   const courseTitle = course?.title || t("articleReader.courseMaterial");
 
-  const renderTocContent = () => (
-    <div className="flex flex-col h-full">
-      {/* Search Bar */}
-      <div className="p-3 border-b border-border/70">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            type="search"
-            aria-label={t("articleReader.searchArticle")}
-            placeholder={t("articleReader.searchArticle")}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 w-full pl-8 pr-8 text-body-sm"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery("")}
-              aria-label={t("articleReader.clearSearch")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="size-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
+  const tocSearch = (
+    <SearchBar
+      collapsible
+      size="sm"
+      type="search"
+      aria-label={t("articleReader.searchArticle")}
+      placeholder={t("articleReader.searchArticle")}
+      value={searchQuery}
+      onSearch={setSearchQuery}
+      containerClassName="min-w-0 flex-1"
+    />
+  );
 
+  const renderTocContent = () => (
+    <div className="flex min-h-0 flex-1 flex-col">
       {/* List items: Search results or TOC list */}
       <div className="flex-1 overflow-y-auto p-3 space-y-1">
         {searchQuery.trim().length >= 2 ? (
@@ -1065,10 +1052,7 @@ export function StructuredArticleReader({
           </div>
         ) : (
           <div>
-            <div className="flex items-center justify-between px-2 py-1 mb-1">
-              <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {t("articleReader.thisChapter")}
-              </span>
+            <div className="mb-1 flex items-center justify-end px-2 py-1">
               <span className="text-body-xs font-semibold text-muted-foreground">
                 {t("articleReader.sectionsComplete", { completed: completedCount, total: totalSections })}
               </span>
@@ -1297,13 +1281,12 @@ export function StructuredArticleReader({
 
       {/* Mobile Sheet for TOC & Search */}
       <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
-        <SheetContent side="right" className="w-[300px] sm:w-[360px] p-0 flex flex-col">
-          <SheetHeader className="p-4 border-b border-border/80">
-            <SheetTitle className="text-body-sm font-bold font-heading">
-              <MathText className="normal-case">{article.title}</MathText>
-            </SheetTitle>
+        <SheetContent side="right" className="gap-0" aria-describedby={undefined}>
+          <SheetHeader className="group/toc min-h-14 flex-row items-center gap-2 border-b border-border/80 py-2 pl-3 pr-14">
+            <SheetTitle className="min-w-0 flex-1 text-body-sm group-has-[[data-search-expanded=true]]/toc:sr-only">{t("articleReader.thisChapter")}</SheetTitle>
+            {tocSearch}
           </SheetHeader>
-          <div className="flex-1 overflow-hidden">{renderTocContent()}</div>
+          {renderTocContent()}
         </SheetContent>
       </Sheet>
 
@@ -1442,7 +1425,11 @@ export function StructuredArticleReader({
 
         {/* Desktop Collapsible Table of Contents */}
         {!isFocusMode && isTocOpen && (
-          <aside className="hidden md:block w-72 lg:w-80 shrink-0 border-l border-border/80 h-[calc(100vh-53px)] sticky top-[53px] overflow-hidden bg-card/40">
+          <aside className="hidden md:flex flex-col w-72 lg:w-80 shrink-0 border-l border-border/80 h-[calc(100vh-53px)] sticky top-[53px] overflow-hidden bg-card/40">
+            <div className="group/toc flex items-center gap-2 border-b border-border/70 px-3 py-1">
+              <h2 className="min-w-0 flex-1 text-body-sm font-semibold group-has-[[data-search-expanded=true]]/toc:sr-only">{t("articleReader.thisChapter")}</h2>
+              {tocSearch}
+            </div>
             {renderTocContent()}
           </aside>
         )}

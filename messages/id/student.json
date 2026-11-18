@@ -398,6 +398,7 @@
     "metadataDescription": "Lihat dan pesan jadwal tutorial tutor."
   },
   "calendar": {
+    "eventCategory": "Kategori kegiatan",
     "filterAll": "Semua agenda",
     "filterAssessments": "Kuis dan tryout",
     "filterTutorial": "Tutorial",

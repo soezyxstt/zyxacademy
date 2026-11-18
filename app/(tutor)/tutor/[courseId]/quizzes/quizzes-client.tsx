@@ -6,8 +6,10 @@ import { useRouter } from "next/navigation";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { Plus, Edit2, Trash2, ClipboardList, HelpCircle, Loader2, Tag, Layers, Check, CheckSquare, Eye, Clock, FileSpreadsheet, UserCheck, MoreHorizontal } from "lucide-react";
+import { Plus, Edit2, Trash2, ClipboardList, HelpCircle, Loader2, Tag, Layers, Check, CheckSquare, Eye, Clock, FileSpreadsheet, UserCheck, MoreHorizontal, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -313,24 +315,28 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         <TabsContent value="templates" className="space-y-4">
           <div className="flex flex-wrap justify-between items-center gap-2">
             <span className="text-body-xs text-muted-foreground">{tr("quizCount", { count: initialTemplates.length })}</span>
-            <Button asChild size="sm" className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-lg font-semibold gap-2">
-              <Link href={`/tutor/${courseId}/quizzes/new`}>
-                <Plus className="size-4" />
-                {tr("createQuiz")}
-              </Link>
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button asChild size="icon-lg">
+                    <Link href={`/tutor/${courseId}/quizzes/new`} aria-label={tr("createQuiz")}><Plus aria-hidden /></Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{tr("createQuiz")}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
           {initialTemplates.length === 0 ? (
             <AdminEmptyState icon={ClipboardList} title={tr("noQuizzes")} />
           ) : (
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <div className="divide-y divide-border border-y border-border">
               {initialTemplates.map((t) => {
                 const rules = typeof t.selectionRules === "string" ? JSON.parse(t.selectionRules) : t.selectionRules;
                 const isSimulation = t.category === "simulation";
 
                 return (
-                  <div key={t.id} className="px-4 py-3.5 space-y-2.5">
+                  <div key={t.id} className="space-y-2.5 py-3">
                     <div className="space-y-1">
                       <div className="flex justify-between items-start gap-2">
                         <h3 className="font-heading text-body-base font-bold text-foreground break-words">{t.title}</h3>
@@ -338,19 +344,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                           <Badge variant="secondary" className="text-body-2xs rounded-md px-2 py-0.5">
                             {tr(quizCategoryLabelKey(t.category))}
                           </Badge>
-                          <button
-                            type="button"
-                            onClick={() => handleTogglePublishStatus(t.id, t.status)}
-                            aria-pressed={t.status === "published"}
-                            className={cn(
-                              "capitalize text-body-sm rounded-md px-2 py-1 font-semibold border cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                              t.status === "published"
-                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
-                                : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20"
-                            )}
-                          >
+                          <Badge variant={t.status === "published" ? "default" : "outline"}>
                             {t.status === "published" ? tr("published") : tr("draft")}
-                          </button>
+                          </Badge>
                         </div>
                       </div>
 
@@ -428,21 +424,26 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       </div>
 
                       {rules?.fixedQuestionIds && rules.fixedQuestionIds.length > 0 && (
-                        <div className="mt-2 text-left border-t border-border/40 pt-2">
-                          <span className="text-body-2xs font-semibold text-muted-foreground block mb-1">
-                            {tr("selectedQuestions")}
-                          </span>
-                          <ol className="list-decimal pl-4 space-y-1 text-body-xs text-foreground/80 leading-normal max-h-24 overflow-y-auto pr-1">
-                            {rules.fixedQuestionIds.map((qId: string) => {
-                              const question = initialQuestionBank.find((q) => q.id === qId);
-                              return (
-                                <li key={qId} className="truncate" title={question?.prompt || tr("questionMissing")}>
-                                  {question?.prompt || <span className="italic text-muted-foreground">{tr("questionDeleted")}</span>}
-                                </li>
-                              );
-                            })}
-                          </ol>
-                        </div>
+                        <Collapsible>
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="sm" className="group">
+                              <ChevronDown aria-hidden className="group-aria-expanded:rotate-180" />
+                              {tr("selectedQuestions", { count: rules.fixedQuestionIds.length })}
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <ol className="list-decimal pl-4 space-y-1 text-body-xs text-foreground/80 leading-normal max-h-40 overflow-y-auto pr-1">
+                              {rules.fixedQuestionIds.map((qId: string) => {
+                                const question = initialQuestionBank.find((q) => q.id === qId);
+                                return (
+                                  <li key={qId} className="break-words">
+                                    {question?.prompt || <span className="italic text-muted-foreground">{tr("questionDeleted")}</span>}
+                                  </li>
+                                );
+                              })}
+                            </ol>
+                          </CollapsibleContent>
+                        </Collapsible>
                       )}
                     </div>
                     <div className="flex items-center justify-between gap-2 pt-1">
@@ -477,6 +478,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                               </Link>
                             </DropdownMenuItem>
                           )}
+                          <DropdownMenuItem disabled={isPending} onSelect={() => handleTogglePublishStatus(t.id, t.status)}>
+                            {t.status === "published" ? tr("moveToDraft") : tr("publishQuiz")}
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             disabled={isSimulation}
@@ -502,17 +506,23 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         <TabsContent value="questionbank" className="space-y-4">
           <div className="flex flex-wrap justify-between items-center gap-2">
             <span className="text-body-xs text-muted-foreground">{tr("questionBankTitle", { count: initialQuestionBank.length })}</span>
-            <Button onClick={handleOpenAddQ} size="sm" className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-lg font-semibold gap-2">
-              <Plus className="size-4" />
-              {tr("addQuestion")}
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="button" size="icon-lg" aria-label={tr("addQuestion")} onClick={handleOpenAddQ}>
+                    <Plus aria-hidden />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{tr("addQuestion")}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
           {initialQuestionBank.length === 0 ? (
             <AdminEmptyState icon={HelpCircle} title={tr("emptyBank")} />
           ) : (
             <>
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <div className="divide-y divide-border border-y border-border">
               {initialQuestionBank.slice(questionOffset, questionOffset + QUESTION_PAGE_SIZE).map((q, idx) => {
                 const isImmutableReference = q.origin !== "zyx_original";
                 const tagsArr = typeof q.tags === "string" ? JSON.parse(q.tags) : q.tags;
@@ -520,7 +530,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                 const correct = typeof q.correctIndices === "string" ? JSON.parse(q.correctIndices) : q.correctIndices;
 
                 return (
-                  <div key={q.id} className="relative p-4">
+                  <div key={q.id} className="relative py-3">
                     <div className="flex items-start justify-between gap-4">
                       <div className="space-y-1.5 flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -623,13 +633,27 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             </div>
             {questionPageCount > 1 && (
               <nav aria-label={locale === "id" ? "Halaman bank soal" : "Question bank pages"} className="flex flex-wrap items-center justify-end gap-2">
-                <Button variant="outline" size="sm" disabled={currentQuestionPage === 0} onClick={() => setQuestionPage(currentQuestionPage - 1)}>
-                  {locale === "id" ? "Sebelumnya" : "Previous"}
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button type="button" size="icon-lg" variant="ghost" aria-label={locale === "id" ? "Sebelumnya" : "Previous"} disabled={currentQuestionPage === 0} onClick={() => setQuestionPage(currentQuestionPage - 1)}>
+                        <ChevronLeft aria-hidden />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{locale === "id" ? "Sebelumnya" : "Previous"}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <span className="text-body-sm text-muted-foreground" aria-live="polite">{currentQuestionPage + 1} / {questionPageCount}</span>
-                <Button variant="outline" size="sm" disabled={currentQuestionPage === questionPageCount - 1} onClick={() => setQuestionPage(currentQuestionPage + 1)}>
-                  {locale === "id" ? "Berikutnya" : "Next"}
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button type="button" size="icon-lg" variant="ghost" aria-label={locale === "id" ? "Berikutnya" : "Next"} disabled={currentQuestionPage === questionPageCount - 1} onClick={() => setQuestionPage(currentQuestionPage + 1)}>
+                        <ChevronRight aria-hidden />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{locale === "id" ? "Berikutnya" : "Next"}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </nav>
             )}
             </>
@@ -739,7 +763,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
 
             {/* Input Block for Short Answer */}
             {qType === "short_answer" && (
-              <div className="space-y-2 rounded-xl border border-border bg-muted/5 p-4">
+              <div className="space-y-2 border-t border-border pt-3">
                 <Label htmlFor="q-short-ans" className="text-body-sm font-semibold">{tr("acceptedAnswerInput")}</Label>
                 <Input
                   id="q-short-ans"
@@ -754,7 +778,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
 
             {/* Input Block for Essay */}
             {qType === "essay" && (
-              <div className="p-4 rounded-xl border border-border bg-muted/5 text-body-xs text-muted-foreground space-y-1">
+              <div className="space-y-1 border-t border-border pt-3 text-body-xs text-muted-foreground">
                 <p className="font-semibold text-foreground">{tr("essayTitle")}</p>
                 <p>{tr("essayHint")}</p>
               </div>
@@ -848,7 +872,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 text-left">
+          <div className="flex-1 overflow-y-auto px-6 text-left">
             {loadingPreview ? (
               <div className="py-12 flex flex-col items-center justify-center gap-3">
                 <Loader2 className="size-8 animate-spin text-brand-primary" />
@@ -859,10 +883,10 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                 {tr("noPreviewQuestions")}
               </div>
             ) : (
-              <div className="space-y-4">
+              <ol className="divide-y divide-border">
                 {previewQuestions.map((q, idx) => (
-                  <div key={q.id} className="p-5 rounded-xl border border-border bg-card space-y-4">
-                    <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
+                  <li key={q.id} className="space-y-3 py-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-body-sm font-bold text-foreground">{tr("questionNumberPreview", { number: idx + 1 })}</span>
                       <div className="flex items-center gap-2">
                         <span className="capitalize text-[10px] bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
@@ -914,22 +938,17 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                     </div>
 
                     {q.explanation && (
-                      <div className="mt-2 text-body-xs bg-muted/50 p-3 rounded-lg border border-border/50 text-muted-foreground space-y-1">
+                      <div className="space-y-1 border-l-2 border-border pl-3 text-body-xs text-muted-foreground">
                         <span className="font-semibold text-foreground block">{tr("explanation")}</span>
                         <MarkdownRenderer content={q.explanation} density="compact" />
                       </div>
                     )}
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ol>
             )}
           </div>
 
-          <div className="p-4 border-t border-border flex justify-end bg-card shrink-0">
-            <Button variant="outline" onClick={() => setIsPreviewOpen(false)} className="rounded-md border-border">
-              {tr("closePreview")}
-            </Button>
-          </div>
         </DialogContent>
       </Dialog>
     </div>

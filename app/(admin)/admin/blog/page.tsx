@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { blogArticles } from "@/db/schema";
 import { desc } from "drizzle-orm";
-import { Button } from "@/components/ui/button";
+import { AdminIconAction } from "@/components/admin/icon-action";
 import { Plus, PenLine } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -33,12 +33,11 @@ export default async function AdminBlogDashboard() {
         icon={PenLine}
         title={<TranslatedText namespace="adminOps" messageKey="blog.title" />}
         actions={
-          <Button asChild>
+          <AdminIconAction asChild label={t("blogList.write")}>
             <Link href="/admin/blog/new">
               <Plus className="size-4" />
-              {t("blogList.write")}
             </Link>
-          </Button>
+          </AdminIconAction>
         }
       />
 

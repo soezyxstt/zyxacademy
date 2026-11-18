@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowUpRight, BookOpen, CalendarDays, MessageSquareText, UserRound, Users } from "lucide-react";
+import { ArrowUpRight, BookOpen, CalendarDays, MessageSquareText, Pencil, UserRound, Users } from "lucide-react";
 import { ApplicationPage } from "@/components/application-page";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { ProfileHero } from "@/components/gamification/profile-hero";
 import { AchievementBoard } from "@/components/gamification/achievement-board";
@@ -17,7 +18,11 @@ export function StudentProfileView({ name, image, frameId, themeId, title, zyraA
  locale?: string; name: string; image?: string | null; frameId?: string | null; themeId?: string | null; title?: string | null; zyraAvatarId?: string | null; academicInfo: string; rank: RankKey; baseXpMicro: number; bonusXpMicro: number; lpBalance: number;
  stats: { completedCount: number; submissionCount: number; averageScore: number | null }; enrollments: { id: string; title: string; href?: string }[]; badges: { family: string; tier: number }[]; featuredBadgeIds: string[]; labels: ProfileLabels; links: ProfileLinks; followSection?: ReactNode;
 }) {
- return <ApplicationPage maxWidth="7xl"><PageHeader title={labels.pageTitle} icon={UserRound} actions={<Button asChild variant="outline"><Link href={links.edit}>{labels.edit}</Link></Button>} />
+ return <ApplicationPage maxWidth="7xl" spacing="space-y-3"><PageHeader title={labels.pageTitle} icon={UserRound} actions={
+   <TooltipProvider><Tooltip><TooltipTrigger asChild><Button asChild variant="ghost" size="icon-lg">
+     <Link href={links.edit} aria-label={labels.edit}><Pencil aria-hidden /></Link>
+   </Button></TooltipTrigger><TooltipContent>{labels.edit}</TooltipContent></Tooltip></TooltipProvider>
+ } />
  <ProfileHero name={name} image={image} frameId={frameId} themeId={themeId} title={title} zyraAvatarId={zyraAvatarId} academicInfo={academicInfo} rank={rank} details={<span className="inline-flex flex-wrap gap-x-4 gap-y-1 text-body-sm"><span>{new Intl.NumberFormat(locale).format((baseXpMicro + bonusXpMicro) / MICRO)} XP</span><span>{new Intl.NumberFormat(locale).format(lpBalance)} LP</span></span>} />
  <AdminStatStrip className="grid-cols-2 lg:grid-cols-4">
   <AdminStatStripItem label={labels.active} value={enrollments.length} />
@@ -27,8 +32,8 @@ export function StudentProfileView({ name, image, frameId, themeId, title, zyraA
  </AdminStatStrip>
  <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
   <div className="min-w-0 space-y-6">
-   <section className="space-y-3"><h2 className="font-heading text-body-base font-bold">{labels.enrolled}</h2><div className="divide-y rounded-xl border bg-card">{enrollments.length ? enrollments.map(course => <Link className="flex items-center gap-3 p-4 text-body-sm font-semibold transition-colors hover:bg-muted/50 focus-visible:outline-ring focus-visible:outline-2 focus-visible:outline-offset-2" key={course.id} href={course.href ?? `${links.course}/${course.id}`}><BookOpen className="size-4 shrink-0 text-muted-foreground" aria-hidden /><span className="min-w-0 flex-1 break-words">{course.title}</span><ArrowUpRight className="size-4 shrink-0 text-muted-foreground" aria-hidden /></Link>) : <AdminEmptyState icon={BookOpen} title={labels.noCourses} action={<Button asChild variant="outline"><Link href={links.courses}>{labels.enrolled}</Link></Button>} />}</div></section>
-   <nav className="divide-y rounded-xl border bg-card">{[{href:links.groups,label:labels.groups,icon:Users},{href:links.schedule,label:labels.tutorials,icon:CalendarDays},{href:links.reflections,label:labels.reflections,icon:MessageSquareText}].map(({href,label,icon:Icon}) => <Link key={href} href={href} className="flex items-center gap-3 p-4 text-body-sm transition-colors hover:bg-muted/50 focus-visible:outline-ring focus-visible:outline-2 focus-visible:outline-offset-2"><Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden /><span className="min-w-0 flex-1">{label}</span><ArrowUpRight className="size-4 shrink-0 text-muted-foreground" aria-hidden /></Link>)}</nav>
+   <section className="space-y-3"><h2 className="font-heading text-body-base font-bold">{labels.enrolled}</h2><div className="divide-y divide-border border-t border-border">{enrollments.length ? enrollments.map(course => <Link className="flex items-center gap-3 py-3 text-body-sm font-semibold transition-colors hover:bg-muted/50 focus-visible:outline-ring focus-visible:outline-2 focus-visible:outline-offset-2" key={course.id} href={course.href ?? `${links.course}/${course.id}`}><BookOpen className="size-4 shrink-0 text-muted-foreground" aria-hidden /><span className="min-w-0 flex-1 break-words">{course.title}</span><ArrowUpRight className="size-4 shrink-0 text-muted-foreground" aria-hidden /></Link>) : <AdminEmptyState icon={BookOpen} title={labels.noCourses} action={<Button asChild variant="outline"><Link href={links.courses}>{labels.enrolled}</Link></Button>} />}</div></section>
+   <nav className="divide-y divide-border border-t border-border">{[{href:links.groups,label:labels.groups,icon:Users},{href:links.schedule,label:labels.tutorials,icon:CalendarDays},{href:links.reflections,label:labels.reflections,icon:MessageSquareText}].map(({href,label,icon:Icon}) => <Link key={href} href={href} className="flex items-center gap-3 py-3 text-body-sm transition-colors hover:bg-muted/50 focus-visible:outline-ring focus-visible:outline-2 focus-visible:outline-offset-2"><Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden /><span className="min-w-0 flex-1">{label}</span><ArrowUpRight className="size-4 shrink-0 text-muted-foreground" aria-hidden /></Link>)}</nav>
    {followSection}
   </div>
   <AchievementBoard compact badges={badges} featuredBadgeIds={featuredBadgeIds} title={labels.badgeBoard} familyLabels={labels.familyLabels} lockedLabel={labels.locked} tierLabel={tier => labels.tiers[tier - 1] ?? String(tier)} action={links.achievements ? <Button variant="outline" size="sm" asChild><Link href={links.achievements}>{labels.achievements}</Link></Button> : undefined} />

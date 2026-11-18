@@ -707,7 +707,7 @@ export function CourseDocumentsClient({
 
       {activeTab === "all" ? (
         materials.length > 0 ? (
-          <div className="overflow-hidden rounded-xl border border-border/55 bg-card">
+          <div className="border-t border-border/60">
             {chapterGroups.map(({ chapter, materials: chapterMaterials }) => {
               const sectionKey = `chapter:${chapter.id}`;
               return (
@@ -790,7 +790,7 @@ export function CourseDocumentsClient({
             />
           </div>
         ) : (
-          <div className="flex flex-col items-center rounded-xl border border-dashed border-border/60 bg-muted/15 px-4 py-10 text-center">
+          <div className="flex flex-col items-center py-5 text-center">
             <FileText className="size-6 text-muted-foreground" aria-hidden />
             <h2 className="mt-3 font-heading text-body-sm font-bold">{t("documents.noCourseDocuments")}</h2>
             <p className="mt-1 text-body-xs text-muted-foreground">{t("documents.noCourseDocumentsDescription")}</p>

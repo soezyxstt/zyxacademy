@@ -35,6 +35,15 @@ async function openList(page: Page, mobile: boolean) {
   }
 }
 
+async function openSearch(page: Page) {
+  const input = page.getByRole("textbox", { name: "Cari soal" }).filter({ visible: true });
+  if (!(await input.isVisible())) {
+    await page.getByRole("button", { name: "Cari soal", exact: true }).filter({ visible: true }).click();
+  }
+  await expect(input).toBeVisible();
+  return input;
+}
+
 test("reader navigation, reveal, search, sources and fallback states", async ({ page }, testInfo) => {
   const failures = trackErrors(page);
   await prepare(page, `${route}?keep=yes#reader`);
@@ -63,7 +72,7 @@ test("reader navigation, reveal, search, sources and fallback states", async ({ 
   const mobile = testInfo.project.name === "mobile-380";
   await openList(page, mobile);
   if (mobile) await capture(page, testInfo, "mobile-list-open");
-  const search = page.getByRole("textbox", { name: "Cari soal" }).filter({ visible: true });
+  const search = await openSearch(page);
   await search.fill("tidak ditemukan");
   await expect(page.getByText("Tidak ada soal yang cocok.")).toBeVisible();
   await capture(page, testInfo, "search-empty");
@@ -171,8 +180,15 @@ test("long collection has bounded Tab navigation, arrow shortcuts, and a return 
   }
   await expect(list.locator("button")).toHaveCount(20);
   await expect(list.locator('button[tabindex="0"]')).toHaveCount(20);
-  const search = page.getByRole("textbox", { name: "Cari soal" }).filter({ visible: true });
-  await search.focus();
+  const searchButton = page.getByRole("button", { name: "Cari soal", exact: true }).filter({ visible: true });
+  const searchInput = page.getByRole("textbox", { name: "Cari soal" }).filter({ visible: true });
+  if (!(await searchInput.isVisible())) {
+    await page.keyboard.press("Tab");
+    if (await searchButton.isVisible()) await searchButton.focus();
+  }
+  await expect(searchInput).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(searchButton).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Ke soal aktif" }).filter({ visible: true })).toBeFocused();
   await page.keyboard.press("Tab");
@@ -197,7 +213,7 @@ test("long collection has bounded Tab navigation, arrow shortcuts, and a return 
   await expect(page.getByRole("heading", { name: "Perulangan 500" })).toBeFocused();
   await capture(page, testInfo, "long-list-selection", false);
   await openList(page, mobile);
-  await page.getByRole("textbox", { name: "Cari soal" }).filter({ visible: true }).fill("tidak ditemukan");
+  await (await openSearch(page)).fill("tidak ditemukan");
   await page.getByRole("button", { name: "Ke soal aktif" }).filter({ visible: true }).click();
   await expect(page.getByRole("textbox", { name: "Cari soal" }).filter({ visible: true })).toHaveValue("");
   await expect(list.locator('button[data-item-index="499"]')).toBeFocused();
@@ -212,12 +228,16 @@ test("code construction is static and math titles match in the list and heading"
   const mobile = testInfo.project.name === "mobile-380";
   await openList(page, mobile);
   const list = page.locator("[data-solution-list]").filter({ visible: true });
-  await page.getByRole("textbox", { name: "Cari soal" }).filter({ visible: true }).fill("Subarray");
+  await (await openSearch(page)).fill("Subarray");
   const listMath = list.locator("button .katex annotation");
   const headingMath = page.locator('[data-solution-item="shortest-subarray"] h2 .katex annotation');
   await expect(listMath).toHaveCount(1);
   expect(await listMath.textContent()).toBe(await headingMath.textContent());
-  if (mobile) await page.keyboard.press("Escape");
+  if (mobile) {
+    await page.keyboard.press("Escape");
+    const listDialog = page.getByRole("dialog", { name: "Daftar soal" });
+    if (await listDialog.isVisible()) await page.keyboard.press("Escape");
+  }
   await page.getByRole("button", { name: "Lihat pembahasan" }).click();
   await expect(page.getByRole("heading", { name: "Penyusunan kode" })).toBeVisible();
   await expect(page.locator('[data-solution-step="subarray-trace"] code').filter({ hasText: /^left=1$/ })).toBeVisible();
@@ -623,12 +643,16 @@ test("moving to the next question clears a filter that hides the new active item
   const failures = trackErrors(page), mobile = info.project.name === "mobile-380";
   await prepare(page, route);
   await openList(page, mobile);
-  await page.getByRole("textbox", { name: "Cari soal" }).filter({ visible: true }).fill("Luas segitiga");
+  await (await openSearch(page)).fill("Luas segitiga");
   await expect(page.locator("[data-solution-list]").filter({ visible: true }).locator("button")).toHaveCount(1);
-  if (mobile) await page.keyboard.press("Escape");
+  if (mobile) {
+    await page.keyboard.press("Escape");
+    const listDialog = page.getByRole("dialog", { name: "Daftar soal" });
+    if (await listDialog.isVisible()) await page.keyboard.press("Escape");
+  }
   await page.getByRole("button", { name: "Berikutnya", exact: true }).filter({ visible: true }).last().click();
   await openList(page, mobile);
-  await expect(page.getByRole("textbox", { name: "Cari soal" }).filter({ visible: true })).toHaveValue("");
+  await expect(await openSearch(page)).toHaveValue("");
   await expect(page.locator("[data-solution-list]").filter({ visible: true }).locator('button[aria-current="true"]')).toContainText("Python");
   await capture(page, info, "list-filter-cleared-for-active-item", false);
   expect(failures).toEqual([]);

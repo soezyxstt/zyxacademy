@@ -49,7 +49,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
     <div className="space-y-6 font-sans">
 
       {/* Overview stats */}
-      <div className="rounded-xl border border-border bg-card p-4 flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
         <div>
           <span className="text-body-xs font-semibold text-muted-foreground uppercase">{t("review.status")}</span>
           <h2 className="font-heading text-body-base font-bold text-foreground mt-0.5">
@@ -72,7 +72,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
         </div>
       </div>
 
-      <ol className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card">
+      <ol className="divide-y divide-border/60">
         {review.items.map((item, idx) => {
           const hasExplanation = item.explanationText || item.explanationImage || item.explanationVideoUrl;
 
@@ -116,7 +116,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
                   </p>
                 )}
                 {item.teacherNote && (
-                  <div className="mt-3 rounded-xl bg-muted/40 border border-border p-3 text-body-xs text-foreground leading-relaxed">
+                  <div className="mt-3 border-l-2 border-border pl-3 text-body-xs leading-relaxed text-foreground">
                     <span className="font-bold text-brand-secondary">{t("review.teacherNote")} </span>
                     <MathText>{item.teacherNote}</MathText>
                   </div>

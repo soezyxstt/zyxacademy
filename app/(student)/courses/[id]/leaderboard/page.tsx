@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Lock, Trophy } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { CourseLeaderboardContentSkeleton } from "@/components/course/course-skeletons";
-import { studentCardClass } from "@/components/course/course-surfaces";
+import { studentSectionClass } from "@/components/course/course-surfaces";
 import { createMetadata } from "@/lib/site";
 import { getCourse, getCourseLeaderboard } from "@/lib/course-utils";
 import { getVisibleStudentIdentities } from "@/lib/gamification/social";
@@ -48,7 +48,7 @@ async function CourseLeaderboardContent({
 
   if (!hasFullContentAccess) {
     return (
-      <div className={studentCardClass()}>
+      <div className={studentSectionClass()}>
         <div className="flex items-start gap-3">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
             <Lock className="size-5" />

@@ -10,6 +10,7 @@ import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import Image from "next/image";
 import { Calendar, Clock, ChevronLeft, User, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ShareDialog, ShareBlock } from "@/components/blog/share-widget";
 import { getAppLocale, getTranslations } from "@/lib/i18n/server";
 import { LocalizedPublicLink } from "@/components/localized-public-link";
@@ -90,19 +91,25 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
       <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 py-6 md:py-8">
 
         {/* Back Button */}
-        <Button variant="ghost" className="mb-6 -ml-4 text-muted-foreground hover:text-foreground" asChild>
-          <LocalizedPublicLink href="/blog">
-            <ChevronLeft className="w-4 h-4 mr-2" />
-            {t("blog.back")}
-          </LocalizedPublicLink>
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon-lg" className="mb-3 text-muted-foreground" asChild>
+                <LocalizedPublicLink href="/blog" aria-label={t("blog.back")}>
+                  <ChevronLeft aria-hidden />
+                </LocalizedPublicLink>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("blog.back")}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         {/* 2-Column Grid on Large Screens */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
 
           {/* Left Column: Article content (consistent width!) */}
           <div className="lg:col-span-9 space-y-6">
-            <div className="container mx-auto px-4 md:px-8 space-y-6">
+            <div className="min-w-0 space-y-6">
               {/* Header info */}
               <div className="space-y-4">
 

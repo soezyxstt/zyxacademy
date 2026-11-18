@@ -588,7 +588,7 @@ export function ASTInspectorClient() {
                 {activeTab === "stats" && (
                   <div className="space-y-6 text-left">
                     {/* Quality Score Header */}
-                    <div className="bg-card border border-border rounded-xl p-6 shadow-2xs flex flex-col md:flex-row items-center gap-6 justify-between">
+                    <div className="flex flex-col items-center justify-between gap-4 border-b border-border pb-4 md:flex-row">
                       <div className="space-y-1">
                         <h4 className="font-heading text-body-base font-bold text-foreground">{t("astInspectorUI.qualityScore")}</h4>
                         <p className="text-body-sm text-muted-foreground">{t("astInspectorUI.qualityDescription")}</p>
@@ -621,7 +621,7 @@ export function ASTInspectorClient() {
                     </div>
 
                     {/* Structural Metrics */}
-                    <div className="bg-card border border-border rounded-xl p-5 shadow-3xs space-y-4">
+                    <div className="space-y-4 border-t border-border pt-4">
                       <h4 className="font-heading text-body-sm font-bold text-foreground">{t("astInspectorUI.structureMetrics")}</h4>
                       <div className="grid grid-cols-2 gap-y-4 gap-x-6">
                         <div className="flex justify-between items-center border-b border-border/40 pb-2">

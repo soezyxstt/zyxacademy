@@ -54,7 +54,7 @@ export function ProfileSettings({ initial, badges, rewards, name, image, academi
    </TabsList>
    {academicForm && <TabsContent value="academic" forceMount className="data-[state=inactive]:hidden">{academicForm}</TabsContent>}
    <TabsContent value="privacy" forceMount className="data-[state=inactive]:hidden">
-    <form onSubmit={event => { event.preventDefault(); save("privacy"); }} className="space-y-5 rounded-xl border bg-card p-5">
+    <form onSubmit={event => { event.preventDefault(); save("privacy"); }} className="space-y-5">
      <h2 className="font-heading text-body-base font-bold">{t("profileCustomization.identity")}</h2>
      <fieldset disabled={pending} className="grid min-w-0 gap-5 md:grid-cols-2">
       <div className="space-y-2"><label htmlFor="profile-display-name" className="text-body-sm font-semibold">{t("profileCustomization.displayName")}</label><Input id="profile-display-name" maxLength={80} placeholder={name} aria-describedby="profile-name-help" value={settings.displayName ?? ""} onChange={event => { setResult(null); setSettings({ ...settings, displayName: event.target.value || null }); }} /><p id="profile-name-help" className="text-body-xs text-muted-foreground">{t("profileCustomization.nameFallback")}</p></div>
@@ -66,7 +66,7 @@ export function ProfileSettings({ initial, badges, rewards, name, image, academi
     </form>
    </TabsContent>
    <TabsContent value="appearance" forceMount className="data-[state=inactive]:hidden">
-    <form onSubmit={event => { event.preventDefault(); save("appearance"); }} className="space-y-5 rounded-xl border bg-card p-5">
+    <form onSubmit={event => { event.preventDefault(); save("appearance"); }} className="space-y-5">
      <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-heading text-body-base font-bold">{t("profileCustomization.appearanceTab")}</h2><Button asChild variant="outline" size="sm"><Link href="/achievements?tab=rewards">{t("profileCustomization.getCosmetics")}</Link></Button></div>
      <fieldset disabled={pending} className="grid min-w-0 gap-5 sm:grid-cols-2">
       {COSMETIC_FIELDS.map(({slot}) => <SelectField key={slot} label={t(`profileCustomization.${slot}`)} value={equipped[slot]} onValueChange={value => { setResult(null); setEquipped({ ...equipped, [slot]: value }); }} options={rewardOptions(slot)} />)}
