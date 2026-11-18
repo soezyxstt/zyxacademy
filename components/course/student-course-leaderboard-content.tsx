@@ -24,8 +24,7 @@ export function StudentCourseLeaderboardContent({ rankedRows, userId, activeType
 
   return (
     <>
-      {/* User's own ranking status card */}
-      <div className="mb-4 rounded-xl border border-border/70 bg-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
         <div>
           <h3 className="font-heading text-body-base font-bold text-foreground">
             <TranslatedText namespace="learning" messageKey="leaderboard.yourRank" />
@@ -47,7 +46,7 @@ export function StudentCourseLeaderboardContent({ rankedRows, userId, activeType
       </div>
 
       {rankedRows.length === 0 ? (
-        <div className="py-8 text-center max-w-md mx-auto bg-card p-4 border border-border rounded-xl">
+        <div className="mx-auto max-w-md px-4 py-4 text-center">
           <Trophy className="size-10 text-muted-foreground/30 mx-auto mb-4" />
           <h3 className="font-heading text-body-base font-bold text-foreground mb-1">
             <TranslatedText namespace="learning" messageKey="leaderboard.emptyTitle" values={{ type: typeLabel }} />
@@ -59,11 +58,11 @@ export function StudentCourseLeaderboardContent({ rankedRows, userId, activeType
           </p>
         </div>
       ) : (
-        <section aria-labelledby="leaderboard-top-label" className="overflow-hidden rounded-xl border border-border/70 bg-card">
-          <h2 id="leaderboard-top-label" className="border-b border-border/60 px-4 py-3 font-heading text-body-base font-bold"><TranslatedText namespace="learning" messageKey="leaderboard.topThree" /></h2>
+        <section aria-labelledby="leaderboard-top-label" className="min-w-0">
+          <h2 id="leaderboard-top-label" className="border-b border-border/60 py-3 font-heading text-body-base font-bold"><TranslatedText namespace="learning" messageKey="leaderboard.topThree" /></h2>
           <ol className="divide-y divide-border/60">
             {top3.map((entry) => (
-              <li key={entry.studentId} className="flex items-start gap-3 px-4 py-3">
+              <li key={entry.studentId} className="flex items-start gap-3 py-3">
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-body-sm font-semibold">{entry.rank}</span>
                 <div className="min-w-0 flex-1">
                   <StudentIdentity name={entry.studentName} identity={identities[entry.studentId]} />

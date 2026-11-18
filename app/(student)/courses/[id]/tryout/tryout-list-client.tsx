@@ -63,7 +63,7 @@ export function TryoutListClient({ courseId, hasFullContentAccess, tryouts }: Tr
   return (
     <div className="space-y-3 font-sans">
       {tryouts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 p-8 sm:p-12 text-center max-w-md mx-auto">
+        <div className="flex flex-col items-center justify-center mx-auto max-w-md px-4 py-5 text-center">
           <GraduationCap className="size-10 text-muted-foreground/40 mb-3" aria-hidden />
           <h3 className="font-heading text-body-base font-bold text-foreground">
             {t("tryoutList.emptyTitle")}
@@ -78,7 +78,7 @@ export function TryoutListClient({ courseId, hasFullContentAccess, tryouts }: Tr
           </Button>
         </div>
       ) : (
-        <ul className="overflow-hidden rounded-lg border border-border bg-card">
+        <ul className="divide-y divide-border">
           {tryouts.map((tryout) => {
           const attemptCount = attempts[tryout.id] || 0;
           const maxAttempts = tryout.settings?.maxAttempts ?? 2;
@@ -172,11 +172,11 @@ export function TryoutListClient({ courseId, hasFullContentAccess, tryouts }: Tr
           })();
 
           return (
-            <li key={tryout.id} className="border-b border-border/60 last:border-0">
+            <li key={tryout.id}>
               <div
                 className={cn(
-                  "grid gap-3 px-4 py-3 transition-colors md:grid-cols-[minmax(0,1fr)_160px_180px] md:items-center",
-                  canStart ? "hover:bg-muted/30" : "bg-card/45 text-muted-foreground",
+                  "grid gap-3 py-3 transition-colors md:grid-cols-[minmax(0,1fr)_160px_180px] md:items-center",
+                  canStart ? "hover:bg-muted/30" : "text-muted-foreground",
                 )}
               >
                 <div className="min-w-0">

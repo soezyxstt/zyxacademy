@@ -44,7 +44,7 @@ export function PricingDiscountSettings({ initialSettings, save = savePricingDis
       });
     }}>
       <p className="text-body-xs text-muted-foreground">{t("discountSettings.scheduleHelp")}</p>
-      <div className="divide-y divide-border rounded-xl border border-border bg-card px-4">
+      <div className="divide-y divide-border border-y border-border">
         {(["platform", "tutorial"] as const).map((component) => (
           <fieldset key={component} disabled={busy} className="grid gap-3 py-4 sm:grid-cols-2 sm:items-end lg:grid-cols-[1fr_100px_1fr_1fr]">
             <legend className="sr-only">{component === "platform" ? t("discountSettings.platform") : t("discountSettings.tutorial")}</legend>

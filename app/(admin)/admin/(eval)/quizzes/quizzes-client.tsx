@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { AdminIconAction } from "@/components/admin/icon-action";
 import { Plus, Trash2, Clock, Award, BookOpen, Calendar, Eye, Check, Edit, MoreHorizontal } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import {
@@ -192,16 +193,16 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
         <span className="text-body-sm font-medium text-muted-foreground">
           {tx("registeredCount", { count: templates.length })}
         </span>
-        <Button asChild className="rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 font-bold shadow-xs">
-          <Link href={newQuizUrl} className="flex items-center gap-2">
-            <Plus className="size-4" /> {tx("createQuiz")}
+        <AdminIconAction asChild label={tx("createQuiz")}>
+          <Link href={newQuizUrl}>
+            <Plus className="size-4" />
           </Link>
-        </Button>
+        </AdminIconAction>
       </div>
 
       {/* Grid List */}
       {templates.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-card py-8 px-4 text-center shadow-xs flex flex-col items-center justify-center">
+        <div className="flex flex-col items-center justify-center py-5 text-center">
           <div className="mx-auto flex size-14 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary mb-5 border border-brand-primary/20">
             <BookOpen className="size-6" />
           </div>
@@ -209,14 +210,9 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
           <p className="text-body-sm text-muted-foreground max-w-sm mx-auto mt-2 leading-relaxed">
             {tx("emptyDescription")}
           </p>
-          <Button asChild className="mt-6 rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 font-bold shadow-md">
-            <Link href={newQuizUrl} className="flex items-center gap-2">
-              <Plus className="size-4" /> {tx("createQuiz")}
-            </Link>
-          </Button>
         </div>
       ) : (
-        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card text-left">
+        <div className="divide-y divide-border border-y border-border text-left">
           {templates.map((template) => {
             const rules = template.selectionRules as Record<string, any>;
             const qCount = rules?.count ?? 0;

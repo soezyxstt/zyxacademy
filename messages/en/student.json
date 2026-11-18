@@ -399,6 +399,7 @@
     "metadataDescription": "View and book tutor tutorial sessions."
   },
   "calendar": {
+    "eventCategory": "Event category",
     "filterAll": "All events",
     "filterAssessments": "Quizzes and practice tests",
     "filterTutorial": "Tutorials",

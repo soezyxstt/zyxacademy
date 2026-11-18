@@ -439,6 +439,7 @@ test("new question keeps submit visible with image and Zyra", async ({ page }, i
   await open(page, "?question=none");
   await page.getByRole("button", { name: "Pertanyaan baru", exact: true }).click();
   await expect(page.locator("[data-discussion-new-question]")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pertanyaan baru", exact: true })).toHaveCount(1);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("textbox", { name: "Tulis pesan", exact: true }).fill("Bagaimana menyederhanakan limit ini?\n@Zyra bantu jelaskan langkahnya.");
   await page.locator('[data-discussion-composer] input[type="file"]').setInputFiles("public/visual-fixtures/discussion-problem.png");
@@ -1336,24 +1337,19 @@ test("compact discussion live composer and four image recovery", async ({ page }
   await expect(page.locator(".zyra-composer-math")).toHaveAttribute("aria-label", "x^2");
   const toolbar = page.locator("[data-discussion-toolbar]");
   const send = page.getByRole("button", { name: "Kirim jawaban", exact: true });
-  const options = toolbar.getByRole("button", { name: "Bantuan diskusi", exact: true });
   async function expectSendPlacement() {
     await expect(send).toHaveCount(1);
     await expect(send).toHaveText("");
     await expect(send.locator("svg")).toHaveCount(1);
     const toolbarBox = (await toolbar.boundingBox())!, sendBox = (await send.boundingBox())!;
-    const optionsBox = (await options.boundingBox())!, editorBox = (await page.locator("[data-editor-disabled]").boundingBox())!;
+    const editorBox = (await page.locator("[data-editor-disabled]").boundingBox())!;
     expect(toolbarBox.y + toolbarBox.height).toBeLessThanOrEqual(editorBox.y);
-    if (page.viewportSize()!.width === 380) {
-      expect(sendBox.y).toBeCloseTo(optionsBox.y, 0);
-      expect(sendBox.x).toBeGreaterThan(optionsBox.x + optionsBox.width);
-      expect(sendBox.x + sendBox.width).toBeCloseTo(editorBox.x + editorBox.width, 0);
-    } else {
-      expect(sendBox.x).toBeGreaterThanOrEqual(editorBox.x + editorBox.width);
-      expect(sendBox.y + sendBox.height / 2).toBeCloseTo(editorBox.y + editorBox.height / 2, 0);
-    }
+    expect(sendBox.x).toBeGreaterThanOrEqual(editorBox.x + editorBox.width);
+    expect(sendBox.y + sendBox.height / 2).toBeCloseTo(editorBox.y + editorBox.height / 2, 0);
   }
   await expectSendPlacement();
+  await page.getByRole("textbox", { name: "Tulis pesan" }).press("Tab");
+  await expect(send).toBeFocused();
   await capture(page, info, "composer-nonempty");
   const image = await readFile("public/visual-fixtures/discussion-problem.png");
   await page.locator('input[type="file"]').setInputFiles(["one.png", "two.png", "slow.png", "failed.png"].map(name => ({ name, mimeType: "image/png", buffer: image })));

@@ -49,6 +49,48 @@ test("quiz keeps recovery after an invalid acknowledgement, then clears it after
   await page.getByRole("checkbox", { name: /Dua/ }).click();
   await page.getByRole("checkbox", { name: /Empat/ }).click();
   await capture(page, info, "quiz-selected", errors);
+  const originalViewport = page.viewportSize()!;
+  if (originalViewport.width < 1024) {
+    const mapTrigger = page.getByRole("button", { name: "Navigasi pertanyaan", exact: true });
+    await mapTrigger.click();
+    const map = page.getByRole("dialog", { name: "Navigasi pertanyaan", exact: true });
+    const current = map.getByRole("button", { name: "Soal 1, Terjawab", exact: true });
+    await expect(current).toHaveAttribute("aria-current", "step");
+    await expect(map.getByRole("button", { name: "Soal 2, Belum diisi", exact: true })).toBeEnabled();
+    await capture(page, info, "quiz-question-map", errors);
+    await current.click();
+    await expect(map).toBeHidden();
+    await expect(mapTrigger).toBeFocused();
+    await expect(page.getByRole("checkbox", { name: /Dua/ })).toBeChecked();
+    try {
+      await page.setViewportSize({ width: 1023, height: 844 });
+      await expect(mapTrigger).toBeInViewport();
+      await mapTrigger.click();
+      await expect(map).toBeVisible();
+      await expect(current).toHaveAttribute("aria-current", "step");
+      await expect(map.getByRole("button", { name: "Soal 2, Belum diisi", exact: true })).toBeEnabled();
+      await capture(page, info, "quiz-map-width-1023", errors);
+      await current.click();
+      await expect(map).toBeHidden();
+      await expect(mapTrigger).toBeFocused();
+      await expect(page.getByRole("checkbox", { name: /Dua/ })).toBeChecked();
+      await expect(page.getByRole("checkbox", { name: /Empat/ })).toBeChecked();
+
+      await page.setViewportSize({ width: 1024, height: 844 });
+      await expect(mapTrigger).toBeHidden();
+      await expect(page.getByRole("button", { name: "Soal 1, Terjawab", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Soal 1, Terjawab", exact: true })).toHaveAttribute("aria-current", "step");
+      await expect(page.getByRole("button", { name: "Soal 2, Belum diisi", exact: true })).toBeEnabled();
+      await expect(page.getByRole("checkbox", { name: /Dua/ })).toBeChecked();
+      await expect(page.getByRole("checkbox", { name: /Empat/ })).toBeChecked();
+      await capture(page, info, "quiz-map-width-1024", errors);
+    } finally {
+      await page.setViewportSize(originalViewport);
+    }
+    await expect(mapTrigger).toBeInViewport();
+    await expect(page.getByRole("checkbox", { name: /Dua/ })).toBeChecked();
+    await expect(page.getByRole("checkbox", { name: /Empat/ })).toBeChecked();
+  }
   await page.getByRole("button", { name: "Lanjut", exact: true }).click();
   await page.locator("textarea").fill("Jawaban terakhir sebelum dikumpulkan.");
   await page.getByRole("button", { name: "Kumpulkan kuis", exact: true }).click();
@@ -89,12 +131,32 @@ test("timeout waits for the active upload and sends one latest answer snapshot",
   await page.locator('input[type="file"]').setInputFiles({ name: "answer.pdf", mimeType: "application/pdf", buffer: Buffer.from("fixture") });
   await expect.poll(() => Boolean(completeUpload)).toBe(true);
   await capture(page, info, "quiz-uploading", errors);
+  const mobile = page.viewportSize()!.width < 1024;
+  const map = page.getByRole("dialog", { name: "Navigasi pertanyaan", exact: true });
+  if (mobile) {
+    await page.getByRole("button", { name: "Navigasi pertanyaan", exact: true }).click();
+    await expect(map).toBeVisible();
+    await expect(map.getByRole("button", { name: "Soal 2, Terjawab", exact: true })).toHaveAttribute("aria-current", "step");
+  }
   await page.clock.fastForward(10_000);
   await expect(page.locator("textarea")).toBeDisabled();
   expect(posts).toHaveLength(0);
+  if (mobile) {
+    await expect(map.getByRole("button", { name: "Soal 1, Belum diisi", exact: true })).toBeDisabled();
+    await expect(map.getByRole("button", { name: "Soal 2, Terjawab", exact: true })).toBeDisabled();
+    await capture(page, info, "quiz-timeout-map-locked", errors);
+  }
   await completeUpload!();
   await expect.poll(() => posts.length).toBe(1);
   expect(posts[0].answers).toEqual({ q1: [], q2: { text: "Penjelasan dengan lampiran.", fileName: "answer.pdf", fileSize: "10 B", fileKey: "fixture/answer.pdf" } });
+  if (mobile) {
+    await expect(map.getByRole("button", { name: "Soal 1, Belum diisi", exact: true })).toBeDisabled();
+    const current = map.getByRole("button", { name: "Soal 2, Terjawab", exact: true });
+    await expect(current).toBeDisabled();
+    await expect(current).toHaveAttribute("aria-current", "step");
+    await page.keyboard.press("Escape");
+    await expect(map).toBeHidden();
+  }
   await page.clock.fastForward(10_000);
   expect(posts).toHaveLength(1);
   await capture(page, info, "quiz-timeout-submitted", errors);

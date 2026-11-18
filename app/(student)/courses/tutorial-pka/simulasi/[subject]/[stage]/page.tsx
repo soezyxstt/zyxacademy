@@ -19,6 +19,8 @@ import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { quizOptionClasses, quizOptionLetterClasses } from "@/components/course/quiz-option-styles";
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
 import { Reveal } from "@/components/ui/reveal";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import { isShortAnswerCorrect } from "@/lib/quiz/short-answer";
 
@@ -87,10 +89,10 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
   if (thisStageState.status === "locked") {
     return (
       <CoursePageShell>
-        <div className="space-y-6">
+        <div className="space-y-2">
           <BackLink />
           <Reveal>
-            <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-start gap-3 border-t border-border py-3">
               <AlertTriangle className="size-5 shrink-0 text-status-warning" />
               <div>
                 <h1 className="font-heading text-h5 font-bold text-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="stageLocked" values={{ stage }} /></h1>
@@ -131,13 +133,13 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
 
       return (
         <CoursePageShell>
-          <div className="space-y-6">
+          <div className="space-y-2">
             <BackLink />
             <Reveal>
               <div
                 className={cn(
-                  "flex items-center gap-4 rounded-xl border p-5 shadow-sm",
-                  passed ? "border-status-success/30 bg-status-success/5" : "border-status-error/20 bg-status-error/5",
+                  "flex items-center gap-3 border-l-2 p-3",
+                  passed ? "border-status-success bg-status-success/5" : "border-status-error bg-status-error/5",
                 )}
               >
                 {passed ? <CheckCircle2 className="size-8 shrink-0 text-status-success" /> : <XCircle className="size-8 shrink-0 text-status-error" />}
@@ -157,7 +159,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
             <Reveal>
               <div className="space-y-4">
                 <h2 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="explanation" /></h2>
-                <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-card">
+                <div className="divide-y divide-border/60">
                 {snapshot.map((q, idx) => {
                   const rawSel = answers[q.id];
                   const qType = (q as any).question_type || (q as any).questionType || (q as any).type;
@@ -283,7 +285,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
 
       return (
         <CoursePageShell>
-          <div className="space-y-6">
+          <div className="space-y-2">
             <BackLink />
             <Reveal>
               <QuizPlayer
@@ -313,10 +315,10 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
 
   return (
     <CoursePageShell>
-      <div className="space-y-6">
+      <div className="space-y-2">
         <BackLink />
         <Reveal>
-          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <div className="border-t border-border py-3">
             <h1 className="font-heading text-h5 font-bold text-foreground">
               <TranslatedText namespace="studentExtras.pka" messageKey="stageTitle" values={{ subject: subjectName, stage }} />
             </h1>
@@ -348,13 +350,20 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
 }
 
 function BackLink() {
+  const label = <TranslatedText namespace="studentExtras.pka" messageKey="backToSimulation" />;
   return (
-    <Link
-      href="/courses/tutorial-pka/simulasi"
-      className="inline-flex items-center gap-1.5 text-body-sm font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground"
-    >
-      <ArrowLeft className="size-4" />
-      <TranslatedText namespace="studentExtras.pka" messageKey="backToSimulation" />
-    </Link>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button asChild variant="ghost" size="icon-lg">
+            <Link href="/courses/tutorial-pka/simulasi">
+              <ArrowLeft aria-hidden />
+              <span className="sr-only">{label}</span>
+            </Link>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{label}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

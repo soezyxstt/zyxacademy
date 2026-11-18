@@ -9,6 +9,7 @@ import admin from "@/messages/id/admin.json";
 import adminEval from "@/messages/id/adminEval.json";
 import adminOps from "@/messages/id/adminOps.json";
 import ui from "@/messages/id/ui.json";
+import search from "@/messages/id/search.json";
 
 declare global {
   interface Window {
@@ -27,7 +28,7 @@ function App() {
 
 createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={createQueryClient()}>
-    <NextIntlClientProvider locale="id" timeZone="UTC" messages={{ admin, adminEval, adminOps, ui }}>
+    <NextIntlClientProvider locale="id" timeZone="UTC" messages={{ admin, adminEval, adminOps, ui, search }}>
       <App />
     </NextIntlClientProvider>
   </QueryClientProvider>,

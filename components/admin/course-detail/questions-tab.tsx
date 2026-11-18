@@ -193,16 +193,16 @@ export function QuestionsTab({
       {/* Toolbar Controls */}
       <div className="flex flex-wrap items-center gap-2">
         <SearchBar
+          collapsible
           size="sm"
           placeholder={t("courseDetail.questions.search")}
           value={search}
           onSearch={handleSearchChange}
           onClear={() => handleSearchChange("")}
-          containerClassName="flex-1 min-w-[140px]"
         />
 
         <Select value={difficultyFilter} onValueChange={handleDifficultyChange}>
-          <SelectTrigger className="w-[140px] h-9 text-body-sm rounded-lg shrink-0">
+          <SelectTrigger variant="inline" aria-label={t("courseDetail.questions.difficulty")} className="max-w-44 shrink-0">
             <SelectValue placeholder={t("courseDetail.questions.difficulty")} />
           </SelectTrigger>
           <SelectContent>
@@ -214,7 +214,7 @@ export function QuestionsTab({
         </Select>
 
         <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
-          <SelectTrigger className="w-[120px] h-9 text-body-sm rounded-lg shrink-0">
+          <SelectTrigger variant="inline" aria-label={t("courseDetail.questions.perPage")} className="max-w-44 shrink-0">
             <SelectValue placeholder={t("courseDetail.questions.perPage")} />
           </SelectTrigger>
           <SelectContent>
@@ -227,11 +227,11 @@ export function QuestionsTab({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Link href={`/admin/questions?courseId=${courseId}`} className="shrink-0">
-                <Button size="sm" variant="outline" className="size-9 p-0 rounded-lg shrink-0" aria-label={t("courseDetail.questions.openBankStudio")}>
-                  <ExternalLink className="size-4" />
-                </Button>
-              </Link>
+              <Button asChild size="sm" variant="outline" className="size-9 rounded-lg p-0 shrink-0">
+                <Link href={`/admin/questions?courseId=${courseId}`} aria-label={t("courseDetail.questions.openBankStudio")}>
+                  <ExternalLink className="size-4" aria-hidden />
+                </Link>
+              </Button>
             </TooltipTrigger>
             <TooltipContent>{t("courseDetail.questions.openBankStudio")}</TooltipContent>
           </Tooltip>
@@ -239,7 +239,7 @@ export function QuestionsTab({
       </div>
 
       {/* Questions Container */}
-      <div className="rounded-xl border border-border bg-card p-3 space-y-3">
+      <div className="space-y-3 border-y border-border py-3">
         <div className="flex items-center justify-between">
           <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <Library className="size-4 text-brand-primary" />
@@ -251,7 +251,7 @@ export function QuestionsTab({
         </div>
 
         {paginatedQuestions.length === 0 ? (
-          <div className="text-center py-12 border border-dashed border-border rounded-xl">
+          <div className="py-5 text-center">
             <HelpCircle className="size-8 text-muted-foreground/40 mx-auto mb-2" />
             <p className="text-body-sm font-medium text-foreground">{t("courseDetail.questions.emptyTitle")}</p>
             <p className="text-body-xs text-muted-foreground mt-0.5">

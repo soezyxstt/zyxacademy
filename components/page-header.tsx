@@ -3,6 +3,9 @@ import Link from "next/link";
 import { ArrowLeft, ChevronRight, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ClampedMarquee } from "@/components/ui/clamped-marquee";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TranslatedText } from "@/components/i18n/translated-text";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -170,6 +173,7 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   const hasControls = Boolean(breadcrumbs || backHref || actions);
+  const backText = backLabel ?? <TranslatedText namespace="ui" messageKey="back" />;
 
   // Route titles duplicate the active sidebar item and mobile navbar title,
   // so keep an accessible h1 without rendering header banner chrome.
@@ -184,7 +188,7 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "w-full min-w-0 flex flex-wrap items-center justify-between gap-2 text-left mb-3",
+        "mb-2 flex w-full min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5 text-left",
         className,
       )}
     >
@@ -201,19 +205,25 @@ export function PageHeader({
               breadcrumbs
             )
           ) : backHref ? (
-            <Link
-              href={backHref}
-              className="inline-flex w-fit shrink-0 items-center gap-1.5 text-body-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <ArrowLeft className="size-3.5" aria-hidden />
-              {backLabel ?? "Kembali"}
-            </Link>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button asChild variant="ghost" size="icon-lg">
+                    <Link href={backHref}>
+                      <ArrowLeft aria-hidden />
+                      <span className="sr-only">{backText}</span>
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{backText}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           ) : null}
         </div>
       )}
 
       {actions && (
-        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5 sm:gap-2 sm:shrink-0 ml-auto">
+        <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center gap-1.5 has-[[data-search-expanded=true]]:flex-1 sm:gap-2">
           {actions}
         </div>
       )}

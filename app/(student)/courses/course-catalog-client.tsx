@@ -105,7 +105,7 @@ export function CourseCatalogClient({
       <Link
         key={c.id}
         href={courseHref(c.id)}
-        className="group flex items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-muted/30 active:bg-muted/50"
+        className="group flex items-center justify-between gap-3 py-3 transition-colors hover:bg-muted/30 active:bg-muted/50"
       >
         <div className="flex min-w-0 items-center gap-3">
           <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg font-bold text-body-xs", badge.color)}>
@@ -135,7 +135,7 @@ export function CourseCatalogClient({
   };
 
   const renderSection = (group: CourseGroup) => (
-    <section key={group.jurusan} className="space-y-3">
+    <section key={group.jurusan} className="space-y-1">
       {showGroupHeaders && (
       <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2.5">
         <div className="flex items-center gap-2">
@@ -153,7 +153,7 @@ export function CourseCatalogClient({
         </span>
       </div>
       )}
-      <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60 bg-card">
+      <div className="divide-y divide-border/60">
         {group.courses.map(renderRow)}
       </div>
     </section>

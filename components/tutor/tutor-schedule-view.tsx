@@ -18,6 +18,7 @@ import {
   RotateCcw,
   MessageSquare,
   MoreHorizontal,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -72,7 +73,6 @@ import {
 import { ScheduleCalendarView } from "@/components/schedule/schedule-calendar-view";
 import calendarStyles from "@/components/schedule/schedule-calendar-readability.module.css";
 import { SessionDetailDrawer } from "@/components/schedule/session-detail-drawer";
-import { cn } from "@/lib/utils";
 import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import type {
@@ -130,6 +130,7 @@ export function TutorScheduleView({
   initialWeekOffset = 0,
 }: TutorScheduleViewProps) {
   const t = useTranslations("tutor.schedule");
+  const scheduleLabels = useTranslations("schedule");
   const statusLabel = useTranslations("schedule.session.status");
   const { locale } = useAppLocale();
   const router = useRouter();
@@ -448,11 +449,22 @@ export function TutorScheduleView({
     setIsAddSlotOpen(true);
   };
 
+  const showDayFilter = activeTab === "slots";
+  const showCourseFilter = (activeTab === "slots" || activeTab === "sessions") && initialData.assignedActiveCourses.length > 0;
+  const showGroupFilter = activeTab !== "groups" && initialData.eligibleGroups.length > 0;
+  const activeFilters = [
+    showDayFilter && selectedDayFilter !== "all",
+    showCourseFilter && selectedCourseFilter !== "all",
+    showGroupFilter && selectedGroupFilter !== "all",
+  ].filter(Boolean).length;
+  const filterLabel = activeFilters ? t("activeFilters", { count: activeFilters }) : scheduleLabels("calendar.filter");
+
   const viewSelect = (
     <Select value={activeTab} onValueChange={setActiveTab}>
       <SelectTrigger
         aria-label={t("calendar")}
-        className="h-8 sm:h-9 w-auto min-w-[116px] sm:min-w-[126px] max-w-[180px] shrink-0 rounded-lg px-2.5 text-body-sm font-semibold"
+        variant="inline"
+        className="max-w-[180px] shrink-0 font-semibold"
       >
         <SelectValue />
       </SelectTrigger>
@@ -472,7 +484,7 @@ export function TutorScheduleView({
         <Tooltip>
           <TooltipTrigger asChild>
             <PopoverTrigger asChild>
-              <Button type="button" variant="outline" size="sm" className="h-8 sm:h-9 shrink-0 gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-2.5 text-body-xs sm:text-body-sm">
+              <Button type="button" variant="ghost" size="lg" className="shrink-0 gap-1 px-2">
                 <Users className="size-3.5" />
                 <span>{filledSlotCount}/{openedSlotCount}</span>
               </Button>
@@ -496,7 +508,7 @@ export function TutorScheduleView({
         <Tooltip>
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
-              <Button type="button" variant="outline" size="icon" aria-label={t("copyPreviousWeek")} className="h-8 w-8 sm:h-9 sm:w-9 shrink-0 rounded-lg">
+              <Button type="button" variant="ghost" size="icon-lg" aria-label={t("copyPreviousWeek")}>
                 <MoreHorizontal className="size-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -515,16 +527,14 @@ export function TutorScheduleView({
         <TooltipTrigger asChild>
           <Button
             type="button"
-            size="sm"
+            size="icon-lg"
             onClick={openAddSlotDialog}
             aria-label={t("addSlot")}
-            className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 shrink-0 gap-1.5 rounded-lg p-0 text-body-sm font-semibold"
           >
-            <Plus className="size-4 sm:size-3.5" />
-            <span className="hidden sm:inline">{t("addSlot")}</span>
+            <Plus aria-hidden />
           </Button>
         </TooltipTrigger>
-        <TooltipContent className="sm:hidden">{t("addSlot")}</TooltipContent>
+        <TooltipContent>{t("addSlot")}</TooltipContent>
       </Tooltip>
     </>
   );
@@ -535,59 +545,79 @@ export function TutorScheduleView({
       <h1 className="sr-only">{t("title")}</h1>
 
       {activeTab !== "calendar" && (
-        <div className="flex min-w-0 max-w-full flex-nowrap items-center justify-between gap-1.5 sm:gap-2">
-          {viewSelect}
-          <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5">
-            {headerActions}
-          </div>
-        </div>
-      )}
-
-      {activeTab !== "calendar" && (
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="min-w-[140px] max-w-sm flex-1">
+        <div className="group flex min-w-0 flex-wrap items-center gap-1.5">
+          {activeTab !== "groups" && (
             <SearchBar
+              collapsible
+              size="sm"
+              aria-label={t("search")}
               placeholder={t("search")}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              size="sm"
+              onSearch={setSearchQuery}
+              containerClassName="max-w-sm"
             />
+          )}
+          <div className="flex min-w-0 items-center gap-1 group-has-[[data-search-expanded=true]]:max-sm:hidden">
+            {viewSelect}
+            {(showDayFilter || showCourseFilter || showGroupFilter) && <Popover>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      size="icon-lg"
+                      variant={activeFilters ? "secondary" : "ghost"}
+                      aria-label={filterLabel}
+                    >
+                      <SlidersHorizontal aria-hidden />
+                      {activeFilters > 0 && <span aria-hidden className="absolute right-1 top-0.5 text-body-2xs font-semibold text-primary">{activeFilters}</span>}
+                    </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>{filterLabel}</TooltipContent>
+              </Tooltip>
+              <PopoverContent align="start" className="w-64 max-w-[calc(100dvw-2rem)] space-y-2">
+                {showDayFilter && <Select value={selectedDayFilter} onValueChange={setSelectedDayFilter}>
+                  <SelectTrigger aria-label={t("chooseDay")}>
+                    <SelectValue placeholder={t("chooseDay")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("allDays")}</SelectItem>
+                    {INDONESIAN_DAYS.map((day) => <SelectItem key={day} value={day}>{t(`days.${day}`)}</SelectItem>)}
+                  </SelectContent>
+                </Select>}
+                {showCourseFilter && (
+                  <Select value={selectedCourseFilter} onValueChange={setSelectedCourseFilter}>
+                    <SelectTrigger aria-label={t("allCourses")}>
+                      <SelectValue placeholder={t("allCourses")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("allCourses")}</SelectItem>
+                      {initialData.assignedActiveCourses.map((course) => (
+                        <SelectItem key={course.courseId} value={course.courseId}>{course.title}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {showGroupFilter && (
+                  <Select value={selectedGroupFilter} onValueChange={setSelectedGroupFilter}>
+                    <SelectTrigger aria-label={t("allGroups")}>
+                      <SelectValue placeholder={t("allGroups")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("allGroups")}</SelectItem>
+                      {initialData.eligibleGroups.map((group) => (
+                        <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </PopoverContent>
+            </Popover>}
           </div>
-          <Select value={selectedDayFilter} onValueChange={setSelectedDayFilter}>
-            <SelectTrigger className="h-9 w-[130px] shrink-0 rounded-lg text-body-sm">
-              <SelectValue placeholder={t("chooseDay")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("allDays")}</SelectItem>
-              {INDONESIAN_DAYS.map((day) => <SelectItem key={day} value={day}>{t(`days.${day}`)}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          {initialData.assignedActiveCourses.length > 0 && (
-            <Select value={selectedCourseFilter} onValueChange={setSelectedCourseFilter}>
-              <SelectTrigger className="h-9 w-[150px] shrink-0 rounded-lg text-body-sm">
-                <SelectValue placeholder={t("allCourses")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("allCourses")}</SelectItem>
-                {initialData.assignedActiveCourses.map((course) => (
-                  <SelectItem key={course.courseId} value={course.courseId}>{course.title}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          {initialData.eligibleGroups.length > 0 && (
-            <Select value={selectedGroupFilter} onValueChange={setSelectedGroupFilter}>
-              <SelectTrigger className="h-9 w-[150px] shrink-0 rounded-lg text-body-sm">
-                <SelectValue placeholder={t("allGroups")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("allGroups")}</SelectItem>
-                {initialData.eligibleGroups.map((group) => (
-                  <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <div className="ml-auto flex shrink-0 items-center gap-1 group-has-[[data-search-expanded=true]]:max-sm:hidden">
+            {headerActions}
+          </div>
         </div>
       )}
 
@@ -617,15 +647,15 @@ export function TutorScheduleView({
       {activeTab === "slots" && (
         <div className="space-y-3">
           {filteredSlots.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-card">
+            <div className="border-t border-border">
               <AdminEmptyState icon={CalendarDays} title={t("noSlots")} description={t("noSlotsDescription")} />
             </div>
           ) : (
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <div className="divide-y divide-border border-y border-border">
               {filteredSlots.map((slot) => {
                 const isBooked = Boolean(slot.booking);
                 return (
-                  <div key={slot.id} className="flex flex-col justify-between gap-3 p-4 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center">
+                  <div key={slot.id} className="flex flex-col justify-between gap-3 py-3 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center">
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-heading text-body-base font-bold text-foreground">{t(`days.${slot.dayOfWeek}`)}</span>
@@ -672,11 +702,11 @@ export function TutorScheduleView({
       {activeTab === "sessions" && (
         <div className="space-y-3">
           {filteredBookings.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-card"><AdminEmptyState icon={BookOpen} title={t("noSessions")} /></div>
+            <div className="border-t border-border"><AdminEmptyState icon={BookOpen} title={t("noSessions")} /></div>
           ) : (
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <div className="divide-y divide-border border-y border-border">
               {filteredBookings.map((booking) => (
-                <div key={booking.id} className="flex flex-col justify-between gap-3 p-4 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center">
+                <div key={booking.id} className="flex flex-col justify-between gap-3 py-3 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center">
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-heading text-body-base font-bold text-foreground">{booking.course?.title || t("course")}</span>
@@ -711,14 +741,14 @@ export function TutorScheduleView({
       {activeTab === "tickets" && (
         <div className="space-y-3">
           {filteredTickets.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-card"><AdminEmptyState icon={ShieldCheck} title={t("noTickets")} /></div>
+            <div className="border-t border-border"><AdminEmptyState icon={ShieldCheck} title={t("noTickets")} /></div>
           ) : (
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <div className="divide-y divide-border border-y border-border">
               {filteredTickets.map((ticket) => {
                 const isPendingTicket = ticket.status === "pending";
                 const isThreadOpen = openThreadId === ticket.id;
                 return (
-                  <div key={ticket.id} className="space-y-3 p-4">
+                  <div key={ticket.id} className="space-y-3 py-3">
                     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                       <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -734,30 +764,51 @@ export function TutorScheduleView({
                         {ticket.proposedDate && <p className="text-body-xs text-muted-foreground">{t("proposedDate")}: {ticket.proposedDate}</p>}
                         {ticket.decisionNotes && <p className="text-body-xs italic text-muted-foreground">{t("notes")}: {ticket.decisionNotes}</p>}
                       </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => { setOpenThreadId(isThreadOpen ? null : ticket.id); setReplyText(""); }} aria-expanded={isThreadOpen} className="h-8 rounded-lg text-body-sm">
-                          <MessageSquare className="mr-1.5 size-4" />{t("discussion")}{ticket.messages.length > 0 ? ` (${ticket.messages.length})` : ""}
+                      {isPendingTicket ? (
+                        <DropdownMenu>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon-lg" aria-label={t("ticketActions")}>
+                                  <MoreHorizontal aria-hidden />
+                                </Button>
+                              </DropdownMenuTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("ticketActions")}</TooltipContent>
+                          </Tooltip>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={() => { setOpenThreadId(isThreadOpen ? null : ticket.id); setReplyText(""); }}>
+                              <MessageSquare aria-hidden />
+                              {isThreadOpen ? t("hideDiscussion") : t("discussion")}
+                              {ticket.messages.length > 0 ? ` (${ticket.messages.length})` : ""}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => { setDecidingTicket(ticket); setTicketDecision("approved"); setDecisionNotesInput(""); setIsDecideTicketOpen(true); }}>
+                              {t("decide")}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        <Button variant="outline" size="sm" onClick={() => { setOpenThreadId(isThreadOpen ? null : ticket.id); setReplyText(""); }} aria-expanded={isThreadOpen} className="h-8 shrink-0 self-start rounded-lg text-body-sm sm:self-auto">
+                          <MessageSquare aria-hidden />
+                          {t("discussion")}{ticket.messages.length > 0 ? ` (${ticket.messages.length})` : ""}
                         </Button>
-                        {isPendingTicket && (
-                          <Button size="sm" onClick={() => { setDecidingTicket(ticket); setTicketDecision("approved"); setDecisionNotesInput(""); setIsDecideTicketOpen(true); }} className="h-8 rounded-lg bg-brand-primary text-body-sm text-primary-foreground hover:bg-brand-primary/90">{t("decide")}</Button>
-                        )}
-                      </div>
+                      )}
                     </div>
                     {isThreadOpen && (
                       <div className="space-y-3 border-l-2 border-border pl-3">
                         {ticket.messages.length === 0 ? (
                           <p className="text-body-xs text-muted-foreground">{t("noMessages")}</p>
                         ) : (
-                          <ul className="space-y-2">
+                          <ul className="divide-y divide-border">
                             {ticket.messages.map((msg) => {
                               const isTutor = msg.senderId === currentUserId;
                               return (
-                                <li key={msg.id} className={cn("space-y-1 rounded-lg border p-2.5", isTutor ? "border-brand-primary/25 bg-brand-primary/5" : "border-border/70 bg-card")}>
-                                  <div className="flex items-center justify-between gap-2">
+                                <li key={msg.id} className="space-y-1 py-2.5">
+                                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                                     <p className="text-body-xs font-semibold text-foreground">{isTutor ? t("you") : msg.senderName || t("groupMember")}</p>
                                     <FormattedDate date={msg.createdAt} options={{ dateStyle: "short", timeStyle: "short" }} locale={locale === "en" ? "en-US" : "id-ID"} />
                                   </div>
-                                  <p className="whitespace-pre-wrap text-body-sm text-foreground">{msg.message}</p>
+                                  <p className="whitespace-pre-wrap wrap-anywhere text-body-sm text-foreground">{msg.message}</p>
                                 </li>
                               );
                             })}
@@ -765,7 +816,14 @@ export function TutorScheduleView({
                         )}
                         <div className="flex items-end gap-2">
                           <Textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder={t("replyPlaceholder")} className="min-h-[44px] flex-1 resize-none text-body-sm" maxLength={2000} />
-                          <Button size="sm" disabled={isPending || replyText.trim().length === 0} onClick={handleReplyTicket} aria-label={t("sendReply")} className="h-9 shrink-0 rounded-lg"><Send className="mr-1.5 size-4" />{t("send")}</Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button type="button" size="icon-lg" disabled={isPending || replyText.trim().length === 0} onClick={handleReplyTicket} aria-label={t("sendReply")}>
+                                <Send aria-hidden />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("sendReply")}</TooltipContent>
+                          </Tooltip>
                         </div>
                       </div>
                     )}
@@ -781,9 +839,9 @@ export function TutorScheduleView({
         <div className="space-y-4">
           <div className="space-y-3">
             <h2 className="font-heading text-body-base font-bold text-foreground">{t("assignedCourses")}</h2>
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <div className="divide-y divide-border border-y border-border">
               {initialData.assignedActiveCourses.map((course) => (
-                <div key={course.courseId} className="flex items-center justify-between gap-3 p-4">
+                <div key={course.courseId} className="flex items-center justify-between gap-3 py-3">
                   <div><p className="font-heading text-body-sm font-bold text-foreground">{course.title}</p><p className="text-body-xs text-muted-foreground">{t("courseCode")}: {course.code || course.courseId}</p></div>
                   <Badge variant="outline" className="rounded-md text-body-xs text-muted-foreground">{course.isCompatibilityFallback ? t("legacyAssignment") : t("canonicalAssignment")}</Badge>
                 </div>
@@ -792,12 +850,12 @@ export function TutorScheduleView({
           </div>
           <div className="space-y-3">
             <h2 className="font-heading text-body-base font-bold text-foreground">{t("activeGroups")}</h2>
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <div className="divide-y divide-border border-y border-border">
               {initialData.eligibleGroups.length === 0 ? (
                 <AdminEmptyState icon={Users} title={t("noActiveGroups")} className="py-6" />
               ) : (
                 initialData.eligibleGroups.map((grp) => (
-                  <div key={grp.id} className="flex flex-col justify-between gap-3 p-4 sm:flex-row sm:items-center">
+                  <div key={grp.id} className="flex flex-col justify-between gap-3 py-3 sm:flex-row sm:items-center">
                     <div className="space-y-1">
                       <p className="font-heading text-body-sm font-bold text-foreground">{grp.name}</p>
                       <p className="text-body-xs text-muted-foreground">{t("package")}: {grp.packageName} ({grp.usedQuotaSessions}/{grp.totalQuotaSessions} {t("sessionsUsed")})</p>

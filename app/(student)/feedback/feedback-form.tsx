@@ -63,7 +63,7 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
 
   if (submitted) {
     return (
-      <div className="rounded-xl border border-border bg-card p-5 text-center">
+      <div className="py-4 text-center">
         <div className="mx-auto mb-3 flex size-10 items-center justify-center text-status-success">
           <CheckCircle2 className="size-7" />
         </div>
@@ -91,7 +91,7 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-4 max-w-2xl rounded-xl border border-border bg-card p-4 sm:p-5"
+      className="space-y-4 max-w-2xl"
     >
       {/* Category selector */}
       <fieldset>

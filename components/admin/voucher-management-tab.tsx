@@ -21,6 +21,7 @@ import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panel
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { AdminIconAction } from "@/components/admin/icon-action";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -161,17 +162,13 @@ export function VoucherManagementTab({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
+          <AdminIconAction label={t("voucher.refresh")}
             type="button"
             variant="outline"
-            size="sm"
             onClick={fetchVouchers}
-            disabled={loading || isPending}
-            className="gap-1.5"
-          >
-            <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
-            {t("voucher.refresh")}
-          </Button>
+            disabled={loading || isPending}>
+            <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+          </AdminIconAction>
 
           <Button
             type="button"
@@ -205,7 +202,7 @@ export function VoucherManagementTab({
       )}
 
       {showForm && (
-        <section className="rounded-xl border border-border bg-card p-4">
+        <section className="border-y border-border py-4">
           <AdminSectionTitle
             icon={Tag}
             title={t("voucher.new")}

@@ -22,7 +22,7 @@ export function StudentCourseResultsList({ href = (path: string) => path,  id, a
 
   if (allSubmissions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 p-8 sm:p-12 text-center max-w-md mx-auto">
+      <div className="flex flex-col items-center justify-center mx-auto max-w-md px-4 py-5 text-center">
         <History className="size-10 text-muted-foreground/40 mb-3" aria-hidden />
         <h3 className="font-heading text-body-base font-bold text-foreground">
           <TranslatedText namespace="learning" messageKey="results.emptyTitle" />
@@ -40,10 +40,10 @@ export function StudentCourseResultsList({ href = (path: string) => path,  id, a
   }
 
   return (
-    <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card">
+    <ul className="divide-y divide-border/60">
       {allSubmissions.map((submission) => (
         <li key={submission.id}>
-          <Link href={href(`/courses/${id}/my-results/${submission.id}`)} className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
+          <Link href={href(`/courses/${id}/my-results/${submission.id}`)} className="group flex items-center gap-3 py-3 transition-colors hover:bg-muted/30">
             <div className="min-w-0 flex-1 text-left">
               <h2 className="break-words font-heading text-body-base font-semibold text-foreground group-hover:text-primary">
                 {submission.examTitle}

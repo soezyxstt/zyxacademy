@@ -6,6 +6,8 @@
   "clearPrefix": "Hapus filter prefiks",
   "loading": "Memuat hasil pencarian",
   "clear": "Bersihkan pencarian",
+  "searchAction": "Cari",
+  "closeSearch": "Tutup pencarian",
   "recent": "Terbaru",
   "favorite": "Favorit",
   "removeFavorite": "Hapus dari favorit",

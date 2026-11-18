@@ -63,7 +63,7 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
   return (
     <div className="space-y-4">
       {/* ── KPI Strip ── */}
-      <AdminStatStrip className="grid-cols-2 sm:grid-cols-4">
+      <AdminStatStrip className="grid-cols-2 sm:grid-cols-4 gap-3 rounded-none border-x-0 bg-transparent [&>*]:bg-transparent [&>*]:px-0">
         <AdminStatStripItem icon={Users} label={t("totalParticipants")} value={data.summary.totalParticipants} caption={t("activeEnrolled")} />
         <AdminStatStripItem icon={UserCheck} label={t("directEnrollments")} value={data.summary.directEnrollmentsCount} caption={t("individualParticipants")} />
         <AdminStatStripItem icon={Layers} label={t("groupMembers")} value={data.summary.groupParticipantsCount} caption={t("groupParticipants")} />
@@ -72,7 +72,7 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
 
       {/* ── Tabs & Search Toolbar ── */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+        <div className="space-y-3">
           <TabsList>
             <TabsTrigger value="participants">
               {t("participants")}
@@ -84,20 +84,19 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
 
           {/* Search & Filter Toolbar */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="min-w-[140px] sm:w-64">
-              <SearchBar
-                size="sm"
-                aria-label={t("search")}
-                placeholder={t("search")}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onClear={() => setSearch("")}
-              />
-            </div>
+            <SearchBar
+              collapsible
+              size="sm"
+              aria-label={t("search")}
+              placeholder={t("search")}
+              value={search}
+              onSearch={setSearch}
+              containerClassName="max-w-64"
+            />
 
             {activeTab === "participants" && (
               <Select value={enrollmentFilter} onValueChange={setEnrollmentFilter}>
-                <SelectTrigger aria-label={t("enrollmentFilter")} className="h-9 w-auto min-w-32 shrink-0">
+                <SelectTrigger aria-label={t("enrollmentFilter")} variant="inline">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -114,86 +113,87 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
         {/* ── Tab 1: Participants List ── */}
         <TabsContent value="participants" className="mt-0 space-y-4">
           {filteredParticipants.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card">
+            <div className="border-t border-border">
               <AdminEmptyState icon={Users} title={t("noParticipantsFound")}
                 description={search || enrollmentFilter !== "all"
                   ? t("changeFilters")
                   : t("noActiveParticipants")} className="px-4 py-5" />
             </div>
           ) : (
-            <div className="overflow-hidden rounded-xl border border-border bg-card">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] text-left text-body-sm">
-                  <thead className="border-b border-border bg-muted/40 text-body-xs font-semibold text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3">{t("participants")}</th>
-                      <th className="px-4 py-3">{t("accessType")}</th>
-                      <th className="px-4 py-3">{t("groups")}</th>
-                      <th className="px-4 py-3">{t("enrolledSince")}</th>
-                      <th className="px-4 py-3">{t("validity")}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {filteredParticipants.map((p) => (
-                      <tr key={p.userId} className="hover:bg-muted/20">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 font-heading text-body-xs font-bold text-primary">
-                              {p.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="break-words font-medium text-foreground">{p.name}</p>
-                              <p className="break-all text-body-xs text-muted-foreground">{p.email}</p>
-                            </div>
+            <div className="border-y border-border">
+              <table role="table" className="block w-full text-left text-body-sm md:table">
+                <thead role="rowgroup" className="sr-only border-b border-border bg-muted/40 text-body-xs font-semibold text-muted-foreground md:not-sr-only md:table-header-group">
+                  <tr role="row">
+                    <th role="columnheader" scope="col" className="px-3 py-3">{t("participants")}</th>
+                    <th role="columnheader" scope="col" className="px-3 py-3">{t("accessType")}</th>
+                    <th role="columnheader" scope="col" className="px-3 py-3">{t("groups")}</th>
+                    <th role="columnheader" scope="col" className="px-3 py-3">{t("enrolledSince")}</th>
+                    <th role="columnheader" scope="col" className="px-3 py-3">{t("validity")}</th>
+                  </tr>
+                </thead>
+                <tbody role="rowgroup" className="block divide-y divide-border md:table-row-group">
+                  {filteredParticipants.map((p) => (
+                    <tr role="row" key={p.userId} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-3 gap-y-2 py-3 hover:bg-muted/20 md:table-row md:p-0">
+                      <td role="cell" className="col-span-2 wrap-anywhere md:px-3 md:py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 font-heading text-body-xs font-bold text-primary">
+                            {p.name.charAt(0).toUpperCase()}
                           </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          {p.enrollmentType === "both" && (
-                            <Badge variant="outline" className="rounded-md border-brand-primary/30 bg-brand-primary/5 text-brand-primary text-body-xs font-normal">
-                              {t("directAndGroup")}
-                            </Badge>
-                          )}
-                          {p.enrollmentType === "direct" && (
-                            <Badge variant="outline" className="rounded-md border-status-success/30 bg-status-success/5 text-foreground text-body-xs font-normal">
-                              {t("direct")}
-                            </Badge>
-                          )}
-                          {p.enrollmentType === "group" && (
-                            <Badge variant="outline" className="rounded-md border-border bg-muted text-muted-foreground text-body-xs font-normal">
-                              {t("group")}
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          {p.groups.length > 0 ? (
-                            <div className="flex flex-wrap gap-1.5">
-                              {p.groups.map((g) => (
-                                <span
-                                  key={g.id}
-                                  className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-body-xs text-foreground"
-                                >
-                                  <span>{g.name}</span>
-                                  {g.role === "leader" && (
-                                    <span className="font-semibold text-primary">({t("leader")})</span>
-                                  )}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-body-xs text-muted-foreground">{t("none")}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-body-xs text-muted-foreground tabular-nums">
-                          {p.enrolledAt ? formatParticipantDate(p.enrolledAt) : t("notRecorded")}
-                        </td>
-                        <td className="px-4 py-3 text-body-xs text-muted-foreground tabular-nums">
-                          {p.expiresAt ? formatParticipantDate(p.expiresAt) : t("activeThisSemester")}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                          <div className="min-w-0">
+                            <p className="break-words font-medium text-foreground">{p.name}</p>
+                            <p className="break-all text-body-xs text-muted-foreground">{p.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td role="cell" className="col-span-2 wrap-anywhere md:px-3 md:py-3">
+                        {p.enrollmentType === "both" && (
+                          <Badge variant="outline" className="rounded-md border-brand-primary/30 bg-brand-primary/5 text-brand-primary text-body-xs font-normal">
+                            {t("directAndGroup")}
+                          </Badge>
+                        )}
+                        {p.enrollmentType === "direct" && (
+                          <Badge variant="outline" className="rounded-md border-status-success/30 bg-status-success/5 text-foreground text-body-xs font-normal">
+                            {t("direct")}
+                          </Badge>
+                        )}
+                        {p.enrollmentType === "group" && (
+                          <Badge variant="outline" className="rounded-md border-border bg-muted text-muted-foreground text-body-xs font-normal">
+                            {t("group")}
+                          </Badge>
+                        )}
+                      </td>
+                      <td role="cell" className="col-span-2 wrap-anywhere md:px-3 md:py-3">
+                        <span className="mb-1 block text-body-xs font-semibold text-muted-foreground md:hidden">{t("groups")}</span>
+                        {p.groups.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {p.groups.map((g) => (
+                              <span
+                                key={g.id}
+                                className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-body-xs text-foreground"
+                              >
+                                <span>{g.name}</span>
+                                {g.role === "leader" && (
+                                  <span className="font-semibold text-primary">({t("leader")})</span>
+                                )}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-body-xs text-muted-foreground">{t("none")}</span>
+                        )}
+                      </td>
+                      <td role="cell" className="min-w-0 wrap-anywhere text-body-xs text-muted-foreground tabular-nums md:px-3 md:py-3">
+                        <span className="block font-semibold md:hidden">{t("enrolledSince")}</span>
+                        {p.enrolledAt ? formatParticipantDate(p.enrolledAt) : t("notRecorded")}
+                      </td>
+                      <td role="cell" className="min-w-0 wrap-anywhere text-body-xs text-muted-foreground tabular-nums md:px-3 md:py-3">
+                        <span className="block font-semibold md:hidden">{t("validity")}</span>
+                        {p.expiresAt ? formatParticipantDate(p.expiresAt) : t("activeThisSemester")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </TabsContent>
@@ -201,18 +201,18 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
         {/* ── Tab 2: Study Groups List ── */}
         <TabsContent value="groups" className="mt-0 space-y-4">
           {filteredGroups.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card">
+            <div className="border-t border-border">
               <AdminEmptyState icon={Shield} title={t("noGroupsFound")}
                 description={search
                   ? t("changeFilters")
                   : t("noActiveGroups")} className="px-4 py-5" />
             </div>
           ) : (
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <div className="divide-y divide-border border-y border-border">
               {filteredGroups.map((grp) => (
                 <div
                   key={grp.id}
-                  className="grid gap-3 p-4 lg:grid-cols-2 lg:gap-6"
+                  className="grid gap-3 py-3 lg:grid-cols-2 lg:gap-6"
                 >
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">

@@ -9,7 +9,7 @@ export interface ApplicationPageProps extends ComponentPropsWithoutRef<"div"> {
 export function ApplicationPage({
   children,
   className,
-  spacing = "space-y-6",
+  spacing = "space-y-4",
   maxWidth = "7xl",
   ...props
 }: ApplicationPageProps) {

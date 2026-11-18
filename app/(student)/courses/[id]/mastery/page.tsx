@@ -14,7 +14,7 @@ import {
 import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { CourseMasteryContentSkeleton } from "@/components/course/course-skeletons";
-import { studentCardClass } from "@/components/course/course-surfaces";
+import { studentSectionClass } from "@/components/course/course-surfaces";
 import { ConceptGraphView } from "@/components/course/concept-graph-view";
 import { ConceptMap } from "@/components/course/concept-map";
 import { EnrollmentForm } from "@/components/enrollment-form";
@@ -139,7 +139,7 @@ async function CourseMasteryContent({
   if (!enrolled) {
     return (
       <Reveal>
-        <div className={studentCardClass()}>
+        <div className={studentSectionClass()}>
           <div className="flex items-start gap-3">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border"><Lock className="size-5" /></div>
             <div>
@@ -160,7 +160,7 @@ async function CourseMasteryContent({
   if (!readModel || readModel.groups.length === 0) {
     return (
       <Reveal>
-        <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center">
+        <div className="py-5 text-center">
           <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
             <Target className="size-6" />
           </div>

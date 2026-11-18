@@ -264,7 +264,7 @@ export function FlagsClient() {
       </div>
 
       {/* Main Flags List Card */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="border-y border-border">
         <div className="border-b border-border bg-muted/30 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <Zap className="size-4 text-brand-primary" />

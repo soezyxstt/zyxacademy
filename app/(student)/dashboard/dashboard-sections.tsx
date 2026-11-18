@@ -754,17 +754,14 @@ export async function PrimaryLearningSection({
                         )}
                       </div>
                     </div>
-                    <Button size="sm" variant="outline" className="rounded-md gap-1.5 shrink-0 pointer-events-none group-hover:bg-muted transition-colors">
-                      <Play className="size-3 fill-current" />
-                      <TranslatedText namespace="student" messageKey="dashboard.continue" />
-                    </Button>
+                    <Play className="size-3.5 shrink-0 text-muted-foreground group-hover:text-primary" aria-hidden />
                   </Link>
                 </div>
               );
             })}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-8 text-center rounded-xl border border-dashed border-border/60 bg-muted/15">
+          <div className="flex flex-col items-center justify-center px-3 py-4 text-center">
             <CheckCircle2 className="size-8 text-status-success/60 mb-2" />
             <p className="text-body-sm font-medium text-foreground"><TranslatedText namespace="student" messageKey="dashboard.documentsRead" /></p>
             <p className="text-body-xs text-muted-foreground mt-0.5"><TranslatedText namespace="student" messageKey="dashboard.newClassMaterial" /></p>
@@ -993,9 +990,7 @@ export async function AvailableAssessmentsSection({
                     <span className="capitalize shrink-0"><TranslatedText namespace="student" messageKey={exam.type === "quiz" ? "dashboard.examQuiz" : "dashboard.examTryout"} /></span>
                   </p>
                 </div>
-                <Button size="sm" className="rounded-md shrink-0 pointer-events-none group-hover:bg-brand-primary/95 transition-all text-body-sm h-8 px-3">
-                  <TranslatedText namespace="student" messageKey="dashboard.workOnIt" />
-                </Button>
+                <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-primary" aria-hidden />
               </Link>
             </div>
           ))}
@@ -1013,7 +1008,7 @@ export async function AvailableAssessmentsSection({
           )}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center py-8 text-center rounded-xl border border-dashed border-border/60 bg-muted/15">
+        <div className="flex flex-col items-center justify-center px-3 py-4 text-center">
           <Trophy className="size-8 text-brand-secondary/60 mb-2" />
           <p className="text-body-sm font-medium text-foreground"><TranslatedText namespace="student" messageKey="dashboard.allExamsDone" /></p>
           <p className="text-body-xs text-muted-foreground mt-0.5"><TranslatedText namespace="student" messageKey="dashboard.newPracticeLater" /></p>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "katex/dist/katex.min.css";
 import { createRoot } from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -7,6 +7,7 @@ import { createQueryClient, syncQueryAccount } from "@/lib/query/client";
 import learning from "@/messages/id/learning.json";
 import studentCourse from "@/messages/id/studentCourse.json";
 import ui from "@/messages/id/ui.json";
+import search from "@/messages/id/search.json";
 import { StructuredArticleReader } from "@/components/course/structured-article-reader";
 import { FlashcardClient } from "@/app/(student)/courses/[id]/flashcard/flashcard-client";
 import { MaterialViewer } from "@/components/course/material-viewer";
@@ -44,7 +45,9 @@ const queue: FlashcardQueueItem[] = ["Apa turunan fungsi kuadrat?", "Apa arti li
 function App() {
   const [open, setOpen] = useState(true);
   const [demoReviews, setDemoReviews] = useState(0);
-  window.closeLearningFixture = () => setOpen(false);
+  useEffect(() => {
+    window.closeLearningFixture = () => setOpen(false);
+  }, []);
   const config = window.learningFixture;
   if (!open) return <p role="status">Pembaca ditutup</p>;
   return <main className="mx-auto max-w-6xl p-4 text-foreground">
@@ -62,6 +65,6 @@ function App() {
 
 createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={client}>
-    <NextIntlClientProvider locale="id" timeZone="UTC" messages={{ learning, studentCourse, ui }}><App /></NextIntlClientProvider>
+    <NextIntlClientProvider locale="id" timeZone="UTC" messages={{ learning, studentCourse, ui, search }}><App /></NextIntlClientProvider>
   </QueryClientProvider>,
 );

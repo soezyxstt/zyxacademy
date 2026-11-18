@@ -4,10 +4,10 @@ import { cn } from "@/lib/utils";
 import type { PkaSubjectDiagnostic } from "@/lib/pka-simulation";
 
 const STATUS_META: Record<PkaSubjectDiagnostic["status"], { messageKey: string; icon: typeof CheckCircle2; className: string }> = {
-  not_attempted: { messageKey: "statusNotAttempted", icon: HelpCircle, className: "text-muted-foreground border-border" },
-  at_risk: { messageKey: "statusAtRisk", icon: TriangleAlert, className: "text-status-error border-status-error/30 bg-status-error/5" },
-  borderline: { messageKey: "statusBorderline", icon: TriangleAlert, className: "text-status-warning border-status-warning/30 bg-status-warning/5" },
-  solid: { messageKey: "statusSolid", icon: CheckCircle2, className: "text-status-success border-status-success/30 bg-status-success/5" },
+  not_attempted: { messageKey: "statusNotAttempted", icon: HelpCircle, className: "text-muted-foreground" },
+  at_risk: { messageKey: "statusAtRisk", icon: TriangleAlert, className: "text-status-error" },
+  borderline: { messageKey: "statusBorderline", icon: TriangleAlert, className: "text-status-warning" },
+  solid: { messageKey: "statusSolid", icon: CheckCircle2, className: "text-status-success" },
 };
 
 export async function DiagnosticReport({ results }: { results: PkaSubjectDiagnostic[] }) {
@@ -29,12 +29,12 @@ export async function DiagnosticReport({ results }: { results: PkaSubjectDiagnos
   };
   return (
     <div className="space-y-4">
-      <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-card">
+      <div className="divide-y divide-border/60">
         {results.map((r) => {
           const meta = STATUS_META[r.status];
           const Icon = meta.icon;
           return (
-            <div key={r.subject} className={cn("flex items-start gap-3 p-4", meta.className)}>
+            <div key={r.subject} className={cn("flex items-start gap-3 py-3", meta.className)}>
               <Icon className="size-5 shrink-0" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -49,7 +49,7 @@ export async function DiagnosticReport({ results }: { results: PkaSubjectDiagnos
         })}
       </div>
 
-      <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-4">
+      <div className="flex items-start gap-3 border-t border-border py-3">
         <ShieldAlert className="size-5 shrink-0 text-muted-foreground" />
         <p className="text-body-sm text-muted-foreground">{t("disclaimer")}</p>
       </div>

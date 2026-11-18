@@ -6,7 +6,7 @@ import { Compass } from "lucide-react";
 import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { CourseStudyPathSkeleton } from "@/components/course/course-skeletons";
-import { studentCardClass } from "@/components/course/course-surfaces";
+import { studentSectionClass } from "@/components/course/course-surfaces";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { createMetadata } from "@/lib/site";
@@ -34,7 +34,7 @@ async function CoursePathContent({ id }: { id: string }) {
   if (!hasFullContentAccess) {
     return (
       <Reveal>
-        <div className={studentCardClass("mx-auto max-w-xl text-center py-12")}>
+        <div className={studentSectionClass("mx-auto max-w-xl text-center py-12")}>
           <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="path.lockedTitle" /></h3>
           <p className="mt-2 text-body-sm text-muted-foreground leading-relaxed">
             <TranslatedText namespace="learning" messageKey="path.lockedDescription" />

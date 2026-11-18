@@ -16,32 +16,34 @@ import {
   Timer,
   CheckCircle2,
   CheckSquare,
-  Square,
   Send,
   BookOpen,
   Shuffle,
   Lock,
-  ChevronRight,
+  MoreHorizontal,
   Loader2,
   NotebookPen,
-  Layers,
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SearchBar } from "@/components/ui/search-bar";
 import { PageHeader } from "@/components/page-header";
 import { MathText } from "@/components/course/math-text";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { DifficultyProportionSlider } from "@/components/admin/difficulty-proportion-slider";
 import { formatDatetimeLocal } from "@/lib/date-utils";
 import { getQuizTimingMismatch } from "@/lib/asesmen/quiz-timing";
 import { cn } from "@/lib/utils";
+import { QuestionFilterPopover } from "../../questions/question-filter-popover";
 
 export interface CourseOption {
   id: string;
@@ -125,6 +127,7 @@ export function QuizForm({
 }: QuizFormProps) {
   const router = useRouter();
   const tr = useTranslations("adminEval.quizForm");
+  const filterT = useTranslations("adminEval.questionBank");
 
   // Tab State synced with URL query param ?tab=pengaturan | ?tab=soal (instant switching)
   const [currentTab, handleTabChange] = useUrlTab("tab", "pengaturan");
@@ -274,6 +277,18 @@ export function QuizForm({
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [onlySelectedFilter, setOnlySelectedFilter] = useState(false);
 
+  const activeFilterCount = [difficultyFilter, typeFilter, originFilter, tagFilter, statusFilter]
+    .filter((filter) => filter !== "all").length + Number(onlySelectedFilter);
+
+  const resetQuestionFilters = () => {
+    setDifficultyFilter("all");
+    setTypeFilter("all");
+    setOriginFilter("all");
+    setTagFilter("all");
+    setStatusFilter("all");
+    setOnlySelectedFilter(false);
+  };
+
   // Fetch Questions for the selected course
   useEffect(() => {
     if (!courseId) return;
@@ -328,20 +343,6 @@ export function QuizForm({
     }
     return Array.from(tagSet);
   }, [courseQuestions]);
-
-  // Selected Questions Difficulty Breakdown (for Specific Mode)
-  const selectedDifficultyCounts = useMemo(() => {
-    const counts = { easy: 0, medium: 0, hard: 0 };
-    const selectedSet = new Set(selectedQIds);
-    for (const q of courseQuestions) {
-      if (selectedSet.has(q.id)) {
-        if (q.difficulty === "easy") counts.easy++;
-        else if (q.difficulty === "hard") counts.hard++;
-        else counts.medium++;
-      }
-    }
-    return counts;
-  }, [selectedQIds, courseQuestions]);
 
   // Filtered Questions List
   const filteredQuestions = useMemo(() => {
@@ -455,7 +456,8 @@ export function QuizForm({
   };
 
   // Form Submission
-  const [submitting, setSubmitting] = useState(false);
+  const [submissionAction, setSubmissionAction] = useState<"save" | "publish" | null>(null);
+  const submitting = submissionAction !== null;
 
   const handleSubmit = async (publishImmediately: boolean = false) => {
     if (!title.trim()) {
@@ -502,7 +504,7 @@ export function QuizForm({
     }
 
     try {
-      setSubmitting(true);
+      setSubmissionAction(publishImmediately ? "publish" : "save");
 
       const parsedTags = tagsStr
         .split(",")
@@ -583,7 +585,7 @@ export function QuizForm({
     } catch {
       toast.error(tr("saveError"));
     } finally {
-      setSubmitting(false);
+      setSubmissionAction(null);
     }
   };
 
@@ -591,6 +593,11 @@ export function QuizForm({
   const computedHeaderTitle = customPageTitle || (isEdit ? (title ? tr("editQuizTitle", { title }) : tr("editQuiz")) : (currentCourseName ? tr("createQuizForCourse", { course: currentCourseName }) : tr("createQuiz")));
   const computedBackHref = backHref || returnUrl || (courseSlug ? `/admin/courses/${courseSlug}?tab=quizzes` : "/admin/quizzes");
   const computedBackLabel = backLabel || (currentCourseName ? tr("backToCourse", { course: currentCourseName }) : tr("backToQuizList"));
+
+  const saveLabel = isEdit ? tr("saveChanges") : tr("saveDraft");
+  const questionTabLabel = selectionMode === "specific"
+    ? `${tr("questionSelection")}, ${tr("selectedQuestionCount", { count: selectedQIds.length })}`
+    : tr("questionSelection");
 
   return (
     <div className="space-y-5">
@@ -602,25 +609,32 @@ export function QuizForm({
         backLabel={computedBackLabel}
         actions={
           <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={submitting}
-              onClick={() => handleSubmit(false)}
-              className="h-8 sm:h-9 rounded-lg border-border font-medium text-body-sm"
-            >
-              <Save className="mr-1.5 size-3.5" />
-              {isEdit ? tr("saveChanges") : tr("saveDraft")}
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-lg"
+                    aria-label={saveLabel}
+                    disabled={submitting}
+                    isLoading={submissionAction === "save"}
+                    onClick={() => handleSubmit(false)}
+                  >
+                    <Save aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{saveLabel}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <Button
               type="button"
               size="sm"
               disabled={submitting}
               onClick={() => handleSubmit(true)}
-              className="h-8 sm:h-9 rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 font-semibold text-body-sm shadow-2xs"
+              className="h-9 font-semibold"
             >
-              {submitting ? (
+              {submissionAction === "publish" ? (
                 <>
                   <Loader2 className="mr-1.5 size-3.5 animate-spin" /> {tr("saving")}
                 </>
@@ -642,15 +656,19 @@ export function QuizForm({
             <Settings2 className="size-4" />
             {tr("quizSettings")}
           </TabsTrigger>
-          <TabsTrigger value="soal">
-            <BookOpen className="size-4" />
-            {tr("questionSelection")}
-            {selectedQIds.length > 0 && (
-              <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-body-2xs">
-                {selectedQIds.length}
-              </Badge>
-            )}
-          </TabsTrigger>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <TabsTrigger value="soal" aria-label={questionTabLabel}>
+                  <BookOpen aria-hidden="true" className="size-4" />
+                  {selectionMode === "specific" && (
+                    <span aria-hidden="true" className="tabular-nums">{selectedQIds.length}</span>
+                  )}
+                </TabsTrigger>
+              </TooltipTrigger>
+              <TooltipContent>{tr("questionSelection")}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </TabsList>
 
         {/* TAB 1: PENGATURAN KUIS */}
@@ -658,7 +676,7 @@ export function QuizForm({
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
 
             {/* LEFT COLUMN: Main Info & Schedule (7 cols) */}
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card lg:col-span-7">
+            <div className="divide-y divide-border border-y border-border lg:col-span-7">
               {/* General Information Card */}
               <section>
                 <div className="px-4 pt-3">
@@ -975,7 +993,7 @@ export function QuizForm({
             </div>
 
             {/* RIGHT COLUMN: Timers, Navigation & Rules (5 cols) */}
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card lg:col-span-5">
+            <div className="divide-y divide-border border-y border-border lg:col-span-5">
 
               {/* Duration & Timer Card */}
               <section>
@@ -1153,26 +1171,6 @@ export function QuizForm({
                   </div>
                 </div>
               </section>
-
-              {/* Quick Navigation to Tab 2 */}
-              <div className="bg-muted/30 p-3.5 flex items-center justify-between">
-                <div>
-                  <div className="text-body-sm font-bold text-brand-primary">{tr("continueToQuestionSelection")}</div>
-                  <div className="text-body-xs text-muted-foreground">
-                    {selectedQIds.length > 0
-                      ? tr("questionsSelected", { count: selectedQIds.length })
-                      : tr("chooseQuestionsFromBank")}
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => handleTabChange("soal")}
-                  className="rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 font-semibold h-8 text-body-sm"
-                >
-                  Pilih soal <ChevronRight className="ml-1 size-3.5" />
-                </Button>
-              </div>
             </div>
 
           </div>
@@ -1181,67 +1179,161 @@ export function QuizForm({
         {/* TAB 2: PILIHAN SOAL */}
         <TabsContent value="soal" className="space-y-4 focus-visible:outline-none">
 
-          {/* Mode Selector & Summary Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-2xs">
-            <div className="flex items-center gap-2">
-              <span className="text-body-xs font-semibold text-muted-foreground">{tr("questionSelectionMethod")}</span>
-              <div className="flex rounded-lg border border-border p-0.5 bg-muted/40">
-                <button
-                  type="button"
-                  onClick={() => setSelectionMode("specific")}
-                  className={cn(
-                    "rounded-md px-2.5 py-1 text-body-xs font-semibold transition-all cursor-pointer",
-                    selectionMode === "specific"
-                      ? "bg-background text-foreground shadow-2xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {tr("specificQuestions")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectionMode("distribution")}
-                  className={cn(
-                    "rounded-md px-2.5 py-1 text-body-xs font-semibold transition-all cursor-pointer",
-                    selectionMode === "distribution"
-                      ? "bg-background text-foreground shadow-2xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {tr("selectByDifficulty")}
-                </button>
-              </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+              <Select
+                value={selectionMode}
+                onValueChange={(value) => {
+                  if (value === "specific" || value === "distribution") setSelectionMode(value);
+                }}
+              >
+                <SelectTrigger variant="inline" aria-label={tr("questionSelectionMethod")} className="shrink-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="specific">{tr("specificQuestions")}</SelectItem>
+                  <SelectItem value="distribution">{tr("selectByDifficulty")}</SelectItem>
+                </SelectContent>
+              </Select>
+              {selectionMode === "specific" && (
+                <div className="flex min-w-0 items-center gap-2 has-[[data-search-expanded=true]]:flex-1 has-[[data-search-expanded=true]]:basis-48">
+                  <SearchBar
+                    collapsible
+                    size="sm"
+                    variant="bordered"
+                    containerClassName="max-w-72"
+                    value={searchQuery}
+                    onSearch={setSearchQuery}
+                    onClear={() => setSearchQuery("")}
+                    placeholder={tr("questionSearch")}
+                  />
+
+                  <QuestionFilterPopover activeCount={activeFilterCount} onReset={resetQuestionFilters}>
+                    <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
+                      <SelectTrigger aria-label={filterT("filterDifficulty")} className="h-9">
+                        <SelectValue placeholder={tr("allDifficulties")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{tr("allDifficulties")}</SelectItem>
+                        <SelectItem value="easy">{tr("easy")}</SelectItem>
+                        <SelectItem value="medium">{tr("medium")}</SelectItem>
+                        <SelectItem value="hard">{tr("hard")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={typeFilter} onValueChange={setTypeFilter}>
+                      <SelectTrigger aria-label={filterT("filterType")} className="h-9">
+                        <SelectValue placeholder={tr("allTypes")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{tr("allTypes")}</SelectItem>
+                        <SelectItem value="multiple_choice">{tr("multipleChoice")}</SelectItem>
+                        <SelectItem value="multiple_choices">{tr("multipleChoices")}</SelectItem>
+                        <SelectItem value="short_answer">{tr("shortAnswer")}</SelectItem>
+                        <SelectItem value="essay">{tr("essay")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={originFilter} onValueChange={setOriginFilter}>
+                      <SelectTrigger aria-label={filterT("filterOrigin")} className="h-9">
+                        <SelectValue placeholder={tr("allSources")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{tr("allSources")}</SelectItem>
+                        <SelectItem value="zyx_original">{tr("zyxOriginal")}</SelectItem>
+                        <SelectItem value="itb_example">{tr("itbExample")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={tagFilter} onValueChange={setTagFilter}>
+                      <SelectTrigger aria-label={tr("allTopics")} className="h-9">
+                        <SelectValue placeholder={tr("allTopics")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{tr("allTopics")}</SelectItem>
+                        {availableTags.map((tag) => (
+                          <SelectItem key={tag} value={tag}>
+                            {tag}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger aria-label={filterT("filterStatus")} className="h-9">
+                        <SelectValue placeholder={tr("allStatuses")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{tr("allStatuses")}</SelectItem>
+                        <SelectItem value="published">{tr("published")}</SelectItem>
+                        <SelectItem value="generated">{tr("draft")}</SelectItem>
+                        <SelectItem value="flagged">{tr("flagged")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Button
+                      type="button"
+                      variant={onlySelectedFilter ? "default" : "outline"}
+                      size="sm"
+                      aria-pressed={onlySelectedFilter}
+                      onClick={() => setOnlySelectedFilter(!onlySelectedFilter)}
+                      className="h-9 rounded-lg"
+                    >
+                      <CheckSquare className="size-3.5" />
+                      {tr("onlySelected")}
+                    </Button>
+                  </QuestionFilterPopover>
+                </div>
+              )}
             </div>
 
             {selectionMode === "specific" && (
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="rounded-md border-brand-primary/30 bg-brand-primary/10 text-brand-primary font-bold px-2 py-0.5 text-body-xs">
-                  {tr("selectedQuestionCount", { count: selectedQIds.length })}
-                </Badge>
-                {selectedQIds.length > 0 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearAllSelections}
-                    className="h-7 text-body-sm text-status-error hover:bg-status-error/10 hover:text-status-error"
-                  >
-                    {tr("clearSelection")}
-                  </Button>
-                )}
+              <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                <span className="text-body-xs text-muted-foreground tabular-nums">
+                  {filteredQuestions.length === courseQuestions.length
+                    ? tr("totalQuestionCount", { count: courseQuestions.length })
+                    : tr("filteredQuestionCount", { shown: filteredQuestions.length, total: courseQuestions.length })}
+                </span>
+                <DropdownMenu>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button type="button" variant="outline" size="icon-lg" aria-label={tr("bulkSelectionActions")}>
+                            <MoreHorizontal aria-hidden="true" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      {/* Unmount on blur so the tooltip cannot intercept Escape from the search input. */}
+                      <TooltipContent className="data-closed:animate-none!">{tr("bulkSelectionActions")}</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onSelect={selectAllFiltered} disabled={filteredQuestions.length === 0}>
+                      {tr("selectAllFiltered")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={deselectAllFiltered} disabled={filteredQuestions.length === 0}>
+                      {tr("deselectAllFiltered")}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={clearAllSelections} disabled={selectedQIds.length === 0}>
+                      {tr("clearSelection")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             )}
           </div>
 
           {/* DISTRIBUTION MODE */}
           {selectionMode === "distribution" && (
-            <Card className="rounded-xl border border-border bg-card shadow-2xs">
-              <div className="border-b border-border/80 px-4 py-3">
+            <section className="border-y border-border">
+              <div className="border-b border-border/80 py-3">
                 <h3 className="font-heading text-body-base font-bold text-foreground">
                   Konfigurasi Distribusi Soal Otomatis
                 </h3>
               </div>
-              <CardContent className="p-4 space-y-3.5">
+              <div className="space-y-3.5 py-4">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <Label htmlFor="count" className="text-body-sm font-semibold text-foreground">
@@ -1291,196 +1383,24 @@ export function QuizForm({
                     }}
                   />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </section>
           )}
 
           {/* SPECIFIC QUESTION PICKER MODE */}
           {selectionMode === "specific" && (
             <div className="space-y-3">
-              {/* Live Selected Questions Difficulty Breakdown */}
-              {selectedQIds.length > 0 && (
-                <div className="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-body-xs font-semibold text-muted-foreground">
-                    <span className="flex items-center gap-1.5 text-foreground font-bold">
-                      <Layers className="size-3.5 text-brand-primary" />
-                      Komposisi Kesulitan Soal Terpilih ({selectedQIds.length} Soal)
-                    </span>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="text-status-success font-medium flex items-center gap-1">
-                        <span className="size-2 rounded-full bg-emerald-500" />
-                        Mudah: {selectedDifficultyCounts.easy} ({Math.round((selectedDifficultyCounts.easy / selectedQIds.length) * 100)}%)
-                      </span>
-                      <span className="text-status-warning font-medium flex items-center gap-1">
-                        <span className="size-2 rounded-full bg-amber-500" />
-                        Sedang: {selectedDifficultyCounts.medium} ({Math.round((selectedDifficultyCounts.medium / selectedQIds.length) * 100)}%)
-                      </span>
-                      <span className="text-status-error font-medium flex items-center gap-1">
-                        <span className="size-2 rounded-full bg-rose-500" />
-                        Sulit: {selectedDifficultyCounts.hard} ({Math.round((selectedDifficultyCounts.hard / selectedQIds.length) * 100)}%)
-                      </span>
-                    </div>
-                  </div>
-                  <div className="h-2 w-full rounded-md bg-muted overflow-hidden flex">
-                    <div style={{ width: `${(selectedDifficultyCounts.easy / selectedQIds.length) * 100}%` }} className="h-full bg-emerald-500 transition-all" />
-                    <div style={{ width: `${(selectedDifficultyCounts.medium / selectedQIds.length) * 100}%` }} className="h-full bg-amber-500 transition-all" />
-                    <div style={{ width: `${(selectedDifficultyCounts.hard / selectedQIds.length) * 100}%` }} className="h-full bg-rose-500 transition-all" />
-                  </div>
-                </div>
-              )}
-
-              {/* Space-Efficient Inline Search & Filter Toolbar */}
-              <div className="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2.5">
-                <div className="flex flex-wrap items-center gap-2">
-                  {/* Reusable Search Bar Component */}
-                  <div className="min-w-[140px] flex-1">
-                    <SearchBar
-                      size="sm"
-                      variant="bordered"
-                      value={searchQuery}
-                      onSearch={setSearchQuery}
-                      onClear={() => setSearchQuery("")}
-                      placeholder={tr("questionSearch")}
-                    />
-                  </div>
-
-                  {/* Filter Only Selected */}
-                  <Button
-                    type="button"
-                    variant={onlySelectedFilter ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setOnlySelectedFilter(!onlySelectedFilter)}
-                    className={cn(
-                      "h-9 rounded-lg font-semibold shrink-0 text-body-sm gap-1.5",
-                      onlySelectedFilter ? "bg-brand-primary text-primary-foreground" : "border-border"
-                    )}
-                  >
-                    <CheckSquare className="size-3.5" />
-                    Hanya Terpilih ({selectedQIds.length})
-                  </Button>
-
-                  {/* Difficulty Select */}
-                  <div className="shrink-0">
-                    <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
-                      <SelectTrigger className="h-9 w-[130px] rounded-lg border-border text-body-sm">
-                        <SelectValue placeholder={tr("allDifficulties")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">{tr("allDifficulties")}</SelectItem>
-                        <SelectItem value="easy">{tr("easy")}</SelectItem>
-                        <SelectItem value="medium">{tr("medium")}</SelectItem>
-                        <SelectItem value="hard">{tr("hard")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Type Select */}
-                  <div className="shrink-0">
-                    <Select value={typeFilter} onValueChange={setTypeFilter}>
-                      <SelectTrigger className="h-9 w-[140px] rounded-lg border-border text-body-sm">
-                        <SelectValue placeholder={tr("allTypes")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">{tr("allTypes")}</SelectItem>
-                        <SelectItem value="multiple_choice">{tr("multipleChoice")}</SelectItem>
-                        <SelectItem value="multiple_choices">{tr("multipleChoices")}</SelectItem>
-                        <SelectItem value="short_answer">{tr("shortAnswer")}</SelectItem>
-                        <SelectItem value="essay">{tr("essay")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Origin Select */}
-                  <div className="shrink-0">
-                    <Select value={originFilter} onValueChange={setOriginFilter}>
-                      <SelectTrigger className="h-9 w-[130px] rounded-lg border-border text-body-sm">
-                        <SelectValue placeholder={tr("allSources")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">{tr("allSources")}</SelectItem>
-                        <SelectItem value="zyx_original">{tr("zyxOriginal")}</SelectItem>
-                        <SelectItem value="itb_example">{tr("itbExample")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Tag Select */}
-                  <div className="shrink-0">
-                    <Select value={tagFilter} onValueChange={setTagFilter}>
-                      <SelectTrigger className="h-9 w-[130px] rounded-lg border-border text-body-sm">
-                        <SelectValue placeholder={tr("allTopics")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">{tr("allTopics")}</SelectItem>
-                        {availableTags.map((tag) => (
-                          <SelectItem key={tag} value={tag}>
-                            {tag}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Status Select */}
-                  <div className="shrink-0">
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="h-9 w-[130px] rounded-lg border-border text-body-sm">
-                        <SelectValue placeholder={tr("allStatuses")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">{tr("allStatuses")}</SelectItem>
-                        <SelectItem value="published">{tr("published")}</SelectItem>
-                        <SelectItem value="generated">{tr("draft")}</SelectItem>
-                        <SelectItem value="flagged">{tr("flagged")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Bulk Selection Sub-bar */}
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2 text-body-xs text-muted-foreground">
-                  <span>
-                    Menampilkan <strong>{filteredQuestions.length}</strong> dari{" "}
-                    <strong>{courseQuestions.length}</strong> butir soal kelas
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={selectAllFiltered}
-                      disabled={filteredQuestions.length === 0}
-                      className="h-8 text-body-sm font-semibold text-brand-primary hover:bg-brand-primary/10 px-2"
-                    >
-                      Pilih Semua Hasil Filter
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={deselectAllFiltered}
-                      disabled={filteredQuestions.length === 0}
-                      className="h-8 text-body-sm font-semibold text-muted-foreground hover:bg-muted px-2"
-                    >
-                      Batal Pilih Hasil Filter
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
               {/* Questions List */}
               {loadingQuestions ? (
                 <QuestionPickerSkeleton label={tr("loadingQuestionBank")} />
               ) : filteredQuestions.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center">
-                  <HelpCircle className="mx-auto size-7 text-muted-foreground mb-1.5" />
-                  <h4 className="font-heading text-body-sm font-bold text-foreground">{tr("noMatchingQuestions")}</h4>
-                  <p className="text-body-xs text-muted-foreground mt-0.5 max-w-md mx-auto">
-                    Coba sesuaikan kata kunci pencarian atau bersihkan filter tingkat kesulitan dan topik.
-                  </p>
-                </div>
+                <AdminEmptyState
+                  icon={HelpCircle}
+                  title={tr("noMatchingQuestions")}
+                  description="Coba sesuaikan pencarian atau bersihkan filter."
+                />
               ) : (
-                <div className="space-y-2.5">
+                <div className="divide-y divide-border border-y border-border">
                   {filteredQuestions.map((q) => {
                     const isSelected = selectedQIds.includes(q.id);
                     const qDuration = perQuestionTimers[q.id] ?? (Number(defaultQuestionTimerSeconds) || 60);
@@ -1516,87 +1436,70 @@ export function QuizForm({
                         key={q.id}
                         onClick={() => toggleSelectQuestion(q.id)}
                         className={cn(
-                          "relative rounded-xl border p-3 sm:p-3.5 transition-all cursor-pointer select-none",
-                          isSelected
-                            ? "border-brand-primary bg-brand-primary/5 ring-1 ring-brand-primary/30"
-                            : "border-border bg-card hover:border-brand-primary/40 hover:bg-muted/30"
+                          "cursor-pointer px-3 py-2.5 transition-colors",
+                          isSelected ? "bg-primary/5" : "hover:bg-muted/30"
                         )}
                       >
                         <div className="flex items-start gap-2.5 sm:gap-3">
-                          {/* Checkbox Icon */}
-                          <div className="mt-0.5 shrink-0">
-                            {isSelected ? (
-                              <CheckSquare className="size-4.5 text-brand-primary fill-brand-primary/10" />
-                            ) : (
-                              <Square className="size-4.5 text-muted-foreground" />
-                            )}
-                          </div>
-
-                          {/* Content */}
-                          <div className="flex-1 min-w-0 space-y-1.5">
-                            {/* Badges row */}
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  "rounded-md text-[10px] font-bold uppercase px-1.5 py-0.5",
-                                  q.difficulty === "easy" && "border-status-success/30 bg-status-success/10 text-status-success",
-                                  q.difficulty === "medium" && "border-status-warning/30 bg-status-warning/10 text-status-warning",
-                                  q.difficulty === "hard" && "border-status-error/30 bg-status-error/10 text-status-error"
-                                )}
-                              >
-                                {tr(q.difficulty)}
-                              </Badge>
-
-                              <Badge variant="outline" className="rounded-md text-[10px] border-border text-muted-foreground px-1.5 py-0.5">
-                                {q.questionType === "multiple_choice"
-                                  ? tr("multipleChoice")
-                                  : q.questionType === "multiple_choices"
-                                  ? tr("multipleChoices")
-                                  : q.questionType === "short_answer"
-                                  ? tr("shortAnswer")
-                                  : tr("essay")}
-                              </Badge>
-
-                              {q.origin === "itb_example" && (
-                                <Badge variant="outline" className="rounded-md text-[10px] border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5">
-                                  {tr("itbExample")}
-                                </Badge>
-                              )}
-
-                              {q.reviewStatus && q.reviewStatus !== "published" && (
-                                <Badge
-                                  variant="outline"
-                                  className={cn(
-                                    "rounded-md text-[10px] uppercase px-1.5 py-0.5",
-                                    q.reviewStatus === "flagged"
-                                      ? "border-status-error/30 bg-status-error/10 text-status-error"
-                                      : "border-muted-foreground/30 bg-muted text-muted-foreground"
-                                  )}
-                                >
-                                  {q.reviewStatus === "flagged" ? tr("flagged") : tr("draft")}
-                                </Badge>
-                              )}
-
-                              {qTags.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
-                                >
-                                  #{tag}
+                          <Checkbox
+                            checked={isSelected}
+                            onClick={(event) => event.stopPropagation()}
+                            onCheckedChange={() => toggleSelectQuestion(q.id)}
+                            aria-labelledby={`quiz-question-${q.id}`}
+                            className="mt-0.5 shrink-0"
+                          />
+                          <div className="min-w-0 flex-1 space-y-1.5">
+                            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                              <div id={`quiz-question-${q.id}`} className="min-w-0 flex-1 basis-44 wrap-anywhere text-body-sm font-medium leading-relaxed text-foreground">
+                                <MathText>{q.prompt}</MathText>
+                              </div>
+                              <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-x-2.5 gap-y-1 text-body-xs text-muted-foreground">
+                                <span>{tr(q.difficulty)}</span>
+                                <span>
+                                  {q.questionType === "multiple_choice"
+                                    ? tr("multipleChoice")
+                                    : q.questionType === "multiple_choices"
+                                    ? tr("multipleChoices")
+                                    : q.questionType === "short_answer"
+                                    ? tr("shortAnswer")
+                                    : tr("essay")}
                                 </span>
-                              ))}
+                                {optionsList.length > 0 && (
+                                  <span>{tr("optionCount", { count: optionsList.length })}</span>
+                                )}
+                              </div>
                             </div>
 
-                            {/* Prompt text */}
-                            <div className="text-body-sm font-medium leading-relaxed text-foreground">
-                              <MathText>{q.prompt}</MathText>
-                            </div>
+                            {(q.origin === "itb_example" || (q.reviewStatus && q.reviewStatus !== "published") || qTags.length > 0) && (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {q.origin === "itb_example" && (
+                                  <Badge variant="outline" className="rounded-md text-body-xs border-status-warning/30 bg-status-warning/10 text-status-warning px-1.5 py-0.5">
+                                    {tr("itbExample")}
+                                  </Badge>
+                                )}
 
-                            {/* Options count preview */}
-                            {optionsList.length > 0 && (
-                              <div className="text-body-xs text-muted-foreground">
-                                {optionsList.length} Pilihan Jawaban
+                                {q.reviewStatus && q.reviewStatus !== "published" && (
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(
+                                      "rounded-md text-body-xs px-1.5 py-0.5",
+                                      q.reviewStatus === "flagged"
+                                        ? "border-status-error/30 bg-status-error/10 text-status-error"
+                                        : "border-muted-foreground/30 bg-muted text-muted-foreground"
+                                    )}
+                                  >
+                                    {q.reviewStatus === "flagged" ? tr("flagged") : tr("draft")}
+                                  </Badge>
+                                )}
+
+                                {qTags.map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="rounded bg-muted px-1.5 py-0.5 text-body-xs font-medium text-muted-foreground"
+                                  >
+                                    #{tag}
+                                  </span>
+                                ))}
                               </div>
                             )}
 
@@ -1604,7 +1507,7 @@ export function QuizForm({
                             {perQuestionTimerEnabled && isSelected && (
                               <div
                                 onClick={(e) => e.stopPropagation()}
-                                className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-background p-2 w-fit"
+                                className="mt-2 flex items-center gap-2 w-fit flex-wrap"
                               >
                                 <Timer className="size-3.5 text-brand-primary" />
                                 <span className="text-body-xs font-semibold text-foreground">{tr("questionTimer")}</span>

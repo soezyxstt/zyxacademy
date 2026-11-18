@@ -204,7 +204,7 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
 
   if (!activeGroup) {
     return (
-      <section className="mx-auto max-w-xl border-y border-border/60 py-5 sm:rounded-xl sm:border sm:p-5">
+      <section className="mx-auto max-w-xl border-t border-border/60 py-4">
         <div className="flex items-center gap-2">
           <Users className="size-4 text-brand-primary" />
           <h2 className="font-heading text-body-base font-bold text-foreground">{t("groups.join")}</h2>
@@ -246,7 +246,7 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
         </Tabs>
       ) : null}
 
-      <section className="border-y border-border/60 py-5 sm:rounded-xl sm:border sm:p-5">
+      <section className="border-t border-border/60 py-4">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/50 pb-4">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">

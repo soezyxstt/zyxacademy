@@ -1886,7 +1886,7 @@ export default function AdminFormsBuilder({
             </div>
           ) : (
             <TooltipProvider>
-              <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+              <div className="divide-y divide-border border-y border-border">
                 {forms.map((f) => {
                   const isDeleting = deletingId === f.id;
                   const shortPath = `/f/${f.slug}`;

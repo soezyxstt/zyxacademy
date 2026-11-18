@@ -14,14 +14,21 @@ import {
   Send,
   HelpCircle,
   Filter,
+  ChevronLeft,
+  ChevronRight,
+  ListChecks,
+  ListX,
+  MoreHorizontal,
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -105,6 +112,7 @@ export function TutorQuizForm({
   const { locale } = useAppLocale();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [publishPending, setPublishPending] = useState(false);
   const [questionPage, setQuestionPage] = useState(0);
 
   const [currentTab, setCurrentTab] = useUrlTab("tab", "pengaturan");
@@ -186,30 +194,18 @@ export function TutorQuizForm({
 
   // Specific Question Picker States
   const [selectedQIds, setSelectedQIds] = useState<string[]>(initialFixedIds);
+  const selectedQuestionIds = useMemo(() => new Set(selectedQIds), [selectedQIds]);
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [tagFilter] = useState<string>("all");
   const [onlySelectedFilter, setOnlySelectedFilter] = useState(false);
-
-  // Selected Questions Breakdown
-  const selectedDifficultyCounts = useMemo(() => {
-    const counts = { easy: 0, medium: 0, hard: 0 };
-    const selectedSet = new Set(selectedQIds);
-    for (const q of questionBank) {
-      if (selectedSet.has(q.id)) {
-        if (q.difficulty === "easy") counts.easy++;
-        else if (q.difficulty === "hard") counts.hard++;
-        else counts.medium++;
-      }
-    }
-    return counts;
-  }, [selectedQIds, questionBank]);
+  const filtersActive = difficultyFilter !== "all" || typeFilter !== "all" || onlySelectedFilter;
 
   // Filtered Questions List
   const filteredQuestions = useMemo(() => {
     return questionBank.filter((q) => {
-      if (onlySelectedFilter && !selectedQIds.includes(q.id)) {
+      if (onlySelectedFilter && !selectedQuestionIds.has(q.id)) {
         return false;
       }
       if (searchQuery.trim()) {
@@ -246,7 +242,7 @@ export function TutorQuizForm({
       }
       return true;
     });
-  }, [questionBank, onlySelectedFilter, selectedQIds, searchQuery, difficultyFilter, typeFilter, tagFilter]);
+  }, [questionBank, onlySelectedFilter, selectedQuestionIds, searchQuery, difficultyFilter, typeFilter, tagFilter]);
 
   const questionPageCount = Math.max(1, Math.ceil(filteredQuestions.length / QUESTION_PAGE_SIZE));
   const currentQuestionPage = Math.min(questionPage, questionPageCount - 1);
@@ -348,6 +344,7 @@ export function TutorQuizForm({
       },
     };
 
+    setPublishPending(publishImmediately);
     startTransition(async () => {
       try {
         const res = await saveQuizTemplateAction(courseId, initialData?.id || null, payload);
@@ -371,6 +368,14 @@ export function TutorQuizForm({
   const headerTitle = isEdit
     ? title ? `${t("editTitle")}: ${title}` : t("editTitle")
     : t("createTitle", { course: courseTitle });
+  const saveLabel = isEdit ? t("saveChanges") : t("saveDraft");
+  const selectAllLabel = t("selectAll", { count: filteredQuestions.length });
+  const clearSelectionLabel = t("clearSelection");
+  const canClearFilteredSelection = filteredQuestions.some((question) => selectedQuestionIds.has(question.id));
+  const questionSelectionLabel = t("questionSelection", { count: selectedQIds.length });
+  const filterLabel = filtersActive ? `${t("filterQuestions")}, ${t("filtersActive")}` : t("filterQuestions");
+  const isSaving = isPending && !publishPending;
+  const isPublishing = isPending && publishPending;
 
   return (
     <div className="space-y-6">
@@ -381,25 +386,33 @@ export function TutorQuizForm({
         backLabel={t("backToQuizList")}
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-lg"
+                    aria-label={saveLabel}
+                    disabled={isPending}
+                    isLoading={isSaving}
+                    onClick={() => handleSubmit(false)}
+                  >
+                    <Save aria-hidden />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{saveLabel}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <Button
               type="button"
-              variant="outline"
               size="sm"
               disabled={isPending}
-              onClick={() => handleSubmit(false)}
-              className="h-9 rounded-md border-border font-semibold text-body-sm"
-            >
-              <Save className="mr-1.5 size-3.5" />
-              {isEdit ? t("saveChanges") : t("saveDraft")}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              disabled={isPending}
+              aria-busy={isPublishing}
               onClick={() => handleSubmit(true)}
               className="h-9 rounded-md bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 font-semibold text-body-sm shadow-xs"
             >
-              {isPending ? (
+              {isPublishing ? (
                 <>
                   <Loader2 className="mr-1.5 size-3.5 animate-spin" /> {t("saving")}
                 </>
@@ -414,33 +427,6 @@ export function TutorQuizForm({
         }
       />
 
-      {/* Creator Attribution Metadata Strip (in edit mode or detail) */}
-      {isEdit && initialData && (
-        <Card className="rounded-xl border border-border bg-muted/20 shadow-xs">
-          <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3 text-body-xs">
-            <div className="flex items-center gap-2 text-foreground font-medium">
-              <Shield className="size-4 text-brand-primary shrink-0" />
-              <span>{t("creator")}:</span>
-              <span className="font-bold text-foreground">
-                {initialData.creatorName || t("system")}
-              </span>
-              {initialData.creatorEmail && (
-                <span className="text-muted-foreground">({initialData.creatorEmail})</span>
-              )}
-              {initialData.creatorRole && (
-                <Badge variant="outline" className="capitalize text-[10px] rounded-md px-1.5 py-0">
-                  {initialData.creatorRole}
-                </Badge>
-              )}
-            </div>
-            <div className="text-muted-foreground flex items-center gap-2">
-              <UserCheck className="size-3.5" />
-              <span>{t("creatorAttribution")}</span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* 2-Tab Navigation */}
       <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full space-y-4">
         <TabsList>
@@ -448,30 +434,55 @@ export function TutorQuizForm({
             <Settings2 className="size-4" />
             {t("settings")}
           </TabsTrigger>
-          <TabsTrigger value="soal">
-            <BookOpen className="size-4" />
-            {t("questions")}
-            {selectedQIds.length > 0 && (
-              <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-body-2xs">
-                {selectedQIds.length}
-              </Badge>
-            )}
-          </TabsTrigger>
+          <TooltipProvider>
+            <Tooltip>
+              <TabsTrigger asChild value="soal" aria-label={t("questions")} aria-description={questionSelectionLabel}>
+                <TooltipTrigger>
+                  <BookOpen className="size-4" aria-hidden />
+                  <span className="tabular-nums" aria-hidden>{selectedQIds.length}</span>
+                </TooltipTrigger>
+              </TabsTrigger>
+              <TooltipContent>{questionSelectionLabel}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </TabsList>
 
         {/* TAB 1: PENGATURAN */}
         <TabsContent value="pengaturan" className="space-y-4 focus-visible:outline-none">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
             {/* LEFT COLUMN: Main Info & Schedule */}
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card lg:col-span-7">
+            <div className="divide-y divide-border border-y border-border lg:col-span-7">
               <section>
-                <div className="border-b border-border px-4 py-3">
+                <div className="border-b border-border py-3">
                   <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
                     <BookOpen className="size-4 text-brand-primary" />
                     {t("quizTitle")}
                   </h3>
                 </div>
-                <div className="p-4 space-y-4">
+                <div className="space-y-4 py-3">
+                  {isEdit && initialData && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 pb-2 text-body-xs">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2 wrap-anywhere font-medium text-foreground">
+                        <Shield className="size-4 text-brand-primary shrink-0" />
+                        <span>{t("creator")}:</span>
+                        <span className="font-bold text-foreground">
+                          {initialData.creatorName || t("system")}
+                        </span>
+                        {initialData.creatorEmail && (
+                          <span className="text-muted-foreground">({initialData.creatorEmail})</span>
+                        )}
+                        {initialData.creatorRole && (
+                          <Badge variant="outline" className="capitalize text-[10px] rounded-md px-1.5 py-0">
+                            {initialData.creatorRole}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-muted-foreground flex items-center gap-2">
+                        <UserCheck className="size-3.5" />
+                        <span>{t("creatorAttribution")}</span>
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <Label htmlFor="courseTitle" className="text-body-sm font-semibold text-foreground">
                       {t("course")}
@@ -535,13 +546,13 @@ export function TutorQuizForm({
 
               {/* Schedule Settings */}
               <section>
-                <div className="border-b border-border px-4 py-3">
+                <div className="border-b border-border py-3">
                   <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
                     <Calendar className="size-4 text-brand-primary" />
                     {t("scheduleType")}
                   </h3>
                 </div>
-                <div className="p-4 space-y-4">
+                <div className="space-y-4 py-3">
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <button
                       type="button"
@@ -551,11 +562,12 @@ export function TutorQuizForm({
                           setManualStatus("scheduled");
                         }
                       }}
+                      aria-pressed={scheduleType === "scheduled"}
                       className={cn(
-                        "flex items-start gap-2.5 rounded-xl border p-3 text-left transition-colors cursor-pointer",
+                        "flex items-start gap-2.5 rounded-md py-2 text-left transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-ring",
                         scheduleType === "scheduled"
-                          ? "border-brand-primary bg-brand-primary/5"
-                          : "border-border bg-card hover:bg-muted/40"
+                          ? "bg-primary/5"
+                          : "hover:bg-muted/40"
                       )}
                     >
                       <div
@@ -584,11 +596,12 @@ export function TutorQuizForm({
                         setCloseAt("");
                         if (manualStatus === "scheduled") setManualStatus("open");
                       }}
+                      aria-pressed={scheduleType === "manual"}
                       className={cn(
-                        "flex items-start gap-2.5 rounded-xl border p-3 text-left transition-colors cursor-pointer",
+                        "flex items-start gap-2.5 rounded-md py-2 text-left transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-ring",
                         scheduleType === "manual"
-                          ? "border-brand-primary bg-brand-primary/5"
-                          : "border-border bg-card hover:bg-muted/40"
+                          ? "bg-primary/5"
+                          : "hover:bg-muted/40"
                       )}
                     >
                       <div
@@ -659,14 +672,14 @@ export function TutorQuizForm({
             </div>
 
             {/* RIGHT COLUMN: Duration, Rules & Scoring */}
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card lg:col-span-5">
+            <div className="divide-y divide-border border-y border-border lg:col-span-5">
               <section>
-                <div className="border-b border-border px-4 py-3">
+                <div className="border-b border-border py-3">
                   <h3 className="font-heading text-body-base font-bold text-foreground">
                     {t("durationAttempts")}
                   </h3>
                 </div>
-                <div className="p-4 space-y-4">
+                <div className="space-y-4 py-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <Label className="text-body-sm font-semibold text-foreground">{t("timeLimit")}</Label>
@@ -711,12 +724,12 @@ export function TutorQuizForm({
               </section>
 
               <section>
-                <div className="border-b border-border px-4 py-3">
+                <div className="border-b border-border py-3">
                   <h3 className="font-heading text-body-base font-bold text-foreground">
                     {t("rulesAndExplanations")}
                   </h3>
                 </div>
-                <div className="p-4 space-y-3.5">
+                <div className="space-y-3.5 py-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-body-sm font-semibold text-foreground block">{t("freeNavigation")}</span>
@@ -772,170 +785,164 @@ export function TutorQuizForm({
 
         {/* TAB 2: PILIHAN SOAL */}
         <TabsContent value="soal" className="space-y-4 focus-visible:outline-none">
-          <Card className="rounded-xl border border-border bg-card shadow-xs">
-            <div className="border-b border-border px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="font-heading text-body-base font-bold text-foreground">
-                  {t("questionSelection", { count: selectedQIds.length })}
-                </h3>
+          <section aria-label={t("questions")} className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2 has-[[data-search-expanded=true]]:basis-48">
+                <SearchBar
+                  collapsible
+                  size="sm"
+                  placeholder={t("searchQuestions")}
+                  aria-label={t("searchQuestions")}
+                  value={searchQuery}
+                  onSearch={(value) => { setSearchQuery(value); setQuestionPage(0); }}
+                  containerClassName="max-w-72"
+                />
+
+                <Popover>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <PopoverTrigger asChild>
+                          <Button type="button" variant="ghost" size="icon-lg" aria-label={filterLabel}>
+                            <Filter aria-hidden />
+                            {filtersActive && <span aria-hidden className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-primary" />}
+                          </Button>
+                        </PopoverTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>{filterLabel}</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <PopoverContent align="start" aria-label={t("filterQuestions")} className="w-64 space-y-2">
+                    <Select value={difficultyFilter} onValueChange={(value) => { setDifficultyFilter(value); setQuestionPage(0); }}>
+                      <SelectTrigger aria-label={t("difficulty")} className="h-9">
+                        <SelectValue placeholder={t("difficulty")} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border">
+                        <SelectItem value="all">{t("allDifficulties")}</SelectItem>
+                        <SelectItem value="easy">{t("easy")}</SelectItem>
+                        <SelectItem value="medium">{t("medium")}</SelectItem>
+                        <SelectItem value="hard">{t("hard")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={typeFilter} onValueChange={(value) => { setTypeFilter(value); setQuestionPage(0); }}>
+                      <SelectTrigger aria-label={t("questionType")} className="h-9">
+                        <SelectValue placeholder={t("questionType")} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border">
+                        <SelectItem value="all">{t("allTypes")}</SelectItem>
+                        <SelectItem value="multiple_choice">{t("singleChoice")}</SelectItem>
+                        <SelectItem value="multiple_choices">{t("multiChoice")}</SelectItem>
+                        <SelectItem value="short_answer">{t("shortAnswer")}</SelectItem>
+                        <SelectItem value="essay">{t("essay")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setOnlySelectedFilter(!onlySelectedFilter); setQuestionPage(0); }}
+                      aria-pressed={onlySelectedFilter}
+                      className={cn(
+                        "h-9 rounded-lg border-border text-body-sm shrink-0",
+                        onlySelectedFilter ? "bg-brand-primary/10 border-brand-primary text-brand-primary" : ""
+                      )}
+                    >
+                      <Filter className="mr-1.5 size-3.5" />
+                      {onlySelectedFilter ? t("selectedOnly") : t("allQuestions")}
+                    </Button>
+                  </PopoverContent>
+                </Popover>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-body-xs rounded-md">
-                  {t("easy")}: {selectedDifficultyCounts.easy}
-                </Badge>
-                <Badge variant="outline" className="text-body-xs rounded-md">
-                  {t("medium")}: {selectedDifficultyCounts.medium}
-                </Badge>
-                <Badge variant="outline" className="text-body-xs rounded-md">
-                  {t("hard")}: {selectedDifficultyCounts.hard}
-                </Badge>
-              </div>
+              <DropdownMenu>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button type="button" variant="outline" size="icon-lg" className="shrink-0" aria-label={t("bulkActions")}>
+                          <MoreHorizontal aria-hidden />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent className="data-closed:animate-none!">{t("bulkActions")}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem disabled={filteredQuestions.length === 0} onSelect={selectAllFiltered}>
+                    <ListChecks aria-hidden />
+                    {selectAllLabel}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={!canClearFilteredSelection} onSelect={deselectAllFiltered}>
+                    <ListX aria-hidden />
+                    {clearSelectionLabel}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
-            <CardContent className="p-4 space-y-4">
-              {/* Responsive Inline Filter Toolbar */}
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex-1 min-w-[140px]">
-                  <SearchBar
-                    placeholder={t("searchQuestions")}
-                    aria-label={t("searchQuestions")}
-                    value={searchQuery}
-                    onChange={(e) => { setSearchQuery(e.target.value); setQuestionPage(0); }}
-                    onClear={() => { setSearchQuery(""); setQuestionPage(0); }}
-                    className="h-9 rounded-lg border-border text-body-sm"
-                  />
-                </div>
-
-                <Select value={difficultyFilter} onValueChange={(value) => { setDifficultyFilter(value); setQuestionPage(0); }}>
-                  <SelectTrigger aria-label={t("difficulty")} className="w-52 h-9 rounded-lg border-border text-body-sm shrink-0">
-                    <SelectValue placeholder={t("difficulty")} />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="all">{t("allDifficulties")}</SelectItem>
-                    <SelectItem value="easy">{t("easy")}</SelectItem>
-                    <SelectItem value="medium">{t("medium")}</SelectItem>
-                    <SelectItem value="hard">{t("hard")}</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select value={typeFilter} onValueChange={(value) => { setTypeFilter(value); setQuestionPage(0); }}>
-                  <SelectTrigger aria-label={t("questionType")} className="w-36 h-9 rounded-lg border-border text-body-sm shrink-0">
-                    <SelectValue placeholder={t("questionType")} />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="all">{t("allTypes")}</SelectItem>
-                    <SelectItem value="multiple_choice">{t("singleChoice")}</SelectItem>
-                    <SelectItem value="multiple_choices">{t("multiChoice")}</SelectItem>
-                    <SelectItem value="short_answer">{t("shortAnswer")}</SelectItem>
-                    <SelectItem value="essay">{t("essay")}</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => { setOnlySelectedFilter(!onlySelectedFilter); setQuestionPage(0); }}
-                  aria-pressed={onlySelectedFilter}
-                  className={cn(
-                    "h-9 rounded-lg border-border text-body-sm shrink-0",
-                    onlySelectedFilter ? "bg-brand-primary/10 border-brand-primary text-brand-primary" : ""
-                  )}
-                >
-                  <Filter className="mr-1.5 size-3.5" />
-                  {onlySelectedFilter ? t("selectedOnly") : t("allQuestions")}
-                </Button>
-
-                <div className="flex flex-wrap items-center gap-1.5 ml-auto">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={selectAllFiltered}
-                    className="h-9 rounded-lg border-border text-body-sm"
-                  >
-                    {t("selectAll", { count: filteredQuestions.length })}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={deselectAllFiltered}
-                    className="h-9 rounded-lg border-border text-body-sm"
-                  >
-                    {t("clearSelection")}
-                  </Button>
-                </div>
+            {/* Question Bank Items List */}
+            {questionBank.length === 0 ? (
+              <div className="border-t border-border px-4 py-8 text-center">
+                <HelpCircle className="size-10 text-muted-foreground/50 mx-auto mb-2" />
+                <h4 className="font-heading text-body-base font-bold text-foreground">{t("emptyBank")}</h4>
+                <p className="text-body-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                  {t("emptyBankDescription")}
+                </p>
               </div>
+            ) : filteredQuestions.length === 0 ? (
+              <div className="border-t border-border px-4 py-6 text-center">
+                <p className="text-body-sm text-muted-foreground">{t("noMatchingQuestions")}</p>
+              </div>
+            ) : (
+              <>
+              <div className="divide-y divide-border border-y border-border">
+                {pageQuestions.map((q) => {
+                  const isSelected = selectedQuestionIds.has(q.id);
+                  const questionNumber = t("questionNumber", { count: questionBank.indexOf(q) + 1 });
+                  const qOpts = Array.isArray(q.options)
+                    ? q.options
+                    : typeof q.options === "string"
+                    ? (() => {
+                        try {
+                          return JSON.parse(q.options);
+                        } catch {
+                          return [];
+                        }
+                      })()
+                    : [];
 
-              {/* Question Bank Items List */}
-              {questionBank.length === 0 ? (
-                <div className="text-center py-12 border border-dashed border-border rounded-xl">
-                  <HelpCircle className="size-10 text-muted-foreground/50 mx-auto mb-2" />
-                  <h4 className="font-heading text-body-base font-bold text-foreground">{t("emptyBank")}</h4>
-                  <p className="text-body-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                    {t("emptyBankDescription")}
-                  </p>
-                </div>
-              ) : filteredQuestions.length === 0 ? (
-                <div className="text-center py-8 border border-dashed border-border rounded-xl">
-                  <p className="text-body-sm text-muted-foreground">{t("noMatchingQuestions")}</p>
-                </div>
-              ) : (
-                <>
-                <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
-                  {pageQuestions.map((q) => {
-                    const isSelected = selectedQIds.includes(q.id);
-                    const qOpts = Array.isArray(q.options)
-                      ? q.options
-                      : typeof q.options === "string"
-                      ? (() => {
-                          try {
-                            return JSON.parse(q.options);
-                          } catch {
-                            return [];
-                          }
-                        })()
-                      : [];
+                  return (
+                    <div
+                      key={q.id}
+                      onClick={() => toggleSelectQuestion(q.id)}
+                      className={cn(
+                        "flex items-start gap-3 px-3 py-3 transition-colors cursor-pointer text-left",
+                        isSelected
+                          ? "bg-primary/5"
+                          : "hover:bg-muted/30"
+                      )}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSelectQuestion(q.id)}
+                        onClick={(event) => event.stopPropagation()}
+                        aria-label={questionNumber}
+                        className="mt-0.5 shrink-0"
+                      />
 
-                    return (
-                      <div
-                        key={q.id}
-                        onClick={() => toggleSelectQuestion(q.id)}
-                        className={cn(
-                          "flex items-start gap-3 px-3 py-3 transition-colors cursor-pointer text-left",
-                          isSelected
-                            ? "bg-primary/5"
-                            : "hover:bg-muted/30"
-                        )}
-                      >
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => toggleSelectQuestion(q.id)}
-                          onClick={(event) => event.stopPropagation()}
-                          aria-label={t("questionNumber", { count: questionBank.indexOf(q) + 1 })}
-                          className="mt-0.5 shrink-0"
-                        />
-
-                        <div className="flex-1 min-w-0 space-y-1.5">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-body-xs font-bold text-muted-foreground">
-                              {t("questionNumber", { count: questionBank.indexOf(q) + 1 })}
-                            </span>
-                            <Badge
-                              className={cn(
-                                "text-[10px] rounded-md px-1.5 py-0.5 border font-semibold",
-                                q.difficulty === "easy"
-                                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                                  : q.difficulty === "medium"
-                                  ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                                  : "bg-rose-500/10 text-rose-600 border-rose-500/20"
-                              )}
-                            >
-                              {t(q.difficulty)}
-                            </Badge>
-                            <Badge variant="outline" className="text-[10px] rounded-md text-muted-foreground">
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                          <div className="min-w-0 flex-[1_1_24rem]">
+                            <MathText className="pt-0.5 text-body-sm font-medium leading-relaxed text-foreground" as="p">
+                              {q.prompt}
+                            </MathText>
+                          </div>
+                          <div className="flex max-w-full flex-wrap items-baseline gap-x-2 gap-y-1 text-body-xs text-muted-foreground">
+                            <span className="font-semibold">{questionNumber}</span>
+                            <span>{t(q.difficulty)}</span>
+                            <span>
                               {q.questionType === "short_answer"
                                 ? t("shortAnswer")
                                 : q.questionType === "essay"
@@ -943,41 +950,55 @@ export function TutorQuizForm({
                                 : q.questionType === "multiple_choices"
                                 ? t("multiChoice")
                                 : t("singleChoice")}
-                            </Badge>
+                            </span>
                           </div>
-
-                          <MathText className="text-body-sm font-medium text-foreground leading-relaxed pt-0.5" as="p">
-                            {q.prompt}
-                          </MathText>
-
-                          {qOpts.length > 0 && (
-                            <div className="grid gap-1 sm:grid-cols-2 pt-1">
-                              {qOpts.map((opt: string, optIdx: number) => (
-                                <div key={optIdx} className="text-body-xs text-muted-foreground break-words">
-                                  <span className="font-semibold text-foreground/80 mr-1">
-                                    {String.fromCharCode(65 + optIdx)}.
-                                  </span>
-                                  <span>{opt}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
                         </div>
+
+                        {qOpts.length > 0 && (
+                          <div className="grid gap-1 sm:grid-cols-2 pt-1">
+                            {qOpts.map((opt: string, optIdx: number) => (
+                              <div key={optIdx} className="text-body-xs text-muted-foreground break-words">
+                                <span className="font-semibold text-foreground/80 mr-1">
+                                  {String.fromCharCode(65 + optIdx)}.
+                                </span>
+                                <span>{opt}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
-                {questionPageCount > 1 && (
-                  <nav aria-label={locale === "id" ? "Halaman bank soal" : "Question bank pages"} className="flex flex-wrap items-center justify-end gap-2">
-                    <Button type="button" variant="outline" size="sm" disabled={currentQuestionPage === 0} onClick={() => setQuestionPage(currentQuestionPage - 1)}>{locale === "id" ? "Sebelumnya" : "Previous"}</Button>
-                    <span className="text-body-sm text-muted-foreground" aria-live="polite">{currentQuestionPage + 1} / {questionPageCount}</span>
-                    <Button type="button" variant="outline" size="sm" disabled={currentQuestionPage === questionPageCount - 1} onClick={() => setQuestionPage(currentQuestionPage + 1)}>{locale === "id" ? "Berikutnya" : "Next"}</Button>
-                  </nav>
-                )}
-                </>
+                    </div>
+                  );
+                })}
+              </div>
+              {questionPageCount > 1 && (
+                <nav aria-label={locale === "id" ? "Halaman bank soal" : "Question bank pages"} className="flex flex-wrap items-center justify-end gap-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button type="button" variant="ghost" size="icon-lg" aria-label={locale === "id" ? "Sebelumnya" : "Previous"} disabled={currentQuestionPage === 0} onClick={() => setQuestionPage(currentQuestionPage - 1)}>
+                          <ChevronLeft aria-hidden />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{locale === "id" ? "Sebelumnya" : "Previous"}</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <span className="text-body-sm text-muted-foreground" aria-live="polite">{currentQuestionPage + 1} / {questionPageCount}</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button type="button" variant="ghost" size="icon-lg" aria-label={locale === "id" ? "Berikutnya" : "Next"} disabled={currentQuestionPage === questionPageCount - 1} onClick={() => setQuestionPage(currentQuestionPage + 1)}>
+                          <ChevronRight aria-hidden />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{locale === "id" ? "Berikutnya" : "Next"}</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </nav>
               )}
-            </CardContent>
-          </Card>
+              </>
+            )}
+          </section>
         </TabsContent>
       </Tabs>
     </div>

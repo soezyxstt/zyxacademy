@@ -331,11 +331,11 @@ export function HistoricalQuestionsClient({
     <div className="w-full space-y-6">
       <QuestionBankToolbar>
         <SearchBar
+          collapsible
           size="sm"
           placeholder={t("search")}
           value={searchTerm}
           onSearch={setSearchTerm}
-          containerClassName="min-w-[140px] flex-1"
         />
         <QuestionFilterPopover activeCount={activeFilterCount} onReset={resetFilters}>
           <QuestionFilterField label={t("course")}>
@@ -624,7 +624,7 @@ export function HistoricalQuestionsClient({
         const options = normalizeOptions(question.options);
         const reviewAction = reviewActionFor(question);
         return (
-          <section key={"detail-" + question.id} className="space-y-4 rounded-xl border border-border bg-card p-4">
+          <section key={"detail-" + question.id} className="space-y-4 border-b border-border pb-4">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
               <div>
                 <p className="text-body-sm font-semibold text-foreground">{t("detailTitle")}</p>

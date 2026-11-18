@@ -612,11 +612,11 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
       {/* Search, filters, and actions */}
       <QuestionBankToolbar>
         <SearchBar
+          collapsible
           size="sm"
           placeholder={t("search")}
           value={searchQuery}
           onSearch={setSearchQuery}
-          containerClassName="min-w-[140px] flex-1"
         />
 
         <QuestionFilterPopover activeCount={activeFilterCount} onReset={resetFilters}>

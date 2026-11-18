@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { Copy, Trash2, KeyRound, Check, RefreshCw, User, Users, ShieldCheck, CheckCircle2, Plus, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AdminIconAction } from "@/components/admin/icon-action";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { SearchBar } from "@/components/ui/search-bar";
@@ -232,16 +233,14 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="min-w-[140px] flex-1 max-w-sm">
-          <SearchBar
-            size="sm"
-            value={searchQuery}
-            onSearch={setSearchQuery}
-            onClear={() => setSearchQuery("")}
-            placeholder={translate("tokensUI.search")}
-            containerClassName="w-full"
-          />
-        </div>
+        <SearchBar
+          collapsible
+          size="sm"
+          value={searchQuery}
+          onSearch={setSearchQuery}
+          onClear={() => setSearchQuery("")}
+          placeholder={translate("tokensUI.search")}
+        />
         <span className="text-body-xs text-muted-foreground">
           {translate("tokensUI.count", { filtered: filteredTokens.length, total: initialTokens.length })}
         </span>
@@ -263,14 +262,10 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
             </TooltipTrigger>
             <TooltipContent>{translate("tokensUI.refresh")}</TooltipContent>
           </Tooltip>
-          <Button
-            size="sm"
-            onClick={() => setCreateOpen(true)}
-            className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm font-semibold"
-          >
-            <Plus className="size-3.5" />
-            <span>{translate("tokensUI.create")}</span>
-          </Button>
+          <AdminIconAction label={translate("tokensUI.create")}
+            onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4" />
+          </AdminIconAction>
         </div>
       </div>
 

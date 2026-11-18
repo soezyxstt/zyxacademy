@@ -426,7 +426,7 @@ export function ModelsClient({
                 </h2>
               </div>
 
-              <div className="divide-y divide-border/60 overflow-hidden rounded-lg border border-border bg-card">
+              <div className="divide-y divide-border/60 border-y border-border">
                 {items.map((view) => {
                   const draftModels = getDraftModels(view);
                   const isDirty = !sameModels(draftModels, view.models);

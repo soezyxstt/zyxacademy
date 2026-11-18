@@ -52,6 +52,7 @@ function SheetContent({
   side = "right",
   showCloseButton = true,
   closeLabel,
+  onEscapeKeyDown,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
@@ -70,6 +71,18 @@ function SheetContent({
           className
         )}
         {...props}
+        onEscapeKeyDown={(event) => {
+          onEscapeKeyDown?.(event)
+          if (event.defaultPrevented || !(event.target instanceof Element)) return
+
+          const search = event.target.closest('[data-search-expanded="true"]')
+          const closeSearch = search?.querySelector<HTMLButtonElement>("button[data-search-close]:enabled")
+          if (!closeSearch) return
+
+          // Radix handles Escape before the input's React key handler.
+          event.preventDefault()
+          if (!event.isComposing) closeSearch.click()
+        }}
       >
         {children}
         {showCloseButton && (

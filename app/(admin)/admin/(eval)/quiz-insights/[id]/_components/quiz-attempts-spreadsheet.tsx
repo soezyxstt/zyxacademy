@@ -4,20 +4,24 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
+  ChevronDown,
+  ListFilter,
   Download,
   FileSpreadsheet,
   CheckCircle2,
   XCircle,
-  Filter,
   RefreshCw,
   Info,
+  Users,
   AlertTriangle,
 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/ui/search-bar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -70,6 +74,21 @@ interface Props {
   templateId: string;
   quizTitle: string;
   translationNamespace?: string;
+}
+
+function formatSnapshotAnswer(answer: unknown, options: string[] | undefined): string {
+  if (typeof answer === "number") {
+    return options?.[answer] ?? String.fromCharCode(65 + answer);
+  }
+  if (typeof answer === "string") return answer;
+  if (Array.isArray(answer)) {
+    return answer.map((choice) => formatSnapshotAnswer(choice, options)).filter(Boolean).join(", ");
+  }
+  if (answer && typeof answer === "object") {
+    const { text, fileName } = answer as Record<string, unknown>;
+    return [text, fileName].filter((value) => typeof value === "string" && value.trim()).join(" ");
+  }
+  return "";
 }
 
 export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationNamespace = "adminEval" }: Props) {
@@ -235,8 +254,16 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationName
   if (loading && attempts.length === 0) {
     return (
       <div role="status" aria-label={t("quizAttempts.loading")} className="space-y-6">
-        <div className="space-y-3"><div className="flex flex-wrap gap-2"><Skeleton className="h-9 min-w-[140px] flex-1" /><Skeleton className="h-9 w-40" /><Skeleton className="h-9 w-32" /></div><div className="flex gap-4 border-t border-border pt-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-4 w-24" /><Skeleton className="h-4 w-24" /></div></div>
-        <div className="overflow-hidden rounded-xl border border-border bg-card"><div className="flex gap-4 border-b border-border bg-muted p-3"><Skeleton className="h-4 flex-1" /><Skeleton className="h-4 w-16" /><Skeleton className="h-4 w-16" /><Skeleton className="hidden h-4 w-24 sm:block" /></div><div className="divide-y divide-border">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="flex gap-4 p-3"><Skeleton className="h-4 flex-1" /><Skeleton className="h-4 w-16" /><Skeleton className="h-4 w-16" /><Skeleton className="hidden h-4 w-24 sm:block" /></div>)}</div></div>
+        <div className="flex items-center gap-2"><Skeleton className="size-9" /><Skeleton className="size-9" /><Skeleton className="ml-auto h-9 w-28" /></div>
+        <div className="divide-y divide-border border-y border-border md:hidden">
+          {[0, 1, 2].map((row) => (
+            <div key={row} className="space-y-2 py-3">
+              <div className="flex justify-between gap-2"><Skeleton className="h-4 w-36" /><Skeleton className="h-4 w-16" /></div>
+              <Skeleton className="h-3 w-48" />
+            </div>
+          ))}
+        </div>
+        <div className="hidden overflow-hidden border-y border-border md:block"><div className="flex gap-4 border-b border-border bg-muted p-3"><Skeleton className="h-4 flex-1" /><Skeleton className="h-4 w-16" /><Skeleton className="h-4 w-16" /><Skeleton className="hidden h-4 w-24 sm:block" /></div><div className="divide-y divide-border">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="flex gap-4 p-3"><Skeleton className="h-4 flex-1" /><Skeleton className="h-4 w-16" /><Skeleton className="h-4 w-16" /><Skeleton className="hidden h-4 w-24 sm:block" /></div>)}</div></div>
       </div>
     );
   }
@@ -249,37 +276,42 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationName
           <span>{errorMsg}</span>
         </div>
       )}
-      {/* Controls Bar */}
-      <section aria-label={t("quizAttempts.filters")}>
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Search Input */}
-            <div className="min-w-[140px] flex-1">
-              <SearchBar
-                size="sm"
-                placeholder={t("quizAttempts.search")}
-                value={searchQuery}
-                onSearch={setSearchQuery}
-                onClear={() => setSearchQuery("")}
-              />
-            </div>
-
-            {/* Filter Dropdown & Status */}
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-2">
-                <Filter className="size-4 text-muted-foreground" />
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[160px] rounded-lg bg-background">
-                    <SelectValue placeholder={t("quizAttempts.status")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("quizAttempts.allStatuses")}</SelectItem>
-                    <SelectItem value="completed">{t("quizAttempts.completed")}</SelectItem>
-                    <SelectItem value="in_progress">{t("quizAttempts.inProgress")}</SelectItem>
-                    <SelectItem value="abandoned">{t("quizAttempts.abandoned")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+      <section aria-label={t("quizAttempts.filters")} className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <SearchBar
+            collapsible
+            size="sm"
+            containerClassName="min-w-[140px]"
+            placeholder={t("quizAttempts.search")}
+            value={searchQuery}
+            onSearch={setSearchQuery}
+            onClear={() => setSearchQuery("")}
+          />
+          <Popover>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <Button type="button" size="icon-lg" variant={statusFilter !== "all" || !includeInProgress ? "secondary" : "ghost"} aria-label={t("quizAttempts.filters")}>
+                      <ListFilter aria-hidden />
+                    </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>{t("quizAttempts.filters")}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <PopoverContent align="start" className="max-w-[calc(100vw-2rem)] space-y-3">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger variant="inline" aria-label={t("quizAttempts.status")}>
+                  <SelectValue placeholder={t("quizAttempts.status")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("quizAttempts.allStatuses")}</SelectItem>
+                  <SelectItem value="completed">{t("quizAttempts.completed")}</SelectItem>
+                  <SelectItem value="in_progress">{t("quizAttempts.inProgress")}</SelectItem>
+                  <SelectItem value="abandoned">{t("quizAttempts.abandoned")}</SelectItem>
+                </SelectContent>
+              </Select>
 
               <label className="flex items-center gap-2 text-body-sm text-muted-foreground cursor-pointer select-none">
                 <Checkbox
@@ -290,34 +322,84 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationName
                 {t("quizAttempts.includeInProgress")}
               </label>
 
-              <Button
-                onClick={() => setExportDialogOpen(true)}
-                className="bg-brand-primary hover:bg-brand-primary/90 text-primary-foreground rounded-lg gap-2"
-              >
-                <FileSpreadsheet className="size-4" />
-                {t("quizAttempts.export")}
-              </Button>
-            </div>
-          </div>
-
-          {/* Quick Stats Banner */}
-          <div className="flex flex-wrap items-center gap-4 text-body-sm pt-2 border-t border-border/60 text-muted-foreground">
-            <div>
-              {t("quizAttempts.attempts")}: <span className="font-semibold text-foreground">{attempts.length}</span>
-            </div>
-            <div>
-              {t("quizAttempts.displayed")}: <span className="font-semibold text-foreground">{filteredAttempts.length}</span>
-            </div>
-            <div>
-              {t("quizAttempts.questions")}: <span className="font-semibold text-foreground">{questionsList.length}</span>
-            </div>
-          </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <span className="text-body-xs tabular-nums text-muted-foreground" aria-live="polite">
+            {t("quizAttempts.attempts")} {filteredAttempts.length}{filteredAttempts.length !== attempts.length ? ` / ${attempts.length}` : ""}
+          </span>
+          <Button type="button" size="lg" onClick={() => setExportDialogOpen(true)}>
+            <FileSpreadsheet aria-hidden />
+            {t("quizAttempts.export")}
+          </Button>
         </div>
       </section>
 
+      <div className="divide-y divide-border border-y border-border md:hidden">
+        {filteredAttempts.length === 0 ? (
+          <AdminEmptyState
+            icon={Users}
+            title={t(attempts.length === 0 ? "quizAttempts.noAttempts" : "quizAttempts.noFilteredAttempts")}
+          />
+        ) : filteredAttempts.map((attempt) => (
+          <Collapsible key={attempt.id} className="space-y-2 py-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 [overflow-wrap:anywhere]">
+                <p className="font-heading text-body-sm font-semibold">{attempt.studentName}</p>
+                <p className="text-body-xs text-muted-foreground">{attempt.studentEmail}</p>
+              </div>
+              <Badge variant="outline" className="shrink-0">
+                {t(attempt.status === "completed" ? "quizAttempts.completed" : attempt.status === "in_progress" ? "quizAttempts.inProgress" : "quizAttempts.abandoned")}
+              </Badge>
+            </div>
+            <dl className="flex flex-wrap gap-x-3 gap-y-1 text-body-xs">
+              <div className="flex gap-1">
+                <dt className="text-muted-foreground">{t("quizAttempts.score")}</dt>
+                <dd className="font-semibold">{attempt.score}</dd>
+              </div>
+              <div className="flex gap-1">
+                <dt className="text-muted-foreground">{t("quizAttempts.duration")}</dt>
+                <dd>{formatDuration(attempt.durationSeconds)}</dd>
+              </div>
+              <div className="flex gap-1">
+                <dt className="text-muted-foreground">{t("quizAttempts.submittedAt")}</dt>
+                <dd>{attempt.submittedAt ? <FormattedDate date={attempt.submittedAt} /> : "-"}</dd>
+              </div>
+            </dl>
+            {attempt.questionsSnapshot?.length > 0 && (
+              <>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="group" aria-description={attempt.studentName}>
+                    <ChevronDown aria-hidden className="group-aria-expanded:rotate-180" />
+                    {t("quizAttempts.questions")} ({attempt.questionsSnapshot.length})
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <ol className="max-h-80 divide-y divide-border overflow-y-auto border-t border-border">
+                    {attempt.questionsSnapshot.map((question, index) => {
+                      const answer = formatSnapshotAnswer(attempt.answersSnapshot?.[question.id], question.options);
+                      const key = formatSnapshotAnswer(question.correct_indices ?? question.correctIndices, question.options);
+                      return (
+                        <li key={question.id} className="space-y-1 py-2 text-body-xs [overflow-wrap:anywhere]">
+                          <p className="font-semibold">{t("quizAttempts.questionNumber", { number: index + 1 })}</p>
+                          <div><MathText>{question.prompt || question.content || ""}</MathText></div>
+                          <p>{t("quizAttempts.studentChoice")} {answer ? <MathText>{answer}</MathText> : t("quizAttempts.none")}</p>
+                          {key && <p>{t("quizAttempts.answerKey")} <MathText>{key}</MathText></p>}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </CollapsibleContent>
+              </>
+            )}
+          </Collapsible>
+        ))}
+      </div>
+
       {/* Spreadsheet Data Grid */}
-      <Card className="border-border overflow-hidden">
-        <div className="overflow-x-auto max-h-[600px] overflow-y-auto relative">
+      <div className="hidden border-y border-border md:block">
+        <div className="relative max-h-[600px] overflow-auto">
           <table className="w-full text-left border-collapse text-body-sm">
             <thead className="sticky top-0 z-20 border-b border-border bg-muted shadow-sm">
               <tr>
@@ -561,7 +643,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationName
             </tbody>
           </table>
         </div>
-      </Card>
+      </div>
 
       {/* Modal Dialog Export CSV */}
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>

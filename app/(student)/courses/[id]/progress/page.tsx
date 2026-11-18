@@ -40,7 +40,7 @@ async function CourseProgressSummarySection({
 
   if (!hasFullContentAccess) {
     return (
-      <div className="rounded-xl border border-brand-secondary/25 bg-brand-secondary/5 p-4">
+      <div className="border-l-2 border-brand-secondary/60 py-2 pl-3">
         <h3 className="font-heading text-body-base font-bold text-brand-secondary">
           <TranslatedText namespace="learning" messageKey="courseAccess.limited" />
         </h3>

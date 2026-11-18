@@ -150,7 +150,7 @@ export function CustomPriceEstimator({
       className="grid gap-4 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]"
       data-custom-price-estimator
     >
-      <section className="rounded-xl border border-border bg-card p-4">
+      <section className="border-y border-border py-4">
         <AdminSectionTitle
           icon={Calculator}
           title={t("pricingEstimatorUI.customConfiguration")}
@@ -284,7 +284,7 @@ export function CustomPriceEstimator({
       </section>
 
       <section
-        className="rounded-xl border border-border bg-card p-4"
+        className="border-y border-border py-4"
         data-price-state={quote ? "valid" : "invalid"}
       >
         <AdminSectionTitle

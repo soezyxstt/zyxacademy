@@ -61,7 +61,7 @@ function StepRow({ step, courseId }: { step: StudyPathStep; courseId: string }) 
   const content = (
     <div
       className={cn(
-        "flex items-center justify-between gap-3 px-4 py-3 transition-colors",
+        "flex items-center justify-between gap-3 py-3 transition-colors",
         href && !isLocked && "group/step",
         isLocked || !href
           ? "bg-muted/15"
@@ -133,7 +133,7 @@ function StudyPathView({ courseId, state }: { courseId: string; state: StudyPath
 
   if (loading) return <CourseStudyPathSkeleton />;
   if (error) return <div className="flex items-center gap-3 rounded-lg border border-status-error/20 bg-status-error/5 p-4 text-status-error"><TriangleAlert className="size-4" /><span className="flex-1 text-body-sm">{t("course.studyPath.connectionError")}</span><Button variant="ghost" size="sm" onClick={state.retry}>{t("course.studyPath.retry")}</Button></div>;
-  if (steps.length === 0) return <div className="rounded-lg border border-dashed border-border p-8 text-center"><CircleAlert className="mx-auto size-5 text-muted-foreground" /><p className="mt-2 text-body-sm text-muted-foreground">{t("course.studyPath.empty")}</p></div>;
+  if (steps.length === 0) return <div className="flex items-center gap-2 py-3"><CircleAlert className="size-5 shrink-0 text-muted-foreground" /><p className="text-body-sm text-muted-foreground">{t("course.studyPath.empty")}</p></div>;
 
   return (
     <div className="space-y-4">
@@ -146,10 +146,10 @@ function StudyPathView({ courseId, state }: { courseId: string; state: StudyPath
       </div>
 
       {dayPlan ? (
-        <div className="divide-y divide-border/60 rounded-xl border border-border/70 bg-card overflow-hidden shadow-2xs">
+        <div className="divide-y divide-border/60">
           {dayPlan.map((day, index) => (
             <details key={day.day} open={index === 0} className="group">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-body-sm font-semibold hover:bg-muted/30 transition-colors">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-3 text-body-sm font-semibold hover:bg-muted/30 transition-colors">
                 <span>{t("course.studyPath.day", { count: day.day })}</span>
                 <span className="flex items-center gap-2 text-body-xs font-normal text-muted-foreground">
                   {t("course.studyPath.minutes", { count: day.totalMinutes })}
@@ -165,7 +165,7 @@ function StudyPathView({ courseId, state }: { courseId: string; state: StudyPath
       ) : (
         <>
           {nextStep ? (
-            <section className="grid gap-3 rounded-xl border border-brand-primary/25 bg-brand-primary/5 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center shadow-xs">
+            <section className="grid gap-3 border-l-2 border-brand-primary bg-brand-primary/5 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
               <div>
                 <p className="text-body-xs font-semibold text-brand-primary">{t("course.studyPath.continueLearning")}</p>
                 <h2 className="mt-1 font-heading text-body-base font-bold text-foreground">
@@ -184,12 +184,12 @@ function StudyPathView({ courseId, state }: { courseId: string; state: StudyPath
               ) : null}
             </section>
           ) : (
-            <div className="flex items-center gap-2 rounded-xl border border-status-success/20 bg-status-success/5 p-4 text-body-sm text-status-success">
+            <div className="flex items-center gap-2 py-3 text-body-sm text-status-success">
               <Check className="size-4" />{t("course.studyPath.allMastered")}
             </div>
           )}
 
-          <div className="space-y-3">
+          <div className="divide-y divide-border/60 border-y border-border/60">
             {groups.map(([chapterId, group], groupIdx) => {
               const active = group.steps.filter((step) => step.status !== "mastered" && step.status !== "locked");
               const locked = group.steps.filter((step) => step.status === "locked");
@@ -198,8 +198,8 @@ function StudyPathView({ courseId, state }: { courseId: string; state: StudyPath
               const defaultOpen = hasNextStep || (groupIdx === 0 && !nextStep);
 
               return (
-                <details key={chapterId} open={defaultOpen} className="group overflow-hidden rounded-xl border border-border/70 bg-card shadow-2xs">
-                  <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-3 select-none hover:bg-muted/30 transition-colors">
+                <details key={chapterId} open={defaultOpen} className="group">
+                  <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 py-3 select-none hover:bg-muted/30 transition-colors">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
                       <h2 className="font-heading text-body-sm font-bold break-words">Bab {group.order}: {group.title}</h2>

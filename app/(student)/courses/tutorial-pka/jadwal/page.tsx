@@ -43,7 +43,7 @@ export default async function PkaJadwalPage() {
               <TranslatedText namespace="studentExtras.pka" messageKey="noSessions" />
             </p>
           ) : (
-            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <ul className="divide-y divide-border">
               {schedules.map((a, idx) => {
                 const isPast = a.sessionAt.getTime() < now.getTime();
                 return (

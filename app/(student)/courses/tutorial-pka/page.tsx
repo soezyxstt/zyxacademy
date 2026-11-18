@@ -124,7 +124,7 @@ export default async function PkaCourseHomePage() {
                 <BellRing className="size-5 text-brand-primary" />
                 <h2 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="announcements" /></h2>
               </div>
-              <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-card">
+              <div className="divide-y divide-border/60">
                 {announcements.map((announcement) => (
                   <AnnouncementCard key={announcement.id} {...announcement} />
                 ))}
@@ -147,7 +147,7 @@ export default async function PkaCourseHomePage() {
               </Link>
             </div>
             {nextSession ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
                 <div className="min-w-0">
                   <span className="block break-words text-body-base font-semibold text-foreground">
                     {nextSession.title}
@@ -196,7 +196,7 @@ export default async function PkaCourseHomePage() {
                 <TranslatedText namespace="studentExtras.pka" messageKey="viewLeaderboard" />
               </Link>
             </div>
-            <div className="rounded-xl border border-border bg-card p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
               <div>
                 <span className="block text-body-base font-semibold text-foreground">
                   <TranslatedText namespace="studentExtras.pka" messageKey="simulationCount" values={{ count: simTemplates.length }} />
@@ -221,7 +221,7 @@ export default async function PkaCourseHomePage() {
         </Reveal>
 
         <Reveal>
-          <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-4">
+          <div className="flex items-start gap-3 border-t border-border py-3">
             <ShieldAlert className="size-5 shrink-0 text-muted-foreground" />
             <p className="text-body-sm text-muted-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="disclaimer" /></p>
           </div>

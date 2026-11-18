@@ -26,7 +26,7 @@ export function AuthMarketingCard({
 }: AuthMarketingCardProps) {
  return (
  <div className="marketing-container flex min-h-[60vh] flex-col items-center justify-center py-16">
- <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 sm:p-8">
+ <div className="w-full max-w-md">
  <h1 className="text-center font-heading text-h5 font-bold text-foreground">
  {title}
  </h1>

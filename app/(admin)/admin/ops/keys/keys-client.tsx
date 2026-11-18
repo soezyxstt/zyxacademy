@@ -51,7 +51,7 @@ export function KeysClient() {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="border-y border-border py-3">
         <p className="text-status-error">{t("keysUI.failedLoad")}</p>
         <Button variant="ghost" size="sm" onClick={() => refetch()} className="mt-2 text-body-sm text-brand-primary underline">{t("keysUI.retry")}</Button>
       </div>
@@ -87,7 +87,7 @@ export function KeysClient() {
       </div>
 
       {keyHealth.map(({ keyId, healthy, totalToday, entries }) => (
-        <div key={keyId} className="rounded-xl border border-border bg-card overflow-hidden">
+        <div key={keyId} className="border-y border-border">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/50 px-4 py-3">
             <div className="flex flex-wrap items-center gap-3">
               <span className={`size-2.5 rounded-full ${healthy ? "bg-status-success" : "bg-status-error"}`} />
@@ -153,7 +153,7 @@ export function KeysClient() {
         </div>
       ))}
 
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="border-y border-border">
         <div className="border-b border-border bg-muted/50 px-5 py-3">
           <h2 className="font-heading text-body-base font-semibold text-foreground">{t("keysUI.rpdLimits")}</h2>
         </div>

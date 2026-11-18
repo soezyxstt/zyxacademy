@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { ListFilter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface QuestionFilterPopoverProps {
   activeCount: number;
@@ -16,26 +17,32 @@ export function QuestionFilterPopover({ activeCount, children, onReset }: Questi
   const t = useTranslations("adminEval");
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-9 shrink-0 gap-2 rounded-lg px-3 text-body-sm"
-          aria-label={activeCount > 0 ? `${t("questionBank.filterTitle")}, ${activeCount} ${t("questionBank.active")}` : t("questionBank.filterTitle")}
-        >
-          <ListFilter className="size-4" />
-          <span>{t("questionBank.filter")}</span>
-          {activeCount > 0 && (
-            <span className="min-w-5 rounded-md bg-brand-primary px-1.5 py-0.5 text-center text-body-2xs font-semibold text-primary-foreground">
-              {activeCount}
-            </span>
-          )}
-        </Button>
-      </PopoverTrigger>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant={activeCount > 0 ? "secondary" : "ghost"}
+                size="icon-lg"
+                aria-label={activeCount > 0 ? `${t("questionBank.filterTitle")}, ${activeCount} ${t("questionBank.active")}` : t("questionBank.filterTitle")}
+              >
+                <ListFilter aria-hidden />
+                {activeCount > 0 && (
+                  <span aria-hidden className="absolute -right-1 -top-1 min-w-4 rounded-md bg-primary px-0.5 text-center text-body-2xs font-semibold text-primary-foreground">
+                    {activeCount}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent>{t("questionBank.filterTitle")}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       <PopoverContent
         align="end"
-        className="w-[min(22rem,calc(100vw-2rem))] space-y-3 rounded-xl p-3"
+        collisionPadding={12}
+        className="w-[min(22rem,calc(100vw-2rem))] space-y-3 rounded-xl p-3 sm:w-[min(28rem,calc(100vw-2rem))]"
       >
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-heading text-body-sm font-bold text-foreground">{t("questionBank.filterTitle")}</h2>

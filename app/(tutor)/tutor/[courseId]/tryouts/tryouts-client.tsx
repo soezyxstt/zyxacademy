@@ -1,12 +1,12 @@
 "use client";
 
 import { AdminEmptyState } from "@/components/admin/state-panels";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
-import { Plus, Edit2, Trash2, Trophy, Clock, Layers, ArrowLeft, Check, Library, MoreHorizontal } from "lucide-react";
+import { Plus, Edit2, Trash2, Trophy, Clock, Layers, ArrowLeft, Check, Library, MoreHorizontal, NotebookPen } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -68,6 +68,7 @@ interface Props {
 }
 
 const provenanceEnabled = true;
+const QUESTION_PAGE_SIZE = 20;
 
 export function TryoutsClient({ courseId, initialTryouts, initialQuestions, questionBank }: Props) {
   const router = useRouter();
@@ -89,6 +90,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
 
   // Active View (list or questions)
   const [activeExam, setActiveExam] = useState<TryoutExam | null>(null);
+  const [questionPage, setQuestionPage] = useState(0);
 
   // Question Dialog State
   const [isQOpen, setIsQOpen] = useState(false);
@@ -103,6 +105,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
   const [qAcceptableAnswers, setQAcceptableAnswers] = useState("");
   const [deleteQId, setDeleteQId] = useState<string | null>(null);
   const [bankOpen, setBankOpen] = useState(false);
+  const bankTriggerRef = useRef<HTMLButtonElement>(null);
   const [selectedBankIds, setSelectedBankIds] = useState<Set<string>>(new Set());
   const [bankPage, setBankPage] = useState(0);
   const bankPageCount = Math.max(1, Math.ceil(questionBank.length / 20));
@@ -309,6 +312,10 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
 
   // Render listing or nested questions view
   if (activeExam) {
+    const pageCount = Math.max(1, Math.ceil(activeQuestions.length / QUESTION_PAGE_SIZE));
+    const currentPage = Math.min(questionPage, pageCount - 1);
+    const pageOffset = currentPage * QUESTION_PAGE_SIZE;
+    const pageQuestions = activeQuestions.slice(pageOffset, pageOffset + QUESTION_PAGE_SIZE);
     const importedBankIds = new Set(activeQuestions.flatMap((question) => {
       const content = typeof question.content === "string" ? JSON.parse(question.content) : question.content;
       return typeof content?.bankQuestionId === "string" ? [content.bankQuestionId] : [];
@@ -316,26 +323,44 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
     return (
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setActiveExam(null)} className="rounded-lg shrink-0">
-              <ArrowLeft className="mr-1.5 size-4" />
-              {tr("back")}
-            </Button>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="button" size="icon-lg" variant="ghost" className="shrink-0" aria-label={tr("back")} onClick={() => setActiveExam(null)}>
+                    <ArrowLeft aria-hidden />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{tr("back")}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <div className="min-w-0">
-              <p className="truncate font-heading text-body-sm font-bold text-foreground">{activeExam.title}</p>
+              <p className="break-words font-heading text-body-sm font-bold text-foreground">{activeExam.title}</p>
               <p className="text-body-xs text-muted-foreground">{tr("totalQuestions", { count: activeQuestions.length })}</p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => { setSelectedBankIds(new Set()); setBankPage(0); setBankOpen(true); }} className="rounded-lg font-semibold gap-2">
-              <Library className="size-4" />
-              {tr("importFromBank")}
-            </Button>
-            <Button size="sm" onClick={handleOpenAddQ} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-lg font-semibold gap-2">
-              <Plus className="size-4" />
-              {tr("addQuestion")}
-            </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button ref={bankTriggerRef} type="button" variant="outline" size="icon-lg" aria-label={tr("importFromBank")} aria-haspopup="dialog" onClick={() => { setSelectedBankIds(new Set()); setBankPage(0); setBankOpen(true); }}>
+                    <Library aria-hidden />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{tr("importFromBank")}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="button" size="icon-lg" aria-label={tr("addQuestion")} onClick={handleOpenAddQ}>
+                    <Plus aria-hidden />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{tr("addQuestion")}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
 
@@ -343,11 +368,11 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
         {activeQuestions.length === 0 ? (
           <AdminEmptyState icon={Trophy} title={tr("examEmpty")} />
         ) : (
-          <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
-            {activeQuestions.map((q) => {
+          <div className="divide-y divide-border border-y border-border">
+            {pageQuestions.map((q) => {
               const content = typeof q.content === "string" ? JSON.parse(q.content) : q.content;
               return (
-                <div key={q.id} className="relative p-4">
+                <div key={q.id} className="relative py-3">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
@@ -430,9 +455,20 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
           </div>
         )}
 
+        {pageCount > 1 && (
+          <nav aria-label={locale === "id" ? "Halaman soal tryout" : "Tryout question pages"} className="flex flex-wrap items-center justify-end gap-2">
+            <Button variant="outline" size="sm" disabled={currentPage === 0} onClick={() => setQuestionPage(currentPage - 1)}>{locale === "id" ? "Sebelumnya" : "Previous"}</Button>
+            <span className="text-body-sm text-muted-foreground" aria-live="polite">{currentPage + 1} / {pageCount}</span>
+            <Button variant="outline" size="sm" disabled={currentPage === pageCount - 1} onClick={() => setQuestionPage(currentPage + 1)}>{locale === "id" ? "Berikutnya" : "Next"}</Button>
+          </nav>
+        )}
+
         {/* Delete Question Dialog */}
         <Dialog open={bankOpen} onOpenChange={setBankOpen}>
-          <DialogContent className="max-w-2xl rounded-2xl border-border bg-card">
+          <DialogContent className="max-w-2xl rounded-2xl border-border bg-card" onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            bankTriggerRef.current?.focus();
+          }}>
             <DialogHeader>
               <DialogTitle className="font-heading text-body-base font-bold text-foreground">{tr("bankTitle")}</DialogTitle>
               <DialogDescription>{tr("bankDescription")}</DialogDescription>
@@ -609,7 +645,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
 
               {/* RENDER ESSAY OPTIONS */}
               {qType === "essay" && (
-                <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 p-3 select-none">
+                <div className="flex items-center justify-between gap-3 border-t border-border pt-3 select-none">
                   <Label htmlFor="que-file" className="text-body-sm font-semibold cursor-pointer">
                     {tr("allowFiles")}
                   </Label>
@@ -642,30 +678,36 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
       {/* Header action */}
       <div className="flex flex-wrap justify-between items-center gap-2">
         <span className="text-body-xs text-muted-foreground">{tr("tryoutCount", { count: initialTryouts.length })}</span>
-        <Button size="sm" onClick={handleOpenAddT} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-lg font-semibold gap-2">
-          <Plus className="size-4" />
-          {tr("addTryout")}
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" size="icon-lg" aria-label={tr("addTryout")} onClick={handleOpenAddT}>
+                <Plus aria-hidden />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{tr("addTryout")}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       {initialTryouts.length === 0 ? (
         <AdminEmptyState icon={Trophy} title={tr("noTryouts")} />
       ) : (
-        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+        <div className="divide-y divide-border border-y border-border">
           {initialTryouts.map((t) => {
             const settings = typeof t.settings === "string" ? JSON.parse(t.settings) : t.settings;
             const qCount = initialQuestions.filter((q) => q.examId === t.id).length;
             
             return (
-              <Card key={t.id} className="rounded-none border-0 bg-transparent py-0 shadow-none gap-0 flex flex-col sm:flex-row sm:items-center">
-                <CardHeader className="min-w-0 flex-1 p-4">
-                  <div className="flex justify-between items-start gap-2">
-                    <CardTitle className="font-heading text-body-base font-bold text-foreground break-words">{t.title}</CardTitle>
+              <article key={t.id} className="flex items-start justify-between gap-2 py-3">
+                <header className="min-w-0 flex-1 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="min-w-0 break-words font-heading text-body-base font-bold text-foreground">{t.title}</h2>
                     <Badge variant="secondary" className="shrink-0">
                       {tr(t.status)}
                     </Badge>
                   </div>
-                  <p className="text-body-xs text-muted-foreground mt-0.5 flex items-center gap-4">
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-body-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Clock className="size-3" />
                       {tr("minutes", { count: settings?.timeLimitMinutes || 90 })}
@@ -675,23 +717,40 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                       {tr("questionCount", { count: qCount })}
                     </span>
                   </p>
-                </CardHeader>
+                </header>
 
-                <div className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:py-3">
-                  <Button variant="outline" size="sm" onClick={() => setActiveExam(t)} className="rounded-md border-border/80 text-brand-primary hover:bg-brand-primary/5 hover:text-brand-primary">
-                    {tr("manageQuestionButton")}
-                  </Button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button type="button" variant="outline" size="icon-lg" aria-label={tr("manageQuestionButton")} aria-description={t.title} onClick={() => { setQuestionPage(0); setActiveExam(t); }}>
+                          <NotebookPen aria-hidden />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{tr("manageQuestionButton")}</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => handleOpenEditT(t)} className="rounded-md border-border/80 text-muted-foreground hover:text-foreground">
-                      {tr("edit")}
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => setDeleteTId(t.id)} className="rounded-md border-border/80 text-status-error hover:bg-status-error/10 hover:text-status-error">
-                      {tr("delete")}
-                    </Button>
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" aria-label={`${tr("edit")} / ${tr("delete")}: ${t.title}`}>
+                        <MoreHorizontal className="size-4" aria-hidden="true" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={() => handleOpenEditT(t)}>
+                        <Edit2 className="size-4" aria-hidden="true" />
+                        {tr("edit")}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={() => setDeleteTId(t.id)} className="text-status-error focus:text-status-error">
+                        <Trash2 className="size-4" aria-hidden="true" />
+                        {tr("delete")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-              </Card>
+              </article>
             );
           })}
         </div>

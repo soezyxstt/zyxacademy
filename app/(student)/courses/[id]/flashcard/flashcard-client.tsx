@@ -52,7 +52,7 @@ function FlashcardSession(props: FlashcardSessionProps) {
 
   if (queue.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center rounded-xl border border-dashed border-border/60 bg-muted/15 p-6">
+      <div className="flex flex-col items-center justify-center px-3 py-5 text-center">
         <p className="text-body-sm text-muted-foreground">
           {t("flashcards.empty")}
         </p>
@@ -67,7 +67,7 @@ function FlashcardSession(props: FlashcardSessionProps) {
     const currentSessionNum = Math.floor(batchOffset / BATCH_SIZE) + 1;
     const totalSessions = Math.ceil(queue.length / BATCH_SIZE);
     return (
-      <div className="mx-auto max-w-2xl rounded-xl border border-border/60 bg-card p-4 text-center">
+      <div className="mx-auto max-w-2xl px-3 py-5 text-center">
         <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
           <Check className="size-6" />
         </div>
@@ -227,7 +227,7 @@ function FlashcardSession(props: FlashcardSessionProps) {
               <div className="flex min-h-full min-w-0 flex-col justify-center space-y-3">
               <MarkdownRenderer content={activeCard.back} className="font-heading text-body-base font-bold text-foreground text-center" />
               {activeCard.explanation && (
-                <div className="rounded-lg bg-muted/40 p-3 border border-border/50">
+                <div className="border-t border-border/60 pt-3">
                   <div className="text-body-xs font-semibold text-muted-foreground mb-0.5">{t("flashcards.explanation")}</div>
                   <MarkdownRenderer content={activeCard.explanation} density="compact" className="text-body-xs text-muted-foreground" />
                 </div>
@@ -251,7 +251,7 @@ function FlashcardSession(props: FlashcardSessionProps) {
 
       {/* Interactive Input Area for Exam Mode */}
       {mode === "exam" && (
-        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+        <div className="space-y-3 border-t border-border/60 pt-4">
           <div className="flex items-center justify-between">
             <label className="text-body-sm font-semibold text-foreground">
               {t("flashcards.yourAnswer")}

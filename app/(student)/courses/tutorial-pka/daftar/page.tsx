@@ -9,7 +9,6 @@ import { TranslatedText } from "@/components/i18n/translated-text";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { isPkaEnrolled } from "@/lib/pka-enrollment";
 import { CoursePageShell } from "@/components/course/course-page-shell";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("studentExtras.pka");
@@ -32,12 +31,10 @@ export default async function PkaRegisterPage() {
       title={<TranslatedText namespace="studentExtras.pka" messageKey="joinTitle" />}
       icon={GraduationCap}
     >
-      <Card role="status">
-        <CardHeader className="items-center gap-3 text-center">
-          <CalendarX2 aria-hidden="true" className="size-6 text-muted-foreground" />
-          <CardTitle><TranslatedText namespace="studentExtras.pka" messageKey="registrationClosed" /></CardTitle>
-        </CardHeader>
-      </Card>
+      <div role="status" className="flex items-center gap-3 border-b border-border pb-3">
+        <CalendarX2 aria-hidden className="size-5 shrink-0 text-muted-foreground" />
+        <p className="font-heading text-body-base font-bold"><TranslatedText namespace="studentExtras.pka" messageKey="registrationClosed" /></p>
+      </div>
     </CoursePageShell>
   );
 }

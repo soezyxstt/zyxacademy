@@ -112,7 +112,20 @@ export function DiscussionChannelPicker({ value, label, placeholder, onChange, o
     return () => { cancelled = true; clearTimeout(timer); };
   }, [open, search, index, cursors, retry, locale, source?.id, source?.kind, source?.courseId]);
   return <Popover open={open} onOpenChange={setOpen}>
-    <PopoverTrigger asChild><Button type="button" variant="outline" role="combobox" aria-label={label} aria-expanded={open} disabled={disabled} className="h-auto min-h-8 w-full min-w-0 whitespace-normal py-1 text-left [&>span]:justify-between"><span className="min-w-0 break-words">{value ? discussionChannelLabel(value, t) : placeholder}</span><ChevronDown /></Button></PopoverTrigger>
+    <PopoverTrigger asChild>
+      <Button
+        type="button"
+        variant={allowAll ? "ghost" : "outline"}
+        role="combobox"
+        aria-label={label}
+        aria-expanded={open}
+        disabled={disabled}
+        className={cn("h-auto min-h-9 w-full min-w-0 whitespace-normal py-1 text-left [&>span]:justify-between", allowAll && "px-2 data-[state=open]:bg-muted")}
+      >
+        <span className="min-w-0 break-words">{value ? discussionChannelLabel(value, t) : placeholder}</span>
+        <ChevronDown className="shrink-0 text-muted-foreground" />
+      </Button>
+    </PopoverTrigger>
     <PopoverContent aria-label={label} align="start" collisionPadding={16} className="max-w-[calc(100vw-2rem)] space-y-2 p-2">
       <Input aria-label={t("searchChannel")} placeholder={t("searchChannel")} value={search} onChange={(event) => { setSearch(event.target.value.slice(0, 160)); setCursors([{}]); setIndex(0); }} onKeyDown={(event) => { if (event.key === "ArrowDown") { event.preventDefault(); optionsRef.current?.querySelector<HTMLButtonElement>('[role="option"]')?.focus(); } }} />
       <div ref={optionsRef} role="listbox" aria-label={label} className="max-h-48 overflow-y-auto" onKeyDown={(event) => { const options = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="option"]')); const next = channelOptionIndex(event.key, options.findIndex((option) => option === document.activeElement), options.length); if (next === null) return; event.preventDefault(); options[next]?.focus(); }}>{allowAll && <Button type="button" role="option" aria-selected={!value} variant="ghost" className="w-full [&>span]:justify-start" onClick={() => { onChange(null); setOpen(false); }}>{t("allChannels")}</Button>}{page.items.map((item) => <Button key={item.id} type="button" role="option" aria-selected={value?.id === item.id} variant="ghost" className="h-auto w-full whitespace-normal break-words py-1 text-left [&>span]:justify-start" onClick={() => { onChange(item); setOpen(false); }}>{discussionChannelLabel(item, t)}</Button>)}</div>
