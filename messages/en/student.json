@@ -546,7 +546,11 @@
     "zyraAvatarCenderawasih": "Cenderawasih",
     "zyraAvatarPenyu": "Penyu",
     "zyraAvatarBadak": "Badak",
-    "zyraAvatarElang": "Elang"
+    "zyraAvatarElang": "Elang",
+    "zyraAvatarStudioCat": "Zyra",
+    "zyraAvatarStudioTiger": "Tiger",
+    "zyraAvatarStudioRhino": "Rhino",
+    "zyraAvatarStudioCrocodile": "Crocodile"
   },
   "achievementPage": {
     "overview": "Overview",
@@ -646,6 +650,18 @@
     "copied": "Copied",
     "helpfulAnswer": "Helpful answer",
     "helpful": "Helpful",
-    "viewer": "3D mascot"
+    "viewer": "3D mascot",
+    "unavailable": "3D unavailable",
+    "retry": "Try again",
+    "action": "Action",
+    "actions": {
+      "idle": "Idle",
+      "happy": "Happy",
+      "thinking": "Thinking",
+      "waiting": "Waiting",
+      "explaining": "Explaining",
+      "apologizing": "Apologizing",
+      "thumbsUp": "Thumbs up"
+    }
   }
 }

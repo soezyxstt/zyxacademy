@@ -546,7 +546,11 @@
     "zyraAvatarCenderawasih": "Cenderawasih",
     "zyraAvatarPenyu": "Penyu",
     "zyraAvatarBadak": "Badak",
-    "zyraAvatarElang": "Elang"
+    "zyraAvatarElang": "Elang",
+    "zyraAvatarStudioCat": "Zyra",
+    "zyraAvatarStudioTiger": "Harimau",
+    "zyraAvatarStudioRhino": "Badak",
+    "zyraAvatarStudioCrocodile": "Buaya"
   },
   "achievementPage": {
     "overview": "Ringkasan",
@@ -646,6 +650,18 @@
     "copied": "Disalin",
     "helpfulAnswer": "Jawaban membantu",
     "helpful": "Membantu",
-    "viewer": "Maskot 3D"
+    "viewer": "Maskot 3D",
+    "unavailable": "3D tidak tersedia",
+    "retry": "Coba lagi",
+    "action": "Aksi",
+    "actions": {
+      "idle": "Diam",
+      "happy": "Senang",
+      "thinking": "Berpikir",
+      "waiting": "Menunggu",
+      "explaining": "Menjelaskan",
+      "apologizing": "Meminta maaf",
+      "thumbsUp": "Jempol"
+    }
   }
 }

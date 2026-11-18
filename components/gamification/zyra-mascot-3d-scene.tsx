@@ -1,11 +1,14 @@
 /** Loaded only by an explicitly mounted large viewer. No React frame updates. */
 import * as THREE from "three";
 import { createZyraMascotModel, type MascotModelKey } from "../../lib/gamification/zyra-mascot-models";
+import { getZyraGlbMascotByKey, resolveMascotAnimation, type GlbMascotKey } from "../../lib/gamification/zyra-glb-mascots";
+import { disposeMascotObject, loadZyraGlbMascot } from "./zyra-glb-loader";
 
 // A module-wide lease guarantees a single live renderer, even across studio instances.
 let releaseActiveViewer: (() => void) | undefined;
-export type MascotSceneHandle = { dispose: () => void; setAnimated: (value: boolean) => void; setModel: (key: MascotModelKey) => void };
-export function mountMascotScene(host: HTMLElement, key: MascotModelKey, animated: boolean, onUnavailable: () => void, onReady?: () => void): MascotSceneHandle {
+export type MascotViewerKey = MascotModelKey | GlbMascotKey;
+export type MascotSceneHandle = { dispose: () => void; isDisposed: () => boolean; setAnimated: (value: boolean) => void; setModel: (key: MascotViewerKey) => void; setAnimation: (name: string) => void };
+export function mountMascotScene(host: HTMLElement, key: MascotViewerKey, animated: boolean, onUnavailable: () => void, onReady?: (key: MascotViewerKey) => void, animationName = "idle"): MascotSceneHandle {
   releaseActiveViewer?.();
   const surface = document.createElement("canvas");
   const context = surface.getContext("webgl2", { alpha: true, antialias: true, powerPreference: "low-power" });
@@ -30,8 +33,11 @@ export function mountMascotScene(host: HTMLElement, key: MascotModelKey, animate
   const keyLight = new THREE.DirectionalLight(0xffead1, 3.2); keyLight.position.set(-3, 5, 5); scene.add(keyLight);
   const fill = new THREE.DirectionalLight(0xd5f1ff, 1.7); fill.position.set(4, 2, 1); scene.add(fill);
   const rim = new THREE.DirectionalLight(0xffd6a0, 2.4); rim.position.set(1, 3, -4); scene.add(rim);
-  const geometries: THREE.BufferGeometry[] = [], materials = new Map<string, THREE.MeshStandardMaterial>();
+  const materials = new Map<string, THREE.MeshStandardMaterial>();
   const moving: { object: THREE.Mesh; kind: string; scaleY: number; rotation: number; phase: number }[] = [];
+  let currentKey = key, requestedAnimation = animationName;
+  let pendingLoad: AbortController | undefined, loadVersion = 0, modelLoaded = false;
+  let mixer: THREE.AnimationMixer | undefined, clips: THREE.AnimationClip[] = [];
   let rendered = false;
   let disposed = false, frame = 0, last = 0, elapsed = 0, inView = false, dirty = true;
   let observer: IntersectionObserver | undefined, resize: ResizeObserver | undefined;
@@ -44,10 +50,15 @@ export function mountMascotScene(host: HTMLElement, key: MascotModelKey, animate
   canvas.className = "focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2";
   canvas.dataset.mascotModel = key;
   function canDraw() { return !disposed && inView && !document.hidden; }
-  function canAnimate() { return animated && !reduced.matches && canDraw(); }
+  function canAnimate() { return modelLoaded && animated && !reduced.matches && canDraw(); }
   function request() { if (!frame && canDraw()) frame = requestAnimationFrame(tick); }
   function invalidate() { dirty = true; request(); }
-  function updatePose() {
+  function updatePose(delta: number) {
+    if (mixer) {
+      root.position.y = 0; root.rotation.z = 0;
+      if (canAnimate()) mixer.update(delta);
+      return;
+    }
     const t = canAnimate() ? elapsed : 0;
     root.position.y = Math.sin(t * 1.65) * .018;
     root.rotation.z = Math.sin(t * .85) * .012;
@@ -67,7 +78,11 @@ export function mountMascotScene(host: HTMLElement, key: MascotModelKey, animate
     if (dirty || delta >= 1000/30 - .2) {
       elapsed += Math.min(delta / 1000, 1/15);
       last = now; dirty = false;
-      try { updatePose(); renderer.render(scene, camera); if(!rendered){rendered=true;onReady?.();} } catch { dispose(); return; }
+      try {
+        updatePose(Math.min(delta / 1000, 1/15));
+        renderer.render(scene, camera);
+        if (modelLoaded && !rendered) { rendered=true;onReady?.(currentKey); }
+      } catch { dispose(); return; }
     }
     if (canAnimate()) request();
   }
@@ -120,19 +135,71 @@ export function mountMascotScene(host: HTMLElement, key: MascotModelKey, animate
     canvas.removeEventListener("pointerdown",down);canvas.removeEventListener("pointermove",move);
     canvas.removeEventListener("pointerup",up);canvas.removeEventListener("pointercancel",up);canvas.removeEventListener("lostpointercapture",up);
     canvas.removeEventListener("keydown",keyboard);canvas.removeEventListener("webglcontextlost",lost);
-    geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());
+    pendingLoad?.abort(); loadVersion++;
+    clearModel();
     scene.clear();renderer.renderLists.dispose();renderer.dispose();renderer.forceContextLoss();canvas.remove();
     if(releaseActiveViewer===dispose) releaseActiveViewer=undefined;
     onUnavailable();
   }
-  function setModel(nextKey: MascotModelKey) {
+  function clearModel() {
+    if (mixer) { mixer.stopAllAction(); mixer.uncacheRoot(mixer.getRoot()); }
+    mixer = undefined; clips = [];
+    disposeMascotObject(root);
+    materials.clear(); moving.length=0; root.clear();
+    root.position.y=0; root.rotation.z=0; modelLoaded=false;
+  }
+  function setAnimation(name: string) {
+    requestedAnimation=name;
+    const model=getZyraGlbMascotByKey(currentKey);
+    if (!model || !mixer) return;
+    const selected=resolveMascotAnimation(model,name);
+    const clip=clips.find(item=>item.name===selected) ?? clips.find(item=>item.name==="idle");
+    mixer.stopAllAction();
+    if (clip) { mixer.clipAction(clip).reset().play(); mixer.update(0); }
+    canvas.dataset.mascotAnimation=clip?.name ?? "";
+    last=0; invalidate();
+  }
+  function setModel(nextKey: MascotViewerKey) {
     if(disposed) return;
-    geometries.forEach(g=>g.dispose()); geometries.length=0;
-    materials.forEach(m=>m.dispose()); materials.clear();
-    moving.length=0; root.clear();
-    for (const part of createZyraMascotModel(nextKey).meshes) {
+    pendingLoad?.abort();
+    const version=++loadVersion;
+    clearModel(); currentKey=nextKey;
+    canvas.dataset.mascotModel=nextKey;
+    canvas.dataset.mascotAnimation="";
+    canvas.dataset.meshCount="0";
+    elapsed=0; rendered=false;
+    const glbModel=getZyraGlbMascotByKey(nextKey);
+    if (glbModel) {
+      const controller=new AbortController(); pendingLoad=controller;
+      void loadZyraGlbMascot(glbModel,controller.signal).then(gltf=>{
+        if (disposed || version!==loadVersion) { disposeMascotObject(gltf.scene); return; }
+        // A parent transform fits each source without changing animated node transforms.
+        gltf.scene.updateMatrixWorld(true);
+        const bounds=new THREE.Box3().setFromObject(gltf.scene);
+        const size=bounds.getSize(new THREE.Vector3()), centre=bounds.getCenter(new THREE.Vector3());
+        if (![size.x,size.y,size.z].every(value=>Number.isFinite(value)&&value>0)) {
+          disposeMascotObject(gltf.scene); throw new Error("INVALID_MASCOT_BOUNDS");
+        }
+        const scale=Math.min(2.35/size.y,2.7/size.x,2.7/size.z);
+        const fitted=new THREE.Group();
+        fitted.scale.setScalar(scale);
+        fitted.position.set(-centre.x*scale,-bounds.min.y*scale,-centre.z*scale);
+        fitted.add(gltf.scene); root.add(fitted);
+        clips=gltf.animations;
+        mixer=new THREE.AnimationMixer(gltf.scene);
+        let meshCount=0;gltf.scene.traverse(object=>{if(object instanceof THREE.Mesh)meshCount++;});
+        canvas.dataset.meshCount=String(meshCount);
+        modelLoaded=true; pendingLoad=undefined;
+        setAnimation(requestedAnimation); invalidate();
+      }).catch(()=>{
+        if(disposed || version!==loadVersion || controller.signal.aborted) return;
+        pendingLoad=undefined; clearModel(); onUnavailable(); invalidate();
+      });
+      invalidate();
+      return;
+    }
+    for (const part of createZyraMascotModel(nextKey as MascotModelKey).meshes) {
       const geometry = new THREE.BufferGeometry();
-      geometries.push(geometry);
       geometry.setAttribute("position",new THREE.Float32BufferAttribute(part.positions,3));
       geometry.setIndex(part.indices);geometry.computeVertexNormals();geometry.computeBoundingSphere();
       let material=materials.get(part.color);
@@ -145,9 +212,8 @@ export function mountMascotScene(host: HTMLElement, key: MascotModelKey, animate
       root.add(object);
       if(part.motion) moving.push({object,kind:part.motion,scaleY:part.scale[1],rotation:part.motion==="tail"?part.rotation[1]:part.rotation[2],phase:part.position[0]<0?Math.PI:0});
     }
-    canvas.dataset.mascotModel=nextKey;
     canvas.dataset.meshCount=String(root.children.length);
-    elapsed=0; rendered=false; invalidate();
+    modelLoaded=true; invalidate();
   }
   try {
     setModel(key);
@@ -163,5 +229,5 @@ export function mountMascotScene(host: HTMLElement, key: MascotModelKey, animate
     } else inView=true;
     releaseActiveViewer=dispose;measure();request();
   } catch(error) { dispose();throw error; }
-  return {dispose,setModel,setAnimated(value) { animated=value;activity(); }};
+  return {dispose,isDisposed:()=>disposed,setModel,setAnimation,setAnimated(value) { animated=value;activity(); }};
 }

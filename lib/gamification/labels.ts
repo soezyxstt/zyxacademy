@@ -27,7 +27,11 @@ export const cosmeticNameKeys: Record<string, string> = {
   "zyra-avatar-cenderawasih": "zyraAvatarCenderawasih",
   "zyra-avatar-penyu": "zyraAvatarPenyu",
   "zyra-avatar-badak": "zyraAvatarBadak",
-  "zyra-avatar-elang": "zyraAvatarElang"
+  "zyra-avatar-elang": "zyraAvatarElang",
+  "zyra-avatar-studio-cat": "zyraAvatarStudioCat",
+  "zyra-avatar-studio-tiger": "zyraAvatarStudioTiger",
+  "zyra-avatar-studio-rhino": "zyraAvatarStudioRhino",
+  "zyra-avatar-studio-crocodile": "zyraAvatarStudioCrocodile"
 };
 
 /** Rank names are proper names in both supported locales. */

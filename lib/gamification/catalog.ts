@@ -47,4 +47,9 @@ export const COSMETIC_CATALOG = [
  { id: 'zyra-avatar-penyu', name: 'Penyu', slot: 'zyra_avatar', priceLp: 900, active: true },
  { id: 'zyra-avatar-badak', name: 'Badak', slot: 'zyra_avatar', priceLp: 1250, active: true },
  { id: 'zyra-avatar-elang', name: 'Elang', slot: 'zyra_avatar', priceLp: 1750, active: true },
+ // Draft studio prices follow existing character tiers. Confirm them before catalog seeding.
+ { id: 'zyra-avatar-studio-cat', name: 'Zyra', slot: 'zyra_avatar', priceLp: 600, active: true },
+ { id: 'zyra-avatar-studio-tiger', name: 'Harimau', slot: 'zyra_avatar', priceLp: 900, active: true },
+ { id: 'zyra-avatar-studio-rhino', name: 'Badak', slot: 'zyra_avatar', priceLp: 1250, active: true },
+ { id: 'zyra-avatar-studio-crocodile', name: 'Buaya', slot: 'zyra_avatar', priceLp: 1000, active: true },
 ] as const;

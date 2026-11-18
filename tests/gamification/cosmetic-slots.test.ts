@@ -4,7 +4,7 @@ import { COSMETIC_CATALOG } from '../../lib/gamification/catalog';
 
 describe('cosmetic slot boundaries', () => {
  test('catalog keeps old prices and includes all five slots', () => {
-  expect(COSMETIC_CATALOG).toHaveLength(28);
+  expect(COSMETIC_CATALOG).toHaveLength(32);
   expect(COSMETIC_CATALOG.find(item => item.id === 'frame-classic')?.priceLp).toBe(250);
   expect(new Set(COSMETIC_CATALOG.map(item => item.slot)).size).toBe(5);
  });

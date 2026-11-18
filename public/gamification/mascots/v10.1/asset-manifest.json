@@ -1,0 +1,5275 @@
+{
+  "schemaVersion": 1,
+  "release": "10.1-web.1",
+  "sourcePackage": "Zyra-Studio-v10.1",
+  "sourceIndexSha256": "14710ca01ad80519da992bb64c2af1fcc3fd93fe100138c917ec7ce18fe9126b",
+  "optimization": {
+    "compression": "EXT_meshopt_compression, lossless accessor data; no quantization/filter/simplification",
+    "textures": "EXT_texture_webp, maximum 1024px, albedo quality90, data maps lossless after resizing",
+    "preserved": [
+      "triangle topology and winding",
+      "vertex attribute values",
+      "morph targets",
+      "joint weights",
+      "inverse bind matrices",
+      "node names and hierarchy",
+      "animation names, channels and keyframes",
+      "crocodile neck geometry"
+    ],
+    "limitations": [
+      "Triangle counts and draw calls are unchanged.",
+      "WebP textures decode to ordinary GPU textures; this is not KTX2 GPU compression.",
+      "Visual comparison and target-device performance testing remain required."
+    ]
+  },
+  "assetCount": 153,
+  "sourceTotalBytes": 173958500,
+  "totalBytes": 84115964,
+  "assets": [
+    {
+      "path": "models/base-full.glb",
+      "kind": "character",
+      "character": "cat",
+      "variant": "full",
+      "sourceBytes": 6092224,
+      "bytes": 3411720,
+      "sourceSha256": "9003ab4e6c65a2363608e5597d3f7037b60304985f90b67d35e2cb5215f33a0e",
+      "sha256": "c951137024da6f4e3fc9ea06b25eaf4fa66a5855e0ef8db5721956618eec14f1",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 83488,
+      "vertices": 43596,
+      "primitives": 15,
+      "morphTargets": 49,
+      "meshes": 3,
+      "nodes": 53,
+      "skins": 1,
+      "animationNames": [
+        "idle",
+        "happy",
+        "thinking",
+        "waiting",
+        "explaining",
+        "apologizing",
+        "thumbsUp",
+        "jump",
+        "cycle",
+        "fly",
+        "basketball"
+      ],
+      "textures": [
+        {
+          "name": "Zyra_Body_Coat_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 20302
+        },
+        {
+          "name": "Zyra_Paw_Coat_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 12882
+        },
+        {
+          "name": "Zyra_Head_Coat_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 32550
+        },
+        {
+          "name": "Zyra_Tail_Coat_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 266
+        },
+        {
+          "name": "Zyra_Ear_Coat_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 21198
+        }
+      ]
+    },
+    {
+      "path": "models/base-head.glb",
+      "kind": "character",
+      "character": "cat",
+      "variant": "head",
+      "sourceBytes": 2619516,
+      "bytes": 1421904,
+      "sourceSha256": "ea6e0235e0986b436d83a47d171bb414dc6310c13f782ea4627db6716b1fe398",
+      "sha256": "c151dca35c1b4f2588cf2bdf47bde65378401674c590436ba610e4f497e6e337",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 39152,
+      "vertices": 20472,
+      "primitives": 11,
+      "morphTargets": 49,
+      "meshes": 3,
+      "nodes": 21,
+      "skins": 1,
+      "animationNames": [
+        "idle",
+        "happy",
+        "thinking",
+        "waiting",
+        "explaining",
+        "apologizing",
+        "thumbsUp",
+        "jump",
+        "cycle",
+        "fly",
+        "basketball"
+      ],
+      "textures": [
+        {
+          "name": "Zyra_Head_Coat_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 32550
+        },
+        {
+          "name": "Zyra_Ear_Coat_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 21198
+        }
+      ]
+    },
+    {
+      "path": "models/crocodile-full.glb",
+      "kind": "character",
+      "character": "crocodile",
+      "variant": "full",
+      "sourceBytes": 26457772,
+      "bytes": 11641688,
+      "sourceSha256": "e853ff36f1aaff91e15a1dad21566fbcacdecb3c6a981e29416b4ddc5f7c7b1f",
+      "sha256": "39fb07cbbadba279f9f04293d1f8155a9fdf0d5510bf347dc21336d9ddb38fa1",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 295400,
+      "vertices": 155067,
+      "primitives": 22,
+      "morphTargets": 68,
+      "meshes": 3,
+      "nodes": 71,
+      "skins": 1,
+      "animationNames": [
+        "idle",
+        "happy",
+        "thinking",
+        "waiting",
+        "explaining",
+        "apologizing",
+        "thumbsUp",
+        "giveFlowers",
+        "beachLounge"
+      ],
+      "textures": [
+        {
+          "name": "Zyra_Crocodile_Body_Normal",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 489832
+        },
+        {
+          "name": "Zyra_Crocodile_Body_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 139196
+        },
+        {
+          "name": "Zyra_Crocodile_Body_Roughness",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 146974
+        },
+        {
+          "name": "Zyra_Crocodile_Paws_Normal",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 399116
+        },
+        {
+          "name": "Zyra_Crocodile_Paws_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 81910
+        },
+        {
+          "name": "Zyra_Crocodile_Paws_Roughness",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 116580
+        },
+        {
+          "name": "Zyra_Crocodile_Head_Normal",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 727904
+        },
+        {
+          "name": "Zyra_Crocodile_Head_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 142172
+        },
+        {
+          "name": "Zyra_Crocodile_Head_Roughness",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 225676
+        },
+        {
+          "name": "Zyra_Crocodile_Tail_Normal",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 147700
+        },
+        {
+          "name": "Zyra_Crocodile_Tail_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 46620
+        },
+        {
+          "name": "Zyra_Crocodile_Tail_Roughness",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 50858
+        },
+        {
+          "name": "Zyra_Crocodile_Lower_Jaw_Normal",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 45324
+        },
+        {
+          "name": "Zyra_Crocodile_Lower_Jaw_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 2976
+        },
+        {
+          "name": "Zyra_Crocodile_Lower_Jaw_Roughness",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 5334
+        }
+      ]
+    },
+    {
+      "path": "models/crocodile-head.glb",
+      "kind": "character",
+      "character": "crocodile",
+      "variant": "head",
+      "sourceBytes": 14710408,
+      "bytes": 5775644,
+      "sourceSha256": "b94bba6d1e4f2c69246c6f7c3bab7d0fd88ddcb8d7c3bf63f3f1b7f63008b8de",
+      "sha256": "80cb9351ec2395db1efd7dee78ed93311c41aad23090184f3e459cbfd113405f",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 144520,
+      "vertices": 75592,
+      "primitives": 16,
+      "morphTargets": 68,
+      "meshes": 3,
+      "nodes": 21,
+      "skins": 1,
+      "animationNames": [
+        "idle",
+        "happy",
+        "thinking",
+        "waiting",
+        "explaining",
+        "apologizing",
+        "thumbsUp",
+        "giveFlowers",
+        "beachLounge"
+      ],
+      "textures": [
+        {
+          "name": "Zyra_Crocodile_Head_Normal",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 727904
+        },
+        {
+          "name": "Zyra_Crocodile_Head_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 142172
+        },
+        {
+          "name": "Zyra_Crocodile_Head_Roughness",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 225676
+        },
+        {
+          "name": "Zyra_Crocodile_Lower_Jaw_Normal",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 45324
+        },
+        {
+          "name": "Zyra_Crocodile_Lower_Jaw_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 2976
+        },
+        {
+          "name": "Zyra_Crocodile_Lower_Jaw_Roughness",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 5334
+        }
+      ]
+    },
+    {
+      "path": "models/items/achiever-laurel.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 200764,
+      "bytes": 83536,
+      "sourceSha256": "bd6cd5d58ba7466801f5f9b4d47bd8ac966a32ad128487dc283ea387ef1794b2",
+      "sha256": "bd2d8e4eaaac5ec5d7031f09a772a60cfb7d4581150ee188305dc20fe6fdf450",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 4268,
+      "vertices": 3280,
+      "primitives": 2,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/active-headband.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 247484,
+      "bytes": 90644,
+      "sourceSha256": "b108ce3f9d0634e0dd5a3da4950ee8b6c571260e9257c57ac397d513f60e5bd7",
+      "sha256": "9feecf83067ad49c26e2a7665b7e82fd99d2920d2d1b1bde4ce938554e10dabe",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 5872,
+      "vertices": 3007,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/almamater-outfit.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 964224,
+      "bytes": 522336,
+      "sourceSha256": "0c251fc162743ad79179bd2ae3f41666c95507c9d9790b9e478b9d9fcc6c4908",
+      "sha256": "8cf1bf01772105fc328eb0ba1ef6e2a247c051b9986b886a318d4f53e309fb49",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 19088,
+      "vertices": 9902,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 29,
+      "skins": 1,
+      "animationNames": [],
+      "textures": [
+        {
+          "name": "Zyra_ITB_Embroidered_Mark_Crest",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 205646
+        }
+      ]
+    },
+    {
+      "path": "models/items/astronaut-back.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 177696,
+      "bytes": 101668,
+      "sourceSha256": "457faa4742b87ec2037d2e030fb0654821396539cae38a41a53a73c268cddd40",
+      "sha256": "fa3a997933db35a544cb44b552daa7917a34bd88412714afddc53714b48611e3",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 3580,
+      "vertices": 2187,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 5,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/astronaut-headwear.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 274312,
+      "bytes": 118500,
+      "sourceSha256": "ece8e6da99901217bef335a066a0def89723267bea686675f92b76afac7ce358",
+      "sha256": "73aa7085a859593da59ed6b0848beba252b12a69b96b6629b1c58d398a64d800",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 6184,
+      "vertices": 3395,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/astronaut-outfit.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 841664,
+      "bytes": 395776,
+      "sourceSha256": "7476c471e65b4622ca91eba3b79cb2455040904d98bfa54698bb220f6c24b04f",
+      "sha256": "8c895c7d1b3d2540bacb8c119f747a9d21708eb37f3b8a622691cc0a5bf2f26b",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 19080,
+      "vertices": 10419,
+      "primitives": 6,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 31,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/basketball-headwear.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 130140,
+      "bytes": 63352,
+      "sourceSha256": "e6c70c65015e4acc784e79ea7e7c751411b8ad63385f8142010ba41212561cba",
+      "sha256": "56fa66e464f5df7383fccd5eda4a510b05e557d0af65e4f0c9b9f258430661ad",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 3360,
+      "vertices": 2402,
+      "primitives": 2,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/basketball-outfit.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 735132,
+      "bytes": 318296,
+      "sourceSha256": "cbe9fabfe94f1828b61c61bc7f5d7526a6c60e8972ed94ff38b0b7e321d0520c",
+      "sha256": "4cabc3796863564045ac376871447ecbe722d868af7481abc923b0e649fbd83c",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 16366,
+      "vertices": 9246,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 12,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/beach-hat.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 594820,
+      "bytes": 222416,
+      "sourceSha256": "32580e5cca5637afa1adedb9a2dec6348a1766fffc6a3e1760afe20f40bab300",
+      "sha256": "0344925ffef9c51fa7cd270e510da34ffce7fe318d45c235feca2286767bd845",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 14154,
+      "vertices": 7383,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/beach-outfit.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 1200612,
+      "bytes": 879380,
+      "sourceSha256": "b0014bfad7025c29e6523eca5658c3ba353b316a80b424c9221e254f79c598e7",
+      "sha256": "6f9d62a495ac33332eed94bd94bc9a644bf4e39079df54088351fa5415f8a4cf",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 21327,
+      "vertices": 12299,
+      "primitives": 6,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 17,
+      "skins": 1,
+      "animationNames": [],
+      "textures": [
+        {
+          "name": "Zyra_Outfit_Beach_PalmPrint_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 341156
+        },
+        {
+          "name": "Zyra_Outfit_Beach_ShortsStripe_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 3694
+        }
+      ]
+    },
+    {
+      "path": "models/items/beach-sunglasses.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 294092,
+      "bytes": 109940,
+      "sourceSha256": "7268c1e04d24bebd2077de0f42dc8ea12de8bdd74b35dc556eb6523ded844697",
+      "sha256": "41012704dd4cd6ed1719b55b020318f9c49bdb46d68c1e54f32d0c1a1f879f1e",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 7052,
+      "vertices": 3607,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/business-glasses.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 153756,
+      "bytes": 66960,
+      "sourceSha256": "26a6392ac6a1682e0963f5e37a19952e9e5a42742e8e11f7104b64faee3f7ec6",
+      "sha256": "050d7560070105e95b6899d2495fdcf597c7a6f254f14364abfc47455cd4829a",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 3508,
+      "vertices": 1901,
+      "primitives": 1,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/business-suit.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 729024,
+      "bytes": 312924,
+      "sourceSha256": "84dacbc058f239cbf6f7546467cc32562dcfb69058d805671ec17c23fa5ead71",
+      "sha256": "574a9a7e27839e9ecd4f212f3ea076681a4828f06330c2ffcb03591c0121d755",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 17164,
+      "vertices": 8960,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 29,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/chef-headwear.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 312588,
+      "bytes": 144152,
+      "sourceSha256": "537d8ac386940e0ce80121b6d76eeac5f250c10d6faf8f43ef41564337050463",
+      "sha256": "4bdbf1237ecf70ad2ce5677f9a1d53d834fbc5326e66debc076d5a5ec46e1705",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 6740,
+      "vertices": 3897,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/chef-outfit.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 720068,
+      "bytes": 325028,
+      "sourceSha256": "a4b799447c0b8d2e40cdb49cac9b46b93dd434ac862b9bf88d3397b0d53d3e16",
+      "sha256": "0eb3fee6ec593bb07f5a055c5967597168e5c8b486b4f9c7bdd9540050f2912c",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 16376,
+      "vertices": 8899,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 29,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/achiever-laurel.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 201476,
+      "bytes": 84688,
+      "sourceSha256": "2368a00ff224317695c796ce50c32263efe62af7ced4fe6050d5182a8e726346",
+      "sha256": "9fc86189a3918ed26f349b7dd3f3a81cde19cf3287581256719c16ab1253d63b",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 4268,
+      "vertices": 3280,
+      "primitives": 2,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/active-headband.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 248076,
+      "bytes": 91388,
+      "sourceSha256": "22ac8f9cbc17638bc510c06b63bf32066395c1977c984f48feb407c78a8e20de",
+      "sha256": "b23f239f93b783dacda4c146833404cd953a26059c632ac07afd55bc861a04a1",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 5872,
+      "vertices": 3007,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/almamater-outfit.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 1193708,
+      "bytes": 729340,
+      "sourceSha256": "13507d1f82a3948127f7399cc114622cfa26caeeaeb95d76c517b081fe4cf0ce",
+      "sha256": "585514d32771af2f35b03d240e9a44f8bc778cb4aa047c9b1b8628ba58e354c8",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 30768,
+      "vertices": 15910,
+      "primitives": 6,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 49,
+      "skins": 1,
+      "animationNames": [],
+      "textures": [
+        {
+          "name": "Zyra_ITB_Embroidered_Mark_Crest",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 205646
+        }
+      ]
+    },
+    {
+      "path": "models/items/crocodile/astronaut-back.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 178320,
+      "bytes": 102532,
+      "sourceSha256": "3ef274146b57343d450c8f8411274134ada2fb8053f4135447c8b0bb44b41a16",
+      "sha256": "16f539f6a0f5a7abdc81d5949607cfb4991075b426658e1544de80af7ce94bfe",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 3580,
+      "vertices": 2187,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 5,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/astronaut-headwear.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 274900,
+      "bytes": 120612,
+      "sourceSha256": "fce8fb79f317c23b55afa783808619209e281e0fcf2ba59e0b09edf4bb96c620",
+      "sha256": "f9882b4566623358611594ba3f04651563ac29fe666ec27aa912b58ce69e7746",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 6184,
+      "vertices": 3395,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/astronaut-outfit.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 986488,
+      "bytes": 530564,
+      "sourceSha256": "7d3e7135654d9984477bbaa4d99a5cd619db2107b1bae25b7e62d7038dd8c1dc",
+      "sha256": "98a40509b28f1eb2d22fcff2f7dafbd4bc793737335d3fc2436329dc7398bd24",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 28628,
+      "vertices": 15238,
+      "primitives": 6,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 49,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/basketball-headwear.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 130736,
+      "bytes": 63564,
+      "sourceSha256": "b1c5ffbee31bda2981fac63f63c5e1d8452e0c3490e9492fef3ca5d1914f85f9",
+      "sha256": "44026800bfcdd222cb7beb590318b1bf18a7373e8c98f1bf186e306b9e0bee2d",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 3360,
+      "vertices": 2402,
+      "primitives": 2,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/basketball-outfit.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 750844,
+      "bytes": 385040,
+      "sourceSha256": "fdd1d7fd4d594696c1cd27880177e4c5216532f51656a5699963501bb4e93083",
+      "sha256": "66e79f54218997a19a399362816648083cbf3337b0b577a415e2368317f6d180",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 21265,
+      "vertices": 11777,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 23,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/beach-hat.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 595412,
+      "bytes": 223596,
+      "sourceSha256": "dbe18badab1e2fbec3a0a6bce07fe4a5d6943494958e86c570f9543a9d7ab98a",
+      "sha256": "9a698fa32dae9717f1b16ca92c8ba25fa7bbf2b63fa29b248b1c6c196253e746",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 14154,
+      "vertices": 7383,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/beach-outfit.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 1445224,
+      "bytes": 1022420,
+      "sourceSha256": "6b3e5f142652d852e1eb2763645ac1bc2f9474d1013333c5068023c5d8d123b4",
+      "sha256": "035ec298cc409f62f8967f12ff6a5b9a585b129fbd4fc67b1b3d20127c7daad4",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 26288,
+      "vertices": 15418,
+      "primitives": 6,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 27,
+      "skins": 1,
+      "animationNames": [],
+      "textures": [
+        {
+          "name": "Zyra_Outfit_Beach_PalmPrint_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 341156
+        },
+        {
+          "name": "Zyra_Outfit_Beach_ShortsStripe_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 3694
+        }
+      ]
+    },
+    {
+      "path": "models/items/crocodile/beach-sunglasses.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 294680,
+      "bytes": 110940,
+      "sourceSha256": "cf604ac38df615e6543547357c31f31ec6f71af2941a6a1c85560da51e21a4c5",
+      "sha256": "b85813090007641b388fe32f77dae8778d1955ecd26bf75b53561f4432c44b8f",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 7052,
+      "vertices": 3607,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/business-glasses.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 154352,
+      "bytes": 68464,
+      "sourceSha256": "d0dd00238fcae6b37464582641515f637e61160b45445eb0b0cd3a3adb57253d",
+      "sha256": "673c2a3cc7df9258dd7322611a60640369b90bb09759599a170103179438cfce",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 3508,
+      "vertices": 1901,
+      "primitives": 1,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/business-suit.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 1022184,
+      "bytes": 526336,
+      "sourceSha256": "675e1475c614ca58401a8c53597951405b7a4afd440a5d08cd4d231e64a5c06e",
+      "sha256": "7893db2515b9a0df09ce4f23572f82cfe04e4240fc4255b8e056198fbe6a6f65",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 30300,
+      "vertices": 15735,
+      "primitives": 6,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 49,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/chef-headwear.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 312332,
+      "bytes": 144912,
+      "sourceSha256": "0fd191361c4750d6d9e2227f1c79c741b4c1337dd6a1cb8b32c124ab7f75f703",
+      "sha256": "4b25575794754681f5bf3ef5149013a918254e7b0c09b751a979c9cb6c40e306",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 6740,
+      "vertices": 3897,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/chef-outfit.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 1256656,
+      "bytes": 555448,
+      "sourceSha256": "0978f6c8069beaa850d78b6f3d9294e15c77aaa93649b9c5c5725b9ce8b0e3ba",
+      "sha256": "66f39c4197275955e7f25e735ea70912c8e9fe6c0132eef3fd20141dd37768be",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 29280,
+      "vertices": 15559,
+      "primitives": 6,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 49,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/cyclist-eyewear.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 91248,
+      "bytes": 43000,
+      "sourceSha256": "7a9c2bc67971071ed14021c92d0cb8dad8dc364843524a1f0ccf20538b2d2ffd",
+      "sha256": "286b7dcee662036f30de66db964a6f284e17119a8587e6cfb5e4d2be7b74c254",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 2084,
+      "vertices": 1099,
+      "primitives": 1,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/cyclist-headwear.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 383136,
+      "bytes": 203272,
+      "sourceSha256": "4d9febfab107580169d749e7e810e3dc6bb1d2d2f1b0c3846792172a2014e8c3",
+      "sha256": "6ff951381b0833ba14cbfc515773b0458466033da98dabbe022f8146d017a347",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 8652,
+      "vertices": 4767,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/cyclist-outfit.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 641576,
+      "bytes": 340960,
+      "sourceSha256": "d89df88e43c008a8ba2ae051c97c22e465904bb30ec411128fbd536fe1513ae4",
+      "sha256": "0378053e8d3921500cfc25f5791078c9430fc4a641059f50fff123f7e939a7fd",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 18690,
+      "vertices": 9928,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 27,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/doctor-cap.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 270316,
+      "bytes": 103244,
+      "sourceSha256": "3ab9ded1eb052bd716a24925d43daff011cebb0f60809b9483fd932df41b9597",
+      "sha256": "f94bb8c3d24e3d86dea4ca2097932fac971806fa484c63803745403d861e4c75",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 3980,
+      "vertices": 3522,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/doctor-labcoat.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 1046316,
+      "bytes": 548664,
+      "sourceSha256": "226a61a97acf382d1d58a563537f01776f22896c684c84c171ebadb6928768e6",
+      "sha256": "ff766c81651a29cf7a69b68b4c20504e4b74583305b1a1788f02f54ea4d7ff24",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 30632,
+      "vertices": 16135,
+      "primitives": 7,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 49,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/engineer-hardhat.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 303496,
+      "bytes": 159864,
+      "sourceSha256": "e157f3a4904b36c97f646141b0af3c473699cf9109b30b4ff014b794147c0130",
+      "sha256": "ed4bf2d9221bc813866a64dbc891981c500e19bef8652be6b3400fed4dc11595",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 6852,
+      "vertices": 3734,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/engineer-vest.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 1083972,
+      "bytes": 551748,
+      "sourceSha256": "673ca1f99e0b994ac18049e804da6cffb5a962488869971bda46b81d99a15dc1",
+      "sha256": "29ee829a36dcc8bef4483ebd95b02b927c6ed00b51e588824ca35edc493106b4",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 32112,
+      "vertices": 16683,
+      "primitives": 7,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 49,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/explorer-beret.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 181208,
+      "bytes": 76748,
+      "sourceSha256": "8dc6d3797dd231f18ec9873f2fad5f0971bb0facf02336ec3a44c969a2149edf",
+      "sha256": "62506c5ce022d6b40557279a3ac71d013cdefb676c8ea80b1dcd87fd6c37eb46",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 4036,
+      "vertices": 2894,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/farmer-headwear.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 319212,
+      "bytes": 128544,
+      "sourceSha256": "e8ec6afd535fb736b851846851c696cd6f7f3bad205170bf8e7e3c92d3b79e79",
+      "sha256": "5f8e5b085acd31485bab65c9285815d5cc6c7d5aadf859c8a2fbb68034ec624a",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 7508,
+      "vertices": 3908,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/farmer-outfit.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 821020,
+      "bytes": 422972,
+      "sourceSha256": "5463f277a63e8ba0acc544b5859dd32c3117ddb24e25ed6eaec03272bdc0a089",
+      "sha256": "389e3244480050390bf3fc804c78516484a83e6be35b1d55d67a75609e4cfd2f",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 24107,
+      "vertices": 12752,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 27,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/firefighter-coat.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 1346660,
+      "bytes": 668588,
+      "sourceSha256": "1cc4e8c3f55b905369008f306a35988f66f119fa16c48380c3ca6d34088577a6",
+      "sha256": "e0a99a0c67bc83ca24b1fd4af288392c8423371d38f984528f9f71f10b87cef7",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 39886,
+      "vertices": 20861,
+      "primitives": 6,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 49,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/firefighter-helmet.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 291736,
+      "bytes": 132304,
+      "sourceSha256": "2cf91760ff85c6ccf97e9eb51721b0c18479c58cc3df2be045f4a8861ce3d3d8",
+      "sha256": "31e4d65c554113d6264793b2966c6510262db2dd9f6b61d0f006eea8d4679257",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 7278,
+      "vertices": 4592,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/focus-headphones.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 440664,
+      "bytes": 204788,
+      "sourceSha256": "474c56ff8cb464af189269368b65e15802392b3cbb79ab9923fe92126056c7ea",
+      "sha256": "8673606031ca4155a870e5391aa081cd97e9c27258b35cb3f67da2da1e00ba10",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 9660,
+      "vertices": 5504,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/graduation-cap.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 223504,
+      "bytes": 106060,
+      "sourceSha256": "9f85c5ab01a6d48cd7892d0017eb05d87394d68e20ba895f5712651ca6f6efa0",
+      "sha256": "057f6cb876febb50f4808f45dba92520f2f0e24f22bf6b60b9ae4b8d9d5e61d3",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 5076,
+      "vertices": 2759,
+      "primitives": 2,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/graduation-gown.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 1509368,
+      "bytes": 817164,
+      "sourceSha256": "a5473b598cd8eee75f83a9b0d133791e48d0e3f80fdd918cbb5c4a2653fccd84",
+      "sha256": "efd17660a93439c79022866a48719970dcb4f6b55d573b6e4f8910dc2a80615a",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 39716,
+      "vertices": 20444,
+      "primitives": 8,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 49,
+      "skins": 1,
+      "animationNames": [],
+      "textures": [
+        {
+          "name": "Zyra_ITB_Engraved_Mark_Crest",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 168604
+        }
+      ]
+    },
+    {
+      "path": "models/items/crocodile/itb-sport-outfit.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 967272,
+      "bytes": 860164,
+      "sourceSha256": "74eaa93974db4472960e052cb7cace6982a2cf0a21884a9104496cbb3a6c4ecb",
+      "sha256": "a2778f43b3450edb610101cb864b6201b6703c4b224edbb2c2570fc7db68f256",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 22432,
+      "vertices": 12259,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 27,
+      "skins": 1,
+      "animationNames": [],
+      "textures": [
+        {
+          "name": "itb-official-color-2026",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 465432
+        }
+      ]
+    },
+    {
+      "path": "models/items/crocodile/police-cap.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 231720,
+      "bytes": 102588,
+      "sourceSha256": "88aa89afebdf357a2182b80d06a62794a6fc89bdf321069d298f1a7c86b1a30f",
+      "sha256": "9f96cf5d8fa5369293f1378c9bbba36b9981bfcc763250a74d0ff5f208588d43",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 5560,
+      "vertices": 3689,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/police-uniform.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 1055228,
+      "bytes": 541712,
+      "sourceSha256": "fb2d40466057d10dae64ae293a8ff5a7a31f384ec09418ed9ec18eb53f80f4e1",
+      "sha256": "a76533889de181db34ef0cc4feaa44283b8ad8bf92b398b00826fa3a2fd9fddc",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 29890,
+      "vertices": 16414,
+      "primitives": 6,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 49,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/scholar-glasses.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 179920,
+      "bytes": 73276,
+      "sourceSha256": "5bc370deeeeeaa90afec4e5f95e12d5d8ec9cb53708bbd58d560b4d5bf3af258",
+      "sha256": "fc6c0306d5261151f12970a77a349e9367dc2a3163cf624cb7ab48cca57e16cd",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 4148,
+      "vertices": 2221,
+      "primitives": 1,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/crocodile/zyx-shirt.glb",
+      "kind": "item",
+      "character": "crocodile",
+      "variant": null,
+      "sourceBytes": 1071232,
+      "bytes": 496372,
+      "sourceSha256": "a731c0c2c2a29d5d9ef6eb5591565c5df4d90c08d200602258136ecfc2af207d",
+      "sha256": "8899aeb9d23b74bcf04ad49b73bf866b775026655436ef8765ccd26ff53abffa",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 26004,
+      "vertices": 17347,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 27,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/cyclist-eyewear.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 90656,
+      "bytes": 42252,
+      "sourceSha256": "d8fb8c00e4844b3a20b106e913ec147c4cd827887ecb1b723a9aecdd5385d00e",
+      "sha256": "cf50df681ba3e3ebc1f45509cfc1fc9acfcd669d3c1e8b60cb6d142ac611cd56",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 2084,
+      "vertices": 1099,
+      "primitives": 1,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/cyclist-headwear.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 382428,
+      "bytes": 201920,
+      "sourceSha256": "6028d47c0b739385c4029550939cf1db2e7727d6b16275564de0cb4c46cef191",
+      "sha256": "328adf06d82b842efe3f4c6bb6672cd4e536720764bcc0db0b3e98dfa61e35a9",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 8652,
+      "vertices": 4767,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/cyclist-outfit.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 563424,
+      "bytes": 256544,
+      "sourceSha256": "0475ea0d38192296a25ca21ccd9e43a8a8a76e29f47982de37b2c7854610da97",
+      "sha256": "9f6b37033defb220581bc3811943c770356ea779bdecf3281110a4a1eca9ec5a",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 12948,
+      "vertices": 6978,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 17,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/doctor-cap.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 269184,
+      "bytes": 102560,
+      "sourceSha256": "8ba11a87420c062c0070bacb969c1071f592ad873d2d6112a90ca76685d8be68",
+      "sha256": "c49864bd5d6ef6e85650bcf03c8af83a6703d375a3f94cf86bcefc0d7b46825e",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 3980,
+      "vertices": 3514,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/doctor-labcoat.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 721464,
+      "bytes": 340072,
+      "sourceSha256": "bb674dcb209c164503925ca8b21f9f78fdc9b3ccff01fbaa62afa1c987e1bb54",
+      "sha256": "19dd520b5e44841ab6b85cabcca0024c479af709ed57a47d6c819c9440d8a929",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 16530,
+      "vertices": 8883,
+      "primitives": 6,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 29,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/engineer-hardhat.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 302888,
+      "bytes": 159228,
+      "sourceSha256": "0ddce94fcbc50693e00b97005ce97cec860791d221dfce8fabc7fa37c9cef179",
+      "sha256": "3e886c3cb69fc089568d5f683665c8b23d922307a157150e664254555129f79b",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 6852,
+      "vertices": 3734,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/engineer-vest.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 580376,
+      "bytes": 303904,
+      "sourceSha256": "4be02c0722f433a457194500fc4d887e7e1f9ee872021b21093c2d6090869ef3",
+      "sha256": "f5b9f8b1906809b2b48da6589a74d58d4a210932b1d827f23e55e74fe10d5966",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 16972,
+      "vertices": 8868,
+      "primitives": 6,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 29,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/explorer-beret.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 180604,
+      "bytes": 75960,
+      "sourceSha256": "99aa33f64cd7f8809dae43760d02ab7273ae865530ce147f4ad12a66eb017d83",
+      "sha256": "ab6914df93926237378ec89833f0f06eac7d5a75bc64f1273e53572f9bbca0f3",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 4036,
+      "vertices": 2894,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/farmer-headwear.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 318620,
+      "bytes": 128112,
+      "sourceSha256": "4e42aec6a1d136d5063e3973b104ec6edc80a5599ed5f3e2d99d8e2d29dcc69f",
+      "sha256": "9cf0af3cf58c034918c6eceeb1eddbe5c650e26a3fb61b0b8aa3b520972c2107",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 7508,
+      "vertices": 3908,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/farmer-outfit.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 770504,
+      "bytes": 333932,
+      "sourceSha256": "d7c61d9a0e16d892228c0e883b16a9222b7cab15a00c33f06fd69a1c6614b6b3",
+      "sha256": "24cd5f0a6538ee586bc2f88dcbfa8cd3dbd2ce3c109250dfc94d8703e0091e79",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 17958,
+      "vertices": 9580,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 17,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/firefighter-coat.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 859656,
+      "bytes": 390812,
+      "sourceSha256": "f3ba547901a60c0eb324a7d64be3dee90a5b7ecce5b0e1fc5d505eef7ec7f42a",
+      "sha256": "3f83784272735cad370b93ac87b009ff82679cc0c232ae37116a5f71a7f2374a",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 19864,
+      "vertices": 10640,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 29,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/firefighter-helmet.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 291144,
+      "bytes": 131884,
+      "sourceSha256": "e735971b3190ca9d6a21d18924bc54f03436bc35fec26f21648268611ea657b5",
+      "sha256": "854527b02346a51258261e484cec5e6a2511bfeafa1244138780e6bb06e0f3e0",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 7278,
+      "vertices": 4592,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/focus-headphones.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 440052,
+      "bytes": 204324,
+      "sourceSha256": "87fc269f2198b2434e2ba215e4d3f4e8c821ee519c783d5644282b3b64bd5409",
+      "sha256": "ea67f72aad7513ec88e9e4147cd46a4818e8ae16fc000d797fb2396b345dd848",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 9660,
+      "vertices": 5504,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/graduation-cap.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 222912,
+      "bytes": 105416,
+      "sourceSha256": "4f01d3658049d4dc679d2698e7894ca4a6f2cdf08ef1b01c903bf4723ed28513",
+      "sha256": "c9da8dc0a864097e53c88be2e4e4acd6172edf3abd8246537bd968d97bb54e82",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 5076,
+      "vertices": 2759,
+      "primitives": 2,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/graduation-gown.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 1412296,
+      "bytes": 632588,
+      "sourceSha256": "f015b30879b964250652c7ab956a21abbaa131a4d756aa5c3d4bb38f07e6fe45",
+      "sha256": "bfdc02eef836c63a84d889ac177f7cf2f3a8f117e5cd090863cb6a1c12dc4ab5",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 29566,
+      "vertices": 15177,
+      "primitives": 7,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 29,
+      "skins": 1,
+      "animationNames": [],
+      "textures": [
+        {
+          "name": "Zyra_ITB_Engraved_Mark_Crest",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 168604
+        }
+      ]
+    },
+    {
+      "path": "models/items/itb-sport-outfit.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 969300,
+      "bytes": 849568,
+      "sourceSha256": "e29dce9e872228c5a7e517b8222564f60afe1d1ea696340f4bb76b9a92532690",
+      "sha256": "3452531cc46ac16d8bc312aca2cdaff3b0f66e79ac4e4df61d06e4aca77fe8d9",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 22472,
+      "vertices": 12342,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 17,
+      "skins": 1,
+      "animationNames": [],
+      "textures": [
+        {
+          "name": "itb-official-color-2026",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 465432
+        }
+      ]
+    },
+    {
+      "path": "models/items/police-cap.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 231124,
+      "bytes": 101868,
+      "sourceSha256": "3def8a633080350d52fb03e7252d4ca907663e00c12b30b3195cae1f9f4afcb9",
+      "sha256": "45f824a738a88f226fae6a7adb32a4079e052ccd713b7bd93704d8865622f657",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 5560,
+      "vertices": 3689,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/police-uniform.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 562808,
+      "bytes": 296780,
+      "sourceSha256": "b361d86e26f11202063bb408a874ee00bac812e5451ba46f429976385de71f93",
+      "sha256": "e734f4871add1764560b55cbe6c5e74ea6f004d03853ece0477151157a29e11e",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 15134,
+      "vertices": 8769,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 29,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/achiever-laurel.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 201452,
+      "bytes": 84556,
+      "sourceSha256": "d782dece6b54db07639ba515518ea2f807d1ba41508d1e4ff8be0af0f47d9319",
+      "sha256": "beb447a381dcf321d6e2c5acba162efeb85f16ef92603d121305a64bdcadffc0",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 4268,
+      "vertices": 3280,
+      "primitives": 2,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/active-headband.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 248056,
+      "bytes": 91448,
+      "sourceSha256": "602634162516a38e79f3d0732ff751b9ca7d8c0a80228ed18499d2e6eaa3ee73",
+      "sha256": "f48354a8af00cfc2dfc5fd7bc6b76b7d061c6c626a429b507b9c794349d06347",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 5872,
+      "vertices": 3007,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/almamater-outfit.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 821664,
+      "bytes": 530112,
+      "sourceSha256": "2f73013f88b8d940a1365617b161e839cf803b4a44a4f0e64aa73c078ead3bc8",
+      "sha256": "91c059548c1415a1d8a0c17f9cbde2affd3123e966a9c290e81a82d9b161b6d4",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 19564,
+      "vertices": 10142,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 33,
+      "skins": 1,
+      "animationNames": [],
+      "textures": [
+        {
+          "name": "Zyra_ITB_Embroidered_Mark_Crest",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 205646
+        }
+      ]
+    },
+    {
+      "path": "models/items/rhino/astronaut-back.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 178260,
+      "bytes": 102588,
+      "sourceSha256": "4c309f101dbda2a1dff8d680d76445409c10bdfd36abba4f83042f96ebf34e93",
+      "sha256": "b9baf4d4fee954147ce9463200a4f7f97c1254285603927513c3940911a59619",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 3580,
+      "vertices": 2187,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 5,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/astronaut-headwear.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 274888,
+      "bytes": 120516,
+      "sourceSha256": "c84fa31ae3a776e0cb5709d7663de59e93c8fdf18be8f64428b4af59b79ac6bf",
+      "sha256": "76e9067519f84b01dc80d830b887daca275184cf5d887b9171aadd6501048a6b",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 6184,
+      "vertices": 3395,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/astronaut-outfit.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 1150028,
+      "bytes": 511872,
+      "sourceSha256": "2b6d7f1faf14cf5548ca13ceb4611ae4c1425a312ccd3b90c1768dfa1f0a6aeb",
+      "sha256": "f0bfec9b00104e5c2b19c675960e5f435822d16af6b94a9d0f13bf18944d6f56",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 26682,
+      "vertices": 14220,
+      "primitives": 6,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 49,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/basketball-headwear.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 130712,
+      "bytes": 63480,
+      "sourceSha256": "776870b1ca865e794035a5f27e5fdc99f90b2e99526a2de175fff7d007672bcf",
+      "sha256": "99c62c1fafd26b2349c0b3c5c12f154ea2e455c2d230e7e3f4241f6386ca4d70",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 3360,
+      "vertices": 2402,
+      "primitives": 2,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/basketball-outfit.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 737372,
+      "bytes": 348744,
+      "sourceSha256": "37ac3fd19118ddf17a858cde121ba72e6111bef00654c1d7c56c217481a11cde",
+      "sha256": "288c6cee497aed2cc4cd83efddbda5bd03af25acfdf753914d18586968af911a",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 16366,
+      "vertices": 9242,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 22,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/beach-hat.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 595392,
+      "bytes": 222292,
+      "sourceSha256": "b384f48d00680156534bde3395a580a1061ec72055dd579873298f34e761ae6f",
+      "sha256": "edffacccd6fb9f935f43ee7e7de141484be1a2678809d2ff2a5a304c88be0436",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 14154,
+      "vertices": 7383,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/beach-outfit.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 1203120,
+      "bytes": 908632,
+      "sourceSha256": "96e01b2525b01a53f5a592a709070f50c380c0fbbc6b420a26ee0e894b161a18",
+      "sha256": "5cb82f13b6c5038851f1f026403bcf965bff9d3146312f562c83a3ced0d51517",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 21327,
+      "vertices": 12299,
+      "primitives": 6,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 27,
+      "skins": 1,
+      "animationNames": [],
+      "textures": [
+        {
+          "name": "Zyra_Outfit_Beach_PalmPrint_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 341156
+        },
+        {
+          "name": "Zyra_Outfit_Beach_ShortsStripe_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 3694
+        }
+      ]
+    },
+    {
+      "path": "models/items/rhino/beach-sunglasses.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 294660,
+      "bytes": 110812,
+      "sourceSha256": "3fe4b910a060dc579472e5d79c716f2fb95e70c66ec222b0b25f23a29b2410be",
+      "sha256": "ff8b6628cec63be7f35167391fcb9dea9222bcefebf8f4036425e82cff7287a1",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 7052,
+      "vertices": 3607,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/business-glasses.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 154332,
+      "bytes": 68084,
+      "sourceSha256": "77b320da4f41a29f6829ad5cc3df24be4ef380a1590468e0fe0f82c583d03d82",
+      "sha256": "7de93afdf80560ecd8cea1d868c40dc6d89a1951d636ea41c7151572209dd83b",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 3508,
+      "vertices": 1901,
+      "primitives": 1,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/business-suit.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 730284,
+      "bytes": 320340,
+      "sourceSha256": "8f69f0db43ee3376f5138ffffbf8785a1bdc5bebe620bf42ab5b6ff1ccb98d48",
+      "sha256": "b3471fb71214d263b6ba1f4a644a8c46e4b4c7663d55e709184d93490bfc0a17",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 17164,
+      "vertices": 8960,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 33,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/chef-headwear.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 312312,
+      "bytes": 144788,
+      "sourceSha256": "d59aa82b257cc482cc366600cddc7951ffed2f790cde6cf8cbabb53f607f8efc",
+      "sha256": "46748f0040892a29f07fc3d9f053043928e9bbe9fc1f8a98e7e2581f0b0f3af9",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 6740,
+      "vertices": 3897,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/chef-outfit.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 721332,
+      "bytes": 337400,
+      "sourceSha256": "80adc50cd69ac248edb947e18f1624a86799597e54aa543b780fd88106ae08ff",
+      "sha256": "6fa7802ab8e1d2cc1fdf26aafb0e53deb18e0bc10f02e3f463d28ae4d9cf62e2",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 16376,
+      "vertices": 8899,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 33,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/cyclist-eyewear.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 91228,
+      "bytes": 42920,
+      "sourceSha256": "45051cf4b5390345b1129ffcb851064f1f18df2ec574c2679531edf2907a8fcc",
+      "sha256": "0d8f3ad81ba3ff671ea490e2f8cd9638e1939f825b3cd70cbdcc0f19edc2d5bb",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 2084,
+      "vertices": 1099,
+      "primitives": 1,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/cyclist-headwear.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 383112,
+      "bytes": 202932,
+      "sourceSha256": "51135da36e6a3468b42fa5ab90a8dd71bca6960dc2b6e39d12c244732b6b34b4",
+      "sha256": "26aa849a0f5877524f3d2c822ae7c4ceac1a0f77eced8e65c25b9a94ce571866",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 8652,
+      "vertices": 4767,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/cyclist-outfit.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 565936,
+      "bytes": 273516,
+      "sourceSha256": "01affbe6478b2db24b4f67d97b6fbc0f41110296f1a1b059a01bda0e8982e0d8",
+      "sha256": "ce72c0fd1337a5cc55646f05e7926c32f9f69c507e55cc0939b4659010897ee2",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 12948,
+      "vertices": 6978,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 27,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/doctor-cap.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 270432,
+      "bytes": 103232,
+      "sourceSha256": "8dec5f8d73c9408fcefc153e4cab2f446f7b1896a8737d63210e8b64d837d617",
+      "sha256": "87a83bd57368328a05b90a396408d3db98e83387d0b90547bce42cec08285fb7",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 3980,
+      "vertices": 3524,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/doctor-labcoat.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 723148,
+      "bytes": 350028,
+      "sourceSha256": "8f703c9a7ac642b4b66e3bb76dac7541585a873b79d806965027be9f0a5f5496",
+      "sha256": "8947979de81bf78bcb05c898f82722d06240150700878e9f4bc1dc9029656c2a",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 16530,
+      "vertices": 8883,
+      "primitives": 6,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 35,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/engineer-hardhat.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 303472,
+      "bytes": 159728,
+      "sourceSha256": "f958e06fec7605e1bbf05ac480b239c1a3753de78b0fe8665e1f69d9d6b51dcb",
+      "sha256": "4ef4720a6657a29f4c434bc66e22bb253570e63cbb8f49c612f0a5ef95dbc564",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 6852,
+      "vertices": 3734,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/engineer-vest.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 581636,
+      "bytes": 310792,
+      "sourceSha256": "6cfdf45a0f907ddd7f01f35fb0b5dd385ec35569368b8f366fb58df1e245166c",
+      "sha256": "574401c0e9297a7a45b262b0815aca27c8d7bae26742613796f4c2cfb870b90b",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 16972,
+      "vertices": 8868,
+      "primitives": 6,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 33,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/explorer-beret.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 181188,
+      "bytes": 76748,
+      "sourceSha256": "99689e6180fffa591e8af8b3d49e0e7326992af4edbbd9918ecb7debc9c54340",
+      "sha256": "c4c553b4da66cc3c8fbc4c2648f8008271bc1d2482e37bad99195ad463dcd965",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 4036,
+      "vertices": 2894,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/farmer-headwear.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 319192,
+      "bytes": 128692,
+      "sourceSha256": "b52cc850bfe3b1fb96c222f01114ed7162fb03ad3873e16332d4249853fc8c87",
+      "sha256": "e6334c7e75e7b50af5c1b6d7f3e39f7515f0162716d6991e0c279f7b4d83189c",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 7508,
+      "vertices": 3908,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/farmer-outfit.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 773020,
+      "bytes": 358232,
+      "sourceSha256": "4d373e68c478f11d0cdbec877c2ed195f2e56ccbe41f8df25d4f9a321fdea9c5",
+      "sha256": "59b56dd6e98f50a463fa3d1458cf6f22de99cffb728804ac00dbe34a95d769cf",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 17958,
+      "vertices": 9580,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 27,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/firefighter-coat.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 861548,
+      "bytes": 390524,
+      "sourceSha256": "637c0612f6b5c248acbb3079b12c9257ec48f83380f03cd276de82f4e119e26c",
+      "sha256": "4af2a1b40bded6a4ac1870ccd34d58526d92995f5d46b6b6595abbc9a6f800e7",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 19864,
+      "vertices": 10640,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 35,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/firefighter-helmet.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 291712,
+      "bytes": 132168,
+      "sourceSha256": "9b603884909a891ad4b7ce4283345c5efd2db559cc1326ea284898b76deaa63a",
+      "sha256": "b8935e0a7bd7e62c34896a7c0f747709199cf04684673bb37342ad3aaef4f258",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 7278,
+      "vertices": 4592,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/focus-headphones.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 440644,
+      "bytes": 204700,
+      "sourceSha256": "a54a49e397d5c76301a6a49535f9e60630676cfc36cde6f2bdd4fa1812fb364c",
+      "sha256": "e5206db2fdc918d4de9a4cc553d57225819901f853540a0776844e28baee22a3",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 9660,
+      "vertices": 5504,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/graduation-cap.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 223484,
+      "bytes": 105588,
+      "sourceSha256": "ef3eaf9726d9f8da9a433cd1a307cb2706a42bf5e1ff2d3334700eb7646a240c",
+      "sha256": "57b0282c2fdcda2b53d6dcadd4a4800727d9d4bac68fb40f937d19c7fc7a64b2",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 5076,
+      "vertices": 2759,
+      "primitives": 2,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/graduation-gown.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 1147216,
+      "bytes": 629052,
+      "sourceSha256": "1402ff66977e787bfa18ad99ea1906200f556634aac3662c130c2e15213e5375",
+      "sha256": "70cafcd8f581ba9c112322dfb40168179380fc6fc536a83dc3cd661648e35088",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 28806,
+      "vertices": 14807,
+      "primitives": 7,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 39,
+      "skins": 1,
+      "animationNames": [],
+      "textures": [
+        {
+          "name": "Zyra_ITB_Engraved_Mark_Crest",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 168604
+        }
+      ]
+    },
+    {
+      "path": "models/items/rhino/itb-sport-outfit.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 971916,
+      "bytes": 892324,
+      "sourceSha256": "49e605b2b0035a1e2c8be24caf0a631f4854a3d541edb9697815c4437c5648db",
+      "sha256": "2d173503109c5ad1e24d84f8e3b1db19e54c4eb2963538ddff0c68b503600305",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 22472,
+      "vertices": 12344,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 27,
+      "skins": 1,
+      "animationNames": [],
+      "textures": [
+        {
+          "name": "itb-official-color-2026",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 465432
+        }
+      ]
+    },
+    {
+      "path": "models/items/rhino/police-cap.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 231696,
+      "bytes": 102536,
+      "sourceSha256": "af020a4ee7f1c2e38e17ed72a814b9800b85d28e2c9a323c41904d61fcd02de6",
+      "sha256": "2d02f02122891462893000a61edf2aa84faa49570ace3d4dcee85ed153744670",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 5560,
+      "vertices": 3689,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/police-uniform.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 564068,
+      "bytes": 303432,
+      "sourceSha256": "808dc8979df77c0405d914c2089fab7a81ed536c92f164bbed7145247f6fd721",
+      "sha256": "330e1008ab42339ba2aea99af33b86a78af1f000aa5cf9a7f0ab93df118f45f7",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 15134,
+      "vertices": 8769,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 33,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/scholar-glasses.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 179896,
+      "bytes": 72920,
+      "sourceSha256": "d740e866f791aa43748762c2e6fe32601feb1b98114375b43237b39fc9ecc172",
+      "sha256": "45de8fa11c39550c656d7f3e63cbc8788aaa25639bdea5084afaa7f957f131e7",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 4148,
+      "vertices": 2221,
+      "primitives": 1,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/rhino/zyx-shirt.glb",
+      "kind": "item",
+      "character": "rhino",
+      "variant": null,
+      "sourceBytes": 1041304,
+      "bytes": 393124,
+      "sourceSha256": "776b9c5011a32ec9de2e608bdbea79c1d7dc8c5d6ab2a89422f60a3e534702a0",
+      "sha256": "84411e5345a147fbb361ab5314e718392819e508ca329d14d928d80d6a106366",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 18656,
+      "vertices": 13518,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 17,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/scholar-glasses.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 179324,
+      "bytes": 71784,
+      "sourceSha256": "2a02bd2325f24485f5660d93a320f9b29d9d7e429b8f7f9fdc4019a5d2b90b3a",
+      "sha256": "7a8d5ab95837d11e5292a281e5a13cb3da76a65eae7e4cbc7e5bf4ded6442c3a",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 4148,
+      "vertices": 2221,
+      "primitives": 1,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/achiever-laurel.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 201340,
+      "bytes": 84036,
+      "sourceSha256": "1c38ab933e415c6389a5fa28309420dd57c90f6797d286b9560c5dfc9cb73916",
+      "sha256": "dec36631514a401a1e2e141f9d295d00d66ca7dbf9c3635a4467d0169ddca88a",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 4268,
+      "vertices": 3280,
+      "primitives": 2,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/active-headband.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 248056,
+      "bytes": 91240,
+      "sourceSha256": "e5be088e3e019b0e511ed3178e8655040bff9e33fcdc5bb41e9615790cd4fc30",
+      "sha256": "280b02d185461207f1ddf72d73210962c779505204f40643d881cd90eaaee632",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 5872,
+      "vertices": 3007,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/almamater-outfit.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 965480,
+      "bytes": 555264,
+      "sourceSha256": "656f2c509f336b214a68f4e4a2759b866a63031b111e49a8942702d981143724",
+      "sha256": "bb1cc24878ac6fc83b5cfee333fc182e711218939a1fdd3891546c6b3b113a58",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 19088,
+      "vertices": 9902,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 33,
+      "skins": 1,
+      "animationNames": [],
+      "textures": [
+        {
+          "name": "Zyra_ITB_Embroidered_Mark_Crest",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 205646
+        }
+      ]
+    },
+    {
+      "path": "models/items/tiger/astronaut-back.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 178300,
+      "bytes": 102768,
+      "sourceSha256": "d18218d6f6b5990c11426003546313d6d04420f2f102bb4ed5fed87ebe511e60",
+      "sha256": "9b0a7fdda06b0485e797a825e9a6b4d2497f636c94ed55adaa3a5f46e772f51c",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 3580,
+      "vertices": 2187,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 5,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/astronaut-headwear.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 274880,
+      "bytes": 120324,
+      "sourceSha256": "4486f0e0d79715aac3f63e04b742f8e588be70fd740786b0424e82f5dff11e5a",
+      "sha256": "0ba4727ffcf8fd89df2d7b9ef7108f336c837a85b02e236e17382ce4c368bb00",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 6184,
+      "vertices": 3395,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/astronaut-outfit.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 1152036,
+      "bytes": 512872,
+      "sourceSha256": "3d7f6eb6036496de109e38db26f87afe2d8cef071bf27a49cb42ccfec7e74b44",
+      "sha256": "110cd8fa2bacf5714ef73f6cd7402f182a23691ada71a1a0be18f80c2e8dbdab",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 26732,
+      "vertices": 14245,
+      "primitives": 6,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 49,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/basketball-headwear.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 130712,
+      "bytes": 63904,
+      "sourceSha256": "102c1463133dbfba52a008b2143c671ef7c83e5103326ebad1d45df296bc307d",
+      "sha256": "7a3545de0add662b9e4c69f89db8d9d9f88dd9bfd7771392a7f87538753b8909",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 3360,
+      "vertices": 2402,
+      "primitives": 2,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/basketball-outfit.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 736528,
+      "bytes": 340848,
+      "sourceSha256": "0dbef800f00dfde2c53d2408598dfab635507db3c9875a10add747421fa7654c",
+      "sha256": "8dd71426a971855d1bf238cbd77924a29e1a4a3f24000cd7d7e8fb8a6bf12fd8",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 16366,
+      "vertices": 9244,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 19,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/beach-hat.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 595388,
+      "bytes": 222932,
+      "sourceSha256": "0d23daa3e20d08ae275aa635df2116f0667505549bfad94f0f1beeb0e35a1e8b",
+      "sha256": "ea9cb18781394fc8ce74cb7f56c405a638b89c19be29fb8ea7adfaa7765c429d",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 14154,
+      "vertices": 7383,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/beach-outfit.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 1203124,
+      "bytes": 910992,
+      "sourceSha256": "c8bd44ca847dbf39ed39c5f44e1b84c9d71ebbdb8baf50b1590be4a38227fd2f",
+      "sha256": "8e9fe6d8e16b9e76942a6e60997f06d6b16979d0f644768e53f88718ebca8540",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 21327,
+      "vertices": 12299,
+      "primitives": 6,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 27,
+      "skins": 1,
+      "animationNames": [],
+      "textures": [
+        {
+          "name": "Zyra_Outfit_Beach_PalmPrint_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 341156
+        },
+        {
+          "name": "Zyra_Outfit_Beach_ShortsStripe_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 3694
+        }
+      ]
+    },
+    {
+      "path": "models/items/tiger/beach-sunglasses.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 294660,
+      "bytes": 110520,
+      "sourceSha256": "259203982a118ba610b654e6a6b6eb0f43d27eff981d93ea43a4bd2ab7e1e009",
+      "sha256": "7cc335974f4a4dc5064dd55b288aeafdb13bcf0115995f01ef550ea2dd25abc7",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 7052,
+      "vertices": 3607,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/business-glasses.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 154332,
+      "bytes": 67404,
+      "sourceSha256": "744789035c91d985c48f5b90244bc9753aa38b70db6b004ec95606dd02a3811f",
+      "sha256": "57000fba557bedcd74ef2e07999d00506a5e644d649aa79fb96588e5cca9898c",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 3508,
+      "vertices": 1901,
+      "primitives": 1,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/business-suit.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 730280,
+      "bytes": 320736,
+      "sourceSha256": "49ae81107709a802b64c7ea198b548b3e61d7f70216bd78e82ef939640c56f10",
+      "sha256": "caa992cd8f4ffe0e1c3a2f750038a843f35984f7dd7e60d09ef85292244d65ad",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 17164,
+      "vertices": 8960,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 33,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/chef-headwear.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 312308,
+      "bytes": 145548,
+      "sourceSha256": "4bed268b1e37e5d2b695fe655dbc199795448599e17288e7933604ee5cb6375f",
+      "sha256": "174f08ab9097b083ca70de1b33cef1a69d3f9781ace0f5b3baeef07c4ed17b76",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 6740,
+      "vertices": 3897,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/chef-outfit.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 721324,
+      "bytes": 339268,
+      "sourceSha256": "b3a1f6362abeb23e1faccc6004e4656583892c4ba93d3a32c15c27ea8f6b9e13",
+      "sha256": "ee9f048436242cbdadf2fb6f613728e7bceae3a2bacb16cb901a126fb445ad1c",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 16376,
+      "vertices": 8899,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 33,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/cyclist-eyewear.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 91228,
+      "bytes": 42744,
+      "sourceSha256": "e1ba8403ee531b4bd51cef46b079bfa61735fd6596bf88cf9af27a75262603a0",
+      "sha256": "9c09da5eb9ff941d03a2a3f1a160ea18d53eec7b138ba1ec66c0ca5973b5480e",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 2084,
+      "vertices": 1099,
+      "primitives": 1,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/cyclist-headwear.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 382996,
+      "bytes": 202636,
+      "sourceSha256": "98c140e2df0560f2337bb5ec11b739dc279ffe81ebc67e5783ee2212f1c38d98",
+      "sha256": "ebe79846f713aa67c906f7f7c713310009addf47d9bb651ba54588e4f3a4f278",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 8652,
+      "vertices": 4767,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/cyclist-outfit.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 565936,
+      "bytes": 273576,
+      "sourceSha256": "8373d9bf008bdf052eee330f55f2cd76da248a5142f6f8178f1abd7caff4beeb",
+      "sha256": "30b6430c608f49d9f3d79b9c07d66e11f86a09f7e645de287018f3dd7744c3ee",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 12948,
+      "vertices": 6978,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 27,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/doctor-cap.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 269748,
+      "bytes": 103248,
+      "sourceSha256": "d143a832d5dc3758f0f9cd0c7dbec7d3a927bb982438b03895b66a457a779720",
+      "sha256": "534c7bb859ef74fba6936202ba036adb9ac055860010044424981b716c178e7c",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 3980,
+      "vertices": 3514,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/doctor-labcoat.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 723148,
+      "bytes": 350908,
+      "sourceSha256": "73bde193cc84e1c1a9e44732b3a69d96435f0b4459427753fffc40686fa374ee",
+      "sha256": "f0a28d66b79b5ed62ac363d81bd659e08e928bd16ea8ee6a36c4e13d45d7d826",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 16530,
+      "vertices": 8883,
+      "primitives": 6,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 35,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/engineer-hardhat.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 303476,
+      "bytes": 159776,
+      "sourceSha256": "f0b970e2ab19aecc60c3a9d7f2344e2ed82019c54289dd2ae603cd846a70895a",
+      "sha256": "244bb81b1a483a42b6e8d0b15a67081c1af8e2778a3c4787c0d02d5228385bcb",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 6852,
+      "vertices": 3734,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/engineer-vest.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 581632,
+      "bytes": 311752,
+      "sourceSha256": "30916678e5fa4487464762ae8f69ff77406dd3b544a4b48c479c222fdf3d6f09",
+      "sha256": "441ec7d622c18c5eaa215639295a7050c0727a6654064d06cb8efa2843d0a9c3",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 16972,
+      "vertices": 8868,
+      "primitives": 6,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 33,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/explorer-beret.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 181192,
+      "bytes": 76720,
+      "sourceSha256": "68a98dbe8964d1c259806ed1a421e735f3b06135668ae6ea1416da4f2a50ea70",
+      "sha256": "d077f02a693f187056a808f9494aae9fd7466df7bc741a35256e9a6917714bc8",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 4036,
+      "vertices": 2894,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/farmer-headwear.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 319188,
+      "bytes": 129084,
+      "sourceSha256": "1c06af5acb6f559ae76ff99f3c0202d6187b4899dc81eb4636eb5c1c344a21ab",
+      "sha256": "519b73968cf633b3949f8bd7b2b95800ef9e2fb622638cf576e92b7b9696c858",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 7508,
+      "vertices": 3908,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/farmer-outfit.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 773020,
+      "bytes": 358984,
+      "sourceSha256": "68770bc9a27c506b9b89683b505e9594cd20bd0191119beadb46b08138324f72",
+      "sha256": "0c2e71b89a43c0ffdf0bd1ac9f5b9da9b5f9eb4916e9dcd8e47a1e286311ffb8",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 17958,
+      "vertices": 9580,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 27,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/firefighter-coat.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 861548,
+      "bytes": 391104,
+      "sourceSha256": "382b6509815234bbb0e8ae03d73033bf4c2e853ea7df02e51044c94438507132",
+      "sha256": "25613131ab5caf4284b0b27c38a3f7837b706cf40e3970bd17381334c42d3330",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 19864,
+      "vertices": 10640,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 35,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/firefighter-helmet.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 291712,
+      "bytes": 132184,
+      "sourceSha256": "706f3b98cd39fc92f0ab663c9ff3a6fdd1be34b69fdc9a7108d828cfd81518b6",
+      "sha256": "3ed2e8e0259829dcca9881c13968e7fa02ac76786bcae64ab8ae6c966a97539d",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 7278,
+      "vertices": 4592,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/focus-headphones.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 440636,
+      "bytes": 204724,
+      "sourceSha256": "bd4e84bfeab7c3988a65bd7a4d1fa5fde83a5f86e1281ee8290e0cde1a66746f",
+      "sha256": "d93143ce0a1eb3cc8227548cf0553b3c858c90ca988743d7cdaaebf3827df67c",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 9660,
+      "vertices": 5504,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/graduation-cap.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 223484,
+      "bytes": 106344,
+      "sourceSha256": "78fe7a3b104f584554927349263f8d43df6ae0c68091cabbeb386f3eda5f45da",
+      "sha256": "4d90f9e997325f6c7ae43331741b30c8e474bce710e324cae1f8db7327c0b181",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 5076,
+      "vertices": 2759,
+      "primitives": 2,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/graduation-gown.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 1414880,
+      "bytes": 670560,
+      "sourceSha256": "5500920ec1f4d5ea3a9b0638d123f3ce540b16ad1bd58970eed3df541bc2e6e6",
+      "sha256": "8d4a1a310df15c67875b657717869fb2b4d0dc72d15b3020ce2d0f65d0ee11a9",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 29566,
+      "vertices": 15177,
+      "primitives": 7,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 39,
+      "skins": 1,
+      "animationNames": [],
+      "textures": [
+        {
+          "name": "Zyra_ITB_Engraved_Mark_Crest",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 168604
+        }
+      ]
+    },
+    {
+      "path": "models/items/tiger/itb-sport-outfit.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 972020,
+      "bytes": 892708,
+      "sourceSha256": "d54d001f303fe8d6f1620a80520f0256b0f13bcf4928e67d9eaf222a5e67e995",
+      "sha256": "bcf8887930b770ec294aa8b55efbd7d30679900c75fd1930cb64f79e1d696855",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 22472,
+      "vertices": 12346,
+      "primitives": 4,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 27,
+      "skins": 1,
+      "animationNames": [],
+      "textures": [
+        {
+          "name": "itb-official-color-2026",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 465432
+        }
+      ]
+    },
+    {
+      "path": "models/items/tiger/police-cap.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 231696,
+      "bytes": 102508,
+      "sourceSha256": "6559348a95114c6583d9c0d1246d4c8f1bae760d9091a967ee95ae1cc3879776",
+      "sha256": "d5fc5fd75e4e12a95cd3b47983dac796ef66d25098ebb166e2ac17adef1ce5b9",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 5560,
+      "vertices": 3689,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/police-uniform.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 564064,
+      "bytes": 303932,
+      "sourceSha256": "1a2296d3da7a896740bdd06401ba863f74c3695383f2d5ef46ad5ee54efad269",
+      "sha256": "8503f8e44b84cfee0dcc56e615cfd51bfa267f89a18f996c117da3d3e9846cbe",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 15134,
+      "vertices": 8769,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 33,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/scholar-glasses.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 179896,
+      "bytes": 72320,
+      "sourceSha256": "7885ee8c4d4864a7302bdd1b9c756ed20656727b28b1236ead9975a15793af9c",
+      "sha256": "e8e38e1e551b61bd54e8ba15ed075756969d875cdb0054a239ea7f95a173c022",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 4148,
+      "vertices": 2221,
+      "primitives": 1,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 6,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/tiger/zyx-shirt.glb",
+      "kind": "item",
+      "character": "tiger",
+      "variant": null,
+      "sourceBytes": 1041100,
+      "bytes": 393756,
+      "sourceSha256": "b03d210dee1b1eb27cd22824bf25457f757467a5a57ddc4dfdd98982ebeed21e",
+      "sha256": "305e5ede503f570fc28b7e25ef4b05745887dc4230275b9083cdaeb2d335b512",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 18656,
+      "vertices": 13515,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 17,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/items/zyx-shirt.glb",
+      "kind": "item",
+      "character": "cat",
+      "variant": null,
+      "sourceBytes": 1039500,
+      "bytes": 384512,
+      "sourceSha256": "8821de0c132a241b47d290e4d8802a3a3152e8863d1d63034a81fadc83ddbe59",
+      "sha256": "6d5f03ec1fe6ab5d43d607dc7261ed600e159d429a709e30b6a86519ee8be143",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 18656,
+      "vertices": 13505,
+      "primitives": 3,
+      "morphTargets": 0,
+      "meshes": 1,
+      "nodes": 15,
+      "skins": 1,
+      "animationNames": [],
+      "textures": []
+    },
+    {
+      "path": "models/props/basketball.glb",
+      "kind": "prop",
+      "character": null,
+      "variant": null,
+      "sourceBytes": 175960,
+      "bytes": 112708,
+      "sourceSha256": "989089cbe77a590fc215f1197ca12aeaed5b51f1fa2264d8a4f5956a8a25ee54",
+      "sha256": "10555c18a0b8805fd238fa4756d1fbbcac1201bcc1770fb0aaa2b131d4cbede7",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 8736,
+      "vertices": 4483,
+      "primitives": 2,
+      "morphTargets": 0,
+      "meshes": 2,
+      "nodes": 3,
+      "skins": 0,
+      "animationNames": [
+        "basketball"
+      ],
+      "textures": []
+    },
+    {
+      "path": "models/props/beachLounge.glb",
+      "kind": "prop",
+      "character": null,
+      "variant": null,
+      "sourceBytes": 587572,
+      "bytes": 398120,
+      "sourceSha256": "16f0224e0b96dbf87cc422c54c6e12dd2f27ae764ccffb68dda64467abb080b9",
+      "sha256": "aa017b07ca4a2e7dfda9f03c7c9ef594e6de9b2b759b4797a288917da6d2a194",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 23888,
+      "vertices": 13648,
+      "primitives": 5,
+      "morphTargets": 0,
+      "meshes": 5,
+      "nodes": 6,
+      "skins": 0,
+      "animationNames": [
+        "beachLounge"
+      ],
+      "textures": []
+    },
+    {
+      "path": "models/props/cycle.glb",
+      "kind": "prop",
+      "character": null,
+      "variant": null,
+      "sourceBytes": 444280,
+      "bytes": 314952,
+      "sourceSha256": "4923eb74b51958b1f99e061c293d22c14695e3bad43ae1a67490f2ce643b6089",
+      "sha256": "5335771daf8dddec657874c078bb5109ad92c8c59fdd32495413a360c7b3ce4b",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 24112,
+      "vertices": 12351,
+      "primitives": 18,
+      "morphTargets": 0,
+      "meshes": 18,
+      "nodes": 25,
+      "skins": 0,
+      "animationNames": [
+        "cycle"
+      ],
+      "textures": []
+    },
+    {
+      "path": "models/props/fly.glb",
+      "kind": "prop",
+      "character": null,
+      "variant": null,
+      "sourceBytes": 426312,
+      "bytes": 261884,
+      "sourceSha256": "9dcdb725c768a6a1d277372bf13e038e2bfe6f551eff7042fe6958aea4322439",
+      "sha256": "e37811cec7c3b8e102152c75f25ed243c86b77774f90dcf0f6cb4db1f3d862e2",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 22168,
+      "vertices": 11519,
+      "primitives": 9,
+      "morphTargets": 0,
+      "meshes": 9,
+      "nodes": 12,
+      "skins": 0,
+      "animationNames": [
+        "fly"
+      ],
+      "textures": []
+    },
+    {
+      "path": "models/props/giveFlowers.glb",
+      "kind": "prop",
+      "character": null,
+      "variant": null,
+      "sourceBytes": 1608128,
+      "bytes": 997352,
+      "sourceSha256": "d5cb739de19429c03cda4e3f78bb3de0898e8ea1d1716a092d2a0ac3579f2558",
+      "sha256": "a84daae53fda641fde96a40a7c60231697017d28ae5a45a53ab38ba3e47ae00a",
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 65520,
+      "vertices": 37787,
+      "primitives": 9,
+      "morphTargets": 0,
+      "meshes": 9,
+      "nodes": 10,
+      "skins": 0,
+      "animationNames": [
+        "giveFlowers"
+      ],
+      "textures": []
+    },
+    {
+      "path": "models/rhino-full.glb",
+      "kind": "character",
+      "character": "rhino",
+      "variant": "full",
+      "sourceBytes": 19826560,
+      "bytes": 8707468,
+      "sourceSha256": "7b3edee4db515364a8dd1a7acadc35dac21ebc0a1b258c0db4d39a7ea4173202",
+      "sha256": "0ee54d4a1fb2dc06f66eee5826d26b0f27c71ef1e32c2e35d2ccd13530ea6193",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 238012,
+      "vertices": 124196,
+      "primitives": 22,
+      "morphTargets": 60,
+      "meshes": 3,
+      "nodes": 71,
+      "skins": 1,
+      "animationNames": [
+        "idle",
+        "happy",
+        "thinking",
+        "waiting",
+        "explaining",
+        "apologizing",
+        "thumbsUp",
+        "charge"
+      ],
+      "textures": [
+        {
+          "name": "Zyra_Rhino_Body_Normal",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 253600
+        },
+        {
+          "name": "Zyra_Rhino_Body_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 21364
+        },
+        {
+          "name": "Zyra_Rhino_Body_Roughness",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 191406
+        },
+        {
+          "name": "Zyra_Rhino_Paws_Normal",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 306780
+        },
+        {
+          "name": "Zyra_Rhino_Paws_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 10478
+        },
+        {
+          "name": "Zyra_Rhino_Paws_Roughness",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 191406
+        },
+        {
+          "name": "Zyra_Rhino_Head_Normal",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 211996
+        },
+        {
+          "name": "Zyra_Rhino_Head_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 10634
+        },
+        {
+          "name": "Zyra_Rhino_Head_Roughness",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 195090
+        },
+        {
+          "name": "Zyra_Rhino_Tail_Normal",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 90618
+        },
+        {
+          "name": "Zyra_Rhino_Tail_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 2230
+        },
+        {
+          "name": "Zyra_Rhino_Tail_Roughness",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 63058
+        },
+        {
+          "name": "Zyra_Rhino_Lower_Jaw_Normal",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 113826
+        },
+        {
+          "name": "Zyra_Rhino_Lower_Jaw_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 2312
+        },
+        {
+          "name": "Zyra_Rhino_Lower_Jaw_Roughness",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 63058
+        }
+      ]
+    },
+    {
+      "path": "models/rhino-head.glb",
+      "kind": "character",
+      "character": "rhino",
+      "variant": "head",
+      "sourceBytes": 12196400,
+      "bytes": 5029632,
+      "sourceSha256": "e3c0098c2730cc20bd0641b4d227685e18df0b3ef02a8f2fe0fd5aed92453415",
+      "sha256": "683adbb9ccc2e4eb10c03f4679ec4a9c51c38ec7e75d72dd7a270840f43d5f0e",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 169788,
+      "vertices": 88233,
+      "primitives": 18,
+      "morphTargets": 60,
+      "meshes": 3,
+      "nodes": 21,
+      "skins": 1,
+      "animationNames": [
+        "idle",
+        "happy",
+        "thinking",
+        "waiting",
+        "explaining",
+        "apologizing",
+        "thumbsUp",
+        "charge"
+      ],
+      "textures": [
+        {
+          "name": "Zyra_Rhino_Head_Normal",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 211996
+        },
+        {
+          "name": "Zyra_Rhino_Head_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 10634
+        },
+        {
+          "name": "Zyra_Rhino_Head_Roughness",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 195090
+        },
+        {
+          "name": "Zyra_Rhino_Lower_Jaw_Normal",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 113826
+        },
+        {
+          "name": "Zyra_Rhino_Lower_Jaw_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 2312
+        },
+        {
+          "name": "Zyra_Rhino_Lower_Jaw_Roughness",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 63058
+        }
+      ]
+    },
+    {
+      "path": "models/tiger-full.glb",
+      "kind": "character",
+      "character": "tiger",
+      "variant": "full",
+      "sourceBytes": 8788940,
+      "bytes": 5081616,
+      "sourceSha256": "6a9c8d394a560541e24c899a9a1465c6dce3b72ee9902a8197d602ca203bc916",
+      "sha256": "ea391a600a752ddb7916d5023c9a677774cefb89a72a574a1da47975c39a57df",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 121680,
+      "vertices": 63314,
+      "primitives": 16,
+      "morphTargets": 56,
+      "meshes": 3,
+      "nodes": 71,
+      "skins": 1,
+      "animationNames": [
+        "idle",
+        "happy",
+        "thinking",
+        "waiting",
+        "explaining",
+        "apologizing",
+        "thumbsUp",
+        "crawl",
+        "roar",
+        "prowlRoar"
+      ],
+      "textures": [
+        {
+          "name": "Zyra_Tiger_Body_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 205120
+        },
+        {
+          "name": "Zyra_Tiger_Paws_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 124784
+        },
+        {
+          "name": "Zyra_Tiger_Head_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 148774
+        },
+        {
+          "name": "Zyra_Tiger_Tail_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            512,
+            512
+          ],
+          "bytes": 1664
+        }
+      ]
+    },
+    {
+      "path": "models/tiger-head.glb",
+      "kind": "character",
+      "character": "tiger",
+      "variant": "head",
+      "sourceBytes": 4344536,
+      "bytes": 2283396,
+      "sourceSha256": "bc75cc5839b5b89e573f0b66fa3cfccaa4d3c74c777b4d1a25dd1a8a9d976fa2",
+      "sha256": "12bb548f2da9f0ec6bd33fe9c8ec4f4aeb987d752ea098184d47143f43c37baa",
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
+      ],
+      "verified": {
+        "geometry": true,
+        "nodeHierarchy": true,
+        "skinning": true,
+        "morphTargets": true,
+        "animation": true
+      },
+      "triangles": 74288,
+      "vertices": 38642,
+      "primitives": 12,
+      "morphTargets": 56,
+      "meshes": 3,
+      "nodes": 21,
+      "skins": 1,
+      "animationNames": [
+        "idle",
+        "happy",
+        "thinking",
+        "waiting",
+        "explaining",
+        "apologizing",
+        "thumbsUp",
+        "crawl",
+        "roar",
+        "prowlRoar"
+      ],
+      "textures": [
+        {
+          "name": "Zyra_Tiger_Head_Albedo",
+          "mimeType": "image/webp",
+          "size": [
+            1024,
+            1024
+          ],
+          "bytes": 148774
+        }
+      ]
+    }
+  ]
+}
