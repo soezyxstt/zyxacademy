@@ -4,7 +4,7 @@ Status: `ACTIVE`
 
 Updated: 2026-11-18
 
-This document defines the current source standard for client server data in Zyx Academy and records the remaining migration work. Full PR CI, browser, authenticated staging and deployment acceptance are pending and belong in the PR verification record.
+This document defines the current source standard for client server data in Zyx Academy and records the remaining migration work. The PR verification record tracks CI, browser checks, authenticated staging flows and deployment acceptance separately.
 
 ## Version and purpose
 
@@ -169,7 +169,9 @@ These are follow-up opportunities, not completed migrations or requirements to r
 
 Focused tests cover key isolation, malformed responses, cancellation, retry limits, concurrent optimistic completion, late account results, quiz state/submission, article/material progress, flashcard review contracts, admin filters and proposal/dismissal behavior. Relevant suites live under `tests/unit/` and `tests/contracts/`; feature browser checks live under `tests/visual/`.
 
-At this document update, final CI/type/build results, primary browser inspection, authenticated staging flows and deployment acceptance are pending. Record the exact commit, commands, results and remaining boundaries in the PR. Local mocked responses do not establish remote authorization, provider usage, database contention, navigation-exit delivery or measured performance savings.
+The Query lifecycle workflow runs a production build against a disposable PostgreSQL database with the full migration chain. It also runs the quiz, learning, dashboard and admin browser fixtures at 380 x 844 and 1536 x 864, and keeps the report, screenshots and traces as a CI artifact. The primary agent must inspect every required capture before visual signoff.
+
+Record the exact commit, commands, results and remaining boundaries in the PR. Fixture responses and a disposable build database do not establish authenticated staging behavior, provider usage, database contention, navigation-exit delivery or measured performance savings. CI success and merge status do not establish deployment status.
 
 ## Official references
 

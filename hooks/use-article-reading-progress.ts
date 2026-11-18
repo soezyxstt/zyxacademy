@@ -3,17 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PublicArticleReadModel, PublicSectionReadModel } from "@/lib/articles/structured-read-model";
-import { articleProgressQuery, updateArticleProgress } from "@/lib/articles/progress-query";
+import { articleProgressQuery } from "@/lib/articles/progress-query";
+import { articleProgressMutation } from "@/lib/articles/progress-mutation";
 import {
   createArticleVisit,
-  mergeArticleSectionProgress,
-  type ArticleProgress,
   type ArticleProgressUpdate,
 } from "@/lib/articles/progress-contract";
-import { emitActivityUpdated } from "@/lib/activity-signal";
-import { invalidateLearningQueries } from "@/lib/query/invalidation";
 import { isQueryAccountCurrent } from "@/lib/query/client";
-import { ApiError } from "@/lib/query/http";
 import { useQueryAccountCurrent } from "@/hooks/use-query-account";
 
 type Props = {
@@ -30,7 +26,6 @@ export function useArticleReadingProgress({ article, studentId, courseId, active
   const canSave = enabled && Boolean(studentId) && currentAccount;
   const activeSectionId = activeSection?.id;
   const options = articleProgressQuery(studentId ?? "", article.id, article.version);
-  const mutationKey = [...options.queryKey, "update"];
   const query = useQuery({
     ...options,
     enabled: canSave,
@@ -51,7 +46,6 @@ export function useArticleReadingProgress({ article, studentId, courseId, active
   const contentContainerRef = useRef<HTMLDivElement | null>(null);
   const visitRef = useRef<ReturnType<typeof createArticleVisit> | null>(null);
   const mountedRef = useRef(false);
-  const changedLearningRef = useRef<string | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -64,40 +58,7 @@ export function useArticleReadingProgress({ article, studentId, courseId, active
     }
   }, [confirmedProgress]);
 
-  const { mutateAsync } = useMutation({
-    mutationKey,
-    mutationFn: (update: ArticleProgressUpdate) => {
-      if (!studentId || !isQueryAccountCurrent(client, studentId)) throw new ApiError(409, "Account changed");
-      return updateArticleProgress(studentId, article.id, article.version, update);
-    },
-    retry: false,
-    networkMode: "always",
-    onMutate: async () => {
-      await client.cancelQueries({ queryKey: options.queryKey, exact: true });
-    },
-    onSuccess: (result) => {
-      // Logout removes the account cache. A late receipt cannot recreate it.
-      if (!studentId || !isQueryAccountCurrent(client, studentId) || !client.getQueryState(options.queryKey)) return;
-      client.setQueryData<ArticleProgress>(options.queryKey, (current) => current ? {
-        ...current,
-        sectionProgress: {
-          ...current.sectionProgress,
-          [result.sectionId]: mergeArticleSectionProgress(current.sectionProgress[result.sectionId], result),
-        },
-      } : current);
-      if (result.completed) changedLearningRef.current = result.sectionId;
-    },
-    onSettled: () => {
-      if (!studentId || !isQueryAccountCurrent(client, studentId) || !client.getQueryState(options.queryKey)) return;
-      // Completing several sections should refresh shared summaries once.
-      if (client.isMutating({ mutationKey, exact: true }) === 1 && changedLearningRef.current) {
-        const sectionId = changedLearningRef.current;
-        changedLearningRef.current = null;
-        void invalidateLearningQueries(client, studentId, { courseId, articleId: article.id });
-        emitActivityUpdated({ type: "article", courseId, materialId: article.id, sectionId, queryCacheUpdated: true });
-      }
-    },
-  });
+  const { mutateAsync } = useMutation(articleProgressMutation(client, studentId ?? "", article.id, article.version, courseId));
 
   const save = useCallback(async (update: ArticleProgressUpdate) => {
     if (!canSave || !studentId || !isQueryAccountCurrent(client, studentId)) return;

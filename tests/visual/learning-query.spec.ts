@@ -71,6 +71,8 @@ test("flashcards keep the active card on an invalid receipt and accept one expli
   await acknowledge[1](reviewReceipt);
   await page.clock.runFor(1);
   await expect(page.getByText("Apa arti limit fungsi?", { exact: true })).toBeVisible();
+  // The toast schedules its own timer after the mutation advances the card.
+  await page.clock.runFor(1);
   await expect(page.getByText("Penilaian berhasil disimpan.", { exact: true })).toBeVisible();
   await capture(page, info, "flashcard-review-saved", errors);
 });

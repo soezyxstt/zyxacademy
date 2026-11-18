@@ -5,6 +5,26 @@ import { completeTodayItem, studentTodayQuery, type TodayData } from "./today-qu
 
 export type TodayCompletion = { itemId: string; controller: AbortController };
 
+const pendingCompletions = new WeakMap<QueryClient, Map<string, Set<AbortController>>>();
+
+function beginCompletion(client: QueryClient, userId: string, controller: AbortController): void {
+  const accounts = pendingCompletions.get(client) ?? new Map<string, Set<AbortController>>();
+  const requests = accounts.get(userId) ?? new Set<AbortController>();
+  requests.add(controller);
+  accounts.set(userId, requests);
+  pendingCompletions.set(client, accounts);
+}
+
+function finishCompletion(client: QueryClient, userId: string, controller: AbortController): number {
+  const accounts = pendingCompletions.get(client);
+  const requests = accounts?.get(userId);
+  requests?.delete(controller);
+  if (requests?.size) return requests.size;
+  accounts?.delete(userId);
+  if (accounts?.size === 0) pendingCompletions.delete(client);
+  return 0;
+}
+
 function setDone(data: TodayData | undefined, itemId: string, done: boolean): TodayData | undefined {
   return data ? { ...data, items: data.items.map(item => item.id === itemId ? { ...item, done } : item) } : data;
 }
@@ -21,6 +41,7 @@ export function todayCompletionMutation(
     networkMode: "always",
     mutationFn: ({ itemId, controller }: TodayCompletion) => completeTodayItem(userId, itemId, controller.signal),
     onMutate: async ({ itemId, controller }: TodayCompletion) => {
+      beginCompletion(client, userId, controller);
       await client.cancelQueries({ queryKey, exact: true });
       controller.signal.throwIfAborted();
       if (!isQueryAccountCurrent(client, userId)) throw new Error("Account changed");
@@ -35,8 +56,11 @@ export function todayCompletionMutation(
       }
     },
     onSettled: (_data, _error, { controller }) => {
+      // Query still counts each mutation as pending while onSettled runs. Two
+      // responses can settle together, so track completion before any await.
+      const remaining = finishCompletion(client, userId, controller);
       if (!isQueryAccountCurrent(client, userId)) return;
-      if (controller.signal.aborted || client.isMutating({ mutationKey: queryKeys.student.completeToday(userId), exact: true }) === 1) {
+      if (controller.signal.aborted || remaining === 0) {
         return client.invalidateQueries({ queryKey, exact: true, refetchType: controller.signal.aborted ? "none" : "active" });
       }
     },

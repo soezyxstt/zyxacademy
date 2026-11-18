@@ -133,13 +133,13 @@ test("admin analytics rejects invalid responses, retries, and isolates usage ran
   await expect(page.getByRole("status", { name: "Memuat data penggunaan Zyra", exact: true })).toBeVisible();
   await capture(page, info, "analytics-ready-usage-loading", errors);
   await usageRequests.get(30)![0].fulfill({ json: usage("ayu", "Ayu Rentang 30 Hari") });
-  await expect(page.getByText("Ayu Rentang 30 Hari", { exact: true })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "Ayu Rentang 30 Hari ayu@example.test", exact: true })).toBeVisible();
   await capture(page, info, "usage-thirty-days", errors);
 
   await page.getByRole("combobox").click();
   await page.getByRole("option", { name: "7 Hari Terakhir", exact: true }).click();
   await expect.poll(() => usageRequests.get(7)?.length).toBe(1);
-  await expect(page.getByText("Ayu Rentang 30 Hari", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("cell", { name: "Ayu Rentang 30 Hari ayu@example.test", exact: true })).toHaveCount(0);
   await expect(page.getByRole("status", { name: "Memuat data penggunaan Zyra", exact: true })).toBeVisible();
   await capture(page, info, "usage-new-range-loading", errors);
   await usageRequests.get(7)![0].fulfill({ json: { success: true, data: { users: [], daily: [{ date: "invalid" }] } } });
@@ -150,8 +150,8 @@ test("admin analytics rejects invalid responses, retries, and isolates usage ran
   await page.getByRole("button", { name: admin.states.retry, exact: true }).click();
   await expect.poll(() => usageRequests.get(7)?.length).toBe(2);
   await usageRequests.get(7)![1].fulfill({ json: usage("bima", "Bima Rentang 7 Hari") });
-  await expect(page.getByText("Bima Rentang 7 Hari", { exact: true })).toBeVisible();
-  await expect(page.getByText("Ayu Rentang 30 Hari", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("cell", { name: "Bima Rentang 7 Hari bima@example.test", exact: true })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "Ayu Rentang 30 Hari ayu@example.test", exact: true })).toHaveCount(0);
   await expect(page.getByRole("combobox")).toHaveText("7 Hari Terakhir");
   await capture(page, info, "usage-recovered-seven-days", errors);
 });
