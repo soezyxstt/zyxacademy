@@ -128,11 +128,13 @@ class ScopeTest(unittest.TestCase):
         self.assertTrue(result['web'])
         self.assertTrue(result['worker'])
 
-    def test_legacy_repair_cannot_restore_duplicate_automation(self):
-        workflow = (ROOT / '.github/workflows/pr36-review-fixes.yml').read_text()
-        self.assertNotIn('  push:', workflow)
-        repair = (ROOT / '.github/scripts/pr36_review_fixes.py').read_text()
-        self.assertNotIn('schedule-domain-validation.yml', repair)
+    def test_messages_change_checks_i18n_without_schedule_or_authoring(self):
+        result = self.plan('messages/en/student.json')
+        self.assertTrue(result['web'])
+        self.assertTrue(result['i18n'])
+        self.assertFalse(result['schedule'])
+        self.assertFalse(result['authoring'])
+        self.assertFalse(result['worker'])
 
     def test_workflow_change_selects_own_surface_only(self):
         result = self.plan('.github/workflows/sync-plugin.yml')
@@ -147,6 +149,16 @@ class ScopeTest(unittest.TestCase):
 
     def test_deleted_file_is_not_sent_to_eslint(self):
         self.assertEqual(self.plan('components/does-not-exist.tsx')['lint_files'], [])
+
+    def test_static_and_test_shards_scale_with_selected_tests(self):
+        docs = self.plan('docs/features.md')
+        self.assertFalse(docs['static'])
+        self.assertFalse(docs['has_tests'])
+        self.assertEqual(docs['test_shards'], [0])
+        broad = ci.plan([], self.head, force=True)
+        self.assertTrue(broad['static'])
+        self.assertTrue(broad['has_tests'])
+        self.assertEqual(broad['test_shards'], [0, 1, 2, 3, 4, 5, 6, 7])
 
 
 class HistoryTest(unittest.TestCase):

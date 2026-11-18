@@ -1,23 +1,7 @@
 name: Query lifecycle
 
 on:
-  pull_request:
-    branches: [staging]
-    paths:
-      - 'app/**'
-      - 'components/**'
-      - 'hooks/**'
-      - 'lib/**'
-      - 'db/**'
-      - 'drizzle-postgres/**'
-      - 'tests/**'
-      - 'messages/**'
-      - 'package.json'
-      - 'bun.lock'
-      - 'playwright.config.ts'
-      - 'postcss.config.mjs'
-      - 'tsconfig.json'
-      - '.github/workflows/query-lifecycle.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
