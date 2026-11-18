@@ -64,3 +64,38 @@ export function createArticleVisit(sectionId: string) {
     },
   };
 }
+
+export type ArticleCompletionIntent = "scroll" | "explicit";
+
+/** Failed completion writes need a user retry, not another scroll or layout event. */
+export function createArticleCompletions(initialProgress: Readonly<Record<string, ArticleSectionProgress>> = {}) {
+  const confirmed = new Set<string>();
+  const pending = new Set<string>();
+  const attempted = new Set<string>();
+  const confirm = (progress: Readonly<Record<string, ArticleSectionProgress>>) => {
+    for (const [id, section] of Object.entries(progress)) {
+      if (section.completed || section.maxReadPercent >= 90) confirmed.add(id);
+    }
+  };
+  confirm(initialProgress);
+
+  return {
+    confirm,
+    request(sectionId: string, intent: ArticleCompletionIntent, visit: ReturnType<typeof createArticleVisit> | null): ArticleProgressUpdate | null {
+      const isRetry = attempted.has(sectionId);
+      if (confirmed.has(sectionId) || pending.has(sectionId) || (intent === "scroll" && isRetry)) return null;
+      pending.add(sectionId);
+      attempted.add(sectionId);
+      const activeVisit = visit?.sectionId === sectionId ? visit : null;
+      // Only the first completion may use the legacy estimate for an inactive
+      // section. A retry must not replay that estimate or consumed visit time.
+      const elapsed = activeVisit ? activeVisit.takeTime() : isRetry ? 0 : 5;
+      activeVisit?.observe(100);
+      return { sectionId, percent: 100, timeSpentSeconds: elapsed, completed: true };
+    },
+    settle(sectionId: string, accepted: boolean) {
+      pending.delete(sectionId);
+      if (accepted) confirmed.add(sectionId);
+    },
+  };
+}

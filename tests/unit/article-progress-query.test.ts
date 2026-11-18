@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { QueryClient } from "@tanstack/react-query";
 import { articleProgressQuery, updateArticleProgress } from "../../lib/articles/progress-query";
-import { createArticleVisit, mergeArticleSectionProgress } from "../../lib/articles/progress-contract";
+import { createArticleCompletions, createArticleVisit, mergeArticleSectionProgress } from "../../lib/articles/progress-contract";
 import { ApiResponseError } from "../../lib/query/http";
 
 const originalFetch = globalThis.fetch;
@@ -76,6 +76,37 @@ describe("article progress cache", () => {
 });
 
 describe("article progress races", () => {
+  test("an inactive section retry never repeats its first completion's time estimate", () => {
+    const completions = createArticleCompletions();
+    const activeVisit = createArticleVisit("active");
+    activeVisit.tick();
+    expect(completions.request("earlier", "scroll", activeVisit)?.timeSpentSeconds).toBe(5);
+    expect(completions.request("earlier", "explicit", activeVisit)).toBeNull();
+    completions.settle("earlier", false);
+    expect(completions.request("earlier", "scroll", activeVisit)).toBeNull();
+    expect(completions.request("earlier", "explicit", activeVisit)?.timeSpentSeconds).toBe(0);
+    completions.settle("earlier", false);
+    expect(completions.request("earlier", "explicit", activeVisit)?.timeSpentSeconds).toBe(0);
+    expect(activeVisit.takeTime()).toBe(1);
+  });
+
+  test("explicit retries consume only new reading time and later confirmed progress prevents another write", () => {
+    const completions = createArticleCompletions({ saved: { completed: true, maxReadPercent: 100, timeSpentSeconds: 8 } });
+    const visit = createArticleVisit("section");
+    for (let i = 0; i < 12; i++) visit.tick();
+    expect(completions.request("saved", "explicit", visit)).toBeNull();
+    expect(completions.request("section", "scroll", visit)?.timeSpentSeconds).toBe(12);
+    completions.settle("section", false);
+    for (let i = 0; i < 4; i++) visit.tick();
+    expect(completions.request("section", "scroll", visit)).toBeNull();
+    expect(completions.request("section", "explicit", visit)?.timeSpentSeconds).toBe(4);
+    completions.settle("section", false);
+    completions.confirm({ section: { completed: true, maxReadPercent: 100, timeSpentSeconds: 16 } });
+    expect(completions.request("section", "explicit", visit)).toBeNull();
+    expect(completions.request("section", "scroll", visit)).toBeNull();
+    expect(visit.takeTime()).toBe(0);
+  });
+
   test("completion then visibility, section exit and unmount consume each elapsed second once", () => {
     const visit = createArticleVisit("section");
     for (let i = 0; i < 12; i++) visit.tick();

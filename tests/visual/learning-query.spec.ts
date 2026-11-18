@@ -30,13 +30,35 @@ async function boot(page: Page, config: Window["learningFixture"], respond?: (ro
   return errors;
 }
 
-async function capture(page: Page, info: TestInfo, name: string, errors: string[]) {
+async function capture(page: Page, info: TestInfo, name: string, errors: string[], animations: "disabled" | "allow" = "disabled") {
   await page.evaluate(() => document.fonts.ready);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   const path = info.outputPath(`${name}.png`);
-  await page.screenshot({ path, fullPage: true, animations: "disabled" });
+  await page.screenshot({ path, fullPage: true, animations });
   await info.attach(name, { path, contentType: "image/png" });
   expect(errors).toEqual([]);
+}
+
+async function settleFlashcardFront(page: Page, question: string) {
+  // Only final flashcard captures resume time. Reading tests keep exact elapsed-time control.
+  await page.clock.resume();
+  const front = page.locator('[data-flashcard-face="front"]');
+  await expect(front).toBeVisible();
+  await expect(front).toHaveJSProperty("inert", false);
+  await expect(page.locator('[data-flashcard-face="back"]')).toHaveJSProperty("inert", true);
+  await expect(front.getByText(question, { exact: true })).toBeVisible();
+  await expect.poll(() => front.evaluate((face) => {
+    const inner = face.parentElement!;
+    const transform = getComputedStyle(inner).transform;
+    return {
+      identity: transform === "none" || new DOMMatrixReadOnly(transform).isIdentity,
+      active: inner.getAnimations().some((animation) => animation.pending || animation.playState === "running"),
+    };
+  })).toEqual({ identity: true, active: false });
+  // A DOM-visible backface is not proof that the compositor has painted the settled front.
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
 }
 
 test("flashcards keep the active card on an invalid receipt and accept one explicit retry", async ({ page }, info) => {
@@ -74,7 +96,8 @@ test("flashcards keep the active card on an invalid receipt and accept one expli
   // The toast schedules its own timer after the mutation advances the card.
   await page.clock.runFor(1);
   await expect(page.getByText("Penilaian berhasil disimpan.", { exact: true })).toBeVisible();
-  await capture(page, info, "flashcard-review-saved", errors);
+  await settleFlashcardFront(page, "Apa arti limit fungsi?");
+  await capture(page, info, "flashcard-review-saved", errors, "allow");
 });
 
 test("a late flashcard receipt cannot reveal or advance a previous account's session", async ({ page }, info) => {
@@ -102,7 +125,8 @@ test("demo flashcard reviews keep the shared presentation and stay local", async
   await page.clock.runFor(1);
   await expect(page.getByText("1 ulasan demo", { exact: true })).toBeVisible();
   await expect(page.getByText("Apa arti limit fungsi?", { exact: true })).toBeVisible();
-  await capture(page, info, "flashcard-demo-saved", errors);
+  await settleFlashcardFront(page, "Apa arti limit fungsi?");
+  await capture(page, info, "flashcard-demo-saved", errors, "allow");
 });
 
 test("article receipts validate the revision and elapsed time flushes only once across completion and exit", async ({ page }, info) => {
@@ -135,7 +159,19 @@ test("article receipts validate the revision and elapsed time flushes only once 
   await acknowledge[0](false);
   await page.clock.runFor(1);
   await expect(page.getByTitle("Progres membaca: 0%", { exact: true })).toHaveCount(1);
+  await expect(page.getByText("Selesai dibaca", { exact: true })).toHaveCount(0);
+  // The section is still read through. Scroll and capture layout work must not
+  // turn the rejected receipt into a second optimistic completion.
+  await page.evaluate(() => { window.dispatchEvent(new Event("scroll")); window.dispatchEvent(new Event("scroll")); });
+  await page.clock.runFor(32);
+  expect(posts).toHaveLength(1);
+  await expect(page.getByTitle("Progres membaca: 0%", { exact: true })).toHaveCount(1);
+  await expect(page.getByText("Selesai dibaca", { exact: true })).toHaveCount(0);
   await capture(page, info, "article-completion-unconfirmed", errors);
+  await page.clock.runFor(32);
+  expect(posts).toHaveLength(1);
+  await expect(page.getByTitle("Progres membaca: 0%", { exact: true })).toHaveCount(1);
+  await expect(page.getByText("Selesai dibaca", { exact: true })).toHaveCount(0);
   await finish.click();
   await expect.poll(() => posts.length).toBe(2);
   expect(posts[1].timeSpentSeconds).toBe(0);

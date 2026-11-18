@@ -6,7 +6,9 @@ import type { PublicArticleReadModel, PublicSectionReadModel } from "@/lib/artic
 import { articleProgressQuery } from "@/lib/articles/progress-query";
 import { articleProgressMutation } from "@/lib/articles/progress-mutation";
 import {
+  createArticleCompletions,
   createArticleVisit,
+  type ArticleCompletionIntent,
   type ArticleProgressUpdate,
 } from "@/lib/articles/progress-contract";
 import { isQueryAccountCurrent } from "@/lib/query/client";
@@ -41,8 +43,7 @@ export function useArticleReadingProgress({ article, studentId, courseId, active
     [canSave, query.data?.sectionProgress, initialProgress],
   );
   const [pendingCompletions, setPendingCompletions] = useState<ReadonlySet<string>>(new Set());
-  const claimedCompletions = useRef(new Set(Object.entries(initialProgress ?? {})
-    .filter(([, progress]) => progress.completed || progress.maxReadPercent >= 90).map(([id]) => id)));
+  const completionsRef = useRef(createArticleCompletions(initialProgress ?? {}));
   const contentContainerRef = useRef<HTMLDivElement | null>(null);
   const visitRef = useRef<ReturnType<typeof createArticleVisit> | null>(null);
   const mountedRef = useRef(false);
@@ -53,40 +54,40 @@ export function useArticleReadingProgress({ article, studentId, courseId, active
   }, []);
 
   useEffect(() => {
-    for (const [id, progress] of Object.entries(confirmedProgress)) {
-      if (progress.completed || progress.maxReadPercent >= 90) claimedCompletions.current.add(id);
-    }
+    completionsRef.current.confirm(confirmedProgress);
   }, [confirmedProgress]);
 
   const { mutateAsync } = useMutation(articleProgressMutation(client, studentId ?? "", article.id, article.version, courseId));
 
   const save = useCallback(async (update: ArticleProgressUpdate) => {
     if (!canSave || !studentId || !isQueryAccountCurrent(client, studentId)) return;
+    let accepted = false;
     try {
       await mutateAsync(update);
+      accepted = true;
     } catch {
       // Time is additive and an interrupted response may have committed. Do not
-      // retry its elapsed delta. A later scroll can retry completion with 0 time.
-      if (update.completed) claimedCompletions.current.delete(update.sectionId);
+      // replay its elapsed delta or retry completion without an explicit action.
     } finally {
-      if (update.completed && mountedRef.current) {
-        setPendingCompletions((current) => {
-          const next = new Set(current);
-          next.delete(update.sectionId);
-          return next;
-        });
+      if (update.completed) {
+        completionsRef.current.settle(update.sectionId, accepted);
+        if (mountedRef.current) {
+          setPendingCompletions((current) => {
+            const next = new Set(current);
+            next.delete(update.sectionId);
+            return next;
+          });
+        }
       }
     }
   }, [canSave, client, mutateAsync, studentId]);
 
-  const completeSection = useCallback((sectionId: string) => {
-    if (!canSave || !studentId || !isQueryAccountCurrent(client, studentId) || claimedCompletions.current.has(sectionId)) return;
-    claimedCompletions.current.add(sectionId);
+  const completeSection = useCallback((sectionId: string, intent: ArticleCompletionIntent) => {
+    if (!canSave || !studentId || !isQueryAccountCurrent(client, studentId)) return;
+    const update = completionsRef.current.request(sectionId, intent, visitRef.current);
+    if (!update) return;
     setPendingCompletions((current) => new Set(current).add(sectionId));
-    const visit = visitRef.current;
-    const elapsed = visit?.sectionId === sectionId ? visit.takeTime() : 5;
-    if (visit?.sectionId === sectionId) visit.observe(100);
-    void save({ sectionId, percent: 100, timeSpentSeconds: elapsed, completed: true });
+    void save(update);
   }, [canSave, client, save, studentId]);
 
   useEffect(() => {
@@ -123,7 +124,7 @@ export function useArticleReadingProgress({ article, studentId, courseId, active
         const percent = Math.min(100, Math.max(0, Math.round(((windowHeight - rect.top) / rect.height) * 100)));
         if (visitRef.current?.sectionId === section.id) visitRef.current.observe(percent);
         const isReadThrough = percent >= 85 || (rect.bottom <= windowHeight * 0.85 && rect.top < windowHeight * 0.4);
-        if (isReadThrough) completeSection(section.id);
+        if (isReadThrough) completeSection(section.id, "scroll");
       }
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -142,7 +143,7 @@ export function useArticleReadingProgress({ article, studentId, courseId, active
 
   const completeRemaining = useCallback(() => {
     if (!canSave) return;
-    for (const section of article.sections) completeSection(section.id);
+    for (const section of article.sections) completeSection(section.id, "explicit");
   }, [article.sections, canSave, completeSection]);
 
   return { sectionProgressMap, contentContainerRef, completeRemaining };

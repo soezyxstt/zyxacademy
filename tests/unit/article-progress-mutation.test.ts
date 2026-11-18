@@ -2,7 +2,7 @@ import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { MutationObserver, QueryClient } from "@tanstack/react-query";
 import { articleProgressMutation } from "@/lib/articles/progress-mutation";
 import { articleProgressQuery } from "@/lib/articles/progress-query";
-import type { ArticleProgress, ArticleProgressUpdate } from "@/lib/articles/progress-contract";
+import { createArticleCompletions, createArticleVisit, type ArticleCompletionIntent, type ArticleProgress, type ArticleProgressUpdate } from "@/lib/articles/progress-contract";
 import { syncQueryAccount } from "@/lib/query/client";
 import { queryKeys } from "@/lib/query/keys";
 
@@ -47,6 +47,49 @@ function setup() {
 }
 
 describe("article mutation lifecycle", () => {
+  test("a rejected completion receipt waits for explicit retry without replaying time", async () => {
+    const state = setup();
+    const completions = createArticleCompletions(state.initial.sectionProgress);
+    const visit = createArticleVisit("section");
+    for (let i = 0; i < 12; i++) visit.tick();
+    const firstResponse = deferred<Response>();
+    const started = deferred<void>();
+    const requests: ArticleProgressUpdate[] = [];
+    globalThis.fetch = ((_path: unknown, init?: RequestInit) => {
+      requests.push(JSON.parse(String(init?.body)));
+      if (requests.length === 1) { started.resolve(); return firstResponse.promise; }
+      return Promise.resolve(Response.json(receipt("section", 15)));
+    }) as unknown as typeof fetch;
+
+    const complete = async (intent: ArticleCompletionIntent) => {
+      const update = completions.request("section", intent, visit);
+      if (!update) return;
+      let accepted = false;
+      try { await state.mutate(update); accepted = true; }
+      catch { /* Keep the uncertain elapsed delta consumed. */ }
+      finally { completions.settle("section", accepted); }
+    };
+    const first = complete("scroll");
+    await started.promise;
+    await complete("explicit");
+    expect(requests).toHaveLength(1);
+    firstResponse.resolve(Response.json({ ...receipt("section", 15), articleVersion: 2 }));
+    await first;
+    expect(state.client.getQueryData(state.query.queryKey)?.sectionProgress.section).toEqual(state.initial.sectionProgress.section);
+    await complete("scroll");
+    await complete("scroll");
+    expect(requests).toHaveLength(1);
+    expect(state.summaryCounts).toHaveLength(0);
+
+    await complete("explicit");
+    expect(requests.map((request) => request.timeSpentSeconds)).toEqual([12, 0]);
+    expect(state.client.getQueryData(state.query.queryKey)?.sectionProgress.section).toMatchObject({ completed: true, maxReadPercent: 100, timeSpentSeconds: 15 });
+    await complete("scroll");
+    await complete("explicit");
+    expect(requests).toHaveLength(2);
+    expect(state.summaryCounts).toHaveLength(1);
+  });
+
   test("a read started during a PUT cannot erase its receipt or another completed section", async () => {
     const state = setup();
     const put = deferred<Response>();

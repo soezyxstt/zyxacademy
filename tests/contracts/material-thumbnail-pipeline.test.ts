@@ -36,7 +36,7 @@ describe("student sidebar course context", () => {
       calls.push({ courseId, userId });
       return Response.json({ id: courseId, title: `${userId}:${courseId}` });
     }) as unknown as typeof fetch;
-    client.setQueryData(first.queryKey, { id: "course-a", title: "Course A" });
+    client.setQueryData(first.queryKey, () => ({ id: "course-a", title: "Course A" }));
     const observer = new QueryObserver(client, first);
     const unsubscribe = observer.subscribe(() => {});
     try {

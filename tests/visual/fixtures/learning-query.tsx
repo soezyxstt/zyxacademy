@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import "katex/dist/katex.min.css";
 import { createRoot } from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { NextIntlClientProvider } from "next-intl";
