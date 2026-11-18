@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class CheckCommandsTest(unittest.TestCase):
-    def run_plan(self, **overrides):
+    def run_plan(self, extra_args=(), files=None, **overrides):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             bin_dir = root / 'bin'
@@ -21,12 +21,16 @@ class CheckCommandsTest(unittest.TestCase):
                 file = bin_dir / command
                 file.write_text(logger)
                 file.chmod(0o755)
+            for rel_path, content in (files or {}).items():
+                target = root / rel_path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(content)
             plan = dict.fromkeys(['lint_all', 'typecheck', 'test_typecheck', 'structured_typecheck', 'i18n', 'python_worker'], False)
             plan.update({key: [] for key in ['lint_files', 'tests', 'compiler_tests', 'worker_projects']})
             plan.update(overrides)
             (root / 'plan.json').write_text(json.dumps(plan))
             env = {**os.environ, 'PATH': str(bin_dir) + os.pathsep + os.environ['PATH'], 'ARGV_LOG': str(root / 'argv.jsonl')}
-            result = subprocess.run(['python3', str(ROOT / 'scripts/ci/check.py'), 'plan.json'], cwd=root, env=env, capture_output=True, text=True)
+            result = subprocess.run(['python3', str(ROOT / 'scripts/ci/check.py'), 'plan.json', *extra_args], cwd=root, env=env, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             lines = (root / 'argv.jsonl').read_text().splitlines() if (root / 'argv.jsonl').exists() else []
             config = root / '.cache/typecheck/tests-selected.json'
@@ -70,6 +74,40 @@ class CheckCommandsTest(unittest.TestCase):
         commands, _ = self.run_plan(tests=['tests/a.test.ts', 'tests/b.test.ts'])
         self.assertCountEqual(commands, [['test', 'tests/a.test.ts'], ['test', 'tests/b.test.ts']])
 
+    def test_static_mode_skips_tests_and_tests_mode_skips_static(self):
+        static_cmds, _ = self.run_plan(('--mode', 'static'), lint_all=True, tests=['tests/a.test.ts'])
+        self.assertEqual(static_cmds, [['run', 'lint', '--cache', '--cache-strategy', 'content', '--cache-location', '.cache/eslint/']])
+        test_cmds, _ = self.run_plan(('--mode', 'tests', '--shard', '0', '--shards', '1'), lint_all=True, typecheck=True, tests=['tests/a.test.ts'])
+        self.assertEqual(test_cmds, [['test', 'tests/a.test.ts']])
+
+    def test_shards_partition_all_tests_and_put_heaviest_first(self):
+        files = {
+            'tests/contracts/light.test.ts': 'export const a = 1;\n',
+            'tests/contracts/heavy-pg.test.ts': 'import { createPostgresTestDb } from "@/tests/helpers/postgres";\n',
+            'tests/contracts/heavy-browser.test.ts': 'import { chromium } from "playwright";\n',
+            'tests/unit/small.test.ts': 'export const b = 1;\n',
+            'tests/discussions/heavy-series.test.cjs': 'generate_series(1, 10000)\n',
+        }
+        all_tests = list(files)
+        seen = []
+        for shard in range(2):
+            cmds, _ = self.run_plan(
+                ('--mode', 'tests', '--shard', str(shard), '--shards', '2'),
+                files=files,
+                tests=all_tests,
+            )
+            for cmd in cmds:
+                if cmd[0] == 'scripts/test-contracts.ts':
+                    seen.extend(cmd[1:])
+                elif cmd[0] == 'test':
+                    seen.append(cmd[1])
+        self.assertCountEqual(seen, all_tests)
+        # Single-shard order puts heavy contract tests before light ones.
+        single, _ = self.run_plan(('--mode', 'tests'), files=files, tests=all_tests)
+        contracts_order = next(cmd[1:] for cmd in single if cmd[0] == 'scripts/test-contracts.ts')
+        self.assertEqual(contracts_order[-1], 'tests/contracts/light.test.ts')
+
+
 class GateTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -83,19 +121,21 @@ class GateTest(unittest.TestCase):
         return subprocess.run(['python3', '-c', self.script], env={**os.environ, 'RESULTS': json.dumps(jobs), 'EVENT_NAME': event}, capture_output=True, text=True).returncode
 
     def test_unselected_jobs_may_skip(self):
-        self.assertEqual(self.gate({'quality': 'skipped'}), 0)
+        self.assertEqual(self.gate({'static': 'skipped', 'tests': 'skipped'}), 0)
 
     def test_selected_job_cannot_skip(self):
-        self.assertNotEqual(self.gate({'quality': 'skipped'}, {'quality': 'true'}), 0)
+        self.assertNotEqual(self.gate({'static': 'skipped', 'tests': 'success'}, {'static': 'true', 'has_tests': 'true'}), 0)
+        self.assertNotEqual(self.gate({'static': 'success', 'tests': 'skipped'}, {'static': 'true', 'has_tests': 'true'}), 0)
 
     def test_selected_success_passes(self):
-        self.assertEqual(self.gate({'quality': 'success'}, {'quality': 'true'}), 0)
+        self.assertEqual(self.gate({'static': 'success', 'tests': 'success'}, {'static': 'true', 'has_tests': 'true'}), 0)
 
     def test_planner_failure_blocks(self):
         self.assertNotEqual(self.gate({'impact': 'failure'}), 0)
 
     def test_cancelled_check_blocks(self):
-        self.assertNotEqual(self.gate({'quality': 'cancelled'}), 0)
+        self.assertNotEqual(self.gate({'static': 'cancelled'}), 0)
+        self.assertNotEqual(self.gate({'tests': 'cancelled'}), 0)
 
     def test_selected_pr_worker_cannot_skip(self):
         self.assertNotEqual(self.gate({'worker-check': 'skipped'}, {'worker': 'true'}), 0)

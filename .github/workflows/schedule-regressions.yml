@@ -33,6 +33,12 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Restore PGlite migrated template
+        uses: actions/cache@v4
+        with:
+          path: .cache/pglite/
+          key: ${{ runner.os }}-pglite-v1-${{ hashFiles('drizzle-postgres/*.sql') }}
+
       - name: Run schedule regression contracts
         run: >-
           bun test

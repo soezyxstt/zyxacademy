@@ -150,6 +150,16 @@ class ScopeTest(unittest.TestCase):
     def test_deleted_file_is_not_sent_to_eslint(self):
         self.assertEqual(self.plan('components/does-not-exist.tsx')['lint_files'], [])
 
+    def test_static_and_test_shards_scale_with_selected_tests(self):
+        docs = self.plan('docs/features.md')
+        self.assertFalse(docs['static'])
+        self.assertFalse(docs['has_tests'])
+        self.assertEqual(docs['test_shards'], [0])
+        broad = ci.plan([], self.head, force=True)
+        self.assertTrue(broad['static'])
+        self.assertTrue(broad['has_tests'])
+        self.assertEqual(broad['test_shards'], [0, 1, 2, 3, 4, 5])
+
 
 class HistoryTest(unittest.TestCase):
     def setUp(self):

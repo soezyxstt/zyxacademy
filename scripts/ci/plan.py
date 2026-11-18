@@ -231,6 +231,35 @@ def plan(changed, head, base=None, force=False):
     result['lint_all'] = broad or 'eslint.config.mjs' in changed
     result['lint_files'] = sorted(p for p in changed & head.files if PurePosixPath(p).suffix in CODE
                                   and not p.startswith(('tests/', 'workers/', 'plugins/', 'android/')))
+    worker_tests = []
+    for config in result['worker_projects']:
+        directory = config.rsplit('/', 1)[0] + '/'
+        worker_tests.extend(sorted(f for f in head.under(directory) if f.endswith('.test.ts')))
+    total_tests = len(result['tests']) + len(worker_tests)
+    if total_tests == 0:
+        shard_count = 0
+    elif total_tests <= 35:
+        shard_count = 1
+    elif total_tests <= 100:
+        shard_count = 2
+    elif total_tests <= 220:
+        shard_count = 4
+    else:
+        shard_count = 6
+    result['static'] = (
+        result['typecheck']
+        or result['test_typecheck']
+        or result['structured_typecheck']
+        or result['i18n']
+        or result['lint_all']
+        or bool(result['lint_files'])
+        or bool(result['worker_projects'])
+        or result['python_worker']
+    )
+    result['has_tests'] = total_tests > 0
+    # Keep matrix JSON non-empty when has_tests is false so GitHub skips cleanly.
+    result['test_shards'] = list(range(shard_count)) if shard_count else [0]
+    result['quality'] = result['static'] or result['has_tests']
     result['reasons'] = reasons
     result['changed'] = sorted(changed)
     result['fallback'] = force
@@ -268,8 +297,17 @@ def main():
         with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
             for key in SCOPES:
                 stream.write(f'{key}={str(result[key]).lower()}\n')
-            stream.write(f'quality={str(result["typecheck"] or result["test_typecheck"] or result["structured_typecheck"] or result["i18n"] or bool(result["tests"]) or result["lint_all"] or bool(result["lint_files"]) or bool(result["worker_projects"]) or result["python_worker"]).lower()}\n')
-    print(json.dumps({key: result[key] for key in SCOPES} | {'selected_tests': len(result['tests']), 'fallback': result['fallback']}))
+            stream.write(f'quality={str(result["quality"]).lower()}\n')
+            stream.write(f'static={str(result["static"]).lower()}\n')
+            stream.write(f'has_tests={str(result["has_tests"]).lower()}\n')
+            stream.write(f'test_shards={json.dumps(result["test_shards"])}\n')
+    print(json.dumps({key: result[key] for key in SCOPES} | {
+        'static': result['static'],
+        'has_tests': result['has_tests'],
+        'test_shards': len(result['test_shards']) if result['has_tests'] else 0,
+        'selected_tests': len(result['tests']),
+        'fallback': result['fallback'],
+    }))
 
 
 if __name__ == '__main__':

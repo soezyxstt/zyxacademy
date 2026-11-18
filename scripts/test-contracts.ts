@@ -51,7 +51,7 @@ if (files.some((file) => {
   }
 }
 const requestedConcurrency = Number(process.env.TEST_CONTRACTS_CONCURRENCY ?? 0);
-const defaultConcurrency = Math.min(4, Math.max(2, availableParallelism()));
+const defaultConcurrency = Math.min(6, Math.max(2, availableParallelism() + 1));
 const concurrency = Math.max(1, Math.min(files.length, Number.isFinite(requestedConcurrency) && requestedConcurrency > 0 ? requestedConcurrency : defaultConcurrency));
 let cursor = 0;
 await Promise.all(Array.from({ length: concurrency }, async () => {
