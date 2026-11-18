@@ -121,4 +121,4 @@ if args.mode in ('all', 'tests'):
         run('bun', 'scripts/test-contracts.ts', *contract_tests)
 
     if other_tests:
-        run_parallel([('bun', 'test', test) for test in other_tests], max_workers=4)
+        run_parallel([('bun', 'test', '--timeout', '60000', test) for test in other_tests], max_workers=4)

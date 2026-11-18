@@ -72,13 +72,16 @@ class CheckCommandsTest(unittest.TestCase):
 
     def test_bun_test_files_run_in_separate_processes(self):
         commands, _ = self.run_plan(tests=['tests/a.test.ts', 'tests/b.test.ts'])
-        self.assertCountEqual(commands, [['test', 'tests/a.test.ts'], ['test', 'tests/b.test.ts']])
+        self.assertCountEqual(
+            commands,
+            [['test', '--timeout', '60000', 'tests/a.test.ts'], ['test', '--timeout', '60000', 'tests/b.test.ts']],
+        )
 
     def test_static_mode_skips_tests_and_tests_mode_skips_static(self):
         static_cmds, _ = self.run_plan(('--mode', 'static'), lint_all=True, tests=['tests/a.test.ts'])
         self.assertEqual(static_cmds, [['run', 'lint', '--cache', '--cache-strategy', 'content', '--cache-location', '.cache/eslint/']])
         test_cmds, _ = self.run_plan(('--mode', 'tests', '--shard', '0', '--shards', '1'), lint_all=True, typecheck=True, tests=['tests/a.test.ts'])
-        self.assertEqual(test_cmds, [['test', 'tests/a.test.ts']])
+        self.assertEqual(test_cmds, [['test', '--timeout', '60000', 'tests/a.test.ts']])
 
     def test_shards_partition_all_tests_and_put_heaviest_first(self):
         files = {
@@ -100,7 +103,7 @@ class CheckCommandsTest(unittest.TestCase):
                 if cmd[0] == 'scripts/test-contracts.ts':
                     seen.extend(cmd[1:])
                 elif cmd[0] == 'test':
-                    seen.append(cmd[1])
+                    seen.append(cmd[-1])
         self.assertCountEqual(seen, all_tests)
         # Single-shard order puts heavy contract tests before light ones.
         single, _ = self.run_plan(('--mode', 'tests'), files=files, tests=all_tests)
