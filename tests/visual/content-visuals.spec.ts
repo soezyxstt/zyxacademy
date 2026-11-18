@@ -71,6 +71,28 @@ test("quiz prompt and options support independent visuals without changing the a
   expect(failures).toEqual([]);
 });
 
+test("quiz submission summary keeps answer counts and warnings visible", async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  const failures = await openFixture(page);
+  const submit = page.getByRole("button", { name: "Kirim jawaban", exact: true });
+  const dialog = page.getByRole("dialog", { name: "Kumpulkan lembar jawaban kuis?" });
+  const warning = dialog.getByText("Ada 1 butir soal belum diisi.", { exact: false });
+  await submit.click();
+  await expect(warning).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Ya, kumpulkan" })).toBeEnabled();
+  await capture(page, testInfo, "quiz-submit-unanswered");
+
+  await dialog.getByRole("button", { name: "Cek kembali" }).click();
+  await expect(dialog).toBeHidden();
+  await page.locator("[data-question-option]").first().getByRole("radio").click();
+  await submit.click();
+  await expect(dialog).toBeVisible();
+  await expect(warning).toHaveCount(0);
+  await expect(dialog.getByText("Terjawab", { exact: true })).toBeVisible();
+  await capture(page, testInfo, "quiz-submit-answered");
+  expect(failures).toEqual([]);
+});
+
 test("quiz review explanation renders an interactive visual between its paragraphs", async ({ page }, testInfo) => {
   test.setTimeout(120_000);
   const failures = await openFixture(page, "review");
@@ -97,5 +119,34 @@ test("invalid embedded visuals preserve surrounding learning content", async ({ 
   await expect(page.getByRole("figure")).toHaveCount(0);
   await expect(page.locator("pre")).toHaveCount(0);
   await capture(page, testInfo, "invalid-payload");
+  expect(failures).toEqual([]);
+});
+
+test("quiz exposes both timers and the responsive question map", async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  const failures = await openFixture(page);
+  const totalTime = page.getByRole("timer", { name: "Total sisa waktu kuis" });
+  const questionTime = page.getByRole("timer", { name: "Batas waktu untuk nomor ini" });
+  const map = page.getByRole("button", { name: "Navigasi pertanyaan", exact: true });
+  await expect(totalTime).toBeInViewport();
+  await expect(questionTime).toBeInViewport();
+  if (page.viewportSize()!.width >= 1024) {
+    await expect(map).toBeHidden();
+    await expect(page.getByRole("button", { name: "Soal 1, Belum diisi" })).toHaveAttribute("aria-current", "step");
+    await capture(page, testInfo, "quiz-desktop-map");
+    expect(failures).toEqual([]);
+    return;
+  }
+  await expect(map).toBeInViewport();
+  await capture(page, testInfo, "quiz-mobile-timers");
+  await map.click();
+  const sheet = page.getByRole("dialog", { name: "Navigasi pertanyaan" });
+  const question = sheet.getByRole("button", { name: "Soal 1, Belum diisi" });
+  await expect(question).toHaveAttribute("aria-current", "step");
+  await capture(page, testInfo, "quiz-mobile-map-open");
+  await question.click();
+  await expect(sheet).toBeHidden();
+  await expect(map).toBeFocused();
+  await expect(page.getByRole("button", { name: "Kumpulkan kuis", exact: true })).toBeVisible();
   expect(failures).toEqual([]);
 });

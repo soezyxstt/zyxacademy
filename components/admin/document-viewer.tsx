@@ -416,7 +416,7 @@ export function DocumentViewer({ file, onClose }: DocumentViewerProps) {
 
     return (
       <div className="space-y-4">
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="border-y border-border py-4">
           <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <dt className="text-body-xs text-muted-foreground">Nama</dt>

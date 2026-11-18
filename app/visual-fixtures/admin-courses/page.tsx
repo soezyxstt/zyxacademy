@@ -24,6 +24,14 @@ const courses = [
     materialCount: 18,
     quizCount: 9,
   },
+  {
+    id: "ki1101",
+    title: "Kimia Dasar dan Praktikum Laboratorium",
+    category: "TPB",
+    chapterCount: 0,
+    materialCount: 0,
+    quizCount: 0,
+  },
 ];
 
 export default function AdminCoursesVisualFixturePage() {

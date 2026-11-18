@@ -55,14 +55,14 @@ export default async function ProfileEditPage() {
   };
 
   return (
-    <ApplicationPage maxWidth="7xl">
+    <ApplicationPage maxWidth="7xl" spacing="space-y-3">
       <PageHeader
         title={<TranslatedText namespace="student" messageKey="profile.editTitle" />}
         icon={UserCheck}
         backHref="/profile"
         backLabel={<TranslatedText namespace="student" messageKey="profile.pageTitle" />}
       />
-      <Reveal className="mt-6">
+      <Reveal>
         <div className="max-w-5xl">{customization ? <ProfileSettings initial={customization[0]} badges={customization[1]} rewards={customization[2]} name={currentUser.name} image={dbUser?.image ?? null} academicForm={<ProfileEditForm user={currentUser} />} /> : <ProfileEditForm user={currentUser} />}</div>
       </Reveal>
     </ApplicationPage>

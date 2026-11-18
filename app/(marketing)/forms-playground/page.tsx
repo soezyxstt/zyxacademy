@@ -170,13 +170,13 @@ export default function FormsPlaygroundPage() {
       </Reveal>
 
       {/* Interactive Playground Grid */}
-      <SectionContainer className="relative z-10 py-12 marketing-container">
+      <SectionContainer className="relative z-10 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* Left Column: The Form */}
           <div className="lg:col-span-7 space-y-6">
             <Reveal>
-              <div className="bg-card border border-border shadow-sm rounded-xl p-6">
+              <div className="border-t border-border pt-4">
                 <div className="border-b border-border pb-4 mb-6">
                   <h2 className="font-heading text-h6 font-bold tracking-tight text-foreground">
                     Register Profile
@@ -371,7 +371,7 @@ export default function FormsPlaygroundPage() {
           {/* Right Column: State Viewer & Controls Dashboard */}
           <div className="lg:col-span-5 space-y-6">
             <Reveal>
-              <div className="bg-card border border-border shadow-sm rounded-xl p-6">
+              <div className="border-t border-border pt-4">
                 <h2 className="font-heading text-h6 font-bold tracking-tight text-foreground border-b border-border pb-4 mb-4">
                   Component Inspector
                 </h2>

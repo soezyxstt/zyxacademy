@@ -17,6 +17,7 @@ async function assertAndCapture(page: Page, testInfo: TestInfo, name: string) {
 }
 
 test("bank soal toolbar and filter states", async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
   const runtimeErrors: string[] = [];
   await page.emulateMedia({ reducedMotion: "reduce" });
   page.on("console", (message) => {
@@ -29,14 +30,22 @@ test("bank soal toolbar and filter states", async ({ page }, testInfo) => {
   expect(new URL(page.url()).pathname).toBe(ROUTE);
   await expect(page.getByRole("heading", { name: "Bank Soal" })).toBeVisible();
   await page.waitForTimeout(1500);
+  const searchButton = page.getByRole("button", { name: /Cari isi soal/ });
+  await expect(searchButton).toBeVisible();
   if ((page.viewportSize()?.width ?? 0) >= 1000) {
     const tabs = await page.getByRole("tablist").boundingBox();
-    const search = await page.getByPlaceholder(/Cari isi soal/).boundingBox();
+    const search = await searchButton.boundingBox();
     expect(tabs).not.toBeNull();
     expect(search).not.toBeNull();
     expect(Math.abs(tabs!.y + tabs!.height / 2 - search!.y - search!.height / 2)).toBeLessThan(2);
   }
   await assertAndCapture(page, testInfo, "active-closed");
+  await searchButton.click();
+  const searchInput = page.getByPlaceholder(/Cari isi soal/);
+  await expect(searchInput).toBeFocused();
+  await assertAndCapture(page, testInfo, "active-search");
+  await searchInput.press("Escape");
+  await expect(searchButton).toBeFocused();
 
   await page.getByRole("button", { name: "Filter soal" }).click();
   await expect(page.getByRole("heading", { name: "Filter soal" })).toBeVisible();

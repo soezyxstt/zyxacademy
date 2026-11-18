@@ -28,7 +28,7 @@ export function QuizListClient({ courseId, hasFullContentAccess, accessTier = ha
 
   return (
     <div className="font-sans">
-      {templates.length > 0 && <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+      {templates.length > 0 && <ul className="divide-y divide-border">
         {templates.map((template) => {
           const isFree = template.visibility === "free";
           const accessible = accessTier === "standard"
@@ -70,7 +70,7 @@ export function QuizListClient({ courseId, hasFullContentAccess, accessTier = ha
           const actionBadge = (() => {
             if (!accessible) {
               return (
-                <span className="flex items-center gap-1 rounded-lg border border-border/60 bg-muted/40 px-2.5 py-1 text-body-xs text-muted-foreground shrink-0">
+                <span className="flex items-center gap-1 text-body-xs text-muted-foreground">
                   {t("quizList.open")} <Lock className="size-3" />
                 </span>
               );
@@ -84,14 +84,14 @@ export function QuizListClient({ courseId, hasFullContentAccess, accessTier = ha
                 );
               }
               return (
-                <span className="rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1 text-body-xs text-muted-foreground shrink-0">
+                <span className="text-body-xs text-muted-foreground">
                   {t("quizList.closed")}
                 </span>
               );
             }
             if (isUpcoming) {
               return (
-                <span className="rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1 text-body-xs text-muted-foreground shrink-0">
+                <span className="text-body-xs text-muted-foreground">
                   {t("quizList.notOpen")}
                 </span>
               );
@@ -113,7 +113,7 @@ export function QuizListClient({ courseId, hasFullContentAccess, accessTier = ha
               <Link
                 href={experience.href?.(targetHref) ?? targetHref}
                 className={cn(
-                  "group flex items-center justify-between gap-3 px-4 py-3 transition-colors",
+                  "group flex items-center justify-between gap-3 py-3 transition-colors",
                   accessible && isOpen ? "hover:bg-muted/30 active:bg-muted/50" : "hover:bg-muted/30",
                 )}
               >
@@ -184,7 +184,7 @@ export function QuizListClient({ courseId, hasFullContentAccess, accessTier = ha
       </ul>}
 
       {templates.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/80 bg-card/60 p-8 text-center sm:p-10">
+        <div className="px-4 py-5 text-center">
           <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
             <ClipboardList className="size-6" />
           </div>

@@ -8,7 +8,7 @@ export type AdminTableProps = {
 
 export function AdminTable({ children, className }: AdminTableProps) {
   return (
-    <div className={cn("admin-table overflow-x-auto rounded-xl border border-border bg-card", className)}>
+    <div className={cn("admin-table overflow-x-auto border-y border-border", className)}>
       {children}
     </div>
   );

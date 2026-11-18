@@ -52,7 +52,7 @@ export default function SignOutPage() {
 
   return (
     <Reveal className="marketing-container flex min-h-[50vh] flex-col items-center justify-center py-16">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+      <div className="w-full max-w-md text-center">
         <h1 className="font-heading text-h5 font-bold text-foreground">
           {t("signOut.title")}
         </h1>

@@ -197,6 +197,7 @@
     "noSlotsHelp": "Pilih minggu atau filter lain, atau hubungi tutor untuk menambah slot."
   },
   "calendar": {
+    "view": "Tampilan kalender",
     "day": "Hari",
     "week": "Minggu",
     "month": "Bulan",

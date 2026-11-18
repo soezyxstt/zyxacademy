@@ -120,17 +120,17 @@ export function MaterialArtifactList({
     <section className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <SearchBar
+          collapsible
           size="sm"
           value={query}
           onSearch={setQuery}
           onClear={() => setQuery("")}
           placeholder={t("materials.searchPlaceholder", { label })}
           aria-label={t("materials.searchAriaLabel", { label })}
-          containerClassName="flex-1 min-w-[140px]"
         />
         {!lockedCourse && (
           <Select value={courseFilter} onValueChange={setCourseFilter}>
-            <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-sm rounded-lg shrink-0" aria-label={t("materials.filterCourse")}>
+            <SelectTrigger variant="inline" className="max-w-44 shrink-0" aria-label={t("materials.filterCourse")}>
               <SelectValue placeholder={t("materials.allCourses")} />
             </SelectTrigger>
             <SelectContent>
@@ -141,7 +141,7 @@ export function MaterialArtifactList({
         )}
         {(chapterOptions.length > 0 || chapterFilter !== "all") && (
           <Select value={effectiveChapterFilter} onValueChange={setChapterFilter}>
-            <SelectTrigger className="w-[140px] sm:w-[170px] h-9 text-body-sm rounded-lg shrink-0" aria-label={t("materials.filterChapter")}>
+            <SelectTrigger variant="inline" className="max-w-44 shrink-0" aria-label={t("materials.filterChapter")}>
               <SelectValue placeholder={t("materials.allChapters")} />
             </SelectTrigger>
             <SelectContent>
@@ -151,7 +151,7 @@ export function MaterialArtifactList({
           </Select>
         )}
         <Select value={authorFilter} onValueChange={setAuthorFilter}>
-          <SelectTrigger className="w-[130px] sm:w-[150px] h-9 text-body-sm rounded-lg shrink-0" aria-label={t("materials.filterAuthor")}>
+          <SelectTrigger variant="inline" className="max-w-44 shrink-0" aria-label={t("materials.filterAuthor")}>
             <SelectValue placeholder={t("materials.allAuthors")} />
           </SelectTrigger>
           <SelectContent>
@@ -160,7 +160,7 @@ export function MaterialArtifactList({
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[120px] sm:w-[140px] h-9 text-body-sm rounded-lg shrink-0" aria-label={t("materials.filterStatus")}>
+          <SelectTrigger variant="inline" className="max-w-44 shrink-0" aria-label={t("materials.filterStatus")}>
             <SelectValue placeholder={t("materials.allStatuses")} />
           </SelectTrigger>
           <SelectContent>

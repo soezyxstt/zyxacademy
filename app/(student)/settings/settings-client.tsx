@@ -19,7 +19,7 @@ export function SettingsClient({ userName, userEmail }: { userName: string | nul
   return (
     <ApplicationPage>
       <PageHeader title={t("settings.accountTitle")} icon={Settings} />
-      <Reveal className="mt-4 max-w-3xl divide-y divide-border rounded-xl border border-border bg-card px-4">
+      <Reveal className="max-w-3xl divide-y divide-border">
         <section className="flex flex-wrap items-center justify-between gap-3 py-3">
           <div className="flex min-w-0 items-center gap-3">
             <User className="size-5 shrink-0 text-primary" />

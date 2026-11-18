@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { AdminIconAction } from "@/components/admin/icon-action";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -223,12 +224,12 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
       {/* Action Bar */}
       <div className="flex flex-wrap items-center gap-2">
         <SearchBar
+          collapsible
           size="sm"
           placeholder={t("search")}
           value={searchQuery}
           onSearch={setSearchQuery}
           onClear={() => setSearchQuery("")}
-          containerClassName="flex-1 min-w-[140px]"
         />
 
         <Select value={filterCourse} onValueChange={setFilterCourse}>
@@ -292,14 +293,10 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
           </TooltipProvider>
         )}
 
-        <Button
-          onClick={() => setShowUploadModal(true)}
-          size="sm"
-          className="h-9 gap-1.5 rounded-lg shrink-0 text-body-sm font-semibold"
-        >
-          <Plus className="size-3.5" />
-          <span>{t("uploadAssessment")}</span>
-        </Button>
+        <AdminIconAction label={t("uploadAssessment")}
+          onClick={() => setShowUploadModal(true)}>
+          <Plus className="size-4" />
+        </AdminIconAction>
       </div>
 
       {/* Table Surface */}

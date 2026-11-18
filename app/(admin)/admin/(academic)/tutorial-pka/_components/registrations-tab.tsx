@@ -224,12 +224,12 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
       {/* Controls */}
       <div className="flex items-center gap-2">
         <SearchBar
+          collapsible
           size="sm"
           value={query}
           onSearch={setQuery}
           onClear={() => setQuery("")}
           placeholder={t("pkaRegistrationUI.search")}
-          containerClassName="flex-1 min-w-0"
         />
         <Button onClick={handleExportGoogleSheets} disabled={exportingSheets} variant="outline" size="sm" className="gap-2 rounded-lg text-brand-primary border-brand-primary/30 bg-brand-primary/5 hover:bg-brand-primary/10 h-9 shrink-0">
           <RefreshCw className={`size-3.5 ${exportingSheets ? "animate-spin" : "hidden"}`} />

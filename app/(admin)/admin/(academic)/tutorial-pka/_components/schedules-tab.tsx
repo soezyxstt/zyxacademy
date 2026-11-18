@@ -13,6 +13,7 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AdminIconAction } from "@/components/admin/icon-action";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/toast";
@@ -146,10 +147,9 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
         <p className="text-body-sm text-muted-foreground">
           {t("pkaScheduleUI.totalUpcoming", { total: schedules.length, upcoming: upcomingCount })}
         </p>
-        <Button onClick={handleOpenCreate} size="sm" className="gap-2 rounded-lg">
+        <AdminIconAction label={t("pkaScheduleUI.add")} onClick={handleOpenCreate}>
           <Plus className="size-4" />
-          {t("pkaScheduleUI.add")}
-        </Button>
+        </AdminIconAction>
       </div>
 
       {schedules.length === 0 ? (

@@ -4,9 +4,18 @@ import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { DifficultyBadge } from "@/components/admin/status-badges";
 import { AdminPageHeader } from "@/components/admin/page-header";
+import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import {
   Tabs,
   TabsContent,
@@ -24,6 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   RefreshCw,
+  MoreHorizontal,
   Trash2,
   Archive,
   BookOpen,
@@ -113,6 +123,7 @@ export function AssessmentDetailClient({
   const router = useRouter();
   const [reingesting, setReingesting] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -200,6 +211,7 @@ export function AssessmentDetailClient({
       }
 
       toast.success(action === "archive" ? t("archived") : t("restored"));
+      setIsArchiveDialogOpen(false);
       router.refresh();
     } catch (err: any) {
       console.error(err);
@@ -212,53 +224,55 @@ export function AssessmentDetailClient({
   return (
     <div className="space-y-6">
       <AdminPageHeader
-        icon={BookOpen}
         title={source.title}
-        description={<>{t("course")}: <span className="font-semibold text-foreground">{course.title}</span></>}
         backHref="/admin/assessments"
         backLabel={t("backToAssessmentList")}
         actions={
           <>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleReIngest}
-            disabled={reingesting || source.ingestionStatus === "processing"}
-            className="flex items-center gap-1.5"
-          >
-            <RefreshCw size={14} className={reingesting ? "animate-spin" : ""} />
-            {t("reingestQuestions")}
-          </Button>
-
-          <Button
-            variant={source.deletedAt ? "default" : "destructive"}
-            size="sm"
-            onClick={handleArchiveToggle}
-            disabled={archiving}
-            className="flex items-center gap-1.5"
-          >
-            <Archive size={14} />
-            {source.deletedAt ? t("restoreAssessment") : t("archiveAssessment")}
-          </Button>
-
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setIsDeleteDialogOpen(true)}
-            disabled={reingesting || archiving}
-            className="flex items-center gap-1.5"
-          >
-            <Trash2 size={14} />
-            {t("deletePermanently")}
-          </Button>
+            <DropdownMenu>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="icon-lg" variant="outline" aria-label={t("actions")} aria-busy={archiving || reingesting}>
+                        <MoreHorizontal aria-hidden />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>{t("actions")}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={handleReIngest} disabled={archiving || reingesting || source.ingestionStatus === "processing"}>
+                  <RefreshCw className="size-4" aria-hidden />
+                  {t("reingestQuestions")}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setIsArchiveDialogOpen(true)} disabled={archiving || reingesting}>
+                  <Archive className="size-4" aria-hidden />
+                  {source.deletedAt ? t("restoreAssessment") : t("archiveAssessment")}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onSelect={() => setIsDeleteDialogOpen(true)}
+                  disabled={reingesting || archiving}
+                >
+                  <Trash2 className="size-4" aria-hidden />
+                  {t("deletePermanently")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </>
         }
       />
 
-      {/* Hero Metadata Panel */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="border-b border-border pb-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="space-y-2">
+          <div className="min-w-0 space-y-2">
+            <h2 className="break-words font-heading text-h5">{source.title}</h2>
+            <p className="break-words text-body-sm text-muted-foreground">
+              {t("course")}: <span className="font-semibold text-foreground">{course.title}</span>
+            </p>
             <div className="flex flex-wrap gap-2 pt-1">
               {source.deletedAt && (
                 <Badge variant="outline" className="border-status-error/30 bg-status-error/5 text-[10px] uppercase tracking-wide text-status-error">
@@ -356,7 +370,7 @@ export function AssessmentDetailClient({
         </TabsList>
 
         {/* Tab content: Extracted Questions list */}
-        <TabsContent value="questions" className="divide-y divide-border rounded-xl border border-border bg-card">
+        <TabsContent value="questions" className="divide-y divide-border border-y border-border">
           {questions.length === 0 ? (
             <div className="py-12 border border-dashed border-border rounded-xl text-center">
               <FileQuestion className="mx-auto text-muted-foreground/30 mb-2" size={32} />
@@ -450,7 +464,7 @@ export function AssessmentDetailClient({
 
         {/* Tab content: Raw Markdown view */}
         <TabsContent value="markdown">
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="border-b border-border pb-4">
             <h3 className="font-heading text-body-base font-semibold mb-4 flex items-center gap-2">
               <FileText size={18} className="text-muted-foreground" />
               {t("canonicalMarkdown")}
@@ -463,7 +477,7 @@ export function AssessmentDetailClient({
 
         {/* Tab content: Resolved Chapters */}
         <TabsContent value="chapters">
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="border-b border-border pb-4">
             <h3 className="font-heading text-body-base font-semibold mb-4 flex items-center gap-2">
               <BookOpen size={18} className="text-muted-foreground" />
               {t("relatedChapters")}
@@ -487,7 +501,7 @@ export function AssessmentDetailClient({
 
         {/* Tab content: Ingest Diagnostics */}
         <TabsContent value="diagnostics">
-          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+          <div className="space-y-3 border-b border-border pb-4">
             <h3 className="font-heading text-body-base font-semibold flex items-center gap-2">
               <AlertTriangle size={18} className="text-status-warning" />
               {t("diagnostics")}
@@ -518,6 +532,18 @@ export function AssessmentDetailClient({
           </div>
         </TabsContent>
       </Tabs>
+      <AdminConfirmDialog
+        open={isArchiveDialogOpen}
+        onOpenChange={setIsArchiveDialogOpen}
+        title={t(source.deletedAt ? "restoreAssessment" : "archiveAssessment")}
+        description={t(source.deletedAt ? "restoreDescription" : "archiveDescription", { title: source.title })}
+        confirmLabel={t(source.deletedAt ? "restoreAssessment" : "archiveAssessment")}
+        cancelLabel={t("cancel")}
+        icon={Archive}
+        destructive={!source.deletedAt}
+        loading={archiving}
+        onConfirm={handleArchiveToggle}
+      />
       {/* Confirmation Deletion Dialog */}
       <Dialog
         open={isDeleteDialogOpen}

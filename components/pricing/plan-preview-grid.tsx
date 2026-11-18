@@ -4,7 +4,6 @@ import { useTranslations } from "@/lib/i18n/client";
 import { Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlanPrice, PlanPromotion } from "@/components/pricing/plan-price";
 import { PlanConsultationLink } from "@/components/pricing/plan-consultation-link";
 import { CORE_SUBJECTS, DEFAULT_PERSONS, DEFAULT_COURSES } from "@/lib/pricing-constants";
@@ -33,16 +32,16 @@ export function PlanPreviewGrid({
       <PlanPromotion className="mb-3" />
       <div className="grid gap-4 md:grid-cols-3">
         {previewPlanTiers.map((tier) => (
-          <Card
+          <article
             key={tier.key}
             className={cn(
-              "flex h-full flex-col shadow-sm",
-              tier.highlighted && "border-primary ring-1 ring-primary/20",
+              "flex h-full min-w-0 flex-col border-t border-border pt-3",
+              tier.highlighted && "border-primary",
             )}
           >
-            <CardHeader className="p-4 pb-3">
+            <header className="space-y-1 pb-3">
               <div className="flex min-h-6 items-start justify-between gap-2">
-                <CardTitle className="text-body-base">{t(`pricing.tiers.${tier.key}.name`)}</CardTitle>
+                <h3 className="font-heading text-body-base font-bold">{t(`pricing.tiers.${tier.key}.name`)}</h3>
                 {tier.highlighted ? <Badge variant="default">{t("pricing.recommended")}</Badge> : null}
               </div>
               <p className="text-body-xs text-muted-foreground">{t(`pricing.tiers.${tier.key}.note`)}</p>
@@ -54,8 +53,8 @@ export function PlanPreviewGrid({
                   perPerson={perPerson}
                 />
               </div>
-            </CardHeader>
-            <CardContent className="flex flex-1 flex-col p-4 pt-0">
+            </header>
+            <div className="flex flex-1 flex-col">
               <ul className="flex-1 space-y-2 border-t border-border pt-3">
                 {(t.raw(`pricing.tiers.${tier.key}.features`) as string[]).slice(0, 2).map((feature) => (
                   <li key={feature} className="flex items-start gap-2 text-body-xs text-muted-foreground">
@@ -81,8 +80,8 @@ export function PlanPreviewGrid({
                   selectedCourses={CORE_SUBJECTS.slice(0, DEFAULT_COURSES)}
                 />
               ) : null}
-            </CardContent>
-          </Card>
+            </div>
+          </article>
         ))}
       </div>
     </div>

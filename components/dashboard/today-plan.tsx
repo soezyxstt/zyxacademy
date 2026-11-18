@@ -121,7 +121,7 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
               ))}
             </div>
           ) : allDone ? (
-            <div className="rounded-xl border border-status-success/15 bg-status-success/5 p-4 py-4 text-center text-status-success">
+            <div className="py-3 text-body-sm text-status-success">
               <p className="text-body-sm font-semibold">{t("dashboard.allTargetsDone")}</p>
             </div>
           ) : (

@@ -237,7 +237,7 @@ export function DiktatCompilerClient({
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
       {/* LEFT: COMPILER FORM */}
-      <div className="lg:col-span-1 bg-card border border-border rounded-xl p-4 text-left h-fit space-y-4">
+      <div className="h-fit space-y-4 border-y border-border py-3 text-left lg:col-span-1">
         <AdminSectionTitle size="lg" border icon={Sliders} title="Konfigurasi Diktat" />
 
         {/* Course Target Select */}
@@ -376,7 +376,7 @@ export function DiktatCompilerClient({
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-card">
+            <div className="divide-y divide-border border-y border-border">
               {diktatsList.map((diktat) => {
                 const chapterIdsArray = Array.isArray(diktat.chapterIds) ? (diktat.chapterIds as string[]) : [];
                 const status = diktat.status;

@@ -8,19 +8,27 @@ import { cn } from "@/lib/utils";
 const Select = SelectPrimitive.Root;
 const SelectValue = SelectPrimitive.Value;
 
-function SelectTrigger({ className, children, ...props }: React.ComponentProps<typeof SelectPrimitive.Trigger>) {
+function SelectTrigger({
+  className,
+  children,
+  variant = "field",
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Trigger> & { variant?: "field" | "inline" }) {
   return (
     <SelectPrimitive.Trigger
       className={cn(
-        "flex h-10 w-full min-w-0 items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-body-sm [&>span]:min-w-0 [&>span]:truncate",
-        "focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2",
+        "flex min-w-0 items-center justify-between gap-2 rounded-md text-body-sm [&>span]:min-w-0 [&>span]:truncate",
+        "focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2",
+        variant === "inline"
+          ? "h-9 w-auto max-w-full border-0 bg-transparent px-2 text-foreground enabled:hover:bg-muted data-[state=open]:bg-muted disabled:opacity-50"
+          : "h-10 w-full border border-input bg-background px-3 py-2 focus-visible:border-primary",
         className
       )}
       {...props}
     >
       {children}
       <SelectPrimitive.Icon asChild>
-        <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+        <ChevronDown className={cn("size-4 shrink-0", variant === "inline" ? "text-muted-foreground" : "opacity-50")} />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );
@@ -32,7 +40,7 @@ function SelectContent({ className, children, position = "popper", ...props }: R
       <SelectPrimitive.Content
         position={position}
         className={cn(
-          "relative z-50 max-h-[min(20rem,var(--radix-select-content-available-height,20rem))] min-w-[8rem] overflow-hidden rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+          "relative z-50 max-h-[min(20rem,var(--radix-select-content-available-height,20rem))] min-w-32 max-w-[var(--radix-select-content-available-width,calc(100vw-1rem))] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
           position === "popper" &&
             "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
           className
@@ -57,7 +65,7 @@ function SelectItem({ className, children, ...props }: React.ComponentProps<type
   return (
     <SelectPrimitive.Item
       className={cn(
-        "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pr-8 pl-2 text-body-sm outline-none hover:bg-muted focus:bg-muted",
+          "relative flex min-h-9 w-full cursor-default select-none items-center rounded-md py-1.5 pr-8 pl-2 text-body-sm break-words outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-muted [&>span:last-child]:min-w-0",
         className
       )}
       {...props}

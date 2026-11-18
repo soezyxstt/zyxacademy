@@ -509,6 +509,7 @@
     "locked": "Quiz locked",
     "premiumDescription": "{course}, premium quiz",
     "backToList": "Back to quiz list",
+    "backToQuiz": "Back to quiz",
     "closed": "Quiz closed",
     "viewDiscussion": "View discussion",
     "notOpen": "Quiz has not opened yet",

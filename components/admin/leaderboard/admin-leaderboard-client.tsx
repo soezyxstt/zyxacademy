@@ -279,6 +279,7 @@ export function AdminLeaderboardClient({
       {/* Toolbar: single row on desktop, wraps near 380px */}
       <div className="flex flex-row flex-wrap items-center gap-2">
         <SearchBar
+          collapsible
           size="sm"
           placeholder={
             isOverview
@@ -288,7 +289,6 @@ export function AdminLeaderboardClient({
           value={search}
           onSearch={setSearch}
           onClear={() => setSearch("")}
-          containerClassName="flex-1 min-w-[140px]"
         />
 
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">

@@ -79,7 +79,7 @@ export function AdminStatStrip({ children, className }: AdminStatStripProps) {
   return (
     <div
       className={cn(
-        "grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2",
+        "grid grid-cols-1 gap-x-5 border-y border-border sm:grid-cols-2",
         className
       )}
     >
@@ -100,7 +100,7 @@ export function AdminStatStripItem({
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 bg-card px-4",
+        "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1",
         compact ? "min-h-10 py-2" : "min-h-14 py-3"
       )}
     >

@@ -2,8 +2,6 @@
 
 import { History, BookOpen, CheckCircle2, ClipboardList, Target } from "lucide-react";
 import { RecentActivityData } from "@/types/course-learning";
-import { studentCardClass } from "@/components/course/course-surfaces";
-import { cn } from "@/lib/utils";
 import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 
 function formatRelativeTime(isoString: string, locale: "id" | "en", t: ReturnType<typeof useTranslations>): string {
@@ -26,7 +24,7 @@ function formatRelativeTime(isoString: string, locale: "id" | "en", t: ReturnTyp
 
 export function RecentActivitySkeleton() {
   return (
-    <div className={cn(studentCardClass(), "w-full")}>
+    <section className="min-w-0">
       <div className="flex items-center gap-2 mb-4">
         <div className="size-5 bg-muted rounded-md animate-pulse" />
         <div className="h-5 w-40 bg-muted rounded-md animate-pulse" />
@@ -45,7 +43,7 @@ export function RecentActivitySkeleton() {
           </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -91,7 +89,7 @@ export function RecentActivityCard({
   };
 
   return (
-    <div className={cn(studentCardClass(), "w-full")}>
+    <section className="min-w-0">
       <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2 mb-2">
         <History className="size-4.5 text-brand-primary" aria-hidden="true" />
         {t("course.recentActivity.title")}
@@ -123,10 +121,10 @@ export function RecentActivityCard({
           ))}
         </div>
       ) : (
-        <div className="py-8 text-center animate-in fade-in duration-300">
+        <div className="py-2 animate-in fade-in duration-300">
           <p className="text-body-sm text-muted-foreground">{t("course.recentActivity.empty")}</p>
         </div>
       )}
-    </div>
+    </section>
   );
 }

@@ -104,7 +104,7 @@ export default function LiveStudentPage() {
   if (!process.env.NEXT_PUBLIC_REALTIME_URL) {
     return (
       <CoursePageShell title={title} icon={Play}>
-        <div className="mx-auto max-w-md px-4 py-12 text-center rounded-xl border border-dashed border-border bg-card/50">
+        <div className="mx-auto max-w-md px-4 py-5 text-center">
           <Play className="mx-auto mb-3 size-10 text-muted-foreground/40" />
           <h3 className="font-heading text-body-base font-bold text-foreground">
             {t("noSessionTitle")}
@@ -356,7 +356,7 @@ function Leaderboard({ top10, yourRank, yourScore, title }: LeaderboardProps) {
           <span className="tabular-nums text-body-sm font-bold text-primary">{yourScore}</span>
         </div>
       )}
-      <div className="divide-y divide-border rounded-xl border border-border">
+      <div className="divide-y divide-border">
         {top10.map((entry) => {
           const isMe = entry.rank === yourRank;
           return (

@@ -3,7 +3,7 @@ import { StudentQuizGateway } from "@/components/course/student-quiz-gateway";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { Lock, ArrowLeft } from "lucide-react";
+import { Lock } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { QuizPlayer } from "@/components/course/quiz-player";
 import { EnrollmentForm } from "@/components/enrollment-form";
@@ -153,17 +153,9 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
   if (!isAccessible) {
     return (
-      <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.locked" />} description={<TranslatedText namespace="learning" messageKey="quizTake.premiumDescription" values={{ course: course.title }} />} hideHeader>
-        <div className="mb-4">
-          <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground">
-            <Link href={`/courses/${id}/quiz`}>
-              <ArrowLeft className="size-3.5" />
-              <span><TranslatedText namespace="learning" messageKey="quizTake.backToList" /></span>
-            </Link>
-          </Button>
-        </div>
+      <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.locked" />} description={<TranslatedText namespace="learning" messageKey="quizTake.premiumDescription" values={{ course: course.title }} />} backHref={`/courses/${id}/quiz`} backLabel={<TranslatedText namespace="learning" messageKey="quizTake.backToList" />}>
         <Reveal>
-          <div className="rounded-lg border border-border/70 bg-card p-4">
+          <div className="border-t border-border/70 py-3">
             <div className="flex items-start gap-3">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
                 <Lock className="size-5" />
@@ -257,7 +249,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       return (
         <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.closed" />} description={template.title} hideHeader>
           <Reveal>
-            <div className="rounded-lg border border-border/70 bg-card p-5 text-center">
+            <div className="py-4 text-center">
                 <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.closed" /></h3>
               <p className="mt-2 text-body-sm text-muted-foreground">
                 Kuis ini telah ditutup secara manual oleh admin/tutor.
@@ -283,7 +275,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         return (
           <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.notOpen" />} description={template.title} hideHeader>
             <Reveal>
-              <div className="rounded-lg border border-border/70 bg-card p-5 text-center">
+              <div className="py-4 text-center">
                 <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.notOpen" /></h3>
                 <p className="mt-2 text-body-sm text-muted-foreground">
                   Kuis ini dijadwalkan untuk dibuka pada tanggal{" "}
@@ -304,7 +296,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         return (
           <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.closed" />} description={template.title} hideHeader>
             <Reveal>
-              <div className="rounded-lg border border-border/70 bg-card p-5 text-center">
+              <div className="py-4 text-center">
                 <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.closed" /></h3>
                 <p className="mt-2 text-body-sm text-muted-foreground">
                   Akses kuis ini telah berakhir sejak tanggal{" "}

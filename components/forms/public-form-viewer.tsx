@@ -686,7 +686,7 @@ export function PublicFormViewer({
     return (
       <div className="relative flex h-screen h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
         <PageOrnaments variant="plans" />
-        <div className="mx-auto max-w-md w-full rounded-2xl border border-border bg-card p-8 shadow-sm text-center space-y-5">
+        <div className="relative z-10 mx-auto w-full max-w-md space-y-5 text-center">
           <div className="size-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
             <AlertCircle className="size-6" />
           </div>
@@ -708,7 +708,7 @@ export function PublicFormViewer({
     return (
       <div className="relative flex h-screen h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
         <PageOrnaments variant="plans" />
-        <div className="relative z-10 mx-auto max-w-md w-full rounded-2xl border border-border bg-card/95 backdrop-blur-md p-8 shadow-sm text-center space-y-5">
+        <div className="relative z-10 mx-auto w-full max-w-md space-y-5 text-center">
           <div className="size-12 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
             <AlertCircle className="size-6" />
           </div>
@@ -728,7 +728,7 @@ export function PublicFormViewer({
     return (
       <div className="relative flex h-screen h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
         <PageOrnaments variant="plans" />
-        <div className="relative z-10 mx-auto max-w-lg w-full rounded-2xl border border-border bg-card/95 backdrop-blur-md p-8 shadow-sm text-center space-y-5 border-t-4 border-t-status-warning">
+        <div className="relative z-10 mx-auto w-full max-w-lg space-y-5 text-center">
           <span className="inline-block rounded-md bg-status-warning/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-status-warning">
             {t("publicForm.closed")}
           </span>
@@ -757,7 +757,7 @@ export function PublicFormViewer({
           initial={{ opacity: 0, scale: 0.95, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="relative z-10 mx-auto max-w-lg w-full rounded-2xl border border-border bg-card/95 backdrop-blur-md p-8 sm:p-10 shadow-sm text-center space-y-6"
+          className="relative z-10 mx-auto w-full max-w-lg space-y-6 text-center"
         >
           <div className="size-16 rounded-2xl bg-status-success/15 text-status-success flex items-center justify-center mx-auto shadow-inner">
             <Check className="size-8 stroke-[2.5]" />
@@ -1602,7 +1602,7 @@ export function PublicFormViewer({
 
                     {/* 9. GRID_RADIO & 10. GRID_CHECKBOX */}
                     {(q.type === "GRID_RADIO" || q.type === "GRID_CHECKBOX") && (
-                      <div className="overflow-x-auto rounded-2xl border border-border bg-card p-4">
+                      <div className="overflow-x-auto border-y border-border">
                         <table className="w-full text-left text-body-xs">
                           <thead>
                             <tr className="border-b border-border text-muted-foreground font-semibold">

@@ -5,7 +5,6 @@ import { Bell, BookOpen, CalendarDays, Mail, Newspaper, ShieldCheck, BookmarkChe
 import { updateNotificationPreferencesAction, type NotificationPreferencesActionState } from "./actions";
 import type { EmailNotificationPreferences } from "@/lib/email-preferences/contracts";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/components/ui/toast";
 import { useTranslations } from "@/lib/i18n/client";
@@ -74,23 +73,23 @@ export function NotificationPreferencesForm({
         <input key={key} type="hidden" name={key} value={String(value)} />
       ))}
 
-      <Card className="w-full shadow-xs">
-        <CardHeader className="border-b border-border">
+      <section aria-labelledby="notification-preferences-heading">
+        <header className="border-b border-border pb-3">
           <div className="flex items-start gap-3">
             <span className="flex size-8 shrink-0 items-center justify-center text-primary">
               <Mail className="size-5" aria-hidden />
             </span>
             <div className="min-w-0">
-              <CardTitle className="font-heading text-body-base font-bold">{t("notificationPreferences.title")}</CardTitle>
-              <CardDescription className="mt-1 text-body-xs">
+              <h2 id="notification-preferences-heading" className="font-heading text-body-base font-bold">{t("notificationPreferences.title")}</h2>
+              <p className="mt-1 text-body-xs">
                 {t("notificationPreferences.optionalDescription", { email: accountEmail })}
-              </CardDescription>
+              </p>
             </div>
           </div>
-        </CardHeader>
+        </header>
 
-        <CardContent className="p-0">
-          <label className="flex cursor-pointer items-start gap-3 border-b border-border px-4 py-3 hover:bg-muted/20 transition-colors">
+        <div>
+          <label className="flex cursor-pointer items-start gap-3 border-b border-border py-3 hover:bg-muted/20 transition-colors">
             <Checkbox
               checked={preferences.emailEnabled}
               onCheckedChange={(checked) => setPreferences((current) => ({ ...current, emailEnabled: checked === true }))}
@@ -112,7 +111,7 @@ export function NotificationPreferencesForm({
             {CATEGORY_ROWS.map(({ key, labelKey, descriptionKey, icon: Icon }) => (
               <label
                 key={key}
-                className="flex cursor-pointer items-start gap-3 px-4 py-3 has-[:disabled]:cursor-not-allowed hover:bg-muted/20 transition-colors"
+                className="flex cursor-pointer items-start gap-3 py-3 has-[:disabled]:cursor-not-allowed hover:bg-muted/20 transition-colors"
               >
                 <Checkbox
                   checked={preferences[key]}
@@ -131,8 +130,8 @@ export function NotificationPreferencesForm({
               </label>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       <div className="flex items-start gap-3 px-1">
         <ShieldCheck className="mt-0.5 size-5 shrink-0 text-brand-primary" aria-hidden />

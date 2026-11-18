@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { AdminIconAction } from "@/components/admin/icon-action";
+import { useTranslations } from "@/lib/i18n/client";
 import { toast } from "@/components/ui/toast";
 import { RefreshCcw } from "lucide-react";
 
 export function RefreshAnalyticsButton() {
+  const t = useTranslations("adminOps");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -42,15 +44,13 @@ export function RefreshAnalyticsButton() {
   };
 
   return (
-    <Button
-      variant="outline"
-      size="sm"
+    <AdminIconAction
+      label={t("opsUI.refresh")}
+      variant="ghost"
       onClick={handleRefresh}
-      disabled={loading}
-      className="gap-2"
+      isLoading={loading}
     >
-      <RefreshCcw className={`size-4 ${loading ? "animate-spin" : ""}`} />
-      Refresh Data Analytics
-    </Button>
+      <RefreshCcw className="size-4" />
+    </AdminIconAction>
   );
 }

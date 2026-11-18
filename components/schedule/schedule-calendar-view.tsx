@@ -699,7 +699,7 @@ export function ScheduleCalendarView({
               <Button size="sm" className="h-8 sm:h-9 shrink-0" onClick={() => setBookingPickerOpen(true)}>{t("booking.openPicker")}</Button>
             ) : null}
             <Select value={viewMode} onValueChange={(value: CalendarViewMode) => setViewMode(value)}>
-              <SelectTrigger className="h-8 sm:h-9 w-auto min-w-[82px] sm:min-w-[88px] shrink-0 px-2.5 text-body-sm font-semibold">
+              <SelectTrigger variant="inline" aria-label={t("calendar.view")} className="shrink-0">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -868,7 +868,7 @@ export function ScheduleCalendarView({
           labels={eventLabels}
         />
       ) : (
-        <div ref={gridScrollRef} className="max-h-[76vh] overflow-auto rounded-xl border border-border/80 bg-card/55 shadow-xs">
+        <div ref={gridScrollRef} className="max-h-[76vh] overflow-auto border-y border-border">
           <div style={{ minWidth: gridMinWidth }}>
             <div
               className="sticky top-0 z-30 grid border-b border-border/70 bg-card/95 backdrop-blur-sm"
@@ -1012,7 +1012,7 @@ function MonthView({
   const activeParts = parseCalendarDate(activeDate);
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border/80 bg-card/55 shadow-xs">
+    <div className="overflow-x-auto border-y border-border">
       <div className="min-w-[760px]">
         <div className="grid grid-cols-7 border-b border-border/70 bg-muted/20">
           {weekdayLabels.map((label) => (

@@ -216,6 +216,7 @@ function reviewedProductPayload(state: "incomplete" | "complete" | "stale") {
 
 test.describe("Structured Article V3 visual acceptance", () => {
   test("student reader, TOC, search, callouts, formula, and navigation", async ({ page }, testInfo) => {
+    test.setTimeout(120_000);
     const errors = observeFailures(page);
     await page.route("**/api/student/articles/visual-article/progress", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ maxReadPercent: 100, completed: true, timeSpentSeconds: 180 }) }));
     const response = await page.goto(`${ROUTE}?mode=student&section=bilangan-real-dan-representasi`, { waitUntil: "domcontentloaded", timeout: 90_000 });
@@ -227,12 +228,20 @@ test.describe("Structured Article V3 visual acceptance", () => {
     await capture(page, testInfo, "student-reader-callouts-formula-table");
 
     const mobileToc = page.getByRole("button", { name: "Daftar Isi" });
-    if (await mobileToc.isVisible()) await mobileToc.click();
+    const mobile = page.viewportSize()!.width < 768;
+    if (mobile) await mobileToc.click();
+    const searchButton = page.getByRole("button", { name: "Cari dalam artikel", exact: true }).filter({ visible: true });
+    if (mobile) {
+      await expect(page.getByRole("dialog").locator('[data-slot="sheet-header"]')).toContainText("Bab ini");
+      await expect(page.getByRole("dialog").locator('[data-slot="sheet-header"]').getByRole("button", { name: "Cari dalam artikel", exact: true })).toBeVisible();
+      await capture(page, testInfo, "student-reader-mobile-navigation");
+    }
+    await searchButton.click();
     const search = page.getByRole("searchbox", { name: "Cari dalam artikel" });
     await expect(search).toBeVisible();
     await capture(page, testInfo, "student-reader-search-empty");
     await search.fill("pertaksamaan");
-    await expect(page.locator("p:visible").filter({ hasText: /Hasil Pencarian/ }).first()).toBeVisible();
+    await expect(page.getByText(/hasil pencarian \(\d+\)/i).filter({ visible: true })).toBeVisible();
     await capture(page, testInfo, "student-reader-search-filled");
     expect(errors).toEqual([]);
   });

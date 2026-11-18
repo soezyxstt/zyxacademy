@@ -4,6 +4,8 @@ import * as React from "react";
 import { Search, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface SearchBarProps
   extends Omit<React.ComponentProps<"input">, "size"> {
@@ -27,6 +29,8 @@ export interface SearchBarProps
   containerClassName?: string;
   /** Optional element rendered on the far right */
   rightSection?: React.ReactNode;
+  /** Start as an icon in a toolbar. An existing query keeps the field visible. */
+  collapsible?: boolean;
 }
 
 const variantStyles = {
@@ -76,12 +80,20 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
       placeholder,
       disabled,
       rightSection,
+      collapsible = false,
+      onKeyDown,
+      id,
       ...props
     },
     ref
   ) => {
     const t = useTranslations("search");
     const inputRef = React.useRef<HTMLInputElement | null>(null);
+    const triggerRef = React.useRef<HTMLButtonElement>(null);
+    const focusTarget = React.useRef<"input" | "trigger" | null>(null);
+    const generatedId = React.useId();
+    const inputId = id ?? generatedId;
+    const [expanded, setExpanded] = React.useState(false);
     const [internalValue, setInternalValue] = React.useState(
       defaultValue ?? ""
     );
@@ -89,9 +101,22 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
     const isControlled = value !== undefined;
     const query = isControlled ? (value ?? "") : internalValue;
     const currentSize = sizeStyles[size];
+    const isOpen = !collapsible || expanded || query.length > 0;
+    const searchLabel = props["aria-label"] ?? placeholder ?? t("searchAction");
+    const inputLabel = props["aria-label"] ?? (props["aria-labelledby"] ? undefined : searchLabel);
+
+    React.useLayoutEffect(() => {
+      if (focusTarget.current === "input" && isOpen) {
+        inputRef.current?.focus();
+        focusTarget.current = null;
+      } else if (focusTarget.current === "trigger" && !isOpen) {
+        triggerRef.current?.focus();
+        focusTarget.current = null;
+      }
+    }, [isOpen]);
 
     // Combine forwarded ref and local ref
-    React.useImperativeHandle(ref, () => inputRef.current as HTMLInputElement);
+    React.useImperativeHandle(ref, () => inputRef.current as HTMLInputElement, [isOpen]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (!isControlled) {
@@ -101,13 +126,16 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
       onSearch?.(e.target.value);
     };
 
-    const handleClear = () => {
+    const clearQuery = () => {
       if (!isControlled) {
         setInternalValue("");
       }
       onClear?.();
       onSearch?.("");
+    };
 
+    const handleClear = () => {
+      clearQuery();
       // Re-focus input after clearing
       if (inputRef.current) {
         inputRef.current.value = "";
@@ -115,15 +143,64 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
       }
     };
 
+    const closeSearch = () => {
+      if (query) clearQuery();
+      focusTarget.current = "trigger";
+      setExpanded(false);
+    };
+
+    const openSearch = () => {
+      focusTarget.current = "input";
+      setExpanded(true);
+    };
+
+    if (!isOpen) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                ref={triggerRef}
+                type="button"
+                variant="ghost"
+                size="icon-lg"
+                aria-label={searchLabel}
+                aria-expanded={false}
+                disabled={disabled}
+                aria-busy={isLoading}
+                onClick={openSearch}
+                onFocus={(event) => {
+                  if (focusTarget.current !== "trigger" && event.currentTarget.matches(":focus-visible")) {
+                    openSearch();
+                  }
+                }}
+              >
+                {isLoading ? <Loader2 className="animate-spin" aria-hidden /> : <Search aria-hidden />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{searchLabel}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
     return (
       <div
+        data-search-expanded={collapsible ? "true" : undefined}
         className={cn(
           "group relative flex items-center w-full transition-all duration-200 ease-out",
           variantStyles[variant],
           currentSize.container,
           disabled && "opacity-50 pointer-events-none",
+          collapsible && "min-w-0 flex-1",
           containerClassName
         )}
+        onKeyDown={collapsible ? (event) => {
+          if (event.key !== "Escape" || event.defaultPrevented || event.nativeEvent.isComposing) return;
+          event.preventDefault();
+          event.stopPropagation();
+          closeSearch();
+        } : undefined}
       >
         {/* Left Search or Loading Icon */}
         <div className="flex shrink-0 items-center justify-center text-muted-foreground transition-colors duration-200 group-focus-within:text-primary">
@@ -137,9 +214,12 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
         {/* Input Field */}
         <input
           ref={inputRef}
+          id={inputId}
+          aria-label={inputLabel}
           type="text"
           value={query}
           onChange={handleChange}
+          onKeyDown={onKeyDown}
           placeholder={placeholder ?? t("placeholder")}
           disabled={disabled}
           className={cn(
@@ -152,7 +232,18 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
 
         {/* Right Actions: Clear Button or Keyboard Shortcut or Custom Section */}
         <div className="flex shrink-0 items-center gap-1.5 ml-auto">
-          {query.length > 0 ? (
+          {collapsible ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon-sm" aria-label={t("closeSearch")} onClick={closeSearch} disabled={disabled}>
+                    <X aria-hidden />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("closeSearch")}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : query.length > 0 ? (
             <button
               type="button"
               onClick={handleClear}

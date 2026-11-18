@@ -30,14 +30,14 @@ type PublicLink = {
   color: string | null;
 };
 
-function LinkCard({ link }: { link: PublicLink }) {
+function LinkRow({ link }: { link: PublicLink }) {
   const color = linkColor(link.color);
   return (
     <a
       href={link.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-xs transition-colors duration-150 hover:border-brand-primary hover:bg-brand-primary/5"
+      className="group flex items-center gap-3 py-3 transition-colors hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring"
     >
       <span
         className={cn(
@@ -48,7 +48,7 @@ function LinkCard({ link }: { link: PublicLink }) {
         {link.icon || DEFAULT_ICON}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-body-base font-semibold text-foreground">
+        <span className="block break-words text-body-base font-semibold text-foreground">
           {link.title}
         </span>
         {link.description && (
@@ -109,7 +109,7 @@ export default async function TautanPage() {
 
       <div className="relative z-10 mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-12 sm:py-16">
         <header className="flex flex-col items-center text-center">
-          <div className="flex size-16 items-center justify-center rounded-2xl border border-border bg-card shadow-sm">
+          <div className="flex size-16 items-center justify-center">
             <Logo variant="symbol" className="[--logo-height:2.25rem]" />
           </div>
           <h1 className="mt-4 font-heading text-h5 font-bold tracking-tight text-foreground">
@@ -136,21 +136,21 @@ export default async function TautanPage() {
           <div className="mt-10 flex flex-col gap-8">
             {groups.map((group) => (
               <section key={group.label} className="flex flex-col gap-3">
-                <h2 className="flex items-center gap-2 font-heading text-body-sm font-bold uppercase tracking-wider text-muted-foreground">
+                <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
                   {group.label}
                 </h2>
-                <div className="flex flex-col gap-3">
+                <div className="divide-y divide-border border-y border-border">
                   {group.links.map((link) => (
-                    <LinkCard key={link.id} link={link} />
+                    <LinkRow key={link.id} link={link} />
                   ))}
                 </div>
               </section>
             ))}
           </div>
         ) : (
-          <div className="mt-10 flex flex-col gap-3">
+          <div className="mt-8 divide-y divide-border border-y border-border">
             {links.map((link) => (
-              <LinkCard key={link.id} link={link} />
+              <LinkRow key={link.id} link={link} />
             ))}
           </div>
         )}

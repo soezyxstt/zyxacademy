@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Edit2, Trash2, BookOpen, FileText, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -137,10 +138,16 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
       <div className="flex flex-wrap justify-between items-center gap-2">
         <span className="text-body-xs text-muted-foreground">{t("materialsCount", { count: initialMaterials.length })}</span>
         {canManage && (
-          <Button onClick={handleOpenAdd} size="sm" className="gap-2">
-            <Plus className="size-4" />
-            {t("addMaterial")}
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button type="button" size="icon-lg" aria-label={t("addMaterial")} onClick={handleOpenAdd}>
+                  <Plus aria-hidden />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("addMaterial")}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
       </div>
 
@@ -148,9 +155,9 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
       {initialMaterials.length === 0 ? (
         <AdminEmptyState icon={BookOpen} title={t("noMaterials")} />
       ) : (
-        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+        <div className="divide-y divide-border border-y border-border">
           {initialMaterials.map((m) => (
-            <div key={m.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+            <div key={m.id} className="flex flex-wrap items-center gap-3 py-3">
               <FileText className="size-4 shrink-0 text-primary" aria-hidden />
               <div className="min-w-0 flex-1 basis-40">
                 <h3 className="font-heading text-body-sm font-bold text-foreground break-words">{m.title}</h3>

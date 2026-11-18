@@ -4,7 +4,7 @@ import { OpsMetricsSkeleton } from "@/components/admin/content-loading-skeletons
 
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { AdminIconAction } from "@/components/admin/icon-action";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
 import type { OpsMetrics } from "@/lib/ops-metrics";
 import { useTranslations } from "@/lib/i18n/client";
@@ -109,19 +109,15 @@ export function OpsClient() {
   return (
     <div className="space-y-5">
       <div className="flex justify-end">
-        <Button
+        <AdminIconAction label={t("opsUI.refresh")}
           variant="outline"
-          size="sm"
           disabled={isFetching}
-          onClick={() => refetch()}
-          className="flex items-center gap-2 text-body-sm text-muted-foreground hover:text-foreground transition-colors duration-150 cursor-pointer"
-        >
+          onClick={() => refetch()}>
           <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
-          {t("opsUI.refresh")}
-        </Button>
+        </AdminIconAction>
       </div>
 
-      <div className="divide-y divide-border rounded-xl border border-border bg-card px-4 sm:px-5">
+      <div className="divide-y divide-border border-y border-border">
         {/* 1. AI usage */}
         <div className="py-4 space-y-3">
           <SectionHead title={t("opsUI.aiUsage")} checkedAt={data.checkedAt} />

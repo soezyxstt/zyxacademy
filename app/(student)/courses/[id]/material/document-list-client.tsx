@@ -31,6 +31,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -456,7 +457,9 @@ export function DocumentListClient({
   const initialDefaultTab = normalizeTabKey(defaultTab);
   const [urlTab, setUrlTab] = useUrlTab("tab", initialDefaultTab);
   const activeTab: TabKey = normalizeTabKey(urlTab);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const tabLabel = t(`documents.categories.${tabConfig.find((tab) => tab.key === activeTab)?.label ?? "material"}`);
+  const searchLabel = t("documents.searchPlaceholder", { category: tabLabel.toLowerCase() });
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<DocumentFilterState>(emptyFilters);
   const [selectedPdf, setSelectedPdf] = useState<CourseMaterial | null>(null);
@@ -560,7 +563,7 @@ export function DocumentListClient({
         </div>
       ) : null}
       {/* Unified Toolbar: Tab Strip, SearchBar, Filter Popover, Grid/List Toggle */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="group/document-toolbar flex flex-wrap items-center gap-2">
         <Tabs value={activeTab} onValueChange={(value) => handleTabChange(normalizeTabKey(value))}>
           <TabsList aria-label={t("documents.categoryLabel")}>
             {tabConfig.map((tab) => {
@@ -575,145 +578,147 @@ export function DocumentListClient({
           </TabsList>
         </Tabs>
 
-        {/* Search Bar */}
-        <SearchBar
-          size="sm"
-          variant="bordered"
-          value={searchQuery}
-          onSearch={setSearchQuery}
-          onClear={() => setSearchQuery("")}
-          placeholder={t("documents.searchPlaceholder", { category: t(`documents.categories.${tabConfig.find((tab) => tab.key === activeTab)?.label ?? "material"}`).toLowerCase() })}
-          containerClassName="min-w-[140px] flex-1"
-        />
-
-        {/* Filter Popover */}
-        {(subcategories.length > 0 || chapters.length > 0 || years.length > 0) && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-9 shrink-0 gap-1.5 rounded-md text-body-sm"
-              >
-                <Filter className="size-3.5" aria-hidden />
-                {t("documents.filter")}
-                {activeFilterCount > 0 ? (
-                  <Badge className="ml-0.5 rounded-md px-1.5 py-0 text-body-xs">
-                    {activeFilterCount}
-                  </Badge>
-                ) : null}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-[min(22rem,calc(100vw-2rem))] space-y-4 p-3">
-              <div className="flex items-center justify-between">
-                <p className="font-heading text-body-sm font-bold">{t("documents.filterTitle")}</p>
-                {activeFilterCount > 0 ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setFilters(emptyFilters())}
-                    className="h-7 px-2 text-body-xs"
-                  >
-                    {t("documents.reset")}
-                  </Button>
-                ) : null}
-              </div>
-              {subcategories.length > 0 && (
-                <FilterGroup
-                  label={t("documents.subcategory")}
-                  selected={filters.subcategories}
-                  onToggle={(value) => toggleFilter("subcategories", value)}
-                  options={subcategories.map((value) => ({
-                    value,
-                    label: getSubcategoryLabel(value as CourseMaterialSubcategory) ?? value,
-                    count: tabMaterials.filter((m) => m.subcategory === value).length,
-                  }))}
-                />
-              )}
-              {chapters.length > 0 && (
-                <FilterGroup
-                  label={t("documents.chapter")}
-                  selected={filters.chapters}
-                  onToggle={(value) => toggleFilter("chapters", value)}
-                  options={chapters.map((chapter) => ({
-                    value: chapter.id,
-                    label: `Bab ${chapter.orderIndex}: ${chapter.title}`,
-                  }))}
-                />
-              )}
-              {years.length > 0 && (
-                <FilterGroup
-                  label={t("documents.year")}
-                  selected={filters.years}
-                  onToggle={(value) => toggleFilter("years", value)}
-                  options={years.map((year) => ({
-                    value: String(year),
-                    label: String(year),
-                    count: tabMaterials.filter((m) => m.year === year).length,
-                  }))}
-                />
-              )}
-            </PopoverContent>
-          </Popover>
-        )}
-
-        {/* View Mode Toggle */}
-        <div className="flex shrink-0 items-center rounded-md border border-border bg-muted/30 p-0.5">
-          <Button
-            type="button"
-            size="icon"
-            variant={viewMode === "grid" ? "secondary" : "ghost"}
-            className="size-8 rounded-md"
-            onClick={() => setViewMode("grid")}
-            aria-label={t("documents.gridView")}
-          >
-            <LayoutGrid className="size-4" />
-          </Button>
-          <Button
-            type="button"
-            size="icon"
-            variant={viewMode === "list" ? "secondary" : "ghost"}
-            className="size-8 rounded-md"
-            onClick={() => setViewMode("list")}
-            aria-label={t("documents.listView")}
-          >
-            <List className="size-4" />
-          </Button>
-        </div>
-
-        {/* Upload Button at the far right for Admin */}
-        {isAdmin ? (
-          <Button
-            type="button"
-            size="icon"
-            variant="default"
-            className="size-9 rounded-lg shrink-0 cursor-pointer shadow-xs"
-            onClick={() => setUploadOpen(true)}
-            aria-label={t("documents.uploadPdf")}
-            title={t("documents.uploadPdf")}
-          >
-            <Plus className="size-4" />
-          </Button>
-        ) : null}
-      </div>
-
-      {/* Active Filter Indicator */}
-      {activeFilterCount > 0 && (
-        <div className="flex items-center gap-2 text-body-xs text-muted-foreground">
-          <span>{t("documents.activeFilters", { count: activeFilterCount })}</span>
-          <Button
-            type="button"
-            variant="link"
+        <div className="flex min-w-fit flex-1 items-center gap-1 group-has-[[data-search-expanded=true]]/document-toolbar:min-w-36">
+          <SearchBar
+            collapsible
             size="sm"
-            onClick={() => setFilters(emptyFilters())}
-            className="h-auto p-0 text-body-xs"
-          >
-            {t("documents.reset")}
-          </Button>
+            variant="bordered"
+            value={searchQuery}
+            onSearch={setSearchQuery}
+            aria-label={searchLabel}
+            placeholder={searchLabel}
+            containerClassName="max-w-sm"
+          />
+
+          {/* Filter Popover */}
+          <TooltipProvider>
+            <div className="flex shrink-0 items-center gap-1">
+              {(subcategories.length > 0 || chapters.length > 0 || years.length > 0) && (
+                <Popover>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                      <Button
+                      type="button"
+                      variant={activeFilterCount ? "secondary" : "ghost"}
+                      size="icon-lg"
+                      aria-label={activeFilterCount ? `${t("documents.filter")}, ${t("documents.activeFilters", { count: activeFilterCount })}` : t("documents.filter")}
+                    >
+                      <Filter className="size-3.5" aria-hidden />
+                      {activeFilterCount > 0 ? (
+                        <Badge aria-hidden className="absolute -right-0.5 -top-0.5 rounded-md px-1 py-0 text-body-2xs">
+                          {activeFilterCount}
+                        </Badge>
+                      ) : null}
+                      </Button>
+                    </PopoverTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("documents.filter")}</TooltipContent>
+                  </Tooltip>
+                  <PopoverContent align="end" className="w-[min(22rem,calc(100vw-2rem))] space-y-4 p-3">
+                    <div className="flex items-center justify-between">
+                      <p className="font-heading text-body-sm font-bold">{t("documents.filterTitle")}</p>
+                      {activeFilterCount > 0 ? (
+                          <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setFilters(emptyFilters())}
+                          className="h-7 px-2 text-body-xs"
+                        >
+                          {t("documents.reset")}
+                          </Button>
+                      ) : null}
+                    </div>
+                    {subcategories.length > 0 && (
+                      <FilterGroup
+                        label={t("documents.subcategory")}
+                        selected={filters.subcategories}
+                        onToggle={(value) => toggleFilter("subcategories", value)}
+                        options={subcategories.map((value) => ({
+                          value,
+                          label: getSubcategoryLabel(value as CourseMaterialSubcategory) ?? value,
+                          count: tabMaterials.filter((m) => m.subcategory === value).length,
+                        }))}
+                      />
+                    )}
+                    {chapters.length > 0 && (
+                      <FilterGroup
+                        label={t("documents.chapter")}
+                        selected={filters.chapters}
+                        onToggle={(value) => toggleFilter("chapters", value)}
+                        options={chapters.map((chapter) => ({
+                          value: chapter.id,
+                          label: `Bab ${chapter.orderIndex}: ${chapter.title}`,
+                        }))}
+                      />
+                    )}
+                    {years.length > 0 && (
+                      <FilterGroup
+                        label={t("documents.year")}
+                        selected={filters.years}
+                        onToggle={(value) => toggleFilter("years", value)}
+                        options={years.map((year) => ({
+                          value: String(year),
+                          label: String(year),
+                          count: tabMaterials.filter((m) => m.year === year).length,
+                        }))}
+                      />
+                    )}
+                  </PopoverContent>
+                </Popover>
+              )}
+
+              {/* View Mode Toggle */}
+              <div className="flex shrink-0 items-center group-has-[[data-search-expanded=true]]/document-toolbar:hidden @min-[40rem]/documents:group-has-[[data-search-expanded=true]]/document-toolbar:flex">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                  <Button
+                  type="button"
+                  size="icon-lg"
+                  variant={viewMode === "grid" ? "secondary" : "ghost"}
+                  onClick={() => setViewMode("grid")}
+                  aria-label={t("documents.gridView")}
+                  aria-pressed={viewMode === "grid"}
+                >
+                    <LayoutGrid className="size-4" />
+                  </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t("documents.gridView")}</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                  <Button
+                  type="button"
+                  size="icon-lg"
+                  variant={viewMode === "list" ? "secondary" : "ghost"}
+                  onClick={() => setViewMode("list")}
+                  aria-label={t("documents.listView")}
+                  aria-pressed={viewMode === "list"}
+                >
+                    <List className="size-4" />
+                  </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t("documents.listView")}</TooltipContent>
+                </Tooltip>
+              </div>
+
+              {/* Upload Button at the far right for Admin */}
+              {isAdmin ? (
+                <Tooltip><TooltipTrigger asChild><Button
+                  type="button"
+                  size="icon-lg"
+                  onClick={() => setUploadOpen(true)}
+                  className="group-has-[[data-search-expanded=true]]/document-toolbar:hidden @min-[40rem]/documents:group-has-[[data-search-expanded=true]]/document-toolbar:inline-flex"
+                  aria-label={t("documents.uploadPdf")}
+                >
+                  <Plus className="size-4" />
+                  </Button></TooltipTrigger><TooltipContent>{t("documents.uploadPdf")}</TooltipContent></Tooltip>
+              ) : null}
+            </div>
+          </TooltipProvider>
         </div>
-      )}
+      </div>
 
       {/* Grid View Mode */}
       {viewMode === "grid" ? (
@@ -730,10 +735,10 @@ export function DocumentListClient({
                 itemHref={itemHref}
                 isPageNav={isPageNav}
                 onSelectPdf={setSelectedPdf}
-                className="group flex flex-col self-start min-w-0 overflow-hidden rounded-xl border border-border/50 bg-card transition-all duration-150 hover:border-border/90 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary text-left"
+                className="group flex flex-col self-start min-w-0 border-t border-border/60 transition-colors hover:bg-muted/20 focus-visible:outline-2 focus-visible:outline-ring text-left"
               >
                 {/* Header */}
-                <div className="px-3 py-2.5">
+                <div className="py-2.5">
                   <div className="flex min-h-7 items-center gap-1.5">
                     <DocumentHeaderIcon
                       kind={material.kind}
@@ -875,7 +880,7 @@ export function DocumentListClient({
         </div>
       ) : (
         /* List View Mode with Compact Thumbnails */
-        <ul className="divide-y divide-border/50 rounded-xl border border-border/50 bg-card overflow-hidden">
+        <ul className="divide-y divide-border/60 border-t border-border/60">
           {filteredMaterials.map((material) => {
             const itemHref = material.href ?? `/courses/${courseId}/material/${material.id}`;
             const isPageNav = forcePageNavigation || isPageNavigationMaterial(material);
@@ -893,7 +898,7 @@ export function DocumentListClient({
                   itemHref={itemHref}
                   isPageNav={isPageNav}
                   onSelectPdf={setSelectedPdf}
-                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-muted/30 md:grid-cols-[minmax(0,1fr)_160px_100px_auto]"
+                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-2.5 transition-colors hover:bg-muted/30 md:grid-cols-[minmax(0,1fr)_160px_100px_auto]"
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="relative aspect-[16/10] w-24 sm:w-32 shrink-0 overflow-hidden rounded-md border border-border/60 bg-muted/20">
@@ -1044,7 +1049,7 @@ export function DocumentListClient({
 
       {/* Empty State when tab has no items */}
       {tabMaterials.length === 0 ? (
-        <div className="flex flex-col items-center rounded-xl border border-dashed border-border/60 bg-muted/15 px-4 py-10 text-center">
+        <div className="flex flex-col items-center py-5 text-center">
           {(() => {
             const ActiveIcon = tabConfig.find((t) => t.key === activeTab)?.icon ?? FileText;
             return <ActiveIcon className="size-6 text-muted-foreground" aria-hidden />;
@@ -1058,7 +1063,7 @@ export function DocumentListClient({
         </div>
       ) : filteredMaterials.length === 0 ? (
         /* Empty State when search or filter returns no results */
-        <div className="flex flex-col items-center rounded-xl border border-dashed border-border/60 bg-muted/15 px-4 py-10 text-center">
+        <div className="flex flex-col items-center py-5 text-center">
           <FileText className="size-6 text-muted-foreground" aria-hidden />
           <h2 className="mt-3 font-heading text-body-sm font-bold">{t("documents.noResultsTitle")}</h2>
           <p className="mt-1 text-body-xs text-muted-foreground">

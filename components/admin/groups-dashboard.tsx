@@ -20,6 +20,7 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AdminIconAction } from "@/components/admin/icon-action";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -480,22 +481,21 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
       </AdminStatStrip>
 
       {/* 2. Search, Filter, and Action Bar */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 max-sm:[&:has(>[data-search-expanded=true])>:not([data-search-expanded=true])]:hidden">
         {/* Search Input */}
-        <div className="flex-1 min-w-[140px]">
-          <SearchBar
-            size="sm"
-            isLoading={loading}
-            placeholder={translate("groupsUI.search")}
-            value={searchQuery}
-            onSearch={(value) => { setPage(1); setSearchQuery(value); }}
-            onClear={() => { setPage(1); setSearchQuery(""); }}
-          />
-        </div>
+        <SearchBar
+          collapsible
+          size="sm"
+          isLoading={loading}
+          placeholder={translate("groupsUI.search")}
+          value={searchQuery}
+          onSearch={(value) => { setPage(1); setSearchQuery(value); }}
+          onClear={() => { setPage(1); setSearchQuery(""); }}
+        />
 
         {/* Status Filter */}
         <Select value={statusFilter} onValueChange={(value) => { setPage(1); setStatusFilter(value); }}>
-          <SelectTrigger className="h-9 w-[130px] shrink-0 rounded-lg text-body-sm bg-card border-border">
+          <SelectTrigger variant="inline" aria-label={translate("groupsUI.status")} className="max-w-44 shrink-0">
             <SelectValue placeholder={translate("groupsUI.allStatus")} />
           </SelectTrigger>
           <SelectContent>
@@ -508,7 +508,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
 
         {/* Package Filter */}
         <Select value={packageFilter} onValueChange={(value) => { setPage(1); setPackageFilter(value); }}>
-          <SelectTrigger className="h-9 w-[140px] shrink-0 rounded-lg text-body-sm bg-card border-border">
+          <SelectTrigger variant="inline" aria-label={translate("groupsUI.tableGroupPackage")} className="max-w-44 shrink-0">
             <SelectValue placeholder={translate("groupsUI.allPackages")} />
           </SelectTrigger>
           <SelectContent>
@@ -522,7 +522,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
 
         {/* Course Filter */}
         <Select value={courseFilter} onValueChange={(value) => { setPage(1); setCourseFilter(value); }}>
-          <SelectTrigger className="h-9 w-[160px] sm:w-[180px] shrink-0 rounded-lg text-body-sm bg-card border-border truncate">
+          <SelectTrigger variant="inline" aria-label={translate("groupsUI.course")} className="max-w-44 shrink-0">
             <SelectValue placeholder={translate("groupsUI.allCourses")} />
           </SelectTrigger>
           <SelectContent>
@@ -555,14 +555,10 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
           </Tooltip>
         </TooltipProvider>
 
-        <Button
-          size="sm"
-          onClick={handleOpenCreate}
-          className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm font-semibold"
-        >
-          <Plus className="size-3.5" />
-          <span>{translate("groupsUI.createGroup")}</span>
-        </Button>
+        <AdminIconAction label={translate("groupsUI.createGroup")}
+          onClick={handleOpenCreate}>
+          <Plus className="size-4" />
+        </AdminIconAction>
       </div>
 
       {/* 3. Table of Study Groups */}

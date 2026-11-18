@@ -1,13 +1,22 @@
 import { notFound } from "next/navigation";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { StudentQuizReview } from "@/components/course/student-quiz-review";
+import { MaterialViewer } from "@/components/course/material-viewer";
 import { ContentVisualQuizFixture } from "./quiz-fixture";
 import { AdditionalContentVisualFixture } from "./additional-fixtures";
 import { explanation, invalidContent } from "./content";
 
-export default async function ContentVisualFixturePage({ searchParams }: { searchParams: Promise<{ mode?: string }> }) {
+export default async function ContentVisualFixturePage({ searchParams }: { searchParams: Promise<{ mode?: string; download?: string }> }) {
   if (process.env.NODE_ENV !== "development") notFound();
-  const { mode } = await searchParams;
+  const { mode, download } = await searchParams;
+  if (mode === "legacy-pdf") {
+    return <MaterialViewer
+      material={{ id: "visual-pdf", courseId: "visual-content-course", title: "Diktat kalkulus", kind: "pdf", url: "/v4/diktat.pdf", completed: false }}
+      course={{ title: "Matematika I" }}
+      canDownload={download === "1"}
+      mode="admin-preview"
+    />;
+  }
   return <main id="main-content" className="mx-auto w-full max-w-5xl min-w-0 space-y-4 p-4 text-foreground">
     <h1 className="font-heading text-h5">Kemiringan garis</h1>
     {mode === "review-grading" ? <StudentQuizReview

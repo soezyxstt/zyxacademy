@@ -40,7 +40,7 @@ export function RewardList({ rewards, balance, appearance, onChangeReward, missi
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2"><p className="text-body-sm font-semibold">{t("achievementPage.balance")}: {number.format(balance)} LP</p><TooltipProvider><Tooltip><TooltipTrigger asChild><Button asChild variant="outline" size="icon"><Link href={missionsHref} aria-label={t("achievementPage.goToMissions")}><Plus className="size-4" /></Link></Button></TooltipTrigger><TooltipContent>{t("achievementPage.goToMissions")}</TooltipContent></Tooltip></TooltipProvider></div>
     {error && <p role="alert" className="text-body-sm text-destructive">{t("achievementPage.error")}</p>}
     {success && <p role="status" className="text-body-sm">{t("achievementPage.success")}</p>}
-    {rewards.length === 0 ? <AdminEmptyState icon={Inbox} title={t("achievementPage.noRewards")} /> : <div className="divide-y divide-border overflow-hidden rounded-xl border bg-card">
+    {rewards.length === 0 ? <AdminEmptyState icon={Inbox} title={t("achievementPage.noRewards")} /> : <div className="divide-y divide-border">
       {slots.map(slot => {
         const items = rewards.filter(item => item.slot === slot);
         if (!items.length) return null;

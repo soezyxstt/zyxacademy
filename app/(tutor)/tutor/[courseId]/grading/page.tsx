@@ -144,11 +144,13 @@ export default async function TutorGradingPage({ params }: Props) {
   return (
     <ApplicationPage spacing="space-y-5">
       <Reveal>
-        <PageHeader title={<><TranslatedText namespace="tutor" messageKey="routeTitles.tryoutGrading" />: {courseTitle}</>} backHref={`/tutor/${courseId}`} backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.overview" />} />
-      </Reveal>
-
-      <Reveal>
-        <GradingClient courseId={courseId} initialSubmissions={submissionsList} />
+        <GradingClient
+          courseId={courseId}
+          initialSubmissions={submissionsList}
+          queueHeader={
+            <PageHeader title={<><TranslatedText namespace="tutor" messageKey="routeTitles.tryoutGrading" />: {courseTitle}</>} backHref={`/tutor/${courseId}`} backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.overview" />} />
+          }
+        />
       </Reveal>
     </ApplicationPage>
   );

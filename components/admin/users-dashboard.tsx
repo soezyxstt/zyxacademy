@@ -253,20 +253,19 @@ export function UsersDashboard({
       </AdminStatStrip>
 
       {/* Inline Responsive Filter Toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex-1 min-w-[140px] max-w-sm">
-          <SearchBar
-            size="sm"
-            value={searchQuery}
-            onSearch={(value) => { setPage(1); setSearchQuery(value); }}
-            onClear={() => { setPage(1); setSearchQuery(""); }}
-            isLoading={loading}
-            placeholder={t("usersUI.search")}
-          />
-        </div>
+      <div className="flex flex-wrap items-center gap-2 max-sm:[&:has(>[data-search-expanded=true])>:not([data-search-expanded=true])]:hidden">
+        <SearchBar
+          collapsible
+          size="sm"
+          value={searchQuery}
+          onSearch={(value) => { setPage(1); setSearchQuery(value); }}
+          onClear={() => { setPage(1); setSearchQuery(""); }}
+          isLoading={loading}
+          placeholder={t("usersUI.search")}
+        />
 
         <Select value={roleFilter} onValueChange={(value) => { setPage(1); setRoleFilter(value); }}>
-          <SelectTrigger className="h-9 w-[130px] shrink-0 text-body-sm bg-card rounded-lg border-border">
+          <SelectTrigger variant="inline" aria-label={t("usersUI.role")} className="max-w-44 shrink-0">
             <SelectValue placeholder={t("usersUI.allRoles")} />
           </SelectTrigger>
           <SelectContent className="rounded-lg text-body-sm">
@@ -278,7 +277,7 @@ export function UsersDashboard({
         </Select>
 
         <Select value={statusFilter} onValueChange={(value) => { setPage(1); setStatusFilter(value); }}>
-          <SelectTrigger className="h-9 w-[140px] shrink-0 text-body-sm bg-card rounded-lg border-border">
+          <SelectTrigger variant="inline" aria-label={t("usersUI.status")} className="max-w-44 shrink-0">
             <SelectValue placeholder={t("usersUI.allStatuses")} />
           </SelectTrigger>
           <SelectContent className="rounded-lg text-body-sm">

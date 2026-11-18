@@ -3,7 +3,7 @@ import { ArrowLeft, ChevronDown, ChevronRight, Filter, Maximize2, Menu, PanelRig
 import { Skeleton } from "@/components/ui/skeleton";
 import { StudyStatisticsSkeleton } from "@/components/course/study-statistics-card";
 import { RecentActivitySkeleton } from "@/components/course/recent-activity-card";
-import { studentCardClass } from "@/components/course/course-surfaces";
+import { studentSectionClass } from "@/components/course/course-surfaces";
 import { tabListClassName, tabTriggerClassName, tabTriggerActiveClassName } from "@/components/ui/tab-styles";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +16,7 @@ export function CourseOverviewPrimaryActionsSkeleton() {
       data-testid="course-overview-highlights-skeleton"
       className="@container/course-actions mb-6"
     >
-      <div className="grid grid-cols-1 divide-y divide-border/60 @min-[36rem]/course-actions:grid-cols-3 @min-[36rem]/course-actions:divide-x @min-[36rem]/course-actions:divide-y-0 overflow-hidden rounded-xl border border-border/70 bg-card">
+      <div className="grid grid-cols-1 divide-y divide-border/60 border-y border-border/60 @min-[36rem]/course-actions:grid-cols-3 @min-[36rem]/course-actions:divide-x @min-[36rem]/course-actions:divide-y-0">
         {[1, 2, 3].map((i) => (
           <div key={i} className="flex min-w-0 items-center gap-2 p-2.5">
             <Skeleton className="hidden size-7 shrink-0 rounded-lg @min-[36rem]/course-actions:flex" />
@@ -42,9 +42,9 @@ export function CourseChapterOutlineSkeleton({ rows = 4 }: { rows?: number }) {
         <Skeleton className="h-4 w-20" />
       </div>
 
-      <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card/70 shadow-xs">
+      <ul className="divide-y divide-border/60">
         {Array.from({ length: rows }).map((_, idx) => (
-          <li key={idx} className="flex items-center justify-between gap-4 px-4 py-3">
+          <li key={idx} className="flex items-center justify-between gap-4 py-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <Skeleton className="size-8 shrink-0 rounded-lg" />
               <div className="min-w-0 flex-1 space-y-1.5">
@@ -98,7 +98,7 @@ export function CourseMaterialListSkeleton() {
       </div>
 
       {/* Collapsible Chapter & Exam Accordion matching CollapsibleDocumentSection + HierarchyDocumentCard */}
-      <div className="overflow-hidden rounded-xl border border-border/55 bg-card">
+      <div className="border-t border-border/60">
         {/* Expanded first chapter */}
         <div className="border-b border-border/45">
           <div className="flex w-full items-center gap-3 px-3 py-2.5 sm:px-3.5">
@@ -400,9 +400,9 @@ export function CourseMasteryContentSkeleton() {
 export function CourseQuizListSkeleton({ rows = 4 }: { rows?: number }) {
   return (
     <div data-testid="course-quiz-list-skeleton" className="font-sans">
-      <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card/75 shadow-2xs">
+      <ul className="divide-y divide-border/60">
         {Array.from({ length: rows }).map((_, idx) => (
-          <li key={idx} className="flex items-center justify-between gap-3 px-4 py-3">
+          <li key={idx} className="flex items-center justify-between gap-3 py-3">
             <div className="min-w-0 flex-1 space-y-1.5">
               <Skeleton className="h-4 w-56 max-w-[75%]" />
               <div className="flex items-center gap-2">
@@ -424,9 +424,9 @@ export function CourseQuizListSkeleton({ rows = 4 }: { rows?: number }) {
 export function CourseTryoutListSkeleton({ rows = 3 }: { rows?: number }) {
   return (
     <div data-testid="course-tryout-list-skeleton" className="space-y-3 font-sans">
-      <ul className="divide-y divide-border/60 overflow-hidden rounded-lg border border-border/70 bg-card/75">
+      <ul className="divide-y divide-border/60">
         {Array.from({ length: rows }).map((_, idx) => (
-          <li key={idx} className="flex items-center justify-between gap-3 px-4 py-3.5">
+          <li key={idx} className="flex items-center justify-between gap-3 py-3.5">
             <div className="min-w-0 flex-1 space-y-1.5">
               <Skeleton className="h-4 w-64 max-w-[80%]" />
               <div className="flex flex-wrap items-center gap-2">
@@ -486,24 +486,20 @@ export function CourseFlashcardSkeleton() {
 export function CourseVideoListSkeleton() {
   return (
     <div data-testid="course-video-list-skeleton" className="space-y-4 font-sans">
-      {/* Search & chapter filter toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-1 flex-wrap items-center gap-2 min-w-[240px]">
-          <div className="relative min-w-[140px] flex-1 max-w-sm flex items-center h-9 rounded-lg border border-input bg-background px-3 gap-2">
-            <Search className="size-4 text-muted-foreground/50 shrink-0" />
-            <Skeleton className="h-3.5 w-36" />
-          </div>
-          <div className="shrink-0 w-44 flex items-center h-9 rounded-lg border border-input bg-background px-3 gap-2">
-            <Filter className="size-3.5 text-muted-foreground/50 shrink-0" />
-            <Skeleton className="h-3.5 w-24" />
-          </div>
+      <div className="flex items-center gap-1 border-b border-border/60 pb-2">
+        <div className="grid size-9 place-items-center">
+          <Search className="size-4 text-muted-foreground/50" />
+        </div>
+        <div className="flex h-9 items-center gap-2 px-2">
+          <Filter className="size-3.5 shrink-0 text-muted-foreground/50" />
+          <Skeleton className="h-3.5 w-24" />
         </div>
       </div>
 
       {/* Collapsible Playlist Accordion with 16:9 video thumbnails */}
-      <div className="overflow-hidden rounded-xl border border-border/60 bg-card divide-y divide-border/45">
+      <div className="divide-y divide-border/60">
         <div>
-          <div className="flex w-full items-center justify-between gap-3 px-3.5 py-3">
+          <div className="flex w-full items-center justify-between gap-3 py-2.5">
             <div className="flex flex-1 items-center gap-3">
               <Skeleton className="h-3.5 w-16 shrink-0" />
               <Skeleton className="h-4 w-52 max-w-[55%]" />
@@ -527,7 +523,7 @@ export function CourseVideoListSkeleton() {
         </div>
 
         {[2, 3].map((pl) => (
-          <div key={pl} className="flex w-full items-center justify-between gap-3 px-3.5 py-3">
+          <div key={pl} className="flex w-full items-center justify-between gap-3 py-2.5">
             <div className="flex flex-1 items-center gap-3">
               <Skeleton className="h-3.5 w-16 shrink-0" />
               <Skeleton className="h-4 w-44 max-w-[50%]" />
@@ -548,7 +544,7 @@ export function CourseLeaderboardContentSkeleton() {
   return (
     <div data-testid="course-leaderboard-skeleton">
       {/* User's own ranking status card */}
-      <div className="mb-4 rounded-xl border border-border/70 bg-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
         <div className="space-y-1.5">
           <Skeleton className="h-4 w-32" />
           <Skeleton className="h-3.5 w-48" />
@@ -560,13 +556,13 @@ export function CourseLeaderboardContentSkeleton() {
       </div>
 
       {/* Top 3 Leaderboard list */}
-      <section className="overflow-hidden rounded-xl border border-border/70 bg-card">
-        <div className="border-b border-border/60 px-4 py-3">
+      <section className="min-w-0">
+        <div className="border-b border-border/60 py-3">
           <Skeleton className="h-5 w-28" />
         </div>
         <ol className="divide-y divide-border/60">
           {[1, 2, 3].map((rank) => (
-            <li key={rank} className="flex items-start gap-3 px-4 py-3">
+            <li key={rank} className="flex items-start gap-3 py-3">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-body-sm font-semibold text-muted-foreground">
                 {rank}
               </span>
@@ -591,10 +587,10 @@ export function CourseMyResultsListSkeleton({ rows = 4 }: { rows?: number }) {
   return (
     <ul
       data-testid="course-my-results-skeleton"
-      className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card"
+      className="divide-y divide-border/60"
     >
       {Array.from({ length: rows }).map((_, idx) => (
-        <li key={idx} className="flex items-center gap-3 px-4 py-3">
+        <li key={idx} className="flex items-center gap-3 py-3">
           <div className="min-w-0 flex-1 space-y-1.5">
             <Skeleton className="h-4 w-56 max-w-[75%]" />
             <Skeleton className="h-3.5 w-40" />
@@ -623,7 +619,7 @@ export function CourseStudyPathSkeleton() {
       </div>
 
       {/* Continue learning highlight card */}
-      <section className="grid gap-3 rounded-xl border border-brand-primary/25 bg-brand-primary/5 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center shadow-xs">
+      <section className="grid gap-3 border-l-2 border-brand-primary bg-brand-primary/5 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
         <div className="space-y-1.5">
           <Skeleton className="h-3.5 w-28" />
           <Skeleton className="h-5 w-64 max-w-[85%]" />
@@ -633,9 +629,9 @@ export function CourseStudyPathSkeleton() {
       </section>
 
       {/* Collapsible chapter step groups */}
-      <div className="space-y-3">
-        <div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-2xs">
-          <div className="flex items-center justify-between gap-3 px-4 py-3">
+      <div className="divide-y divide-border/60">
+        <div>
+          <div className="flex items-center justify-between gap-3 py-3">
             <div className="flex items-center gap-2.5 min-w-0">
               <ChevronDown className="size-4 shrink-0 rotate-180 text-muted-foreground/40" />
               <Skeleton className="h-4 w-52" />
@@ -644,7 +640,7 @@ export function CourseStudyPathSkeleton() {
           </div>
           <div className="divide-y divide-border/40 border-t border-border/60">
             {[1, 2, 3].map((step) => (
-              <div key={step} className="flex items-center justify-between gap-3 px-4 py-3">
+              <div key={step} className="flex items-center justify-between gap-3 py-3">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <Skeleton className="size-5 shrink-0 rounded-full" />
                   <Skeleton className="h-4 w-3/5 max-w-sm" />
@@ -658,7 +654,7 @@ export function CourseStudyPathSkeleton() {
         {[2, 3].map((ch) => (
           <div
             key={ch}
-            className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-4 py-3 shadow-2xs"
+            className="flex items-center justify-between gap-3 py-3"
           >
             <div className="flex items-center gap-2.5 min-w-0">
               <ChevronDown className="size-4 shrink-0 text-muted-foreground/40" />
@@ -678,7 +674,7 @@ export function CourseStudyPathSkeleton() {
 export function CourseConceptExplorerSkeleton() {
   return (
     <div data-testid="course-concept-explorer-skeleton" className="space-y-8">
-      <div className={studentCardClass("space-y-4")}>
+      <div className={studentSectionClass("space-y-4")}>
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <Skeleton className="h-5 w-48" />
           <div className="flex items-center gap-2">
@@ -698,7 +694,7 @@ export function CourseConceptExplorerSkeleton() {
       {[1, 2].map((section) => (
         <section key={section} className="space-y-3">
           <Skeleton className="h-5 w-36" />
-          <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card">
+          <div className="divide-y divide-border/60">
             <div className="p-4 space-y-2.5">
               <Skeleton className="h-5 w-56" />
               <Skeleton className="h-4 w-full" />

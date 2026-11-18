@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ComputedQuizMetrics, StudentQuizDiagnosis } from "@/lib/student-quiz-analytics/types";
 import {
   BookOpen,
@@ -104,7 +105,7 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
 
   if (!metrics && !diagnosis) {
     return (
-      <div className="rounded-xl border border-border bg-card p-4 text-center space-y-5 shadow-xs">
+      <div className="space-y-4 py-4 text-center">
         <div className="flex size-14 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary mx-auto ring-1 ring-brand-primary/20">
           <Brain className="size-7" />
         </div>
@@ -127,19 +128,21 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
   }
 
   return (
-    <div className="space-y-8 font-sans">
+    <div className="space-y-6 font-sans">
       {/* Processing Banner if analysis is still running */}
       {isProcessing && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-primary/30 bg-brand-primary/10 p-4 text-brand-primary">
+        <div className="flex items-center justify-between gap-3 border-b border-border py-2 text-brand-primary">
           <div className="flex min-w-0 items-center gap-3">
             <Loader2 className="size-5 animate-spin shrink-0" />
             <div className="text-body-sm">
               <span className="font-bold">{t("quizAnalytics.analysisInProgress")}</span> {t("quizAnalytics.analysisInProgressDescription")}
             </div>
           </div>
-          <Button onClick={fetchAnalytics} variant="ghost" size="sm" className="text-brand-primary hover:bg-brand-primary/20 rounded-md">
-            {t("quizAnalytics.refreshStatus")}
-          </Button>
+          <TooltipProvider><Tooltip><TooltipTrigger asChild>
+            <Button type="button" onClick={fetchAnalytics} variant="ghost" size="icon-lg" aria-label={t("quizAnalytics.refreshStatus")}>
+              <RefreshCw aria-hidden />
+            </Button>
+          </TooltipTrigger><TooltipContent>{t("quizAnalytics.refreshStatus")}</TooltipContent></Tooltip></TooltipProvider>
         </div>
       )}
 
@@ -148,7 +151,7 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
           ───────────────────────────────────────────────────────────────────────── */}
       <div className="space-y-4">
         {/* Main Headline Banner */}
-        <div className="relative overflow-hidden rounded-xl border border-border bg-card p-4">
+        <div className="min-w-0">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2 max-w-2xl">
               <div className="flex flex-wrap items-center gap-2">
@@ -213,7 +216,7 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
       <div className="space-y-6">
         {/* SECTION A: PENGUASAAN KONSEP (CONCEPT MASTERY TABLE) */}
         {metrics && metrics.conceptMastery.length > 0 && (
-          <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
+          <div className="space-y-3 border-t border-border pt-3">
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
@@ -328,7 +331,7 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
 
         {/* SECTION C: POLA KESALAHAN (ERROR PATTERNS) */}
         {diagnosis?.error_patterns && diagnosis.error_patterns.length > 0 && (
-          <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
+          <div className="space-y-3 border-t border-border pt-3">
             <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
               <BarChart3 className="size-5 text-brand-secondary" /> {t("quizAnalytics.errorPatterns")}
             </h4>
@@ -356,7 +359,7 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
         {metrics && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Cognitive Skills Matrix */}
-            {metrics.cognitiveSkills.length > 0 && <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
+            {metrics.cognitiveSkills.length > 0 && <div className="space-y-3 border-t border-border pt-3">
               <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
                 <BarChart3 className="size-5 text-brand-primary" /> {t("quizAnalytics.cognitiveSkills")}
               </h4>
@@ -379,7 +382,7 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
             </div>}
 
             {/* Time & Speed Insights */}
-            <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
+            <div className="space-y-3 border-t border-border pt-3">
               <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
                 <Zap className="size-5 text-tertiary-1" /> {t("quizAnalytics.speedEfficiency")}
               </h4>
@@ -413,18 +416,26 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
           LAYER 3: RENCANA BELAJAR PERSONAL (3-STEP ACTION PLAN)
           ───────────────────────────────────────────────────────────────────────── */}
       <div className="@container/study-plan space-y-4 pt-4 border-t border-border">
-        <div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <BookOpen className="size-5 text-brand-primary" /> {t("quizAnalytics.studyPlan")}
           </h3>
+          {diagnosis?.study_plan?.length ? (
+            <Button asChild size="lg">
+              <Link href={href(`/courses/${courseId}`)}>
+                {t("quizAnalytics.startLearning")}
+                <ArrowUpRight aria-hidden />
+              </Link>
+            </Button>
+          ) : null}
         </div>
 
         {diagnosis?.study_plan && diagnosis.study_plan.length > 0 ? (
-          <div className="grid grid-cols-1 gap-5 @min-[36rem]/study-plan:grid-cols-2 @min-[55rem]/study-plan:grid-cols-3">
+          <div className="divide-y divide-border">
             {diagnosis.study_plan.map((step, idx) => (
               <div
                 key={idx}
-                className="flex flex-col justify-between rounded-xl border border-brand-primary/30 bg-card p-5 shadow-xs relative overflow-hidden group hover:border-brand-primary/60 transition-all"
+                className="py-3"
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -433,7 +444,7 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
                     </Badge>
                   </div>
 
-                  <h4 className="font-heading text-body-base font-bold text-foreground group-hover:text-brand-primary transition-colors">
+                  <h4 className="font-heading text-body-base font-bold text-foreground">
                     <MathText as="span">{step.focus}</MathText>
                   </h4>
 
@@ -449,19 +460,11 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
                   </div>
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-border/60">
-                  <Button asChild className="w-full">
-                    <Link href={href(`/courses/${courseId}`)}>
-                      {t("quizAnalytics.startLearning")}
-                      <ArrowUpRight className="ml-1.5 size-3.5" />
-                    </Link>
-                  </Button>
-                </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="rounded-xl border border-border/80 bg-card p-5 text-center space-y-3">
+          <div className="space-y-3">
             <p className="text-body-sm text-muted-foreground">
               {t("quizAnalytics.keepGoing")}
             </p>
@@ -473,7 +476,7 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
 
         {/* Encouragement Footer */}
         {diagnosis?.encouragement && (
-          <div className="rounded-xl border border-border/60 bg-muted/30 p-4 text-center">
+          <div className="border-t border-border py-3">
             <p className="font-heading text-body-base font-semibold text-foreground italic">
               &ldquo;<MathText as="span">{diagnosis.encouragement}</MathText>&rdquo;
             </p>

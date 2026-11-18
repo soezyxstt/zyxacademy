@@ -18,7 +18,7 @@ type ProfileHeroProps = {
 };
 
 export function ProfileHero({ name, image, frameId, themeId, title, zyraAvatarId, academicInfo, rank, actions, details }: ProfileHeroProps) {
-  return <section className="rounded-xl border bg-card p-5">
+  return <section className="border-b border-border pb-4">
     <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
       <StudentAvatar name={name} image={image} frameId={frameId} themeId={themeId} size={112} animated />
       <div className="min-w-0 flex-1 space-y-1">
