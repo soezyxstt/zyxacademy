@@ -243,6 +243,10 @@ test.describe("Structured Article V3 visual acceptance", () => {
     await search.fill("pertaksamaan");
     await expect(page.getByText(/hasil pencarian \(\d+\)/i).filter({ visible: true })).toBeVisible();
     await capture(page, testInfo, "student-reader-search-filled");
+    await search.press("Escape");
+    await expect(search).toBeHidden();
+    await expect(searchButton).toBeFocused();
+    if (mobile) await expect(page.getByRole("dialog", { name: "Bab ini" })).toBeVisible();
     expect(errors).toEqual([]);
   });
 

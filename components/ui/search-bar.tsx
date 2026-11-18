@@ -236,7 +236,7 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button type="button" variant="ghost" size="icon-sm" aria-label={t("closeSearch")} onClick={closeSearch} disabled={disabled}>
+                  <Button type="button" variant="ghost" size="icon-sm" data-search-close="" aria-label={t("closeSearch")} onClick={closeSearch} disabled={disabled}>
                     <X aria-hidden />
                   </Button>
                 </TooltipTrigger>
