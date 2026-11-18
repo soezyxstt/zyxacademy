@@ -103,7 +103,7 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
     const currentSize = sizeStyles[size];
     const isOpen = !collapsible || expanded || query.length > 0;
     const searchLabel = props["aria-label"] ?? placeholder ?? t("searchAction");
-    const inputLabel = props["aria-label"] ?? (props["aria-labelledby"] ? undefined : searchLabel);
+    const inputLabel = props["aria-label"] ?? (collapsible && !props["aria-labelledby"] ? searchLabel : undefined);
 
     React.useLayoutEffect(() => {
       if (focusTarget.current === "input" && isOpen) {
