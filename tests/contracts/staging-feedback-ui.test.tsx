@@ -154,7 +154,7 @@ describe("staging feedback UI contracts", () => {
     expect(listHtml).toContain("max-h-[50%]");
     expect(listHtml).toContain('aria-label="Bisukan notifikasi Matematika I"');
     // No duplicate channel name banner beneath row 1 of <aside>
-    const asideHeader = listHtml.match(/<aside[\s\S]*?<div class="shrink-0 border-b border-border p-3">([\s\S]*?)<\/div><div class="min-h-0 flex-1 overflow-y-auto">/)?.[1] ?? "";
+    const asideHeader = listHtml.match(/<header[^>]*\bdata-discussion-list-toolbar=""[^>]*>([\s\S]*?)<\/header>/)?.[1] ?? "";
     expect(asideHeader).toContain('aria-label="Bisukan notifikasi Matematika I"');
     expect(asideHeader.match(/>Matematika I</g)?.length ?? 0).toBe(1);
 
@@ -176,7 +176,7 @@ describe("staging feedback UI contracts", () => {
     expect(composeHtml).not.toContain('role="dialog"');
   });
 
-  test("document grid cards align to top without stretching space above preview", () => {
+  test("documents start in list mode and keep grid available", () => {
     const html = renderId(
       <DocumentListClient
         courseId="math"
@@ -196,8 +196,9 @@ describe("staging feedback UI contracts", () => {
         ]}
       />,
     );
-    expect(html).toContain("self-start");
-    expect(html).not.toContain('class="flex-1 px-3 py-2.5"');
+    expect(html).toMatch(/aria-label="Tampilan daftar"[^>]*aria-pressed="true"/);
+    expect(html).toMatch(/aria-label="Tampilan grid"[^>]*aria-pressed="false"/);
+    expect(html).toContain('title="Bab 1: Limit"');
   });
 
   test("dashboard header does not render streak days badge", () => {
