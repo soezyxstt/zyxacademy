@@ -18,7 +18,7 @@ test("navigation keeps response ownership, URL scope, and cancellation in its fe
   globalThis.fetch = (async (path: unknown, init?: RequestInit) => {
     requests.push({ url: String(path), owner: new Headers(init?.headers).get("x-student-id"), signal: init?.signal });
     return Response.json(String(path).includes("?") ? { id: "course/one", title: "One" } : [{ id: "course/one", title: "One" }]);
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
   expect(await cache.query(studentEnrollmentsQuery("learner"))).toEqual([{ id: "course/one", title: "One" }]);
   expect(await cache.query(studentCourseQuery("learner", "course/one"))).toEqual({ id: "course/one", title: "One" });
   expect(requests.map(request => request.owner)).toEqual(["learner", "learner"]);
@@ -30,12 +30,12 @@ test("study paths separate plan length and reject malformed steps before caching
   const cache = client();
   const options = studyPathQuery("learner", "course", 7);
   let requested = "";
-  globalThis.fetch = (async (path: unknown) => { requested = String(path); return Response.json({ steps: [], dayPlan: [] }); }) as typeof fetch;
+  globalThis.fetch = (async (path: unknown) => { requested = String(path); return Response.json({ steps: [], dayPlan: [] }); }) as unknown as typeof fetch;
   expect(await cache.query(options)).toEqual({ steps: [], dayPlan: [] });
   expect(new URL(requested, "https://example.test").searchParams.get("days")).toBe("7");
   expect(options.queryKey).not.toEqual(studyPathQuery("learner", "course", 14).queryKey);
   expect(options.retry).toBe(false);
-  globalThis.fetch = (async () => Response.json({ steps: [{ stepId: "missing-fields" }], dayPlan: null })) as typeof fetch;
+  globalThis.fetch = (async () => Response.json({ steps: [{ stepId: "missing-fields" }], dayPlan: null })) as unknown as typeof fetch;
   const invalid = studyPathQuery("learner", "other-course");
   await expect(cache.query(invalid)).rejects.toBeInstanceOf(ApiResponseError);
   expect(cache.getQueryData(invalid.queryKey)).toBeUndefined();
@@ -43,7 +43,7 @@ test("study paths separate plan length and reject malformed steps before caching
 
 test("discussion counts reject negative and string counts instead of showing false badges", async () => {
   const cache = client();
-  globalThis.fetch = (async () => Response.json({ total: { unreadThreads: -1, activeThreads: "2" }, course: null })) as typeof fetch;
+  globalThis.fetch = (async () => Response.json({ total: { unreadThreads: -1, activeThreads: "2" }, course: null })) as unknown as typeof fetch;
   const options = discussionCountsQuery("learner", "course");
   await expect(cache.query(options)).rejects.toBeInstanceOf(ApiResponseError);
   expect(cache.getQueryData(options.queryKey)).toBeUndefined();
@@ -55,7 +55,7 @@ test("allowance reads stay disabled without a course and reject unrecognized acc
   expect(zyraAllowanceQuery("learner", "unknown").enabled).toBe(false);
   const cache = client();
   const options = zyraAllowanceQuery("learner", "course");
-  globalThis.fetch = (async () => Response.json({ summary: { accessTier: "admin" } })) as typeof fetch;
+  globalThis.fetch = (async () => Response.json({ summary: { accessTier: "admin" } })) as unknown as typeof fetch;
   await expect(cache.query(options)).rejects.toBeInstanceOf(ApiResponseError);
   expect(cache.getQueryData(options.queryKey)).toBeUndefined();
   expect(options.retry).toBe(false);
@@ -64,10 +64,10 @@ test("allowance reads stay disabled without a course and reject unrecognized acc
 test("pricing accepts valid campaigns and fails closed on invalid dates and percentages", async () => {
   const cache = client();
   const campaign = { percent: 20, startsOn: "2026-11-01", endsOn: "2026-11-30" };
-  globalThis.fetch = (async () => Response.json({ platform: campaign, tutorial: campaign })) as typeof fetch;
+  globalThis.fetch = (async () => Response.json({ platform: campaign, tutorial: campaign })) as unknown as typeof fetch;
   expect(await cache.query(pricingDiscountsQuery())).toEqual({ platform: campaign, tutorial: campaign });
   cache.clear();
-  globalThis.fetch = (async () => Response.json({ platform: { ...campaign, percent: 120 }, tutorial: { ...campaign, endsOn: "2026-02-30" } })) as typeof fetch;
+  globalThis.fetch = (async () => Response.json({ platform: { ...campaign, percent: 120 }, tutorial: { ...campaign, endsOn: "2026-02-30" } })) as unknown as typeof fetch;
   await expect(cache.query(pricingDiscountsQuery())).rejects.toBeInstanceOf(ApiResponseError);
   expect(cache.getQueryData(pricingDiscountsQuery().queryKey)).toBeUndefined();
 });

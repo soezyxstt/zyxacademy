@@ -19,16 +19,16 @@ test("fetchers validate success bodies and preserve cancellation and HTTP errors
   globalThis.fetch = (async (_path: unknown, init?: RequestInit) => {
     request = init;
     return Response.json({ value: 3 });
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
   expect(await requestJson("/api/test", z.object({ value: z.number() }), { signal: controller.signal })).toEqual({ value: 3 });
   expect(request?.signal).toBe(controller.signal);
   expect(request?.cache).toBe("no-store");
   expect(request?.credentials).toBe("same-origin");
   expect(new Headers(request?.headers).get("Accept")).toBe("application/json");
   await expect(requestJson("/api/test", z.object({ value: z.string() }))).rejects.toBeInstanceOf(ApiResponseError);
-  globalThis.fetch = (async () => new Response("upstream unavailable", { status: 503 })) as typeof fetch;
+  globalThis.fetch = (async () => new Response("upstream unavailable", { status: 503 })) as unknown as typeof fetch;
   await expect(requestJson("/api/test", z.object({ value: z.number() }))).rejects.toMatchObject({ status: 503 });
-  globalThis.fetch = (async () => new Response("not json")) as typeof fetch;
+  globalThis.fetch = (async () => new Response("not json")) as unknown as typeof fetch;
   await expect(requestJson("/api/test", z.object({ value: z.number() }))).rejects.toBeInstanceOf(ApiResponseError);
 });
 
@@ -65,18 +65,18 @@ test("switching accounts cancels private reads, rejects late cache writes, and k
   resolveRead({ streak: { current: 1, longest: 1 }, items: [] });
   await read;
   expect(cache.getQueryData(queryKeys.student.today("a"))).toBeUndefined();
-  expect(cache.getQueryData(queryKeys.public.pricing())).toEqual({ public: true });
+  expect<unknown>(cache.getQueryData(queryKeys.public.pricing())).toEqual({ public: true });
   expect(isQueryAccountCurrent(cache, "a")).toBe(false);
   expect(isQueryAccountCurrent(cache, "b")).toBe(true);
   cache.setQueryData(queryKeys.student.today("b"), { streak: { current: 2, longest: 2 }, items: [] });
   syncQueryAccount(cache, null);
   expect(cache.getQueryData(queryKeys.student.today("b"))).toBeUndefined();
-  expect(cache.getQueryData(queryKeys.public.pricing())).toEqual({ public: true });
+  expect<unknown>(cache.getQueryData(queryKeys.public.pricing())).toEqual({ public: true });
 });
 
 test("invalid today payload never becomes successful cached data", async () => {
   const cache = client();
-  globalThis.fetch = (async () => Response.json({ streak: { current: "3", longest: 3 }, items: [] })) as typeof fetch;
+  globalThis.fetch = (async () => Response.json({ streak: { current: "3", longest: 3 }, items: [] })) as unknown as typeof fetch;
   await expect(cache.query(studentTodayQuery("a"))).rejects.toBeInstanceOf(ApiResponseError);
   expect(cache.getQueryData(queryKeys.student.today("a"))).toBeUndefined();
 });
@@ -105,7 +105,7 @@ test("learning invalidation preserves a pending optimistic completion until its 
   let finish!: (response: Response) => void;
   let didStart!: () => void;
   const started = new Promise<void>(resolve => { didStart = resolve; });
-  globalThis.fetch = (async () => new Promise<Response>(resolve => { finish = resolve; didStart(); })) as typeof fetch;
+  globalThis.fetch = (async () => new Promise<Response>(resolve => { finish = resolve; didStart(); })) as unknown as typeof fetch;
   const controller = new AbortController();
   const completion = new MutationObserver(cache, todayCompletionMutation(cache, "a")).mutate({ itemId: "one", controller });
   await started;
@@ -134,17 +134,17 @@ test("one failed optimistic completion does not undo another successful item", a
   globalThis.fetch = (async (_path: unknown, init?: RequestInit) => {
     const { itemId } = JSON.parse(String(init?.body));
     return new Promise<Response>(resolve => { finish.set(itemId, resolve); if (finish.size === 2) allStarted(); });
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
   const one = new AbortController(); const two = new AbortController();
   const options = todayCompletionMutation(cache, "a");
   const first = new MutationObserver(cache, options).mutate({ itemId: "one", controller: one }).catch(() => undefined);
   const second = new MutationObserver(cache, options).mutate({ itemId: "two", controller: two });
   await started;
-  expect(cache.getQueryData(key)?.items.map(item => item.done)).toEqual([true, true]);
+  expect<unknown>(cache.getQueryData(key)?.items.map(item => item.done)).toEqual([true, true]);
   finish.get("two")!(Response.json({ ok: true })); await second;
   expect(cache.getQueryState(key)?.isInvalidated).toBe(false);
   finish.get("one")!(Response.json({ error: "failed" }, { status: 500 })); await first;
-  expect(cache.getQueryData(key)?.items.map(item => item.done)).toEqual([false, true]);
+  expect<unknown>(cache.getQueryData(key)?.items.map(item => item.done)).toEqual([false, true]);
   expect(cache.getQueryState(key)?.isInvalidated).toBe(true);
   expect(cache.isMutating({ mutationKey: queryKeys.student.completeToday("a"), exact: true })).toBe(0);
 });

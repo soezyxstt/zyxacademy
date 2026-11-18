@@ -46,7 +46,7 @@ test("admin reads share valid data within an account and isolate account changes
   globalThis.fetch = (async () => {
     calls++;
     return Response.json(emptyStats);
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
   const cache = client();
   const [first, sameAccount] = await Promise.all([
     cache.query(adminAnalyticsQuery("admin-a")),
@@ -58,11 +58,11 @@ test("admin reads share valid data within an account and isolate account changes
   expect(calls).toBe(2);
   cache.removeQueries({ queryKey: queryKeys.account("admin-a") });
   expect(cache.getQueryData(adminAnalyticsQuery("admin-a").queryKey)).toBeUndefined();
-  expect(cache.getQueryData(adminAnalyticsQuery("admin-b").queryKey)).toEqual(emptyStats);
+  expect<unknown>(cache.getQueryData(adminAnalyticsQuery("admin-b").queryKey)).toEqual(emptyStats);
 });
 
 test("malformed admin responses never become successful cached data", async () => {
-  globalThis.fetch = (async () => Response.json({ ...emptyStats, totalRequests: "2" })) as typeof fetch;
+  globalThis.fetch = (async () => Response.json({ ...emptyStats, totalRequests: "2" })) as unknown as typeof fetch;
   const cache = client();
   const options = adminAnalyticsQuery("admin-a");
   await expect(cache.query(options)).rejects.toBeInstanceOf(ApiResponseError);
@@ -132,7 +132,7 @@ test("typed fetchers encode course and search filters and pass cancellation to f
     return String(input).includes("/products")
       ? Response.json({ items: [], total: 0 })
       : Response.json({ mode: "course", courses: [], students: [], summary: { totalStudents: 0, totalAttempts: 0, avgOverallScore: 0, highestScore: 0 } });
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
   const controller = new AbortController();
   await fetchAdminProducts({ type: "question", courseId: "course & one", search: "  X + Y  " }, controller.signal);
   await fetchAdminLeaderboard({ type: "quiz", courseId: "course & one", search: " ALYA " }, controller.signal);
@@ -156,7 +156,7 @@ test("a canceled old product filter cannot replace the current filter cache", as
       });
     }
     return Response.json({ items: [], total: 0 });
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
   const cache = client();
   const old = adminProductsQuery("admin", { type: "all", courseId: "all", search: "old" });
   const current = adminProductsQuery("admin", { type: "all", courseId: "all", search: "current" });
@@ -166,7 +166,7 @@ test("a canceled old product filter cannot replace the current filter cache", as
   await oldResult;
   expect(oldSignal?.aborted).toBe(true);
   expect(cache.getQueryData(old.queryKey)).toBeUndefined();
-  expect(cache.getQueryData(current.queryKey)).toEqual({ items: [], total: 0 });
+  expect<unknown>(cache.getQueryData(current.queryKey)).toEqual({ items: [], total: 0 });
 });
 
 test("product validation covers preview data, not only list metadata", () => {

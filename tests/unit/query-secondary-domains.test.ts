@@ -42,7 +42,7 @@ afterEach(() => {
 });
 
 test("interventions validate their owner and nested payload before caching", async () => {
-  globalThis.fetch = (async () => Response.json([{ ...intervention, payload: { ...intervention.payload, flashcardCount: "3" } }])) as typeof fetch;
+  globalThis.fetch = (async () => Response.json([{ ...intervention, payload: { ...intervention.payload, flashcardCount: "3" } }])) as unknown as typeof fetch;
   const cache = client("student-a");
   expect((await cache.query(studentInterventionsQuery("student-a")))[0]?.payload.flashcardCount).toBe(3);
   await expect(cache.query(studentInterventionsQuery("student-b"))).rejects.toBeInstanceOf(ApiResponseError);
@@ -60,14 +60,14 @@ test("a failed or unacknowledged dismissal preserves the cached suggestion witho
   expect(options.retry).toBe(false);
   expect(options.networkMode).toBe("always");
   let calls = 0;
-  globalThis.fetch = (async () => { calls++; return Response.json({ error: "unavailable" }, { status: 503 }); }) as typeof fetch;
+  globalThis.fetch = (async () => { calls++; return Response.json({ error: "unavailable" }, { status: 503 }); }) as unknown as typeof fetch;
   await expect(new MutationObserver(cache, options).mutate(intervention.id)).rejects.toBeInstanceOf(ApiError);
   expect(calls).toBe(1);
-  expect(cache.getQueryData(key)).toEqual([intervention]);
+  expect<unknown>(cache.getQueryData(key)).toEqual([intervention]);
   expect(cache.getQueryState(key)?.isInvalidated).toBe(false);
-  globalThis.fetch = (async () => Response.json({ success: false })) as typeof fetch;
+  globalThis.fetch = (async () => Response.json({ success: false })) as unknown as typeof fetch;
   await expect(new MutationObserver(cache, options).mutate(intervention.id)).rejects.toBeInstanceOf(ApiResponseError);
-  expect(cache.getQueryData(key)).toEqual([intervention]);
+  expect<unknown>(cache.getQueryData(key)).toEqual([intervention]);
   expect(cache.getQueryState(key)?.isInvalidated).toBe(false);
 });
 
@@ -80,11 +80,11 @@ test("acknowledged dismissals invalidate only their actor while the UI finishes 
   globalThis.fetch = (async (path: unknown, init?: RequestInit) => {
     receivedPath = String(path); receivedHeaders = new Headers(init?.headers);
     return Response.json({ success: true });
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
   await new MutationObserver(cache, dismissInterventionMutation(cache, "student-a")).mutate("suggestion/one");
   expect(receivedPath).toBe("/api/student/interventions/suggestion%2Fone/dismiss");
   expect(receivedHeaders?.get("x-student-id")).toBe("student-a");
-  expect(cache.getQueryData(own)).toEqual([intervention]);
+  expect<unknown>(cache.getQueryData(own)).toEqual([intervention]);
   expect(cache.getQueryState(own)?.isInvalidated).toBe(true);
   expect(cache.getQueryState(other)?.isInvalidated).toBe(false);
 });
@@ -92,13 +92,13 @@ test("acknowledged dismissals invalidate only their actor while the UI finishes 
 test("Zyra ops reads reuse the canonical masked metrics schema and account key", async () => {
   const cache = client();
   let requests = 0, signal: AbortSignal | null | undefined;
-  globalThis.fetch = (async (_path: unknown, init?: RequestInit) => { requests++; signal = init?.signal; return Response.json(opsMetrics); }) as typeof fetch;
+  globalThis.fetch = (async (_path: unknown, init?: RequestInit) => { requests++; signal = init?.signal; return Response.json(opsMetrics); }) as unknown as typeof fetch;
   await Promise.all([cache.query(zyraOpsQuery("admin-a")), cache.query(zyraOpsQuery("admin-a"))]);
   expect(requests).toBe(1);
   expect(signal).toBeInstanceOf(AbortSignal);
   expect(zyraOpsQuery("admin-a").queryKey).not.toEqual(zyraOpsQuery("admin-b").queryKey);
   expect(zyraOpsQuery("").enabled).toBe(false);
-  globalThis.fetch = (async () => Response.json({ ...opsMetrics, projectSlotCount: 1 })) as typeof fetch;
+  globalThis.fetch = (async () => Response.json({ ...opsMetrics, projectSlotCount: 1 })) as unknown as typeof fetch;
   await expect(cache.query(zyraOpsQuery("admin-b"))).rejects.toBeInstanceOf(ApiResponseError);
   expect(cache.getQueryData(zyraOpsQuery("admin-b").queryKey)).toBeUndefined();
 });
@@ -111,7 +111,7 @@ test("proposal queries isolate scope, encode filters, and cache only validated v
   globalThis.fetch = (async (path: unknown, init?: RequestInit) => {
     url = String(path); signal = init?.signal;
     return Response.json({ proposals: [{ ...proposal, operations: [{ kind: "read_only_report" }] }] });
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
   const cache = client();
   const response = await cache.query(zyraProposalsQuery("a", "course & one"));
   expect(new URL(url, "https://test.invalid").searchParams.get("courseId")).toBe("course & one");
@@ -132,7 +132,7 @@ test("proposal transitions preserve revision checks and reconcile every actor fi
   globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
     path = String(url); body = JSON.parse(String(init?.body));
     return Response.json({ proposal: { ...proposal, status: "reviewed" } });
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
   const options = transitionZyraProposalMutation(cache, "admin-a");
   expect(options.retry).toBe(false);
   expect(options.networkMode).toBe("always");
@@ -152,7 +152,7 @@ test("proposal creation preserves read-only report operations and never retries 
   globalThis.fetch = (async (_path: unknown, init?: RequestInit) => {
     calls++; body = JSON.parse(String(init?.body));
     return Response.json({ error: "unavailable" }, { status: 503 });
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
   const options = createZyraProposalMutation(cache, "tutor-a", "tutor", "course-one");
   expect(options.retry).toBe(false);
   await expect(new MutationObserver(cache, options).mutate()).rejects.toBeInstanceOf(ApiError);
@@ -169,7 +169,7 @@ test("old account mutations cannot recreate private caches after logout", async 
   let resolveWrite!: (response: Response) => void;
   let started!: () => void;
   const start = new Promise<void>(resolve => { started = resolve; });
-  globalThis.fetch = (async () => new Promise<Response>(resolve => { resolveWrite = resolve; started(); })) as typeof fetch;
+  globalThis.fetch = (async () => new Promise<Response>(resolve => { resolveWrite = resolve; started(); })) as unknown as typeof fetch;
   const pending = new MutationObserver(cache, transitionZyraProposalMutation(cache, "admin-a")).mutate({ proposal, action: "review" });
   await start;
   syncQueryAccount(cache, null);

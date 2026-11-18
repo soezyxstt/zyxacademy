@@ -22,7 +22,7 @@ describe("article progress cache", () => {
     globalThis.fetch = (async (url, init) => {
       requests.push({ url: String(url), userId: new Headers(init?.headers).get("x-student-id") });
       return Response.json({ articleId: "article:v2", articleVersion: Number(new URL(String(url), "http://local.test").searchParams.get("version")), sectionProgress: {} });
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
     const client = makeClient();
     const first = articleProgressQuery("student-a", "article:v2", 2);
     await Promise.all([client.query(first), client.query(first)]);
@@ -38,12 +38,12 @@ describe("article progress cache", () => {
     const options = articleProgressQuery("student", "article", 2);
     const confirmed = { articleId: "article", articleVersion: 2, sectionProgress: { section: { maxReadPercent: 70, completed: false, timeSpentSeconds: 10 } } };
     client.setQueryData(options.queryKey, confirmed);
-    globalThis.fetch = (async () => Response.json({ ...confirmed, articleVersion: 1 })) as typeof fetch;
+    globalThis.fetch = (async () => Response.json({ ...confirmed, articleVersion: 1 })) as unknown as typeof fetch;
     await expect(client.query({ ...options, staleTime: 0 })).rejects.toBeInstanceOf(ApiResponseError);
-    expect(client.getQueryData(options.queryKey)).toEqual(confirmed);
-    globalThis.fetch = (async () => Response.json({ ...confirmed, sectionProgress: { section: { completed: "yes", maxReadPercent: 100, timeSpentSeconds: 12 } } })) as typeof fetch;
+    expect<unknown>(client.getQueryData(options.queryKey)).toEqual(confirmed);
+    globalThis.fetch = (async () => Response.json({ ...confirmed, sectionProgress: { section: { completed: "yes", maxReadPercent: 100, timeSpentSeconds: 12 } } })) as unknown as typeof fetch;
     await expect(client.query({ ...options, staleTime: 0 })).rejects.toBeInstanceOf(ApiResponseError);
-    expect(client.getQueryData(options.queryKey)).toEqual(confirmed);
+    expect<unknown>(client.getQueryData(options.queryKey)).toEqual(confirmed);
   });
 
   test("passes cancellation to the progress read", async () => {
@@ -51,7 +51,7 @@ describe("article progress cache", () => {
     globalThis.fetch = ((_, init) => {
       capturedSignal = init?.signal;
       return new Promise<Response>((_, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true }));
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
     const client = makeClient();
     const options = articleProgressQuery("student", "article", 1);
     const read = client.query(options).catch(() => undefined);
@@ -66,7 +66,7 @@ describe("article progress cache", () => {
     globalThis.fetch = (async (_, init) => {
       request = init;
       return Response.json({ success: true, articleId: "article", articleVersion: 4, sectionId: "other", maxReadPercent: 100, completed: true, timeSpentSeconds: 9, completedAt: null });
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
     await expect(updateArticleProgress("student", "article", 4, { sectionId: "section", percent: 100, timeSpentSeconds: 9, completed: true })).rejects.toBeInstanceOf(ApiResponseError);
     expect(request?.method).toBe("PUT");
     expect(request?.keepalive).toBe(true);

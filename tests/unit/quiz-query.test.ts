@@ -46,7 +46,7 @@ describe("quiz query cache", () => {
     const saved = await client.query(options);
     globalThis.fetch = mock(async () => Response.json(attempt({ questionsSnapshot: "broken" }))) as typeof globalThis.fetch;
     await expect(client.query({ ...options, staleTime: 0 })).rejects.toThrow("invalid response");
-    expect(client.getQueryData(options.queryKey)).toEqual(saved);
+    expect<unknown>(client.getQueryData(options.queryKey)).toEqual(saved);
   });
 
   test("consumes Query's abort signal so removed account requests stop", async () => {
