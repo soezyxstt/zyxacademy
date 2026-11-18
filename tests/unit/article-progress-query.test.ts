@@ -105,6 +105,9 @@ describe("article progress races", () => {
     expect(completions.request("section", "explicit", visit)).toBeNull();
     expect(completions.request("section", "scroll", visit)).toBeNull();
     expect(visit.takeTime()).toBe(0);
+    for (let i = 0; i < 3; i++) visit.tick();
+    expect(completions.flush(visit)).toEqual({ sectionId: "section", percent: 100, timeSpentSeconds: 3 });
+    expect(completions.flush(visit)).toBeNull();
   });
 
   test("completion then visibility, section exit and unmount consume each elapsed second once", () => {

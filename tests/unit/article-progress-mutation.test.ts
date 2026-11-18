@@ -47,7 +47,7 @@ function setup() {
 }
 
 describe("article mutation lifecycle", () => {
-  test("a rejected completion receipt waits for explicit retry without replaying time", async () => {
+  test("pending and rejected completions cannot complete through fresh time flushes before explicit retry", async () => {
     const state = setup();
     const completions = createArticleCompletions(state.initial.sectionProgress);
     const visit = createArticleVisit("section");
@@ -55,10 +55,18 @@ describe("article mutation lifecycle", () => {
     const firstResponse = deferred<Response>();
     const started = deferred<void>();
     const requests: ArticleProgressUpdate[] = [];
+    let savedPercent = state.initial.sectionProgress.section.maxReadPercent;
+    let savedTime = state.initial.sectionProgress.section.timeSpentSeconds;
     globalThis.fetch = ((_path: unknown, init?: RequestInit) => {
-      requests.push(JSON.parse(String(init?.body)));
+      const input: ArticleProgressUpdate = JSON.parse(String(init?.body));
+      requests.push(input);
       if (requests.length === 1) { started.resolve(); return firstResponse.promise; }
-      return Promise.resolve(Response.json(receipt("section", 15)));
+      // Mirror the API's monotonic percent and >=90 completion rule. The first
+      // write has no valid receipt for this revision, so it remains uncertain.
+      savedPercent = Math.max(savedPercent, input.percent);
+      savedTime += input.timeSpentSeconds;
+      const completed = savedPercent >= 90 || input.completed === true;
+      return Promise.resolve(Response.json({ ...receipt("section", savedTime), maxReadPercent: savedPercent, completed, completedAt: completed ? "2026-11-18T00:00:00.000Z" : null }));
     }) as unknown as typeof fetch;
 
     const complete = async (intent: ArticleCompletionIntent) => {
@@ -73,21 +81,44 @@ describe("article mutation lifecycle", () => {
     await started.promise;
     await complete("explicit");
     expect(requests).toHaveLength(1);
+    const flush = async () => {
+      const update = completions.flush(visit);
+      if (update) await state.mutate(update);
+    };
+    for (let i = 0; i < 4; i++) visit.tick();
+    await flush();
+    await flush();
+    expect(requests).toHaveLength(2);
+    expect(requests[1]).toMatchObject({ percent: 89, timeSpentSeconds: 4 });
+    expect(requests[1].completed).toBeUndefined();
+    expect(state.client.getQueryData(state.query.queryKey)?.sectionProgress.section).toMatchObject({ completed: false, maxReadPercent: 89, timeSpentSeconds: 7 });
     firstResponse.resolve(Response.json({ ...receipt("section", 15), articleVersion: 2 }));
     await first;
-    expect(state.client.getQueryData(state.query.queryKey)?.sectionProgress.section).toEqual(state.initial.sectionProgress.section);
+    for (let i = 0; i < 4; i++) visit.tick();
+    await flush();
+    await flush();
     await complete("scroll");
     await complete("scroll");
-    expect(requests).toHaveLength(1);
+    expect(requests).toHaveLength(3);
+    expect(requests[2]).toMatchObject({ percent: 89, timeSpentSeconds: 4 });
+    expect(requests[2].completed).toBeUndefined();
+    expect(state.client.getQueryData(state.query.queryKey)?.sectionProgress.section).toMatchObject({ completed: false, maxReadPercent: 89, timeSpentSeconds: 11 });
     expect(state.summaryCounts).toHaveLength(0);
 
     await complete("explicit");
-    expect(requests.map((request) => request.timeSpentSeconds)).toEqual([12, 0]);
-    expect(state.client.getQueryData(state.query.queryKey)?.sectionProgress.section).toMatchObject({ completed: true, maxReadPercent: 100, timeSpentSeconds: 15 });
+    expect(requests.map((request) => request.timeSpentSeconds)).toEqual([12, 4, 4, 0]);
+    expect(requests[3]).toMatchObject({ percent: 100, completed: true });
+    expect(state.client.getQueryData(state.query.queryKey)?.sectionProgress.section).toMatchObject({ completed: true, maxReadPercent: 100, timeSpentSeconds: 11 });
     await complete("scroll");
     await complete("explicit");
-    expect(requests).toHaveLength(2);
+    expect(requests).toHaveLength(4);
     expect(state.summaryCounts).toHaveLength(1);
+    for (let i = 0; i < 4; i++) visit.tick();
+    await flush();
+    await flush();
+    expect(requests.map((request) => request.timeSpentSeconds)).toEqual([12, 4, 4, 0, 4]);
+    expect(requests[4].percent).toBe(100);
+    expect(state.client.getQueryData(state.query.queryKey)?.sectionProgress.section).toMatchObject({ completed: true, maxReadPercent: 100, timeSpentSeconds: 15 });
   });
 
   test("a read started during a PUT cannot erase its receipt or another completed section", async () => {

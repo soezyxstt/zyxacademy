@@ -81,6 +81,17 @@ export function createArticleCompletions(initialProgress: Readonly<Record<string
 
   return {
     confirm,
+    flush(visit: ReturnType<typeof createArticleVisit>): ArticleProgressUpdate | null {
+      if (visit.elapsedSeconds <= 2) return null;
+      const unconfirmed = attempted.has(visit.sectionId) && !confirmed.has(visit.sectionId);
+      return {
+        sectionId: visit.sectionId,
+        // The API completes at 90%, even without completed:true. Fresh time
+        // writes must not retry a pending or rejected completion through depth.
+        percent: unconfirmed ? Math.min(visit.maxReadPercent, 89) : visit.maxReadPercent,
+        timeSpentSeconds: visit.takeTime(),
+      };
+    },
     request(sectionId: string, intent: ArticleCompletionIntent, visit: ReturnType<typeof createArticleVisit> | null): ArticleProgressUpdate | null {
       const isRetry = attempted.has(sectionId);
       if (confirmed.has(sectionId) || pending.has(sectionId) || (intent === "scroll" && isRetry)) return null;

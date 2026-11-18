@@ -96,8 +96,8 @@ export function useArticleReadingProgress({ article, studentId, courseId, active
     visitRef.current = visit;
     const interval = window.setInterval(() => visit.tick(), 1000);
     const flush = () => {
-      if (visit.elapsedSeconds <= 2) return;
-      void save({ sectionId: visit.sectionId, percent: visit.maxReadPercent, timeSpentSeconds: visit.takeTime() });
+      const update = completionsRef.current.flush(visit);
+      if (update) void save(update);
     };
     const onVisibility = () => { if (document.visibilityState === "hidden") flush(); };
     window.addEventListener("pagehide", flush);
