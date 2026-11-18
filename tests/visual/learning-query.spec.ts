@@ -39,6 +39,15 @@ async function capture(page: Page, info: TestInfo, name: string, errors: string[
   expect(errors).toEqual([]);
 }
 
+async function waitForFlashcardState(page: Page, ready: () => Promise<boolean>) {
+  // A fulfilled route may reach the page after an initial clock tick. Keep
+  // advancing Query and toast notifications until the expected UI is present.
+  await expect.poll(async () => {
+    await page.clock.runFor(1);
+    return ready();
+  }, { timeout: 5_000, intervals: [10, 25, 50] }).toBe(true);
+}
+
 async function settleFlashcardFront(page: Page, question: string) {
   // Only final flashcard captures resume time. Reading tests keep exact elapsed-time control.
   await page.clock.resume();
@@ -81,8 +90,9 @@ test("flashcards keep the active card on an invalid receipt and accept one expli
   await expect(grade).toBeDisabled();
   await capture(page, info, "flashcard-review-pending", errors);
   await acknowledge[0]({ unexpected: true });
-  await page.clock.runFor(1);
-  await expect(page.getByText("Ulasan kartu tidak dapat disimpan.", { exact: true })).toBeVisible();
+  const reviewError = page.getByText("Ulasan kartu tidak dapat disimpan.", { exact: true });
+  await waitForFlashcardState(page, async () => await reviewError.isVisible() && await grade.isEnabled());
+  await expect(reviewError).toBeVisible();
   await expect(grade).toBeEnabled();
   await expect(page.getByText("Apa arti limit fungsi?", { exact: true })).toHaveCount(0);
   expect(posts).toHaveLength(1);
@@ -91,11 +101,11 @@ test("flashcards keep the active card on an invalid receipt and accept one expli
   await grade.click();
   await expect.poll(() => posts.length).toBe(2);
   await acknowledge[1](reviewReceipt);
-  await page.clock.runFor(1);
-  await expect(page.getByText("Apa arti limit fungsi?", { exact: true })).toBeVisible();
-  // The toast schedules its own timer after the mutation advances the card.
-  await page.clock.runFor(1);
-  await expect(page.getByText("Penilaian berhasil disimpan.", { exact: true })).toBeVisible();
+  const nextCard = page.getByText("Apa arti limit fungsi?", { exact: true });
+  const reviewSaved = page.getByText("Penilaian berhasil disimpan.", { exact: true });
+  await waitForFlashcardState(page, async () => await nextCard.isVisible() && await reviewSaved.isVisible());
+  await expect(nextCard).toBeVisible();
+  await expect(reviewSaved).toBeVisible();
   await settleFlashcardFront(page, "Apa arti limit fungsi?");
   await capture(page, info, "flashcard-review-saved", errors, "allow");
 });
@@ -122,9 +132,11 @@ test("demo flashcard reviews keep the shared presentation and stay local", async
   const errors = await boot(page, { mode: "flashcards", demo: true });
   await page.getByText("Apa turunan fungsi kuadrat?", { exact: true }).click();
   await page.getByRole("button", { name: "Paham", exact: true }).click();
-  await page.clock.runFor(1);
-  await expect(page.getByText("1 ulasan demo", { exact: true })).toBeVisible();
-  await expect(page.getByText("Apa arti limit fungsi?", { exact: true })).toBeVisible();
+  const reviewCount = page.getByText("1 ulasan demo", { exact: true });
+  const nextCard = page.getByText("Apa arti limit fungsi?", { exact: true });
+  await waitForFlashcardState(page, async () => await reviewCount.isVisible() && await nextCard.isVisible());
+  await expect(reviewCount).toBeVisible();
+  await expect(nextCard).toBeVisible();
   await settleFlashcardFront(page, "Apa arti limit fungsi?");
   await capture(page, info, "flashcard-demo-saved", errors, "allow");
 });
