@@ -380,7 +380,8 @@
       "practiceQuiz": "Latihan kuis",
       "flashcards": "{count, plural, one {# flashcard} other {# flashcard}}",
       "more": "{count, plural, one {# lainnya} other {# lainnya}}",
-      "dismiss": "Tutup"
+      "dismiss": "Tutup",
+      "dismissFailed": "Belum dapat menutup saran. Coba lagi."
     },
     "student": "Siswa",
     "helloFallback": "Selamat datang di Zyx Academy"

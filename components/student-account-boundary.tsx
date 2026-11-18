@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useSession } from "@/lib/auth-client";
 import { useStudentExperience } from "@/components/student-experience-provider";
+import { useSyncQueryAccount } from "@/hooks/use-query-account";
 
 export type StudentAccountState = {
   data: { user: { id: string; name: string; email: string; image?: string | null; role?: string | null; roles?: string[] | null } } | null;
@@ -27,5 +28,6 @@ export function StudentAccountBoundary({ children }: Props) {
 
 function LiveAccountBoundary({ children }: Props) {
   const session = useSession();
+  useSyncQueryAccount(session.data?.user.id, session.isPending);
   return children(session);
 }

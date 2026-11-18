@@ -1,30 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { updateMaterialProgress } from "@/lib/material-progress.repository";
-
-const PostBodySchema = z.object({
-  materialId: z.string().min(1),
-  completionPercent: z.number().min(0).max(100),
-  lastSectionId: z.string().nullable().optional(),
-  lastPosition: z.object({
-    type: z.enum(["pdf", "article"]),
-    page: z.number().optional(),
-    section: z.string().optional(),
-  }).nullable().optional(),
-  timeSpentSeconds: z.number().int().nonnegative(),
-});
+import { materialProgressInputSchema } from "@/lib/materials/client-contracts";
 
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const expectedUserId = req.headers.get("x-student-id");
+  if (expectedUserId && expectedUserId !== session.user.id) {
+    return NextResponse.json({ error: "Account changed" }, { status: 409 });
+  }
 
   try {
     const body = await req.json();
-    const parsed = PostBodySchema.safeParse(body);
+    const parsed = materialProgressInputSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }

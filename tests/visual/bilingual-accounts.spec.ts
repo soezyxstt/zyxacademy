@@ -129,6 +129,10 @@ test.describe("bilingual real quiz and file state fixture", () => {
   test("actual QuizPlayer answers, timer, attachment, FileUploadField, and reader position survive a locale switch", async ({ page }, testInfo) => {
     const diagnostics = collectDiagnostics(page);
     const apiPosts: string[] = [];
+    await page.route("**/api/auth/get-session**", route => route.fulfill({ json: {
+      user: { id: "fixture-student", name: "Fixture student", email: "fixture@example.test" },
+      session: { id: "fixture-session", userId: "fixture-student", expiresAt: "2099-01-01T00:00:00.000Z" },
+    } }));
     await page.addInitScript(() => { try { localStorage.clear(); } catch { /* about:blank has no storage origin */ } });
     await page.route("**/api/quiz/attachments", async (route) => {
       if (route.request().method() === "POST") {

@@ -296,9 +296,11 @@ describe("staging feedback UI contracts", () => {
 
     mockPathname = "/admin/discussions";
     const adminHtml = renderId(
-      <TooltipProvider>
-        <AdminSidebar />
-      </TooltipProvider>,
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <AdminSidebar />
+        </TooltipProvider>
+      </QueryClientProvider>,
     );
     const academicIndex = adminHtml.indexOf("Akademik");
     const toolsIndex = adminHtml.indexOf("Alat");

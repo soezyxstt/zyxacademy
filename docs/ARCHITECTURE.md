@@ -1295,7 +1295,13 @@ The candidate build and local browser measurements passed with the limitations i
 
 - Structured article content and parsing are request-deduplicated separately from user-keyed reading progress.
 - `lib/math/katex-render.ts` shares deterministic KaTeX HTML with a 500-entry FIFO cap. Inputs over 2,000 characters, outputs over 10,000 characters, and mutable or callback options bypass caching.
-- Sidebar activity refresh runs on account mount, successful learning mutations, and focus or visibility changes after 60 seconds. Each account effect owns its abort controller; a mutation during a request queues one follow-up refresh. Route changes alone do not trigger it.
+- The sidebar and dashboard share an account-scoped Today query. Focus and visibility refresh use a 60-second success throttle; a learning mutation during a refresh can queue one follow-up. Migrated learning writes invalidate shared summaries directly and mark their activity event to avoid a duplicate refresh. Failed Today reads use a separate typed enrollment GET, and active-course metadata has its own account/course key.
+
+### Client server data and local state
+
+The [client data-fetching standard](data-fetching.md) defines TanStack Query 5.108.0, checked against the npm registry on 2026-11-18. Browser response caches use shared account/resource/input key factories, runtime-validated API functions, bounded read retry, explicit polling and scoped mutation invalidation. Confirmed account changes clear private queries and fence late mutation results. Public pricing remains in a separate cache namespace.
+
+Feature hooks separate quiz answers and deadlines, article/material reading timers, flashcard session order and UI state from server requests. Material progress uses typed keepalive mutations; chapter summaries remain explicit generation actions. Server services, RSC content and authorization retain their existing owners. The standard documents the separate Next.js and client cache boundaries, preserved streams/uploads/revision workbenches, the decision to retain local state without adding Zustand, and genuine remaining read migrations. Full CI, browser and authenticated staging acceptance remain pending in the PR verification record.
 
 ### Product Bundle V4 authoring default
 

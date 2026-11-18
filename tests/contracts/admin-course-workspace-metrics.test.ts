@@ -71,7 +71,7 @@ describe("admin course workspace metrics contract (CP3A)", () => {
       expect(client).toContain("<CourseCombobox");
 
       // Always queries API with effective course id
-      expect(client).toContain("params.set(\"courseId\", effectiveCourseId)");
+      expect(client).toContain("courseId: effectiveCourseId");
 
       // Reset filters preserves locked course
       expect(client).toContain("if (!lockedCourse) {");

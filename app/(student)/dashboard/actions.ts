@@ -158,8 +158,9 @@ export async function getMaterialsProgress() {
 /**
  * Set progress status for a specific material
  */
-export async function updateMaterialProgress(materialId: string, status: "in_progress" | "completed") {
+export async function updateMaterialProgress(materialId: string, status: "in_progress" | "completed", expectedUserId?: string) {
   const user = await requireUser();
+  if (expectedUserId && expectedUserId !== user.id) throw new Error("Account changed");
   const now = new Date();
 
   const materialAccess = await getStudentMaterialAccess(user.id, materialId);

@@ -380,7 +380,8 @@
       "practiceQuiz": "Practice quiz",
       "flashcards": "{count, plural, one {# flashcard} other {# flashcards}}",
       "more": "{count, plural, one {# more} other {# more}}",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "dismissFailed": "Could not dismiss the suggestion. Try again."
     },
     "student": "Student",
     "helloFallback": "Welcome to Zyx Academy"
