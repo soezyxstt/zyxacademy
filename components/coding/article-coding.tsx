@@ -83,13 +83,13 @@ export function ScrollableStaticCode({ code, labels, language }: { code: string;
       if (!scroll.overflow) return;
       if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); move(event.key === "ArrowLeft" ? -1 : 1); }
       else if (event.key === "Home" || event.key === "End") { event.preventDefault(); if (ref.current) ref.current.scrollLeft = event.key === "Home" ? 0 : ref.current.scrollWidth; measure(); }
-    }} className="max-w-full overflow-x-auto rounded-lg border border-border bg-muted p-3 font-mono text-body-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><code>{code}</code></pre>
+    }} className="max-w-full overflow-x-auto rounded-lg border border-border bg-muted p-3 font-mono text-code sm:p-(--panel-padding) outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><code>{code}</code></pre>
   </div>;
 }
 
 export function ArticleCodeExample({ part, draftNamespace = "example", staticCodeLabels }: { part: Extract<ArticlePart, { kind: "code_example" }>; draftNamespace?: "example" | "markdown-example"; staticCodeLabels?: StaticCodeLabels }) {
   const context = useContext(Context);
-  if (!part.runnable || !context?.enabled) return staticCodeLabels ? <ScrollableStaticCode code={part.code} labels={staticCodeLabels} language={part.language} /> : <pre className="overflow-x-auto rounded-lg border border-border bg-muted p-3 font-mono text-body-sm"><code>{part.code}</code></pre>;
+  if (!part.runnable || !context?.enabled) return staticCodeLabels ? <ScrollableStaticCode code={part.code} labels={staticCodeLabels} language={part.language} /> : <pre className="overflow-x-auto rounded-lg border border-border bg-muted p-3 font-mono text-code sm:p-(--panel-padding)"><code>{part.code}</code></pre>;
   return <CodingWorkspace key={`${draftNamespace}:${context.articleId}:${context.articleVersion}:${part.id}`} courseId={context.courseId} draftKey={`${draftNamespace}:${context.articleId}:${context.articleVersion}:${part.id}`} initialCode={part.code} allowHelp={false} browserOnly={context.browserOnly} playgroundLink interactive />;
 }
 export function ArticleCodingExercise({ part }: { part: Extract<ArticlePart, { kind: "coding_exercise" }> }) {

@@ -541,7 +541,7 @@ export function TutorScheduleView({
 
   return (
     <TooltipProvider>
-    <div className="min-w-0 max-w-full space-y-3">
+    <div className="min-w-0 max-w-full space-y-(--compact-gap)">
       <h1 className="sr-only">{t("title")}</h1>
 
       {activeTab !== "calendar" && (
@@ -645,7 +645,7 @@ export function TutorScheduleView({
       )}
 
       {activeTab === "slots" && (
-        <div className="space-y-3">
+        <div className="space-y-(--compact-gap)">
           {filteredSlots.length === 0 ? (
             <div className="border-t border-border">
               <AdminEmptyState icon={CalendarDays} title={t("noSlots")} description={t("noSlotsDescription")} />
@@ -655,14 +655,14 @@ export function TutorScheduleView({
               {filteredSlots.map((slot) => {
                 const isBooked = Boolean(slot.booking);
                 return (
-                  <div key={slot.id} className="flex flex-col justify-between gap-3 py-3 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center">
+                  <div key={slot.id} className="flex flex-col justify-between gap-(--compact-gap) py-3 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center">
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-heading text-body-base font-bold text-foreground">{t(`days.${slot.dayOfWeek}`)}</span>
                         <Badge variant={isBooked ? "default" : "secondary"} className="rounded-md text-body-xs font-semibold">{isBooked ? t("booked") : t("open")}</Badge>
                         <Badge variant="outline" className="rounded-md text-body-xs font-normal">{slot.mode === "online" ? t("online") : t("inPerson")}</Badge>
                       </div>
-                      <div className="flex flex-wrap items-center gap-3 text-body-xs text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-(--compact-gap) text-body-xs text-muted-foreground">
                         <span className="inline-flex items-center gap-1"><Clock className="size-3.5" />{slot.startTime} - {slot.endTime} (90m)</span>
                         {slot.location && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" />{slot.location}</span>}
                         {slot.sessionDate && <span>{t("date")}: {slot.sessionDate}</span>}
@@ -700,20 +700,20 @@ export function TutorScheduleView({
       )}
 
       {activeTab === "sessions" && (
-        <div className="space-y-3">
+        <div className="space-y-(--compact-gap)">
           {filteredBookings.length === 0 ? (
             <div className="border-t border-border"><AdminEmptyState icon={BookOpen} title={t("noSessions")} /></div>
           ) : (
             <div className="divide-y divide-border border-y border-border">
               {filteredBookings.map((booking) => (
-                <div key={booking.id} className="flex flex-col justify-between gap-3 py-3 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center">
+                <div key={booking.id} className="flex flex-col justify-between gap-(--compact-gap) py-3 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center">
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-heading text-body-base font-bold text-foreground">{booking.course?.title || t("course")}</span>
                       <Badge variant="outline" className="rounded-md border-brand-primary/30 text-body-xs font-semibold text-brand-primary">{booking.group?.name || t("group")}</Badge>
                       <Badge variant={booking.status === "completed" ? "default" : "secondary"} className="rounded-md text-body-xs">{statusLabel(booking.status === "completed" || booking.status === "cancelled" ? booking.status : "scheduled")}</Badge>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 text-body-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-(--compact-gap) text-body-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1"><Clock className="size-3.5" />{booking.sessionDate} ({booking.startTime} - {booking.endTime})</span>
                       <span className="inline-flex items-center gap-1"><Users className="size-3.5" />{t("representativeShort")}: {booking.student?.name || t("leader")}</span>
                     </div>
@@ -739,7 +739,7 @@ export function TutorScheduleView({
       )}
 
       {activeTab === "tickets" && (
-        <div className="space-y-3">
+        <div className="space-y-(--compact-gap)">
           {filteredTickets.length === 0 ? (
             <div className="border-t border-border"><AdminEmptyState icon={ShieldCheck} title={t("noTickets")} /></div>
           ) : (
@@ -748,8 +748,8 @@ export function TutorScheduleView({
                 const isPendingTicket = ticket.status === "pending";
                 const isThreadOpen = openThreadId === ticket.id;
                 return (
-                  <div key={ticket.id} className="space-y-3 py-3">
-                    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                  <div key={ticket.id} className="space-y-(--compact-gap) py-3">
+                    <div className="flex flex-col justify-between gap-(--compact-gap) sm:flex-row sm:items-center">
                       <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-heading text-body-base font-bold text-foreground">{t("ticket")}: {ticket.type === "reschedule" ? t("reschedule") : t("cancellation")}</span>
@@ -795,7 +795,7 @@ export function TutorScheduleView({
                       )}
                     </div>
                     {isThreadOpen && (
-                      <div className="space-y-3 border-l-2 border-border pl-3">
+                      <div className="space-y-(--compact-gap) border-l-2 border-border pl-3">
                         {ticket.messages.length === 0 ? (
                           <p className="text-body-xs text-muted-foreground">{t("noMessages")}</p>
                         ) : (
@@ -836,26 +836,26 @@ export function TutorScheduleView({
       )}
 
       {activeTab === "groups" && (
-        <div className="space-y-4">
-          <div className="space-y-3">
+        <div className="space-y-(--related-gap)">
+          <div className="space-y-(--compact-gap)">
             <h2 className="font-heading text-body-base font-bold text-foreground">{t("assignedCourses")}</h2>
             <div className="divide-y divide-border border-y border-border">
               {initialData.assignedActiveCourses.map((course) => (
-                <div key={course.courseId} className="flex items-center justify-between gap-3 py-3">
+                <div key={course.courseId} className="flex items-center justify-between gap-(--compact-gap) py-3">
                   <div><p className="font-heading text-body-sm font-bold text-foreground">{course.title}</p><p className="text-body-xs text-muted-foreground">{t("courseCode")}: {course.code || course.courseId}</p></div>
                   <Badge variant="outline" className="rounded-md text-body-xs text-muted-foreground">{course.isCompatibilityFallback ? t("legacyAssignment") : t("canonicalAssignment")}</Badge>
                 </div>
               ))}
             </div>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-(--compact-gap)">
             <h2 className="font-heading text-body-base font-bold text-foreground">{t("activeGroups")}</h2>
             <div className="divide-y divide-border border-y border-border">
               {initialData.eligibleGroups.length === 0 ? (
                 <AdminEmptyState icon={Users} title={t("noActiveGroups")} className="py-6" />
               ) : (
                 initialData.eligibleGroups.map((grp) => (
-                  <div key={grp.id} className="flex flex-col justify-between gap-3 py-3 sm:flex-row sm:items-center">
+                  <div key={grp.id} className="flex flex-col justify-between gap-(--compact-gap) py-3 sm:flex-row sm:items-center">
                     <div className="space-y-1">
                       <p className="font-heading text-body-sm font-bold text-foreground">{grp.name}</p>
                       <p className="text-body-xs text-muted-foreground">{t("package")}: {grp.packageName} ({grp.usedQuotaSessions}/{grp.totalQuotaSessions} {t("sessionsUsed")})</p>
@@ -876,7 +876,7 @@ export function TutorScheduleView({
             <DialogTitle className="font-heading text-body-base font-bold">{t("addSlotTitle")}</DialogTitle>
             <DialogDescription className="text-body-xs">{t("addSlotDescription")}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 py-2">
+          <div className="space-y-(--compact-gap) py-2">
             <div className="space-y-1">
               <Label htmlFor="tutor-slot-date" className="text-body-sm font-semibold">{t("date")}</Label>
               <Input
@@ -951,7 +951,7 @@ export function TutorScheduleView({
             <DialogTitle className="font-heading text-body-base font-bold">{t("moveSessionTitle")}</DialogTitle>
             <DialogDescription className="text-body-xs">{t("moveSessionDescription")}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 py-2">
+          <div className="space-y-(--compact-gap) py-2">
             <div className="space-y-1">
               <Label className="text-body-sm font-semibold">{t("targetSlot")}</Label>
               <Select value={targetMoveSlotId} onValueChange={setTargetMoveSlotId}>
@@ -981,7 +981,7 @@ export function TutorScheduleView({
             <DialogTitle className="font-heading text-body-base font-bold">{t("ticketDecisionTitle", { type: decidingTicket?.type === "reschedule" ? t("reschedule") : t("cancellation") })}</DialogTitle>
             <DialogDescription className="text-body-xs">{t("ticketDecisionDescription")}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 py-2">
+          <div className="space-y-(--compact-gap) py-2">
             <div className="space-y-1">
               <Label className="text-body-sm font-semibold">{t("decision")}</Label>
               <Select value={ticketDecision} onValueChange={(val) => setTicketDecision(val as "approved" | "rejected")}>

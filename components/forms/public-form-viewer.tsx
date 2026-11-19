@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
+import { getAppScrollBehavior, useAppReducedMotion } from "@/components/appearance-preferences";
 import {
   AlertCircle,
   RefreshCw,
@@ -96,7 +97,7 @@ export function PublicFormViewer({
   const t = useTranslations("publicForms");
   const tRef = useRef(t);
   tRef.current = t;
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useAppReducedMotion();
   const [form, setForm] = useState<FormPayload | null>(previewForm || null);
   const [loading, setLoading] = useState(!previewForm);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -389,7 +390,7 @@ export function PublicFormViewer({
       toast.error(isOtherEmpty ? "Jelaskan pilihan lainnya." : `Harap isi: ${q.title}`);
       requestAnimationFrame(() => {
         const field = mainScrollRef.current?.querySelector<HTMLElement>(`[data-question-index="${qIdx}"]`);
-        field?.scrollIntoView({ block: "center", behavior: "smooth" });
+        field?.scrollIntoView({ block: "center", behavior: getAppScrollBehavior() });
         field?.focus({ preventScroll: true });
       });
       return false;
@@ -410,10 +411,10 @@ export function PublicFormViewer({
 
   const resetScroll = () => {
     if (mainScrollRef.current) {
-      mainScrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+      mainScrollRef.current.scrollTo({ top: 0, behavior: getAppScrollBehavior() });
     }
     if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, behavior: getAppScrollBehavior() });
     }
   };
 
@@ -643,14 +644,14 @@ export function PublicFormViewer({
   const slideVariants = {
     enter: (dir: number) => ({
       y: reducedMotion ? 0 : dir > 0 ? 16 : -16,
-      opacity: 0,
+      opacity: reducedMotion ? 1 : 0,
       filter: "none",
     }),
     center: {
       y: 0,
       opacity: 1,
       filter: "blur(0px)",
-      transition: {
+      transition: reducedMotion ? { duration: 0 } : {
         y: { type: "spring" as const, stiffness: 350, damping: 30 },
         opacity: { duration: 0.25 },
         filter: { duration: 0.2 },
@@ -658,9 +659,9 @@ export function PublicFormViewer({
     },
     exit: (dir: number) => ({
       y: reducedMotion ? 0 : dir > 0 ? -16 : 16,
-      opacity: 0,
+      opacity: reducedMotion ? 1 : 0,
       filter: "none",
-      transition: {
+      transition: reducedMotion ? { duration: 0 } : {
         y: { type: "spring" as const, stiffness: 350, damping: 30 },
         opacity: { duration: 0.2 },
         filter: { duration: 0.15 },
@@ -686,7 +687,7 @@ export function PublicFormViewer({
     return (
       <div className="relative flex h-screen h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
         <PageOrnaments variant="plans" />
-        <div className="relative z-10 mx-auto w-full max-w-md space-y-5 text-center">
+        <div className="relative z-10 mx-auto w-full max-w-md space-y-(--group-gap) text-center">
           <div className="size-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
             <AlertCircle className="size-6" />
           </div>
@@ -708,7 +709,7 @@ export function PublicFormViewer({
     return (
       <div className="relative flex h-screen h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
         <PageOrnaments variant="plans" />
-        <div className="relative z-10 mx-auto w-full max-w-md space-y-5 text-center">
+        <div className="relative z-10 mx-auto w-full max-w-md space-y-(--group-gap) text-center">
           <div className="size-12 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
             <AlertCircle className="size-6" />
           </div>
@@ -728,8 +729,8 @@ export function PublicFormViewer({
     return (
       <div className="relative flex h-screen h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
         <PageOrnaments variant="plans" />
-        <div className="relative z-10 mx-auto w-full max-w-lg space-y-5 text-center">
-          <span className="inline-block rounded-md bg-status-warning/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-status-warning">
+        <div className="relative z-10 mx-auto w-full max-w-lg space-y-(--group-gap) text-center">
+          <span className="inline-block rounded-md bg-status-warning/10 px-3 py-1 text-body-2xs font-bold uppercase tracking-wider text-status-warning">
             {t("publicForm.closed")}
           </span>
           <h1 className="font-heading text-h5 font-bold text-foreground">{form.title}</h1>
@@ -754,10 +755,10 @@ export function PublicFormViewer({
       >
         <PageOrnaments variant="testimonial" />
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          initial={reducedMotion ? false : { opacity: 0, scale: 0.95, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="relative z-10 mx-auto w-full max-w-lg space-y-6 text-center"
+          transition={{ duration: reducedMotion ? 0 : 0.4, ease: [0.16, 1, 0.3, 1] }}
+          className="relative z-10 mx-auto w-full max-w-lg space-y-(--section-gap) text-center"
         >
           <div className="size-16 rounded-2xl bg-status-success/15 text-status-success flex items-center justify-center mx-auto shadow-inner">
             <Check className="size-8 stroke-[2.5]" />
@@ -810,10 +811,10 @@ export function PublicFormViewer({
             className="h-full bg-brand-primary"
             initial={false}
             animate={{ width: `${progressPercent}%` }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
+            transition={{ duration: reducedMotion ? 0 : 0.3, ease: "easeOut" }}
           />
         </div>
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 h-12 flex items-center justify-between gap-3 text-body-xs font-semibold text-muted-foreground">
+        <div className="mx-auto max-w-4xl px-(--page-gutter) h-12 flex items-center justify-between gap-3 text-body-xs font-semibold text-muted-foreground">
           <span className="min-w-0 flex-1 truncate font-medium text-foreground">
             {form.title}
           </span>
@@ -832,7 +833,7 @@ export function PublicFormViewer({
       </header>
 
       {/* Main Interactive Screen Area */}
-      <main ref={mainScrollRef} className="relative z-10 flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-5 flex flex-col">
+      <main ref={mainScrollRef} className="relative z-10 flex-1 min-h-0 overflow-y-auto px-(--page-gutter) py-(--group-gap) flex flex-col">
         <div className="w-full max-w-2xl mx-auto shrink-0">
           <AnimatePresence mode="wait" custom={direction}>
             <motion.div key={`${isFlowing ? "section" : "step"}-${stepIndex}`} className={isFlowing ? "divide-y divide-border/70 [&>div]:py-4 [&>div:first-child]:pt-0" : ""}>
@@ -848,7 +849,7 @@ export function PublicFormViewer({
                 animate="center"
                 exit="exit"
                 onAnimationComplete={focusActiveElement}
-                className="space-y-4 text-left"
+                className="space-y-(--related-gap) text-left"
               >
                 <div className={cn("inline-flex items-center gap-2 rounded-md bg-brand-primary/10 px-3 py-1 text-body-2xs font-bold uppercase tracking-wider text-brand-primary", isFlowing && "hidden")}>
                   <Tag className="size-3.5" />
@@ -860,7 +861,7 @@ export function PublicFormViewer({
                 </h1>
 
                 {form.description && (
-                  <div className="text-body-base text-muted-foreground whitespace-pre-line leading-relaxed">
+                  <div className="text-body-base text-muted-foreground whitespace-pre-line">
                     <MathText as="div">{form.description}</MathText>
                   </div>
                 )}
@@ -898,7 +899,7 @@ export function PublicFormViewer({
                 animate="center"
                 exit="exit"
                 onAnimationComplete={focusActiveElement}
-                className="space-y-4 text-left"
+                className="space-y-(--related-gap) text-left"
               >
                 <div className="space-y-2">
                   <div className={cn("flex items-center gap-2 text-brand-primary font-mono text-body-sm font-bold", isFlowing && "hidden")}>
@@ -969,7 +970,7 @@ export function PublicFormViewer({
                   animate="center"
                   exit="exit"
                   onAnimationComplete={focusActiveElement}
-                  className="space-y-4 text-left"
+                  className="space-y-(--related-gap) text-left"
                 >
                   <div className={cn("inline-flex items-center gap-2 rounded-md bg-brand-secondary/15 px-3 py-1 text-body-2xs font-bold uppercase tracking-wider text-brand-secondary", isFlowing && "hidden")}>
                     <Layers className="size-3.5" />
@@ -981,7 +982,7 @@ export function PublicFormViewer({
                   </h2>
 
                   {q.description && (
-                    <div className="text-body-base text-muted-foreground whitespace-pre-line leading-relaxed">
+                    <div className="text-body-base text-muted-foreground whitespace-pre-line">
                       <MathText as="div">{q.description}</MathText>
                     </div>
                   )}
@@ -1038,9 +1039,9 @@ export function PublicFormViewer({
                   animate="center"
                   exit="exit"
                   onAnimationComplete={focusActiveElement}
-                  className="space-y-4 text-left"
+                  className="space-y-(--related-gap) text-left"
                 >
-                  <div className="inline-flex items-center gap-2 rounded-md bg-brand-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-primary">
+                  <div className="inline-flex items-center gap-2 rounded-md bg-brand-primary/10 px-3 py-1 text-body-2xs font-bold uppercase tracking-wider text-brand-primary">
                     <Info className="size-3.5" />
                     {t("publicForm.information")}
                   </div>
@@ -1052,7 +1053,7 @@ export function PublicFormViewer({
                   )}
 
                   {q.description && (
-                    <div className="text-body-base text-muted-foreground whitespace-pre-line leading-relaxed">
+                    <div className="text-body-base text-muted-foreground whitespace-pre-line">
                       <MathText as="div">{q.description}</MathText>
                     </div>
                   )}
@@ -1123,7 +1124,7 @@ export function PublicFormViewer({
                   animate="center"
                   exit="exit"
                   onAnimationComplete={focusActiveElement}
-                  className="space-y-4 text-left"
+                  className="space-y-(--related-gap) text-left"
                 >
                   <div className="space-y-2">
                     <div className="flex items-start gap-2">
@@ -1496,7 +1497,7 @@ export function PublicFormViewer({
                             )}
                           </label>
                         ) : (
-                          <div className="rounded-lg border border-status-success/40 bg-status-success/10 p-3 flex items-center justify-between gap-4">
+                          <div className="rounded-lg border border-status-success/40 bg-status-success/10 p-(--compact-gap) flex items-center justify-between gap-(--related-gap)">
                             <div className="flex items-center gap-3 overflow-hidden">
                               <FileCheck2 className="size-7 text-status-success shrink-0" />
                               <div className="overflow-hidden">
@@ -1719,7 +1720,7 @@ export function PublicFormViewer({
       </main>
 
       {/* Floating Bottom Navigation Dock (Fixed to viewport bottom edge) */}
-      {!isFlowing && <div className="relative z-30 shrink-0 w-full px-4 sm:px-6 py-3 flex items-center justify-between border-t border-border/60">
+      {!isFlowing && <div className="relative z-30 shrink-0 w-full px-(--page-gutter) py-(--row-padding) flex items-center justify-between border-t border-border/60">
         <div className="pointer-events-auto">
           {currentStepIndex > 0 && (
             <Button

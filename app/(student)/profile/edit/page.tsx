@@ -1,22 +1,14 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { UserCheck } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { db } from "@/db";
-import { user as userTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
 import { pageTitle } from "@/lib/site";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
-import { getStudentSocialSettings } from "@/lib/gamification/social";
-import { getStudentGamificationAccess } from "@/lib/gamification/access";
-import { getAchievementBadges, getGamificationRewards } from "@/lib/gamification/queries";
-import { ProfileSettings } from "@/components/gamification/profile-settings";
-import { ProfileEditForm } from "./profile-edit-form";
 import { TranslatedText } from "@/components/i18n/translated-text";
 import { getTranslations } from "@/lib/i18n/server";
+import { getProfileEditorData, ProfileEditor } from "./profile-editor";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("student");
@@ -34,36 +26,14 @@ export default async function ProfileEditPage() {
     redirect(`/sign-in?next=${encodeURIComponent("/profile/edit")}`);
   }
 
-  const [dbUser] = await db
-    .select()
-    .from(userTable)
-    .where(eq(userTable.id, session.user.id))
-    .limit(1);
-
-  const access = await getStudentGamificationAccess();
-  const customization = access
-    ? await Promise.all([getStudentSocialSettings(session.user.id), getAchievementBadges(session.user.id), getGamificationRewards(session.user.id)])
-    : null;
-
-  const currentUser = {
-    id: session.user.id,
-    name: dbUser?.name ?? session.user.name ?? "",
-    email: dbUser?.email ?? session.user.email ?? "",
-    faculty: dbUser?.faculty ?? (session.user as any).faculty ?? null,
-    major: dbUser?.major ?? (session.user as any).major ?? null,
-    entryYear: dbUser?.entryYear ?? (session.user as any).entryYear ?? null,
-  };
-
+  const editorData = await getProfileEditorData(session.user);
   return (
-    <ApplicationPage maxWidth="7xl" spacing="space-y-3">
+    <ApplicationPage maxWidth="7xl" spacing="space-y-(--compact-gap)">
       <PageHeader
         title={<TranslatedText namespace="student" messageKey="profile.editTitle" />}
-        icon={UserCheck}
-        backHref="/profile"
-        backLabel={<TranslatedText namespace="student" messageKey="profile.pageTitle" />}
       />
       <Reveal>
-        <div className="max-w-5xl">{customization ? <ProfileSettings initial={customization[0]} badges={customization[1]} rewards={customization[2]} name={currentUser.name} image={dbUser?.image ?? null} academicForm={<ProfileEditForm user={currentUser} />} /> : <ProfileEditForm user={currentUser} />}</div>
+        <ProfileEditor {...editorData} />
       </Reveal>
     </ApplicationPage>
   );

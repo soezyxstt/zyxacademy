@@ -21,7 +21,7 @@ export default async function FeedbackPage() {
   const userEmail = session?.user?.email;
 
   return (
-    <ApplicationPage spacing="space-y-3">
+    <ApplicationPage spacing="space-y-(--compact-gap)">
       <PageHeader
         title={<TranslatedText namespace="student" messageKey="feedback.title" />}
         icon={MessageSquareHeart}

@@ -121,7 +121,7 @@ function getBlockMetadata(blockType: string, t: ReturnType<typeof useTranslation
 function BlockVisuals({ visuals }: { visuals?: PublicSectionReadModel["visuals"] }) {
   if (!visuals || visuals.length === 0) return null;
   return (
-    <div className="space-y-4 pt-2">
+    <div className="mt-4 space-y-4">
       {visuals.map((visual) => (
         <ProductLearningVisual key={visual.id} spec={visual} />
       ))}
@@ -154,7 +154,7 @@ export function StructuredArticleSectionContent({
   const t = useTranslations("studentCourse");
   return (
     <>
-      <header className="space-y-3 border-b border-border/80 pb-5">
+      <header className="space-y-2 border-b border-border/80 pb-3">
         <div className="flex flex-wrap items-center gap-2 text-body-xs font-semibold text-muted-foreground">
           <span className="rounded-md bg-primary/10 px-2.5 py-0.5 text-primary">
             {section.sectionNumber}
@@ -172,7 +172,7 @@ export function StructuredArticleSectionContent({
             </span>
           ) : null}
         </div>
-        <h2 className={cn("font-heading font-bold tracking-tight text-foreground", section.blocks.some((block) => block.parts?.length) ? "text-h5" : "text-h4 sm:text-h3")}>
+        <h2 className="font-heading text-reading-major font-bold text-foreground">
           <MathText className="normal-case">{section.title}</MathText>
         </h2>
 
@@ -185,8 +185,8 @@ export function StructuredArticleSectionContent({
         ) : null}
 
         {section.learningObjective ? (
-          <div className="mt-3 border-l-2 border-primary/60 pl-3.5 py-1">
-            <p className="text-body-base leading-relaxed text-muted-foreground">
+          <div className="border-l-2 border-primary/60 pl-3">
+            <p className="text-body-base text-muted-foreground">
               <MathText className="normal-case">{section.learningObjective}</MathText>
             </p>
           </div>
@@ -195,14 +195,14 @@ export function StructuredArticleSectionContent({
 
       {/* Typed Visuals */}
       {!section.blocks.some((block) => block.parts?.length) && section.visuals && section.visuals.length > 0 ? (
-        <div className="space-y-4 py-2">
+        <div className="space-y-4">
           {section.visuals.map((visual) => (
             <InteractiveDocumentArticleLocation key={visual.id} sectionId={section.id} field="section_visual"><ProductLearningVisual spec={visual} /></InteractiveDocumentArticleLocation>
           ))}
         </div>
       ) : null}
 
-      <div className="space-y-6 py-2">
+      <div className="space-y-(--related-gap)">
         {section.blocks.map((block, blockIndex) => {
           const renderBlock = () => {
           if (block.blockType === "worked_example" && block.workedExample) {
@@ -270,19 +270,16 @@ export function StructuredArticleSectionContent({
                 id={block.id ? `block-${block.id}` : undefined}
                 data-block-type={block.blockType}
                 data-block-title={displayTitle || meta.label}
-                className={cn(
-                  "space-y-3 py-1 scroll-mt-24",
-                  block.blockType === "mathematical_representation" && "space-y-1.5 py-0.5",
-                )}
+                className="space-y-2 scroll-mt-24"
               >
                 {displayTitle &&
                 displayTitle !== section.title &&
                 displayTitle !== meta.label ? (
-                  <h3 className={cn("font-heading font-bold tracking-tight text-foreground pt-3", block.parts?.length ? "text-body-base" : "text-h5")}>
+                  <h3 className="font-heading text-reading-minor font-semibold text-foreground">
                     <MathText className="normal-case">{displayTitle}</MathText>
                   </h3>
                 ) : null}
-                <div className="text-body-base leading-relaxed text-foreground">
+                <div className="text-body-base text-foreground">
                   {block.parts?.length ? <ArticleParts parts={block.parts} visuals={block.visuals} /> : <MarkdownRenderer content={block.content} density="default" />}
                 </div>
                 {!block.parts?.length ? <BlockVisuals visuals={block.visuals} /> : null}
@@ -297,7 +294,7 @@ export function StructuredArticleSectionContent({
               data-block-type={block.blockType}
               data-block-title={displayTitle || meta.label}
               className={cn(
-                "rounded-r-lg p-4 sm:p-5 space-y-3 shadow-xs my-3 scroll-mt-24",
+                "rounded-r-lg p-3 sm:p-(--panel-padding) space-y-3 shadow-xs scroll-mt-24",
                 meta.containerClass,
               )}
             >
@@ -316,7 +313,7 @@ export function StructuredArticleSectionContent({
                   </h3>
                 </div>
               </div>
-              <div className="text-body-base leading-relaxed text-foreground">
+              <div className="text-body-base text-foreground">
                 {block.parts?.length ? <ArticleParts parts={block.parts} visuals={block.visuals} /> : <MarkdownRenderer content={block.content} density="compact" />}
               </div>
               {!block.parts?.length ? <BlockVisuals visuals={block.visuals} /> : null}

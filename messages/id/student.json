@@ -54,7 +54,49 @@
     "calendar": "Kalender",
     "feedback": "Umpan Balik",
     "profile": "Profil",
+    "preferences": "Preferensi",
     "settings": "Pengaturan"
+  },
+  "preferences": {
+    "appearance": "Tampilan",
+    "email": "Notifikasi email",
+    "interface": "Tampilan dan bahasa",
+    "browserSettings": "Preferensi tampilan disimpan di browser ini.",
+    "theme": "Mode warna",
+    "backgroundOrnaments": "Ornamen latar belakang",
+    "layout": "Bacaan dan tata letak",
+    "previewLabel": "Pratinjau bacaan",
+    "previewFirst": "Skala peta menunjukkan hubungan antara jarak sebenarnya dan jarak pada peta.",
+    "previewSecond": "Pada skala 1:100, setiap sentimeter pada peta mewakili satu meter jarak sebenarnya.",
+    "layoutScope": "Jarak antarelemen dan ukuran teks berlaku di halaman siswa dan pengajar.",
+    "spacing": "Jarak antarelemen",
+    "spacingOptions": {
+      "tightest": "Sangat rapat",
+      "tight": "Rapat",
+      "normal": "Normal",
+      "loose": "Renggang",
+      "loosest": "Sangat renggang"
+    },
+    "fontSize": "Ukuran teks",
+    "fontSizeOptions": {
+      "extra-small": "Sangat kecil",
+      "small": "Kecil",
+      "medium": "Sedang",
+      "normal": "Normal",
+      "large": "Besar"
+    },
+    "motionAndMessages": "Gerakan dan pemberitahuan",
+    "animations": "Animasi",
+    "toastPosition": "Posisi pemberitahuan di layar",
+    "toastPreview": "Pemberitahuan akan muncul di sini",
+    "toastOptions": {
+      "top-left": "Kiri atas",
+      "top-center": "Tengah atas",
+      "top-right": "Kanan atas",
+      "bottom-left": "Kiri bawah",
+      "bottom-center": "Tengah bawah",
+      "bottom-right": "Kanan bawah"
+    }
   },
   "settings": {
     "title": "Pengaturan",

@@ -1375,16 +1375,16 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
                     </div>
                   ) : (
                     detailGroup.members.map((m) => (
-                      <div key={m.userId} className="flex items-center justify-between p-3 hover:bg-muted/20 transition-colors">
-                        <div className="flex items-center gap-3">
+                      <div key={m.userId} className="flex items-center justify-between gap-2 p-3 transition-colors hover:bg-muted/20">
+                        <div className="flex min-w-0 items-center gap-3">
                           <div className="size-8 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center font-bold text-body-xs shrink-0 uppercase">
                             {m.user.name.charAt(0)}
                           </div>
-                          <div>
-                            <p className="text-body-sm font-semibold text-foreground leading-tight">
+                          <div className="min-w-0">
+                            <p className="break-words text-body-sm font-semibold text-foreground leading-tight">
                               {m.user.name}
                             </p>
-                            <p className="text-[11px] text-muted-foreground">{m.user.email}</p>
+                            <p className="break-words text-body-xs text-muted-foreground">{m.user.email}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1428,20 +1428,20 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
                         return (
                           <div
                             key={u.id}
-                            className="flex items-center justify-between p-2.5 text-body-xs hover:bg-muted/30"
+                            className="flex items-center justify-between gap-2 p-2.5 text-body-sm hover:bg-muted/30"
                           >
-                            <div>
+                            <div className="min-w-0">
                               <p className="font-semibold text-foreground">{u.name}</p>
-                              <p className="text-[10px] text-muted-foreground">{u.email}</p>
+                              <p className="break-words text-body-xs text-muted-foreground">{u.email}</p>
                             </div>
                             {isAlready ? (
-                              <span className="text-[10px] text-muted-foreground font-medium">{translate("groupsUI.alreadyJoined")}</span>
+                              <span className="text-body-xs font-medium text-muted-foreground">{translate("groupsUI.alreadyJoined")}</span>
                             ) : (
                               <Button
                                 size="xs"
                                 disabled={addingMemberId === u.id}
                                 onClick={() => handleAddMemberToGroup(u)}
-                                className="h-7 rounded bg-brand-primary text-primary-foreground text-[11px] gap-1"
+                                className="h-8 gap-1 rounded bg-brand-primary text-primary-foreground"
                               >
                                 <UserPlus className="size-3" />
                                 {addingMemberId === u.id ? translate("groupsUI.adding") : translate("groupsUI.add")}

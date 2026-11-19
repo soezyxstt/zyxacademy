@@ -70,6 +70,7 @@ export default async function TutorLayout({ children }: { children: ReactNode })
   return (
     <CommandMenuProvider>
       <ApplicationShell
+        personalizeTypographyAndSpacing
         sidebar={<TutorSidebar assignedCourses={assignedCourses} />}
         mobileNavigation={<MobileNavbar surface="tutor" />}
       >

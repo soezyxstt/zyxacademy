@@ -6,7 +6,7 @@ import { PushPermissionInit } from "@/components/notifications/push-permission-i
 
 export default function StudentLayout({ children }: { children: ReactNode }) {
   return (
-    <StudentApplicationShell showLive={env.FEATURE_LIVE === "1"} overlays={<><PushPermissionInit /><CelebrationListener /></>}>
+    <StudentApplicationShell personalizeTypographyAndSpacing showLive={env.FEATURE_LIVE === "1"} overlays={<><PushPermissionInit /><CelebrationListener /></>}>
       {children}
     </StudentApplicationShell>
   );

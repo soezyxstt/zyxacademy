@@ -382,14 +382,14 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
             <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-body-sm font-bold text-primary-foreground shadow-xs">
               {index + 1}
             </span>
-            <div className="min-w-0 flex-1 font-sans text-body-base leading-relaxed text-foreground">
-              <InteractiveDocumentTryout value={transport ? null : { courseId: visualCourseId, examId: exam.id, questionId: q.id, field: "prompt" }}><MarkdownRenderer content={q.prompt} className="space-y-3" /></InteractiveDocumentTryout>
+            <div className="min-w-0 flex-1 font-sans text-body-base text-foreground">
+              <InteractiveDocumentTryout value={transport ? null : { courseId: visualCourseId, examId: exam.id, questionId: q.id, field: "prompt" }}><MarkdownRenderer content={q.prompt} /></InteractiveDocumentTryout>
             </div>
           </div>
 
           {/* RENDER A: Pilihan Ganda (Single Choice) */}
           {q.type === "multiple_choice" && ans.type === "multiple_choice" ? (
-            <fieldset className="mt-4 space-y-2">
+            <fieldset className="mt-5 space-y-2">
               <legend className="sr-only">{t("tryout.chooseOne")}</legend>
               <RadioGroup aria-label={t("tryout.chooseOne")} value={ans.index === null ? "" : String(ans.index)} onValueChange={(value) => setAnswerFor(q.id, { type: "multiple_choice", index: Number(value) })}>
               {q.options.map((opt, i) => {
@@ -402,7 +402,7 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
                       setAnswerFor(q.id, { type: "multiple_choice", index: i });
                     }}
                     className={cn(
-                      "flex cursor-pointer items-start gap-3.5 rounded-lg border px-3 py-2.5 transition-all duration-200",
+                      "flex cursor-pointer min-h-11 items-start gap-3 rounded-lg border px-3 py-3 transition-all duration-200",
                       selected
                         ? "border-brand-primary bg-brand-primary/10 shadow-sm"
                         : "border-border/70 bg-muted/10 hover:border-brand-primary/45"
@@ -412,7 +412,7 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
                     <span id={`tryout-letter-${q.id}-${i}`} className="text-body-sm font-semibold text-foreground mr-1">
                       {String.fromCharCode(65 + i)}.
                     </span>
-                    <div id={`tryout-option-${q.id}-${i}`} className="min-w-0 flex-1 break-words text-body-sm text-foreground leading-normal"><InteractiveDocumentTryout value={transport ? null : { courseId: visualCourseId, examId: exam.id, questionId: q.id, field: "option", option: i }}><MarkdownRenderer content={opt} density="compact" /></InteractiveDocumentTryout></div>
+                    <div id={`tryout-option-${q.id}-${i}`} className="min-w-0 flex-1 wrap-break-word text-foreground"><InteractiveDocumentTryout value={transport ? null : { courseId: visualCourseId, examId: exam.id, questionId: q.id, field: "option", option: i }}><MarkdownRenderer content={opt} density="compact" /></InteractiveDocumentTryout></div>
                   </div>
                 );
               })}
@@ -422,7 +422,7 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
 
           {/* RENDER B: Pilihan Ganda Kompleks (Multi Select) */}
           {q.type === "multiple_choices" && ans.type === "multiple_choices" ? (
-            <fieldset className="mt-4 space-y-2">
+            <fieldset className="mt-5 space-y-2">
               <legend className="sr-only">{t("tryout.chooseAll")}</legend>
               {q.options.map((opt, i) => {
                 const checked = ans.indices.includes(i);
@@ -435,7 +435,7 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
                       setAnswerFor(q.id, { type: "multiple_choices", indices });
                     }}
                     className={cn(
-                      "flex cursor-pointer items-start gap-3.5 rounded-lg border px-3 py-2.5 transition-all duration-200",
+                      "flex cursor-pointer min-h-11 items-start gap-3 rounded-lg border px-3 py-3 transition-all duration-200",
                       checked
                         ? "border-tertiary-1 bg-tertiary-1/10 shadow-sm"
                         : "border-border/70 bg-muted/10 hover:border-tertiary-1/45"
@@ -455,7 +455,7 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
                     <span id={`tryout-letter-${q.id}-${i}`} className="text-body-sm font-semibold text-foreground mr-1">
                       {String.fromCharCode(65 + i)}.
                     </span>
-                    <div id={`tryout-option-${q.id}-${i}`} className="min-w-0 flex-1 break-words text-body-sm text-foreground leading-normal"><InteractiveDocumentTryout value={transport ? null : { courseId: visualCourseId, examId: exam.id, questionId: q.id, field: "option", option: i }}><MarkdownRenderer content={opt} density="compact" /></InteractiveDocumentTryout></div>
+                    <div id={`tryout-option-${q.id}-${i}`} className="min-w-0 flex-1 wrap-break-word text-foreground"><InteractiveDocumentTryout value={transport ? null : { courseId: visualCourseId, examId: exam.id, questionId: q.id, field: "option", option: i }}><MarkdownRenderer content={opt} density="compact" /></InteractiveDocumentTryout></div>
                   </div>
                 );
               })}

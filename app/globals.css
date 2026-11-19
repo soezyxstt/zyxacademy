@@ -110,38 +110,51 @@
  --aspect-photo-card: 4 / 3;
  --aspect-photo-banner: 21 / 9;
 
- /* Headings: Lexend, line-height 1.1 × size */
- --text-h1: 56px;
- --text-h1--line-height: 61.6px;
- --text-h2: 48px;
- --text-h2--line-height: 52.8px;
- --text-h3: 40px;
- --text-h3--line-height: 44px;
- --text-h4: 32px;
- --text-h4--line-height: 35.2px;
- --text-h5: 24px;
- --text-h5--line-height: 26.4px;
- --text-h6: 20px;
- --text-h6--line-height: 22px;
+ /* Headings and text roles use rem so browser text settings remain effective. */
+ --text-h1: 3.5rem;
+ --text-h1--line-height: 1.1;
+ --text-h2: 3rem;
+ --text-h2--line-height: 1.1;
+ --text-h3: 2.5rem;
+ --text-h3--line-height: 1.1;
+ --text-h4: 2rem;
+ --text-h4--line-height: 1.125;
+ --text-h5: 1.5rem;
+ --text-h5--line-height: 1.333333;
+ --text-h6: 1.25rem;
+ --text-h6--line-height: 1.4;
 
- /* Body: Inter, line-height 1.4 × size */
- --text-body-lg: 20px;
- --text-body-lg--line-height: 28px;
- --text-body-md: 18px;
- --text-body-md--line-height: 25.2px;
- --text-body-base: 16px;
- --text-body-base--line-height: 22.4px;
- --text-body-sm: 14px;
- --text-body-sm--line-height: 19.6px;
- --text-body-xs: 12px;
- --text-body-xs--line-height: 16.8px;
- --text-body-2xs: 10px;
- --text-body-2xs--line-height: 14px;
+ --text-body-lg: calc(1.25rem * var(--user-font-scale, 1));
+ --text-body-lg--line-height: 1.4;
+ --text-body-md: calc(1.125rem * var(--user-font-scale, 1));
+ --text-body-md--line-height: 1.555556;
+ --text-body-base: calc(1rem * var(--user-font-scale, 1));
+ --text-body-base--line-height: 1.625;
+ --text-body-sm: 0.875rem;
+ --text-body-sm--line-height: 1.428571;
+ --text-body-xs: 0.75rem;
+ --text-body-xs--line-height: 1.5;
+ --text-body-2xs: 0.625rem;
+ --text-body-2xs--line-height: 1.4;
+ --text-support: 0.875rem;
+ --text-support--line-height: 1.571429;
+ --text-metadata: 0.8125rem;
+ --text-metadata--line-height: 1.384615;
+ --text-code: calc(0.875rem * var(--user-font-scale, 1));
+ --text-code--line-height: 1.571429;
+ --text-section-title: 1rem;
+ --text-section-title--line-height: 1.5;
+ --text-touch-input: 1rem;
+ --text-touch-input--line-height: 1.5;
+ --text-reading-major: calc(1.5rem * var(--user-font-scale, 1));
+ --text-reading-major--line-height: 1.333333;
+ --text-reading-minor: calc(1.25rem * var(--user-font-scale, 1));
+ --text-reading-minor--line-height: 1.4;
 
- /* Section spacing tokens */
  --spacing-section: 5rem;
  --spacing-section-lg: 7rem;
  --spacing-section-sm: 3rem;
+ --spacing-marketing-section: clamp(3.5rem, 6vw, 5rem);
 
  /* Transition tokens */
  --duration-fast: 120ms;
@@ -153,6 +166,29 @@
 }
 
 :root {
+ /* Scale content relationships independently of control heights and icon sizes. */
+ --page-gutter: 1rem;
+ --page-top: calc(1rem * var(--user-spacing-scale, 1));
+ --page-bottom: calc(1.5rem * var(--user-spacing-scale, 1));
+ --panel-padding: calc(1rem * var(--user-spacing-scale, 1));
+ --compact-gap: calc(0.75rem * var(--user-spacing-scale, 1));
+ --related-gap: calc(1rem * var(--user-spacing-scale, 1));
+ --group-gap: calc(1.25rem * var(--user-spacing-scale, 1));
+ --section-gap: calc(1.5rem * var(--user-spacing-scale, 1));
+ --major-gap: calc(2rem * var(--user-spacing-scale, 1));
+ --paragraph-gap: calc(1rem * var(--user-spacing-scale, 1));
+ --reading-section-gap: calc(2rem * var(--user-spacing-scale, 1));
+ --row-padding: calc(0.75rem * var(--user-spacing-scale, 1));
+ --table-row-padding: calc(0.5rem * var(--user-spacing-scale, 1));
+
+ @media (min-width: 40rem) {
+   --page-gutter: 1.5rem;
+ }
+
+ @media (min-width: 64rem) {
+   --page-gutter: 2rem;
+ }
+
  /* Marketing / aksen merek ZX (align `--color-brand-secondary`) */
  --zx-accent: oklch(0.5956 0.1622 38.5);
   /** Alias section surface ; sama dengan muted default */
@@ -324,7 +360,7 @@
  }
 
  p + p {
- margin-top: 1em;
+ margin-top: var(--paragraph-gap);
  }
 
  /* Reader Layout Lock */

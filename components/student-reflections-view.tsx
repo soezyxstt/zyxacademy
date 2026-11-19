@@ -11,7 +11,7 @@ import { daysFrom, normalizeDate } from "@/lib/date-utils";
 export function StudentReflectionsView({ href = (path: string) => path,  reflections }: { href?: (path: string) => string;  reflections: Pick<typeof weeklyReflections.$inferSelect, "id" | "weekStart" | "payload">[] }) {
 
   return (
-    <ApplicationPage spacing="space-y-6">
+    <ApplicationPage spacing="space-y-(--section-gap)">
       <PageHeader
         title={<TranslatedText namespace="student" messageKey="reflections.title" />}
         icon={BookmarkCheck}
@@ -28,12 +28,12 @@ export function StudentReflectionsView({ href = (path: string) => path,  reflect
               const { completed, masteryGrowth, streak } = ref.payload;
 
               return (
-                <div key={ref.id} className="py-4 px-2 -mx-2 rounded-lg flex items-center justify-between gap-4 transition-colors hover:bg-muted/40">
+                <div key={ref.id} className="py-(--panel-padding) px-2 -mx-2 rounded-lg flex items-center justify-between gap-(--related-gap) transition-colors hover:bg-muted/40">
                   <div className="min-w-0 flex-1">
                     <span className="text-body-sm font-semibold text-foreground">
                       <TranslatedText namespace="student" messageKey="reflections.week" /> {weekDates ? <><FormattedDate date={weekDates.start} options={{ day: "numeric", month: "short" }} /> - <FormattedDate date={weekDates.end} options={{ day: "numeric", month: "short", year: "numeric" }} /></> : ref.weekStart}
                     </span>
-                    <div className="flex flex-wrap gap-x-5 gap-y-1 text-body-xs text-muted-foreground mt-1.5">
+                    <div className="flex flex-wrap gap-x-(--group-gap) gap-y-1 text-body-xs text-muted-foreground mt-1.5">
                       <span><TranslatedText namespace="student" messageKey="reflections.quizCount" values={{ count: completed.quizzes }} /></span>
                       <span><TranslatedText namespace="student" messageKey="reflections.flashcardCount" values={{ count: completed.flashcards }} /></span>
                       <span><TranslatedText namespace="student" messageKey="reflections.materialCount" values={{ count: completed.modules }} /></span>

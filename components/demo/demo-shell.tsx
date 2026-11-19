@@ -50,5 +50,5 @@ function Shell({ experiences, selected, activeView, children, selection = {}, sh
     streak: { current: selected.snapshot.streakDays, weeklyActivity: demoWeeklyActivity(selected.snapshot, overlay, today) },
     courseHref: id => route("overview", id), baseline: experiences.map(item => item.snapshot),
     selectedCourseId: selected.snapshot.courseId, overlay, ready, record, reset,
-  }}><DemoGamificationProvider name={selected.snapshot.displayName}><StudentApplicationShell showLive={showLive}><div key={generation}>{!["dashboard", "courses", "groups", "leaderboard", "achievements", "profile", "profile-edit", "reflections", "settings", "notifications", "feedback", "schedule"].includes(activeView) && <MobileNavTitle title={selected.content.course.title} />}{children}</div></StudentApplicationShell></DemoGamificationProvider></StudentExperienceProvider>;
+  }}><DemoGamificationProvider name={selected.snapshot.displayName}><StudentApplicationShell personalizeTypographyAndSpacing showLive={showLive}><div key={generation}>{!["dashboard", "courses", "groups", "leaderboard", "achievements", "profile", "profile-edit", "reflections", "settings", "notifications", "feedback", "schedule"].includes(activeView) && <MobileNavTitle title={selected.content.course.title} />}{children}</div></StudentApplicationShell></DemoGamificationProvider></StudentExperienceProvider>;
 }

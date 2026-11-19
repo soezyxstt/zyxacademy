@@ -1,6 +1,7 @@
 {
   "userFallback": "Pengguna",
   "accountNamed": "Akun ({name})",
+  "preferences": "Preferensi",
   "profileSettings": "Pengaturan profil",
   "studentDashboard": "Dasbor siswa",
   "tutorPanel": "Panel pengajar",

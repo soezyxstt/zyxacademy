@@ -88,7 +88,7 @@ export function GradingClient({ courseId, initialSubmissions, queueHeader }: Pro
       : activeSub.answersSnapshot || {};
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-(--related-gap)">
         {/* Detail Header */}
         <div className="flex flex-wrap items-center gap-2">
           <TooltipProvider>
@@ -116,7 +116,7 @@ export function GradingClient({ courseId, initialSubmissions, queueHeader }: Pro
         </div>
 
         {/* Workspace Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-(--related-gap) items-start">
           {/* Left Column: Student Answers (8 cols) */}
           <div className="lg:col-span-8 divide-y divide-border border-y border-border">
             {Array.isArray(qSnapshot) && qSnapshot.map((q: any, idx: number) => {
@@ -126,23 +126,23 @@ export function GradingClient({ courseId, initialSubmissions, queueHeader }: Pro
               const isShort = q.type === "short_answer";
 
               return (
-                <article key={q.id} className="space-y-4 py-3">
+                <article key={q.id} className="space-y-(--related-gap) py-(--row-padding)">
                   <div className="flex items-start gap-2.5">
                     <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-body-sm font-bold text-primary-foreground shadow-xs font-mono">
                       {idx + 1}
                     </span>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-[10px] rounded-md text-muted-foreground capitalize">
+                        <Badge variant="outline" className="text-body-2xs rounded-md text-muted-foreground capitalize">
                           {tr(q.type)}
                         </Badge>
                         {!isEssay && (
-                          <Badge variant="secondary" className="text-[10px] rounded-md">
+                          <Badge variant="secondary" className="text-body-2xs rounded-md">
                             {tr("autoKey")}
                           </Badge>
                         )}
                       </div>
-                      <MathText className="text-body-base font-medium text-foreground leading-relaxed pt-2" as="p">{q.prompt}</MathText>
+                      <MathText className="text-body-base font-medium text-foreground pt-2" as="p">{q.prompt}</MathText>
                     </div>
                   </div>
 
@@ -158,13 +158,13 @@ export function GradingClient({ courseId, initialSubmissions, queueHeader }: Pro
                           : q.correctIndices?.includes(i);
 
                         return (
-                          <div key={i} className={`flex items-center gap-2 text-body-xs px-3 py-1.5 rounded-lg border ${
+                          <div key={i} className={`flex items-center gap-2 text-body-base px-3 py-1.5 rounded-lg border ${
                             isStudentChoice && isCorrect ? "bg-emerald-500/5 border-emerald-500/25 text-emerald-700" :
                             isStudentChoice && !isCorrect ? "bg-rose-500/5 border-rose-500/25 text-rose-700" :
                             !isStudentChoice && isCorrect ? "bg-emerald-500/5 border-dashed border-emerald-500/20 text-muted-foreground" :
                             "bg-muted/10 border-border/50 text-muted-foreground"
                           }`}>
-                            <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                            <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-body-2xs font-bold ${
                               isStudentChoice && isCorrect ? "bg-emerald-500 text-white" :
                               isStudentChoice && !isCorrect ? "bg-rose-500 text-white" :
                               isCorrect ? "border border-emerald-500 text-emerald-500" :
@@ -184,13 +184,13 @@ export function GradingClient({ courseId, initialSubmissions, queueHeader }: Pro
                   {/* Short Answer Preview */}
                   {isShort && (
                     <div className="space-y-2 sm:pl-9">
-                      <div className="border-l-2 border-border pl-3 text-body-sm">
+                      <div className="border-l-2 border-border pl-3 text-body-base">
                         <span className="text-body-xs font-semibold text-muted-foreground block">{tr("studentAnswer")}</span>
-                        <p className="font-semibold text-foreground mt-0.5">
+                        <p className="mt-0.5 text-body-base font-semibold text-foreground">
                           <MathText as="span">{ans?.text || "-"}</MathText>
                         </p>
                       </div>
-                      <p className="text-body-xs text-muted-foreground">
+                      <p className="text-body-base text-muted-foreground">
                         {tr("correctAnswer")}{" "}
                         <span className="font-semibold text-foreground">
                           <MathText as="span">{(q.acceptableAnswers || []).join(" / ")}</MathText>
@@ -201,22 +201,22 @@ export function GradingClient({ courseId, initialSubmissions, queueHeader }: Pro
 
                   {/* Essay Answer Preview */}
                   {isEssay && (
-                    <div className="space-y-3 sm:pl-9">
-                      <div className="border-l-2 border-border pl-3 text-body-sm leading-relaxed whitespace-pre-wrap">
+                    <div className="space-y-(--compact-gap) sm:pl-9">
+                      <div className="border-l-2 border-border pl-3 text-body-base whitespace-pre-wrap">
                         <span className="text-body-xs font-semibold text-muted-foreground block mb-1">{tr("essayAnswer")}</span>
                         {ans?.text || <span className="text-muted-foreground italic">{tr("noEssayAnswer")}</span>}
                       </div>
 
                       {/* R2 uploaded attachment */}
                       {ans?.fileName && (
-                        <div className="flex flex-wrap items-center justify-between border-t border-border pt-3 gap-4">
-                          <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex flex-wrap items-center justify-between border-t border-border pt-3 gap-(--related-gap)">
+                          <div className="flex items-center gap-(--compact-gap) min-w-0">
                             <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-status-success/10 text-status-success">
                               <FileText className="size-5" />
                             </span>
                             <div className="min-w-0">
                               <p className="text-body-xs font-bold text-foreground truncate max-w-[200px] md:max-w-xs">{ans.fileName}</p>
-                              <p className="text-[10px] text-muted-foreground">{ans.fileSize || tr("pdfImage")}</p>
+                              <p className="text-body-xs text-muted-foreground">{ans.fileSize || tr("pdfImage")}</p>
                             </div>
                           </div>
                           {ans.fileKey ? (
@@ -250,7 +250,7 @@ export function GradingClient({ courseId, initialSubmissions, queueHeader }: Pro
           </div>
 
           {/* Right Column: Grading Panel (4 cols) */}
-          <div className="lg:col-span-4 lg:sticky lg:top-6 space-y-4">
+          <div className="lg:col-span-4 lg:sticky lg:top-6 space-y-(--related-gap)">
             <section id="tryout-grading-panel" tabIndex={-1} aria-labelledby="tryout-grading-heading" className="scroll-mt-16 border-t border-border pt-3">
               <header className="mb-4">
                 <h3 id="tryout-grading-heading" className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
@@ -259,7 +259,7 @@ export function GradingClient({ courseId, initialSubmissions, queueHeader }: Pro
                 </h3>
               </header>
 
-              <div className="space-y-4 font-sans">
+              <div className="space-y-(--related-gap) font-sans">
                 <div className="grid gap-2">
                   <Label htmlFor="grade-score" className="text-body-sm font-semibold">{tr("finalScore")}</Label>
                   <Input
@@ -298,7 +298,7 @@ export function GradingClient({ courseId, initialSubmissions, queueHeader }: Pro
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-(--related-gap)">
       {queueHeader}
       <Tabs defaultValue="pending" className="w-full">
         <TabsList>
@@ -326,7 +326,7 @@ export function GradingClient({ courseId, initialSubmissions, queueHeader }: Pro
           ) : (
             <div className="divide-y divide-border border-y border-border">
               {pendingList.map((s) => (
-                <article key={s.id} className="flex flex-col py-3 sm:flex-row justify-between sm:items-center gap-3 hover:bg-muted/20 transition-colors">
+                <article key={s.id} className="flex flex-col py-3 sm:flex-row justify-between sm:items-center gap-(--compact-gap) hover:bg-muted/20 transition-colors">
                   <div className="space-y-1">
                     <h3 className="font-heading text-body-base font-semibold text-foreground">{s.examTitle}</h3>
                     <p className="text-body-sm text-muted-foreground flex items-center gap-1.5">
@@ -353,7 +353,7 @@ export function GradingClient({ courseId, initialSubmissions, queueHeader }: Pro
           ) : (
             <div className="divide-y divide-border border-y border-border">
               {gradedList.map((s) => (
-                <article key={s.id} className="flex flex-col py-3 sm:flex-row justify-between sm:items-center gap-3">
+                <article key={s.id} className="flex flex-col py-3 sm:flex-row justify-between sm:items-center gap-(--compact-gap)">
                   <div className="space-y-1">
                     <h3 className="font-heading text-body-base font-semibold text-foreground">{s.examTitle}</h3>
                     <p className="text-body-sm text-muted-foreground">
@@ -364,7 +364,7 @@ export function GradingClient({ courseId, initialSubmissions, queueHeader }: Pro
                       {s.submittedAt ? new Date(s.submittedAt).toLocaleString(dateLocale, { dateStyle: "medium", timeStyle: "short" }) : "-"}
                     </p>
                   </div>
-                  <div className="flex items-center gap-4 shrink-0">
+                  <div className="flex items-center gap-(--related-gap) shrink-0">
                     <div className="text-right">
                       <p className="text-body-xs font-semibold text-muted-foreground uppercase">{tr("finalScoreLabel")}</p>
                       <p className="font-heading text-h6 font-bold text-brand-primary tabular-nums">{s.score}%</p>
@@ -386,7 +386,7 @@ export function GradingClient({ courseId, initialSubmissions, queueHeader }: Pro
           ) : (
             <div className="divide-y divide-border border-y border-border">
               {initialSubmissions.map((s) => (
-                <article key={s.id} className="flex flex-col py-3 sm:flex-row justify-between sm:items-center gap-3">
+                <article key={s.id} className="flex flex-col py-3 sm:flex-row justify-between sm:items-center gap-(--compact-gap)">
                   <div className="space-y-1">
                     <h3 className="font-heading text-body-base font-semibold text-foreground">{s.examTitle}</h3>
                     <p className="text-body-sm text-muted-foreground">
@@ -395,14 +395,14 @@ export function GradingClient({ courseId, initialSubmissions, queueHeader }: Pro
                     <p className="text-body-xs text-muted-foreground flex items-center gap-1.5">
                       <Calendar className="size-3.5" />
                       {tr("status")}{" "}
-                      <Badge variant="outline" className={`text-[10px] rounded-md ${
+                      <Badge variant="outline" className={`text-body-2xs rounded-md ${
                         s.status === "graded" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : "bg-amber-500/10 text-amber-600 border-amber-500/20"
                       }`}>
                         {s.status === "graded" ? tr("graded") : tr("waitingReview")}
                       </Badge>
                     </p>
                   </div>
-                  <div className="flex items-center gap-4 shrink-0">
+                  <div className="flex items-center gap-(--related-gap) shrink-0">
                     <div className="text-right">
                       <p className="text-body-xs font-semibold text-muted-foreground uppercase font-sans">{tr("score")}</p>
                       <p className="font-heading text-h6 font-bold text-brand-primary tabular-nums">{s.score != null ? `${s.score}%` : tr("pending")}</p>

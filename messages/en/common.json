@@ -1,6 +1,7 @@
 {
   "userFallback": "User",
   "accountNamed": "Account ({name})",
+  "preferences": "Preferences",
   "profileSettings": "Profile settings",
   "studentDashboard": "Student dashboard",
   "tutorPanel": "Tutor panel",

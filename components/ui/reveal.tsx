@@ -2,6 +2,7 @@
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useAppReducedMotion } from "@/components/appearance-preferences";
 import { cn } from "@/lib/utils";
 
 type RevealProps = {
@@ -34,6 +35,7 @@ export function Reveal({
   duration = "duration-700",
 }: RevealProps) {
   const pathname = usePathname();
+  const reducedMotion = useAppReducedMotion();
   const ref = useRef<HTMLDivElement>(null);
   
   const [mounted, setMounted] = useState(false);
@@ -44,21 +46,13 @@ export function Reveal({
 
   useEffect(() => {
     setMounted(true);
-    if (isAdmin || isDemo) {
+    if (isAdmin || isDemo || reducedMotion) {
       setVisible(true);
       return;
     }
 
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-    const onMq = () => {
-      if (mq.matches) setVisible(true);
-    };
-    onMq();
-    mq.addEventListener("change", onMq);
-
     const el = ref.current;
-    if (!el) return () => mq.removeEventListener("change", onMq);
+    if (!el) return;
 
     const ob = new IntersectionObserver(
       ([e]) => {
@@ -68,20 +62,18 @@ export function Reveal({
     );
     ob.observe(el);
 
-    return () => {
-      mq.removeEventListener("change", onMq);
-      ob.disconnect();
-    };
-  }, [rootMargin, threshold, isAdmin, isDemo]);
+    return () => ob.disconnect();
+  }, [rootMargin, threshold, isAdmin, isDemo, reducedMotion]);
 
   // Once mounted, bypass animation completely on admin pages to prevent viewport lock on tall pages
-  if (isDemo || (isAdmin && mounted)) {
+  if (isDemo || reducedMotion || (isAdmin && mounted)) {
     return <div className={className}>{children}</div>;
   }
 
   return (
     <div
       ref={ref}
+      data-scroll-reveal=""
       className={cn(
         `motion-safe:transition-all motion-safe:ease-out motion-safe:${duration}`,
         visible ? "translate-y-0 opacity-100" : `${translateFrom} opacity-0`,

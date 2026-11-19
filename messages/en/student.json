@@ -54,7 +54,49 @@
     "calendar": "Calendar",
     "feedback": "Feedback",
     "profile": "Profile",
+    "preferences": "Preferences",
     "settings": "Settings"
+  },
+  "preferences": {
+    "appearance": "Appearance",
+    "email": "Email notifications",
+    "interface": "Display and language",
+    "browserSettings": "Display preferences are saved in this browser.",
+    "theme": "Color mode",
+    "backgroundOrnaments": "Background ornaments",
+    "layout": "Reading and layout",
+    "previewLabel": "Reading preview",
+    "previewFirst": "A map uses a scale to show how real distances relate to distances on paper.",
+    "previewSecond": "At a scale of 1:100, each centimeter on the map represents one meter in the real world.",
+    "layoutScope": "Spacing and font size apply to student and tutor pages.",
+    "spacing": "Spacing",
+    "spacingOptions": {
+      "tightest": "Tightest",
+      "tight": "Tight",
+      "normal": "Normal",
+      "loose": "Loose",
+      "loosest": "Loosest"
+    },
+    "fontSize": "Font size",
+    "fontSizeOptions": {
+      "extra-small": "Extra small",
+      "small": "Small",
+      "medium": "Medium",
+      "normal": "Normal",
+      "large": "Large"
+    },
+    "motionAndMessages": "Motion and alerts",
+    "animations": "Animations",
+    "toastPosition": "On-screen alert position",
+    "toastPreview": "Notifications will appear here",
+    "toastOptions": {
+      "top-left": "Top left",
+      "top-center": "Top center",
+      "top-right": "Top right",
+      "bottom-left": "Bottom left",
+      "bottom-center": "Bottom center",
+      "bottom-right": "Bottom right"
+    }
   },
   "settings": {
     "title": "Settings",

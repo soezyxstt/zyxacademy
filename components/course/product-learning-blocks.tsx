@@ -54,7 +54,7 @@ export function ProductWorkedExample({
   return (
     <section
       aria-label={title || "Contoh dan Pembahasan Bertahap"}
-      className={cn("my-6 space-y-4", className)}
+      className={cn("space-y-4", className)}
     >
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-border/60 pb-2.5">
@@ -74,7 +74,7 @@ export function ProductWorkedExample({
       ) : null}
 
       {/* Vertical Timeline Stepper */}
-      <ol className="relative ml-3 space-y-5 border-l-2 border-border/80 pl-6 pt-1">
+      <ol className="relative ml-3 space-y-5 border-l-2 border-border/80 pl-5">
         {workedExample.steps.map((step) => (
           <li key={step.stepIndex} className="relative">
             {/* Step number badge pinned to the vertical line */}
@@ -320,7 +320,7 @@ export function ProductFormativeCheck({
   return (
     <div
       className={cn(
-        "rounded-r-lg border-l-4 border-l-status-warning border-t border-r border-b border-border/70 bg-card p-4 sm:p-5 space-y-4 shadow-xs",
+        "rounded-r-lg border-l-4 border-l-status-warning border-t border-r border-b border-border/70 bg-card p-3 sm:p-(--panel-padding) space-y-4 shadow-xs",
         className,
       )}
     >

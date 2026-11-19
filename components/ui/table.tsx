@@ -26,11 +26,11 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
 }
 
 function TableHead({ className, ...props }: React.ComponentProps<"th">) {
-  return <th data-slot="table-head" className={cn("px-3 py-2 text-left align-middle font-semibold text-muted-foreground [&:has([role=checkbox])]:pr-0", className)} {...props} />;
+  return <th data-slot="table-head" className={cn("px-3 py-(--table-row-padding) text-left align-middle font-semibold text-muted-foreground [&:has([role=checkbox])]:pr-0", className)} {...props} />;
 }
 
 function TableCell({ className, ...props }: React.ComponentProps<"td">) {
-  return <td data-slot="table-cell" className={cn("px-3 py-2 align-middle [&:has([role=checkbox])]:pr-0", className)} {...props} />;
+  return <td data-slot="table-cell" className={cn("px-3 py-(--table-row-padding) align-middle [&:has([role=checkbox])]:pr-0", className)} {...props} />;
 }
 
 function TableCaption({ className, ...props }: React.ComponentProps<"caption">) {

@@ -95,11 +95,11 @@ async function ConceptExplorerContent({
   const typesPresent = TYPE_ORDER.filter((t) => data.kosByType[t as keyof typeof data.kosByType]?.length);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-(--reading-section-gap)">
       {/* Mastery + prerequisite/related summary */}
       <Reveal>
-        <div className={studentSectionClass("space-y-4")}>
-          <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className={studentSectionClass("space-y-(--related-gap)")}>
+          <div className="flex items-center justify-between gap-(--related-gap) flex-wrap">
             <h2 className="text-body-base font-heading font-semibold text-foreground"><MathText as="span">{data.conceptName}</MathText></h2>
             {typeof data.masteryScore === "number" && (
               <div className="flex items-center gap-2">

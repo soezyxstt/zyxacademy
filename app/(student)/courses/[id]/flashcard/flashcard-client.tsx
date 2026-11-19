@@ -1,6 +1,6 @@
 "use client";
 
-import type React from "react";
+import React, { useEffect, useRef, type CSSProperties } from "react";
 import { Brain, Check, X, RotateCw, RefreshCw, SkipForward } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -33,18 +33,33 @@ function FlashcardSession(props: FlashcardSessionProps) {
     changeMode, startNextBatch, resetCard,
   } = useFlashcardSession(props);
 
+  const frontFlipButton = useRef<HTMLButtonElement>(null);
+  const backFlipButton = useRef<HTMLButtonElement>(null);
+  const restoreFlipFocus = useRef(false);
+  useEffect(() => {
+    if (!restoreFlipFocus.current) return;
+    restoreFlipFocus.current = false;
+    (isFlipped ? backFlipButton : frontFlipButton).current?.focus({ preventScroll: true });
+  }, [isFlipped]);
+
+  function flipFromButton() {
+    if (!loading && (mode !== "exam" || isChecked)) {
+      restoreFlipFocus.current = true;
+    }
+    handleFlip();
+  }
+
   // Helper styles for 3D card
-  const cardStyle: React.CSSProperties = {
+  const cardStyle: CSSProperties = {
     perspective: "1000px",
   };
 
-  const innerStyle = (flipped: boolean): React.CSSProperties => ({
+  const innerStyle = (flipped: boolean): CSSProperties => ({
     transformStyle: "preserve-3d",
-    transition: "transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)",
     transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
   });
 
-  const faceStyle: React.CSSProperties = {
+  const faceStyle: CSSProperties = {
     backfaceVisibility: "hidden",
     WebkitBackfaceVisibility: "hidden",
   };
@@ -98,6 +113,8 @@ function FlashcardSession(props: FlashcardSessionProps) {
   }
 
   const activeCard = currentItem.card;
+  const prompt = activeCard.front.trim();
+  const shortPrompt = prompt.length <= 120 && !prompt.includes("\n");
   const recallDifficulty = activeCard.metadata?.recallDifficulty;
   const reasonKey: Record<string, string> = {
     "Tanpa pemetaan Idea": "reasonUnmapped",
@@ -113,7 +130,7 @@ function FlashcardSession(props: FlashcardSessionProps) {
   const progressPercent = Math.round((currentIndex / activeBatch.length) * 100);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-(--related-gap)">
       {/* Top Controls and Stats - Flat Header without Card border */}
       <div className="space-y-2">
         <div className="h-1 w-full overflow-hidden rounded-md bg-muted">
@@ -144,7 +161,7 @@ function FlashcardSession(props: FlashcardSessionProps) {
 
       {/* 3D Flip Card Container */}
       <div
-        className={`relative w-full select-none cursor-pointer ${[activeCard.front, activeCard.back, activeCard.explanation].some((content) => content?.includes("```zyx-visual")) ? "h-[min(80dvh,48rem)] min-h-80" : "h-80"}`}
+        className="relative w-full cursor-pointer"
         style={cardStyle}
         onClick={(e) => {
           // Visual controls and plot gestures must not flip the card.
@@ -156,43 +173,46 @@ function FlashcardSession(props: FlashcardSessionProps) {
         }}
       >
         <div
-          className="relative w-full h-full transform-style-3d"
+          className="relative grid w-full min-w-0 transform-style-3d motion-safe:transition-transform motion-safe:duration-[600ms]"
           style={innerStyle(isFlipped)}
         >
           {/* FRONT FACE */}
           <div
             data-flashcard-face="front"
             inert={isFlipped}
-            className="absolute inset-0 w-full h-full rounded-2xl border border-border bg-card p-6 shadow-sm flex flex-col justify-between"
+            className="col-start-1 row-start-1 flex min-h-64 min-w-0 flex-col justify-between gap-(--related-gap) rounded-2xl border border-border bg-card p-(--panel-padding) shadow-sm sm:p-(--group-gap)"
             style={faceStyle}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="inline-flex rounded-md border border-brand-primary/20 bg-brand-primary/5 px-2 py-0.5 text-body-xs font-semibold text-brand-primary">{localizedReason}</span>
               <span className="text-body-xs font-medium text-muted-foreground">
                 {t("flashcards.question")}
               </span>
             </div>
 
-            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto py-4">
-              <div className="flex min-h-full min-w-0 flex-col justify-center">
-                <MarkdownRenderer content={activeCard.front} className="font-sans text-body-base font-semibold text-foreground text-center" />
+            <div className="flex min-w-0 flex-1 items-center">
+              <div className="w-full min-w-0">
+                <MarkdownRenderer
+                  content={activeCard.front}
+                  className={shortPrompt ? "text-body-md font-medium text-center text-foreground [&>p]:text-body-md" : "text-center text-foreground"}
+                />
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-1.5 text-body-xs text-muted-foreground">
-              <RotateCw className="size-3" />
-              <span>{t("flashcards.flipCard")}</span>
-            </div>
+            <Button ref={frontFlipButton} type="button" variant="ghost" size="sm" onClick={flipFromButton} className="self-center text-muted-foreground">
+              <RotateCw className="size-4" />
+              {t("flashcards.flipCard")}
+            </Button>
           </div>
 
           {/* BACK FACE */}
           <div
             data-flashcard-face="back"
             inert={!isFlipped}
-            className="absolute inset-0 w-full h-full rounded-2xl border border-border bg-card p-6 shadow-sm flex flex-col justify-between rotate-y-180"
+            className="col-start-1 row-start-1 flex min-h-64 min-w-0 flex-col justify-between gap-(--related-gap) rounded-2xl border border-border bg-card p-(--panel-padding) shadow-sm sm:p-(--group-gap) rotate-y-180"
             style={faceStyle}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="inline-flex rounded-md border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 text-body-xs font-semibold text-emerald-700 dark:text-emerald-400">
                 {t("flashcards.answer")}
               </span>
@@ -219,22 +239,22 @@ function FlashcardSession(props: FlashcardSessionProps) {
               )}
             </div>
 
-            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto py-4">
-              <div className="flex min-h-full min-w-0 flex-col justify-center space-y-3">
-              <MarkdownRenderer content={activeCard.back} className="font-heading text-body-base font-bold text-foreground text-center" />
-              {activeCard.explanation && (
-                <div className="border-t border-border/60 pt-3">
-                  <div className="text-body-xs font-semibold text-muted-foreground mb-0.5">{t("flashcards.explanation")}</div>
-                  <MarkdownRenderer content={activeCard.explanation} density="compact" className="text-body-xs text-muted-foreground" />
-                </div>
-              )}
+            <div className="flex min-w-0 flex-1 items-center">
+              <div className="w-full min-w-0 space-y-(--related-gap)">
+                <MarkdownRenderer content={activeCard.back} className="text-center text-foreground" />
+                {activeCard.explanation && (
+                  <div className="space-y-2 border-t border-border/60 pt-3">
+                    <div className="text-body-sm font-semibold text-muted-foreground">{t("flashcards.explanation")}</div>
+                    <MarkdownRenderer content={activeCard.explanation} density="compact" className="text-muted-foreground" />
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-1.5 text-body-xs text-muted-foreground">
-              <RotateCw className="size-3" />
-              <span>{t("flashcards.flipToQuestion")}</span>
-            </div>
+            <Button ref={backFlipButton} type="button" variant="ghost" size="sm" onClick={flipFromButton} className="self-center text-muted-foreground">
+              <RotateCw className="size-4" />
+              {t("flashcards.flipToQuestion")}
+            </Button>
           </div>
         </div>
       </div>
@@ -248,7 +268,7 @@ function FlashcardSession(props: FlashcardSessionProps) {
       {/* Interactive Input Area for Exam Mode */}
       {mode === "exam" && (
         <div className="space-y-3 border-t border-border/60 pt-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <label className="text-body-sm font-semibold text-foreground">
               {t("flashcards.yourAnswer")}
             </label>
@@ -273,7 +293,7 @@ function FlashcardSession(props: FlashcardSessionProps) {
               value={typedAnswer}
               onChange={(e) => setTypedAnswer(e.target.value)}
               placeholder={t("flashcards.answerPlaceholder")}
-              className="flex-1 h-9 px-3 rounded-md border border-input bg-background text-body-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
+              className="flex-1 h-9 px-3 rounded-md border border-input bg-background text-body-base sm:text-body-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
             />
             {!isChecked ? (
               <Button

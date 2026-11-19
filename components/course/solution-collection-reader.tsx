@@ -35,7 +35,7 @@ class ContentFallback extends Component<{ children: ReactNode; message: string }
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
   render() {
-    if (this.state.failed) return <p role="alert" className="rounded-lg border border-border p-4 text-body-sm">{this.props.message}</p>;
+    if (this.state.failed) return <p role="alert" className="rounded-lg border border-border p-(--panel-padding) text-body-sm">{this.props.message}</p>;
     return this.props.children;
   }
 }
@@ -203,7 +203,7 @@ function Parts({ parts, item, compact = false }: { parts: ArticlePart[]; item: S
 // promoted by the Markdown compiler to a display-formula panel.
 function OptionParts({ parts, item }: { parts: ArticlePart[]; item: SolutionCollectionItem }) {
   const t = useTranslations("learning.solutionCollection");
-  return <ContentFallback message={t("contentError")}><div className="min-w-0 space-y-2">{parts.map((part) => part.kind === "markdown" ? (
+  return <ContentFallback message={t("contentError")}><div className="min-w-0 space-y-3">{parts.map((part) => part.kind === "markdown" ? (
     <MarkdownRenderer key={part.id} content={/^\s*\$(?!\$)[\s\S]*?\$\s*$/.test(part.markdown) ? `\u200b${part.markdown}` : part.markdown} density="compact" />
   ) : <Parts key={part.id} parts={[part]} item={item} compact />)}</div></ContentFallback>;
 }
@@ -237,12 +237,12 @@ function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initia
   const strategyLabel = item.template === "conceptual" ? t("approach") : t("strategy");
   const stepLabels = { choice: t("explanationSteps"), calculation: t("calculationSteps"), conceptual: t("explanationFlow"), code_trace: t("codeTrace"), code_construction: t("codeConstruction") };
   return (
-    <article className="min-w-0 space-y-7" data-solution-item={item.id}>
-      <header className="space-y-2 border-b border-border pb-5">
+    <article className="min-w-0 space-y-(--related-gap)" data-solution-item={item.id}>
+      <header className="space-y-2 border-b border-border pb-3">
         <p className="text-body-xs font-semibold text-muted-foreground">{t("itemProgress", { current: index + 1, total })}</p>
         <h2 ref={headingRef} tabIndex={-1} className="rounded-sm font-heading text-body-base font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"><MathText>{item.title}</MathText></h2>
       </header>
-      <section aria-label={t("question")} className="space-y-5">
+      <section aria-label={t("question")} className="space-y-(--group-gap)">
         <Parts parts={item.prompt} item={item} />
         {item.options.length ? <ol className="divide-y divide-border" aria-label={t("answerOptions")}>
           {item.options.map((option, optionIndex) => <li key={option.id} className="flex min-w-0 items-start gap-3 py-2.5">
@@ -258,7 +258,7 @@ function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initia
         </Button>
       </div>
       {!revealed && hintOpen && item.hintMarkdown ? <section id={hintId} aria-label={t("hint")} className="space-y-3 border-l-2 border-border pl-4"><h3 className="font-heading text-body-base font-bold">{t("hint")}</h3><MarkdownRenderer content={item.hintMarkdown} /></section> : <div id={hintId} hidden />}
-      {revealed ? <div id={solutionId} className="space-y-7 border-t border-border pt-6">
+      {revealed ? <div id={solutionId} className="space-y-(--related-gap) border-t border-border pt-4">
         <section className="space-y-3" aria-labelledby={`${solutionId}-answer`}>
           <h3 id={`${solutionId}-answer`} className="font-heading text-body-base font-bold">{t("answer")}</h3>
           {item.answer.optionIds.length ? <p className="text-body-sm font-semibold text-primary">{item.answer.optionIds.map((answerId) => String.fromCharCode(65 + item.options.findIndex((option) => option.id === answerId))).join(", ")}</p> : null}
@@ -268,9 +268,9 @@ function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initia
           <h3 id={`${solutionId}-strategy`} className="font-heading text-body-base font-bold">{strategyLabel}</h3>
           <Parts parts={item.strategy} item={item} />
         </section>
-        <section className="space-y-4" aria-labelledby={`${solutionId}-steps`}>
+        <section className="space-y-(--related-gap)" aria-labelledby={`${solutionId}-steps`}>
           <h3 id={`${solutionId}-steps`} className="font-heading text-body-base font-bold">{stepLabels[item.template]}</h3>
-          <ol className="space-y-6">
+          <ol className="space-y-(--section-gap)">
             {item.steps.map((step, stepIndex) => <li key={step.id} className="min-w-0 space-y-3 border-l-2 border-primary/40 pl-4" data-solution-step={step.id}>
               <div className="flex items-start gap-2"><span className="shrink-0 text-body-sm font-semibold text-muted-foreground">{stepIndex + 1}.</span><div className="min-w-0"><MarkdownRenderer content={step.operationMarkdown} /></div></div>
               {step.parts ? <Parts parts={step.parts} item={item} /> : null}
@@ -285,7 +285,7 @@ function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initia
         </section>
         {item.misconceptions?.length ? <section className="space-y-3" aria-labelledby={`${solutionId}-misconceptions`}>
           <h3 id={`${solutionId}-misconceptions`} className="font-heading text-body-base font-bold">{t("misconceptions")}</h3>
-          <ul className="space-y-4">{item.misconceptions.map((entry) => <li key={entry.id} className="space-y-3 border-l-2 border-border pl-4"><div className="space-y-1"><h4 className="text-body-xs font-semibold text-muted-foreground">{t("misconception")}</h4><MarkdownRenderer content={entry.misconceptionMarkdown} /></div><div className="space-y-1"><h4 className="text-body-xs font-semibold text-foreground">{t("correction")}</h4><MarkdownRenderer content={entry.correctionMarkdown} /></div></li>)}</ul>
+          <ul className="space-y-(--related-gap)">{item.misconceptions.map((entry) => <li key={entry.id} className="space-y-3 border-l-2 border-border pl-4"><div className="space-y-1"><h4 className="text-body-xs font-semibold text-muted-foreground">{t("misconception")}</h4><MarkdownRenderer content={entry.misconceptionMarkdown} /></div><div className="space-y-1"><h4 className="text-body-xs font-semibold text-foreground">{t("correction")}</h4><MarkdownRenderer content={entry.correctionMarkdown} /></div></li>)}</ul>
         </section> : null}
       </div> : <div id={solutionId} hidden />}
       <details className="text-body-sm text-muted-foreground">
@@ -340,7 +340,7 @@ function ReaderContent({ collection, courseHref, backHref, initialRevealed, rend
     }
     setSheetOpen(false);
   };
-  return <div className={embedded ? "w-full space-y-6" : "mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6"}>
+  return <div className={embedded ? "w-full space-y-(--section-gap)" : "mx-auto w-full max-w-7xl space-y-(--section-gap) px-(--page-gutter) py-(--section-gap)"}>
     {active ? <Button variant="outline" className="sr-only text-body-sm focus:not-sr-only" onClick={() => headingRef.current?.focus()}>{t("skipToQuestion")}</Button> : null}
     {!embedded ? <PageHeader title={collection.title} backHref={backHref ?? courseHref} backLabel={t("back")} /> : null}
     <div className="flex items-center justify-between gap-2 border-b border-border pb-2 text-body-sm text-muted-foreground">

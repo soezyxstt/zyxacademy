@@ -204,7 +204,7 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
 
   if (!activeGroup) {
     return (
-      <section className="mx-auto max-w-xl rounded-xl border border-border/40 bg-card/30 p-4 sm:p-5">
+      <section className="mx-auto max-w-xl rounded-xl border border-border/40 bg-card/30 p-(--panel-padding) sm:p-(--group-gap)">
         <div className="mb-3 flex items-center gap-2 border-b border-border/40 pb-2">
           <Users className="size-3.5 shrink-0 text-muted-foreground" />
           <h2 className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("groups.join")}</h2>
@@ -235,7 +235,7 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-(--section-gap)">
       {initialGroups.length > 1 ? (
         <Tabs value={activeGroup.id} onValueChange={setSelectedGroupId} syncUrl={false}>
           <TabsList aria-label={t("groups.selectGroup")}>
@@ -246,8 +246,8 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
         </Tabs>
       ) : null}
 
-      <section className="border-t border-border/40 py-4">
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/40 pb-4">
+      <section className="border-t border-border/40 py-(--panel-padding)">
+        <div className="flex flex-wrap items-start justify-between gap-(--compact-gap) border-b border-border/40 pb-(--related-gap)">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <h2 className="min-w-0 break-words font-heading text-h5 font-bold text-foreground">
@@ -285,7 +285,7 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
 
         {activeGroup.totalQuotaSessions > 0 ? (
           <div className="py-4">
-            <div className="flex items-end justify-between gap-4">
+            <div className="flex items-end justify-between gap-(--related-gap)">
               <div>
                 <p className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("groups.packageQuota")}</p>
                 <p className="mt-1 font-heading text-h5 font-bold tabular-nums text-foreground">
@@ -336,11 +336,11 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
             </p>
           </div>
 
-          <div className="border-t border-border/30 py-4 sm:border-l sm:border-t-0 sm:pl-5">
-            <div className="flex items-center justify-between gap-3">
+          <div className="border-t border-border/30 py-(--panel-padding) sm:border-l sm:border-t-0 sm:pl-5">
+            <div className="flex items-center justify-between gap-(--compact-gap)">
               <div className="min-w-0">
                 <p className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("groups.members")}</p>
-                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+                <div className="mt-2 flex flex-wrap gap-x-(--related-gap) gap-y-2">
                   {activeGroup.members.map((member) => <StudentIdentity key={member.id} name={member.isMe ? t("groups.memberYou", { name: member.name }) : member.name} identity={member.identity} />)}
                 </div>
               </div>
@@ -362,7 +362,7 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
         ) : null}
 
         {activeGroup.token && activeGroup.members.length < activeGroup.token.capacity ? (
-          <div className="flex items-center justify-between gap-3 border-t border-border/30 pt-4">
+          <div className="flex items-center justify-between gap-(--compact-gap) border-t border-border/30 pt-(--related-gap)">
             <div className="min-w-0">
               <p className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("groups.inviteToken")}</p>
               <p className="mt-0.5 break-all font-mono text-body-sm font-semibold text-foreground">{activeGroup.token.token}</p>

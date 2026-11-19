@@ -413,10 +413,10 @@ export function UsersDashboard({
           <table aria-busy={loading} className="w-full min-w-[640px] text-left text-body-sm border-collapse">
             <AdminTableHead>
               <tr>
-                <th className="px-4 py-3 font-semibold text-foreground">{t("usersUI.user")}</th>
-                <th className="px-4 py-3 font-semibold text-foreground">{t("usersUI.access")}</th>
-                <th className="px-4 py-3 font-semibold text-foreground">{t("usersUI.joined")}</th>
-                <th className="px-4 py-3 font-semibold text-foreground text-right">{t("usersUI.actions")}</th>
+                <th className="px-4 py-(--table-row-padding) font-semibold text-foreground">{t("usersUI.user")}</th>
+                <th className="px-4 py-(--table-row-padding) font-semibold text-foreground">{t("usersUI.access")}</th>
+                <th className="px-4 py-(--table-row-padding) font-semibold text-foreground">{t("usersUI.joined")}</th>
+                <th className="px-4 py-(--table-row-padding) font-semibold text-foreground text-right">{t("usersUI.actions")}</th>
               </tr>
             </AdminTableHead>
             <tbody className="divide-y divide-border">
@@ -431,7 +431,7 @@ export function UsersDashboard({
                     className={`transition-colors hover:bg-muted/40 ${isSuspended ? "bg-muted/20 opacity-75" : ""}`}
                   >
                     {/* User info */}
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-(--table-row-padding)">
                       <div className="flex items-center gap-3">
                         <UserAvatar name={userItem.name} image={userItem.image ?? null} />
                         <div className="min-w-0">
@@ -453,7 +453,7 @@ export function UsersDashboard({
                     </td>
 
                     {/* Exceptions-only access & status */}
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-(--table-row-padding)">
                       <span className="sr-only">
                         {userItem.roles.map((role) => (role === "admin" ? t("usersUI.admin") : role === "tutor" ? t("usersUI.tutor") : t("usersUI.student"))).join(", ")}
                         {", "}
@@ -481,7 +481,7 @@ export function UsersDashboard({
                     </td>
 
                     {/* Created Date */}
-                    <td className="px-4 py-2.5 text-body-xs text-muted-foreground whitespace-nowrap">
+                    <td className="px-4 py-(--table-row-padding) text-body-xs text-muted-foreground whitespace-nowrap">
                       {userItem.createdAt ? (
                         <FormattedDate date={userItem.createdAt} options={{ dateStyle: "medium" }} />
                       ) : (
@@ -490,7 +490,7 @@ export function UsersDashboard({
                     </td>
 
                     {/* Per-row overflow menu */}
-                    <td className="px-4 py-2.5 text-right">
+                    <td className="px-4 py-(--table-row-padding) text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button

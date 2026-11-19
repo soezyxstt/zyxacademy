@@ -61,9 +61,9 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
   }, [data.groups, normalizedSearch]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-(--related-gap)">
       {/* ── KPI Strip ── */}
-      <AdminStatStrip className="grid-cols-2 sm:grid-cols-4 gap-3 rounded-none border-x-0 bg-transparent [&>*]:bg-transparent [&>*]:px-0">
+      <AdminStatStrip className="grid-cols-2 sm:grid-cols-4 gap-(--compact-gap) rounded-none border-x-0 bg-transparent [&>*]:bg-transparent [&>*]:px-0">
         <AdminStatStripItem icon={Users} label={t("totalParticipants")} value={data.summary.totalParticipants} caption={t("activeEnrolled")} />
         <AdminStatStripItem icon={UserCheck} label={t("directEnrollments")} value={data.summary.directEnrollmentsCount} caption={t("individualParticipants")} />
         <AdminStatStripItem icon={Layers} label={t("groupMembers")} value={data.summary.groupParticipantsCount} caption={t("groupParticipants")} />
@@ -71,8 +71,8 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
       </AdminStatStrip>
 
       {/* ── Tabs & Search Toolbar ── */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <div className="space-y-3">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-(--related-gap)">
+        <div className="space-y-(--compact-gap)">
           <TabsList>
             <TabsTrigger value="participants">
               {t("participants")}
@@ -111,7 +111,7 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
         </div>
 
         {/* ── Tab 1: Participants List ── */}
-        <TabsContent value="participants" className="mt-0 space-y-4">
+        <TabsContent value="participants" className="mt-0 space-y-(--related-gap)">
           {filteredParticipants.length === 0 ? (
             <div className="border-t border-border">
               <AdminEmptyState icon={Users} title={t("noParticipantsFound")}
@@ -135,7 +135,7 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
                   {filteredParticipants.map((p) => (
                     <tr role="row" key={p.userId} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-3 gap-y-2 py-3 hover:bg-muted/20 md:table-row md:p-0">
                       <td role="cell" className="col-span-2 wrap-anywhere md:px-3 md:py-3">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-(--compact-gap)">
                           <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 font-heading text-body-xs font-bold text-primary">
                             {p.name.charAt(0).toUpperCase()}
                           </div>
@@ -199,7 +199,7 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
         </TabsContent>
 
         {/* ── Tab 2: Study Groups List ── */}
-        <TabsContent value="groups" className="mt-0 space-y-4">
+        <TabsContent value="groups" className="mt-0 space-y-(--related-gap)">
           {filteredGroups.length === 0 ? (
             <div className="border-t border-border">
               <AdminEmptyState icon={Shield} title={t("noGroupsFound")}
@@ -212,7 +212,7 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
               {filteredGroups.map((grp) => (
                 <div
                   key={grp.id}
-                  className="grid gap-3 py-3 lg:grid-cols-2 lg:gap-6"
+                  className="grid gap-(--compact-gap) py-3 lg:grid-cols-2 lg:gap-(--section-gap)"
                 >
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
@@ -260,11 +260,11 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
                         >
                           <span className="text-foreground break-words">{member.name}</span>
                           {member.role === "leader" ? (
-                            <Badge variant="outline" className="rounded-md border-primary/30 bg-primary/5 text-primary text-[10px] shrink-0 font-medium">
+                            <Badge variant="outline" className="rounded-md border-primary/30 bg-primary/5 text-primary text-body-2xs shrink-0 font-medium">
                               {t("leader")}
                             </Badge>
                           ) : (
-                            <span className="text-muted-foreground text-[10px] shrink-0">{t("member")}</span>
+                            <span className="text-muted-foreground text-body-xs shrink-0">{t("member")}</span>
                           )}
                         </div>
                       ))}

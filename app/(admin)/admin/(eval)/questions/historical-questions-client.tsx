@@ -1,5 +1,6 @@
 "use client";
 
+import { getAppScrollBehavior } from "@/components/appearance-preferences";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -316,7 +317,7 @@ export function HistoricalQuestionsClient({
   const goToPage = (page: number) => {
     const target = Math.max(1, Math.min(totalPages, page));
     setCurrentPage(target);
-    tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    tableRef.current?.scrollIntoView({ behavior: getAppScrollBehavior(), block: "start" });
   };
 
   const activeFilterCount = [filterCourse, filterCategory, filterDifficulty]

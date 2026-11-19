@@ -67,7 +67,7 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
   return (
     <>
       {/* Header meta row */}
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-(--compact-gap) flex-wrap">
         <span className="text-body-sm text-muted-foreground">
           {updatedDate ? t("updated", { relative: relativeTime(updatedDate, locale, t("justNow")) }) : t("notCalculated")}
         </span>
@@ -99,7 +99,7 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
                   <button
                     key={concept.conceptName}
                     onClick={() => openDrill(concept)}
-                    className="w-full py-3 grid grid-cols-[1.5rem_minmax(0,1fr)_auto] sm:grid-cols-[1.5rem_minmax(0,1fr)_auto_5rem_8rem] items-center gap-2 sm:gap-4 text-left hover:bg-muted/40 rounded-md px-1 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+                    className="w-full py-3 grid grid-cols-[1.5rem_minmax(0,1fr)_auto] sm:grid-cols-[1.5rem_minmax(0,1fr)_auto_5rem_8rem] items-center gap-2 sm:gap-(--related-gap) text-left hover:bg-muted/40 rounded-md px-1 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
                   >
                     <span className="text-h6 font-heading text-muted-foreground tabular-nums">
                       {index + 1}
@@ -187,7 +187,7 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
           ) : (
             <div className="divide-y divide-border">
               {analytics.topMisconceptions.slice(0, 10).map((m) => (
-                <div key={m.misconceptionKoId} className="py-3 flex items-center justify-between gap-4">
+                <div key={m.misconceptionKoId} className="py-3 flex items-center justify-between gap-(--related-gap)">
                   <div className="min-w-0">
                     <p className="text-body-sm font-medium break-words">{m.label}</p>
                     <p className="text-body-xs text-muted-foreground">

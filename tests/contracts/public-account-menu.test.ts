@@ -11,7 +11,7 @@ const menu = { Root: "root", Trigger: "trigger", Portal: "portal", Content: "con
 const dependencies: Record<string, unknown> = {
   "react/jsx-runtime": { jsx, jsxs: jsx },
   "next/link": { __esModule: true, default: "a" },
-  "lucide-react": Object.fromEntries(["LogOut", "User", "LayoutDashboard", "GraduationCap", "ShieldCheck"].map((name) => [name, name])),
+  "lucide-react": Object.fromEntries(["LogOut", "SlidersHorizontal", "User", "LayoutDashboard", "GraduationCap", "ShieldCheck"].map((name) => [name, name])),
   "radix-ui": { DropdownMenu: menu },
   "@/components/auth/google-sign-in-button": { GoogleSignInButton: "sign-in" },
   "@/components/ui/button": { Button: "button" },
@@ -38,10 +38,10 @@ describe("public account menu", () => {
   for (const variant of ["toolbar", "sheet"]) {
     it(`offers the same role-aware destinations in ${variant}`, () => {
       for (const [role, roles, expected] of [
-        ["student", [], ["/profile", "/dashboard"]],
-        ["teacher", [], ["/profile", "/dashboard", "/tutor"]],
-        ["admin", [], ["/profile", "/dashboard", "/tutor", "/admin"]],
-        ["student", ["admin"], ["/profile", "/dashboard", "/tutor", "/admin"]],
+        ["student", [], ["/settings", "/dashboard"]],
+        ["teacher", [], ["/settings", "/dashboard", "/tutor"]],
+        ["admin", [], ["/settings", "/dashboard", "/tutor", "/admin"]],
+        ["student", ["admin"], ["/settings", "/dashboard", "/tutor", "/admin"]],
       ] as const) {
         user = { name: "Test", role, roles };
         expect(links(exports.NavProfileOrSignIn({ variant }))).toEqual([...expected]);

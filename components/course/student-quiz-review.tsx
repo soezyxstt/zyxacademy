@@ -184,7 +184,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
                               )}
                             </div>
                             <div className="mt-2 text-body-base leading-relaxed text-foreground/90 font-medium">
-                              <InteractiveDocumentAttempt value={targetAttempt ? { courseId: visualCourseId, attemptId: targetAttempt.id, questionId: q.id, field: "prompt" } : null}><MarkdownRenderer content={q.prompt} className="space-y-3" /></InteractiveDocumentAttempt>
+                              <InteractiveDocumentAttempt value={targetAttempt ? { courseId: visualCourseId, attemptId: targetAttempt.id, questionId: q.id, field: "prompt" } : null}><MarkdownRenderer content={q.prompt} /></InteractiveDocumentAttempt>
                             </div>
                           </div>
                         </div>
@@ -192,7 +192,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
 
                       {/* Content rendering depending on question type */}
                       {qType === "short_answer" ? (
-                        <div className="mt-4 pl-9 space-y-2.5">
+                        <div className="mt-4 sm:pl-9 space-y-2.5">
                           <div className="border-t border-border/60 pt-3">
                             <span className="text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
                               Jawaban Anda:
@@ -229,7 +229,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
                           })()}
                         </div>
                       ) : qType === "essay" ? (
-                        <div className="mt-4 pl-9 space-y-3">
+                        <div className="mt-4 sm:pl-9 space-y-3">
                           <div className="border-t border-border/60 pt-3">
                             <span className="text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
                               Jawaban Esai Anda:
@@ -279,7 +279,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
                         </div>
                       ) : (
                         /* Options list for Multiple Choice */
-                        <ul className="mt-4 pl-9 space-y-2">
+                        <ul className="mt-4 sm:pl-9 space-y-2">
                           {q.options.map((opt, i) => {
                             const isStudentChoice = studentSelected.includes(i);
                             const isCorrectChoice = correctIndices.includes(i);
@@ -311,7 +311,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
                                   {String.fromCharCode(65 + i)}
                                 </span>
                                 <div className="min-w-0 flex-1">
-                                  <InteractiveDocumentAttempt value={targetAttempt ? { courseId: visualCourseId, attemptId: targetAttempt.id, questionId: q.id, field: "option", option: i } : null}><MarkdownRenderer content={opt} className="space-y-3" /></InteractiveDocumentAttempt>
+                                  <InteractiveDocumentAttempt value={targetAttempt ? { courseId: visualCourseId, attemptId: targetAttempt.id, questionId: q.id, field: "option", option: i } : null}><MarkdownRenderer content={opt} /></InteractiveDocumentAttempt>
                                 </div>
                               </li>
                             );
@@ -321,10 +321,10 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
 
                       {/* Explanation box */}
                       {q.explanation && (
-                        <div className="mt-4 ml-9 space-y-3 border-t border-border/80 pt-4">
+                        <div className="mt-6 space-y-3 border-t border-border/80 pt-4 sm:ml-9">
                           <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground"><TranslatedText namespace="learning" messageKey="review.explanation" /></h4>
                           <div className="text-body-sm text-muted-foreground leading-relaxed">
-                            <InteractiveDocumentAttempt value={targetAttempt ? { courseId: visualCourseId, attemptId: targetAttempt.id, questionId: q.id, field: "explanation" } : null}><MarkdownRenderer content={q.explanation} className="space-y-3" /></InteractiveDocumentAttempt>
+                            <InteractiveDocumentAttempt value={targetAttempt ? { courseId: visualCourseId, attemptId: targetAttempt.id, questionId: q.id, field: "explanation" } : null}><MarkdownRenderer content={q.explanation} /></InteractiveDocumentAttempt>
                           </div>
                         </div>
                       )}
@@ -371,13 +371,13 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
                               </span>
                             </div>
                             <div className="mt-2 text-body-base leading-relaxed text-foreground/90 font-medium">
-                              <MarkdownRenderer content={q.prompt} className="space-y-3" />
+                              <MarkdownRenderer content={q.prompt} />
                             </div>
                           </div>
                         </div>
                       </div>
 
-                      <ul className="mt-4 pl-9 space-y-2">
+                      <ul className="mt-4 sm:pl-9 space-y-2">
                         {q.options.map((opt, i) => {
                           const isCorrectChoice = correctIndices.includes(i);
                           return (
@@ -420,10 +420,10 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
                       </ul>
 
                       {q.explanation && (
-                        <div className="mt-4 ml-9 space-y-3 border-t border-border/80 pt-4">
+                        <div className="mt-6 space-y-3 border-t border-border/80 pt-4 sm:ml-9">
                           <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground"><TranslatedText namespace="learning" messageKey="review.explanation" /></h4>
                           <div className="text-body-sm text-muted-foreground leading-relaxed">
-                            <MarkdownRenderer content={q.explanation} className="space-y-3" />
+                            <MarkdownRenderer content={q.explanation} />
                           </div>
                         </div>
                       )}

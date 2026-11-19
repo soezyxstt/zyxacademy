@@ -93,7 +93,7 @@ export default async function TutorCoursePage({ params }: Props) {
   const updatedAt = snapshotRow?.updatedAt.toISOString() ?? null;
 
   return (
-    <ApplicationPage spacing="space-y-8">
+    <ApplicationPage spacing="space-y-(--major-gap)">
       {/* Section 1: headline stats */}
       <Reveal>
         <section>

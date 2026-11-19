@@ -1,5 +1,7 @@
 "use client";
 
+import { prefersAppReducedMotion } from "@/components/appearance-preferences";
+
 import { useStudentExperience } from "@/components/student-experience-provider";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
@@ -607,7 +609,7 @@ function MaterialViewerContent({
         const timer = setTimeout(() => {
           const el = document.getElementById(`diktat-section-${targetIdx}`);
           if (el) {
-            el.scrollIntoView({ behavior: "smooth", block: "start" });
+            el.scrollIntoView({ behavior: prefersAppReducedMotion() ? "auto" : "smooth", block: "start" });
           }
         }, 250);
         return () => clearTimeout(timer);
@@ -1111,7 +1113,7 @@ function MaterialViewerContent({
                   setShowOutlineSheet(false);
                   const el = document.getElementById(`diktat-section-${index}`);
                   if (el) {
-                    el.scrollIntoView({ behavior: "smooth", block: "start" });
+                    el.scrollIntoView({ behavior: prefersAppReducedMotion() ? "auto" : "smooth", block: "start" });
                   }
                 }}
                 className={cn(
@@ -1224,9 +1226,9 @@ function MaterialViewerContent({
               data-theme={theme}
               className="w-full flex-1 overflow-y-auto bg-background text-foreground transition-colors duration-300"
             >
-              <div className="max-w-[75ch] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+              <div className="max-w-[75ch] mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-6 pb-8 space-y-(--reading-section-gap)">
                 {/* Document / Diktat Header */}
-                <header className="space-y-3 border-b border-border/80 pb-6">
+                <header className="space-y-2 border-b border-border/80 pb-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2 text-body-xs font-semibold text-muted-foreground">
                       <span className="rounded-md bg-primary/10 px-2.5 py-0.5 text-primary">
@@ -1282,7 +1284,7 @@ function MaterialViewerContent({
                         <section
                           id={`diktat-section-${idx}`}
                           data-section-idx={idx}
-                          className="scroll-mt-16 space-y-4"
+                          className="scroll-mt-16 space-y-(--paragraph-gap)"
                         >
                           <div className="border-b border-border/60 pb-3">
                             <span className="text-body-xs font-semibold text-primary/80">
@@ -1324,7 +1326,7 @@ function MaterialViewerContent({
                 )}
 
                 {/* End of Diktat milestone */}
-                <div className="mt-16 rounded-xl border border-border bg-card p-6 sm:p-8 text-center space-y-4 shadow-sm">
+                <div className="space-y-(--related-gap) border-t border-border/40 pt-(--section-gap) text-center">
                   <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-status-success/15 text-status-success">
                     <CheckCircle2 className="size-6 text-status-success" />
                   </div>
@@ -1547,7 +1549,7 @@ function MaterialViewerContent({
                       <button
                         onClick={() => setSidebarTab("outline")}
                         className={cn(
-                          "py-1.5 rounded-lg flex flex-col items-center justify-center text-[10px] font-semibold transition-all gap-0.5",
+                          "min-h-11 min-w-0 wrap-break-word py-1.5 rounded-lg flex flex-col items-center justify-center text-body-xs font-semibold transition-all gap-0.5",
                           sidebarTab === "outline" ? "bg-card text-brand-primary shadow-xs" : "text-muted-foreground hover:text-foreground"
                         )}
                         title={t("reader.tableOfContents")}
@@ -1558,7 +1560,7 @@ function MaterialViewerContent({
                       <button
                         onClick={() => setSidebarTab("thumbnails")}
                         className={cn(
-                          "py-1.5 rounded-lg flex flex-col items-center justify-center text-[10px] font-semibold transition-all gap-0.5",
+                          "min-h-11 min-w-0 wrap-break-word py-1.5 rounded-lg flex flex-col items-center justify-center text-body-xs font-semibold transition-all gap-0.5",
                           sidebarTab === "thumbnails" ? "bg-card text-brand-primary shadow-xs" : "text-muted-foreground hover:text-foreground"
                         )}
                         title={t("reader.pageThumbnails")}
@@ -1569,7 +1571,7 @@ function MaterialViewerContent({
                       <button
                         onClick={() => setSidebarTab("search")}
                         className={cn(
-                          "py-1.5 rounded-lg flex flex-col items-center justify-center text-[10px] font-semibold transition-all gap-0.5 relative",
+                          "min-h-11 min-w-0 wrap-break-word py-1.5 rounded-lg flex flex-col items-center justify-center text-body-xs font-semibold transition-all gap-0.5 relative",
                           sidebarTab === "search" ? "bg-card text-brand-primary shadow-xs" : "text-muted-foreground hover:text-foreground"
                         )}
                         title={t("reader.searchWords")}
@@ -1583,7 +1585,7 @@ function MaterialViewerContent({
                       <button
                         onClick={() => setSidebarTab("notes")}
                         className={cn(
-                          "py-1.5 rounded-lg flex flex-col items-center justify-center text-[10px] font-semibold transition-all gap-0.5 relative",
+                          "min-h-11 min-w-0 wrap-break-word py-1.5 rounded-lg flex flex-col items-center justify-center text-body-xs font-semibold transition-all gap-0.5 relative",
                           sidebarTab === "notes" ? "bg-card text-brand-primary shadow-xs" : "text-muted-foreground hover:text-foreground"
                         )}
                         title={t("reader.notesAndBookmarks")}
@@ -1591,7 +1593,7 @@ function MaterialViewerContent({
                         <NotebookPen className="size-3.5" />
                         <span>{t("reader.notes")}</span>
                         {(Object.keys(notes).length > 0 || bookmarks.length > 0) && (
-                          <span className="absolute top-1 right-2 bg-brand-secondary/90 text-white rounded-md px-1 text-[10px] font-mono leading-none">
+                          <span className="absolute top-1 right-2 bg-brand-secondary/90 text-white rounded-md px-1 text-body-2xs font-mono leading-none">
                             {Object.keys(notes).length + bookmarks.length}
                           </span>
                         )}
@@ -1732,7 +1734,7 @@ function MaterialViewerContent({
                                           Hal {r.pageNum}
                                         </span>
                                       </div>
-                                      <p className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed bg-muted/20 p-1.5 rounded-lg border border-border/40 font-mono">
+                                      <p className="text-body-xs text-muted-foreground line-clamp-2 bg-muted/20 p-1.5 rounded-lg border border-border/40 font-mono">
                                         <Highlight text={r.searchText} query={searchQuery} />
                                       </p>
                                     </button>
@@ -1752,12 +1754,12 @@ function MaterialViewerContent({
 
                           {activeHighlightQuery && (
                             <div className="bg-amber-500/10 border border-amber-500/25 p-3 rounded-2xl flex items-center justify-between gap-1">
-                              <div className="text-[10px] text-amber-900 dark:text-amber-200">
+                              <div className="text-body-xs text-amber-900 dark:text-amber-200">
                                 Sorotan kata <b className="font-mono font-bold bg-amber-500/20 px-1 rounded">&ldquo;{activeHighlightQuery}&rdquo;</b> aktif di halaman.
                               </div>
                               <button
                                 onClick={() => setActiveHighlightQuery("")}
-                                className="text-[10px] text-destructive font-semibold hover:underline flex items-center gap-0.5 shrink-0"
+                                className="text-body-sm text-destructive font-semibold hover:underline flex items-center gap-0.5 shrink-0"
                               >
                                 Hapus
                               </button>
@@ -1861,7 +1863,7 @@ function MaterialViewerContent({
                                       <div className="flex items-center justify-between">
                                         <button
                                           onClick={() => setPage(pNum)}
-                                          className="font-semibold text-brand-primary hover:underline font-mono text-[10px]"
+                                          className="font-semibold text-brand-primary hover:underline font-mono text-body-sm"
                                         >
                                           Halaman {pNum}
                                         </button>

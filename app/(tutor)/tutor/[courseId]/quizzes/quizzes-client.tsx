@@ -296,7 +296,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-(--major-gap)">
       <Tabs defaultValue="templates" className="w-full">
         <TabsList>
           <TabsTrigger value="templates">
@@ -312,7 +312,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         {/* =====================================================================
             TAB 1: QUIZ
             ===================================================================== */}
-        <TabsContent value="templates" className="space-y-6">
+        <TabsContent value="templates" className="space-y-(--section-gap)">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
             <span className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{tr("quizCount", { count: initialTemplates.length })}</span>
             <TooltipProvider>
@@ -503,7 +503,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         {/* =====================================================================
             TAB 2: QUESTION BANK
             ===================================================================== */}
-        <TabsContent value="questionbank" className="space-y-6">
+        <TabsContent value="questionbank" className="space-y-(--section-gap)">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
             <span className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{tr("questionBankTitle", { count: initialQuestionBank.length })}</span>
             <TooltipProvider>
@@ -530,8 +530,8 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                 const correct = typeof q.correctIndices === "string" ? JSON.parse(q.correctIndices) : q.correctIndices;
 
                 return (
-                  <div key={q.id} className="relative -mx-2 rounded-lg px-2 py-3 transition-colors hover:bg-muted/35">
-                    <div className="flex items-start justify-between gap-4">
+                  <div key={q.id} className="relative -mx-2 rounded-lg px-2 py-(--row-padding) transition-colors hover:bg-muted/35">
+                    <div className="flex items-start justify-between gap-(--related-gap)">
                       <div className="space-y-1.5 flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-body-xs font-bold text-muted-foreground">{tr("questionNumber", { number: initialQuestionBank.length - questionOffset - idx })}</span>
@@ -548,7 +548,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                              q.questionType === "multiple_choices" ? tr("multiSelect") : tr("singleChoice")}
                           </Badge>
                         </div>
-                        <MathText className="text-body-base font-medium text-foreground leading-relaxed pt-1" as="p">{q.prompt}</MathText>
+                        <MathText className="text-body-base font-medium text-foreground pt-1" as="p">{q.prompt}</MathText>
                       </div>
                       
                       {isImmutableReference ? (
@@ -670,7 +670,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 my-2 font-sans overflow-y-auto max-h-[70vh] pr-1">
+          <div className="space-y-(--related-gap) my-2 font-sans overflow-y-auto max-h-[70vh] pr-1">
             <div className="grid gap-2">
               <Label htmlFor="q-prompt" className="text-body-sm font-semibold">{tr("question")}</Label>
               <Textarea
@@ -683,7 +683,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-(--related-gap) sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="q-type" className="text-body-sm font-semibold">{tr("questionType")}</Label>
                 <Select value={qType} onValueChange={(val: any) => {
@@ -719,7 +719,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
 
             {/* Options Input Block for Multiple Choice */}
             {(qType === "multiple_choice" || qType === "multiple_choices") && (
-              <div className="space-y-3">
+              <div className="space-y-(--compact-gap)">
                 <Label className="text-body-sm font-semibold block">{tr("answerOptions")}</Label>
                 <span className="text-body-xs text-muted-foreground block -mt-2">
                   {tr("selectCorrect")}
@@ -728,7 +728,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                 {qOptions.map((opt, i) => {
                   const checked = qCorrectIndices.includes(i);
                   return (
-                    <div key={i} className="flex items-center gap-3">
+                    <div key={i} className="flex items-center gap-(--compact-gap)">
                       <button
                         type="button"
                         aria-label={tr("markCorrect", { letter: String.fromCharCode(65 + i) })}
@@ -865,7 +865,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               {tr("previewTitle", { title: previewTpl?.title ?? "" })}
             </DialogTitle>
-            <DialogDescription className="text-left text-body-xs text-muted-foreground flex gap-3 flex-wrap items-center mt-1">
+            <DialogDescription className="text-left text-body-xs text-muted-foreground flex gap-(--compact-gap) flex-wrap items-center mt-1">
               <span className="bg-muted px-2 py-0.5 rounded-md border border-border">{tr("categoryLabel", { category: previewTpl ? tr(quizCategoryLabelKey(previewTpl.category)) : "" })}</span>
               <span className="bg-muted px-2 py-0.5 rounded-md border border-border">{tr("timeLimit", { duration: previewTpl?.timeLimitSeconds ? `${previewTpl.timeLimitSeconds / 60} min` : tr("free") })}</span>
               <span className="bg-muted px-2 py-0.5 rounded-md border border-border">{tr("attempts", { count: previewTpl?.maxAttempts ? `${previewTpl.maxAttempts}x` : tr("free") })}</span>
@@ -874,7 +874,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
 
           <div className="flex-1 overflow-y-auto px-6 text-left">
             {loadingPreview ? (
-              <div className="py-12 flex flex-col items-center justify-center gap-3">
+              <div className="py-12 flex flex-col items-center justify-center gap-(--compact-gap)">
                 <Loader2 className="size-8 animate-spin text-brand-primary" />
                 <p className="text-body-sm text-muted-foreground">{tr("loadingQuestion")}</p>
               </div>
@@ -885,14 +885,14 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             ) : (
               <ol className="divide-y divide-border/30">
                 {previewQuestions.map((q, idx) => (
-                  <li key={q.id} className="space-y-3 py-4">
+                  <li key={q.id} className="space-y-(--compact-gap) py-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-body-sm font-bold text-foreground">{tr("questionNumberPreview", { number: idx + 1 })}</span>
                       <div className="flex items-center gap-2">
-                        <span className="capitalize text-[10px] bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
+                        <span className="capitalize text-body-2xs bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
                           {tr(q.difficulty)}
                         </span>
-                        <span className="capitalize text-[10px] bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
+                        <span className="capitalize text-body-2xs bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
                           {q.questionType === "multiple_choice"
                             ? tr("singleChoice")
                             : q.questionType === "multiple_choices"
@@ -904,7 +904,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       </div>
                     </div>
 
-                    <MarkdownRenderer content={q.prompt} className="text-body-sm font-semibold text-foreground leading-relaxed" />
+                    <MarkdownRenderer content={q.prompt} className="font-semibold text-foreground" />
 
                     <div className="grid gap-2">
                       {q.options.map((opt: string, optIdx: number) => {
@@ -913,7 +913,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                           <div
                             key={optIdx}
                             className={cn(
-                              "flex items-center gap-3 p-3 rounded-lg border text-body-sm transition-colors",
+                              "flex items-center gap-(--compact-gap) p-3 rounded-lg border text-body-sm transition-colors",
                               isCorrect
                                 ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-medium"
                                 : "bg-background/50 border-border text-foreground/80"

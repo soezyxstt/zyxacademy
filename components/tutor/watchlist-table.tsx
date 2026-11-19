@@ -25,9 +25,9 @@ export function WatchlistTable({ students }: { students: WatchlistStudent[] }) {
       <Table className="w-full text-body-sm">
         <TableHeader>
           <TableRow className="border-b border-border text-left text-muted-foreground text-body-xs font-semibold">
-            <TableHead className="px-4 py-2.5 font-medium">{t("student")}</TableHead>
-            <TableHead className="px-4 py-2.5 font-medium">{t("decliningConcepts")}</TableHead>
-            <TableHead className="px-4 py-2.5 font-medium whitespace-nowrap">{t("lastActive")}</TableHead>
+            <TableHead className="px-4 font-medium">{t("student")}</TableHead>
+            <TableHead className="px-4 font-medium">{t("decliningConcepts")}</TableHead>
+            <TableHead className="px-4 font-medium whitespace-nowrap">{t("lastActive")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody className="divide-y divide-border">
@@ -39,9 +39,9 @@ export function WatchlistTable({ students }: { students: WatchlistStudent[] }) {
               : shown.join(", ") + (overflow > 0 ? ` ${t("otherConcepts", { count: overflow })}` : "");
             return (
               <TableRow key={student.studentId}>
-                <TableCell className="px-4 py-2.5 font-medium text-foreground whitespace-normal break-words">{student.name}</TableCell>
-                <TableCell className="px-4 py-2.5 text-muted-foreground max-w-xs whitespace-normal break-words">{conceptLabel}</TableCell>
-                <TableCell className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">{relativeTime(student.lastActiveAt, locale, (key) => t(key))}</TableCell>
+                <TableCell className="px-4 font-medium text-foreground whitespace-normal break-words">{student.name}</TableCell>
+                <TableCell className="px-4 text-muted-foreground max-w-xs whitespace-normal break-words">{conceptLabel}</TableCell>
+                <TableCell className="px-4 whitespace-nowrap text-muted-foreground">{relativeTime(student.lastActiveAt, locale, (key) => t(key))}</TableCell>
               </TableRow>
             );
           })}

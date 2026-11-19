@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, User, LayoutDashboard, GraduationCap, ShieldCheck } from "lucide-react";
+import { LogOut, SlidersHorizontal, User, LayoutDashboard, GraduationCap, ShieldCheck } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
@@ -103,9 +103,9 @@ export function NavProfileOrSignIn({
                 asChild
                 className="hover:bg-accent hover:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
               >
-                <Link href="/profile" prefetch={false} onClick={onNavigate}>
-                  <User className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  <span>{account("profileSettings")}</span>
+                <Link href="/settings" prefetch={false} onClick={onNavigate}>
+                  <SlidersHorizontal className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span>{account("preferences")}</span>
                 </Link>
               </DropdownMenu.Item>
               <DropdownMenu.Item

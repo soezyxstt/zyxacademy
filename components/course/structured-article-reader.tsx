@@ -1,5 +1,6 @@
 "use client";
 
+import { prefersAppReducedMotion } from "@/components/appearance-preferences";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
@@ -245,9 +246,7 @@ function StructuredArticleReaderContent({
       setIsMobileSheetOpen(false);
       const el = document.getElementById(`section-${section.slug}`);
       if (el) {
-        const reduceMotion =
-          typeof window !== "undefined" &&
-          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const reduceMotion = prefersAppReducedMotion();
         el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
       }
       try {
@@ -264,9 +263,7 @@ function StructuredArticleReaderContent({
       setIsMobileSheetOpen(false);
       const el = document.getElementById(`block-${blockId}`);
       if (el) {
-        const reduceMotion =
-          typeof window !== "undefined" &&
-          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const reduceMotion = prefersAppReducedMotion();
         el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
       }
     },
@@ -282,11 +279,8 @@ function StructuredArticleReaderContent({
       const el = document.getElementById(`section-${targetSlug}`);
       if (el) {
         initialScrolledRef.current = true;
-        const reduceMotion =
-          typeof window !== "undefined" &&
-          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         setTimeout(() => {
-          el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+          el.scrollIntoView({ behavior: prefersAppReducedMotion() ? "auto" : "smooth", block: "start" });
         }, 80);
       }
     }
@@ -794,53 +788,47 @@ function StructuredArticleReaderContent({
       {/* Main Layout Body */}
       <div className={cn("flex-1 flex w-full", isFocusMode && "max-w-4xl mx-auto")}>
         {/* Main Content Area (75 character measure) */}
-        <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-8 pb-32">
+        <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 pt-5 sm:pt-6 pb-32">
           {article.sections.length > 0 ? (
             <div
               ref={contentContainerRef}
               id="article-reading-content"
               className={cn(
-                "max-w-[75ch] mx-auto space-y-10",
+                "max-w-[75ch] mx-auto",
                 temporaryHighlight && "ring-2 ring-status-warning/60 ring-offset-4 ring-offset-background",
               )}
             >
               {temporaryHighlight ? (
-                <div role="status" className="rounded-lg border border-status-warning/40 bg-status-warning/10 px-4 py-3 text-body-sm text-foreground">
+                <div role="status" className="mb-4 rounded-lg border border-status-warning/40 bg-status-warning/10 px-4 py-3 text-body-sm text-foreground">
                   Menampilkan hasil untuk <span className="font-semibold">{temporaryHighlight}</span>. Sorotan akan hilang otomatis.
                 </div>
               ) : null}
 
-              {article.sections.map((sec, secIdx) => {
-                const isLast = secIdx === article.sections.length - 1;
+              {article.sections.map((sec) => {
                 const isSecDone = Boolean(
                   sectionProgressMap[sec.id]?.completed ||
                   (sectionProgressMap[sec.id]?.maxReadPercent ?? 0) >= 90
                 );
                 return (
-                  <React.Fragment key={sec.id}>
-                    <article
-                      id={`section-${sec.slug}`}
-                      data-section-slug={sec.slug}
-                      className="scroll-mt-20 space-y-6"
-                    >
-                      <StructuredArticleSectionContent
-                        section={sec}
-                        articleId={article.id}
-                        articleVersion={article.version}
-                        completed={adapter ? adapter.completed : isSecDone}
-                        interactiveChecks
-                      />
-                    </article>
-
-                    {!isLast ? (
-                      <hr className="my-12 border-t border-border/80" />
-                    ) : null}
-                  </React.Fragment>
+                  <article
+                    key={sec.id}
+                    id={`section-${sec.slug}`}
+                    data-section-slug={sec.slug}
+                    className="scroll-mt-20 space-y-(--related-gap) [&+article]:mt-[calc(var(--reading-section-gap)*0.5)] [&+article]:border-t [&+article]:border-border/80 [&+article]:pt-[calc(var(--reading-section-gap)*0.5)] lg:[&+article]:mt-[calc(var(--reading-section-gap)*0.75)] lg:[&+article]:pt-[calc(var(--reading-section-gap)*0.75)]"
+                  >
+                    <StructuredArticleSectionContent
+                      section={sec}
+                      articleId={article.id}
+                      articleVersion={article.version}
+                      completed={adapter ? adapter.completed : isSecDone}
+                      interactiveChecks
+                    />
+                  </article>
                 );
               })}
 
               {/* End of chapter card */}
-              <div className="mt-16 rounded-xl border border-border bg-card p-6 sm:p-8 text-center space-y-4 shadow-sm">
+              <div className="mt-(--reading-section-gap) rounded-xl border border-border bg-card p-(--panel-padding) sm:p-(--section-gap) text-center space-y-(--related-gap) shadow-sm">
                 <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-status-success/15 text-status-success">
                   <Award className="size-6" />
                 </div>

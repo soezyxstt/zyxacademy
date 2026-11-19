@@ -37,7 +37,7 @@ function LinkRow({ link }: { link: PublicLink }) {
       href={link.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex items-center gap-3 py-3 transition-colors hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring"
+      className="group flex items-center gap-(--compact-gap) py-(--row-padding) transition-colors hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring"
     >
       <span
         className={cn(
@@ -107,7 +107,7 @@ export default async function TautanPage() {
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-background">
       <PageOrnaments variant="testimonial" />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-12 sm:py-16">
+      <div className="relative z-10 mx-auto flex w-full max-w-xl flex-1 flex-col px-(--page-gutter) py-12 sm:py-16">
         <header className="flex flex-col items-center text-center">
           <div className="flex size-16 items-center justify-center">
             <Logo variant="symbol" className="[--logo-height:2.25rem]" />
@@ -133,9 +133,9 @@ export default async function TautanPage() {
             </p>
           </div>
         ) : showSectionLabels ? (
-          <div className="mt-10 flex flex-col gap-8">
+          <div className="mt-(--reading-section-gap) flex flex-col gap-(--reading-section-gap)">
             {groups.map((group) => (
-              <section key={group.label} className="flex flex-col gap-3">
+              <section key={group.label} className="flex flex-col gap-(--compact-gap)">
                 <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
                   {group.label}
                 </h2>

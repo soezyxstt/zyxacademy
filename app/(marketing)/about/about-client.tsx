@@ -94,7 +94,7 @@ export function AboutClient() {
 
       <Reveal>
         <SectionContainer className="relative z-10 border-b border-border bg-muted/20 py-16 md:py-24">
-          <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start lg:gap-16">
+          <div className="grid gap-(--reading-section-gap) lg:grid-cols-[0.9fr_1.1fr] lg:items-start lg:gap-marketing-section">
             <div className="space-y-4">
               <SectionHeading as="h2" tier="primary" className="text-foreground">
               {t("about.principlesTitle")}
@@ -118,7 +118,7 @@ export function AboutClient() {
 
       <Reveal>
         <SectionContainer className="relative z-10 border-b border-border bg-background py-16 md:py-24">
-          <div className="mx-auto max-w-5xl space-y-8">
+          <div className="mx-auto max-w-5xl space-y-(--reading-section-gap)">
             <div className="max-w-3xl space-y-3">
               <SectionHeading as="h2" tier="primary" className="text-foreground">
                 {t("about.founderSectionTitle")}
@@ -161,7 +161,7 @@ export function AboutClient() {
 
       <Reveal>
         <SectionContainer className="relative z-10 bg-background py-16 md:py-24">
-          <div className="mx-auto max-w-5xl space-y-10">
+          <div className="mx-auto max-w-5xl space-y-(--reading-section-gap)">
             <div className="max-w-3xl space-y-3">
               <SectionHeading as="h2" tier="primary" className="text-foreground">
                 {t("about.peopleTitle")}

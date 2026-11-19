@@ -46,7 +46,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
   const isVideoUnlocked = userPlan === "essential" || userPlan === "premium";
 
   return (
-    <div className="space-y-6 font-sans">
+    <div className="space-y-(--section-gap) font-sans">
 
       {/* Overview stats */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
@@ -56,7 +56,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
             {review.examTitle}
           </h2>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-(--section-gap)">
           <div className="text-left md:text-right">
             <span className="text-body-xs font-semibold text-muted-foreground uppercase">{t("review.finalScore")}</span>
             <p className="font-heading text-h5 font-bold text-foreground">
@@ -79,7 +79,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
           return (
             <li
               key={item.questionId}
-              className="p-4 sm:p-5"
+              className="p-(--panel-padding) sm:p-(--group-gap)"
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0 flex-1 text-body-base font-medium text-foreground leading-snug">
@@ -137,7 +137,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
 
               {/* Zyra-Generated Discussion and Explanation Section */}
               {hasExplanation && (
-                <div className="mt-6 border-t border-border/80 pt-6 space-y-4">
+                <div className="mt-(--section-gap) border-t border-border/80 pt-(--section-gap) space-y-(--related-gap)">
                   <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground">{t("review.explanation")}</h4>
 
                   {/* Text-based explanation */}

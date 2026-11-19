@@ -47,7 +47,7 @@ export default async function AchievementsPage({ searchParams }: { searchParams:
   const familyLabels = Object.fromEntries(profileBadgeFamilies.map(family => [family, t(`profileCustomization.families.${family}`)])) as Record<BadgeFamily, string>;
   return <ApplicationPage><PageHeader title={t("gamificationUi.achievements")} icon={Award} />
     <AchievementTabs active={tab} labels={labels} />
-    {summary && tab === "overview" && <div className="space-y-6">
+    {summary && tab === "overview" && <div className="space-y-(--section-gap)">
       <RankPromotion summary={summary} locale={locale} labels={{ rank: rankName, nextRank: t("achievementPage.nextRank"), maximumRank: t("achievementPage.maximumRank"), xp: "XP", courses: t("achievementPage.courses"), balance: t("achievementPage.balance"), requirement: t("achievementPage.promotionRequirement") }} />
       <AchievementBoard collectedOnly emptyTitle={t("profileCustomization.noBadges")} badges={badges} title={t("profileCustomization.badgeBoard")} familyLabels={familyLabels} lockedLabel={t("achievementPage.locked")} tierLabel={tier => ["I", "II", "III", "IV", "V"][tier - 1]} action={<Button variant="outline" size="sm" asChild><Link href="/achievements?tab=badges">{t("achievementPage.badges")}</Link></Button>} />
     </div>}

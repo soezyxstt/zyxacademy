@@ -165,7 +165,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
           </p>
 
           {/* Token Form */}
-          <form onSubmit={handleJoinToken} className="max-w-md mx-auto space-y-3">
+          <form onSubmit={handleJoinToken} className="max-w-md mx-auto space-y-(--compact-gap)">
             <div className="flex gap-2">
               <Input
                 type="text"
@@ -190,8 +190,8 @@ export function StudentGroupsClient({ initialGroups }: Props) {
         </div>
 
         {/* Benefits Info Strip */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-4xl mx-auto">
-          <div className="p-5 rounded-xl border border-border/70 bg-card/70 backdrop-blur-md shadow-xs space-y-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-(--related-gap) max-w-4xl mx-auto">
+          <div className="p-(--panel-padding) rounded-xl border border-border/70 bg-card/70 backdrop-blur-md shadow-xs space-y-2">
             <div className="size-8 rounded-lg bg-brand-primary/10 text-brand-primary flex items-center justify-center">
               <Users className="size-4" />
             </div>
@@ -203,7 +203,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
             </p>
           </div>
 
-          <div className="p-5 rounded-xl border border-border/70 bg-card/70 backdrop-blur-md shadow-xs space-y-2">
+          <div className="p-(--panel-padding) rounded-xl border border-border/70 bg-card/70 backdrop-blur-md shadow-xs space-y-2">
             <div className="size-8 rounded-lg bg-status-info/10 text-status-info flex items-center justify-center">
               <GraduationCap className="size-4" />
             </div>
@@ -215,7 +215,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
             </p>
           </div>
 
-          <div className="p-5 rounded-xl border border-border/70 bg-card/70 backdrop-blur-md shadow-xs space-y-2">
+          <div className="p-(--panel-padding) rounded-xl border border-border/70 bg-card/70 backdrop-blur-md shadow-xs space-y-2">
             <div className="size-8 rounded-lg bg-brand-secondary/10 text-brand-secondary flex items-center justify-center">
               <Brain className="size-4" />
             </div>
@@ -232,7 +232,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-(--section-gap)">
       {/* Group Selector if multiple groups */}
       {initialGroups.length > 1 && (
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
@@ -254,17 +254,17 @@ export function StudentGroupsClient({ initialGroups }: Props) {
       )}
 
       {/* 1. Main Group Banner & Quota Metric */}
-      <div className={studentSectionClass("space-y-6 sm:p-8")}>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/80 pb-6">
+      <div className={studentSectionClass("space-y-(--section-gap) sm:p-8")}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-(--related-gap) border-b border-border/80 pb-6">
           <div>
             <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
               <h2 className="font-heading text-h4 font-bold text-foreground">
                 {activeGroup.name}
               </h2>
-              <Badge variant="default" className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[11px] font-semibold">
+              <Badge variant="default" className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-body-xs font-semibold">
                 Kelompok Aktif
               </Badge>
-              <Badge variant="outline" className="text-[11px] font-semibold">
+              <Badge variant="outline" className="text-body-xs font-semibold">
                 {activeGroup.myRole === "leader" ? "Ketua Kelompok" : "Anggota"}
               </Badge>
             </div>
@@ -285,10 +285,10 @@ export function StudentGroupsClient({ initialGroups }: Props) {
         </div>
 
         {/* Quota Progress Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-(--section-gap)">
           {/* Progress Gauge */}
           {activeGroup.totalQuotaSessions > 0 ? (
-            <div className="md:col-span-2 space-y-4 p-5 rounded-xl border border-border bg-muted/20">
+            <div className="md:col-span-2 space-y-(--related-gap) p-(--panel-padding) rounded-xl border border-border bg-muted/20">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-body-xs font-semibold text-muted-foreground block">
@@ -345,7 +345,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
               </p>
             </div>
           ) : (
-            <div className="md:col-span-2 space-y-2 p-5 rounded-xl border border-border bg-muted/20 flex flex-col justify-center">
+            <div className="md:col-span-2 space-y-2 p-(--panel-padding) rounded-xl border border-border bg-muted/20 flex flex-col justify-center">
               <span className="font-heading text-body-base font-bold text-foreground">Paket belajar mandiri</span>
               <p className="text-body-xs text-muted-foreground">
                 Kelompok ini tidak mencakup kuota sesi tutorial tatap muka. Akses materi dan kuis tetap aktif.
@@ -354,7 +354,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
           )}
 
           {/* Period & Info Card */}
-          <div className="space-y-3 p-5 rounded-xl border border-border bg-muted/10 flex flex-col justify-between">
+          <div className="space-y-(--compact-gap) p-(--panel-padding) rounded-xl border border-border bg-muted/10 flex flex-col justify-between">
             <div>
               <span className="text-body-xs font-semibold text-muted-foreground block mb-2">
                 Periode Masa Aktif
@@ -377,7 +377,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
             {/* Share Token if available and slots remain */}
             {activeGroup.token && activeGroup.members.length < activeGroup.token.capacity && (
               <div className="pt-3 border-t border-border/60">
-                <span className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                <span className="text-body-xs font-semibold text-muted-foreground block mb-1">
                   Ajak Teman Sekelompok ({activeGroup.members.length}/{activeGroup.token.capacity})
                 </span>
                 <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-card border border-border">
@@ -388,7 +388,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
                     size="xs"
                     variant="ghost"
                     onClick={() => handleCopy(activeGroup.token!.token)}
-                    className="h-7 px-2 text-[11px] gap-1 shrink-0"
+                    className="min-h-8 px-2 text-body-sm gap-1 shrink-0"
                   >
                     {copiedToken === activeGroup.token.token ? (
                       <Check className="size-3 text-emerald-500" />
@@ -404,7 +404,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
         </div>
 
         {/* Weekly Attendance Traceability */}
-        <div className="p-5 rounded-xl border border-border bg-muted/10">
+        <div className="p-(--panel-padding) rounded-xl border border-border bg-muted/10">
           <span className="text-body-xs font-semibold text-muted-foreground block mb-3">
             Riwayat 4 Minggu Terakhir
           </span>
@@ -414,10 +414,10 @@ export function StudentGroupsClient({ initialGroups }: Props) {
                 key={w.weekStartIso}
                 className="p-2.5 rounded-lg border border-border bg-card text-center space-y-1"
               >
-                <span className="text-[11px] font-semibold text-foreground block">
+                <span className="text-body-xs font-semibold text-foreground block">
                   {w.label}
                 </span>
-                <div className="flex items-center justify-center gap-2 text-[11px]">
+                <div className="flex items-center justify-center gap-2 text-body-xs">
                   <span className="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400">
                     <CheckCircle2 className="size-3" />
                     {w.attended} hadir
@@ -434,9 +434,9 @@ export function StudentGroupsClient({ initialGroups }: Props) {
       </div>
 
       {/* 2. Mata Kuliah & Anggota Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-(--section-gap)">
         {/* Mata Kuliah Kelompok (2 cols) */}
-        <div className={cn("lg:col-span-2 space-y-4", studentSectionClass())}>
+        <div className={cn("lg:col-span-2 space-y-(--related-gap)", studentSectionClass())}>
           <div className="flex items-center justify-between border-b border-border pb-3">
             <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
               <BookOpen className="size-5 text-brand-primary" />
@@ -460,11 +460,11 @@ export function StudentGroupsClient({ initialGroups }: Props) {
               {activeGroup.courses.map((c) => (
                 <div
                   key={c.id}
-                  className="p-4 rounded-xl border border-border bg-muted/15 hover:bg-muted/30 transition-all flex flex-col justify-between space-y-3"
+                  className="p-4 rounded-xl border border-border bg-muted/15 hover:bg-muted/30 transition-all flex flex-col justify-between space-y-(--compact-gap)"
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2 mb-1">
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded">
+                      <span className="text-body-2xs uppercase font-bold tracking-wider text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded">
                         {c.category || "Kelas"}
                       </span>
                     </div>
@@ -503,7 +503,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
         </div>
 
         {/* Rekan Belajar / Anggota Kelompok (1 col) */}
-        <div className={studentSectionClass("space-y-4")}>
+        <div className={studentSectionClass("space-y-(--related-gap)")}>
           <div className="flex items-center justify-between border-b border-border pb-3">
             <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
               <Users className="size-5 text-brand-primary" />
@@ -513,13 +513,13 @@ export function StudentGroupsClient({ initialGroups }: Props) {
 
           <div className="divide-y divide-border/60">
             {activeGroup.members.map((m) => (
-              <div key={m.userId} className="py-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
+              <div key={m.userId} className="py-3 flex items-center justify-between gap-(--compact-gap)">
+                <div className="flex items-center gap-(--compact-gap) min-w-0">
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <StudentIdentity name={m.name} identity={m.identity} />
                       {m.isMe && (
-                        <span className="text-[10px] bg-brand-primary/15 text-brand-primary font-bold px-1.5 py-0.2 rounded shrink-0">
+                        <span className="text-body-2xs bg-brand-primary/15 text-brand-primary font-bold px-1.5 py-0.2 rounded shrink-0">
                           Anda
                         </span>
                       )}
@@ -530,7 +530,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
 
                 <Badge
                   variant={m.role === "leader" ? "default" : "outline"}
-                  className="text-[10px] uppercase font-semibold shrink-0"
+                  className="text-body-2xs uppercase font-semibold shrink-0"
                 >
                   {m.role === "leader" ? "Ketua" : "Anggota"}
                 </Badge>
@@ -541,7 +541,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
       </div>
 
       {/* 3. Riwayat Pertemuan Kelompok */}
-      <div className={studentSectionClass("space-y-4")}>
+      <div className={studentSectionClass("space-y-(--related-gap)")}>
         <div className="flex items-center justify-between border-b border-border pb-3">
           <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <Clock className="size-5 text-brand-primary" />
@@ -620,7 +620,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
 
       {/* 4. Gabung Kelompok Tambahan Dengan Token */}
       <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-(--related-gap)">
           <div>
             <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
               <KeyRound className="size-4 text-brand-primary" />

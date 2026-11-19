@@ -378,7 +378,7 @@ export function TutorQuizForm({
   const isPublishing = isPending && publishPending;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-(--section-gap)">
       <PageHeader
         icon={NotebookPen}
         title={headerTitle}
@@ -428,7 +428,7 @@ export function TutorQuizForm({
       />
 
       {/* 2-Tab Navigation */}
-      <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full space-y-4">
+      <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full space-y-(--related-gap)">
         <TabsList>
           <TabsTrigger value="pengaturan">
             <Settings2 className="size-4" />
@@ -448,8 +448,8 @@ export function TutorQuizForm({
         </TabsList>
 
         {/* TAB 1: PENGATURAN */}
-        <TabsContent value="pengaturan" className="space-y-4 focus-visible:outline-none">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <TabsContent value="pengaturan" className="space-y-(--related-gap) focus-visible:outline-none">
+          <div className="grid grid-cols-1 gap-(--related-gap) lg:grid-cols-12">
             {/* LEFT COLUMN: Main Info & Schedule */}
             <div className="divide-y divide-border border-y border-border lg:col-span-7">
               <section>
@@ -459,9 +459,9 @@ export function TutorQuizForm({
                     {t("quizTitle")}
                   </h3>
                 </div>
-                <div className="space-y-4 py-3">
+                <div className="space-y-(--related-gap) py-3">
                   {isEdit && initialData && (
-                    <div className="flex flex-wrap items-center justify-between gap-3 pb-2 text-body-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-(--compact-gap) pb-2 text-body-xs">
                       <div className="flex min-w-0 flex-wrap items-center gap-2 wrap-anywhere font-medium text-foreground">
                         <Shield className="size-4 text-brand-primary shrink-0" />
                         <span>{t("creator")}:</span>
@@ -472,7 +472,7 @@ export function TutorQuizForm({
                           <span className="text-muted-foreground">({initialData.creatorEmail})</span>
                         )}
                         {initialData.creatorRole && (
-                          <Badge variant="outline" className="capitalize text-[10px] rounded-md px-1.5 py-0">
+                          <Badge variant="outline" className="capitalize text-body-2xs rounded-md px-1.5 py-0">
                             {initialData.creatorRole}
                           </Badge>
                         )}
@@ -508,7 +508,7 @@ export function TutorQuizForm({
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-(--compact-gap) sm:grid-cols-2">
                     <div>
                       <Label htmlFor="category" className="text-body-sm font-semibold text-foreground">
                         {t("category")}
@@ -552,8 +552,8 @@ export function TutorQuizForm({
                     {t("scheduleType")}
                   </h3>
                 </div>
-                <div className="space-y-4 py-3">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-(--related-gap) py-3">
+                  <div className="grid grid-cols-1 gap-(--compact-gap) sm:grid-cols-2">
                     <button
                       type="button"
                       onClick={() => {
@@ -624,7 +624,7 @@ export function TutorQuizForm({
                   </div>
 
                   {scheduleType === "scheduled" ? (
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 pt-2 border-t border-border">
+                    <div className="grid grid-cols-1 gap-(--compact-gap) sm:grid-cols-2 pt-2 border-t border-border">
                       <div>
                         <Label htmlFor="openAt" className="text-body-sm font-semibold text-foreground">
                           {t("openAt")}
@@ -679,7 +679,7 @@ export function TutorQuizForm({
                     {t("durationAttempts")}
                   </h3>
                 </div>
-                <div className="space-y-4 py-3">
+                <div className="space-y-(--related-gap) py-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <Label className="text-body-sm font-semibold text-foreground">{t("timeLimit")}</Label>
@@ -784,8 +784,8 @@ export function TutorQuizForm({
         </TabsContent>
 
         {/* TAB 2: PILIHAN SOAL */}
-        <TabsContent value="soal" className="space-y-4 focus-visible:outline-none">
-          <section aria-label={t("questions")} className="space-y-4">
+        <TabsContent value="soal" className="space-y-(--related-gap) focus-visible:outline-none">
+          <section aria-label={t("questions")} className="space-y-(--related-gap)">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex min-w-0 flex-1 items-center gap-2 has-[[data-search-expanded=true]]:basis-48">
                 <SearchBar
@@ -918,7 +918,7 @@ export function TutorQuizForm({
                       key={q.id}
                       onClick={() => toggleSelectQuestion(q.id)}
                       className={cn(
-                        "flex items-start gap-3 px-3 py-3 transition-colors cursor-pointer text-left",
+                        "flex items-start gap-(--compact-gap) px-3 py-3 transition-colors cursor-pointer text-left",
                         isSelected
                           ? "bg-primary/5"
                           : "hover:bg-muted/30"
@@ -935,7 +935,7 @@ export function TutorQuizForm({
                       <div className="flex-1 min-w-0 space-y-1.5">
                         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                           <div className="min-w-0 flex-[1_1_24rem]">
-                            <MathText className="pt-0.5 text-body-sm font-medium leading-relaxed text-foreground" as="p">
+                            <MathText className="pt-0.5 text-body-base font-medium text-foreground" as="p">
                               {q.prompt}
                             </MathText>
                           </div>
@@ -957,7 +957,7 @@ export function TutorQuizForm({
                         {qOpts.length > 0 && (
                           <div className="grid gap-1 sm:grid-cols-2 pt-1">
                             {qOpts.map((opt: string, optIdx: number) => (
-                              <div key={optIdx} className="text-body-xs text-muted-foreground break-words">
+                              <div key={optIdx} className="text-body-base text-muted-foreground break-words">
                                 <span className="font-semibold text-foreground/80 mr-1">
                                   {String.fromCharCode(65 + optIdx)}.
                                 </span>

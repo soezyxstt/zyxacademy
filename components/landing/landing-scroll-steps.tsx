@@ -71,7 +71,7 @@ export function LandingScrollSteps({ steps, renderPanel, className }: LandingScr
  );
 
  return (
- <div className={cn("grid min-w-0 items-start gap-10 lg:grid-cols-2 lg:gap-16", className)}>
+ <div className={cn("grid min-w-0 items-start gap-(--reading-section-gap) lg:grid-cols-2 lg:gap-marketing-section", className)}>
  {/* Sticky visual panel ; desktop only */}
  <div className="max-lg:hidden lg:sticky lg:top-28 lg:self-start">
  {renderPanel ? renderPanel(panes) : panes}

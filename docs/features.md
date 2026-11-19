@@ -356,8 +356,14 @@ The standalone Admin material editor is retired. Existing website material remai
 - Google Meet review session scheduling
 - Admin broadcast announcements
 
+### Account preferences
+
+The account menu opens `/settings` for students, tutors, and admins. The Appearance tab groups color mode, background, interface language, spacing, font size, animation, and on-screen alert position. Language follows the signed-in account. Display choices are saved in the current browser. Spacing and font size apply on the Student and Tutor surfaces, including the public student demo. Reduced-motion system preferences still apply.
+
+The Profile tab reuses the authenticated profile editor, including student-only privacy and cosmetics where eligible. `/profile` opens the profile view. Existing links to `/profile/edit` also open the editor.
+
 ### Email Notification Preferences
-- Authenticated users manage optional email at `/settings/notifications` using their Google account email.
+- Authenticated users manage optional email at `/settings?tab=email` using their Google account email. `/settings/notifications` remains available for direct links.
 - One master control covers four global categories: course updates, events and schedules, learning reminders, and news and offers.
 - Essential account, security, payment, and enrollment emails remain mandatory and are outside the optional preference system.
 - Optional email delivery always uses one shared sender and fails closed if preferences cannot be loaded.

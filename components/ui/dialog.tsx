@@ -64,7 +64,7 @@ function DialogContent({
         <DialogNs.Content
           data-slot="dialog-content"
           className={cn(
-            "pointer-events-auto relative grid w-full max-w-lg gap-4 rounded-xl border border-border bg-popover p-6 text-popover-foreground shadow-lg duration-200 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 motion-reduce:data-[state=open]:animate-none motion-reduce:data-[state=open]:opacity-100 motion-reduce:data-[state=open]:scale-100",
+            "pointer-events-auto relative grid w-full max-w-lg gap-(--related-gap) rounded-xl border border-border bg-popover p-(--panel-padding) text-popover-foreground shadow-lg duration-200 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 motion-reduce:data-[state=open]:animate-none motion-reduce:data-[state=open]:opacity-100 motion-reduce:data-[state=open]:scale-100",
             className
           )}
           {...props}
@@ -115,7 +115,7 @@ function DialogTitle({
   return (
     <DialogNs.Title
       data-slot="dialog-title"
-      className={cn("font-heading text-body-base font-bold text-foreground", className)}
+      className={cn("font-heading text-section-title font-bold text-foreground", className)}
       {...props}
     />
   );
@@ -128,7 +128,7 @@ function DialogDescription({
   return (
     <DialogNs.Description
       data-slot="dialog-description"
-      className={cn("text-body-xs text-muted-foreground", className)}
+      className={cn("text-support text-muted-foreground", className)}
       {...props}
     />
   );
