@@ -12,6 +12,7 @@ assertWorkerEnvironment(target, config);
 assert.equal(config.INNGEST_SERVE_ORIGIN, target.origin);
 Object.assign(process.env, config);
 const [{ storage }, { joinKey, buildSourceReadJobKey }] = await Promise.all([import("../../lib/storage"), import("../../lib/storage/keys")]);
+const queuePilot = target.name === "staging" && process.env.QUEUE_SMOKE_PROVIDER === "cloud-tasks";
 const checks: Array<{ name: string; status: "PASS"; durationMs: number }> = [];
 const objects: string[] = [];
 const pendingSources = new Set<string>();
@@ -37,7 +38,7 @@ async function rpc(key: string, representation: "text" | "image" | "both", image
   }
   throw new Error("PDF_RPC_RATE_LIMIT_RETRIES_EXHAUSTED");
 }
-try {
+async function runChecks() {
   await check("health and all function registration", async () => {
     for (let attempt = 0; attempt < 15; attempt++) {
       const response = await fetch(`${config.INNGEST_SERVE_ORIGIN}/health?probe=${crypto.randomUUID()}`, { cache: "no-store", signal: AbortSignal.timeout(30_000) });
@@ -50,11 +51,12 @@ try {
     }
   });
   await check("internal and Inngest authentication", async () => {
-    for (const path of ["/internal/pdf/pages", "/internal/authoring/source-pack/resolve", "/api/inngest"]) {
+    for (const path of ["/internal/pdf/pages", "/internal/authoring/source-pack/resolve", "/api/inngest", ...(queuePilot ? ["/internal/tasks/source.pdf.page.requested"] : [])]) {
       const response = await fetch(`${config.INNGEST_SERVE_ORIGIN}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
       assert.equal(response.status, 401, path);
     }
   });
+  if (queuePilot && process.argv.includes("--preflight")) return;
   const key = joinKey("overhaul", "neon-worker-smoke", `${crypto.randomUUID()}.pdf`);
   objects.push(key);
   await storage.upload(sourcePdf(595.28, 841.89), "synthetic.pdf", "application/pdf", { key });
@@ -67,7 +69,7 @@ try {
       jobId, requestId: crypto.randomUUID(), storageKey: key, materialId: jobId, courseId: "neon-worker-smoke",
       checksum: null, pages: [1], pageNumber: 1, representation: "text", imageWidth: 640,
     } };
-    if (target.name === "staging" && process.env.QUEUE_SMOKE_PROVIDER === "cloud-tasks") {
+    if (queuePilot) {
       process.env.QUEUE_PROVIDER = "cloud-tasks";
       const { enqueueTask } = await import("../../lib/queue/cloud-tasks");
       const taskName = await enqueueTask(event);
@@ -115,6 +117,7 @@ try {
       throw new Error(`INNGEST_SMOKE_PENDING:${sent.ids[0]}`);
     }
   });
+  if (queuePilot) return;
   await check("Cloudflare PDF text extraction", async () => {
     const result = await rpc(key, "text"); assert.equal(result.totalPages, 1); assert.match(result.pages[0].text, /Hello PDF/);
   });
@@ -150,6 +153,9 @@ try {
     await storage.upload(rendered!, "rendered.pdf", "application/pdf", { key: renderedKey });
     const result = await rpc(renderedKey, "text"); assert.match(result.pages[0].text, /Neon worker PDF smoke/);
   });
+}
+try {
+  await runChecks();
   await writeFile(`${target.output}/http-smoke.json`, JSON.stringify({ status: "PASS", checks }, null, 2));
 } catch (error) {
   await writeFile(`${target.output}/http-smoke.json`, JSON.stringify({ status: "FAIL", checks, error: error instanceof Error ? error.message : "unknown" }, null, 2));
