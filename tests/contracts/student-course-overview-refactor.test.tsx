@@ -265,13 +265,16 @@ describe("Course Overview and Mastery Refactor", () => {
         items: [
           {
             kind: "flashcard",
+            count: 12,
             label: "12 flashcard perlu diulas",
             actionLabel: "Ulas sekarang →",
             href: "/courses/mat-1/flashcard",
           },
           {
             kind: "weak-concept",
-            label: "Limit perlu latihan (42%)",
+            conceptName: "Limit",
+            masteryScore: 42,
+            label: "Limit",
             actionLabel: "Latihan sekarang →",
             href: "/courses/mat-1/quiz",
           },
@@ -283,10 +286,12 @@ describe("Course Overview and Mastery Refactor", () => {
       );
       expect(filledMarkup).toContain("Perlu perhatian");
       expect(filledMarkup).toContain("12 flashcard perlu diulas");
-      expect(filledMarkup).toContain("Ulas sekarang →");
-      expect(filledMarkup).toContain("Limit perlu latihan (42%)");
-      expect(filledMarkup).toContain("Latihan sekarang →");
+      expect(filledMarkup).toContain("Limit");
+      expect(filledMarkup).toContain("42%");
+      expect(filledMarkup).not.toContain("Ulas sekarang");
+      expect(filledMarkup).not.toContain("Latihan sekarang");
       expect(filledMarkup).toContain('href="/courses/mat-1/flashcard"');
+      expect(filledMarkup).toContain('href="/courses/mat-1/quiz"');
     });
 
     test("DashboardWeakConcepts renders empty state when no concepts are measured, and renders Belum diukur for unmeasured concepts alongside measured ones", () => {

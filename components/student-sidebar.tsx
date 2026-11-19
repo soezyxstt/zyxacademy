@@ -164,19 +164,37 @@ function StudentSidebarContent({
     if (streakCurrent === null) return null;
     if (c) {
       return (
-        <div className="px-3 pt-3 shrink-0 flex justify-center">
+        <div className="px-1 pt-2 shrink-0 flex justify-center">
           <SidebarTooltip label={t("navigation.streak", { count: streakCurrent })} collapsed={true}>
-            <div className="flex size-10 items-center justify-center rounded-xl bg-brand-secondary/10 text-brand-secondary">
-              <Flame className="size-5" />
+            <div className="flex size-8 items-center justify-center rounded-md text-brand-secondary">
+              <Flame className="size-4" />
             </div>
           </SidebarTooltip>
         </div>
       );
     }
     return (
-      <div className="px-3 pt-3 shrink-0">
+      <div className="shrink-0">
         <StreakCalendarStrip current={streakCurrent} weeklyActivity={weeklyActivity} />
       </div>
+    );
+  };
+
+  const headerActions = (c: boolean) => {
+    if (!activeCourseId) return null;
+    return (
+      <SidebarTooltip label={t("navigation.backToDashboard")} collapsed={c}>
+        <Link
+          href={href("/dashboard")}
+          aria-label={t("navigation.backToDashboard")}
+          className={cn(
+            "flex shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer",
+            c ? "size-8" : "size-7"
+          )}
+        >
+          <ArrowLeft className="size-4" />
+        </Link>
+      </SidebarTooltip>
     );
   };
 
@@ -242,34 +260,20 @@ function StudentSidebarContent({
 
       return (
         <nav className={cn(
-          "flex flex-1 flex-col gap-1 py-4 font-sans text-left",
+          "flex min-h-0 flex-1 flex-col gap-1 py-2.5 font-sans text-left",
           c
-            ? "px-1 items-center overflow-y-hidden sidebar-scroll-hidden"
-            : "px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
+            ? "px-1 items-center overflow-y-auto overflow-x-hidden sidebar-scroll-hidden"
+            : "px-2.5 overflow-y-auto overflow-x-hidden sidebar-scroll"
         )}>
-          <SidebarTooltip label={t("navigation.backToDashboard")} collapsed={c}>
-            <Link
-              href={href("/dashboard")}
-              title={c ? t("navigation.backToDashboard") : undefined}
-              className={cn(
-                "flex items-center gap-2.5 rounded-xl px-3 py-2 text-body-xs font-semibold text-brand-secondary hover:bg-muted/40 transition-colors mb-3",
-                c && "justify-center size-10 px-0 mx-auto"
-              )}
-            >
-              <ArrowLeft className="size-4 shrink-0" />
-              {!c && <span>{t("navigation.dashboard")}</span>}
-            </Link>
-          </SidebarTooltip>
-
           {c ? (
-            <div className="mb-2 flex w-full justify-center">
+            <div className="mb-1 flex w-full shrink-0 justify-center">
               <DropdownMenu>
                 <SidebarTooltip label={`${t("navigation.switchCourse")}: ${courseTitle}`} collapsed={c}>
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
                       aria-label={`${t("navigation.switchCourse")}: ${courseTitle}`}
-                      className="flex size-10 items-center justify-center rounded-xl text-foreground hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+                      className="flex size-10 items-center justify-center rounded-lg text-foreground hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                     >
                       <BookOpen className="size-4" />
                     </button>
@@ -286,12 +290,12 @@ function StudentSidebarContent({
                           key={course.id}
                           onSelect={() => handleSelectCourse(course.id)}
                           className={cn(
-                            "flex items-center justify-between gap-2 cursor-pointer text-body-sm",
+                            "flex items-center justify-between gap-2 cursor-pointer text-body-xs",
                             isCurrent && "font-semibold bg-brand-primary/10 text-brand-primary"
                           )}
                         >
                           <span className="truncate">{course.title}</span>
-                          {isCurrent && <Check className="size-4 shrink-0 text-brand-primary" />}
+                          {isCurrent && <Check className="size-3.5 shrink-0 text-brand-primary" />}
                         </DropdownMenuItem>
                       );
                     })}
@@ -300,21 +304,21 @@ function StudentSidebarContent({
               </DropdownMenu>
             </div>
           ) : (
-            <div className="mb-4">
+            <div className="mb-2 border-b border-border/50 pb-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
                     aria-label={`${t("navigation.switchCourse")}: ${courseTitle}`}
-                    className="group flex w-full items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-left transition-colors hover:bg-muted/60 hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+                    className="group flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                   >
                     <span className="truncate text-body-sm font-semibold text-foreground font-heading leading-tight">
                       {courseTitle}
                     </span>
-                    <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                    <ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" sideOffset={4} className="w-64 min-w-56 p-1">
+                <DropdownMenuContent align="start" sideOffset={4} className="w-60 min-w-52 p-1">
                   <DropdownMenuLabel>{t("navigation.switchCourse")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <div className="max-h-64 overflow-y-auto space-y-0.5">
@@ -325,12 +329,12 @@ function StudentSidebarContent({
                           key={course.id}
                           onSelect={() => handleSelectCourse(course.id)}
                           className={cn(
-                            "flex items-center justify-between gap-2 cursor-pointer text-body-sm",
+                            "flex items-center justify-between gap-2 cursor-pointer text-body-xs",
                             isCurrent && "font-semibold bg-brand-primary/10 text-brand-primary"
                           )}
                         >
                           <span className="truncate">{course.title}</span>
-                          {isCurrent && <Check className="size-4 shrink-0 text-brand-primary" />}
+                          {isCurrent && <Check className="size-3.5 shrink-0 text-brand-primary" />}
                         </DropdownMenuItem>
                       );
                     })}
@@ -368,9 +372,9 @@ function StudentSidebarContent({
 
     return (
       <nav className={cn(
-        "flex flex-1 flex-col gap-1 py-4 font-sans text-left",
+        "flex min-h-0 flex-1 flex-col gap-1 py-3 font-sans text-left",
         c
-          ? "px-1 items-center overflow-y-hidden sidebar-scroll-hidden"
+          ? "px-1 items-center overflow-y-auto overflow-x-hidden sidebar-scroll-hidden"
           : "px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
       )}>
         <NavItem
@@ -522,6 +526,7 @@ function StudentSidebarContent({
       logoLabel={t("navigation.dashboard") + " Zyx Academy"}
       nav={navContent}
       topSection={topSection}
+      headerActions={headerActions}
     />
   );
 }

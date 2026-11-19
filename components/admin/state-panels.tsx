@@ -27,7 +27,7 @@ export function AdminEmptyState({
     );
   }
   return (
-    <div className={cn("flex flex-col items-center justify-center gap-2 py-12 text-center", className)}>
+    <div className={cn("flex min-h-[40vh] flex-1 flex-col items-center justify-center gap-2.5 px-6 py-12 text-center", className)}>
       {Icon && <Icon className="size-8 text-muted-foreground/60" aria-hidden />}
       {title && <p className="font-semibold text-foreground">{title}</p>}
       {description && <p className="max-w-sm text-body-sm text-muted-foreground">{description}</p>}

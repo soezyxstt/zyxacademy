@@ -37,10 +37,10 @@ function inline(text: string, mathBudget: { remaining: number }, depth = 0): Rea
 }
 
 export const DiscussionMarkdown = memo(function DiscussionMarkdown({ content }: { content: string }) {
-  if (content.length > 20_000) return <p className="whitespace-pre-wrap break-words text-body-base">{content}</p>;
+  if (content.length > 20_000) return <p className="whitespace-pre-wrap break-words text-body-sm leading-relaxed">{content}</p>;
   const blocks = content.split(/(```[\s\S]*?```|\$\$[\s\S]*?\$\$)/g);
   const mathBudget = { remaining: 30 };
-  return <div className="min-w-0 space-y-2 break-words text-body-base leading-relaxed">
+  return <div className="min-w-0 space-y-2 break-words text-body-sm leading-relaxed">
     {blocks.map((block, index) => {
       if (block.startsWith("```") && block.endsWith("```")) {
         const code = block.slice(3, -3).replace(/^[^\n]*\n/, "");

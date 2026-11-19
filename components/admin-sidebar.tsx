@@ -461,8 +461,8 @@ function AdminSidebarInner() {
           className={cn(
             "flex flex-1 flex-col gap-1 py-3 font-sans text-left",
             c
-              ? "px-1 items-center overflow-y-hidden sidebar-scroll-hidden"
-              : "px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
+              ? "min-h-0 px-1 items-center overflow-y-auto overflow-x-hidden sidebar-scroll-hidden"
+              : "min-h-0 px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
           )}
         >
           {/* Back link to /admin/courses */}
@@ -670,8 +670,8 @@ function AdminSidebarInner() {
         className={cn(
           "flex flex-1 flex-col gap-1 py-3 font-sans text-left",
           c
-            ? "px-1 items-center overflow-y-hidden sidebar-scroll-hidden"
-            : "px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
+            ? "min-h-0 px-1 items-center overflow-y-auto overflow-x-hidden sidebar-scroll-hidden"
+            : "min-h-0 px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
         )}
       >
         {/* Pinned Section */}

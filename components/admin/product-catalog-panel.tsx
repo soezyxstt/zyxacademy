@@ -112,8 +112,36 @@ function ProductCatalogContent({ courseLabels = {}, lockedCourse, userId }: Prop
 
   return (
     <div className="space-y-5">
-      {/* Inline Responsive Filter Toolbar */}
+      {/* Inline Type Tabs + Responsive Filter Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-2">
+        <Tabs value={activeType} onValueChange={setActiveType}>
+          <TabsList>
+            <TabsTrigger value="all">
+              Semua
+            </TabsTrigger>
+            <TabsTrigger value="diktat">
+              <FileText className="size-3.5" />
+              Diktat
+            </TabsTrigger>
+            <TabsTrigger value="article">
+              <BookOpen className="size-3.5" />
+              Artikel
+            </TabsTrigger>
+            <TabsTrigger value="flashcard">
+              <Layers className="size-3.5" />
+              Flashcard
+            </TabsTrigger>
+            <TabsTrigger value="question">
+              <HelpCircle className="size-3.5" />
+              Soal
+            </TabsTrigger>
+            <TabsTrigger value="blueprint">
+              <FileCheck2 className="size-3.5" />
+              Blueprint
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <div className="flex flex-wrap items-center gap-2">
           {/* Search */}
           <div className="min-w-[140px] flex-1 max-w-xs">
@@ -128,7 +156,7 @@ function ProductCatalogContent({ courseLabels = {}, lockedCourse, userId }: Prop
 
           {/* Course Select */}
           {!lockedCourse && (
-            <div className="min-w-[180px]">
+            <div className="min-w-[180px] shrink-0">
               <Select value={selectedCourse} onValueChange={setSelectedCourse}>
                 <SelectTrigger className="h-8 text-body-sm">
                   <SelectValue placeholder="Semua mata kuliah" />
@@ -144,51 +172,20 @@ function ProductCatalogContent({ courseLabels = {}, lockedCourse, userId }: Prop
               </Select>
             </div>
           )}
-        </div>
 
-        <div className="flex items-center gap-2">
           <Button
             type="button"
             size="sm"
             variant="outline"
             onClick={() => void refetch()}
             disabled={loading || isFetching}
-            className="h-8 gap-1.5 text-body-xs"
+            className="h-8 shrink-0 gap-1.5 text-body-xs"
           >
             <RefreshCw className={`size-3.5 ${isFetching ? "animate-spin" : ""}`} />
             Segarkan
           </Button>
         </div>
       </div>
-
-      {/* Type Filter Tabs */}
-      <Tabs value={activeType} onValueChange={setActiveType}>
-        <TabsList>
-          <TabsTrigger value="all">
-            Semua
-          </TabsTrigger>
-          <TabsTrigger value="diktat">
-            <FileText className="size-3.5" />
-            Diktat
-          </TabsTrigger>
-          <TabsTrigger value="article">
-            <BookOpen className="size-3.5" />
-            Artikel
-          </TabsTrigger>
-          <TabsTrigger value="flashcard">
-            <Layers className="size-3.5" />
-            Flashcard
-          </TabsTrigger>
-          <TabsTrigger value="question">
-            <HelpCircle className="size-3.5" />
-            Soal
-          </TabsTrigger>
-          <TabsTrigger value="blueprint">
-            <FileCheck2 className="size-3.5" />
-            Blueprint
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
 
       {/* Product List Content */}
       {loading ? (

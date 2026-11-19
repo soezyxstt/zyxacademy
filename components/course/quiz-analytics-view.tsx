@@ -81,12 +81,43 @@ function QuizAnalyticsContent({ courseId, data, loading, recomputing, error, fet
 
   if (loading && !data) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 space-y-4 text-center">
-        <Loader2 className="size-8 animate-spin text-brand-primary" />
-        <p className="font-heading text-body-base font-bold text-foreground">{t("quizAnalytics.loadingTitle")}</p>
-        <p className="text-body-sm text-muted-foreground max-w-md">
-          {t("quizAnalytics.loadingDescription")}
-        </p>
+      <div className="space-y-6 font-sans" role="status" aria-busy="true">
+        <span className="sr-only">{t("quizAnalytics.loadingTitle")}</span>
+        <div className="space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2.5 flex-1 max-w-2xl">
+              <div className="flex items-center gap-2">
+                <div className="h-5 w-28 animate-pulse rounded-md bg-muted" />
+                <div className="h-5 w-20 animate-pulse rounded-md bg-muted" />
+              </div>
+              <div className="h-6 w-3/4 animate-pulse rounded-md bg-muted" />
+              <div className="h-4 w-full animate-pulse rounded-md bg-muted" />
+              <div className="h-4 w-2/3 animate-pulse rounded-md bg-muted" />
+            </div>
+            <div className="flex items-center gap-3 md:border-l md:border-border/70 md:pl-5">
+              <div className="h-8 w-16 animate-pulse rounded-md bg-muted" />
+              <div className="h-6 w-20 animate-pulse rounded-md bg-muted" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-5 border-y border-border py-3 sm:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div key={idx} className="flex items-center justify-between py-2">
+                <div className="h-4 w-20 animate-pulse rounded-md bg-muted" />
+                <div className="h-6 w-12 animate-pulse rounded-md bg-muted" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-3 border-t border-border pt-4">
+          <div className="h-5 w-44 animate-pulse rounded-md bg-muted" />
+          <div className="space-y-2.5">
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div key={idx} className="h-11 w-full animate-pulse rounded-lg bg-muted/70" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

@@ -17,7 +17,7 @@ function SelectTrigger({
   return (
     <SelectPrimitive.Trigger
       className={cn(
-        "flex min-w-0 items-center justify-between gap-2 rounded-md text-body-sm [&>span]:min-w-0 [&>span]:truncate",
+        "flex min-w-0 cursor-pointer items-center justify-between gap-2 rounded-md text-body-sm disabled:cursor-not-allowed [&>span]:min-w-0 [&>span]:truncate",
         "focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2",
         variant === "inline"
           ? "h-9 w-auto max-w-full border-0 bg-transparent px-2 text-foreground enabled:hover:bg-muted data-[state=open]:bg-muted disabled:opacity-50"
@@ -65,7 +65,7 @@ function SelectItem({ className, children, ...props }: React.ComponentProps<type
   return (
     <SelectPrimitive.Item
       className={cn(
-          "relative flex min-h-9 w-full cursor-default select-none items-center rounded-md py-1.5 pr-8 pl-2 text-body-sm break-words outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-muted [&>span:last-child]:min-w-0",
+          "relative flex min-h-9 w-full cursor-pointer select-none items-center rounded-md py-1.5 pr-8 pl-2 text-body-sm break-words outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-muted [&>span:last-child]:min-w-0",
         className
       )}
       {...props}

@@ -346,22 +346,41 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
         <span className="size-9 shrink-0">{avatarVisual}</span>
       )}
       <div className={cn("flex min-w-0 flex-1 flex-col gap-1.5", isOwn ? "items-end" : "items-start")}>
-        <div className={cn("flex min-w-0 w-full items-start gap-1.5", isOwn && "flex-row-reverse")}>
-          <div className={cn("flex min-w-0 flex-1 flex-wrap items-center gap-1.5", isOwn && "justify-end")}>
-            {canViewAuthorProfile ? (
-              <button type="button" onClick={() => onViewProfile!(message.author)} className="min-w-0 break-words rounded-sm text-left text-body-sm font-semibold hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{message.author.name}</button>
-            ) : (
-              <span className="min-w-0 break-words text-body-sm font-semibold">{message.author.name}</span>
-            )}
-            <span className="rounded-md bg-muted px-1.5 py-0.5 text-body-xs text-muted-foreground">{t(message.author.role === "student" ? "role_student" : message.author.role === "tutor" ? "role_tutor" : message.author.role === "admin" ? "role_admin" : message.author.role === "zyra" ? "role_zyra" : "role_unknown")}</span>
-            <span className="text-body-xs text-muted-foreground"><FormattedDate date={message.createdAt} options={{ day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }} /></span>
+        <ZyraBubbleSkin skinId={message.skinId} role={message.author.role === "zyra" ? "assistant" : "user"} className={cn("min-w-0 max-w-[85%]", message.skinId ? undefined : cn("rounded-xl border px-3 py-2.5", isOwn ? "border-primary/25 bg-primary/10 dark:bg-primary/15" : "border-border bg-card"))}>
+          <div className="mb-1 flex min-w-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              {canViewAuthorProfile ? (
+                <button type="button" onClick={() => onViewProfile!(message.author)} className="min-w-0 break-words rounded-sm text-left text-body-xs font-semibold hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{message.author.name}</button>
+              ) : (
+                <span className="min-w-0 break-words text-body-xs font-semibold">{message.author.name}</span>
+              )}
+              <span className="rounded bg-muted/70 px-1.5 py-0.5 text-body-2xs text-muted-foreground">{t(message.author.role === "student" ? "role_student" : message.author.role === "tutor" ? "role_tutor" : message.author.role === "admin" ? "role_admin" : message.author.role === "zyra" ? "role_zyra" : "role_unknown")}</span>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <span className="text-body-2xs tabular-nums text-muted-foreground"><FormattedDate date={message.createdAt} options={{ hour: "2-digit", minute: "2-digit" }} /></span>
+              {(canReply || canForward || mayEdit(viewer, message) || canDelete || message.canReport) && (
+                <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button type="button" variant="ghost" size="icon-sm" className="size-6" aria-label={t("messageActionsFor", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 100) || t("image") })}>
+                          <ChevronDown className="size-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("messageActions")}</TooltipContent>
+                  </Tooltip>
+                  <DropdownMenuContent align={isOwn ? "end" : "start"} className="min-w-[8.5rem] p-1">
+                    {canReply && <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" disabled={replyDisabled} onSelect={() => { if (!replyDisabled) onReply(message); }}><MessageSquareReply className="size-3.5" /> {t("reply")}</DropdownMenuItem>}
+                    {mayEdit(viewer, message) && <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => openDialog("edit")}><Pencil className="size-3.5" /> {t("edit")}</DropdownMenuItem>}
+                    {canForward && <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => openDialog("forward")}><Forward className="size-3.5" /> {t("forward")}</DropdownMenuItem>}
+                    {message.canReport && <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => openDialog("report")}><Flag className="size-3.5" /> {t("report")}</DropdownMenuItem>}
+                    {canDelete && <><DropdownMenuSeparator /><DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs text-destructive" onSelect={() => openDialog("delete")}><Trash2 className="size-3.5" /> {t("delete")}</DropdownMenuItem></>}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
           </div>
-          <span className="w-7 shrink-0">{(canReply || canForward || mayEdit(viewer, message) || canDelete || message.canReport) && <>
-            <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}><Tooltip><TooltipTrigger asChild><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={t("messageActionsFor", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 100) || t("image") })}><ChevronDown /></Button></DropdownMenuTrigger></TooltipTrigger><TooltipContent>{t("messageActions")}</TooltipContent></Tooltip><DropdownMenuContent>{canReply && <DropdownMenuItem disabled={replyDisabled} onSelect={() => { if (!replyDisabled) onReply(message); }}><MessageSquareReply /> {t("reply")}</DropdownMenuItem>}{mayEdit(viewer, message) && <DropdownMenuItem onSelect={() => openDialog("edit")}><Pencil /> {t("edit")}</DropdownMenuItem>}{canForward && <DropdownMenuItem onSelect={() => openDialog("forward")}><Forward /> {t("forward")}</DropdownMenuItem>}{message.canReport && <DropdownMenuItem onSelect={() => openDialog("report")}><Flag /> {t("report")}</DropdownMenuItem>}{canDelete && <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive" onSelect={() => openDialog("delete")}><Trash2 /> {t("delete")}</DropdownMenuItem></>}</DropdownMenuContent></DropdownMenu>
-          </>}</span>
-        </div>
-        <ZyraBubbleSkin skinId={message.skinId} role={message.author.role === "zyra" ? "assistant" : "user"} className={cn("min-w-0 max-w-[85%]", message.skinId ? undefined : cn("rounded-xl border p-3", isOwn ? "border-primary/25 bg-primary/10 dark:bg-primary/15" : "border-border bg-card"))}>
-          <p className="mb-1 text-body-xs font-semibold text-muted-foreground">{t(message.messageType === "question" ? "messageType_question" : message.messageType === "answer" ? "messageType_answer" : message.messageType === "reply" ? "messageType_reply" : message.messageType === "forward" ? "messageType_forward" : "messageType_unknown")}</p>
           {quote && <div className="mb-2 rounded-md border-l-2 border-primary bg-muted/50 px-2 py-1 text-body-xs"><span className="font-semibold">{quoteAuthor}</span><div className="line-clamp-2 break-words text-muted-foreground [&_div]:text-body-xs [&_p]:text-body-xs"><DiscussionMarkdown content={(quoteExcerpt ?? "").slice(0, 600)} /></div></div>}
           <div data-discussion-content>{visibleBody && <DiscussionMarkdown content={visibleBody} />}
           {message.attachments.map((attachment) => <div key={attachment.id} className="mt-2 w-60 max-w-full">{renderAttachment ? renderAttachment(attachment) : <DiscussionAttachment attachment={attachment} />}</div>)}</div>

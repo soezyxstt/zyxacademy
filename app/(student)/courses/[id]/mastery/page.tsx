@@ -135,15 +135,21 @@ async function CourseMasteryContent({
   if (!enrolled) {
     return (
       <Reveal>
-        <div className={studentSectionClass()}>
-          <div className="flex items-start gap-3">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border"><Lock className="size-5" /></div>
-            <div>
-              <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="courseAccess.needToken" /></h3>
-              <p className="mt-1 text-body-sm text-muted-foreground"><TranslatedText namespace="learning" messageKey="mastery.activateToView" /></p>
+        <div className={studentSectionClass("flex min-h-[50vh] flex-col items-center justify-center px-4 py-12 text-center")}>
+          <div className="mx-auto flex w-full max-w-md flex-col items-center">
+            <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-muted/60 text-muted-foreground">
+              <Lock className="size-5" aria-hidden />
+            </div>
+            <h3 className="font-heading text-body-base font-bold text-foreground">
+              <TranslatedText namespace="learning" messageKey="courseAccess.needToken" />
+            </h3>
+            <p className="mt-1 text-body-sm text-muted-foreground">
+              <TranslatedText namespace="learning" messageKey="mastery.activateToView" />
+            </p>
+            <div className="mt-5 w-full text-left">
+              <EnrollmentForm />
             </div>
           </div>
-          <div className="mt-4"><EnrollmentForm /></div>
         </div>
       </Reveal>
     );
@@ -153,7 +159,16 @@ async function CourseMasteryContent({
     (await getStudentIdeaMasteryReadModel(studentId, id, await getAppLocale()))
     ?? (await getLegacyMasteryReadModel(studentId, legacyCourseId));
 
-  return <ConceptMap courseId={id} groups={readModel?.groups ?? []} />;
+  const groups = readModel?.groups ?? [];
+  if (groups.length === 0) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center">
+        <ConceptMap courseId={id} groups={groups} />
+      </div>
+    );
+  }
+
+  return <ConceptMap courseId={id} groups={groups} />;
 }
 
 export default async function CourseMasteryPage({ params }: Props) {

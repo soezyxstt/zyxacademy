@@ -296,7 +296,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       <Tabs defaultValue="templates" className="w-full">
         <TabsList>
           <TabsTrigger value="templates">
@@ -312,9 +312,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         {/* =====================================================================
             TAB 1: QUIZ
             ===================================================================== */}
-        <TabsContent value="templates" className="space-y-4">
-          <div className="flex flex-wrap justify-between items-center gap-2">
-            <span className="text-body-xs text-muted-foreground">{tr("quizCount", { count: initialTemplates.length })}</span>
+        <TabsContent value="templates" className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
+            <span className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{tr("quizCount", { count: initialTemplates.length })}</span>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -330,13 +330,13 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
           {initialTemplates.length === 0 ? (
             <AdminEmptyState icon={ClipboardList} title={tr("noQuizzes")} />
           ) : (
-            <div className="divide-y divide-border border-y border-border">
+            <div className="divide-y divide-border/30">
               {initialTemplates.map((t) => {
                 const rules = typeof t.selectionRules === "string" ? JSON.parse(t.selectionRules) : t.selectionRules;
                 const isSimulation = t.category === "simulation";
 
                 return (
-                  <div key={t.id} className="space-y-2.5 py-3">
+                  <div key={t.id} className="-mx-2 space-y-2.5 rounded-lg px-2 py-3 transition-colors hover:bg-muted/35">
                     <div className="space-y-1">
                       <div className="flex justify-between items-start gap-2">
                         <h3 className="font-heading text-body-base font-bold text-foreground break-words">{t.title}</h3>
@@ -503,9 +503,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         {/* =====================================================================
             TAB 2: QUESTION BANK
             ===================================================================== */}
-        <TabsContent value="questionbank" className="space-y-4">
-          <div className="flex flex-wrap justify-between items-center gap-2">
-            <span className="text-body-xs text-muted-foreground">{tr("questionBankTitle", { count: initialQuestionBank.length })}</span>
+        <TabsContent value="questionbank" className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
+            <span className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{tr("questionBankTitle", { count: initialQuestionBank.length })}</span>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -522,7 +522,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             <AdminEmptyState icon={HelpCircle} title={tr("emptyBank")} />
           ) : (
             <>
-            <div className="divide-y divide-border border-y border-border">
+            <div className="divide-y divide-border/30">
               {initialQuestionBank.slice(questionOffset, questionOffset + QUESTION_PAGE_SIZE).map((q, idx) => {
                 const isImmutableReference = q.origin !== "zyx_original";
                 const tagsArr = typeof q.tags === "string" ? JSON.parse(q.tags) : q.tags;
@@ -530,7 +530,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                 const correct = typeof q.correctIndices === "string" ? JSON.parse(q.correctIndices) : q.correctIndices;
 
                 return (
-                  <div key={q.id} className="relative py-3">
+                  <div key={q.id} className="relative -mx-2 rounded-lg px-2 py-3 transition-colors hover:bg-muted/35">
                     <div className="flex items-start justify-between gap-4">
                       <div className="space-y-1.5 flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -861,7 +861,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
       {/* PREVIEW QUIZ DIALOG */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
-          <DialogHeader className="p-6 pb-4 border-b border-border shrink-0">
+          <DialogHeader className="p-6 pb-4 border-b border-border/40 shrink-0">
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               {tr("previewTitle", { title: previewTpl?.title ?? "" })}
             </DialogTitle>
@@ -883,7 +883,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                 {tr("noPreviewQuestions")}
               </div>
             ) : (
-              <ol className="divide-y divide-border">
+              <ol className="divide-y divide-border/30">
                 {previewQuestions.map((q, idx) => (
                   <li key={q.id} className="space-y-3 py-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">

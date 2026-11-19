@@ -267,5 +267,7 @@
   "badges": "badges",
   "follow": "Follow",
   "unfollow": "Unfollow",
-  "followError": "Could not update follow. Try again."
+  "followError": "Could not update follow. Try again.",
+  "dateToday": "Today",
+  "dateYesterday": "Yesterday"
 }

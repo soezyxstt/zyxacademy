@@ -8,10 +8,10 @@ import { useSession } from "@/lib/auth-client";
 import * as actions from "@/lib/discussions/actions";
 import type { DiscussionChannel as Channel, DiscussionMessage as Message, DiscussionReport as Report, DiscussionThread as Thread } from "@/lib/discussions/contracts";
 import { DISCUSSION_COUNTS_CHANGED } from "./discussion-count-badge";
-import { aiStatusKey, beginChannelMetadataRequest, beginPageRequest, canSuggestForwardChannel, discussionPrivateQuestionHref, discussionStatusUncovered, discussionUploadError, discussionVisibilityBlocked, initialDiscussionMessageCursors, listDiscussionQuestionPage, loadDiscussionChannelMetadata, mergeById, nextDiscussionMessageCursor, observeDiscussionSnapshot, replyQuote, retryDiscussionRead, searchDiscussionChannels, searchDiscussionForwardTargets, searchDiscussionMentions, toQuestion, toUiChannel, visibleDiscussionReadSnapshot, watchDiscussionVisibility } from "./discussion-adapter";
+import { beginChannelMetadataRequest, beginPageRequest, canSuggestForwardChannel, discussionPrivateQuestionHref, discussionStatusUncovered, discussionUploadError, discussionVisibilityBlocked, initialDiscussionMessageCursors, listDiscussionQuestionPage, loadDiscussionChannelMetadata, mergeById, nextDiscussionMessageCursor, observeDiscussionSnapshot, replyQuote, retryDiscussionRead, searchDiscussionChannels, searchDiscussionForwardTargets, searchDiscussionMentions, toQuestion, toUiChannel, visibleDiscussionReadSnapshot, watchDiscussionVisibility } from "./discussion-adapter";
 import { discussionChannelLabel } from "./discussion-message";
-import { listDiscussionAiStatuses } from "./discussion-ai-status";
 import { getDiscussionReadThrough } from "./discussion-read-state";
+import { DiscussionWorkspaceSkeleton } from "./discussion-skeleton";
 import { DiscussionWorkspace, type DiscussionDraftState } from "./discussion-workspace";
 import { DiscussionSessionGuard } from "./discussion-session-guard";
 import type { DiscussionChannel as UiChannel, DiscussionPerson, DiscussionWorkspaceProps } from "./view-model";
@@ -35,8 +35,9 @@ export function nextDiscussionReadBatch(observed: Map<number, ReadObservation>, 
 }
 
 export function DiscussionClient(props: { viewer: DiscussionPerson; courseId?: string }) {
+  const t = useTranslations("discussions");
   const { data: session, isPending } = useSession();
-  return <DiscussionSessionGuard viewerId={props.viewer.id} sessionId={session?.user?.id} pending={isPending}>
+  return <DiscussionSessionGuard viewerId={props.viewer.id} sessionId={session?.user?.id} pending={isPending} loadingFallback={<DiscussionWorkspaceSkeleton label={t("viewerLoading")} />}>
     {draftState => <DiscussionClientReady {...props} draftState={draftState} />}
   </DiscussionSessionGuard>;
 }
@@ -84,8 +85,6 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
   const messagePageBusyRef = useRef(false);
   const messagePageVersion = useRef(0);
   const messagePageCursors = useRef<Array<string | undefined>>([undefined]);
-  const [aiStatuses, setAiStatuses] = useState<Record<string, { status: string; reason: string | null }>>({});
-  const [aiStatusError, setAiStatusError] = useState(false);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [liveError, setLiveError] = useState(false);
@@ -171,7 +170,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
   currentMetadataKey.current = metadataKey;
   const metadataReady = channelMetadata.key === metadataKey && channelMetadata.status === "ready";
   const visibleChannels = useMemo(() => {
-    if (!metadataReady) return channels;
+    if (!metadataReady) return mergeById(channels, channelMetadata.items);
     const checked = new Set(metadataIds), authorized = new Set(channelMetadata.items.map((item) => item.id));
     return mergeById(channels.filter((item) => !checked.has(item.id) || authorized.has(item.id)), channelMetadata.items);
   }, [channels, metadataReady, metadataIds, channelMetadata.items]);
@@ -179,7 +178,8 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
   const messages = useMemo(() => messagePages.flatMap((page) => page.items), [messagePages]);
   const messagesById = useMemo(() => new Map(messages.map((message) => [message.id, message])), [messages]);
   const selectedQuestion = thread && thread.id === selectedThread ? toQuestion(thread, visibleChannels) : null;
-  const renderedThreadState = thread?.id === selectedThread && (!metadataReady || !channelMetadata.items.some((item) => item.id === thread.channelId))
+  const hasThreadChannel = Boolean(thread && channelMetadata.items.some((item) => item.id === thread.channelId));
+  const renderedThreadState = thread?.id === selectedThread && !hasThreadChannel
     ? (channelMetadata.key === metadataKey && channelMetadata.status === "error" || metadataReady ? "error" : "loading") : threadState;
   const hasMoreQuestions = !!threadPage.nextCursor;
   const hasNextMessagePage = !!nextDiscussionMessageCursor(messagePageCursors.current, messagePageIndex, messageCursor);
@@ -203,20 +203,6 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     router.push(`${pathname}${query.size ? `?${query}` : ""}`, { scroll: false });
   }, [pathname, router, selectedChannel]);
 
-  const refreshAiStatuses = useCallback(async (id: string, items: Message[], current: () => boolean) => {
-    try {
-      const statuses = await listDiscussionAiStatuses(id, items.map((item) => item.id));
-      if (!current() || currentThread.current !== id) return;
-      setAiStatuses((old) => {
-        const next = { ...old };
-        items.forEach((item) => { delete next[item.id]; });
-        statuses.forEach((item) => { next[item.messageId] = { status: item.status, reason: item.reason }; });
-        return next;
-      });
-      setAiStatusError(false);
-    } catch { if (current() && currentThread.current === id) setAiStatusError(true); }
-  }, []);
-
   useEffect(() => {
     let cancelled = false;
     const version = ++channelsVersion.current;
@@ -238,7 +224,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     const isCurrent = beginChannelMetadataRequest(channelMetadataVersion, currentMetadataKey);
     let cancelled = false;
     if (!metadataIds.length) { setChannelMetadata({ key: metadataKey, items: [], status: "ready" }); return; }
-    setChannelMetadata((old) => old.key === metadataKey && old.status === "ready" ? old : { key: metadataKey, items: [], status: "loading" });
+    setChannelMetadata((old) => old.key === metadataKey && old.status === "ready" ? old : { key: metadataKey, items: old.items, status: "loading" });
     void loadDiscussionChannelMetadata(actions, metadataIds).then((items) => {
       if (!cancelled && isCurrent()) setChannelMetadata({ key: metadataKey, items, status: "ready" });
     }).catch(() => { if (!cancelled && isCurrent()) setChannelMetadata({ key: metadataKey, items: [], status: "error" }); });
@@ -312,9 +298,8 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     setMessagePages([{ cursor, items: result.messages.items, observationReceipt: result.messages.observationReceipt }]);
     setMessageCursor(result.messages.nextCursor);
     setThreadState("ready");
-    void refreshAiStatuses(id, result.messages.items, () => version === threadVersion.current && pageVersion === messagePageVersion.current && current());
     return result;
-  }, [refreshAiStatuses, refreshChannelMetadata]);
+  }, [refreshChannelMetadata]);
 
   useEffect(() => {
     let cancelled = false;
@@ -336,8 +321,6 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     setThread(null);
     setLiveError(false);
     setMessagePages([]);
-    setAiStatuses({});
-    setAiStatusError(false);
     setMessageCursor(null);
     if (activeTab !== "questions") { setThreadState("ready"); return; }
     if (!selectedThread) { setThreadState("ready"); return; }
@@ -357,10 +340,9 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       setMessagePages([{ cursor: result.messages.startCursor, items: result.messages.items, observationReceipt: result.messages.observationReceipt }]);
       setMessageCursor(result.messages.nextCursor);
       setThreadState("ready");
-      void refreshAiStatuses(selectedThread, result.messages.items, () => !cancelled && version === threadVersion.current && pageVersion === messagePageVersion.current && current());
     }).catch(() => { if (!cancelled && version === threadVersion.current && pageVersion === messagePageVersion.current && current()) setThreadState("error"); });
     return () => { cancelled = true; };
-  }, [selectedThread, selectedMessage, activeTab, retryThread, courseId, courseChannelId, channelsReady, refreshAiStatuses]);
+  }, [selectedThread, selectedMessage, activeTab, retryThread, courseId, courseChannelId, channelsReady]);
 
   useEffect(() => {
     if (!selectedThread || activeTab !== "questions" || threadState !== "ready") return;
@@ -553,8 +535,6 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       setThread(result.thread);
       setMessagePages([{ cursor, items: result.messages.items, observationReceipt: result.messages.observationReceipt }]);
       setMessageCursor(result.messages.nextCursor);
-      setAiStatuses({});
-      void refreshAiStatuses(selectedThread, result.messages.items, () => version === threadVersion.current && pageVersion === messagePageVersion.current && current());
     } catch {
       if (version === threadVersion.current && pageVersion === messagePageVersion.current) setMessagePageError(true);
     } finally {
@@ -587,8 +567,6 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     {channelMetadata.key === metadataKey && channelMetadata.status === "error" && <div role="alert" className="flex items-center gap-2 text-body-sm">{t("channelMetadataError")}<Button type="button" variant="outline" size="sm" onClick={refreshChannelMetadata}>{t("retry")}</Button></div>}
     {listRefreshError && <div role="alert" className="flex items-center gap-2 text-body-sm">{t("listRefreshError")}<Button type="button" variant="outline" size="sm" onClick={() => void fetchThreadPage(threadPageCursors.current[threadPageIndexRef.current]).catch(() => setListRefreshError(true))}>{t("retry")}</Button></div>}
     {thread?.id === selectedThread && liveError && <div role="alert" className="flex items-center gap-2 text-body-sm">{t("threadRefreshError")}<Button type="button" variant="outline" size="sm" onClick={() => { if (selectedThread) void refreshThreadPage(selectedThread, messagePagesRef.current.at(-1)?.cursor).catch(() => setLiveError(true)); }}>{t("retry")}</Button></div>}
-    {thread?.id === selectedThread && Object.entries(aiStatuses).map(([id, item]) => { const key = aiStatusKey(item.status, item.reason); const source = messagesById.get(id); const request = source?.bodyKind === "deleted" ? t("deletedMessage") : source?.bodyKind === "source_unavailable" ? t("sourceUnavailable") : source?.body.slice(0, 80) || t("image"); return key && source ? <p key={id} role={item.status === "failed" || item.status === "uncertain" ? "alert" : "status"} className="text-body-xs text-muted-foreground">{t(key)} {t("ai_request", { request })}</p> : null; })}
-    {thread?.id === selectedThread && aiStatusError && <p role="alert" className="text-body-xs text-destructive">{t("ai_statusError")}</p>}
     {sentMessage?.threadId === selectedThread && !messagesById.has(sentMessage.id) && <p role="status" className="text-body-xs text-muted-foreground">{t("sentMessageOtherPage")}</p>}
     {activeTab === "questions" && listState === "ready" && threadPageIndex > 0 && <div className="flex flex-wrap items-center gap-2"><Button type="button" variant="outline" size="sm" disabled={threadPageBusy} onClick={() => void changeQuestionPage("previous").catch(() => setListRefreshError(true))}>{t("previousQuestions")}</Button><span className="text-body-xs text-muted-foreground">{t("page", { page: threadPageIndex + 1 })}</span></div>}
     {thread?.id === selectedThread && (messagePageIndex > 0 || hasNextMessagePage) && <div className="flex flex-wrap items-center gap-2"><Button type="button" variant="outline" size="sm" disabled={messagePageBusy || messagePageIndex === 0} onClick={() => void changeMessagePage("previous")}>{t("previousMessages")}</Button>{!selectedMessage && <span className="text-body-xs text-muted-foreground">{t("page", { page: messagePageIndex + 1 })}</span>}<Button type="button" variant="outline" size="sm" disabled={messagePageBusy || !hasNextMessagePage} onClick={() => void changeMessagePage("next")}>{t("nextMessages")}</Button>{messagePageError && <span role="alert" className="text-body-xs text-destructive">{t("messagePageError")}</span>}</div>}
