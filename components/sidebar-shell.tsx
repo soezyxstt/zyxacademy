@@ -17,7 +17,7 @@ import {
   SlidersHorizontal,
   ShieldCheck,
   GraduationCap,
-  ChevronsUpDown,
+  Settings,
   Pin,
   Archive,
   Eye,
@@ -481,7 +481,7 @@ function SidebarUserMenuContent({ collapsed, session }: { collapsed: boolean; se
           {email}
         </p>
       </div>
-      <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground transition-colors" />
+      <Settings className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground transition-colors" />
     </button>
   );
 
