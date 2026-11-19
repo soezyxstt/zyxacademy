@@ -291,14 +291,14 @@ export function DocsArticleView({
 
       {(previousDoc || nextDoc) && (
         <nav
-          aria-label="Pagination"
+          aria-label={locale === "en" ? "Guide pagination" : "Navigasi antar panduan"}
           className="mt-(--major-gap) flex flex-col gap-4 border-t border-border pt-(--section-gap) sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="min-w-0">
             {previousDoc && (
               <Link
                 href={`${basePath}/${previousDoc.slug}`}
-                className="group inline-flex items-center gap-2 text-body-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className="group inline-flex max-w-full items-center gap-2 text-body-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 <ArrowLeft
                   className="size-4 shrink-0 transition-transform group-hover:-translate-x-0.5"
@@ -308,7 +308,7 @@ export function DocsArticleView({
                   <span className="block text-body-2xs uppercase tracking-wider text-muted-foreground">
                     {previousLabel}
                   </span>
-                  <span className="block truncate font-medium text-foreground group-hover:text-brand-primary transition-colors">
+                  <span className="block break-words font-medium text-foreground group-hover:text-brand-primary transition-colors">
                     {previousDoc.title}
                   </span>
                 </span>
@@ -320,13 +320,13 @@ export function DocsArticleView({
             {nextDoc && (
               <Link
                 href={`${basePath}/${nextDoc.slug}`}
-                className="group inline-flex items-center gap-2 text-body-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className="group inline-flex max-w-full items-center gap-2 text-body-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 <span className="min-w-0">
                   <span className="block text-body-2xs uppercase tracking-wider text-muted-foreground">
                     {nextLabel}
                   </span>
-                  <span className="block truncate font-medium text-foreground group-hover:text-brand-primary transition-colors">
+                  <span className="block break-words font-medium text-foreground group-hover:text-brand-primary transition-colors">
                     {nextDoc.title}
                   </span>
                 </span>
