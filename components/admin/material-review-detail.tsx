@@ -11,6 +11,7 @@ import {
   Check,
   Copy,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   FileCheck2,
@@ -28,6 +29,7 @@ import {
 import { toast } from "@/components/ui/toast";
 import { DropdownMenu } from "radix-ui";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Textarea } from "@/components/ui/textarea";
@@ -812,20 +814,23 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
 
       {/* Relations Summary (Compact) */}
       {payload.preview.relations.length > 0 && (
-        <details className="border-t border-border pt-3">
-          <summary className="cursor-pointer text-body-sm font-semibold text-foreground">
-            {t("materials.ideaRelationsCount", { count: payload.preview.relations.length })}
-          </summary>
-          <div className="mt-3 divide-y divide-border">
-            {payload.preview.relations.map((rel) => (
-              <div key={rel.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-body-xs">
-                <span className="font-medium text-foreground">{ideaName(ideasList.find((idea) => idea.id === rel.sourceIdeaId), t)}</span>
-                <Badge variant="outline">{displayLabel(rel.relationType, relationLabels, t, "relation")}</Badge>
-                <span className="font-medium text-foreground">{ideaName(ideasList.find((idea) => idea.id === rel.targetIdeaId), t)}</span>
-              </div>
-            ))}
-          </div>
-        </details>
+        <Collapsible className="border-t border-border pt-3">
+          <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between gap-2 text-left text-body-sm font-semibold text-foreground">
+            <span>{t("materials.ideaRelationsCount", { count: payload.preview.relations.length })}</span>
+            <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="mt-3 divide-y divide-border">
+              {payload.preview.relations.map((rel) => (
+                <div key={rel.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-body-xs">
+                  <span className="font-medium text-foreground">{ideaName(ideasList.find((idea) => idea.id === rel.sourceIdeaId), t)}</span>
+                  <Badge variant="outline">{displayLabel(rel.relationType, relationLabels, t, "relation")}</Badge>
+                  <span className="font-medium text-foreground">{ideaName(ideasList.find((idea) => idea.id === rel.targetIdeaId), t)}</span>
+                </div>
+              ))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       )}
 
       {/* Review Actions Footer (Compact) */}

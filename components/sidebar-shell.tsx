@@ -12,7 +12,6 @@ import {
   PanelLeftOpen,
   PanelLeftClose,
   ChevronDown,
-  ChevronRight,
   LayoutDashboard,
   SlidersHorizontal,
   ShieldCheck,
@@ -24,6 +23,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { DropdownMenu, HoverCard } from "radix-ui";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
 import { useCommandMenu } from "@/components/command-menu";
@@ -278,11 +278,13 @@ export function NavCollapsible({
             <span className="hover-marquee">{label}</span>
           </span>
           {trailing}
-          {isOpen ? (
-            <ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-transform" />
-          ) : (
-            <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform" />
-          )}
+          <ChevronDown
+            className={cn(
+              "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none",
+              !isOpen && "-rotate-90"
+            )}
+            aria-hidden="true"
+          />
         </>
       )}
     </button>
@@ -384,10 +386,14 @@ export function NavCollapsible({
       ) : (
         triggerButton
       )}
-      {!collapsed && isOpen && (
-        <div className="flex flex-col gap-0.5 animate-in slide-in-from-top-1 fade-in-50 duration-150 pl-1.5 border-l border-border/60 ml-4.5 my-0.5 min-w-0">
-          {children}
-        </div>
+      {!collapsed && (
+        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+          <CollapsibleContent>
+            <div className="flex flex-col gap-0.5 pl-1.5 border-l border-border/60 ml-4.5 my-0.5 min-w-0">
+              {children}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       )}
     </div>
   );

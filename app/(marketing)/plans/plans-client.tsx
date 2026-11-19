@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Check, Plus, Minus, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { PlanPrice, PlanPromotion } from "@/components/pricing/plan-price";
 import { usePricingDiscounts } from "@/hooks/use-pricing-discounts";
 import { SectionContainer } from "@/components/layout/section-container";
@@ -182,11 +183,12 @@ export default function PlansClient() {
         </div>
       </div>
 
-      {showSubjects && (
-        <div
-          id="plans-subjects-panel"
-          className="relative z-20 w-full border-b border-border bg-card py-4 animate-in fade-in slide-in-from-top-3 duration-200"
-        >
+      <Collapsible open={showSubjects} onOpenChange={setShowSubjects}>
+        <CollapsibleContent>
+          <div
+            id="plans-subjects-panel"
+            className="relative z-20 w-full border-b border-border bg-card py-4"
+          >
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -284,8 +286,9 @@ export default function PlansClient() {
               })}
             </div>
           </div>
-        </div>
-      )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Pricing Cards Grid */}
       <Reveal>

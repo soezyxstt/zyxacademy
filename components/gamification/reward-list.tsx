@@ -52,8 +52,8 @@ export function RewardList({ rewards, balance, appearance, onChangeReward, missi
         const items = rewards.filter(item => item.slot === slot && item.id !== "zyra-avatar-studio-cat");
         if (!items.length) return null;
         return <Collapsible key={slot} defaultOpen={slot === "frame"}>
-          <CollapsibleTrigger className="group flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-body-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
-            {t(`achievementPage.rewardGroups.${slot}`)}<ChevronDown className="size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" aria-hidden />
+          <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left text-body-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
+            {t(`achievementPage.rewardGroups.${slot}`)}<ChevronDown className="size-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180 motion-reduce:transition-none" aria-hidden />
           </CollapsibleTrigger>
           <CollapsibleContent><ul className="divide-y divide-border border-t">{items.map(item => <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
             {accessory(item) ? <span className="min-w-0 flex-1 break-words text-body-sm">{name(item)} · {number.format(item.priceLp)} LP{insufficientBalance(item)}</span> : <button type="button" onClick={event => { previewTrigger.current = event.currentTarget; setSelected(item); }} className="flex min-w-0 flex-1 items-center gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring" aria-label={t("achievementPage.previewItem", { name: name(item) })}>

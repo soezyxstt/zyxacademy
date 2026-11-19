@@ -1394,10 +1394,12 @@ function DataPlot({ spec }: { spec: DataPlotCanvas }) {
       </div>
 
       <div className="border-t border-border bg-muted/10 px-4 py-3">
-        <details className="text-body-sm group">
-          <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground transition-colors select-none">
+        <Collapsible className="text-body-sm">
+          <CollapsibleTrigger className="group inline-flex cursor-pointer items-center gap-1.5 font-medium text-muted-foreground hover:text-foreground transition-colors select-none">
+            <ChevronDown className="size-3.5 shrink-0 transition-transform duration-200 -rotate-90 group-data-[state=open]:rotate-0 motion-reduce:transition-none" aria-hidden="true" />
             {t("learningCanvas.showDataTable", { count: spec.points.length })}
-          </summary>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
           <div className="mt-3 overflow-x-auto max-h-48">
             <table className="w-full border-collapse text-body-sm">
               <thead>
@@ -1416,7 +1418,8 @@ function DataPlot({ spec }: { spec: DataPlotCanvas }) {
               </tbody>
             </table>
           </div>
-        </details>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
     </div>
   );

@@ -5,8 +5,10 @@ import type { getAdminGamificationData } from '@/lib/gamification/admin';
 import { gamificationAdminAction } from './actions';
 import { AdminConfirmDialog } from '@/components/admin/confirm-dialog';
 import { AdminEmptyState } from '@/components/admin/state-panels';
+import { ChevronDown } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 
 const categories: Record<string, string> = { article: 'Artikel', explanation: 'Pembahasan', question: 'Soal', flashcard: 'Flashcard' };
@@ -31,7 +33,7 @@ export function GamificationAdmin({ data }: { data: Data }) {
     <div className="flex gap-2 text-body-sm">{data.page > 1 && <a href={link({ ...courseParams, page: data.page - 1 })}>Sebelumnya</a>}{data.moreCourses && <a href={link({ ...courseParams, page: data.page + 1 })}>Berikutnya</a>}</div>
     {data.selected && <section className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-heading text-body-base font-bold">{data.selected.title}</h2><Button disabled={pending} onClick={() => run({ kind: 'refresh', id: data.selected!.id })}>Buat atau perbarui draf</Button></div>
      {data.checklists.length ? <div className="border-y border-border divide-y divide-border">{data.checklists.map(c => <div key={c.id} className="space-y-2 p-3 text-body-sm"><div className="flex flex-wrap items-center justify-between gap-2"><strong>Versi {c.version} · {c.status === 'approved' ? 'Disetujui' : c.status === 'draft' ? 'Draf' : 'Tidak tersedia'}</strong>{c.status === 'draft' && <Button size="sm" onClick={() => setConfirm({ kind: 'approve', id: c.id })}>Setujui</Button>}</div><p>{amount(c.totalXpMicro)} XP · {amount(c.credit)} kredit mata kuliah</p><p className="text-body-xs text-muted-foreground">{Object.entries(categories).map(([key, label]) => `${label}: ${c.counts.find(x => x.category === key)?.count ?? 0}`).join(' · ')}</p></div>)}</div> : <AdminEmptyState title="Belum ada checklist" />}
-     {data.preview.length > 0 && <details className="text-body-sm"><summary className="cursor-pointer">Pratinjau item versi terbaru</summary><ul className="mt-2 space-y-1 break-all text-body-xs">{data.preview.map((item, i) => <li key={`${item.category}-${item.sourceId}-${i}`}>{categories[item.category] ?? 'Materi'}: {item.sourceId} (versi {item.contentVersion})</li>)}</ul><p className="mt-2 text-body-xs text-muted-foreground">Maksimal 20 item ditampilkan.</p></details>}
+     {data.preview.length > 0 && <Collapsible className="text-body-sm"><CollapsibleTrigger className="group inline-flex cursor-pointer items-center gap-1.5 font-medium hover:text-foreground"><ChevronDown className="size-3.5 shrink-0 transition-transform duration-200 -rotate-90 group-data-[state=open]:rotate-0 motion-reduce:transition-none" aria-hidden="true" />Pratinjau item versi terbaru</CollapsibleTrigger><CollapsibleContent><ul className="mt-2 space-y-1 break-all text-body-xs">{data.preview.map((item, i) => <li key={`${item.category}-${item.sourceId}-${i}`}>{categories[item.category] ?? 'Materi'}: {item.sourceId} (versi {item.contentVersion})</li>)}</ul><p className="mt-2 text-body-xs text-muted-foreground">Maksimal 20 item ditampilkan.</p></CollapsibleContent></Collapsible>}
     </section>}
    </TabsContent>
    <TabsContent value="reports" className="space-y-4"><div className="flex flex-wrap gap-3 text-body-sm">{[['pending','Menunggu'],['resolved','Selesai'],['dismissed','Ditolak']].map(([key,label]) => <a key={key} aria-current={data.status === key ? 'page' : undefined} className={data.status === key ? 'font-bold' : ''} href={link({ tab:'reports', reports:key })}>{label}</a>)}</div>
