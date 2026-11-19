@@ -10,12 +10,12 @@ test("continues due work even when a bounded batch contains failures", async () 
  let handler: (input: { step: unknown }) => Promise<unknown> = async () => {};
  const events: unknown[] = [];
  const dependencies: Record<string, unknown> = {
-  "./client": { inngest: { createFunction: (options: Record<string, any>, run: typeof handler) => { configuration = options; handler = run; return {}; } } },
+  "./define-job": { defineJob: (options: Record<string, any>, run: typeof handler) => { configuration = options; handler = run; return {}; } },
   "@/lib/discussions/notifications": { dispatchDiscussionEvents: async (input: { limit: number }) => { limit = input.limit; return result; } },
  };
  const output = ts.transpileModule(readFileSync("jobs/discussion-notifications.ts", "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
  runInNewContext(output, { exports: {}, require: (name: string) => { if (!(name in dependencies)) throw new Error(name); return dependencies[name]; } });
- const step = { run: async (_name: string, work: () => Promise<unknown>) => work(), sendEvent: async (_name: string, event: unknown) => events.push(event) };
+ const step = { run: async (_name: string, work: () => Promise<unknown>) => work(), enqueueTask: async (_name: string, event: unknown) => events.push(event) };
  await handler({ step });
  expect(configuration.concurrency.limit).toBe(1);
  expect(limit).toBe(20);

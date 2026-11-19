@@ -19,6 +19,8 @@ export const WorkerEnvSchema = z.object({
   TURSO_DATABASE_URL: optionalString,
   TURSO_AUTH_TOKEN: optionalString,
 
+  QUEUE_PROVIDER: z.enum(["inngest", "cloud-tasks", "memory", "noop"]).default("inngest"),
+
   // Inngest
   INNGEST_EVENT_KEY: optionalString,
   INNGEST_SIGNING_KEY: optionalString,

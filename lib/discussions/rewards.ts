@@ -1,3 +1,4 @@
+import { wakeOutbox } from "@/lib/queue/outbox";
 import { and, eq, gte, lt, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import {
@@ -21,6 +22,7 @@ export async function enqueueDiscussionReward(tx: Tx, input: {
 }) {
  if ((input.kind !== 'question' && input.kind !== 'answer') || !input.userId || !input.threadId || !input.messageId || !(input.occurredAt instanceof Date) || !Number.isFinite(input.occurredAt.getTime())) throw new Error('INVALID_DISCUSSION_REWARD');
  const reward = DISCUSSION_REWARDS[input.kind];
+ wakeOutbox("gamification/outbox.continue");
  await tx.insert(gamificationEventOutbox).values({
   id: crypto.randomUUID(), userId: input.userId, source: reward.source,
   sourceId: input.messageId, evidenceId: input.threadId, occurredAt: input.occurredAt,

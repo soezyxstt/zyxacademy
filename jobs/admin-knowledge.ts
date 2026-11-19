@@ -1,4 +1,4 @@
-import { inngest } from "./client";
+import { defineJob } from "./define-job";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
  * Inngest Worker for Admin Ops Knowledge synchronization.
  * Computes deterministic diffs, updates catalog, and syncs vectors to admin_ops_knowledge.
  */
-export const adminOpsKnowledgeSyncWorker = inngest.createFunction(
+export const adminOpsKnowledgeSyncWorker = defineJob(
   {
     id: "admin-ops-knowledge-sync-worker",
     name: "Admin Ops Knowledge Sync Worker",

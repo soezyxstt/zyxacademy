@@ -1,3 +1,4 @@
+import { wakeOutbox } from "@/lib/queue/outbox";
 import "server-only";
 import { createHash } from "node:crypto";
 import { and, asc, desc, eq, gt, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
@@ -535,15 +536,18 @@ async function event(tx: DiscussionTransaction, channelId: string, threadId: str
  if (messageId && kind !== "report" && !message) throw invalid();
  const recipientCursor = kind === "question" || kind === "message" || kind === "edit"
   ? JSON.stringify({ phase: "direct", after: null, mentions }) : null;
+ wakeOutbox("discussion/notifications.continue");
  await tx.insert(discussionEvents).values({ id: id(), channelId, threadId, messageId, actorId, kind, recipientCursor,
   messageRevision: message?.revision ?? null, statusRevision, participantThroughSeq });
  if (kind !== "report" && kind !== "edit") await tx.update(discussionChannels).set({ countRevision: sql`${discussionChannels.countRevision} + 1` })
   .where(eq(discussionChannels.id, channelId));
 }
 async function aiRequest(tx: DiscussionTransaction, messageId: string, actorId: string, ask: boolean) {
+ if (ask) wakeOutbox("discussion/ai.continue");
  if (ask) await tx.insert(discussionAiRequests).values({ id: id(), messageId, requestedById: actorId, kind: "zyra", requestId: `discussion-zyra:${messageId}` });
 }
 async function labelRequest(tx: DiscussionTransaction, messageId: string, actorId: string) {
+ wakeOutbox("discussion/ai.continue");
  await tx.insert(discussionAiRequests).values({ id: id(), messageId, requestedById: actorId, kind: "label", requestId: `discussion-label:${messageId}` });
 }
 async function nextSequence(tx: DiscussionTransaction, threadId: string, answer = false) {

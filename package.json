@@ -150,6 +150,7 @@
     "firebase": "^12.15.0",
     "firebase-admin": "^14.0.0",
     "fuse.js": "^7.4.2",
+    "google-auth-library": "10.7.0",
     "hono": "4.13.17",
     "inngest": "4.20.0",
     "jsxgraph": "^1.14.0",

@@ -21,6 +21,7 @@ test("message events retain the exact revision written in their transaction", as
   update: () => ({ set: (value: unknown) => ({ where: async () => { bumps.push(value); } }) }),
  };
  runInNewContext(compile(`${source.slice(start, end)}\nexport { event };`), { exports,
+  wakeOutbox: (name: string) => expect(name).toBe("discussion/notifications.continue"),
   validDiscussionId: (value: unknown) => typeof value === "string", invalid: () => new Error("DISCUSSION_INVALID"),
   and: (...parts: unknown[]) => parts, eq: (...parts: unknown[]) => parts, id: () => "event",
   discussionMessages: { revision: "revision", id: "id", threadId: "threadId" }, discussionEvents: {},
@@ -119,6 +120,7 @@ test("Zyra publication locks the thread before messages and stores the new seque
   insert: (value: never) => ({ values: async (row: unknown) => { inserted[orm.getTableName(value)] = row; } }),
  };
  const dependencies: Record<string, unknown> = {
+  "@/lib/queue/outbox": { wakeOutbox: (name: string) => expect(name).toBe("discussion/notifications.continue") },
   "drizzle-orm": orm, "@/db": { db: { transaction: (work: (tx: unknown) => unknown) => work(tx) } }, "@/db/schema": schema,
   "./access": { getDiscussionActor: async () => ({ id: "author", role: "student" }),
    requireDiscussionMessageAccess: async () => ({ channel: { id: "channel" }, thread, message }) },

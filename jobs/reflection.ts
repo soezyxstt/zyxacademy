@@ -1,4 +1,4 @@
-import { inngest } from "./client";
+import { defineJob } from "./define-job";
 import { db } from "@/db";
 import { learningEvents, weeklyReflections, user } from "@/db/schema";
 import { computeWeeklyReflection, getPreviousWeekRange, formatDateStr } from "@/lib/reflection-service";
@@ -9,7 +9,7 @@ import { getUserLocalePreference } from "@/lib/i18n/preferences";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { renderReflectionEmail } from "@/lib/reflection-email-template";
 
-export const weeklyReflectionCron = inngest.createFunction(
+export const weeklyReflectionCron = defineJob(
   {
     id: "weekly-reflection-cron",
     name: "Weekly Reflection Cron",

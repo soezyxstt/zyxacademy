@@ -11,7 +11,10 @@ const config = JSON.parse(await readFile(`${target.output}/.env.${target.name}.j
 assertWorkerEnvironment(target, config);
 assert.equal(config.INNGEST_SERVE_ORIGIN, target.origin);
 Object.assign(process.env, config);
+// The smoke client runs outside Neon and enqueues with the runner's Google identity.
+delete process.env.ZYX_COMPUTE_RUNTIME;
 const [{ storage }, { joinKey, buildSourceReadJobKey }] = await Promise.all([import("../../lib/storage"), import("../../lib/storage/keys")]);
+const queuePilot = target.name === "staging" && process.env.QUEUE_SMOKE_PROVIDER === "cloud-tasks";
 const checks: Array<{ name: string; status: "PASS"; durationMs: number }> = [];
 const objects: string[] = [];
 const pendingSources = new Set<string>();
@@ -37,7 +40,7 @@ async function rpc(key: string, representation: "text" | "image" | "both", image
   }
   throw new Error("PDF_RPC_RATE_LIMIT_RETRIES_EXHAUSTED");
 }
-try {
+async function runChecks() {
   await check("health and all function registration", async () => {
     for (let attempt = 0; attempt < 15; attempt++) {
       const response = await fetch(`${config.INNGEST_SERVE_ORIGIN}/health?probe=${crypto.randomUUID()}`, { cache: "no-store", signal: AbortSignal.timeout(30_000) });
@@ -50,23 +53,45 @@ try {
     }
   });
   await check("internal and Inngest authentication", async () => {
-    for (const path of ["/internal/pdf/pages", "/internal/authoring/source-pack/resolve", "/api/inngest"]) {
+    for (const path of ["/internal/pdf/pages", "/internal/authoring/source-pack/resolve", ...(config.QUEUE_PROVIDER === "cloud-tasks" ? [] : ["/api/inngest"]), ...(queuePilot ? ["/internal/tasks/source.pdf.page.requested"] : [])]) {
       const response = await fetch(`${config.INNGEST_SERVE_ORIGIN}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
       assert.equal(response.status, 401, path);
     }
   });
+  if (queuePilot && process.argv.includes("--preflight")) return;
   const key = joinKey("overhaul", "neon-worker-smoke", `${crypto.randomUUID()}.pdf`);
   objects.push(key);
   await storage.upload(sourcePdf(595.28, 841.89), "synthetic.pdf", "application/pdf", { key });
-  if (!process.argv.includes("--preflight")) await check("durable Inngest PDF page job on Neon", async () => {
+  if (!process.argv.includes("--preflight")) await check("durable PDF page job on Neon", async () => {
     const { inngest } = await import("../../jobs/client");
     const jobId = createHash("sha256").update(crypto.randomUUID()).digest("hex");
     const stateKey = buildSourceReadJobKey(jobId, 1);
     pendingSources.add(key);
-    const sent = await inngest.send({ id: jobId, name: "source.pdf.page.requested", data: {
+    const event = { id: jobId, name: "source.pdf.page.requested", data: {
       jobId, requestId: crypto.randomUUID(), storageKey: key, materialId: jobId, courseId: "neon-worker-smoke",
       checksum: null, pages: [1], pageNumber: 1, representation: "text", imageWidth: 640,
-    } });
+    } };
+    if (queuePilot) {
+      process.env.QUEUE_PROVIDER = "cloud-tasks";
+      const { enqueueTask } = await import("../../lib/queue/cloud-tasks");
+      const taskName = await enqueueTask(event);
+      for (let attempt = 0; attempt < 90; attempt++) {
+        if (await storage.exists(stateKey)) {
+          const state = JSON.parse(Buffer.from(await storage.download!(stateKey)).toString("utf8"));
+          if (state.status === "complete" || state.status === "failed") {
+            pendingSources.delete(key);
+            objects.push(stateKey);
+            assert.equal(state.status, "complete");
+            assert.match(state.page.text, /Hello PDF/);
+            await writeFile(`${target.output}/cloud-tasks-smoke.json`, JSON.stringify({ taskName, status: state.status }));
+            return;
+          }
+        }
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+      throw new Error(`CLOUD_TASKS_SMOKE_PENDING:${jobId}`);
+    }
+    const sent = await inngest.send(event);
     assert.equal(sent.ids.length, 1);
     await writeFile(`${target.output}/inngest-pending.json`, JSON.stringify({ eventId: sent.ids[0], jobId, sourceKey: key, stateKey }));
     let terminal = false;
@@ -94,6 +119,7 @@ try {
       throw new Error(`INNGEST_SMOKE_PENDING:${sent.ids[0]}`);
     }
   });
+  if (queuePilot) return;
   await check("Cloudflare PDF text extraction", async () => {
     const result = await rpc(key, "text"); assert.equal(result.totalPages, 1); assert.match(result.pages[0].text, /Hello PDF/);
   });
@@ -129,6 +155,9 @@ try {
     await storage.upload(rendered!, "rendered.pdf", "application/pdf", { key: renderedKey });
     const result = await rpc(renderedKey, "text"); assert.match(result.pages[0].text, /Neon worker PDF smoke/);
   });
+}
+try {
+  await runChecks();
   await writeFile(`${target.output}/http-smoke.json`, JSON.stringify({ status: "PASS", checks }, null, 2));
 } catch (error) {
   await writeFile(`${target.output}/http-smoke.json`, JSON.stringify({ status: "FAIL", checks, error: error instanceof Error ? error.message : "unknown" }, null, 2));

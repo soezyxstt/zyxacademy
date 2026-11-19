@@ -1,10 +1,10 @@
-import { inngest } from "./client";
+import { defineJob } from "./define-job";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { diktats } from "@/db/schema";
 import { executeDiktatPDFGeneration } from "@/lib/compute/diktat-pdf";
 
-export const diktatPdfWorker = inngest.createFunction(
+export const diktatPdfWorker = defineJob(
   {
     id: "diktat-pdf-worker",
     name: "Diktat PDF Generation Worker",

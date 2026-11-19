@@ -1,5 +1,9 @@
 # Zyx Database Schema Reference
 
+## Cloud Tasks checkpoints
+
+Migration 0035 adds `queue_task_checkpoints`. Its composite primary key identifies a task and a completed step. The worker retains a terminal marker after releasing step payloads. The dispatcher expires records older than 35 days. Apply this migration to the verified target before enabling the dispatcher.
+
 ## Discussions, schema and staging status
 
 Generated PostgreSQL migrations `0024_strong_newton_destine.sql` through `0034_aromatic_silhouette.sql` define the discussion tables, version observations, participant summaries, serialized event cutoffs, help category, notification delivery queue, image previews, immutable submission fingerprints and transactional counters in `db/schema.ts`. Migration 0032 adds the nonnegative per-user/channel read revision and a partial notification index on user, type, read state and metadata thread ID. Migrations 0024 through 0034 were applied to the verified Neon staging target on 2026-11-17, with 37 ledger entries and 13 discussion tables verified. No existing discussion rows required backfill. See the [migration record](discussions.md#staging-migration-2026-11-17) for the backup, baseline and role checks. Other environments and authenticated runtime acceptance remain OPEN / IN PROGRESS. The [discussion contract](discussions.md) describes permissions and integration limits.

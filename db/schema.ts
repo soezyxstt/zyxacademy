@@ -6623,3 +6623,14 @@ export const discussionThreadParticipants = pgTable("discussion_thread_participa
  index("discussion_thread_participants_channel_user_thread_idx").on(t.channelId, t.userId, t.threadId),
  check("discussion_thread_participants_bounds_check", sql`${t.firstSeq} > 0 and ${t.earliestCreatedSeq} >= ${t.firstSeq} and ${t.earliestCreatedAt} <= ${t.firstCreatedAt}`),
 ]);
+
+/** Completed task steps survive Cloud Tasks redelivery and worker restarts. */
+export const queueTaskCheckpoints = pgTable("queue_task_checkpoints", {
+ task: text("task").notNull(),
+ step: text("step").notNull(),
+ value: jsonb("value").notNull(),
+ recordedAt: timestamp("recorded_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+ primaryKey({ columns: [table.task, table.step] }),
+ index("queue_task_checkpoints_recorded_at_idx").on(table.recordedAt),
+]);
