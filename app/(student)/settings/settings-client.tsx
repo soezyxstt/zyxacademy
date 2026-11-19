@@ -46,7 +46,7 @@ function PreferenceChoice<Value extends string>({
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-(--row-padding)">
       <div className="min-w-0">
-        <label htmlFor={id} className="text-body-sm font-semibold">{label}</label>
+        <label htmlFor={id} className="text-body-sm font-medium text-foreground">{label}</label>
         {description ? <p id={descriptionId} className="mt-1 text-body-xs text-muted-foreground">{description}</p> : null}
       </div>
       <Select value={value} disabled={disabled} onValueChange={(next) => {
@@ -80,7 +80,7 @@ function PreferenceSwitch({
   const id = useId();
   return (
     <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 py-(--row-padding)">
-      <label htmlFor={id} className="text-body-sm font-semibold">{label}</label>
+      <label htmlFor={id} className="text-body-sm font-medium text-foreground">{label}</label>
       <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} />
     </div>
   );
@@ -135,7 +135,7 @@ function DisplayPreferences() {
         />
         <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 py-(--row-padding)">
           <div>
-            <span className="text-body-sm font-semibold">{common("language.label")}</span>
+            <span className="text-body-sm font-medium text-foreground">{common("language.label")}</span>
             {error && <p id={languageErrorId} role="alert" className="mt-1 text-body-xs text-destructive">{error}</p>}
           </div>
           <ToggleGroup
@@ -233,31 +233,34 @@ export function SettingsClient({
 
   return (
     <ApplicationPage>
-      <PageHeader title={common("preferences")} actions={(
-        <Button asChild variant="outline" size="sm">
-          <Link href={href("/feedback")}>{t("settings.sendFeedback")}</Link>
-        </Button>
-      )} />
+      <PageHeader title={common("preferences")} />
       <Tabs value={activeTab} onValueChange={setTab}>
-        <TabsList aria-label={common("preferences")}>
-          <TabsTrigger value="appearance">{t("preferences.appearance")}</TabsTrigger>
-          <TabsTrigger value="profile">{t("settings.profile")}</TabsTrigger>
-          <TabsTrigger value="email">{t("preferences.email")}</TabsTrigger>
-        </TabsList>
-        <TabsContent value="appearance"><DisplayPreferences /></TabsContent>
-        <TabsContent value="profile" forceMount className="data-[state=inactive]:hidden">
-          <div className="mb-(--related-gap) flex justify-end">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-border/50">
+          <TabsList aria-label={common("preferences")} className="border-b-0">
+            <TabsTrigger value="appearance">{t("preferences.appearance")}</TabsTrigger>
+            <TabsTrigger value="profile">{t("settings.profile")}</TabsTrigger>
+            <TabsTrigger value="email">{t("preferences.email")}</TabsTrigger>
+          </TabsList>
+          <div className="flex items-center gap-2 pb-1.5">
+            {activeTab === "profile" && (
+              <Button asChild variant="outline" size="sm">
+                <Link href={href("/profile")}>{t("settings.viewProfile")}</Link>
+              </Button>
+            )}
             <Button asChild variant="outline" size="sm">
-              <Link href={href("/profile")}>{t("settings.viewProfile")}</Link>
+              <Link href={href("/feedback")}>{t("settings.sendFeedback")}</Link>
             </Button>
           </div>
+        </div>
+        <TabsContent value="appearance" className="mt-0"><DisplayPreferences /></TabsContent>
+        <TabsContent value="profile" forceMount className="mt-0 data-[state=inactive]:hidden">
           {profile ?? (
             <Button asChild variant="outline" size="sm">
               <Link href={href("/profile/edit")}>{t("profile.editTitle")}</Link>
             </Button>
           )}
         </TabsContent>
-        <TabsContent value="email" forceMount className="data-[state=inactive]:hidden">
+        <TabsContent value="email" forceMount className="mt-0 data-[state=inactive]:hidden">
           {email ?? (
             <Button asChild variant="outline" size="sm">
               <Link href={href("/settings/notifications")}>{t("settings.manageNotifications")}</Link>

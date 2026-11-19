@@ -1,15 +1,15 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
-import { Bell, BookOpen, CalendarDays, Mail, Newspaper, ShieldCheck, BookmarkCheck } from "lucide-react";
+import { useActionState, useEffect, useId, useRef, useState } from "react";
+import { Bell, BookOpen, CalendarDays, Newspaper, ShieldCheck, BookmarkCheck } from "lucide-react";
 import { updateNotificationPreferencesAction, type NotificationPreferencesActionState } from "./actions";
 import type { EmailNotificationPreferences } from "@/lib/email-preferences/contracts";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toast";
 import { useTranslations } from "@/lib/i18n/client";
-
 import { useStudentExperience } from "@/components/student-experience-provider";
+import { cn } from "@/lib/utils";
 
 const INITIAL_ACTION_STATE: NotificationPreferencesActionState = {
   success: false,
@@ -53,6 +53,7 @@ export function NotificationPreferencesForm({
 }) {
   const t = useTranslations("student");
   const experience = useStudentExperience();
+  const baseId = useId();
   const shownSubmission = useRef(0);
   const [preferences, setPreferences] = useState(initialPreferences);
   const [state, formAction, pending] = useActionState(async (previous: NotificationPreferencesActionState, form: FormData) => {
@@ -67,84 +68,103 @@ export function NotificationPreferencesForm({
     else toast.error(t("notificationPreferences.saveFailed"));
   }, [state, t]);
 
+  const masterId = `${baseId}-email-enabled`;
+
   return (
-    <form action={formAction} className="w-full space-y-(--related-gap)">
+    <form action={formAction} className="w-full space-y-6">
       {Object.entries(preferences).map(([key, value]) => (
         <input key={key} type="hidden" name={key} value={String(value)} />
       ))}
 
       <section aria-labelledby="notification-preferences-heading">
-        <header className="border-b border-border pb-(--compact-gap)">
-          <div className="flex items-start gap-(--compact-gap)">
-            <span className="flex size-8 shrink-0 items-center justify-center text-primary">
-              <Mail className="size-5" aria-hidden />
-            </span>
-            <div className="min-w-0">
-              <h2 id="notification-preferences-heading" className="font-heading text-section-title font-bold">{t("notificationPreferences.title")}</h2>
-              <p className="mt-1 text-body-xs">
-                {t("notificationPreferences.optionalDescription", { email: accountEmail })}
-              </p>
-            </div>
-          </div>
+        <header className="space-y-1 border-b border-border/40 pb-3">
+          <h2
+            id="notification-preferences-heading"
+            className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
+            {t("notificationPreferences.title")}
+          </h2>
+          <p className="text-body-xs text-muted-foreground">
+            {t("notificationPreferences.optionalDescription", { email: accountEmail })}
+          </p>
         </header>
 
-        <div>
-          <label className="flex cursor-pointer items-start gap-(--compact-gap) border-b border-border py-(--row-padding) hover:bg-muted/20 transition-colors">
-            <Checkbox
+        <div className="divide-y divide-border/30">
+          <div className="flex items-center justify-between gap-4 rounded-lg px-3 py-3 transition-colors hover:bg-muted/30">
+            <label htmlFor={masterId} className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
+              <Bell className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span className="min-w-0">
+                <span className="block text-body-sm font-medium text-foreground">
+                  {t("notificationPreferences.enableOptional")}
+                </span>
+                <span className="mt-0.5 block text-body-xs text-muted-foreground">
+                  {t("notificationPreferences.categoriesPersist")}
+                </span>
+              </span>
+            </label>
+            <Switch
+              id={masterId}
               checked={preferences.emailEnabled}
               onCheckedChange={(checked) => setPreferences((current) => ({ ...current, emailEnabled: checked === true }))}
-              className="mt-1 size-5 rounded-md"
               aria-label={t("notificationPreferences.enableOptional")}
             />
-            <span className="min-w-0">
-              <span className="flex items-center gap-2 text-body-sm font-semibold text-foreground">
-                <Bell className="size-4 text-primary" aria-hidden />
-                {t("notificationPreferences.enableOptional")}
-              </span>
-              <span className="mt-1 block text-body-xs text-muted-foreground">
-                {t("notificationPreferences.categoriesPersist")}
-              </span>
-            </span>
-          </label>
+          </div>
 
-          <div className="divide-y divide-border">
-            {CATEGORY_ROWS.map(({ key, labelKey, descriptionKey, icon: Icon }) => (
-              <label
+          {CATEGORY_ROWS.map(({ key, labelKey, descriptionKey, icon: Icon }) => {
+            const rowId = `${baseId}-${key}`;
+            const disabled = !preferences.emailEnabled;
+            return (
+              <div
                 key={key}
-                className="flex cursor-pointer items-start gap-(--compact-gap) py-(--row-padding) has-[:disabled]:cursor-not-allowed hover:bg-muted/20 transition-colors"
+                className={cn(
+                  "flex items-center justify-between gap-4 rounded-lg px-3 py-3 transition-colors",
+                  disabled ? "opacity-55" : "hover:bg-muted/30"
+                )}
               >
-                <Checkbox
+                <label
+                  htmlFor={rowId}
+                  className={cn(
+                    "flex min-w-0 flex-1 items-start gap-3",
+                    disabled ? "cursor-not-allowed" : "cursor-pointer"
+                  )}
+                >
+                  <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="min-w-0">
+                    <span className="block text-body-sm font-medium text-foreground">
+                      {t(`notificationPreferences.${labelKey}`)}
+                    </span>
+                    <span className="mt-0.5 block text-body-xs text-muted-foreground">
+                      {t(`notificationPreferences.${descriptionKey}`)}
+                    </span>
+                  </span>
+                </label>
+                <Switch
+                  id={rowId}
                   checked={preferences[key]}
-                  disabled={!preferences.emailEnabled}
+                  disabled={disabled}
                   onCheckedChange={(checked) => setPreferences((current) => ({ ...current, [key]: checked === true }))}
-                  className="mt-1 size-5 rounded-md"
                   aria-label={t(`notificationPreferences.${labelKey}`)}
                 />
-                <span className="min-w-0">
-                  <span className="flex items-center gap-2 text-body-sm font-semibold text-foreground">
-                    <Icon className="size-4 text-muted-foreground" aria-hidden />
-                    {t(`notificationPreferences.${labelKey}`)}
-                  </span>
-                  <span className="mt-0.5 block text-body-xs text-muted-foreground">{t(`notificationPreferences.${descriptionKey}`)}</span>
-                </span>
-              </label>
-            ))}
+              </div>
+            );
+          })}
+
+          <div className="flex items-start gap-3 px-3 py-3">
+            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+            <div className="min-w-0">
+              <p className="text-body-sm font-medium text-foreground">
+                {t("notificationPreferences.importantEmailAlwaysOn")}
+              </p>
+              <p className="mt-0.5 text-body-xs text-muted-foreground">
+                {t("notificationPreferences.securityDescription")}
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      <div className="flex items-start gap-(--compact-gap) px-1">
-        <ShieldCheck className="mt-0.5 size-5 shrink-0 text-brand-primary" aria-hidden />
-        <div>
-          <p className="text-body-sm font-semibold text-foreground">{t("notificationPreferences.importantEmailAlwaysOn")}</p>
-          <p className="mt-1 text-body-xs text-muted-foreground">
-            {t("notificationPreferences.securityDescription")}
-          </p>
-        </div>
-      </div>
-
-      <div className="flex justify-end border-t border-border pt-(--related-gap)">
-        <Button type="submit" size="default" className="rounded-lg px-6 font-semibold" disabled={pending}>
+      <div className="flex justify-end border-t border-border/30 pt-4">
+        <Button type="submit" size="sm" className="text-body-sm font-semibold" disabled={pending}>
           {pending ? t("notificationPreferences.saving") : t("notificationPreferences.save")}
         </Button>
       </div>
