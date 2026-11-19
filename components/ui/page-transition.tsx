@@ -35,6 +35,7 @@ export function PageTransition({ children }: { children: ReactNode }) {
   return (
     <motion.div
       key={pathname}
+      data-page-transition=""
       suppressHydrationWarning
       initial={reduceMotion || isAppSurface ? false : { opacity: 0, y: initialY }}
       animate={{ opacity: 1, y: 0 }}

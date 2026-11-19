@@ -30,21 +30,20 @@ export const APPEARANCE_ATTRIBUTES = {
   background: "data-preference-background",
 } as const;
 
-const ALLOWED_VALUES = {
+const ALLOWED_VALUES: { [Key in keyof AppearancePreferences]: readonly AppearancePreferences[Key][] } = {
   density: DENSITY_OPTIONS,
   fontSize: FONT_SIZE_OPTIONS,
   animations: ANIMATION_OPTIONS,
   background: BACKGROUND_OPTIONS,
   toastPosition: TOAST_POSITION_OPTIONS,
-} satisfies { [Key in keyof AppearancePreferences]: readonly AppearancePreferences[Key][] };
+};
 
 function applySavedValues<Key extends keyof AppearancePreferences>(
   preferences: AppearancePreferences,
   stored: Record<string, unknown>,
   key: Key,
 ) {
-  const valid = (ALLOWED_VALUES[key] as readonly AppearancePreferences[Key][])
-    .find((value) => value === stored[key]);
+  const valid = ALLOWED_VALUES[key].find((value) => value === stored[key]);
   if (valid !== undefined) preferences[key] = valid;
 }
 

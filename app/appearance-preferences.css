@@ -52,6 +52,7 @@
 
 :root[data-preference-animations="false"] :is(
   [data-scroll-reveal],
+  [data-page-transition],
   .landing-float,
   .landing-drift,
   .landing-stagger > *,
@@ -68,4 +69,11 @@
   transform: none !important;
   translate: none !important;
   stroke-dashoffset: 0 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-page-transition] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
