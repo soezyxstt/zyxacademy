@@ -57,7 +57,7 @@ export default async function TutorPage() {
   ];
 
   return (
-    <ApplicationPage spacing="space-y-4">
+    <ApplicationPage spacing="space-y-8">
       <PageHeader
         title={t("title")}
         icon={LayoutDashboard}
@@ -76,7 +76,7 @@ export default async function TutorPage() {
         }
       />
 
-      <section aria-label={t("summary")} className="grid grid-cols-2 gap-x-4 gap-y-3 border-y border-border py-3 lg:grid-cols-4">
+      <section aria-label={t("summary")} className="grid grid-cols-2 gap-x-4 gap-y-3 border-y border-border/40 py-4 lg:grid-cols-4">
         {statItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -91,12 +91,10 @@ export default async function TutorPage() {
         })}
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(300px,0.75fr)]">
-        <section className="min-w-0 border-t border-border">
-          <div className="flex items-center justify-between gap-3 border-b border-border py-2.5">
-            <div>
-              <h2 className="font-heading text-body-base font-bold text-foreground">{t("upcomingSessions")}</h2>
-            </div>
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1.25fr)_minmax(300px,0.75fr)]">
+        <section className="min-w-0">
+          <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-2">
+            <h2 className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("upcomingSessions")}</h2>
             <Link href="/tutor/schedule" className="shrink-0 text-body-xs font-semibold text-brand-primary hover:underline">
               {t("allSchedules")}
             </Link>
@@ -114,12 +112,12 @@ export default async function TutorPage() {
               className="py-4"
             />
           ) : (
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-border/30">
               {upcomingSessions.map((booking) => (
                 <Link
                   key={booking.id}
                   href="/tutor/schedule?tab=sessions"
-                  className="group flex min-w-0 items-start gap-3 py-3 transition-colors hover:bg-muted/30"
+                  className="group -mx-2 flex min-w-0 items-start gap-3 rounded-lg px-2 py-3 transition-colors hover:bg-muted/35"
                 >
                   <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
                     <Clock3 className="size-4" aria-hidden />
@@ -143,9 +141,9 @@ export default async function TutorPage() {
           )}
         </section>
 
-        <section className="min-w-0 border-t border-border">
-          <div className="border-b border-border py-2.5">
-            <h2 className="font-heading text-body-base font-bold text-foreground">{t("attention")}</h2>
+        <section className="min-w-0">
+          <div className="border-b border-border/40 pb-2">
+            <h2 className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("attention")}</h2>
           </div>
           {pendingTickets.length === 0 ? (
             <AdminEmptyState
@@ -154,9 +152,9 @@ export default async function TutorPage() {
               className="py-4"
             />
           ) : (
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-border/30">
               {pendingTickets.slice(0, 5).map((ticket) => (
-                <Link key={ticket.id} href="/tutor/schedule?tab=tickets" className="block py-3 transition-colors hover:bg-muted/30">
+                <Link key={ticket.id} href="/tutor/schedule?tab=tickets" className="-mx-2 block rounded-lg px-2 py-3 transition-colors hover:bg-muted/35">
                   <p className="text-body-sm font-semibold text-foreground">
                     {ticket.type === "cancellation" ? t("cancellationRequest") : t("rescheduleRequest")}
                   </p>
@@ -168,11 +166,9 @@ export default async function TutorPage() {
         </section>
       </div>
 
-      <section className="border-t border-border">
-        <div className="flex items-center justify-between gap-3 border-b border-border py-2.5">
-          <div>
-            <h2 className="font-heading text-body-base font-bold text-foreground">{t("teaching")}</h2>
-          </div>
+      <section>
+        <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-2">
+          <h2 className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("teaching")}</h2>
           <span className="text-body-xs text-muted-foreground">{t("courseCount", { count: schedule.assignedActiveCourses.length })}</span>
         </div>
 
@@ -184,7 +180,7 @@ export default async function TutorPage() {
             className="py-5"
           />
         ) : (
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-border/30">
             {schedule.assignedActiveCourses.map((course) => {
               const groupCount = schedule.eligibleGroups.filter((group) =>
                 group.matchedCourseIds.includes(course.courseId) || Boolean(course.legacyCourseId && group.matchedCourseIds.includes(course.legacyCourseId)),
@@ -193,7 +189,7 @@ export default async function TutorPage() {
                 <Link
                   key={course.courseId}
                   href={`/tutor/${course.courseId}`}
-                  className="group flex min-w-0 items-center gap-3 py-3 transition-colors hover:bg-muted/30"
+                  className="group -mx-2 flex min-w-0 items-center gap-3 rounded-lg px-2 py-3 transition-colors hover:bg-muted/35"
                 >
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground group-hover:text-brand-primary">
                     <BookOpen className="size-4" aria-hidden />

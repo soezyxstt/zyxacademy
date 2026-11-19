@@ -5,6 +5,8 @@ import React, { useState, useEffect, useCallback, useRef, type ReactNode } from 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  ArrowLeft,
+  ArrowRight,
   LogOut,
   Search,
   PanelLeftOpen,
@@ -101,9 +103,9 @@ export function NavItem({
   const baseClass = cn(
     "group/item relative flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-body-sm font-medium transition-colors w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
     active
-      ? "bg-brand-primary/10 text-brand-primary"
-      : "text-muted-foreground hover:bg-muted hover:text-foreground",
-    collapsed && "justify-center px-0 size-10 mx-auto",
+      ? "bg-muted/80 text-foreground"
+      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+    collapsed && "justify-center px-0 size-10 shrink-0 mx-auto",
     isChild && !collapsed && "rounded-lg px-2.5 py-1.5 gap-2",
     className
   );
@@ -824,26 +826,48 @@ export function SidebarShell({
         {/* Top Header Bar */}
         <div
           className={cn(
-            "flex h-14 shrink-0 items-center border-b border-border gap-1.5",
-            isCollapsed ? "justify-center px-1.5" : "px-3"
+            "flex h-11 shrink-0 items-center border-b border-border/60 gap-0.5",
+            isCollapsed ? "justify-center px-1.5" : "px-2.5"
           )}
         >
           {!isCollapsed ? (
             <>
-              <Link href={logoHref} aria-label={logoLabel} className="flex flex-1 min-w-0 items-center">
-                <Logo variant="symbol" className="[--logo-height:1.75rem]" />
+              <Link href={logoHref} aria-label={logoLabel} className="flex flex-1 min-w-0 items-center pl-1">
+                <Logo variant="symbol" className="[--logo-height:1.25rem]" />
               </Link>
 
-              {showAccountTools && <NotificationBell variant="sidebar" />}
+              <SidebarTooltip label="Back" collapsed={false}>
+                <button
+                  type="button"
+                  onClick={() => window.history.back()}
+                  aria-label="Back"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <ArrowLeft className="size-4" />
+                </button>
+              </SidebarTooltip>
+
+              <SidebarTooltip label="Forward" collapsed={false}>
+                <button
+                  type="button"
+                  onClick={() => window.history.forward()}
+                  aria-label="Forward"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <ArrowRight className="size-4" />
+                </button>
+              </SidebarTooltip>
 
               {headerActions?.(false)}
+
+              {showAccountTools && <NotificationBell variant="sidebar" />}
 
               {showAccountTools && <SidebarTooltip label={t("searchWithShortcut", { shortcut: modKeyHint })} collapsed={false}>
                 <button
                   type="button"
                   onClick={() => setSearchOpen(true)}
                   aria-label={t("searchWithShortcut", { shortcut: modKeyHint })}
-                  className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
                 >
                   <Search className="size-4" />
                 </button>
@@ -854,20 +878,20 @@ export function SidebarShell({
                   type="button"
                   onClick={isMobile ? () => setMobileOpen(false) : toggleCollapsed}
                   aria-label={t("closeSidebar")}
-                  className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
                 >
                   <PanelLeftClose className="size-4" />
                 </button>
               </SidebarTooltip>
             </>
           ) : (
-            <div className="flex flex-col items-center gap-1.5 py-1">
+            <div className="flex flex-col items-center gap-1 py-1">
               <SidebarTooltip label={t("openSidebar")} collapsed={true}>
                 <button
                   type="button"
                   onClick={toggleCollapsed}
                   aria-label={t("openSidebar")}
-                  className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
                 >
                   <PanelLeftOpen className="size-4" />
                 </button>
@@ -879,15 +903,37 @@ export function SidebarShell({
         {/* Optional Top Section (e.g. Streak strip) */}
         {topSection?.(isCollapsed)}
 
-        {/* Collapsed quick search button & header actions */}
+        {/* Collapsed quick navigation, search & header actions */}
         {isCollapsed && (
-          <div className="px-1 pt-2 shrink-0 flex flex-col items-center gap-1.5">
+          <div className="px-1 py-1.5 shrink-0 flex flex-col items-center gap-1 border-b border-border/60">
+            <div className="flex items-center gap-0.5">
+              <SidebarTooltip label="Back" collapsed={true}>
+                <button
+                  type="button"
+                  onClick={() => window.history.back()}
+                  aria-label="Back"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <ArrowLeft className="size-3.5" />
+                </button>
+              </SidebarTooltip>
+              <SidebarTooltip label="Forward" collapsed={true}>
+                <button
+                  type="button"
+                  onClick={() => window.history.forward()}
+                  aria-label="Forward"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <ArrowRight className="size-3.5" />
+                </button>
+              </SidebarTooltip>
+            </div>
             {showAccountTools && <SidebarTooltip label={t("searchWithShortcut", { shortcut: modKeyHint })} collapsed={true}>
               <button
                 type="button"
                 onClick={() => setSearchOpen(true)}
                 aria-label={t("searchWithShortcut", { shortcut: modKeyHint })}
-                className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/40 text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
+                className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
               >
                 <Search className="size-4" />
               </button>

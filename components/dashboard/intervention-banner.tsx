@@ -78,25 +78,30 @@ function AccountInterventionBanner({ userId }: { userId: string }) {
       </div>
 
       {/* Row 2 */}
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap gap-4 text-body-sm text-primary">
-          <Link href={reviewModuleHref} className="hover:underline font-medium">
-            {t("dashboard.intervention.readMaterial")}
-          </Link>
-          <Link href={practiceQuizHref} className="hover:underline font-medium">
-            {t("dashboard.intervention.practiceQuiz")}
-          </Link>
-          <Link href={flashcardHref} className="hover:underline font-medium">
-            {t("dashboard.intervention.flashcards", { count: payload.flashcardCount })}
-          </Link>
-          
+      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" asChild className="h-8 rounded-lg bg-background/80 text-body-sm">
+            <Link href={reviewModuleHref}>
+              {t("dashboard.intervention.readMaterial")}
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild className="h-8 rounded-lg bg-background/80 text-body-sm">
+            <Link href={practiceQuizHref}>
+              {t("dashboard.intervention.practiceQuiz")}
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild className="h-8 rounded-lg bg-background/80 text-body-sm">
+            <Link href={flashcardHref}>
+              {t("dashboard.intervention.flashcards", { count: payload.flashcardCount })}
+            </Link>
+          </Button>
+
           {extraCount > 0 && (
-            <span className="text-body-sm text-muted-foreground">
-              +
-              <Link href={`/courses/${courseId}`} className="hover:underline font-medium text-muted-foreground ml-0.5">
-                {t("dashboard.intervention.more", { count: extraCount })}
+            <Button variant="ghost" size="sm" asChild className="h-8 rounded-lg text-body-sm text-muted-foreground">
+              <Link href={`/courses/${courseId}`}>
+                +{t("dashboard.intervention.more", { count: extraCount })}
               </Link>
-            </span>
+            </Button>
           )}
         </div>
 

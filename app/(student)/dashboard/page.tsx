@@ -70,8 +70,6 @@ export default async function DashboardPage() {
         </Suspense>
       </DashboardSectionErrorBoundary>
 
-      {user?.id && <DashboardSectionErrorBoundary variant="silent"><Suspense fallback={null}><GamificationDashboardSummary userId={user.id} /></Suspense></DashboardSectionErrorBoundary>}
-
       {!isEnrolledInAny ? (
         <DashboardSectionErrorBoundary
           variant="primary"
@@ -133,6 +131,14 @@ export default async function DashboardPage() {
                 )}
             </>,
             secondary: <>
+                {user?.id && (
+                  <DashboardSectionErrorBoundary variant="silent">
+                    <Suspense fallback={null}>
+                      <GamificationDashboardSummary userId={user.id} />
+                    </Suspense>
+                  </DashboardSectionErrorBoundary>
+                )}
+
                 <DashboardSectionErrorBoundary
                   variant="secondary"
                   sectionTitle={<TranslatedText namespace="student" messageKey="dashboard.spacedRepetition" />}

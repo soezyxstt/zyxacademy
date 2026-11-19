@@ -500,6 +500,7 @@
   },
   "leaderboard": {
     "title": "Peringkat kelas: {course}",
+    "activateToView": "Aktifkan kelas untuk melihat peringkat dan skor gabungan.",
     "typeLabel": "Jenis peringkat",
     "quiz": "Kuis",
     "tryout": "Tryout",

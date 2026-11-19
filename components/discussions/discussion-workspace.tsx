@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { useTranslations } from "@/lib/i18n/client";
-import { ArrowLeft, Bell, BellOff, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Loader2, LockKeyhole, MessageSquareText, RotateCcw, Search, SquarePen, X } from "lucide-react";
+import { Fragment, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import { ArrowLeft, Bell, BellOff, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, LockKeyhole, MessageSquareText, RotateCcw, Search, SquarePen, X } from "lucide-react";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { Button } from "@/components/ui/button";
 import { FormattedDate } from "@/components/ui/formatted-date";
@@ -10,11 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useUrlTab } from "@/hooks/use-url-tab";
+import { normalizeDate } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import { DiscussionComposer, emptyComposerDraft, setComposerReplyTarget, type ComposerDraft } from "./composer";
 import { DiscussionChannelPicker, DiscussionMessage, discussionChannelLabel } from "./discussion-message";
 import { DiscussionProfileDialog } from "./discussion-profile-dialog";
 import { DiscussionReports } from "./discussion-reports";
+import { DiscussionQuestionListSkeleton, DiscussionThreadSkeleton } from "./discussion-skeleton";
 import type { DiscussionChannel, DiscussionForwardDraft, DiscussionMessage as Message, DiscussionPerson, DiscussionWorkspaceProps } from "./view-model";
 
 
@@ -52,12 +54,41 @@ export type DiscussionDraftState = {
   newChannel: State<DiscussionChannel | null>;
 };
 
+function calendarDayKey(date: Date, useUtc: boolean) {
+  return useUtc
+    ? `${date.getUTCFullYear()}-${date.getUTCMonth()}-${date.getUTCDate()}`
+    : `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function formatDayDivider(date: Date, mounted: boolean, locale: string, labels: { today: string; yesterday: string }) {
+  const resolvedLocale = locale === "id" ? "id-ID" : "en-US";
+  if (!mounted) {
+    return date.toLocaleDateString(resolvedLocale, { day: "numeric", month: "short", timeZone: "UTC" });
+  }
+  const now = new Date();
+  const todayKey = calendarDayKey(now, false);
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const yesterdayKey = calendarDayKey(yesterday, false);
+  const key = calendarDayKey(date, false);
+  if (key === todayKey) return labels.today;
+  if (key === yesterdayKey) return labels.yesterday;
+  return date.toLocaleDateString(resolvedLocale, {
+    day: "numeric",
+    month: "short",
+    ...(date.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
+  });
+}
+
 export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftState?: DiscussionDraftState }) {
   const t = useTranslations("discussions");
   const ui = useTranslations("ui");
+  const { locale } = useAppLocale();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const searchVisible = searchExpanded || !!props.search;
   const searchTrigger = useRef<HTMLButtonElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
   const restoreSearchFocus = useRef(false);
   useEffect(() => {
     if (!searchVisible && restoreSearchFocus.current) {
@@ -226,12 +257,12 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
         <div ref={setFrameElement} className="flex h-[calc(100dvh-9rem)] min-h-[20rem] min-w-0 overflow-hidden">
           <aside aria-label={t("questionList")} className={cn("min-h-0 min-w-0 flex-1 flex-col @min-[52rem]/discussions:flex @min-[52rem]/discussions:w-[21rem] @min-[52rem]/discussions:flex-none @min-[52rem]/discussions:border-r @min-[52rem]/discussions:border-border", props.selectedQuestionId || composeActive ? "hidden" : "flex")}>
             <header data-discussion-list-toolbar="" className="shrink-0 border-b border-border py-1.5 @min-[52rem]/discussions:pr-3">
-              <div className="flex min-w-0 items-center gap-1.5" onKeyDown={(event) => { if (searchVisible && event.key === "Escape" && !event.nativeEvent.isComposing && !event.defaultPrevented) { event.preventDefault(); event.stopPropagation(); closeSearch(); } }}>{searchVisible ? <><Input autoFocus value={props.search} onChange={(event) => props.onSearchChange(event.target.value)} aria-label={t("searchQuestion")} placeholder={t("search")} className="min-w-0 flex-1" /><Tooltip><TooltipTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={ui("close")} onClick={closeSearch}><X /></Button></TooltipTrigger><TooltipContent>{ui("close")}</TooltipContent></Tooltip></> : <><div className="min-w-0 flex-1"><DiscussionChannelPicker value={props.channels.find((item) => item.id === props.selectedChannelId) ?? null} label={t("filterChannel")} placeholder={t("allChannels")} allowAll onSearch={props.onSearchChannels} onChange={(next) => { setNewOpen(false); props.onSelectChannel(next); }} /></div>{selectedChannel && <Tooltip><TooltipTrigger asChild><Button type="button" variant="ghost" size="icon-sm" disabled={mutePending} aria-label={t(selectedChannel.muted ? "unmuteChannel" : "muteChannel", { name: discussionChannelLabel(selectedChannel, t) })} onClick={() => void toggleMute()}>{selectedChannel.muted ? <BellOff /> : <Bell />}</Button></TooltipTrigger><TooltipContent>{t(selectedChannel.muted ? "unmute" : "mute")}</TooltipContent></Tooltip>}<Tooltip><TooltipTrigger asChild><Button ref={searchTrigger} type="button" variant="ghost" size="icon-sm" aria-label={t("searchQuestion")} onClick={() => setSearchExpanded(true)}><Search /></Button></TooltipTrigger><TooltipContent>{t("searchQuestion")}</TooltipContent></Tooltip><Tooltip><TooltipTrigger asChild><Button type="button" size="icon-sm" aria-label={t("newQuestion")} onClick={openNew} disabled={!creatableChannels.length}><SquarePen /></Button></TooltipTrigger><TooltipContent>{t("newQuestion")}</TooltipContent></Tooltip></>}</div>
+              <div ref={searchContainerRef} className="flex min-w-0 items-center gap-1.5" onKeyDown={(event) => { if (searchVisible && event.key === "Escape" && !event.nativeEvent.isComposing && !event.defaultPrevented) { event.preventDefault(); event.stopPropagation(); closeSearch(); } }}>{searchVisible ? <><Input autoFocus value={props.search} onChange={(event) => props.onSearchChange(event.target.value)} onBlur={(event) => { if (!props.search.trim() && !searchContainerRef.current?.contains(event.relatedTarget as Node | null)) setSearchExpanded(false); }} aria-label={t("searchQuestion")} placeholder={t("search")} className="min-w-0 flex-1" /><Tooltip><TooltipTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={ui("close")} onClick={closeSearch}><X /></Button></TooltipTrigger><TooltipContent>{ui("close")}</TooltipContent></Tooltip></> : <><div className="min-w-0 flex-1"><DiscussionChannelPicker value={props.channels.find((item) => item.id === props.selectedChannelId) ?? null} label={t("filterChannel")} placeholder={t("allChannels")} allowAll onSearch={props.onSearchChannels} onChange={(next) => { setNewOpen(false); props.onSelectChannel(next); }} /></div>{selectedChannel && <Tooltip><TooltipTrigger asChild><Button type="button" variant="ghost" size="icon-sm" disabled={mutePending} aria-label={t(selectedChannel.muted ? "unmuteChannel" : "muteChannel", { name: discussionChannelLabel(selectedChannel, t) })} onClick={() => void toggleMute()}>{selectedChannel.muted ? <BellOff /> : <Bell />}</Button></TooltipTrigger><TooltipContent>{t(selectedChannel.muted ? "unmute" : "mute")}</TooltipContent></Tooltip>}<Tooltip><TooltipTrigger asChild><Button ref={searchTrigger} type="button" variant="ghost" size="icon-sm" aria-label={t("searchQuestion")} onClick={() => setSearchExpanded(true)}><Search /></Button></TooltipTrigger><TooltipContent>{t("searchQuestion")}</TooltipContent></Tooltip><Tooltip><TooltipTrigger asChild><Button type="button" size="icon-sm" aria-label={t("newQuestion")} onClick={openNew} disabled={!creatableChannels.length}><SquarePen /></Button></TooltipTrigger><TooltipContent>{t("newQuestion")}</TooltipContent></Tooltip></>}</div>
               {muteError && <p role="alert" className="mt-2 text-body-xs text-destructive">{t("muteError")}</p>}
             </header>
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              {props.listState === "loading" ? <div role="status" className="flex items-center gap-2 p-5 text-body-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> {t("loadingQuestions")}</div> : props.listState === "error" ? <AdminEmptyState icon={CircleHelp} title={t("questionsError")} action={<Button type="button" variant="outline" onClick={props.onRetryQuestions}>{t("retry")}</Button>} /> : <>
-                {props.questions.length === 0 ? <AdminEmptyState icon={MessageSquareText} title={t("noQuestions")} action={creatableChannels.length ? <Button type="button" onClick={openNew}>{t("createQuestion")}</Button> : undefined} /> : <div className="divide-y divide-border">{props.questions.map(item => questionRow(item))}</div>}
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+              {props.listState === "loading" ? <DiscussionQuestionListSkeleton label={t("loadingQuestions")} /> : props.listState === "error" ? <AdminEmptyState icon={CircleHelp} title={t("questionsError")} className="min-h-full flex-1" action={<Button type="button" variant="outline" onClick={props.onRetryQuestions}>{t("retry")}</Button>} /> : <>
+                {props.questions.length === 0 ? <AdminEmptyState icon={MessageSquareText} title={t("noQuestions")} className="min-h-full flex-1" action={creatableChannels.length ? <Button type="button" onClick={openNew}>{t("createQuestion")}</Button> : undefined} /> : <div className="divide-y divide-border">{props.questions.map(item => questionRow(item))}</div>}
                 {props.hasMoreQuestions && props.onLoadMoreQuestions && <LoadMore onLoad={props.onLoadMoreQuestions} label={t("loadQuestions")} />}
               </>}
             </div>
@@ -240,7 +271,7 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
                 <Button type="button" variant="ghost" className="w-full shrink-0 justify-start px-3 [&>span]:justify-between" aria-expanded={!!props.resolvedOpen} onClick={() => props.onResolvedOpenChange?.(!props.resolvedOpen)}>{t("status_resolved")}{props.resolvedOpen ? <ChevronDown /> : <ChevronRight />}</Button>
                 {props.resolvedOpen && (
                   <div className="min-h-0 flex-1 overflow-y-auto border-t border-border">
-                    {props.resolvedState === "loading" ? <p role="status" className="p-3 text-body-xs text-muted-foreground">{t("loadingQuestions")}</p> : props.resolvedState === "error" ? <div role="alert" className="p-3 text-body-xs"><span>{t("questionsError")}</span> <Button type="button" variant="outline" size="sm" onClick={props.onRetryResolved}>{t("retry")}</Button></div> : <>
+                    {props.resolvedState === "loading" ? <DiscussionQuestionListSkeleton count={3} label={t("loadingQuestions")} /> : props.resolvedState === "error" ? <div role="alert" className="p-3 text-body-xs"><span>{t("questionsError")}</span> <Button type="button" variant="outline" size="sm" onClick={props.onRetryResolved}>{t("retry")}</Button></div> : <>
                       {(props.resolvedQuestions ?? []).length ? <div className="divide-y divide-border">{props.resolvedQuestions!.map(item => questionRow(item))}</div> : <p className="p-3 text-body-xs text-muted-foreground">{t("noResolvedQuestions")}</p>}
                       {!!(props.resolvedPageIndex || props.resolvedHasMore) && (
                         <div className="flex items-center justify-center gap-2 border-t border-border p-2">
@@ -289,9 +320,30 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
                 submitLabel={t("sendQuestion")}
               />
             </div>
-          </> : !props.selectedQuestionId ? <AdminEmptyState icon={MessageSquareText} title={t("selectQuestion")} className="h-full" /> : props.threadState === "loading" ? <div className="p-3">{threadBack}<div role="status" className="flex items-center gap-2 p-2 text-body-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> {t("loadingThread")}</div></div> : props.threadState === "error" || !question || !channel ? <div><div className="px-3 pt-3 @min-[52rem]/discussions:hidden">{threadBack}</div><AdminEmptyState icon={CircleHelp} title={t("threadError")} action={<Button type="button" variant="outline" onClick={props.onRetryMessages}>{t("retry")}</Button>} /></div> : <>
+          </> : !props.selectedQuestionId ? <AdminEmptyState icon={MessageSquareText} title={t("selectQuestion")} className="min-h-full flex-1" /> : props.threadState === "loading" ? <DiscussionThreadSkeleton label={t("loadingThread")} backButton={threadBack} /> : props.threadState === "error" || !question || !channel ? <div className="flex min-h-0 flex-1 flex-col"><div className="px-3 pt-3 @min-[52rem]/discussions:hidden">{threadBack}</div><AdminEmptyState icon={CircleHelp} title={t("threadError")} className="min-h-full flex-1" action={<Button type="button" variant="outline" onClick={props.onRetryMessages}>{t("retry")}</Button>} /></div> : <>
             <div className="shrink-0 border-b border-border p-3"><div className="flex items-start gap-2">{threadBack}<div className="min-w-0 flex-1"><h2 data-discussion-status aria-describedby="discussion-thread-status" className="break-words font-heading text-body-base font-bold">{question.title}</h2><span id="discussion-thread-status" className="sr-only">{t(question.status === "open" ? "status_open" : question.status === "answered" ? "status_answered" : "status_resolved")}</span><div className="mt-1 flex flex-wrap items-center gap-2 text-body-xs text-muted-foreground"><ChannelName channel={channel} /></div></div>{question.canResolve && props.onSetQuestionStatus && <Tooltip><TooltipTrigger asChild><Button type="button" variant="outline" size="sm" aria-label={t(question.status === "resolved" ? "reopen" : "resolve")} className="size-8 px-0 @min-[32rem]/discussions:w-auto @min-[32rem]/discussions:px-3" isLoading={statusPending} onClick={() => void toggleStatus()}>{question.status === "resolved" ? <RotateCcw /> : <CheckCircle2 />}<span className="hidden @min-[32rem]/discussions:inline">{t(question.status === "resolved" ? "reopen" : "resolve")}</span></Button></TooltipTrigger><TooltipContent>{t(question.status === "resolved" ? "reopen" : "resolve")}</TooltipContent></Tooltip>}</div>{statusError && <p role="alert" className="mt-1 text-body-xs text-destructive">{t("statusError")}</p>}</div>
-            <div data-discussion-messages className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3 @min-[52rem]/discussions:p-5">{props.hasMoreMessages && props.onLoadMoreMessages && <LoadMore onLoad={props.onLoadMoreMessages} label={t("loadMessages")} />}{props.messages.length ? props.messages.map((message) => <DiscussionMessage key={message.id} message={message} questionId={question.id} viewer={props.viewer} sourceChannel={channel} channels={props.channels} forwardDraft={forwardDrafts[message.id]} updateForwardDraft={(change) => updateForwardDraft(message.id, change)} onSearchChannels={props.onSearchChannels} onSearchForwardTargets={props.onSearchForwardTargets} canReply={question.canReply} targeted={message.id === props.selectedMessageId} replyDisabled={threadDraft.sending || threadLocked} onReply={replyTo} onEdit={props.onEditMessage} onDelete={props.onDeleteMessage} onReact={props.onToggleReaction} onForward={props.onForwardMessage} onReport={props.onReportMessage} onViewProfile={(author) => setProfileTarget({ author, questionId: question.id })} renderAttachment={process.env.NODE_ENV === "development" ? props.renderAttachment : undefined} />) : <AdminEmptyState icon={MessageSquareText} title={t("noMessages")} />}</div>
+            <div data-discussion-messages className="flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto p-3 @min-[52rem]/discussions:p-5">{props.hasMoreMessages && props.onLoadMoreMessages && <LoadMore onLoad={props.onLoadMoreMessages} label={t("loadMessages")} />}{props.messages.length ? (() => {
+              let lastDayKey: string | null = null;
+              return props.messages.map((message) => {
+                const messageDate = normalizeDate(message.createdAt);
+                const validDate = !Number.isNaN(messageDate.getTime());
+                const dayKey = validDate ? calendarDayKey(messageDate, !mounted) : null;
+                const showDivider = Boolean(dayKey && dayKey !== lastDayKey);
+                if (dayKey) lastDayKey = dayKey;
+                return (
+                  <Fragment key={message.id}>
+                    {showDivider && (
+                      <div data-discussion-date-divider className="flex justify-center py-1" role="separator">
+                        <span suppressHydrationWarning className="rounded-full bg-muted px-3 py-0.5 text-body-xs font-medium text-muted-foreground">
+                          {formatDayDivider(messageDate, mounted, locale, { today: t("dateToday"), yesterday: t("dateYesterday") })}
+                        </span>
+                      </div>
+                    )}
+                    <DiscussionMessage message={message} questionId={question.id} viewer={props.viewer} sourceChannel={channel} channels={props.channels} forwardDraft={forwardDrafts[message.id]} updateForwardDraft={(change) => updateForwardDraft(message.id, change)} onSearchChannels={props.onSearchChannels} onSearchForwardTargets={props.onSearchForwardTargets} canReply={question.canReply} targeted={message.id === props.selectedMessageId} replyDisabled={threadDraft.sending || threadLocked} onReply={replyTo} onEdit={props.onEditMessage} onDelete={props.onDeleteMessage} onReact={props.onToggleReaction} onForward={props.onForwardMessage} onReport={props.onReportMessage} onViewProfile={(author) => setProfileTarget({ author, questionId: question.id })} renderAttachment={process.env.NODE_ENV === "development" ? props.renderAttachment : undefined} />
+                  </Fragment>
+                );
+              });
+            })() : <AdminEmptyState icon={MessageSquareText} title={t("noMessages")} className="min-h-full flex-1" />}</div>
             {(question.canReply || threadDraft.sending || threadDraft.body.length > 0 || threadDraft.images.length > 0 || threadDraft.replyTo) && <div className="flex max-h-[80%] min-h-0 shrink-0 flex-col border-t border-border p-3"><DiscussionComposer draft={question.canReply || threadLocked ? threadDraft : { ...threadDraft, error: "resolved" }} update={(change) => updateDraft(draftKey, change)} channelId={channel.id} audienceHelp={t(discussionAudienceKey(channel, props.viewer.role))} zyraUnscoped={!channel.courseId && channel.kind !== "course"} questionId={question.id} viewer={props.viewer} onSearchMentions={props.onSearchMentions} onUpload={props.onUploadImage} onSubmit={({ viewerId: _viewerId, channelId: _channelId, questionId, questionDetails: _details, replyToMessageId, ...input }) => props.onSendReply({ ...input, questionId: questionId!, messageType: replyToMessageId ? "reply" : "answer", replyToMessageId })} submitDisabled={!question.canReply && !threadLocked} submitLabel={t(threadDraft.replyTo ? "sendReply" : "sendAnswer")} /></div>}
           </>}</section>
         </div>

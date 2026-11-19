@@ -12,6 +12,7 @@ import { aiStatusKey, beginChannelMetadataRequest, beginPageRequest, canSuggestF
 import { discussionChannelLabel } from "./discussion-message";
 import { listDiscussionAiStatuses } from "./discussion-ai-status";
 import { getDiscussionReadThrough } from "./discussion-read-state";
+import { DiscussionWorkspaceSkeleton } from "./discussion-skeleton";
 import { DiscussionWorkspace, type DiscussionDraftState } from "./discussion-workspace";
 import { DiscussionSessionGuard } from "./discussion-session-guard";
 import type { DiscussionChannel as UiChannel, DiscussionPerson, DiscussionWorkspaceProps } from "./view-model";
@@ -35,8 +36,9 @@ export function nextDiscussionReadBatch(observed: Map<number, ReadObservation>, 
 }
 
 export function DiscussionClient(props: { viewer: DiscussionPerson; courseId?: string }) {
+  const t = useTranslations("discussions");
   const { data: session, isPending } = useSession();
-  return <DiscussionSessionGuard viewerId={props.viewer.id} sessionId={session?.user?.id} pending={isPending}>
+  return <DiscussionSessionGuard viewerId={props.viewer.id} sessionId={session?.user?.id} pending={isPending} loadingFallback={<DiscussionWorkspaceSkeleton label={t("viewerLoading")} />}>
     {draftState => <DiscussionClientReady {...props} draftState={draftState} />}
   </DiscussionSessionGuard>;
 }
@@ -171,7 +173,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
   currentMetadataKey.current = metadataKey;
   const metadataReady = channelMetadata.key === metadataKey && channelMetadata.status === "ready";
   const visibleChannels = useMemo(() => {
-    if (!metadataReady) return channels;
+    if (!metadataReady) return mergeById(channels, channelMetadata.items);
     const checked = new Set(metadataIds), authorized = new Set(channelMetadata.items.map((item) => item.id));
     return mergeById(channels.filter((item) => !checked.has(item.id) || authorized.has(item.id)), channelMetadata.items);
   }, [channels, metadataReady, metadataIds, channelMetadata.items]);
@@ -179,7 +181,8 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
   const messages = useMemo(() => messagePages.flatMap((page) => page.items), [messagePages]);
   const messagesById = useMemo(() => new Map(messages.map((message) => [message.id, message])), [messages]);
   const selectedQuestion = thread && thread.id === selectedThread ? toQuestion(thread, visibleChannels) : null;
-  const renderedThreadState = thread?.id === selectedThread && (!metadataReady || !channelMetadata.items.some((item) => item.id === thread.channelId))
+  const hasThreadChannel = Boolean(thread && channelMetadata.items.some((item) => item.id === thread.channelId));
+  const renderedThreadState = thread?.id === selectedThread && !hasThreadChannel
     ? (channelMetadata.key === metadataKey && channelMetadata.status === "error" || metadataReady ? "error" : "loading") : threadState;
   const hasMoreQuestions = !!threadPage.nextCursor;
   const hasNextMessagePage = !!nextDiscussionMessageCursor(messagePageCursors.current, messagePageIndex, messageCursor);
@@ -238,7 +241,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     const isCurrent = beginChannelMetadataRequest(channelMetadataVersion, currentMetadataKey);
     let cancelled = false;
     if (!metadataIds.length) { setChannelMetadata({ key: metadataKey, items: [], status: "ready" }); return; }
-    setChannelMetadata((old) => old.key === metadataKey && old.status === "ready" ? old : { key: metadataKey, items: [], status: "loading" });
+    setChannelMetadata((old) => old.key === metadataKey && old.status === "ready" ? old : { key: metadataKey, items: old.items, status: "loading" });
     void loadDiscussionChannelMetadata(actions, metadataIds).then((items) => {
       if (!cancelled && isCurrent()) setChannelMetadata({ key: metadataKey, items, status: "ready" });
     }).catch(() => { if (!cancelled && isCurrent()) setChannelMetadata({ key: metadataKey, items: [], status: "error" }); });
