@@ -1,9 +1,11 @@
+import { publicMediaUrl } from "@/lib/storage/public-media";
+
 export const siteName = "Zyx Academy";
 
 export const siteDescription =
   "Tutorial dan pembelajaran untuk mahasiswa ITB tahun pertama dan kedua, materi, kuis, dan pendampingan yang terstruktur.";
 
-export const siteOgImage = "/brand/zyx-og-1200x630.png";
+export const siteOgImage = publicMediaUrl("siteOgImage");
 
 export function pageTitle(segment?: string) {
   if (!segment) return siteName;

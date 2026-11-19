@@ -79,3 +79,8 @@ __pycache__/
 # Local incremental typecheck metadata
 /.cache/typecheck/
 /.cache/eslint/
+/.cache/pglite/
+
+# Operator-local staging Worker routing overrides
+/workers/staging-web-edge/wrangler.candidate.jsonc
+/workers/staging-web-edge/wrangler.domain.jsonc

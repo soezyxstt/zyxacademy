@@ -46,7 +46,7 @@ import { FormattedDate } from "@/components/ui/formatted-date";
 import { MathText } from "@/components/course/math-text";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { ArticleReadingCanvas } from "@/components/course/article-reading-canvas";
-import { StructuredArticleSectionContent } from "@/components/course/structured-article-reader";
+import { StructuredArticleSectionContent } from "@/components/course/structured-article-section-content";
 import { FormativeCheckEndpointProvider } from "@/components/course/formative-check-endpoint-context";
 import { InteractiveDocumentArticle } from "@/components/course/interactive-document-context";
 import { collectArticleVisualIds } from "@/lib/materials/article-parts";

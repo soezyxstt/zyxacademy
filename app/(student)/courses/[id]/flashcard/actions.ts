@@ -6,7 +6,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 
 export async function submitReviewAction(
-  _studentId: string,
+  studentId: string,
   flashcardId: string,
   grade: number,
   manualAnswer?: string,
@@ -15,6 +15,7 @@ export async function submitReviewAction(
 ) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.id) throw new Error("Unauthorized");
+  if (studentId !== session.user.id) throw new Error("Account changed");
   const result = await dbSubmitReview(session.user.id, flashcardId, grade, manualAnswer, isExamMode);
   if (courseId) {
     revalidatePath(`/courses/${courseId}/flashcard`);

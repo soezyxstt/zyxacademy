@@ -9,6 +9,8 @@ export async function GET(request: Request) {
   try {
     const session = await auth.api.getSession({ headers: request.headers });
     if (!session?.user?.id) return Response.json({ error: "Masuk untuk melihat diskusi." }, { status: 401, headers });
+    const expectedUserId = request.headers.get("x-student-id");
+    if (expectedUserId && expectedUserId !== session.user.id) return Response.json({ error: "Account changed" }, { status: 409, headers });
     const actor = await getSessionDiscussionActor();
     if (actor.id !== session.user.id) throw new Error("DISCUSSION_UNAVAILABLE");
     const courseId = new URL(request.url).searchParams.get("courseId") ?? undefined;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import type React from "react";
 import Link from "next/link";
 import { Brain, Check, X, RotateCw, RefreshCw, SkipForward } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -8,150 +8,31 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
-import { submitReviewAction } from "./actions";
-import { toast } from "@/components/ui/toast";
-import { emitActivityUpdated } from "@/lib/activity-signal";
-import { appendFlashcardRetry, skipFlashcardInSession } from "@/lib/flashcard-session";
 import { useTranslations } from "@/lib/i18n/client";
-import { FLASHCARD_BATCH_SIZE, type FlashcardSessionState } from "@/lib/demo/flashcard-resume";
+import { FLASHCARD_BATCH_SIZE } from "@/lib/demo/flashcard-resume";
+import type { FlashcardSessionProps } from "@/lib/flashcards/review-contract";
+import { useFlashcardSession } from "@/hooks/use-flashcard-session";
+import { useQueryAccountCurrent } from "@/hooks/use-query-account";
 
-interface Flashcard {
-  id: string;
-  setId: string;
-  koId: string | null;
-  front: string;
-  back: string;
-  explanation: string | null;
-  status: string;
-  metadata: any;
-  createdAt: Date;
-}
-
-export interface QueueItem {
-  card: Flashcard;
-  progress: any;
-  dueStatus: "new" | "review";
-  nextReviewDue: Date;
-  ideaId: string | null;
-  masteryScore: number | null;
-  confidence: number | null;
-  seenBefore: boolean;
-  priorityReason: string;
-}
-
-type FlashcardClientProps = {
-  courseId: string;
-  initialQueue: QueueItem[];
-  studentId: string;
-  adapter?: { onReview: (cardId: string, grade: number) => void | Promise<void>; backHref: string; onRestart?: () => void; resume?: FlashcardSessionState | null; onStateChange?: (state: FlashcardSessionState) => void };
-};
+export type { FlashcardQueueItem as QueueItem } from "@/lib/flashcards/review-contract";
 
 const BATCH_SIZE = FLASHCARD_BATCH_SIZE;
 
-export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: FlashcardClientProps) {
+export function FlashcardClient(props: FlashcardSessionProps) {
+  const currentAccount = useQueryAccountCurrent(props.studentId);
+  if (!props.adapter && !currentAccount) return null;
+  return <FlashcardSession key={JSON.stringify([props.studentId, props.courseId])} {...props} />;
+}
+
+function FlashcardSession(props: FlashcardSessionProps) {
+  const { courseId, adapter } = props;
   const t = useTranslations("learning");
-  const [queue, setQueue] = useState<QueueItem[]>(() => adapter?.resume ? adapter.resume.queue.map(({ id, dueStatus }) => ({ ...initialQueue.find(item => item.card.id === id)!, dueStatus })) : initialQueue);
-  const [batchOffset, setBatchOffset] = useState(adapter?.resume?.batchOffset ?? 0);
-  const [currentIndex, setCurrentIndex] = useState(adapter?.resume?.currentIndex ?? 0);
-  const [isFlipped, setIsFlipped] = useState(adapter?.resume?.isFlipped ?? false);
-  const [mode, setMode] = useState<"standard" | "exam">(adapter?.resume?.mode ?? "standard");
-  const [typedAnswer, setTypedAnswer] = useState(adapter?.resume?.typedAnswer ?? "");
-  const [isChecked, setIsChecked] = useState(adapter?.resume?.isChecked ?? false);
-  const [passedExam, setPassedExam] = useState<boolean | null>(adapter?.resume?.passedExam ?? null);
-  const [loading, setLoading] = useState(false);
-  const [completedCount, setCompletedCount] = useState(adapter?.resume?.completedCount ?? 0);
-  const onStateChange = adapter?.onStateChange;
-  useEffect(() => {
-    onStateChange?.({ queue: queue.map(item => ({ id: item.card.id, dueStatus: item.dueStatus })), batchOffset, currentIndex, isFlipped, mode, typedAnswer, isChecked, passedExam, completedCount });
-  }, [onStateChange, queue, batchOffset, currentIndex, isFlipped, mode, typedAnswer, isChecked, passedExam, completedCount]);
-
-  const activeBatch = queue.slice(batchOffset, batchOffset + BATCH_SIZE);
-  const currentItem = activeBatch[currentIndex];
-
-  const handleFlip = () => {
-    if (mode === "exam" && !isChecked) {
-      toast.warning(t("flashcards.checkBeforeFlip"));
-      return;
-    }
-    setIsFlipped(!isFlipped);
-  };
-
-  const handleCheckAnswer = () => {
-    if (!typedAnswer.trim()) {
-      toast.error(t("flashcards.answerRequired"));
-      return;
-    }
-
-    if (!currentItem) return;
-
-    // Normalization & verification client-side
-    const normalize = (text: string) =>
-      text
-        .toLowerCase()
-        .trim()
-        .replace(/[^\w\s]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-
-    const normUser = normalize(typedAnswer);
-    const normCorrect = normalize(currentItem.card.back);
-
-    const isCorrect = normCorrect.includes(normUser) || normUser.includes(normCorrect);
-    setPassedExam(isCorrect);
-    setIsChecked(true);
-    setIsFlipped(true); // Flip automatically to show answer/explanation
-  };
-
-  const handleGrade = async (grade: number) => {
-    if (!currentItem) return;
-
-    setLoading(true);
-    try {
-      // Call server action wrapper
-      if (adapter) await adapter.onReview(currentItem.card.id, grade);
-      else await submitReviewAction(
-        studentId,
-        currentItem.card.id,
-        grade,
-        mode === "exam" ? typedAnswer : undefined,
-        mode === "exam",
-        courseId
-      );
-
-      toast.success(t("flashcards.gradeSaved"));
-      setCompletedCount((prev) => prev + 1);
-      if (!adapter) emitActivityUpdated({ type: "flashcard", courseId, cardId: currentItem.card.id });
-
-      // If user selected "Again / Ulangi" (grade 1), put the card back at the end of the queue for retry
-      if (grade === 1) {
-        setQueue((prevQueue) => appendFlashcardRetry(prevQueue, {
-            ...currentItem,
-            dueStatus: "review",
-          }));
-      }
-
-      // Move to next card in active batch
-      setCurrentIndex((prev) => prev + 1);
-      setIsFlipped(false);
-      setTypedAnswer("");
-      setIsChecked(false);
-      setPassedExam(null);
-    } catch (err: any) {
-      console.error("Error submitting review:", err);
-      toast.error(t("flashcards.saveReviewFailed"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSkip = () => {
-    if (!currentItem || queue.length - (batchOffset + currentIndex) <= 1 || loading) return;
-    setQueue((current) => skipFlashcardInSession(current, batchOffset + currentIndex));
-    setIsFlipped(false);
-    setTypedAnswer("");
-    setIsChecked(false);
-    setPassedExam(null);
-  };
+  const {
+    queue, activeBatch, currentItem, batchOffset, currentIndex, isFlipped, mode,
+    typedAnswer, setTypedAnswer, isChecked, passedExam, completedCount, loading,
+    handleFlip, handleCheckAnswer, handleGrade, handleSkip,
+    changeMode, startNextBatch, resetCard,
+  } = useFlashcardSession(props);
 
   // Helper styles for 3D card
   const cardStyle: React.CSSProperties = {
@@ -200,14 +81,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
           {hasMoreCards ? (
             <Button
               type="button"
-              onClick={() => {
-                setBatchOffset((prev) => prev + BATCH_SIZE);
-                setCurrentIndex(0);
-                setIsFlipped(false);
-                setTypedAnswer("");
-                setIsChecked(false);
-                setPassedExam(null);
-              }}
+              onClick={startNextBatch}
               className="rounded-md"
             >
               <RefreshCw className="mr-1.5 size-4" />
@@ -228,6 +102,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
   }
 
   const activeCard = currentItem.card;
+  const recallDifficulty = activeCard.metadata?.recallDifficulty;
   const reasonKey: Record<string, string> = {
     "Tanpa pemetaan Idea": "reasonUnmapped",
     "Perlu dikuasai": "reasonMastery",
@@ -256,13 +131,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
             {t("flashcards.sessionProgress", { session: currentSessionNum, total: totalSessions, current: currentIndex + 1, count: activeBatch.length, all: queue.length })}
           </span>
 
-          <RadioGroup aria-label={t("flashcards.mode")} orientation="horizontal" className="flex items-center gap-3" value={mode} onValueChange={(value) => {
-            setMode(value as "standard" | "exam");
-            setIsFlipped(false);
-            setTypedAnswer("");
-            setIsChecked(false);
-            setPassedExam(null);
-          }}>
+          <RadioGroup aria-label={t("flashcards.mode")} orientation="horizontal" className="flex items-center gap-3" value={mode} onValueChange={changeMode}>
             <label className="flex items-center gap-2 text-body-sm"><RadioGroupItem value="standard" disabled={loading} />{t("flashcards.standard")}</label>
             <label className="flex items-center gap-2 text-body-sm"><RadioGroupItem value="exam" disabled={loading} />{t("flashcards.typeAnswer")}</label>
           </RadioGroup>
@@ -331,10 +200,10 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
               <span className="inline-flex rounded-md border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 text-body-xs font-semibold text-emerald-700 dark:text-emerald-400">
                 {t("flashcards.answer")}
               </span>
-              {typeof activeCard.metadata?.recallDifficulty === "number" ? (
+              {typeof recallDifficulty === "number" ? (
                 <span
                   className="flex items-center gap-1 text-body-xs font-medium text-muted-foreground"
-                  title={t("flashcards.recallLevel", { level: activeCard.metadata.recallDifficulty })}
+                  title={t("flashcards.recallLevel", { level: recallDifficulty })}
                 >
                   <span className="hidden sm:inline">{t("flashcards.recall")}</span>
                   <span className="flex items-center gap-0.5">
@@ -343,7 +212,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
                         key={n}
                         className={
                           "size-1.5 rounded-full " +
-                          (n <= activeCard.metadata.recallDifficulty ? "bg-status-warning" : "bg-muted")
+                          (n <= recallDifficulty ? "bg-status-warning" : "bg-muted")
                         }
                       />
                     ))}
@@ -421,12 +290,8 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
               </Button>
             ) : (
               <Button
-                onClick={() => {
-                  setIsChecked(false);
-                  setTypedAnswer("");
-                  setPassedExam(null);
-                  setIsFlipped(false);
-                }}
+                onClick={resetCard}
+                disabled={loading}
                 variant="outline"
                 size="lg"
                 className="rounded-md h-9"

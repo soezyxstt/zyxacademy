@@ -3,62 +3,49 @@
 import * as React from "react";
 import { CircleHelp, Gauge } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { ZyraAllowanceSummarySchema, type ZyraAllowanceSummary } from "@/lib/zyra/murid";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { StudentAccountBoundary } from "@/components/student-account-boundary";
+import { zyraAllowanceQuery, type AllowanceSummaryView } from "@/lib/zyra/allowance-query";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
 
-type AllowanceSummaryView = ZyraAllowanceSummary & { accessTier: "free" | "standard" };
-
-export function ZyraAllowanceSummary({
-  refreshKey = 0,
-  courseId,
-  onAccessTierChange,
-}: {
+type Props = {
   refreshKey?: number;
   courseId?: string | null;
   onAccessTierChange?: (tier: "free" | "standard") => void;
-}) {
+};
+
+export function ZyraAllowanceSummary(props: Props) {
   const experience = useStudentExperience();
-  const [summary, setSummary] = React.useState<AllowanceSummaryView | null>(null);
-  const [unavailable, setUnavailable] = React.useState(false);
+  if (experience.mode === "demo") return <DemoAllowance onAccessTierChange={props.onAccessTierChange} />;
+  return <StudentAccountBoundary>{({ data }) => data?.user.id
+    ? <LiveAllowance key={`${data.user.id}:${props.courseId ?? ""}`} {...props} userId={data.user.id} />
+    : null}</StudentAccountBoundary>;
+}
 
+function DemoAllowance({ onAccessTierChange }: Pick<Props, "onAccessTierChange">) {
+  React.useEffect(() => { onAccessTierChange?.("standard"); }, [onAccessTierChange]);
+  return null;
+}
+
+function LiveAllowance({ userId, courseId, refreshKey = 0, onAccessTierChange }: Props & { userId: string }) {
+  const client = useQueryClient();
+  const options = zyraAllowanceQuery(userId, courseId ?? undefined);
+  const query = useQuery(options);
+  const previousRefresh = React.useRef(refreshKey);
   React.useEffect(() => {
-    setSummary(null);
-    setUnavailable(false);
-  }, [courseId]);
-
+    if (previousRefresh.current === refreshKey) return;
+    previousRefresh.current = refreshKey;
+    void client.invalidateQueries({ queryKey: options.queryKey, exact: true });
+  }, [client, options.queryKey, refreshKey]);
+  const summary = query.isError ? undefined : query.data?.summary;
   React.useEffect(() => {
-    let cancelled = false;
-    if (experience.mode === "demo") { onAccessTierChange?.("standard"); return; }
-    const query = courseId ? `?courseId=${encodeURIComponent(courseId)}` : "";
-    fetch(`/api/zyra/allowance${query}`, { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("ALLOWANCE_UNAVAILABLE");
-        const body = await response.json() as { summary?: unknown };
-        const raw = body.summary && typeof body.summary === "object"
-          ? body.summary as Record<string, unknown>
-          : null;
-        const rawAccessTier = raw?.accessTier === "free" ? "free" : "standard";
-        const parsed = ZyraAllowanceSummarySchema.safeParse(body.summary);
-        const legacyParsed = parsed.success
-          ? parsed
-          : ZyraAllowanceSummarySchema.safeParse(raw ? (() => {
-              const { accessTier: _accessTier, ...legacy } = raw;
-              return legacy;
-            })() : body.summary);
-        if (!legacyParsed.success) throw new Error("ALLOWANCE_INVALID");
-        if (!cancelled) {
-          setSummary({ ...legacyParsed.data, accessTier: rawAccessTier });
-          onAccessTierChange?.(rawAccessTier);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setUnavailable(true);
-      });
-    return () => { cancelled = true; };
-  }, [courseId, onAccessTierChange, refreshKey, experience.mode]);
+    if (summary) onAccessTierChange?.(summary.accessTier);
+  }, [summary, onAccessTierChange]);
+  return summary ? <AllowanceView summary={summary} /> : null;
+}
 
-  if (unavailable || !summary) return null;
+function AllowanceView({ summary }: { summary: AllowanceSummaryView }) {
   const resetLabel = new Intl.DateTimeFormat("id-ID", {
     dateStyle: "short",
     timeStyle: "short",

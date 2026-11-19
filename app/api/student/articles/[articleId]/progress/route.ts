@@ -11,17 +11,78 @@ import { startLearningRewards } from "@/lib/gamification/learning-start";
 import { recordGamificationEvidence } from "@/lib/gamification/receipts";
 import { resolveCourseAccess } from "@/lib/student/course-access";
 import { getStudentCourseAccess, isFreeChapterScoped } from "@/lib/course-utils";
-
-const progressUpdateSchema = z.object({
-  sectionId: z.string().min(1),
-  percent: z.number().min(0).max(100).default(0),
-  timeSpentSeconds: z.number().min(0).default(0),
-  completed: z.boolean().optional(),
-});
+import { articleProgressUpdateSchema } from "@/lib/articles/progress-contract";
 
 type RouteProps = {
   params: Promise<{ articleId: string }>;
 };
+
+async function resolveProgressArticle(userId: string, articleId: string) {
+  const [articleRecord] = await db
+    .select({ id: artikel.id, version: artikel.version, courseId: artikel.mataKuliahId, chapterId: artikel.babId })
+    .from(artikel)
+    .where(and(eq(artikel.status, "published"), or(eq(artikel.id, articleId), eq(artikel.slug, articleId))))
+    .limit(1);
+  if (!articleRecord) {
+    return { response: NextResponse.json({ error: "Artikel tidak ditemukan." }, { status: 404 }) };
+  }
+  const access = await getStudentCourseAccess(userId, articleRecord.courseId);
+  if (!access) {
+    return { response: NextResponse.json({ error: "Akses materi tidak tersedia." }, { status: 403 }) };
+  }
+  if (access.tier === "free" && !isFreeChapterScoped([articleRecord.chapterId].filter((id): id is string => Boolean(id)), access.hasFullContentAccess ? access.policy.scopedChapterIds : access.freeChapterIds)) {
+    return { response: NextResponse.json({ error: "Materi ini tersedia setelah aktivasi kelas." }, { status: 403 }) };
+  }
+  return { articleRecord };
+}
+
+export async function GET(req: NextRequest, { params }: RouteProps) {
+  try {
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const expectedUserId = req.headers.get("x-student-id");
+    if (expectedUserId && expectedUserId !== session.user.id) {
+      return NextResponse.json({ error: "Account changed" }, { status: 409 });
+    }
+    const version = z.coerce.number().int().positive().safeParse(req.nextUrl.searchParams.get("version"));
+    if (!version.success) {
+      return NextResponse.json({ error: "Versi artikel tidak valid." }, { status: 400 });
+    }
+    const { articleId } = await params;
+    const resolved = await resolveProgressArticle(session.user.id, articleId);
+    if (resolved.response) return resolved.response;
+    const { articleRecord } = resolved;
+    if (articleRecord.version !== version.data) {
+      return NextResponse.json({ error: "Versi artikel berubah. Muat ulang halaman." }, { status: 409 });
+    }
+    const rows = await db.select({
+      sectionId: kemajuanBacaArtikel.bagianArtikelId,
+      maxReadPercent: kemajuanBacaArtikel.maxReadPercent,
+      completedAt: kemajuanBacaArtikel.completedAt,
+      timeSpentSeconds: kemajuanBacaArtikel.timeSpentSeconds,
+      lastReadAt: kemajuanBacaArtikel.lastReadAt,
+    }).from(kemajuanBacaArtikel).where(and(
+      eq(kemajuanBacaArtikel.penggunaId, session.user.id),
+      eq(kemajuanBacaArtikel.artikelId, articleRecord.id),
+      eq(kemajuanBacaArtikel.artikelVersion, articleRecord.version),
+    ));
+    return NextResponse.json({
+      articleId: articleRecord.id,
+      articleVersion: articleRecord.version,
+      sectionProgress: Object.fromEntries(rows.map((row) => [row.sectionId, {
+        maxReadPercent: row.maxReadPercent,
+        completed: Boolean(row.completedAt) || row.maxReadPercent >= 90,
+        timeSpentSeconds: row.timeSpentSeconds,
+        lastReadAt: row.lastReadAt.toISOString(),
+      }])),
+    }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) {
+    console.error("Error reading article progress:", error);
+    return NextResponse.json({ error: "Progres belum dapat dimuat. Coba lagi." }, { status: 500 });
+  }
+}
 
 export async function PUT(req: NextRequest, { params }: RouteProps) {
   try {
@@ -30,6 +91,10 @@ export async function PUT(req: NextRequest, { params }: RouteProps) {
       return NextResponse.json({ error: "Silakan masuk untuk menyimpan progres." }, { status: 401 });
     }
     const userId = session.user.id;
+    const expectedUserId = req.headers.get("x-student-id");
+    if (expectedUserId && expectedUserId !== userId) {
+      return NextResponse.json({ error: "Account changed" }, { status: 409 });
+    }
 
     const { articleId } = await params;
     if (!articleId) {
@@ -37,7 +102,7 @@ export async function PUT(req: NextRequest, { params }: RouteProps) {
     }
 
     const rawJson = await req.json().catch(() => null);
-    const parsed = progressUpdateSchema.safeParse(rawJson);
+    const parsed = articleProgressUpdateSchema.safeParse(rawJson);
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Data progres tidak valid.", details: parsed.error.flatten() },
@@ -45,24 +110,12 @@ export async function PUT(req: NextRequest, { params }: RouteProps) {
       );
     }
 
-    const { sectionId, percent, timeSpentSeconds, completed } = parsed.data;
-
-    // Verify article existence
-    const [articleRecord] = await db
-      .select({ id: artikel.id, version: artikel.version, courseId: artikel.mataKuliahId, chapterId: artikel.babId })
-      .from(artikel)
-      .where(and(eq(artikel.status, "published"), or(eq(artikel.id, articleId), eq(artikel.slug, articleId))))
-      .limit(1);
-
-    if (!articleRecord) {
-      return NextResponse.json({ error: "Artikel tidak ditemukan." }, { status: 404 });
-    }
-    const access = await getStudentCourseAccess(userId, articleRecord.courseId);
-    if (!access) {
-      return NextResponse.json({ error: "Akses materi tidak tersedia." }, { status: 403 });
-    }
-    if (access.tier === "free" && !isFreeChapterScoped([articleRecord.chapterId].filter((id): id is string => Boolean(id)), access.hasFullContentAccess ? access.policy.scopedChapterIds : access.freeChapterIds)) {
-      return NextResponse.json({ error: "Materi ini tersedia setelah aktivasi kelas." }, { status: 403 });
+    const { sectionId, percent, timeSpentSeconds, completed, articleVersion } = parsed.data;
+    const resolved = await resolveProgressArticle(userId, articleId);
+    if (resolved.response) return resolved.response;
+    const { articleRecord } = resolved;
+    if (articleVersion !== undefined && articleVersion !== articleRecord.version) {
+      return NextResponse.json({ error: "Versi artikel berubah. Muat ulang halaman." }, { status: 409 });
     }
 
     // Verify section belongs to article
@@ -220,12 +273,14 @@ export async function PUT(req: NextRequest, { params }: RouteProps) {
 
     return NextResponse.json({
       success: true,
+      articleId: articleRecord.id,
+      articleVersion: articleRecord.version,
       sectionId,
       maxReadPercent,
       completed: isCompleted,
       timeSpentSeconds: totalTimeSpent,
       completedAt: completedAt?.toISOString() ?? null,
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Error updating article progress:", error);
     return NextResponse.json({ error: "Progres belum dapat disimpan. Coba lagi." }, { status: 500 });

@@ -74,6 +74,10 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "components/course/learning-canvas/learning-canvas-renderer.tsx", "components/ui/slider.tsx",
   "components/course/markdown/flowchart-node.tsx", "lib/flowchart.ts",
   "components/course/product-learning-blocks.tsx", "components/course/article-reading-canvas.tsx", "components/course/structured-article-reader.tsx",
+  "components/course/structured-article-section-content.tsx", "hooks/use-article-reading-progress.ts", "hooks/use-query-account.ts",
+  "lib/articles/progress-contract.ts", "lib/articles/progress-query.ts", "lib/articles/progress-mutation.ts",
+  "lib/query/client.ts", "lib/query/http.ts", "lib/query/keys.ts", "lib/query/invalidation.ts",
+  "lib/activity-signal.ts", "lib/auth-client.ts", "components/providers/query-provider.tsx",
   "components/course/question-image.tsx", "lib/articles/source-figure-resolver.ts", "app/api/courses/[id]/articles/[articleId]/source-figures/[visualId]/route.ts",
   "lib/articles/structured-read-model.ts", "lib/articles/structured-repository.ts", "lib/materials/compiler.ts", "lib/materials/pedagogy-contract.ts",
   "lib/authoring/source-figures.ts", "lib/compute/source-figure.ts", "lib/authoring/mcp-contract-revision.ts", "lib/authoring/mcp-workflows.ts", "lib/authoring/interactive-visual-guidance.ts", "lib/authoring/mcp-playbook.ts",
@@ -269,7 +273,7 @@ export async function readProductV4RuntimeFingerprint(): Promise<ProductV4Runtim
   }
   const [{ getStagePlaybookManifest }, { PRODUCT_DIKTAT_PRINT_PROFILE }] = await Promise.all([import("@/lib/authoring/mcp-playbook"), import("@/lib/bundle/product-diktat-pdf")]);
   const require = createRequire(import.meta.url);
-  const packages = ["pyodide", "@codemirror/state", "@codemirror/view", "@codemirror/language", "@codemirror/lang-python", "@codemirror/commands", "react", "react-dom", "next", "katex", "jsxgraph", "zod", "mathjs", "sharp", "pngjs", "tailwindcss", "@tailwindcss/postcss", "@playwright/test", "playwright-core"];
+  const packages = ["pyodide", "@codemirror/state", "@codemirror/view", "@codemirror/language", "@codemirror/lang-python", "@codemirror/commands", "react", "react-dom", "@tanstack/react-query", "@tanstack/query-core", "next", "katex", "jsxgraph", "zod", "mathjs", "sharp", "pngjs", "tailwindcss", "@tailwindcss/postcss", "@playwright/test", "playwright-core"];
   const versions = packages.map(name => [name, JSON.parse(readFileSync(runtimePackageManifest(name), "utf8")).version]);
   const katexRoot = dirname(require.resolve("katex/package.json"));
   const browsers = readFileSync(join(dirname(require.resolve("playwright-core/package.json")), "browsers.json"));

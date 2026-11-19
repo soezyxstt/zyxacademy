@@ -46,7 +46,7 @@ The [worker cutover runbook](operations/neon-functions-cutover.md) is OPEN / IN 
 Staging releases use the existing Vercel project `zyxacademy`
 (`prj_9wDdc36VFIH5wJT45jEXIHGst2pb`), using its custom `staging` environment. The intended origin
 remains `https://staging.zyxacademy.com`. Follow the [manual staging runbook](operations/vercel-staging.md).
-Cloud Run publication and deployment have been removed from the web workflow.
+The [Cloud Run staging runbook](operations/cloud-run-staging.md) covers the separate Bangkok candidate workflow. Vercel currently serves the staging hostname.
 The old Google service is retained for reference; this change does not delete it.
 
 The production cutover is complete; follow [the active production runbook](operations/neon-production-cutover.md) for targets, evidence and recovery boundaries. Vercel and Neon Functions use the protected production root and private `zyx-production` bucket. Both deployment paths reject a mismatched target. Source Turso/R2 and the old deployment unit remain available for recovery, subject to reconciliation of any Neon writes.

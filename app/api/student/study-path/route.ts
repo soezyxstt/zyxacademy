@@ -9,6 +9,8 @@ export async function GET(req: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const expectedUserId = req.headers.get("x-student-id");
+  if (expectedUserId && expectedUserId !== session.user.id) return NextResponse.json({ error: "Account changed" }, { status: 409 });
 
   const courseId = req.nextUrl.searchParams.get("courseId");
   if (!courseId) {
@@ -26,7 +28,7 @@ export async function GET(req: NextRequest) {
     const days = daysParam ? Number.parseInt(daysParam, 10) : null;
     const dayPlan = days && Number.isFinite(days) && days > 0 ? bucketStudyPathByDays(steps, days) : null;
 
-    return NextResponse.json({ steps, dayPlan });
+    return NextResponse.json({ steps, dayPlan }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (err: any) {
     console.error("Error retrieving study path:", err);
     return NextResponse.json(

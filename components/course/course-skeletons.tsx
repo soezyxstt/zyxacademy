@@ -345,51 +345,18 @@ export function CourseProgressContentSkeleton() {
  */
 export function CourseMasteryContentSkeleton() {
   return (
-    <div data-testid="course-mastery-content-skeleton" className="space-y-8">
-      {/* Concept Graph section matching ConceptGraphView */}
-      <div className="space-y-3">
-        <Skeleton className="h-4 w-36" />
-        <div className="overflow-x-auto rounded-xl border border-border bg-card/40 p-4">
-          <div className="flex items-center gap-8 min-w-[460px] py-2">
-            <div className="space-y-3">
-              <Skeleton className="h-11 w-36 rounded-lg border border-border/60" />
-              <Skeleton className="h-11 w-36 rounded-lg border border-border/60" />
-            </div>
-            <div className="h-px w-12 bg-border shrink-0" />
-            <div className="space-y-3">
-              <Skeleton className="h-11 w-36 rounded-lg border border-border/60" />
-              <Skeleton className="h-11 w-36 rounded-lg border border-border/60" />
-            </div>
-            <div className="h-px w-12 bg-border shrink-0" />
-            <div>
-              <Skeleton className="h-11 w-36 rounded-lg border border-border/60" />
-            </div>
+    <div data-testid="course-mastery-content-skeleton" className="space-y-3">
+      <Skeleton className="h-4 w-32" />
+      <Skeleton className="h-6 w-2/3 max-w-sm" />
+      <Skeleton className="h-4 w-48" />
+      <div className="divide-y border-y">
+        {[1, 2, 3].map(row => (
+          <div key={row} className="flex items-center justify-between gap-4 py-4">
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-3 w-16" />
           </div>
-        </div>
+        ))}
       </div>
-
-      {/* Chapter Concept Map groups matching ConceptMap */}
-      {[1, 2].map((groupIndex) => (
-        <div key={groupIndex} className="space-y-3">
-          <Skeleton className="h-4 w-48 mt-4 mb-2" />
-          <div className="border-b border-border" />
-          <div className="divide-y divide-border">
-            {[1, 2, 3, 4].map((rowIndex) => (
-              <div
-                key={rowIndex}
-                className="py-3 grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto] items-center gap-4"
-              >
-                <Skeleton className="h-4 w-2/5 max-w-xs" />
-                <div className="flex items-center gap-3 shrink-0">
-                  <Skeleton className="hidden sm:block w-32 h-1.5 rounded-md" />
-                  <Skeleton className="h-4 w-7" />
-                </div>
-                <Skeleton className="hidden sm:block size-4 rounded-sm" />
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { availableParallelism } from "node:os";
 import { relative, resolve } from "node:path";
 
 const root = resolve("tests/contracts");
@@ -32,9 +33,28 @@ const databaseIntegrationFiles = new Set([
   "authoring-mcp-source-persistence.test.ts", "admin-ops-ai-lifecycle-integration.test.ts",
   "admin-ops-ai-runtime.test.ts", "prompt-executor.test.ts", "zyra-pedagogy-shadow.test.ts",
 ]);
+if (files.some((file) => {
+  const name = file.replaceAll("\\", "/").split("/").at(-1)!;
+  if (databaseIntegrationFiles.has(name)) return true;
+  try {
+    const text = readFileSync(file, "utf8");
+    return text.includes("helpers/postgres") || text.includes("createPostgresTestDb");
+  } catch {
+    return false;
+  }
+})) {
+  try {
+    const { preparePostgresTestDb } = await import("../tests/helpers/postgres.ts");
+    await preparePostgresTestDb();
+  } catch {
+    // Individual tests handle fallback initialization if prewarming fails.
+  }
+}
+const requestedConcurrency = Number(process.env.TEST_CONTRACTS_CONCURRENCY ?? 0);
+const defaultConcurrency = Math.min(4, Math.max(2, availableParallelism()));
+const concurrency = Math.max(1, Math.min(files.length, Number.isFinite(requestedConcurrency) && requestedConcurrency > 0 ? requestedConcurrency : defaultConcurrency));
 let cursor = 0;
-// PGlite's WASM instances exceed local memory when suites run concurrently.
-await Promise.all(Array.from({ length: 1 }, async () => {
+await Promise.all(Array.from({ length: concurrency }, async () => {
   while (cursor < files.length) {
     const index = cursor++, file = files[index];
     const preload = ["--preload", "./tests/helpers/server-only-preload.ts"];

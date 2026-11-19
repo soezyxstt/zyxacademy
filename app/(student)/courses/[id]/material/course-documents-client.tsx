@@ -267,6 +267,7 @@ function HierarchyDocumentCard({
           {material.thumbnailUrl && failedThumbnail !== material.thumbnailUrl ? (
             <Image
               src={material.thumbnailUrl}
+              unoptimized
               alt=""
               onError={() => setFailedThumbnail(material.thumbnailUrl ?? null)}
               fill

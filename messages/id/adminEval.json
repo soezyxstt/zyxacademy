@@ -693,6 +693,7 @@
     "resetFilters": "Reset filter",
     "reset": "Reset",
     "loading": "Memuat peringkat...",
+    "loadFailed": "Gagal memuat papan peringkat.",
     "noComparisonData": "Tidak ada data perbandingan",
     "noComparisonDescription": "Belum ada pengerjaan yang tercatat. Data akan muncul setelah siswa menyelesaikan kuis.",
     "course": "Mata kuliah",

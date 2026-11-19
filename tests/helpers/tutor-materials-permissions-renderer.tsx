@@ -25,9 +25,8 @@ mock.module("@/db/schema", () => ({ aiMaterialInstances: {}, aiMaterialInstanceS
 mock.module("drizzle-orm", () => ({ inArray: () => null, desc: () => null, asc: () => null }));
 mock.module("@/app/actions/tutor-management", () => ({ saveTutorMaterialAction: mock(), deleteTutorMaterialAction: mock() }));
 mock.module("lucide-react", () => ({
-  FileText: () => null, Plus: () => null, Edit2: () => null, Trash2: () => null, BookOpen: () => null,
+  FileText: () => null, Plus: () => null, Edit2: () => null, Trash2: () => null, BookOpen: () => null, MoreHorizontal: () => null, Loader2: () => null,
 }));
-mock.module("@/components/ui/button", () => ({ Button: ({ children }: { children: React.ReactNode }) => <button>{children}</button> }));
 mock.module("@/components/admin/state-panels", () => ({
   AdminEmptyState: ({ title, action }: { title: React.ReactNode; action?: React.ReactNode }) => <div>{title}{action}</div>,
 }));
@@ -35,11 +34,18 @@ mock.module("@/components/ui/dialog", () => ({
   Dialog: () => null, DialogContent: () => null, DialogDescription: () => null,
   DialogFooter: () => null, DialogHeader: () => null, DialogTitle: () => null,
 }));
+// Inspect permission-gated actions even though the real menu starts closed.
+mock.module("@/components/ui/dropdown-menu", () => ({
+  DropdownMenu: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div role="menu">{children}</div>,
+  DropdownMenuItem: ({ children }: { children: React.ReactNode }) => <button role="menuitem">{children}</button>,
+  DropdownMenuSeparator: () => null,
+}));
 mock.module("@/components/ui/input", () => ({ Input: () => null }));
 mock.module("@/components/ui/label", () => ({ Label: () => null }));
 mock.module("@/components/ui/textarea", () => ({ Textarea: () => null }));
 mock.module("@/components/ui/toast", () => ({ toast: { success: mock(), error: mock() } }));
-mock.module("@/lib/utils", () => ({ cleanSummary: (summary: string) => summary }));
 mock.module("@/lib/i18n/client", () => ({ useTranslations: () => (key: string) => key }));
 mock.module("@/lib/i18n/server", () => ({ getTranslations: async () => (key: string) => key }));
 mock.module("@/lib/site", () => ({ pageTitle: (title: string) => title }));
@@ -54,21 +60,35 @@ async function renderPage() {
   return renderToStaticMarkup(await TutorMaterialsPage({ params: Promise.resolve({ courseId: "course-1" }) }));
 }
 
+function menuActions(html: string): string[] {
+  return [...html.matchAll(/<button role="menuitem">([\s\S]*?)<\/button>/g)]
+    .map(match => match[1].replace(/<[^>]*>/g, ""));
+}
+
+function buttonNames(html: string): string[] {
+  return [...html.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)]
+    .map(([, attributes, content]) => attributes.match(/\baria-label="([^"]*)"/)?.[1]
+      ?? content.replace(/<[^>]*>/g, "").trim());
+}
+
 const empty = await renderPage();
 assert.match(empty, /noMaterials/);
-assert.doesNotMatch(empty, /addMaterial/);
+assert.deepEqual(buttonNames(empty), []);
 
 materials = [{ id: "material-1", courseId: "course-1", title: "Document", summary: "Summary", createdAt: new Date(0) }];
 const tutorList = await renderPage();
 assert.match(tutorList, /Document/);
-assert.doesNotMatch(tutorList, />edit<\/button>|>delete<\/button>|addMaterial/);
+assert.deepEqual(menuActions(tutorList), []);
+assert.deepEqual(buttonNames(tutorList), []);
 
 source = "admin_override";
 materials = [];
-assert.equal((await renderPage()).match(/addMaterial/g)?.length, 1);
+const adminEmpty = await renderPage();
+assert.match(adminEmpty, /noMaterials/);
+assert.deepEqual(buttonNames(adminEmpty), ["addMaterial"]);
+assert.deepEqual(menuActions(adminEmpty), []);
 
 materials = [{ id: "material-1", courseId: "course-1", title: "Document", summary: "Summary", createdAt: new Date(0) }];
 const adminList = await renderPage();
-assert.match(adminList, /addMaterial/);
-assert.match(adminList, />edit<\/button>/);
-assert.match(adminList, />delete<\/button>/);
+assert.deepEqual(buttonNames(adminList), ["addMaterial", "Document", "edit", "delete"]);
+assert.deepEqual(menuActions(adminList), ["edit", "delete"]);
