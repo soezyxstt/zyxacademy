@@ -48,6 +48,17 @@ export async function equipGamificationCosmetics(studentId: string, input: Equip
  });
 }
 
+/** A stale removal cannot clear gear equipped by a later request. */
+export async function removePetGear(studentId: string, slot: 'pet_suit' | 'pet_action', id: string) {
+ const field = slot === 'pet_suit' ? 'equippedPetSuitId' : 'equippedPetActionId';
+ await db.transaction(async tx => {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${studentId}, 0))`);
+  await tx.update(gamificationProfiles).set({ [field]: null, updatedAt: new Date() }).where(and(
+   eq(gamificationProfiles.userId, studentId), eq(gamificationProfiles[field], id)
+  ));
+ });
+}
+
 /** Explicit post-migration initialization; never invoked by a read. */
 export async function seedGamificationCosmetics() {
  const { COSMETIC_CATALOG } = await import('./catalog');

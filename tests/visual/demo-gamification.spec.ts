@@ -143,15 +143,15 @@ test("profile, follows, group roster and local people search", async ({ page }, 
 test("equipping a mascot updates the owner profile and own dialog", async ({ page }, info) => {
   await page.goto(url("achievements", "&tab=rewards"));
   await page.getByRole("button", { name: "Maskot Zyra", exact: true }).click();
-  const item = page.locator("li").filter({ has: page.getByRole("button", { name: "Lihat Komodo cendekia" }) });
+  const item = page.locator("li").filter({ has: page.getByRole("button", { name: "Lihat Harimau" }) });
   await item.getByRole("button", { name: "Beli" }).click();
   await item.getByRole("button", { name: "Pakai" }).click();
   await expect(item.getByRole("button", { name: "Dipakai" })).toBeDisabled();
   await page.goto(url("profile"));
-  await expect(page.locator('[data-profile-mascot="zyra-avatar-komodo"]')).toBeVisible();
+  await expect(page.locator('[data-profile-mascot="zyra-avatar-studio-tiger"]')).toBeVisible();
   await capture(page, info, "profile-selected-mascot");
   await page.goto(url("leaderboard"));
   await page.getByRole("button", { name: /Pelajar Demo/ }).click();
-  await expect(page.getByRole("dialog").locator('[data-profile-mascot="zyra-avatar-komodo"]')).toBeVisible();
+  await expect(page.getByRole("dialog").locator('[data-profile-mascot="zyra-avatar-studio-tiger"]')).toBeVisible();
   await capture(page, info, "own-dialog-selected-mascot");
 });

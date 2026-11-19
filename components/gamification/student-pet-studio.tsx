@@ -40,7 +40,7 @@ export function StudentPetStudio({ rewards, balance }: { rewards: GamificationRe
   }
   return <div className="grid min-w-0 gap-(--section-gap) md:grid-cols-[minmax(15rem,1fr)_minmax(0,2fr)]">
     <section aria-label={t("petStudio.active")} className="flex flex-col items-center gap-2">
-      {playing ? <ZyraCosmeticAvatar cosmeticId={pet} size={240} /> : <ZyraMascot3D cosmeticId={pet} size={240} practiceSuit={suit?.replace("pet-suit-", "")} practiceCycle={action === "pet-action-cycle"} animationName={action?.replace("pet-action-", "")} />}
+      {playing ? <ZyraCosmeticAvatar cosmeticId={pet} size={240} /> : <ZyraMascot3D cosmeticId={pet} size={240} practiceSuit={suit?.replace("pet-suit-", "")} practiceFlowers={action === "pet-action-giveFlowers"} practiceCycle={action === "pet-action-cycle"} animationName={action?.replace("pet-action-", "")} />}
       <h2 className="font-heading text-body-base font-bold">{name(pet)}</h2>
       <CatPractice rewards={rewards} onOpenChange={setPlaying} />
     </section>

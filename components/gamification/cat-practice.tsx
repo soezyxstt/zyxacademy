@@ -46,7 +46,7 @@ function Practice({rewards}: {rewards: GamificationReward[]}) {
   const actionControl = controls("pet_action", petSupportsAction(pet,action) ? action : "idle", setAction);
   const suitControl = fitted ? controls("pet_suit", suit, setSuit) : null;
   return <>
-    <div className="flex justify-center"><ZyraMascot3D cosmeticId={pet} size={240} animationReplay={score} animationName={cheering ? "happy" : petSupportsAction(pet,action) ? action.replace("pet-action-", "") : "idle"} practiceSuit={fitted ? suit.replace("pet-suit-", "") : "none"} practiceCycle={petSupportsAction(pet,action) && action === "pet-action-cycle"} /></div>
+    <div className="flex justify-center"><ZyraMascot3D cosmeticId={pet} size={240} animationReplay={score} animationName={cheering ? "happy" : petSupportsAction(pet,action) ? action.replace("pet-action-", "") : "idle"} practiceSuit={fitted ? suit.replace("pet-suit-", "") : "none"} practiceFlowers={petSupportsAction(pet,action) && action === "pet-action-giveFlowers"} practiceCycle={petSupportsAction(pet,action) && action === "pet-action-cycle"} /></div>
     {(pets.length > 0 || actionControl || suitControl) && <div className="flex flex-wrap items-center gap-2">{pets.length > 0 && <Select value={pet} onValueChange={setPet}><SelectTrigger variant="inline" aria-label={t("cosmeticsStudio.mascot")}><SelectValue /></SelectTrigger><SelectContent>
       <SelectItem value="zyra-avatar-studio-cat">Zyra</SelectItem>{pets.map(item => <SelectItem key={item.id} value={item.id}>{t(`gamificationUi.${cosmeticNameKeys[item.id]}`)}</SelectItem>)}
     </SelectContent></Select>}{actionControl}{suitControl}</div>}
