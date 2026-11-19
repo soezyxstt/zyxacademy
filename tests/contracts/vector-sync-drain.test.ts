@@ -35,27 +35,17 @@ async function queue(count: number) {
 function steps() {
   const cache = new Map<string, unknown>();
   const names: string[] = [];
-  const events: unknown[] = [];
-  const delays: string[] = [];
-  const deadlines: Date[] = [];
+  const events: Array<{ name: string; data: { courseId?: string }; delaySeconds?: number }> = [];
   return {
-    names, events, delays, deadlines,
+    names, events,
     run: async <T>(name: string, callback: () => Promise<T>): Promise<T> => {
       if (cache.has(name)) return cache.get(name) as T;
       names.push(name);
       const result = await callback(); cache.set(name, result); return result;
     },
-    sendEvent: async (name: string, event: unknown) => {
+    enqueueTask: async (name: string, event: (typeof events)[number]) => {
       if (cache.has(name)) return;
       events.push(event); cache.set(name, true);
-    },
-    sleep: async (name: string, delay: string) => {
-      if (cache.has(name)) return;
-      names.push(name); delays.push(delay); cache.set(name, true);
-    },
-    sleepUntil: async (name: string, deadline: Date) => {
-      if (cache.has(name)) return;
-      deadlines.push(deadline); cache.set(name, true);
     },
   };
 }
@@ -75,7 +65,7 @@ test("a bounded run schedules durable continuation and the next run completes th
   const step = steps();
   const first = await drainVectorQueue(step, "drain-course");
   expect(first).toEqual({ processed: 250, success: 250, failed: 0, continuation: true });
-  expect(step.events).toEqual([{ name: "vector.sync.dispatch", data: { courseId: "drain-course" } }]);
+  expect(step.events).toEqual([{ name: "vector.sync.dispatch", delaySeconds: 0, data: { courseId: "drain-course" } }]);
   expect((await testDb.select().from(schema.vectorSyncQueue).where(eq(schema.vectorSyncQueue.status, "pending"))).length).toBe(1);
   expect(await drainVectorQueue(step, "drain-course")).toEqual(first);
   expect(step.events).toHaveLength(1);
@@ -109,8 +99,7 @@ test("an exhausted provider step schedules backoff and continuation for failed a
   upsert.mockImplementation(async (request: any) => { if (request.vectors.some((vector: { id: string }) => vector.id.includes("concept-0:"))) throw new Error("REJECTED_RECORD"); return {}; });
   const step = steps();
   expect(await drainVectorQueue(step, "drain-course")).toEqual({ processed: 50, success: 49, failed: 1, continuation: true, retryScheduled: true });
-  expect(step.delays).toEqual(["30s"]);
-  expect(step.events).toEqual([{ name: "vector.sync.dispatch", data: { courseId: "drain-course" } }]);
+  expect(step.events).toEqual([{ name: "vector.sync.dispatch", delaySeconds: 30, data: { courseId: "drain-course" } }]);
   expect((await testDb.select().from(schema.vectorSyncQueue).where(eq(schema.vectorSyncQueue.status, "pending"))).length).toBe(1);
   upsert.mockImplementation(async () => ({}));
   expect(await drainVectorQueue(steps(), "drain-course")).toEqual({ processed: 2, success: 2, failed: 0, continuation: false });
@@ -130,7 +119,7 @@ test("a stranded processing lease schedules a wakeup and is recovered after its 
   await testDb.update(schema.vectorSyncQueue).set({ status: "processing", leaseId: "crashed-worker", leaseExpiresAt: expiry });
   const step = steps();
   expect(await drainVectorQueue(step, "drain-course")).toEqual({ processed: 0, success: 0, failed: 0, continuation: true });
-  expect(step.deadlines).toEqual([expiry]);
+  expect(step.events[0]?.delaySeconds).toBeCloseTo((expiry.getTime() - Date.now()) / 1000, 0);
   expect(step.events).toHaveLength(1);
   await testDb.update(schema.vectorSyncQueue).set({ leaseExpiresAt: new Date(0) });
   expect(await drainVectorQueue(steps(), "drain-course")).toEqual({ processed: 1, success: 1, failed: 0, continuation: false });

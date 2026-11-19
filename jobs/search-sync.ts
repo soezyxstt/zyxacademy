@@ -1,4 +1,4 @@
-import { inngest } from "./client";
+import { defineJob } from "./define-job";
 import { db } from "@/db";
 import { searchDocuments } from "@/db/schema";
 import { or, and, eq, ne, lt, inArray } from "drizzle-orm";
@@ -12,7 +12,7 @@ const BATCH_SIZE = process.env.VECTOR_SYNC_BATCH_SIZE
 /**
  * Background worker synchronizing unsynced search documents into Vectorize.
  */
-export const syncSearchDocuments = inngest.createFunction(
+export const syncSearchDocuments = defineJob(
   {
     id: "sync-search-documents",
     name: "Sync Search Documents",

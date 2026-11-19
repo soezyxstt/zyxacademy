@@ -208,6 +208,10 @@ The account interface locale persists across visits. Conversation-specific Zyra 
 
 Background dispatch imports must remain server-safe for Deno compute. Do not add Next.js or React imports to worker-consumed message, notification, preference, or email-template modules. `proxy.ts` owns only the finite public locale rewrite map; test origin preservation and `skipProxyUrlNormalize` when changing that request boundary. Full role, locale, state, and visual verification belongs to the bilingual plan's CP7 gate.
 
+## Background queue selection
+
+`QUEUE_PROVIDER` defaults to `inngest` for rollback. `cloud-tasks` selects the environment-specific Singapore queues. A test process, `noop`, or `memory` acknowledges enqueue locally. Cloud Run uses Application Default Credentials. Neon sends child tasks through the authenticated web relay so it does not need a Google service-account key.
+
 ## Environment Variables
 
 Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (`@t3-oss/env-nextjs`).

@@ -16,6 +16,7 @@ export function workerTarget(name) {
 
 export function assertWorkerEnvironment(target, env) {
   if (env?.ZYX_ENVIRONMENT !== target.name || env?.ZYX_MCP_ENVIRONMENT !== target.name || env.INNGEST_ENV !== target.inngestEnvironment) throw new Error("COMPUTE_ENVIRONMENT_MISMATCH");
+  if (!["cloud-tasks", "inngest"].includes(env.QUEUE_PROVIDER ?? "inngest")) throw new Error("COMPUTE_QUEUE_PROVIDER_INVALID");
   const database = new URL(env.DATABASE_URL);
   if (!["postgres:", "postgresql:"].includes(database.protocol) || database.hostname !== target.databaseHost || database.pathname !== "/neondb" || database.searchParams.get("sslmode") !== "verify-full") throw new Error("COMPUTE_DATABASE_TARGET_MISMATCH");
   const storage = new URL(env.AWS_ENDPOINT_URL_S3);

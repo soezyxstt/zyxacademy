@@ -2,16 +2,16 @@ import { asc, gt, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { gamificationCourseStarts } from '@/db/schema';
 import { ensureGamificationMissions } from '@/lib/gamification/missions';
-import { inngest } from './client';
+import { defineJob } from './define-job';
 
 const PAGE_SIZE = 50;
-export const gamificationMissionsCron = inngest.createFunction(
+export const gamificationMissionsCron = defineJob(
  { id: 'gamification-missions-cron', triggers: [{ cron: '5 17 * * *' }], retries: 3 },
  async ({ step }) => {
-  await step.sendEvent('start-mission-pages', { name: 'gamification/missions.page', data: { cursor: '', occurredAt: new Date().toISOString() } });
+  await step.enqueueTask('start-mission-pages', { name: 'gamification/missions.page', data: { cursor: '', occurredAt: new Date().toISOString() } });
  },
 );
-export const gamificationMissionsPage = inngest.createFunction(
+export const gamificationMissionsPage = defineJob(
  { id: 'gamification-missions-page', triggers: [{ event: 'gamification/missions.page' }], retries: 3, concurrency: { limit: 1 } },
  async ({ event, step }) => {
   const { cursor, occurredAt } = event.data as { cursor: string; occurredAt: string };
@@ -25,7 +25,7 @@ export const gamificationMissionsPage = inngest.createFunction(
    });
    return rows.map(row => row.userId);
   });
-  if (ids.length === PAGE_SIZE) await step.sendEvent('next-mission-page', { name: 'gamification/missions.page', data: { cursor: ids[ids.length - 1], occurredAt } });
+  if (ids.length === PAGE_SIZE) await step.enqueueTask('next-mission-page', { name: 'gamification/missions.page', data: { cursor: ids[ids.length - 1], occurredAt } });
   return { processed: ids.length };
  },
 );

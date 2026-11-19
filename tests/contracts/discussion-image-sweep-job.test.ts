@@ -10,13 +10,13 @@ test("image sweep registers bounded batches and continues full batches", async (
   let handler: (input: { step: unknown }) => Promise<unknown> = async () => {};
   const events: unknown[] = [];
   const dependencies: Record<string, unknown> = {
-    "./client": { inngest: { createFunction: (options: Record<string, any>, run: typeof handler) => { configuration = options; handler = run; return {}; } } },
+    "./define-job": { defineJob: (options: Record<string, any>, run: typeof handler) => { configuration = options; handler = run; return {}; } },
     "@/lib/discussions/image-sweep": { sweepDiscussionImages: async (input: { limit: number }) => { limit = input.limit; return { inspected, deleted: inspected, failed: 0 }; } },
   };
   const exports = {};
   const output = ts.transpileModule(readFileSync("jobs/discussion-image-sweep.ts", "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
   runInNewContext(output, { exports, require: (name: string) => { if (!(name in dependencies)) throw new Error(name); return dependencies[name]; } });
-  const step = { run: async (_name: string, work: () => Promise<unknown>) => work(), sendEvent: async (_name: string, event: unknown) => events.push(event) };
+  const step = { run: async (_name: string, work: () => Promise<unknown>) => work(), enqueueTask: async (_name: string, event: unknown) => events.push(event) };
   await handler({ step });
   expect(configuration.id).toBe("discussion-image-sweep");
   expect(configuration.concurrency.limit).toBe(1);

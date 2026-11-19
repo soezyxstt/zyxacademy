@@ -55,6 +55,8 @@ def prepare_worker_runtime(environment, secrets, variables):
             if not isinstance(value, str):
                 raise ValueError("WORKER_SETTING_TYPE_INVALID")
             settings[name] = value
+    if settings.get("QUEUE_PROVIDER", "inngest") not in ("inngest", "cloud-tasks"):
+        raise ValueError("WORKER_QUEUE_PROVIDER_INVALID")
     settings["DATABASE_URL"] = secrets.get("DATABASE_URL", "")
     try:
         validate_database(settings["DATABASE_URL"], target["host"])
@@ -75,6 +77,8 @@ def prepare_worker_runtime(environment, secrets, variables):
     if settings.get("DIKTAT_RENDERER_URL") not in (target["renderer"], target["renderer"] + "/"):
         raise ValueError("WORKER_PDF_RENDERER_MISMATCH")
     for name in (*REQUIRED, "INNGEST_SIGNING_KEY", "COMPUTE_SERVICE_SECRET", "DIKTAT_RENDERER_SECRET", "CF_ACCOUNT_ID"):
+        if settings.get("QUEUE_PROVIDER") == "cloud-tasks" and name in ("INNGEST_EVENT_KEY", "INNGEST_SIGNING_KEY"):
+            continue
         value = settings.get(name)
         if not value or not value.strip() or value == "[SENSITIVE]":
             raise ValueError("WORKER_SETTING_REQUIRED:" + name)

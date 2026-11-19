@@ -47,12 +47,26 @@ export function prepareTask(event: QueueEvent, environment: keyof typeof workerB
 let auth: import("google-auth-library").GoogleAuth | undefined;
 
 export async function enqueueTask(event: QueueEvent) {
-  if (process.env.NODE_ENV === "test" || ["noop", "memory"].includes(process.env.QUEUE_PROVIDER ?? "")) {
+  if (process.env.NODE_ENV === "test" || process.env.GITHUB_EVENT_NAME === "pull_request" || ["noop", "memory"].includes(process.env.QUEUE_PROVIDER ?? "")) {
     return event.id ?? randomUUID();
   }
   if (process.env.QUEUE_PROVIDER !== "cloud-tasks") throw new Error("CLOUD_TASKS_PROVIDER_REQUIRED");
   const environment = process.env.ZYX_ENVIRONMENT;
   if (environment !== "production" && environment !== "staging") throw new Error("QUEUE_ENVIRONMENT_REQUIRED");
+  if (process.env.ZYX_COMPUTE_RUNTIME === "neon") {
+    const secret = process.env.COMPUTE_SERVICE_SECRET;
+    if (!secret) throw new Error("QUEUE_RELAY_AUTH_REQUIRED");
+    const origin = environment === "staging" ? "https://staging.zyxacademy.com" : "https://www.zyxacademy.com";
+    const response = await fetch(`${origin}/api/internal/queue`, {
+      method: "POST", redirect: "error", signal: AbortSignal.timeout(20000),
+      headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ ...event, id: event.id ?? randomUUID() }),
+    });
+    if (!response.ok) throw new Error(`QUEUE_RELAY_FAILED:${response.status}`);
+    const result = await response.json();
+    if (typeof result.id !== "string") throw new Error("QUEUE_RELAY_RESULT_INVALID");
+    return result.id as string;
+  }
   const { parent, task } = prepareTask(event, environment);
   const { GoogleAuth } = await import("google-auth-library");
   auth ??= new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-tasks"] });
@@ -63,6 +77,9 @@ export async function enqueueTask(event: QueueEvent) {
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ task }),
   });
-  if (!response.ok && response.status !== 409) throw new Error(`CLOUD_TASKS_CREATE_FAILED:${response.status}`);
+  if (!response.ok) {
+    const duplicate = response.status === 409 && (await response.json().catch(() => null))?.error?.status === "ALREADY_EXISTS";
+    if (!duplicate) throw new Error(`CLOUD_TASKS_CREATE_FAILED:${response.status}`);
+  }
   return task.name;
 }

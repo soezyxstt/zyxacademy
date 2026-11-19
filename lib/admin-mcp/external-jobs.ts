@@ -1,3 +1,4 @@
+import { wakeOutbox } from "@/lib/queue/outbox";
 import { hasMcpOAuthConsent } from "@/lib/authoring/mcp-oauth";
 import { mcpEnvironmentIdentity } from "@/lib/authoring/mcp-environment";
 import { minutesAgo } from "@/lib/date-utils";
@@ -18,6 +19,7 @@ export async function enqueueAdminOperation(tx: AdminTransaction, principal: Mcp
   const now = new Date();
   const id = crypto.randomUUID();
   await tx.insert(adminOperationJobs).values({ id, actorId: principal.actorId, sessionId: principal.sessionId, kind, requiredScope: externalOperationScopes[kind], environment: operationEnvironment(), payload, result: { delegatedScopes: required, authority }, status: "queued", createdAt: now, updatedAt: now });
+  wakeOutbox("admin/operations.continue");
   return { id, kind, status: "queued", jobTool: "adminjobs.get" };
 }
 export function externalJobView(row: typeof adminOperationJobs.$inferSelect) {
@@ -60,8 +62,9 @@ export async function processAdminOperation(id: string, execute: AdminOperationE
     await heartbeatPending;
   }
 }
+export const ADMIN_OPERATION_BATCH = 25;
 export async function collectAdminOperations() {
   const staleBefore = minutesAgo(15);
   await db.update(adminOperationJobs).set({ status: "unknown", errorCode: "RECONCILIATION_REQUIRED", updatedAt: new Date() }).where(and(eq(adminOperationJobs.status, "running"), eq(adminOperationJobs.environment, operationEnvironment()), lt(adminOperationJobs.updatedAt, staleBefore)));
-  return db.select({ id: adminOperationJobs.id }).from(adminOperationJobs).where(and(eq(adminOperationJobs.status, "queued"), eq(adminOperationJobs.environment, operationEnvironment()))).orderBy(asc(adminOperationJobs.createdAt), asc(adminOperationJobs.id)).limit(25);
+  return db.select({ id: adminOperationJobs.id }).from(adminOperationJobs).where(and(eq(adminOperationJobs.status, "queued"), eq(adminOperationJobs.environment, operationEnvironment()))).orderBy(asc(adminOperationJobs.createdAt), asc(adminOperationJobs.id)).limit(ADMIN_OPERATION_BATCH);
 }

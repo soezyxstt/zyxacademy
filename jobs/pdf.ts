@@ -1,7 +1,7 @@
-import { inngest } from "./client";
+import { defineJob } from "./define-job";
 import { generateProductDiktatPdfEvidence } from "@/lib/compute/product-diktat-inspector";
 
-export const productDiktatPdfWorker = inngest.createFunction(
+export const productDiktatPdfWorker = defineJob(
   {
     id: "product-diktat-pdf-worker",
     name: "Product Diktat PDF Worker",

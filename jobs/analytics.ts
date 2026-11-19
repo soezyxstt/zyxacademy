@@ -1,4 +1,4 @@
-import { inngest } from "./client";
+import { defineJob } from "./define-job";
 import { db } from "@/db";
 import { enrollments, studentQuizAnalytics, studentQuizAttempts } from "@/db/schema";
 import { computeSnapshotPayload } from "@/lib/cohort-analytics";
@@ -6,7 +6,7 @@ import { computeQuizAnalyticsFacts } from "@/lib/student-quiz-analytics/calculat
 import { generateStudentQuizDiagnosis } from "@/lib/student-quiz-analytics/ai-pipeline";
 import { gt, sql, eq } from "drizzle-orm";
 
-export const courseAnalyticsSnapshotCron = inngest.createFunction(
+export const courseAnalyticsSnapshotCron = defineJob(
   {
     id: "course-analytics-snapshot-cron",
     name: "Course Analytics Snapshot Cron",
@@ -48,7 +48,7 @@ export const courseAnalyticsSnapshotCron = inngest.createFunction(
  * Event-driven worker listening to "quiz/analytics.requested"
  * Computes deterministic facts and calls Gemini two-tier diagnosis pipeline.
  */
-export const studentQuizAnalyticsWorker = inngest.createFunction(
+export const studentQuizAnalyticsWorker = defineJob(
   {
     id: "student-quiz-analytics-worker",
     name: "Student Quiz Analytics Worker",

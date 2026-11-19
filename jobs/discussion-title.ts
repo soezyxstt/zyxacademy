@@ -1,7 +1,7 @@
 import { generateDiscussionThreadTitle } from "@/lib/discussions/title-ai";
-import { inngest } from "./client";
+import { defineJob } from "./define-job";
 
-export const discussionThreadTitleWorker = inngest.createFunction(
+export const discussionThreadTitleWorker = defineJob(
   {
     id: "discussion-thread-title",
     retries: 2,
