@@ -14,15 +14,12 @@ import type { DocSurface } from "@/lib/docs/types";
 export function DocsIndexView({
   surface,
   basePath: basePathProp,
-  localeOverride,
 }: {
   surface: DocSurface;
   basePath?: string;
-  localeOverride?: "id" | "en";
 }) {
   const t = useTranslations(surface === "tutor" ? "tutor.docs" : "admin.docs");
-  const { locale: appLocale } = useAppLocale();
-  const locale = localeOverride ?? appLocale;
+  const { locale } = useAppLocale();
   const [query, setQuery] = useState("");
   const basePath = basePathProp ?? (surface === "tutor" ? "/tutor/docs" : "/admin/docs");
 

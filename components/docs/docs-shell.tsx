@@ -21,17 +21,14 @@ import { cn } from "@/lib/utils";
 function DocsNavigation({
   surface,
   basePath: basePathProp,
-  localeOverride,
   onNavigate,
 }: {
   surface: DocSurface;
   basePath?: string;
-  localeOverride?: "id" | "en";
   onNavigate?: () => void;
 }) {
   const t = useTranslations(surface === "tutor" ? "tutor.docs" : "admin.docs");
-  const { locale: appLocale } = useAppLocale();
-  const locale = localeOverride ?? appLocale;
+  const { locale } = useAppLocale();
   const pathname = usePathname();
   const basePath = basePathProp ?? (surface === "tutor" ? "/tutor/docs" : "/admin/docs");
   const docs = useMemo(
@@ -194,12 +191,10 @@ function DocsNavigation({
 export function DocsShell({
   surface,
   basePath,
-  localeOverride,
   children,
 }: {
   surface: DocSurface;
   basePath?: string;
-  localeOverride?: "id" | "en";
   children: ReactNode;
 }) {
   const t = useTranslations(surface === "tutor" ? "tutor.docs" : "admin.docs");
@@ -224,7 +219,7 @@ export function DocsShell({
                 </SheetDescription>
               </SheetHeader>
               <div className="min-h-0 flex-1 overflow-y-auto">
-                <DocsNavigation surface={surface} basePath={basePath} localeOverride={localeOverride} onNavigate={() => setOpen(false)} />
+                <DocsNavigation surface={surface} basePath={basePath} onNavigate={() => setOpen(false)} />
               </div>
             </SheetContent>
           </Sheet>
@@ -236,7 +231,7 @@ export function DocsShell({
         aria-label={t("navigation")}
         className="sticky top-6 hidden h-[calc(100vh-3rem)] w-60 shrink-0 overflow-y-auto border-l border-border/80 xl:block"
       >
-        <DocsNavigation surface={surface} basePath={basePath} localeOverride={localeOverride} />
+        <DocsNavigation surface={surface} basePath={basePath} />
       </aside>
     </div>
   );

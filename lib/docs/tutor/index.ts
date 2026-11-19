@@ -44,7 +44,7 @@ export const tutorBilingualDocs: BilingualDocEntry[] = [
             headers: ["Area", "Dapat dilakukan tutor", "Dikelola admin"],
             rows: [
               ["**Jadwal tutorial**", "Membuka slot 90 menit, menyalin jadwal pekan lalu, menyetujui/menolak tiket, mengunggah catatan sesi.", "Pengecualian manual jadwal, penugasan mata kuliah tutor."],
-              ["**Materi & video**", "Mengelola dokumen dan playlist video pada mata kuliah yang ditugaskan.", "Membuat mata kuliah baru, mengubah ID, dan mengatur urutan silabus utama."],
+              ["**Materi & video**", "Membaca dokumen dan mengelola playlist video pada mata kuliah yang ditugaskan.", "Mengelola dokumen, membuat mata kuliah, mengubah ID, dan mengatur urutan silabus."],
               ["**Kuis & penilaian**", "Membuat kuis, menilai jawaban esai kuis dan tryout, memandu kuis langsung.", "Penerbitan Idea/Product Bundle MCP dan konfigurasi sistem."],
             ],
           },
@@ -80,7 +80,7 @@ export const tutorBilingualDocs: BilingualDocEntry[] = [
             },
             {
               title: "Open a course under Teaching",
-              body: "Select a course in the left sidebar to manage documents, videos, participant groups, quizzes, and essay grading queues.",
+              body: "Select a course in the left sidebar to open its documents, videos, participant groups, quizzes, and essay grading queues.",
             },
           ],
         },
@@ -91,7 +91,7 @@ export const tutorBilingualDocs: BilingualDocEntry[] = [
             headers: ["Area", "Handled by tutors", "Handled by admins"],
             rows: [
               ["**Tutorial schedule**", "Open 90-min slots, copy previous week, approve/reject tickets, upload session notes.", "Manual schedule overrides and tutor course assignments."],
-              ["**Materials & videos**", "Manage documents and video playlists in assigned courses.", "Create new courses, manage course IDs, and set core syllabus order."],
+              ["**Materials & videos**", "Read documents and manage video playlists in assigned courses.", "Manage documents, create courses, edit course IDs, and set syllabus order."],
               ["**Quizzes & grading**", "Create quizzes, grade quiz and tryout essays, host live quizzes.", "MCP Idea/Product Bundle publishing and system settings."],
             ],
           },
@@ -269,26 +269,17 @@ export const tutorBilingualDocs: BilingualDocEntry[] = [
     slug: "materi-dan-video-kelas",
     id: {
       category: "Materi dan penilaian",
-      title: "Mengelola dokumen dan video kelas",
-      summary: "Unggah PDF materi dengan penamaan rapi dan susun video pembelajaran di dalam playlist mata kuliah Anda.",
+      title: "Melihat dokumen dan mengelola video kelas",
+      summary: "Lihat dokumen mata kuliah dan susun video pembelajaran dalam playlist.",
       keywords: ["dokumen", "pdf", "video", "playlist", "youtube", "materi", "unggah"],
       quickLinks: [
         { label: "Dashboard pengajar", href: "/tutor", description: "Pilih mata kuliah lalu buka menu Dokumen atau Video." },
       ],
       sections: [
         {
-          title: "Mengunggah dokumen PDF",
-          diagram: "filename-anatomy",
+          title: "Melihat dokumen",
           paragraphs: [
-            "Dari sidebar **Pengajaran**, pilih mata kuliah Anda lalu buka **Dokumen**. Setiap dokumen wajib berformat **PDF** (maksimal **50 MiB** per berkas) dan terhubung ke minimal satu bab.",
-            "Pisahkan berkas soal dan berkas pembahasan agar murid bisa berlatih terlebih dahulu sebelum melihat solusi.",
-          ],
-          codeBlocks: [
-            {
-              label: "Contoh nama berkas PDF yang disarankan",
-              code: `ma1101_bab01_materi_limit-kontinu_slide_2025-sem1.pdf
-ma1101_bab02_soal_turunan_tutorial_2025-sem1.pdf`,
-            },
+            "Dari sidebar **Pengajaran**, pilih mata kuliah lalu buka **Dokumen** untuk melihat materi yang tersedia. Hubungi admin jika dokumen perlu ditambah atau diperbarui.",
           ],
         },
         {
@@ -297,10 +288,9 @@ ma1101_bab02_soal_turunan_tutorial_2025-sem1.pdf`,
             "Buka menu **Video** pada mata kuliah untuk membuat playlist per topik lalu menambahkan video dari YouTube atau unggahan langsung. Pastikan video dapat diakses murid dan judulnya spesifik.",
           ],
           table: {
-            caption: "Batas format berkas materi dan video",
+            caption: "Format dan batas unggahan video",
             headers: ["Jenis berkas", "Format didukung", "Batas ukuran"],
             rows: [
-              ["**Dokumen**", "`PDF`", "**50 MiB**"],
               ["**Video unggah langsung**", "`MP4`, `WebM`, `MOV`", "**100 MB**"],
               ["**Thumbnail video**", "`JPG`, `PNG`, `WebP`", "**5 MB**"],
             ],
@@ -310,26 +300,17 @@ ma1101_bab02_soal_turunan_tutorial_2025-sem1.pdf`,
     },
     en: {
       category: "Materials and assessment",
-      title: "Managing course documents and videos",
-      summary: "Upload cleanly named PDFs and organize course videos into topic playlists inside your assigned classes.",
+      title: "Viewing course documents and managing videos",
+      summary: "View course documents and organize videos into topic playlists.",
       keywords: ["documents", "pdf", "video", "playlist", "youtube", "materials", "upload"],
       quickLinks: [
         { label: "Tutor dashboard", href: "/tutor", description: "Open an assigned course, then select Documents or Videos." },
       ],
       sections: [
         {
-          title: "Uploading PDF documents",
-          diagram: "filename-anatomy",
+          title: "Viewing documents",
           paragraphs: [
-            "Select your course under **Teaching** and open **Documents**. Every document must be a **PDF** (up to **50 MiB** per file) linked to at least one chapter.",
-            "Always keep question sheets and worked solutions in separate PDFs so students can attempt problems before checking solutions.",
-          ],
-          codeBlocks: [
-            {
-              label: "Recommended PDF filename pattern",
-              code: `ma1101_bab01_materi_limit-kontinu_slide_2025-sem1.pdf
-ma1101_bab02_soal_turunan_tutorial_2025-sem1.pdf`,
-            },
+            "Select an assigned course under **Teaching** and open **Documents** to view the available materials. Contact an admin to add or update a document.",
           ],
         },
         {
@@ -338,10 +319,9 @@ ma1101_bab02_soal_turunan_tutorial_2025-sem1.pdf`,
             "Open **Videos** inside your course to group lessons into topic playlists and add YouTube links or direct uploads. Confirm videos are accessible to students and clearly titled.",
           ],
           table: {
-            caption: "Supported file formats and limits",
+            caption: "Video upload formats and limits",
             headers: ["File type", "Supported formats", "Maximum size"],
             rows: [
-              ["**Documents**", "`PDF`", "**50 MiB**"],
               ["**Direct video upload**", "`MP4`, `WebM`, `MOV`", "**100 MB**"],
               ["**Video thumbnail**", "`JPG`, `PNG`, `WebP`", "**5 MB**"],
             ],

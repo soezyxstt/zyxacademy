@@ -3,26 +3,25 @@ import { DocsShell } from "@/components/docs/docs-shell";
 import { DocsIndexView } from "@/components/docs/docs-index-view";
 import { DocsArticleView } from "@/components/docs/docs-article-view";
 import { getAdminDocs, getTutorDocs } from "@/lib/docs";
-import type { DocLocale, DocSurface } from "@/lib/docs/types";
+import type { DocSurface } from "@/lib/docs/types";
+import { getAppLocale, getTranslations } from "@/lib/i18n/server";
 
 export default async function DocsShowcaseFixture({
   params,
-  searchParams,
 }: {
   params: Promise<{ surface: string; slug?: string[] }>;
-  searchParams: Promise<{ locale?: string }>;
 }) {
-  const [{ surface: rawSurface, slug }, { locale: rawLocale }] = await Promise.all([
-    params,
-    searchParams,
-  ]);
-
-  if (rawSurface !== "admin" && rawSurface !== "tutor") {
+  if (process.env.NODE_ENV !== "development") notFound();
+  const { surface: rawSurface, slug } = await params;
+  if ((rawSurface !== "admin" && rawSurface !== "tutor") || (slug && slug.length > 1)) {
     notFound();
   }
 
   const surface: DocSurface = rawSurface;
-  const locale: DocLocale = rawLocale === "en" ? "en" : "id";
+  const [locale, t] = await Promise.all([
+    getAppLocale(),
+    getTranslations(surface === "tutor" ? "tutor.docs" : "admin.docs"),
+  ]);
   const basePath = `/visual-fixtures/docs-showcase/${surface}`;
   const docs = surface === "tutor" ? getTutorDocs(locale) : getAdminDocs(locale);
   const targetSlug = slug?.[0];
@@ -31,8 +30,8 @@ export default async function DocsShowcaseFixture({
     return (
       <main className="min-h-screen bg-background px-6 py-8 text-foreground">
         <div className="mx-auto max-w-6xl">
-          <DocsShell surface={surface} basePath={basePath} localeOverride={locale}>
-            <DocsIndexView surface={surface} basePath={basePath} localeOverride={locale} />
+          <DocsShell surface={surface} basePath={basePath}>
+            <DocsIndexView surface={surface} basePath={basePath} />
           </DocsShell>
         </div>
       </main>
@@ -45,17 +44,17 @@ export default async function DocsShowcaseFixture({
   return (
     <main className="min-h-screen bg-background px-6 py-8 text-foreground">
       <div className="mx-auto max-w-6xl">
-        <DocsShell surface={surface} basePath={basePath} localeOverride={locale}>
+        <DocsShell surface={surface} basePath={basePath}>
           <DocsArticleView
             doc={doc}
             docs={docs}
             surface={surface}
             basePath={basePath}
             locale={locale}
-            allDocsLabel={locale === "en" ? "All guides" : "Semua panduan"}
-            previousLabel={locale === "en" ? "Previous" : "Sebelumnya"}
-            nextLabel={locale === "en" ? "Next" : "Berikutnya"}
-            quickLinksLabel={locale === "en" ? "Quick access" : "Akses cepat"}
+            allDocsLabel={t("allDocs")}
+            previousLabel={t("previous")}
+            nextLabel={t("next")}
+            quickLinksLabel={t("quickLinks")}
           />
         </DocsShell>
       </div>
