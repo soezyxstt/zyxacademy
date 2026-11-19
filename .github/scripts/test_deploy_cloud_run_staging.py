@@ -60,6 +60,9 @@ class CloudRunStagingTest(unittest.TestCase):
         for key, value in (("DATABASE_URL", {"value": "server-secret"}),
                            ("CLOUD_RUN_ORIGIN_TOKEN", {"valueFrom": {"secretKeyRef": {
                                "name": "zyx-staging-web-origin", "key": "latest"}}}),
+                           ("NODE_OPTIONS", {"valueFrom": {"secretKeyRef": {
+                               "name": "zyx-staging-web-node-options", "key": "1"}}}),
+                           ("NODE_ENV", {"value": "development"}),
                            ("ZYX_ENVIRONMENT", {"value": "production"}),
                            ("NEXT_PUBLIC_APP_URL", {"value": "https://www.zyxacademy.com"}),
                            ("NEON_STORAGE_BUCKET", {"value": "zyx-production"})):

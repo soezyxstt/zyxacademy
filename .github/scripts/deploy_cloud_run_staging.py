@@ -111,11 +111,13 @@ def validate_template(spec, config):
             require(key not in REQUIRED_SECRET_KEYS, "A required staging secret is configured in plaintext.")
             plain[key] = item["value"]
         else:
+            require(key in (RUNTIME_KEYS | {ORIGIN_TOKEN}), "Unsupported staging secret environment key: " + key)
             ref = item.get("valueFrom", {}).get("secretKeyRef", {})
             require(re.fullmatch(SECRET_PREFIX + r"[a-z0-9-]+", ref.get("name", ""))
                     and VERSION.fullmatch(ref.get("key", "")),
                     "Cloud Run staging secret must use a local staging name and numeric version: " + key)
             refs[key] = ref
+    require(plain.get("NODE_ENV", "production") == "production", "Cloud Run must run the production Next.js server.")
     require(REQUIRED_SECRET_KEYS <= refs.keys(), "Cloud Run staging runtime is missing required Secret Manager references.")
     require("CF_ACCOUNT_ID" in plain and bool({"CF_API_TOKEN", "CF_BROWSER_API_TOKEN"} & refs.keys()),
             "Cloud Run staging Cloudflare Browser Run settings are incomplete.")
