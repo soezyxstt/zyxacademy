@@ -18,20 +18,33 @@ test.beforeAll(async () => {
       import React from 'react';
       import { AnimationAction, Mesh } from 'three';
       // Observe real mixer starts and draw submissions inside the isolated fixture.
+      const starts = new WeakMap();
       const play = AnimationAction.prototype.play;
       AnimationAction.prototype.play = function() {
-        if (this.getClip().name === 'happy' && this.time === 0) {
-          const trace = document.documentElement.dataset;
-          trace.happyStarts = String(Number(trace.happyStarts || 0) + 1);
-        }
+        const mixer = this.getMixer();
+        const history = starts.get(mixer) || [];
+        history.push(this.time === 0 ? this.getClip().name : 'resume');
+        if (history.length > 4) history.shift();
+        starts.set(mixer, history);
+        document.documentElement.dataset.clipStarts = history.join(',');
         return play.call(this);
       };
+      const frames = new WeakMap();
       const beforeDraw = Mesh.prototype.onBeforeRender;
-      Mesh.prototype.onBeforeRender = function(...args) {
-        const trace = document.documentElement.dataset;
-        if (this.name === 'Outfit_Sport') trace.drewKit = 'true';
-        if (this.name.startsWith('Prop_cycle_')) trace.drewBike = 'true';
-        return beforeDraw.apply(this, args);
+      Mesh.prototype.onBeforeRender = function(renderer, scene, ...args) {
+        const canvas = renderer.domElement;
+        if (canvas.dataset.mascotAnimation === 'cycle') {
+          const frame = renderer.info.render.frame;
+          let draws = frames.get(renderer);
+          if (!draws || draws.frame !== frame || draws.scene !== scene) {
+            draws = {frame, scene, kit:false, bike:false};
+            frames.set(renderer, draws);
+          }
+          if (this.name === 'Outfit_Sport') draws.kit = true;
+          if (this.name.startsWith('Prop_cycle_')) draws.bike = true;
+          if (draws.kit && draws.bike) canvas.dataset.drewCyclingKit = 'true';
+        }
+        return beforeDraw.call(this, renderer, scene, ...args);
       };
       import {createRoot} from 'react-dom/client';
       import {NextIntlClientProvider} from 'next-intl';
@@ -208,8 +221,7 @@ test("practice combines independently owned kit and cycling", async ({page}, inf
   const canvas = dialog.locator("canvas");
   await expect(canvas).toHaveAttribute("data-mascot-animation", "cycle", {timeout:30000});
   const trace = page.locator("html");
-  await expect(trace).toHaveAttribute("data-drew-kit", "true");
-  await expect(trace).toHaveAttribute("data-drew-bike", "true");
+  await expect(canvas).toHaveAttribute("data-drew-cycling-kit", "true");
   await capture(page, info, "practice-cycle-kit");
   const prompt = dialog.locator('p[aria-live="polite"]');
   const [left, right] = (await prompt.innerText()).match(/\d+/g)!.map(Number);
@@ -220,10 +232,10 @@ test("practice combines independently owned kit and cycling", async ({page}, inf
   await expect(dialog.getByRole("status")).toContainText("Benar 0");
   await dialog.getByRole("button", {name:answer, exact:true}).click();
   await expect(canvas).toHaveAttribute("data-mascot-animation", "happy");
-  await expect(trace).toHaveAttribute("data-happy-starts", "1");
+  await expect(trace).toHaveAttribute("data-clip-starts", /cycle,happy$/);
   const [nextLeft, nextRight] = (await prompt.innerText()).match(/\d+/g)!.map(Number);
   await dialog.getByRole("button", {name:String(nextLeft * nextRight), exact:true}).click();
-  await expect(trace).toHaveAttribute("data-happy-starts", "2");
+  await expect(trace).toHaveAttribute("data-clip-starts", /cycle,happy,happy(?:,cycle)?$/);
   await expect(dialog.getByRole("status")).toContainText("Benar 2");
   await expect(canvas).toHaveAttribute("data-mascot-animation", "cycle");
   await page.keyboard.press("Escape");
