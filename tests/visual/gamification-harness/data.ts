@@ -29,14 +29,9 @@ export const leaderboard = [
  { name:'Alya Putri', position:4, xp:40000, rank:'bupati' },
  { name:'Bima Saputra', position:5, xp:35000, rank:'bupati' },
 ];
-export const adminData = {
- q:'', page:1, moreCourses:false, courses:[{id:'math',title:'Kalkulus I',code:'MA1101'},{id:'algebra',title:'Aljabar Linear',code:'MA1201'}], selected:{id:'math',title:'Kalkulus I'},
- checklists:[{id:'c1',version:2,status:'draft',totalXpMicro:10000000000,credit:1000000,counts:[{category:'article',count:10},{category:'explanation',count:8},{category:'question',count:120},{category:'flashcard',count:80}]},{id:'c2',version:1,status:'approved',totalXpMicro:9000000000,credit:1000000,counts:[]}], preview:[],
- status:'pending', reportPage:1, moreReports:false, reports:[{id:'r1',displayName:'Bima Saputra',publicId:'bima-fixture',reason:'other',status:'pending'}], cosmetics: rewards.map(r=>({...r,active:true,inventory:3}))
-};
 export const fixtureProvenance = {
  data:'Fictional deterministic fixture, no database or external API',
- components:['ApplicationPage','PageHeader','AchievementTabs','RankPromotion','BadgeList','MissionList','RewardList','StudentAvatar','BadgeArtwork','RankArtwork','ProfileSettings','ProfileFollowList','ProfileHero','AchievementBoard','SocialControls','CelebrationListener','Toaster','GamificationAdmin','ProfileEditForm','SolutionCollectionReader'],
+ components:['ApplicationPage','PageHeader','AchievementTabs','RankPromotion','BadgeList','MissionList','RewardList','StudentAvatar','BadgeArtwork','RankArtwork','ProfileSettings','ProfileFollowList','ProfileHero','AchievementBoard','SocialControls','CelebrationListener','Toaster','ProfileEditForm','SolutionCollectionReader'],
  compositions:['Fixture compositions based on AchievementsPage, ProfilePage, public profile, leaderboard and dashboard; leaderboard rows are fixture compositions'],
  mocks:['student identity and social settings','achievement and inventory data','leaderboard entries','admin checklist and report data','server actions via runtime aliases','fixture student chrome'],
  omissions:['dashboard course widgets','real application sidebar and mobile navigation','production article content renderers and coding providers, replaced by fixture plain-text adapters for static markdown; solution completion uses the real reader and fixture action'],
