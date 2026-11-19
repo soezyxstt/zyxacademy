@@ -241,7 +241,7 @@ export function SettingsClient({
             <TabsTrigger value="profile">{t("settings.profile")}</TabsTrigger>
             <TabsTrigger value="email">{t("preferences.email")}</TabsTrigger>
           </TabsList>
-          <div className="flex items-center gap-2 pb-1.5">
+          <div className="flex flex-wrap items-center gap-2 pb-1.5">
             {activeTab === "profile" && (
               <Button asChild variant="outline" size="sm">
                 <Link href={href("/profile")}>{t("settings.viewProfile")}</Link>

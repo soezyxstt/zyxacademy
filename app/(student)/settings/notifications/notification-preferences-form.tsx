@@ -90,7 +90,7 @@ export function NotificationPreferencesForm({
         </header>
 
         <div className="divide-y divide-border/30">
-          <div className="flex items-center justify-between gap-4 rounded-lg px-3 py-3 transition-colors hover:bg-muted/30">
+          <div className="flex items-center justify-between gap-4 rounded-lg px-3 py-(--row-padding) transition-colors hover:bg-muted/30">
             <label htmlFor={masterId} className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
               <Bell className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
               <span className="min-w-0">
@@ -117,15 +117,15 @@ export function NotificationPreferencesForm({
               <div
                 key={key}
                 className={cn(
-                  "flex items-center justify-between gap-4 rounded-lg px-3 py-3 transition-colors",
-                  disabled ? "opacity-55" : "hover:bg-muted/30"
+                  "flex items-center justify-between gap-4 rounded-lg px-3 py-(--row-padding) transition-colors",
+                  !disabled && "hover:bg-muted/30"
                 )}
               >
                 <label
                   htmlFor={rowId}
                   className={cn(
                     "flex min-w-0 flex-1 items-start gap-3",
-                    disabled ? "cursor-not-allowed" : "cursor-pointer"
+                    disabled ? "cursor-not-allowed opacity-55" : "cursor-pointer"
                   )}
                 >
                   <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
