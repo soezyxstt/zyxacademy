@@ -59,6 +59,33 @@ Use deploy identity `zyx-staging-web-ci@zyx-academy.iam.gserviceaccount.com`, ru
 
 Set `ZYX_ENVIRONMENT=staging`, `ZYX_MCP_ENVIRONMENT=staging`, `BETTER_AUTH_URL` to the exact build origin, `STORAGE_PROVIDER_MODE=neon`, `NEON_STORAGE_BUCKET=zyx-staging`, `AWS_REGION=ap-southeast-1`, `AWS_ENDPOINT_URL_S3` to the documented branch endpoint, and `INNGEST_ENV=staging-40f1da25`. Use the existing staging endpoints for `COMPUTE_SERVICE_URL` and `DIKTAT_RENDERER_URL`. Mirror the public JSON as plaintext runtime settings. Bind `DATABASE_URL`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `RESEND_API_KEY`, `GEMINI_API_KEY`, `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `COMPUTE_SERVICE_SECRET`, `DIKTAT_RENDERER_SECRET`, `CF_API_TOKEN` or `CF_BROWSER_API_TOKEN`, and `CLOUD_RUN_ORIGIN_TOKEN` to numeric versions of dedicated `zyx-staging-web-*` secrets. Set `CF_ACCOUNT_ID` for Browser Run. Use the staging application database role and a distinct read-only `zyx_staging_web_preflight` login with access to the migration journal and cutover marker. Scope the CI Secret Accessor grants to these two database URLs and the origin token. Consult the workflow's validator for the complete runtime allowlist.
 
+### Import existing GitHub staging secrets
+
+The `import-secrets` operation copies only the required staging credentials to dedicated Secret Manager destinations. It uses the same branch restriction, GitHub environment review, and federated deploy identity as the release job. It sends values through standard input and records only setting names and numeric versions. It performs no deployment. The staging database URL must use the pinned pooler and application role.
+
+In Cloud Shell, prepare empty destinations and give CI temporary permission to add versions. This example expects new names. If any destination already exists, inspect its metadata and IAM before continuing.
+
+```bash
+(
+  set -e
+  project=zyx-academy
+  staging_ci=zyx-staging-web-ci@zyx-academy.iam.gserviceaccount.com
+  staging_runtime=zyx-staging-web-runtime@zyx-academy.iam.gserviceaccount.com
+  for suffix in aws-access-key-id aws-secret-access-key better-auth-secret cf-api-token \
+      compute-service-secret database-url diktat-renderer-secret gemini-api-key \
+      google-client-id google-client-secret inngest-event-key inngest-signing-key resend-api-key; do
+    secret="zyx-staging-web-$suffix"
+    gcloud secrets create "$secret" --project="$project" --replication-policy=automatic
+    gcloud secrets add-iam-policy-binding "$secret" --project="$project" \
+      --member="serviceAccount:$staging_runtime" --role=roles/secretmanager.secretAccessor
+    gcloud secrets add-iam-policy-binding "$secret" --project="$project" \
+      --member="serviceAccount:$staging_ci" --role=roles/secretmanager.secretVersionAdder
+  done
+)
+```
+
+After the workflow is registered on the default branch and the import code is on `staging`, dispatch `gh workflow run deploy-cloud-run-staging.yml --ref staging -f operation=import-secrets`. Review and approve the resource-scoped transfer in GitHub. Record the listed versions. If the import stops partway, it reports the last successful version references. A retry can add versions to an already imported name. Only explicitly pinned versions are used by deployments. Remove the temporary CI Secret Version Adder binding on each destination once the transfer is complete. Keep CI Secret Accessor only on the exact runtime database URL, preflight database URL and origin token. The origin token and new read-only preflight credential are provisioned separately.
+
 After registering the workflow and provisioning the target, dispatch the candidate from the exact accepted staging ref:
 
 ```bash
