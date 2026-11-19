@@ -60,7 +60,8 @@ export function mountMascotScene(host: HTMLElement, key: MascotViewerKey, animat
       return;
     }
     const t = canAnimate() ? elapsed : 0;
-    root.position.y = Math.sin(t * 1.65) * .018;
+    const cheering = requestedAnimation === "happy" && canAnimate();
+    root.position.y = cheering ? Math.abs(Math.sin(t * 7)) * .15 : Math.sin(t * 1.65) * .018;
     root.rotation.z = Math.sin(t * .85) * .012;
     // Brief smooth eyelid-like pupil compression. No state or allocations per frame.
     const blinkPhase = t % 5.2;
@@ -151,7 +152,13 @@ export function mountMascotScene(host: HTMLElement, key: MascotViewerKey, animat
   function setAnimation(name: string) {
     requestedAnimation=name;
     const model=getZyraGlbMascotByKey(currentKey);
-    if (!model || !mixer) return;
+    if (!model) {
+      elapsed = 0;
+      last = 0;
+      invalidate();
+      return;
+    }
+    if (!mixer) return;
     const selected=model.character === "cat" && (name === "jump" || (name === "cycle" && practiceCycle)) ? name : resolveMascotAnimation(model,name);
     const clip=clips.find(item=>item.name===selected) ?? clips.find(item=>item.name==="idle");
     const animatedRoot = mixer.getRoot();

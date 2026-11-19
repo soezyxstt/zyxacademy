@@ -16,6 +16,23 @@ test.beforeAll(async () => {
   const result = await build({
     stdin: { resolveDir: process.cwd(), loader: "tsx", contents: `
       import React from 'react';
+      import { AnimationAction, Mesh } from 'three';
+      // Observe real mixer starts and draw submissions inside the isolated fixture.
+      const play = AnimationAction.prototype.play;
+      AnimationAction.prototype.play = function() {
+        if (this.getClip().name === 'happy' && this.time === 0) {
+          const trace = document.documentElement.dataset;
+          trace.happyStarts = String(Number(trace.happyStarts || 0) + 1);
+        }
+        return play.call(this);
+      };
+      const beforeDraw = Mesh.prototype.onBeforeRender;
+      Mesh.prototype.onBeforeRender = function(...args) {
+        const trace = document.documentElement.dataset;
+        if (this.name === 'Outfit_Sport') trace.drewKit = 'true';
+        if (this.name.startsWith('Prop_cycle_')) trace.drewBike = 'true';
+        return beforeDraw.apply(this, args);
+      };
       import {createRoot} from 'react-dom/client';
       import {NextIntlClientProvider} from 'next-intl';
       import student from './messages/id/student.json';
@@ -176,6 +193,7 @@ test("free profile cat uses the full-body poster", async ({page}) => {
 });
 
 test("practice combines independently owned kit and cycling", async ({page}, info) => {
+  await page.emulateMedia({reducedMotion:"no-preference"});
   await page.goto(origin + "/?view=rewards");
   const play = page.getByRole("button", {name: "Latihan berhitung"});
   await play.focus();
@@ -189,7 +207,9 @@ test("practice combines independently owned kit and cycling", async ({page}, inf
   await page.getByRole("option", {name:"Bersepeda"}).click();
   const canvas = dialog.locator("canvas");
   await expect(canvas).toHaveAttribute("data-mascot-animation", "cycle", {timeout:30000});
-  expect(modelRequests.get(page)?.some(url => url.endsWith("/itb-sport-outfit.glb"))).toBe(true);
+  const trace = page.locator("html");
+  await expect(trace).toHaveAttribute("data-drew-kit", "true");
+  await expect(trace).toHaveAttribute("data-drew-bike", "true");
   await capture(page, info, "practice-cycle-kit");
   const prompt = dialog.locator('p[aria-live="polite"]');
   const [left, right] = (await prompt.innerText()).match(/\d+/g)!.map(Number);
@@ -200,7 +220,11 @@ test("practice combines independently owned kit and cycling", async ({page}, inf
   await expect(dialog.getByRole("status")).toContainText("Benar 0");
   await dialog.getByRole("button", {name:answer, exact:true}).click();
   await expect(canvas).toHaveAttribute("data-mascot-animation", "happy");
-  await expect(dialog.getByRole("status")).toContainText("Benar 1");
+  await expect(trace).toHaveAttribute("data-happy-starts", "1");
+  const [nextLeft, nextRight] = (await prompt.innerText()).match(/\d+/g)!.map(Number);
+  await dialog.getByRole("button", {name:String(nextLeft * nextRight), exact:true}).click();
+  await expect(trace).toHaveAttribute("data-happy-starts", "2");
+  await expect(dialog.getByRole("status")).toContainText("Benar 2");
   await expect(canvas).toHaveAttribute("data-mascot-animation", "cycle");
   await page.keyboard.press("Escape");
   await expect(play).toBeFocused();
