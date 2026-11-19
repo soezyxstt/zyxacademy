@@ -1,0 +1,29 @@
+name: Deploy staging web to Cloud Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Import required staging secrets, build a candidate, promote, or roll back
+        required: true
+        type: choice
+        default: candidate
+        options: [import-secrets, candidate, promote, rollback]
+      revision:
+        description: Exact revision from the workflow summary (promote or rollback)
+        type: string
+      reviewed:
+        description: Confirm the migration, matching workers and revision acceptance gates in the Cloud Run runbook
+        type: boolean
+        default: false
+
+permissions: {}
+
+jobs:
+  staging-only:
+    # The staging ref has the implementation. The default-branch copy only
+    # registers the dispatch endpoint and has no credentials or deploy steps.
+    if: false
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo "Select the staging branch when dispatching this workflow."
