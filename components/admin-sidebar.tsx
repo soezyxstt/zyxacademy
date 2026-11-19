@@ -141,7 +141,6 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
 
   // Akademik & Konten
   { id: "courses", label: "Mata Kuliah", href: "/admin/courses", icon: GraduationCap, group: "akademik" },
-  { id: "gamification", label: "Gamification", href: "/admin/gamification", icon: Trophy, group: "akademik" },
   { id: "schedules", label: "Jadwal Umum", href: "/admin/schedules", icon: CalendarDays, group: "akademik" },
   { id: "bank-soal", label: "Bank Soal", href: "/admin/questions", icon: Library, group: "akademik" },
   { id: "discussions", label: "Diskusi dan laporan", href: "/admin/discussions", icon: MessageSquareText, group: "akademik" },
@@ -429,7 +428,7 @@ function AdminSidebarInner() {
   const isArchived = (id: string) => mounted && archivedTabs.includes(id);
   const isPinned = (id: string) => mounted && pinnedTabs.includes(id);
 
-  const tabLabel = (tab: AdminTabDef) => tab.id === "gamification" ? tab.label : tab.id === "discussions" ? tDiscussion("discussion") : t(ADMIN_TAB_MESSAGE_KEYS[tab.id] ?? "dashboard");
+  const tabLabel = (tab: AdminTabDef) => tab.id === "discussions" ? tDiscussion("discussion") : t(ADMIN_TAB_MESSAGE_KEYS[tab.id] ?? "dashboard");
 
   const renderTabItem = (tab: AdminTabDef, collapsed: boolean, isChild = false) => {
     const active = isTabActive(tab);

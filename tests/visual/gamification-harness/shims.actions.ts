@@ -20,7 +20,6 @@ export const reportStudentAction = async () => ({ ok: true });
 export const getStudentFollowListAction = async () => ({ entries: [], nextCursor: null });
 export const removeFollowerAction = async () => ({ ok: true });
 
-export const gamificationAdminAction = async () => ({});
 export const updateStudentProfileAction = async (_previous: unknown, form: FormData) => {
  try { await saveProfile('academic', Object.fromEntries(form)); return { success: true, message: '', submittedAt: Date.now() }; }
  catch { return { success: false, message: 'Fixture save failure', errorCode: 'saveFailed', submittedAt: Date.now() }; }

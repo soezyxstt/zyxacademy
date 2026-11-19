@@ -7,7 +7,7 @@ const { chromium } = require('/data/home/.t3/runtime/versions/0.1.7/node_modules
 const root = path.resolve(__dirname, '../../..');
 const output = path.join(root, 'artifacts/visual-quality/gamification-dummy');
 const entry = path.join(root, 'artifacts/visual-quality/gamification-fixture/index.html');
-const views = (process.env.GAMIFICATION_CAPTURE_VIEWS || 'overview,badges,missions,rewards,leaderboard,profile,profile-edit,public-profile,dashboard,admin,toast-badge,toast-rank,solution').split(',');
+const views = (process.env.GAMIFICATION_CAPTURE_VIEWS || 'overview,badges,missions,rewards,leaderboard,profile,profile-edit,public-profile,dashboard,toast-badge,toast-rank,solution').split(',');
 const sizes = [{ name: 'desktop', width: 1536, height: 864 }, { name: 'mobile', width: 380, height: 844 }];
 let peakRssKb = 0;
 function sampleMemory() {

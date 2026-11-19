@@ -8,7 +8,7 @@ function navigate(href: string, replace = false) {
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 export function useRouter() { return { push: (href: string) => navigate(href), replace: (href: string) => navigate(href, true), refresh: () => {}, back: () => history.back(), forward: () => history.forward(), prefetch: () => {} }; }
-export function usePathname() { useSyncExternalStore(subscribe, locationSnapshot); const params = new URLSearchParams(window.location.search); if (params.has('role')) return window.location.pathname; const view = params.get('view') || 'overview'; return view.startsWith('toast-') || view === 'dashboard' ? '/dashboard' : view === 'profile-edit' ? '/profile/edit' : view === 'profile' ? '/profile' : view === 'public-profile' ? '/students/alya-fixture' : view === 'admin' ? '/admin/gamification' : view.startsWith('solution') ? '/courses/math/solutions/fixture' : '/achievements'; }
+export function usePathname() { useSyncExternalStore(subscribe, locationSnapshot); const params = new URLSearchParams(window.location.search); if (params.has('role')) return window.location.pathname; const view = params.get('view') || 'overview'; return view.startsWith('toast-') || view === 'dashboard' ? '/dashboard' : view === 'profile-edit' ? '/profile/edit' : view === 'profile' ? '/profile' : view === 'public-profile' ? '/students/alya-fixture' : view.startsWith('solution') ? '/courses/math/solutions/fixture' : '/achievements'; }
 export function useSearchParams() { useSyncExternalStore(subscribe, locationSnapshot); return new URLSearchParams(window.location.search); }
 export function useParams() { return {}; }
 export function redirect(href: string) { navigate(href); }
