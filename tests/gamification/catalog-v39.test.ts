@@ -11,8 +11,8 @@ describe('expanded cosmetic catalog', () => {
     originalIds.forEach((key, index) => expect(COSMETIC_CATALOG.find(item => item.id === key)?.priceLp).toBe(originalPrices[index]));
   });
   test('adds four studio characters to the existing catalog', () => {
-    expect(COSMETIC_CATALOG).toHaveLength(36);
-    expect(new Set(COSMETIC_CATALOG.map(item => item.id)).size).toBe(36);
+    expect(COSMETIC_CATALOG).toHaveLength(39);
+    expect(new Set(COSMETIC_CATALOG.map(item => item.id)).size).toBe(39);
     expect(COSMETIC_CATALOG.filter(item => item.slot === 'frame')).toHaveLength(10);
     expect(COSMETIC_CATALOG.filter(item => item.slot === 'zyra_avatar')).toHaveLength(14);
     const added = COSMETIC_CATALOG.filter(item => item.slot === "zyra_avatar" && !originalIds.includes(item.id));

@@ -26,6 +26,10 @@ try {
   const expected = new Map<string, (typeof COSMETIC_CATALOG)[number]>(COSMETIC_CATALOG.map(item => [item.id, item]));
   for (const row of current.rows) {
    const item = expected.get(row.id);
+   if (item && !item.active && item.slot === 'zyra_avatar' && row.active && item.name === row.name && item.slot === row.slot && item.priceLp === Number(row.price_lp)) {
+    await tx.execute(sql`update public.gamification_cosmetics set active=false where id=${item.id}`);
+    continue;
+   }
    if (item && (item.name !== row.name || item.slot !== row.slot || item.priceLp !== Number(row.price_lp) || item.active !== row.active)) throw new Error('CATALOG_CONFLICT');
   }
   const existing = new Set(current.rows.map(row => row.id));

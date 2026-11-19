@@ -590,6 +590,9 @@
     "zyraAvatarPenyu": "Penyu",
     "zyraAvatarBadak": "Badak",
     "zyraAvatarElang": "Elang",
+    "petroar": "Mengaum",
+    "petcharge": "Menyeruduk",
+    "petgiveFlowers": "Memberi bunga",
     "petCycle": "Bersepeda",
     "petJump": "Lompat",
     "petItbSportOutfit": "Seragam olahraga",
@@ -598,6 +601,17 @@
     "zyraAvatarStudioTiger": "Harimau",
     "zyraAvatarStudioRhino": "Badak",
     "zyraAvatarStudioCrocodile": "Buaya"
+  },
+  "petStudio": {
+    "active": "Pet aktif",
+    "collection": "Koleksi pet",
+    "zyra_avatar": "Maskot",
+    "pet_suit": "Pakaian",
+    "pet_action": "Aksi",
+    "forPet": "Untuk {pet}",
+    "remove": "Lepas",
+    "open": "Studio pet",
+    "free": "Gratis"
   },
   "achievementPage": {
     "overview": "Ringkasan",

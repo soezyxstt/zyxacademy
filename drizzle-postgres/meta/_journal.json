@@ -253,6 +253,13 @@
       "when": 1795109679359,
       "tag": "0035_queue_task_checkpoints",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1795116616448,
+      "tag": "0036_student_pet_studio",
+      "breakpoints": true
     }
   ]
 }

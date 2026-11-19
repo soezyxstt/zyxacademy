@@ -2,6 +2,8 @@ import type { CosmeticSlot, EquipGamificationCosmeticsInput } from './contracts'
 import { COSMETIC_CATALOG } from './catalog';
 
 export const COSMETIC_FIELDS = [
+ { slot: 'pet_action', input: 'petActionId', profile: 'equippedPetActionId' },
+ { slot: 'pet_suit', input: 'petSuitId', profile: 'equippedPetSuitId' },
  { slot: 'frame', input: 'frameId', profile: 'equippedFrameId' },
  { slot: 'theme', input: 'themeId', profile: 'equippedThemeId' },
  { slot: 'title', input: 'titleId', profile: 'equippedTitleId' },
@@ -19,7 +21,7 @@ export function cosmeticProfilePatch(input: EquipGamificationCosmeticsInput) {
  for (const field of COSMETIC_FIELDS) {
   const id = input[field.input];
   if (id === undefined) continue;
-  if (id !== null && !COSMETIC_CATALOG.some(item => item.id === id && item.slot === field.slot)) throw new Error('INVALID_COSMETIC_SLOT');
+  if (id !== null && !COSMETIC_CATALOG.some(item => item.active && item.id === id && item.slot === field.slot)) throw new Error('INVALID_COSMETIC_SLOT');
   patch[field.profile] = id;
  }
  return patch;

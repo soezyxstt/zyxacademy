@@ -8,7 +8,7 @@ import { disposeMascotObject, loadZyraGlbMascot } from "./zyra-glb-loader";
 let releaseActiveViewer: (() => void) | undefined;
 export type MascotViewerKey = MascotModelKey | GlbMascotKey;
 export type MascotSceneHandle = { dispose: () => void; isDisposed: () => boolean; setAnimated: (value: boolean) => void; setModel: (key: MascotViewerKey) => void; setAnimation: (name: string) => void };
-export function mountMascotScene(host: HTMLElement, key: MascotViewerKey, animated: boolean, onUnavailable: () => void, onReady?: (key: MascotViewerKey) => void, animationName = "idle", practiceSuit = "none", practiceCycle = false): MascotSceneHandle {
+export function mountMascotScene(host: HTMLElement, key: MascotViewerKey, animated: boolean, onUnavailable: () => void, onReady?: (key: MascotViewerKey) => void, animationName = "idle", practiceSuit = "none", practiceCycle = false, flowers = false): MascotSceneHandle {
   releaseActiveViewer?.();
   const surface = document.createElement("canvas");
   const context = surface.getContext("webgl2", { alpha: true, antialias: true, powerPreference: "low-power" });
@@ -159,11 +159,11 @@ export function mountMascotScene(host: HTMLElement, key: MascotViewerKey, animat
       return;
     }
     if (!mixer) return;
-    const selected=model.character === "cat" && (name === "jump" || (name === "cycle" && practiceCycle)) ? name : resolveMascotAnimation(model,name);
+    const selected=model.animations.includes(name) ? name : resolveMascotAnimation(model,name);
     const clip=clips.find(item=>item.name===selected) ?? clips.find(item=>item.name==="idle");
     const animatedRoot = mixer.getRoot();
     if (animatedRoot instanceof THREE.Object3D) for (const child of animatedRoot.children) {
-      if (child.userData.mascotProp === "cycle") child.visible = selected === "cycle";
+      if (child.userData.mascotProp) child.visible = selected === child.userData.mascotProp;
     }
     mixer.stopAllAction();
     if (clip) { mixer.clipAction(clip).reset().play(); mixer.update(0); }
@@ -182,7 +182,7 @@ export function mountMascotScene(host: HTMLElement, key: MascotViewerKey, animat
     const glbModel=getZyraGlbMascotByKey(nextKey);
     if (glbModel) {
       const controller=new AbortController(); pendingLoad=controller;
-      void loadZyraGlbMascot(glbModel,controller.signal, practiceSuit, practiceCycle).then(gltf=>{
+      void loadZyraGlbMascot(glbModel,controller.signal, practiceSuit, practiceCycle ? "cycle" : flowers ? "giveFlowers" : null).then(gltf=>{
         if (disposed || version!==loadVersion) { disposeMascotObject(gltf.scene); return; }
         // A parent transform fits each source without changing animated node transforms.
         gltf.scene.updateMatrixWorld(true);

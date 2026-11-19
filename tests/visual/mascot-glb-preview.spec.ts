@@ -216,7 +216,7 @@ test("practice combines independently owned kit and cycling", async ({page}, inf
   await dialog.getByRole("combobox", {name:"Pakaian maskot studio"}).click();
   await expect(page.getByRole("option", {name:"Baju astronaut"})).toHaveCount(0);
   await page.getByRole("option", {name:"Seragam olahraga"}).click();
-  await dialog.getByRole("combobox", {name:"Aksi kucing"}).click();
+  await dialog.getByRole("combobox", {name:"Aksi"}).click();
   await expect(page.getByRole("option", {name:"Lompat"})).toHaveCount(0);
   await page.getByRole("option", {name:"Bersepeda"}).click();
   const canvas = dialog.locator("canvas");

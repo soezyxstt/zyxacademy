@@ -32,8 +32,8 @@ export async function getGamificationMissions(studentId: string): Promise<Gamifi
 }
 export async function getGamificationRewards(studentId: string): Promise<GamificationReward[]> {
  const [items, owned, profile] = await Promise.all([
-  db.select().from(gamificationCosmetics).where(and(eq(gamificationCosmetics.active, true), inArray(gamificationCosmetics.id, COSMETIC_CATALOG.map(item => item.id)))).limit(COSMETIC_CATALOG.length),
-  db.select().from(gamificationInventory).where(and(eq(gamificationInventory.userId, studentId), inArray(gamificationInventory.cosmeticId, COSMETIC_CATALOG.map(item => item.id)))).limit(COSMETIC_CATALOG.length),
+  db.select().from(gamificationCosmetics).where(and(eq(gamificationCosmetics.active, true), inArray(gamificationCosmetics.id, COSMETIC_CATALOG.filter(item => item.active).map(item => item.id)))).limit(COSMETIC_CATALOG.length),
+  db.select().from(gamificationInventory).where(and(eq(gamificationInventory.userId, studentId), inArray(gamificationInventory.cosmeticId, COSMETIC_CATALOG.filter(item => item.active).map(item => item.id)))).limit(COSMETIC_CATALOG.length),
   db.select().from(gamificationProfiles).where(eq(gamificationProfiles.userId, studentId)).limit(1),
  ]);
  return items.map(item => ({ id: item.id, name: item.name, slot: item.slot as CosmeticSlot, priceLp: item.priceLp, owned: owned.some(row => row.cosmeticId === item.id), equipped: COSMETIC_FIELDS.map(field => profile[0]?.[field.profile]).includes(item.id) }));
@@ -48,6 +48,6 @@ export async function getEquippedZyraAppearance(studentId: string) {
  const owned = await db.select({ id: gamificationInventory.cosmeticId, slot: gamificationCosmetics.slot }).from(gamificationInventory).innerJoin(gamificationCosmetics, eq(gamificationInventory.cosmeticId, gamificationCosmetics.id)).where(and(eq(gamificationInventory.userId, studentId), inArray(gamificationInventory.cosmeticId, ids))).limit(2);
  return {
   skinId: owned.some(item => item.id === profile.skinId && item.slot === 'zyra_skin') ? profile.skinId : null,
-  avatarId: owned.some(item => item.id === profile.avatarId && item.slot === 'zyra_avatar') ? profile.avatarId : null,
+  avatarId: owned.some(item => item.id === profile.avatarId && item.slot === 'zyra_avatar' && item.id.startsWith('zyra-avatar-studio-')) ? profile.avatarId : null,
  };
 }

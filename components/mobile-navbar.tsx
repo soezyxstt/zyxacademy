@@ -20,6 +20,7 @@ export function getRouteTitle(
   if (/^\/(?:admin\/discussions|dashboard\/discussions|discussions|tutor\/discussions|tutor\/[^/]+\/discussions|courses\/[^/]+\/discussions)(?:\/|$)/.test(pathname)) {
     return translate?.("tutor.schedule.discussion") ?? "Diskusi";
   }
+  if (pathname === "/pet") return "Pet";
   if (pathname === "/admin") return roleTitle("admin", "dashboard", "Admin dashboard");
   if (pathname === "/admin/docs" || pathname.startsWith("/admin/docs/")) return roleTitle("admin", "docs", "Documentation");
   if (pathname.startsWith("/admin/blog")) return roleTitle("admin", "blog", "Manage blog");

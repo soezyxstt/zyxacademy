@@ -26,11 +26,11 @@ async function main() {
       const identity = (await guard.query("select current_database() db, current_schema() schema, current_setting('transaction_read_only') ro")).rows[0];
       assert.deepEqual(identity, { db: 'neondb', schema: 'public', ro: 'on' });
       const journal = JSON.parse(await readFile(path.join(root, 'drizzle-postgres/meta/_journal.json'), 'utf8'));
-      const entry = journal.entries.find((item: { idx: number }) => item.idx === 16);
+      const entry = journal.entries.find((item: { idx: number }) => item.idx === 36);
       assert(entry);
       const hash = createHash('sha256').update(await readFile(path.join(root, `drizzle-postgres/${entry.tag}.sql`))).digest('hex');
       const migration = await guard.query('select hash from drizzle.__drizzle_migrations where created_at = $1', [entry.when]);
-      assert.equal(migration.rows[0]?.hash, hash, 'Migration 0016 is not applied');
+      assert.equal(migration.rows[0]?.hash, hash, 'Migration 0036 is not applied');
       const columns = await guard.query("select column_name,is_nullable from information_schema.columns where table_schema='public' and table_name='gamification_profiles' and column_name = any($1::text[]) order by column_name", [['equipped_zyra_skin_id', 'equipped_zyra_avatar_id']]);
       assert.equal(columns.rowCount, 2);
       assert(columns.rows.every(row => row.is_nullable === 'YES'));
@@ -38,7 +38,7 @@ async function main() {
       await guard.query('commit');
     } catch (error) { await guard.query('rollback'); throw error; } finally { guard.release(); }
 
-    const bundled = await build({ stdin: { contents: "export {purchaseGamificationCosmetic,equipGamificationCosmetics,seedGamificationCosmetics} from './lib/gamification/rewards'; export {getEquippedZyraAppearance} from './lib/gamification/queries'; export {COSMETIC_CATALOG} from './lib/gamification/catalog'; export {pool} from './lib/db';", resolveDir: root, loader: 'ts' }, bundle: true, platform: 'node', format: 'cjs', write: false, packages: 'external', tsconfig: path.join(root, 'tsconfig.json'), plugins: [{ name: 'server-marker', setup(builder) {
+    const bundled = await build({ stdin: { contents: "export {purchaseGamificationCosmetic,equipGamificationCosmetics} from './lib/gamification/rewards'; export {getEquippedZyraAppearance} from './lib/gamification/queries'; export {COSMETIC_CATALOG} from './lib/gamification/catalog'; export {pool} from './lib/db';", resolveDir: root, loader: 'ts' }, bundle: true, platform: 'node', format: 'cjs', write: false, packages: 'external', tsconfig: path.join(root, 'tsconfig.json'), plugins: [{ name: 'server-marker', setup(builder) {
       builder.onResolve({ filter: /^server-only$/ }, () => ({ path: 'server-only', namespace: 'fixture' }));
       builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: '', loader: 'js' }));
     }}] });
@@ -48,14 +48,13 @@ async function main() {
     mod._compile(bundled.outputFiles[0].text, mod.filename);
     const app = mod.exports; appPool = app.pool;
     const catalogIds = app.COSMETIC_CATALOG.map((item: { id: string }) => item.id);
-    const readCatalog = async () => (await pool.query('select id,slot,price_lp from gamification_cosmetics where id = any($1::text[]) order by id', [catalogIds])).rows;
+    const readCatalog = async () => (await pool.query('select id,slot,price_lp,active from gamification_cosmetics where id = any($1::text[]) order by id', [catalogIds])).rows;
     report.catalogBefore = await readCatalog();
-    await app.seedGamificationCosmetics();
     const catalog = await readCatalog(); assert.equal(catalog.length, app.COSMETIC_CATALOG.length);
-    await app.seedGamificationCosmetics(); assert.deepEqual(await readCatalog(), catalog);
+
     for (const item of app.COSMETIC_CATALOG) {
       const actual = catalog.find(row => row.id === item.id);
-      assert.equal(actual?.slot, item.slot); assert.equal(Number(actual?.price_lp), item.priceLp);
+      assert.equal(actual?.active, item.active); assert.equal(actual?.slot, item.slot); assert.equal(Number(actual?.price_lp), item.priceLp);
     }
     report.catalogAfter = catalog;
 
@@ -74,7 +73,7 @@ async function main() {
       await pool.query('insert into gamification_accounts (user_id,lp_balance) values ($1,$2)', [id, id === actors[0] ? 5000 : 1]);
       await pool.query("insert into gamification_lp_ledger (id,user_id,reward_key,amount,reason) values ($1,$2,'fixture:opening',$3,'fixture')", [randomUUID(), id, id === actors[0] ? 5000 : 1]);
     }
-    const frameId = 'frame-classic', skinId = 'zyra-skin-bara', avatarId = 'zyra-avatar-komodo';
+    const frameId = 'frame-classic', skinId = 'zyra-skin-bara', avatarId = 'zyra-avatar-studio-tiger';
     await app.purchaseGamificationCosmetic(actors[0], frameId);
     await Promise.all([app.purchaseGamificationCosmetic(actors[0], skinId), app.purchaseGamificationCosmetic(actors[0], skinId)]);
     await app.purchaseGamificationCosmetic(actors[0], avatarId);
