@@ -2126,6 +2126,7 @@ function MaterialViewerContent({
                   <div className="relative w-full h-full rounded-xl overflow-hidden">
                     <Image
                       src={material.url}
+                      unoptimized
                       alt={material.title}
                       fill
                       className="object-cover"
