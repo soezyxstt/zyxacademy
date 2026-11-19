@@ -3,7 +3,7 @@
 import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { GraduationCap, Mail, AlertCircle } from "lucide-react";
+import { Mail, AlertCircle } from "lucide-react";
 import { updateStudentProfileAction, type StudentProfileActionState } from "@/app/(student)/profile/actions";
 import { ITB_FACULTIES, getMajorsForFaculty, generateEntryYears } from "@/lib/student/itb-academic-data";
 import { Button } from "@/components/ui/button";
@@ -93,22 +93,19 @@ export function ProfileEditForm({ user, stayOnPage = false }: ProfileEditFormPro
 
   return (
     <section aria-labelledby="academic-profile-title">
-      <header className="space-y-1 border-b border-border pb-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="academic-profile-title" className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-            <GraduationCap className="size-5 text-brand-primary shrink-0" />
-            {t("profile.academicInfo")}
-          </h2>
-        </div>
-        <p className="text-body-xs text-muted-foreground mt-1">
+      <header className="space-y-1 border-b border-border/40 pb-3">
+        <h2 id="academic-profile-title" className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {t("profile.academicInfo")}
+        </h2>
+        <p className="text-body-xs text-muted-foreground">
           {t("profile.recommendationDescription")}
         </p>
       </header>
 
-      <div className="pt-3">
-        <div className="mb-4 border-b border-border pb-3 text-body-sm">
+      <div className="pt-4">
+        <div className="mb-4 border-b border-border/30 pb-3 text-body-sm">
           <div>
-            <p className="font-semibold text-foreground">{user.name}</p>
+            <p className="font-medium text-foreground">{user.name}</p>
             <p className="text-body-xs text-muted-foreground flex items-center gap-1.5 mt-0.5 break-all">
               <Mail className="size-3.5" />
               {user.email}
@@ -174,7 +171,7 @@ export function ProfileEditForm({ user, stayOnPage = false }: ProfileEditFormPro
           </div>
 
           {/* Form Actions */}
-          <div className="flex flex-wrap items-center justify-end gap-2 pt-4 border-t border-border">
+          <div className="flex flex-wrap items-center justify-end gap-2 pt-4 border-t border-border/30">
             <Button
               type="button"
               variant="outline"
