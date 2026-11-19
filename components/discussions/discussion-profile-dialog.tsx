@@ -187,7 +187,7 @@ export function DiscussionProfileDialog({
                   </div>
                 )}
               </div>
-              <ProfileMascot cosmeticId={studentProfile.equippedZyraAvatarId} />
+              <ProfileMascot cosmeticId={studentProfile.equippedZyraAvatarId} suitId={studentProfile.equippedPetSuitId} actionId={studentProfile.equippedPetActionId} />
               {(studentProfile.canFollow || studentProfile.isFollowing) && (
                 <Button type="button" disabled={pending} onClick={toggleFollow}>
                   {studentProfile.isFollowing ? t("unfollow") : t("follow")}

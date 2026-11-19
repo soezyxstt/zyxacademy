@@ -14,6 +14,7 @@ import {
   CalendarRange,
   Trophy,
   Medal,
+  PawPrint,
   Compass,
   FileText,
   Video,
@@ -401,6 +402,8 @@ function StudentSidebarContent({
           active={pathname === "/achievements"}
           collapsed={c}
         />
+
+        {!demo && userRole === "student" && <NavItem href="/pet" icon={PawPrint} label="Pet" active={pathname === "/pet"} collapsed={c} />}
 
         <NavItem
           href={href("/leaderboard")}

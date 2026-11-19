@@ -120,3 +120,9 @@ Status: `OPEN / IN PROGRESS`, draft source integration. Four recovered character
 Selected large previews reuse the lazy Three.js viewer, with Meshopt decoding, real animation clips, cancellation, disposal, poster fallback and retry. Reward previews offer seven shared actions. Small avatars use head posters; profile viewers retain idle animation. The package includes all 153 GLBs and eight matching posters, while clothing ownership/composition and prop actions remain follow-up work. No database schema change was introduced.
 
 The existing purchase/equip service and explicit server catalog remain authoritative. The old staging seed has a pinned journal preflight that rejects the newer constructed 37-row history; update its seed-specific validation after reading the actual staging target before seeding. Browser/GPU acceptance and the full production build remain open. See the [draft handoff](handoffs/mascot-glb-shop-draft.md) for evidence, commands, asset limits and remaining work. Earlier migration/seed statements above are historical checkpoints, not a fresh live check for this draft.
+
+## Student Pet studio
+
+The student sidebar and LP shop link to `/pet`. The cat is free. Tiger, rhino and crocodile each have their own LP purchase. Suits fit all four characters. Cycling and jumping belong to the cat, roaring to the tiger, charging to the rhino and giving flowers to the crocodile. Buying a character grants only the character. Equip and remove update the authenticated student's profile. Switching pets clears an incompatible action and keeps the suit. The shop retires the ten procedural characters and preserves historical inventory and LP ledger entries.
+
+Release order for staging is migration 0036, the guarded staging catalog seed, then the web revision. The seed disables the old sale entries and inserts missing studio entries. Reads never seed the catalog.

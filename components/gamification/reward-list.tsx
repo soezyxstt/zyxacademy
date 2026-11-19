@@ -35,7 +35,7 @@ export function RewardList({ rewards, balance, appearance, onChangeReward, missi
     <span className="block text-body-xs text-muted-foreground">{t("achievementPage.insufficient")}</span>
   );
   const accessory = (item: GamificationReward) => item.slot === "pet_action" || item.slot === "pet_suit";
-  const action = (item: GamificationReward) => accessory(item) && item.owned ? <span className="text-body-xs">{t("achievementPage.owned")}</span> : <Button disabled={pending || item.equipped || (!item.owned && balance < item.priceLp)} variant={item.owned ? "outline" : "default"} onClick={() => {
+  const action = (item: GamificationReward) => item.id === "zyra-avatar-studio-cat" ? <span className="text-body-xs">{t("petStudio.free")}</span> : accessory(item) && item.owned ? <span className="text-body-xs">{t("achievementPage.owned")}</span> : <Button disabled={pending || item.equipped || (!item.owned && balance < item.priceLp)} variant={item.owned ? "outline" : "default"} onClick={() => {
     setError(false); setSuccess(false); setPendingId(item.id);
     startTransition(async () => { try { const result = await (onChangeReward ?? changeReward)(item.id, item.owned ? "equip" : "buy", item.slot); if (!result.ok) setError(true); else { setSuccess(true); if (!onChangeReward) router.refresh(); } } catch { setError(true); } finally { setPendingId(null); } });
   }}>
@@ -44,16 +44,17 @@ export function RewardList({ rewards, balance, appearance, onChangeReward, missi
   return <div className="space-y-4">
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2"><p className="text-body-sm font-semibold">{t("achievementPage.balance")}: {number.format(balance)} LP</p><TooltipProvider><Tooltip><TooltipTrigger asChild><Button asChild variant="outline" size="icon"><Link href={missionsHref} aria-label={t("achievementPage.goToMissions")}><Plus className="size-4" /></Link></Button></TooltipTrigger><TooltipContent>{t("achievementPage.goToMissions")}</TooltipContent></Tooltip></TooltipProvider>
       <CatPractice rewards={rewards} />
+      {!onChangeReward && <Button asChild variant="outline"><Link href="/pet">{t("petStudio.open")}</Link></Button>}
     </div>
     {error && <p role="alert" className="text-body-sm text-destructive">{t("achievementPage.error")}</p>}
     {success && <p role="status" className="text-body-sm">{t("achievementPage.success")}</p>}
     {rewards.length === 0 ? <AdminEmptyState icon={Inbox} title={t("achievementPage.noRewards")} /> : <div className="divide-y divide-border">
       {slots.map(slot => {
-        const items = rewards.filter(item => item.slot === slot && item.id !== "zyra-avatar-studio-cat");
+        const items = rewards.filter(item => item.slot === slot && (item.slot !== "zyra_avatar" || item.id.startsWith("zyra-avatar-studio-")));
         if (!items.length) return null;
         return <Collapsible key={slot} defaultOpen={slot === "frame"}>
           <CollapsibleTrigger className="group flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-body-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
-            {t(`achievementPage.rewardGroups.${slot}`)}<ChevronDown className="size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" aria-hidden />
+            {t(slot === "pet_action" ? "petStudio.pet_action" : `achievementPage.rewardGroups.${slot}`)}<ChevronDown className="size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" aria-hidden />
           </CollapsibleTrigger>
           <CollapsibleContent><ul className="divide-y divide-border border-t">{items.map(item => <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
             {accessory(item) ? <span className="min-w-0 flex-1 break-words text-body-sm">{name(item)} · {number.format(item.priceLp)} LP{insufficientBalance(item)}</span> : <button type="button" onClick={event => { previewTrigger.current = event.currentTarget; setSelected(item); }} className="flex min-w-0 flex-1 items-center gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring" aria-label={t("achievementPage.previewItem", { name: name(item) })}>

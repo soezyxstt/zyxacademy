@@ -6255,6 +6255,7 @@ export const gamificationProfiles = pgTable('gamification_profiles', {
  avatarMode: text('avatar_mode').$type<'photo' | 'badge'>().notNull().default('photo'), badgeTier: bigint('badge_tier', { mode: 'number' }),
  avatarBadgeId: text('avatar_badge_id'), featuredBadgeIds: jsonb('featured_badge_ids').$type<string[]>().notNull().default([]),
  equippedFrameId: text('equipped_frame_id'), equippedThemeId: text('equipped_theme_id'), equippedTitleId: text('equipped_title_id'),
+ equippedPetActionId: text('equipped_pet_action_id'), equippedPetSuitId: text('equipped_pet_suit_id'),
  equippedZyraSkinId: text('equipped_zyra_skin_id'), equippedZyraAvatarId: text('equipped_zyra_avatar_id'),
  followerCount: bigint('follower_count', { mode: 'number' }).notNull().default(0), followingCount: bigint('following_count', { mode: 'number' }).notNull().default(0),
  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

@@ -90,7 +90,7 @@ export function StudentProfileDialog({ publicId, open, onOpenChange }: { publicI
           <div className="min-w-[150px] flex-1"><h3 className="break-words font-heading text-body-base font-bold">{profile.displayName}</h3>{[profile.major, profile.faculty].filter(Boolean).length > 0 && <p className="text-body-xs text-muted-foreground">{[profile.major, profile.faculty].filter(Boolean).join(" · ")}</p>}
             {rank && <div className="flex items-center gap-1 text-body-xs capitalize text-muted-foreground"><RankArtwork rank={rank} size={24} />{rank}</div>}
           </div>
-          <ProfileMascot cosmeticId={profile.equippedZyraAvatarId} />
+          <ProfileMascot cosmeticId={profile.equippedZyraAvatarId} suitId={profile.equippedPetSuitId} actionId={profile.equippedPetActionId} />
           {(profile.canFollow || profile.isFollowing) && <Button disabled={pending} onClick={toggleFollow}>{profile.isFollowing ? "Unfollow" : "Follow"}</Button>}
         </div>
         {social.profileHref && <Button asChild variant="outline"><Link href={social.profileHref(publicId)} onClick={() => onOpenChange(false)}>{english ? "View profile" : "Lihat profil"}</Link></Button>}

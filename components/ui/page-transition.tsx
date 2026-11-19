@@ -15,6 +15,7 @@ export function getTransitionConfig(pathname: string | null, reduceMotion: boole
       pathname.startsWith("/calendar") ||
       pathname.startsWith("/feedback") ||
       pathname.startsWith("/leaderboard") ||
+      pathname === "/pet" ||
       pathname.startsWith("/achievements") ||
       pathname.startsWith("/students") ||
       pathname.startsWith("/profile") ||

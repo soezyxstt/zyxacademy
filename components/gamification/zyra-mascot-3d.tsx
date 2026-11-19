@@ -26,6 +26,7 @@ export function ZyraMascot3D({cosmeticId,size=320,animated=true,animationName="i
   const extent=Number.isFinite(size)&&size>0?Math.min(size,640):320;
   const host=useRef<HTMLSpanElement>(null),handle=useRef<MascotSceneHandle | null>(null);
   const motion=useRef(animated);motion.current=animated;
+  const flowers = animationName === "giveFlowers";
   const animation=useRef(animationName);animation.current=animationName;
   const [unavailable,setUnavailable]=useState(false);
   const [attempt,setAttempt]=useState(0);
@@ -41,10 +42,10 @@ export function ZyraMascot3D({cosmeticId,size=320,animated=true,animationName="i
     const container=host.current;
     import("./zyra-mascot-3d-scene").then(({mountMascotScene})=>{
       if(cancelled) return;
-      handle.current=mountMascotScene(container,selected.current!,motion.current,()=>{if(!cancelled){setReadyKey(null);setUnavailable(true);}},key=>{if(!cancelled){setReadyKey(key);setUnavailable(false);}},animation.current, practiceSuit, practiceCycle);
+      handle.current=mountMascotScene(container,selected.current!,motion.current,()=>{if(!cancelled){setReadyKey(null);setUnavailable(true);}},key=>{if(!cancelled){setReadyKey(key);setUnavailable(false);}},animation.current, practiceSuit, practiceCycle, flowers);
     }).catch(()=>{if(!cancelled){setReadyKey(null);setUnavailable(true);}});
     return ()=>{cancelled=true;handle.current?.dispose();handle.current=null;};
-  },[large,hasModel,attempt,practiceSuit,practiceCycle]);
+  },[large,hasModel,attempt,practiceSuit,practiceCycle,flowers]);
   useEffect(()=>{
     if(!modelKey||!handle.current) return;
     setReadyKey(null);setUnavailable(false);

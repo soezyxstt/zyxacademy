@@ -10,14 +10,14 @@ type ProfileHeroProps = {
   frameId?: string | null;
   themeId?: string | null;
   title?: string | null;
-  zyraAvatarId?: string | null;
+  zyraAvatarId?: string | null; suitId?: string | null; actionId?: string | null;
   academicInfo?: string | null;
   rank?: RankKey;
   actions?: ReactNode;
   details?: ReactNode;
 };
 
-export function ProfileHero({ name, image, frameId, themeId, title, zyraAvatarId, academicInfo, rank, actions, details }: ProfileHeroProps) {
+export function ProfileHero({ name, image, frameId, themeId, title, zyraAvatarId, suitId, actionId, academicInfo, rank, actions, details }: ProfileHeroProps) {
   return <section className="border-b border-border pb-4">
     <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
       <StudentAvatar name={name} image={image} frameId={frameId} themeId={themeId} size={112} animated />
@@ -29,7 +29,7 @@ export function ProfileHero({ name, image, frameId, themeId, title, zyraAvatarId
         {actions && <div className="flex flex-wrap justify-center gap-2 pt-2 sm:justify-start">{actions}</div>}
       </div>
       {(rank || zyraAvatarId) && <div className="flex shrink-0 items-center justify-center gap-3">
-        <ProfileMascot cosmeticId={zyraAvatarId} />
+        <ProfileMascot suitId={suitId} actionId={actionId} cosmeticId={zyraAvatarId} />
         {rank && <div className="flex items-center gap-2 sm:flex-col sm:gap-0">
           <RankArtwork rank={rank} size={64} />
           <span className="text-body-sm font-semibold capitalize">{rank}</span>

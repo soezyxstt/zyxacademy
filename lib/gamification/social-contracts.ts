@@ -14,6 +14,8 @@ export type PublicStudentProfile = {
   equippedFrameId: string | null;
   equippedThemeId: string | null;
   equippedTitleId: string | null;
+  equippedPetSuitId?: string | null;
+  equippedPetActionId?: string | null;
   equippedZyraAvatarId: string | null;
   major: string | null;
   faculty: string | null;

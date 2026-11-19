@@ -590,6 +590,9 @@
     "zyraAvatarPenyu": "Penyu",
     "zyraAvatarBadak": "Badak",
     "zyraAvatarElang": "Elang",
+    "petroar": "Roar",
+    "petcharge": "Charge",
+    "petgiveFlowers": "Give flowers",
     "petCycle": "Cycling",
     "petJump": "Jump",
     "petItbSportOutfit": "Sports kit",
@@ -598,6 +601,17 @@
     "zyraAvatarStudioTiger": "Tiger",
     "zyraAvatarStudioRhino": "Rhino",
     "zyraAvatarStudioCrocodile": "Crocodile"
+  },
+  "petStudio": {
+    "active": "Active pet",
+    "collection": "Pet collection",
+    "zyra_avatar": "Mascots",
+    "pet_suit": "Suits",
+    "pet_action": "Actions",
+    "forPet": "For {pet}",
+    "remove": "Remove",
+    "open": "Pet studio",
+    "free": "Free"
   },
   "achievementPage": {
     "overview": "Overview",

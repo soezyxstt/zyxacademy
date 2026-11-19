@@ -9,7 +9,7 @@ export interface GamificationSummary { baseXpMicro: number; bonusXpMicro: number
 export interface AchievementBadge { family: BadgeFamily; count: number; tier: number; nextThreshold: number | null; earnedTiers?: { tier: number; awardedAt: Date }[] }
 export interface GamificationMission { id: string; kind: string; target: number; progress: number; rewardLp: number; endsAt: Date; completedAt: Date | null }
 export interface GamificationReward { id: string; name: string; slot: CosmeticSlot; priceLp: number; owned: boolean; equipped: boolean }
-export interface EquipGamificationCosmeticsInput { frameId?: string | null; themeId?: string | null; titleId?: string | null; zyraSkinId?: string | null; zyraAvatarId?: string | null }
+export interface EquipGamificationCosmeticsInput { frameId?: string | null; themeId?: string | null; titleId?: string | null; zyraSkinId?: string | null; zyraAvatarId?: string | null; petActionId?: string | null; petSuitId?: string | null }
 /** Server-originated reference only. The processor must resolve and verify persisted evidence. */
 export interface GamificationEventInput { userId: string; source: 'article' | 'explanation' | 'question' | 'flashcard'; sourceId: string; evidenceId: string; occurredAt: string }
 

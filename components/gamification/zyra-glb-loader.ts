@@ -21,7 +21,7 @@ async function loadAsset(src: string, signal: AbortSignal): Promise<GLTF> {
   return gltf;
 }
 
-export async function loadZyraGlbMascot(model: GlbMascot, signal: AbortSignal, suit = "none", cycle = false): Promise<GLTF> {
+export async function loadZyraGlbMascot(model: GlbMascot, signal: AbortSignal, suit = "none", prop: "cycle" | "giveFlowers" | null = null): Promise<GLTF> {
   const body = await loadAsset(model.src, signal);
   const outfitFolder = model.character === "cat" ? "items/" : `items/${model.character}/`;
   const base = model.src.slice(0, model.src.lastIndexOf("/") + 1);
@@ -37,12 +37,12 @@ export async function loadZyraGlbMascot(model: GlbMascot, signal: AbortSignal, s
         skeleton.bones = skeleton.bones.map(bone => bones.get(bone.name) ?? bone);
       });
     }
-    if (cycle && model.character === "cat") {
-      const bike = await loadAsset(base + "props/cycle.glb", signal);
-      bike.scene.userData.mascotProp = "cycle";
+    if (prop && ((prop === "cycle" && model.character === "cat") || (prop === "giveFlowers" && model.character === "crocodile"))) {
+      const bike = await loadAsset(base + "props/" + prop + ".glb", signal);
+      bike.scene.userData.mascotProp = prop;
       body.scene.add(bike.scene);
-      const rider = body.animations.find(clip => clip.name === "cycle");
-      const wheels = bike.animations.find(clip => clip.name === "cycle");
+      const rider = body.animations.find(clip => clip.name === prop);
+      const wheels = bike.animations.find(clip => clip.name === prop);
       if (rider && wheels) rider.tracks.push(...wheels.tracks);
     }
     return body;

@@ -17,12 +17,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { SelectField } from "@/components/ui/select-field";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
+const profileFields = COSMETIC_FIELDS.filter(field => field.slot !== "pet_action" && field.slot !== "pet_suit");
+
 export function ProfileSettings({ initial, badges, rewards, name, image, academicForm }: { initial: StudentSocialSettings; badges: AchievementBadge[]; rewards: GamificationReward[]; name: string; image: string | null; academicForm?: ReactNode }) {
  const t = useTranslations("student"); const router = useRouter();
  const [settings, setSettings] = useState(initial);
  const [pending, start] = useTransition();
  const [result, setResult] = useState<{ section: "privacy" | "appearance"; error: boolean } | null>(null);
- const [equipped, setEquipped] = useState<Record<CosmeticSlot, string>>(Object.fromEntries(COSMETIC_FIELDS.map(({slot}) => [slot, rewards.find(x => x.equipped && x.slot === slot)?.id ?? "none"])) as Record<CosmeticSlot, string>);
+ const [equipped, setEquipped] = useState<Record<CosmeticSlot, string>>(Object.fromEntries(profileFields.map(({slot}) => [slot, rewards.find(x => x.equipped && x.slot === slot)?.id ?? "none"])) as Record<CosmeticSlot, string>);
  const earned = badges.filter(x => x.tier > 0);
  const save = (section: "privacy" | "appearance") => {
   setResult(null);
@@ -32,7 +34,7 @@ export function ProfileSettings({ initial, badges, rewards, name, image, academi
      const { publicId: _id, ...input } = settings;
      await updateStudentSocialSettingsAction({ ...input, displayName: input.displayName?.trim() || null });
     } else {
-     await equipProfileCosmetics(Object.fromEntries(COSMETIC_FIELDS.map(field => [field.input, equipped[field.slot] === "none" ? null : equipped[field.slot]])));
+     await equipProfileCosmetics(Object.fromEntries(profileFields.map(field => [field.input, equipped[field.slot] === "none" ? null : equipped[field.slot]])));
     }
     setResult({ section, error: false }); router.refresh();
    } catch { setResult({ section, error: true }); }
@@ -69,7 +71,7 @@ export function ProfileSettings({ initial, badges, rewards, name, image, academi
     <form onSubmit={event => { event.preventDefault(); save("appearance"); }} className="space-y-(--group-gap)">
      <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-heading text-body-base font-bold">{t("profileCustomization.appearanceTab")}</h2><Button asChild variant="outline" size="sm"><Link href="/achievements?tab=rewards">{t("profileCustomization.getCosmetics")}</Link></Button></div>
      <fieldset disabled={pending} className="grid min-w-0 gap-(--group-gap) sm:grid-cols-2">
-      {COSMETIC_FIELDS.map(({slot}) => <SelectField key={slot} label={t(`profileCustomization.${slot}`)} value={equipped[slot]} onValueChange={value => { setResult(null); setEquipped({ ...equipped, [slot]: value }); }} options={rewardOptions(slot)} />)}
+      {profileFields.map(({slot}) => <SelectField key={slot} label={t(`profileCustomization.${slot}`)} value={equipped[slot]} onValueChange={value => { setResult(null); setEquipped({ ...equipped, [slot]: value }); }} options={rewardOptions(slot)} />)}
      </fieldset>
      <p className="text-body-xs text-muted-foreground">{t("profileCustomization.ownedOnly")}</p>
      {equipped.zyra_avatar !== "none" && <div className="flex justify-center"><ZyraMascot3D cosmeticId={equipped.zyra_avatar} size={240} /></div>}

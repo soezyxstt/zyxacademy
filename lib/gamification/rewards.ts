@@ -1,4 +1,5 @@
 import 'server-only';
+import { petSupportsAction } from './pet-studio';
 import { COSMETIC_CATALOG } from './catalog';
 import { COSMETIC_FIELDS, cosmeticProfilePatch } from './cosmetic-slots';
 import { and, eq, sql } from 'drizzle-orm';
@@ -8,7 +9,7 @@ import type { EquipGamificationCosmeticsInput } from './contracts';
 
 /** Caller must authorize studentId before invoking these operations. */
 export async function purchaseGamificationCosmetic(studentId: string, cosmeticId: string) {
- if (cosmeticId === "zyra-avatar-studio-cat" || !COSMETIC_CATALOG.some(item => item.id === cosmeticId)) throw new Error('COSMETIC_UNAVAILABLE');
+ if (cosmeticId === "zyra-avatar-studio-cat" || !COSMETIC_CATALOG.some(item => item.active && item.id === cosmeticId)) throw new Error('COSMETIC_UNAVAILABLE');
  return db.transaction(async tx => {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${studentId}, 0))`);
   const [existing] = await tx.select().from(gamificationInventory).where(and(eq(gamificationInventory.userId, studentId), eq(gamificationInventory.cosmeticId, cosmeticId))).limit(1);
@@ -27,13 +28,21 @@ export async function equipGamificationCosmetics(studentId: string, input: Equip
  const patch = cosmeticProfilePatch(input);
  return db.transaction(async tx => {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${studentId}, 0))`);
+  await tx.insert(gamificationProfiles).values({userId:studentId, publicId:crypto.randomUUID()}).onConflictDoNothing();
   const [profile] = await tx.select().from(gamificationProfiles).where(eq(gamificationProfiles.userId, studentId)).limit(1);
   if (!profile) throw new Error('PROFILE_UNAVAILABLE');
   for (const { input: field, slot } of COSMETIC_FIELDS) {
    const id = input[field];
-   if (id == null) continue;
+   if (id == null || (field === 'zyraAvatarId' && id === 'zyra-avatar-studio-cat')) continue;
    const [item] = await tx.select({ id: gamificationInventory.cosmeticId }).from(gamificationInventory).innerJoin(gamificationCosmetics, eq(gamificationInventory.cosmeticId, gamificationCosmetics.id)).where(and(eq(gamificationInventory.userId, studentId), eq(gamificationCosmetics.id, id), eq(gamificationCosmetics.slot, slot))).limit(1);
    if (!item) throw new Error('COSMETIC_NOT_OWNED');
+  }
+  if (patch.equippedZyraAvatarId === 'zyra-avatar-studio-cat') patch.equippedZyraAvatarId = null;
+  const petId = input.zyraAvatarId === undefined ? (profile.equippedZyraAvatarId?.startsWith("zyra-avatar-studio-") ? profile.equippedZyraAvatarId : null) : input.zyraAvatarId;
+  const actionId = input.petActionId === undefined ? profile.equippedPetActionId : input.petActionId;
+  if (actionId && !petSupportsAction(petId, actionId)) {
+   if (input.petActionId) throw new Error('INCOMPATIBLE_PET_ACTION');
+   patch.equippedPetActionId = null;
   }
   await tx.update(gamificationProfiles).set({ ...patch, updatedAt: new Date() }).where(eq(gamificationProfiles.userId, studentId));
  });

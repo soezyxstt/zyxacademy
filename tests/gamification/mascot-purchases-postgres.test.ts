@@ -67,7 +67,7 @@ beforeAll(async () => {
       leaderboard_opt_in boolean not null default false, avatar_mode text not null default 'photo',
       badge_tier bigint, avatar_badge_id text, featured_badge_ids jsonb not null default '[]',
       equipped_frame_id text, equipped_theme_id text, equipped_title_id text,
-      equipped_zyra_skin_id text, equipped_zyra_avatar_id text,
+      equipped_pet_action_id text, equipped_pet_suit_id text, equipped_zyra_skin_id text, equipped_zyra_avatar_id text,
       follower_count bigint not null default 0, following_count bigint not null default 0,
       updated_at timestamptz not null default now()
     );
@@ -159,4 +159,19 @@ test('cat is free and pet purchases grant only their own inventory row', async (
     const inventory = await client.query<{ cosmetic_id: string }>('select cosmetic_id from gamification_inventory where user_id = $1', ['owner']);
     expect(inventory.rows.map(row => row.cosmetic_id).sort()).toEqual(ids.slice(0, index + 1).sort());
   }
+});
+
+test('studio enforces ownership and species compatibility while switching the active loadout', async () => {
+  await assert.rejects(rewards.purchaseGamificationCosmetic('owner', 'zyra-avatar-komodo'), /COSMETIC_UNAVAILABLE/);
+  await assert.rejects(rewards.equipGamificationCosmetics('owner', {petActionId:'pet-action-cycle'}), /COSMETIC_NOT_OWNED/);
+  for (const id of ['pet-action-cycle', 'pet-suit-astronaut-outfit', studioIds[0]]) {
+    await rewards.purchaseGamificationCosmetic('owner', id);
+  }
+  await rewards.equipGamificationCosmetics('owner', {petActionId:'pet-action-cycle', petSuitId:'pet-suit-astronaut-outfit'});
+  await rewards.equipGamificationCosmetics('owner', {zyraAvatarId:studioIds[0]});
+  const read = () => client.query('select equipped_pet_action_id, equipped_pet_suit_id, equipped_zyra_avatar_id from gamification_profiles where user_id=$1', ['owner']);
+  expect((await read()).rows[0]).toEqual({equipped_pet_action_id:null, equipped_pet_suit_id:'pet-suit-astronaut-outfit', equipped_zyra_avatar_id:studioIds[0]});
+  await assert.rejects(rewards.equipGamificationCosmetics('owner', {petActionId:'pet-action-cycle'}), /INCOMPATIBLE_PET_ACTION/);
+  await rewards.equipGamificationCosmetics('owner', {zyraAvatarId:'zyra-avatar-studio-cat', petSuitId:null});
+  expect((await read()).rows[0]).toEqual({equipped_pet_action_id:null, equipped_pet_suit_id:null, equipped_zyra_avatar_id:null});
 });
