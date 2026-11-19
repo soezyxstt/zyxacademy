@@ -150,6 +150,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
                     <div className="relative mx-auto max-w-md aspect-video border border-border rounded-2xl overflow-hidden mt-3 shadow-xs">
                       <Image
                         src={item.explanationImage}
+                        unoptimized
                         alt={t("review.diagramAlt", { number: idx + 1 })}
                         fill
                         className="object-cover"
