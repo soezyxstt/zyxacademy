@@ -1,7 +1,21 @@
 {
+  "docs": {
+    "title": "Tutor documentation",
+    "navigation": "Documentation navigation",
+    "navigationDescription": "Choose a guide or section to open.",
+    "allDocs": "All guides",
+    "sectionsFor": "Sections in {title}",
+    "search": "Search documentation",
+    "noResults": "No documentation found",
+    "tryAnother": "Try another keyword or clear your search.",
+    "previous": "Previous",
+    "next": "Next",
+    "quickLinks": "Quick access"
+  },
   "navigation": {
     "dashboard": "Dashboard",
     "schedule": "Schedule",
+    "docs": "Documentation",
     "teaching": "Teaching",
     "noCourses": "No courses yet",
     "overview": "Overview",
@@ -43,6 +57,7 @@
     "relatedGroups": "{count} related groups"
   },
   "routeTitles": {
+    "docs": "Documentation",
     "dashboardTitle": "Tutor dashboard",
     "scheduleTitle": "Teaching schedule",
     "videos": "Videos",

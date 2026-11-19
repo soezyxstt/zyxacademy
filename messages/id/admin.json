@@ -5,10 +5,13 @@
     "navigationDescription": "Pilih panduan atau bagian yang ingin dibuka.",
     "allDocs": "Semua panduan",
     "sectionsFor": "Bagian dalam {title}",
-    "contentLanguage": "Panduan saat ini ditulis dalam bahasa Indonesia.",
+    "contentLanguage": "Panduan tersedia dalam bahasa Indonesia dan Inggris.",
     "search": "Cari dokumentasi",
     "noResults": "Dokumentasi tidak ditemukan",
-    "tryAnother": "Coba kata kunci lain atau hapus pencarian."
+    "tryAnother": "Coba kata kunci lain atau hapus pencarian.",
+    "previous": "Sebelumnya",
+    "next": "Berikutnya",
+    "quickLinks": "Akses cepat"
   },
   "navigation": {
     "docs": "Dokumentasi",

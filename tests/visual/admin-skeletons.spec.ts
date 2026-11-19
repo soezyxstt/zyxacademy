@@ -92,11 +92,10 @@ test("documentation navigation and search", async ({ page }, testInfo) => {
   const navigation = page.getByRole("navigation", {
     name: "Navigasi dokumentasi",
   });
-  await navigation
-    .getByRole("button", {
-      name: "Bagian dalam Menamai dan mengunggah dokumen",
-    })
-    .click();
+  await navigation.getByRole("link", { name: "Menamai dan mengunggah dokumen" }).click();
+  await expect(page).toHaveURL(/docs-showcase\/admin\/dokumen-materi$/);
+  if (testInfo.project.name === "mobile-380")
+    await page.getByRole("button", { name: "Navigasi dokumentasi" }).click();
   await expect(
     navigation.getByRole("link", { name: "Unggah massal dan duplikat" }),
   ).toBeVisible();

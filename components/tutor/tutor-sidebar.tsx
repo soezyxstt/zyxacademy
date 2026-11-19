@@ -32,7 +32,7 @@ export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
   const tDiscussion = useTranslations("tutor.schedule");
   const pathname = usePathname();
   const parts = pathname.split("/").filter(Boolean);
-  const courseId = parts[0] === "tutor" && parts[1] && !["schedule", "discussions"].includes(parts[1])
+  const courseId = parts[0] === "tutor" && parts[1] && !["schedule", "discussions", "docs"].includes(parts[1])
     ? parts[1]
     : undefined;
   const isCourseRoute = Boolean(courseId);
@@ -177,6 +177,14 @@ export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
       ) : null}
 
       <div className="flex-1" />
+
+      <NavItem
+        href="/tutor/docs"
+        icon={BookOpen}
+        label={t("docs")}
+        active={pathname === "/tutor/docs" || pathname.startsWith("/tutor/docs/")}
+        collapsed={collapsed}
+      />
     </nav>
   );
 
