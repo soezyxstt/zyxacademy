@@ -274,7 +274,9 @@ def candidate(config, before):
     command(["docker", "tag", f"zyx-staging-web:{sha}", tagged_image], "Tag staging image")
     command(["docker", "push", tagged_image], "Push staging image", capture=False)
     image = registry_digest(tagged_image)
-    run("deploy", SERVICE, "--image", image, "--no-traffic", "--tag", tag, "--revision-suffix", f"r{run_id}a{attempt}",
+    provider = os.environ.get("QUEUE_PROVIDER", "inngest")
+    require(provider in ("inngest", "cloud-tasks"), "Invalid candidate queue provider.")
+    run("deploy", SERVICE, "--image", image, "--update-env-vars", f"QUEUE_PROVIDER={provider}", "--no-traffic", "--tag", tag, "--revision-suffix", f"r{run_id}a{attempt}",
         "--labels", f"{SOURCE_LABEL}={sha},environment=staging",
         "--execution-environment=gen2", "--cpu=1", "--memory=1Gi", "--min=0", "--max=1",
         "--min-instances=0", "--max-instances=1", "--concurrency=8", "--cpu-throttling",
