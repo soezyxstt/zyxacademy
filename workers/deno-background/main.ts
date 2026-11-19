@@ -24,7 +24,8 @@ if (process.env.QUEUE_PROVIDER === "cloud-tasks") {
 app.post("/internal/pdf/pages", handlePdfPagesRpc);
 app.post("/internal/authoring/source-pack/resolve", handleSourcePackResolveRpc);
 
-if (process.env.QUEUE_PROVIDER !== "cloud-tasks") app.on(
+// A signed legacy delivery can finish while staging producers switch revisions.
+if (process.env.QUEUE_PROVIDER !== "cloud-tasks" || env.INNGEST_SIGNING_KEY) app.on(
   ["GET", "POST", "PUT"],
   "/api/inngest",
   serve({
