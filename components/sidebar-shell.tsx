@@ -912,7 +912,7 @@ export function SidebarShell({
                   type="button"
                   onClick={() => window.history.back()}
                   aria-label="Back"
-                  className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
                 >
                   <ArrowLeft className="size-3.5" />
                 </button>
@@ -922,7 +922,7 @@ export function SidebarShell({
                   type="button"
                   onClick={() => window.history.forward()}
                   aria-label="Forward"
-                  className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
                 >
                   <ArrowRight className="size-3.5" />
                 </button>

@@ -1381,83 +1381,93 @@ function MaterialViewerContent({
     );
   }
 
+  const pdfToolbarControls = material.kind === "pdf" ? (
+    <>
+      {showDemoViewer && (
+        <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/60 p-0.5">
+          <button
+            type="button"
+            onClick={() => setViewerType("custom")}
+            aria-pressed={viewerType === "custom"}
+            className={cn(
+              "px-2 py-0.5 rounded-md text-body-xs font-semibold transition-all",
+              viewerType === "custom"
+                ? "bg-card text-brand-primary shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Mode Interaktif
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewerType("chrome")}
+            aria-pressed={viewerType === "chrome"}
+            className={cn(
+              "px-2 py-0.5 rounded-md text-body-xs font-semibold transition-all",
+              viewerType === "chrome"
+                ? "bg-card text-brand-primary shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Mode Dokumen
+          </button>
+        </div>
+      )}
+      {material.url && (
+        <TooltipProvider>
+          {canDownload && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild variant="outline" size="icon-sm" className="size-7">
+                  <a href={material.url} download target="_blank" rel="noopener noreferrer" aria-label={t("reader.downloadPdf")}>
+                    <Download className="size-3.5" aria-hidden />
+                  </a>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("reader.downloadPdf")}</TooltipContent>
+            </Tooltip>
+          )}
+          {openUrl && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="icon-sm"
+                  className={cn("size-7", viewerType === "chrome" && "hidden md:inline-flex")}
+                >
+                  <a href={openUrl} target="_blank" rel="noopener noreferrer" aria-label={t("reader.openOriginal")}>
+                    <ExternalLink className="size-3.5" aria-hidden />
+                  </a>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("reader.openOriginal")}</TooltipContent>
+            </Tooltip>
+          )}
+        </TooltipProvider>
+      )}
+    </>
+  ) : null;
+
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-background font-sans">
       {/* Sticky Topbar */}
-      {!hideHeader && learnerMode && (
+      {(!hideHeader && (learnerMode || material.kind === "pdf")) && (
         <div className="relative min-h-10 w-full border-b border-border bg-background/80 backdrop-blur-sm flex flex-wrap items-center justify-between gap-2 px-4 py-1 shrink-0">
-          <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
+          {learnerMode && (
+            <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
+          )}
           
           <div className="flex items-center gap-2">
-            <span className="text-body-xs text-muted-foreground font-mono font-semibold">
-              {progressPercent}%
-            </span>
+            {learnerMode && (
+              <span className="text-body-xs text-muted-foreground font-mono font-semibold">
+                {progressPercent}%
+              </span>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
-            {material.kind === "pdf" && showDemoViewer && (
-              <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/60 p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setViewerType("custom")}
-                  aria-pressed={viewerType === "custom"}
-                  className={cn(
-                    "px-2 py-0.5 rounded-md text-body-xs font-semibold transition-all",
-                    viewerType === "custom"
-                      ? "bg-card text-brand-primary shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Mode Interaktif
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewerType("chrome")}
-                  aria-pressed={viewerType === "chrome"}
-                  className={cn(
-                    "px-2 py-0.5 rounded-md text-body-xs font-semibold transition-all",
-                    viewerType === "chrome"
-                      ? "bg-card text-brand-primary shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Mode Dokumen
-                </button>
-              </div>
-            )}
-            {material.kind === "pdf" && material.url && (
-              <TooltipProvider>
-                {canDownload && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button asChild variant="outline" size="icon-sm" className="size-7">
-                        <a href={material.url} download target="_blank" rel="noopener noreferrer" aria-label={t("reader.downloadPdf")}>
-                          <Download className="size-3.5" aria-hidden />
-                        </a>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t("reader.downloadPdf")}</TooltipContent>
-                  </Tooltip>
-                )}
-                {openUrl && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        asChild
-                        variant="outline"
-                        size="icon-sm"
-                        className={cn("size-7", viewerType === "chrome" && "hidden md:inline-flex")}
-                      >
-                        <a href={openUrl} target="_blank" rel="noopener noreferrer" aria-label={t("reader.openOriginal")}>
-                          <ExternalLink className="size-3.5" aria-hidden />
-                        </a>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t("reader.openOriginal")}</TooltipContent>
-                  </Tooltip>
-                )}
-              </TooltipProvider>
-            )}
+            {pdfToolbarControls}
             {learnerMode && accessTier !== "free" && ragEnabled && chapterId && (
               <ChapterSummarySheet studentId={studentId} chapterId={chapterId} chapterTitle={material.title} />
             )}
@@ -1475,6 +1485,11 @@ function MaterialViewerContent({
               </Button>
             )}
           </div>
+        </div>
+      )}
+      {hideHeader && material.kind === "pdf" && (
+        <div className="flex flex-wrap items-center justify-end gap-1.5 border-b border-border bg-background/80 px-3 py-1 shrink-0">
+          {pdfToolbarControls}
         </div>
       )}
 

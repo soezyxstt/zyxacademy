@@ -493,6 +493,14 @@ function StructuredArticleReaderContent({
 
   const overallPercent = Math.min(100, Math.round((completedCount / totalSections) * 100));
 
+  const handleFinishArticle = () => {
+    if (adapter) {
+      if (adapter.ready) adapter.onComplete();
+      return;
+    }
+    completeRemaining();
+  };
+
   const handleNextMaterial = () => {
     completeRemaining();
     if (nextMaterial?.href) {
@@ -849,33 +857,42 @@ function StructuredArticleReaderContent({
                     </p>
                   )}
                 </div>
-                {(prevMaterial || nextMaterial) && (
-                  <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
-                    {prevMaterial && (
-                      <Button
-                        variant="outline"
-                        size="default"
-                        onClick={handlePrevMaterial}
-                        className="rounded-lg font-semibold gap-1.5"
-                      >
-                        <ChevronLeft className="size-4" />
-                        <span>{t("articleReader.previousMaterial")}</span>
-                      </Button>
-                    )}
+                <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+                  {prevMaterial && (
+                    <Button
+                      variant="outline"
+                      size="default"
+                      onClick={handlePrevMaterial}
+                      className="rounded-lg font-semibold gap-1.5"
+                    >
+                      <ChevronLeft className="size-4" />
+                      <span>{t("articleReader.previousMaterial")}</span>
+                    </Button>
+                  )}
 
-                    {nextMaterial && (
-                      <Button
-                        variant="default"
-                        size="default"
-                        onClick={handleNextMaterial}
-                        className="rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground font-semibold gap-1.5"
-                      >
-                        <span>{t("articleReader.nextMaterial")}</span>
-                        <ChevronRight className="size-4" />
-                      </Button>
-                    )}
-                  </div>
-                )}
+                  {nextMaterial ? (
+                    <Button
+                      variant="default"
+                      size="default"
+                      onClick={handleNextMaterial}
+                      className="rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground font-semibold gap-1.5"
+                    >
+                      <span>{t("articleReader.nextMaterial")}</span>
+                      <ChevronRight className="size-4" />
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="default"
+                      size="default"
+                      onClick={handleFinishArticle}
+                      disabled={adapter ? (!adapter.ready || adapter.completed) : overallPercent >= 100}
+                      className="rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground font-semibold gap-1.5"
+                    >
+                      <CheckCircle2 className="size-4" />
+                      <span>{t("articleReader.readComplete")}</span>
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           ) : (

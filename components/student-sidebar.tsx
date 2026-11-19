@@ -272,7 +272,7 @@ function StudentSidebarContent({
                           onSelect={() => handleSelectCourse(course.id)}
                           className={cn(
                             "flex items-center justify-between gap-2 cursor-pointer text-body-xs",
-                            isCurrent && "font-semibold bg-brand-primary/10 text-brand-primary"
+                            isCurrent && "bg-brand-primary/10 text-brand-primary"
                           )}
                         >
                           <span className="truncate">{course.title}</span>
@@ -311,7 +311,7 @@ function StudentSidebarContent({
                           onSelect={() => handleSelectCourse(course.id)}
                           className={cn(
                             "flex items-center justify-between gap-2 cursor-pointer text-body-xs",
-                            isCurrent && "font-semibold bg-brand-primary/10 text-brand-primary"
+                            isCurrent && "bg-brand-primary/10 text-brand-primary"
                           )}
                         >
                           <span className="truncate">{course.title}</span>
