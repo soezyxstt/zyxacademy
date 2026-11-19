@@ -547,7 +547,15 @@
     "zyraAvatarCenderawasih": "Cenderawasih",
     "zyraAvatarPenyu": "Penyu",
     "zyraAvatarBadak": "Badak",
-    "zyraAvatarElang": "Elang"
+    "zyraAvatarElang": "Elang",
+    "petCycle": "Bersepeda",
+    "petJump": "Lompat",
+    "petItbSportOutfit": "Seragam olahraga",
+    "petAstronautOutfit": "Baju astronaut",
+    "zyraAvatarStudioCat": "Zyra",
+    "zyraAvatarStudioTiger": "Harimau",
+    "zyraAvatarStudioRhino": "Badak",
+    "zyraAvatarStudioCrocodile": "Buaya"
   },
   "achievementPage": {
     "overview": "Ringkasan",
@@ -593,6 +601,14 @@
     "before": "Sebelum",
     "after": "Sesudah",
     "rewardGroups": {
+      "correct": "Benar",
+      "idle": "Diam",
+      "plain": "Tanpa pakaian",
+      "answer": "Pilih jawaban",
+      "retry": "Coba lagi",
+      "play": "Latihan berhitung",
+      "pet_suit": "Pakaian maskot studio",
+      "pet_action": "Aksi kucing",
       "frame": "Bingkai avatar",
       "title": "Gelar",
       "theme": "Tema profil",
@@ -647,6 +663,18 @@
     "copied": "Disalin",
     "helpfulAnswer": "Jawaban membantu",
     "helpful": "Membantu",
-    "viewer": "Maskot 3D"
+    "viewer": "Maskot 3D",
+    "unavailable": "3D tidak tersedia",
+    "retry": "Coba lagi",
+    "action": "Aksi",
+    "actions": {
+      "idle": "Diam",
+      "happy": "Senang",
+      "thinking": "Berpikir",
+      "waiting": "Menunggu",
+      "explaining": "Menjelaskan",
+      "apologizing": "Meminta maaf",
+      "thumbsUp": "Jempol"
+    }
   }
 }

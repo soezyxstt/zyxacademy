@@ -1,5 +1,18 @@
-/** Original wildlife companions. These cosmetics belong to Zyra, never the user's identity. */
-export const ZYRA_AVATARS = [
+import type { MascotModelKey } from './zyra-mascot-models';
+import type { GlbCharacter } from './zyra-glb-mascots';
+
+export type ZyraAvatar = {
+  id: string;
+  name: { id: string; en: string };
+  src: string;
+  species: string;
+  motion: 'breathe';
+  modelKey?: MascotModelKey;
+  glbCharacter?: GlbCharacter;
+};
+
+/** Companions belong to Zyra, never the user's identity. Persisted IDs stay stable. */
+export const ZYRA_AVATARS: readonly ZyraAvatar[] = [
   { id: "zyra-avatar-komodo", modelKey: "komodo", name: { id: "Komodo cendekia", en: "Komodo scholar" }, src: "/gamification/collections/models/komodo-poster-v39.png", species: "Varanus komodoensis", motion: "breathe" },
   { id: "zyra-avatar-jalak", modelKey: "jalak", name: { id: "Jalak Bali ceria", en: "Bright Bali myna" }, src: "/gamification/collections/models/jalak-poster-v39.png", species: "Leucopsar rothschildi", motion: "breathe" },
   { id: "zyra-avatar-harimau", modelKey: "harimau", name: { id: "Harimau Sumatra tangguh", en: "Confident Sumatran tiger" }, src: "/gamification/collections/models/harimau-poster-v39.png", species: "Panthera tigris sumatrae", motion: "breathe" },
@@ -10,6 +23,10 @@ export const ZYRA_AVATARS = [
   { id: "zyra-avatar-penyu", modelKey: "penyu", name: { id: "Penyu navigator", en: "Sea turtle navigator" }, src: "/gamification/collections/models/penyu-poster-v39.png", species: "Chelonia mydas", motion: "breathe" },
   { id: "zyra-avatar-badak", modelKey: "badak", name: { id: "Badak penjaga", en: "Javan rhino guardian" }, src: "/gamification/collections/models/badak-poster-v39.png", species: "Rhinoceros sondaicus", motion: "breathe" },
   { id: "zyra-avatar-elang", modelKey: "elang", name: { id: "Elang pengamat", en: "Javan eagle observer" }, src: "/gamification/collections/models/elang-poster-v39.png", species: "Nisaetus bartelsi", motion: "breathe" },
+  { id: "zyra-avatar-studio-cat", glbCharacter: "cat", name: { id: "Zyra", en: "Zyra" }, src: "/gamification/mascots/v10.1/posters/cat-head.webp", species: "Felis catus", motion: "breathe" },
+  { id: "zyra-avatar-studio-tiger", glbCharacter: "tiger", name: { id: "Harimau", en: "Tiger" }, src: "/gamification/mascots/v10.1/posters/tiger-head.webp", species: "Panthera tigris", motion: "breathe" },
+  { id: "zyra-avatar-studio-rhino", glbCharacter: "rhino", name: { id: "Badak", en: "Rhino" }, src: "/gamification/mascots/v10.1/posters/rhino-head.webp", species: "Rhinocerotidae", motion: "breathe" },
+  { id: "zyra-avatar-studio-crocodile", glbCharacter: "crocodile", name: { id: "Buaya", en: "Crocodile" }, src: "/gamification/mascots/v10.1/posters/crocodile-head.webp", species: "Crocodylidae", motion: "breathe" },
 ] as const;
 
 export const ZYRA_CHAT_SKINS = [
@@ -21,11 +38,10 @@ export const ZYRA_CHAT_SKINS = [
   { id: "zyra-skin-rimba", name: { id: "Rimba", en: "Forest" }, motif: "rimba", collectionId: "rimba" },
 ] as const;
 
-export type ZyraAvatar = (typeof ZYRA_AVATARS)[number];
 export type ZyraChatSkin = (typeof ZYRA_CHAT_SKINS)[number];
 
 export function getZyraAvatar(id?: string | null) {
-  return ZYRA_AVATARS.find(avatar => avatar.id === id);
+  return ZYRA_AVATARS.find(avatar => avatar.id === (id ?? "zyra-avatar-studio-cat"));
 }
 
 export function getZyraChatSkin(id?: string | null) {

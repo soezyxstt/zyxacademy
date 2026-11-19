@@ -1,0 +1,5 @@
+node_modules/
+dist/
+render-inputs/
+rendered-posters/
+*.log

@@ -14,5 +14,5 @@ export function TutorAssistantSurface({children}: {children: ReactNode}) {
 }
 export function TutorAssistantLabel() {
   const appearance = useContext(TutorAppearanceContext);
-  return <div className="flex items-center gap-1.5">{appearance.avatarId && <ZyraCosmeticAvatar cosmeticId={appearance.avatarId} size={28} />}<span className="font-heading text-body-xs font-bold text-brand-primary">Zyra</span></div>;
+  return <div className="flex items-center gap-1.5"><ZyraCosmeticAvatar cosmeticId={appearance.avatarId} size={28} /><span className="font-heading text-body-xs font-bold text-brand-primary">Zyra</span></div>;
 }

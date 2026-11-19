@@ -1,4 +1,5 @@
 import { ZyraCosmeticAvatar } from "./zyra-cosmetic-avatar";
+import { ZyraMascotPreview } from "./zyra-mascot-preview";
 import { ZyraBubbleSkin } from "./zyra-bubble-skin";
 import { StudentAvatar, type StudentAvatarProps } from "./student-avatar";
 import type { GamificationReward } from "@/lib/gamification/contracts";
@@ -6,7 +7,9 @@ import type { GamificationReward } from "@/lib/gamification/contracts";
 type PreviewLabels = { before: string; after: string; explanation: string; followup: string };
 
 export function CosmeticPreview({ item, appearance, detailed = false, labels }: { item: GamificationReward; appearance: StudentAvatarProps; detailed?: boolean; labels?: PreviewLabels }) {
-  if (item.slot === "zyra_avatar") return <ZyraCosmeticAvatar cosmeticId={item.id} size={detailed ? 220 : 56} name={item.name} interactive={detailed} animated={detailed} />;
+  if (item.slot === "zyra_avatar") return detailed
+    ? <ZyraMascotPreview cosmeticId={item.id} size={220} />
+    : <ZyraCosmeticAvatar cosmeticId={item.id} size={56} name={item.name} />;
   if (item.slot === "zyra_skin") {
     if (!detailed || !labels) return <ZyraBubbleSkin skinId={item.id} role="assistant"><span className="text-body-xs">Zyra</span></ZyraBubbleSkin>;
     const message = <div className="space-y-3 text-body-sm leading-relaxed"><p>{labels.explanation}</p><p className="font-semibold">f′(x) = 2x</p><p>{labels.followup}</p></div>;

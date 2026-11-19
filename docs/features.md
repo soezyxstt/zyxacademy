@@ -28,6 +28,8 @@ Pembahasan soal supports separately authored optional starting hints, independen
 
 Course access categories are separate from academic disciplines. Admins can configure Free, Limited Time Free, or Premium. Limited offers use Jakarta wall time and include the start instant but exclude the end. Active free courses grant full learning content without creating an enrollment or changing AI quota; existing paid enrollment retains access after an offer ends. Student search checks current publication and chapter access, and flashcard recommendations use current course eligibility. Apply the additive PostgreSQL migration before deploying code that reads these columns.
 
+Four recovered GLB companions are now integrated in draft source with the existing LP cosmetic shop and profile avatar slot. The existing ten procedural characters remain available. Selected previews offer seven shared actions; small views use matching head posters. Clothing/prop assets are included for the next pass, while their purchase/equip behavior remains open. The [mascot draft handoff](handoffs/mascot-glb-shop-draft.md) records the pending guarded staging seed, build and browser checks. This is not hosted acceptance.
+
 ## What It Is
 
 Zyx Academy is an AI-powered learning management platform. It takes expert teaching documents, breaks them into atomic concepts, and uses that structure to power personalized learning paths, adaptive flashcards, quizzes, PDF study guides, and one-on-one tutoring.
