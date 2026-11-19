@@ -15,7 +15,6 @@ import {
   CalendarRange,
   Trophy,
   Medal,
-  ArrowLeft,
   Compass,
   FileText,
   Video,

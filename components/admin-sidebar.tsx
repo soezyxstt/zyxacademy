@@ -38,7 +38,6 @@ import {
   Trophy,
   MousePointerClick,
   Activity,
-  ArrowLeft,
   Layers,
   Calculator,
   Check,
@@ -465,21 +464,6 @@ function AdminSidebarInner() {
               : "min-h-0 px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
           )}
         >
-          {/* Back link to /admin/courses */}
-          <SidebarTooltip label={t("allCourses")} collapsed={c}>
-            <Link
-              href="/admin/courses"
-              title={c ? t("allCourses") : undefined}
-              className={cn(
-                "flex items-center gap-2.5 rounded-xl px-3 py-2 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors mb-2",
-                c && "justify-center size-10 px-0 mx-auto"
-              )}
-            >
-              <ArrowLeft className="size-4 shrink-0" />
-              {!c && <span>{t("allCourses")}</span>}
-            </Link>
-          </SidebarTooltip>
-
           {c ? (
             <div className="mb-2 flex w-full justify-center">
               <DropdownMenu>
