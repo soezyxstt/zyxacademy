@@ -17,13 +17,15 @@ RUN --mount=type=secret,id=public_config,required=true \
     ZYX_CLOUD_RUN=1 ZYX_MCP_ENVIRONMENT=staging NODE_OPTIONS=--max-old-space-size=4096 \
     node deploy/cloud-run/build.mjs
 
-# The Node renderer uses PDF.js worker files located by the packages at runtime.
-# Keep those assets even when a native require or import is opaque to tracing.
+# Keep PDF runtime entry points for both Node export conditions. Standalone
+# tracing can retain one condition while omitting the other or the worker.
 RUN set -eu; \
     package_root=.next/standalone/node_modules; \
-    mkdir -p "$package_root/pdf-parse/dist/worker" "$package_root/pdfjs-dist/legacy/build"; \
-    cp node_modules/pdf-parse/dist/worker/pdf.worker.mjs "$package_root/pdf-parse/dist/worker/"; \
-    cp node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs "$package_root/pdfjs-dist/legacy/build/"; \
+    mkdir -p "$package_root/pdf-parse/dist/pdf-parse" "$package_root/pdfjs-dist/legacy/build"; \
+    cp node_modules/pdf-parse/package.json "$package_root/pdf-parse/"; \
+    cp -a node_modules/pdf-parse/dist/pdf-parse/esm node_modules/pdf-parse/dist/pdf-parse/cjs "$package_root/pdf-parse/dist/pdf-parse/"; \
+    cp -a node_modules/pdf-parse/dist/node node_modules/pdf-parse/dist/worker "$package_root/pdf-parse/dist/"; \
+    cp node_modules/pdfjs-dist/legacy/build/pdf.mjs node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs "$package_root/pdfjs-dist/legacy/build/"; \
     cp -a node_modules/pdfjs-dist/cmaps node_modules/pdfjs-dist/standard_fonts node_modules/pdfjs-dist/wasm "$package_root/pdfjs-dist/"; \
     rm -f .next/standalone/.env*
 
