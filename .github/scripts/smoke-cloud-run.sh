@@ -85,9 +85,14 @@ if [[ "$redirect" != "$origin/sign-in?"* && "$redirect" != "http://$address/sign
   echo "Unexpected /dashboard redirect target: $redirect" >&2
   exit 1
 fi
-"${request[@]}" --fail "${auth[@]}" "http://$address/en" --output "$scratch/english.html"
-if ! grep -q '<html lang="en"' "$scratch/english.html"; then
-  echo 'Expected English HTML lang attribute on /en.' >&2
+en_status="$("${request[@]}" "${auth[@]}" --output "$scratch/english.html" --write-out '%{http_code}' \
+  "http://$address/en")"
+if [[ "$en_status" != 200 ]]; then
+  echo "Expected HTTP 200 for /en, got $en_status." >&2
+  exit 1
+fi
+if ! grep -qE '<html[^>]*[[:space:]]lang="en"' "$scratch/english.html"; then
+  echo "Expected English HTML lang attribute on /en. Body prefix: $(head -c 240 "$scratch/english.html")" >&2
   exit 1
 fi
 
