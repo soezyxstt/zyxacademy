@@ -39,6 +39,7 @@ export async function loadZyraGlbMascot(model: GlbMascot, signal: AbortSignal, s
     }
     if (cycle && model.character === "cat") {
       const bike = await loadAsset(base + "props/cycle.glb", signal);
+      bike.scene.userData.mascotProp = "cycle";
       body.scene.add(bike.scene);
       const rider = body.animations.find(clip => clip.name === "cycle");
       const wheels = bike.animations.find(clip => clip.name === "cycle");

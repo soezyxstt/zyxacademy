@@ -154,6 +154,10 @@ export function mountMascotScene(host: HTMLElement, key: MascotViewerKey, animat
     if (!model || !mixer) return;
     const selected=model.character === "cat" && (name === "jump" || (name === "cycle" && practiceCycle)) ? name : resolveMascotAnimation(model,name);
     const clip=clips.find(item=>item.name===selected) ?? clips.find(item=>item.name==="idle");
+    const animatedRoot = mixer.getRoot();
+    if (animatedRoot instanceof THREE.Object3D) for (const child of animatedRoot.children) {
+      if (child.userData.mascotProp === "cycle") child.visible = selected === "cycle";
+    }
     mixer.stopAllAction();
     if (clip) { mixer.clipAction(clip).reset().play(); mixer.update(0); }
     canvas.dataset.mascotAnimation=clip?.name ?? "";

@@ -44,7 +44,7 @@ function Practice({rewards}: {rewards: GamificationReward[]}) {
       </SelectContent></Select>;
   };
   return <>
-    <div className="flex justify-center"><ZyraMascot3D cosmeticId={pet} size={240} animationName={cat && action !== "idle" ? action.replace("pet-action-", "") : cheering ? "happy" : "idle"} practiceSuit={fitted ? suit.replace("pet-suit-", "") : "none"} practiceCycle={cat && action === "pet-action-cycle"} /></div>
+    <div className="flex justify-center"><ZyraMascot3D cosmeticId={pet} size={240} animationReplay={score} animationName={cheering ? "happy" : cat ? action.replace("pet-action-", "") : "idle"} practiceSuit={fitted ? suit.replace("pet-suit-", "") : "none"} practiceCycle={cat && action === "pet-action-cycle"} /></div>
     <div className="flex flex-wrap gap-2">{pets.length > 0 && <Select value={pet} onValueChange={setPet}><SelectTrigger aria-label={t("cosmeticsStudio.mascot")}><SelectValue /></SelectTrigger><SelectContent>
       <SelectItem value="zyra-avatar-studio-cat">Zyra</SelectItem>{pets.map(item => <SelectItem key={item.id} value={item.id}>{t(`gamificationUi.${cosmeticNameKeys[item.id]}`)}</SelectItem>)}
     </SelectContent></Select>}{cat && controls("pet_action", action, setAction)}{fitted && controls("pet_suit", suit, setSuit)}</div>

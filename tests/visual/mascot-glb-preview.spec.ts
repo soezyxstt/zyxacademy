@@ -25,12 +25,12 @@ test.beforeAll(async () => {
       import {ProfileMascot} from './components/gamification/profile-mascot';
       import {COSMETIC_CATALOG} from './lib/gamification/catalog';
       const view = new URLSearchParams(location.search).get('view');
-      const rewards = COSMETIC_CATALOG.map(item=>({...item,owned:false,equipped:false}));
+      const rewards = COSMETIC_CATALOG.map(item=>({...item,owned:["pet-action-cycle","pet-suit-itb-sport-outfit"].includes(item.id),equipped:false}));
       createRoot(document.getElementById('root')).render(
         <NextIntlClientProvider locale="id" messages={{student,common}}>
           <main className="mx-auto max-w-6xl p-4">
             {view==='rewards' ? <RewardList rewards={rewards} balance={5000} appearance={{name:'Alya'}} />
-             : view==='profile' ? <ProfileMascot cosmeticId="zyra-avatar-studio-crocodile" />
+             : view==='default-profile' ? <ProfileMascot /> : view==='profile' ? <ProfileMascot cosmeticId="zyra-avatar-studio-crocodile" />
              : <CosmeticsStudio appearance={{name:'Alya'}} />}
           </main>
         </NextIntlClientProvider>);
@@ -91,7 +91,7 @@ test("four GLBs and seven actions reuse the selected viewer", async ({ page }, i
   const viewer = page.getByTestId("selected-mascot");
   await viewer.scrollIntoViewIfNeeded();
   await expect(viewer.locator('[data-mascot-renderer="webgl"]')).toBeVisible();
-  expect(modelRequests.get(page)).toEqual([]);
+  expect(modelRequests.get(page)?.map(url => new URL(url).pathname.split("/").pop())).toEqual(["base-full.glb"]);
   await viewer.locator("canvas").evaluate(canvas => canvas.setAttribute("data-test-identity", "shared"));
   for (const character of ["cat", "tiger", "rhino", "crocodile"]) {
     await page.locator(`[data-mascot-id="zyra-avatar-studio-${character}"]`).click();
@@ -167,4 +167,41 @@ test("WebGL unavailable leaves a usable poster", async ({ page }, info) => {
   await expect(page.locator("canvas")).toHaveCount(0);
   expect(modelRequests.get(page)).toEqual([]);
   await capture(page, info, "webgl-fallback");
+});
+
+test("free profile cat uses the full-body poster", async ({page}) => {
+  await page.goto(origin + "/?view=default-profile");
+  await expect(page.locator("img")).toHaveAttribute("src", /posters\/cat\.webp/);
+  expect(modelRequests.get(page)).toEqual([]);
+});
+
+test("practice combines independently owned kit and cycling", async ({page}, info) => {
+  await page.goto(origin + "/?view=rewards");
+  const play = page.getByRole("button", {name: "Latihan berhitung"});
+  await play.focus();
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("combobox", {name:"Pakaian maskot studio"}).click();
+  await expect(page.getByRole("option", {name:"Baju astronaut"})).toHaveCount(0);
+  await page.getByRole("option", {name:"Seragam olahraga"}).click();
+  await dialog.getByRole("combobox", {name:"Aksi kucing"}).click();
+  await expect(page.getByRole("option", {name:"Lompat"})).toHaveCount(0);
+  await page.getByRole("option", {name:"Bersepeda"}).click();
+  const canvas = dialog.locator("canvas");
+  await expect(canvas).toHaveAttribute("data-mascot-animation", "cycle", {timeout:30000});
+  expect(modelRequests.get(page)?.some(url => url.endsWith("/itb-sport-outfit.glb"))).toBe(true);
+  await capture(page, info, "practice-cycle-kit");
+  const prompt = dialog.locator('p[aria-live="polite"]');
+  const [left, right] = (await prompt.innerText()).match(/\d+/g)!.map(Number);
+  const answer = String(left * right);
+  const choices = dialog.getByRole("group").getByRole("button");
+  const wrong = (await choices.allTextContents()).find(choice => choice !== answer)!;
+  await dialog.getByRole("button", {name:wrong, exact:true}).click();
+  await expect(dialog.getByRole("status")).toContainText("Benar 0");
+  await dialog.getByRole("button", {name:answer, exact:true}).click();
+  await expect(canvas).toHaveAttribute("data-mascot-animation", "happy");
+  await expect(dialog.getByRole("status")).toContainText("Benar 1");
+  await expect(canvas).toHaveAttribute("data-mascot-animation", "cycle");
+  await page.keyboard.press("Escape");
+  await expect(play).toBeFocused();
 });

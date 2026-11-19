@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm';
 import { Client } from 'pg';
 import { COSMETIC_CATALOG } from '../../lib/gamification/catalog';
 import { assertTarget } from '../neon/import-core';
-import { classifyJournal } from './gamification-migration-core';
+import { assertCatalogSeedJournal } from './catalog-seed-journal';
 
 const url = process.env.DATABASE_URL || '';
 const host = process.env.NEON_EXPECTED_HOST || '';
@@ -19,7 +19,7 @@ try {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended('zyx:staging-gamification-migration', 0))`);
   await tx.execute(sql`lock table drizzle.__drizzle_migrations, public.gamification_cosmetics in access exclusive mode`);
   const journal = await tx.execute<{ created_at: string; hash: string }>(sql`select created_at, hash from drizzle.__drizzle_migrations order by created_at, id`);
-  if (classifyJournal(journal.rows) !== 'complete') throw new Error('MIGRATIONS_NOT_COMPLETE');
+  assertCatalogSeedJournal(journal.rows);
   const compact = await tx.execute<{ present: boolean }>(sql`select to_regclass('public.gamification_question_exposure_projection') is not null and to_regclass('public.gamification_question_exposure_observations') is not null and to_regclass('public.gamification_question_legacy_index') is not null and to_regclass('public.gamification_question_history_cutover') is not null as present`);
   if (!compact.rows[0]?.present) throw new Error('COMPACT_HISTORY_SCHEMA_MISSING');
   const current = await tx.execute<{id:string; name:string; slot:string; price_lp:string | number; active:boolean}>(sql`select id, name, slot, price_lp, active from public.gamification_cosmetics`);

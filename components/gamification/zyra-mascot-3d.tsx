@@ -12,6 +12,7 @@ export type ZyraMascot3DProps = {
   cosmeticId?: string | null;
   size?: number;
   animated?: boolean;
+  animationReplay?: number;
   animationName?: string;
   practiceSuit?: string;
   practiceCycle?: boolean;
@@ -19,7 +20,7 @@ export type ZyraMascot3DProps = {
 };
 
 /** Explicit large-viewer opt-in. Thumbnails never import Three or allocate a canvas. */
-export function ZyraMascot3D({cosmeticId,size=320,animated=true,animationName="idle",practiceSuit="none",practiceCycle=false,className}: ZyraMascot3DProps) {
+export function ZyraMascot3D({cosmeticId,size=320,animated=true,animationName="idle",animationReplay=0,practiceSuit="none",practiceCycle=false,className}: ZyraMascot3DProps) {
   const t=useTranslations("student");
   const avatar=getZyraAvatar(cosmeticId);
   const extent=Number.isFinite(size)&&size>0?Math.min(size,640):320;
@@ -51,7 +52,7 @@ export function ZyraMascot3D({cosmeticId,size=320,animated=true,animationName="i
     else handle.current.setModel(modelKey);
   },[modelKey]);
   useEffect(()=>{handle.current?.setAnimated(animated);},[animated]);
-  useEffect(()=>{handle.current?.setAnimation(animationName);},[animationName]);
+  useEffect(()=>{handle.current?.setAnimation(animationName);},[animationName,animationReplay]);
   const ready=large&&readyKey===modelKey;
   return <span className={`relative inline-block max-w-full align-middle ${className||""}`} style={{width:extent,height:extent}} data-mascot-renderer={ready?"webgl":"poster"}>
     <span ref={host} className="absolute inset-0 block" />
