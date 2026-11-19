@@ -111,7 +111,7 @@ test.beforeEach(async ({ page }) => {
 async function capture(page: Page, info: TestInfo, name: string) {
   await page.evaluate(() => document.fonts.ready);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-  expect(await page.locator("img").evaluateAll(images => images.filter(image => !image.complete || !image.naturalWidth).map(image => image.src))).toEqual([]);
+  expect(await page.evaluate(() => Array.from(document.images).filter(image => !image.complete || !image.naturalWidth).map(image => image.src))).toEqual([]);
   await page.screenshot({ path: info.outputPath(`screenshots/${name}.png`), fullPage: true, animations: "disabled" });
   expect(errors.get(page)).toEqual([]);
 }
@@ -187,7 +187,7 @@ test("bad asset keeps the poster and lets the same selection retry", async ({ pa
 test("WebGL unavailable leaves a usable poster", async ({ page }, info) => {
   await page.addInitScript(() => {
     const original = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = function (...args: Parameters<typeof original>) {
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, ...args: Parameters<typeof original>) {
       if (String(args[0]).startsWith("webgl")) return null;
       return original.apply(this, args);
     } as typeof original;

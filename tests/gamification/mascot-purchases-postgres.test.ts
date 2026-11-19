@@ -140,7 +140,7 @@ test('owned mascots equip independently and reject unowned or wrong-slot request
   await assert.rejects(rewards.equipGamificationCosmetics('owner', { zyraSkinId: studioIds[2] }), /INVALID_COSMETIC_SLOT/);
   await rewards.equipGamificationCosmetics('owner', { zyraAvatarId: null });
   const cleared = (await client.query('select equipped_frame_id, equipped_zyra_skin_id, equipped_zyra_avatar_id from gamification_profiles where user_id = $1', ['owner'])).rows[0];
-  expect(cleared).toEqual({ ...equipped, equipped_zyra_avatar_id: null });
+  expect(cleared).toEqual({ equipped_frame_id: "frame-classic", equipped_zyra_skin_id: "zyra-skin-orbit", equipped_zyra_avatar_id: null });
 });
 
 test('a ledger conflict rolls back both the LP debit and new ownership', async () => {
