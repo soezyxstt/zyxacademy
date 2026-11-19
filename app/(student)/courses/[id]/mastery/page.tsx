@@ -6,6 +6,7 @@ import { db } from "@/db";
 import {
   chapters,
   concepts as conceptsTable,
+  conceptLocalizations,
   knowledgeObjects,
   knowledgeRelationships,
   studentConceptMastery,
@@ -74,6 +75,7 @@ async function getLegacyMasteryReadModel(
     ? await db
         .select({ id: conceptsTable.id, canonicalSlug: conceptsTable.canonicalSlug })
         .from(conceptsTable)
+        .innerJoin(conceptLocalizations, eq(conceptLocalizations.conceptId, conceptsTable.id))
         .where(inArray(conceptsTable.id, conceptIds))
     : [];
 

@@ -1,7 +1,9 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import { bab, concepts, conceptLocalizations, ide, pemahamanIde, relasiIde } from "@/db/schema";
 import { resolveStudentCourse } from "@/lib/student/course-catalog";
+import { indexMasteryTopics } from "@/lib/student/mastery-topic-labels";
 import type { Locale } from "@/lib/i18n/locale";
 
 export type StudentMasteryConcept = {
@@ -30,11 +32,13 @@ export async function getStudentIdeaMasteryReadModel(
   const course = await resolveStudentCourse(courseId);
   if (!course?.canonicalId) return null;
 
+  const fallbackNames = alias(conceptLocalizations, "fallback_names");
   const rows = await db
     .select({
       id: ide.id,
       chapterId: ide.babId,
       statement: ide.canonicalStatement,
+      fallbackName: fallbackNames.displayName,
       conceptDisplayName: conceptLocalizations.displayName,
       conceptSlug: concepts.canonicalSlug,
       score: pemahamanIde.skor,
@@ -49,6 +53,7 @@ export async function getStudentIdeaMasteryReadModel(
       conceptLocalizations,
       and(eq(conceptLocalizations.conceptId, concepts.id), eq(conceptLocalizations.lang, locale))
     )
+    .leftJoin(fallbackNames, and(eq(fallbackNames.conceptId, concepts.id), eq(fallbackNames.lang, locale === "id" ? "en" : "id")))
     .leftJoin(
       pemahamanIde,
       and(eq(pemahamanIde.ideId, ide.id), eq(pemahamanIde.penggunaId, studentId)),
@@ -77,15 +82,7 @@ export async function getStudentIdeaMasteryReadModel(
       ),
     );
 
-  const byId = new Map(
-    rows.map((row) => [
-      row.id,
-      {
-        ...row,
-        conceptName: row.conceptDisplayName?.trim() || row.statement,
-      },
-    ])
-  );
+  const byId = indexMasteryTopics(rows);
   const prerequisites = new Map<string, string[]>();
   for (const relation of relations) {
     const source = byId.get(relation.sourceIdeaId);
@@ -99,8 +96,7 @@ export async function getStudentIdeaMasteryReadModel(
   }
 
   const groupMap = new Map<string, StudentMasteryGroup>();
-  for (const row of rows) {
-    const conceptName = row.conceptDisplayName?.trim() || row.statement;
+  for (const row of byId.values()) {
     let group = groupMap.get(row.chapterId);
     if (!group) {
       group = {
@@ -114,7 +110,7 @@ export async function getStudentIdeaMasteryReadModel(
       groupMap.set(row.chapterId, group);
     }
     group.concepts.push({
-      conceptName,
+      conceptName: row.conceptName,
       conceptSlug: row.conceptSlug,
       masteryScore: row.score,
       confidence: row.confidence,

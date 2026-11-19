@@ -474,7 +474,7 @@
     "score": "Skor penguasaan {score}/100",
     "reviewReason": "Coba kerjakan lagi soal tentang topik ini sebelum lanjut.",
     "strongReason": "Lanjutkan ke topik berikutnya di alur belajar.",
-    "limited": "Hasil latihan untuk topik ini masih terbatas. Coba latihan lagi.",
+    "limited": "Informasi tentang pemahamanmu pada topik ini masih terbatas. Coba latihan lagi.",
     "reviewTopic": "Pelajari kembali topik",
     "chapters": "Topik per bab",
     "coverage": "{count} dari {total} dinilai",
