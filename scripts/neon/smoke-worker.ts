@@ -11,6 +11,8 @@ const config = JSON.parse(await readFile(`${target.output}/.env.${target.name}.j
 assertWorkerEnvironment(target, config);
 assert.equal(config.INNGEST_SERVE_ORIGIN, target.origin);
 Object.assign(process.env, config);
+// The smoke client runs outside Neon and enqueues with the runner's Google identity.
+delete process.env.ZYX_COMPUTE_RUNTIME;
 const [{ storage }, { joinKey, buildSourceReadJobKey }] = await Promise.all([import("../../lib/storage"), import("../../lib/storage/keys")]);
 const queuePilot = target.name === "staging" && process.env.QUEUE_SMOKE_PROVIDER === "cloud-tasks";
 const checks: Array<{ name: string; status: "PASS"; durationMs: number }> = [];
