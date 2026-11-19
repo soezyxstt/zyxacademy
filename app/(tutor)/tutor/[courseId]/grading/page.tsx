@@ -142,13 +142,15 @@ export default async function TutorGradingPage({ params }: Props) {
   await db.transaction(tx => recordStaffCourseDisclosures(tx, { userId: session.user.id, courseId, questionIds: [...bankIds], contextId: "tryout-grading", requestId: crypto.randomUUID(), unmappedCourse }));
 
   return (
-    <ApplicationPage spacing="space-y-5">
+    <ApplicationPage spacing="space-y-(--group-gap)">
       <Reveal>
-        <PageHeader title={<><TranslatedText namespace="tutor" messageKey="routeTitles.tryoutGrading" />: {courseTitle}</>} backHref={`/tutor/${courseId}`} backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.overview" />} />
-      </Reveal>
-
-      <Reveal>
-        <GradingClient courseId={courseId} initialSubmissions={submissionsList} />
+        <GradingClient
+          courseId={courseId}
+          initialSubmissions={submissionsList}
+          queueHeader={
+            <PageHeader title={<><TranslatedText namespace="tutor" messageKey="routeTitles.tryoutGrading" />: {courseTitle}</>} backHref={`/tutor/${courseId}`} backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.overview" />} />
+          }
+        />
       </Reveal>
     </ApplicationPage>
   );

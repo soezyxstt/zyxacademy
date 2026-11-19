@@ -1,3 +1,4 @@
+import { wakeOutbox } from "@/lib/queue/outbox";
 import { randomUUID } from "node:crypto";
 import { addMinutes } from "date-fns";
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
@@ -47,6 +48,7 @@ export async function uploadDiscussionImage(input: { actorId: string; channelId:
     ));
     if ((count?.value ?? 0) >= 16) throw new Error("DISCUSSION_IMAGE_PENDING_LIMIT");
     await requireDiscussionChannelAccess(actor, input.channelId, tx);
+    wakeOutbox("discussion/images.sweep-continue", daysFrom(1, createdAt).getTime());
     await tx.insert(discussionAttachments).values({
       id, channelId: input.channelId, uploaderId: actor.id, messageId: null, status: "pending", storageKey, previewStorageKey,
       name: sanitizeDiscussionImageFilename(input.file.name, sourceExtension), mime: null, size: null, width: null, height: null,

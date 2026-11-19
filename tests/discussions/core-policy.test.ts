@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { canEditDiscussionMessage, canForwardDiscussion, validDiscussionReplyType } from "@/lib/discussions/policy";
+import { canEditDiscussionMessage, canForwardDiscussion, deriveInitialDiscussionTitle, validDiscussionReplyType } from "@/lib/discussions/policy";
 
 describe("discussion audience and message policies", () => {
  test("explicit answers and contextual replies cannot be confused", () => {
@@ -9,7 +9,7 @@ describe("discussion audience and message policies", () => {
   expect(validDiscussionReplyType("reply", null)).toBe(false);
   expect(validDiscussionReplyType(undefined, "message")).toBe(false);
  });
- test("private and course messages cannot move to a wider audience", () => {
+ test("course messages cannot move to a wider audience and team channels are rejected", () => {
   const global = { id: "global", kind: "global" as const, courseId: null, legacyCourseId: null };
   const course = { id: "a", kind: "course" as const, courseId: "a", legacyCourseId: "old-a" };
   const other = { id: "b", kind: "course" as const, courseId: "b", legacyCourseId: "old-b" };
@@ -18,7 +18,17 @@ describe("discussion audience and message policies", () => {
   expect(canForwardDiscussion(course, global)).toBe(false);
   expect(canForwardDiscussion(course, other)).toBe(false);
   expect(canForwardDiscussion(privateChannel, course)).toBe(false);
-  expect(canForwardDiscussion(privateChannel, privateChannel)).toBe(true);
+  expect(canForwardDiscussion(privateChannel, privateChannel)).toBe(false);
+ });
+ test("derives bounded first-sentence initial titles without blocking", () => {
+  expect(deriveInitialDiscussionTitle("Mengapa limit ini perlu difaktorkan terlebih dahulu? Saya sudah coba substitusi langsung.")).toBe("Mengapa limit ini perlu difaktorkan terlebih dahulu?");
+  expect(deriveInitialDiscussionTitle("**Bagaimana** cara menurunkan $x^2$!\nLangkah kedua...")).toBe("Bagaimana cara menurunkan $x^2$!");
+  expect(deriveInitialDiscussionTitle("", true)).toBe("Pertanyaan gambar");
+  expect(deriveInitialDiscussionTitle("", false)).toBe("Pertanyaan baru");
+  const longSentence = `${"kata ".repeat(45)}akhir.`;
+  const derived = deriveInitialDiscussionTitle(longSentence);
+  expect(derived.length).toBeLessThanOrEqual(160);
+  expect(derived.endsWith("...")).toBe(true);
  });
  test("author edits expire at five minutes, with an admin override", () => {
   const createdAt = new Date("2026-01-01T00:00:00Z");

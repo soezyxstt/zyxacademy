@@ -7,14 +7,14 @@ import { fixtureProxy } from "./fixtures/discussion-download-proxy.cjs";
 test.setTimeout(120_000);
 const fixture = "/visual-fixtures/discussions";
 
-test("long course and requester labels wrap within the list and thread", async ({ page }, info) => {
-  await open(page, "?state=long-channel&role=admin&question=private");
-  await expect(page.locator("[data-discussion-channel-label]").last()).toContainText("Nadia".repeat(20));
+test("long course labels wrap within the list and thread", async ({ page }, info) => {
+  await open(page, "?state=long-channel&role=admin");
+  await expect(page.locator("[data-discussion-channel-label]").last()).toContainText("Matematika".repeat(16));
   const contained = async () => page.locator("[data-discussion-channel-label]").evaluateAll(labels => labels.every(label => label.scrollWidth <= label.clientWidth + 1));
   expect(await contained()).toBe(true);
   await capture(page, info, "long-channel-thread");
   if (page.viewportSize()!.width < 900) await page.getByRole("button", { name: "Kembali ke pertanyaan", exact: true }).click();
-  await expect(page.getByRole("button", { name: /Perlu bantuan memilih kelas tutorial/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Mengapa limit ini perlu difaktorkan/ })).toBeVisible();
   expect(await contained()).toBe(true);
   await capture(page, info, "long-channel-list");
 });
@@ -65,10 +65,8 @@ for (const locale of ["id", "en"] as const) {
   await page.locator('[data-message-id="m2"]').getByRole("button", { name: /Actions for|Tindakan pesan/ }).click();
   await page.getByRole("menuitem", { name: en ? "Forward" : "Teruskan", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: en ? "Forward message" : "Teruskan pesan" });
-  await dialog.getByRole("combobox", { name: en ? "Destination channel" : "Kanal tujuan" }).click();
-  await page.getByRole("option", { name: "Matematika I", exact: true }).click();
-  await dialog.getByRole("combobox", { name: en ? "Destination question" : "Pertanyaan tujuan" }).click();
-  await page.getByRole("option", { name: "Cara membaca domain dari grafik fungsi", exact: true }).click();
+  await expect(dialog.locator("[data-forward-preview]")).toBeVisible();
+  await dialog.getByRole("option", { name: /Cara membaca domain dari grafik fungsi/ }).click();
   await dialog.getByRole("button", { name: en ? "Forward" : "Teruskan", exact: true }).click();
   await expect(dialog.getByRole("alert")).toContainText(en ? "Delivery status is unknown" : "Status pengiriman belum diketahui");
   await dialog.getByRole("button", { name: en ? "Forward" : "Teruskan", exact: true }).click();
@@ -137,29 +135,6 @@ test("session expiry preserves a private draft only for the same verified accoun
   await capture(page, info, "session-account-changed-draft-purged");
   await page.getByRole("button", { name: "Resume same account" }).click();
   await expect(input).toHaveCount(0);
-});
-
-test("an interrupted private channel preparation can be retried after the same session returns", async ({ page }, info) => {
-  await open(page, "?state=session-prepare&question=none");
-  await page.getByRole("button", { name: "Pertanyaan baru", exact: true }).click();
-  let dialog = page.getByRole("dialog", { name: "Pertanyaan baru" });
-  await dialog.getByRole("textbox", { name: "Judul" }).fill("Bantuan kelas");
-  await dialog.getByRole("textbox", { name: "Tulis pesan" }).fill("Draf tetap tersimpan.");
-  await dialog.getByRole("combobox", { name: "Tujuan pertanyaan" }).click();
-  await page.getByRole("option", { name: "Bantuan akademik", exact: true }).click();
-  await expect(dialog.getByText("Memuat kanal", { exact: true })).toBeVisible();
-  await page.locator("button").filter({ hasText: "Expire fixture session" }).evaluate(button => (button as HTMLElement).click());
-  await expect(dialog).toHaveCount(0);
-  await page.getByRole("button", { name: "Resume same account" }).click();
-  dialog = page.getByRole("dialog", { name: "Pertanyaan baru" });
-  await expect(dialog.getByRole("textbox", { name: "Judul" })).toHaveValue("Bantuan kelas");
-  await expect(dialog.getByRole("textbox", { name: "Tulis pesan" })).toHaveText("Draf tetap tersimpan.");
-  await expect(dialog.getByRole("alert")).toContainText("Kanal belum dapat dimuat.");
-  await capture(page, info, "private-preparation-interrupted");
-  await dialog.getByRole("button", { name: "Coba lagi", exact: true }).click();
-  await expectHelpText(page, "Hanya Anda, tutor pengampu, dan admin.");
-  await expect(dialog.getByRole("textbox", { name: "Tulis pesan" })).toBeEnabled();
-  await capture(page, info, "private-preparation-retried");
 });
 
 async function open(page: Page, query = "", origin = "") {
@@ -246,11 +221,17 @@ test.afterEach(async ({ page }) => {
 test("student question list and course mute", async ({ page }, info) => {
   await open(page, "?question=none");
   await capture(page, info, "student-question-list");
-  await page.getByRole("combobox", { name: "Filter kanal" }).click();
+  const sidebar = page.getByRole("complementary", { name: "Daftar pertanyaan" });
+  await sidebar.getByRole("combobox", { name: "Filter kanal" }).click();
   await expectMenuGutter(page, page.locator('[data-slot="popover-content"]'));
   await page.getByRole("option", { name: /Matematika I/ }).click();
-  await page.getByRole("button", { name: "Bisukan notifikasi Matematika I" }).click();
-  await expect(page.getByRole("button", { name: "Aktifkan notifikasi Matematika I" })).toBeVisible();
+  const bell = sidebar.getByRole("button", { name: "Bisukan notifikasi Matematika I" });
+  const filterBox = (await sidebar.getByRole("combobox", { name: "Filter kanal" }).boundingBox())!;
+  const bellBox = (await bell.boundingBox())!;
+  expect(Math.abs(filterBox.y + filterBox.height / 2 - (bellBox.y + bellBox.height / 2))).toBeLessThan(4);
+  expect(await sidebar.locator(".border-b").first().innerText()).toBe("Matematika I");
+  await bell.click();
+  await expect(sidebar.getByRole("button", { name: "Aktifkan notifikasi Matematika I" })).toBeVisible();
   await capture(page, info, "course-muted-unread");
 });
 
@@ -457,9 +438,11 @@ test("image fallback and failed upload retry", async ({ page }, info) => {
 test("new question keeps submit visible with image and Zyra", async ({ page }, info) => {
   await open(page, "?question=none");
   await page.getByRole("button", { name: "Pertanyaan baru", exact: true }).click();
-  await page.getByRole("textbox", { name: "Judul", exact: true }).fill("Bagaimana menyederhanakan limit ini?");
-  await page.getByRole("textbox", { name: "Tulis pesan", exact: true }).fill("@Zyra bantu jelaskan langkahnya.");
-  await page.locator('[role="dialog"] input[type="file"]').setInputFiles("public/visual-fixtures/discussion-problem.png");
+  await expect(page.locator("[data-discussion-new-question]")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pertanyaan baru", exact: true })).toHaveCount(1);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("textbox", { name: "Tulis pesan", exact: true }).fill("Bagaimana menyederhanakan limit ini?\n@Zyra bantu jelaskan langkahnya.");
+  await page.locator('[data-discussion-composer] input[type="file"]').setInputFiles("public/visual-fixtures/discussion-problem.png");
   await expect(page.getByRole("button", { name: "Kirim pertanyaan", exact: true })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Kirim pertanyaan", exact: true })).toBeInViewport();
   await capture(page, info, "new-question-image-zyra");
@@ -564,11 +547,10 @@ for (const locale of ["id", "en"] as const) {
 async function openFixtureForward(page: Page) {
   await page.locator('[data-message-id="m2"]').getByRole("button", { name: /Tindakan pesan/ }).click();
   await page.getByRole("menuitem", { name: "Teruskan", exact: true }).click();
-  await page.getByRole("combobox", { name: "Kanal tujuan" }).click();
-  await page.getByRole("option", { name: "Matematika I", exact: true }).click();
-  await page.getByRole("combobox", { name: "Pertanyaan tujuan" }).click();
-  await page.getByRole("option", { name: "Cara membaca domain dari grafik fungsi", exact: true }).click();
-  return page.getByRole("dialog", { name: "Teruskan pesan" });
+  const dialog = page.getByRole("dialog", { name: "Teruskan pesan" });
+  await expect(dialog.locator("[data-forward-preview]")).toBeVisible();
+  await dialog.getByRole("option", { name: /Cara membaca domain dari grafik fungsi/ }).click();
+  return dialog;
 }
 
 test("an uncertain forward survives source remount and temporary session absence", async ({ page }, info) => {
@@ -596,7 +578,7 @@ test("an uncertain forward survives source remount and temporary session absence
   await page.getByRole("button", { name: "Resume same account" }).click();
   dialog = page.getByRole("dialog", { name: "Teruskan pesan" });
   await expect(dialog.getByRole("combobox", { name: "Kanal tujuan" })).toContainText("Matematika I");
-  await expect(dialog.getByRole("combobox", { name: "Pertanyaan tujuan" })).toContainText("Cara membaca domain dari grafik fungsi");
+  await expect(dialog.getByRole("option", { name: /Cara membaca domain dari grafik fungsi/ })).toHaveAttribute("aria-selected", "true");
   await expect(dialog.getByRole("alert")).toContainText("belum diketahui");
   await capture(page, info, "forward-session-restored");
   await dialog.getByRole("button", { name: "Teruskan", exact: true }).click();
@@ -643,37 +625,35 @@ test("a different verified account purges an in-flight forward even when its old
 test("legacy replay preserves a new question until discard", async ({ page }, info) => {
   await open(page, "?fail=legacy-replay&question=none");
   await page.getByRole("button", { name: "Pertanyaan baru", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Pertanyaan baru" });
-  await dialog.getByRole("textbox", { name: "Judul" }).fill("Pertanyaan tertunda");
-  await dialog.getByRole("textbox", { name: "Tulis pesan" }).fill("Isi pertanyaan tertunda");
-  await dialog.getByRole("button", { name: "Kirim pertanyaan" }).click();
-  await dialog.getByRole("button", { name: "Coba kirim lagi" }).click();
-  await expect(dialog.getByRole("textbox", { name: "Judul" })).toBeDisabled();
-  await expect(dialog.getByRole("combobox", { name: "Kanal" })).toBeDisabled();
-  await expect(dialog.getByRole("textbox", { name: "Tulis pesan" })).toHaveText("Isi pertanyaan tertunda");
-  await expect(dialog.getByRole("link", { name: "Periksa pesan" })).toHaveAttribute("href", "/discussions?thread=limit&message=m1");
-  await expect(dialog.getByRole("alert").locator("p")).toHaveCSS("font-size", "12px");
+  const composeHeader = page.locator("[data-discussion-new-question]");
+  const editor = page.getByRole("textbox", { name: "Tulis pesan" });
+  await editor.fill("Isi pertanyaan tertunda");
+  await page.getByRole("button", { name: "Kirim pertanyaan" }).click();
+  await page.getByRole("button", { name: "Coba kirim lagi" }).click();
+  await expect(composeHeader.getByRole("combobox", { name: "Kanal" })).toBeDisabled();
+  await expect(editor).toHaveText("Isi pertanyaan tertunda");
+  await expect(page.getByRole("link", { name: "Periksa pesan" })).toHaveAttribute("href", "/discussions?thread=limit&message=m1");
+  await expect(page.locator("section").getByRole("alert").locator("p")).toHaveCSS("font-size", "12px");
   await capture(page, info, "new-question-legacy-replay");
-  await dialog.getByRole("button", { name: "Buang draf tertunda" }).click();
-  await expect(dialog.getByRole("textbox", { name: "Tulis pesan" })).toHaveText(/^(Tulis pesan)?$/);
-  await expect(dialog.getByRole("textbox", { name: "Judul" })).toBeEnabled();
+  await page.getByRole("button", { name: "Buang draf tertunda" }).click();
+  await expect(editor).toHaveText(/^(Tulis pesan)?$/);
+  await expect(composeHeader.getByRole("combobox", { name: "Kanal" })).toBeEnabled();
 });
 
-test("lost new-question response locks its title and audience for unchanged replay", async ({ page }, info) => {
+test("lost new-question response locks its channel and body for unchanged replay", async ({ page }, info) => {
   await open(page, "?fail=lost-response&question=none");
   await page.getByRole("button", { name: "Pertanyaan baru", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Pertanyaan baru" });
-  await dialog.getByRole("textbox", { name: "Judul" }).fill("Pertanyaan yang tersimpan");
-  await dialog.getByRole("textbox", { name: "Tulis pesan" }).fill("@Zyra bantu jelaskan.");
-  await dialog.getByRole("button", { name: "Kirim pertanyaan" }).click();
-  await expect(dialog.getByText(/Status pengiriman belum diketahui/)).toBeVisible();
-  await expect(dialog.getByRole("textbox", { name: "Judul" })).toBeDisabled();
-  await expect(dialog.getByRole("combobox", { name: "Kanal" })).toBeDisabled();
-  await expect(dialog.getByRole("textbox", { name: "Tulis pesan" })).toBeDisabled();
+  const composeHeader = page.locator("[data-discussion-new-question]");
+  const editor = page.getByRole("textbox", { name: "Tulis pesan" });
+  await editor.fill("Pertanyaan yang tersimpan. @Zyra bantu jelaskan.");
+  await page.getByRole("button", { name: "Kirim pertanyaan" }).click();
+  await expect(page.getByText(/Status pengiriman belum diketahui/)).toBeVisible();
+  await expect(composeHeader.getByRole("combobox", { name: "Kanal" })).toBeDisabled();
+  await expect(editor).toBeDisabled();
   await capture(page, info, "new-question-outcome-unknown");
-  await dialog.getByRole("button", { name: "Coba kirim lagi" }).click();
-  await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Pertanyaan yang tersimpan" })).toBeVisible();
+  await page.getByRole("button", { name: "Coba kirim lagi" }).click();
+  await expect(composeHeader).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Pertanyaan yang tersimpan." })).toBeVisible();
   await expect(page.locator("[data-message-id]").filter({ hasText: "@Zyra bantu jelaskan." })).toHaveCount(1);
   await capture(page, info, "new-question-outcome-replayed");
 });
@@ -694,34 +674,6 @@ test("expired attachment retains its bytes for re-upload", async ({ page }, info
   await page.getByRole("button", { name: "Coba kirim lagi", exact: true }).click();
   await expect(page.locator("[data-message-id]").filter({ hasText: "Mohon periksa gambar ini." })).toHaveCount(1);
   await capture(page, info, "attachment-expired-resent");
-});
-
-test("private channel labels and staff privacy copy retain the requester and course", async ({ page }, info) => {
-  await open(page, "?state=private-context&question=none");
-  await page.getByRole("combobox", { name: "Filter kanal" }).click();
-  await page.getByRole("textbox", { name: "Cari kanal" }).fill("Tim akademik");
-  await expect(page.getByRole("option", { name: "Tim akademik, Umum", exact: true })).toBeVisible();
-  await expect(page.getByRole("option", { name: "Tim akademik, Matematika I", exact: true })).toBeVisible();
-  await expect(page.getByRole("option", { name: "Tim akademik, Fisika I", exact: true })).toBeVisible();
-  await capture(page, info, "student-private-channel-options");
-  await page.getByRole("option", { name: "Tim akademik, Matematika I", exact: true }).click();
-  await expect(page.getByRole("combobox", { name: "Filter kanal" })).toContainText("Matematika I");
-  await capture(page, info, "student-private-channel-selected");
-
-  await open(page, "?role=admin&state=private-context&question=none");
-  await page.getByRole("button", { name: "Pertanyaan baru", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Pertanyaan baru" });
-  await dialog.getByRole("combobox", { name: "Kanal" }).click();
-  await page.getByRole("textbox", { name: "Cari kanal" }).fill("Tim teknis");
-  await page.getByRole("option", { name: "Tim teknis, Nadia Putri, Matematika I", exact: true }).click();
-  await expectHelpText(page, "Hanya pemilik dan admin.");
-  await expect(dialog.getByText("Hanya Anda dan admin.")).toHaveCount(0);
-  await dialog.getByRole("textbox", { name: "Judul" }).fill("Tindak lanjut bantuan");
-  await dialog.getByRole("textbox", { name: "Tulis pesan" }).fill("Saya membantu memeriksa masalah ini.");
-  await capture(page, info, "admin-other-requester-compose");
-  await dialog.getByRole("button", { name: "Kirim pertanyaan" }).click();
-  await expectHelpText(page, "Hanya pemilik dan admin.");
-  await capture(page, info, "admin-other-requester-thread");
 });
 
 test("resolved send keeps the draft and image until the question is reopened", async ({ page }, info) => {
@@ -770,10 +722,9 @@ test("reaction forwarding and admin deletion", async ({ page }, info) => {
   await capture(page, info, "message-reaction-selected");
   await message.getByRole("button", { name: /Tindakan pesan/ }).click();
   await page.getByRole("menuitem", { name: "Teruskan", exact: true }).click();
-  await page.getByRole("combobox", { name: "Kanal tujuan" }).click();
-  await page.getByRole("option", { name: "Matematika I", exact: true }).click();
-  await page.getByRole("combobox", { name: "Pertanyaan tujuan" }).click();
-  await page.getByRole("option", { name: "Cara membaca domain dari grafik fungsi", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Teruskan pesan" });
+  await expect(dialog.locator("[data-forward-preview]")).toBeVisible();
+  await dialog.getByRole("option", { name: /Cara membaca domain dari grafik fungsi/ }).click();
   await capture(page, info, "forward-message-dialog");
   await page.getByRole("button", { name: "Teruskan", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -800,42 +751,22 @@ test("scoped swipe reply and long press actions", async ({ page }, info) => {
   await capture(page, info, "long-press-actions");
 });
 
-test("private academic help and resolved discussion", async ({ page }, info) => {
-  await open(page, "?question=private");
-  await expectHelpText(page, "Hanya Anda, semua tutor, dan admin.");
-  await capture(page, info, "private-academic-thread");
+test("resolved discussion disables composer", async ({ page }, info) => {
   await open(page, "?question=motion");
   await expect(page.getByRole("textbox", { name: "Tulis pesan" })).toHaveCount(0);
   await capture(page, info, "resolved-thread");
 });
 
-test("private forwarding searches requester and course with named popovers", async ({ page }, info) => {
-  await open(page, "?role=admin&state=private-forward-search&question=private");
-  await page.locator('[data-message-id="m7"]').getByRole("button", { name: /Tindakan pesan/ }).click();
-  await page.getByRole("menuitem", { name: "Teruskan", exact: true }).click();
-  await page.getByRole("combobox", { name: "Kanal tujuan" }).click();
-  const picker = page.getByRole("dialog", { name: "Kanal tujuan", exact: true });
-  await expect(picker).toBeVisible();
-  await picker.getByRole("textbox", { name: "Cari kanal" }).fill("Nadia Putri");
-  await expect(picker.getByRole("option", { name: "Bantuan akademik, Nadia Putri, Matematika I", exact: true })).toBeVisible();
-  await picker.getByRole("textbox", { name: "Cari kanal" }).fill("Matematika I");
-  await expect(picker.getByRole("option", { name: "Bantuan akademik, Nadia Putri, Matematika I", exact: true })).toBeVisible();
-  await capture(page, info, "private-forward-context-search");
-  await page.keyboard.press("Escape");
-  await page.getByRole("dialog", { name: "Teruskan pesan" }).getByRole("button", { name: "Batal", exact: true }).click();
-  await page.getByRole("button", { name: "Sebut orang", exact: true }).click();
-  await expect(page.getByRole("dialog", { name: "Sebut orang", exact: true })).toBeVisible();
-  await capture(page, info, "named-mention-popover");
-});
-
-test("new private question validation and formatting", async ({ page }, info) => {
+test("new inline question formatting and validation", async ({ page }, info) => {
   await open(page, "?question=none");
   await page.getByRole("button", { name: "Pertanyaan baru", exact: true }).click();
-  await capture(page, info, "new-question-dialog");
-  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.locator("[data-discussion-new-question]")).toBeVisible();
+  await expect(page.locator("[data-discussion-composer]")).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await capture(page, info, "new-question-inline");
 });
 
-test("channel and forward pickers paginate inside their dialogs", async ({ page }, info) => {
+test("channel and forward pickers paginate cleanly", async ({ page }, info) => {
   await open(page, "?state=pagination&question=none");
   await page.getByRole("combobox", { name: "Filter kanal", exact: true }).click();
   const picker = page.locator('[data-slot="popover-content"]');
@@ -844,44 +775,35 @@ test("channel and forward pickers paginate inside their dialogs", async ({ page 
   await capture(page, info, "channel-picker-first-page");
   await picker.getByRole("button", { name: "Berikutnya", exact: true }).click();
   await expect(picker.getByText("Halaman 2", { exact: true })).toBeVisible();
-  await expect(picker.getByRole("option", { name: "Kelas tambahan 14", exact: true })).toBeVisible();
+  await expect(picker.getByRole("option", { name: "Kelas tambahan 18", exact: true })).toBeVisible();
   await capture(page, info, "channel-picker-next-page");
   await page.keyboard.press("Escape");
   await open(page, "?state=pagination");
   await page.locator('[data-message-id="m2"]').getByRole("button", { name: /Tindakan pesan/ }).click();
   await page.getByRole("menuitem", { name: "Teruskan", exact: true }).click();
-  await page.getByRole("combobox", { name: "Kanal tujuan", exact: true }).click();
-  await page.getByRole("option", { name: "Matematika I", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Teruskan pesan", exact: true });
   await expect(dialog.getByRole("button", { name: "Berikutnya", exact: true })).toBeEnabled();
   await dialog.getByRole("button", { name: "Berikutnya", exact: true }).click();
   await expect(dialog.getByText("Halaman 2", { exact: true })).toBeVisible();
-  await page.getByRole("combobox", { name: "Pertanyaan tujuan", exact: true }).click();
-  await page.getByRole("option", { name: "Pertanyaan tambahan 25", exact: true }).click();
+  await dialog.getByRole("option", { name: /Pertanyaan tambahan 25/ }).click();
   await capture(page, info, "forward-picker-next-page");
 });
 
-test("new question mention search follows its private channel", async ({ page }, info) => {
-  await open(page, "?question=none");
+test("new question mention search follows its channel", async ({ page }, info) => {
+  await open(page, "?state=course&question=none");
   await page.getByRole("button", { name: "Pertanyaan baru", exact: true }).click();
-  await page.getByRole("textbox", { name: "Judul", exact: true }).fill("Tautan materi tidak terbuka");
+  const composeHeader = page.locator("[data-discussion-new-question]");
   await page.getByRole("button", { name: "Sebut orang", exact: true }).click();
   await expectMenuGutter(page, page.locator('[data-slot="popover-content"]'));
   await page.getByRole("textbox", { name: "Cari orang untuk disebut", exact: true }).fill("Raka");
   await expect(page.getByRole("button", { name: "Raka Pratama, Tutor", exact: true })).toBeVisible();
   await capture(page, info, "mention-search-results");
   await page.getByRole("button", { name: "Raka Pratama, Tutor", exact: true }).click();
-  await page.getByRole("combobox", { name: "Kanal", exact: true }).click();
-  await page.getByRole("option", { name: "Kendala aplikasi, Umum", exact: true }).click();
-  await expect(page.getByText("Pilih ulang atau hapus orang yang disebut setelah mengganti kanal.", { exact: true })).toBeVisible();
-  await capture(page, info, "mention-channel-changed");
-  await page.getByRole("textbox", { name: "Tulis pesan", exact: true }).fill("Tolong periksa tautan materi. ");
-  await page.getByRole("button", { name: "Sebut orang", exact: true }).click();
-  await page.getByRole("textbox", { name: "Cari orang untuk disebut", exact: true }).fill("Dina");
-  await page.getByRole("button", { name: "Dina Sari, Admin", exact: true }).click();
+  await page.getByRole("textbox", { name: "Tulis pesan", exact: true }).fill("Tautan materi tidak terbuka. Tolong periksa tautan materi.");
   await page.getByRole("button", { name: "Kirim pertanyaan", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Tautan materi tidak terbuka", exact: true })).toBeVisible();
-  await capture(page, info, "new-private-question-created");
+  await expect(composeHeader).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Tautan materi tidak terbuka.", exact: true })).toBeVisible();
+  await capture(page, info, "new-question-created");
 });
 
 test("same-name mentions keep only the person still present in the draft", async ({ page }, info) => {
@@ -901,63 +823,16 @@ test("same-name mentions keep only the person still present in the draft", async
   await expect(page.locator("main[data-fixture-mention-ids]")).toHaveAttribute("data-fixture-mention-ids", "alice-2");
 });
 
-test("course question can prepare private academic and technical help", async ({ page }, info) => {
-  await open(page, "?state=course&question=none");
-  await page.getByRole("button", { name: "Pertanyaan baru", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Pertanyaan baru" });
-  const audience = dialog.getByRole("combobox", { name: "Tujuan pertanyaan" });
-  await expect(audience).toContainText("Diskusi bersama");
-  const audienceBox = await audience.boundingBox();
-  const channelBox = await dialog.getByRole("combobox", { name: "Kanal", exact: true }).boundingBox();
-  if (page.viewportSize()!.width >= 640) expect(Math.abs(audienceBox!.y - channelBox!.y)).toBeLessThan(2);
-  else expect(channelBox!.y).toBeGreaterThan(audienceBox!.y);
-  await expectUnclipped(audience);
-  await expectUnclipped(dialog.getByRole("combobox", { name: "Kanal", exact: true }));
-  await expectHelpText(page, "Terlihat oleh murid dengan akses penuh, tutor pengampu, dan admin yang berwenang.");
-  await dialog.getByRole("textbox", { name: "Judul" }).fill("Meminta bantuan tentang mata kuliah");
-  await dialog.getByRole("textbox", { name: "Tulis pesan" }).fill("Saya ingin bertanya secara privat.");
-  await dialog.locator('input[type="file"]').setInputFiles("public/visual-fixtures/discussion-problem.png");
-  await expect(audience).toBeDisabled();
-  await dialog.getByRole("button", { name: "Hapus discussion-problem.png" }).click();
-  await audience.click();
-  await page.getByRole("option", { name: "Bantuan akademik", exact: true }).click();
-  await expectHelpText(page, "Hanya Anda, tutor pengampu, dan admin.");
-  await capture(page, info, "course-private-academic-compose");
-  await audience.click();
-  await page.getByRole("option", { name: "Bantuan aplikasi", exact: true }).click();
-  await expectHelpText(page, "Hanya Anda dan admin.");
-  await capture(page, info, "course-private-technical-compose");
-  await audience.click();
-  await page.getByRole("option", { name: "Bantuan akademik", exact: true }).click();
-  await dialog.getByRole("button", { name: "Kirim pertanyaan" }).click();
-  await expect(page.getByRole("heading", { name: "Meminta bantuan tentang mata kuliah" })).toBeVisible();
-  await expectHelpText(page, "Hanya Anda, tutor pengampu, dan admin.");
-  await capture(page, info, "course-private-academic-created");
-});
-
 test("new question identifies the global and course audiences", async ({ page }, info) => {
   await open(page, "?question=none");
   await page.getByRole("button", { name: "Pertanyaan baru", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Pertanyaan baru" });
+  const composeHeader = page.locator("[data-discussion-new-question]");
   await expectHelpText(page, "Terlihat oleh murid, tutor, dan admin aktif.");
   await capture(page, info, "new-global-audience");
-  await dialog.getByRole("combobox", { name: "Kanal" }).click();
+  await composeHeader.getByRole("combobox", { name: "Kanal" }).click();
   await page.getByRole("option", { name: "Matematika I", exact: true }).click();
   await expectHelpText(page, "Terlihat oleh murid dengan akses penuh, tutor pengampu, dan admin yang berwenang.");
   await capture(page, info, "new-course-audience");
-});
-
-test("course private help preparation can be retried", async ({ page }, info) => {
-  await open(page, "?state=course&fail=team-channel&question=none");
-  await page.getByRole("button", { name: "Pertanyaan baru", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Pertanyaan baru" });
-  await dialog.getByRole("combobox", { name: "Tujuan pertanyaan" }).click();
-  await page.getByRole("option", { name: "Bantuan akademik", exact: true }).click();
-  await expect(dialog.getByRole("alert")).toBeVisible();
-  await capture(page, info, "course-private-prepare-error");
-  await dialog.getByRole("button", { name: "Coba lagi", exact: true }).click();
-  await expectHelpText(page, "Hanya Anda, tutor pengampu, dan admin.");
-  await capture(page, info, "course-private-prepare-retried");
 });
 
 test("tutor thread and admin report resolution", async ({ page }, info) => {
@@ -1089,25 +964,23 @@ test("long forwarding titles wrap within the select gutter", async ({ page }, in
   await open(page, "?state=long-text");
   await page.locator('[data-message-id="m2"]').getByRole("button", { name: /Tindakan pesan/ }).click();
   await page.getByRole("menuitem", { name: "Teruskan", exact: true }).click();
-  await page.getByRole("combobox", { name: "Kanal tujuan" }).click();
-  await page.getByRole("option", { name: "Matematika I", exact: true }).click();
-  await page.getByRole("combobox", { name: "Pertanyaan tujuan" }).click();
-  await expectMenuGutter(page, page.getByRole("listbox"));
+  const dialog = page.getByRole("dialog", { name: "Teruskan pesan", exact: true });
+  await expect(dialog.getByRole("listbox", { name: "Pertanyaan tujuan" })).toBeVisible();
   await capture(page, info, "long-forwarding-title");
-  await page.getByRole("option", { name: "Question".repeat(20), exact: true }).click();
-  await expectUnclipped(page.getByRole("combobox", { name: "Pertanyaan tujuan" }));
+  await dialog.getByRole("option", { name: new RegExp("Question".repeat(20)) }).click();
+  await expect(dialog.getByRole("option", { name: new RegExp("Question".repeat(20)) })).toHaveAttribute("aria-selected", "true");
   await capture(page, info, "long-forwarding-selected");
 });
 
-test("admin private discussion keeps the combined composer in the viewport", async ({ page }, info) => {
-  await open(page, "?role=admin&question=private&state=shell");
-  await page.locator('[data-message-id="m7"]').getByRole("button", { name: /Tindakan pesan/ }).click();
+test("admin discussion keeps the combined composer in the viewport", async ({ page }, info) => {
+  await open(page, "?role=admin&question=study&state=shell");
+  await page.locator('[data-message-id="m5"]').getByRole("button", { name: /Tindakan pesan/ }).click();
   await page.getByRole("menuitem", { name: "Balas", exact: true }).click();
   await page.getByRole("textbox", { name: "Tulis pesan" }).fill("@Zyra bantu jelaskan.");
   await page.locator('input[type="file"]').setInputFiles("public/visual-fixtures/discussion-problem.png");
   await expect(page.getByRole("status", { name: /: Siap/ }).first()).toBeVisible();
   await expectComposerBounds(page);
-  await capture(page, info, "admin-private-reply-image-zyra");
+  await capture(page, info, "admin-reply-image-zyra");
 });
 
 for (const state of ["empty", "list-loading", "list-error", "thread-loading", "thread-error"] as const) {
@@ -1158,7 +1031,7 @@ for (const state of ["reports-loading", "reports-error"] as const) {
   });
 }
 
-test("English student thread and course help preparation", async ({ page }, info) => {
+test("English student thread and inline new question", async ({ page }, info) => {
   await open(page, "?locale=en&question=none");
   await page.getByRole("combobox", { name: "Filter channels" }).click();
   await page.getByRole("textbox", { name: "Search channels" }).fill("General");
@@ -1172,28 +1045,16 @@ test("English student thread and course help preparation", async ({ page }, info
   const authorBox = await author.boundingBox(), actionBox = await action.boundingBox();
   expect(Math.abs(authorBox!.y - actionBox!.y)).toBeLessThan(5);
   await capture(page, info, "en-student-thread");
-  await open(page, "?locale=en&state=course&fail=team-channel&question=none");
+  await open(page, "?locale=en&state=course&question=none");
   await page.getByRole("button", { name: "New question", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "New question" });
+  await expect(page.locator("[data-discussion-new-question]")).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expectHelpText(page, "Visible to students with full access, assigned tutors, and authorized admins.", "en");
   await capture(page, info, "en-new-question");
-  const audience = dialog.getByRole("combobox", { name: "Question audience" });
-  await audience.click();
-  await page.getByRole("option", { name: "Academic help", exact: true }).click();
-  await expect(dialog.getByRole("alert")).toContainText("Could not load channels.");
-  await capture(page, info, "en-private-help-error");
-  await dialog.getByRole("button", { name: "Try again", exact: true }).click();
-  await expectHelpText(page, "Only you, your course tutors, and admins.", "en");
-  await capture(page, info, "en-private-academic");
-  await audience.click();
-  await page.getByRole("option", { name: "App help", exact: true }).click();
-  await expectHelpText(page, "Only you and admins.", "en");
-  await dialog.getByRole("textbox", { name: "Title" }).fill("Access to my course");
-  await dialog.getByRole("textbox", { name: "Write a message" }).fill("Please help with access.");
-  await capture(page, info, "en-private-technical");
-  await dialog.getByRole("button", { name: "Send question" }).click();
-  await expect(page.getByRole("heading", { name: "Access to my course" })).toBeVisible();
-  await capture(page, info, "en-private-technical-created");
+  await page.getByRole("textbox", { name: "Write a message" }).fill("Access to my course. Please help with access.");
+  await page.getByRole("button", { name: "Send question" }).click();
+  await expect(page.getByRole("heading", { name: "Access to my course." })).toBeVisible();
+  await capture(page, info, "en-new-question-created");
 });
 
 test("English resolved and image recovery preserve the draft", async ({ page }, info) => {
@@ -1235,10 +1096,8 @@ test("English report navigation and forwarding dialog", async ({ page }, info) =
   const menu = page.getByRole("menu");
   await expectMenuGutter(page, menu);
   await page.getByRole("menuitem", { name: "Forward", exact: true }).click();
-  await page.getByRole("combobox", { name: "Destination channel" }).click();
-  await page.getByRole("option", { name: "Matematika I", exact: true }).click();
-  await page.getByRole("combobox", { name: "Destination question" }).click();
-  await expect(page.getByRole("option", { name: /Pertanyaan selesai/ })).toHaveCount(0);
+  const dialog = page.getByRole("dialog", { name: "Forward message", exact: true });
+  await expect(dialog.getByRole("option", { name: /Pertanyaan selesai/ })).toHaveCount(0);
   await capture(page, info, "en-forward-open-questions");
 });
 
@@ -1283,56 +1142,14 @@ test("English namesake ambiguity explains that identity is unavailable", async (
   await capture(page, info, "en-server-namesake-unavailable");
 });
 
-test("English system-channel search keeps pagination", async ({ page }, info) => {
-  await open(page, "?locale=en&role=admin&state=system-pagination&question=none");
-  await page.getByRole("combobox", { name: "Filter channels" }).click();
-  const picker = page.locator('[data-slot="popover-content"]');
-  await picker.getByRole("textbox", { name: "Search channels" }).fill("Academic");
-  await expect(picker.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
-  await capture(page, info, "en-system-channel-search-first-page");
-  await picker.getByRole("button", { name: "Next", exact: true }).click();
-  await expect(picker.getByText("Page 2", { exact: true })).toBeVisible();
-  await expect(picker.getByRole("option", { name: /Academic team, .*General/ }).first()).toBeVisible();
-  await capture(page, info, "en-system-channel-search-second-page");
-});
-
-test("English team and help searches page through every matching alias", async ({ page }, info) => {
-  await open(page, "?locale=en&role=admin&state=system-pagination&question=none");
-  await page.getByRole("combobox", { name: "Filter channels" }).click();
-  const picker = page.locator('[data-slot="popover-content"]');
-  const search = picker.getByRole("textbox", { name: "Search channels" });
-  for (const [query, first, second] of [["team", "Academic team", "Technical team"], ["help", "Academic help", "Operations help"]] as const) {
-    await search.fill(query);
-    await expect(picker.getByRole("option", { name: new RegExp(`^${first},`) }).first()).toBeVisible();
-    const seen = new Set((await picker.getByRole("option").allTextContents()).map(label => label.trim()));
-    await capture(page, info, `en-${query}-aliases-first`);
-    const next = picker.getByRole("button", { name: "Next", exact: true });
-    await expect(next).toBeEnabled();
-    await next.click();
-    await expect(picker.getByRole("option", { name: `${second}, Murid 21, General`, exact: true })).toBeVisible();
-    for (const label of await picker.getByRole("option").allTextContents()) seen.add(label.trim());
-    await expect(next).toBeDisabled();
-    expect([...seen].some(label => label.startsWith(first))).toBe(true);
-    expect([...seen].some(label => label.startsWith(second))).toBe(true);
-    if (query === "team") {
-      expect([...seen].filter(label => label.startsWith(first))).toHaveLength(25);
-      expect([...seen].filter(label => label.startsWith(second))).toHaveLength(25);
-    } else expect([...seen].filter(label => label.startsWith(second))).toHaveLength(26);
-    await capture(page, info, `en-${query}-aliases-last`);
-  }
-});
-
 for (const locale of ["id", "en"] as const) {
   test(`legacy forward keeps its target and offers inspection in ${locale}`, async ({ page }, info) => {
     const en = locale === "en";
     await open(page, `?locale=${locale}&role=admin&fail=legacy-forward`);
     await page.locator('[data-message-id="m2"]').getByRole("button", { name: en ? /Actions for/ : /Tindakan pesan/ }).click();
     await page.getByRole("menuitem", { name: en ? "Forward" : "Teruskan", exact: true }).click();
-    await page.getByRole("combobox", { name: en ? "Destination channel" : "Kanal tujuan" }).click();
-    await page.getByRole("option", { name: "Matematika I", exact: true }).click();
-    await page.getByRole("combobox", { name: en ? "Destination question" : "Pertanyaan tujuan" }).click();
-    await page.getByRole("option", { name: "Cara membaca domain dari grafik fungsi", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: en ? "Forward message" : "Teruskan pesan" });
+    await dialog.getByRole("option", { name: /Cara membaca domain dari grafik fungsi/ }).click();
     await dialog.getByRole("button", { name: en ? "Forward" : "Teruskan", exact: true }).click();
     await expect(dialog.getByRole("alert")).toContainText(en ? "unknown" : "belum diketahui");
     await expect(dialog.getByRole("combobox", { name: en ? "Destination channel" : "Kanal tujuan" })).toBeDisabled();
@@ -1352,8 +1169,6 @@ for (const locale of ["id", "en"] as const) {
 for (const scenario of [
   { name: "id global", query: "?locale=id&question=study", locale: "id", audience: "Terlihat oleh murid, tutor, dan admin aktif.", policy: "Kanal ini memakai Free untuk akun murid: teks saja." },
   { name: "en course", query: "?locale=en&question=function", locale: "en", audience: "Visible to students with full access, assigned tutors, and authorized admins.", policy: "Free: text only. Image-enabled plans allow up to 4 images, prioritizing this message." },
-  { name: "id private requester", query: "?locale=id&question=private", locale: "id", audience: "Hanya Anda, semua tutor, dan admin.", policy: "Kanal ini memakai Free untuk akun murid: teks saja." },
-  { name: "en private staff", query: "?locale=en&role=admin&state=private-forward-search&question=private", locale: "en", audience: "Only the owner, course tutors, and admins.", policy: "Up to 4 images by plan; images in this message come first." },
   { name: "id new question", query: "?locale=id&state=course&question=none", locale: "id", audience: "Terlihat oleh murid dengan akses penuh, tutor pengampu, dan admin yang berwenang.", policy: "Free: teks saja. Jika paket mendukung gambar, maksimal 4; gambar pesan ini diutamakan.", modal: true },
   { name: "en new question", query: "?locale=en&question=none", locale: "en", audience: "Visible to active students, tutors, and admins.", policy: "This channel uses Free for student accounts: text only.", modal: true },
 ] as const) {
@@ -1373,7 +1188,7 @@ for (const scenario of [
     await expect(help.getByText(scenario.audience, { exact: true })).toBeVisible();
     await expect(help.getByText(scenario.policy, { exact: true })).toBeVisible();
     await expect(help.getByText(en ? /up to 5 earlier messages/ : /hingga 5 pesan sebelumnya/)).toBeVisible();
-    if (!scenario.name.includes("staff")) await expect(help.getByText(en ? "Uses 1 allowance turn." : "Memakai 1 giliran kuota.")).toBeVisible();
+    await expect(help.getByText(en ? "Uses 1 allowance turn." : "Memakai 1 giliran kuota.")).toBeVisible();
     await expectMenuGutter(page, help);
     await capture(page, info, "help-open");
     await page.keyboard.press("Escape");
@@ -1399,6 +1214,10 @@ test("compact discussion status sections and resolved pages", async ({ page }, i
   await capture(page, info, "resolved-collapsed");
   await toggle.click();
   await expect(page.locator('[data-question-status="resolved"]')).toHaveCount(20);
+  const asideBox = (await page.getByRole("complementary", { name: "Daftar pertanyaan" }).boundingBox())!;
+  const resolvedBox = (await page.locator("[data-discussion-resolved]").boundingBox())!;
+  expect(resolvedBox.y + resolvedBox.height).toBeCloseTo(asideBox.y + asideBox.height, 0);
+  expect(resolvedBox.height).toBeLessThanOrEqual(asideBox.height * 0.5 + 1);
   await page.locator('[data-question-status="resolved"]').first().scrollIntoViewIfNeeded();
   await capture(page, info, "resolved-first-page");
   await page.getByRole("button", { name: "Muat pertanyaan lainnya", exact: true }).last().click();
@@ -1408,6 +1227,23 @@ test("compact discussion status sections and resolved pages", async ({ page }, i
   await page.getByRole("textbox", { name: "Cari pertanyaan" }).fill("Pertanyaan selesai 35");
   await expect(page.locator('[data-question-status="resolved"]')).toHaveCount(1);
   await capture(page, info, "resolved-search");
+});
+
+test("own vs other chat bubbles and clickable author profile dialog", async ({ page }, info) => {
+  await open(page);
+  await expect(page.locator('[data-message-id="m1"]')).toHaveAttribute("data-own-message", "true");
+  await expect(page.locator('[data-message-id="m2"]')).not.toHaveAttribute("data-own-message", "true");
+  await page.getByRole("button", { name: "Lihat profil Raka Pratama", exact: true }).first().click();
+  const staffDialog = page.getByRole("dialog", { name: "Profil pengguna", exact: true });
+  await expect(staffDialog).toContainText("Raka Pratama");
+  await expect(staffDialog).toContainText("Anggota tim Zyx");
+  await capture(page, info, "discussion-author-profile-staff");
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Lihat profil Nadia Putri", exact: true }).first().click();
+  const studentDialog = page.getByRole("dialog", { name: "Profil siswa", exact: true });
+  await expect(studentDialog).toContainText("Nadia Putri");
+  await expect(studentDialog).toContainText("Matematika");
+  await capture(page, info, "discussion-author-profile-student");
 });
 
 test("compact discussion status resolution, reopening and deep link", async ({ page }, info) => {
@@ -1501,24 +1337,19 @@ test("compact discussion live composer and four image recovery", async ({ page }
   await expect(page.locator(".zyra-composer-math")).toHaveAttribute("aria-label", "x^2");
   const toolbar = page.locator("[data-discussion-toolbar]");
   const send = page.getByRole("button", { name: "Kirim jawaban", exact: true });
-  const options = toolbar.getByRole("button", { name: "Bantuan diskusi", exact: true });
   async function expectSendPlacement() {
     await expect(send).toHaveCount(1);
     await expect(send).toHaveText("");
     await expect(send.locator("svg")).toHaveCount(1);
     const toolbarBox = (await toolbar.boundingBox())!, sendBox = (await send.boundingBox())!;
-    const optionsBox = (await options.boundingBox())!, editorBox = (await page.locator("[data-editor-disabled]").boundingBox())!;
+    const editorBox = (await page.locator("[data-editor-disabled]").boundingBox())!;
     expect(toolbarBox.y + toolbarBox.height).toBeLessThanOrEqual(editorBox.y);
-    if (page.viewportSize()!.width === 380) {
-      expect(sendBox.y).toBeCloseTo(optionsBox.y, 0);
-      expect(sendBox.x).toBeGreaterThan(optionsBox.x + optionsBox.width);
-      expect(sendBox.x + sendBox.width).toBeCloseTo(editorBox.x + editorBox.width, 0);
-    } else {
-      expect(sendBox.x).toBeGreaterThanOrEqual(editorBox.x + editorBox.width);
-      expect(sendBox.y + sendBox.height / 2).toBeCloseTo(editorBox.y + editorBox.height / 2, 0);
-    }
+    expect(sendBox.x).toBeGreaterThanOrEqual(editorBox.x + editorBox.width);
+    expect(sendBox.y + sendBox.height / 2).toBeCloseTo(editorBox.y + editorBox.height / 2, 0);
   }
   await expectSendPlacement();
+  await page.getByRole("textbox", { name: "Tulis pesan" }).press("Tab");
+  await expect(send).toBeFocused();
   await capture(page, info, "composer-nonempty");
   const image = await readFile("public/visual-fixtures/discussion-problem.png");
   await page.locator('input[type="file"]').setInputFiles(["one.png", "two.png", "slow.png", "failed.png"].map(name => ({ name, mimeType: "image/png", buffer: image })));

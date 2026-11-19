@@ -41,9 +41,9 @@ test("history applies current batched course, private-channel, tutor and report 
   ...["channel-a", "channel-b", "private-tech", "private-academic"].map(id => ({ id: `tutor-${id}`, userId: "tutor", type: "discussion" as const, title: "Activity", body: "Activity", metadata: { channelId: id } })),
   { id: "admin-report", userId: "admin", type: "discussion", title: "Activity", body: "Activity", metadata: { channelId: "global", eventKind: "report" } },
  ]);
- expect((await visible("alice")).map(row => row.id)).toEqual(["alice-channel-a", "alice-global", "alice-private-tech"]);
- expect((await visible("alice", "admin")).map(row => row.id)).toEqual(["alice-channel-a", "alice-global", "alice-private-tech"]);
- expect((await visible("tutor")).map(row => row.id)).toEqual(["tutor-channel-a", "tutor-private-academic"]);
+ expect((await visible("alice")).map(row => row.id)).toEqual(["alice-channel-a", "alice-global"]);
+ expect((await visible("alice", "admin")).map(row => row.id)).toEqual(["alice-channel-a", "alice-global"]);
+ expect((await visible("tutor")).map(row => row.id)).toEqual(["tutor-channel-a"]);
  expect((await visible("admin")).map(row => row.id)).toEqual(["admin-report"]);
  expect(await visible("admin", "alice")).toEqual([]);
  await db.update(schema.penggunaPeran).set({ peranId: "student-role" }).where(eq(schema.penggunaPeran.id, "membership-admin"));

@@ -267,6 +267,7 @@ function HierarchyDocumentCard({
           {material.thumbnailUrl && failedThumbnail !== material.thumbnailUrl ? (
             <Image
               src={material.thumbnailUrl}
+              unoptimized
               alt=""
               onError={() => setFailedThumbnail(material.thumbnailUrl ?? null)}
               fill
@@ -663,6 +664,22 @@ export function CourseDocumentsClient({
 
   const [openSection, setOpenSection] = useState<string | null>(firstPopulatedSectionKey);
 
+  const categoryTabs = (
+    <Tabs value={activeTab} onValueChange={(value) => setUrlTab(normalizeTabKey(value))}>
+      <TabsList className="max-w-full justify-start" aria-label={t("documents.courseCategoryLabel")}>
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <TabsTrigger key={tab.key} value={tab.key}>
+              <Icon className="size-3.5 shrink-0" />
+              <span>{t(`documents.categories.${tab.label}`)}</span>
+            </TabsTrigger>
+          );
+        })}
+      </TabsList>
+    </Tabs>
+  );
+
   return (
     <div className="space-y-3 font-sans">
       {activeTab === "all" && accessTier === "free" && lockedMaterialCount > 0 ? (
@@ -675,39 +692,29 @@ export function CourseDocumentsClient({
           </Link>
         </div>
       ) : null}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Tabs value={activeTab} onValueChange={(value) => setUrlTab(normalizeTabKey(value))}>
-          <TabsList className="max-w-full justify-start" aria-label={t("documents.courseCategoryLabel")}>
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <TabsTrigger key={tab.key} value={tab.key}>
-                  <Icon className="size-3.5 shrink-0" />
-                  <span>{t(`documents.categories.${tab.label}`)}</span>
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
-        </Tabs>
-
-        {isAdmin ? (
-          <Button
-            type="button"
-            size="icon"
-            variant="default"
-            className="size-8 rounded-lg shrink-0 cursor-pointer shadow-xs"
-            onClick={() => setUploadOpen(true)}
-            aria-label={t("documents.uploadPdf")}
-            title={t("documents.uploadPdf")}
-          >
-            <Plus className="size-4" />
-          </Button>
-        ) : null}
-      </div>
 
       {activeTab === "all" ? (
-        materials.length > 0 ? (
-          <div className="overflow-hidden rounded-xl border border-border/55 bg-card">
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {categoryTabs}
+
+            {isAdmin ? (
+              <Button
+                type="button"
+                size="icon"
+                variant="default"
+                className="size-8 rounded-lg shrink-0 cursor-pointer shadow-xs"
+                onClick={() => setUploadOpen(true)}
+                aria-label={t("documents.uploadPdf")}
+                title={t("documents.uploadPdf")}
+              >
+                <Plus className="size-4" />
+              </Button>
+            ) : null}
+          </div>
+
+          {materials.length > 0 ? (
+          <div className="border-t border-border/60">
             {chapterGroups.map(({ chapter, materials: chapterMaterials }) => {
               const sectionKey = `chapter:${chapter.id}`;
               return (
@@ -790,27 +797,27 @@ export function CourseDocumentsClient({
             />
           </div>
         ) : (
-          <div className="flex flex-col items-center rounded-xl border border-dashed border-border/60 bg-muted/15 px-4 py-10 text-center">
+          <div className="flex flex-col items-center py-5 text-center">
             <FileText className="size-6 text-muted-foreground" aria-hidden />
             <h2 className="mt-3 font-heading text-body-sm font-bold">{t("documents.noCourseDocuments")}</h2>
             <p className="mt-1 text-body-xs text-muted-foreground">{t("documents.noCourseDocumentsDescription")}</p>
           </div>
-        )
+        )}
+        </>
       ) : (
-        <div className="[&_[data-slot=tabs-list]]:hidden">
-          <DocumentListClient
-            courseId={courseId}
-            courseSlug={courseSlug}
-            courseTitle={courseTitle}
-            materials={materials}
-            chapters={chapters}
-            defaultTab={activeTab}
-            accessTier={accessTier}
-            lockedMaterialCount={lockedMaterialCount}
-            forcePageNavigation={forcePageNavigation}
-            isAdmin={isAdmin}
-          />
-        </div>
+        <DocumentListClient
+          courseId={courseId}
+          courseSlug={courseSlug}
+          courseTitle={courseTitle}
+          materials={materials}
+          chapters={chapters}
+          defaultTab={activeTab}
+          accessTier={accessTier}
+          lockedMaterialCount={lockedMaterialCount}
+          forcePageNavigation={forcePageNavigation}
+          isAdmin={isAdmin}
+          tabsSlot={categoryTabs}
+        />
       )}
 
       {isAdmin ? (

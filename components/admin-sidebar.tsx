@@ -38,7 +38,6 @@ import {
   Trophy,
   MousePointerClick,
   Activity,
-  ArrowLeft,
   Layers,
   Calculator,
   Check,
@@ -145,12 +144,12 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
   { id: "gamification", label: "Gamification", href: "/admin/gamification", icon: Trophy, group: "akademik" },
   { id: "schedules", label: "Jadwal Umum", href: "/admin/schedules", icon: CalendarDays, group: "akademik" },
   { id: "bank-soal", label: "Bank Soal", href: "/admin/questions", icon: Library, group: "akademik" },
+  { id: "discussions", label: "Diskusi dan laporan", href: "/admin/discussions", icon: MessageSquareText, group: "akademik" },
 
   // Alat & Komunikasi
   { id: "pricing", label: "Kalkulator Harga", href: "/admin/pricing", icon: Calculator, group: "alat" },
   { id: "docs", label: "Dokumentasi", href: "/admin/docs", icon: BookOpen, group: "alat" },
   { id: "forms", label: "Form Studio", href: "/admin/forms", icon: FilePen, group: "alat" },
-  { id: "discussions", label: "Diskusi dan laporan", href: "/admin/discussions", icon: MessageSquareText, group: "alat" },
   { id: "meet", label: "Meet", href: "/admin/meet", icon: Video, group: "alat" },
   { id: "media", label: "Pustaka Media", href: "/admin/media", icon: ImageIcon, group: "alat" },
   { id: "tautan", label: "Tautan Publik", href: "/admin/tautan", icon: LinkIcon, group: "alat" },
@@ -461,25 +460,10 @@ function AdminSidebarInner() {
           className={cn(
             "flex flex-1 flex-col gap-1 py-3 font-sans text-left",
             c
-              ? "px-1 items-center overflow-y-hidden sidebar-scroll-hidden"
-              : "px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
+              ? "min-h-0 px-1 items-center overflow-y-auto overflow-x-hidden sidebar-scroll-hidden"
+              : "min-h-0 px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
           )}
         >
-          {/* Back link to /admin/courses */}
-          <SidebarTooltip label={t("allCourses")} collapsed={c}>
-            <Link
-              href="/admin/courses"
-              title={c ? t("allCourses") : undefined}
-              className={cn(
-                "flex items-center gap-2.5 rounded-xl px-3 py-2 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors mb-2",
-                c && "justify-center size-10 px-0 mx-auto"
-              )}
-            >
-              <ArrowLeft className="size-4 shrink-0" />
-              {!c && <span>{t("allCourses")}</span>}
-            </Link>
-          </SidebarTooltip>
-
           {c ? (
             <div className="mb-2 flex w-full justify-center">
               <DropdownMenu>
@@ -670,8 +654,8 @@ function AdminSidebarInner() {
         className={cn(
           "flex flex-1 flex-col gap-1 py-3 font-sans text-left",
           c
-            ? "px-1 items-center overflow-y-hidden sidebar-scroll-hidden"
-            : "px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
+            ? "min-h-0 px-1 items-center overflow-y-auto overflow-x-hidden sidebar-scroll-hidden"
+            : "min-h-0 px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
         )}
       >
         {/* Pinned Section */}

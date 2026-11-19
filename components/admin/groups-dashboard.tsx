@@ -17,8 +17,10 @@ import {
   Copy,
   Check,
   Percent,
+  MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AdminIconAction } from "@/components/admin/icon-action";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +32,13 @@ import { adminListRequestState, scheduleAdminListRequest } from "@/lib/admin/lis
 import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { SearchBar } from "@/components/ui/search-bar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -446,48 +455,47 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
           value={totalGroups}
           caption={translate("groupsUI.registeredGroups")}
           icon={Users}
-          tone="brand"
+          tone="default"
         />
         <AdminStatStripItem
           label={translate("groupsUI.activeGroups")}
           value={activeGroups}
           caption={translate("groupsUI.thisSemester")}
           icon={CheckCircle2}
-          tone="success"
+          tone="default"
         />
         <AdminStatStripItem
           label={translate("groupsUI.joinedStudents")}
           value={totalMembers}
           caption={translate("groupsUI.activeMembers")}
           icon={GraduationCap}
-          tone="info"
+          tone="default"
         />
         <AdminStatStripItem
           label={translate("groupsUI.quotaUsage")}
           value={`${avgQuotaUsed}%`}
           caption={translate("groupsUI.semesterAverage")}
           icon={Percent}
-          tone="warning"
+          tone="default"
         />
       </AdminStatStrip>
 
       {/* 2. Search, Filter, and Action Bar */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 max-sm:[&:has(>[data-search-expanded=true])>:not([data-search-expanded=true])]:hidden">
         {/* Search Input */}
-        <div className="flex-1 min-w-[140px]">
-          <SearchBar
-            size="sm"
-            isLoading={loading}
-            placeholder={translate("groupsUI.search")}
-            value={searchQuery}
-            onSearch={(value) => { setPage(1); setSearchQuery(value); }}
-            onClear={() => { setPage(1); setSearchQuery(""); }}
-          />
-        </div>
+        <SearchBar
+          collapsible
+          size="sm"
+          isLoading={loading}
+          placeholder={translate("groupsUI.search")}
+          value={searchQuery}
+          onSearch={(value) => { setPage(1); setSearchQuery(value); }}
+          onClear={() => { setPage(1); setSearchQuery(""); }}
+        />
 
         {/* Status Filter */}
         <Select value={statusFilter} onValueChange={(value) => { setPage(1); setStatusFilter(value); }}>
-          <SelectTrigger className="h-9 w-[130px] shrink-0 rounded-lg text-body-sm bg-card border-border">
+          <SelectTrigger variant="inline" aria-label={translate("groupsUI.status")} className="max-w-44 shrink-0">
             <SelectValue placeholder={translate("groupsUI.allStatus")} />
           </SelectTrigger>
           <SelectContent>
@@ -500,7 +508,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
 
         {/* Package Filter */}
         <Select value={packageFilter} onValueChange={(value) => { setPage(1); setPackageFilter(value); }}>
-          <SelectTrigger className="h-9 w-[140px] shrink-0 rounded-lg text-body-sm bg-card border-border">
+          <SelectTrigger variant="inline" aria-label={translate("groupsUI.tableGroupPackage")} className="max-w-44 shrink-0">
             <SelectValue placeholder={translate("groupsUI.allPackages")} />
           </SelectTrigger>
           <SelectContent>
@@ -514,7 +522,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
 
         {/* Course Filter */}
         <Select value={courseFilter} onValueChange={(value) => { setPage(1); setCourseFilter(value); }}>
-          <SelectTrigger className="h-9 w-[160px] sm:w-[180px] shrink-0 rounded-lg text-body-sm bg-card border-border truncate">
+          <SelectTrigger variant="inline" aria-label={translate("groupsUI.course")} className="max-w-44 shrink-0">
             <SelectValue placeholder={translate("groupsUI.allCourses")} />
           </SelectTrigger>
           <SelectContent>
@@ -545,23 +553,12 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
               <p>{translate("groupsUI.refresh")}</p>
             </TooltipContent>
           </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                onClick={handleOpenCreate}
-                className="size-9 shrink-0 rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 shadow-sm shadow-brand-primary/20"
-                aria-label={translate("groupsUI.createGroup")}
-              >
-                <Plus className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p>{translate("groupsUI.createGroup")}</p>
-            </TooltipContent>
-          </Tooltip>
         </TooltipProvider>
+
+        <AdminIconAction label={translate("groupsUI.createGroup")}
+          onClick={handleOpenCreate}>
+          <Plus className="size-4" />
+        </AdminIconAction>
       </div>
 
       {/* 3. Table of Study Groups */}
@@ -569,6 +566,102 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
         <AdminErrorState message={translate("groupsUI.systemError")} onRetry={refreshGroups} />
       ) : (
       <AdminTable className={stale ? "opacity-60" : undefined}>
+        <div className="md:hidden divide-y divide-border">
+          {filteredGroups.length === 0 ? (
+            <div className="px-4 py-10 text-center text-muted-foreground text-body-sm">
+              {stale ? translate("shortLinksUI.loading") : translate("groupsUI.noGroups")}
+            </div>
+          ) : (
+            filteredGroups.map((g) => {
+              const statusTone =
+                g.status === "active"
+                  ? "success"
+                  : g.status === "completed"
+                  ? "info"
+                  : g.status === "inactive"
+                  ? "warning"
+                  : "muted";
+              const statusText =
+                g.status === "active"
+                  ? translate("groupsUI.active")
+                  : g.status === "completed"
+                  ? translate("groupsUI.completed")
+                  : g.status === "inactive"
+                  ? translate("groupsUI.inactive")
+                  : translate("groupsUI.archived");
+              return (
+                <div key={g.id} className="flex items-start justify-between gap-2.5 px-3.5 py-3">
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        onClick={() => void handleOpenDetail(g)}
+                        disabled={stale}
+                        className="h-auto justify-start whitespace-normal px-0 py-0 font-heading font-bold text-foreground hover:text-primary text-left text-body-sm"
+                      >
+                        {g.name}
+                      </Button>
+                      <StatusBadge tone={statusTone}>{statusText}</StatusBadge>
+                    </div>
+                    <p className="text-body-xs text-muted-foreground">
+                      {g.packageName} · {g.academicYear} ({g.semester})
+                    </p>
+                    <p className="text-body-xs text-muted-foreground">
+                      <span className="font-semibold text-foreground">{g.usedQuotaSessions}/{g.totalQuotaSessions} {translate("groupsUI.sessions")}</span>
+                      {" · "}
+                      {translate("groupsUI.studentCount", { count: g.memberCount })}
+                    </p>
+                    {g.courses.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {g.courses.map((c) => (
+                          <span
+                            key={c.id}
+                            className="text-body-2xs font-medium bg-brand-primary/10 text-brand-primary border border-brand-primary/20 px-1.5 py-0.5 rounded-md"
+                          >
+                            {c.title}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={stale}
+                        aria-label={translate("groupsUI.actions")}
+                        className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
+                      >
+                        <MoreHorizontal className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuItem onSelect={() => void handleOpenDetail(g)}>
+                        <Eye className="size-4 text-muted-foreground" />
+                        <span>{translate("groupsUI.viewDetails")}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => handleOpenEdit(g)}>
+                        <Edit3 className="size-4 text-muted-foreground" />
+                        <span>{translate("groupsUI.editGroup")}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onSelect={() => setPendingDeleteGroup(g)}
+                        className="text-status-error focus:text-status-error"
+                      >
+                        <Trash2 className="size-4" />
+                        <span>{translate("groupsUI.deleteGroup")}</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              );
+            })
+          )}
+        </div>
+        <div className="hidden md:block overflow-x-auto">
         <table aria-busy={loading} className="w-full min-w-4xl text-left text-body-sm">
           <AdminTableHead>
             <tr>
@@ -643,7 +736,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
                         <div className="flex items-center gap-1.5 mt-0.5 text-body-xs text-muted-foreground">
                           <span>{g.packageName}</span>
                           <span>•</span>
-                          <span className="font-mono text-[11px] text-muted-foreground/80">
+                          <span className="font-mono text-body-xs text-muted-foreground/80">
                             {g.academicYear} ({g.semester})
                           </span>
                         </div>
@@ -657,7 +750,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
                           <span className="text-foreground">
                             {g.usedQuotaSessions} / {g.totalQuotaSessions} {translate("groupsUI.sessions")}
                           </span>
-                          <span className="text-muted-foreground text-[11px]">
+                          <span className="text-muted-foreground text-body-xs">
                             {g.remainingQuota} {translate("groupsUI.remaining")}
                           </span>
                         </div>
@@ -685,7 +778,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
                           g.courses.map((c) => (
                             <span
                               key={c.id}
-                              className="text-[10px] font-medium bg-brand-primary/10 text-brand-primary border border-brand-primary/20 px-2 py-0.5 rounded-md"
+                              className="text-body-2xs font-medium bg-brand-primary/10 text-brand-primary border border-brand-primary/20 px-2 py-0.5 rounded-md"
                             >
                               {c.title}
                             </span>
@@ -708,13 +801,13 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
                               <div
                                 key={m.userId}
                                 title={`${m.user.name} (${m.role})`}
-                                className="size-6 rounded-full bg-muted border-2 border-card flex items-center justify-center text-[10px] font-bold text-foreground shrink-0 uppercase"
+                                className="size-6 rounded-full bg-muted border-2 border-card flex items-center justify-center text-body-2xs font-bold text-foreground shrink-0 uppercase"
                               >
                                 {m.user.name.charAt(0)}
                               </div>
                             ))}
                             {g.memberCount > 4 && (
-                              <div className="size-6 rounded-full bg-muted/80 border-2 border-card flex items-center justify-center text-[9px] font-semibold text-muted-foreground shrink-0">
+                              <div className="size-6 rounded-full bg-muted/80 border-2 border-card flex items-center justify-center text-body-2xs font-semibold text-muted-foreground shrink-0">
                                 +{g.memberCount - 4}
                               </div>
                             )}
@@ -743,39 +836,38 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
                     </td>
 
                     {/* Aksi */}
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => void handleOpenDetail(g)}
-                          disabled={stale}
-                          className="h-8 w-8 p-0 rounded-md text-muted-foreground hover:text-foreground"
-                          title={translate("groupsUI.viewDetails")}
-                        >
-                          <Eye className="size-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => handleOpenEdit(g)}
-                          disabled={stale}
-                          className="h-8 w-8 p-0 rounded-md text-muted-foreground hover:text-foreground"
-                          title={translate("groupsUI.editGroup")}
-                        >
-                          <Edit3 className="size-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => setPendingDeleteGroup(g)}
-                          disabled={stale}
-                          className="h-8 w-8 p-0 rounded-md text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                          title={translate("groupsUI.deleteGroup")}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </div>
+                    <td className="px-4 py-3 text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            disabled={stale}
+                            aria-label={translate("groupsUI.actions")}
+                            className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
+                          >
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuItem onSelect={() => void handleOpenDetail(g)}>
+                            <Eye className="size-4 text-muted-foreground" />
+                            <span>{translate("groupsUI.viewDetails")}</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handleOpenEdit(g)}>
+                            <Edit3 className="size-4 text-muted-foreground" />
+                            <span>{translate("groupsUI.editGroup")}</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onSelect={() => setPendingDeleteGroup(g)}
+                            className="text-status-error focus:text-status-error"
+                          >
+                            <Trash2 className="size-4" />
+                            <span>{translate("groupsUI.deleteGroup")}</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </tr>
                 );
@@ -783,6 +875,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
             )}
           </tbody>
         </table>
+        </div>
       </AdminTable>
       )}
 
@@ -1282,16 +1375,16 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
                     </div>
                   ) : (
                     detailGroup.members.map((m) => (
-                      <div key={m.userId} className="flex items-center justify-between p-3 hover:bg-muted/20 transition-colors">
-                        <div className="flex items-center gap-3">
+                      <div key={m.userId} className="flex items-center justify-between gap-2 p-3 transition-colors hover:bg-muted/20">
+                        <div className="flex min-w-0 items-center gap-3">
                           <div className="size-8 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center font-bold text-body-xs shrink-0 uppercase">
                             {m.user.name.charAt(0)}
                           </div>
-                          <div>
-                            <p className="text-body-sm font-semibold text-foreground leading-tight">
+                          <div className="min-w-0">
+                            <p className="break-words text-body-sm font-semibold text-foreground leading-tight">
                               {m.user.name}
                             </p>
-                            <p className="text-[11px] text-muted-foreground">{m.user.email}</p>
+                            <p className="break-words text-body-xs text-muted-foreground">{m.user.email}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1335,20 +1428,20 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
                         return (
                           <div
                             key={u.id}
-                            className="flex items-center justify-between p-2.5 text-body-xs hover:bg-muted/30"
+                            className="flex items-center justify-between gap-2 p-2.5 text-body-sm hover:bg-muted/30"
                           >
-                            <div>
+                            <div className="min-w-0">
                               <p className="font-semibold text-foreground">{u.name}</p>
-                              <p className="text-[10px] text-muted-foreground">{u.email}</p>
+                              <p className="break-words text-body-xs text-muted-foreground">{u.email}</p>
                             </div>
                             {isAlready ? (
-                              <span className="text-[10px] text-muted-foreground font-medium">{translate("groupsUI.alreadyJoined")}</span>
+                              <span className="text-body-xs font-medium text-muted-foreground">{translate("groupsUI.alreadyJoined")}</span>
                             ) : (
                               <Button
                                 size="xs"
                                 disabled={addingMemberId === u.id}
                                 onClick={() => handleAddMemberToGroup(u)}
-                                className="h-7 rounded bg-brand-primary text-primary-foreground text-[11px] gap-1"
+                                className="h-8 gap-1 rounded bg-brand-primary text-primary-foreground"
                               >
                                 <UserPlus className="size-3" />
                                 {addingMemberId === u.id ? translate("groupsUI.adding") : translate("groupsUI.add")}

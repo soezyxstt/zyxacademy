@@ -139,9 +139,9 @@ export function DailyQuizPopup({
 
         {!submitted ? (
           <div className="mt-4">
-            <MarkdownRenderer content={trivia.question} className="text-body-base font-semibold text-foreground leading-relaxed" />
+            <MarkdownRenderer content={trivia.question} className="text-foreground" />
 
-            <ul className="mt-4 space-y-2">
+            <ul className="mt-5 space-y-2">
               {trivia.options.map((opt, idx) => {
                 const selected = selectedIdx === idx;
                 return (
@@ -152,7 +152,7 @@ export function DailyQuizPopup({
                         setSelectedIdx(idx);
                       }}
                       className={cn(
-                        "flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-body-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                        "flex min-h-11 w-full items-start gap-3 rounded-lg border px-3 py-3 text-left text-body-base transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                         selected
                           ? "border-brand-primary bg-brand-primary/10 ring-1 ring-brand-primary"
                           : "border-border bg-muted/20 hover:border-brand-primary/30 hover:bg-muted/40"
@@ -227,7 +227,7 @@ export function DailyQuizPopup({
                 <BookOpenCheck className="size-3.5" />
                 {t("course.dailyQuiz.explanation")}
               </h4>
-              <MarkdownRenderer content={trivia.explanation} density="compact" className="mt-2 text-body-xs text-muted-foreground leading-relaxed" />
+              <MarkdownRenderer content={trivia.explanation} density="compact" className="mt-2 text-muted-foreground" />
             </div>
 
             <div className="flex justify-end gap-2 pt-2">

@@ -186,7 +186,7 @@ export function QuizInsightDetailClient({
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4"><div className="space-y-2"><Skeleton className="h-7 w-56" /><Skeleton className="h-4 w-40" /></div><Skeleton className="h-9 w-40" /></div>
         <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-4">{[0, 1, 2, 3].map((i) => <div key={i} className="space-y-2 p-4"><Skeleton className="h-4 w-24" /><Skeleton className="h-6 w-16" /></div>)}</div>
         <Skeleton className="h-10 w-80 max-w-full" />
-        <div className="grid gap-4 md:grid-cols-2">{[0, 1].map((i) => <div key={i} className="space-y-3 rounded-xl border border-border bg-card p-4"><Skeleton className="h-5 w-40" /><Skeleton className="h-32 w-full" /></div>)}</div>
+        <div className="grid gap-4 md:grid-cols-2">{[0, 1].map((i) => <div key={i} className="space-y-3 border-b border-border pb-4"><Skeleton className="h-5 w-40" /><Skeleton className="h-32 w-full" /></div>)}</div>
       </div>
     );
   }
@@ -251,7 +251,7 @@ export function QuizInsightDetailClient({
             {analyzingAi ? (
               <RefreshCw className="size-4 animate-spin" />
             ) : (
-              <BrainCircuit className="size-4 text-amber-300" />
+              <BrainCircuit className="size-4" />
             )}
             <span>{analyzingAi ? tx("analyzing") : tx("runPerformanceAnalysis")}</span>
           </Button>
@@ -272,20 +272,17 @@ export function QuizInsightDetailClient({
           value={summary.totalCompleted}
           caption={tx("completionRateCaption", { rate: summary.completionRate, started: summary.totalStarted })}
           icon={Target}
-          iconClassName="text-brand-primary"
         />
         <AdminStatStripItem
           label={tx("averageScore")}
           value={`${summary.avgScore} / 100`}
           caption={tx("scoreRangeCaption", { median: summary.medianScore, min: summary.minScore, max: summary.maxScore })}
           icon={BarChart3}
-          iconClassName="text-status-info"
         />
         <AdminStatStripItem
           label={tx("averageTime")}
           value={formatDuration(summary.avgDurationSeconds)}
           icon={BookOpen}
-          iconClassName="text-brand-secondary"
         />
         <AdminStatStripItem
           label={tx("aiEvaluationStatus")}
@@ -301,7 +298,7 @@ export function QuizInsightDetailClient({
           }
           caption={latestAiInsight ? tx("basedOnAttempts", { count: latestAiInsight.sampleSize }) : undefined}
           icon={BrainCircuit}
-          iconClassName="text-status-warning"
+          iconClassName={latestAiInsight ? "text-status-success" : undefined}
         />
       </AdminStatStrip>
 
@@ -309,7 +306,7 @@ export function QuizInsightDetailClient({
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="ai-insights" className="gap-2">
-            <BrainCircuit className="size-4 text-brand-primary" />
+            <BrainCircuit className="size-4" />
             <span>{tx("aiEvaluation")}</span>
             <BetaBadge />
           </TabsTrigger>
@@ -322,7 +319,7 @@ export function QuizInsightDetailClient({
             <span>{tx("scoreDistribution")}</span>
           </TabsTrigger>
           <TabsTrigger value="attempts-sheet" className="gap-2">
-            <FileSpreadsheet className="size-4 text-brand-primary" />
+            <FileSpreadsheet className="size-4" />
             <span>{tx("studentAttempts")}</span>
           </TabsTrigger>
         </TabsList>
@@ -446,7 +443,7 @@ export function QuizInsightDetailClient({
 
         {/* Tab 2: Question Item & Distractor Analysis */}
         <TabsContent value="questions" className="space-y-4">
-          <div className="divide-y divide-border rounded-xl border border-border bg-card">
+          <div className="divide-y divide-border border-y border-border">
             {questionAnalysis.map((q, idx) => (
               <div key={q.questionId} className="p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">

@@ -12,11 +12,11 @@ export default function DashboardLoading() {
         <Skeleton className="h-8 w-48" />
         <Skeleton className="hidden sm:block h-9 w-32 rounded-xl" />
       </div>
-      <div className="grid gap-6 lg:grid-cols-12 w-full min-w-0">
-        <div className="space-y-6 lg:col-span-7 min-w-0">
+      <div className="grid gap-(--section-gap) lg:grid-cols-12 w-full min-w-0">
+        <div className="space-y-(--section-gap) lg:col-span-7 min-w-0">
           <DashboardPrimaryLearningSkeleton count={2} />
         </div>
-        <div className="space-y-6 lg:col-span-5 min-w-0">
+        <div className="space-y-(--section-gap) lg:col-span-5 min-w-0">
           <DashboardSectionSkeleton rows={3} />
           <DashboardSectionSkeleton rows={2} />
           <DashboardSectionSkeleton rows={2} />

@@ -1,17 +1,15 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTodayPlan } from "@/hooks/use-today-plan";
 import { StudentAccountBoundary } from "@/components/student-account-boundary";
-import { studentTodayQuery, type TodayData } from "@/lib/student/today-query";
+import type { TodayData } from "@/lib/student/today-query";
 import Link from "next/link";
 import { Layers, ListChecks, BookOpen, Check, ArrowRight, CalendarCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { StreakTag } from "@/components/dashboard/streak-tag";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
-import { useEffect, useRef } from "react";
 
 export type { TodayData } from "@/lib/student/today-query";
 type PlanItem = TodayData["items"][number];
@@ -32,51 +30,8 @@ export function TodayPlan({ firstName, serverUserId, adapter }: { firstName: str
 }
 
 function LiveTodayPlan({ firstName, userId }: { firstName: string; userId: string }) {
-  const options = studentTodayQuery(userId);
-  const query = useQuery(options);
-  const queryClient = useQueryClient();
-  const pending = useRef(new Map<string, AbortController>());
-  useEffect(() => {
-    const requests = pending.current;
-    return () => {
-      for (const controller of requests.values()) controller.abort();
-      requests.clear();
-    };
-  }, [userId]);
-  const complete = async (itemId: string) => {
-    if (pending.current.has(itemId)) return;
-    const controller = new AbortController();
-    pending.current.set(itemId, controller);
-    await queryClient.cancelQueries({ queryKey: options.queryKey, exact: true });
-    if (controller.signal.aborted) return;
-    const previousDone = queryClient.getQueryData<TodayData>(options.queryKey)?.items.find((item) => item.id === itemId)?.done;
-    queryClient.setQueryData<TodayData>(options.queryKey, (data) =>
-      data ? { ...data, items: data.items.map((item) => item.id === itemId ? { ...item, done: true } : item) } : data
-    );
-    try {
-      const response = await fetch("/api/student/today/complete", {
-        method: "POST",
-        body: JSON.stringify({ itemId }),
-        headers: { "Content-Type": "application/json", "x-student-id": userId },
-        signal: controller.signal,
-      });
-      if (!response.ok) throw new Error("Activity update failed");
-    } catch {
-      if (previousDone !== undefined) {
-        queryClient.setQueryData<TodayData>(options.queryKey, (data) =>
-          data ? { ...data, items: data.items.map((item) => item.id === itemId ? { ...item, done: previousDone } : item) } : data,
-        );
-      }
-    } finally {
-      pending.current.delete(itemId);
-      if (controller.signal.aborted) {
-        void queryClient.invalidateQueries({ queryKey: options.queryKey, exact: true, refetchType: "none" });
-      } else if (pending.current.size === 0) {
-        void queryClient.invalidateQueries({ queryKey: options.queryKey, exact: true });
-      }
-    }
-  };
-  return <TodayPlanView firstName={firstName} data={query.data ?? null} loading={query.isLoading} complete={complete} />;
+  const { data, loading, complete } = useTodayPlan(userId);
+  return <TodayPlanView firstName={firstName} data={data} loading={loading} complete={complete} />;
 }
 
 function TodayPlanView({ firstName, data, loading, complete }: { firstName: string; data: TodayData | null; loading: boolean; complete: (itemId: string) => void }) {
@@ -89,33 +44,31 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
 
 
   return (
-    <div className="mb-4 sm:mb-6">
+    <div className="mb-6">
       <PageHeader
         title={
           <>
             {t("dashboard.helloPrefix")}, <span className="text-primary">{firstName}</span>
           </>
         }
-        actions={
-          <div className="hidden sm:block">
-            {loading ? (
-              <div className="h-9 w-32 animate-pulse rounded-xl bg-muted" />
-            ) : (
-              <StreakTag current={data?.streak.current ?? 0} />
-            )}
-          </div>
-        }
       />
 
       {total > 0 && (
         <section className="mt-4 sm:mt-6">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
-            <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
-              <CalendarCheck className="size-4 text-brand-primary" />
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
+            <h2 className="flex items-center gap-2 font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <CalendarCheck className="size-3.5 shrink-0 text-muted-foreground" />
               {t("dashboard.studyPlan")}
             </h2>
             {!loading && (
-              <span className="rounded-md bg-brand-primary/10 px-2.5 py-0.5 text-body-xs font-semibold text-brand-primary shrink-0">
+              <span
+                className={cn(
+                  "rounded-md px-2 py-0.5 text-body-xs font-semibold tabular-nums shrink-0",
+                  allDone
+                    ? "bg-status-success/15 text-status-success"
+                    : "bg-muted/60 text-muted-foreground",
+                )}
+              >
                 {t("dashboard.completedCount", { done: doneCount, total })}
               </span>
             )}
@@ -131,7 +84,7 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
               ))}
             </div>
           ) : allDone ? (
-            <div className="rounded-xl border border-status-success/15 bg-status-success/5 p-4 py-4 text-center text-status-success">
+            <div className="py-3 text-body-sm text-status-success">
               <p className="text-body-sm font-semibold">{t("dashboard.allTargetsDone")}</p>
             </div>
           ) : (
@@ -141,7 +94,7 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
                 return (
                   <li
                     key={item.id}
-                    className="flex flex-wrap items-center gap-2 sm:gap-3 py-3 transition-colors"
+                    className="group flex flex-wrap items-center gap-2 sm:gap-3 py-3 px-2 -mx-2 rounded-lg transition-colors hover:bg-muted/40"
                   >
                     <button
                       type="button"
@@ -150,8 +103,8 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
                       className={cn(
                         "flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         item.done
-                          ? "border-brand-primary bg-brand-primary text-primary-foreground"
-                          : "border-border hover:border-brand-primary/60 hover:bg-brand-primary/5"
+                          ? "border-status-success bg-status-success text-primary-foreground"
+                          : "border-border/70 hover:border-foreground/40 hover:bg-muted/60"
                       )}
                     >
                       {item.done && <Check className="size-3" />}
@@ -160,8 +113,8 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
                     <div className={cn(
                       "flex size-8 shrink-0 items-center justify-center rounded-lg border",
                       item.done
-                        ? "border-border/30 bg-muted text-muted-foreground"
-                        : "border-brand-primary/10 bg-brand-primary/5 text-brand-primary"
+                        ? "border-border/30 bg-muted/50 text-muted-foreground"
+                        : "border-border/50 bg-background text-muted-foreground"
                     )}>
                       <Icon className="size-4 shrink-0" />
                     </div>
@@ -176,14 +129,14 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
                     </span>
 
                     {item.count != null && (
-                      <Badge variant="outline" className="shrink-0 rounded-md border-border/50 px-1.5 py-0.2 text-[10px]">
+                      <Badge variant="outline" className="shrink-0 rounded-md border-border/50 px-1.5 py-0.2 text-body-2xs text-muted-foreground">
                         {t("dashboard.cardsCount", { count: item.count })}
                       </Badge>
                     )}
 
-                    <Button variant="ghost" size="sm" asChild className="shrink-0 rounded-lg hover:bg-muted">
+                    <Button variant="ghost" size="sm" asChild className="shrink-0 rounded-lg hover:bg-muted/60">
                       <Link href={item.href} aria-label={t("dashboard.openItem", { title: item.title })}>
-                        <ArrowRight className="size-4 text-muted-foreground hover:text-foreground" />
+                        <ArrowRight className="size-4 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
                       </Link>
                     </Button>
                   </li>

@@ -20,17 +20,21 @@ describe("admin course reader mode contract", () => {
 
   test("gates every learner mutation in MaterialViewer", () => {
     const content = source("components/course/material-viewer.tsx");
-    expect(content).toContain('if (!learnerMode || demo) return;\n    updateMaterialProgress(material.id, "in_progress")');
-    expect(content).toContain('if (!learnerMode || demo) return;\n    let secondsSinceLastSave = 0');
+    const progress = source("hooks/use-material-reading-progress.ts");
+    expect(content).toContain("useMaterialReadingProgress({");
+    expect(progress).toContain("const enabled = learnerMode && !demo && Boolean(studentId) && currentAccount;");
+    expect(progress).toContain('if (!enabled || material.source !== "website_material") return;');
     expect(content).toContain('if (!learnerMode) return;\n    try {\n      const storedNotes');
-    expect(content).toContain('async function markDone() {\n    if (!learnerMode) return;');
+    expect(progress).toContain("if (!learnerMode || done || completingRef.current) return;");
     expect(content).toContain('learnerMode && accessTier !== "free" && ragEnabled && chapterId');
   });
 
   test("gates progress and Zyra paths in StructuredArticleReader", () => {
     const content = source("components/course/structured-article-reader.tsx");
-    expect(content).toContain('if (!learnerMode || adapter) return;\n      try {\n        const res = await fetch(`/api/student/articles/');
-    expect(content).toContain('if (!learnerMode || adapter) return;\n    activeTimeSpentRef.current = 0');
+    expect(content).toContain("enabled: learnerMode && !adapter");
+    const progress = source("hooks/use-article-reading-progress.ts");
+    expect(progress).toContain("const canSave = enabled && Boolean(studentId) && currentAccount;");
+    expect(progress).toContain("if (!canSave || !activeSectionId) return;");
     expect(content).toContain('if (!learnerMode || !selectionAskEnabled || !isMobileSelection || isTutorOpen) return;\n');
     expect(content).toContain('if (!learnerMode || !selectionAskEnabled || isMobileSelection) return;\n');
     expect(content).toContain("learnerMode && selectionAskEnabled && isMobileSelection && !isTutorOpen && isSelectionToolbarOpen && selectionContext");

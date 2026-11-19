@@ -48,7 +48,7 @@ export default async function TutorCourseVideosPage({ params }: Props) {
   if (!data) notFound();
 
   return (
-    <ApplicationPage spacing="space-y-6">
+    <ApplicationPage spacing="space-y-(--section-gap)">
       <PageHeader
         title={<><TranslatedText namespace="tutor" messageKey="routeTitles.videos" />: {data.course.title}</>}
         icon={VideoIcon}

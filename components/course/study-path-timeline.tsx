@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Check, ChevronDown, ChevronRight, CircleAlert, Lock, Play, TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -13,22 +13,10 @@ import { useTranslations } from "@/lib/i18n/client";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
 
-export interface StudyPathStep {
-  stepId: string;
-  ideaId: string | null;
-  chapterId: string;
-  chapterTitle: string;
-  chapterOrder: number;
-  conceptName: string;
-  status: "locked" | "available" | "in_progress" | "mastered";
-  actions: { moduleHref?: string; quizTemplateId?: string; flashcardCount?: number };
-  estimatedMinutes: number;
-  prerequisites: string[];
-  masteryScore?: number;
-  priorityReason: string;
-}
-
-interface StudyDayPlan { day: number; steps: StudyPathStep[]; totalMinutes: number }
+import { StudentAccountBoundary } from "@/components/student-account-boundary";
+import { useStudyPath, useLocalStudyPath, type StudyPathState } from "@/hooks/use-study-path";
+import type { StudyPathStep } from "@/lib/student/study-path-query";
+export type { StudyPathStep } from "@/lib/student/study-path-query";
 
 function primaryHref(step: StudyPathStep, courseId: string): string | null {
   if (step.actions.moduleHref) return step.actions.moduleHref;
@@ -74,7 +62,7 @@ function StepRow({ step, courseId }: { step: StudyPathStep; courseId: string }) 
   const content = (
     <div
       className={cn(
-        "flex items-center justify-between gap-3 px-4 py-3 transition-colors",
+        "flex items-center justify-between gap-3 py-3 transition-colors",
         href && !isLocked && "group/step",
         isLocked || !href
           ? "bg-muted/15"
@@ -112,42 +100,28 @@ function StepRow({ step, courseId }: { step: StudyPathStep; courseId: string }) 
 }
 
 export function StudyPathTimeline({ courseId, initialSteps }: { courseId: string; initialSteps?: StudyPathStep[] }) {
+  if (initialSteps) return <LocalStudyPath key={courseId} courseId={courseId} steps={initialSteps} />;
+  return <StudentAccountBoundary>{({ data }) => data?.user.id
+    ? <LiveStudyPath key={`${data.user.id}:${courseId}`} courseId={courseId} userId={data.user.id} />
+    : <CourseStudyPathSkeleton />}</StudentAccountBoundary>;
+}
+
+function LocalStudyPath({ courseId, steps }: { courseId: string; steps: StudyPathStep[] }) {
+  const state = useLocalStudyPath(steps);
+  return <StudyPathView courseId={courseId} state={state} />;
+}
+
+function LiveStudyPath({ userId, courseId }: { userId: string; courseId: string }) {
+  const state = useStudyPath(userId, courseId);
+  return <StudyPathView courseId={courseId} state={state} />;
+}
+
+function StudyPathView({ courseId, state }: { courseId: string; state: StudyPathState }) {
   const experience = useStudentExperience();
   const href = (path: string) => experience.href?.(path) ?? path;
   const t = useTranslations("studentCourse");
-  const [steps, setSteps] = useState<StudyPathStep[]>([]);
-  const [dayPlan, setDayPlan] = useState<StudyDayPlan[] | null>(null);
   const [daysInput, setDaysInput] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [planning, setPlanning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchStudyPath = useCallback(async (days?: number) => {
-    const planningRequest = typeof days === "number";
-    if (planningRequest) setPlanning(true); else setLoading(true);
-    setError(null);
-    try {
-      if (initialSteps) {
-        setSteps(initialSteps);
-        setDayPlan(planningRequest ? Array.from({ length: Math.min(days!, initialSteps.length) }, (_, index) => {
-          const dailySteps = initialSteps.filter((_, stepIndex) => stepIndex % days! === index);
-          return { day: index + 1, steps: dailySteps, totalMinutes: dailySteps.reduce((total, step) => total + step.estimatedMinutes, 0) };
-        }) : null);
-        return;
-      }
-      const response = await fetch(`/api/student/study-path?courseId=${courseId}${planningRequest ? `&days=${days}` : ""}`);
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(t("course.studyPath.loadFailed"));
-      setSteps(data.steps ?? []);
-      setDayPlan(data.dayPlan ?? null);
-    } catch {
-      setError(t("course.studyPath.connectionError"));
-    } finally {
-      setLoading(false); setPlanning(false);
-    }
-  }, [courseId, t, initialSteps]);
-
-  useEffect(() => { void fetchStudyPath(); }, [fetchStudyPath]);
+  const { steps, dayPlan, loading, planning, error } = state;
   const groups = useMemo(() => {
     const map = new Map<string, { title: string; order: number; steps: StudyPathStep[] }>();
     for (const step of steps) {
@@ -159,8 +133,8 @@ export function StudyPathTimeline({ courseId, initialSteps }: { courseId: string
   const nextStep = steps.find((step) => step.status === "in_progress") ?? steps.find((step) => step.status === "available");
 
   if (loading) return <CourseStudyPathSkeleton />;
-  if (error) return <div className="flex items-center gap-3 rounded-lg border border-status-error/20 bg-status-error/5 p-4 text-status-error"><TriangleAlert className="size-4" /><span className="flex-1 text-body-sm">{error}</span><Button variant="ghost" size="sm" onClick={() => void fetchStudyPath()}>{t("course.studyPath.retry")}</Button></div>;
-  if (steps.length === 0) return <div className="rounded-lg border border-dashed border-border p-8 text-center"><CircleAlert className="mx-auto size-5 text-muted-foreground" /><p className="mt-2 text-body-sm text-muted-foreground">{t("course.studyPath.empty")}</p></div>;
+  if (error) return <div className="flex items-center gap-3 rounded-lg border border-status-error/20 bg-status-error/5 p-4 text-status-error"><TriangleAlert className="size-4" /><span className="flex-1 text-body-sm">{t("course.studyPath.connectionError")}</span><Button variant="ghost" size="sm" onClick={state.retry}>{t("course.studyPath.retry")}</Button></div>;
+  if (steps.length === 0) return <div className="flex items-center gap-2 py-3"><CircleAlert className="size-5 shrink-0 text-muted-foreground" /><p className="text-body-sm text-muted-foreground">{t("course.studyPath.empty")}</p></div>;
 
   return (
     <div className="space-y-4">
@@ -168,15 +142,15 @@ export function StudyPathTimeline({ courseId, initialSteps }: { courseId: string
         <label htmlFor="study-path-days" className="text-body-sm text-muted-foreground">{t("course.studyPath.targetDuration")}</label>
         <Input id="study-path-days" type="number" min={1} max={60} value={daysInput} onChange={(event) => setDaysInput(event.target.value)} placeholder="7" className="h-9 w-16 rounded-md border border-input bg-background px-2 text-body-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
         <span className="text-body-sm text-muted-foreground">{t("course.studyPath.days")}</span>
-        <Button type="button" size="sm" variant="outline" className="rounded-md" disabled={planning || !daysInput} onClick={() => { const days = Number.parseInt(daysInput, 10); if (days > 0) void fetchStudyPath(days); }}>{planning ? t("course.studyPath.planning") : t("course.studyPath.createPlan")}</Button>
-        {dayPlan ? <Button type="button" size="sm" variant="ghost" className="rounded-md" onClick={() => setDayPlan(null)}>{t("course.studyPath.viewRoadmap")}</Button> : null}
+        <Button type="button" size="sm" variant="outline" className="rounded-md" disabled={planning || !daysInput} onClick={() => { const days = Number.parseInt(daysInput, 10); if (days > 0) state.plan(days); }}>{planning ? t("course.studyPath.planning") : t("course.studyPath.createPlan")}</Button>
+        {dayPlan ? <Button type="button" size="sm" variant="ghost" className="rounded-md" onClick={state.showRoadmap}>{t("course.studyPath.viewRoadmap")}</Button> : null}
       </div>
 
       {dayPlan ? (
-        <div className="divide-y divide-border/60 rounded-xl border border-border/70 bg-card overflow-hidden shadow-2xs">
+        <div className="divide-y divide-border/60">
           {dayPlan.map((day, index) => (
             <Collapsible key={day.day} defaultOpen={index === 0}>
-              <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left text-body-sm font-semibold hover:bg-muted/30 transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
+              <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between gap-3 py-3 text-left text-body-sm font-semibold hover:bg-muted/30 transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
                 <span>{t("course.studyPath.day", { count: day.day })}</span>
                 <span className="flex items-center gap-2 text-body-xs font-normal text-muted-foreground">
                   {t("course.studyPath.minutes", { count: day.totalMinutes })}
@@ -194,7 +168,7 @@ export function StudyPathTimeline({ courseId, initialSteps }: { courseId: string
       ) : (
         <>
           {nextStep ? (
-            <section className="grid gap-3 rounded-xl border border-brand-primary/25 bg-brand-primary/5 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center shadow-xs">
+            <section className="grid gap-3 border-l-2 border-brand-primary bg-brand-primary/5 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
               <div>
                 <p className="text-body-xs font-semibold text-brand-primary">{t("course.studyPath.continueLearning")}</p>
                 <h2 className="mt-1 font-heading text-body-base font-bold text-foreground">
@@ -213,12 +187,12 @@ export function StudyPathTimeline({ courseId, initialSteps }: { courseId: string
               ) : null}
             </section>
           ) : (
-            <div className="flex items-center gap-2 rounded-xl border border-status-success/20 bg-status-success/5 p-4 text-body-sm text-status-success">
+            <div className="flex items-center gap-2 py-3 text-body-sm text-status-success">
               <Check className="size-4" />{t("course.studyPath.allMastered")}
             </div>
           )}
 
-          <div className="space-y-3">
+          <div className="divide-y divide-border/60 border-y border-border/60">
             {groups.map(([chapterId, group], groupIdx) => {
               const active = group.steps.filter((step) => step.status !== "mastered" && step.status !== "locked");
               const locked = group.steps.filter((step) => step.status === "locked");
@@ -227,8 +201,8 @@ export function StudyPathTimeline({ courseId, initialSteps }: { courseId: string
               const defaultOpen = hasNextStep || (groupIdx === 0 && !nextStep);
 
               return (
-                <Collapsible key={chapterId} defaultOpen={defaultOpen} className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-2xs">
-                  <CollapsibleTrigger className="group flex w-full cursor-pointer flex-wrap items-center justify-between gap-3 px-4 py-3 text-left select-none hover:bg-muted/30 transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
+                <Collapsible key={chapterId} defaultOpen={defaultOpen}>
+                  <CollapsibleTrigger className="group flex w-full cursor-pointer flex-wrap items-center justify-between gap-3 py-3 text-left select-none hover:bg-muted/30 transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
                       <h2 className="font-heading text-body-sm font-bold break-words">Bab {group.order}: {group.title}</h2>

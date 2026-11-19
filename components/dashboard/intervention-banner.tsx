@@ -1,39 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
-
-interface Intervention {
-  id: string;
-  studentId: string;
-  courseId: string;
-  conceptName: string;
-  reason: string;
-  status: "active" | "dismissed" | "resolved";
-  payload: {
-    moduleHref: string;
-    quizTemplateIds: string[];
-    flashcardCount: number;
-  };
-  createdAt: string;
-}
+import { useQueryAccountId } from "@/hooks/use-query-account";
+import { dismissInterventionMutation, studentInterventionsQuery } from "@/lib/student/interventions-query";
 
 export function InterventionBanner() {
+  const userId = useQueryAccountId();
+  return userId ? <AccountInterventionBanner key={userId} userId={userId} /> : null;
+}
+
+function AccountInterventionBanner({ userId }: { userId: string }) {
   const t = useTranslations("student");
-  const [interventions, setInterventions] = useState<Intervention[]>([]);
+  const client = useQueryClient();
+  const query = useQuery(studentInterventionsQuery(userId));
+  const mutation = useMutation(dismissInterventionMutation(client, userId));
+  const interventions = query.isError ? [] : query.data ?? [];
   const [isExiting, setIsExiting] = useState(false);
   const [removed, setRemoved] = useState(false);
+  const dismissTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  useEffect(() => {
-    fetch("/api/student/interventions")
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => setInterventions(data))
-      .catch(() => {});
-  }, []);
+  useEffect(() => () => clearTimeout(dismissTimer.current), []);
 
   if (removed || interventions.length === 0) {
     return null;
@@ -43,18 +35,14 @@ export function InterventionBanner() {
   const active = interventions[0];
   const { conceptName, reason, payload, courseId, id } = active;
 
-  const dismiss = async () => {
-    setIsExiting(true);
-    try {
-      await fetch(`/api/student/interventions/${id}/dismiss`, {
-        method: "POST",
-      });
-      setTimeout(() => {
-        setRemoved(true);
-      }, 200);
-    } catch {
-      setIsExiting(false);
-    }
+  const dismiss = () => {
+    if (mutation.isPending || isExiting) return;
+    mutation.mutate(id, {
+      onSuccess: () => {
+        setIsExiting(true);
+        dismissTimer.current = setTimeout(() => setRemoved(true), 200);
+      },
+    });
   };
 
   // Links resolution
@@ -90,25 +78,30 @@ export function InterventionBanner() {
       </div>
 
       {/* Row 2 */}
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap gap-4 text-body-sm text-primary">
-          <Link href={reviewModuleHref} className="hover:underline font-medium">
-            {t("dashboard.intervention.readMaterial")}
-          </Link>
-          <Link href={practiceQuizHref} className="hover:underline font-medium">
-            {t("dashboard.intervention.practiceQuiz")}
-          </Link>
-          <Link href={flashcardHref} className="hover:underline font-medium">
-            {t("dashboard.intervention.flashcards", { count: payload.flashcardCount })}
-          </Link>
-          
+      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" asChild className="h-8 rounded-lg bg-background/80 text-body-sm">
+            <Link href={reviewModuleHref}>
+              {t("dashboard.intervention.readMaterial")}
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild className="h-8 rounded-lg bg-background/80 text-body-sm">
+            <Link href={practiceQuizHref}>
+              {t("dashboard.intervention.practiceQuiz")}
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild className="h-8 rounded-lg bg-background/80 text-body-sm">
+            <Link href={flashcardHref}>
+              {t("dashboard.intervention.flashcards", { count: payload.flashcardCount })}
+            </Link>
+          </Button>
+
           {extraCount > 0 && (
-            <span className="text-body-sm text-muted-foreground">
-              +
-              <Link href={`/courses/${courseId}`} className="hover:underline font-medium text-muted-foreground ml-0.5">
-                {t("dashboard.intervention.more", { count: extraCount })}
+            <Button variant="ghost" size="sm" asChild className="h-8 rounded-lg text-body-sm text-muted-foreground">
+              <Link href={`/courses/${courseId}`}>
+                +{t("dashboard.intervention.more", { count: extraCount })}
               </Link>
-            </span>
+            </Button>
           )}
         </div>
 
@@ -117,11 +110,14 @@ export function InterventionBanner() {
           variant="ghost"
           size="sm"
           onClick={dismiss}
+          disabled={mutation.isPending || isExiting}
+          aria-busy={mutation.isPending}
           className="text-body-sm text-muted-foreground hover:text-foreground h-8 px-2 rounded-md"
         >
           {t("dashboard.intervention.dismiss")}
         </Button>
       </div>
+      {mutation.isError && <p role="alert" className="mt-2 text-body-sm text-status-error">{t("dashboard.intervention.dismissFailed")}</p>}
     </div>
   );
 }

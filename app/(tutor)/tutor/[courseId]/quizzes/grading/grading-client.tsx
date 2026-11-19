@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "@/lib/i18n/client";
 import {
@@ -8,14 +8,15 @@ import {
   CheckCircle2,
   FileText,
   User,
-  Search,
   CheckSquare,
   Clock,
   Loader2,
   Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
+import { SearchBar } from "@/components/ui/search-bar";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { AdminEmptyState } from "@/components/admin/state-panels";
@@ -78,13 +79,14 @@ interface AttemptDetails {
 
 interface Props {
   courseId: string;
+  queueHeader?: ReactNode;
   pendingAttempts: PendingAttemptItem[];
 }
 
 /**
  * Interactive client component for tutors to review, inspect attachments, and grade pending student quiz attempts.
  */
-export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
+export function TutorQuizGradingClient({ courseId, pendingAttempts, queueHeader }: Props) {
   const router = useRouter();
   const tr = useTranslations("tutor.grading");
   const [isPending, startTransition] = useTransition();
@@ -227,52 +229,34 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
   // Active Review Workspace
   if (activeAttempt) {
     return (
-      <div className="space-y-6 font-sans">
-        <div className="flex flex-col gap-3 border-b border-border pb-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setActiveAttempt(null)}
-              className="rounded-md border-border/80 text-body-sm"
-            >
-              <ArrowLeft className="mr-1.5 size-4" />
-              {tr("backToQueue")}
-            </Button>
-            <div className="min-w-0">
-              <h2 className="font-heading text-body-base font-bold text-foreground">
-                {tr("reviewTitle", { quiz: activeAttempt.quizTitle })}
-              </h2>
-              <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-body-xs text-muted-foreground">
-                <User className="size-3" />
-                <span>{activeAttempt.studentName} ({activeAttempt.studentEmail})</span>
-                <Clock className="size-3" />
-                <span>
-                  {tr("submitted")} <FormattedDate date={activeAttempt.submittedAt} options={{ dateStyle: "medium", timeStyle: "short" }} />
-                </span>
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 lg:shrink-0">
-            <Button
-              variant="default"
-              size="sm"
-              disabled={isPending}
-              onClick={() => handleSave(true)}
-              className="rounded-md text-body-sm font-semibold"
-            >
-              {isPending ? (
-                <Loader2 className="mr-1.5 size-4 animate-spin" />
-              ) : (
-                <CheckCircle2 className="mr-1.5 size-4" />
-              )}
-              {tr("finishGrading")}
-            </Button>
+      <div className="space-y-(--section-gap) font-sans">
+        <div className="flex min-w-0 items-center gap-2 border-b border-border pb-4">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button type="button" size="icon-lg" variant="ghost" aria-label={tr("backToQueue")} onClick={() => setActiveAttempt(null)}>
+                  <ArrowLeft aria-hidden />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{tr("backToQueue")}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <div className="min-w-0">
+            <h1 className="break-words font-heading text-body-base font-bold text-foreground">
+              {tr("reviewTitle", { quiz: activeAttempt.quizTitle })}
+            </h1>
+            <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-body-xs text-muted-foreground">
+              <User className="size-3" />
+              <span className="min-w-0 [overflow-wrap:anywhere]">{activeAttempt.studentName} ({activeAttempt.studentEmail})</span>
+              <Clock className="size-3" />
+              <span>
+                {tr("submitted")} <FormattedDate date={activeAttempt.submittedAt} options={{ dateStyle: "medium", timeStyle: "short" }} />
+              </span>
+            </p>
           </div>
         </div>
 
-        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+        <div className="divide-y divide-border border-y border-border">
           {activeAttempt.questions.map((q) => {
             const input = gradeInputs[q.id];
             const typeLabel =
@@ -285,7 +269,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
             return (
               <div
                 key={q.id}
-                className="p-4 space-y-3"
+                className="space-y-(--compact-gap) py-(--row-padding)"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -325,12 +309,10 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                   )}
                 </div>
 
-                <div className="text-body-sm text-foreground">
-                  <MarkdownRenderer content={q.prompt} />
-                </div>
+                <MarkdownRenderer content={q.prompt} />
 
                 {q.acceptableAnswers && q.acceptableAnswers.length > 0 && (
-                  <div className="text-body-xs text-muted-foreground">
+                  <div className="text-body-base text-muted-foreground">
                     <span className="font-semibold text-foreground">{tr("referenceAnswer")} </span>
                     {q.acceptableAnswers.join(", ")}
                   </div>
@@ -340,7 +322,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                   <span className="text-body-xs font-semibold text-muted-foreground">
                     {tr("studentAnswer")}
                   </span>
-                  <div className="text-body-sm text-foreground bg-background p-3 rounded-md border border-border min-h-[48px] whitespace-pre-wrap">
+                  <div className="border-l-2 border-border pl-3 text-body-base text-foreground whitespace-pre-wrap">
                     {q.submittedText ? (
                       <MathText>{q.submittedText}</MathText>
                     ) : (
@@ -351,32 +333,34 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
 
                 {/* R2 uploaded attachment if present */}
                 {q.fileName && (
-                  <div className="flex items-center justify-between gap-3 rounded-lg border border-border/80 bg-card p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-(--compact-gap) border-t border-border p-3">
                     <div className="flex min-w-0 items-center gap-2.5">
                       <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-status-success/10 text-status-success">
                         <FileText className="size-4" />
                       </span>
                       <div className="min-w-0">
                         <p className="max-w-[200px] truncate text-body-xs font-bold text-foreground md:max-w-xs">{q.fileName}</p>
-                        <p className="text-body-2xs text-muted-foreground">{q.fileSize || tr("pdfImage")} • {tr("cloudStorage")}</p>
+                        <p className="text-body-xs text-muted-foreground">{q.fileSize || tr("pdfImage")} • {tr("cloudStorage")}</p>
                       </div>
                     </div>
                     {q.fileKey ? (
-                      <Button
-                        variant="outline"
-                        size="xs"
-                        asChild
-                        className="gap-1 rounded-md border-border/80 text-muted-foreground hover:text-foreground"
-                      >
-                        <a
-                          href={`/api/storage/file/${q.fileKey.split("/").map(encodeURIComponent).join("/")}?download=1`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <Download className="size-3.5" />
-                          {tr("downloadFile")}
-                        </a>
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="outline" size="icon-lg" asChild>
+                              <a
+                                href={`/api/storage/file/${q.fileKey.split("/").map(encodeURIComponent).join("/")}?download=1`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={tr("downloadFile")}
+                              >
+                                <Download aria-hidden />
+                              </a>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>{tr("downloadFile")}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     ) : (
                       <span className="shrink-0 text-body-xs italic text-muted-foreground">
                         {tr("fileUnavailable")}
@@ -386,7 +370,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                 )}
 
                 {q.isFreeResponse && input && (
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-3 border-t border-border/60">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-(--related-gap) pt-3 border-t border-border/60">
                     <div className="space-y-1.5">
                       <label htmlFor={`score-${q.id}`} className="text-body-sm font-semibold text-foreground">
                         {tr("score")} {q.isEssay ? <span className="text-destructive">*</span> : null}
@@ -421,27 +405,41 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
             );
           })}
         </div>
+        <div className="sticky bottom-0 z-10 flex justify-end border-t border-border bg-background py-2">
+          <Button
+            variant="default"
+            size="sm"
+            disabled={isPending}
+            onClick={() => handleSave(true)}
+            className="rounded-md text-body-sm font-semibold"
+          >
+            {isPending ? (
+              <Loader2 className="mr-1.5 size-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="mr-1.5 size-4" />
+            )}
+            {tr("finishGrading")}
+          </Button>
+        </div>
       </div>
     );
   }
 
   // Queue View
   return (
-    <div className="space-y-6 font-sans">
+    <div className="space-y-(--section-gap) font-sans">
+      {queueHeader}
       {/* Search and filters toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 flex-1 max-w-md min-w-[140px]">
-          <div className="relative w-full">
-            <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder={tr("searchPlaceholder")}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 text-body-sm rounded-md h-9"
-            />
-          </div>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 max-sm:[&:has(>[data-search-expanded=true])>:not([data-search-expanded=true])]:hidden">
+        <SearchBar
+          collapsible
+          size="sm"
+          aria-label={tr("searchPlaceholder")}
+          placeholder={tr("searchPlaceholder")}
+          value={searchQuery}
+          onSearch={setSearchQuery}
+          containerClassName="max-w-md"
+        />
 
         <div className="flex items-center gap-2 text-body-xs text-muted-foreground">
           <span>{tr("showingQueue", { count: filteredAttempts.length })}</span>
@@ -449,24 +447,24 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
       </div>
 
       {filteredAttempts.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card">
+        <div className="border-t border-border">
           <AdminEmptyState
             icon={CheckSquare}
-            title={tr("noPendingQuiz")}
-            description={tr("noPendingEssay")}
+            title={tr(searchQuery.trim() ? "noMatchingQuizAttempts" : "noPendingQuiz")}
+            description={searchQuery.trim() ? undefined : tr("noPendingEssay")}
           />
         </div>
       ) : (
-        <div className="rounded-xl border border-border overflow-hidden bg-card shadow-xs">
+        <div className="border-y border-border">
           <div className="divide-y divide-border">
             {filteredAttempts.map((item) => {
               const isLoadingThis = loadingAttemptId === item.id;
               return (
                 <div
                   key={item.id}
-                  className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/30 transition-colors"
+                  className="flex items-center justify-between gap-2 py-3 hover:bg-muted/30 transition-colors"
                 >
-                  <div className="space-y-1">
+                  <div className="min-w-0 space-y-1 break-words">
                     <div className="flex flex-wrap items-center gap-2">
                       <h4 className="font-heading text-body-sm font-bold text-foreground">
                         {item.quizTitle}
@@ -475,10 +473,10 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                         {tr("essaysRemaining", { count: item.remainingEssayCount })}
                       </Badge>
                     </div>
-                    <div className="text-body-xs text-muted-foreground flex flex-wrap items-center gap-3">
-                      <span className="flex items-center gap-1">
-                        <User className="size-3" />
-                        {item.studentName ?? tr("studentFallback")} ({item.studentEmail})
+                    <div className="text-body-xs text-muted-foreground flex flex-wrap items-center gap-(--compact-gap)">
+                      <span className="inline-flex min-w-0 items-center gap-1">
+                        <User className="size-3 shrink-0" aria-hidden />
+                        <span className="min-w-0 [overflow-wrap:anywhere]">{item.studentName ?? tr("studentFallback")} ({item.studentEmail})</span>
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="size-3" />
@@ -494,7 +492,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                       size="sm"
                       disabled={isLoadingThis}
                       onClick={() => handleSelectAttempt(item.id)}
-                      className="rounded-md text-body-sm font-semibold"
+                      className="h-auto min-h-9 max-w-28 whitespace-normal rounded-md py-1.5 text-body-sm font-semibold sm:max-w-none"
                     >
                       {isLoadingThis ? (
                         <Loader2 className="mr-1.5 size-4 animate-spin" />

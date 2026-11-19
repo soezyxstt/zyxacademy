@@ -21,13 +21,13 @@ export default async function FeedbackPage() {
   const userEmail = session?.user?.email;
 
   return (
-    <ApplicationPage>
+    <ApplicationPage spacing="space-y-(--compact-gap)">
       <PageHeader
         title={<TranslatedText namespace="student" messageKey="feedback.title" />}
         icon={MessageSquareHeart}
       />
 
-      <Reveal className="mt-4">
+      <Reveal>
         <FeedbackForm initialEmail={userEmail} />
       </Reveal>
     </ApplicationPage>

@@ -65,8 +65,17 @@ test("bounded mention writes and visibility with 10,000 empty private channels",
     ('core-owner-role', 'core-owner', 'core-student-role', 'test'),
     ('core-tutor-link', 'core-tutor', 'core-tutor-role', 'test'),
     ('core-admin-link', 'core-admin', 'core-admin-role', 'test');
-   INSERT INTO discussion_channels (id, kind, title, requester_id) VALUES
-    ('core-private', 'academic', 'Private', 'core-owner'), ('core-empty', 'technical', 'Empty', 'core-owner');
+   INSERT INTO courses (id, title, category)
+    VALUES ('core-legacy', 'Core legacy', 'Matematika'), ('core-other-legacy', 'Other legacy', 'Fisika');
+   INSERT INTO mata_kuliah (id, code, title, legacy_course_id, pricing_category)
+    VALUES ('core-course', 'CORE', 'Core course', 'core-legacy', 'free'), ('core-other-course', 'OTHER', 'Other course', 'core-other-legacy', 'free');
+   INSERT INTO enrollments (id, user_id, course_id, expires_at)
+    VALUES ('core-enroll', 'core-owner', 'core-legacy', '2099-01-01'), ('core-other-enroll', 'core-owner', 'core-other-legacy', '2099-01-01');
+   INSERT INTO penugasan_tutor (id, pengguna_id, mata_kuliah_id, status, assignment_scope)
+    VALUES ('core-tutor-assign', 'core-tutor', 'core-course', 'active', 'course');
+   INSERT INTO discussion_channels (id, kind, title, course_id, legacy_course_id) VALUES
+    ('core-private', 'course', 'Course', 'core-course', 'core-legacy'),
+    ('core-empty', 'course', 'Empty', 'core-other-course', 'core-other-legacy');
    INSERT INTO discussion_threads (id, channel_id, author_id, title, next_seq, answer_count)
     VALUES ('core-thread', 'core-private', 'core-owner', 'Question', 3, 1);
    INSERT INTO discussion_messages (id, thread_id, author_id, kind, message_type, body, seq, request_id) VALUES
@@ -152,7 +161,9 @@ test("bounded mention writes and visibility with 10,000 empty private channels",
   assert.equal(after.reports.queries, before.reports.queries);
   assert.ok(after.reports.channelVisits <= before.reports.channelVisits + 20);
   const picker = await access.getDiscussionChannelVisibility("core-admin", { scope: eq(schema.discussionChannels.id, "core-empty-academic-1"), includeRepairable: true });
-  assert.deepEqual(await db.select({ id: schema.discussionChannels.id }).from(schema.discussionChannels).where(picker.predicate), [{ id: "core-empty-academic-1" }]);
+  assert.deepEqual(await db.select({ id: schema.discussionChannels.id }).from(schema.discussionChannels).where(picker.predicate), []);
+  const coursePicker = await access.getDiscussionChannelVisibility("core-admin", { scope: eq(schema.discussionChannels.id, "core-private"), includeRepairable: true });
+  assert.deepEqual(await db.select({ id: schema.discussionChannels.id }).from(schema.discussionChannels).where(coursePicker.predicate), [{ id: "core-private" }]);
 
   await client.exec(`
    INSERT INTO mata_kuliah (id, code, title, pricing_category)
@@ -169,7 +180,7 @@ test("bounded mention writes and visibility with 10,000 empty private channels",
    const scopedHistory = await measure(async () => db.select({ id: schema.notifications.id }).from(schema.notifications)
     .where(and(eq(schema.notifications.userId, "core-owner"), await notificationVisibility("core-owner", "core-owner", options))));
    notificationScopes.push({ options, queries: scopedHistory.queries, scopeRows: scopedHistory.scopeRows, channelVisits: scopedHistory.channelVisits });
-   assert.equal(scopedHistory.scopeRows, 1);
+   assert.equal(scopedHistory.scopeRows, "unreadOnly" in options ? 2 : 1);
    assert.ok(scopedHistory.channelVisits <= 10, `scoped history visited ${scopedHistory.channelVisits} channels`);
   }
 

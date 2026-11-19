@@ -18,6 +18,7 @@ test("question query draft, filter, clear and history on active tab", async ({ p
     await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, animations: "disabled" });
   };
   await capture("default");
+  await page.getByRole("button", { name: /Cari isi soal|Search question text, tags/ }).click();
   await search.pressSequentially("integral", { delay: 10 });
   await expect(search).toHaveValue("integral");
   await expect(search).toBeFocused();
@@ -77,6 +78,7 @@ test("historical reference question pagination, filter popover, detail view, emp
     await page.getByRole("button", { name: /Tutup detail|Hide details/ }).first().click();
   }
 
+  await page.getByRole("button", { name: /Cari isi soal.*sumber|Search question text.*source/ }).click();
   await search.pressSequentially("kalkulus", { delay: 10 });
   await expect(search).toHaveValue("kalkulus");
   await expect(search).toBeFocused();

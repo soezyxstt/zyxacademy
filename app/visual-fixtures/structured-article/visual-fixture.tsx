@@ -247,7 +247,7 @@ export function StructuredArticleVisualFixture({ mode, catalogueTitle = false, e
     ...buildPublicArticleReadModel({ ...sourceArticle, title: "Matematika I Bab 3: Fungsi dan Limit, Grafik, dan Kekontinuan" }, [], [], [], { id: "bab-2", title: "Fungsi dan Limit", number: 2 }),
     sections: sourceArticle.sections,
   } : sourceArticle);
-  if (mode === "student") return <TutorProvider><StructuredArticleReader article={catalogueArticle} course={{ id: "matematika-1", title: "Matematika I" }} /></TutorProvider>;
+  if (mode === "student") return <TutorProvider><StructuredArticleReader article={catalogueArticle} studentId="visual-student" course={{ id: "matematika-1", title: "Matematika I" }} /></TutorProvider>;
   return (
     <TutorProvider>
       <main

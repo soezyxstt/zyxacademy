@@ -14,7 +14,7 @@ export function StudentCourseProgressRow({ href, category, title, doneCount, tot
                               <div className="min-w-0 flex-1">
                                 {/* Category Badge + Title */}
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <span className="inline-flex rounded-md bg-brand-primary/10 px-2 py-0.5 text-[10px] font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20 shrink-0">
+                                  <span className="inline-flex rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-2xs font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20 shrink-0">
                                     {category}
                                   </span>
                                   <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors break-words min-w-0">

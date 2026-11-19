@@ -103,7 +103,7 @@ export default function PlansClient() {
           <div className="flex flex-wrap items-center justify-center gap-2 md:justify-end">
             <div
               aria-label={t("plans.peopleLabel")}
-              className="flex items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-1.5 py-1 dark:bg-card"
+              className="flex items-center gap-1"
             >
                 <span className="px-1 text-body-xs font-semibold text-muted-foreground">
                   {t("plans.group")}
@@ -135,7 +135,7 @@ export default function PlansClient() {
 
             <div
               aria-label={t("plans.coursesLabel")}
-              className="flex items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-1.5 py-1 dark:bg-card"
+              className="flex items-center gap-1"
             >
                 <span className="px-1 text-body-xs font-semibold text-muted-foreground">
                   {t("plans.courseShort")}
@@ -187,7 +187,7 @@ export default function PlansClient() {
         <CollapsibleContent>
           <div
             id="plans-subjects-panel"
-            className="relative z-20 w-full border-b border-border bg-card p-4 shadow-inner"
+            className="relative z-20 w-full border-b border-border bg-card py-4"
           >
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between mb-3">
@@ -330,24 +330,15 @@ export default function PlansClient() {
               return (
                 <article
                   key={tier.key}
-                  className={
-                    tier.highlighted
-                      ? "relative flex flex-col rounded-xl border border-primary bg-card p-5 md:p-6"
-                      : "relative flex flex-col rounded-xl border border-border bg-card p-5 md:p-6"
-                  }
+                  className={`flex min-w-0 flex-col border-t py-4 ${tier.highlighted ? "border-primary" : "border-border"}`}
                 >
-                  {tier.highlighted ? (
-                    <Badge className="absolute -top-3 left-5 bg-[var(--zx-accent)] font-semibold text-black-1 shadow-xs hover:bg-[var(--zx-accent)]">
-                      {t("pricing.recommended")}
-                    </Badge>
-                  ) : null}
-
                   <div className="flex-1">
-                    <h3 className="text-body-base font-heading font-bold text-card-foreground">
-                      {tierName}
-                    </h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-heading text-body-base font-bold text-foreground">{tierName}</h3>
+                      {tier.highlighted ? <Badge>{t("pricing.recommended")}</Badge> : null}
+                    </div>
                     
-                    <p className="mt-2 min-h-[32px] text-body-xs text-muted-foreground">
+                    <p className="mt-2 text-body-xs md:min-h-8 text-muted-foreground">
                       {t(`pricing.tiers.${tier.key}.note`)}
                     </p>
 
@@ -373,7 +364,7 @@ export default function PlansClient() {
                     </ul>}
                   </div>
 
-                  <div className="mt-8">
+                  <div className="mt-4">
                     {planAction ? (
                       <Button
                         asChild

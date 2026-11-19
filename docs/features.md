@@ -28,6 +28,8 @@ Pembahasan soal supports separately authored optional starting hints, independen
 
 Course access categories are separate from academic disciplines. Admins can configure Free, Limited Time Free, or Premium. Limited offers use Jakarta wall time and include the start instant but exclude the end. Active free courses grant full learning content without creating an enrollment or changing AI quota; existing paid enrollment retains access after an offer ends. Student search checks current publication and chapter access, and flashcard recommendations use current course eligibility. Apply the additive PostgreSQL migration before deploying code that reads these columns.
 
+Four recovered GLB companions are now integrated in draft source with the existing LP cosmetic shop and profile avatar slot. The existing ten procedural characters remain available. Selected previews offer seven shared actions; small views use matching head posters. Clothing/prop assets are included for the next pass, while their purchase/equip behavior remains open. The [mascot draft handoff](handoffs/mascot-glb-shop-draft.md) records the pending guarded staging seed, build and browser checks. This is not hosted acceptance.
+
 ## What It Is
 
 Zyx Academy is an AI-powered learning management platform. It takes expert teaching documents, breaks them into atomic concepts, and uses that structure to power personalized learning paths, adaptive flashcards, quizzes, PDF study guides, and one-on-one tutoring.
@@ -263,7 +265,7 @@ The [revision contract](bundle/authoring-revisions.md) describes MCP editing for
 
 1. `/dashboard`, `/courses`, course detail, search, material lists, mastery, Concept Explorer, study path, flashcards, leaderboard course selection, and profile enrollment read `mata_kuliah`, `bab`, `pendaftaran_murid`, and published Product Bundle tables first.
 2. Published Article and Diktat content is visible immediately after publication. Structured Article section progress uses `kemajuan_baca_artikel`; canonical flashcard scheduling uses `kemajuan_flashcard_murid` and append-only `review_flashcard` rows.
-3. Article, Diktat, flashcard, and canonical assessment activity records attributable Idea evidence and updates `pemahaman_ide`. Student mastery and study paths use published Ideas and active Idea relations first.
+3. Article, Diktat, flashcard, and canonical assessment activity records attributable Idea evidence and updates `pemahaman_ide`. Student mastery and study paths use published Ideas and active Idea relations first. Course Mastery highlights one assessed topic, qualifies early results, and groups topic scores by chapter. Unassessed topics stay available in a separate disclosure.
 4. Quiz and tryout templates, attempt snapshots, submissions, original PDFs, and historical generated materials remain compatibility readers. Their course identity is resolved through `legacyCourseId`, so they do not replace or duplicate a canonical course.
 5. The old `/murid` preview route redirects to `/dashboard`; there is one primary student experience.
 
@@ -354,8 +356,14 @@ The standalone Admin material editor is retired. Existing website material remai
 - Google Meet review session scheduling
 - Admin broadcast announcements
 
+### Account preferences
+
+The account menu opens `/settings` for students, tutors, and admins. The Appearance tab groups color mode, background, interface language, spacing, font size, animation, and on-screen alert position. Language follows the signed-in account. Display choices are saved in the current browser. Spacing and font size apply on the Student and Tutor surfaces, including the public student demo. Reduced-motion system preferences still apply.
+
+The Profile tab reuses the authenticated profile editor, including student-only privacy and cosmetics where eligible. `/profile` opens the profile view. Existing links to `/profile/edit` also open the editor.
+
 ### Email Notification Preferences
-- Authenticated users manage optional email at `/settings/notifications` using their Google account email.
+- Authenticated users manage optional email at `/settings?tab=email` using their Google account email. `/settings/notifications` remains available for direct links.
 - One master control covers four global categories: course updates, events and schedules, learning reminders, and news and offers.
 - Essential account, security, payment, and enrollment emails remain mandatory and are outside the optional preference system.
 - Optional email delivery always uses one shared sender and fails closed if preferences cannot be loaded.

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { discussionViewerState } from "./discussion-adapter";
 import type { ComposerDraft } from "./composer";
 import type { DiscussionDraftState } from "./discussion-workspace";
-import type { DiscussionChannel as UiChannel, DiscussionForwardDraft, DiscussionPrivateKind } from "./view-model";
+import type { DiscussionChannel as UiChannel, DiscussionForwardDraft } from "./view-model";
 
 export function useRetainedDiscussionDrafts(invalidated: { current: boolean }) {
   const [drafts, setDraftsRaw] = useState<Record<string, ComposerDraft>>({});
@@ -32,10 +32,7 @@ export function useRetainedDiscussionDrafts(invalidated: { current: boolean }) {
     });
   }, [invalidated]);
   const [newOpen, setNewOpen] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
   const [newChannel, setNewChannel] = useState<UiChannel | null>(null);
-  const [newHelpKind, setNewHelpKind] = useState<Exclude<DiscussionPrivateKind, "academic">>("operations");
-  const [newAudience, setNewAudience] = useState<"together" | "academic" | "technical">("together");
   const discard = useCallback(() => {
     if (purged.current) return;
     purged.current = true;
@@ -43,7 +40,7 @@ export function useRetainedDiscussionDrafts(invalidated: { current: boolean }) {
     draftsRef.current = {};
     setDraftsRaw({});
     setForwardDraftsRaw({});
-    setNewOpen(false); setNewTitle(""); setNewChannel(null); setNewHelpKind("operations"); setNewAudience("together");
+    setNewOpen(false); setNewChannel(null);
   }, []);
   useEffect(() => {
     disposed.current = false;
@@ -60,15 +57,12 @@ export function useRetainedDiscussionDrafts(invalidated: { current: boolean }) {
     drafts: [drafts, setDrafts],
     forwardDrafts: [forwardDrafts, setForwardDrafts],
     newOpen: [newOpen, setNewOpen],
-    newTitle: [newTitle, setNewTitle],
     newChannel: [newChannel, setNewChannel],
-    newHelpKind: [newHelpKind, setNewHelpKind],
-    newAudience: [newAudience, setNewAudience],
   };
   return { state, discard };
 }
 
-export function DiscussionSessionGuard(props: { viewerId: string; sessionId?: string; pending: boolean; children: (state: DiscussionDraftState) => ReactNode }) {
+export function DiscussionSessionGuard(props: { viewerId: string; sessionId?: string; pending: boolean; loadingFallback?: ReactNode; children: (state: DiscussionDraftState) => ReactNode }) {
   const t = useTranslations("discussions");
   const { sessionId, pending: isPending } = props;
   const router = useRouter();
@@ -83,7 +77,7 @@ export function DiscussionSessionGuard(props: { viewerId: string; sessionId?: st
     discard();
   }, [changedAccount, discard]);
   const state = changedAccount ? "changed" : isPending ? "loading" : discussionViewerState(props.viewerId, sessionId, false);
-  if (state === "loading") return <p role="status">{t("viewerLoading")}</p>;
+  if (state === "loading") return props.loadingFallback ?? <p role="status">{t("viewerLoading")}</p>;
   if (!changedAccount && !sessionId) return <div role="alert" className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/40 p-4 text-body-sm"><span>{t("viewerExpired")}</span><Button asChild variant="outline" size="sm"><a href="/sign-in" target="_blank" rel="noopener noreferrer">{t("signInAgain")}</a></Button></div>;
   if (state === "changed") return <div role="alert" className="flex flex-wrap items-center gap-2 text-body-sm">{t("viewerChanged")}<Button type="button" variant="outline" size="sm" onClick={() => router.refresh()}>{t("reload")}</Button></div>;
   return props.children(retainedState);

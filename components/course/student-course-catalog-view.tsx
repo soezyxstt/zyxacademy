@@ -3,7 +3,7 @@ import { BookOpen, MessageCircle } from "lucide-react";
 import { ApplicationPage } from "@/components/application-page";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { studentCardClass } from "@/components/course/course-surfaces";
+import { studentSectionClass } from "@/components/course/course-surfaces";
 import { CourseCatalogClient, type CourseGroup } from "@/app/(student)/courses/course-catalog-client";
 import { TranslatedText } from "@/components/i18n/translated-text";
 
@@ -40,7 +40,7 @@ export function StudentCourseCatalogView({ groups, studentTargetCategory, whatsa
           studentTargetCategory={studentTargetCategory}
         />
       ) : (
-        <div className={studentCardClass("py-12 text-center max-w-md mx-auto")}>
+        <div className={studentSectionClass("py-12 text-center max-w-md mx-auto")}>
           <BookOpen className="mx-auto size-10 text-muted-foreground/40 mb-3" />
           <h2 className="font-heading text-body-base font-bold text-foreground">
             <TranslatedText namespace="learning" messageKey="catalog.emptyTitle" />

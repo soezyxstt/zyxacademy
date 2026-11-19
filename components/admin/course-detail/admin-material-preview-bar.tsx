@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BookOpenCheck, Pencil, Trash2 } from "lucide-react";
+import { BookOpenCheck, Pencil, Trash2 } from "lucide-react";
 import { deleteCourseMaterial } from "@/app/(admin)/admin/(academic)/courses/actions";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { Button } from "@/components/ui/button";
@@ -44,12 +44,6 @@ export function AdminMaterialPreviewBar({ source, materialId, courseSlug, title 
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 border-b border-border bg-card px-3 py-2">
-        <Button asChild variant="ghost" size="sm" className="text-body-sm">
-          <Link href={documentsHref}>
-            <ArrowLeft className="size-4" />
-            {t("documents.previewBar.backToDocuments")}
-          </Link>
-        </Button>
         <span className="min-w-[140px] flex-1 break-words text-body-xs text-muted-foreground">{t("documents.previewBar.title", { title })}</span>
         <Button asChild variant="outline" size="sm" className="text-body-sm">
           <Link href={editHref}>

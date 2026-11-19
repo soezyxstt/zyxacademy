@@ -6,7 +6,7 @@ import { Lightbulb, Lock } from "lucide-react";
 import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { CourseConceptExplorerSkeleton } from "@/components/course/course-skeletons";
-import { studentCardClass } from "@/components/course/course-surfaces";
+import { studentSectionClass } from "@/components/course/course-surfaces";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { Badge } from "@/components/ui/badge";
@@ -74,7 +74,7 @@ async function ConceptExplorerContent({
   if (!data) {
     return (
       <Reveal>
-        <div className={studentCardClass()}>
+        <div className={studentSectionClass()}>
           <div className="flex items-start gap-3">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
               <Lock className="size-5" />
@@ -95,11 +95,11 @@ async function ConceptExplorerContent({
   const typesPresent = TYPE_ORDER.filter((t) => data.kosByType[t as keyof typeof data.kosByType]?.length);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-(--reading-section-gap)">
       {/* Mastery + prerequisite/related summary */}
       <Reveal>
-        <div className={studentCardClass("space-y-4")}>
-          <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className={studentSectionClass("space-y-(--related-gap)")}>
+          <div className="flex items-center justify-between gap-(--related-gap) flex-wrap">
             <h2 className="text-body-base font-heading font-semibold text-foreground"><MathText as="span">{data.conceptName}</MathText></h2>
             {typeof data.masteryScore === "number" && (
               <div className="flex items-center gap-2">
@@ -146,7 +146,7 @@ async function ConceptExplorerContent({
               <h2 id={`${type}-heading`} className="text-body-base font-semibold mb-3">
                 {TYPE_LABELS[type] ? <TranslatedText namespace="learning" messageKey={`conceptPage.types.${TYPE_LABELS[type]}`} /> : type}
               </h2>
-              <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card">
+              <div className="divide-y divide-border/60">
                 {items.map((ko) => (
                   <div key={ko.id} className="p-4">
                     <h3 className="text-body-base font-semibold text-foreground mb-2"><MathText as="span">{ko.title}</MathText></h3>

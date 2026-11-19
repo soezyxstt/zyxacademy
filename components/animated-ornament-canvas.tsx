@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useAppearancePreferences, useAppReducedMotion } from "@/components/appearance-preferences";
 import { cn } from "@/lib/utils";
 
 export type AnimatedOrnamentVariant = "wave-network" | "constellation" | "orbit";
@@ -28,11 +29,14 @@ export function AnimatedOrnamentCanvas({
   lineOpacity = 0.08,
   tone = "dark",
 }: AnimatedOrnamentCanvasProps) {
+  const { preferences } = useAppearancePreferences();
+  const reducedMotion = useAppReducedMotion();
+  const solidBackground = preferences.background === "solid";
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvasElement = canvasRef.current;
-    if (!canvasElement) return;
+    if (!canvasElement || solidBackground) return;
 
     const ctx = canvasElement.getContext("2d") as CanvasRenderingContext2D;
 
@@ -43,7 +47,6 @@ export function AnimatedOrnamentCanvas({
     const baseColor = tone === "light" ? "42,60,106" : "255,255,255";
 
     const particles: Array<{ x: number; y: number; vx: number; vy: number; r: number; alpha: number }> = [];
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     function resize() {
       const rect = canvasElement!.getBoundingClientRect();
@@ -151,22 +154,19 @@ export function AnimatedOrnamentCanvas({
         }
       }
 
-      raf = window.requestAnimationFrame(draw);
+      if (!reducedMotion) raf = window.requestAnimationFrame(draw);
     }
 
     resize();
     initParticles();
 
-    if (!reducedMotion) {
-      raf = window.requestAnimationFrame(draw);
-    } else {
-      draw();
-      window.cancelAnimationFrame(raf);
-    }
+    if (reducedMotion) draw();
+    else raf = window.requestAnimationFrame(draw);
 
     const onResize = () => {
       resize();
       initParticles();
+      if (reducedMotion) draw();
     };
 
     window.addEventListener("resize", onResize);
@@ -174,7 +174,7 @@ export function AnimatedOrnamentCanvas({
       window.removeEventListener("resize", onResize);
       window.cancelAnimationFrame(raf);
     };
-  }, [lineOpacity, particleCount, particleOpacity, symbolSet, tone, variant, waveOpacity]);
+  }, [lineOpacity, particleCount, particleOpacity, reducedMotion, solidBackground, symbolSet, tone, variant, waveOpacity]);
 
-  return <canvas ref={canvasRef} className={cn("pointer-events-none absolute inset-0 z-0 h-full w-full", className)} aria-hidden />;
+  return <canvas data-page-ornaments ref={canvasRef} className={cn("pointer-events-none absolute inset-0 z-0 h-full w-full", className)} aria-hidden />;
 }

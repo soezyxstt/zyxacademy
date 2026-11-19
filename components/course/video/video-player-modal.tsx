@@ -158,7 +158,7 @@ export function VideoPlayerModal({
         </div>
 
         {/* Video Info and Controls Bar (Scrollable internal area) */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-3 font-sans">
+        <div className="flex-1 min-h-0 overflow-y-auto p-(--panel-padding) space-y-3 font-sans">
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1.5 min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
@@ -175,7 +175,7 @@ export function VideoPlayerModal({
                 {youtubeId && (
                   <Badge
                     variant="outline"
-                    className="rounded-md text-[10px] text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/50 gap-1"
+                    className="rounded-md text-body-xs text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/50 gap-1"
                   >
                     <FaYoutube className="size-3" />
                     <span>YouTube</span>

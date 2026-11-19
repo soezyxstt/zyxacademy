@@ -10,6 +10,7 @@ export function MarketingHeroLoops({ id }: MarketingHeroLoopsProps) {
 
   return (
     <svg
+      data-page-ornaments
       className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.18]"
       aria-hidden
       xmlns="http://www.w3.org/2000/svg"

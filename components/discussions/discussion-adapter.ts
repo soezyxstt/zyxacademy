@@ -32,14 +32,6 @@ export async function searchDiscussionChannels(actions: Pick<Actions, "listChann
   return { ...page, items: page.items.map(toUiChannel) };
 }
 
-export async function prepareDiscussionTeamChannel(actions: Pick<Actions, "ensureTeamChannel" | "getChannelsByIds">, team: "academic" | "technical", courseId?: string) {
-  const prepared = await actions.ensureTeamChannel(team, courseId);
-  const channels = await actions.getChannelsByIds([prepared.id]);
-  const channel = channels.find((item) => item.id === prepared.id && item.kind === team && item.courseId === (courseId ?? null));
-  if (!channel) throw new Error("Discussion channel unavailable");
-  return toUiChannel(channel);
-}
-
 export function discussionPrivateQuestionHref(pathname: string, channelId: string, threadId: string) {
   const base = pathname.startsWith("/tutor/") ? "/tutor/discussions" : "/dashboard/discussions";
   return `${base}?${new URLSearchParams({ channel: channelId, thread: threadId })}`;
@@ -85,8 +77,8 @@ export function toUiChannel(channel: DiscussionChannel): UiChannel {
 }
 
 export function canSuggestForwardChannel(source: UiChannel, target: UiChannel) {
-  if (source.kind === "private") return source.id === target.id;
-  if (source.kind === "global") return target.kind !== "private";
+  if (source.kind === "private" || target.kind === "private") return false;
+  if (source.kind === "global") return true;
   return target.kind === "course" && (target.id === source.id || (!!source.courseId && target.courseId === source.courseId));
 }
 
@@ -245,7 +237,7 @@ export function toQuestion(item: DiscussionThread, channels: DiscussionChannel[]
   const source = channels.find((channel) => channel.id === item.channelId);
   const allowed = source?.kind === "global" ? channels.filter((channel) => channel.kind === "global" || channel.kind === "course")
     : source?.kind === "course" ? channels.filter((channel) => channel.kind === "course" && (channel.id === source.id || (source.courseId !== null && channel.courseId === source.courseId)))
-    : source ? [source] : [];
+    : [];
   return { id: item.id, channelId: item.channelId, title: item.title,
     status: item.status === "resolved" ? "resolved" : item.answerCount ? "answered" : "open",
     helpKind: item.helpKind,

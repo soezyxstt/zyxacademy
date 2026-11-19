@@ -114,11 +114,11 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   }, [isOpen]);
   const [appearance, setAppearance] = React.useState<{skinId: string | null; avatarId: string | null}>({skinId: null, avatarId: null});
   React.useEffect(() => {
-    if (!isOpen || experience.mode === "demo" || !realPathname?.startsWith("/courses/")) return;
+    if (experience.mode === "demo" || !realPathname?.startsWith("/courses/")) return;
     let active = true;
     void getMyZyraAppearance().then(value => { if (active) setAppearance(value); }).catch(() => {});
     return () => { active = false; };
-  }, [isOpen, experience.mode, realPathname]);
+  }, [experience.mode, realPathname]);
   const [activeMode, setActiveMode] = React.useState<TutorMode>(null);
   const [suppressPet, setSuppressPet] = React.useState(false);
 
@@ -221,7 +221,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
           !isOpen &&
           (caps.pet ? (
             <div className="contents" onPointerEnter={preloadTutorDrawer} onPointerDownCapture={preloadTutorDrawer} onFocusCapture={preloadTutorDrawer}>
-              <ZyraFloatingPet state="idle" onOpen={openChat} />
+              <ZyraFloatingPet cosmeticId={appearance.avatarId} state="idle" onOpen={openChat} />
             </div>
           ) : (
             <button

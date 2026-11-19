@@ -74,9 +74,12 @@ function identity(id: string, role: string, status = "active") {
 }
 function channel(plain: Row) { return { ...record("discussionChannels", plain), plain }; }
 
-test("batched access preserves private scope, roles, enrollment and assignment revocation", async () => {
+test("batched access preserves course scope, roles, enrollment and assignment revocation", async () => {
  const data: Record<string, Row[]> = {
-  discussionChannels: [channel({ id: "academic", kind: "academic", courseId: "canonical", legacyCourseId: "legacy", requesterId: "alice" })],
+  discussionChannels: [
+   channel({ id: "course", kind: "course", courseId: "canonical", legacyCourseId: "legacy", requesterId: null }),
+   channel({ id: "academic", kind: "academic", courseId: "canonical", legacyCourseId: "legacy", requesterId: "alice" }),
+  ],
   pengguna: [identity("alice", "murid"), identity("bob", "murid"), identity("tutor", "tutor"), identity("admin", "admin"), identity("suspended", "admin", "suspended")],
   mataKuliah: [record("mataKuliah", { id: "canonical", legacyCourseId: "legacy", status: "active", pricingCategory: "premium", freeStartsAt: null, freeEndsAt: null })],
   courses: [record("courses", { id: "legacy" })],
@@ -86,11 +89,12 @@ test("batched access preserves private scope, roles, enrollment and assignment r
  };
  const { access } = harness(data);
  const ids = ["alice", "bob", "tutor", "admin", "suspended"];
- expect([...await access("academic", ids)].map(([id]) => id).sort()).toEqual(["admin", "alice"]);
- data.penugasanTutor = [];
- expect([...await access("academic", ids)].map(([id]) => id).sort()).toEqual(["admin", "alice", "tutor"]);
- data.mataKuliah.push(record("mataKuliah", { id: "other", legacyCourseId: "legacy", status: "active" }));
  expect((await access("academic", ids)).size).toBe(0);
+ expect([...await access("course", ids)].map(([id]) => id).sort()).toEqual(["admin", "alice"]);
+ data.penugasanTutor = [];
+ expect([...await access("course", ids)].map(([id]) => id).sort()).toEqual(["admin", "alice", "tutor"]);
+ data.mataKuliah.push(record("mataKuliah", { id: "other", legacyCourseId: "legacy", status: "active" }));
+ expect((await access("course", ids)).size).toBe(0);
 });
 
 test("global authorization performs two queries per bounded page for 100 and 500 users", async () => {

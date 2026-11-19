@@ -61,7 +61,9 @@ test("temporary absence and unverified sessions retain the same user's text, fil
  const pendingSubmission = { viewerId: "alice", channelId: "course", questionId: "q", body: "unfinished answer", attachments: [], mentionIds: [], askZyra: false, requestId: "request-1" };
  first.props.draftState.drafts[1]({ "question:q": { body: "unfinished answer", images: [{ id: "image", file, previewUrl: "blob:one", status: "error" }],
   mentionedPeople: [], sending: false, error: "unknown", requestId: "request-1", requestFingerprint: "fingerprint", pendingSubmission } });
- first.props.draftState.newTitle[1]("unfinished title");
+ const channel = { id: "course", name: "Matematika", kind: "course", unreadCount: 0, muted: false, canCreate: true };
+ first.props.draftState.newOpen[1](true);
+ first.props.draftState.newChannel[1](channel);
  const forward = { targetChannel: { id: "course", name: "Course" }, targetQuestion: "destination", targetTitle: "Destination", requestId: "forward-request", status: "unknown" };
  first.props.draftState.forwardDrafts[1]({ source: forward });
  expect(h.render({ pending: false }).props.children[0].props.children).toBe("viewerExpired");
@@ -74,7 +76,8 @@ test("temporary absence and unverified sessions retain the same user's text, fil
  expect(draft.pendingSubmission).toBe(pendingSubmission);
  expect(draft.images[0].file).toBe(file);
  expect(await draft.images[0].file.text()).toBe("image bytes");
- expect(restored.props.draftState.newTitle[0]).toBe("unfinished title");
+ expect(restored.props.draftState.newOpen[0]).toBe(true);
+ expect(restored.props.draftState.newChannel[0]).toEqual(channel);
  expect(restored.props.draftState.forwardDrafts[0].source).toEqual(forward);
  restored.props.draftState.forwardDrafts[1]((current: any) => ({ ...current, source: { ...current.source, status: "replay_unverified", replayTarget: { threadId: "destination", messageId: "existing" } } }));
  expect(h.render({ id: "alice", pending: false }).props.draftState.forwardDrafts[0].source).toMatchObject({ requestId: "forward-request", targetQuestion: "destination", status: "replay_unverified" });

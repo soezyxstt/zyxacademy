@@ -1,7 +1,7 @@
-import { inngest } from "./client";
+import { defineJob } from "./define-job";
 import { generateMistakeFeedback } from "@/lib/mistake-feedback";
 
-export const feedbackWorker = inngest.createFunction(
+export const feedbackWorker = defineJob(
   {
     id: "quiz-feedback-worker",
     name: "Quiz Feedback Worker",

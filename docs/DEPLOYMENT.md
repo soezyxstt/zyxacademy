@@ -33,6 +33,18 @@ For other targets, inspect their complete history and schema independently. The 
 
 
 
+## Cloud Tasks pilot and production rollback
+
+Status: OPEN / IN PROGRESS. The staging pilot targets Cloud Tasks and Scheduler in Singapore. Each environment uses a default queue, a PDF queue with at most two concurrent deliveries, and one dispatcher. The dispatcher must enqueue only jobs due in its scheduling window. Use persistent outbox rows as the recovery source when a producer commits before it can enqueue.
+
+Configure one UTC dispatcher per approved environment. Staging uses `0 0 * * *`, production uses `0 */6 * * *`. The target is `POST /internal/cron/tick` on the verified Neon origin, authenticated by a Google ID token with that origin as audience and the environment queue service account as sender. Grant the web runtime `roles/cloudtasks.enqueuer` on its own queues and `roles/iam.serviceAccountUser` on that sender. The deployment identity configuring Scheduler requires permission to attach the sender. On production Vercel, configure federated Google credentials for the production deployment before changing the provider. Confirm the relay can enqueue a child via the authenticated environment-specific web origin. Apply migration 0035 first.
+
+Before enabling production, verify staging delivery from both the web and worker, delayed continuation, deduplication, final failure state, duplicate delivery of multi-step jobs, and cleanup of the single PDF smoke fixture. Require a successful staging worker CI run. Check total Scheduler usage across the billing account, Cloud Tasks API operations including retries and payload size, and external HTTP network charges. Queue dispatch limits control throughput, not monthly billing.
+
+Production cutover requires separate approval. Record the current web and worker revisions, their provider configuration, registered Inngest functions, outstanding executions and queued work. First deploy and authenticate the receiving worker, test the production-specific identity and origin after approval, then switch producers and enable one scheduler. Prevent overlapping cron ownership. Keep the previous revisions and registration available throughout the observation period.
+
+To roll back, pause the dispatcher and new Cloud Tasks dispatch, capture outstanding task identities, and restore the previous producer configuration and Inngest registration. Reconcile pending outbox, PDF and verification state against terminal results before replay. Resume a single cron owner and verify one end-to-end delivery. Preserve paused queues until every accepted task has been accounted for. If the Inngest quota is exhausted, retain the backlog and report delayed processing.
+
 ## Web function region
 
 The main `vercel.json` pins web functions to `sin1`, near the Zyx Neon project in `aws-ap-southeast-1`. Read-only inspection on 2026-11-11 found the production deployment `dpl_BfnxeAy7T4TWojtcnNaH52fxNtkQ` (commit `04b9b61e5290b6c3c3013cd4ef5f38ed6bb70ce8`) reporting `iad1`. The local region correction requires a new authorized deployment; it does not relocate the existing deployment. After release, verify the serving deployment region and authenticated dashboard latency. Roll back through the previous deployment if required; that also restores its original region. No production latency improvement has been measured for this change.
@@ -46,7 +58,7 @@ The [worker cutover runbook](operations/neon-functions-cutover.md) is OPEN / IN 
 Staging releases use the existing Vercel project `zyxacademy`
 (`prj_9wDdc36VFIH5wJT45jEXIHGst2pb`), using its custom `staging` environment. The intended origin
 remains `https://staging.zyxacademy.com`. Follow the [manual staging runbook](operations/vercel-staging.md).
-Cloud Run publication and deployment have been removed from the web workflow.
+The [Cloud Run staging runbook](operations/cloud-run-staging.md) covers the separate Bangkok candidate workflow. Vercel currently serves the staging hostname.
 The old Google service is retained for reference; this change does not delete it.
 
 The production cutover is complete; follow [the active production runbook](operations/neon-production-cutover.md) for targets, evidence and recovery boundaries. Vercel and Neon Functions use the protected production root and private `zyx-production` bucket. Both deployment paths reject a mismatched target. Source Turso/R2 and the old deployment unit remain available for recovery, subject to reconciliation of any Neon writes.

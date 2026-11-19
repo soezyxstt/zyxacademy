@@ -4,9 +4,10 @@ import { OpsMetricsSkeleton } from "@/components/admin/content-loading-skeletons
 
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { AdminIconAction } from "@/components/admin/icon-action";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
-import type { OpsMetrics } from "@/lib/ops-metrics";
+import { adminOpsQuery } from "@/lib/admin/ops-query";
+import { useQueryAccountId } from "@/hooks/use-query-account";
 import { useTranslations } from "@/lib/i18n/client";
 
 function relativeTime(iso: string | null, t: ReturnType<typeof useTranslations>): string {
@@ -80,22 +81,12 @@ function SectionHead({
   );
 }
 
-async function fetchMetrics(): Promise<OpsMetrics> {
-  const res = await fetch("/api/admin/ops");
-  if (!res.ok) throw new Error("Failed to load ops metrics");
-  return res.json();
-}
-
 export function OpsClient() {
   const t = useTranslations("adminOps");
-  const { data, isLoading, isFetching, error, refetch } = useQuery<OpsMetrics>({
-    queryKey: ["ops-metrics"],
-    queryFn: fetchMetrics,
-    refetchInterval: 60_000,
-    staleTime: 55_000,
-  });
+  const userId = useQueryAccountId();
+  const { data, isPending, isFetching, error, refetch } = useQuery(adminOpsQuery(userId ?? ""));
 
-  if (isLoading) return <OpsMetricsSkeleton />;
+  if (isPending || !userId) return <OpsMetricsSkeleton />;
 
   if (error || !data) {
     return (
@@ -109,19 +100,15 @@ export function OpsClient() {
   return (
     <div className="space-y-5">
       <div className="flex justify-end">
-        <Button
+        <AdminIconAction label={t("opsUI.refresh")}
           variant="outline"
-          size="sm"
           disabled={isFetching}
-          onClick={() => refetch()}
-          className="flex items-center gap-2 text-body-sm text-muted-foreground hover:text-foreground transition-colors duration-150 cursor-pointer"
-        >
+          onClick={() => refetch()}>
           <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
-          {t("opsUI.refresh")}
-        </Button>
+        </AdminIconAction>
       </div>
 
-      <div className="divide-y divide-border rounded-xl border border-border bg-card px-4 sm:px-5">
+      <div className="divide-y divide-border border-y border-border">
         {/* 1. AI usage */}
         <div className="py-4 space-y-3">
           <SectionHead title={t("opsUI.aiUsage")} checkedAt={data.checkedAt} />

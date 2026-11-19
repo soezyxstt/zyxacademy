@@ -208,6 +208,10 @@ The account interface locale persists across visits. Conversation-specific Zyra 
 
 Background dispatch imports must remain server-safe for Deno compute. Do not add Next.js or React imports to worker-consumed message, notification, preference, or email-template modules. `proxy.ts` owns only the finite public locale rewrite map; test origin preservation and `skipProxyUrlNormalize` when changing that request boundary. Full role, locale, state, and visual verification belongs to the bilingual plan's CP7 gate.
 
+## Background queue selection
+
+`QUEUE_PROVIDER` defaults to `inngest` for rollback. `cloud-tasks` selects the environment-specific Singapore queues. A test process, `noop`, or `memory` acknowledges enqueue locally. Cloud Run uses Application Default Credentials. Neon sends child tasks through the authenticated web relay so it does not need a Google service-account key.
+
 ## Environment Variables
 
 Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (`@t3-oss/env-nextjs`).
@@ -482,6 +486,14 @@ Current approved vital flags (< 10 flags retained for high-impact runtime contro
 The admin flag page reads this catalog from `lib/feature-flags.ts`; arbitrary `FEATURE_*` variables are not surfaced. `FEATURE_STRUCTURED_ARTICLE_READER_V1` defaults to disabled. It is owned by Akademik dan Konten together with the Zyx platform owner. Its rollback disables V3 authoring, submission, and review selection without deleting V3 data or hiding products that are already published from students. See [the rollout runbook](operations/structured-article-v3-rollout.md). Decommissioned flags have been removed from `lib/env.ts`, runtime schemas, environment files, and operational scripts.
 
 ## Code Conventions
+
+### Typography and spacing
+
+Use the semantic text roles in `app/globals.css`. Learning prose uses `text-body-base` (16px / 26px), interface text uses `text-body-sm` (14px / 20px), and compact app headings use `text-section-title` (16px / 24px). Use `text-reading-major` and `text-reading-minor` inside the reading area, `text-support` for short prose, and `text-metadata` for dates, durations and counts.
+
+Use `--panel-padding` inside standard panels, `--row-padding` for list rows, `--table-row-padding` for compact tables, `--related-gap` between related groups, and `--section-gap` between sections. Readers use `--paragraph-gap` between paragraphs and `--reading-section-gap` between major sections. Assign spacing to one side of each boundary. Tailwind accepts these properties with classes such as `p-(--panel-padding)` and `gap-(--related-gap)`.
+
+Configure the five density and reading-size preset values in `app/appearance-preferences.css`. The personal scales activate when the Student or Tutor shell is mounted, including dialogs portaled to the page root. Fixed control sizes, page gutters, marketing sections and print layouts use their own sizing.
 
 - **DB schema**: `db/schema.ts` only. Edit → `bun run db:generate` → `bun run db:migrate`. Never hand-edit `drizzle/`.
 - **Auth**: Better-Auth (credentials + Google OAuth). Canonical access roles: `admin`, `tutor`, `murid`; `user.role` remains a legacy compatibility projection during expand.

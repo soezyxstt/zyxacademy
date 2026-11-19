@@ -30,9 +30,9 @@ import { daysFrom, getJakartaNow, getWeekScheduleDays } from "@/lib/date-utils";
 
 export function ScheduleCalendarSkeleton() {
   return (
-    <div data-testid="schedule-calendar-skeleton" className="space-y-4">
+    <div data-testid="schedule-calendar-skeleton" className="space-y-(--related-gap)">
       {/* Calendar toolbar skeleton */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-card p-3">
+      <div className="flex flex-wrap items-center justify-between gap-(--compact-gap) rounded-xl border border-border/70 bg-card p-3">
         <div className="flex items-center gap-2">
           <Skeleton className="h-8 w-8 rounded-lg" />
           <Skeleton className="h-5 w-40" />
@@ -186,12 +186,12 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
   if (!activeData) {
     if (loadError) {
       return (
-        <ApplicationPage spacing="space-y-4">
+        <ApplicationPage spacing="space-y-(--related-gap)">
           <PageHeader icon={CalendarDays} title={t("schedule.title")} />
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-(--compact-gap)">
               <AlertCircle className="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden />
-              <div className="min-w-0 space-y-3">
+              <div className="min-w-0 space-y-(--compact-gap)">
                 <div>
                   <h2 className="font-heading text-body-base font-semibold text-foreground">{t("schedule.loadFailedTitle")}</h2>
                   <p className="mt-1 text-body-sm text-muted-foreground">{t("schedule.loadFailedDescription")}</p>
@@ -207,7 +207,7 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
       );
     }
     return (
-      <ApplicationPage spacing="space-y-4">
+      <ApplicationPage spacing="space-y-(--related-gap)">
         <PageHeader icon={CalendarDays} title={t("schedule.title")} />
         <ScheduleCalendarSkeleton />
       </ApplicationPage>
@@ -223,7 +223,7 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
     : null;
 
   return (
-    <ApplicationPage spacing="space-y-4">
+    <ApplicationPage spacing="space-y-(--related-gap)">
       <PageHeader icon={CalendarDays} title={t("schedule.title")} />
 
       <div className={calendarStyles.root} aria-busy={loading}>

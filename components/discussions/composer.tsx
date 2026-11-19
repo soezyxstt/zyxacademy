@@ -44,7 +44,7 @@ export type ComposerDraft = {
 
 export type ComposerSubmission = {
   viewerId: string; channelId: string; questionId?: string;
-  questionDetails?: { title: string; helpKind?: DiscussionPrivateKind };
+  questionDetails?: { title?: string; helpKind?: DiscussionPrivateKind };
   body: string; attachments: DiscussionAttachment[]; mentionIds: string[]; askZyra: boolean;
   skinId?: string | null; requestId: string; replyToMessageId?: string;
 };
@@ -280,7 +280,7 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
     }
   }
 
-  return <div className="@container/composer flex min-h-0 min-w-0 flex-col" data-discussion-composer>
+  return <div className="flex min-h-0 min-w-0 flex-col" data-discussion-composer>
     <div role="region" tabIndex={0} aria-label={t("editorRegion")} className="min-h-0 space-y-2 overflow-y-auto focus-visible:outline-2 focus-visible:outline-ring">
     {beforeContent}
     {draft.replyTo && <div data-discussion-reply-target className="flex min-w-0 items-center gap-2 rounded-md border-l-2 border-primary bg-muted/50 px-2 py-1 text-body-xs"><div className="flex min-w-0 flex-1 items-center gap-1.5"><span className="min-w-0 shrink break-words font-semibold">{t("replyingTo", { name: draft.replyTo.authorName })}</span><div className="line-clamp-1 min-w-0 flex-1 break-words text-muted-foreground [&_div]:text-body-xs [&_p]:text-body-xs"><DiscussionMarkdown content={draft.replyTo.imageOnly ? t("image") : draft.replyTo.excerpt.slice(0, 600)} /></div></div><Button type="button" variant="ghost" size="icon-sm" aria-label={t("cancelReply")} disabled={editingDisabled} onClick={() => update((current) => setComposerReplyTarget(current))}><X /></Button></div>}
@@ -291,15 +291,15 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
     </div>)}</div>}
     {draft.images.filter(image => image.status === "error").map(image => <div key={image.id} role="alert" className="flex items-center gap-2 text-body-xs text-destructive"><span className="min-w-0 break-words">{image.file.name}: {t(discussionUploadErrorKey(image.error))}</span><Tooltip><TooltipTrigger asChild><Button type="button" variant="outline" size="icon-sm" disabled={editingDisabled} aria-label={t("retryFile", { name: image.file.name })} onClick={() => void upload(image)}><RotateCcw /></Button></TooltipTrigger><TooltipContent>{t("retryFile", { name: image.file.name })}</TooltipContent></Tooltip></div>)}
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-1 gap-y-2">
-      <div data-discussion-toolbar className="col-start-1 row-start-1 @min-[32rem]/composer:col-span-2">
+      <div data-discussion-toolbar className="col-span-2 col-start-1 row-start-1">
         <div className="flex flex-wrap items-center">
-          <DropdownMenu><Tooltip disableHoverableContent><TooltipTrigger asChild><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={t("formatting")} disabled={editingDisabled}><MoreHorizontal /></Button></DropdownMenuTrigger></TooltipTrigger><TooltipContent>{t("formatting")}</TooltipContent></Tooltip><DropdownMenuContent collisionPadding={16} onCloseAutoFocus={(event) => { if (textRef.current) { event.preventDefault(); textRef.current.focus(); } }}>
-            <DropdownMenuItem onSelect={() => insert("**", "**")}><Bold />{t("bold")}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => insert("*", "*")}><Italic />{t("italic")}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => insert("\n- ")}><List />{t("list")}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => insert("`", "`")}><Code2 />{t("code")}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => insert("[", "](https://)")}><Link2 />{t("link")}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => insert("$", "$")}><Sigma />{t("formula")}</DropdownMenuItem>
+          <DropdownMenu><Tooltip disableHoverableContent><TooltipTrigger asChild><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={t("formatting")} disabled={editingDisabled}><MoreHorizontal /></Button></DropdownMenuTrigger></TooltipTrigger><TooltipContent>{t("formatting")}</TooltipContent></Tooltip><DropdownMenuContent collisionPadding={16} className="min-w-[8.5rem] p-1" onCloseAutoFocus={(event) => { if (textRef.current) { event.preventDefault(); textRef.current.focus(); } }}>
+            <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => insert("**", "**")}><Bold className="size-3.5" />{t("bold")}</DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => insert("*", "*")}><Italic className="size-3.5" />{t("italic")}</DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => insert("\n- ")}><List className="size-3.5" />{t("list")}</DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => insert("`", "`")}><Code2 className="size-3.5" />{t("code")}</DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => insert("[", "](https://)")}><Link2 className="size-3.5" />{t("link")}</DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => insert("$", "$")}><Sigma className="size-3.5" />{t("formula")}</DropdownMenuItem>
           </DropdownMenuContent></DropdownMenu>
           <Popover open={mentionOpen} onOpenChange={setMentionOpen}><Tooltip><TooltipTrigger asChild><PopoverTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={t("mentionPerson")} disabled={editingDisabled}><AtSign /></Button></PopoverTrigger></TooltipTrigger><TooltipContent>{t("mentionPerson")}</TooltipContent></Tooltip><PopoverContent aria-label={t("mentionPerson")} align="end" collisionPadding={16} className="max-w-[calc(100vw-2rem)] space-y-2 p-2">
             <Button type="button" variant="ghost" className="w-full [&>span]:justify-start" onClick={() => { insert("@Zyra "); setMentionOpen(false); }}>@Zyra</Button>
@@ -321,8 +321,8 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
           <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" disabled={editingDisabled} multiple className="sr-only" tabIndex={-1} onChange={pickImages} />
         </div>
       </div>
-        {!(replayUnverified && draft.replayTarget) && <Tooltip><TooltipTrigger asChild><Button type="button" size="icon-sm" className="col-start-2 row-start-1 justify-self-end @min-[32rem]/composer:row-start-2" aria-label={sendLabel} onClick={() => void submit()} isLoading={draft.sending} disabled={busy || submitDisabled || replayUnverified || (uncertain ? !canReplay : uploading || failedImage || invalidContent || (!draft.body.trim() && draft.images.length === 0))}><Send /></Button></TooltipTrigger><TooltipContent>{sendLabel}</TooltipContent></Tooltip>}
-    <ZyraComposerInput ref={textRef} value={draft.body} onChange={(body) => update((current) => ({ ...current, body, mentionedPeople: current.mentionedPeople.filter((person) => discussionMentions(body, [person]).mentionIds.length > 0), error: submitDisabled && current.error === "resolved" ? current.error : null, requestId: undefined }))} onSubmit={() => void submit()} submitOnEnter={false} renderFormatting maxLength={12_000} disabled={editingDisabled} placeholder={t("writeMessage")} aria-label={t("writeMessage")} className="col-span-2 col-start-1 row-start-2 min-w-0 rounded-md border border-input bg-background px-2 text-body-sm focus-within:ring-2 focus-within:ring-ring @min-[32rem]/composer:col-span-1" />
+    <ZyraComposerInput ref={textRef} value={draft.body} onChange={(body) => update((current) => ({ ...current, body, mentionedPeople: current.mentionedPeople.filter((person) => discussionMentions(body, [person]).mentionIds.length > 0), error: submitDisabled && current.error === "resolved" ? current.error : null, requestId: undefined }))} onSubmit={() => void submit()} submitOnEnter={false} renderFormatting maxLength={12_000} disabled={editingDisabled} placeholder={t("writeMessage")} aria-label={t("writeMessage")} className="col-start-1 row-start-2 min-w-0 rounded-md border border-input bg-background px-2 text-body-sm focus-within:ring-2 focus-within:ring-ring" />
+        {!(replayUnverified && draft.replayTarget) && <Tooltip><TooltipTrigger asChild><Button type="button" size="icon-sm" className="col-start-2 row-start-2 justify-self-end" aria-label={sendLabel} onClick={() => void submit()} isLoading={draft.sending} disabled={busy || submitDisabled || replayUnverified || (uncertain ? !canReplay : uploading || failedImage || invalidContent || (!draft.body.trim() && draft.images.length === 0))}><Send /></Button></TooltipTrigger><TooltipContent>{sendLabel}</TooltipContent></Tooltip>}
       </div>
     {fileError && <p role="alert" className="text-body-xs text-destructive">{fileError === "maxImages" ? t("maxImages", { count: MAX_IMAGES }) : t("fileRequirements")}</p>}
     {invalidContent && !staleMentions && <p role="alert" className="text-body-xs text-destructive">{t("contentLimit")}</p>}

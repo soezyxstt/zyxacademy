@@ -9,7 +9,7 @@ export function ProfileMascot({ cosmeticId }: { cosmeticId?: string | null }) {
   const mascot = getZyraAvatar(cosmeticId);
   if (!mascot) return null;
   return <div className="flex shrink-0 flex-col items-center text-center" data-profile-mascot={mascot.id}>
-    <ZyraCosmeticAvatar cosmeticId={mascot.id} name={mascot.name[locale === "en" ? "en" : "id"]} size={128} interactive animated />
+    <ZyraCosmeticAvatar cosmeticId={mascot.id} name={mascot.name[locale === "en" ? "en" : "id"]} size={128} interactive={Boolean(cosmeticId)} animated />
     <span className="max-w-36 text-body-xs text-muted-foreground">{mascot.name[locale === "en" ? "en" : "id"]}</span>
   </div>;
 }

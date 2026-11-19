@@ -142,7 +142,7 @@ export function SettingsTab({ course }: Props) {
   return (
     <div className="space-y-4">
       {/* Edit Course Form */}
-      <div className="rounded-xl border border-border bg-card p-4 shadow-2xs">
+      <div className="border-b border-border pb-4">
         <h3 className="font-heading text-body-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <Settings className="size-4 text-brand-primary" />
           {t("courseDetail.settings.title")}
@@ -223,7 +223,7 @@ export function SettingsTab({ course }: Props) {
       </div>
 
       {/* Public demo selection */}
-      <div className="rounded-xl border border-brand-primary/25 bg-brand-primary/5 p-4 shadow-2xs">
+      <div className="border-b border-border pb-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-2.5">
             <Eye className="mt-0.5 size-4 shrink-0 text-brand-primary" aria-hidden="true" />

@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { cache, Suspense } from "react";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Lock, ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Lock } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { MaterialViewer } from "@/components/course/material-viewer";
 import { MaterialReaderContentSkeleton } from "@/components/course/course-skeletons";
@@ -186,6 +184,7 @@ async function fetchMaterial(
         : [];
       return {
         id: webMatRecord.id,
+        source: "website_material",
         courseId,
         title: webMatRecord.title,
         kind: "article" as const,
@@ -298,17 +297,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 function MaterialLocked({ id, course, title }: { id: string; course: NonNullable<Awaited<ReturnType<typeof getCourse>>>; title: string }) {
   return (
-        <CoursePageShell title={<TranslatedText namespace="learning" messageKey="materialDetail.locked" />} description={<TranslatedText namespace="learning" messageKey="materialDetail.premiumDescription" values={{ course: course.title }} />} hideHeader>
-          <div className="mb-4">
-            <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-sm font-semibold text-muted-foreground hover:text-foreground">
-              <Link href={`/courses/${id}/material`}>
-                <ArrowLeft className="size-3.5" />
-                <span><TranslatedText namespace="learning" messageKey="materialDetail.backToDocuments" /></span>
-              </Link>
-            </Button>
-          </div>
+        <CoursePageShell title={<TranslatedText namespace="learning" messageKey="materialDetail.locked" />} description={<TranslatedText namespace="learning" messageKey="materialDetail.premiumDescription" values={{ course: course.title }} />} backHref={`/courses/${id}/material`} backLabel={<TranslatedText namespace="learning" messageKey="materialDetail.backToDocuments" />}>
           <Reveal>
-            <div className="rounded-lg border border-border/70 bg-card p-4">
+            <div className="border-t border-border/70 py-3">
               <div className="flex items-start gap-3">
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
                   <Lock className="size-5" />
@@ -371,7 +362,7 @@ async function MaterialDetailContent({
       return <MaterialLocked id={id} course={course} title={canonicalArticle.title} />;
     }
 
-    return <StructuredArticleReader article={canonicalArticle} course={course} pythonBrowserOnly={isFreeChapter} />;
+    return <StructuredArticleReader article={canonicalArticle} studentId={studentId} course={course} pythonBrowserOnly={isFreeChapter} />;
   }
 
   // 2. Canonical text and legacy compatibility fallback
@@ -396,6 +387,7 @@ async function MaterialDetailContent({
     <Suspense fallback={<MaterialReaderContentSkeleton courseId={id} courseTitle={course.title} />}>
       <MaterialViewer
         material={material}
+        studentId={studentId}
         chapterId={material.chapterId}
         ragEnabled
         accessTier={access?.tier}

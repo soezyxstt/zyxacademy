@@ -36,7 +36,7 @@ export function StudentQuizGateway({ href = (path: string) => path,  id, courseT
 
           {/* Details Column */}
           <div className="space-y-5 lg:col-span-8">
-            <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div className="space-y-3">
               <h2 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.instructionsTitle" /></h2>
 
               <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 border-y border-border/60 py-4 text-center">
@@ -107,13 +107,13 @@ export function StudentQuizGateway({ href = (path: string) => path,  id, courseT
             </div>
 
             {completedAttempts.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border/80 bg-muted/10 p-5 text-center">
+              <div className="border-t border-border py-3">
                 <p className="text-body-xs text-muted-foreground"><TranslatedText namespace="learning" messageKey="quizTake.noCompletedAttempts" /></p>
               </div>
             ) : (
-              <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-card">
+              <ul className="divide-y divide-border/60 border-t border-border">
                 {completedAttempts.map((attempt, idx) => (
-                  <li key={attempt.id} className="p-3.5 hover:bg-muted/30 transition-colors">
+                  <li key={attempt.id} className="py-3 hover:bg-muted/30 transition-colors">
                     <div className="flex items-center justify-between">
                       <span className="text-body-xs font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.attemptNumber" values={{ number: completedAttempts.length - idx }} /></span>
                       <span className="font-heading text-body-base font-bold text-brand-primary">{attempt.score}%</span>

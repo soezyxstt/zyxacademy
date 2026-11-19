@@ -5,7 +5,7 @@ import { Lock, History } from "lucide-react";
 import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { CourseMyResultsListSkeleton } from "@/components/course/course-skeletons";
-import { studentCardClass } from "@/components/course/course-surfaces";
+import { studentSectionClass } from "@/components/course/course-surfaces";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { createMetadata } from "@/lib/site";
@@ -46,7 +46,7 @@ async function CourseMyResultsContent({
 
   if (!hasFullContentAccess) {
     return (
-      <div className={studentCardClass()}>
+      <div className={studentSectionClass()}>
         <div className="flex items-start gap-3">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
             <Lock className="size-5" />

@@ -120,7 +120,8 @@
       "tutorial": "Tutorials"
     },
     "attention": {
-      "title": "Needs attention"
+      "title": "Needs attention",
+      "flashcardsDue": "{count, plural, one {# flashcard due for review} other {# flashcards due for review}}"
     },
     "dailyQuiz": {
       "title": "Today’s quiz",

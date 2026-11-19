@@ -551,7 +551,10 @@
     "activateDescription": "Are you sure you want to reactivate {name}?",
     "confirmSuspend": "Yes, suspend",
     "confirmActivate": "Yes, activate",
-    "rolesSaved": "Roles for {name} updated."
+    "rolesSaved": "Roles for {name} updated.",
+    "you": "You",
+    "access": "Access",
+    "openActions": "User actions for {name}"
   },
   "pkaScheduleUI": {
     "invalidTime": "The session time is invalid.",
@@ -937,7 +940,11 @@
     "tutorPrefix": "Tutor: {name}",
     "requestType": "{type} request",
     "automationSuccess": "Automation finished: {count} new Google Meet links created",
-    "deleteSlotPlaceholder": "Example: Tutor request or operational schedule adjustment"
+    "deleteSlotPlaceholder": "Example: Tutor request or operational schedule adjustment",
+    "moreActions": "More schedule actions",
+    "coverageShort": "{ready}/{total}",
+    "coverageTitle": "Tutor availability this week",
+    "zeroSessions": "0 sessions"
   },
   "meetMainUI": {
     "title": "Meet",

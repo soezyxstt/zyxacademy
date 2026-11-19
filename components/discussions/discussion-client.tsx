@@ -8,9 +8,11 @@ import { useSession } from "@/lib/auth-client";
 import * as actions from "@/lib/discussions/actions";
 import type { DiscussionChannel as Channel, DiscussionMessage as Message, DiscussionReport as Report, DiscussionThread as Thread } from "@/lib/discussions/contracts";
 import { DISCUSSION_COUNTS_CHANGED } from "./discussion-count-badge";
-import { aiStatusKey, beginChannelMetadataRequest, beginPageRequest, discussionPrivateQuestionHref, discussionStatusUncovered, discussionUploadError, discussionVisibilityBlocked, initialDiscussionMessageCursors, listDiscussionQuestionPage, loadDiscussionChannelMetadata, mergeById, nextDiscussionMessageCursor, observeDiscussionSnapshot, prepareDiscussionTeamChannel, replyQuote, retryDiscussionRead, searchDiscussionChannels, searchDiscussionForwardTargets, searchDiscussionMentions, toQuestion, toUiChannel, visibleDiscussionReadSnapshot, watchDiscussionVisibility } from "./discussion-adapter";
+import { aiStatusKey, beginChannelMetadataRequest, beginPageRequest, canSuggestForwardChannel, discussionPrivateQuestionHref, discussionStatusUncovered, discussionUploadError, discussionVisibilityBlocked, initialDiscussionMessageCursors, listDiscussionQuestionPage, loadDiscussionChannelMetadata, mergeById, nextDiscussionMessageCursor, observeDiscussionSnapshot, replyQuote, retryDiscussionRead, searchDiscussionChannels, searchDiscussionForwardTargets, searchDiscussionMentions, toQuestion, toUiChannel, visibleDiscussionReadSnapshot, watchDiscussionVisibility } from "./discussion-adapter";
+import { discussionChannelLabel } from "./discussion-message";
 import { listDiscussionAiStatuses } from "./discussion-ai-status";
 import { getDiscussionReadThrough } from "./discussion-read-state";
+import { DiscussionWorkspaceSkeleton } from "./discussion-skeleton";
 import { DiscussionWorkspace, type DiscussionDraftState } from "./discussion-workspace";
 import { DiscussionSessionGuard } from "./discussion-session-guard";
 import type { DiscussionChannel as UiChannel, DiscussionPerson, DiscussionWorkspaceProps } from "./view-model";
@@ -34,8 +36,9 @@ export function nextDiscussionReadBatch(observed: Map<number, ReadObservation>, 
 }
 
 export function DiscussionClient(props: { viewer: DiscussionPerson; courseId?: string }) {
+  const t = useTranslations("discussions");
   const { data: session, isPending } = useSession();
-  return <DiscussionSessionGuard viewerId={props.viewer.id} sessionId={session?.user?.id} pending={isPending}>
+  return <DiscussionSessionGuard viewerId={props.viewer.id} sessionId={session?.user?.id} pending={isPending} loadingFallback={<DiscussionWorkspaceSkeleton label={t("viewerLoading")} />}>
     {draftState => <DiscussionClientReady {...props} draftState={draftState} />}
   </DiscussionSessionGuard>;
 }
@@ -114,14 +117,41 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
   const selectionVersion = useRef(0);
   const selectionKey = `${viewer.id}:${courseId ?? ""}:${requestedChannel ?? ""}:${selectedThread ?? ""}:${selectedMessage ?? ""}`;
   const previousSelection = useRef(selectionKey);
+  const titlePollTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const mounted = useRef(true);
   if (previousSelection.current !== selectionKey) { previousSelection.current = selectionKey; selectionVersion.current++; }
-  useEffect(() => () => {
-    selectionVersion.current++;
-    channelsVersion.current++;
-    threadPagingVersion.current++;
-    threadVersion.current++;
-    reportVersion.current++;
-    currentThread.current = null;
+  useEffect(() => {
+    mounted.current = true;
+    const timers = titlePollTimers.current;
+    return () => {
+      mounted.current = false;
+      timers.forEach((timer) => clearTimeout(timer));
+      timers.clear();
+      selectionVersion.current++;
+      channelsVersion.current++;
+      threadPagingVersion.current++;
+      threadVersion.current++;
+      reportVersion.current++;
+      currentThread.current = null;
+    };
+  }, []);
+  const scheduleTitleRefresh = useCallback((threadId: string) => {
+    for (const delay of [2000, 4500, 8000]) {
+      const timer = setTimeout(() => {
+        titlePollTimers.current.delete(timer);
+        if (!mounted.current) return;
+        void actions.getThread(threadId).then((latest) => {
+          if (!mounted.current) return;
+          const nextTitle = latest.thread.title;
+          setThread((old) => (old?.id === threadId && old.title !== nextTitle ? { ...old, title: nextTitle } : old));
+          setThreadPage((old) => ({
+            ...old,
+            items: old.items.map((item) => (item.id === threadId && item.title !== nextTitle ? { ...item, title: nextTitle } : item)),
+          }));
+        }).catch(() => {});
+      }, delay);
+      titlePollTimers.current.add(timer);
+    }
   }, []);
   const refreshChannelMetadata = useCallback(() => { channelMetadataVersion.current++; setRetryChannelMetadata((value) => value + 1); }, []);
   useEffect(() => {
@@ -143,7 +173,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
   currentMetadataKey.current = metadataKey;
   const metadataReady = channelMetadata.key === metadataKey && channelMetadata.status === "ready";
   const visibleChannels = useMemo(() => {
-    if (!metadataReady) return channels;
+    if (!metadataReady) return mergeById(channels, channelMetadata.items);
     const checked = new Set(metadataIds), authorized = new Set(channelMetadata.items.map((item) => item.id));
     return mergeById(channels.filter((item) => !checked.has(item.id) || authorized.has(item.id)), channelMetadata.items);
   }, [channels, metadataReady, metadataIds, channelMetadata.items]);
@@ -151,7 +181,8 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
   const messages = useMemo(() => messagePages.flatMap((page) => page.items), [messagePages]);
   const messagesById = useMemo(() => new Map(messages.map((message) => [message.id, message])), [messages]);
   const selectedQuestion = thread && thread.id === selectedThread ? toQuestion(thread, visibleChannels) : null;
-  const renderedThreadState = thread?.id === selectedThread && (!metadataReady || !channelMetadata.items.some((item) => item.id === thread.channelId))
+  const hasThreadChannel = Boolean(thread && channelMetadata.items.some((item) => item.id === thread.channelId));
+  const renderedThreadState = thread?.id === selectedThread && !hasThreadChannel
     ? (channelMetadata.key === metadataKey && channelMetadata.status === "error" || metadataReady ? "error" : "loading") : threadState;
   const hasMoreQuestions = !!threadPage.nextCursor;
   const hasNextMessagePage = !!nextDiscussionMessageCursor(messagePageCursors.current, messagePageIndex, messageCursor);
@@ -210,7 +241,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     const isCurrent = beginChannelMetadataRequest(channelMetadataVersion, currentMetadataKey);
     let cancelled = false;
     if (!metadataIds.length) { setChannelMetadata({ key: metadataKey, items: [], status: "ready" }); return; }
-    setChannelMetadata((old) => old.key === metadataKey && old.status === "ready" ? old : { key: metadataKey, items: [], status: "loading" });
+    setChannelMetadata((old) => old.key === metadataKey && old.status === "ready" ? old : { key: metadataKey, items: old.items, status: "loading" });
     void loadDiscussionChannelMetadata(actions, metadataIds).then((items) => {
       if (!cancelled && isCurrent()) setChannelMetadata({ key: metadataKey, items, status: "ready" });
     }).catch(() => { if (!cancelled && isCurrent()) setChannelMetadata({ key: metadataKey, items: [], status: "error" }); });
@@ -551,11 +582,11 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     const original = message.replyTo ? messagesById.get(message.replyTo.id) : undefined;
     const role = message.author?.role;
     const author: DiscussionPerson = message.kind === "zyra" ? { id: "zyra", name: "Zyra", role: "zyra" }
-      : { id: message.author?.id ?? "", name: message.author?.name ?? t("unknownAuthor"), role: (role ?? (message.author?.id === viewer.id ? viewer.role : undefined)) as DiscussionPerson["role"] };
+      : { id: message.author?.id ?? "", name: message.author?.name ?? t("unknownAuthor"), role: (role ?? (message.author?.id === viewer.id ? viewer.role : undefined)) as DiscussionPerson["role"], avatarUrl: message.author?.avatarUrl ?? null };
     return { ...message, author, replyTo: message.replyTo ? replyQuote(message.replyTo, original, t("previousMessage")) : null };
   });
 
-  return <div className="space-y-3">
+  return <div className="space-y-2">
     {channelMetadata.key === metadataKey && channelMetadata.status === "error" && <div role="alert" className="flex items-center gap-2 text-body-sm">{t("channelMetadataError")}<Button type="button" variant="outline" size="sm" onClick={refreshChannelMetadata}>{t("retry")}</Button></div>}
     {listRefreshError && <div role="alert" className="flex items-center gap-2 text-body-sm">{t("listRefreshError")}<Button type="button" variant="outline" size="sm" onClick={() => void fetchThreadPage(threadPageCursors.current[threadPageIndexRef.current]).catch(() => setListRefreshError(true))}>{t("retry")}</Button></div>}
     {thread?.id === selectedThread && liveError && <div role="alert" className="flex items-center gap-2 text-body-sm">{t("threadRefreshError")}<Button type="button" variant="outline" size="sm" onClick={() => { if (selectedThread) void refreshThreadPage(selectedThread, messagePagesRef.current.at(-1)?.cursor).catch(() => setLiveError(true)); }}>{t("retry")}</Button></div>}
@@ -581,11 +612,50 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       onRetryQuestions={() => { setRetryLists((value) => value + 1); refreshChannelMetadata(); }} onRetryMessages={() => { setRetryThread((value) => value + 1); refreshChannelMetadata(); }}
       onLoadMoreQuestions={() => moreQuestions()}
       onSearchChannels={(input) => searchDiscussionChannels(actions, input, courseId)}
-      onPrepareTeamChannel={courseId ? async (team) => { const version = selectionVersion.current; const channel = await prepareDiscussionTeamChannel(actions, team, courseId); if (version !== selectionVersion.current) throw new Error("Discussion selection changed"); return channel; } : undefined}
       onSearchMentions={(input) => searchDiscussionMentions(actions, input)}
-      onSearchForwardTargets={(input) => searchDiscussionForwardTargets(actions, input)}
-      onCreateQuestion={async (input) => { const version = selectionVersion.current; const result = await actions.createThread({ ...toSubmit(input), channelId: input.channelId, title: input.title, ...("helpKind" in input ? { helpKind: input.helpKind } : {}) }); if (!result.ok) return result.error === "replay_unverified" ? { error: result.error, target: result.value } : result.error; signalCounts(); if (version === selectionVersion.current) { setRetryLists((value) => value + 1); if (courseId && input.channelId !== courseChannelId) { selectionVersion.current++; currentThread.current = null; router.push(discussionPrivateQuestionHref(pathname, input.channelId, result.value.threadId)); } else navigate({ channel: input.channelId, thread: result.value.threadId }); } }}
-      onSendReply={async (input) => { const submit = { ...toSubmit({ ...input, channelId: thread?.channelId ?? "", title: "" }), threadId: input.questionId };
+      onSearchForwardTargets={async (input) => {
+        const page = await searchDiscussionForwardTargets(actions, input);
+        const allowedMap = new Map(visibleChannels.map((item) => [item.id, item]));
+        const missingIds = [...new Set(page.items.map((item) => item.channelId).filter((id) => !allowedMap.has(id)))];
+        if (missingIds.length) {
+          const fetched = await loadDiscussionChannelMetadata(actions, missingIds).catch(() => []);
+          for (const item of fetched) allowedMap.set(item.id, item);
+        }
+        const sourceCh = selectedQuestion ? visibleChannels.find((item) => item.id === selectedQuestion.channelId) : undefined;
+        const items = page.items
+          .filter((item) => {
+            const targetCh = allowedMap.get(item.channelId);
+            if (!targetCh) return true;
+            if (sourceCh && !canSuggestForwardChannel(toUiChannel(sourceCh), toUiChannel(targetCh))) return false;
+            return true;
+          })
+          .map((item) => {
+            const targetCh = allowedMap.get(item.channelId);
+            return {
+              ...item,
+              channelName: targetCh ? discussionChannelLabel(toUiChannel(targetCh), t) : undefined,
+            };
+          });
+        return { ...page, items };
+      }}
+      onCreateQuestion={async (input) => {
+        const version = selectionVersion.current;
+        const result = await actions.createThread({ ...toSubmit(input), channelId: input.channelId, ...(input.title ? { title: input.title } : {}) });
+        if (!result.ok) return result.error === "replay_unverified" ? { error: result.error, target: result.value } : result.error;
+        signalCounts();
+        if (version === selectionVersion.current) {
+          setRetryLists((value) => value + 1);
+          if (courseId && input.channelId !== courseChannelId) {
+            selectionVersion.current++;
+            currentThread.current = null;
+            router.push(discussionPrivateQuestionHref(pathname, input.channelId, result.value.threadId));
+          } else {
+            navigate({ channel: input.channelId, thread: result.value.threadId });
+          }
+          scheduleTitleRefresh(result.value.threadId);
+        }
+      }}
+      onSendReply={async (input) => { const submit = { ...toSubmit({ ...input, channelId: thread?.channelId ?? "" }), threadId: input.questionId };
         if (input.messageType === "reply" && !input.replyToMessageId) return "invalid";
         const result = await actions.reply(input.messageType === "reply" ? { ...submit, messageType: "reply", replyTo: input.replyToMessageId! } : { ...submit, messageType: "answer" });
         if (!result.ok) { if (result.error === "resolved") { if (currentThread.current === input.questionId) { setThread(old => old?.id === input.questionId ? { ...old, status: "resolved", canReply: false } : old); setThreadPage(old => ({ ...old, items: old.items.filter(item => item.id !== input.questionId) })); setResolvedRevision(value => value + 1); } await refreshMessage(input.questionId, undefined, true); } return result.error === "replay_unverified" ? { error: result.error, target: result.value } : result.error; }
@@ -601,7 +671,8 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       onReportMessage={async ({ messageId, reason }) => { await actions.report(messageId, reason); }}
       onSetChannelMuted={async ({ channelId, muted }) => { await actions.setMute(channelId, muted); setChannels((old) => old.map((item) => item.id === channelId ? { ...item, muted } : item)); setChannelMetadata((old) => ({ ...old, items: old.items.map((item) => item.id === channelId ? { ...item, muted } : item) })); setPinnedChannel((old) => old?.id === channelId ? { ...old, muted } : old); }}
       onSetQuestionStatus={async ({ questionId, status }) => { await actions.setResolved(questionId, status === "resolved"); setResolvedRevision(value => value + 1); void fetchThreadPage(threadPageCursors.current[threadPageIndexRef.current]).catch(() => setListRefreshError(true)); await refreshMessage(questionId); }}
-      onSetReportStatus={async ({ reportId, status }) => { await actions.resolveReport(reportId, status); setReports((old) => old.filter((item) => item.id !== reportId)); }} />
+      onSetReportStatus={async ({ reportId, status }) => { await actions.resolveReport(reportId, status); setReports((old) => old.filter((item) => item.id !== reportId)); }}
+      onLoadAuthorProfile={({ questionId, authorId }) => actions.getAuthorProfile(questionId, authorId)} />
     {activeTab === "reports" && (reportPageIndex > 0 || reportCursor) && <div className="flex flex-wrap items-center gap-2"><Button type="button" variant="outline" size="sm" disabled={reportBusy || reportPageIndex === 0} onClick={() => void changeReportPage("previous")}>{t("previousReports")}</Button><span className="text-body-xs text-muted-foreground">{t("page", { page: reportPageIndex + 1 })}</span><Button type="button" variant="outline" size="sm" disabled={reportBusy || !reportCursor} onClick={() => void changeReportPage("next")}>{t("nextReports")}</Button></div>}
   </div>;
 }

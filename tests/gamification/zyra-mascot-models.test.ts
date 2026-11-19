@@ -37,11 +37,12 @@ for(const key of MASCOT_MODEL_KEYS) test(`${key}: closed, outward-facing 3D soli
   expect(model.meshes.some(m=>m.name.includes("journal")||m.name.includes("compass"))).toBe(true);
 });
 
-test("ten unique model keys preserve the original IDs and valid local poster fallbacks",()=>{
-  expect(ZYRA_AVATARS.length).toBe(10);
-  expect(new Set(ZYRA_AVATARS.map(a=>a.modelKey)).size).toBe(10);
-  for(const avatar of ZYRA_AVATARS) {
-    expect(MASCOT_MODEL_KEYS.includes(avatar.modelKey)).toBe(true);
+test("ten procedural models preserve the original IDs and valid local poster fallbacks",()=>{
+  const procedural = ZYRA_AVATARS.filter(avatar => avatar.modelKey);
+  expect(procedural).toHaveLength(10);
+  expect(new Set(procedural.map(a=>a.modelKey)).size).toBe(10);
+  for(const avatar of procedural) {
+    expect(avatar.modelKey && MASCOT_MODEL_KEYS.includes(avatar.modelKey)).toBe(true);
     expect(existsSync(`public${avatar.src}`)).toBe(true);
   }
   for(const key of ["komodo","jalak","harimau","orangutan"] as const) {

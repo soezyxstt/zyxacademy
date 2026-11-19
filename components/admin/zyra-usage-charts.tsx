@@ -1,9 +1,10 @@
 "use client";
 
 import { ZyraUsageSkeleton } from "@/components/admin/content-loading-skeletons";
-import { daysAgo } from "@/lib/date-utils";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { adminUsageQuery, type UsageRangeDays } from "@/lib/admin/ops-query";
+import { useQueryAccountId } from "@/hooks/use-query-account";
 import {
   Bar,
   BarChart,
@@ -25,61 +26,15 @@ import {
 } from "@/components/ui/select";
 import { useTranslations } from "@/lib/i18n/client";
 
-type UserUsage = {
-  userId: string;
-  name: string | null;
-  email: string | null;
-  requests: number;
-  inputTokens: number;
-  outputTokens: number;
-  totalTokens: number;
-};
-
-type DailyUsage = {
-  date: string;
-  requests: number;
-  inputTokens: number;
-  outputTokens: number;
-};
-
-type UsageAnalyticsPayload = {
-  users: UserUsage[];
-  daily: DailyUsage[];
-};
-
 const USERS_PER_PAGE = 15;
-
-async function fetchUsageAnalytics(dateRange: "7" | "30" | "90"): Promise<UsageAnalyticsPayload> {
-  const endDate = new Date();
-  const startDate = daysAgo(Number.parseInt(dateRange, 10));
-
-  const params = new URLSearchParams({
-    startDate: startDate.toISOString(),
-    endDate: endDate.toISOString(),
-  });
-
-  const res = await fetch(`/api/admin/ai-analytics/usage?${params}`);
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
-  }
-  const json = await res.json();
-  if (!json.success) {
-    throw new Error(json.error || "usage load failed");
-  }
-  return json.data as UsageAnalyticsPayload;
-}
 
 export function ZyraUsageCharts() {
   const t = useTranslations("admin.usageCharts");
-  const [dateRange, setDateRange] = useState<"7" | "30" | "90">("30");
+  const [dateRange, setDateRange] = useState<UsageRangeDays>(30);
   const [userPage, setUserPage] = useState(1);
+  const userId = useQueryAccountId();
 
-  const { data, isLoading, error, refetch } = useQuery<UsageAnalyticsPayload>({
-    queryKey: ["admin-ai-analytics-usage", dateRange],
-    queryFn: () => fetchUsageAnalytics(dateRange),
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
-  });
+  const { data, isPending, error, refetch } = useQuery(adminUsageQuery(userId ?? "", dateRange));
 
   if (error) {
     return (
@@ -133,9 +88,9 @@ export function ZyraUsageCharts() {
           </h2>
         </div>
         <Select
-          value={dateRange}
+          value={String(dateRange)}
           onValueChange={(val) => {
-            setDateRange(val as "7" | "30" | "90");
+            setDateRange(val === "7" ? 7 : val === "90" ? 90 : 30);
             setUserPage(1);
           }}
         >
@@ -150,7 +105,7 @@ export function ZyraUsageCharts() {
         </Select>
       </div>
 
-      {isLoading ? (
+      {isPending || !userId ? (
         <ZyraUsageSkeleton />
       ) : (
         <>

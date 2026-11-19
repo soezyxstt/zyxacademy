@@ -3,7 +3,6 @@ import Link from "next/link";
 import { MailCheck, MailX } from "lucide-react";
 import { confirmEmailUnsubscribeAction } from "./actions";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { isEmailNotificationCategory, type EmailNotificationCategory } from "@/lib/email-preferences/contracts";
 import { verifyEmailUnsubscribeToken } from "@/lib/email-preferences/token";
 import { pageTitle } from "@/lib/site";
@@ -38,20 +37,20 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
     const categoryLabel = t(`email.categories.${categoryMessageKey(categoryParam)}.label`);
     return (
       <div className="marketing-container flex min-h-[60vh] items-center justify-center py-16">
-        <Card className="w-full max-w-xl shadow-sm">
-          <CardHeader className="items-center text-center">
+        <section className="w-full max-w-xl space-y-(--related-gap)">
+          <header className="flex flex-col items-center gap-2 text-center">
             <span className="flex size-12 items-center justify-center rounded-xl bg-status-success/10 text-status-success">
               <MailCheck className="size-6" aria-hidden />
             </span>
-            <CardTitle className="text-h5">{t("email.unsubscribe.successTitle")}</CardTitle>
-            <CardDescription>{t("email.unsubscribe.successBody", { category: categoryLabel })}</CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center">
+            <h1 className="font-heading text-h5 font-bold">{t("email.unsubscribe.successTitle")}</h1>
+            <p className="text-body-sm text-muted-foreground">{t("email.unsubscribe.successBody", { category: categoryLabel })}</p>
+          </header>
+          <div className="flex justify-center">
             <Button asChild variant="outline" size="lg">
               <Link href="/settings/notifications">{t("email.unsubscribe.manageAll")}</Link>
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       </div>
     );
   }
@@ -69,20 +68,20 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
   if (!token || !category) {
     return (
       <div className="marketing-container flex min-h-[60vh] items-center justify-center py-16">
-        <Card className="w-full max-w-xl shadow-sm">
-          <CardHeader className="items-center text-center">
+        <section className="w-full max-w-xl space-y-(--related-gap)">
+          <header className="flex flex-col items-center gap-2 text-center">
             <span className="flex size-12 items-center justify-center rounded-xl bg-status-error/10 text-status-error">
               <MailX className="size-6" aria-hidden />
             </span>
-            <CardTitle className="text-h5">{t("email.unsubscribe.invalidTitle")}</CardTitle>
-            <CardDescription>{t("email.unsubscribe.invalidBody")}</CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center">
+            <h1 className="font-heading text-h5 font-bold">{t("email.unsubscribe.invalidTitle")}</h1>
+            <p className="text-body-sm text-muted-foreground">{t("email.unsubscribe.invalidBody")}</p>
+          </header>
+          <div className="flex justify-center">
             <Button asChild variant="outline" size="lg">
               <Link href="/settings/notifications">{t("email.unsubscribe.manage")}</Link>
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       </div>
     );
   }
@@ -90,14 +89,14 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
   const categoryLabel = t(`email.categories.${categoryMessageKey(category)}.label`);
   return (
     <div className="marketing-container flex min-h-[60vh] items-center justify-center py-16">
-      <Card className="w-full max-w-xl shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-h5">{t("email.unsubscribe.confirmTitle", { category: categoryLabel })}</CardTitle>
-          <CardDescription>
+      <section className="w-full max-w-xl space-y-(--related-gap)">
+        <header className="space-y-2">
+          <h1 className="font-heading text-h5 font-bold">{t("email.unsubscribe.confirmTitle", { category: categoryLabel })}</h1>
+          <p className="text-body-sm text-muted-foreground">
             {t("email.unsubscribe.confirmBody", { category: categoryLabel })}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
+          </p>
+        </header>
+        <div className="flex flex-wrap gap-(--compact-gap)">
           <form action={confirmEmailUnsubscribeAction}>
             <input type="hidden" name="token" value={token} />
             <Button type="submit" variant="destructive" size="lg">
@@ -107,8 +106,8 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
           <Button asChild variant="outline" size="lg">
             <Link href="/settings/notifications">{t("email.unsubscribe.manageAll")}</Link>
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }

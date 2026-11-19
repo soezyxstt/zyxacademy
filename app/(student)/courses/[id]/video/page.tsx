@@ -49,8 +49,8 @@ async function CourseVideosContent({
   return (
     <Reveal>
       {!hasFullContentAccess && (
-        <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
+        <div className="mb-3 border-l-2 border-brand-secondary/60 py-2 pl-3">
+          <div className="grid gap-(--related-gap) md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
             <div>
               <h3 className="font-heading text-body-base font-bold text-brand-secondary">
                 <TranslatedText namespace="learning" messageKey="quizPage.activationTitle" />

@@ -65,16 +65,19 @@ import { productVerificationWorker } from "./product-verification";
 import { discussionAiCron } from "./discussion-ai";
 import { discussionNotificationsWorker } from "./discussion-notifications";
 import { discussionImageSweepCron } from "./discussion-image-sweep";
+import { discussionThreadTitleWorker } from "./discussion-title";
 
 export { discussionAiCron } from "./discussion-ai";
 export { discussionNotificationsWorker } from "./discussion-notifications";
 export { discussionImageSweepCron } from "./discussion-image-sweep";
+export { discussionThreadTitleWorker } from "./discussion-title";
 
 /**
  * All background functions for Deno/compute Inngest execution.
  */
 export const computeFunctions = [
   discussionAiCron,
+  discussionThreadTitleWorker,
   discussionNotificationsWorker,
   discussionImageSweepCron,
   gamificationOutboxCron,

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { pkaSimulationStages, quizTemplates, studentQuizAttempts } from "@/db/schema";
@@ -87,10 +87,9 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
   if (thisStageState.status === "locked") {
     return (
       <CoursePageShell>
-        <div className="space-y-6">
-          <BackLink />
+        <div className="space-y-2">
           <Reveal>
-            <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-start gap-3 border-t border-border py-3">
               <AlertTriangle className="size-5 shrink-0 text-status-warning" />
               <div>
                 <h1 className="font-heading text-h5 font-bold text-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="stageLocked" values={{ stage }} /></h1>
@@ -131,13 +130,12 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
 
       return (
         <CoursePageShell>
-          <div className="space-y-6">
-            <BackLink />
+          <div className="space-y-2">
             <Reveal>
               <div
                 className={cn(
-                  "flex items-center gap-4 rounded-xl border p-5 shadow-sm",
-                  passed ? "border-status-success/30 bg-status-success/5" : "border-status-error/20 bg-status-error/5",
+                  "flex items-center gap-3 border-l-2 p-3",
+                  passed ? "border-status-success bg-status-success/5" : "border-status-error bg-status-error/5",
                 )}
               >
                 {passed ? <CheckCircle2 className="size-8 shrink-0 text-status-success" /> : <XCircle className="size-8 shrink-0 text-status-error" />}
@@ -155,9 +153,9 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
             </Reveal>
 
             <Reveal>
-              <div className="space-y-4">
+              <div className="space-y-(--related-gap)">
                 <h2 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="explanation" /></h2>
-                <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-card">
+                <div className="divide-y divide-border/60">
                 {snapshot.map((q, idx) => {
                   const rawSel = answers[q.id];
                   const qType = (q as any).question_type || (q as any).questionType || (q as any).type;
@@ -184,14 +182,14 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
 
                   const selectedText = typeof rawSel === "string" ? rawSel : selected.map((i: number) => q.options[i]).filter(Boolean).join("; ");
                   return (
-                    <div key={q.id} className="p-4">
+                    <div key={q.id} className="p-(--panel-padding)">
                       <div className="flex items-start gap-2.5">
                         <span className={quizOptionLetterClasses(isCorrect ? "correct" : "wrong")}>{idx + 1}</span>
                         <div className="min-w-0 flex-1 text-body-base font-medium text-foreground">
-                          <MarkdownRenderer content={q.prompt} className="space-y-3" />
+                          <MarkdownRenderer content={q.prompt} className="space-y-(--compact-gap)" />
                         </div>
                       </div>
-                      <ul className="mt-3 space-y-2 sm:pl-9">
+                      <ul className="mt-(--compact-gap) space-y-2 sm:pl-9">
                         {q.options.map((opt, i) => {
                           const isSelected = selected.includes(i);
                           const isRight = correct.includes(i);
@@ -199,16 +197,16 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                           return (
                             <li key={i} className={quizOptionClasses(state)}>
                               <span className={quizOptionLetterClasses(state)}>{String.fromCharCode(65 + i)}</span>
-                              <MarkdownRenderer content={opt} className="space-y-3" />
+                              <MarkdownRenderer content={opt} className="space-y-(--compact-gap)" />
                             </li>
                           );
                         })}
                       </ul>
                       {q.explanation && (
-                        <div className="mt-4 space-y-3 border-t border-border/80 pt-4 sm:ml-9">
+                        <div className="mt-(--related-gap) space-y-(--compact-gap) border-t border-border/80 pt-(--related-gap) sm:ml-9">
                           <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="explanation" /></h4>
                           <div className="text-body-sm text-muted-foreground leading-relaxed">
-                            <MarkdownRenderer content={q.explanation} className="space-y-3" />
+                            <MarkdownRenderer content={q.explanation} className="space-y-(--compact-gap)" />
                           </div>
                         </div>
                       )}
@@ -283,11 +281,11 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
 
       return (
         <CoursePageShell>
-          <div className="space-y-6">
-            <BackLink />
+          <div className="space-y-2">
             <Reveal>
               <QuizPlayer
                 courseId={template.courseId}
+                expectedUserId={userId}
                 exam={formattedExam}
                 attemptId={attempt.id}
                 redirectBasePath={stagePath(subject, stage)}
@@ -312,10 +310,9 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
 
   return (
     <CoursePageShell>
-      <div className="space-y-6">
-        <BackLink />
+      <div className="space-y-2">
         <Reveal>
-          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <div className="border-t border-border py-3">
             <h1 className="font-heading text-h5 font-bold text-foreground">
               <TranslatedText namespace="studentExtras.pka" messageKey="stageTitle" values={{ subject: subjectName, stage }} />
             </h1>
@@ -343,17 +340,5 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
         </Reveal>
       </div>
     </CoursePageShell>
-  );
-}
-
-function BackLink() {
-  return (
-    <Link
-      href="/courses/tutorial-pka/simulasi"
-      className="inline-flex items-center gap-1.5 text-body-sm font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground"
-    >
-      <ArrowLeft className="size-4" />
-      <TranslatedText namespace="studentExtras.pka" messageKey="backToSimulation" />
-    </Link>
   );
 }

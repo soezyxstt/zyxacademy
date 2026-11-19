@@ -20,10 +20,11 @@ import {
   Activity,
   Zap,
 } from "lucide-react";
-import type { FeatureFlagStatus } from "@/lib/feature-flags";
 import { FEATURE_CATEGORIES, type FeatureCategory } from "@/lib/feature-flags";
 import { SearchBar } from "@/components/ui/search-bar";
 import { useTranslations } from "@/lib/i18n/client";
+import { adminFeatureFlagsQuery } from "@/lib/admin/ops-query";
+import { useQueryAccountId } from "@/hooks/use-query-account";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import {
   Select,
@@ -32,16 +33,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-interface FeatureFlagsApiResponse {
-  checkedAt: string;
-  posthogConfigured?: boolean;
-  total: number;
-  activeCount: number;
-  inactiveCount: number;
-  coveragePercent: number;
-  flags: FeatureFlagStatus[];
-}
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 function relativeTime(iso: string, t: ReturnType<typeof useTranslations<"adminOps">>): string {
   if (!iso) return t("opsUI.never");
@@ -54,14 +51,6 @@ function relativeTime(iso: string, t: ReturnType<typeof useTranslations<"adminOp
   return t("opsUI.days", { count: Math.floor(diffH / 24) });
 }
 
-async function fetchFeatureFlags(): Promise<FeatureFlagsApiResponse> {
-  const res = await fetch("/api/admin/feature-flags");
-  if (!res.ok) {
-    throw new Error("Gagal memuat status feature flag");
-  }
-  return res.json();
-}
-
 export function FlagsClient() {
   const t = useTranslations("adminOps");
   const [search, setSearch] = useState("");
@@ -70,13 +59,9 @@ export function FlagsClient() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [copiedEnvSnippet, setCopiedEnvSnippet] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const userId = useQueryAccountId();
 
-  const { data, isLoading, isFetching, error, refetch } = useQuery<FeatureFlagsApiResponse>({
-    queryKey: ["admin-feature-flags"],
-    queryFn: fetchFeatureFlags,
-    refetchInterval: 30_000,
-    staleTime: 20_000,
-  });
+  const { data, isPending, isFetching, error, refetch } = useQuery(adminFeatureFlagsQuery(userId ?? ""));
 
   // Global hotkey '/' to focus search input
   useEffect(() => {
@@ -112,7 +97,7 @@ export function FlagsClient() {
     setTimeout(() => setCopiedEnvSnippet(false), 2500);
   };
 
-  if (isLoading) return <FlagsSkeleton />;
+  if (isPending || !userId) return <FlagsSkeleton />;
 
   if (error || !data) {
     return (
@@ -208,23 +193,32 @@ export function FlagsClient() {
             )}
           </Button>
 
-          <Button variant="ghost" size="sm"
-            type="button"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3.5 py-1.5 text-body-sm font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-50 cursor-pointer"
-          >
-            <RefreshCw className={`size-3.5 ${isFetching ? "animate-spin text-brand-primary" : ""}`} />
-            <span>{t("flagsUI.refresh")}</span>
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  type="button"
+                  onClick={() => refetch()}
+                  disabled={isFetching}
+                  aria-label={t("flagsUI.refresh")}
+                  className="h-9 w-9 shrink-0 rounded-lg"
+                >
+                  <RefreshCw className={`size-4 ${isFetching ? "animate-spin text-brand-primary" : ""}`} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("flagsUI.refresh")}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
       <AdminStatStrip className="lg:grid-cols-4">
         <AdminStatStripItem label={t("flagsUI.flags")} value={data.total} icon={Layers} />
-        <AdminStatStripItem label={t("flagsUI.active")} value={data.activeCount} icon={CheckCircle2} tone="success" />
+        <AdminStatStripItem label={t("flagsUI.active")} value={data.activeCount} icon={CheckCircle2} />
         <AdminStatStripItem label={t("flagsUI.inactive")} value={data.inactiveCount} icon={XCircle} />
-        <AdminStatStripItem label={t("flagsUI.coverage")} value={`${data.coveragePercent}%`} icon={Activity} tone="brand" />
+        <AdminStatStripItem label={t("flagsUI.coverage")} value={`${data.coveragePercent}%`} icon={Activity} />
       </AdminStatStrip>
 
       {/* Control Panel: Search & Filters */}
@@ -256,49 +250,21 @@ export function FlagsClient() {
           </SelectContent>
         </Select>
 
-        {/* Status Tabs (Segmented Button Bar) */}
-        <div className="flex flex-wrap items-center rounded-lg border border-border bg-muted/40 p-0.5">
-          <Button variant="ghost" size="sm"
-            type="button"
-            onClick={() => setStatusFilter("all")}
-            aria-pressed={statusFilter === "all"}
-            className={`rounded-md px-2.5 py-1 text-body-sm font-semibold transition-all cursor-pointer ${
-              statusFilter === "all"
-                ? "bg-background text-foreground shadow-xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t("flagsUI.all")} ({data.total})
-          </Button>
-          <Button variant="ghost" size="sm"
-            type="button"
-            onClick={() => setStatusFilter("active")}
-            aria-pressed={statusFilter === "active"}
-            className={`rounded-md px-2.5 py-1 text-body-sm font-semibold transition-all cursor-pointer ${
-              statusFilter === "active"
-                ? "bg-status-success/15 text-status-success shadow-xs border border-status-success/30"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t("flagsUI.active")} ({data.activeCount})
-          </Button>
-          <Button variant="ghost" size="sm"
-            type="button"
-            onClick={() => setStatusFilter("inactive")}
-            aria-pressed={statusFilter === "inactive"}
-            className={`rounded-md px-2.5 py-1 text-body-sm font-semibold transition-all cursor-pointer ${
-              statusFilter === "inactive"
-                ? "bg-background text-muted-foreground shadow-xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t("flagsUI.inactive")} ({data.inactiveCount})
-          </Button>
-        </div>
+        {/* Status Filter */}
+        <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val as "all" | "active" | "inactive")}>
+          <SelectTrigger aria-label={t("flagsUI.all")} className="w-[140px] h-9 text-body-sm rounded-lg shrink-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("flagsUI.all")} ({data.total})</SelectItem>
+            <SelectItem value="active">{t("flagsUI.active")} ({data.activeCount})</SelectItem>
+            <SelectItem value="inactive">{t("flagsUI.inactive")} ({data.inactiveCount})</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Main Flags List Card */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="border-y border-border">
         <div className="border-b border-border bg-muted/30 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <Zap className="size-4 text-brand-primary" />

@@ -114,7 +114,7 @@ test("four-question student quiz grades the signed three-question and one-questi
  expect(requests.at(-1)?.quizOffset).toBe(3); expect(requests.at(-1)?.questionIds).toHaveLength(1);
  await expect(page.getByText(/Gagal mengumpulkan kuis/).first()).not.toBeVisible();
  await capture(page, info, "quiz-reviewed");
- await page.getByRole("link", { name: "Lihat Diagnosis & Rencana Belajar", exact: true }).click();
+ await page.getByRole("link", { name: "Lihat diagnosis dan rencana belajar", exact: true }).click();
  await expect(page).toHaveURL(/\/demo\/quiz-summary/);
  await capture(page, info, "quiz-diagnosis");
  await visit(page, "quiz-start");

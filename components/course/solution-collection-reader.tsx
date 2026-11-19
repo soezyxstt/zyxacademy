@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { completeExplanationAction } from "@/app/(student)/courses/[id]/solutions/[collectionId]/actions";
 import { useSearchParams } from "next/navigation";
-import { BookOpen, CheckCircle2, ChevronDown, Circle, ChevronLeft, ChevronRight, List, Search } from "lucide-react";
+import { BookOpen, CheckCircle2, ChevronDown, Circle, ChevronLeft, ChevronRight, Crosshair, List, Search } from "lucide-react";
 import { useLocale } from "next-intl";
 import { Component, Suspense, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { AdminEmptyState } from "@/components/admin/state-panels";
@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { materializeArticleParts, type ArticlePart } from "@/lib/materials/article-parts";
 import { useTranslations } from "@/lib/i18n/client";
 import type { SolutionCollection, SolutionCollectionItem, SolutionProvenance } from "@/lib/materials/solution-collection";
@@ -35,7 +36,7 @@ class ContentFallback extends Component<{ children: ReactNode; message: string }
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
   render() {
-    if (this.state.failed) return <p role="alert" className="rounded-lg border border-border p-4 text-body-sm">{this.props.message}</p>;
+    if (this.state.failed) return <p role="alert" className="rounded-lg border border-border p-(--panel-padding) text-body-sm">{this.props.message}</p>;
     return this.props.children;
   }
 }
@@ -146,17 +147,36 @@ function ItemList({ collection, activeId, onSelect, itemReviewStatus }: {
     focusItem(matches[next].item.id);
   };
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <SearchBar size="sm" value={query} onSearch={(value) => { pendingFocus.current = null; focusActiveAfterSearch.current = false; setQuery(value); setPage(0); }} aria-label={t("search")} placeholder={t("search")} />
-      <Button type="button" variant="outline" size="sm" className="h-auto min-h-7 whitespace-normal py-1" onClick={goToActive}>{t("goToActive")}</Button>
-      {pageCount > 1 ? <div className="flex flex-wrap items-center justify-between gap-2">
-        <Button type="button" variant="outline" size="sm" className="h-auto min-h-7 whitespace-normal py-1" aria-label={t("previousPage")} disabled={currentPage === 0} onClick={() => { setPage(currentPage - 1); }}>{t("previous")}</Button>
-        <span role="status" className="text-body-xs text-muted-foreground">{t("pageProgress", { current: currentPage + 1, total: pageCount })}</span>
-        <Button type="button" variant="outline" size="sm" className="h-auto min-h-7 whitespace-normal py-1" aria-label={t("nextPage")} disabled={currentPage === pageCount - 1} onClick={() => { setPage(currentPage + 1); }}>{t("next")}</Button>
-      </div> : null}
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      <TooltipProvider>
+        <div className="flex flex-wrap items-center gap-1 border-b border-border pb-1">
+          <SearchBar collapsible size="sm" containerClassName="min-w-0 flex-1" value={query} onSearch={(value) => { pendingFocus.current = null; focusActiveAfterSearch.current = false; setQuery(value); setPage(0); }} aria-label={t("search")} placeholder={t("search")} />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" variant="ghost" size="icon-lg" onClick={goToActive} aria-label={t("goToActive")}><Crosshair aria-hidden /></Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("goToActive")}</TooltipContent>
+          </Tooltip>
+          {pageCount > 1 ? <div className="ml-auto flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button type="button" variant="ghost" size="icon-lg" aria-label={t("previousPage")} disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}><ChevronLeft aria-hidden /></Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("previousPage")}</TooltipContent>
+            </Tooltip>
+            <span role="status" className="text-body-xs text-muted-foreground">{t("pageProgress", { current: currentPage + 1, total: pageCount })}</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button type="button" variant="ghost" size="icon-lg" aria-label={t("nextPage")} disabled={currentPage === pageCount - 1} onClick={() => setPage(currentPage + 1)}><ChevronRight aria-hidden /></Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("nextPage")}</TooltipContent>
+            </Tooltip>
+          </div> : null}
+        </div>
+      </TooltipProvider>
       {matches.length ? (
         <nav ref={listRef} aria-label={t("itemList")} aria-describedby={listHelpId} className="min-h-0 overflow-y-auto lg:max-h-[calc(100dvh-14rem)]" data-solution-list>
-          <p id={listHelpId} className="px-3 pb-2 text-body-xs text-muted-foreground">{t("listKeyboardHelp")}</p>
+          <p id={listHelpId} className="pb-2 text-body-xs text-muted-foreground">{t("listKeyboardHelp")}</p>
           <ol className="space-y-1">
             {visibleMatches.map(({ item, index }) => (
               <li key={item.id} aria-posinset={index + 1} aria-setsize={collection.items.length}>
@@ -184,7 +204,7 @@ function Parts({ parts, item, compact = false }: { parts: ArticlePart[]; item: S
 // promoted by the Markdown compiler to a display-formula panel.
 function OptionParts({ parts, item }: { parts: ArticlePart[]; item: SolutionCollectionItem }) {
   const t = useTranslations("learning.solutionCollection");
-  return <ContentFallback message={t("contentError")}><div className="min-w-0 space-y-2">{parts.map((part) => part.kind === "markdown" ? (
+  return <ContentFallback message={t("contentError")}><div className="min-w-0 space-y-3">{parts.map((part) => part.kind === "markdown" ? (
     <MarkdownRenderer key={part.id} content={/^\s*\$(?!\$)[\s\S]*?\$\s*$/.test(part.markdown) ? `\u200b${part.markdown}` : part.markdown} density="compact" />
   ) : <Parts key={part.id} parts={[part]} item={item} compact />)}</div></ContentFallback>;
 }
@@ -218,12 +238,12 @@ function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initia
   const strategyLabel = item.template === "conceptual" ? t("approach") : t("strategy");
   const stepLabels = { choice: t("explanationSteps"), calculation: t("calculationSteps"), conceptual: t("explanationFlow"), code_trace: t("codeTrace"), code_construction: t("codeConstruction") };
   return (
-    <article className="min-w-0 space-y-7" data-solution-item={item.id}>
-      <header className="space-y-2 border-b border-border pb-5">
+    <article className="min-w-0 space-y-(--related-gap)" data-solution-item={item.id}>
+      <header className="space-y-2 border-b border-border pb-3">
         <p className="text-body-xs font-semibold text-muted-foreground">{t("itemProgress", { current: index + 1, total })}</p>
         <h2 ref={headingRef} tabIndex={-1} className="rounded-sm font-heading text-body-base font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"><MathText>{item.title}</MathText></h2>
       </header>
-      <section aria-label={t("question")} className="space-y-5">
+      <section aria-label={t("question")} className="space-y-(--group-gap)">
         <Parts parts={item.prompt} item={item} />
         {item.options.length ? <ol className="divide-y divide-border" aria-label={t("answerOptions")}>
           {item.options.map((option, optionIndex) => <li key={option.id} className="flex min-w-0 items-start gap-3 py-2.5">
@@ -239,7 +259,7 @@ function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initia
         </Button>
       </div>
       {!revealed && hintOpen && item.hintMarkdown ? <section id={hintId} aria-label={t("hint")} className="space-y-3 border-l-2 border-border pl-4"><h3 className="font-heading text-body-base font-bold">{t("hint")}</h3><MarkdownRenderer content={item.hintMarkdown} /></section> : <div id={hintId} hidden />}
-      {revealed ? <div id={solutionId} className="space-y-7 border-t border-border pt-6">
+      {revealed ? <div id={solutionId} className="space-y-(--related-gap) border-t border-border pt-4">
         <section className="space-y-3" aria-labelledby={`${solutionId}-answer`}>
           <h3 id={`${solutionId}-answer`} className="font-heading text-body-base font-bold">{t("answer")}</h3>
           {item.answer.optionIds.length ? <p className="text-body-sm font-semibold text-primary">{item.answer.optionIds.map((answerId) => String.fromCharCode(65 + item.options.findIndex((option) => option.id === answerId))).join(", ")}</p> : null}
@@ -249,9 +269,9 @@ function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initia
           <h3 id={`${solutionId}-strategy`} className="font-heading text-body-base font-bold">{strategyLabel}</h3>
           <Parts parts={item.strategy} item={item} />
         </section>
-        <section className="space-y-4" aria-labelledby={`${solutionId}-steps`}>
+        <section className="space-y-(--related-gap)" aria-labelledby={`${solutionId}-steps`}>
           <h3 id={`${solutionId}-steps`} className="font-heading text-body-base font-bold">{stepLabels[item.template]}</h3>
-          <ol className="space-y-6">
+          <ol className="space-y-(--section-gap)">
             {item.steps.map((step, stepIndex) => <li key={step.id} className="min-w-0 space-y-3 border-l-2 border-primary/40 pl-4" data-solution-step={step.id}>
               <div className="flex items-start gap-2"><span className="shrink-0 text-body-sm font-semibold text-muted-foreground">{stepIndex + 1}.</span><div className="min-w-0"><MarkdownRenderer content={step.operationMarkdown} /></div></div>
               {step.parts ? <Parts parts={step.parts} item={item} /> : null}
@@ -266,7 +286,7 @@ function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initia
         </section>
         {item.misconceptions?.length ? <section className="space-y-3" aria-labelledby={`${solutionId}-misconceptions`}>
           <h3 id={`${solutionId}-misconceptions`} className="font-heading text-body-base font-bold">{t("misconceptions")}</h3>
-          <ul className="space-y-4">{item.misconceptions.map((entry) => <li key={entry.id} className="space-y-3 border-l-2 border-border pl-4"><div className="space-y-1"><h4 className="text-body-xs font-semibold text-muted-foreground">{t("misconception")}</h4><MarkdownRenderer content={entry.misconceptionMarkdown} /></div><div className="space-y-1"><h4 className="text-body-xs font-semibold text-foreground">{t("correction")}</h4><MarkdownRenderer content={entry.correctionMarkdown} /></div></li>)}</ul>
+          <ul className="space-y-(--related-gap)">{item.misconceptions.map((entry) => <li key={entry.id} className="space-y-3 border-l-2 border-border pl-4"><div className="space-y-1"><h4 className="text-body-xs font-semibold text-muted-foreground">{t("misconception")}</h4><MarkdownRenderer content={entry.misconceptionMarkdown} /></div><div className="space-y-1"><h4 className="text-body-xs font-semibold text-foreground">{t("correction")}</h4><MarkdownRenderer content={entry.correctionMarkdown} /></div></li>)}</ul>
         </section> : null}
       </div> : <div id={solutionId} hidden />}
       <Collapsible className="text-body-sm text-muted-foreground">
@@ -280,9 +300,21 @@ function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initia
       </Collapsible>
       {revealed && onCompleteItem ? <Button type="button" variant="outline" onClick={onCompleteItem} disabled={itemCompleted}>{itemCompleted ? "Selesai dibaca" : "Tandai selesai dibaca"}</Button> : null}
       {renderItemReview?.(item)}
-      <nav aria-label={t("navigation")} className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
-        <Button type="button" variant="outline" className="h-auto min-h-8 whitespace-normal py-1" onClick={onPrevious} disabled={index === 0}><ChevronLeft aria-hidden="true" />{t("previous")}</Button>
-        <Button type="button" variant="outline" className="h-auto min-h-8 whitespace-normal py-1" onClick={onNext} disabled={index === total - 1}>{t("next")}<ChevronRight aria-hidden="true" /></Button>
+      <nav aria-label={t("navigation")} className="flex items-center justify-between gap-2 border-t border-border pt-2">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" variant="outline" size="icon-lg" aria-label={t("previous")} onClick={onPrevious} disabled={index === 0}><ChevronLeft aria-hidden /></Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("previous")}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" variant="outline" size="icon-lg" aria-label={t("next")} onClick={onNext} disabled={index === total - 1}><ChevronRight aria-hidden /></Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("next")}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </nav>
     </article>
   );
@@ -314,13 +346,22 @@ function ReaderContent({ collection, courseHref, backHref, initialRevealed, rend
     }
     setSheetOpen(false);
   };
-  return <div className={embedded ? "w-full space-y-6" : "mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6"}>
+  return <div className={embedded ? "w-full space-y-(--section-gap)" : "mx-auto w-full max-w-7xl space-y-(--section-gap) px-(--page-gutter) py-(--section-gap)"}>
     {active ? <Button variant="outline" className="sr-only text-body-sm focus:not-sr-only" onClick={() => headingRef.current?.focus()}>{t("skipToQuestion")}</Button> : null}
     {!embedded ? <PageHeader title={collection.title} backHref={backHref ?? courseHref} backLabel={t("back")} /> : null}
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4 text-body-sm text-muted-foreground">
-      <p>{courseHref ? <Link href={courseHref} className="rounded-sm text-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{collection.course.title}</Link> : collection.course.title}<span aria-hidden="true"> / </span>{collection.chapter.title}</p>
+    <div className="flex items-center justify-between gap-2 border-b border-border pb-2 text-body-sm text-muted-foreground">
+      <p className="min-w-0 break-words">{courseHref ? <Link href={courseHref} className="rounded-sm text-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{collection.course.title}</Link> : collection.course.title}<span aria-hidden="true"> / </span>{collection.chapter.title}</p>
       {active ? <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetTrigger asChild><Button variant="outline" className="h-auto min-h-8 whitespace-normal py-1 lg:hidden"><List aria-hidden="true" />{t("itemList")}</Button></SheetTrigger>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon-lg" className="shrink-0 lg:hidden" aria-label={t("itemList")}><List aria-hidden /></Button>
+              </SheetTrigger>
+            </TooltipTrigger>
+            <TooltipContent>{t("itemList")}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <SheetContent side="left" className="w-[min(85vw,24rem)] gap-0" aria-describedby={undefined} onCloseAutoFocus={(event) => {
           if (selectingFromSheet.current) {
             event.preventDefault();
@@ -328,7 +369,7 @@ function ReaderContent({ collection, courseHref, backHref, initialRevealed, rend
           }
           selectingFromSheet.current = false;
         }}>
-          <SheetHeader><SheetTitle>{t("itemList")}</SheetTitle></SheetHeader>
+          <SheetHeader className="py-3 pr-14"><SheetTitle>{t("itemList")}</SheetTitle></SheetHeader>
           <div className="flex min-h-0 flex-1 flex-col px-4 pb-4"><ItemList collection={collection} activeId={active.id} onSelect={selectItem} itemReviewStatus={itemReviewStatus} /></div>
         </SheetContent>
       </Sheet> : null}

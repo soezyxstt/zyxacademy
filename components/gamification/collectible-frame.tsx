@@ -3,22 +3,20 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { getFrameCollection } from "@/lib/gamification/collection-art";
+import { useAppReducedMotion } from "@/components/appearance-preferences";
 import { cn } from "@/lib/utils";
 import "./collectible-frame.css";
 import { FrameChoreography } from "./frame-choreography";
 
-// One observer, visibility listener and motion preference subscription for all heroes.
+// Share one intersection observer and visibility listener for all heroes.
 const visible = new Map<Element, (value: boolean) => void>();
 let observer: IntersectionObserver | undefined;
-let motionPreference: MediaQueryList | undefined;
 function updateVisibility() {
-  visible.forEach((set, element) => set(!document.hidden && !motionPreference?.matches && element.getAttribute("data-in-view") === "true"));
+  visible.forEach((set, element) => set(!document.hidden && element.getAttribute("data-in-view") === "true"));
 }
 function observe(element: Element, set: (value: boolean) => void) {
   if (!visible.size) {
     document.addEventListener("visibilitychange", updateVisibility);
-    motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
-    motionPreference.addEventListener("change", updateVisibility);
   }
   visible.set(element, set);
   if (typeof IntersectionObserver === "undefined") {
@@ -36,8 +34,6 @@ function observe(element: Element, set: (value: boolean) => void) {
     visible.delete(element);
     if (!visible.size) {
       document.removeEventListener("visibilitychange", updateVisibility);
-      motionPreference?.removeEventListener("change", updateVisibility);
-      motionPreference = undefined;
       observer?.disconnect();
       observer = undefined;
     }
@@ -53,13 +49,14 @@ export type CollectibleFrameProps = {
 };
 
 export function CollectibleFrame({ frameId, size = 48, animated = false, children, className }: CollectibleFrameProps) {
+  const reducedMotion = useAppReducedMotion();
   const art = getFrameCollection(frameId);
   const ref = useRef<HTMLSpanElement>(null);
   const [running, setRunning] = useState(false);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const [loadedArt, setLoadedArt] = useState<{ src: string; url: string } | null>(null);
   const hasArt = !!art && failedSrc !== art.src;
-  const hero = animated && size >= 96 && hasArt;
+  const hero = animated && !reducedMotion && size >= 96 && hasArt;
   useEffect(() => {
     if (!hero || !ref.current) return;
     return observe(ref.current, setRunning);

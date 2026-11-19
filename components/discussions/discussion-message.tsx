@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
-import { ChevronDown, Flag, Forward, MessageSquareReply, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Flag, Forward, MessageSquareReply, Pencil, Plus, Trash2 } from "lucide-react";
 import { ZyraBubbleSkin } from "@/components/gamification/zyra-bubble-skin";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -10,9 +10,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import { DiscussionAttachment } from "./discussion-attachment";
 import { canSuggestForwardChannel, channelOptionIndex, discussionMessageHref } from "./discussion-adapter";
 import { DiscussionMarkdown } from "./discussion-markdown";
@@ -112,7 +112,20 @@ export function DiscussionChannelPicker({ value, label, placeholder, onChange, o
     return () => { cancelled = true; clearTimeout(timer); };
   }, [open, search, index, cursors, retry, locale, source?.id, source?.kind, source?.courseId]);
   return <Popover open={open} onOpenChange={setOpen}>
-    <PopoverTrigger asChild><Button type="button" variant="outline" role="combobox" aria-label={label} aria-expanded={open} disabled={disabled} className="h-auto min-h-8 w-full min-w-0 whitespace-normal py-1 text-left [&>span]:justify-between"><span className="min-w-0 break-words">{value ? discussionChannelLabel(value, t) : placeholder}</span><ChevronDown /></Button></PopoverTrigger>
+    <PopoverTrigger asChild>
+      <Button
+        type="button"
+        variant={allowAll ? "ghost" : "outline"}
+        role="combobox"
+        aria-label={label}
+        aria-expanded={open}
+        disabled={disabled}
+        className={cn("h-auto min-h-9 w-full min-w-0 whitespace-normal py-1 text-left [&>span]:justify-between", allowAll && "px-2 data-[state=open]:bg-muted")}
+      >
+        <span className="min-w-0 break-words">{value ? discussionChannelLabel(value, t) : placeholder}</span>
+        <ChevronDown className="shrink-0 text-muted-foreground" />
+      </Button>
+    </PopoverTrigger>
     <PopoverContent aria-label={label} align="start" collisionPadding={16} className="max-w-[calc(100vw-2rem)] space-y-2 p-2">
       <Input aria-label={t("searchChannel")} placeholder={t("searchChannel")} value={search} onChange={(event) => { setSearch(event.target.value.slice(0, 160)); setCursors([{}]); setIndex(0); }} onKeyDown={(event) => { if (event.key === "ArrowDown") { event.preventDefault(); optionsRef.current?.querySelector<HTMLButtonElement>('[role="option"]')?.focus(); } }} />
       <div ref={optionsRef} role="listbox" aria-label={label} className="max-h-48 overflow-y-auto" onKeyDown={(event) => { const options = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="option"]')); const next = channelOptionIndex(event.key, options.findIndex((option) => option === document.activeElement), options.length); if (next === null) return; event.preventDefault(); options[next]?.focus(); }}>{allowAll && <Button type="button" role="option" aria-selected={!value} variant="ghost" className="w-full [&>span]:justify-start" onClick={() => { onChange(null); setOpen(false); }}>{t("allChannels")}</Button>}{page.items.map((item) => <Button key={item.id} type="button" role="option" aria-selected={value?.id === item.id} variant="ghost" className="h-auto w-full whitespace-normal break-words py-1 text-left [&>span]:justify-start" onClick={() => { onChange(item); setOpen(false); }}>{discussionChannelLabel(item, t)}</Button>)}</div>
@@ -127,6 +140,7 @@ type MessageProps = {
   questionId: string;
   viewer: DiscussionPerson;
   sourceChannel: DiscussionChannel;
+  channels?: DiscussionChannel[];
   forwardDraft?: DiscussionForwardDraft;
   updateForwardDraft: (change: (draft: DiscussionForwardDraft | undefined) => DiscussionForwardDraft | undefined) => void;
   onSearchChannels: DiscussionWorkspaceProps["onSearchChannels"];
@@ -140,6 +154,7 @@ type MessageProps = {
   onReact: DiscussionWorkspaceProps["onToggleReaction"];
   onForward: DiscussionWorkspaceProps["onForwardMessage"];
   onReport: DiscussionWorkspaceProps["onReportMessage"];
+  onViewProfile?: (author: DiscussionPerson) => void;
   renderAttachment?: DiscussionWorkspaceProps["renderAttachment"];
 };
 
@@ -160,7 +175,7 @@ export async function deliverDiscussionForward(draft: DiscussionForwardDraft, so
   return failure;
 }
 
-export function DiscussionMessage({ message, questionId, viewer, sourceChannel, forwardDraft, updateForwardDraft, onSearchChannels, onSearchForwardTargets, canReply: threadCanReply, replyDisabled = false, targeted = false, onReply, onEdit, onDelete, onReact, onForward, onReport, renderAttachment }: MessageProps) {
+export function DiscussionMessage({ message, questionId, viewer, sourceChannel, channels, forwardDraft, updateForwardDraft, onSearchChannels, onSearchForwardTargets, canReply: threadCanReply, replyDisabled = false, targeted = false, onReply, onEdit, onDelete, onReact, onForward, onReport, onViewProfile, renderAttachment }: MessageProps) {
   const t = useTranslations("discussions");
   const visibleBody = message.bodyKind === "deleted" ? t("deletedMessage") : message.bodyKind === "source_unavailable" ? t("sourceUnavailable") : message.body;
   const quote = message.replyTo;
@@ -169,6 +184,9 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
   const canReply = threadCanReply && message.canReply !== false;
   const canForward = message.canForward !== false && message.messageType !== "forward";
   const canReact = message.canReact !== false;
+  const isOwn = viewer.role !== "zyra" && Boolean(viewer.id) && message.author.id === viewer.id;
+  const canViewAuthorProfile = Boolean(onViewProfile && message.author.role !== "zyra" && message.author.id && message.bodyKind !== "deleted");
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [dialog, setDialog] = useState<"edit" | "delete" | "report" | null>(null);
   const [forwardDismissed, setForwardDismissed] = useState(false);
@@ -177,8 +195,11 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
   const [editingRevision, setEditingRevision] = useState(message.revision);
   const [reason, setReason] = useState("");
   const targetChannel = forwardDraft?.targetChannel ?? null;
-  const target = targetChannel?.id ?? "";
   const targetQuestion = forwardDraft?.targetQuestion ?? "";
+  const [forwardFilterChannel, setForwardFilterChannel] = useState<DiscussionChannel | null>(
+    () => (sourceChannel.kind === "course" ? sourceChannel : null),
+  );
+  const filterChannelId = forwardFilterChannel?.id ?? (sourceChannel.kind === "course" ? sourceChannel.id : undefined);
   const [targetSearch, setTargetSearch] = useState("");
   const [targetPage, setTargetPage] = useState<{ items: DiscussionForwardTarget[]; nextCursor: string | null }>({ items: [], nextCursor: null });
   const [targetCursors, setTargetCursors] = useState<Array<string | undefined>>([undefined]);
@@ -197,17 +218,23 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
 
   useEffect(() => () => { if (gesture.current) clearTimeout(gesture.current.timer); }, []);
   useEffect(() => {
-    if (activeDialog !== "forward" || !target) return;
+    if (activeDialog !== "forward") return;
     let cancelled = false;
     setTargetPage({ items: [], nextCursor: null });
     setTargetState("loading");
     const timer = setTimeout(() => {
-      void searchForwardTargets.current({ channelId: target, search: targetSearch.trim(), cursor: targetCursors[targetPageIndex] }).then((page) => {
-        if (!cancelled) { setTargetPage({ ...page, items: page.items.filter((item) => item.questionId !== questionId && item.channelId === target) }); setTargetState("ready"); }
+      void searchForwardTargets.current({ channelId: filterChannelId, search: targetSearch.trim(), cursor: targetCursors[targetPageIndex] }).then((page) => {
+        if (!cancelled) {
+          setTargetPage({
+            ...page,
+            items: page.items.filter((item) => item.questionId !== questionId && (!filterChannelId || item.channelId === filterChannelId)),
+          });
+          setTargetState("ready");
+        }
       }).catch(() => { if (!cancelled) setTargetState("error"); });
-    }, 250);
+    }, 200);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [activeDialog, target, targetSearch, targetPageIndex, targetCursors, targetRetry, questionId]);
+  }, [activeDialog, filterChannelId, targetSearch, targetPageIndex, targetCursors, targetRetry, questionId]);
 
   function startGesture(event: ReactPointerEvent<HTMLDivElement>) {
     if (gesture.current || event.pointerType !== "touch" || event.clientX < 28 || event.clientX > window.innerWidth - 28 || (event.target as HTMLElement).closest("button,a,input,textarea,select")) return;
@@ -260,10 +287,30 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
     setEditingRevision(message.revision);
     if (next === "forward") {
       setForwardDismissed(false);
+      setForwardFilterChannel(sourceChannel.kind === "course" ? sourceChannel : null);
       const requestId = crypto.randomUUID();
       updateForwardDraft(current => current ?? { targetChannel: null, targetQuestion: "", targetTitle: "", requestId, status: "ready" });
       setTargetSearch(""); setTargetCursors([undefined]); setTargetPageIndex(0);
     } else setDialog(next);
+  }
+
+  function selectForwardQuestion(item: DiscussionForwardTarget) {
+    if (forwardLocked) return;
+    const resolvedChannel =
+      (forwardFilterChannel?.id === item.channelId ? forwardFilterChannel : undefined) ??
+      channels?.find((channel) => channel.id === item.channelId) ??
+      (sourceChannel.id === item.channelId
+        ? sourceChannel
+        : {
+            id: item.channelId,
+            name: item.channelName ?? "",
+            kind: "global" as const,
+            unreadCount: 0,
+            muted: false,
+            canCreate: true,
+          });
+    const requestId = crypto.randomUUID();
+    updateForwardDraft(current => current && { ...current, targetChannel: resolvedChannel, targetQuestion: item.questionId, targetTitle: item.title, requestId });
   }
 
   async function submitDialog() {
@@ -273,7 +320,7 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
       if (message.revision !== editingRevision) return;
       await run(() => onEdit({ questionId, messageId: message.id, body: body.trim(), revision: editingRevision }), true);
     } else if (dialog === "delete") await run(() => onDelete({ questionId, messageId: message.id }), true);
-    else if (activeDialog === "forward" && forwardDraft && target && targetQuestion && !forwardInFlight.current && forwardDraft.status !== "sending" && forwardDraft.status !== "replay_unverified") {
+    else if (activeDialog === "forward" && forwardDraft && targetChannel && targetQuestion && !forwardInFlight.current && forwardDraft.status !== "sending" && forwardDraft.status !== "replay_unverified") {
       forwardInFlight.current = true;
       setError("");
       try {
@@ -284,21 +331,62 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
     else if (dialog === "report" && reason.trim()) await run(() => onReport({ questionId, messageId: message.id, reason: reason.trim() }), true);
   }
 
-  return <div data-message-id={message.id} data-discussion-target={targeted || undefined} tabIndex={targeted ? -1 : undefined} className={`min-w-0 touch-pan-y ${targeted ? "rounded-lg ring-2 ring-primary" : ""}`} onPointerDown={startGesture} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={(event) => endGesture(event, true)}>
-    <div className="flex min-w-0 gap-2.5">
-      <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 font-heading text-body-xs font-bold text-primary">{message.author.name.trim().slice(0, 2).toUpperCase()}</span>
-      <div className="min-w-0 flex-1 space-y-1.5">
-        <div className="flex min-w-0 items-start gap-1.5"><div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5"><span className="min-w-0 break-words text-body-sm font-semibold">{message.author.name}</span><span className="rounded-md bg-muted px-1.5 py-0.5 text-body-xs text-muted-foreground">{t(message.author.role === "student" ? "role_student" : message.author.role === "tutor" ? "role_tutor" : message.author.role === "admin" ? "role_admin" : message.author.role === "zyra" ? "role_zyra" : "role_unknown")}</span><span className="text-body-xs text-muted-foreground"><FormattedDate date={message.createdAt} options={{ day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }} /></span></div><span className="w-7 shrink-0">{(canReply || canForward || mayEdit(viewer, message) || canDelete || message.canReport) && <>
-          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}><Tooltip><TooltipTrigger asChild><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={t("messageActionsFor", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 100) || t("image") })}><ChevronDown /></Button></DropdownMenuTrigger></TooltipTrigger><TooltipContent>{t("messageActions")}</TooltipContent></Tooltip><DropdownMenuContent>{canReply && <DropdownMenuItem disabled={replyDisabled} onSelect={() => { if (!replyDisabled) onReply(message); }}><MessageSquareReply /> {t("reply")}</DropdownMenuItem>}{mayEdit(viewer, message) && <DropdownMenuItem onSelect={() => openDialog("edit")}><Pencil /> {t("edit")}</DropdownMenuItem>}{canForward && <DropdownMenuItem onSelect={() => openDialog("forward")}><Forward /> {t("forward")}</DropdownMenuItem>}{message.canReport && <DropdownMenuItem onSelect={() => openDialog("report")}><Flag /> {t("report")}</DropdownMenuItem>}{canDelete && <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive" onSelect={() => openDialog("delete")}><Trash2 /> {t("delete")}</DropdownMenuItem></>}</DropdownMenuContent></DropdownMenu>
-        </>}</span></div>
-        <ZyraBubbleSkin skinId={message.skinId} role={message.author.role === "zyra" ? "assistant" : "user"} className={message.skinId ? undefined : "rounded-xl border border-border bg-card p-3"}>
-          <p className="mb-1 text-body-xs font-semibold text-muted-foreground">{t(message.messageType === "question" ? "messageType_question" : message.messageType === "answer" ? "messageType_answer" : message.messageType === "reply" ? "messageType_reply" : message.messageType === "forward" ? "messageType_forward" : "messageType_unknown")}</p>
+  const avatarVisual = message.author.avatarUrl && !avatarFailed ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={message.author.avatarUrl} alt={message.author.name} className="size-9 rounded-full object-cover" referrerPolicy="no-referrer" onError={() => setAvatarFailed(true)} />
+  ) : (
+    <span aria-hidden="true" className="flex size-9 items-center justify-center rounded-full bg-primary/10 font-heading text-body-xs font-bold text-primary">{message.author.name.trim().slice(0, 2).toUpperCase()}</span>
+  );
+
+  return <div data-message-id={message.id} data-own-message={isOwn ? "true" : undefined} data-discussion-target={targeted || undefined} tabIndex={targeted ? -1 : undefined} className={cn("min-w-0 touch-pan-y", targeted && "rounded-lg ring-2 ring-primary")} onPointerDown={startGesture} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={(event) => endGesture(event, true)}>
+    <div className={cn("flex min-w-0 gap-2.5", isOwn && "flex-row-reverse")}>
+      {canViewAuthorProfile ? (
+        <button type="button" onClick={() => onViewProfile!(message.author)} aria-label={t("viewProfile", { name: message.author.name })} className="size-9 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{avatarVisual}</button>
+      ) : (
+        <span className="size-9 shrink-0">{avatarVisual}</span>
+      )}
+      <div className={cn("flex min-w-0 flex-1 flex-col gap-1.5", isOwn ? "items-end" : "items-start")}>
+        <ZyraBubbleSkin skinId={message.skinId} role={message.author.role === "zyra" ? "assistant" : "user"} className={cn("min-w-0 max-w-[85%]", message.skinId ? undefined : cn("rounded-xl border px-3 py-2.5", isOwn ? "border-primary/25 bg-primary/10 dark:bg-primary/15" : "border-border bg-card"))}>
+          <div className="mb-1 flex min-w-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              {canViewAuthorProfile ? (
+                <button type="button" onClick={() => onViewProfile!(message.author)} className="min-w-0 break-words rounded-sm text-left text-body-xs font-semibold hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{message.author.name}</button>
+              ) : (
+                <span className="min-w-0 break-words text-body-xs font-semibold">{message.author.name}</span>
+              )}
+              <span className="rounded bg-muted/70 px-1.5 py-0.5 text-body-2xs text-muted-foreground">{t(message.author.role === "student" ? "role_student" : message.author.role === "tutor" ? "role_tutor" : message.author.role === "admin" ? "role_admin" : message.author.role === "zyra" ? "role_zyra" : "role_unknown")}</span>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <span className="text-body-2xs tabular-nums text-muted-foreground"><FormattedDate date={message.createdAt} options={{ hour: "2-digit", minute: "2-digit" }} /></span>
+              {(canReply || canForward || mayEdit(viewer, message) || canDelete || message.canReport) && (
+                <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button type="button" variant="ghost" size="icon-sm" className="size-6" aria-label={t("messageActionsFor", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 100) || t("image") })}>
+                          <ChevronDown className="size-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("messageActions")}</TooltipContent>
+                  </Tooltip>
+                  <DropdownMenuContent align={isOwn ? "end" : "start"} className="min-w-[8.5rem] p-1">
+                    {canReply && <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" disabled={replyDisabled} onSelect={() => { if (!replyDisabled) onReply(message); }}><MessageSquareReply className="size-3.5" /> {t("reply")}</DropdownMenuItem>}
+                    {mayEdit(viewer, message) && <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => openDialog("edit")}><Pencil className="size-3.5" /> {t("edit")}</DropdownMenuItem>}
+                    {canForward && <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => openDialog("forward")}><Forward className="size-3.5" /> {t("forward")}</DropdownMenuItem>}
+                    {message.canReport && <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => openDialog("report")}><Flag className="size-3.5" /> {t("report")}</DropdownMenuItem>}
+                    {canDelete && <><DropdownMenuSeparator /><DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs text-destructive" onSelect={() => openDialog("delete")}><Trash2 className="size-3.5" /> {t("delete")}</DropdownMenuItem></>}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+          </div>
           {quote && <div className="mb-2 rounded-md border-l-2 border-primary bg-muted/50 px-2 py-1 text-body-xs"><span className="font-semibold">{quoteAuthor}</span><div className="line-clamp-2 break-words text-muted-foreground [&_div]:text-body-xs [&_p]:text-body-xs"><DiscussionMarkdown content={(quoteExcerpt ?? "").slice(0, 600)} /></div></div>}
           <div data-discussion-content>{visibleBody && <DiscussionMarkdown content={visibleBody} />}
           {message.attachments.map((attachment) => <div key={attachment.id} className="mt-2 w-60 max-w-full">{renderAttachment ? renderAttachment(attachment) : <DiscussionAttachment attachment={attachment} />}</div>)}</div>
           {message.editedAt && <p className="mt-1 text-body-xs text-muted-foreground">{t("edited")}</p>}
         </ZyraBubbleSkin>
-        {canReact && <div className="flex flex-wrap items-center gap-1">{message.reactions.filter((reaction) => reaction.count > 0).map((reaction) => <Button key={reaction.emoji} type="button" variant={reaction.selected ? "secondary" : "outline"} size="xs" aria-label={`${t("reaction", { emoji: reaction.emoji, count: reaction.count })}. ${t("messageReference", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 160) || t("image") })}`} aria-pressed={reaction.selected} disabled={pending} onClick={() => void run(() => onReact({ questionId, messageId: message.id, emoji: reaction.emoji, selected: !reaction.selected }))}>{reaction.emoji} {reaction.count}</Button>)}
+        {canReact && <div className={cn("flex flex-wrap items-center gap-1", isOwn && "justify-end")}>{message.reactions.filter((reaction) => reaction.count > 0).map((reaction) => <Button key={reaction.emoji} type="button" variant={reaction.selected ? "secondary" : "outline"} size="xs" aria-label={`${t("reaction", { emoji: reaction.emoji, count: reaction.count })}. ${t("messageReference", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 160) || t("image") })}`} aria-pressed={reaction.selected} disabled={pending} onClick={() => void run(() => onReact({ questionId, messageId: message.id, emoji: reaction.emoji, selected: !reaction.selected }))}>{reaction.emoji} {reaction.count}</Button>)}
           <DropdownMenu><Tooltip><TooltipTrigger asChild><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={`${t("addReaction")}. ${t("messageReference", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 160) || t("image") })}`} disabled={pending}><Plus /></Button></DropdownMenuTrigger></TooltipTrigger><TooltipContent>{t("addReaction")}</TooltipContent></Tooltip><DropdownMenuContent>{REACTIONS.map((emoji) => <DropdownMenuItem key={emoji} onSelect={() => void run(() => onReact({ questionId, messageId: message.id, emoji, selected: !message.reactions.find((reaction) => reaction.emoji === emoji)?.selected }))}>{emoji}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>
         </div>}
         {error && !activeDialog && <p role="alert" className="text-body-xs text-destructive">{t(error)} {retry && <Button type="button" variant="link" size="xs" disabled={pending} onClick={() => void run(retry)}>{t("retry")}</Button>}</p>}
@@ -307,17 +395,89 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
     <Dialog open={activeDialog !== null} onOpenChange={(open) => { if (!open && !pending) { if (activeDialog === "forward") { setForwardDismissed(true); if (!forwardLocked) updateForwardDraft(() => undefined); } else setDialog(null); setError(""); } }}>
       <DialogContent {...(activeDialog === "delete" ? {} : { "aria-describedby": undefined })}><DialogHeader><DialogTitle>{activeDialog === "edit" ? t("editMessage") : activeDialog === "delete" ? t("deleteMessage") : activeDialog === "forward" ? t("forwardMessage") : t("reportMessage")}</DialogTitle>{activeDialog === "delete" && <DialogDescription className="min-w-0 [overflow-wrap:anywhere]">{t("deleteDescription")} {t("messageReference", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 160) || t("image") })}</DialogDescription>}</DialogHeader>
         {activeDialog === "edit" && <><Textarea value={body} onChange={(event) => setBody(event.target.value)} aria-label={t("messageBody")} maxLength={12_000} disabled={pending} />{message.revision !== editingRevision && <div role="alert" className="space-y-2 rounded-md border border-border p-3 text-body-xs"><p className="text-body-xs">{t("messageChanged")}</p><DiscussionMarkdown content={message.body} /><div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => { setBody(message.body); setEditingRevision(message.revision); setError(""); }}>{t("useLatest")}</Button><Button type="button" size="sm" variant="outline" onClick={() => { setEditingRevision(message.revision); setError(""); }}>{t("keepDraft")}</Button></div></div>}</>}
-        {activeDialog === "forward" && <div className="space-y-2">
-          <DiscussionChannelPicker value={targetChannel} label={t("targetChannel")} placeholder={t("chooseChannel")} source={sourceChannel} onSearch={onSearchChannels} onChange={(value) => { const requestId = crypto.randomUUID(); updateForwardDraft(current => current && { ...current, targetChannel: value, targetQuestion: "", targetTitle: "", requestId }); setTargetSearch(""); setTargetCursors([undefined]); setTargetPageIndex(0); }} disabled={forwardLocked} />
-          <Input value={targetSearch} onChange={(event) => { setTargetSearch(event.target.value.slice(0, 160)); updateForwardDraft(current => current && { ...current, targetQuestion: "", targetTitle: "" }); setTargetCursors([undefined]); setTargetPageIndex(0); }} aria-label={t("searchTarget")} placeholder={t("searchQuestion")} disabled={forwardLocked || !target} />
-          <Select value={targetQuestion} onValueChange={(value) => { const requestId = crypto.randomUUID(); updateForwardDraft(current => current && { ...current, targetQuestion: value, targetTitle: targetPage.items.find(item => item.questionId === value)?.title ?? "", requestId }); }} disabled={forwardLocked || !target || targetState !== "ready" || !targetPage.items.length}><SelectTrigger aria-label={t("targetQuestion")} className="h-auto min-h-10 text-left [&>span]:whitespace-normal [&>span]:[overflow-wrap:anywhere]"><SelectValue placeholder={t("chooseQuestion")}>{forwardDraft?.targetTitle || undefined}</SelectValue></SelectTrigger><SelectContent collisionPadding={16} className="w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-2rem)]">{targetPage.items.map((item) => <SelectItem key={item.questionId} value={item.questionId} className="min-w-0 whitespace-normal [overflow-wrap:anywhere]">{item.title}</SelectItem>)}</SelectContent></Select>
-          {target && (targetState === "loading" ? <p role="status" className="text-body-xs text-muted-foreground">{t("loadingQuestions")}</p> : targetState === "error" ? <div role="alert" className="flex items-center gap-2 text-body-xs text-destructive">{t("targetError")}<Button type="button" variant="outline" size="sm" onClick={() => setTargetRetry((value) => value + 1)}>{t("retry")}</Button></div> : !targetPage.items.length ? <p className="text-body-xs text-muted-foreground">{t("noQuestionsPage")}</p> : null)}
-          {target && <div className="flex flex-wrap items-center gap-2"><Button type="button" variant="outline" size="sm" disabled={forwardLocked || targetState === "loading" || targetPageIndex === 0} onClick={() => { updateForwardDraft(current => current && { ...current, targetQuestion: "", targetTitle: "" }); setTargetPageIndex((index) => index - 1); }}>{t("previous")}</Button><span className="text-body-xs text-muted-foreground">{t("page", { page: targetPageIndex + 1 })}</span><Button type="button" variant="outline" size="sm" disabled={forwardLocked || targetState !== "ready" || !targetPage.nextCursor} onClick={() => { updateForwardDraft(current => current && { ...current, targetQuestion: "", targetTitle: "" }); setTargetCursors((cursors) => [...cursors.slice(0, targetPageIndex + 1), targetPage.nextCursor!]); setTargetPageIndex((index) => index + 1); }}>{t("next")}</Button></div>}
+        {activeDialog === "forward" && <div className="space-y-3">
+          <div data-forward-preview className="rounded-lg border border-border bg-muted/40 p-2.5 text-body-xs">
+            <p className="font-semibold text-muted-foreground">{t("forwardPreview")}</p>
+            <p className="mt-0.5 font-semibold text-foreground">{message.author.name}</p>
+            <p className="line-clamp-2 break-words text-muted-foreground">{visibleBody || t("image")}</p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="sm:w-48 shrink-0">
+              <DiscussionChannelPicker
+                value={forwardFilterChannel}
+                label={t("targetChannel")}
+                placeholder={sourceChannel.kind === "global" ? t("allChannels") : t("chooseChannel")}
+                allowAll={sourceChannel.kind === "global"}
+                source={sourceChannel}
+                onSearch={onSearchChannels}
+                onChange={(value) => {
+                  const requestId = crypto.randomUUID();
+                  setForwardFilterChannel(value);
+                  updateForwardDraft(current => current && { ...current, targetChannel: null, targetQuestion: "", targetTitle: "", requestId });
+                  setTargetSearch(""); setTargetCursors([undefined]); setTargetPageIndex(0);
+                }}
+                disabled={forwardLocked}
+              />
+            </div>
+            <Input
+              value={targetSearch}
+              onChange={(event) => {
+                setTargetSearch(event.target.value.slice(0, 160));
+                setTargetCursors([undefined]);
+                setTargetPageIndex(0);
+              }}
+              aria-label={t("searchTarget")}
+              placeholder={t("searchTarget")}
+              disabled={forwardLocked}
+              className="min-w-0 flex-1"
+            />
+          </div>
+          {targetState === "loading" ? (
+            <p role="status" className="text-body-xs text-muted-foreground">{t("loadingQuestions")}</p>
+          ) : targetState === "error" ? (
+            <div role="alert" className="flex items-center gap-2 text-body-xs text-destructive">{t("targetError")}<Button type="button" variant="outline" size="sm" onClick={() => setTargetRetry((value) => value + 1)}>{t("retry")}</Button></div>
+          ) : !targetPage.items.length ? (
+            <p className="text-body-xs text-muted-foreground">{t("noQuestionsPage")}</p>
+          ) : (
+            <div role="listbox" aria-label={t("targetQuestion")} className="max-h-56 divide-y divide-border overflow-y-auto rounded-lg border border-border">
+              {targetPage.items.map((item) => {
+                const selected = targetQuestion === item.questionId;
+                const channelLabel = item.channelName || channels?.find((channel) => channel.id === item.channelId)?.name;
+                return (
+                  <button
+                    key={item.questionId}
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    disabled={forwardLocked}
+                    onClick={() => selectForwardQuestion(item)}
+                    className={cn(
+                      "flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring",
+                      selected && "bg-primary/10",
+                    )}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="line-clamp-2 block break-words text-body-sm font-semibold">{item.title}</span>
+                      {channelLabel && <span className="mt-0.5 block truncate text-body-xs text-muted-foreground">{channelLabel}</span>}
+                    </span>
+                    {selected && <Check className="size-4 shrink-0 text-primary" aria-hidden />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {(targetPageIndex > 0 || targetPage.nextCursor) && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="outline" size="sm" disabled={forwardLocked || targetState === "loading" || targetPageIndex === 0} onClick={() => setTargetPageIndex((index) => index - 1)}>{t("previous")}</Button>
+              <span className="text-body-xs text-muted-foreground">{t("page", { page: targetPageIndex + 1 })}</span>
+              <Button type="button" variant="outline" size="sm" disabled={forwardLocked || targetState !== "ready" || !targetPage.nextCursor} onClick={() => { setTargetCursors((cursors) => [...cursors.slice(0, targetPageIndex + 1), targetPage.nextCursor!]); setTargetPageIndex((index) => index + 1); }}>{t("next")}</Button>
+            </div>
+          )}
         </div>}
         {activeDialog === "report" && <Textarea value={reason} onChange={(event) => setReason(event.target.value)} aria-label={t("reportReason")} placeholder={t("reportReason")} maxLength={1000} disabled={pending} />}
         {forwardDraft?.replayTarget && activeDialog === "forward" && <div role="alert" className="space-y-2 text-body-xs"><p className="text-body-xs">{t("sendError_replay_unverified")}</p><Button asChild variant="outline" size="sm"><a href={discussionMessageHref(forwardDraft.replayTarget)} target="_blank" rel="noopener noreferrer">{t("inspectPrevious")}</a></Button></div>}
         {(forwardDraft?.status === "unknown" && activeDialog === "forward" || error) && <p role="alert" className="text-body-xs text-destructive">{t(forwardDraft?.status === "unknown" && activeDialog === "forward" ? (forwardDraft.error === "resolved" ? "forwardResolvedUnknown" : "sendError_unknown") : error)}</p>}
-        <DialogFooter><Button type="button" variant="outline" disabled={pending || forwardDraft?.status === "sending"} onClick={() => { if (activeDialog === "forward") updateForwardDraft(() => undefined); else setDialog(null); setError(""); }}>{t(activeDialog === "forward" && forwardLocked ? "discardPending" : "cancel")}</Button><Button type="button" variant={activeDialog === "delete" ? "destructive" : "default"} isLoading={pending || forwardDraft?.status === "sending"} disabled={forwardDraft?.status === "sending" || forwardDraft?.status === "replay_unverified" || (activeDialog === "edit" && editingRevision !== message.revision) || (activeDialog === "forward" && (!target || !targetQuestion)) || (activeDialog === "report" && !reason.trim())} onClick={() => void submitDialog()}>{activeDialog === "delete" ? t("delete") : activeDialog === "forward" ? t("forward") : activeDialog === "report" ? t("sendReport") : t("save")}</Button></DialogFooter>
+        <DialogFooter><Button type="button" variant="outline" disabled={pending || forwardDraft?.status === "sending"} onClick={() => { if (activeDialog === "forward") updateForwardDraft(() => undefined); else setDialog(null); setError(""); }}>{t(activeDialog === "forward" && forwardLocked ? "discardPending" : "cancel")}</Button><Button type="button" variant={activeDialog === "delete" ? "destructive" : "default"} isLoading={pending || forwardDraft?.status === "sending"} disabled={forwardDraft?.status === "sending" || forwardDraft?.status === "replay_unverified" || (activeDialog === "edit" && editingRevision !== message.revision) || (activeDialog === "forward" && (!targetChannel || !targetQuestion)) || (activeDialog === "report" && !reason.trim())} onClick={() => void submitDialog()}>{activeDialog === "delete" ? t("delete") : activeDialog === "forward" ? t("forward") : activeDialog === "report" ? t("sendReport") : t("save")}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   </div>;

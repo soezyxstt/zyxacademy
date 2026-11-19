@@ -136,7 +136,7 @@ export function McpAuthorizeView({
   })();
 
   return (
-    <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-sm">
+    <div className="w-full max-w-xl">
       {/* Connected Header Bridge */}
       <div className="flex flex-col items-center text-center">
         <div className="flex items-center justify-center gap-3 sm:gap-4 w-full max-w-xs mb-5">
@@ -179,7 +179,7 @@ export function McpAuthorizeView({
       </div>
 
       {/* Account Info Pill */}
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/40 p-3 sm:p-3.5">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-y border-border py-3">
         <div className="flex items-center gap-3 min-w-0">
           {user.image ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -267,7 +267,7 @@ export function McpAuthorizeView({
               </span>
             </div>
 
-            <div className="rounded-xl border border-border divide-y divide-border/60 bg-background/50 overflow-hidden">
+            <div className="divide-y divide-border border-y border-border">
               {scopes.map((scope) => {
                 const detail = SCOPE_DETAILS[scope] ?? {
                   key: scope,
@@ -311,7 +311,7 @@ export function McpAuthorizeView({
           </div>
 
           {/* Security Guarantee Box (Spotify/GitHub style transparency) */}
-          <div className="rounded-xl border border-border/80 bg-muted/20 p-3.5">
+          <div className="border-y border-border py-3">
             <div className="flex items-center gap-2 text-body-xs font-semibold text-foreground mb-2">
               <ShieldCheck className="size-4 text-status-success" />
               <span>{t("security")}</span>

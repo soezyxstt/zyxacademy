@@ -54,6 +54,7 @@ export async function updateStudentProfileAction(
 
     revalidatePath("/profile");
     revalidatePath("/profile/edit");
+    revalidatePath("/settings");
     revalidatePath("/dashboard");
 
     return {

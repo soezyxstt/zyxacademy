@@ -643,18 +643,18 @@ export async function PrimaryLearningSection({
     await loadPrimaryLearningData(userId, enrollments, deps);
 
   return (
-    <>
+    <div className="space-y-6">
       <section>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
-          <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-            <GraduationCap className="size-4 text-brand-primary" />
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
+          <h2 className="flex items-center gap-2 font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <GraduationCap className="size-3.5 shrink-0 text-muted-foreground" />
             <TranslatedText namespace="student" messageKey="dashboard.classesActive" />
           </h2>
           <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
             <ActivateClassModal />
-            <Link href="/courses" className="text-body-xs font-bold text-brand-primary hover:underline flex items-center gap-0.5 shrink-0">
+            <Link href="/courses" className="group text-body-xs font-semibold text-muted-foreground hover:text-foreground transition-colors flex items-center gap-0.5 shrink-0">
               <TranslatedText namespace="student" messageKey="dashboard.viewAll" />
-              <ArrowUpRight className="size-3.5" />
+              <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </Link>
           </div>
         </div>
@@ -669,12 +669,12 @@ export async function PrimaryLearningSection({
               <Link
                 key={course.id}
                 href={`/courses/${course.id}`}
-                className="group block py-3.5 px-2 -mx-2 rounded-xl transition-colors hover:bg-muted/40"
+                className="group block py-3.5 px-2 -mx-2 rounded-lg transition-colors hover:bg-muted/40"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex rounded-md bg-brand-primary/10 px-2 py-0.5 text-[10px] font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20 shrink-0">
+                      <span className="inline-flex rounded-md border border-border/50 bg-muted/50 px-2 py-0.5 text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
                         {course.category}
                       </span>
                       <CoursePricingLabel pricing={course.pricing} />
@@ -684,26 +684,33 @@ export async function PrimaryLearningSection({
                     </div>
 
                     <div className="mt-2.5 flex flex-wrap items-center gap-2 sm:gap-3 max-w-md">
-                      <div className="h-1.5 w-20 sm:w-28 shrink-0 overflow-hidden rounded bg-muted">
-                        <div className="h-full bg-brand-primary transition-all duration-300 rounded" style={{ width: `${progressPct}%` }} />
+                      <div className="h-1.5 w-20 sm:w-28 shrink-0 overflow-hidden rounded-full bg-muted/70">
+                        <div
+                          className={cn(
+                            "h-full transition-all duration-300 rounded-full",
+                            progressPct >= 100 ? "bg-status-success" : "bg-brand-primary",
+                          )}
+                          style={{ width: `${progressPct}%` }}
+                        />
                       </div>
-                      <span className="text-body-xs font-semibold text-foreground shrink-0">{progressPct}%</span>
+                      <span className="text-body-xs font-semibold tabular-nums text-foreground shrink-0">{progressPct}%</span>
                       <span className="text-body-xs text-muted-foreground"><TranslatedText namespace="student" messageKey="dashboard.enrolledMaterialProgress" values={{ done: doneCount, total: materials.length }} /></span>
                     </div>
 
                     {nextConcepts[course.id] && (
                       <div className="mt-2 text-body-xs font-medium text-muted-foreground break-words min-w-0">
                         <TranslatedText namespace="student" messageKey="dashboard.nextStep" />{" "}
-                        <span className="text-brand-primary font-semibold group-hover:underline">
+                        <span className="text-foreground font-medium group-hover:underline">
                           <MathText as="span">{nextConcepts[course.id]}</MathText>
                         </span>
                       </div>
                     )}
                   </div>
 
-                  <div className="flex size-7 items-center justify-center rounded-lg border border-border/70 bg-background text-muted-foreground group-hover:text-brand-primary group-hover:border-brand-primary/30 transition-all shrink-0">
-                    <ArrowUpRight className="size-4" />
-                  </div>
+                  <ArrowUpRight
+                    className="mt-0.5 size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground"
+                    aria-hidden
+                  />
                 </div>
               </Link>
             );
@@ -712,13 +719,13 @@ export async function PrimaryLearningSection({
       </section>
 
       <section>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
-          <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-            <Bookmark className="size-4 text-brand-primary" />
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
+          <h2 className="flex items-center gap-2 font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <Bookmark className="size-3.5 shrink-0 text-muted-foreground" />
             <TranslatedText namespace="student" messageKey="dashboard.openMaterials" />
           </h2>
           {inProgressDocuments.length > 0 && (
-            <span className="text-body-xs font-semibold bg-muted px-2 py-0.5 rounded-md text-muted-foreground shrink-0">
+            <span className="text-body-xs font-medium tabular-nums text-muted-foreground shrink-0">
               <TranslatedText namespace="student" messageKey="dashboard.materialCount" values={{ count: inProgressDocuments.length }} />
             </span>
           )}
@@ -729,14 +736,14 @@ export async function PrimaryLearningSection({
             {inProgressDocuments.map((doc) => {
               if (!doc) return null;
               return (
-                <div key={doc.id} className="group py-3 px-2 -mx-2 rounded-xl transition-colors hover:bg-muted/40">
+                <div key={doc.id} className="group py-3 px-2 -mx-2 rounded-lg transition-colors hover:bg-muted/40">
                   <Link
                     href={`/courses/${doc.courseId}/material/${doc.id}${doc.lastSectionId ? `?section=${encodeURIComponent(doc.lastSectionId)}` : ""}`}
                     className="flex items-center justify-between gap-3 sm:gap-4 min-w-0"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex max-w-full break-words rounded-md border border-border/50 bg-muted/40 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+                        <span className="inline-flex max-w-full break-words rounded-md border border-border/50 bg-muted/50 px-2 py-0.5 text-body-2xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
                           {doc.courseTitle}
                         </span>
                         <span className="text-body-xs text-muted-foreground capitalize">({doc.kind})</span>
@@ -745,33 +752,30 @@ export async function PrimaryLearningSection({
                         {doc.title}
                       </h3>
                       <div className="mt-2 flex flex-wrap items-center gap-2 sm:gap-3 max-w-xs">
-                        <div className="h-1.5 w-20 sm:w-24 shrink-0 overflow-hidden rounded bg-muted">
-                          <div className="h-full bg-brand-primary transition-all duration-300 rounded" style={{ width: `${doc.completionPercent}%` }} />
+                        <div className="h-1.5 w-20 sm:w-24 shrink-0 overflow-hidden rounded-full bg-muted/70">
+                          <div className="h-full bg-brand-primary transition-all duration-300 rounded-full" style={{ width: `${doc.completionPercent}%` }} />
                         </div>
-                        <span className="text-body-xs font-semibold text-foreground shrink-0">{doc.completionPercent}%</span>
+                        <span className="text-body-xs font-semibold tabular-nums text-foreground shrink-0">{doc.completionPercent}%</span>
                         {doc.lastSectionId && (
                           <span className="max-w-[120px] truncate text-body-xs text-muted-foreground">, {doc.lastSectionId}</span>
                         )}
                       </div>
                     </div>
-                    <Button size="sm" variant="outline" className="rounded-md gap-1.5 shrink-0 pointer-events-none group-hover:bg-muted transition-colors">
-                      <Play className="size-3 fill-current" />
-                      <TranslatedText namespace="student" messageKey="dashboard.continue" />
-                    </Button>
+                    <Play className="size-3.5 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" aria-hidden />
                   </Link>
                 </div>
               );
             })}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-8 text-center rounded-xl border border-dashed border-border/60 bg-muted/15">
+          <div className="flex flex-col items-center justify-center px-3 py-4 text-center">
             <CheckCircle2 className="size-8 text-status-success/60 mb-2" />
             <p className="text-body-sm font-medium text-foreground"><TranslatedText namespace="student" messageKey="dashboard.documentsRead" /></p>
             <p className="text-body-xs text-muted-foreground mt-0.5"><TranslatedText namespace="student" messageKey="dashboard.newClassMaterial" /></p>
           </div>
         )}
       </section>
-    </>
+    </div>
   );
 }
 
@@ -791,31 +795,31 @@ export async function RecommendedCoursesSection({
 
   return (
     <section>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
         <div className="flex flex-wrap items-center gap-2">
-          <Compass className="size-4 text-brand-primary" />
-          <h2 className="font-heading text-body-base font-bold text-foreground">
+          <Compass className="size-3.5 shrink-0 text-muted-foreground" />
+          <h2 className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
             <TranslatedText namespace="student" messageKey="dashboard.recommendedCourses" />
           </h2>
           {studentTargetCategory && (
-            <span className="rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-2xs font-bold uppercase tracking-wider text-brand-primary ring-1 ring-brand-primary/20 shrink-0">
+            <span className="rounded-md border border-border/50 bg-muted/50 px-2 py-0.5 text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
               {studentTargetCategory === "TPB" ? "TPB" : studentTargetCategory}
             </span>
           )}
         </div>
-        <Link href="/courses" className="text-body-xs font-bold text-brand-primary hover:underline flex items-center gap-0.5 shrink-0">
+        <Link href="/courses" className="group text-body-xs font-semibold text-muted-foreground hover:text-foreground transition-colors flex items-center gap-0.5 shrink-0">
           <TranslatedText namespace="student" messageKey="dashboard.viewAll" />
-          <ArrowUpRight className="size-3.5" />
+          <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         </Link>
       </div>
 
       <div className="divide-y divide-border/30">
         {recommendedCourses.map((course) => (
-          <div key={course.id} className="group py-2.5 px-2 -mx-2 rounded-xl transition-colors hover:bg-muted/40">
+          <div key={course.id} className="group py-2.5 px-2 -mx-2 rounded-lg transition-colors hover:bg-muted/40">
             <Link href={`/courses/${course.id}`} className="flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex rounded-md bg-brand-primary/10 px-2 py-0.5 text-[10px] font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20">
+                  <span className="inline-flex rounded-md border border-border/50 bg-muted/50 px-2 py-0.5 text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {course.category}
                   </span>
                   <CoursePricingLabel pricing={course.pricing} />
@@ -827,9 +831,10 @@ export async function RecommendedCoursesSection({
                   {course.title}
                 </h3>
               </div>
-              <div className="flex size-7 items-center justify-center rounded-lg border border-border/70 bg-background text-muted-foreground group-hover:text-brand-primary group-hover:border-brand-primary/30 transition-all shrink-0">
-                <ArrowRight className="size-4" />
-              </div>
+              <ArrowRight
+                className="size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
+                aria-hidden
+              />
             </Link>
           </div>
         ))}
@@ -852,14 +857,14 @@ export async function ReviewQueueSection({
 
   return (
     <section>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
-        <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-          <Layers className="size-4 text-brand-primary" />
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
+        <h2 className="flex items-center gap-2 font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Layers className="size-3.5 shrink-0 text-muted-foreground" />
           <TranslatedText namespace="student" messageKey="dashboard.spacedRepetition" />
         </h2>
         <span className={cn(
-          "text-body-xs font-semibold px-2 py-0.5 rounded-md shrink-0",
-          totalDueFlashcards > 0 ? "bg-brand-secondary/15 text-brand-secondary" : "bg-status-success/15 text-status-success",
+          "text-body-xs font-semibold px-2 py-0.5 rounded-md tabular-nums shrink-0",
+          totalDueFlashcards > 0 ? "bg-status-warning/15 text-status-warning" : "bg-status-success/15 text-status-success",
         )}>
           {totalDueFlashcards > 0
             ? <TranslatedText namespace="student" messageKey="dashboard.cardsDue" values={{ count: totalDueFlashcards }} />
@@ -872,19 +877,19 @@ export async function ReviewQueueSection({
       </p>
 
       {firstCourseWithQueue && (
-        <Button asChild className="w-full mt-3 rounded-lg text-body-sm font-semibold">
+        <Button asChild className="group w-full mt-3 rounded-lg text-body-sm font-semibold">
           <Link href={`/courses/${firstCourseWithQueue}/flashcard`}>
             {totalDueFlashcards > 0
               ? <TranslatedText namespace="student" messageKey="dashboard.startFlashcardReview" />
               : <TranslatedText namespace="student" messageKey="dashboard.openFlashcardCollection" />}
-            <ArrowRight className="ml-1.5 size-4" />
+            <ArrowRight className="ml-1.5 size-4 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </Button>
       )}
 
-      <div className="mt-4 pt-3 border-t border-border/40">
+      <div className="mt-4 pt-3 border-t border-border/30">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-body-xs font-semibold text-foreground flex items-center gap-1.5">
+          <span className="font-heading text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
             <History className="size-3.5 text-muted-foreground" />
             <TranslatedText namespace="student" messageKey="dashboard.recentReviews" />
           </span>
@@ -896,15 +901,15 @@ export async function ReviewQueueSection({
               const gradeLabels: Record<number, string> = { 1: "gradeAgain", 2: "gradeHard", 3: "gradeGood", 4: "gradeEasy" };
               const gradeColors: Record<number, string> = {
                 1: "text-status-error bg-status-error/10 border-status-error/20",
-                2: "text-brand-secondary bg-brand-secondary/10 border-brand-secondary/20",
-                3: "text-brand-primary bg-brand-primary/10 border-brand-primary/20",
+                2: "text-status-warning bg-status-warning/10 border-status-warning/20",
+                3: "text-foreground/80 bg-muted/60 border-border/60",
                 4: "text-status-success bg-status-success/10 border-status-success/20",
               };
               return (
                 <div key={review.id} className="py-2.5 px-1">
                   <div className="flex items-start justify-between gap-2">
                     <span className={cn(
-                      "inline-flex rounded-md border px-1.5 py-0.2 text-[10px] font-bold uppercase tracking-wider shrink-0",
+                      "inline-flex rounded-md border px-1.5 py-0.2 text-body-2xs font-bold uppercase tracking-wider shrink-0",
                       gradeColors[review.grade] || "text-muted-foreground border-border bg-muted/40",
                     )}>
                       <TranslatedText namespace="student" messageKey={`dashboard.${gradeLabels[review.grade] || "recentReviews"}`} />
@@ -945,10 +950,10 @@ export async function WeakConceptsSection({
       {firstCourse?.id && (
         <Link
           href={`/courses/${firstCourse.id}/mastery`}
-          className="mt-3 pt-2.5 border-t border-border/40 inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline"
+          className="group mt-3 pt-2.5 border-t border-border/30 inline-flex items-center gap-1 text-body-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
         >
           <TranslatedText namespace="student" messageKey="dashboard.fullMasteryMap" />
-          <ArrowUpRight className="size-3.5" />
+          <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         </Link>
       )}
     </section>
@@ -966,13 +971,13 @@ export async function AvailableAssessmentsSection({
 
   return (
     <section>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
-        <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-          <ClipboardList className="size-4 text-brand-primary" />
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
+        <h2 className="flex items-center gap-2 font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <ClipboardList className="size-3.5 shrink-0 text-muted-foreground" />
           <TranslatedText namespace="student" messageKey="dashboard.availableAssessments" />
         </h2>
         {availableExams.length > 0 && (
-          <span className="text-body-xs font-semibold bg-muted px-2 py-0.5 rounded-md text-muted-foreground shrink-0">
+          <span className="text-body-xs font-medium tabular-nums text-muted-foreground shrink-0">
             <TranslatedText namespace="student" messageKey="dashboard.examCount" values={{ count: availableExams.length }} />
           </span>
         )}
@@ -981,40 +986,38 @@ export async function AvailableAssessmentsSection({
       {availableExams.length > 0 ? (
         <div className="divide-y divide-border/30">
           {availableExams.slice(0, 4).map((exam) => (
-            <div key={exam.id} className="group py-2.5 px-2 -mx-2 rounded-xl transition-colors hover:bg-muted/40">
+            <div key={exam.id} className="group py-2.5 px-2 -mx-2 rounded-lg transition-colors hover:bg-muted/40">
               <Link href={`/courses/${exam.courseId}/${exam.type}/${exam.id}`} className="flex items-center justify-between gap-3 min-w-0">
                 <div className="min-w-0 flex-1">
                   <h4 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors break-words min-w-0">
                     {exam.title}
                   </h4>
                   <p className="text-body-xs text-muted-foreground mt-0.5 flex items-center gap-1.5 truncate">
-                    <span className="font-semibold text-brand-primary truncate max-w-[120px]">{exam.courseTitle}</span>
+                    <span className="font-medium text-muted-foreground truncate max-w-[140px]">{exam.courseTitle}</span>
                     <span className="text-border-strong">,</span>
                     <span className="capitalize shrink-0"><TranslatedText namespace="student" messageKey={exam.type === "quiz" ? "dashboard.examQuiz" : "dashboard.examTryout"} /></span>
                   </p>
                 </div>
-                <Button size="sm" className="rounded-md shrink-0 pointer-events-none group-hover:bg-brand-primary/95 transition-all text-body-sm h-8 px-3">
-                  <TranslatedText namespace="student" messageKey="dashboard.workOnIt" />
-                </Button>
+                <ArrowRight className="size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" aria-hidden />
               </Link>
             </div>
           ))}
 
           {availableExams.length > 4 && (
-            <div className="pt-2 text-center border-t border-border/40">
+            <div className="pt-2 text-center border-t border-border/30">
               <Link
                 href={availableExams[0] ? `/courses/${availableExams[0].courseId}/quiz` : "/courses"}
-                className="text-body-xs font-semibold text-brand-primary hover:underline inline-flex items-center gap-1"
+                className="group text-body-xs font-semibold text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
               >
                 <TranslatedText namespace="student" messageKey="dashboard.seeAllExams" values={{ count: availableExams.length }} />
-                <ArrowUpRight className="size-3.5" />
+                <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </Link>
             </div>
           )}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center py-8 text-center rounded-xl border border-dashed border-border/60 bg-muted/15">
-          <Trophy className="size-8 text-brand-secondary/60 mb-2" />
+        <div className="flex flex-col items-center justify-center px-3 py-4 text-center">
+          <Trophy className="size-8 text-status-warning/60 mb-2" />
           <p className="text-body-sm font-medium text-foreground"><TranslatedText namespace="student" messageKey="dashboard.allExamsDone" /></p>
           <p className="text-body-xs text-muted-foreground mt-0.5"><TranslatedText namespace="student" messageKey="dashboard.newPracticeLater" /></p>
         </div>

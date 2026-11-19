@@ -13,14 +13,12 @@ import {
   LockKeyhole,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { previewPlanTiers } from "@/lib/plan-tiers";
 import { PlanPrice, PlanPromotion } from "@/components/pricing/plan-price";
 import { DEFAULT_COURSES, DEFAULT_PERSONS } from "@/lib/pricing-constants";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
-import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
 
 export interface CatalogCourse {
@@ -105,7 +103,7 @@ export function StudentOnboardingView({
 
       <div className="grid gap-6 lg:grid-cols-12">
         <div className="space-y-6 lg:col-span-8">
-          <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
+          <section className="min-w-0">
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-border/60 pb-3">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -271,13 +269,7 @@ export function StudentOnboardingView({
 
             <div className="grid gap-3 @min-[32rem]/onboarding-plans:grid-cols-2 @min-[49rem]/onboarding-plans:grid-cols-3">
               {previewPlanTiers.map((tier) => (
-                <Card
-                  key={tier.key}
-                  className={cn(
-                    "p-4 flex flex-col justify-between",
-                    tier.highlighted && "border-brand-primary/40 bg-brand-primary/5",
-                  )}
-                >
+                <section key={tier.key} className="flex min-w-0 flex-col border-t border-border py-3">
                   <div>
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-heading text-body-sm font-bold text-foreground">{tier.name}</span>
@@ -297,20 +289,20 @@ export function StudentOnboardingView({
                     </div>
                     <p className="mt-2 text-body-xs text-muted-foreground">{tier.note}</p>
                   </div>
-                </Card>
+                </section>
               ))}
             </div>
           </section>
         </div>
 
         <div className="space-y-6 lg:col-span-4">
-          <Card className="p-4 sm:p-5">
+          <section className="border-t border-border pt-4">
             <h2 className="flex items-center gap-2 font-heading text-body-sm font-bold text-foreground">
               <LockKeyhole className="size-4 text-muted-foreground" />
               {t("dashboard.hasClassToken")}
             </h2>
             <EnrollmentForm className="mt-3.5" />
-          </Card>
+          </section>
 
           <section className="border-t border-border pt-4">
             <h2 className="font-heading text-body-sm font-bold text-foreground">{t("dashboard.planTitle")}</h2>

@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { savePricingDiscounts } from "@/app/(admin)/admin/pricing/actions";
 import { pricingDiscountsSchema, type PricingDiscounts } from "@/lib/pricing-discounts";
+import { pricingDiscountsQuery } from "@/lib/query/pricing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,7 +35,7 @@ export function PricingDiscountSettings({ initialSettings, save = savePricingDis
         try {
           const result = await save(values);
           if (!result.success || !result.data) throw new Error();
-          queryClient.setQueryData(["pricing-discounts"], result.data);
+          queryClient.setQueryData(pricingDiscountsQuery().queryKey, pricingDiscountsSchema.parse(result.data));
           setMessage(t("discountSettings.saved"));
         } catch {
           setFailed(true);
@@ -43,7 +44,7 @@ export function PricingDiscountSettings({ initialSettings, save = savePricingDis
       });
     }}>
       <p className="text-body-xs text-muted-foreground">{t("discountSettings.scheduleHelp")}</p>
-      <div className="divide-y divide-border rounded-xl border border-border bg-card px-4">
+      <div className="divide-y divide-border border-y border-border">
         {(["platform", "tutorial"] as const).map((component) => (
           <fieldset key={component} disabled={busy} className="grid gap-3 py-4 sm:grid-cols-2 sm:items-end lg:grid-cols-[1fr_100px_1fr_1fr]">
             <legend className="sr-only">{component === "platform" ? t("discountSettings.platform") : t("discountSettings.tutorial")}</legend>

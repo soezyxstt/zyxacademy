@@ -4,14 +4,14 @@ import Link from "next/link";
 import { BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ContinueReadingData } from "@/types/course-learning";
-import { studentCardClass } from "@/components/course/course-surfaces";
+import { studentSectionClass } from "@/components/course/course-surfaces";
 import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
 
 export function ContinueReadingSkeleton() {
   return (
-    <div className={cn(studentCardClass(), "flex flex-col justify-between gap-3")}>
+    <div className={cn(studentSectionClass(), "flex flex-col justify-between gap-3")}>
       <div>
         <div className="flex items-center gap-2 mb-4">
           <div className="size-5 bg-muted rounded-md animate-pulse" />
@@ -50,7 +50,7 @@ export function ContinueReadingCard({
   const isEmpty = !data;
 
   return (
-    <div className={cn(studentCardClass(), "flex flex-col justify-between gap-3")}>
+    <div className={cn(studentSectionClass(), "flex flex-col justify-between gap-3")}>
       <div>
         <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2 mb-3">
           <BookOpen className="size-4.5 text-brand-primary" aria-hidden="true" />

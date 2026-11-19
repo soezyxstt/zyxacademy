@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useId, useRef, useState } from "react";
+import { useAppReducedMotion } from "@/components/appearance-preferences";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,23 +17,23 @@ export function stopSceneKey(event: React.KeyboardEvent) {
 export function InteractiveSceneRenderer({ spec }: { spec: InteractiveSceneSpec }) {
   const [state, setState] = useState(() => initialSceneState(spec));
   const [playing, setPlaying] = useState(false);
-  const [reduced, setReduced] = useState(false);
+  const reduced = useAppReducedMotion();
   const [showFallback, setShowFallback] = useState(false);
   const prefix = useId();
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => { setState(initialSceneState(spec)); setPlaying(false); }, [spec]);
   useEffect(() => {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => { setReduced(media.matches); if (media.matches) setPlaying(false); };
-    update(); media.addEventListener("change", update);
     const hidden = () => { if (document.hidden) setPlaying(false); };
     document.addEventListener("visibilitychange", hidden);
     const observer = typeof IntersectionObserver === "undefined" ? null : new IntersectionObserver(([entry]) => { if (!entry?.isIntersecting) setPlaying(false); });
     if (root.current) observer?.observe(root.current);
-    return () => { media.removeEventListener("change", update); document.removeEventListener("visibilitychange", hidden); observer?.disconnect(); };
+    return () => { document.removeEventListener("visibilitychange", hidden); observer?.disconnect(); };
   }, []);
   useEffect(() => {
-    if (!playing || !spec.time) return;
+    if (reduced) setPlaying(false);
+  }, [reduced]);
+  useEffect(() => {
+    if (reduced || !playing || !spec.time) return;
     const time = spec.time, p = spec.parameters.find(item => item.id === time.parameter)!;
     let frame = 0, last: number | null = null;
     const tick = (now: number) => {
@@ -44,7 +45,7 @@ export function InteractiveSceneRenderer({ spec }: { spec: InteractiveSceneSpec 
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [playing, spec]);
+  }, [playing, spec, reduced]);
   useEffect(() => {
     if (spec.time && state[spec.time.parameter] >= spec.parameters.find(p => p.id === spec.time!.parameter)!.max) setPlaying(false);
   }, [state, spec]);

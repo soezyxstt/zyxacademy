@@ -41,7 +41,6 @@ const SettingsClient = dynamic(() => import("@/app/(student)/settings/settings-c
 const NotificationPreferencesForm = dynamic(() => import("@/app/(student)/settings/notifications/notification-preferences-form").then(module => module.NotificationPreferencesForm), { loading: DemoFeatureLoading });
 const StudyPathTimeline = dynamic(() => import("@/components/course/study-path-timeline").then(module => module.StudyPathTimeline), { loading: DemoFeatureLoading });
 const ConceptMap = dynamic(() => import("@/components/course/concept-map").then(module => module.ConceptMap), { loading: DemoFeatureLoading });
-const ConceptGraphView = dynamic(() => import("@/components/course/concept-graph-view").then(module => module.ConceptGraphView), { loading: DemoFeatureLoading });
 const Playground = dynamic(() => import("@/components/coding/playground").then(module => module.Playground), { loading: DemoFeatureLoading });
 const StudentScheduleClient = dynamic(() => import("@/app/(student)/dashboard/schedule/schedule-client").then(module => module.StudentScheduleClient), { loading: DemoFeatureLoading });
 
@@ -94,7 +93,7 @@ export function DemoStudentPage({ view, experience: { content, snapshot }, maste
  if (view === "live") return <LiveStudentPage />;
  if (view === "playground") return <CoursePageShell title="Playground Python" icon={Code2}><div data-plain-canvas><Playground courseId={courseId} learnerId="fictional-demo-student" /></div></CoursePageShell>;
  if (view === "feedback") return <ApplicationPage><PageHeader title={<TranslatedText namespace="student" messageKey="feedback.title" />} icon={MessageSquareHeart} /><div className="mt-4"><FeedbackForm initialEmail={account.email} /></div></ApplicationPage>;
- if (view === "settings") return <SettingsClient userName={account.name} userEmail={account.email} />;
+ if (view === "settings") return <SettingsClient />;
  if (view === "notifications") return <ApplicationPage>
    <PageHeader title={<TranslatedText namespace="student" messageKey="notificationPreferences.title" />} icon={Bell} backHref={href("/settings")} backLabel={<TranslatedText namespace="student" messageKey="settings.title" />} />
    <div className="mt-6"><NotificationPreferencesForm accountEmail={account.email} initialPreferences={DEFAULT_EMAIL_NOTIFICATION_PREFERENCES} /></div>
@@ -113,8 +112,7 @@ export function DemoStudentPage({ view, experience: { content, snapshot }, maste
    return <CoursePageShell title={t("path.title", { course: content.course.title })} icon={Compass}><StudyPathTimeline courseId={courseId} initialSteps={steps} /></CoursePageShell>;
  }
  if (view === "mastery") return <CoursePageShell title={t("mastery.title", { course: content.course.title })} icon={Target}>
-   <div className="mb-6 space-y-3"><h2 className="font-heading text-body-base font-bold text-foreground">{t("mastery.conceptGraph")}</h2><ConceptGraphView courseId={courseId} nodes={mastery?.graphNodes ?? snapshot.weakConcepts.map(concept => ({ conceptName: concept.title, mastery: concept.masteryPercent }))} edges={mastery?.graphEdges ?? []} /></div>
-   <ConceptMap courseId={courseId} groups={mastery?.groups ?? [{ chapter: { id: "fictional-first-chapter", title: content.course.chapterTitle, orderIndex: 1 }, concepts: snapshot.weakConcepts.map(concept => ({ conceptName: concept.title, conceptSlug: null, masteryScore: concept.masteryPercent, confidence: 70, trend: "improving", blockedBy: [] })) }]} />
+   <ConceptMap courseId={courseId} pathHref={href(`/courses/${courseId}/path`)} groups={mastery?.groups ?? [{ chapter: { id: "fictional-first-chapter", title: content.course.chapterTitle, orderIndex: 1 }, concepts: snapshot.weakConcepts.map(concept => ({ conceptName: concept.title, conceptSlug: null, masteryScore: concept.masteryPercent, confidence: 70, trend: "improving", blockedBy: [] })) }]} />
  </CoursePageShell>;
  return null;
 }

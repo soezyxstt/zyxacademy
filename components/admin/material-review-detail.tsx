@@ -48,7 +48,7 @@ import { FormattedDate } from "@/components/ui/formatted-date";
 import { MathText } from "@/components/course/math-text";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { ArticleReadingCanvas } from "@/components/course/article-reading-canvas";
-import { StructuredArticleSectionContent } from "@/components/course/structured-article-reader";
+import { StructuredArticleSectionContent } from "@/components/course/structured-article-section-content";
 import { FormativeCheckEndpointProvider } from "@/components/course/formative-check-endpoint-context";
 import { InteractiveDocumentArticle } from "@/components/course/interactive-document-context";
 import { collectArticleVisualIds } from "@/lib/materials/article-parts";
@@ -661,12 +661,14 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
         <div className={cn("grid items-start gap-5", payload.structuredReaderEnabled && "lg:grid-cols-[minmax(240px,0.7fr)_minmax(0,2.3fr)]")}>
           {payload.structuredReaderEnabled ? <aside className="sticky top-4 hidden max-h-[calc(100vh-2rem)] space-y-3 overflow-y-auto lg:block">
             <SearchBar size="sm" value={searchQuery} onSearch={setSearchQuery} onClear={() => setSearchQuery("")} placeholder={t("materials.searchIdeas")} />
-            {filteredIdeas.map((idea) => {
-              const status = payload.itemReviews.find((review) => review.targetId === idea.id)?.status ?? "pending";
-              return <button key={idea.id} type="button" aria-label={`${shortIdeaCode(idea.code)}, ${t(status === "approved" ? "materials.status.approved" : status === "changes_requested" ? "materials.reviewStatus.changesRequested" : "materials.reviewStatus.pending")}`} disabled={editing || saving} onClick={() => { if (!editing && !saving) setSelectedIdeaId(idea.id); }} className={cn("w-full rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", status === "approved" ? "border-status-success/50 bg-status-success/10 hover:bg-status-success/15" : status === "changes_requested" ? "border-status-warning/60 bg-status-warning/10 hover:bg-status-warning/15" : "border-border bg-card hover:bg-muted/50", activeIdea.id === idea.id && "ring-2 ring-primary ring-offset-1 ring-offset-background")}><span className="text-body-sm font-semibold">{shortIdeaCode(idea.code)}</span><p className="mt-1 line-clamp-2 text-body-xs text-muted-foreground"><MathText as="span">{idea.canonicalStatement}</MathText></p></button>;
-            })}
+            <div className="divide-y divide-border border-y border-border">
+              {filteredIdeas.map((idea) => {
+                const status = payload.itemReviews.find((review) => review.targetId === idea.id)?.status ?? "pending";
+                return <button key={idea.id} type="button" aria-pressed={activeIdea.id === idea.id} aria-label={`${shortIdeaCode(idea.code)}, ${t(status === "approved" ? "materials.status.approved" : status === "changes_requested" ? "materials.reviewStatus.changesRequested" : "materials.reviewStatus.pending")}`} disabled={editing || saving} onClick={() => { if (!editing && !saving) setSelectedIdeaId(idea.id); }} className={cn("w-full px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring", status === "approved" ? "bg-status-success/10 hover:bg-status-success/15" : status === "changes_requested" ? "bg-status-warning/10 hover:bg-status-warning/15" : "hover:bg-muted/50", activeIdea.id === idea.id && "ring-2 ring-inset ring-primary")}><span className="text-body-sm font-semibold">{shortIdeaCode(idea.code)}</span><p className="mt-1 line-clamp-2 text-body-xs text-muted-foreground"><MathText as="span">{idea.canonicalStatement}</MathText></p></button>;
+              })}
+            </div>
           </aside> : null}
-        <article key={activeIdea.id} className="space-y-4 rounded-xl border border-border bg-card p-4">
+        <article key={activeIdea.id} className="space-y-4 border-b border-border pb-4">
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
             <div>
               <div className="flex items-center gap-2">
@@ -1066,9 +1068,9 @@ function ArticleBlockInspector({
           <Badge variant="outline" className="text-body-xs">{sourceRefs.length}</Badge>
         </div>
         {sourceRefs.length > 0 ? (
-          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+          <div className="max-h-48 divide-y divide-border overflow-y-auto border-y border-border">
             {sourceRefs.map((ref, idx) => (
-              <div key={`${ref.sourceId}-${idx}`} className="rounded-lg border border-border/60 bg-muted/20 p-2 text-body-xs space-y-1">
+              <div key={`${ref.sourceId}-${idx}`} className="space-y-1 py-2 text-body-xs">
                 <p className="font-semibold text-foreground truncate">{ref.sourceId}</p>
                 {ref.excerptIds && ref.excerptIds.length > 0 && (
                   <div className="flex flex-wrap gap-1 pt-1">
@@ -1091,9 +1093,9 @@ function ArticleBlockInspector({
       {matchingDeps.length > 0 && (
         <div className="space-y-1.5">
           <span className="text-body-xs font-semibold text-foreground">{inspectorT("dependencyFreshness")}</span>
-          <div className="space-y-1">
+          <div className="divide-y divide-border border-y border-border">
             {matchingDeps.map((dep) => (
-              <div key={dep.id} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/20 p-2 text-body-xs">
+              <div key={dep.id} className="flex items-center justify-between gap-2 py-2 text-body-xs">
                 <span className="font-mono text-body-xs truncate text-muted-foreground">{dep.upstreamEntityId}</span>
                 <StatusBadge tone={freshnessTones[dep.freshness] ?? "muted"}>
                   {freshnessLabels[dep.freshness] ?? dep.freshness}
@@ -1262,23 +1264,26 @@ function StructuredArticleProductView({
   const queue = (
     <div className="space-y-2">
       <h3 className="font-heading text-body-sm font-bold">{structuredArticleT("sectionQueue")}</h3>
-      {sections.map((section) => {
-        const sectionReview = reviews.find((entry) => entry.targetId === section.id);
-        return (
-          <button
-            key={section.id}
-            type="button"
-            disabled={saving || parentBusy || noteDirty} onClick={() => { if (saving || parentBusy || noteDirty) return; setSelectedSectionId(section.id); setMobileQueueOpen(false); }}
-            className={cn("w-full rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", selected?.id === section.id ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-muted/50")}
-          >
-            <div className="flex items-center justify-between gap-2 text-body-xs text-muted-foreground">
-              <span>{numbering.get(section.id)}</span>
-              <StatusBadge tone={blockReviewTones[sectionReview?.status ?? "pending"]}>{statusLabel(sectionReview?.status ?? "pending")}</StatusBadge>
-            </div>
-            <p className="mt-1 truncate text-body-sm font-semibold text-foreground" title={section.title}>{section.title}</p>
-          </button>
-        );
-      })}
+      <div className="divide-y divide-border border-y border-border">
+        {sections.map((section) => {
+          const sectionReview = reviews.find((entry) => entry.targetId === section.id);
+          return (
+            <button
+              key={section.id}
+              type="button"
+              aria-pressed={selected?.id === section.id}
+              disabled={saving || parentBusy || noteDirty} onClick={() => { if (saving || parentBusy || noteDirty) return; setSelectedSectionId(section.id); setMobileQueueOpen(false); }}
+              className={cn("w-full px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring", selected?.id === section.id ? "bg-primary/5" : "hover:bg-muted/50")}
+            >
+              <div className="flex items-center justify-between gap-2 text-body-xs text-muted-foreground">
+                <span>{numbering.get(section.id)}</span>
+                <StatusBadge tone={blockReviewTones[sectionReview?.status ?? "pending"]}>{statusLabel(sectionReview?.status ?? "pending")}</StatusBadge>
+              </div>
+              <p className="mt-1 break-words text-body-sm font-semibold text-foreground" title={section.title}>{section.title}</p>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 
@@ -1595,7 +1600,7 @@ function LegacyArticleProductView({
 
       {viewMode === "student" ? (
         /* Continuous Student Mode with ArticleReadingCanvas */
-        <div className="rounded-2xl border border-border bg-card shadow-xs">
+        <div className="border-y border-border">
           <ArticleReadingCanvas
             content={continuousMarkdown}
             chapterTitle={product.title}
@@ -2005,7 +2010,7 @@ function FlashcardSetProductView({ product, allProducts, onSelectCard }: { produ
 
   return (
     <div className="space-y-4">
-      <div className="divide-y divide-border rounded-xl border border-border bg-card">
+      <div className="divide-y divide-border border-y border-border">
         {childCards.map((card, idx) => {
           const frontParsed = parseEmbeddedContent(card.front);
 
@@ -2303,14 +2308,14 @@ function ProductBundleMetadataPanel({
   return (
     <div className="space-y-6">
       {/* Bundle Info Card */}
-      <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
+      <div className="space-y-3">
         <div className="border-b border-border/70 pb-3">
           <h3 className="font-heading text-body-base font-bold text-foreground">{t("materials.bundleMetadata.title")}</h3>
           <p className="text-body-xs text-muted-foreground mt-0.5">{t("materials.bundleMetadata.description")}</p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
+        <div className="grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
+          <div className="min-w-0 space-y-1 bg-card px-3 py-2">
             <span className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.bundleId")}</span>
             <div className="flex items-center justify-between gap-2">
               <span className="font-mono text-body-xs font-semibold text-foreground truncate">{payload.bundle.id}</span>
@@ -2327,7 +2332,7 @@ function ProductBundleMetadataPanel({
             </div>
           </div>
 
-          <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
+          <div className="min-w-0 space-y-1 bg-card px-3 py-2">
             <span className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.course")}</span>
             <p className="font-medium text-body-xs text-foreground truncate">
               {payload.bundle.courseId ? courseLabels[payload.bundle.courseId] ?? payload.bundle.courseId : t("materials.bundleMetadata.courseUnmapped")}
@@ -2337,7 +2342,7 @@ function ProductBundleMetadataPanel({
             )}
           </div>
 
-          <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
+          <div className="min-w-0 space-y-1 bg-card px-3 py-2">
             <span className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.checksum")}</span>
             <div className="flex items-center justify-between gap-2">
               <span className="font-mono text-body-xs text-foreground truncate">{payload.bundle.checksum}</span>
@@ -2354,7 +2359,7 @@ function ProductBundleMetadataPanel({
             </div>
           </div>
 
-          <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
+          <div className="min-w-0 space-y-1 bg-card px-3 py-2">
             <span className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.statusAndRevision")}</span>
             <div className="flex items-center gap-2">
               <DetailStatus status={payload.bundle.status} />
@@ -2364,14 +2369,14 @@ function ProductBundleMetadataPanel({
             </div>
           </div>
 
-          <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
+          <div className="min-w-0 space-y-1 bg-card px-3 py-2">
             <span className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.createdAt")}</span>
             <p className="text-body-xs font-medium text-foreground">
               <FormattedDate date={payload.bundle.createdAt} />
             </p>
           </div>
 
-          <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
+          <div className="min-w-0 space-y-1 bg-card px-3 py-2">
             <span className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.pdfStatus")}</span>
             <p className="text-body-xs font-medium text-foreground">
               {payload.pdfStatus?.status ? `${t("materials.bundleMetadata.status")}: ${t(`materials.readiness.pdfStatus.${payload.pdfStatus.status}`)}` : t("materials.bundleMetadata.noPdfEvidence")}
@@ -2382,7 +2387,7 @@ function ProductBundleMetadataPanel({
       </div>
 
       {/* Products Table with technical IDs */}
-      <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
+      <div className="space-y-3">
         <div className="flex items-center justify-between border-b border-border/70 pb-3">
           <div>
             <h3 className="font-heading text-body-base font-bold text-foreground">{t("materials.bundleMetadata.productEntities", { count: payload.previews.length })}</h3>
@@ -2448,7 +2453,7 @@ function ProductBundleMetadataPanel({
 
       {/* Dependencies Table if any */}
       {payload.dependencies && payload.dependencies.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
+        <div className="space-y-4">
           <div className="border-b border-border/70 pb-3">
             <h3 className="font-heading text-body-base font-bold text-foreground">{t("materials.bundleMetadata.dependencies", { count: payload.dependencies.length })}</h3>
             <p className="text-body-xs text-muted-foreground mt-0.5">{t("materials.bundleMetadata.dependenciesDescription")}</p>
@@ -3043,7 +3048,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
         <TabsContent value={activeType} className="mt-4">
           {/* 100% Canvas Width for Content Review */}
           {activePreview ? (
-            <article key={activePreview.id} className={cn("space-y-4", activeDraftProduct?.productType === "flashcard" || activeDraftProduct?.productType === "flashcard_set" ? "py-2" : "rounded-xl border border-border bg-card p-4")}>
+            <article key={activePreview.id} className="space-y-4 py-2">
               {!isStudentArticlePreview && <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-3">
                 <div className={cn(styles.productHeader, "min-w-0 flex-1")}>
                   <Badge variant="secondary" className="text-body-xs font-semibold">{t(`editor.productTypes.${activePreview.productType}`)}</Badge>
@@ -3156,7 +3161,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
       {reviewDecision === "approved" && hasUnsavedReview ? <p role="status" className="border-l-2 border-status-warning pl-3 text-body-xs text-foreground">{rubricT("unsaved")}</p> : null}
 
       {/* Review Actions Sticky Footer */}
-      <section className="rounded-xl border border-border bg-card p-3 shadow-xs space-y-2 md:p-4 md:space-y-3">
+      <section className="space-y-2 border-t border-border pt-3 md:space-y-3">
         {/* Block Review Summary Strip */}
         {payload.blockReviewSummary && payload.blockReviewSummary.total > 0 && (
           <div className="hidden md:flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-2.5 text-body-xs">

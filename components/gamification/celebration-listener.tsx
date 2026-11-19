@@ -70,7 +70,7 @@ export function CelebrationListener() {
           {event.kind === "badge" && event.family && event.tier ? <BadgeArtwork family={event.family} tier={event.tier} size={56} /> : event.rank ? <RankArtwork rank={event.rank} size={56} /> : null}
           <div className="min-w-0 flex-1"><p className="text-body-sm font-semibold">{t(event.kind === "badge" ? "celebration.badgeUnlocked" : "celebration.rankPromoted")}</p><p className="text-body-sm">{label}{tier && ` · ${tier}`}{event.kind === "badge" && ` · +${new Intl.NumberFormat(locale).format(event.lp ?? 0)} LP`}</p><Button asChild size="sm" variant="link" className="h-auto p-0"><Link href="/achievements" onClick={() => toast.dismiss(id)}>{t("celebration.view")}</Link></Button></div>
           <Button size="icon" variant="ghost" aria-label={t("celebration.dismiss")} onClick={() => toast.dismiss(id)}><X className="size-4" /></Button>
-        </div>, { id: toastId, position: "top-center", duration: 12000 });
+        </div>, { id: toastId, duration: 12000 });
         history = rememberShown(history, userId, event.id); saveHistory(history); ack.push(event.id); shown++;
       }
       if (ack.length && active && identity.current === userId && !document.hidden) {

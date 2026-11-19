@@ -1,12 +1,12 @@
 "use client";
 
 import { AdminEmptyState } from "@/components/admin/state-panels";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
-import { ArrowLeft, CheckCircle2, AlertCircle, FileText, Download, Award, Calendar, User, CheckSquare } from "lucide-react";
+import { ArrowDown, ArrowLeft, CheckCircle2, AlertCircle, FileText, Download, Award, Calendar, User, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,10 +31,11 @@ interface SubmissionItem {
 
 interface Props {
   courseId: string;
+  queueHeader?: ReactNode;
   initialSubmissions: SubmissionItem[];
 }
 
-export function GradingClient({ courseId, initialSubmissions }: Props) {
+export function GradingClient({ courseId, initialSubmissions, queueHeader }: Props) {
   const router = useRouter();
   const tr = useTranslations("tutor.grading");
   const { locale } = useAppLocale();
@@ -87,25 +88,37 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
       : activeSub.answersSnapshot || {};
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-(--related-gap)">
         {/* Detail Header */}
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={() => setActiveSub(null)} className="rounded-md border-border/80">
-            <ArrowLeft className="mr-1.5 size-4" />
-            {tr("back")}
-          </Button>
-          <div>
-            <h2 className="font-heading text-body-base font-bold text-foreground">{tr("answerSheet", { exam: activeSub.examTitle })}</h2>
-            <p className="text-body-xs text-muted-foreground flex items-center gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button type="button" size="icon-lg" variant="ghost" className="shrink-0" aria-label={tr("back")} disabled={isPending} onClick={() => setActiveSub(null)}>
+                  <ArrowLeft aria-hidden />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{tr("back")}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <div className="min-w-0 flex-1 basis-40">
+            <h1 className="break-words font-heading text-body-base font-bold text-foreground">{tr("answerSheet", { exam: activeSub.examTitle })}</h1>
+            <p className="flex items-center gap-1 break-all text-body-xs text-muted-foreground">
               <User className="size-3" /> {activeSub.studentName} ({activeSub.studentEmail})
             </p>
           </div>
+          <Button asChild variant="outline" size="lg" className="ml-auto lg:hidden">
+            <a href="#tryout-grading-panel">
+              <ArrowDown aria-hidden />
+              {tr("gradingPanel")}
+            </a>
+          </Button>
         </div>
 
         {/* Workspace Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-(--related-gap) items-start">
           {/* Left Column: Student Answers (8 cols) */}
-          <div className="lg:col-span-8 divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+          <div className="lg:col-span-8 divide-y divide-border border-y border-border">
             {Array.isArray(qSnapshot) && qSnapshot.map((q: any, idx: number) => {
               const ans = aSnapshot[q.id];
               const isEssay = q.type === "essay";
@@ -113,23 +126,23 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
               const isShort = q.type === "short_answer";
 
               return (
-                <Card key={q.id} className="rounded-none border-0 bg-transparent p-4 shadow-none space-y-4">
+                <article key={q.id} className="space-y-(--related-gap) py-(--row-padding)">
                   <div className="flex items-start gap-2.5">
                     <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-body-sm font-bold text-primary-foreground shadow-xs font-mono">
                       {idx + 1}
                     </span>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-[10px] rounded-md text-muted-foreground capitalize">
+                        <Badge variant="outline" className="text-body-2xs rounded-md text-muted-foreground capitalize">
                           {tr(q.type)}
                         </Badge>
                         {!isEssay && (
-                          <Badge variant="secondary" className="text-[10px] rounded-md">
+                          <Badge variant="secondary" className="text-body-2xs rounded-md">
                             {tr("autoKey")}
                           </Badge>
                         )}
                       </div>
-                      <MathText className="text-body-base font-medium text-foreground leading-relaxed pt-2" as="p">{q.prompt}</MathText>
+                      <MathText className="text-body-base font-medium text-foreground pt-2" as="p">{q.prompt}</MathText>
                     </div>
                   </div>
 
@@ -145,13 +158,13 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                           : q.correctIndices?.includes(i);
 
                         return (
-                          <div key={i} className={`flex items-center gap-2 text-body-xs px-3 py-1.5 rounded-lg border ${
+                          <div key={i} className={`flex items-center gap-2 text-body-base px-3 py-1.5 rounded-lg border ${
                             isStudentChoice && isCorrect ? "bg-emerald-500/5 border-emerald-500/25 text-emerald-700" :
                             isStudentChoice && !isCorrect ? "bg-rose-500/5 border-rose-500/25 text-rose-700" :
                             !isStudentChoice && isCorrect ? "bg-emerald-500/5 border-dashed border-emerald-500/20 text-muted-foreground" :
                             "bg-muted/10 border-border/50 text-muted-foreground"
                           }`}>
-                            <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                            <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-body-2xs font-bold ${
                               isStudentChoice && isCorrect ? "bg-emerald-500 text-white" :
                               isStudentChoice && !isCorrect ? "bg-rose-500 text-white" :
                               isCorrect ? "border border-emerald-500 text-emerald-500" :
@@ -171,13 +184,13 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                   {/* Short Answer Preview */}
                   {isShort && (
                     <div className="space-y-2 sm:pl-9">
-                      <div className="bg-muted/20 border border-border/60 rounded-xl p-3.5 text-body-sm">
+                      <div className="border-l-2 border-border pl-3 text-body-base">
                         <span className="text-body-xs font-semibold text-muted-foreground block">{tr("studentAnswer")}</span>
-                        <p className="font-semibold text-foreground mt-0.5">
+                        <p className="mt-0.5 text-body-base font-semibold text-foreground">
                           <MathText as="span">{ans?.text || "-"}</MathText>
                         </p>
                       </div>
-                      <p className="text-body-xs text-muted-foreground">
+                      <p className="text-body-base text-muted-foreground">
                         {tr("correctAnswer")}{" "}
                         <span className="font-semibold text-foreground">
                           <MathText as="span">{(q.acceptableAnswers || []).join(" / ")}</MathText>
@@ -188,22 +201,22 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
 
                   {/* Essay Answer Preview */}
                   {isEssay && (
-                    <div className="space-y-3 sm:pl-9">
-                      <div className="bg-muted/20 border border-border/60 rounded-xl p-4 text-body-sm leading-relaxed whitespace-pre-wrap">
+                    <div className="space-y-(--compact-gap) sm:pl-9">
+                      <div className="border-l-2 border-border pl-3 text-body-base whitespace-pre-wrap">
                         <span className="text-body-xs font-semibold text-muted-foreground block mb-1">{tr("essayAnswer")}</span>
                         {ans?.text || <span className="text-muted-foreground italic">{tr("noEssayAnswer")}</span>}
                       </div>
 
                       {/* R2 uploaded attachment */}
                       {ans?.fileName && (
-                        <div className="rounded-xl border border-border/80 bg-card p-3 flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex flex-wrap items-center justify-between border-t border-border pt-3 gap-(--related-gap)">
+                          <div className="flex items-center gap-(--compact-gap) min-w-0">
                             <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-status-success/10 text-status-success">
                               <FileText className="size-5" />
                             </span>
                             <div className="min-w-0">
                               <p className="text-body-xs font-bold text-foreground truncate max-w-[200px] md:max-w-xs">{ans.fileName}</p>
-                              <p className="text-[10px] text-muted-foreground">{ans.fileSize || tr("pdfImage")}</p>
+                              <p className="text-body-xs text-muted-foreground">{ans.fileSize || tr("pdfImage")}</p>
                             </div>
                           </div>
                           {ans.fileKey ? (
@@ -231,25 +244,22 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                       )}
                     </div>
                   )}
-                </Card>
+                </article>
               );
             })}
           </div>
 
           {/* Right Column: Grading Panel (4 cols) */}
-          <div className="lg:col-span-4 lg:sticky lg:top-6 space-y-4">
-            <Card className="bg-card border-border shadow-none rounded-xl p-4">
-              <CardHeader className="p-0 mb-4">
-                <CardTitle className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
+          <div className="lg:col-span-4 lg:sticky lg:top-6 space-y-(--related-gap)">
+            <section id="tryout-grading-panel" tabIndex={-1} aria-labelledby="tryout-grading-heading" className="scroll-mt-16 border-t border-border pt-3">
+              <header className="mb-4">
+                <h3 id="tryout-grading-heading" className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
                   <Award className="size-5 text-brand-primary" />
                   {tr("gradingPanel")}
-                </CardTitle>
-                <p className="text-body-xs text-muted-foreground mt-0.5">
-                  {tr("gradingDescription")}
-                </p>
-              </CardHeader>
+                </h3>
+              </header>
 
-              <div className="space-y-4 font-sans">
+              <div className="space-y-(--related-gap) font-sans">
                 <div className="grid gap-2">
                   <Label htmlFor="grade-score" className="text-body-sm font-semibold">{tr("finalScore")}</Label>
                   <Input
@@ -279,11 +289,8 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                 <Button onClick={handleSaveGrade} isLoading={isPending} className="w-full bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5 shadow-sm">
                   {tr("savePublish")}
                 </Button>
-                <Button variant="outline" onClick={() => setActiveSub(null)} disabled={isPending} className="w-full rounded-md border-border/80">
-                  {tr("cancel")}
-                </Button>
               </div>
-            </Card>
+            </section>
           </div>
         </div>
       </div>
@@ -291,7 +298,8 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-(--related-gap)">
+      {queueHeader}
       <Tabs defaultValue="pending" className="w-full">
         <TabsList>
           <TabsTrigger value="pending">
@@ -316,9 +324,9 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
           {pendingList.length === 0 ? (
             <AdminEmptyState icon={CheckCircle2} title={tr("allGraded")} />
           ) : (
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <div className="divide-y divide-border border-y border-border">
               {pendingList.map((s) => (
-                <Card key={s.id} className="rounded-none border-0 bg-transparent p-4 shadow-none flex flex-col sm:flex-row justify-between sm:items-center gap-3 hover:bg-muted/20 transition-colors">
+                <article key={s.id} className="flex flex-col py-3 sm:flex-row justify-between sm:items-center gap-(--compact-gap) hover:bg-muted/20 transition-colors">
                   <div className="space-y-1">
                     <h3 className="font-heading text-body-base font-semibold text-foreground">{s.examTitle}</h3>
                     <p className="text-body-sm text-muted-foreground flex items-center gap-1.5">
@@ -332,7 +340,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                   <Button onClick={() => handleOpenGrade(s)} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold text-body-sm">
                     {tr("gradeAnswer")}
                   </Button>
-                </Card>
+                </article>
               ))}
             </div>
           )}
@@ -343,9 +351,9 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
           {gradedList.length === 0 ? (
             <AdminEmptyState icon={AlertCircle} title={tr("noGraded")} />
           ) : (
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <div className="divide-y divide-border border-y border-border">
               {gradedList.map((s) => (
-                <Card key={s.id} className="rounded-none border-0 bg-transparent p-4 shadow-none flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                <article key={s.id} className="flex flex-col py-3 sm:flex-row justify-between sm:items-center gap-(--compact-gap)">
                   <div className="space-y-1">
                     <h3 className="font-heading text-body-base font-semibold text-foreground">{s.examTitle}</h3>
                     <p className="text-body-sm text-muted-foreground">
@@ -356,7 +364,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                       {s.submittedAt ? new Date(s.submittedAt).toLocaleString(dateLocale, { dateStyle: "medium", timeStyle: "short" }) : "-"}
                     </p>
                   </div>
-                  <div className="flex items-center gap-4 shrink-0">
+                  <div className="flex items-center gap-(--related-gap) shrink-0">
                     <div className="text-right">
                       <p className="text-body-xs font-semibold text-muted-foreground uppercase">{tr("finalScoreLabel")}</p>
                       <p className="font-heading text-h6 font-bold text-brand-primary tabular-nums">{s.score}%</p>
@@ -365,7 +373,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                       {tr("editScore")}
                     </Button>
                   </div>
-                </Card>
+                </article>
               ))}
             </div>
           )}
@@ -376,9 +384,9 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
           {initialSubmissions.length === 0 ? (
             <AdminEmptyState icon={CheckSquare} title={tr("noSubmissions")} />
           ) : (
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <div className="divide-y divide-border border-y border-border">
               {initialSubmissions.map((s) => (
-                <Card key={s.id} className="rounded-none border-0 bg-transparent p-4 shadow-none flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                <article key={s.id} className="flex flex-col py-3 sm:flex-row justify-between sm:items-center gap-(--compact-gap)">
                   <div className="space-y-1">
                     <h3 className="font-heading text-body-base font-semibold text-foreground">{s.examTitle}</h3>
                     <p className="text-body-sm text-muted-foreground">
@@ -387,14 +395,14 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                     <p className="text-body-xs text-muted-foreground flex items-center gap-1.5">
                       <Calendar className="size-3.5" />
                       {tr("status")}{" "}
-                      <Badge variant="outline" className={`text-[10px] rounded-md ${
+                      <Badge variant="outline" className={`text-body-2xs rounded-md ${
                         s.status === "graded" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : "bg-amber-500/10 text-amber-600 border-amber-500/20"
                       }`}>
                         {s.status === "graded" ? tr("graded") : tr("waitingReview")}
                       </Badge>
                     </p>
                   </div>
-                  <div className="flex items-center gap-4 shrink-0">
+                  <div className="flex items-center gap-(--related-gap) shrink-0">
                     <div className="text-right">
                       <p className="text-body-xs font-semibold text-muted-foreground uppercase font-sans">{tr("score")}</p>
                       <p className="font-heading text-h6 font-bold text-brand-primary tabular-nums">{s.score != null ? `${s.score}%` : tr("pending")}</p>
@@ -403,7 +411,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                       {s.status === "graded" ? tr("editScore") : tr("gradeAnswer")}
                     </Button>
                   </div>
-                </Card>
+                </article>
               ))}
             </div>
           )}

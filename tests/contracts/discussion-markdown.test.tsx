@@ -20,7 +20,7 @@ describe("discussion Markdown safety", () => {
     expect(html).toContain("<strong>bold</strong>");
     expect(html).toContain("<em>italic</em>");
     expect(html).toContain("<ul");
-    expect(html).toContain("break-words text-body-base leading-relaxed");
+    expect(html).toContain("break-words text-body-sm leading-relaxed");
     expect(html).toContain("<pre");
     expect(html).toContain("katex");
   });

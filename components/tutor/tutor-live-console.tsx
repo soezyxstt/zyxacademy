@@ -182,7 +182,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
 
   if (!process.env.NEXT_PUBLIC_REALTIME_URL) {
     return (
-      <div className="rounded-xl border border-border bg-card p-12 text-center">
+      <div className="border-t border-border px-4 py-8 text-center">
         <AlertTriangle className="mx-auto size-8 text-status-warning" />
         <p className="mt-3 text-body-sm text-muted-foreground">
           {t("notConfigured")}
@@ -202,7 +202,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
 
   if (loadError && phase === "setup") {
     return (
-      <div className="mx-auto max-w-xl rounded-xl border border-status-error/30 bg-card p-8 text-center">
+      <div className="mx-auto max-w-xl border-y border-status-error/30 py-5 text-center">
         <AlertTriangle className="mx-auto size-8 text-status-error" />
         <p className="mt-2 text-body-sm font-medium text-foreground">{loadError}</p>
         <Button
@@ -219,7 +219,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
   // ── Setup Phase ─────────────────────────────────────────────────────────────
   if (phase === "setup") {
     return (
-      <div className="max-w-2xl space-y-4 rounded-xl border border-border bg-card p-4">
+      <div className="max-w-2xl space-y-(--related-gap)">
         <div className="border-b border-border pb-4">
           <div className="flex items-center gap-2">
             <Radio className="size-5 text-brand-primary" />
@@ -237,7 +237,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
             {t("publishQuizFirst")}
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-(--related-gap)">
             <div className="space-y-1.5">
               <label htmlFor="live-template" className="text-body-sm font-semibold text-foreground">{t("template")}</label>
               <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
@@ -289,9 +289,9 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
   } = state;
 
   return (
-    <div className="relative min-h-[60vh] space-y-4 rounded-xl border border-border bg-card p-4">
+    <div className="relative min-h-[60vh] space-y-(--related-gap)">
       {/* Top Status Strip */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-(--compact-gap) border-b border-border pb-4">
         <div className="flex items-center gap-2">
           <Radio className="size-4 text-brand-primary" />
           <span className="font-heading text-body-base font-bold text-foreground">
@@ -299,7 +299,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
           </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-(--compact-gap)">
           <div className="flex items-center gap-1.5">
             <span
               className={cn(
@@ -319,7 +319,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
 
       {/* ── Lobby ── */}
       {sessionState === "lobby" && session && (
-        <div className="flex flex-col items-center justify-center gap-6 py-12">
+        <div className="flex flex-col items-center justify-center gap-(--section-gap) py-12">
           <p className="text-body-xs font-semibold uppercase tracking-widest text-muted-foreground">
             {t("joinCode")}
           </p>
@@ -340,7 +340,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
 
       {/* ── Question Phase ── */}
       {sessionState === "question" && currentQuestion && (
-        <div className="mx-auto max-w-2xl space-y-5">
+        <div className="mx-auto max-w-2xl space-y-(--group-gap)">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
             <span className="text-body-sm font-semibold text-muted-foreground tabular-nums">
               {t("questionProgress", { current: currentQuestion.questionIndex + 1, total: currentQuestion.total })}
@@ -353,7 +353,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
           <MarkdownRenderer content={currentQuestion.prompt} />
 
           {/* Option Answer Bars */}
-          <div className="space-y-3">
+          <div className="space-y-(--compact-gap)">
             {currentQuestion.options.map((opt, i) => {
               const count = answerCounts[i] ?? 0;
               const total = Math.max(1, totalAnswered || 1);
@@ -386,13 +386,13 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
 
       {/* ── Reveal / Leaderboard ── */}
       {(sessionState === "reveal" || sessionState === "ended") && top10.length > 0 && (
-        <div className="mx-auto max-w-lg space-y-3">
+        <div className="mx-auto max-w-lg space-y-(--compact-gap)">
           <h3 className="font-heading text-body-base font-bold text-foreground">
             {sessionState === "ended" ? t("finalLeaderboard") : t("liveLeaderboard")}
           </h3>
-          <div className="divide-y divide-border rounded-xl border border-border">
+          <div className="divide-y divide-border border-y border-border">
             {top10.map((entry) => (
-              <div key={entry.userId} className="flex items-center gap-3 px-4 py-2.5">
+              <div key={entry.userId} className="flex items-center gap-(--compact-gap) px-4 py-2.5">
                 <span className="w-6 shrink-0 text-center font-heading text-body-sm font-bold tabular-nums text-muted-foreground">
                   {entry.rank}
                 </span>

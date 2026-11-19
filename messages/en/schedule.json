@@ -197,6 +197,7 @@
     "noSlotsHelp": "Choose another week or filter, or ask your tutor to add a slot."
   },
   "calendar": {
+    "view": "Calendar view",
     "day": "Day",
     "week": "Week",
     "month": "Month",
@@ -217,6 +218,7 @@
     "deleteSlot": "Delete slot",
     "allDay": "All day",
     "offline": "In person",
-    "createScheduleAt": "Create a schedule on {date} at {hour}"
+    "createScheduleAt": "Create a schedule on {date} at {hour}",
+    "zeroSessions": "0 sessions"
   }
 }

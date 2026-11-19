@@ -3,13 +3,12 @@ import { getTableName } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 
 const rows = [
-  { id: "general", kind: "academic", title: "Tim akademik", courseId: null, legacyCourseId: null, requesterId: "alice" },
-  { id: "math", kind: "academic", title: "Tim akademik", courseId: "canonical", legacyCourseId: "legacy", requesterId: "alice" },
+  { id: "general", kind: "global", title: "Umum", courseId: null, legacyCourseId: null, requesterId: null },
+  { id: "math", kind: "course", title: "Matematika I", courseId: "canonical", legacyCourseId: "legacy", requesterId: null },
   { id: "technical", kind: "technical", title: "Tim teknis", courseId: "canonical", legacyCourseId: "legacy", requesterId: "bob" },
-  { id: "denied", kind: "academic", title: "Tim akademik", courseId: "other", legacyCourseId: null, requesterId: "bob" },
+  { id: "denied", kind: "course", title: "Fisika", courseId: "other", legacyCourseId: null, requesterId: null },
 ];
-const users = [{ id: "alice", name: "Alice" }, { id: "bob", name: "Bob" }];
-let projectionReads = 0, courseBatches = 0;
+let courseBatches = 0;
 let revoked = false;
 const dialect = new PgDialect();
 
@@ -22,7 +21,6 @@ class Query {
   then(resolve: (value: unknown[]) => void) {
     const params = dialect.sqlToQuery(this.condition as never).params;
     if (this.table === "discussion_channels") return resolve(rows.filter(row => params.includes(row.id)).map(channel => ({ channel, muted: false, unreadThreads: 0, activeThreads: 0 })));
-    if (this.table === "user") { projectionReads++; return resolve(users.filter(row => params.includes(row.id))); }
     throw new Error(`Unexpected table ${this.table}`);
   }
 }
@@ -37,8 +35,8 @@ mock.module("@/lib/discussions/access", () => ({
   getDiscussionChannelVisibility: async () => ({}), requireDiscussionChannelAccess: async () => ({}), requireDiscussionCourse: async () => ({}),
   requireDiscussionMessageAccess: async () => ({}), requireDiscussionThreadAccess: async () => ({}),
   getDiscussionActor: async (id: string) => ({ id, role: id === "alice" ? "student" : id }),
-  getAccessibleDiscussionChannels: async (actor: string, options: { channelIds: string[] }) => rows.filter(row => options.channelIds.includes(row.id) && row.id !== "denied" &&
-    (actor === "admin" || actor === "tutor" && row.kind === "academic" || actor === row.requesterId)),
+  getAccessibleDiscussionChannels: async (_actor: string, options: { channelIds: string[] }) => rows.filter(row =>
+    options.channelIds.includes(row.id) && (row.kind === "global" || (row.kind === "course" && row.id !== "denied" && !revoked))),
   resolveDiscussionCourses: async (_actor: unknown, ids: string[]) => {
     courseBatches++;
     return new Map(ids.map(id => [id, { canonicalCourseId: "canonical", legacyCourseId: "legacy", courseTitle: "Matematika I", hasFullContentAccess: !revoked }]));
@@ -46,27 +44,18 @@ mock.module("@/lib/discussions/access", () => ({
 }));
 const { listChannels } = await import("@/lib/discussions/service");
 
-test("private context is projected in batches only for reauthorized channels", async () => {
-  projectionReads = courseBatches = 0;
+test("authorized channels exclude private team scopes and hide legacy identifiers", async () => {
+  courseBatches = 0;
   const student = await listChannels("alice", rows.map(row => row.id));
   expect(student.map(row => row.id)).toEqual(["general", "math"]);
-  expect(student).toMatchObject([{ courseTitle: null, isRequester: true }, { courseTitle: "Matematika I", isRequester: true }]);
+  expect(student).toMatchObject([{ kind: "global", courseId: null }, { kind: "course", courseId: "canonical" }]);
   expect(student.every(row => !("requesterName" in row))).toBe(true);
-  expect(projectionReads).toBe(0);
-  expect(courseBatches).toBe(1);
-
-  projectionReads = courseBatches = 0;
-  const staff = await listChannels("admin", rows.map(row => row.id));
-  expect(staff.map(row => row.id)).toEqual(["general", "math", "technical"]);
-  expect(staff).toMatchObject([{ requesterName: "Alice", isRequester: false }, { requesterName: "Alice", courseTitle: "Matematika I" }, { requesterName: "Bob", courseTitle: "Matematika I" }]);
-  expect(projectionReads).toBe(1);
-  expect(courseBatches).toBe(1);
-  expect(JSON.stringify(staff)).not.toContain("requesterId");
-  expect(JSON.stringify(staff)).not.toContain("legacy");
+  expect(courseBatches).toBe(0);
+  expect(JSON.stringify(student)).not.toContain("requesterId");
+  expect(JSON.stringify(student)).not.toContain("legacy");
   revoked = true;
   try {
     const afterRevocation = await listChannels("admin", rows.map(row => row.id));
     expect(afterRevocation.map(row => row.id)).toEqual(["general"]);
-    expect(JSON.stringify(afterRevocation)).not.toContain("Bob");
   } finally { revoked = false; }
 });

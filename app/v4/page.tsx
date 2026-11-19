@@ -14,11 +14,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function V4PreviewPage() {
   const preview = verificationPreviewSchema.parse(data);
-  return <main id="main-content" className="mx-auto max-w-3xl space-y-8 px-4 py-8">
+  return <main id="main-content" className="mx-auto max-w-3xl space-y-(--reading-section-gap) px-(--page-gutter) py-(--reading-section-gap)">
     <PageHeader title="Limit fungsi" actions={<Button asChild variant="outline"><a href="/v4/diktat.pdf">Unduh diktat</a></Button>} />
     <p className="text-body-sm text-muted-foreground">Pratinjau artikel V4. Materi pada kelas tetap mengikuti versi yang dipublikasikan.</p>
-    {preview.sections.map(section => <section key={section.id} className="space-y-5">
-      <h2 className="font-heading text-body-base font-bold"><MathText>{section.title}</MathText></h2>
+    {preview.sections.map(section => <section key={section.id} className="space-y-(--group-gap)">
+      <h2 className="font-heading text-reading-minor font-bold"><MathText>{section.title}</MathText></h2>
       {section.blocks.map(block => <ArticleParts key={block.id} parts={block.parts} visuals={preview.visuals} />)}
     </section>)}
   </main>;

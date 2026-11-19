@@ -5,7 +5,7 @@ export function ProductCatalogSkeleton() {
     <div
       role="status"
       aria-label="Memuat"
-      className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card"
+      className="divide-y divide-border border-y border-border"
     >
       {[0, 1, 2, 3].map((row) => (
         <div key={row} className="flex items-center gap-3 p-3">
@@ -73,7 +73,7 @@ export function ReviewDetailSkeleton({ label }: { label: string }) {
       aria-label={label}
       className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]"
     >
-      <div className="divide-y divide-border rounded-xl border border-border bg-card">
+      <div className="divide-y divide-border border-y border-border">
         {[0, 1, 2, 3].map((row) => (
           <div key={row} className="space-y-2 p-4">
             <Skeleton className="h-4 w-3/4" />
@@ -81,7 +81,7 @@ export function ReviewDetailSkeleton({ label }: { label: string }) {
           </div>
         ))}
       </div>
-      <div className="space-y-4 rounded-xl border border-border bg-card p-4">
+      <div className="space-y-4 border-b border-border pb-4">
         <Skeleton className="h-6 w-48" />
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-4/5" />
@@ -188,7 +188,7 @@ export function ZyraUsageSkeleton() {
       </div>
       <div className="space-y-4">
         <Skeleton className="h-5 w-40" />
-        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+        <div className="divide-y divide-border border-y border-border">
           {[0, 1, 2].map((row) => (
             <div key={row} className="flex gap-4 p-4">
               <Skeleton className="h-4 min-w-0 flex-1" />
@@ -207,7 +207,7 @@ export function FormListSkeleton() {
     <div
       role="status"
       aria-label="Memuat"
-      className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card"
+      className="divide-y divide-border border-y border-border"
     >
       {[0, 1, 2].map((row) => (
         <div key={row} className="space-y-4 p-4">
@@ -235,11 +235,11 @@ export function FormListSkeleton() {
 
 export function QuestionPickerSkeleton({ label }: { label: string }) {
   return (
-    <div role="status" aria-label={label} className="space-y-2.5">
+    <div role="status" aria-label={label} className="divide-y divide-border border-y border-border">
       {[0, 1, 2].map((row) => (
         <div
           key={row}
-          className="flex gap-3 rounded-xl border border-border bg-card p-3"
+          className="flex gap-3 px-3 py-2.5"
         >
           <Skeleton className="size-4 shrink-0" />
           <div className="min-w-0 flex-1 space-y-2">
@@ -274,7 +274,7 @@ export function OpsMetricsSkeleton() {
       <div className="flex justify-end">
         <Skeleton className="h-9 w-24" />
       </div>
-      <div className="divide-y divide-border rounded-xl border border-border bg-card px-4 sm:px-5">
+      <div className="divide-y divide-border border-y border-border">
         {[0, 1, 2, 3, 4, 5].map((row) => (
           <div key={row} className="space-y-3 py-4">
             <div className="flex justify-between gap-3">
@@ -324,7 +324,7 @@ export function FlagsSkeleton() {
         <Skeleton className="h-9 min-w-[140px] flex-1" />
         <Skeleton className="h-9 w-32" />
       </div>
-      <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+      <div className="divide-y divide-border border-y border-border">
         {[0, 1, 2, 3, 4].map((row) => (
           <div key={row} className="flex items-center gap-3 p-4">
             <div className="flex-1 space-y-2">
@@ -361,7 +361,7 @@ export function AiAnalyticsSkeleton({ label = "Memuat" }: { label?: string }) {
         {[0, 1].map((item) => (
           <div
             key={item}
-            className="space-y-3 rounded-xl border border-border bg-card p-4"
+            className="space-y-3 border-b border-border pb-4"
           >
             <Skeleton className="h-5 w-40" />
             {[0, 1, 2].map((row) => (
@@ -415,21 +415,22 @@ export function FormDetailSkeleton({
   return (
     <div role="status" aria-label="Memuat" className="space-y-4">
       {showHeader && <AdminLoadingHeader back />}
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-5">
-          <Skeleton className="h-5 w-36" />
-          <div className="flex flex-wrap gap-2">
-            <Skeleton className="h-9 w-40" />
-            <Skeleton className="h-9 w-32" />
-          </div>
+      <Skeleton className="h-10 w-96 max-w-full" />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Skeleton className="h-5 w-36" />
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-9 w-32" />
+          <Skeleton className="h-9 w-24" />
+          <Skeleton className="size-9" />
         </div>
-        <div className="space-y-4 p-5">
-          <Skeleton className="h-10 w-96 max-w-full" />
-          <div className="space-y-2">
+      </div>
+      <div className="divide-y divide-border border-y border-border">
+        {[0, 1, 2].map((row) => (
+          <div key={row} className="space-y-2 px-4 py-3">
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-4 w-1/2" />
           </div>
-        </div>
+        ))}
       </div>
     </div>
   );
@@ -457,7 +458,7 @@ export function MeetDetailSkeleton({
       {[0, 1, 2].map((section) => (
         <div key={section} className="space-y-4">
           <Skeleton className="h-5 w-40" />
-          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+          <div className="space-y-3 border-b border-border pb-4">
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-4 w-1/2" />
           </div>
@@ -472,7 +473,7 @@ export function MeetPageSkeleton() {
     <div role="status" aria-label="Memuat" className="space-y-6">
       <AdminLoadingHeader />
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-4 rounded-xl border border-border bg-card p-4">
+        <div className="space-y-4 border-b border-border pb-4">
           <Skeleton className="h-5 w-40" />
           {[0, 1, 2].map((field) => (
             <div key={field} className="space-y-2">
@@ -482,7 +483,7 @@ export function MeetPageSkeleton() {
           ))}
           <Skeleton className="h-9 w-full" />
         </div>
-        <div className="space-y-4 rounded-xl border border-border bg-card p-4">
+        <div className="space-y-4 border-b border-border pb-4">
           <div className="flex justify-between gap-3">
             <Skeleton className="h-5 w-40" />
             <Skeleton className="h-5 w-20" />
@@ -507,7 +508,7 @@ export function ShortLinksSkeleton() {
     <div role="status" aria-label="Memuat" className="space-y-6">
       <AdminLoadingHeader />
       <div className="grid items-start gap-4 lg:grid-cols-3">
-        <div className="space-y-4 rounded-xl border border-border bg-card p-4">
+        <div className="space-y-4 border-b border-border pb-4">
           <Skeleton className="h-5 w-40" />
           {[0, 1, 2].map((field) => (
             <div key={field} className="space-y-2">
@@ -517,7 +518,7 @@ export function ShortLinksSkeleton() {
           ))}
           <Skeleton className="h-9 w-full" />
         </div>
-        <div className="divide-y divide-border rounded-xl border border-border bg-card lg:col-span-2">
+        <div className="divide-y divide-border border-y border-border lg:col-span-2">
           {[0, 1, 2, 3].map((row) => (
             <div key={row} className="flex items-center gap-3 p-4">
               <div className="min-w-0 flex-1 space-y-2">
@@ -542,11 +543,11 @@ export function MediaItemsSkeleton({
   return (
     <div role="status" aria-label="Memuat">
       {view === "grid" ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,160px),1fr))] gap-px overflow-hidden rounded-xl border border-border bg-border">
           {[0, 1, 2, 3, 4, 5].map((item) => (
             <div
               key={item}
-              className="space-y-2 rounded-xl border border-border bg-card p-2"
+              className="min-w-0 space-y-2 bg-card p-2"
             >
               <Skeleton className="aspect-photo-card w-full rounded-lg" />
               <Skeleton className="h-4 w-3/4" />
@@ -555,7 +556,7 @@ export function MediaItemsSkeleton({
           ))}
         </div>
       ) : (
-        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+        <div className="divide-y divide-border border-y border-border">
           {[0, 1, 2, 3, 4].map((row) => (
             <div key={row} className="flex items-center gap-3 p-3">
               <Skeleton className="size-4 shrink-0" />
@@ -576,7 +577,7 @@ export function PublicLinksSkeleton() {
     <div
       role="status"
       aria-label="Memuat"
-      className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card"
+      className="divide-y divide-border border-y border-border"
     >
       {[0, 1, 2, 3].map((row) => (
         <div key={row} className="space-y-3 p-3">

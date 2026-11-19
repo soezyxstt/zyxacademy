@@ -97,7 +97,8 @@ before(async () => {
  ]);
  await db.insert(schema.mataKuliah).values([
   { id: "canonical-pka", code: "PKA", title: "PKA", legacyCourseId: "tutorial-pka", pricingCategory: "free" },
-  { id: "math", code: "MATH", title: "Matematika I", legacyCourseId: "legacy-math", pricingCategory: "free" },
+  { id: "math", code: "MATH", title: "Matematika I", legacyCourseId: "legacy-math" },
+  { id: "math-two", code: "MATH2", title: "Matematika Lanjut" },
  ]);
  await db.insert(schema.enrollments).values([
   { id: "registered-pka", userId: "registered", courseId: "tutorial-pka", expiresAt: new Date("2099-01-01") },
@@ -113,6 +114,9 @@ before(async () => {
   { id: "global", kind: "global", title: "Global" },
   { id: "other-context", kind: "academic", title: "Other context", requesterId: "namesake-10" },
   { id: "pka", kind: "course", title: "PKA", courseId: "canonical-pka", legacyCourseId: "tutorial-pka" },
+  { id: "course-math", kind: "course", title: "Kursus I", courseId: "math", legacyCourseId: "legacy-math" },
+  { id: "course-math-two", kind: "course", title: "Kursus II", courseId: "math-two" },
+  { id: "course-legacy", kind: "course", title: "Warisan", legacyCourseId: "legacy-only" },
   { id: "academic-nadia", kind: "academic", title: "Tim akademik", requesterId: "nadia", courseId: "math", legacyCourseId: "legacy-math" },
   { id: "technical-nadia", kind: "technical", title: "Tim teknis", requesterId: "nadia", courseId: "math", legacyCourseId: "legacy-math" },
   { id: "academic-other", kind: "academic", title: "Tim akademik", requesterId: "other", courseId: "math", legacyCourseId: "legacy-math" },
@@ -292,7 +296,7 @@ test("mention search uses eligible roles and bounded same-channel participant co
   deleted: deletedVisits, forward: forwardVisits, missing: missingVisits } }));
 });
 
-test("private channel search paginates authorized labels and rechecks current access", { timeout: 300000 }, async () => {
+test("channel search paginates authorized course labels and rechecks current access", { timeout: 300000 }, async () => {
  const pages = async (actor, search) => {
   const items = [];
   let cursor;
@@ -309,28 +313,19 @@ test("private channel search paginates authorized labels and rechecks current ac
   assert.equal(new Set(items.map(item => item.id)).size, items.length);
   return items;
  };
- const nadia = await pages("admin", "Nadia");
- assert.deepEqual(nadia.map(item => item.id).sort(), ["academic-nadia", "academic-other", "technical-legacy", "technical-nadia"]);
- assert.deepEqual(Object.fromEntries(nadia.map(item => [item.id, item.requesterName])), {
-  "academic-nadia": "Nadia Putri", "academic-other": "Nadia Dua", "technical-legacy": "Nadia Putri", "technical-nadia": "Nadia Putri",
- });
- assert.deepEqual((await service.listChannelsPage("admin", { search: "Nadia%" })).items, []);
+ assert.deepEqual(await pages("admin", "Nadia"), []);
  assert.deepEqual((await service.listChannelsPage("nadia", { search: "Nadia" })).items, []);
- assert.deepEqual((await service.listChannelsPage("nadia", { search: "Secret Person" })).items, []);
- const tutor = await pages("tutor", "Nadia");
- assert.deepEqual(tutor.map(item => item.id).sort(), ["academic-nadia", "academic-other"]);
- assert.deepEqual(tutor.map(item => item.requesterName).sort(), ["Nadia Dua", "Nadia Putri"]);
+ assert.deepEqual((await service.listChannelsPage("tutor", { search: "Nadia" })).items, []);
+ const adminMath = await pages("admin", "Matematika");
+ assert.deepEqual(adminMath.map(item => item.id).sort(), ["course-math", "course-math-two"]);
+ assert.deepEqual((await service.listChannelsPage("admin", { search: "Matematika%" })).items, []);
+ assert.deepEqual((await service.listChannelsPage("nadia", { search: "Matematika" })).items, []);
+ const tutor = await pages("tutor", "Matematika");
+ assert.deepEqual(tutor.map(item => item.id), ["course-math"]);
 
- const own = await pages("nadia", "Matematika I");
- assert.deepEqual(own.map(item => item.id).sort(), ["academic-nadia", "technical-nadia"]);
- assert.ok(own.every(item => item.courseTitle === "Matematika I" && !("requesterName" in item)));
- const canonical = await pages("admin", "Matematika I");
- assert.deepEqual(canonical.map(item => item.id).sort(), ["academic-nadia", "academic-other", "technical-nadia", "technical-secret"]);
- assert.ok(canonical.every(item => item.courseTitle === "Matematika I"));
  assert.deepEqual((await service.listChannelsPage("admin", { search: "Old math name" })).items, []);
- const legacy = await pages("admin", "Legacy Label");
- assert.deepEqual(legacy.map(item => item.id), ["technical-legacy"]);
- assert.equal(legacy[0].courseTitle, "Legacy Label");
+ const legacy = await pages("nadia", "Legacy Label");
+ assert.deepEqual(legacy.map(item => item.id), ["course-legacy"]);
 
  await db.update(schema.penugasanTutor).set({ status: "revoked" }).where(eq(schema.penugasanTutor.id, "math-tutor"));
  try {
@@ -360,8 +355,8 @@ test("private channel search paginates authorized labels and rechecks current ac
    });
   };
   try {
-   if (revocation === "role" || revocation === "downgrade") await assert.rejects(service.listChannelsPage("admin", { search: "Nadia", limit: 1 }), /DISCUSSION_UNAVAILABLE/);
-   else assert.deepEqual((await service.listChannelsPage("admin", { search: revocation === "course" ? "Matematika I" : "Nadia", limit: 1 })).items, []);
+   if (revocation === "role" || revocation === "downgrade") await assert.rejects(service.listChannelsPage("admin", { search: "Matematika I", limit: 1 }), /DISCUSSION_UNAVAILABLE/);
+   else assert.deepEqual((await service.listChannelsPage("admin", { search: "Matematika I", limit: 1 })).items, []);
    assert.ok(revoked, `${revocation} was not revoked after candidate selection`);
   } finally {
    client.query = original;

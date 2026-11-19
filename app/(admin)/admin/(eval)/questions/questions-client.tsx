@@ -1,5 +1,6 @@
 "use client";
 
+import { getAppScrollBehavior } from "@/components/appearance-preferences";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -265,7 +266,7 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
     : total > 0 && total === localQuestions.length && localQuestions.every((question) => selected.has(question.id));
   const goToPage = (page: number) => {
     setCurrentPage(Math.max(1, Math.min(totalPages, page)));
-    tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    tableRef.current?.scrollIntoView({ behavior: getAppScrollBehavior(), block: "start" });
   };
 
   const activeFilterCount = [filterStatus, filterCourse, filterOrigin, filterQuestionType, filterDifficulty]
@@ -613,11 +614,11 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
       {/* Search, filters, and actions */}
       <QuestionBankToolbar>
         <SearchBar
+          collapsible
           size="sm"
           placeholder={t("search")}
           value={searchQuery}
           onSearch={setSearchQuery}
-          containerClassName="min-w-[140px] flex-1"
         />
 
         <QuestionFilterPopover activeCount={activeFilterCount} onReset={resetFilters}>
@@ -1305,7 +1306,7 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
               <div className="space-y-1.5">
                 <label className="text-body-sm font-semibold text-foreground flex items-center justify-between">
                   <span>{t("markdownContentRequired")}</span>
-                  <span className="text-[10px] text-muted-foreground lowercase normal-case">{t("markdownFormatHelp")}</span>
+                  <span className="text-support text-muted-foreground">{t("markdownFormatHelp")}</span>
                 </label>
                 <Textarea
                   required

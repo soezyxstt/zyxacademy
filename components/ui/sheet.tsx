@@ -52,6 +52,7 @@ function SheetContent({
   side = "right",
   showCloseButton = true,
   closeLabel,
+  onEscapeKeyDown,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
@@ -70,6 +71,18 @@ function SheetContent({
           className
         )}
         {...props}
+        onEscapeKeyDown={(event) => {
+          onEscapeKeyDown?.(event)
+          if (event.defaultPrevented || !(event.target instanceof Element)) return
+
+          const search = event.target.closest('[data-search-expanded="true"]')
+          const closeSearch = search?.querySelector<HTMLButtonElement>("button[data-search-close]:enabled")
+          if (!closeSearch) return
+
+          // Radix handles Escape before the input's React key handler.
+          event.preventDefault()
+          if (!event.isComposing) closeSearch.click()
+        }}
       >
         {children}
         {showCloseButton && (
@@ -94,7 +107,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sheet-header"
-      className={cn("flex flex-col gap-0.5 p-4", className)}
+      className={cn("flex flex-col gap-1 p-(--panel-padding)", className)}
       {...props}
     />
   )
@@ -104,7 +117,7 @@ function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sheet-footer"
-      className={cn("mt-auto flex flex-col gap-2 p-4", className)}
+      className={cn("mt-auto flex flex-col gap-2 p-(--panel-padding)", className)}
       {...props}
     />
   )
@@ -133,7 +146,7 @@ function SheetDescription({
   return (
     <SheetPrimitive.Description
       data-slot="sheet-description"
-      className={cn("text-body-xs text-muted-foreground", className)}
+      className={cn("text-support text-muted-foreground", className)}
       {...props}
     />
   )

@@ -1,0 +1,50 @@
+# syntax=docker/dockerfile:1.7
+FROM oven/bun:1.3.14-debian@sha256:9dba1a1b43ce28c9d7931bfc4eb00feb63b0114720a0277a8f939ae4dfc9db6f AS bun
+FROM node:24.22.3-trixie-slim@sha256:af02d57b57719b9657a45199a79264a9437940cd55b3c7b3fc99615654f124a0 AS node
+
+FROM node AS build
+WORKDIR /app
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
+RUN apt-get update && apt-get install --yes --no-install-recommends ca-certificates git && rm -rf /var/lib/apt/lists/*
+COPY package.json bun.lock .npmrc ./
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    PUPPETEER_SKIP_DOWNLOAD=true PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 bun install --frozen-lockfile
+COPY . .
+ARG CLOUD_RUN_BUILD_ID=local
+RUN --mount=type=secret,id=public_config,required=true \
+    --mount=type=secret,id=sentry_auth_token \
+    NEXT_OUTPUT=standalone NEXT_TELEMETRY_DISABLED=1 NEXT_DEPLOYMENT_ID="$CLOUD_RUN_BUILD_ID" \
+    ZYX_CLOUD_RUN=1 ZYX_MCP_ENVIRONMENT=staging NODE_OPTIONS=--max-old-space-size=4096 \
+    node deploy/cloud-run/build.mjs
+
+# Keep PDF runtime entry points for both Node export conditions. Standalone
+# tracing can retain one condition while omitting the other or the worker.
+RUN set -eu; \
+    package_root=.next/standalone/node_modules; \
+    mkdir -p "$package_root/pdf-parse/dist/pdf-parse" "$package_root/pdfjs-dist/legacy/build"; \
+    cp node_modules/pdf-parse/package.json "$package_root/pdf-parse/"; \
+    cp -a node_modules/pdf-parse/dist/pdf-parse/esm node_modules/pdf-parse/dist/pdf-parse/cjs "$package_root/pdf-parse/dist/pdf-parse/"; \
+    cp -a node_modules/pdf-parse/dist/node node_modules/pdf-parse/dist/worker "$package_root/pdf-parse/dist/"; \
+    cp node_modules/pdfjs-dist/legacy/build/pdf.mjs node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs "$package_root/pdfjs-dist/legacy/build/"; \
+    cp -a node_modules/pdfjs-dist/cmaps node_modules/pdfjs-dist/standard_fonts node_modules/pdfjs-dist/wasm "$package_root/pdfjs-dist/"; \
+    rm -f .next/standalone/.env*
+
+FROM node AS runtime
+ARG SOURCE_REVISION
+LABEL org.opencontainers.image.revision="$SOURCE_REVISION"
+WORKDIR /app
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    ZYX_CLOUD_RUN=1 \
+    ZYX_MCP_ENVIRONMENT=staging \
+    HOSTNAME=0.0.0.0 \
+    PORT=8080
+RUN apt-get update && apt-get install --yes --no-install-recommends ca-certificates libfontconfig1 fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=build --chown=node:node /app/.next/standalone ./
+COPY --from=build --chown=node:node /app/.next/static ./.next/static/
+COPY --from=build --chown=node:node /app/public ./public/
+COPY --from=build --chown=node:node /app/deploy/cloud-run/origin-gateway.mjs ./
+USER node
+EXPOSE 8080
+CMD ["node", "origin-gateway.mjs"]

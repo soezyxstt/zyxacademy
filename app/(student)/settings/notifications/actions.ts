@@ -37,6 +37,7 @@ export async function updateNotificationPreferencesAction(
       newsAndOffers: readBoolean(formData, "newsAndOffers"),
     });
     revalidatePath("/settings/notifications");
+    revalidatePath("/settings");
     return { success: true, message: "Notification preferences saved.", submittedAt: Date.now() };
   } catch (error) {
     console.error("[updateNotificationPreferencesAction]", error);

@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "assetCount": 153,
+  "totalBytes": 84115964,
+  "characters": [
+    "cat",
+    "tiger",
+    "rhino",
+    "crocodile"
+  ],
+  "decoder": "three@0.184.0/examples/jsm/libs/meshopt_decoder.module.js",
+  "posters": 8
+}

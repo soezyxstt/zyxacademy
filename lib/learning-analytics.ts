@@ -735,6 +735,7 @@ export async function getCourseOverviewData(
   if (dueFlashcardsCount > 0) {
     attentionItems.push({
       kind: "flashcard",
+      count: dueFlashcardsCount,
       label: `${dueFlashcardsCount} flashcard perlu diulas`,
       actionLabel: "Ulas sekarang →",
       href: `/courses/${courseId}/flashcard`,
@@ -745,7 +746,9 @@ export async function getCourseOverviewData(
     const cleanConceptName = weakestMeasured.conceptName.trim().replace(/\.+$/, "");
     attentionItems.push({
       kind: "weak-concept",
-      label: `${cleanConceptName} perlu latihan (${weakestMeasured.masteryScore}%)`,
+      conceptName: cleanConceptName,
+      masteryScore: weakestMeasured.masteryScore,
+      label: cleanConceptName,
       actionLabel: "Latihan sekarang →",
       href: quizCard.href,
     });

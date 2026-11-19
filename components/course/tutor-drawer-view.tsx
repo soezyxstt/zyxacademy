@@ -1382,7 +1382,7 @@ function TutorDrawerContent({
             {showMenu && (
               <div className="absolute top-full left-0 mt-1.5 w-[300px] sm:w-[340px] rounded-xl border border-border bg-background shadow-xl p-2 z-50 space-y-1.5 animate-in fade-in zoom-in-95 duration-150">
                 <div className="flex items-center justify-between px-2 pt-1 pb-1.5 border-b border-border/60">
-                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  <span className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     {t("tutorDrawer.history")}
                   </span>
                   <button
@@ -1519,7 +1519,7 @@ function TutorDrawerContent({
           role="region"
           aria-label={t("tutorDrawer.conversationHistory")}
           tabIndex={0}
-          className="flex-1 overflow-y-auto overscroll-contain min-h-0 p-4 space-y-5 font-sans text-body-sm focus-visible:outline-none"
+          className="flex-1 overflow-y-auto overscroll-contain min-h-0 p-4 space-y-(--paragraph-gap) font-sans text-body-sm focus-visible:outline-none"
         >
           {errors.length > 0 && (
             <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-destructive text-body-xs">
@@ -1549,7 +1549,7 @@ function TutorDrawerContent({
                     <TutorStudentMessage key={msg.id || index}>
                         {msg.quotedContext && (
                           <div className="border-l-2 border-brand-primary/60 pl-2.5 py-0.5 text-body-xs space-y-0.5 text-muted-foreground">
-                            <p className="font-medium text-foreground text-[11px] truncate">
+                            <p className="font-medium text-foreground text-body-xs truncate">
                               <MathText className="normal-case">
                                 {msg.quotedContext.title || t("tutorDrawer.materialQuote")}
                               </MathText>
@@ -1560,7 +1560,7 @@ function TutorDrawerContent({
                                 </>
                               ) : ""}
                             </p>
-                            <p className="line-clamp-2 italic text-[11px]">
+                            <p className="line-clamp-2 italic text-body-xs">
                               &ldquo;<MathText className="normal-case">{msg.quotedContext.snippet}</MathText>&rdquo;
                             </p>
                           </div>
@@ -1575,7 +1575,7 @@ function TutorDrawerContent({
                           </div>
                         )}
                         {msg.content && (
-                          <div className="min-w-0 max-w-full break-words text-body-sm leading-relaxed text-foreground">
+                          <div className="min-w-0 max-w-full wrap-break-word text-body-base text-foreground">
                             <MarkdownRenderer
                               content={normalizeTutorMathMarkdown(msg.content)}
                               density="compact"
@@ -1616,7 +1616,7 @@ function TutorDrawerContent({
                       </div>
                     ) : (
                       <div
-                        className="min-w-0 max-w-full break-words text-body-sm leading-relaxed text-foreground space-y-3"
+                        className="min-w-0 max-w-full wrap-break-word text-body-base text-foreground space-y-3"
                         data-content-lane="zyra-tutor"
                       >
                         {msg.parts && msg.parts.length > 0 ? (
@@ -1697,7 +1697,7 @@ function TutorDrawerContent({
                           onClick={() => handleCopyText(msg.id, msg.content)}
                           aria-label={t("tutorDrawer.copyMessage")}
                           title={t("tutorDrawer.copyMessage")}
-                          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-0.5 px-1.5 rounded-md hover:bg-muted"
+                          className="inline-flex items-center gap-1 text-body-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-0.5 px-1.5 rounded-md hover:bg-muted"
                         >
                           {copiedMessageId === msg.id ? (
                             <>
@@ -1725,7 +1725,7 @@ function TutorDrawerContent({
                     variant="ghost"
                     size="sm"
                     onClick={handleStopStream}
-                    className="h-6 px-2 text-[10px] text-destructive hover:bg-destructive/10"
+                    className="px-2 text-destructive hover:bg-destructive/10"
                   >
                     {t("tutorDrawer.stop")}
                   </Button>
@@ -1763,7 +1763,7 @@ function TutorDrawerContent({
                 <div className="flex items-center gap-2 min-w-0">
                   <Quote className="size-3.5 shrink-0 text-brand-primary" />
                   <div className="min-w-0 flex items-center gap-1.5">
-                    <span className="font-semibold text-foreground text-[11px] shrink-0">
+                    <span className="font-semibold text-foreground text-body-xs shrink-0">
                       <MathText className="normal-case">
                         {activeQuotedContext.title || t("tutorDrawer.materialQuote")}
                       </MathText>
@@ -1774,7 +1774,7 @@ function TutorDrawerContent({
                         </>
                       ) : ""}:
                     </span>
-                    <span className="text-muted-foreground truncate italic text-[11px]">
+                    <span className="text-muted-foreground truncate italic text-body-xs">
                       &ldquo;<MathText className="normal-case">{activeQuotedContext.snippet}</MathText>&rdquo;
                     </span>
                   </div>
@@ -1794,7 +1794,7 @@ function TutorDrawerContent({
             )}
 
             <ZyraComposerInput
-              className="text-body-sm"
+              className="text-body-base"
               ref={textareaRef}
               value={inputVal}
               onChange={setInputVal}
@@ -1894,7 +1894,7 @@ function TutorDrawerContent({
                       density="compact"
                     />
                   </div>
-                  <span className="mt-4 text-[10px] text-muted-foreground">{t("tutorDrawer.flipCardHint")}</span>
+                  <span className="mt-(--related-gap) text-body-xs text-muted-foreground">{t("tutorDrawer.flipCardHint")}</span>
                 </div>
               ) : (
                 <div className="w-full max-w-sm space-y-4">

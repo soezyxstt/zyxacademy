@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Lock, ArrowLeft } from "lucide-react";
+import { Lock } from "lucide-react";
 import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { TryoutForm } from "@/components/course/tryout-form";
@@ -14,8 +14,6 @@ import { getCourse } from "@/lib/course-utils";
 import { db } from "@/db";
 import { exams, questions } from "@/db/schema";
 import { and, eq, asc } from "drizzle-orm";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import type { ExamFixture } from "@/lib/student-course-fixtures";
 import { TranslatedText } from "@/components/i18n/translated-text";
 import { FormattedDate } from "@/components/ui/formatted-date";
@@ -110,17 +108,12 @@ export default async function CourseTryoutTakePage({ params }: Props) {
     return (
       <CoursePageShell title={<TranslatedText namespace="learning" messageKey="tryoutTake.notOpen" />} description={dbExam.title} hideHeader>
         <Reveal>
-          <div className="rounded-lg border border-border/70 bg-card p-5 text-center">
+          <div className="py-4 text-center">
             <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="tryoutTake.notOpen" /></h3>
             <p className="mt-2 text-body-sm text-muted-foreground">
               <TranslatedText namespace="learning" messageKey="tryoutTake.opensOn" />{" "}
               <strong className="text-foreground"><FormattedDate date={openDate} options={{ dateStyle: "medium", timeStyle: "short" }} /></strong>.
             </p>
-            <div className="mt-5">
-              <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
-                <Link href={`/courses/${id}/tryout`}><TranslatedText namespace="learning" messageKey="tryoutTake.backToList" /></Link>
-              </Button>
-            </div>
           </div>
         </Reveal>
       </CoursePageShell>
@@ -131,17 +124,12 @@ export default async function CourseTryoutTakePage({ params }: Props) {
     return (
       <CoursePageShell title={<TranslatedText namespace="learning" messageKey="tryoutTake.closed" />} description={dbExam.title} hideHeader>
         <Reveal>
-          <div className="rounded-lg border border-border/70 bg-card p-5 text-center">
+          <div className="py-4 text-center">
             <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="tryoutTake.closed" /></h3>
             <p className="mt-2 text-body-sm text-muted-foreground">
               <TranslatedText namespace="learning" messageKey="tryoutTake.closedSince" />{" "}
               <strong className="text-foreground"><FormattedDate date={closeDate} options={{ dateStyle: "medium", timeStyle: "short" }} /></strong>.
             </p>
-            <div className="mt-5">
-              <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
-                <Link href={`/courses/${id}/tryout`}><TranslatedText namespace="learning" messageKey="tryoutTake.backToList" /></Link>
-              </Button>
-            </div>
           </div>
         </Reveal>
       </CoursePageShell>
@@ -152,17 +140,9 @@ export default async function CourseTryoutTakePage({ params }: Props) {
 
   if (!hasFullContentAccess) {
     return (
-      <CoursePageShell title={<TranslatedText namespace="learning" messageKey="tryoutTake.locked" />} description={<TranslatedText namespace="learning" messageKey="tryoutTake.premiumDescription" values={{ course: course.title }} />} hideHeader>
-        <div className="mb-4">
-          <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground">
-            <Link href={`/courses/${id}/tryout`}>
-              <ArrowLeft className="size-3.5" />
-              <span><TranslatedText namespace="learning" messageKey="tryoutTake.backToList" /></span>
-            </Link>
-          </Button>
-        </div>
+      <CoursePageShell title={<TranslatedText namespace="learning" messageKey="tryoutTake.locked" />} description={<TranslatedText namespace="learning" messageKey="tryoutTake.premiumDescription" values={{ course: course.title }} />} backHref={`/courses/${id}/tryout`} backLabel={<TranslatedText namespace="learning" messageKey="tryoutTake.backToList" />}>
         <Reveal>
-          <div className="rounded-lg border border-border/70 bg-card p-4">
+          <div className="border-t border-border/70 py-3">
             <div className="flex items-start gap-3">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
                 <Lock className="size-5" />

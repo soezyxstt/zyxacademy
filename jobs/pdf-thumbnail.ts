@@ -1,4 +1,4 @@
-import { inngest } from "./client";
+import { defineJob } from "./define-job";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { courseMaterials, diktats } from "@/db/schema";
@@ -7,7 +7,7 @@ import { buildCourseThumbnailKey, extractStorageKey } from "@/lib/storage/keys";
 import { generateAndSavePdfThumbnailCompute } from "@/lib/compute/pdf-thumbnail";
 import { buildVersionedThumbnailKey, canUseLegacyThumbnail } from "@/lib/thumbnail";
 
-export const pdfThumbnailWorker = inngest.createFunction(
+export const pdfThumbnailWorker = defineJob(
   {
     id: "pdf-thumbnail-worker",
     name: "PDF Thumbnail Worker",
