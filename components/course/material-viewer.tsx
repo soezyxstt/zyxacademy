@@ -1326,7 +1326,7 @@ function MaterialViewerContent({
                 )}
 
                 {/* End of Diktat milestone */}
-                <div className="rounded-xl border border-border bg-card p-4 sm:p-6 text-center space-y-4 shadow-sm">
+                <div className="space-y-(--related-gap) border-t border-border/40 pt-(--section-gap) text-center">
                   <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-status-success/15 text-status-success">
                     <CheckCircle2 className="size-6 text-status-success" />
                   </div>

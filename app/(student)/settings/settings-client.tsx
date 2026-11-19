@@ -96,8 +96,8 @@ function PreferenceGroup({
   const id = useId();
   return (
     <section aria-labelledby={id}>
-      <h2 id={id} className="border-b border-border pb-2 font-heading text-section-title font-bold">{title}</h2>
-      <div className="divide-y divide-border">{children}</div>
+      <h2 id={id} className="border-b border-border/40 pb-2 font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h2>
+      <div className="divide-y divide-border/30">{children}</div>
     </section>
   );
 }

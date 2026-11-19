@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { UserCheck } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { pageTitle } from "@/lib/site";
 import { PageHeader } from "@/components/page-header";
@@ -32,12 +31,9 @@ export default async function ProfileEditPage() {
     <ApplicationPage maxWidth="7xl" spacing="space-y-(--compact-gap)">
       <PageHeader
         title={<TranslatedText namespace="student" messageKey="profile.editTitle" />}
-        icon={UserCheck}
-        backHref="/profile"
-        backLabel={<TranslatedText namespace="student" messageKey="profile.pageTitle" />}
       />
       <Reveal>
-        <div className="max-w-5xl"><ProfileEditor {...editorData} /></div>
+        <ProfileEditor {...editorData} />
       </Reveal>
     </ApplicationPage>
   );
