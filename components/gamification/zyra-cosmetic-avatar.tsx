@@ -15,12 +15,13 @@ export type ZyraCosmeticAvatarProps = {
   animated?: boolean;
   name?: string;
   interactive?: boolean;
+  headOnly?: boolean;
 };
 
-export function ZyraCosmeticAvatar({ cosmeticId, size = 40, animated = false, name = "Zyra", interactive = false }: ZyraCosmeticAvatarProps) {
+export function ZyraCosmeticAvatar({ cosmeticId, size = 40, animated = false, name = "Zyra", interactive = false, headOnly = false }: ZyraCosmeticAvatarProps) {
   const avatar = getZyraAvatar(cosmeticId);
   const extent = Number.isFinite(size) && size > 0 ? size : 40;
-  const source = (extent >= 128 ? getZyraGlbMascot(avatar?.glbCharacter)?.poster : undefined) ?? avatar?.src;
+  const source = (!headOnly ? getZyraGlbMascot(avatar?.glbCharacter)?.poster : undefined) ?? avatar?.src;
   const ref = useRef<HTMLSpanElement>(null);
   const [running, setRunning] = useState(false);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);

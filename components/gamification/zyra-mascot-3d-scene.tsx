@@ -8,16 +8,16 @@ import { disposeMascotObject, loadZyraGlbMascot } from "./zyra-glb-loader";
 let releaseActiveViewer: (() => void) | undefined;
 export type MascotViewerKey = MascotModelKey | GlbMascotKey;
 export type MascotSceneHandle = { dispose: () => void; isDisposed: () => boolean; setAnimated: (value: boolean) => void; setModel: (key: MascotViewerKey) => void; setAnimation: (name: string) => void };
-export function mountMascotScene(host: HTMLElement, key: MascotViewerKey, animated: boolean, onUnavailable: () => void, onReady?: (key: MascotViewerKey) => void, animationName = "idle"): MascotSceneHandle {
+export function mountMascotScene(host: HTMLElement, key: MascotViewerKey, animated: boolean, onUnavailable: () => void, onReady?: (key: MascotViewerKey) => void, animationName = "idle", practiceSuit = "none", practiceCycle = false): MascotSceneHandle {
   releaseActiveViewer?.();
   const surface = document.createElement("canvas");
   const context = surface.getContext("webgl2", { alpha: true, antialias: true, powerPreference: "low-power" });
   if (!context) throw new Error("WEBGL_UNAVAILABLE");
   const renderer = new THREE.WebGLRenderer({ canvas: surface, context, alpha: true, antialias: true, powerPreference: "low-power" });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, window.matchMedia("(pointer: coarse)").matches ? 1 : 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.25;
+  renderer.toneMappingExposure = 1.1;
   const scene = new THREE.Scene(), root = new THREE.Group();
   scene.add(root);
   const camera = new THREE.PerspectiveCamera(34, 1, .1, 30);
@@ -31,7 +31,7 @@ export function mountMascotScene(host: HTMLElement, key: MascotViewerKey, animat
   aim();
   scene.add(new THREE.HemisphereLight(0xfff5e2, 0x536b7a, 2.2));
   const keyLight = new THREE.DirectionalLight(0xffead1, 3.2); keyLight.position.set(-3, 5, 5); scene.add(keyLight);
-  const fill = new THREE.DirectionalLight(0xd5f1ff, 1.7); fill.position.set(4, 2, 1); scene.add(fill);
+  const fill = new THREE.DirectionalLight(0xd5f1ff, 1.1); fill.position.set(4, 2, 1); scene.add(fill);
   const rim = new THREE.DirectionalLight(0xffd6a0, 2.4); rim.position.set(1, 3, -4); scene.add(rim);
   const materials = new Map<string, THREE.MeshStandardMaterial>();
   const moving: { object: THREE.Mesh; kind: string; scaleY: number; rotation: number; phase: number }[] = [];
@@ -152,7 +152,7 @@ export function mountMascotScene(host: HTMLElement, key: MascotViewerKey, animat
     requestedAnimation=name;
     const model=getZyraGlbMascotByKey(currentKey);
     if (!model || !mixer) return;
-    const selected=resolveMascotAnimation(model,name);
+    const selected=model.character === "cat" && (name === "jump" || (name === "cycle" && practiceCycle)) ? name : resolveMascotAnimation(model,name);
     const clip=clips.find(item=>item.name===selected) ?? clips.find(item=>item.name==="idle");
     mixer.stopAllAction();
     if (clip) { mixer.clipAction(clip).reset().play(); mixer.update(0); }
@@ -171,7 +171,7 @@ export function mountMascotScene(host: HTMLElement, key: MascotViewerKey, animat
     const glbModel=getZyraGlbMascotByKey(nextKey);
     if (glbModel) {
       const controller=new AbortController(); pendingLoad=controller;
-      void loadZyraGlbMascot(glbModel,controller.signal).then(gltf=>{
+      void loadZyraGlbMascot(glbModel,controller.signal, practiceSuit, practiceCycle).then(gltf=>{
         if (disposed || version!==loadVersion) { disposeMascotObject(gltf.scene); return; }
         // A parent transform fits each source without changing animated node transforms.
         gltf.scene.updateMatrixWorld(true);

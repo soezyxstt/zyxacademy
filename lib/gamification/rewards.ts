@@ -8,7 +8,7 @@ import type { EquipGamificationCosmeticsInput } from './contracts';
 
 /** Caller must authorize studentId before invoking these operations. */
 export async function purchaseGamificationCosmetic(studentId: string, cosmeticId: string) {
- if (!COSMETIC_CATALOG.some(item => item.id === cosmeticId)) throw new Error('COSMETIC_UNAVAILABLE');
+ if (cosmeticId === "zyra-avatar-studio-cat" || !COSMETIC_CATALOG.some(item => item.id === cosmeticId)) throw new Error('COSMETIC_UNAVAILABLE');
  return db.transaction(async tx => {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${studentId}, 0))`);
   const [existing] = await tx.select().from(gamificationInventory).where(and(eq(gamificationInventory.userId, studentId), eq(gamificationInventory.cosmeticId, cosmeticId))).limit(1);

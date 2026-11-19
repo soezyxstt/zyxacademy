@@ -11,15 +11,16 @@ describe('expanded cosmetic catalog', () => {
     originalIds.forEach((key, index) => expect(COSMETIC_CATALOG.find(item => item.id === key)?.priceLp).toBe(originalPrices[index]));
   });
   test('adds four studio characters to the existing catalog', () => {
-    expect(COSMETIC_CATALOG).toHaveLength(32);
-    expect(new Set(COSMETIC_CATALOG.map(item => item.id)).size).toBe(32);
+    expect(COSMETIC_CATALOG).toHaveLength(36);
+    expect(new Set(COSMETIC_CATALOG.map(item => item.id)).size).toBe(36);
     expect(COSMETIC_CATALOG.filter(item => item.slot === 'frame')).toHaveLength(10);
     expect(COSMETIC_CATALOG.filter(item => item.slot === 'zyra_avatar')).toHaveLength(14);
-    const added = COSMETIC_CATALOG.filter(item => !originalIds.includes(item.id));
+    const added = COSMETIC_CATALOG.filter(item => item.slot === "zyra_avatar" && !originalIds.includes(item.id));
     expect(added.map(item => item.id)).toEqual(['zyra-avatar-studio-cat', 'zyra-avatar-studio-tiger', 'zyra-avatar-studio-rhino', 'zyra-avatar-studio-crocodile']);
     for (const item of added) {
       expect(item.slot).toBe('zyra_avatar');
-      expect(item.priceLp).toBeGreaterThanOrEqual(600);
+      if (item.id === "zyra-avatar-studio-cat") expect(item.priceLp).toBe(0);
+      else expect(item.priceLp).toBeGreaterThanOrEqual(600);
       expect(item.priceLp).toBeLessThanOrEqual(1250);
     }
   });

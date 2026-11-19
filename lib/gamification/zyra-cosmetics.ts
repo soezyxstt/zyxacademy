@@ -41,7 +41,7 @@ export const ZYRA_CHAT_SKINS = [
 export type ZyraChatSkin = (typeof ZYRA_CHAT_SKINS)[number];
 
 export function getZyraAvatar(id?: string | null) {
-  return ZYRA_AVATARS.find(avatar => avatar.id === id);
+  return ZYRA_AVATARS.find(avatar => avatar.id === (id ?? "zyra-avatar-studio-cat"));
 }
 
 export function getZyraChatSkin(id?: string | null) {

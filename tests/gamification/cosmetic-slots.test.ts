@@ -3,10 +3,10 @@ import { COSMETIC_FIELDS, cosmeticEquipInput, cosmeticProfilePatch } from '../..
 import { COSMETIC_CATALOG } from '../../lib/gamification/catalog';
 
 describe('cosmetic slot boundaries', () => {
- test('catalog keeps old prices and includes all five slots', () => {
-  expect(COSMETIC_CATALOG).toHaveLength(32);
+ test('catalog keeps old prices and includes separate action and suit slots', () => {
+  expect(COSMETIC_CATALOG).toHaveLength(36);
   expect(COSMETIC_CATALOG.find(item => item.id === 'frame-classic')?.priceLp).toBe(250);
-  expect(new Set(COSMETIC_CATALOG.map(item => item.slot)).size).toBe(5);
+  expect(new Set(COSMETIC_CATALOG.map(item => item.slot)).size).toBe(7);
  });
  test('every catalog ID equips only its own slot', () => {
   for (const item of COSMETIC_CATALOG) for (const field of COSMETIC_FIELDS) {

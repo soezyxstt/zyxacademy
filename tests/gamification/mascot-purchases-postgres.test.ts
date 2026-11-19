@@ -13,7 +13,7 @@ const client = await PGlite.create({ parsers: { 20: Number } });
 const fixtureDb = drizzle(client, { schema });
 type Rewards = typeof import('../../lib/gamification/rewards');
 let rewards: Rewards;
-const studioIds = ['zyra-avatar-studio-cat', 'zyra-avatar-studio-tiger', 'zyra-avatar-studio-rhino', 'zyra-avatar-studio-crocodile'];
+const studioIds = ['zyra-avatar-studio-tiger', 'zyra-avatar-studio-rhino', 'zyra-avatar-studio-crocodile'];
 
 beforeAll(async () => {
   // A scoped require keeps database substitution out of Bun's shared module cache.
@@ -88,21 +88,21 @@ async function balance(id = 'owner') {
   return (await client.query<{ lp_balance: number }>('select lp_balance from gamification_accounts where user_id = $1', [id])).rows[0].lp_balance;
 }
 
-test('all four mascots use one purchase entitlement and replay without another debit', async () => {
+test('paid mascots use one purchase entitlement and replay without another debit', async () => {
   const total = studioIds.reduce((sum, id) => sum + COSMETIC_CATALOG.find(item => item.id === id)!.priceLp, 0);
   for (const id of studioIds) {
     await rewards.purchaseGamificationCosmetic('owner', id);
     await rewards.purchaseGamificationCosmetic('owner', id);
   }
   expect(await balance()).toBe(5000 - total);
-  expect((await client.query('select cosmetic_id from gamification_inventory where user_id = $1', ['owner'])).rows).toHaveLength(4);
+  expect((await client.query('select cosmetic_id from gamification_inventory where user_id = $1', ['owner'])).rows).toHaveLength(studioIds.length);
   const ledger = (await client.query<{ count: number; amount: number }>("select count(*)::int count, sum(amount)::int amount from gamification_lp_ledger where reason = 'purchase'")).rows[0];
-  expect(ledger).toEqual({ count: 4, amount: -total });
+  expect(ledger).toEqual({ count: studioIds.length, amount: -total });
 });
 
 test('repeated pending purchases of the same mascot grant one item', async () => {
   await Promise.all([rewards.purchaseGamificationCosmetic('owner', studioIds[0]), rewards.purchaseGamificationCosmetic('owner', studioIds[0])]);
-  expect(await balance()).toBe(4400);
+  expect(await balance()).toBe(4100);
   expect((await client.query('select cosmetic_id from gamification_inventory')).rows).toHaveLength(1);
   expect((await client.query('select id from gamification_lp_ledger')).rows).toHaveLength(1);
 });
@@ -131,13 +131,13 @@ test('owned mascots equip independently and reject unowned or wrong-slot request
   await rewards.purchaseGamificationCosmetic('owner', 'frame-classic');
   await rewards.purchaseGamificationCosmetic('owner', 'zyra-skin-orbit');
   await rewards.equipGamificationCosmetics('owner', { frameId: 'frame-classic', zyraSkinId: 'zyra-skin-orbit' });
-  await rewards.purchaseGamificationCosmetic('owner', studioIds[3]);
-  await rewards.equipGamificationCosmetics('owner', { zyraAvatarId: studioIds[3] });
+  await rewards.purchaseGamificationCosmetic('owner', studioIds[2]);
+  await rewards.equipGamificationCosmetics('owner', { zyraAvatarId: studioIds[2] });
   const equipped = (await client.query('select equipped_frame_id, equipped_zyra_skin_id, equipped_zyra_avatar_id from gamification_profiles where user_id = $1', ['owner'])).rows[0];
-  expect(equipped).toEqual({ equipped_frame_id: 'frame-classic', equipped_zyra_skin_id: 'zyra-skin-orbit', equipped_zyra_avatar_id: studioIds[3] });
-  await assert.rejects(rewards.equipGamificationCosmetics('other', { zyraAvatarId: studioIds[3] }), /COSMETIC_NOT_OWNED/);
-  await assert.rejects(rewards.equipGamificationCosmetics('owner', { zyraAvatarId: studioIds[2] }), /COSMETIC_NOT_OWNED/);
-  await assert.rejects(rewards.equipGamificationCosmetics('owner', { zyraSkinId: studioIds[3] }), /INVALID_COSMETIC_SLOT/);
+  expect(equipped).toEqual({ equipped_frame_id: 'frame-classic', equipped_zyra_skin_id: 'zyra-skin-orbit', equipped_zyra_avatar_id: studioIds[2] });
+  await assert.rejects(rewards.equipGamificationCosmetics('other', { zyraAvatarId: studioIds[2] }), /COSMETIC_NOT_OWNED/);
+  await assert.rejects(rewards.equipGamificationCosmetics('owner', { zyraAvatarId: studioIds[1] }), /COSMETIC_NOT_OWNED/);
+  await assert.rejects(rewards.equipGamificationCosmetics('owner', { zyraSkinId: studioIds[2] }), /INVALID_COSMETIC_SLOT/);
   await rewards.equipGamificationCosmetics('owner', { zyraAvatarId: null });
   const cleared = (await client.query('select equipped_frame_id, equipped_zyra_skin_id, equipped_zyra_avatar_id from gamification_profiles where user_id = $1', ['owner'])).rows[0];
   expect(cleared).toEqual({ ...equipped, equipped_zyra_avatar_id: null });
@@ -149,4 +149,14 @@ test('a ledger conflict rolls back both the LP debit and new ownership', async (
   expect(await balance()).toBe(5000);
   expect((await client.query('select cosmetic_id from gamification_inventory')).rows).toHaveLength(0);
   expect((await client.query('select id from gamification_lp_ledger')).rows).toEqual([{ id: 'conflict' }]);
+});
+
+test('cat is free and pet purchases grant only their own inventory row', async () => {
+  await assert.rejects(rewards.purchaseGamificationCosmetic('owner', 'zyra-avatar-studio-cat'), /COSMETIC_UNAVAILABLE/);
+  const ids = [studioIds[0], 'pet-action-cycle', 'pet-suit-itb-sport-outfit'];
+  for (const [index, id] of ids.entries()) {
+    await rewards.purchaseGamificationCosmetic('owner', id);
+    const inventory = await client.query<{ cosmetic_id: string }>('select cosmetic_id from gamification_inventory where user_id = $1', ['owner']);
+    expect(inventory.rows.map(row => row.cosmetic_id).sort()).toEqual(ids.slice(0, index + 1).sort());
+  }
 });

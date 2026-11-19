@@ -13,11 +13,13 @@ export type ZyraMascot3DProps = {
   size?: number;
   animated?: boolean;
   animationName?: string;
+  practiceSuit?: string;
+  practiceCycle?: boolean;
   className?: string;
 };
 
 /** Explicit large-viewer opt-in. Thumbnails never import Three or allocate a canvas. */
-export function ZyraMascot3D({cosmeticId,size=320,animated=true,animationName="idle",className}: ZyraMascot3DProps) {
+export function ZyraMascot3D({cosmeticId,size=320,animated=true,animationName="idle",practiceSuit="none",practiceCycle=false,className}: ZyraMascot3DProps) {
   const t=useTranslations("student");
   const avatar=getZyraAvatar(cosmeticId);
   const extent=Number.isFinite(size)&&size>0?Math.min(size,640):320;
@@ -38,10 +40,10 @@ export function ZyraMascot3D({cosmeticId,size=320,animated=true,animationName="i
     const container=host.current;
     import("./zyra-mascot-3d-scene").then(({mountMascotScene})=>{
       if(cancelled) return;
-      handle.current=mountMascotScene(container,selected.current!,motion.current,()=>{if(!cancelled){setReadyKey(null);setUnavailable(true);}},key=>{if(!cancelled){setReadyKey(key);setUnavailable(false);}},animation.current);
+      handle.current=mountMascotScene(container,selected.current!,motion.current,()=>{if(!cancelled){setReadyKey(null);setUnavailable(true);}},key=>{if(!cancelled){setReadyKey(key);setUnavailable(false);}},animation.current, practiceSuit, practiceCycle);
     }).catch(()=>{if(!cancelled){setReadyKey(null);setUnavailable(true);}});
     return ()=>{cancelled=true;handle.current?.dispose();handle.current=null;};
-  },[large,hasModel,attempt]);
+  },[large,hasModel,attempt,practiceSuit,practiceCycle]);
   useEffect(()=>{
     if(!modelKey||!handle.current) return;
     setReadyKey(null);setUnavailable(false);

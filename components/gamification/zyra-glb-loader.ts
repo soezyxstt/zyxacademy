@@ -3,11 +3,11 @@ import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import type { GlbMascot } from "@/lib/gamification/zyra-glb-mascots";
 
 /** Each viewer owns its parsed scene. Only immutable HTTP assets use the browser cache. */
-export async function loadZyraGlbMascot(model: GlbMascot, signal: AbortSignal): Promise<GLTF> {
+async function loadAsset(src: string, signal: AbortSignal): Promise<GLTF> {
   const [{ GLTFLoader }, { MeshoptDecoder }, response] = await Promise.all([
     import("three/addons/loaders/GLTFLoader.js"),
     import("three/addons/libs/meshopt_decoder.module.js"),
-    fetch(model.src, { signal }),
+    fetch(src, { signal }),
   ]);
   if (!response.ok) throw new Error("MASCOT_ASSET_UNAVAILABLE");
   const data = await response.arrayBuffer();
@@ -19,6 +19,36 @@ export async function loadZyraGlbMascot(model: GlbMascot, signal: AbortSignal): 
     signal.throwIfAborted();
   }
   return gltf;
+}
+
+export async function loadZyraGlbMascot(model: GlbMascot, signal: AbortSignal, suit = "none", cycle = false): Promise<GLTF> {
+  const body = await loadAsset(model.src, signal);
+  const outfitFolder = model.character === "cat" ? "items/" : `items/${model.character}/`;
+  const base = model.src.slice(0, model.src.lastIndexOf("/") + 1);
+  try {
+    if (suit === "itb-sport-outfit" || suit === "astronaut-outfit") {
+      const outfit = await loadAsset(base + outfitFolder + suit + ".glb", signal);
+      const bones = new Map<string, THREE.Bone>();
+      body.scene.traverse(node => { if (node instanceof THREE.Bone) bones.set(node.name, node); });
+      body.scene.add(outfit.scene);
+      outfit.scene.traverse(mesh => {
+        if (!(mesh instanceof THREE.SkinnedMesh)) return;
+        const skeleton = mesh.skeleton;
+        skeleton.bones = skeleton.bones.map(bone => bones.get(bone.name) ?? bone);
+      });
+    }
+    if (cycle && model.character === "cat") {
+      const bike = await loadAsset(base + "props/cycle.glb", signal);
+      body.scene.add(bike.scene);
+      const rider = body.animations.find(clip => clip.name === "cycle");
+      const wheels = bike.animations.find(clip => clip.name === "cycle");
+      if (rider && wheels) rider.tracks.push(...wheels.tracks);
+    }
+    return body;
+  } catch (error) {
+    disposeMascotObject(body.scene);
+    throw error;
+  }
 }
 
 /** Geometry, materials, textures and bone textures belong to this scene, never another viewer. */

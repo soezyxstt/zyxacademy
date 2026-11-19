@@ -29,7 +29,7 @@ export function CosmeticsStudio({ appearance, prices }: CosmeticsStudioProps) {
   const [frameId, setFrameId] = useState<string>(appearance.frameId && FRAME_COLLECTIONS.some(item => item.id === appearance.frameId) ? appearance.frameId : FRAME_COLLECTIONS[0].id);
   const [animated, setAnimated] = useState(true);
   const [skinId, setSkinId] = useState<string>(ZYRA_CHAT_SKINS[0].id);
-  const [mascotId, setMascotId] = useState<string>(ZYRA_AVATARS[0].id);
+  const [mascotId, setMascotId] = useState<string>("zyra-avatar-studio-cat");
   const [copied, setCopied] = useState(false);
   const [liked, setLiked] = useState(false);
   const active = FRAME_COLLECTIONS.find(item => item.id === frameId)!;
