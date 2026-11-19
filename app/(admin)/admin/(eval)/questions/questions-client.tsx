@@ -4,7 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { CheckSquare, Square, ChevronDown, ChevronUp, Plus, Edit2, Trash2, Upload, ChevronLeft, ChevronRight, FileQuestion, Loader2 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { CheckSquare, Square, ChevronDown, Plus, Edit2, Trash2, Upload, ChevronLeft, ChevronRight, FileQuestion, Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { DifficultyBadge, StatusBadge } from "@/components/admin/status-badges";
@@ -1416,6 +1417,7 @@ function IdeaAssignmentFields({
 
   return (
     <section className="space-y-3 border-t border-border pt-4" aria-labelledby={`${idPrefix}-idea-heading`}>
+      <Collapsible open={expanded} onOpenChange={setExpanded} className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -1426,22 +1428,22 @@ function IdeaAssignmentFields({
             {links.length > 0 ? t("ideaConnectedCount", { count: links.length }) : t("ideaCanBeUnlinked")}
           </p>
         </div>
+        <CollapsibleTrigger asChild>
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="h-8 gap-2 text-body-xs"
-          aria-expanded={expanded}
+          className="group h-8 gap-2 text-body-xs"
           aria-controls={`${idPrefix}-idea-options`}
-          onClick={() => setExpanded((current) => !current)}
         >
           {expanded ? t("close") : t("manageIdeas")}
-          {expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+          <ChevronDown className="size-4 transition-transform duration-200 group-data-[state=open]:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
         </Button>
+        </CollapsibleTrigger>
       </div>
 
-      {expanded ? (
-        <div id={`${idPrefix}-idea-options`} className="space-y-3" aria-busy={loading}>
+      <CollapsibleContent id={`${idPrefix}-idea-options`}>
+        <div className="space-y-3" aria-busy={loading}>
           {links.length > 0 ? (
             <p className={cn("text-body-xs font-semibold", valid ? "text-status-success" : "text-status-warning")}>
               {t("totalWeight")}: {Math.round(totalWeight * 100)}%. {valid ? t("readyToSave") : t("weightMustBe100")}
@@ -1513,7 +1515,8 @@ function IdeaAssignmentFields({
             </div>
           )}
         </div>
-      ) : null}
+      </CollapsibleContent>
+      </Collapsible>
     </section>
   );
 }
@@ -1553,7 +1556,7 @@ function QuestionRow({
     question.questionType === "multiple_choices" ? t("multipleChoices") : t("multipleChoice");
 
   return (
-    <div className={cn("px-4 py-4 transition-colors", selected ? "bg-muted/15" : "hover:bg-muted/5")}>
+    <Collapsible open={expanded} onOpenChange={setExpanded} className={cn("px-4 py-4 transition-colors", selected ? "bg-muted/15" : "hover:bg-muted/5")}>
       <div className="flex items-start gap-3">
         {isHistoricalReference ? (
           <StatusBadge tone="info" subtle className="mt-0.5 shrink-0">{t("reviewOnly")}</StatusBadge>
@@ -1622,15 +1625,15 @@ function QuestionRow({
           ) : null}
         </div>
 
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className="text-muted-foreground hover:text-foreground transition-colors shrink-0 cursor-pointer p-1 rounded-md hover:bg-muted"
+        <CollapsibleTrigger
+          type="button"
+          className="group text-muted-foreground hover:text-foreground transition-colors shrink-0 cursor-pointer p-1 rounded-md hover:bg-muted"
         >
-          {expanded ? <ChevronUp className="size-4.5" /> : <ChevronDown className="size-4.5" />}
-        </button>
+          <ChevronDown className="size-4.5 transition-transform duration-200 group-data-[state=open]:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+        </CollapsibleTrigger>
       </div>
 
-      {expanded && (
+      <CollapsibleContent>
         <div className="mt-4 ml-7.5 space-y-4 border-t border-border/40 pt-4 text-left">
           {/* Multiple choice options */}
           {(question.questionType === "multiple_choice" || question.questionType === "multiple_choices" || (!question.questionType && options.length > 0)) && (
@@ -1691,7 +1694,7 @@ function QuestionRow({
             </div>
           )}
         </div>
-      )}
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

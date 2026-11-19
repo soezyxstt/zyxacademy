@@ -108,6 +108,10 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   const caps = getTutorCapabilities(courseIdFromPath);
 
   const [isOpen, setIsOpen] = React.useState(false);
+  const [hasOpened, setHasOpened] = React.useState(false);
+  React.useEffect(() => {
+    if (isOpen) setHasOpened(true);
+  }, [isOpen]);
   const [appearance, setAppearance] = React.useState<{skinId: string | null; avatarId: string | null}>({skinId: null, avatarId: null});
   React.useEffect(() => {
     if (!isOpen || experience.mode === "demo" || !realPathname?.startsWith("/courses/")) return;
@@ -237,7 +241,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
             </button>
           ))}
 
-        {isOpen && (
+        {(isOpen || hasOpened) && (
           <TutorAppearanceContext.Provider value={appearance}><ZyraWelcomeCopyGuard>
             <TutorDrawerView
               isOpen={isOpen}

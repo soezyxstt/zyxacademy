@@ -562,12 +562,44 @@ function TutorDrawerContent({
 
   // Escape key to close
   React.useEffect(() => {
+    if (!isOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !event.defaultPrevented) onClose();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [isOpen, onClose]);
+
+  // Smooth open/close presence state for both mobile overlay and desktop docked sheet
+  const [shouldRender, setShouldRender] = React.useState(isOpen);
+  const [isVisible, setIsVisible] = React.useState(typeof window === "undefined" ? isOpen : false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setShouldRender(true);
+      let frame1 = 0;
+      let frame2 = 0;
+      frame1 = window.requestAnimationFrame(() => {
+        frame2 = window.requestAnimationFrame(() => {
+          setIsVisible(true);
+        });
+      });
+      return () => {
+        window.cancelAnimationFrame(frame1);
+        window.cancelAnimationFrame(frame2);
+      };
+    }
+
+    setIsVisible(false);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setShouldRender(false);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setShouldRender(false);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [isOpen]);
 
   // Sync execution from backend services on mode triggers
   React.useEffect(() => {
@@ -1258,30 +1290,51 @@ function TutorDrawerContent({
     textareaRef.current?.insertText(inMath ? snippet : `$${snippet.trim()}$`);
   };
 
+  if (!shouldRender) return null;
+
+  const targetPanelWidth = isExpanded
+    ? Math.min(MAX_SIDEBAR_WIDTH, typeof window === "undefined" ? MAX_SIDEBAR_WIDTH : window.innerWidth * 0.7)
+    : sidebarWidth;
+
   return (
     <>
       {/* Backdrop for Mobile Only */}
       <div
         role="presentation"
         onClick={onClose}
-        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-300 md:hidden"
+        data-state={isVisible ? "open" : "closed"}
+        className={cn(
+          "fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity duration-300 ease-out motion-reduce:transition-none md:hidden",
+          isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
       />
 
       {/* Non-blocking, Docked Learning Assistant Sidebar */}
       <aside
         ref={panelRef}
         aria-label={t("tutorDrawer.accessibleName")}
+        data-state={isVisible ? "open" : "closed"}
         style={{
           top: 0,
-          "--zyra-panel-width": `${isExpanded ? Math.min(MAX_SIDEBAR_WIDTH, typeof window === "undefined" ? MAX_SIDEBAR_WIDTH : window.innerWidth * 0.7) : sidebarWidth}px`,
+          "--zyra-panel-width": `${targetPanelWidth}px`,
         } as React.CSSProperties}
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-[min(var(--zyra-panel-width),100vw)] flex-col overflow-hidden border-l border-border bg-background shadow-2xl md:sticky md:top-0 md:bottom-auto md:right-auto md:self-start md:z-20 md:h-screen md:h-[100svh] md:w-[var(--zyra-panel-width)] md:shrink-0 md:shadow-none select-text",
+          "fixed inset-y-0 right-0 z-50 flex w-[min(var(--zyra-panel-width),100vw)] flex-col overflow-hidden border-l border-border bg-background shadow-2xl md:sticky md:top-0 md:bottom-auto md:right-auto md:self-start md:z-20 md:h-screen md:h-[100svh] md:shrink-0 md:shadow-none select-text",
           "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
-          "animate-in slide-in-from-right duration-300 ease-out md:animate-none",
-          isDragging ? "transition-none select-none" : "transition-[width] duration-150 ease-out"
+          isDragging
+            ? "transition-none select-none"
+            : "transition-[transform,width,opacity,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+          isVisible
+            ? "translate-x-0 opacity-100 md:w-[var(--zyra-panel-width)]"
+            : "translate-x-full opacity-0 pointer-events-none md:translate-x-0 md:w-0 md:border-l-transparent"
         )}
       >
+        <div
+          className={cn(
+            "relative flex h-full min-h-0 w-full flex-col md:min-w-[var(--zyra-panel-width)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+            isVisible ? "md:translate-x-0" : "md:translate-x-4"
+          )}
+        >
         {/* Drag-to-Resize Handle */}
         <div
           onPointerDown={handlePointerDownResize}
@@ -1908,6 +1961,7 @@ function TutorDrawerContent({
             </div>
           </div>
         )}
+        </div>
       </aside>
     </>
   );

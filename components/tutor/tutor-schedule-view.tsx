@@ -19,6 +19,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -635,7 +636,7 @@ export function TutorScheduleView({
                 const isPendingTicket = ticket.status === "pending";
                 const isThreadOpen = openThreadId === ticket.id;
                 return (
-                  <div key={ticket.id} className="space-y-3 p-4">
+                  <Collapsible key={ticket.id} open={isThreadOpen} onOpenChange={(open) => { setOpenThreadId(open ? ticket.id : null); setReplyText(""); }} className="space-y-3 p-4">
                     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                       <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -652,15 +653,17 @@ export function TutorScheduleView({
                         {ticket.decisionNotes && <p className="text-body-xs italic text-muted-foreground">{t("notes")}: {ticket.decisionNotes}</p>}
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => { setOpenThreadId(isThreadOpen ? null : ticket.id); setReplyText(""); }} aria-expanded={isThreadOpen} className="h-8 rounded-lg text-body-sm">
-                          <MessageSquare className="mr-1.5 size-4" />{t("discussion")}{ticket.messages.length > 0 ? ` (${ticket.messages.length})` : ""}
-                        </Button>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-8 rounded-lg text-body-sm">
+                            <MessageSquare className="mr-1.5 size-4" />{t("discussion")}{ticket.messages.length > 0 ? ` (${ticket.messages.length})` : ""}
+                          </Button>
+                        </CollapsibleTrigger>
                         {isPendingTicket && (
                           <Button size="sm" onClick={() => { setDecidingTicket(ticket); setTicketDecision("approved"); setDecisionNotesInput(""); setIsDecideTicketOpen(true); }} className="h-8 rounded-lg bg-brand-primary text-body-sm text-primary-foreground hover:bg-brand-primary/90">{t("decide")}</Button>
                         )}
                       </div>
                     </div>
-                    {isThreadOpen && (
+                    <CollapsibleContent>
                       <div className="space-y-3 border-l-2 border-border pl-3">
                         {ticket.messages.length === 0 ? (
                           <p className="text-body-xs text-muted-foreground">{t("noMessages")}</p>
@@ -685,8 +688,8 @@ export function TutorScheduleView({
                           <Button size="sm" disabled={isPending || replyText.trim().length === 0} onClick={handleReplyTicket} aria-label={t("sendReply")} className="h-9 shrink-0 rounded-lg"><Send className="mr-1.5 size-4" />{t("send")}</Button>
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 );
               })}
             </div>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { completeExplanationAction } from "@/app/(student)/courses/[id]/solutions/[collectionId]/actions";
 import { useSearchParams } from "next/navigation";
-import { BookOpen, CheckCircle2, Circle, ChevronLeft, ChevronRight, List, Search } from "lucide-react";
+import { BookOpen, CheckCircle2, ChevronDown, Circle, ChevronLeft, ChevronRight, List, Search } from "lucide-react";
 import { useLocale } from "next-intl";
 import { Component, Suspense, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { AdminEmptyState } from "@/components/admin/state-panels";
@@ -13,6 +13,7 @@ import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { materializeArticleParts, type ArticlePart } from "@/lib/materials/article-parts";
@@ -268,10 +269,15 @@ function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initia
           <ul className="space-y-4">{item.misconceptions.map((entry) => <li key={entry.id} className="space-y-3 border-l-2 border-border pl-4"><div className="space-y-1"><h4 className="text-body-xs font-semibold text-muted-foreground">{t("misconception")}</h4><MarkdownRenderer content={entry.misconceptionMarkdown} /></div><div className="space-y-1"><h4 className="text-body-xs font-semibold text-foreground">{t("correction")}</h4><MarkdownRenderer content={entry.correctionMarkdown} /></div></li>)}</ul>
         </section> : null}
       </div> : <div id={solutionId} hidden />}
-      <details className="text-body-sm text-muted-foreground">
-        <summary className="cursor-pointer rounded-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{t("sources")}</summary>
-        <div className="mt-3 space-y-3"><Provenance label={t("question")} provenance={item.provenance.problem} /><Provenance label={t("solution")} provenance={item.provenance.solution} /></div>
-      </details>
+      <Collapsible className="text-body-sm text-muted-foreground">
+        <CollapsibleTrigger className="group inline-flex cursor-pointer items-center gap-1.5 rounded-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+          <ChevronDown className="size-3.5 shrink-0 transition-transform duration-200 -rotate-90 group-data-[state=open]:rotate-0 motion-reduce:transition-none" aria-hidden="true" />
+          {t("sources")}
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="mt-3 space-y-3"><Provenance label={t("question")} provenance={item.provenance.problem} /><Provenance label={t("solution")} provenance={item.provenance.solution} /></div>
+        </CollapsibleContent>
+      </Collapsible>
       {revealed && onCompleteItem ? <Button type="button" variant="outline" onClick={onCompleteItem} disabled={itemCompleted}>{itemCompleted ? "Selesai dibaca" : "Tandai selesai dibaca"}</Button> : null}
       {renderItemReview?.(item)}
       <nav aria-label={t("navigation")} className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">

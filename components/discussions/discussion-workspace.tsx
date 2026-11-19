@@ -2,13 +2,15 @@
 
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useTranslations } from "@/lib/i18n/client";
-import { ArrowLeft, Bell, BellOff, CheckCircle2, ChevronDown, ChevronRight, CircleHelp, Loader2, LockKeyhole, MessageSquareText, RotateCcw, Search, SquarePen, X } from "lucide-react";
+import { ArrowLeft, Bell, BellOff, CheckCircle2, ChevronDown, CircleHelp, Loader2, LockKeyhole, MessageSquareText, RotateCcw, SquarePen } from "lucide-react";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SearchBar } from "@/components/ui/search-bar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -59,22 +61,8 @@ export type DiscussionDraftState = {
 
 export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftState?: DiscussionDraftState }) {
   const t = useTranslations("discussions");
-  const ui = useTranslations("ui");
   const [searchExpanded, setSearchExpanded] = useState(false);
   const searchVisible = searchExpanded || !!props.search;
-  const searchTrigger = useRef<HTMLButtonElement>(null);
-  const restoreSearchFocus = useRef(false);
-  useEffect(() => {
-    if (!searchVisible && restoreSearchFocus.current) {
-      searchTrigger.current?.focus();
-      restoreSearchFocus.current = false;
-    }
-  }, [searchVisible]);
-  function closeSearch() {
-    restoreSearchFocus.current = true;
-    props.onSearchChange("");
-    setSearchExpanded(false);
-  }
   const [urlTab, setUrlTab] = useUrlTab("discussionTab", "questions");
   const localDrafts = useState<Record<string, ComposerDraft>>({});
   const [drafts, setDrafts] = props.draftState?.drafts ?? localDrafts;
@@ -239,7 +227,22 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
         <div ref={setFrameElement} className="flex h-[48rem] min-w-0 overflow-hidden rounded-xl border border-border bg-card @min-[52rem]/discussions:h-[44rem]">
           <aside aria-label={t("questionList")} className={cn("min-w-0 flex-1 flex-col @min-[52rem]/discussions:flex @min-[52rem]/discussions:w-[21rem] @min-[52rem]/discussions:flex-none @min-[52rem]/discussions:border-r @min-[52rem]/discussions:border-border", props.selectedQuestionId ? "hidden" : "flex")}>
             <div className="space-y-3 border-b border-border p-3">
-              <div className="flex min-w-0 items-center gap-2" onKeyDown={(event) => { if (searchVisible && event.key === "Escape") { event.preventDefault(); closeSearch(); } }}>{searchVisible ? <><Input autoFocus value={props.search} onChange={(event) => props.onSearchChange(event.target.value)} aria-label={t("searchQuestion")} placeholder={t("search")} className="min-w-0 flex-1" /><Tooltip><TooltipTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={ui("close")} onClick={closeSearch}><X /></Button></TooltipTrigger><TooltipContent>{ui("close")}</TooltipContent></Tooltip></> : <><div className="min-w-0 flex-1"><DiscussionChannelPicker value={props.channels.find((item) => item.id === props.selectedChannelId) ?? null} label={t("filterChannel")} placeholder={t("allChannels")} allowAll onSearch={props.onSearchChannels} onChange={props.onSelectChannel} /></div><Tooltip><TooltipTrigger asChild><Button ref={searchTrigger} type="button" variant="ghost" size="icon-sm" aria-label={t("searchQuestion")} onClick={() => setSearchExpanded(true)}><Search /></Button></TooltipTrigger><TooltipContent>{t("searchQuestion")}</TooltipContent></Tooltip><Tooltip><TooltipTrigger asChild><Button type="button" size="icon-sm" aria-label={t("newQuestion")} onClick={openNew} disabled={!creatableChannels.length}><SquarePen /></Button></TooltipTrigger><TooltipContent>{t("newQuestion")}</TooltipContent></Tooltip></>}</div>
+              <div className="flex min-w-0 items-center gap-2">
+                {!searchVisible && <div className="min-w-0 flex-1 animate-in fade-in duration-150 motion-reduce:animate-none"><DiscussionChannelPicker value={props.channels.find((item) => item.id === props.selectedChannelId) ?? null} label={t("filterChannel")} placeholder={t("allChannels")} allowAll onSearch={props.onSearchChannels} onChange={props.onSelectChannel} /></div>}
+                <SearchBar
+                  size="sm"
+                  variant="muted"
+                  value={props.search}
+                  onSearch={props.onSearchChange}
+                  onClear={() => props.onSearchChange("")}
+                  expanded={searchExpanded}
+                  onExpandedChange={setSearchExpanded}
+                  aria-label={t("searchQuestion")}
+                  placeholder={t("search")}
+                  containerClassName="flex-1 min-w-0"
+                />
+                {!searchVisible && <Tooltip><TooltipTrigger asChild><Button type="button" size="icon-sm" aria-label={t("newQuestion")} onClick={openNew} disabled={!creatableChannels.length}><SquarePen /></Button></TooltipTrigger><TooltipContent>{t("newQuestion")}</TooltipContent></Tooltip>}
+              </div>
               {selectedChannel && <div className="flex items-center justify-between gap-2 text-body-xs text-muted-foreground"><span className="min-w-0"><ChannelName channel={selectedChannel} />{selectedChannel.unreadCount > 0 && <span className="ml-2 inline-block">{t("unreadQuestions", { count: selectedChannel.unreadCount })}</span>}</span><Tooltip><TooltipTrigger asChild><Button type="button" variant="ghost" size="icon-sm" disabled={mutePending} aria-label={t(selectedChannel.muted ? "unmuteChannel" : "muteChannel", { name: discussionChannelLabel(selectedChannel, t) })} onClick={() => void toggleMute()}>{selectedChannel.muted ? <BellOff /> : <Bell />}</Button></TooltipTrigger><TooltipContent>{t(selectedChannel.muted ? "unmute" : "mute")}</TooltipContent></Tooltip></div>}
               {muteError && <p role="alert" className="text-body-xs text-destructive">{t("muteError")}</p>}
             </div>
@@ -247,13 +250,20 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
               {props.listState === "loading" ? <div role="status" className="flex items-center gap-2 p-5 text-body-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> {t("loadingQuestions")}</div> : props.listState === "error" ? <AdminEmptyState icon={CircleHelp} title={t("questionsError")} action={<Button type="button" variant="outline" onClick={props.onRetryQuestions}>{t("retry")}</Button>} /> : <>
                 {props.questions.length === 0 ? <AdminEmptyState icon={MessageSquareText} title={t("noQuestions")} action={creatableChannels.length ? <Button type="button" onClick={openNew}>{t("createQuestion")}</Button> : undefined} /> : <div className="divide-y divide-border">{props.questions.map(item => questionRow(item))}</div>}
                 {props.hasMoreQuestions && props.onLoadMoreQuestions && <LoadMore onLoad={props.onLoadMoreQuestions} label={t("loadQuestions")} />}
-                <div className="border-t border-border">
-                  <Button type="button" variant="ghost" className="w-full justify-start px-3 [&>span]:justify-between" aria-expanded={!!props.resolvedOpen} onClick={() => props.onResolvedOpenChange?.(!props.resolvedOpen)}>{t("status_resolved")}{props.resolvedOpen ? <ChevronDown /> : <ChevronRight />}</Button>
-                  {props.resolvedOpen && (props.resolvedState === "loading" ? <p role="status" className="p-3 text-body-xs text-muted-foreground">{t("loadingQuestions")}</p> : props.resolvedState === "error" ? <div role="alert" className="p-3 text-body-xs"><span>{t("questionsError")}</span> <Button type="button" variant="outline" size="sm" onClick={props.onRetryResolved}>{t("retry")}</Button></div> : <>
-                    {(props.resolvedQuestions ?? []).length ? <div className="divide-y divide-border">{props.resolvedQuestions!.map(item => questionRow(item))}</div> : <p className="p-3 text-body-xs text-muted-foreground">{t("noResolvedQuestions")}</p>}
-                    {!!(props.resolvedPageIndex || props.resolvedHasMore) && <div className="flex flex-wrap items-center gap-2 p-3"><Button type="button" variant="outline" size="sm" disabled={!props.resolvedPageIndex} onClick={() => props.onResolvedPage?.("previous")}>{t("previousQuestions")}</Button><span className="text-body-xs">{t("page", { page: (props.resolvedPageIndex ?? 0) + 1 })}</span><Button type="button" variant="outline" size="sm" disabled={!props.resolvedHasMore} onClick={() => props.onResolvedPage?.("next")}>{t("loadQuestions")}</Button></div>}
-                  </>)}
-                </div>
+                <Collapsible open={!!props.resolvedOpen} onOpenChange={(open) => props.onResolvedOpenChange?.(open)} className="border-t border-border">
+                  <CollapsibleTrigger asChild>
+                    <Button type="button" variant="ghost" className="group w-full justify-start px-3 [&>span]:justify-between">
+                      {t("status_resolved")}
+                      <ChevronDown className="size-4 shrink-0 transition-transform duration-200 -rotate-90 group-data-[state=open]:rotate-0 motion-reduce:transition-none" aria-hidden="true" />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    {props.resolvedState === "loading" ? <p role="status" className="p-3 text-body-xs text-muted-foreground">{t("loadingQuestions")}</p> : props.resolvedState === "error" ? <div role="alert" className="p-3 text-body-xs"><span>{t("questionsError")}</span> <Button type="button" variant="outline" size="sm" onClick={props.onRetryResolved}>{t("retry")}</Button></div> : <>
+                      {(props.resolvedQuestions ?? []).length ? <div className="divide-y divide-border">{props.resolvedQuestions!.map(item => questionRow(item))}</div> : <p className="p-3 text-body-xs text-muted-foreground">{t("noResolvedQuestions")}</p>}
+                      {!!(props.resolvedPageIndex || props.resolvedHasMore) && <div className="flex flex-wrap items-center gap-2 p-3"><Button type="button" variant="outline" size="sm" disabled={!props.resolvedPageIndex} onClick={() => props.onResolvedPage?.("previous")}>{t("previousQuestions")}</Button><span className="text-body-xs">{t("page", { page: (props.resolvedPageIndex ?? 0) + 1 })}</span><Button type="button" variant="outline" size="sm" disabled={!props.resolvedHasMore} onClick={() => props.onResolvedPage?.("next")}>{t("loadQuestions")}</Button></div>}
+                    </>}
+                  </CollapsibleContent>
+                </Collapsible>
               </>}
             </div>
           </aside>

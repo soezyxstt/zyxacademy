@@ -3,8 +3,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, ChevronRight, ListTree } from "lucide-react";
+import { ChevronDown, ListTree } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useTranslations } from "@/lib/i18n/client";
 import { adminDocs, docSectionId } from "@/lib/admin-docs";
@@ -40,20 +41,26 @@ function DocsNavigation({ onNavigate }: { onNavigate?: () => void }) {
               const isExpanded = expanded === doc.slug;
               return (
                 <li key={doc.slug}>
-                  <div className={cn("flex items-start rounded-md hover:bg-muted/60", isCurrent && "bg-primary/10 text-primary")}>
-                    <Link href={`/admin/docs/${doc.slug}`} onClick={onNavigate} aria-current={isCurrent ? "page" : undefined} className="min-w-0 flex-1 break-words px-2 py-2 text-body-sm leading-snug focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                      {doc.title}
-                    </Link>
-                    <Button type="button" variant="ghost" size="icon-sm" aria-label={t("sectionsFor", { title: doc.title })} aria-expanded={isExpanded} onClick={() => setExpanded(isExpanded ? "" : doc.slug)} className="shrink-0">
-                      {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-                    </Button>
-                  </div>
-                  {isExpanded && <ul className="ml-4 my-1 space-y-0.5 border-l border-border pl-2">
-                    {doc.sections.map((section, index) => {
-                      const id = docSectionId(index);
-                      return <li key={id}><Link href={`/admin/docs/${doc.slug}#${id}`} onClick={() => { setHash(`#${id}`); onNavigate?.(); }} aria-current={isCurrent && hash === `#${id}` ? "location" : undefined} className={cn("block break-words rounded-md px-2 py-1.5 text-body-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", isCurrent && hash === `#${id}` && "text-primary font-semibold")}>{section.title}</Link></li>;
-                    })}
-                  </ul>}
+                  <Collapsible open={isExpanded} onOpenChange={(open) => setExpanded(open ? doc.slug : "")}>
+                    <div className={cn("flex items-start rounded-md hover:bg-muted/60", isCurrent && "bg-primary/10 text-primary")}>
+                      <Link href={`/admin/docs/${doc.slug}`} onClick={onNavigate} aria-current={isCurrent ? "page" : undefined} className="min-w-0 flex-1 break-words px-2 py-2 text-body-sm leading-snug focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        {doc.title}
+                      </Link>
+                      <CollapsibleTrigger asChild>
+                        <Button type="button" variant="ghost" size="icon-sm" aria-label={t("sectionsFor", { title: doc.title })} className="group shrink-0">
+                          <ChevronDown className="size-4 transition-transform duration-200 -rotate-90 group-data-[state=open]:rotate-0 motion-reduce:transition-none" aria-hidden="true" />
+                        </Button>
+                      </CollapsibleTrigger>
+                    </div>
+                    <CollapsibleContent>
+                      <ul className="ml-4 my-1 space-y-0.5 border-l border-border pl-2">
+                        {doc.sections.map((section, index) => {
+                          const id = docSectionId(index);
+                          return <li key={id}><Link href={`/admin/docs/${doc.slug}#${id}`} onClick={() => { setHash(`#${id}`); onNavigate?.(); }} aria-current={isCurrent && hash === `#${id}` ? "location" : undefined} className={cn("block break-words rounded-md px-2 py-1.5 text-body-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", isCurrent && hash === `#${id}` && "text-primary font-semibold")}>{section.title}</Link></li>;
+                        })}
+                      </ul>
+                    </CollapsibleContent>
+                  </Collapsible>
                 </li>
               );
             })}

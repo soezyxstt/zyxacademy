@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import {
-  ChevronRight,
   ChevronDown,
   ExternalLink,
 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type {
   OpsAiCitation,
   OpsAiProvenanceSource,
@@ -46,28 +46,22 @@ export function CitationCards({ citations }: CitationCardsProps) {
   };
 
   return (
-    <div className="text-body-xs font-sans text-muted-foreground my-2 select-text">
+    <Collapsible open={isExpanded} onOpenChange={setIsExpanded} className="text-body-xs font-sans text-muted-foreground my-2 select-text">
       {/* Collapsible toggle header (Cloudflare style: > Sumber referensi) */}
-      <button
+      <CollapsibleTrigger
         type="button"
-        onClick={() => setIsExpanded((prev) => !prev)}
-        aria-expanded={isExpanded}
         aria-label={`Buka atau tutup daftar sumber referensi (${citations.length} sumber)`}
         className="group flex items-start text-left gap-1.5 text-body-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-0.5 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring w-full"
       >
-        {isExpanded ? (
-          <ChevronDown className="size-3 text-muted-foreground group-hover:text-foreground transition-colors mt-0.5 shrink-0" />
-        ) : (
-          <ChevronRight className="size-3 text-muted-foreground group-hover:text-foreground transition-colors mt-0.5 shrink-0" />
-        )}
+        <ChevronDown className="size-3 text-muted-foreground group-hover:text-foreground transition-transform duration-200 -rotate-90 group-data-[state=open]:rotate-0 motion-reduce:transition-none mt-0.5 shrink-0" aria-hidden="true" />
 
         <span className="font-sans text-body-sm font-medium text-foreground block leading-snug break-words">
           {OPS_AI_CITATION_OFFICIAL_LABEL} ({citations.length} referensi)
         </span>
-      </button>
+      </CollapsibleTrigger>
 
       {/* Expanded list with clean -> arrow items */}
-      {isExpanded && (
+      <CollapsibleContent>
         <div className="mt-1.5 pl-2 border-l border-border/50 space-y-2 text-body-xs">
           <p className="text-body-xs text-muted-foreground italic leading-snug">
             {OPS_AI_CITATION_OFFICIAL_DISCLAIMER}
@@ -148,7 +142,7 @@ export function CitationCards({ citations }: CitationCardsProps) {
             })}
           </div>
         </div>
-      )}
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

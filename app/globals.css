@@ -150,6 +150,56 @@
  --ease-snappy: cubic-bezier(0.4, 0, 0.2, 1);
  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
  --shadow-sm: 0 1px 3px oklch(0% 0 0 / 0.06), 0 1px 2px oklch(0% 0 0 / 0.04);
+
+ /* Shadcn Accordion & Collapsible animations */
+ --animate-accordion-down: accordion-down 220ms cubic-bezier(0.22, 1, 0.36, 1);
+ --animate-accordion-up: accordion-up 180ms cubic-bezier(0.4, 0, 0.2, 1);
+ --animate-collapsible-down: collapsible-down 220ms cubic-bezier(0.22, 1, 0.36, 1);
+ --animate-collapsible-up: collapsible-up 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes accordion-down {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+    opacity: 1;
+  }
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+    opacity: 1;
+  }
+  to {
+    height: 0;
+    opacity: 0;
+  }
+}
+
+@keyframes collapsible-down {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+}
+
+@keyframes collapsible-up {
+  from {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+  to {
+    height: 0;
+    opacity: 0;
+  }
 }
 
 :root {
