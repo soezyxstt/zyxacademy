@@ -8,16 +8,18 @@ import { requireStudentGamificationAccess } from "@/lib/gamification/access";
 import { getGamificationRewards, getGamificationSummary } from "@/lib/gamification/queries";
 import { getTranslations } from "@/lib/i18n/server";
 
-export default async function PetPage() {
-  const t = await getTranslations("student");
-  let content;
+async function loadPetStudio() {
   try {
     const { user } = await requireStudentGamificationAccess();
     const [items, account] = await Promise.all([getGamificationRewards(user.id), getGamificationSummary(user.id)]);
-    content = <StudentPetStudio rewards={items.filter(item => ["zyra_avatar", "pet_suit", "pet_action"].includes(item.slot))} balance={account.lpBalance} />;
+    return { rewards: items.filter(item => ["zyra_avatar", "pet_suit", "pet_action"].includes(item.slot)), balance: account.lpBalance };
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") redirect("/sign-in?next=%2Fpet");
-    content = <AdminEmptyState title={t(error instanceof Error && error.message === "Forbidden" ? "achievementPage.forbidden" : "achievementPage.unavailable")} />;
+    return {error: error instanceof Error && error.message === "Forbidden" ? "achievementPage.forbidden" : "achievementPage.unavailable"} as const;
   }
-  return <ApplicationPage><PageHeader title="Pet" icon={PawPrint} />{content}</ApplicationPage>;
+}
+
+export default async function PetPage() {
+  const [data, t] = await Promise.all([loadPetStudio(), getTranslations("student")]);
+  return <ApplicationPage><PageHeader title="Pet" icon={PawPrint} />{data.error ? <AdminEmptyState title={t(data.error)} /> : <StudentPetStudio rewards={data.rewards} balance={data.balance} />}</ApplicationPage>;
 }

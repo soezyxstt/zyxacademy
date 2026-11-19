@@ -5,10 +5,13 @@
     "navigationDescription": "Choose a guide or section to open.",
     "allDocs": "All guides",
     "sectionsFor": "Sections in {title}",
-    "contentLanguage": "Guides are currently written in Indonesian.",
+    "contentLanguage": "Guides are available in Indonesian and English.",
     "search": "Search documentation",
     "noResults": "No documentation found",
-    "tryAnother": "Try another keyword or clear your search."
+    "tryAnother": "Try another keyword or clear your search.",
+    "previous": "Previous",
+    "next": "Next",
+    "quickLinks": "Quick access"
   },
   "navigation": {
     "docs": "Documentation",

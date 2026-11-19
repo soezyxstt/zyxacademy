@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Check, ChevronDown, ChevronRight, CircleAlert, Lock, Play, TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { MathText } from "@/components/course/math-text";
 import { CourseStudyPathSkeleton } from "@/components/course/course-skeletons";
 import { cn } from "@/lib/utils";
@@ -148,18 +149,20 @@ function StudyPathView({ courseId, state }: { courseId: string; state: StudyPath
       {dayPlan ? (
         <div className="divide-y divide-border/60">
           {dayPlan.map((day, index) => (
-            <details key={day.day} open={index === 0} className="group">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-3 text-body-sm font-semibold hover:bg-muted/30 transition-colors">
+            <Collapsible key={day.day} defaultOpen={index === 0}>
+              <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between gap-3 py-3 text-left text-body-sm font-semibold hover:bg-muted/30 transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
                 <span>{t("course.studyPath.day", { count: day.day })}</span>
                 <span className="flex items-center gap-2 text-body-xs font-normal text-muted-foreground">
                   {t("course.studyPath.minutes", { count: day.totalMinutes })}
-                  <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
+                  <ChevronDown className="size-4 transition-transform duration-200 group-data-[state=open]:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
                 </span>
-              </summary>
-              <div className="divide-y divide-border/40 border-t border-border/60">
-                {day.steps.map((step) => <StepRow key={step.stepId} step={step} courseId={courseId} />)}
-              </div>
-            </details>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="divide-y divide-border/40 border-t border-border/60">
+                  {day.steps.map((step) => <StepRow key={step.stepId} step={step} courseId={courseId} />)}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           ))}
         </div>
       ) : (
@@ -198,42 +201,48 @@ function StudyPathView({ courseId, state }: { courseId: string; state: StudyPath
               const defaultOpen = hasNextStep || (groupIdx === 0 && !nextStep);
 
               return (
-                <details key={chapterId} open={defaultOpen} className="group">
-                  <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 py-3 select-none hover:bg-muted/30 transition-colors">
+                <Collapsible key={chapterId} defaultOpen={defaultOpen}>
+                  <CollapsibleTrigger className="group flex w-full cursor-pointer flex-wrap items-center justify-between gap-3 py-3 text-left select-none hover:bg-muted/30 transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+                      <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
                       <h2 className="font-heading text-body-sm font-bold break-words">Bab {group.order}: {group.title}</h2>
                     </div>
                     <span className="text-body-xs text-muted-foreground shrink-0 font-medium">
                       {mastered.length}/{group.steps.length} konsep dikuasai
                     </span>
-                  </summary>
-                  <div className="divide-y divide-border/40 border-t border-border/60">
-                    {active.map((step) => <StepRow key={step.stepId} step={step} courseId={courseId} />)}
-                    {locked.length > 0 ? (
-                      <details className="group/locked border-t border-border/60">
-                        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-2.5 text-body-xs font-medium text-muted-foreground hover:bg-muted/20">
-                          <span>{locked.length} konsep terkunci</span>
-                          <ChevronDown className="size-3.5 transition-transform group-open/locked:rotate-180" />
-                        </summary>
-                        <div className="divide-y divide-border/40 border-t border-border/40">
-                          {locked.map((step) => <StepRow key={step.stepId} step={step} courseId={courseId} />)}
-                        </div>
-                      </details>
-                    ) : null}
-                    {mastered.length > 0 ? (
-                      <details className="group/mastered border-t border-border/60">
-                        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-2.5 text-body-xs font-medium text-muted-foreground hover:bg-muted/20">
-                          <span>{mastered.length} konsep sudah dikuasai</span>
-                          <ChevronDown className="size-3.5 transition-transform group-open/mastered:rotate-180" />
-                        </summary>
-                        <div className="divide-y divide-border/40 border-t border-border/40">
-                          {mastered.map((step) => <StepRow key={step.stepId} step={step} courseId={courseId} />)}
-                        </div>
-                      </details>
-                    ) : null}
-                  </div>
-                </details>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="divide-y divide-border/40 border-t border-border/60">
+                      {active.map((step) => <StepRow key={step.stepId} step={step} courseId={courseId} />)}
+                      {locked.length > 0 ? (
+                        <Collapsible className="border-t border-border/60">
+                          <CollapsibleTrigger className="group/locked flex w-full cursor-pointer items-center justify-between px-4 py-2.5 text-left text-body-xs font-medium text-muted-foreground hover:bg-muted/20 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
+                            <span>{locked.length} konsep terkunci</span>
+                            <ChevronDown className="size-3.5 transition-transform duration-200 group-data-[state=open]/locked:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="divide-y divide-border/40 border-t border-border/40">
+                              {locked.map((step) => <StepRow key={step.stepId} step={step} courseId={courseId} />)}
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      ) : null}
+                      {mastered.length > 0 ? (
+                        <Collapsible className="border-t border-border/60">
+                          <CollapsibleTrigger className="group/mastered flex w-full cursor-pointer items-center justify-between px-4 py-2.5 text-left text-body-xs font-medium text-muted-foreground hover:bg-muted/20 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
+                            <span>{mastered.length} konsep sudah dikuasai</span>
+                            <ChevronDown className="size-3.5 transition-transform duration-200 group-data-[state=open]/mastered:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="divide-y divide-border/40 border-t border-border/40">
+                              {mastered.map((step) => <StepRow key={step.stepId} step={step} courseId={courseId} />)}
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      ) : null}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               );
             })}
           </div>

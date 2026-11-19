@@ -21,6 +21,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -748,7 +749,7 @@ export function TutorScheduleView({
                 const isPendingTicket = ticket.status === "pending";
                 const isThreadOpen = openThreadId === ticket.id;
                 return (
-                  <div key={ticket.id} className="space-y-(--compact-gap) py-3">
+                  <Collapsible key={ticket.id} open={isThreadOpen} onOpenChange={(open) => { setOpenThreadId(open ? ticket.id : null); setReplyText(""); }} className="space-y-(--compact-gap) py-3">
                     <div className="flex flex-col justify-between gap-(--compact-gap) sm:flex-row sm:items-center">
                       <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -788,13 +789,15 @@ export function TutorScheduleView({
                           </DropdownMenuContent>
                         </DropdownMenu>
                       ) : (
-                        <Button variant="outline" size="sm" onClick={() => { setOpenThreadId(isThreadOpen ? null : ticket.id); setReplyText(""); }} aria-expanded={isThreadOpen} className="h-8 shrink-0 self-start rounded-lg text-body-sm sm:self-auto">
-                          <MessageSquare aria-hidden />
-                          {t("discussion")}{ticket.messages.length > 0 ? ` (${ticket.messages.length})` : ""}
-                        </Button>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-8 shrink-0 self-start rounded-lg text-body-sm sm:self-auto">
+                            <MessageSquare aria-hidden />
+                            {t("discussion")}{ticket.messages.length > 0 ? ` (${ticket.messages.length})` : ""}
+                          </Button>
+                        </CollapsibleTrigger>
                       )}
                     </div>
-                    {isThreadOpen && (
+                    <CollapsibleContent>
                       <div className="space-y-(--compact-gap) border-l-2 border-border pl-3">
                         {ticket.messages.length === 0 ? (
                           <p className="text-body-xs text-muted-foreground">{t("noMessages")}</p>
@@ -826,8 +829,8 @@ export function TutorScheduleView({
                           </Tooltip>
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 );
               })}
             </div>

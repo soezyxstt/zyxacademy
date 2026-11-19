@@ -1,5 +1,5 @@
-import { DocsIndex } from "./docs-index";
+import { DocsIndexView } from "@/components/docs/docs-index-view";
 
 export default function AdminDocsPage() {
-  return <DocsIndex />;
+  return <DocsIndexView surface="admin" />;
 }
