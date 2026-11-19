@@ -18,7 +18,8 @@ test("discussion notification links resolve the recipient's current role on open
 
 test("global tutor discussions is reserved from course sidebar routing", () => {
   const source = readFileSync("components/tutor/tutor-sidebar.tsx", "utf8");
-  expect(source).toContain('["schedule", "discussions"].includes(parts[1])');
+  const excludedRoutes = source.match(/!\[([^\]]+)\]\.includes\(parts\[1\]\)/)?.[1];
+  expect(excludedRoutes?.match(/"[^"]+"/g)).toContain('"discussions"');
   expect(source).toContain('href="/tutor/discussions"');
   expect(source).toContain('/${courseId}/discussions');
 });

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
-import { DocsIndex } from "@/app/(admin)/admin/docs/docs-index";
-import { DocsSidebar } from "@/app/(admin)/admin/docs/docs-sidebar";
+import { DocsIndexView } from "@/components/docs/docs-index-view";
+import { DocsShell } from "@/components/docs/docs-shell";
 import FormsLoading from "@/app/(admin)/admin/forms/loading";
 import FormDetailLoading from "@/app/(admin)/admin/forms/[id]/loading";
 import MeetLoading from "@/app/(admin)/admin/meet/loading";
@@ -47,19 +47,19 @@ export default async function AdminSkeletonFixture({
     "route-keys": <KeysLoading />,
     "route-short-links": <ShortLinksLoading />,
     docs: (
-      <DocsSidebar>
-        <DocsIndex />
-      </DocsSidebar>
+      <DocsShell surface="admin" basePath="/visual-fixtures/docs-showcase/admin">
+        <DocsIndexView surface="admin" basePath="/visual-fixtures/docs-showcase/admin" />
+      </DocsShell>
     ),
     "docs-loading": (
-      <DocsSidebar>
+      <DocsShell surface="admin" basePath="/visual-fixtures/docs-showcase/admin">
         <DocsLoading />
-      </DocsSidebar>
+      </DocsShell>
     ),
     "article-loading": (
-      <DocsSidebar>
+      <DocsShell surface="admin" basePath="/visual-fixtures/docs-showcase/admin">
         <DocLoading />
-      </DocsSidebar>
+      </DocsShell>
     ),
     catalog: <ProductCatalogSkeleton />,
     voucher: <VoucherListSkeleton />,

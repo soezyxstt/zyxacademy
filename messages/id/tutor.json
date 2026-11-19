@@ -1,7 +1,21 @@
 {
+  "docs": {
+    "title": "Dokumentasi tutor",
+    "navigation": "Navigasi dokumentasi",
+    "navigationDescription": "Pilih panduan atau bagian yang ingin dibuka.",
+    "allDocs": "Semua panduan",
+    "sectionsFor": "Bagian dalam {title}",
+    "search": "Cari dokumentasi",
+    "noResults": "Dokumentasi tidak ditemukan",
+    "tryAnother": "Coba kata kunci lain atau hapus pencarian.",
+    "previous": "Sebelumnya",
+    "next": "Berikutnya",
+    "quickLinks": "Akses cepat"
+  },
   "navigation": {
     "dashboard": "Dashboard",
     "schedule": "Jadwal",
+    "docs": "Dokumentasi",
     "teaching": "Pengajaran",
     "noCourses": "Belum ada mata kuliah",
     "overview": "Ringkasan",
@@ -43,6 +57,7 @@
     "relatedGroups": "{count} kelompok terkait"
   },
   "routeTitles": {
+    "docs": "Dokumentasi",
     "dashboardTitle": "Dashboard pengajar",
     "scheduleTitle": "Jadwal mengajar",
     "videos": "Video",

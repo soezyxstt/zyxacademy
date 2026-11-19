@@ -78,6 +78,7 @@ export function getRouteTitle(
   if (pathname.startsWith("/admin/bundles/product")) return roleTitle("admin", "productBundles", "Product Bundles");
 
   if (pathname === "/tutor") return roleTitle("tutor", "dashboardTitle", "Tutor dashboard");
+  if (pathname === "/tutor/docs" || pathname.startsWith("/tutor/docs/")) return roleTitle("tutor", "docs", "Documentation");
   if (pathname.startsWith("/tutor/schedule")) return roleTitle("tutor", "scheduleTitle", "Teaching schedule");
   if (pathname.startsWith("/tutor")) {
     if (pathname.includes("/videos")) return roleTitle("tutor", "videos", "Videos");
