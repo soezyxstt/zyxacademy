@@ -206,6 +206,7 @@ test("free profile cat uses the full-body poster", async ({page}) => {
 });
 
 test("practice combines independently owned kit and cycling", async ({page}, info) => {
+  await page.clock.install({time: new Date("2026-01-01T00:00:00Z")});
   await page.emulateMedia({reducedMotion:"no-preference"});
   await page.goto(origin + "/?view=rewards");
   const play = page.getByRole("button", {name: "Latihan berhitung"});
@@ -230,14 +231,17 @@ test("practice combines independently owned kit and cycling", async ({page}, inf
   const wrong = (await choices.allTextContents()).find(choice => choice !== answer)!;
   await dialog.getByRole("button", {name:wrong, exact:true}).click();
   await expect(dialog.getByRole("status")).toContainText("Benar 0");
-  await dialog.getByRole("button", {name:answer, exact:true}).click();
+  await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
+  await dialog.getByRole("button", {name:answer, exact:true}).dispatchEvent("click");
   await expect(canvas).toHaveAttribute("data-mascot-animation", "happy");
   await expect(trace).toHaveAttribute("data-clip-starts", /cycle,happy$/);
   const [nextLeft, nextRight] = (await prompt.innerText()).match(/\d+/g)!.map(Number);
-  await dialog.getByRole("button", {name:String(nextLeft * nextRight), exact:true}).click();
-  await expect(trace).toHaveAttribute("data-clip-starts", /cycle,happy,happy(?:,cycle)?$/);
+  await dialog.getByRole("button", {name:String(nextLeft * nextRight), exact:true}).dispatchEvent("click");
+  await expect(trace).toHaveAttribute("data-clip-starts", /cycle,happy,happy$/);
   await expect(dialog.getByRole("status")).toContainText("Benar 2");
+  await page.clock.fastForward(1500);
   await expect(canvas).toHaveAttribute("data-mascot-animation", "cycle");
+  await page.clock.resume();
   await page.keyboard.press("Escape");
   await expect(play).toBeFocused();
 });
