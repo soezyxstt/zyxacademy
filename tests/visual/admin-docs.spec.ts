@@ -29,12 +29,12 @@ test("admin documentation search and article", async ({ page }, testInfo) => {
   await page.getByRole("button", { name: /bersihkan|hapus|clear/i }).click();
   await page.getByRole("link", { name: /Menamai dan mengunggah dokumen/ }).first().click();
   await expect(page).toHaveURL(/\/admin\/docs\/dokumen-materi$/, { timeout: 15_000 });
-  await expect(page.getByRole("heading", { name: "Menamai dan mengunggah dokumen" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Menamai dan mengunggah dokumen" })).toBeVisible();
   await capture(page, testInfo, "article");
   expect(errors).toEqual([]);
 });
 
-test("documentation navigation opens a section across pages", async ({ page }, testInfo) => {
+test("documentation navigation opens a guide and jumps between sections", async ({ page }, testInfo) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
@@ -50,7 +50,13 @@ test("documentation navigation opens a section across pages", async ({ page }, t
   }
   let navigation = page.getByRole("navigation", { name: "Navigasi dokumentasi" });
   await expect(navigation).toBeVisible();
-  await navigation.getByRole("button", { name: "Bagian dalam Menamai dan mengunggah dokumen" }).click();
+  await navigation.getByRole("link", { name: "Menamai dan mengunggah dokumen" }).click();
+  await expect(page).toHaveURL(/\/admin\/docs\/dokumen-materi$/, { timeout: 15_000 });
+  if (mobile) {
+    await expect(page.getByRole("dialog", { name: "Navigasi dokumentasi" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Navigasi dokumentasi" }).click();
+  }
+  navigation = page.getByRole("navigation", { name: "Navigasi dokumentasi" });
   await expect(navigation.getByRole("link", { name: "Unggah massal dan duplikat" })).toBeVisible();
   await capture(page, testInfo, "docs-navigation-open");
   await navigation.getByRole("link", { name: "Unggah massal dan duplikat" }).click();
