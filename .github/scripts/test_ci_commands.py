@@ -146,6 +146,12 @@ class GateTest(unittest.TestCase):
     def test_push_worker_is_checked_by_deployment(self):
         self.assertEqual(self.gate({'worker-check': 'skipped'}, {'worker': 'true'}, 'push'), 0)
 
+    def test_selected_pr_cloud_run_cannot_skip(self):
+        self.assertNotEqual(self.gate({'cloud-run-check': 'skipped'}, {'cloud_run': 'true'}), 0)
+
+    def test_push_cloud_run_is_checked_by_candidate_workflow(self):
+        self.assertEqual(self.gate({'cloud-run-check': 'skipped'}, {'cloud_run': 'true'}, 'push'), 0)
+
 
 
 class DeploymentGateTest(unittest.TestCase):

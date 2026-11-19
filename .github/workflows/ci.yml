@@ -26,6 +26,7 @@ jobs:
     outputs:
       web: ${{ steps.plan.outputs.web }}
       worker: ${{ steps.plan.outputs.worker }}
+      cloud_run: ${{ steps.plan.outputs.cloud_run }}
       v4: ${{ steps.plan.outputs.v4 }}
       authoring: ${{ steps.plan.outputs.authoring }}
       schedule: ${{ steps.plan.outputs.schedule }}
@@ -170,6 +171,36 @@ jobs:
     if: needs.impact.outputs.plugin == 'true'
     uses: ./.github/workflows/sync-plugin.yml
 
+  cloud-run-check:
+    name: Cloud Run image checks
+    needs: impact
+    if: github.event_name == 'pull_request' && needs.impact.outputs.cloud_run == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check Cloud Run gateway, edge worker, and public media contracts
+        run: |
+          node --test deploy/cloud-run/origin-gateway.test.mjs workers/staging-web-edge/index.test.mjs
+          node scripts/cloud-run/publish-public-media.mjs
+      - name: Build and smoke-test the isolated Cloud Run image
+        run: |
+          set -euo pipefail
+          printf '{"NEXT_PUBLIC_APP_URL":"https://zyx-academy-staging-edge.16922204.workers.dev"}\n' > "$RUNNER_TEMP/cloud-run-public.json"
+          image="zyx-staging-web:pr-$GITHUB_SHA"
+          docker build --platform linux/amd64 --file Dockerfile.cloud-run \
+            --build-arg "SOURCE_REVISION=$GITHUB_SHA" \
+            --build-arg "CLOUD_RUN_BUILD_ID=$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+            --secret "id=public_config,src=$RUNNER_TEMP/cloud-run-public.json" \
+            --tag "$image" .
+          bash .github/scripts/smoke-cloud-run.sh "$image"
+          printf 'PR Cloud Run image size: %s bytes\n' "$(docker image inspect --format '{{.Size}}' "$image")" >> "$GITHUB_STEP_SUMMARY"
+
   worker-check:
     name: Background worker checks
     needs: impact
@@ -202,7 +233,7 @@ jobs:
 
   gate:
     name: CI gate
-    needs: [impact, static, tests, authoring, schedule, plugin, worker-check]
+    needs: [impact, static, tests, authoring, schedule, plugin, cloud-run-check, worker-check]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -221,6 +252,8 @@ jobs:
           for job, output in selected.items():
               if outputs.get(output) == 'true' and results[job]['result'] != 'success':
                   failed.append(job)
+          if os.environ['EVENT_NAME'] == 'pull_request' and outputs.get('cloud_run') == 'true' and results['cloud-run-check']['result'] != 'success':
+              failed.append('cloud-run-check')
           if os.environ['EVENT_NAME'] == 'pull_request' and outputs.get('worker') == 'true' and results['worker-check']['result'] != 'success':
               failed.append('worker-check')
           if results['impact']['result'] != 'success' or failed:

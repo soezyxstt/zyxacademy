@@ -25,8 +25,23 @@ class ScopeTest(unittest.TestCase):
         result = self.plan('components/landing/hero.tsx')
         self.assertTrue(result['web'])
         self.assertTrue(result['typecheck'])
-        for key in ['worker', 'v4', 'authoring', 'schedule', 'plugin']:
+        for key in ['worker', 'cloud_run', 'v4', 'authoring', 'schedule', 'plugin']:
             self.assertFalse(result[key], key)
+
+    def test_cloud_run_packaging_changes_select_cloud_run_check(self):
+        for path in [
+            'Dockerfile.cloud-run',
+            '.dockerignore',
+            'deploy/cloud-run/build.mjs',
+            'deploy/cloud-run/origin-gateway.mjs',
+            '.github/scripts/smoke-cloud-run.sh',
+            '.github/workflows/deploy-cloud-run-staging.yml',
+            'workers/staging-web-edge/index.mjs',
+            'proxy.ts',
+            'next.config.ts',
+        ]:
+            with self.subTest(path=path):
+                self.assertTrue(self.plan(path)['cloud_run'])
 
     def test_fingerprinted_css_requires_release_but_not_worker_import_check(self):
         result = self.plan('app/globals.css')
