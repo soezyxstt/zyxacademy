@@ -3,7 +3,6 @@
 import { LiveCodingExercise } from "@/components/coding/live-coding-exercise";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "@/lib/i18n/client";
 import { toast } from "@/components/ui/toast";
@@ -112,11 +111,6 @@ export default function LiveStudentPage() {
           <p className="mt-1 text-body-xs text-muted-foreground leading-relaxed">
             {t("noSessionDescription")}
           </p>
-          <Button asChild size="sm" variant="outline" className="mt-5 rounded-md text-body-xs">
-            <Link href={experience.href?.(`/courses/${courseId}`) ?? `/courses/${courseId}`}>
-              {t("backToCourse")}
-            </Link>
-          </Button>
         </div>
       </CoursePageShell>
     );

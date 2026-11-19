@@ -1575,6 +1575,7 @@ test("English V5 changed-item notes remain available until explicit discard", as
     if (revision !== checksum) collection.items[0].prompt = [{ id: "updated-prompt", kind: "markdown", markdown: "A revised triangle problem requires a fresh decision." }];
     await request.fulfill({ json: { bundle: { id: "visual-product", bundleId: "solution-bundle", courseId: "course", checksum: revision, status: "draft", createdAt: "2026-01-01T00:00:00Z" }, previews: [{ id: collection.id, productType: "solution_collection", title: collection.title, version: 1, status: "draft", traceability: { ideaIds: [], sourceIds: [] }, sections: [] }], draft: { products: [{ id: collection.id, productType: "solution_collection", title: collection.title, version: 1, collection }] }, dependencies: [], blockReviews: [], qualityEvaluation: { publicationReady: false, issues: [] } } });
   });
+  await page.goto(`${route}?mode=workspace&language=en`);
   await page.goto(`${route}?mode=workspace-product&language=en`);
   await expect(page.getByLabel("Notes", { exact: true })).toBeEnabled();
   await page.getByLabel("Notes", { exact: true }).fill("Retain this rationale when the question changes.");
@@ -1586,7 +1587,7 @@ test("English V5 changed-item notes remain available until explicit discard", as
   await expect(page.getByLabel("Notes", { exact: true })).toHaveValue("");
   await expect(page.getByRole("button", { name: "Publish", exact: true })).toBeDisabled();
   await capture(page, info, "v5-previous-notes-english-readable");
-  await page.getByRole("link", { name: "Back to reviews", exact: true }).click();
+  await page.evaluate(() => window.history.back());
   await expect(page.getByRole("dialog")).toBeVisible();
   await capture(page, info, "v5-previous-notes-english-leave-guard");
   await page.getByRole("dialog").getByRole("button", { name: "Cancel", exact: true }).click();

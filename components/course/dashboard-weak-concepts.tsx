@@ -53,23 +53,24 @@ export function DashboardWeakConcepts({
     <div className={cn("text-left", className)}>
       {/* Clean Accessible Header */}
       {showHeader && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
-          <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-            <Target className="size-4.5 text-brand-primary" />
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
+          <h2 className="flex items-center gap-2 font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <Target className="size-3.5 shrink-0 text-muted-foreground" />
             {t("course.dashboardWeakConcepts.title", { courseTitle: resolvedCourseTitle })}
           </h2>
         </div>
       )}
 
       {!hasAnyMeasured ? (
-        <div className="space-y-1 py-2 text-left">
-          <p className="text-body-sm font-semibold">{t("course.dashboardWeakConcepts.noData")}</p>
-          <p className="text-body-xs text-muted-foreground leading-relaxed">
+        <div className="flex flex-col items-center justify-center px-3 py-5 text-center">
+          <Target className="size-8 text-muted-foreground/40 mb-2" aria-hidden />
+          <p className="text-body-sm font-semibold text-foreground">{t("course.dashboardWeakConcepts.noData")}</p>
+          <p className="text-body-xs text-muted-foreground mt-0.5 max-w-xs leading-relaxed">
             {t("course.dashboardWeakConcepts.noDataDescription")}
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3.5">
           {displayConcepts.map((c, index) => {
             const isMeasured = c.isMeasured ?? (c.evidenceCount > 0);
             return (
@@ -84,16 +85,16 @@ export function DashboardWeakConcepts({
                     <MathText as="span">{c.conceptName}</MathText>
                     {isMeasured && !hideTrend && <TrendIcon trend={c.trend} />}
                   </span>
-                  <span className="font-mono text-body-xs font-semibold text-muted-foreground shrink-0 mt-0.5">
+                  <span className="font-mono text-body-xs font-semibold tabular-nums text-muted-foreground shrink-0 mt-0.5">
                     {isMeasured ? `${c.masteryScore}%` : t("course.dashboardWeakConcepts.notMeasured")}
                   </span>
                 </div>
 
                 {/* Progress bar */}
-                <div className="h-2 overflow-hidden rounded-md bg-muted w-full">
+                <div className="h-1.5 overflow-hidden rounded-full bg-muted/70 w-full">
                   <div
                     className={cn(
-                      "h-full rounded-md transition-all duration-500 ease-out",
+                      "h-full rounded-full transition-all duration-500 ease-out",
                       isMeasured ? barTone(c.masteryScore) : "bg-transparent",
                     )}
                     style={{ width: isMeasured ? `${c.masteryScore}%` : "0%" }}
@@ -102,7 +103,7 @@ export function DashboardWeakConcepts({
 
                 {c.blockedBy && c.blockedBy.length > 0 && (
                   <div className="mt-0.5">
-                    <Badge variant="outline" className="text-muted-foreground gap-1 text-[10px] rounded-md py-0.5">
+                    <Badge variant="outline" className="text-muted-foreground gap-1 text-body-2xs rounded-md border-border/50 py-0.5">
                       <Lock className="size-3" />
                       {t("course.dashboardWeakConcepts.prerequisite")}: <MathText as="span">{c.blockedBy[0]}</MathText>
                     </Badge>

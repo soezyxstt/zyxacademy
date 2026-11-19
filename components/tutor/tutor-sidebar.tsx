@@ -45,9 +45,9 @@ export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
   const navContent = (collapsed: boolean) => (
     <nav
       className={cn(
-        "flex flex-1 flex-col gap-1 py-4 font-sans text-left",
+        "flex min-h-0 flex-1 flex-col gap-1 py-3 font-sans text-left",
         collapsed
-          ? "items-center overflow-y-hidden px-1 sidebar-scroll-hidden"
+          ? "items-center overflow-y-auto overflow-x-hidden px-1 sidebar-scroll-hidden"
           : "overflow-y-auto overflow-x-hidden px-3 sidebar-scroll",
       )}
     >

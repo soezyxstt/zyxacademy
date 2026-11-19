@@ -175,6 +175,7 @@
  --related-gap: calc(1rem * var(--user-spacing-scale, 1));
  --group-gap: calc(1.25rem * var(--user-spacing-scale, 1));
  --section-gap: calc(1.5rem * var(--user-spacing-scale, 1));
+ --major-gap: calc(2rem * var(--user-spacing-scale, 1));
  --paragraph-gap: calc(1rem * var(--user-spacing-scale, 1));
  --reading-section-gap: calc(2rem * var(--user-spacing-scale, 1));
  --row-padding: calc(0.75rem * var(--user-spacing-scale, 1));
@@ -318,6 +319,21 @@
 @layer base {
  * {
  @apply border-border outline-ring/50;
+ }
+
+ button:not(:disabled),
+ [role="button"]:not([aria-disabled="true"]),
+ [role="tab"]:not([aria-disabled="true"]),
+ [role="menuitem"]:not([aria-disabled="true"]),
+ [role="option"]:not([aria-disabled="true"]),
+ summary {
+ cursor: pointer;
+ }
+
+ button:disabled,
+ [role="button"][aria-disabled="true"],
+ [role="tab"][aria-disabled="true"] {
+ cursor: not-allowed;
  }
 
  [role="tab"]:focus-visible:not([data-slot="button"]),

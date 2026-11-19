@@ -51,6 +51,7 @@ test("course page denies a role revoked after its session actor check without id
   "@/lib/gamification/queries": { getEquippedZyraAppearance: async () => { throw new Error("unexpected page access"); } },
   "@/lib/i18n/server": { getTranslations: async () => (key: string) => key },
   "./discussion-client": ui,
+  "./discussion-skeleton": ui,
  };
  const exports: Record<string, any> = {};
  const source = readFileSync("components/discussions/discussion-page.tsx", "utf8");

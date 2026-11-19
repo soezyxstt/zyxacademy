@@ -204,10 +204,10 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
 
   if (!activeGroup) {
     return (
-      <section className="mx-auto max-w-xl border-t border-border/60 py-(--panel-padding)">
-        <div className="flex items-center gap-2">
-          <Users className="size-4 text-brand-primary" />
-          <h2 className="font-heading text-body-base font-bold text-foreground">{t("groups.join")}</h2>
+      <section className="mx-auto max-w-xl rounded-xl border border-border/40 bg-card/30 p-(--panel-padding) sm:p-(--group-gap)">
+        <div className="mb-3 flex items-center gap-2 border-b border-border/40 pb-2">
+          <Users className="size-3.5 shrink-0 text-muted-foreground" />
+          <h2 className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("groups.join")}</h2>
         </div>
         <form onSubmit={handleJoinToken} className="mt-4 flex gap-2">
           <Input
@@ -235,7 +235,7 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
   );
 
   return (
-    <div className="space-y-(--related-gap)">
+    <div className="space-y-(--section-gap)">
       {initialGroups.length > 1 ? (
         <Tabs value={activeGroup.id} onValueChange={setSelectedGroupId} syncUrl={false}>
           <TabsList aria-label={t("groups.selectGroup")}>
@@ -246,8 +246,8 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
         </Tabs>
       ) : null}
 
-      <section className="border-t border-border/60 py-(--panel-padding)">
-        <div className="flex flex-wrap items-start justify-between gap-(--compact-gap) border-b border-border/50 pb-(--related-gap)">
+      <section className="border-t border-border/40 py-(--panel-padding)">
+        <div className="flex flex-wrap items-start justify-between gap-(--compact-gap) border-b border-border/40 pb-(--related-gap)">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <h2 className="min-w-0 break-words font-heading text-h5 font-bold text-foreground">
@@ -256,7 +256,7 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
               <button
                 type="button"
                 onClick={openRename}
-                className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
                 aria-label={t("groups.rename")}
                 title={t("groups.rename")}
               >
@@ -264,7 +264,7 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
               </button>
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-2 text-body-xs text-muted-foreground">
-              <Badge variant="outline" className="text-body-2xs">
+              <Badge variant="outline" className="border-border/50 text-body-2xs">
                 {activeGroup.myRole === "leader" ? t("groups.leader") : t("groups.member")}
               </Badge>
               <span>{activeGroup.packageName}</span>
@@ -287,8 +287,8 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
           <div className="py-4">
             <div className="flex items-end justify-between gap-(--related-gap)">
               <div>
-                <p className="text-body-xs text-muted-foreground">{t("groups.packageQuota")}</p>
-                <p className="font-heading text-h5 font-bold text-foreground">
+                <p className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("groups.packageQuota")}</p>
+                <p className="mt-1 font-heading text-h5 font-bold tabular-nums text-foreground">
                   {activeGroup.usedQuotaSessions}
                   <span className="ml-1 text-body-sm font-normal text-muted-foreground">
                 / {t("groups.sessionCount", { count: activeGroup.totalQuotaSessions })}
@@ -296,20 +296,20 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
                 </p>
               </div>
               <p className="text-right text-body-xs text-muted-foreground">
-                <span className="block font-heading text-h5 font-bold text-brand-primary">
+                <span className="block font-heading text-h5 font-bold tabular-nums text-foreground">
                   {activeGroup.remainingQuota ?? Math.max(0, activeGroup.totalQuotaSessions - activeGroup.usedQuotaSessions)}
                 </span>
                 {t("groups.remaining")}
               </p>
             </div>
             <div
-              className="mt-3 h-2 overflow-hidden rounded-md bg-muted"
+              className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted/70"
               role="progressbar"
               aria-valuenow={totalPercent}
               aria-valuemin={0}
               aria-valuemax={100}
             >
-              <div className="h-full rounded-md bg-brand-primary transition-all" style={{ width: `${totalPercent}%` }} />
+              <div className="h-full rounded-full bg-brand-primary transition-all" style={{ width: `${totalPercent}%` }} />
             </div>
             <div className="mt-2 flex flex-wrap justify-between gap-2 text-body-xs text-muted-foreground">
               <span>{t("groups.weekUsage", { count: activeGroup.weeklyUsedSessions })}</span>
@@ -325,10 +325,10 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
           </div>
         )}
 
-        <div className="grid border-t border-border/50 sm:grid-cols-2">
+        <div className="grid border-t border-border/30 sm:grid-cols-2">
           <div className="py-4 sm:pr-5">
             <div className="flex items-center gap-2 text-body-sm font-semibold text-foreground">
-              <CalendarDays className="size-4 text-brand-primary" />
+              <CalendarDays className="size-4 text-muted-foreground" />
               {activeGroup.endDate ? t("groups.activeUntil", { date: formatDate(new Date(activeGroup.endDate), locale) }) : t("groups.fullSemester")}
             </div>
             <p className="mt-1 text-body-xs text-muted-foreground">
@@ -336,15 +336,15 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
             </p>
           </div>
 
-          <div className="border-t border-border/50 py-4 sm:border-l sm:border-t-0 sm:pl-5">
+          <div className="border-t border-border/30 py-(--panel-padding) sm:border-l sm:border-t-0 sm:pl-5">
             <div className="flex items-center justify-between gap-(--compact-gap)">
               <div className="min-w-0">
-                <p className="text-body-sm font-semibold text-foreground">{t("groups.members")}</p>
+                <p className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("groups.members")}</p>
                 <div className="mt-2 flex flex-wrap gap-x-(--related-gap) gap-y-2">
                   {activeGroup.members.map((member) => <StudentIdentity key={member.id} name={member.isMe ? t("groups.memberYou", { name: member.name }) : member.name} identity={member.identity} />)}
                 </div>
               </div>
-              <span className="shrink-0 text-body-xs text-muted-foreground">
+              <span className="shrink-0 text-body-xs tabular-nums text-muted-foreground">
                 {activeGroup.members.length}{activeGroup.token ? `/${activeGroup.token.capacity}` : ""}
               </span>
             </div>
@@ -352,9 +352,9 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
         </div>
 
         {activeGroup.courses.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5 border-t border-border/50 py-4">
+          <div className="flex flex-wrap gap-1.5 border-t border-border/30 py-4">
             {activeGroup.courses.map((course) => (
-              <Badge key={course.id} variant="secondary" className="font-medium">
+              <Badge key={course.id} variant="secondary" className="border border-border/40 bg-muted/50 font-medium text-foreground/80">
                 {course.title}
               </Badge>
             ))}
@@ -362,10 +362,10 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
         ) : null}
 
         {activeGroup.token && activeGroup.members.length < activeGroup.token.capacity ? (
-          <div className="flex items-center justify-between gap-(--compact-gap) border-t border-border/50 pt-(--related-gap)">
+          <div className="flex items-center justify-between gap-(--compact-gap) border-t border-border/30 pt-(--related-gap)">
             <div className="min-w-0">
-              <p className="text-body-xs text-muted-foreground">{t("groups.inviteToken")}</p>
-              <p className="break-all font-mono text-body-sm font-semibold text-foreground">{activeGroup.token.token}</p>
+              <p className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("groups.inviteToken")}</p>
+              <p className="mt-0.5 break-all font-mono text-body-sm font-semibold text-foreground">{activeGroup.token.token}</p>
             </div>
             <Button
               type="button"

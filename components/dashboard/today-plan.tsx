@@ -44,7 +44,7 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
 
 
   return (
-    <div className="mb-4 sm:mb-6">
+    <div className="mb-6">
       <PageHeader
         title={
           <>
@@ -55,13 +55,20 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
 
       {total > 0 && (
         <section className="mt-4 sm:mt-6">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
-            <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
-              <CalendarCheck className="size-4 text-brand-primary" />
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
+            <h2 className="flex items-center gap-2 font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <CalendarCheck className="size-3.5 shrink-0 text-muted-foreground" />
               {t("dashboard.studyPlan")}
             </h2>
             {!loading && (
-              <span className="rounded-md bg-brand-primary/10 px-2.5 py-0.5 text-body-xs font-semibold text-brand-primary shrink-0">
+              <span
+                className={cn(
+                  "rounded-md px-2 py-0.5 text-body-xs font-semibold tabular-nums shrink-0",
+                  allDone
+                    ? "bg-status-success/15 text-status-success"
+                    : "bg-muted/60 text-muted-foreground",
+                )}
+              >
                 {t("dashboard.completedCount", { done: doneCount, total })}
               </span>
             )}
@@ -87,7 +94,7 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
                 return (
                   <li
                     key={item.id}
-                    className="flex flex-wrap items-center gap-2 sm:gap-3 py-3 transition-colors"
+                    className="group flex flex-wrap items-center gap-2 sm:gap-3 py-3 px-2 -mx-2 rounded-lg transition-colors hover:bg-muted/40"
                   >
                     <button
                       type="button"
@@ -96,8 +103,8 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
                       className={cn(
                         "flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         item.done
-                          ? "border-brand-primary bg-brand-primary text-primary-foreground"
-                          : "border-border hover:border-brand-primary/60 hover:bg-brand-primary/5"
+                          ? "border-status-success bg-status-success text-primary-foreground"
+                          : "border-border/70 hover:border-foreground/40 hover:bg-muted/60"
                       )}
                     >
                       {item.done && <Check className="size-3" />}
@@ -106,8 +113,8 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
                     <div className={cn(
                       "flex size-8 shrink-0 items-center justify-center rounded-lg border",
                       item.done
-                        ? "border-border/30 bg-muted text-muted-foreground"
-                        : "border-brand-primary/10 bg-brand-primary/5 text-brand-primary"
+                        ? "border-border/30 bg-muted/50 text-muted-foreground"
+                        : "border-border/50 bg-background text-muted-foreground"
                     )}>
                       <Icon className="size-4 shrink-0" />
                     </div>
@@ -122,14 +129,14 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
                     </span>
 
                     {item.count != null && (
-                      <Badge variant="outline" className="shrink-0 rounded-md border-border/50 px-1.5 py-0.2 text-body-2xs">
+                      <Badge variant="outline" className="shrink-0 rounded-md border-border/50 px-1.5 py-0.2 text-body-2xs text-muted-foreground">
                         {t("dashboard.cardsCount", { count: item.count })}
                       </Badge>
                     )}
 
-                    <Button variant="ghost" size="sm" asChild className="shrink-0 rounded-lg hover:bg-muted">
+                    <Button variant="ghost" size="sm" asChild className="shrink-0 rounded-lg hover:bg-muted/60">
                       <Link href={item.href} aria-label={t("dashboard.openItem", { title: item.title })}>
-                        <ArrowRight className="size-4 text-muted-foreground hover:text-foreground" />
+                        <ArrowRight className="size-4 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
                       </Link>
                     </Button>
                   </li>

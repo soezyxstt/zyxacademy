@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type CSSProperties } from "react";
-import Link from "next/link";
+import React, { useEffect, useRef, type CSSProperties } from "react";
 import { Brain, Check, X, RotateCw, RefreshCw, SkipForward } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -25,7 +24,7 @@ export function FlashcardClient(props: FlashcardSessionProps) {
 }
 
 function FlashcardSession(props: FlashcardSessionProps) {
-  const { courseId, adapter } = props;
+  const { adapter } = props;
   const t = useTranslations("learning");
   const {
     queue, activeBatch, currentItem, batchOffset, currentIndex, isFlipped, mode,
@@ -108,9 +107,6 @@ function FlashcardSession(props: FlashcardSessionProps) {
               {t("flashcards.restart")}
             </Button>
           )}
-          <Button asChild variant="outline" className="rounded-md">
-            <Link href={adapter?.backHref ?? `/courses/${courseId}`}>{t("flashcards.backToOverview")}</Link>
-          </Button>
         </div>
       </div>
     );

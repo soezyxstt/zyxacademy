@@ -8,9 +8,7 @@ import { auth } from "@/lib/auth";
 import { hasAnyPeran } from "@/lib/auth/request-cache";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import Image from "next/image";
-import { Calendar, Clock, ChevronLeft, User, Share2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Calendar, Clock, User, Share2 } from "lucide-react";
 import { ShareDialog, ShareBlock } from "@/components/blog/share-widget";
 import { getAppLocale, getTranslations } from "@/lib/i18n/server";
 import { LocalizedPublicLink } from "@/components/localized-public-link";
@@ -89,20 +87,6 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
     <article className="min-h-screen bg-background pb-20">
       {/* Outer Wrapper with tight top padding (SiteMain handles header space) */}
       <div className="max-w-7xl mx-auto px-(--page-gutter) py-6 md:py-8">
-
-        {/* Back Button */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-lg" className="mb-3 text-muted-foreground" asChild>
-                <LocalizedPublicLink href="/blog" aria-label={t("blog.back")}>
-                  <ChevronLeft aria-hidden />
-                </LocalizedPublicLink>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t("blog.back")}</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
 
         {/* 2-Column Grid on Large Screens */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-(--reading-section-gap) lg:gap-section-sm items-start">

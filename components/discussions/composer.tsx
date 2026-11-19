@@ -293,13 +293,13 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-1 gap-y-2">
       <div data-discussion-toolbar className="col-span-2 col-start-1 row-start-1">
         <div className="flex flex-wrap items-center">
-          <DropdownMenu><Tooltip disableHoverableContent><TooltipTrigger asChild><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={t("formatting")} disabled={editingDisabled}><MoreHorizontal /></Button></DropdownMenuTrigger></TooltipTrigger><TooltipContent>{t("formatting")}</TooltipContent></Tooltip><DropdownMenuContent collisionPadding={16} onCloseAutoFocus={(event) => { if (textRef.current) { event.preventDefault(); textRef.current.focus(); } }}>
-            <DropdownMenuItem onSelect={() => insert("**", "**")}><Bold />{t("bold")}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => insert("*", "*")}><Italic />{t("italic")}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => insert("\n- ")}><List />{t("list")}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => insert("`", "`")}><Code2 />{t("code")}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => insert("[", "](https://)")}><Link2 />{t("link")}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => insert("$", "$")}><Sigma />{t("formula")}</DropdownMenuItem>
+          <DropdownMenu><Tooltip disableHoverableContent><TooltipTrigger asChild><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={t("formatting")} disabled={editingDisabled}><MoreHorizontal /></Button></DropdownMenuTrigger></TooltipTrigger><TooltipContent>{t("formatting")}</TooltipContent></Tooltip><DropdownMenuContent collisionPadding={16} className="min-w-[8.5rem] p-1" onCloseAutoFocus={(event) => { if (textRef.current) { event.preventDefault(); textRef.current.focus(); } }}>
+            <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => insert("**", "**")}><Bold className="size-3.5" />{t("bold")}</DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => insert("*", "*")}><Italic className="size-3.5" />{t("italic")}</DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => insert("\n- ")}><List className="size-3.5" />{t("list")}</DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => insert("`", "`")}><Code2 className="size-3.5" />{t("code")}</DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => insert("[", "](https://)")}><Link2 className="size-3.5" />{t("link")}</DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => insert("$", "$")}><Sigma className="size-3.5" />{t("formula")}</DropdownMenuItem>
           </DropdownMenuContent></DropdownMenu>
           <Popover open={mentionOpen} onOpenChange={setMentionOpen}><Tooltip><TooltipTrigger asChild><PopoverTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={t("mentionPerson")} disabled={editingDisabled}><AtSign /></Button></PopoverTrigger></TooltipTrigger><TooltipContent>{t("mentionPerson")}</TooltipContent></Tooltip><PopoverContent aria-label={t("mentionPerson")} align="end" collisionPadding={16} className="max-w-[calc(100vw-2rem)] space-y-2 p-2">
             <Button type="button" variant="ghost" className="w-full [&>span]:justify-start" onClick={() => { insert("@Zyra "); setMentionOpen(false); }}>@Zyra</Button>

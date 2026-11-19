@@ -56,15 +56,7 @@ export default async function SubmissionReviewPage({ params }: Props) {
     return (
       <CoursePageShell title={<TranslatedText namespace="learning" messageKey="reviewPage.quizTitle" />} hideHeader>
         <Reveal>
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-            <Button
-              asChild
-              variant="outline"
-              className="interactive rounded-md border-border/80 text-muted-foreground hover:text-foreground"
-            >
-              <Link href={`/courses/${id}/my-results`}><TranslatedText namespace="learning" messageKey="reviewPage.backToResults" /></Link>
-            </Button>
-
+          <div className="mb-6 flex flex-wrap items-center justify-end gap-3">
             <Button asChild size="sm" className="rounded-md bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 font-semibold shadow-xs">
               <Link href={`/courses/${id}/my-results/${submissionId}/summary`}>
                 <TranslatedText namespace="learning" messageKey="reviewPage.viewDiagnosis" />

@@ -244,7 +244,7 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
   const triggerClass =
     variant === "navbar"
       ? "relative inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
-      : "relative inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:text-foreground cursor-pointer";
+      : "relative inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground cursor-pointer";
 
   return (
     <Popover open={open} onOpenChange={handleOpen}>

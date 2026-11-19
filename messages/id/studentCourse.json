@@ -120,7 +120,8 @@
       "tutorial": "Tutorial"
     },
     "attention": {
-      "title": "Perlu perhatian"
+      "title": "Perlu perhatian",
+      "flashcardsDue": "{count} flashcard perlu diulas"
     },
     "dailyQuiz": {
       "title": "Kuis hari ini",

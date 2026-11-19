@@ -173,69 +173,70 @@ export function QuestionsTab({
 
   return (
     <div className="space-y-4 font-sans">
-      {/* Origin Filter Tabs */}
-      <Tabs value={originTab} onValueChange={handleTabChange} syncUrl={false}>
-        <TabsList className="bg-muted/40 border border-border rounded-xl p-1 flex-wrap">
-          <TabsTrigger value="all" className="text-body-sm font-medium">
-            {t("courseDetail.questions.all", { count: questions.length })}
-          </TabsTrigger>
-          <TabsTrigger value="zyx" className="text-body-sm font-medium flex items-center gap-1.5">
-            <BookOpenCheck className="size-3.5 text-brand-primary" />
-            {t("courseDetail.questions.zyxOriginal", { count: zyxCount })}
-          </TabsTrigger>
-          <TabsTrigger value="reference" className="text-body-sm font-medium flex items-center gap-1.5">
-            <BookOpen className="size-3.5 text-muted-foreground" />
-            {t("courseDetail.questions.reference", { count: refCount })}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      {/* Origin Filter Tabs + Toolbar Controls */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Tabs value={originTab} onValueChange={handleTabChange} syncUrl={false}>
+          <TabsList>
+            <TabsTrigger value="all">
+              {t("courseDetail.questions.all", { count: questions.length })}
+            </TabsTrigger>
+            <TabsTrigger value="zyx">
+              <BookOpenCheck className="size-3.5 text-brand-primary" />
+              {t("courseDetail.questions.zyxOriginal", { count: zyxCount })}
+            </TabsTrigger>
+            <TabsTrigger value="reference">
+              <BookOpen className="size-3.5 text-muted-foreground" />
+              {t("courseDetail.questions.reference", { count: refCount })}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-      {/* Toolbar Controls */}
-      <div className="flex flex-wrap items-center gap-2">
-        <SearchBar
-          collapsible
-          size="sm"
-          placeholder={t("courseDetail.questions.search")}
-          value={search}
-          onSearch={handleSearchChange}
-          onClear={() => handleSearchChange("")}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <SearchBar
+            collapsible
+            size="sm"
+            placeholder={t("courseDetail.questions.search")}
+            value={search}
+            onSearch={handleSearchChange}
+            onClear={() => handleSearchChange("")}
+          />
 
-        <Select value={difficultyFilter} onValueChange={handleDifficultyChange}>
-          <SelectTrigger variant="inline" aria-label={t("courseDetail.questions.difficulty")} className="max-w-44 shrink-0">
-            <SelectValue placeholder={t("courseDetail.questions.difficulty")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("courseDetail.questions.allLevels")}</SelectItem>
-            <SelectItem value="easy">{t("editor.difficulty.easy")}</SelectItem>
-            <SelectItem value="medium">{t("editor.difficulty.medium")}</SelectItem>
-            <SelectItem value="hard">{t("editor.difficulty.hard")}</SelectItem>
-          </SelectContent>
-        </Select>
+          <Select value={difficultyFilter} onValueChange={handleDifficultyChange}>
+            <SelectTrigger variant="inline" aria-label={t("courseDetail.questions.difficulty")} className="max-w-44 shrink-0">
+              <SelectValue placeholder={t("courseDetail.questions.difficulty")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("courseDetail.questions.allLevels")}</SelectItem>
+              <SelectItem value="easy">{t("editor.difficulty.easy")}</SelectItem>
+              <SelectItem value="medium">{t("editor.difficulty.medium")}</SelectItem>
+              <SelectItem value="hard">{t("editor.difficulty.hard")}</SelectItem>
+            </SelectContent>
+          </Select>
 
-        <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
-          <SelectTrigger variant="inline" aria-label={t("courseDetail.questions.perPage")} className="max-w-44 shrink-0">
-            <SelectValue placeholder={t("courseDetail.questions.perPage")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="10">{t("courseDetail.questions.pageSize", { count: 10 })}</SelectItem>
-            <SelectItem value="25">{t("courseDetail.questions.pageSize", { count: 25 })}</SelectItem>
-            <SelectItem value="50">{t("courseDetail.questions.pageSize", { count: 50 })}</SelectItem>
-          </SelectContent>
-        </Select>
+          <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
+            <SelectTrigger variant="inline" aria-label={t("courseDetail.questions.perPage")} className="max-w-44 shrink-0">
+              <SelectValue placeholder={t("courseDetail.questions.perPage")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">{t("courseDetail.questions.pageSize", { count: 10 })}</SelectItem>
+              <SelectItem value="25">{t("courseDetail.questions.pageSize", { count: 25 })}</SelectItem>
+              <SelectItem value="50">{t("courseDetail.questions.pageSize", { count: 50 })}</SelectItem>
+            </SelectContent>
+          </Select>
 
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button asChild size="sm" variant="outline" className="size-9 rounded-lg p-0 shrink-0">
-                <Link href={`/admin/questions?courseId=${courseId}`} aria-label={t("courseDetail.questions.openBankStudio")}>
-                  <ExternalLink className="size-4" aria-hidden />
-                </Link>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t("courseDetail.questions.openBankStudio")}</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild size="sm" variant="outline" className="size-9 rounded-lg p-0 shrink-0">
+                  <Link href={`/admin/questions?courseId=${courseId}`} aria-label={t("courseDetail.questions.openBankStudio")}>
+                    <ExternalLink className="size-4" aria-hidden />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("courseDetail.questions.openBankStudio")}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
       {/* Questions Container */}

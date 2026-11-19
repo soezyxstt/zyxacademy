@@ -267,5 +267,7 @@
   "badges": "lencana",
   "follow": "Ikuti",
   "unfollow": "Batal ikuti",
-  "followError": "Gagal memperbarui status mengikuti. Coba lagi."
+  "followError": "Gagal memperbarui status mengikuti. Coba lagi.",
+  "dateToday": "Hari ini",
+  "dateYesterday": "Kemarin"
 }

@@ -321,8 +321,8 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
       return typeof content?.bankQuestionId === "string" ? [content.bankQuestionId] : [];
     }));
     return (
-      <div className="space-y-(--related-gap)">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="space-y-(--major-gap)">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <TooltipProvider>
               <Tooltip>
@@ -336,7 +336,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
             </TooltipProvider>
             <div className="min-w-0">
               <p className="break-words font-heading text-body-sm font-bold text-foreground">{activeExam.title}</p>
-              <p className="text-body-xs text-muted-foreground">{tr("totalQuestions", { count: activeQuestions.length })}</p>
+              <p className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{tr("totalQuestions", { count: activeQuestions.length })}</p>
             </div>
           </div>
 
@@ -368,11 +368,11 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
         {activeQuestions.length === 0 ? (
           <AdminEmptyState icon={Trophy} title={tr("examEmpty")} />
         ) : (
-          <div className="divide-y divide-border border-y border-border">
+          <div className="divide-y divide-border/30">
             {pageQuestions.map((q) => {
               const content = typeof q.content === "string" ? JSON.parse(q.content) : q.content;
               return (
-                <div key={q.id} className="relative py-3">
+                <div key={q.id} className="relative -mx-2 rounded-lg px-2 py-(--row-padding) transition-colors hover:bg-muted/35">
                   <div className="flex items-start justify-between gap-(--related-gap)">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
@@ -473,14 +473,14 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
               <DialogTitle className="font-heading text-body-base font-bold text-foreground">{tr("bankTitle")}</DialogTitle>
               <DialogDescription>{tr("bankDescription")}</DialogDescription>
             </DialogHeader>
-            <div className="max-h-[55vh] divide-y divide-border overflow-y-auto border-y border-border">
+            <div className="max-h-[55vh] divide-y divide-border/30 overflow-y-auto border-y border-border/40">
               {questionBank.length === 0 ? (
                 <p className="py-8 text-center text-body-sm text-muted-foreground">{tr("noPublishedQuestions")}</p>
               ) : questionBank.slice(currentBankPage * 20, (currentBankPage + 1) * 20).map((question) => {
                 const alreadyImported = importedBankIds.has(question.id);
                 const checked = selectedBankIds.has(question.id) || alreadyImported;
                 return (
-                  <div key={question.id} className="flex items-start gap-(--compact-gap) py-3">
+                  <div key={question.id} className="flex items-start gap-(--compact-gap) rounded-lg px-2 py-(--row-padding) transition-colors hover:bg-muted/35">
                     <Checkbox
                       id={`bank-question-${question.id}`}
                       checked={checked}
@@ -674,10 +674,10 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
 
   // Default Listing view
   return (
-    <div className="space-y-(--related-gap)">
+    <div className="space-y-(--major-gap)">
       {/* Header action */}
-      <div className="flex flex-wrap justify-between items-center gap-2">
-        <span className="text-body-xs text-muted-foreground">{tr("tryoutCount", { count: initialTryouts.length })}</span>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
+        <span className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{tr("tryoutCount", { count: initialTryouts.length })}</span>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -693,13 +693,13 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
       {initialTryouts.length === 0 ? (
         <AdminEmptyState icon={Trophy} title={tr("noTryouts")} />
       ) : (
-        <div className="divide-y divide-border border-y border-border">
+        <div className="divide-y divide-border/30">
           {initialTryouts.map((t) => {
             const settings = typeof t.settings === "string" ? JSON.parse(t.settings) : t.settings;
             const qCount = initialQuestions.filter((q) => q.examId === t.id).length;
             
             return (
-              <article key={t.id} className="flex items-start justify-between gap-2 py-3">
+              <article key={t.id} className="-mx-2 flex items-start justify-between gap-2 rounded-lg px-2 py-3 transition-colors hover:bg-muted/35">
                 <header className="min-w-0 flex-1 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="min-w-0 break-words font-heading text-body-base font-bold text-foreground">{t.title}</h2>

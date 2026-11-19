@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { pkaSimulationStages, quizTemplates, studentQuizAttempts } from "@/db/schema";
@@ -19,8 +19,6 @@ import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { quizOptionClasses, quizOptionLetterClasses } from "@/components/course/quiz-option-styles";
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
 import { Reveal } from "@/components/ui/reveal";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import { isShortAnswerCorrect } from "@/lib/quiz/short-answer";
 
@@ -90,7 +88,6 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
     return (
       <CoursePageShell>
         <div className="space-y-2">
-          <BackLink />
           <Reveal>
             <div className="flex items-start gap-3 border-t border-border py-3">
               <AlertTriangle className="size-5 shrink-0 text-status-warning" />
@@ -134,7 +131,6 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
       return (
         <CoursePageShell>
           <div className="space-y-2">
-            <BackLink />
             <Reveal>
               <div
                 className={cn(
@@ -286,7 +282,6 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
       return (
         <CoursePageShell>
           <div className="space-y-2">
-            <BackLink />
             <Reveal>
               <QuizPlayer
                 courseId={template.courseId}
@@ -316,7 +311,6 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
   return (
     <CoursePageShell>
       <div className="space-y-2">
-        <BackLink />
         <Reveal>
           <div className="border-t border-border py-3">
             <h1 className="font-heading text-h5 font-bold text-foreground">
@@ -346,24 +340,5 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
         </Reveal>
       </div>
     </CoursePageShell>
-  );
-}
-
-function BackLink() {
-  const label = <TranslatedText namespace="studentExtras.pka" messageKey="backToSimulation" />;
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button asChild variant="ghost" size="icon-lg">
-            <Link href="/courses/tutorial-pka/simulasi">
-              <ArrowLeft aria-hidden />
-              <span className="sr-only">{label}</span>
-            </Link>
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>{label}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
   );
 }

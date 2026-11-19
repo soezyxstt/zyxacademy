@@ -6,10 +6,8 @@ import { useStudentExperience } from "@/components/student-experience-provider";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useSearchParams, usePathname } from "next/navigation";
 import { 
-  ArrowLeft,
   Download, 
   ExternalLink, 
   ZoomIn, 
@@ -479,7 +477,6 @@ function MaterialViewerContent({
   materialLiveEnabled,
   course,
   mode = "learner",
-  backHref,
   hideHeader = false,
   canDownload = true,
 }: MaterialViewerProps) {
@@ -1149,18 +1146,6 @@ function MaterialViewerContent({
           {!hideHeader && learnerMode && (
             <header className="relative flex w-full shrink-0 items-center flex-wrap justify-between gap-x-2 gap-y-1 border-b border-border/80 bg-background/95 px-2 py-1 sm:px-4 backdrop-blur-sm">
               <div className="flex min-w-0 flex-1 basis-32 items-center gap-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon-lg" asChild>
-                        <Link href={backHref ?? `/courses/${material.courseId}/material`} aria-label={t("reader.backToMaterials")}>
-                          <ArrowLeft aria-hidden />
-                        </Link>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t("reader.backToMaterials")}</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
                 <div className="min-w-0">
                   <p className="truncate text-body-xs font-medium text-muted-foreground">
                     {course?.title ?? t("reader.courseMaterials")}
@@ -1398,32 +1383,93 @@ function MaterialViewerContent({
     );
   }
 
+  const pdfToolbarControls = material.kind === "pdf" ? (
+    <>
+      {showDemoViewer && (
+        <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/60 p-0.5">
+          <button
+            type="button"
+            onClick={() => setViewerType("custom")}
+            aria-pressed={viewerType === "custom"}
+            className={cn(
+              "px-2 py-0.5 rounded-md text-body-xs font-semibold transition-all",
+              viewerType === "custom"
+                ? "bg-card text-brand-primary shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Mode Interaktif
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewerType("chrome")}
+            aria-pressed={viewerType === "chrome"}
+            className={cn(
+              "px-2 py-0.5 rounded-md text-body-xs font-semibold transition-all",
+              viewerType === "chrome"
+                ? "bg-card text-brand-primary shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Mode Dokumen
+          </button>
+        </div>
+      )}
+      {material.url && (
+        <TooltipProvider>
+          {canDownload && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild variant="outline" size="icon-sm" className="size-7">
+                  <a href={material.url} download target="_blank" rel="noopener noreferrer" aria-label={t("reader.downloadPdf")}>
+                    <Download className="size-3.5" aria-hidden />
+                  </a>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("reader.downloadPdf")}</TooltipContent>
+            </Tooltip>
+          )}
+          {openUrl && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="icon-sm"
+                  className={cn("size-7", viewerType === "chrome" && "hidden md:inline-flex")}
+                >
+                  <a href={openUrl} target="_blank" rel="noopener noreferrer" aria-label={t("reader.openOriginal")}>
+                    <ExternalLink className="size-3.5" aria-hidden />
+                  </a>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("reader.openOriginal")}</TooltipContent>
+            </Tooltip>
+          )}
+        </TooltipProvider>
+      )}
+    </>
+  ) : null;
+
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-background font-sans">
       {/* Sticky Topbar */}
-      {!hideHeader && learnerMode && (
-        <div className="h-10 w-full border-b border-border bg-background/80 backdrop-blur-sm flex items-center justify-between px-4 shrink-0">
-          <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
+      {(!hideHeader && (learnerMode || material.kind === "pdf")) && (
+        <div className="relative min-h-10 w-full border-b border-border bg-background/80 backdrop-blur-sm flex flex-wrap items-center justify-between gap-2 px-4 py-1 shrink-0">
+          {learnerMode && (
+            <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
+          )}
           
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="h-7 px-2 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted"
-            >
-                <Link href={backHref ?? `/courses/${material.courseId}/material`} aria-label={t("reader.backToMaterials")}>
-                <ArrowLeft className="size-3.5 mr-1" />
-                <span>{t("reader.back")}</span>
-              </Link>
-            </Button>
-            <span className="text-border">|</span>
-            <span className="text-body-xs text-muted-foreground font-mono font-semibold">
-              {progressPercent}%
-            </span>
+            {learnerMode && (
+              <span className="text-body-xs text-muted-foreground font-mono font-semibold">
+                {progressPercent}%
+              </span>
+            )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {pdfToolbarControls}
             {learnerMode && accessTier !== "free" && ragEnabled && chapterId && (
               <ChapterSummarySheet studentId={studentId} chapterId={chapterId} chapterTitle={material.title} />
             )}
@@ -1443,6 +1489,11 @@ function MaterialViewerContent({
           </div>
         </div>
       )}
+      {hideHeader && material.kind === "pdf" && (
+        <div className="flex flex-wrap items-center justify-end gap-1.5 border-b border-border bg-background/80 px-3 py-1 shrink-0">
+          {pdfToolbarControls}
+        </div>
+      )}
 
       {/* Main Material Display container */}
       <div className="flex-1 min-h-0 w-full relative overflow-hidden flex flex-col bg-background">
@@ -1450,74 +1501,6 @@ function MaterialViewerContent({
         {/* Render PDF Document (Integrated custom viewer or standard Chrome) */}
         {material.kind === "pdf" ? (
           <div className="flex flex-col w-full h-full relative bg-background overflow-hidden">
-            {/* Viewer Engine Toggle (rendered at the top of PDF viewer container) */}
-            <div className={cn(
-              "flex-wrap items-center gap-2 border-b border-border bg-card px-3 py-1.5 shrink-0",
-              showDemoViewer || (material.url && canDownload) ? "flex" : openUrl ? "hidden md:flex" : "hidden"
-            )}>
-              {showDemoViewer && (
-                <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/60 p-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setViewerType("custom")}
-                    aria-pressed={viewerType === "custom"}
-                    className={cn(
-                      "px-2.5 py-1 rounded-md text-body-sm font-semibold flex items-center gap-1 transition-all",
-                      viewerType === "custom"
-                        ? "bg-card text-brand-primary shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    Mode Interaktif
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewerType("chrome")}
-                    aria-pressed={viewerType === "chrome"}
-                    className={cn(
-                      "px-2.5 py-1 rounded-md text-body-sm font-semibold flex items-center gap-1 transition-all",
-                      viewerType === "chrome"
-                        ? "bg-card text-brand-primary shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    Mode Dokumen
-                  </button>
-                </div>
-              )}
-
-              <div className="ml-auto flex items-center gap-1.5">
-                {material.url && (
-                  <TooltipProvider>
-                    {canDownload && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button asChild variant="outline" size="icon-lg">
-                            <a href={material.url} download target="_blank" rel="noopener noreferrer" aria-label={t("reader.downloadPdf")}>
-                              <Download aria-hidden />
-                            </a>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>{t("reader.downloadPdf")}</TooltipContent>
-                      </Tooltip>
-                    )}
-                    {openUrl && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button asChild variant="outline" size="icon-lg" className={viewerType === "chrome" ? "hidden md:inline-flex" : undefined}>
-                            <a href={openUrl} target="_blank" rel="noopener noreferrer" aria-label={t("reader.openOriginal")}>
-                              <ExternalLink aria-hidden />
-                            </a>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>{t("reader.openOriginal")}</TooltipContent>
-                      </Tooltip>
-                    )}
-                  </TooltipProvider>
-                )}
-              </div>
-            </div>
-
             {viewerType === "custom" ? (
               <div
                 ref={viewerRef}
@@ -2087,12 +2070,7 @@ function MaterialViewerContent({
                   <div className="size-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                     <FileText className="size-6 text-[#ea4335]" />
                   </div>
-                  <div>
-                    <h3 className="font-heading text-body-sm font-bold text-foreground">{material.title}</h3>
-                    <p className="text-body-xs text-muted-foreground mt-1 max-w-xs">
-                      Buka dokumen di penampil PDF peramban Anda.
-                    </p>
-                  </div>
+                  <h3 className="font-heading text-body-sm font-bold text-foreground">{material.title}</h3>
                   {openUrl ? (
                     <Button asChild size="sm" className="rounded-md font-semibold text-body-xs">
                       <a href={openUrl} target="_blank" rel="noopener noreferrer">

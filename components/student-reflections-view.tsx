@@ -11,7 +11,7 @@ import { daysFrom, normalizeDate } from "@/lib/date-utils";
 export function StudentReflectionsView({ href = (path: string) => path,  reflections }: { href?: (path: string) => string;  reflections: Pick<typeof weeklyReflections.$inferSelect, "id" | "weekStart" | "payload">[] }) {
 
   return (
-    <ApplicationPage spacing="space-y-(--compact-gap)">
+    <ApplicationPage spacing="space-y-(--section-gap)">
       <PageHeader
         title={<TranslatedText namespace="student" messageKey="reflections.title" />}
         icon={BookmarkCheck}
@@ -21,14 +21,14 @@ export function StudentReflectionsView({ href = (path: string) => path,  reflect
 
       <Reveal>
         {reflections.length > 0 ? (
-          <div className="divide-y divide-border/60">
+          <div className="divide-y divide-border/30">
             {reflections.map((ref) => {
               const start = normalizeDate(ref.weekStart);
               const weekDates = Number.isNaN(start.getTime()) ? null : { start, end: daysFrom(6, start) };
               const { completed, masteryGrowth, streak } = ref.payload;
 
               return (
-                <div key={ref.id} className="py-(--row-padding) first:pt-0 last:pb-0 flex items-center justify-between gap-(--related-gap)">
+                <div key={ref.id} className="py-(--panel-padding) px-2 -mx-2 rounded-lg flex items-center justify-between gap-(--related-gap) transition-colors hover:bg-muted/40">
                   <div className="min-w-0 flex-1">
                     <span className="text-body-sm font-semibold text-foreground">
                       <TranslatedText namespace="student" messageKey="reflections.week" /> {weekDates ? <><FormattedDate date={weekDates.start} options={{ day: "numeric", month: "short" }} /> - <FormattedDate date={weekDates.end} options={{ day: "numeric", month: "short", year: "numeric" }} /></> : ref.weekStart}
@@ -42,15 +42,15 @@ export function StudentReflectionsView({ href = (path: string) => path,  reflect
                   </div>
                   <div className="shrink-0 text-right">
                     {masteryGrowth > 0 ? (
-                      <span className="font-heading text-body-base font-bold text-status-success">
+                      <span className="font-heading text-body-base font-bold tabular-nums text-status-success">
                         +{masteryGrowth}
                       </span>
                     ) : (
-                      <span className="font-heading text-body-base font-bold text-muted-foreground">
+                      <span className="font-heading text-body-base font-bold tabular-nums text-muted-foreground">
                         {masteryGrowth}
                       </span>
                     )}
-                    <span className="block text-body-2xs uppercase font-bold tracking-wider text-muted-foreground mt-0.5">
+                    <span className="block text-body-2xs uppercase font-semibold tracking-wider text-muted-foreground mt-0.5">
                       <TranslatedText namespace="student" messageKey="reflections.mastery" />
                     </span>
                   </div>
@@ -60,7 +60,7 @@ export function StudentReflectionsView({ href = (path: string) => path,  reflect
           </div>
         ) : (
           <div className="py-12 text-center">
-            <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
+            <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-muted/60 text-muted-foreground">
               <BookmarkCheck className="size-6" />
             </div>
             <h3 className="font-heading text-body-base font-bold text-foreground">
@@ -70,10 +70,10 @@ export function StudentReflectionsView({ href = (path: string) => path,  reflect
               <TranslatedText namespace="student" messageKey="reflections.emptyDescription" />
             </p>
             <div className="mt-5">
-              <Button asChild size="sm" className="rounded-lg text-body-sm">
+              <Button asChild size="sm" className="group rounded-lg text-body-sm">
                 <Link href={href("/dashboard")}>
                   <TranslatedText namespace="student" messageKey="reflections.startLearning" />
-                  <ArrowRight className="ml-1.5 size-3.5" />
+                  <ArrowRight className="ml-1.5 size-3.5 transition-transform group-hover:translate-x-0.5" />
                 </Link>
               </Button>
             </div>
