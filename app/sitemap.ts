@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { connection } from "next/server";
 import { db } from "@/db";
 import { blogArticles } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -7,6 +8,8 @@ import { PUBLIC_LOCALE_ROUTES, localizedPublicPath } from "@/lib/public-locale-r
 export const revalidate = 86400;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Cloud Run builds offline from staging. Read published slugs at request time.
+  if (process.env.ZYX_CLOUD_RUN === "1") await connection();
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
     (process.env.NEXT_PUBLIC_VERCEL_URL
