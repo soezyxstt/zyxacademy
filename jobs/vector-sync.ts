@@ -1,4 +1,4 @@
-import { inngest } from "./client";
+import { defineJob } from "./define-job";
 import { db } from "@/db";
 import { vectorSyncQueue } from "@/db/schema";
 import {
@@ -280,16 +280,14 @@ export async function drainVectorQueue(step: any, courseId?: string) {
       const batchFailed = error && typeof error === "object" && "vectorBatchSize" in error ? Number(error.vectorBatchSize) : 0;
       failed += batchFailed;
       processed += batchFailed;
-      await step.sleep("vector-failure-backoff", "30s");
-      await step.sendEvent("retry-vector-sync", { name: "vector.sync.dispatch", data: courseId ? { courseId } : {} });
+      await step.enqueueTask("retry-vector-sync", { name: "vector.sync.dispatch", delaySeconds: 30, data: courseId ? { courseId } : {} });
       return { processed, success, failed, continuation: true, retryScheduled: true };
     }
     processed += result.processed;
     if ("success" in result) success += result.success ?? 0;
     if ("failed" in result) failed += result.failed ?? 0;
     if ("retryableFailure" in result && result.retryableFailure) {
-      await step.sleep("vector-failure-backoff", "30s");
-      await step.sendEvent("retry-vector-sync", { name: "vector.sync.dispatch", data: courseId ? { courseId } : {} });
+      await step.enqueueTask("retry-vector-sync", { name: "vector.sync.dispatch", delaySeconds: 30, data: courseId ? { courseId } : {} });
       return { processed, success, failed, continuation: true, retryScheduled: true };
     }
     if (!result.processed) return { processed, success, failed, continuation: await scheduleVectorContinuation(step, courseId) };
@@ -309,15 +307,15 @@ async function scheduleVectorContinuation(step: any, courseId?: string): Promise
   });
   if (!next.ready && !next.leaseExpiry) return false;
   // A crash or failed lease-release write must not depend on the six-hour cron.
-  if (next.leaseExpiry && Date.parse(next.leaseExpiry) > Date.now()) await step.sleepUntil("wait-vector-lease-expiry", new Date(next.leaseExpiry));
-  await step.sendEvent("continue-vector-sync", { name: "vector.sync.dispatch", data: courseId ? { courseId } : {} });
+  const delaySeconds = next.leaseExpiry ? Math.max(0, (Date.parse(next.leaseExpiry) - Date.now()) / 1000) : 0;
+  await step.enqueueTask("continue-vector-sync", { name: "vector.sync.dispatch", delaySeconds, data: courseId ? { courseId } : {} });
   return true;
 }
 
 /**
  * Event-driven worker listening to "vector.sync.dispatch"
  */
-export const vectorSyncWorker = inngest.createFunction(
+export const vectorSyncWorker = defineJob(
   {
     id: "vector-sync-worker",
     name: "Vector Sync Worker",
@@ -335,7 +333,7 @@ export const vectorSyncWorker = inngest.createFunction(
 /**
  * Scheduled fallback cron worker running every 6 hours to catch stranded syncs
  */
-export const vectorSyncCronWorker = inngest.createFunction(
+export const vectorSyncCronWorker = defineJob(
   {
     id: "vector-sync-cron-worker",
     name: "Vector Sync Cron Worker",

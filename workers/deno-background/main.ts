@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { serve } from "inngest/hono";
 import { inngest } from "@/jobs/client";
 import { computeFunctions } from "@/jobs/compute";
+import { dispatchCron, dispatchQueueTask } from "./queue-routes";
 import { handleSourceReadTask } from "./task-route";
 import { healthHandler } from "./health";
 import { validateWorkerEnv } from "./env";
@@ -12,13 +13,18 @@ const env = validateWorkerEnv();
 const app = new Hono();
 
 app.get("/health", healthHandler);
-app.post("/internal/tasks/source.pdf.page.requested", handleSourceReadTask);
+if (process.env.QUEUE_PROVIDER === "cloud-tasks") {
+  app.post("/internal/tasks/:eventName", dispatchQueueTask);
+  app.post("/internal/cron/tick", dispatchCron);
+} else {
+  app.post("/internal/tasks/source.pdf.page.requested", handleSourceReadTask);
+}
 
 // Internal compute RPC endpoints for Vercel web tier
 app.post("/internal/pdf/pages", handlePdfPagesRpc);
 app.post("/internal/authoring/source-pack/resolve", handleSourcePackResolveRpc);
 
-app.on(
+if (process.env.QUEUE_PROVIDER !== "cloud-tasks") app.on(
   ["GET", "POST", "PUT"],
   "/api/inngest",
   serve({

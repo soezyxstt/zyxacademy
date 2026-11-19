@@ -1,3 +1,4 @@
+import { withQueueWakeups } from "@/lib/queue/outbox";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import * as schema from "@/db/schema";
@@ -25,3 +26,5 @@ export const pool = new Pool({ connectionString: url, ...(process.env.ZYX_COMPUT
   max: 5, connectionTimeoutMillis: 10_000, idleTimeoutMillis: 30_000,
 } : {}) });
 export const db = drizzle(pool, { schema });
+const transaction = db.transaction.bind(db);
+db.transaction = (run, config) => withQueueWakeups(() => transaction(run, config));

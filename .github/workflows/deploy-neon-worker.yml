@@ -73,6 +73,7 @@ jobs:
           project_id: zyx-academy
           workload_identity_provider: projects/307641710075/locations/global/workloadIdentityPools/zyx-worker-staging/providers/github
       - name: Route the verified Inngest environment
+        if: vars.QUEUE_PROVIDER != 'cloud-tasks'
         env:
           COMPUTE_ENVIRONMENT: ${{ inputs.environment }}
         run: node scripts/neon/sync-worker.mjs "$COMPUTE_ENVIRONMENT"

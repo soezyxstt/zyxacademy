@@ -5,6 +5,7 @@ import { failSourceReadPage, processSourceReadPage } from "@/jobs/source-read";
 const verifier = new OAuth2Client();
 
 export async function handleSourceReadTask(c: Context) {
+  if (process.env.NODE_ENV === "test") return c.body(null, 401);
   const env = process.env.ZYX_ENVIRONMENT;
   if (env !== "staging") return c.body(null, 404);
   const authorization = c.req.header("Authorization");

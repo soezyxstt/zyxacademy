@@ -1,6 +1,6 @@
-import { inngest } from "./client";
+import { defineJob } from "./define-job";
 
-export const assessmentIngestWorker = inngest.createFunction(
+export const assessmentIngestWorker = defineJob(
   {
     id: "assessment-ingest-worker",
     name: "Assessment Ingest Worker",

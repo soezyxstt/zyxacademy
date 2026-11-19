@@ -1,3 +1,4 @@
+import { wakeOutbox } from "@/lib/queue/outbox";
 import { and, asc, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { discussionAiRequests, discussionAttachments, discussionChannels, discussionEvents, discussionMessages, discussionThreads, studentQuizAttempts } from "@/db/schema";
@@ -82,6 +83,7 @@ export async function publishDiscussionZyraAnswer(requestId: string, body: strin
   await tx.insert(discussionMessages).values({ id: messageId, threadId: thread.id, authorId: null, kind: "zyra", messageType: "answer",
    body: body.trim(), seq: thread.nextSeq, revision: 1, requestId: `discussion-ai:${request.id}`, skinId: source.message.skinId, createdAt: now });
   await tx.update(discussionAiRequests).set({ status: "completed", answerMessageId: messageId, resultText: body.trim(), completedAt: now, updatedAt: now }).where(eq(discussionAiRequests.id, request.id));
+  wakeOutbox("discussion/notifications.continue");
   await tx.insert(discussionEvents).values({ id: crypto.randomUUID(), channelId: source.channel.id, threadId: thread.id, messageId, actorId: actor.id, kind: "message",
    messageRevision: 1, participantThroughSeq: thread.nextSeq, recipientCursor: JSON.stringify({ phase: "direct", after: null, mentions: [] }) });
   await tx.update(discussionChannels).set({ countRevision: sql`${discussionChannels.countRevision} + 1` }).where(eq(discussionChannels.id, source.channel.id));

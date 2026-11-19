@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { inngest } from "./client";
+import { defineJob } from "./define-job";
 import { storage } from "@/lib/storage";
 import { buildSourcePageImageKey, buildSourceReadJobKey } from "@/lib/storage/keys";
 import { readPdfFromStorage } from "@/lib/compute/pdf-reader";
@@ -41,7 +41,7 @@ export async function failSourceReadPage(data: unknown, error: unknown) {
   });
 }
 
-export const sourceReadPageWorker = inngest.createFunction({
+export const sourceReadPageWorker = defineJob({
   id: "source-read-page", triggers: [{ event: "source.pdf.page.requested" }],
   retries: 2, concurrency: { limit: 2 },
   onFailure: async ({ event }) => {

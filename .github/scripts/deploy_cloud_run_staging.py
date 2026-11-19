@@ -27,7 +27,7 @@ BUILD_KEYS = {"AUTHORING_VERIFICATION_BROWSER_PROVIDER", "AUTHORING_VERIFICATION
 PLAIN_RUNTIME_KEYS = BUILD_KEYS | {
     "ZYX_ENVIRONMENT", "ZYX_MCP_ENVIRONMENT", "NODE_ENV", "BETTER_AUTH_URL",
     "STORAGE_PROVIDER_MODE", "NEON_STORAGE_BUCKET", "AWS_ENDPOINT_URL_S3", "AWS_REGION",
-    "INNGEST_ENV", "DIKTAT_RENDERER_URL", "COMPUTE_SERVICE_URL", "R2_ENDPOINT", "R2_BUCKET", "R2_PUBLIC_URL",
+    "QUEUE_PROVIDER", "INNGEST_ENV", "DIKTAT_RENDERER_URL", "COMPUTE_SERVICE_URL", "R2_ENDPOINT", "R2_BUCKET", "R2_PUBLIC_URL",
     "CF_ACCOUNT_ID", "CF_KV_NAMESPACE_ID", "VECTORIZE_WORKER_URL", "VECTOR_SYNC_BATCH_SIZE",
     "AUTHORING_VERIFICATION_RENDERER_URL", "AUTHORING_VERIFICATION_ACCESS_URL", "CODING_BROWSER_PROVIDER",
     "ZYRA_CONTROL_PLANE_URL",
@@ -118,7 +118,10 @@ def validate_template(spec, config):
                     "Cloud Run staging secret must use a local staging name and numeric version: " + key)
             refs[key] = ref
     require(plain.get("NODE_ENV", "production") == "production", "Cloud Run must run the production Next.js server.")
-    require(REQUIRED_SECRET_KEYS <= refs.keys(), "Cloud Run staging runtime is missing required Secret Manager references.")
+    provider = plain.get("QUEUE_PROVIDER", "inngest")
+    require(provider in ("inngest", "cloud-tasks"), "Invalid staging queue provider.")
+    required_secrets = REQUIRED_SECRET_KEYS - ({"INNGEST_EVENT_KEY", "INNGEST_SIGNING_KEY"} if provider == "cloud-tasks" else set())
+    require(required_secrets <= refs.keys(), "Cloud Run staging runtime is missing required Secret Manager references.")
     require("CF_ACCOUNT_ID" in plain and bool({"CF_API_TOKEN", "CF_BROWSER_API_TOKEN"} & refs.keys()),
             "Cloud Run staging Cloudflare Browser Run settings are incomplete.")
     expected = {

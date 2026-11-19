@@ -246,6 +246,13 @@
       "when": 1794823859346,
       "tag": "0034_aromatic_silhouette",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1795109679359,
+      "tag": "0035_queue_task_checkpoints",
+      "breakpoints": true
     }
   ]
 }
