@@ -167,17 +167,12 @@ function CollapsibleBreadcrumbs({ items }: { items: BreadcrumbItem[] }) {
 export function PageHeader({
   title,
   actions,
-  backHref,
-  backLabel,
-  breadcrumbs,
   className,
 }: PageHeaderProps) {
-  const hasControls = Boolean(breadcrumbs || backHref || actions);
-  const backText = backLabel ?? <TranslatedText namespace="ui" messageKey="back" />;
-
-  // Route titles duplicate the active sidebar item and mobile navbar title,
-  // so keep an accessible h1 without rendering header banner chrome.
-  if (!hasControls) {
+  // Route titles, breadcrumbs, and back buttons are handled by the sidebar
+  // (desktop) and native navigation (mobile), so keep only an accessible h1
+  // plus any explicit page actions.
+  if (!actions) {
     return (
       <h1 data-sr-only-header="" className="sr-only">
         {title}
@@ -188,7 +183,7 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "mb-2 flex w-full min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5 text-left",
+        "mb-2 flex w-full min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1.5 text-left",
         className,
       )}
     >
@@ -196,37 +191,9 @@ export function PageHeader({
         {title}
       </h1>
 
-      {(breadcrumbs || backHref) && (
-        <div className="flex min-w-0 items-center gap-2">
-          {breadcrumbs ? (
-            Array.isArray(breadcrumbs) ? (
-              <CollapsibleBreadcrumbs items={breadcrumbs} />
-            ) : (
-              breadcrumbs
-            )
-          ) : backHref ? (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button asChild variant="ghost" size="icon-lg">
-                    <Link href={backHref}>
-                      <ArrowLeft aria-hidden />
-                      <span className="sr-only">{backText}</span>
-                    </Link>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{backText}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ) : null}
-        </div>
-      )}
-
-      {actions && (
-        <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center gap-1.5 has-[[data-search-expanded=true]]:flex-1 sm:gap-2">
-          {actions}
-        </div>
-      )}
+      <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center gap-1.5 has-[[data-search-expanded=true]]:flex-1 sm:gap-2">
+        {actions}
+      </div>
     </header>
   );
 }

@@ -492,14 +492,9 @@ function QuizAnalyticsContent({ courseId, data, loading, recomputing, error, fet
             ))}
           </div>
         ) : (
-          <div className="space-y-3">
-            <p className="text-body-sm text-muted-foreground">
-              {t("quizAnalytics.keepGoing")}
-            </p>
-            <Button asChild variant="outline" size="sm" className="rounded-md border-border">
-              <Link href={href(`/courses/${courseId}`)}>{t("quizAnalytics.backToCourse")}</Link>
-            </Button>
-          </div>
+          <p className="text-body-sm text-muted-foreground">
+            {t("quizAnalytics.keepGoing")}
+          </p>
         )}
 
         {/* Encouragement Footer */}

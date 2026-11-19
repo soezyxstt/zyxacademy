@@ -4,10 +4,8 @@ import { useStudentExperience } from "@/components/student-experience-provider";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useSearchParams, usePathname } from "next/navigation";
 import { 
-  ArrowLeft,
   Download, 
   ExternalLink, 
   ZoomIn, 
@@ -477,7 +475,6 @@ function MaterialViewerContent({
   materialLiveEnabled,
   course,
   mode = "learner",
-  backHref,
   hideHeader = false,
   canDownload = true,
 }: MaterialViewerProps) {
@@ -1147,18 +1144,6 @@ function MaterialViewerContent({
           {!hideHeader && learnerMode && (
             <header className="relative flex w-full shrink-0 items-center flex-wrap justify-between gap-x-2 gap-y-1 border-b border-border/80 bg-background/95 px-2 py-1 sm:px-4 backdrop-blur-sm">
               <div className="flex min-w-0 flex-1 basis-32 items-center gap-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon-lg" asChild>
-                        <Link href={backHref ?? `/courses/${material.courseId}/material`} aria-label={t("reader.backToMaterials")}>
-                          <ArrowLeft aria-hidden />
-                        </Link>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t("reader.backToMaterials")}</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
                 <div className="min-w-0">
                   <p className="truncate text-body-xs font-medium text-muted-foreground">
                     {course?.title ?? t("reader.courseMaterials")}
@@ -1404,18 +1389,6 @@ function MaterialViewerContent({
           <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
           
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="h-7 px-2 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted"
-            >
-                <Link href={backHref ?? `/courses/${material.courseId}/material`} aria-label={t("reader.backToMaterials")}>
-                <ArrowLeft className="size-3.5 mr-1" />
-                <span>{t("reader.back")}</span>
-              </Link>
-            </Button>
-            <span className="text-border">|</span>
             <span className="text-body-xs text-muted-foreground font-mono font-semibold">
               {progressPercent}%
             </span>

@@ -180,24 +180,6 @@ function StudentSidebarContent({
     );
   };
 
-  const headerActions = (c: boolean) => {
-    if (!activeCourseId) return null;
-    return (
-      <SidebarTooltip label={t("navigation.backToDashboard")} collapsed={c}>
-        <Link
-          href={href("/dashboard")}
-          aria-label={t("navigation.backToDashboard")}
-          className={cn(
-            "flex shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer",
-            c ? "size-8" : "size-7"
-          )}
-        >
-          <ArrowLeft className="size-4" />
-        </Link>
-      </SidebarTooltip>
-    );
-  };
-
   const navContent = (c: boolean) => {
     if (activeCourseId) {
       const base = `/courses/${activeCourseId}`;
@@ -526,7 +508,6 @@ function StudentSidebarContent({
       logoLabel={t("navigation.dashboard") + " Zyx Academy"}
       nav={navContent}
       topSection={topSection}
-      headerActions={headerActions}
     />
   );
 }

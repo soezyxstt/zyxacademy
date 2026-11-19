@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ArrowLeft, ChevronDown, ChevronRight, Filter, Maximize2, Menu, PanelRightClose, RotateCw, Search, Trophy } from "lucide-react";
+import { ChevronDown, ChevronRight, Filter, Maximize2, Menu, PanelRightClose, RotateCw, Search, Trophy } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StudyStatisticsSkeleton } from "@/components/course/study-statistics-card";
 import { RecentActivitySkeleton } from "@/components/course/recent-activity-card";
@@ -160,12 +159,10 @@ export function CourseMaterialListSkeleton() {
 
 /**
  * Tailored skeleton for the Material / Structured Article Reader (`StructuredArticleReader` / `MaterialViewer`):
- * Sticky reader header with real back link & course title (when available) + 2-column 75ch article canvas & right TOC sidebar.
+ * Sticky reader header with course title (when available) + 2-column 75ch article canvas & right TOC sidebar.
  */
 export function MaterialReaderContentSkeleton({
-  courseId,
   courseTitle,
-  backHref,
   showHeader = true,
 }: {
   courseId?: string;
@@ -173,8 +170,6 @@ export function MaterialReaderContentSkeleton({
   backHref?: string;
   showHeader?: boolean;
 }) {
-  const resolvedBackHref = backHref ?? (courseId ? `/courses/${courseId}/material` : undefined);
-
   return (
     <div
       data-testid="material-reader-skeleton"
@@ -184,22 +179,6 @@ export function MaterialReaderContentSkeleton({
         <header className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur-sm">
           <div className="flex items-center justify-between px-4 py-2 gap-3 max-w-7xl mx-auto w-full">
             <div className="flex items-center gap-2.5 min-w-0">
-              {resolvedBackHref ? (
-                <Link
-                  href={resolvedBackHref}
-                  className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground shrink-0"
-                  aria-label="Kembali ke Materi"
-                >
-                  <ArrowLeft className="size-4" />
-                </Link>
-              ) : (
-                <div className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground/50 shrink-0">
-                  <ArrowLeft className="size-4" />
-                </div>
-              )}
-
-              <div className="h-4 w-px bg-border/70 shrink-0" />
-
               <div className="min-w-0 space-y-1">
                 {courseTitle ? (
                   <p className="truncate text-body-2xs font-medium text-muted-foreground uppercase tracking-wider">

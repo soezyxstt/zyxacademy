@@ -254,16 +254,13 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
               <p className="mt-2 text-body-sm text-muted-foreground">
                 Kuis ini telah ditutup secara manual oleh admin/tutor.
               </p>
-              <div className="mt-5 flex items-center justify-center gap-3">
-                <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
-                  <Link href={`/courses/${id}/quiz`}><TranslatedText namespace="learning" messageKey="quizTake.backToList" /></Link>
-                </Button>
-                {canViewDiscussion && (
+              {canViewDiscussion && (
+                <div className="mt-5 flex items-center justify-center gap-3">
                   <Button asChild size="sm" className="rounded-md bg-brand-primary text-primary-foreground">
                     <Link href={`?viewDiscussion=true`}><TranslatedText namespace="learning" messageKey="quizTake.viewDiscussion" /></Link>
                   </Button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </Reveal>
         </CoursePageShell>
@@ -281,11 +278,6 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                   Kuis ini dijadwalkan untuk dibuka pada tanggal{" "}
                   <strong className="text-foreground">{openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
                 </p>
-                <div className="mt-5 flex items-center justify-center gap-3">
-                  <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
-                    <Link href={`/courses/${id}/quiz`}><TranslatedText namespace="learning" messageKey="quizTake.backToList" /></Link>
-                  </Button>
-                </div>
               </div>
             </Reveal>
           </CoursePageShell>
@@ -302,16 +294,13 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                   Akses kuis ini telah berakhir sejak tanggal{" "}
                   <strong className="text-foreground">{closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
                 </p>
-                <div className="mt-5 flex items-center justify-center gap-3">
-                  <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
-                    <Link href={`/courses/${id}/quiz`}><TranslatedText namespace="learning" messageKey="quizTake.backToList" /></Link>
-                  </Button>
-                  {canViewDiscussion && (
+                {canViewDiscussion && (
+                  <div className="mt-5 flex items-center justify-center gap-3">
                     <Button asChild size="sm" className="rounded-md bg-brand-primary text-primary-foreground">
                       <Link href={`?viewDiscussion=true`}><TranslatedText namespace="learning" messageKey="quizTake.viewDiscussion" /></Link>
                     </Button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </Reveal>
           </CoursePageShell>
