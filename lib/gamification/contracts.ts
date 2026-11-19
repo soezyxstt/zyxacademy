@@ -3,7 +3,7 @@ export type RankKey = 'rakyat' | 'kades' | 'camat' | 'bupati' | 'gubernur' | 'pr
 export type BadgeFamily = 'warrior_reader' | 'practice_knight' | 'memory_guardian' | 'steady_scholar' | 'comeback_champion' | 'consistency_captain';
 export type AvatarMode = 'photo' | 'badge';
 export interface GamificationAvatarChoice { avatarMode: AvatarMode; avatarBadgeId: string | null; badgeTier: number | null }
-export type CosmeticSlot = 'frame' | 'theme' | 'title' | 'zyra_skin' | 'zyra_avatar';
+export type CosmeticSlot = 'frame' | 'theme' | 'title' | 'zyra_skin' | 'zyra_avatar' | 'pet_action' | 'pet_suit';
 export type ChecklistCategory = 'article' | 'explanation' | 'question' | 'flashcard';
 export interface GamificationSummary { baseXpMicro: number; bonusXpMicro: number; courseCreditsMicro: number; lpBalance: number; rankKey: RankKey }
 export interface AchievementBadge { family: BadgeFamily; count: number; tier: number; nextThreshold: number | null; earnedTiers?: { tier: number; awardedAt: Date }[] }

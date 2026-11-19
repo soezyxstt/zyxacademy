@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "posters": [
+    {
+      "path": "cat-head.webp",
+      "bytes": 24118,
+      "width": 640,
+      "height": 640
+    },
+    {
+      "path": "cat.webp",
+      "bytes": 22802,
+      "width": 640,
+      "height": 640
+    },
+    {
+      "path": "crocodile-head.webp",
+      "bytes": 20402,
+      "width": 640,
+      "height": 640
+    },
+    {
+      "path": "crocodile.webp",
+      "bytes": 20136,
+      "width": 640,
+      "height": 640
+    },
+    {
+      "path": "rhino-head.webp",
+      "bytes": 18526,
+      "width": 640,
+      "height": 640
+    },
+    {
+      "path": "rhino.webp",
+      "bytes": 19112,
+      "width": 640,
+      "height": 640
+    },
+    {
+      "path": "tiger-head.webp",
+      "bytes": 24500,
+      "width": 640,
+      "height": 640
+    },
+    {
+      "path": "tiger.webp",
+      "bytes": 28156,
+      "width": 640,
+      "height": 640
+    }
+  ]
+}

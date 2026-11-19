@@ -589,7 +589,15 @@
     "zyraAvatarCenderawasih": "Cenderawasih",
     "zyraAvatarPenyu": "Penyu",
     "zyraAvatarBadak": "Badak",
-    "zyraAvatarElang": "Elang"
+    "zyraAvatarElang": "Elang",
+    "petCycle": "Cycling",
+    "petJump": "Jump",
+    "petItbSportOutfit": "Sports kit",
+    "petAstronautOutfit": "Space suit",
+    "zyraAvatarStudioCat": "Zyra",
+    "zyraAvatarStudioTiger": "Tiger",
+    "zyraAvatarStudioRhino": "Rhino",
+    "zyraAvatarStudioCrocodile": "Crocodile"
   },
   "achievementPage": {
     "overview": "Overview",
@@ -635,6 +643,14 @@
     "before": "Before",
     "after": "After",
     "rewardGroups": {
+      "correct": "Correct",
+      "idle": "Idle",
+      "plain": "No suit",
+      "answer": "Choose the answer",
+      "retry": "Try again",
+      "play": "Mental math",
+      "pet_suit": "Studio pet suits",
+      "pet_action": "Cat actions",
       "frame": "Avatar frames",
       "title": "Titles",
       "theme": "Profile themes",
@@ -689,6 +705,18 @@
     "copied": "Copied",
     "helpfulAnswer": "Helpful answer",
     "helpful": "Helpful",
-    "viewer": "3D mascot"
+    "viewer": "3D mascot",
+    "unavailable": "3D unavailable",
+    "retry": "Try again",
+    "action": "Action",
+    "actions": {
+      "idle": "Idle",
+      "happy": "Happy",
+      "thinking": "Thinking",
+      "waiting": "Waiting",
+      "explaining": "Explaining",
+      "apologizing": "Apologizing",
+      "thumbsUp": "Thumbs up"
+    }
   }
 }

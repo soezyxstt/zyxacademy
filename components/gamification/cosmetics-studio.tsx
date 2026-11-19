@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { cosmeticNameKeys } from "@/lib/gamification/labels";
-import { ZyraMascot3D } from "./zyra-mascot-3d";
+import { ZyraMascotPreview } from "./zyra-mascot-preview";
 import { Check, Copy, ThumbsUp } from "lucide-react";
 import { FRAME_COLLECTIONS } from "@/lib/gamification/collection-art";
 import { ZYRA_AVATARS, ZYRA_CHAT_SKINS } from "@/lib/gamification/zyra-cosmetics";
@@ -29,7 +29,7 @@ export function CosmeticsStudio({ appearance, prices }: CosmeticsStudioProps) {
   const [frameId, setFrameId] = useState<string>(appearance.frameId && FRAME_COLLECTIONS.some(item => item.id === appearance.frameId) ? appearance.frameId : FRAME_COLLECTIONS[0].id);
   const [animated, setAnimated] = useState(true);
   const [skinId, setSkinId] = useState<string>(ZYRA_CHAT_SKINS[0].id);
-  const [mascotId, setMascotId] = useState<string>(ZYRA_AVATARS[0].id);
+  const [mascotId, setMascotId] = useState<string>("zyra-avatar-studio-cat");
   const [copied, setCopied] = useState(false);
   const [liked, setLiked] = useState(false);
   const active = FRAME_COLLECTIONS.find(item => item.id === frameId)!;
@@ -64,7 +64,7 @@ export function CosmeticsStudio({ appearance, prices }: CosmeticsStudioProps) {
       </div>
       <div className="min-w-0 rounded-2xl border bg-card p-4 sm:p-6">
         <div data-testid="selected-mascot" data-selected-mascot-id={mascotId} className="mb-6 flex flex-col items-center gap-3 border-b pb-4">
-          <ZyraMascot3D cosmeticId={mascotId} size={240} animated={animated} />
+          <ZyraMascotPreview cosmeticId={mascotId} size={240} animated={animated} />
           <h3 className="font-heading text-body-base font-bold" aria-live="polite">{name(ZYRA_AVATARS.find(item => item.id === mascotId)!)}</h3>
           {prices?.[mascotId] !== undefined && <p className="text-body-sm text-muted-foreground">{number.format(prices[mascotId])} LP</p>}
         </div>
