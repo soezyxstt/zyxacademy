@@ -46,13 +46,20 @@ concurrency:
 
 jobs:
   deploy-neon-staging:
+    permissions:
+      contents: read
+      id-token: write
     if: github.event_name != 'pull_request' && (!inputs.maintenance || inputs.maintenance == 'none') && !inputs.business_acceptance && !inputs.browser_diagnostics && github.ref_name == 'staging'
     uses: ./.github/workflows/deploy-neon-worker.yml
     with:
       environment: staging
+      queue_smoke: ${{ github.event_name == 'workflow_dispatch' || inputs.check_worker }}
     secrets: inherit
 
   deploy-neon-production:
+    permissions:
+      contents: read
+      id-token: write
     if: github.event_name != 'pull_request' && (!inputs.maintenance || inputs.maintenance == 'none') && !inputs.business_acceptance && !inputs.browser_diagnostics && (github.ref_name == 'main' || (github.event_name == 'workflow_dispatch' && inputs.diagnostic_environment == 'production'))
     uses: ./.github/workflows/deploy-neon-worker.yml
     with:

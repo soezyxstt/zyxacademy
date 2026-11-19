@@ -58,15 +58,36 @@ try {
   const key = joinKey("overhaul", "neon-worker-smoke", `${crypto.randomUUID()}.pdf`);
   objects.push(key);
   await storage.upload(sourcePdf(595.28, 841.89), "synthetic.pdf", "application/pdf", { key });
-  if (!process.argv.includes("--preflight")) await check("durable Inngest PDF page job on Neon", async () => {
+  if (!process.argv.includes("--preflight")) await check("durable PDF page job on Neon", async () => {
     const { inngest } = await import("../../jobs/client");
     const jobId = createHash("sha256").update(crypto.randomUUID()).digest("hex");
     const stateKey = buildSourceReadJobKey(jobId, 1);
     pendingSources.add(key);
-    const sent = await inngest.send({ id: jobId, name: "source.pdf.page.requested", data: {
+    const event = { id: jobId, name: "source.pdf.page.requested", data: {
       jobId, requestId: crypto.randomUUID(), storageKey: key, materialId: jobId, courseId: "neon-worker-smoke",
       checksum: null, pages: [1], pageNumber: 1, representation: "text", imageWidth: 640,
-    } });
+    } };
+    if (target.name === "staging" && process.env.QUEUE_SMOKE_PROVIDER === "cloud-tasks") {
+      process.env.QUEUE_PROVIDER = "cloud-tasks";
+      const { enqueueTask } = await import("../../lib/queue/cloud-tasks");
+      const taskName = await enqueueTask(event);
+      for (let attempt = 0; attempt < 90; attempt++) {
+        if (await storage.exists(stateKey)) {
+          const state = JSON.parse(Buffer.from(await storage.download!(stateKey)).toString("utf8"));
+          if (state.status === "complete" || state.status === "failed") {
+            pendingSources.delete(key);
+            objects.push(stateKey);
+            assert.equal(state.status, "complete");
+            assert.match(state.page.text, /Hello PDF/);
+            await writeFile(`${target.output}/cloud-tasks-smoke.json`, JSON.stringify({ taskName, status: state.status }));
+            return;
+          }
+        }
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+      throw new Error(`CLOUD_TASKS_SMOKE_PENDING:${jobId}`);
+    }
+    const sent = await inngest.send(event);
     assert.equal(sent.ids.length, 1);
     await writeFile(`${target.output}/inngest-pending.json`, JSON.stringify({ eventId: sent.ids[0], jobId, sourceKey: key, stateKey }));
     let terminal = false;

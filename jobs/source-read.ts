@@ -34,14 +34,17 @@ export async function processSourceReadPage(data: unknown) {
   }
 }
 
+export async function failSourceReadPage(data: unknown, error: unknown) {
+  const job = sourceReadJobSchema.extend({ pageNumber: sourceReadJobSchema.shape.pages.element }).parse(data);
+  await writeSourceReadJson(buildSourceReadJobKey(job.jobId, job.pageNumber), {
+    status: "failed", error: sourcePageErrorCode(error),
+  });
+}
+
 export const sourceReadPageWorker = inngest.createFunction({
   id: "source-read-page", triggers: [{ event: "source.pdf.page.requested" }],
   retries: 2, concurrency: { limit: 2 },
   onFailure: async ({ event }) => {
-    const job = sourceReadJobSchema.parse(event.data.event.data);
-    const pageNumber = event.data.event.data.pageNumber as number;
-    await writeSourceReadJson(buildSourceReadJobKey(job.jobId, pageNumber), {
-      status: "failed", error: sourcePageErrorCode(new Error(event.data.error.message)),
-    });
+    await failSourceReadPage(event.data.event.data, new Error(event.data.error.message));
   },
 }, async ({ event, step }) => step.run("read-page", () => processSourceReadPage(event.data)));
