@@ -500,6 +500,7 @@
   },
   "leaderboard": {
     "title": "Course leaderboard: {course}",
+    "activateToView": "Activate this course to view rankings and combined scores.",
     "typeLabel": "Ranking type",
     "quiz": "Quiz",
     "tryout": "Tryout",

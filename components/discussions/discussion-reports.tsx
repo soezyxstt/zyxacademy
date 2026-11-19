@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useTranslations } from "@/lib/i18n/client";
-import { Flag, Loader2 } from "lucide-react";
+import { Flag } from "lucide-react";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { Button } from "@/components/ui/button";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DiscussionMarkdown } from "./discussion-markdown";
+import { DiscussionReportsSkeleton } from "./discussion-skeleton";
 import type { DiscussionLoadState, DiscussionReport, DiscussionWorkspaceProps } from "./view-model";
 
 
@@ -30,7 +31,7 @@ export function DiscussionReports({ reports, state = "ready", onRetry, onSetStat
     setFailed(null);
     try { await onSetStatus({ reportId, status }); } catch { setFailed(reportId); } finally { setPending(null); }
   }
-  if (state === "loading") return <div role="status" className="flex items-center gap-2 p-5 text-body-sm text-muted-foreground"><Loader2 className="size-4 animate-spin motion-reduce:animate-none" />{t("loadingReports")}</div>;
+  if (state === "loading") return <DiscussionReportsSkeleton label={t("loadingReports")} />;
   if (state === "error") return <AdminEmptyState icon={Flag} title={t("reportsError")} action={<Button type="button" variant="outline" onClick={onRetry}>{t("retry")}</Button>} />;
   if (!reports.length) return <AdminEmptyState icon={Flag} title={t("noReports")} />;
   return <><AdminTable><table role="table" className="block w-full text-left text-body-sm @min-[52rem]/discussions:table">

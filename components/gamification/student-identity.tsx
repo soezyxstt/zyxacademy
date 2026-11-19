@@ -95,7 +95,26 @@ export function StudentProfileDialog({ publicId, open, onOpenChange }: { publicI
         </div>
         {social.profileHref && <Button asChild variant="outline"><Link href={social.profileHref(publicId)} onClick={() => onOpenChange(false)}>{english ? "View profile" : "Lihat profil"}</Link></Button>}
         {message && <p role="alert" className="text-body-xs text-status-error">{message}</p>}
-        <div className="flex flex-wrap gap-x-5 gap-y-2 border-y py-3 text-body-sm">{profile.baseXpMicro != null && <span><strong>{new Intl.NumberFormat(locale).format(profile.baseXpMicro / MICRO)}</strong> XP</span>}<span><strong>{new Intl.NumberFormat(locale).format(profile.followerCount)}</strong> {english ? "followers" : "pengikut"}</span><span><strong>{new Intl.NumberFormat(locale).format(profile.followingCount)}</strong> {english ? "following" : "diikuti"}</span><span><strong>{profile.earnedBadges.length}</strong> {english ? "badges" : "lencana"}</span></div>
+        <dl className={`grid grid-cols-2 gap-x-4 gap-y-2 border-y border-border py-3 text-body-sm ${profile.baseXpMicro != null ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
+          {profile.baseXpMicro != null && (
+            <div>
+              <dt className="text-body-xs text-muted-foreground">XP</dt>
+              <dd className="font-semibold tabular-nums">{new Intl.NumberFormat(locale).format(profile.baseXpMicro / MICRO)}</dd>
+            </div>
+          )}
+          <div>
+            <dt className="text-body-xs text-muted-foreground">{english ? "Followers" : "Pengikut"}</dt>
+            <dd className="font-semibold tabular-nums">{new Intl.NumberFormat(locale).format(profile.followerCount)}</dd>
+          </div>
+          <div>
+            <dt className="text-body-xs text-muted-foreground">{english ? "Following" : "Diikuti"}</dt>
+            <dd className="font-semibold tabular-nums">{new Intl.NumberFormat(locale).format(profile.followingCount)}</dd>
+          </div>
+          <div>
+            <dt className="text-body-xs text-muted-foreground">{english ? "Badges" : "Lencana"}</dt>
+            <dd className="font-semibold tabular-nums">{profile.earnedBadges.length}</dd>
+          </div>
+        </dl>
         <AchievementBoard compact badges={profile.earnedBadges} featuredBadgeIds={profile.featuredBadgeIds} title={t("profileCustomization.badgeBoard")} familyLabels={familyLabels} lockedLabel={t("profileCustomization.locked")} tierLabel={tier => t("achievementPage.tier", { tier })} />
       </div>}
     </DialogContent>

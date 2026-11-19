@@ -35,9 +35,9 @@ export function StudentDashboardContent(props: StudentDashboardContentProps | St
   if ("sections" in props) {
     return (
       <Reveal duration="duration-700" className="w-full min-w-0">
-        <div className="grid gap-6 lg:grid-cols-12 w-full min-w-0">
-          <div className="space-y-6 lg:col-span-7 min-w-0">{props.sections.primary}</div>
-          <div className="space-y-6 lg:col-span-5 min-w-0">{props.sections.secondary}</div>
+        <div className="grid gap-8 lg:grid-cols-12 w-full min-w-0">
+          <div className="space-y-8 lg:col-span-7 min-w-0">{props.sections.primary}</div>
+          <div className="space-y-8 lg:col-span-5 lg:border-l lg:border-border/35 lg:pl-8 min-w-0">{props.sections.secondary}</div>
         </div>
       </Reveal>
     );

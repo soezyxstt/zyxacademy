@@ -62,7 +62,7 @@ export function useRetainedDiscussionDrafts(invalidated: { current: boolean }) {
   return { state, discard };
 }
 
-export function DiscussionSessionGuard(props: { viewerId: string; sessionId?: string; pending: boolean; children: (state: DiscussionDraftState) => ReactNode }) {
+export function DiscussionSessionGuard(props: { viewerId: string; sessionId?: string; pending: boolean; loadingFallback?: ReactNode; children: (state: DiscussionDraftState) => ReactNode }) {
   const t = useTranslations("discussions");
   const { sessionId, pending: isPending } = props;
   const router = useRouter();
@@ -77,7 +77,7 @@ export function DiscussionSessionGuard(props: { viewerId: string; sessionId?: st
     discard();
   }, [changedAccount, discard]);
   const state = changedAccount ? "changed" : isPending ? "loading" : discussionViewerState(props.viewerId, sessionId, false);
-  if (state === "loading") return <p role="status">{t("viewerLoading")}</p>;
+  if (state === "loading") return props.loadingFallback ?? <p role="status">{t("viewerLoading")}</p>;
   if (!changedAccount && !sessionId) return <div role="alert" className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/40 p-4 text-body-sm"><span>{t("viewerExpired")}</span><Button asChild variant="outline" size="sm"><a href="/sign-in" target="_blank" rel="noopener noreferrer">{t("signInAgain")}</a></Button></div>;
   if (state === "changed") return <div role="alert" className="flex flex-wrap items-center gap-2 text-body-sm">{t("viewerChanged")}<Button type="button" variant="outline" size="sm" onClick={() => router.refresh()}>{t("reload")}</Button></div>;
   return props.children(retainedState);

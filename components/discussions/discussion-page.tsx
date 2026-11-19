@@ -12,6 +12,7 @@ import { getSessionDiscussionActor } from "@/lib/discussions/session";
 import { getEquippedZyraAppearance } from "@/lib/gamification/queries";
 import { getTranslations } from "@/lib/i18n/server";
 import { DiscussionClient } from "./discussion-client";
+import { DiscussionWorkspaceSkeleton } from "./discussion-skeleton";
 
 export async function DiscussionPage({ courseId, surface }: { courseId?: string; surface: "student" | "tutor" | "admin" }) {
   const session = await getAuthSession();
@@ -39,7 +40,7 @@ export async function DiscussionPage({ courseId, surface }: { courseId?: string;
   const backHref = courseId ? surface === "tutor" ? `/tutor/${encodeURIComponent(courseId)}` : `/courses/${encodeURIComponent(courseId)}` : undefined;
   return <ApplicationPage data-discussion-page spacing="space-y-2" className={pageClassName}>
     <PageHeader title={t("title")} backHref={backHref} className="mb-2" />
-    <Suspense fallback={<p role="status">{t("loadingThread")}</p>}>
+    <Suspense fallback={<DiscussionWorkspaceSkeleton label={t("loadingThread")} />}>
       <DiscussionClient key={`${actor.id}:${courseKey ?? "all"}:${surface}`} viewer={{ id: actor.id, name: session.user.name || t("unknownUser"), role: actor.role, skinId: appearance.skinId }} courseId={courseKey} />
     </Suspense>
   </ApplicationPage>;

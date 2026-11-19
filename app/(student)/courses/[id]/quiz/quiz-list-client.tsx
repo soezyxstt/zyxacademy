@@ -28,7 +28,7 @@ export function QuizListClient({ courseId, hasFullContentAccess, accessTier = ha
 
   return (
     <div className="font-sans">
-      {templates.length > 0 && <ul className="divide-y divide-border">
+      {templates.length > 0 && <ul className="divide-y divide-border/30">
         {templates.map((template) => {
           const isFree = template.visibility === "free";
           const accessible = accessTier === "standard"
@@ -113,8 +113,8 @@ export function QuizListClient({ courseId, hasFullContentAccess, accessTier = ha
               <Link
                 href={experience.href?.(targetHref) ?? targetHref}
                 className={cn(
-                  "group flex items-center justify-between gap-3 py-3 transition-colors",
-                  accessible && isOpen ? "hover:bg-muted/30 active:bg-muted/50" : "hover:bg-muted/30",
+                  "group -mx-2.5 flex items-center justify-between gap-3 rounded-lg px-2.5 py-3 transition-colors",
+                  accessible && isOpen ? "hover:bg-muted/40 active:bg-muted/60" : "hover:bg-muted/40",
                 )}
               >
                 <div className="min-w-0 flex-1">
@@ -184,14 +184,16 @@ export function QuizListClient({ courseId, hasFullContentAccess, accessTier = ha
       </ul>}
 
       {templates.length === 0 ? (
-        <div className="px-4 py-5 text-center">
-          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
-            <ClipboardList className="size-6" />
+        <div className="flex min-h-[50vh] flex-col items-center justify-center px-4 py-12 text-center">
+          <div className="mx-auto flex max-w-md flex-col items-center">
+            <div className="mb-3 flex size-12 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
+              <ClipboardList className="size-6" aria-hidden />
+            </div>
+            <h3 className="font-heading text-body-base font-bold text-foreground">{t("quizList.emptyTitle")}</h3>
+            <p className="mt-1 text-body-sm text-muted-foreground">
+              {t("quizList.emptyDescription")}
+            </p>
           </div>
-          <h3 className="font-heading text-body-base font-bold text-foreground">{t("quizList.emptyTitle")}</h3>
-          <p className="mx-auto mt-1 max-w-md text-body-sm text-muted-foreground">
-            {t("quizList.emptyDescription")}
-          </p>
         </div>
       ) : null}
     </div>

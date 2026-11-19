@@ -248,13 +248,19 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
           </AdminStatStrip>
 
           <Tabs value={analysisTab} onValueChange={(value) => setAnalysisTab(value as "ideas" | "relations")}>
-            <TabsList>
-              <TabsTrigger value="ideas">Idea</TabsTrigger>
-              <TabsTrigger value="relations">Peta relasi</TabsTrigger>
-            </TabsList>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <TabsList>
+                <TabsTrigger value="ideas">Idea</TabsTrigger>
+                <TabsTrigger value="relations">Peta relasi</TabsTrigger>
+              </TabsList>
+              {analysisTab === "ideas" && (
+                <div className="min-w-[140px] flex-1 max-w-xs">
+                  <SearchBar size="sm" value={query} onSearch={setQuery} onClear={() => setQuery("")} placeholder="Cari kode atau isi Idea" />
+                </div>
+              )}
+            </div>
 
             <TabsContent value="ideas" className="space-y-4">
-              <SearchBar value={query} onSearch={setQuery} onClear={() => setQuery("")} placeholder="Cari kode atau isi Idea" />
               <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
                 <div className="lg:border-r lg:border-border lg:pr-3">
                   <p className="px-2 pb-2 pt-1 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Daftar Idea</p>

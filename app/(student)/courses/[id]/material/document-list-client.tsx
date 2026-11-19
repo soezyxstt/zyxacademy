@@ -23,7 +23,9 @@ import {
   MoreVertical,
   Pencil,
   Plus,
+  Search,
   Trash2,
+  X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -73,6 +75,7 @@ type DocumentListClientProps = {
   isAdmin?: boolean;
   accessTier?: "free" | "standard";
   lockedMaterialCount?: number;
+  tabsSlot?: React.ReactNode;
 };
 
 const tabConfig: Array<{ key: TabKey; label: string; icon: typeof FileText }> = [
@@ -81,13 +84,6 @@ const tabConfig: Array<{ key: TabKey; label: string; icon: typeof FileText }> = 
   { key: "pdf", label: "pdf", icon: FileText },
   { key: "bank_soal", label: "questionBank", icon: ClipboardList },
 ];
-
-const categoryLabel: Record<string, string> = {
-  materi: "material",
-  soal: "questions",
-  solusi: "explanation",
-  diktat: "handbook",
-};
 
 function displayFileSizeLabel(value: string, t: (key: string) => string): string {
   const labels: Record<string, string> = {
@@ -451,8 +447,10 @@ export function DocumentListClient({
   isAdmin = false,
   accessTier,
   lockedMaterialCount = 0,
+  tabsSlot,
 }: DocumentListClientProps) {
   const t = useTranslations("learning");
+  const tSearch = useTranslations("search");
   const router = useRouter();
   const initialDefaultTab = normalizeTabKey(defaultTab);
   const [urlTab, setUrlTab] = useUrlTab("tab", initialDefaultTab);
@@ -461,11 +459,29 @@ export function DocumentListClient({
   const searchLabel = t("documents.searchPlaceholder", { category: tabLabel.toLowerCase() });
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchTriggerRef = useRef<HTMLButtonElement>(null);
+  const isSearchOpen = searchExpanded || searchQuery.length > 0;
   const [filters, setFilters] = useState<DocumentFilterState>(emptyFilters);
   const [selectedPdf, setSelectedPdf] = useState<CourseMaterial | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CourseMaterial | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    if (searchExpanded) {
+      searchInputRef.current?.focus();
+    }
+  }, [searchExpanded]);
+
+  const closeSearch = (restoreFocus = false) => {
+    setSearchQuery("");
+    setSearchExpanded(false);
+    if (restoreFocus) {
+      requestAnimationFrame(() => searchTriggerRef.current?.focus());
+    }
+  };
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
@@ -493,6 +509,7 @@ export function DocumentListClient({
       prevTabRef.current = activeTab;
       setFilters(emptyFilters());
       setSearchQuery("");
+      setSearchExpanded(false);
     }
   }, [activeTab]);
 
@@ -563,32 +580,91 @@ export function DocumentListClient({
         </div>
       ) : null}
       {/* Unified Toolbar: Tab Strip, SearchBar, Filter Popover, Grid/List Toggle */}
-      <div className="group/document-toolbar flex flex-wrap items-center gap-2">
-        <Tabs value={activeTab} onValueChange={(value) => handleTabChange(normalizeTabKey(value))}>
-          <TabsList aria-label={t("documents.categoryLabel")}>
-            {tabConfig.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <TabsTrigger key={tab.key} value={tab.key}>
-                  <Icon className="size-3.5 shrink-0" />
-                  <span>{t(`documents.categories.${tab.label}`)}</span>
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
-        </Tabs>
+      <div className="group/document-toolbar flex flex-wrap items-center justify-between gap-2">
+        {tabsSlot ?? (
+          <Tabs value={activeTab} onValueChange={(value) => handleTabChange(normalizeTabKey(value))}>
+            <TabsList aria-label={t("documents.categoryLabel")}>
+              {tabConfig.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <TabsTrigger key={tab.key} value={tab.key}>
+                    <Icon className="size-3.5 shrink-0" />
+                    <span>{t(`documents.categories.${tab.label}`)}</span>
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </Tabs>
+        )}
 
-        <div className="flex min-w-fit flex-1 items-center gap-1 group-has-[[data-search-expanded=true]]/document-toolbar:min-w-36">
-          <SearchBar
-            collapsible
-            size="sm"
-            variant="bordered"
-            value={searchQuery}
-            onSearch={setSearchQuery}
-            aria-label={searchLabel}
-            placeholder={searchLabel}
-            containerClassName="max-w-sm"
-          />
+        <div className="flex min-w-fit flex-1 items-center justify-end gap-1 group-has-[[data-search-expanded=true]]/document-toolbar:min-w-44">
+          {isSearchOpen ? (
+            <div data-search-expanded="true" className="min-w-0 flex-1 max-w-sm">
+              <SearchBar
+                ref={searchInputRef}
+                size="sm"
+                variant="bordered"
+                value={searchQuery}
+                onSearch={setSearchQuery}
+                onClear={() => closeSearch(true)}
+                onBlur={(event) => {
+                  if (!searchQuery.trim() && !event.currentTarget.parentElement?.contains(event.relatedTarget as Node | null)) {
+                    setSearchExpanded(false);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape" && !event.defaultPrevented && !event.nativeEvent.isComposing) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    closeSearch(true);
+                  }
+                }}
+                rightSection={
+                  searchQuery.length === 0 ? (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            data-search-close=""
+                            aria-label={tSearch("closeSearch")}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => closeSearch(true)}
+                          >
+                            <X aria-hidden />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{tSearch("closeSearch")}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : undefined
+                }
+                aria-label={searchLabel}
+                placeholder={searchLabel}
+              />
+            </div>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    ref={searchTriggerRef}
+                    type="button"
+                    variant="ghost"
+                    size="icon-lg"
+                    aria-label={searchLabel}
+                    aria-expanded={false}
+                    onClick={() => setSearchExpanded(true)}
+                  >
+                    <Search aria-hidden />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{searchLabel}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
 
           {/* Filter Popover */}
           <TooltipProvider>
@@ -738,18 +814,20 @@ export function DocumentListClient({
                 className="group flex flex-col self-start min-w-0 border-t border-border/60 transition-colors hover:bg-muted/20 focus-visible:outline-2 focus-visible:outline-ring text-left"
               >
                 {/* Header */}
-                <div className="py-2.5">
-                  <div className="flex min-h-7 items-center gap-1.5">
-                    <DocumentHeaderIcon
-                      kind={material.kind}
-                      docCategory={material.docCategory}
-                      subcategory={material.subcategory}
-                    />
-                    {babBadge && (
-                      <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-body-2xs font-semibold text-foreground/80 ring-1 ring-border">
-                        {babBadge}
-                      </span>
-                    )}
+                <div className="px-3.5 py-3">
+                  <div className="flex min-h-7 items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <DocumentHeaderIcon
+                        kind={material.kind}
+                        docCategory={material.docCategory}
+                        subcategory={material.subcategory}
+                      />
+                      {babBadge && (
+                        <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-body-2xs font-semibold text-foreground/80 ring-1 ring-border">
+                          {babBadge}
+                        </span>
+                      )}
+                    </div>
                   {isAdmin ? (
                     <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                       {material.status ? (
@@ -884,11 +962,22 @@ export function DocumentListClient({
           {filteredMaterials.map((material) => {
             const itemHref = material.href ?? `/courses/${courseId}/material/${material.id}`;
             const isPageNav = forcePageNavigation || isPageNavigationMaterial(material);
-            const subLabel = material.kind === "solution_collection"
+            const subcategoryLabel = material.kind === "solution_collection"
               ? t("documents.materialTypes.solution_collection")
               : material.subcategory
-                ? getSubcategoryLabel(material.subcategory as any) ?? material.subcategory
-                : categoryLabel[material.docCategory ?? "materi"];
+                ? getSubcategoryLabel(material.subcategory as CourseMaterialSubcategory) ?? material.subcategory
+                : null;
+            const rawFileSize = material.fileSize?.trim();
+            const fileSizeLabel =
+              rawFileSize &&
+              !/^(diktat(\s+resmi|\s+canonical)?|pdf|artikel|materi|berkas\s+pdf(\s+itb)?)$/i.test(rawFileSize)
+                ? displayFileSizeLabel(rawFileSize, t)
+                : null;
+            const metaItems = [
+              subcategoryLabel,
+              material.year ? String(material.year) : null,
+              fileSizeLabel,
+            ].filter((val): val is string => Boolean(val));
             const { babBadge, title: cleanTitle } = parseMaterialTitle(material.title, courseTitle);
 
             return (
@@ -898,9 +987,9 @@ export function DocumentListClient({
                   itemHref={itemHref}
                   isPageNav={isPageNav}
                   onSelectPdf={setSelectedPdf}
-                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-2.5 transition-colors hover:bg-muted/30 md:grid-cols-[minmax(0,1fr)_160px_100px_auto]"
+                  className="flex items-center justify-between gap-3 py-2.5 transition-colors hover:bg-muted/30"
                 >
-                  <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
                     <div className="relative aspect-[16/10] w-24 sm:w-32 shrink-0 overflow-hidden rounded-md border border-border/60 bg-muted/20">
                       <CompactDocumentRowThumbnail material={material} />
                     </div>
@@ -918,34 +1007,13 @@ export function DocumentListClient({
                           {cleanTitle}
                         </span>
                       </div>
-                      <p className="mt-0.5 break-words text-body-xs text-muted-foreground md:hidden">
-                        {subLabel}
-                        {material.year ? ` · ${material.year}` : ""}
-                        {material.fileSize && !/^diktat(\s+resmi|\s+canonical)?$/i.test(material.fileSize.trim()) ? ` · ${displayFileSizeLabel(material.fileSize, t)}` : ""}
-                      </p>
+                      {metaItems.length > 0 ? (
+                        <p className="mt-0.5 truncate text-body-xs text-muted-foreground">
+                          {metaItems.join(" · ")}
+                        </p>
+                      ) : null}
                     </div>
-                    {material.locked ? (
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-body-2xs font-semibold text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
-                        <LockKeyhole className="size-2.5" />
-                        Terkunci
-                      </span>
-                    ) : material.completed ? (
-                      <CheckCircle2 className="size-3.5 shrink-0 text-status-success" />
-                    ) : null}
                   </div>
-                  <span className="hidden truncate text-body-xs text-muted-foreground md:block">
-                    {subLabel}
-                  </span>
-                  <span className="hidden text-body-xs text-muted-foreground md:block">
-                    {[
-                      material.year ? String(material.year) : null,
-                      material.fileSize && !/^diktat(\s+resmi|\s+canonical)?$/i.test(material.fileSize.trim())
-                        ? displayFileSizeLabel(material.fileSize, t)
-                        : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || "-"}
-                  </span>
                   {isAdmin ? (
                     <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                       {material.status ? (
@@ -1021,23 +1089,41 @@ export function DocumentListClient({
                       </DropdownMenu>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                      {material.url && allowDownload ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
-                          asChild
-                          title={t("documents.downloadPdf")}
-                          aria-label={`${t("documents.downloadPdf")} ${material.title}`}
-                        >
-                          <a href={material.url} download target="_blank" rel="noopener noreferrer">
-                            <Download className="size-3.5" />
-                          </a>
-                        </Button>
+                    <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      {material.locked ? (
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-body-2xs font-semibold text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
+                          <LockKeyhole className="size-2.5" />
+                          Terkunci
+                        </span>
                       ) : null}
-                      <ChevronRight className="size-4 text-muted-foreground/60" />
+                      <span className="flex w-5 shrink-0 items-center justify-center">
+                        {!material.locked && material.completed ? (
+                          <CheckCircle2
+                            className="size-4 text-status-success"
+                            aria-label={t("documents.markAsRead")}
+                          />
+                        ) : null}
+                      </span>
+                      {allowDownload ? (
+                        <span className="flex w-7 shrink-0 items-center justify-center">
+                          {material.url && !material.locked ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+                              asChild
+                              title={t("documents.downloadPdf")}
+                              aria-label={`${t("documents.downloadPdf")} ${material.title}`}
+                            >
+                              <a href={material.url} download target="_blank" rel="noopener noreferrer">
+                                <Download className="size-3.5" />
+                              </a>
+                            </Button>
+                          ) : null}
+                        </span>
+                      ) : null}
+                      <ChevronRight className="size-4 shrink-0 text-muted-foreground/60" aria-hidden />
                     </div>
                   )}
                 </DocumentItemWrapper>

@@ -1,10 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   BookOpen,
   CheckCircle2,
   Circle,
@@ -91,7 +89,6 @@ function StructuredArticleReaderContent({
   course,
   mode = "learner",
   pythonBrowserOnly = false,
-  backHref,
   prevMaterial,
   nextMaterial,
   isTocOpen: controlledTocOpen,
@@ -497,9 +494,11 @@ function StructuredArticleReaderContent({
   const overallPercent = Math.min(100, Math.round((completedCount / totalSections) * 100));
 
   const handleFinishArticle = () => {
-    if (adapter) { if (adapter.ready) { adapter.onComplete(); router.push(backHref ?? `/courses/${article.courseId}/material`); } return; }
+    if (adapter) {
+      if (adapter.ready) adapter.onComplete();
+      return;
+    }
     completeRemaining();
-    router.push(backHref ?? `/courses/${article.courseId}/material`);
   };
 
   const handleNextMaterial = () => {
@@ -680,29 +679,8 @@ function StructuredArticleReaderContent({
           <header className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur-sm">
             <TooltipProvider delayDuration={150}>
               <div className="flex items-center justify-between px-4 py-2 gap-3 max-w-7xl mx-auto w-full">
-                {/* Left: Back button + Chapter Title */}
+                {/* Left: Chapter Title */}
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        asChild
-                        className="text-muted-foreground hover:text-foreground shrink-0 rounded-lg"
-                        aria-label={t("articleReader.backToMaterial")}
-                      >
-                        <Link href={backHref ?? `/courses/${article.courseId}/material`}>
-                          <ArrowLeft className="size-4" />
-                        </Link>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" align="start">
-                      <span>{t("articleReader.backToMaterial")}</span>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <div className="h-4 w-px bg-border/70 shrink-0" />
-
                   <div className="min-w-0">
                     <p className="truncate text-body-2xs font-medium text-muted-foreground uppercase tracking-wider">
                       <MathText className="normal-case">{courseTitle}</MathText>
@@ -907,24 +885,11 @@ function StructuredArticleReaderContent({
                       variant="default"
                       size="default"
                       onClick={handleFinishArticle}
-                      disabled={adapter ? !adapter.ready : false}
+                      disabled={adapter ? (!adapter.ready || adapter.completed) : overallPercent >= 100}
                       className="rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground font-semibold gap-1.5"
                     >
-                      <span>{t("articleReader.backToMaterials")}</span>
-                      <ChevronRight className="size-4" />
-                    </Button>
-                  )}
-
-                  {nextMaterial && (
-                    <Button
-                      variant="ghost"
-                      size="default"
-                      asChild
-                      className="rounded-lg text-muted-foreground hover:text-foreground font-semibold"
-                    >
-                      <Link href={backHref ?? `/courses/${article.courseId}/material`}>
-                        <span>{t("articleReader.materialList")}</span>
-                      </Link>
+                      <CheckCircle2 className="size-4" />
+                      <span>{t("articleReader.readComplete")}</span>
                     </Button>
                   )}
                 </div>
@@ -937,11 +902,6 @@ function StructuredArticleReaderContent({
               <p className="text-body-sm text-muted-foreground">
                 {t("articleReader.noPublishedSections")}
               </p>
-              <Button asChild variant="outline">
-                <Link href={backHref ?? `/courses/${article.courseId}/material`}>
-                  {t("articleReader.backToMaterials")}
-                </Link>
-              </Button>
             </div>
           )}
         </main>

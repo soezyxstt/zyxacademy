@@ -14,8 +14,6 @@ import { getCourse } from "@/lib/course-utils";
 import { db } from "@/db";
 import { exams, questions } from "@/db/schema";
 import { and, eq, asc } from "drizzle-orm";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import type { ExamFixture } from "@/lib/student-course-fixtures";
 import { TranslatedText } from "@/components/i18n/translated-text";
 import { FormattedDate } from "@/components/ui/formatted-date";
@@ -116,11 +114,6 @@ export default async function CourseTryoutTakePage({ params }: Props) {
               <TranslatedText namespace="learning" messageKey="tryoutTake.opensOn" />{" "}
               <strong className="text-foreground"><FormattedDate date={openDate} options={{ dateStyle: "medium", timeStyle: "short" }} /></strong>.
             </p>
-            <div className="mt-5">
-              <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
-                <Link href={`/courses/${id}/tryout`}><TranslatedText namespace="learning" messageKey="tryoutTake.backToList" /></Link>
-              </Button>
-            </div>
           </div>
         </Reveal>
       </CoursePageShell>
@@ -137,11 +130,6 @@ export default async function CourseTryoutTakePage({ params }: Props) {
               <TranslatedText namespace="learning" messageKey="tryoutTake.closedSince" />{" "}
               <strong className="text-foreground"><FormattedDate date={closeDate} options={{ dateStyle: "medium", timeStyle: "short" }} /></strong>.
             </p>
-            <div className="mt-5">
-              <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
-                <Link href={`/courses/${id}/tryout`}><TranslatedText namespace="learning" messageKey="tryoutTake.backToList" /></Link>
-              </Button>
-            </div>
           </div>
         </Reveal>
       </CoursePageShell>

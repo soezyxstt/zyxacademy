@@ -94,9 +94,10 @@ function TabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimi
 function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
   return (
     <TabsPrimitive.Trigger
+      data-slot="tabs-trigger"
       className={cn(
         tabTriggerClassName,
-        "data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-xs",
+        "data-[state=active]:text-foreground data-[state=active]:after:bg-primary data-[state=active]:hover:bg-transparent",
         className
       )}
       {...props}

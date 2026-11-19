@@ -25,15 +25,15 @@ function formatRelativeTime(isoString: string, locale: "id" | "en", t: ReturnTyp
 export function RecentActivitySkeleton() {
   return (
     <section className="min-w-0">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="size-5 bg-muted rounded-md animate-pulse" />
-        <div className="h-5 w-40 bg-muted rounded-md animate-pulse" />
+      <div className="mb-1.5 flex items-center gap-1.5 border-b border-border/40 pb-2">
+        <div className="size-3.5 bg-muted rounded animate-pulse" />
+        <div className="h-3.5 w-28 bg-muted rounded animate-pulse" />
       </div>
-      <div className="divide-y divide-border">
+      <div className="divide-y divide-border/30">
         {[1, 2, 3].map((i) => (
           <div key={i} className="py-3 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 w-full">
-              <div className="size-8 bg-muted rounded-md animate-pulse shrink-0" />
+              <div className="size-8 bg-muted rounded-lg animate-pulse shrink-0" />
               <div className="space-y-1.5 w-full">
                 <div className="h-4 w-1/3 bg-muted rounded-md animate-pulse" />
                 <div className="h-3 w-1/2 bg-muted rounded-md animate-pulse" />
@@ -90,17 +90,19 @@ export function RecentActivityCard({
 
   return (
     <section className="min-w-0">
-      <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2 mb-2">
-        <History className="size-4.5 text-brand-primary" aria-hidden="true" />
-        {t("course.recentActivity.title")}
-      </h3>
+      <div className="mb-1.5 flex items-center gap-1.5 border-b border-border/40 pb-2">
+        <History className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <h3 className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {t("course.recentActivity.title")}
+        </h3>
+      </div>
 
       {!isEmpty ? (
-        <div className="divide-y divide-border zebra-no-rows animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="divide-y divide-border/30 zebra-no-rows animate-in fade-in slide-in-from-bottom-2 duration-300">
           {data.map((activity) => (
-            <div key={activity.id} className="py-3.5 flex items-start justify-between gap-4">
+            <div key={activity.id} className="py-3 flex items-start justify-between gap-4">
               <div className="flex items-start gap-3 min-w-0">
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/60 border border-border/40 mt-0.5">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/50 mt-0.5">
                   {getIcon(activity.type)}
                 </div>
                 <div className="min-w-0">

@@ -285,6 +285,21 @@
  @apply border-border outline-ring/50;
  }
 
+ button:not(:disabled),
+ [role="button"]:not([aria-disabled="true"]),
+ [role="tab"]:not([aria-disabled="true"]),
+ [role="menuitem"]:not([aria-disabled="true"]),
+ [role="option"]:not([aria-disabled="true"]),
+ summary {
+ cursor: pointer;
+ }
+
+ button:disabled,
+ [role="button"][aria-disabled="true"],
+ [role="tab"][aria-disabled="true"] {
+ cursor: not-allowed;
+ }
+
  [role="tab"]:focus-visible:not([data-slot="button"]),
  [data-slot="tabs-trigger"]:focus-visible,
  a:focus-visible:not([data-slot]),
