@@ -14,7 +14,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
 CODE = {'.ts', '.tsx', '.js', '.jsx', '.mjs', '.mts', '.cts', '.cjs'}
-SCOPES = ('web', 'worker', 'v4', 'authoring', 'schedule', 'plugin', 'typecheck', 'test_typecheck', 'structured_typecheck', 'i18n', 'ci')
+SCOPES = ('web', 'worker', 'cloud_run', 'v4', 'authoring', 'schedule', 'plugin', 'typecheck', 'test_typecheck', 'structured_typecheck', 'i18n', 'ci')
 LOCKS = {'package.json', 'bun.lock', 'package-lock.json', '.npmrc'}
 SCHEDULE_TESTS = {
     'tests/contracts/tutorial-week-policy.test.ts',
@@ -164,6 +164,12 @@ def plan(changed, head, base=None, force=False):
             result['web'] = True
         if path.startswith(('workers/deno-background/', 'workers/neon-background/', 'jobs/', 'scripts/neon/')):
             result['worker'] = True
+        if (path in {'Dockerfile.cloud-run', '.dockerignore', 'next.config.ts', 'proxy.ts',
+                     'lib/storage/public-media.ts', 'lib/storage/public-media.json',
+                     '.github/scripts/smoke-cloud-run.sh', '.github/scripts/deploy_cloud_run_staging.py',
+                     '.github/scripts/import_cloud_run_staging_secrets.py', '.github/scripts/cloud_run_runtime.py'}
+                or path.startswith(('deploy/cloud-run/', 'workers/staging-web-edge/', 'scripts/cloud-run/'))):
+            result['cloud_run'] = True
         if path == 'tsconfig.structured-articles.json':
             result['structured_typecheck'] = True
         if path.startswith('lib/authoring/'):
@@ -182,7 +188,8 @@ def plan(changed, head, base=None, force=False):
         if path.startswith('tests/') and suffix in CODE or path == 'tsconfig.test.json':
             result['test_typecheck'] = True
     # Changing a reusable workflow explicitly revalidates its own surface.
-    workflows = {'deploy-web.yml': 'web', 'deploy.yml': 'worker', 'deploy-neon-worker.yml': 'worker', 'authoring-skills.yml': 'authoring',
+    workflows = {'deploy-web.yml': 'web', 'deploy-cloud-run-staging.yml': 'cloud_run', 'deploy.yml': 'worker',
+                 'deploy-neon-worker.yml': 'worker', 'authoring-skills.yml': 'authoring',
                  'schedule-regressions.yml': 'schedule', 'sync-plugin.yml': 'plugin'}
     for file, scope in workflows.items():
         if '.github/workflows/' + file in changed:

@@ -123,3 +123,33 @@ test("origin guard covers static and dynamic paths and forwards streaming HTTP s
   child.kill("SIGTERM");
   assert.deepEqual(await exited, [0, null]);
 });
+
+test("origin gateway exits 0 when standalone server exits 143 on SIGTERM", { timeout: 8000 }, async t => {
+  const dir = await mkdtemp(join(tmpdir(), "zyx-origin-sigterm-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  await writeFile(join(dir, "server.js"), `
+    const { createServer } = require("node:http");
+    const server = createServer((_req, res) => res.end("ok"));
+    process.on("SIGTERM", () => server.close(() => process.exit(143)));
+    server.listen(Number(process.env.PORT), process.env.HOSTNAME);
+  `);
+
+  const port = await freePort();
+  const child = spawn(process.execPath, [gateway], {
+    cwd: dir,
+    env: { ...process.env, PORT: String(port), CLOUD_RUN_ORIGIN_TOKEN: token, BETTER_AUTH_URL: publicOrigin },
+    stdio: ["ignore", "pipe", "inherit"],
+  });
+  const exited = once(child, "exit");
+  t.after(async () => {
+    child.kill("SIGKILL");
+    await exited;
+  });
+  await Promise.race([
+    once(child.stdout, "data"),
+    exited.then(() => assert.fail("Origin gateway exited during startup")),
+  ]);
+
+  child.kill("SIGTERM");
+  assert.deepEqual(await exited, [0, null]);
+});

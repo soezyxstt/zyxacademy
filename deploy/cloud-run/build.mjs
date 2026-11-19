@@ -70,8 +70,10 @@ const result = spawnSync("bun", ["run", "build"], { env: buildEnv, stdio: "inher
 if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status ?? 1);
 
-// The exact Next.js launcher serializes a resolved config. The loopback-only
-// standalone server must use the public Host supplied by our authenticated gateway.
+// The exact Next.js launcher serializes a resolved config. Keep standalone
+// trustHostHeader at its default (false) so resolve-routes and next-server
+// derive the same internal initURL for proxy.ts redirects and locale rewrites,
+// while origin-gateway supplies canonical Host and X-Forwarded-* headers.
 const launcher = ".next/standalone/server.js";
 const source = readFileSync(launcher, "utf8");
 const marker = "process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)";
@@ -79,7 +81,6 @@ if (source.split(marker).length !== 2) {
   throw new Error("Next.js standalone launcher changed. Review the Cloud Run Host boundary.");
 }
 writeFileSync(launcher, source.replace(marker, [
-  "nextConfig.experimental.trustHostHeader = true",
   "nextConfig.images.maximumDiskCacheSize = 64 * 1024 * 1024",
   marker,
 ].join("\n")));

@@ -39,7 +39,7 @@ ENV NODE_ENV=production \
     ZYX_MCP_ENVIRONMENT=staging \
     HOSTNAME=0.0.0.0 \
     PORT=8080
-RUN apt-get update && apt-get install --yes --no-install-recommends libfontconfig1 fonts-liberation \
+RUN apt-get update && apt-get install --yes --no-install-recommends ca-certificates libfontconfig1 fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static/

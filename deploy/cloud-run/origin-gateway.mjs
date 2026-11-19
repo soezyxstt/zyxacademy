@@ -129,7 +129,13 @@ let stopping = false;
 let startupDeadline;
 
 child.on("error", () => process.exit(1));
-child.on("exit", (code) => process.exit(stopping ? (code ?? 0) : (code || 1)));
+// Next.js standalone start-server catches SIGTERM/SIGINT and exits with 143/130.
+child.on("exit", (code, signal) => {
+  if (stopping && (code === 0 || code === 130 || code === 143 || code === null || signal === "SIGTERM" || signal === "SIGINT")) {
+    process.exit(0);
+  }
+  process.exit(code || 1);
+});
 
 function stop() {
   if (stopping) return;
