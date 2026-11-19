@@ -229,7 +229,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts, queueHeader 
   // Active Review Workspace
   if (activeAttempt) {
     return (
-      <div className="space-y-6 font-sans">
+      <div className="space-y-(--section-gap) font-sans">
         <div className="flex min-w-0 items-center gap-2 border-b border-border pb-4">
           <TooltipProvider>
             <Tooltip>
@@ -269,7 +269,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts, queueHeader 
             return (
               <div
                 key={q.id}
-                className="space-y-3 py-3"
+                className="space-y-(--compact-gap) py-(--row-padding)"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -309,12 +309,10 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts, queueHeader 
                   )}
                 </div>
 
-                <div className="text-body-sm text-foreground">
-                  <MarkdownRenderer content={q.prompt} />
-                </div>
+                <MarkdownRenderer content={q.prompt} />
 
                 {q.acceptableAnswers && q.acceptableAnswers.length > 0 && (
-                  <div className="text-body-xs text-muted-foreground">
+                  <div className="text-body-base text-muted-foreground">
                     <span className="font-semibold text-foreground">{tr("referenceAnswer")} </span>
                     {q.acceptableAnswers.join(", ")}
                   </div>
@@ -324,7 +322,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts, queueHeader 
                   <span className="text-body-xs font-semibold text-muted-foreground">
                     {tr("studentAnswer")}
                   </span>
-                  <div className="border-l-2 border-border pl-3 text-body-sm text-foreground whitespace-pre-wrap">
+                  <div className="border-l-2 border-border pl-3 text-body-base text-foreground whitespace-pre-wrap">
                     {q.submittedText ? (
                       <MathText>{q.submittedText}</MathText>
                     ) : (
@@ -335,14 +333,14 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts, queueHeader 
 
                 {/* R2 uploaded attachment if present */}
                 {q.fileName && (
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-(--compact-gap) border-t border-border p-3">
                     <div className="flex min-w-0 items-center gap-2.5">
                       <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-status-success/10 text-status-success">
                         <FileText className="size-4" />
                       </span>
                       <div className="min-w-0">
                         <p className="max-w-[200px] truncate text-body-xs font-bold text-foreground md:max-w-xs">{q.fileName}</p>
-                        <p className="text-body-2xs text-muted-foreground">{q.fileSize || tr("pdfImage")} • {tr("cloudStorage")}</p>
+                        <p className="text-body-xs text-muted-foreground">{q.fileSize || tr("pdfImage")} • {tr("cloudStorage")}</p>
                       </div>
                     </div>
                     {q.fileKey ? (
@@ -372,7 +370,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts, queueHeader 
                 )}
 
                 {q.isFreeResponse && input && (
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-3 border-t border-border/60">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-(--related-gap) pt-3 border-t border-border/60">
                     <div className="space-y-1.5">
                       <label htmlFor={`score-${q.id}`} className="text-body-sm font-semibold text-foreground">
                         {tr("score")} {q.isEssay ? <span className="text-destructive">*</span> : null}
@@ -429,7 +427,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts, queueHeader 
 
   // Queue View
   return (
-    <div className="space-y-6 font-sans">
+    <div className="space-y-(--section-gap) font-sans">
       {queueHeader}
       {/* Search and filters toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-2 max-sm:[&:has(>[data-search-expanded=true])>:not([data-search-expanded=true])]:hidden">
@@ -475,7 +473,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts, queueHeader 
                         {tr("essaysRemaining", { count: item.remainingEssayCount })}
                       </Badge>
                     </div>
-                    <div className="text-body-xs text-muted-foreground flex flex-wrap items-center gap-3">
+                    <div className="text-body-xs text-muted-foreground flex flex-wrap items-center gap-(--compact-gap)">
                       <span className="inline-flex min-w-0 items-center gap-1">
                         <User className="size-3 shrink-0" aria-hidden />
                         <span className="min-w-0 [overflow-wrap:anywhere]">{item.studentName ?? tr("studentFallback")} ({item.studentEmail})</span>

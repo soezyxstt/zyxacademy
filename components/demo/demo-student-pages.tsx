@@ -93,7 +93,7 @@ export function DemoStudentPage({ view, experience: { content, snapshot }, maste
  if (view === "live") return <LiveStudentPage />;
  if (view === "playground") return <CoursePageShell title="Playground Python" icon={Code2}><div data-plain-canvas><Playground courseId={courseId} learnerId="fictional-demo-student" /></div></CoursePageShell>;
  if (view === "feedback") return <ApplicationPage><PageHeader title={<TranslatedText namespace="student" messageKey="feedback.title" />} icon={MessageSquareHeart} /><div className="mt-4"><FeedbackForm initialEmail={account.email} /></div></ApplicationPage>;
- if (view === "settings") return <SettingsClient userName={account.name} userEmail={account.email} />;
+ if (view === "settings") return <SettingsClient />;
  if (view === "notifications") return <ApplicationPage>
    <PageHeader title={<TranslatedText namespace="student" messageKey="notificationPreferences.title" />} icon={Bell} backHref={href("/settings")} backLabel={<TranslatedText namespace="student" messageKey="settings.title" />} />
    <div className="mt-6"><NotificationPreferencesForm accountEmail={account.email} initialPreferences={DEFAULT_EMAIL_NOTIFICATION_PREFERENCES} /></div>

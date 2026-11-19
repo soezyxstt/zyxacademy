@@ -171,10 +171,10 @@ function QuizPlayerContent(props: QuizPlayerProps & { submit: (payload: QuizSubm
   );
 
   return (
-    <div className="grid grid-cols-1 items-start gap-4 font-sans md:gap-6 lg:grid-cols-12">
+    <div className="grid grid-cols-1 items-start gap-(--related-gap) font-sans md:gap-(--section-gap) lg:grid-cols-12">
       
       {/* LEFT COLUMN: Main player and Question details (8 cols on lg) */}
-      <div className="space-y-4 md:space-y-5 lg:col-span-8">
+      <div className="space-y-(--related-gap) md:space-y-(--group-gap) lg:col-span-8">
         
         {/* Progress Bar & Header */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border pb-2 md:pb-3">
@@ -219,16 +219,14 @@ function QuizPlayerContent(props: QuizPlayerProps & { submit: (payload: QuizSubm
             <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-primary text-body-xs font-bold text-primary-foreground shadow-xs md:size-8 md:text-body-sm">
               {index + 1}
             </span>
-            <div className="space-y-1 flex-1 leading-relaxed text-foreground">
-              <div className="font-sans text-body-base font-bold leading-normal">
-                <InteractiveDocumentAttempt value={transport ? null : { courseId: visualCourseId, attemptId, questionId: q.id, field: "prompt" }}><MarkdownRenderer content={q.prompt} className="space-y-3" /></InteractiveDocumentAttempt>
-              </div>
+            <div className="min-w-0 flex-1 text-foreground">
+              <InteractiveDocumentAttempt value={transport ? null : { courseId: visualCourseId, attemptId, questionId: q.id, field: "prompt" }}><MarkdownRenderer content={q.prompt} /></InteractiveDocumentAttempt>
             </div>
           </div>
 
           {/* Options Display / Short Answer / Essay Input */}
           {q.type === "short_answer" || q.type === "essay" ? (
-            <div className="mt-4 space-y-3 md:mt-5">
+            <div className="mt-5 space-y-3">
               <label className="block text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {q.type === "short_answer" ? t("quiz.shortAnswerLabel") : t("quiz.essayLabel")}
               </label>
@@ -240,14 +238,14 @@ function QuizPlayerContent(props: QuizPlayerProps & { submit: (payload: QuizSubm
                   placeholder={t("quiz.shortAnswerPlaceholder")}
                 />
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-(--related-gap)">
                   <textarea
                     rows={6}
                     disabled={submitting || isSubmitted}
                     value={answerText}
                     onChange={(event) => setAnswerText(q.id, event.target.value, true)}
                     placeholder={t("quiz.essayPlaceholder")}
-                    className="w-full rounded-lg border border-border bg-background p-3 font-sans text-body-sm font-medium leading-relaxed transition-all hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none"
+                    className="w-full rounded-lg border border-border bg-background p-3 font-sans text-body-base transition-all hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none"
                   />
 
                   {/* Cloudflare R2 file uploader widget for Essay */}
@@ -258,7 +256,7 @@ function QuizPlayerContent(props: QuizPlayerProps & { submit: (payload: QuizSubm
                     </span>
 
                     {!essayAnswer?.fileName && !uploadingFile[q.id] ? (
-                      <div className="relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/10 p-5 text-center transition-all hover:border-brand-primary/40 hover:bg-muted/20">
+                      <div className="relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/10 p-(--group-gap) text-center transition-all hover:border-brand-primary/40 hover:bg-muted/20">
                         <input
                           type="file"
                           accept=".pdf,image/*"
@@ -320,7 +318,7 @@ function QuizPlayerContent(props: QuizPlayerProps & { submit: (payload: QuizSubm
               )}
             </div>
           ) : (
-            <div className="mt-4 space-y-3 md:mt-5">
+            <div className="mt-5 space-y-3">
               {/* Type indicator banner / info */}
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2.5">
                 <div className="flex items-center gap-2">
@@ -357,7 +355,7 @@ function QuizPlayerContent(props: QuizPlayerProps & { submit: (payload: QuizSubm
               <ul
                 role={isMultiple ? "group" : "radiogroup"}
                 aria-label={isMultiple ? t("quiz.multipleAnswersAria") : t("quiz.singleAnswerAria")}
-                className="space-y-2 md:space-y-2.5"
+                className="space-y-2"
               >
                 {q.options.map((opt, i) => {
                   const selected = isMultiple
@@ -370,7 +368,7 @@ function QuizPlayerContent(props: QuizPlayerProps & { submit: (payload: QuizSubm
                     <li key={i}>
                       <div
                         data-question-option
-                        className={quizOptionClasses(selected ? "selected" : "idle")}
+                        className={quizOptionClasses(selected ? "selected" : "idle", "min-h-11 items-start py-3 font-normal")}
                         onClick={(event) => {
                           if (submitting || isSubmitted) return;
                           // Visual controls and plot gestures must not select an answer.
@@ -388,7 +386,7 @@ function QuizPlayerContent(props: QuizPlayerProps & { submit: (payload: QuizSubm
                             event.stopPropagation();
                             selectOption(q.id, i, isMultiple);
                           }}
-                          className="flex shrink-0 items-center gap-2.5 self-start rounded-md py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed md:gap-3"
+                          className="flex shrink-0 items-center gap-2.5 self-start rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed md:gap-3"
                         >
                         {/* Circle (Radio) vs Boxie (Checkbox) Option Indicator */}
                         <span
@@ -417,7 +415,7 @@ function QuizPlayerContent(props: QuizPlayerProps & { submit: (payload: QuizSubm
                         </span>
 
                         </button>
-                        <div id={`quiz-option-${q.id}-${i}`} className="min-w-0 flex-1 break-words leading-normal text-foreground">
+                        <div id={`quiz-option-${q.id}-${i}`} className="min-w-0 flex-1 wrap-break-word text-foreground">
                           <InteractiveDocumentAttempt value={transport ? null : { courseId: visualCourseId, attemptId, questionId: q.id, field: "option", option: i }}><MarkdownRenderer content={opt} className="space-y-3" /></InteractiveDocumentAttempt>
                         </div>
                       </div>
@@ -429,7 +427,7 @@ function QuizPlayerContent(props: QuizPlayerProps & { submit: (payload: QuizSubm
           )}
 
           {/* Flagging Option Widget inside Card */}
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2.5 border-t border-border/80 pt-3">
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-2.5 border-t border-border/80 pt-3">
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -507,10 +505,10 @@ function QuizPlayerContent(props: QuizPlayerProps & { submit: (payload: QuizSubm
       </div>
 
       {/* RIGHT COLUMN: Sidebar Question Grid & Info (4 cols on lg) */}
-      <div className="space-y-4 lg:col-span-4 lg:space-y-5 lg:border-l lg:border-border lg:pl-6">
+      <div className="space-y-(--related-gap) lg:col-span-4 lg:space-y-(--group-gap) lg:border-l lg:border-border lg:pl-(--section-gap)">
         
         {/* Navigation Grid panel */}
-        <div className="space-y-3 md:space-y-5">
+        <div className="space-y-(--compact-gap) md:space-y-(--group-gap)">
           <div className="hidden lg:block">
             <h3 className="flex items-center gap-2 font-heading text-body-sm font-bold text-foreground">
               <BookOpen className="size-4 text-brand-primary" />
@@ -544,7 +542,7 @@ function QuizPlayerContent(props: QuizPlayerProps & { submit: (payload: QuizSubm
           if (!submitting) setShowConfirmModal(open);
         }}
       >
-        <DialogContent className="max-w-md rounded-2xl border border-border p-6 shadow-xl text-left">
+        <DialogContent className="max-w-md rounded-2xl border border-border p-(--section-gap) shadow-xl text-left">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               {t("quiz.confirmSubmitTitle")}

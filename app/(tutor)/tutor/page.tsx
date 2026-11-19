@@ -57,7 +57,7 @@ export default async function TutorPage() {
   ];
 
   return (
-    <ApplicationPage spacing="space-y-4">
+    <ApplicationPage>
       <PageHeader
         title={t("title")}
         icon={LayoutDashboard}
@@ -91,7 +91,7 @@ export default async function TutorPage() {
         })}
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(300px,0.75fr)]">
+      <div className="grid gap-(--section-gap) xl:grid-cols-[minmax(0,1.25fr)_minmax(300px,0.75fr)]">
         <section className="min-w-0 border-t border-border">
           <div className="flex items-center justify-between gap-3 border-b border-border py-2.5">
             <div>
@@ -119,7 +119,7 @@ export default async function TutorPage() {
                 <Link
                   key={booking.id}
                   href="/tutor/schedule?tab=sessions"
-                  className="group flex min-w-0 items-start gap-3 py-3 transition-colors hover:bg-muted/30"
+                  className="group flex min-w-0 items-start gap-3 py-(--row-padding) transition-colors hover:bg-muted/30"
                 >
                   <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
                     <Clock3 className="size-4" aria-hidden />
@@ -156,7 +156,7 @@ export default async function TutorPage() {
           ) : (
             <div className="divide-y divide-border">
               {pendingTickets.slice(0, 5).map((ticket) => (
-                <Link key={ticket.id} href="/tutor/schedule?tab=tickets" className="block py-3 transition-colors hover:bg-muted/30">
+                <Link key={ticket.id} href="/tutor/schedule?tab=tickets" className="block py-(--row-padding) transition-colors hover:bg-muted/30">
                   <p className="text-body-sm font-semibold text-foreground">
                     {ticket.type === "cancellation" ? t("cancellationRequest") : t("rescheduleRequest")}
                   </p>
@@ -193,7 +193,7 @@ export default async function TutorPage() {
                 <Link
                   key={course.courseId}
                   href={`/tutor/${course.courseId}`}
-                  className="group flex min-w-0 items-center gap-3 py-3 transition-colors hover:bg-muted/30"
+                  className="group flex min-w-0 items-center gap-3 py-(--row-padding) transition-colors hover:bg-muted/30"
                 >
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground group-hover:text-brand-primary">
                     <BookOpen className="size-4" aria-hidden />

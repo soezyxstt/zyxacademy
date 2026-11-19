@@ -35,7 +35,7 @@ export default async function ProfilePage() {
   return <ApplicationPage><PageHeader title={t("profile.pageTitle")} icon={UserRound} />
    <ProfileHero name={row?.name || user.name} image={row?.image}
     academicInfo={[row?.faculty, row?.major, row?.entryYear].filter(Boolean).join(" · ")}
-    actions={<Button asChild variant="outline"><Link href="/profile/edit">{t("profile.editProfile")}</Link></Button>} />
+    actions={<Button asChild variant="outline"><Link href="/settings?tab=profile">{t("profile.editProfile")}</Link></Button>} />
   </ApplicationPage>;
  }
  const [settings, badges, rewards, summary, enrollments] = await Promise.all([getStudentSocialSettings(user.id), getAchievementBadges(user.id), getGamificationRewards(user.id), getGamificationSummary(user.id), listStudentEnrollments(user.id)]);
@@ -45,5 +45,5 @@ export default async function ProfilePage() {
  const familyLabels = Object.fromEntries(profileBadgeFamilies.map(family => [family, t(`profileCustomization.families.${family}`)])) as Record<BadgeFamily, string>;
  return <StudentProfileView locale={locale} name={settings.displayName || row?.name || user.name} image={row?.image} frameId={frame} themeId={theme} title={title} zyraAvatarId={zyraAvatar} academicInfo={[row?.faculty, row?.major, row?.entryYear].filter(Boolean).join(" · ")} rank={summary.rankKey} baseXpMicro={summary.baseXpMicro} bonusXpMicro={summary.bonusXpMicro} lpBalance={summary.lpBalance} stats={stats} enrollments={enrollments} badges={badges} featuredBadgeIds={settings.featuredBadgeIds} followSection={<ProfileFollowList />}
  labels={{ pageTitle: t("profile.pageTitle"), edit: t("profile.editProfile"), active: t("profile.activeClassesStat"), completed: t("profile.completedMaterialsStat"), exams: t("profile.completedExamsStat"), average: t("profile.averageScoreStat"), badgeBoard: t("profileCustomization.badgeBoard"), familyLabels, locked: t("profileCustomization.locked"), tiers: [1, 2, 3, 4, 5].map(tier => t("achievementPage.tier", { tier })), achievements: t("profileCustomization.achievements"), enrolled: t("profile.enrolledClasses"), noCourses: locale === "en" ? "No enrolled classes" : "Belum ada kelas yang diikuti", groups: t("profile.groupsTitle"), tutorials: t("profile.upcomingTutorials"), reflections: t("profile.reflections") }}
- links={{ edit: "/profile/edit", achievements: "/achievements?tab=badges", courses: "/courses", course: "/courses", groups: "/dashboard/groups", schedule: "/dashboard/schedule", reflections: "/profile/reflections" }} />;
+ links={{ edit: "/settings?tab=profile", achievements: "/achievements?tab=badges", courses: "/courses", course: "/courses", groups: "/dashboard/groups", schedule: "/dashboard/schedule", reflections: "/profile/reflections" }} />;
 }

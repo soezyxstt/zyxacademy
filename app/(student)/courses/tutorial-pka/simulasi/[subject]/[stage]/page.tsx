@@ -157,7 +157,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
             </Reveal>
 
             <Reveal>
-              <div className="space-y-4">
+              <div className="space-y-(--related-gap)">
                 <h2 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="explanation" /></h2>
                 <div className="divide-y divide-border/60">
                 {snapshot.map((q, idx) => {
@@ -186,14 +186,14 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
 
                   const selectedText = typeof rawSel === "string" ? rawSel : selected.map((i: number) => q.options[i]).filter(Boolean).join("; ");
                   return (
-                    <div key={q.id} className="p-4">
+                    <div key={q.id} className="p-(--panel-padding)">
                       <div className="flex items-start gap-2.5">
                         <span className={quizOptionLetterClasses(isCorrect ? "correct" : "wrong")}>{idx + 1}</span>
                         <div className="min-w-0 flex-1 text-body-base font-medium text-foreground">
-                          <MarkdownRenderer content={q.prompt} className="space-y-3" />
+                          <MarkdownRenderer content={q.prompt} className="space-y-(--compact-gap)" />
                         </div>
                       </div>
-                      <ul className="mt-3 space-y-2 sm:pl-9">
+                      <ul className="mt-(--compact-gap) space-y-2 sm:pl-9">
                         {q.options.map((opt, i) => {
                           const isSelected = selected.includes(i);
                           const isRight = correct.includes(i);
@@ -201,16 +201,16 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                           return (
                             <li key={i} className={quizOptionClasses(state)}>
                               <span className={quizOptionLetterClasses(state)}>{String.fromCharCode(65 + i)}</span>
-                              <MarkdownRenderer content={opt} className="space-y-3" />
+                              <MarkdownRenderer content={opt} className="space-y-(--compact-gap)" />
                             </li>
                           );
                         })}
                       </ul>
                       {q.explanation && (
-                        <div className="mt-4 space-y-3 border-t border-border/80 pt-4 sm:ml-9">
+                        <div className="mt-(--related-gap) space-y-(--compact-gap) border-t border-border/80 pt-(--related-gap) sm:ml-9">
                           <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="explanation" /></h4>
                           <div className="text-body-sm text-muted-foreground leading-relaxed">
-                            <MarkdownRenderer content={q.explanation} className="space-y-3" />
+                            <MarkdownRenderer content={q.explanation} className="space-y-(--compact-gap)" />
                           </div>
                         </div>
                       )}

@@ -175,7 +175,7 @@ export const ZyraComposerInput = React.forwardRef<ZyraComposerInputHandle, Props
           "&": { fontSize: "inherit", minHeight: "36px", maxHeight: "160px" },
           ".cm-scroller": { overflow: "auto", maxHeight: "160px", fontFamily: "inherit" },
           ".cm-content": { minHeight: "36px", padding: "4px", caretColor: "currentColor" },
-          ".cm-line": { lineHeight: "1.65" },
+          ".cm-line": { lineHeight: "1.5" },
           "&.cm-focused": { outline: "none" },
           ".cm-placeholder": { color: "var(--muted-foreground)" },
           ".zyra-composer-bold": { fontWeight: "bold" },

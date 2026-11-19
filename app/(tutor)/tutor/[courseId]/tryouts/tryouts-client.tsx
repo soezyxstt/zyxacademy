@@ -321,7 +321,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
       return typeof content?.bankQuestionId === "string" ? [content.bankQuestionId] : [];
     }));
     return (
-      <div className="space-y-4">
+      <div className="space-y-(--related-gap)">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <TooltipProvider>
@@ -373,7 +373,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
               const content = typeof q.content === "string" ? JSON.parse(q.content) : q.content;
               return (
                 <div key={q.id} className="relative py-3">
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start justify-between gap-(--related-gap)">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary text-body-xs font-bold font-mono">
@@ -383,7 +383,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                           {tr(q.type)}
                         </Badge>
                       </div>
-                      <MarkdownRenderer content={content.prompt} className="pt-1 text-body-sm" />
+                      <MarkdownRenderer content={content.prompt} className="pt-1" />
                       {provenanceEnabled && content.origin === "itb_example" && content.sourceEventName ? (
                         <p className="mt-2 text-body-xs font-medium text-muted-foreground">{tr("source")} {content.sourceEventName}</p>
                       ) : provenanceEnabled ? (
@@ -480,7 +480,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                 const alreadyImported = importedBankIds.has(question.id);
                 const checked = selectedBankIds.has(question.id) || alreadyImported;
                 return (
-                  <div key={question.id} className="flex items-start gap-3 py-3">
+                  <div key={question.id} className="flex items-start gap-(--compact-gap) py-3">
                     <Checkbox
                       id={`bank-question-${question.id}`}
                       checked={checked}
@@ -498,7 +498,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                         <span className="text-body-xs text-muted-foreground">{tr(question.difficulty)}</span>
                         {alreadyImported ? <span className="text-body-xs font-medium text-status-success">{tr("alreadyAdded")}</span> : null}
                       </div>
-                      <MarkdownRenderer content={question.prompt} className="mt-1 text-body-sm" />
+                      <MarkdownRenderer content={question.prompt} className="mt-1" />
                       {provenanceEnabled && question.origin === "itb_example" && question.sourceEventName ? <p className="mt-1 text-body-xs text-muted-foreground">{tr("source")} {question.sourceEventName}</p> : null}
                     </label>
                   </div>
@@ -547,8 +547,8 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
               </DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-4 my-2 font-sans overflow-y-auto max-h-[65vh] pr-1">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-(--related-gap) my-2 font-sans overflow-y-auto max-h-[65vh] pr-1">
+              <div className="grid grid-cols-1 gap-(--related-gap) sm:grid-cols-2">
                 <div className="grid gap-2">
                   <Label htmlFor="que-type" className="text-body-sm font-semibold">{tr("questionType")}</Label>
                   <Select value={qType} onValueChange={(val: any) => {
@@ -594,14 +594,14 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
 
               {/* RENDER EDIT MC OPTIONS */}
               {(qType === "multiple_choice" || qType === "multiple_choices") && (
-                <div className="space-y-3">
+                <div className="space-y-(--compact-gap)">
                   <Label className="text-body-sm font-semibold block">{tr("answerOptions")}</Label>
                   {qOptions.map((opt, i) => {
                     const checked = qType === "multiple_choice"
                       ? qCorrectIndex === i
                       : qCorrectIndices.includes(i);
                     return (
-                      <div key={i} className="flex items-center gap-3">
+                      <div key={i} className="flex items-center gap-(--compact-gap)">
                         <button
                           type="button"
                           aria-label={quizTr("markCorrect", { letter: String.fromCharCode(65 + i) })}
@@ -645,7 +645,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
 
               {/* RENDER ESSAY OPTIONS */}
               {qType === "essay" && (
-                <div className="flex items-center justify-between gap-3 border-t border-border pt-3 select-none">
+                <div className="flex items-center justify-between gap-(--compact-gap) border-t border-border pt-3 select-none">
                   <Label htmlFor="que-file" className="text-body-sm font-semibold cursor-pointer">
                     {tr("allowFiles")}
                   </Label>
@@ -674,7 +674,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
 
   // Default Listing view
   return (
-    <div className="space-y-4">
+    <div className="space-y-(--related-gap)">
       {/* Header action */}
       <div className="flex flex-wrap justify-between items-center gap-2">
         <span className="text-body-xs text-muted-foreground">{tr("tryoutCount", { count: initialTryouts.length })}</span>
@@ -765,7 +765,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 my-2 font-sans">
+          <div className="space-y-(--related-gap) my-2 font-sans">
             <div className="grid gap-2">
               <Label htmlFor="t-title" className="text-body-sm font-semibold">{tr("tryoutTitle")}</Label>
               <Input
@@ -777,7 +777,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-(--related-gap) sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="t-time" className="text-body-sm font-semibold">{tr("timeMinutes")}</Label>
                 <Input
@@ -817,7 +817,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
               </Select>
             </div>
 
-            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid min-w-0 grid-cols-1 gap-(--related-gap) sm:grid-cols-2">
               <div className="grid min-w-0 gap-2">
                 <Label htmlFor="t-open" className="text-body-sm font-semibold">{tr("opensAt")}</Label>
                 <Input

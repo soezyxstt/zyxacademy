@@ -44,7 +44,7 @@ export function CoursePageShell({
   }
 
   return (
-    <ApplicationPage maxWidth={maxWidth} spacing="space-y-3" className={cn("relative pb-8", className)}>
+    <ApplicationPage maxWidth={maxWidth} spacing="space-y-(--compact-gap)" className={cn("relative pb-8", className)}>
       {!hideHeader && title && (
         <PageHeader
           title={title}

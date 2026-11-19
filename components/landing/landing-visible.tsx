@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { useAppReducedMotion } from "@/components/appearance-preferences";
+
 type LandingVisibleProps = {
  children: ReactNode;
  className?: string;
@@ -24,6 +26,7 @@ export function LandingVisible({
  rootMargin = "0px 0px -12% 0px",
  threshold = 0.15,
 }: LandingVisibleProps) {
+ const reducedMotion = useAppReducedMotion();
  const ref = useRef<HTMLDivElement | null>(null);
  const [visible, setVisible] = useState(false);
 
@@ -33,7 +36,7 @@ export function LandingVisible({
 
  if (
  typeof window.IntersectionObserver === "undefined" ||
- window.matchMedia("(prefers-reduced-motion: reduce)").matches
+ reducedMotion
  ) {
  setVisible(true);
  return;
@@ -51,7 +54,7 @@ export function LandingVisible({
 
  observer.observe(node);
  return () => observer.disconnect();
- }, [rootMargin, threshold, visible]);
+ }, [rootMargin, threshold, visible, reducedMotion]);
 
  return (
  <div ref={ref} data-visible={visible ? "true" : "false"} className={className}>

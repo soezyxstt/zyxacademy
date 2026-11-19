@@ -22,6 +22,7 @@ const INITIAL_STATE: StudentProfileActionState = {
 };
 
 interface ProfileEditFormProps {
+  stayOnPage?: boolean;
   user: {
     id: string;
     name: string;
@@ -36,7 +37,7 @@ interface ProfileEditFormProps {
  * Interactive form component for editing student ITB academic profile details.
  * Reactively cascades available major options when a faculty is chosen.
  */
-export function ProfileEditForm({ user }: ProfileEditFormProps) {
+export function ProfileEditForm({ user, stayOnPage = false }: ProfileEditFormProps) {
   const t = useTranslations("student");
   const experience = useStudentExperience();
   const href = (path: string) => experience.href?.(path) ?? path;
@@ -69,11 +70,11 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
     shownSubmission.current = state.submittedAt;
     if (state.success) {
       toast.success(t("profile.saved"));
-      router.push(experience.href?.("/profile") ?? "/profile");
+      if (!stayOnPage) router.push(experience.href?.("/profile") ?? "/profile");
     } else {
       toast.error(t("profile.saveFailed"));
     }
-  }, [state, router, t, experience]);
+  }, [state, router, t, experience, stayOnPage]);
 
   const facultyOptions = ITB_FACULTIES.map((f) => ({
     value: f.code,
@@ -127,8 +128,8 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
           // React's automatic form reset also resets Radix selects after failed saves.
           const form = new FormData(event.currentTarget);
           startTransition(() => formAction(form));
-        }} className="space-y-4">
-          <div className="grid min-w-0 gap-4 md:grid-cols-2 [&_button[role=combobox]]:h-auto [&_button[role=combobox]]:min-h-10 [&_button[role=combobox]>span]:text-left">
+        }} className="space-y-(--related-gap)">
+          <div className="grid min-w-0 grid-cols-1 gap-(--related-gap) md:grid-cols-2 [&_button[role=combobox]]:h-auto [&_button[role=combobox]]:min-h-10 [&_button[role=combobox]>span]:text-left [&_button[role=combobox]>span]:whitespace-normal [&_button[role=combobox]>span]:break-words">
           <SelectField
             id="faculty"
             name="faculty"

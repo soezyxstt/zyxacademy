@@ -96,9 +96,11 @@ test("flashcard visual interaction preserves the active face", async ({ page }, 
   await expect(slider).toHaveValue("2");
   await expect(back).toHaveAttribute("inert", "");
   await capture(page, testInfo, "flashcard-front-visual");
-  await front.getByText("Ketuk untuk membalik", { exact: false }).click();
+  const showAnswer = front.getByRole("button", { name: "Ketuk untuk membalik kartu" });
+  await showAnswer.press("Enter");
   await expect(front).toHaveAttribute("inert", "");
   await expect(back).not.toHaveAttribute("inert", "");
+  await expect(back.getByRole("button", { name: "Ketuk untuk kembali ke pertanyaan" })).toBeFocused();
   const answerGraph = back.getByRole("figure", { name: "Grafik pembahasan", exact: true });
   await answerGraph.scrollIntoViewIfNeeded();
   await expect(answerGraph.locator('svg[role="img"]')).toBeVisible();

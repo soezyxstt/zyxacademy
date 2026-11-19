@@ -34,17 +34,17 @@ export function LandingHero() {
         </>
       }
     >
-      <div className="landing-stagger grid items-center gap-10 lg:grid-cols-2 lg:gap-14 xl:gap-20 [&>*]:[animation-delay:120ms]">
+      <div className="landing-stagger grid items-center gap-(--reading-section-gap) lg:grid-cols-2 lg:gap-marketing-section xl:gap-section [&>*]:[animation-delay:120ms]">
         <div className="max-w-xl text-left [&>*:nth-child(1)]:[animation-delay:0ms] [&>*:nth-child(2)]:[animation-delay:60ms] [&>*:nth-child(3)]:[animation-delay:120ms] [&>*:nth-child(4)]:[animation-delay:180ms] [&>*:nth-child(5)]:[animation-delay:240ms]">
           <SectionHeading as="h1" tier="hero" id="landing-hero-heading" className="text-foreground">
             {t("home.heroTitle")}{" "}
             <span className="font-bold italic text-primary">{t("home.heroEmphasis")}</span>
           </SectionHeading>
-          <p className="mt-4 max-w-prose text-body-base text-muted-foreground">
+          <p className="mt-(--related-gap) max-w-prose text-body-base text-muted-foreground">
             {t("home.heroDescription")}
           </p>
 
-          <div className="mt-7 flex flex-wrap items-center gap-3">
+          <div className="mt-(--section-gap) flex flex-wrap items-center gap-(--compact-gap)">
             <Button asChild variant="marketingPrimary" size="marketing">
               <LocalizedAuthLink href="/sign-up">{t("home.startFree")}</LocalizedAuthLink>
             </Button>

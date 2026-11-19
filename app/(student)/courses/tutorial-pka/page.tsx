@@ -111,7 +111,7 @@ export default async function PkaCourseHomePage() {
 
       icon={GraduationCap}
     >
-      <div className="space-y-6">
+      <div className="space-y-(--section-gap)">
         <Reveal>
           <PkaCountdown targetDate={PKA_ASSUMED_TEST_DATE.toISOString()} />
         </Reveal>
@@ -136,7 +136,7 @@ export default async function PkaCourseHomePage() {
         {/* Next session */}
         <Reveal>
           <section className="space-y-3">
-            <div className="flex items-center justify-between gap-4 border-b border-border pb-2">
+            <div className="flex items-center justify-between gap-(--related-gap) border-b border-border pb-2">
               <h2 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="nextSession" /></h2>
               <Link
                 href="/courses/tutorial-pka/jadwal"
@@ -186,7 +186,7 @@ export default async function PkaCourseHomePage() {
         {/* Progress snapshot */}
         <Reveal>
           <section className="space-y-3">
-            <div className="flex items-center justify-between gap-4 border-b border-border pb-2">
+            <div className="flex items-center justify-between gap-(--related-gap) border-b border-border pb-2">
               <h2 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="examSimulation" /></h2>
               <Link
                 href="/courses/tutorial-pka/leaderboard?type=simulation"

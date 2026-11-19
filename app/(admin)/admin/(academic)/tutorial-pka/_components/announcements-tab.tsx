@@ -1,5 +1,6 @@
 "use client";
 
+import { getAppScrollBehavior } from "@/components/appearance-preferences";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Send, History, Megaphone, CheckCircle2, XCircle, Users, Pin, Edit2 } from "lucide-react";
@@ -74,7 +75,7 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
     setEditingId(row.id);
     setTitle(row.title);
     setBody(row.body);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: getAppScrollBehavior() });
   };
 
   const handleCancelEdit = () => {

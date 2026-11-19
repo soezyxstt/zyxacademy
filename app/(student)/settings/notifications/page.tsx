@@ -25,12 +25,12 @@ export default async function NotificationPreferencesPage() {
 
   const preferences = await getEmailNotificationPreferences(session.user.id);
   return (
-    <ApplicationPage spacing="space-y-3">
+    <ApplicationPage spacing="space-y-(--compact-gap)">
       <PageHeader
         title={<TranslatedText namespace="student" messageKey="notificationPreferences.title" />}
         icon={Bell}
-        backHref="/settings"
-        backLabel={<TranslatedText namespace="student" messageKey="settings.title" />}
+        backHref="/settings?tab=email"
+        backLabel={<TranslatedText namespace="common" messageKey="preferences" />}
       />
       <Reveal>
         <NotificationPreferencesForm accountEmail={session.user.email} initialPreferences={preferences} />

@@ -11,7 +11,6 @@ import {
   ChevronDown,
   ChevronRight,
   LayoutDashboard,
-  User,
   CalendarRange,
   Trophy,
   Medal,
@@ -29,7 +28,6 @@ import {
   Search,
   BarChart3,
   Users,
-  Bell,
   MessageSquareText,
 } from "lucide-react";
 import { DiscussionCountBadge } from "@/components/discussions/discussion-count-badge";
@@ -493,22 +491,6 @@ function StudentSidebarContent({
             </div>
           )}
         </div>
-
-        <NavItem
-          href={href("/profile")}
-          icon={User}
-          label={t("settings.profile")}
-          active={pathname === "/profile"}
-          collapsed={c}
-        />
-
-        <NavItem
-          href={href("/settings/notifications")}
-          icon={Bell}
-          label={t("settings.emailNotifications")}
-          active={pathname === "/settings/notifications"}
-          collapsed={c}
-        />
 
         <div className="flex-1" />
       </nav>

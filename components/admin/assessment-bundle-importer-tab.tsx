@@ -1,5 +1,6 @@
 "use client";
 
+import { getAppScrollBehavior } from "@/components/appearance-preferences";
 import React, { useState, useRef, useEffect } from "react";
 import { toast } from "@/components/ui/toast";
 import { useTranslations } from "@/lib/i18n/client";
@@ -53,7 +54,7 @@ export function AssessmentBundleImporterTab() {
 
   useEffect(() => {
     if (terminalEndRef.current) {
-      terminalEndRef.current.scrollIntoView({ behavior: "smooth" });
+      terminalEndRef.current.scrollIntoView({ behavior: getAppScrollBehavior() });
     }
   }, [result?.logs, loading]);
 

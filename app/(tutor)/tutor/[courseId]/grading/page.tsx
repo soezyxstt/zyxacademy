@@ -142,7 +142,7 @@ export default async function TutorGradingPage({ params }: Props) {
   await db.transaction(tx => recordStaffCourseDisclosures(tx, { userId: session.user.id, courseId, questionIds: [...bankIds], contextId: "tryout-grading", requestId: crypto.randomUUID(), unmappedCourse }));
 
   return (
-    <ApplicationPage spacing="space-y-5">
+    <ApplicationPage spacing="space-y-(--group-gap)">
       <Reveal>
         <GradingClient
           courseId={courseId}

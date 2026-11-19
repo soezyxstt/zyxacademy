@@ -204,7 +204,7 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
 
   if (!activeGroup) {
     return (
-      <section className="mx-auto max-w-xl border-t border-border/60 py-4">
+      <section className="mx-auto max-w-xl border-t border-border/60 py-(--panel-padding)">
         <div className="flex items-center gap-2">
           <Users className="size-4 text-brand-primary" />
           <h2 className="font-heading text-body-base font-bold text-foreground">{t("groups.join")}</h2>
@@ -235,7 +235,7 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-(--related-gap)">
       {initialGroups.length > 1 ? (
         <Tabs value={activeGroup.id} onValueChange={setSelectedGroupId} syncUrl={false}>
           <TabsList aria-label={t("groups.selectGroup")}>
@@ -246,8 +246,8 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
         </Tabs>
       ) : null}
 
-      <section className="border-t border-border/60 py-4">
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/50 pb-4">
+      <section className="border-t border-border/60 py-(--panel-padding)">
+        <div className="flex flex-wrap items-start justify-between gap-(--compact-gap) border-b border-border/50 pb-(--related-gap)">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <h2 className="min-w-0 break-words font-heading text-h5 font-bold text-foreground">
@@ -285,7 +285,7 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
 
         {activeGroup.totalQuotaSessions > 0 ? (
           <div className="py-4">
-            <div className="flex items-end justify-between gap-4">
+            <div className="flex items-end justify-between gap-(--related-gap)">
               <div>
                 <p className="text-body-xs text-muted-foreground">{t("groups.packageQuota")}</p>
                 <p className="font-heading text-h5 font-bold text-foreground">
@@ -337,10 +337,10 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
           </div>
 
           <div className="border-t border-border/50 py-4 sm:border-l sm:border-t-0 sm:pl-5">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-(--compact-gap)">
               <div className="min-w-0">
                 <p className="text-body-sm font-semibold text-foreground">{t("groups.members")}</p>
-                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+                <div className="mt-2 flex flex-wrap gap-x-(--related-gap) gap-y-2">
                   {activeGroup.members.map((member) => <StudentIdentity key={member.id} name={member.isMe ? t("groups.memberYou", { name: member.name }) : member.name} identity={member.identity} />)}
                 </div>
               </div>
@@ -362,7 +362,7 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
         ) : null}
 
         {activeGroup.token && activeGroup.members.length < activeGroup.token.capacity ? (
-          <div className="flex items-center justify-between gap-3 border-t border-border/50 pt-4">
+          <div className="flex items-center justify-between gap-(--compact-gap) border-t border-border/50 pt-(--related-gap)">
             <div className="min-w-0">
               <p className="text-body-xs text-muted-foreground">{t("groups.inviteToken")}</p>
               <p className="break-all font-mono text-body-sm font-semibold text-foreground">{activeGroup.token.token}</p>

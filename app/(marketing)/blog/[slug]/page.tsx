@@ -88,7 +88,7 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
   return (
     <article className="min-h-screen bg-background pb-20">
       {/* Outer Wrapper with tight top padding (SiteMain handles header space) */}
-      <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 py-6 md:py-8">
+      <div className="max-w-7xl mx-auto px-(--page-gutter) py-6 md:py-8">
 
         {/* Back Button */}
         <TooltipProvider>
@@ -105,19 +105,19 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
         </TooltipProvider>
 
         {/* 2-Column Grid on Large Screens */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-(--reading-section-gap) lg:gap-section-sm items-start">
 
           {/* Left Column: Article content (consistent width!) */}
-          <div className="lg:col-span-9 space-y-6">
-            <div className="min-w-0 space-y-6">
+          <div className="lg:col-span-9 space-y-(--section-gap)">
+            <div className="min-w-0 space-y-(--section-gap)">
               {/* Header info */}
-              <div className="space-y-4">
+              <div className="space-y-(--related-gap)">
 
                 <h1 className="text-h4 md:text-h3 font-heading font-bold text-foreground leading-tight">
                   {article.title}
                 </h1>
 
-                <div className="flex flex-wrap items-center gap-5 text-body-sm text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-(--related-gap) text-metadata text-muted-foreground">
                   <div className="flex items-center">
                     <User className="w-4 h-4 mr-2" />
                     {article.author?.name || t("blog.authorFallback")}
@@ -168,11 +168,11 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
               )}
 
               {/* Content Body */}
-              <div className="prose prose-zinc dark:prose-invert max-w-none prose-headings:font-heading pt-4">
+              <div className="prose prose-zinc dark:prose-invert max-w-[75ch] min-w-0 prose-headings:font-heading">
                 <MarkdownRenderer content={article.content} />
               </div>
 
-              <div className="pt-8 border-t border-border mt-12">
+              <div className="border-t border-border pt-6">
               <ShareBlock
                   slug={article.slug}
                   title={article.title}

@@ -52,7 +52,7 @@ export function StreakCalendarStrip({ current, weeklyActivity = [] }: StreakCale
               <div
                 title={`${t(`dashboard.weekdays.${day}`)}: ${isActive ? t("dashboard.dayDone") : t("dashboard.dayNotDone")}`}
                 className={cn(
-                  "flex w-full aspect-square max-w-[24px] items-center justify-center rounded-md text-[10px] font-bold transition-colors",
+                  "flex w-full aspect-square max-w-[24px] items-center justify-center rounded-md text-body-2xs font-bold transition-colors",
                   isActive
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted/60 text-muted-foreground/40 border border-border/50",

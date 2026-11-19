@@ -365,7 +365,7 @@ export function CourseVideosClient({
                       <span className="w-16 shrink-0 text-body-xs font-semibold text-brand-primary">
                         Playlist {index + 1}
                       </span>
-                      <span className="min-w-0 flex-1 truncate font-heading text-body-sm font-semibold text-foreground">
+                      <span className="min-w-0 flex-1 wrap-break-word font-heading text-body-sm font-semibold text-foreground">
                         {playlist.title}
                       </span>
                       <span className="shrink-0 text-body-xs text-muted-foreground">
@@ -455,7 +455,7 @@ export function CourseVideosClient({
                           <div
                             key={video.id}
                             className={cn(
-                              "group flex items-center justify-between gap-3 px-3.5 py-2.5 transition-colors hover:bg-muted/40",
+                              "group flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/40",
                               isLocked ? "opacity-90 cursor-pointer" : "cursor-pointer"
                             )}
                             onClick={() => handlePlayVideo(video, playlist)}
@@ -486,7 +486,7 @@ export function CourseVideosClient({
                                   )}
                                 </div>
                                 {video.duration && video.duration > 0 ? (
-                                  <div className="absolute bottom-1 right-1 rounded bg-black/75 px-1 py-0.5 text-[10px] font-medium text-white tabular-nums leading-none">
+                                  <div className="absolute bottom-1 right-1 rounded bg-black/75 px-1 py-0.5 text-body-xs font-medium text-white tabular-nums leading-none">
                                     {Math.floor(video.duration / 60)}:
                                     {String(video.duration % 60).padStart(2, "0")}
                                   </div>
@@ -498,7 +498,7 @@ export function CourseVideosClient({
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                   <h4
                                     className={cn(
-                                      "text-body-sm font-semibold truncate text-foreground transition-colors",
+                                      "text-body-sm font-semibold wrap-break-word text-foreground transition-colors",
                                       isLocked
                                         ? "group-hover:text-amber-600 dark:group-hover:text-amber-400"
                                         : "group-hover:text-brand-primary"

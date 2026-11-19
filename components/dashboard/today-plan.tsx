@@ -122,7 +122,7 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
                     </span>
 
                     {item.count != null && (
-                      <Badge variant="outline" className="shrink-0 rounded-md border-border/50 px-1.5 py-0.2 text-[10px]">
+                      <Badge variant="outline" className="shrink-0 rounded-md border-border/50 px-1.5 py-0.2 text-body-2xs">
                         {t("dashboard.cardsCount", { count: item.count })}
                       </Badge>
                     )}

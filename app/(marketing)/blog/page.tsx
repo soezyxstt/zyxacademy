@@ -118,7 +118,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
           />
         </Reveal>
 
-        <div className="mx-auto max-w-7xl space-y-14 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+        <div className="mx-auto max-w-7xl space-y-(--reading-section-gap) px-(--page-gutter) py-10 lg:py-14">
           <nav aria-label={t("blog.categoryNav")} className="flex flex-wrap gap-2">
             {CATEGORIES.map((category) => {
               const href = category.value ? `/blog?category=${category.value}` : "/blog";
@@ -213,7 +213,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                 );
               })}
 
-              <section aria-labelledby="blog-features-heading" className="space-y-6 border-t border-border pt-10">
+              <section aria-labelledby="blog-features-heading" className="space-y-(--section-gap) border-t border-border pt-8">
                 <div className="max-w-2xl space-y-2">
                     <SectionHeading as="h2" id="blog-features-heading" tier="secondary" className="text-foreground">
                     {t("blog.featuresTitle")}

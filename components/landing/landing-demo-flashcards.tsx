@@ -42,7 +42,7 @@ async function StreakStrip() {
  <div key={entry.day} className="flex flex-col items-center gap-1">
  <span
  className={cn(
- "flex size-7 items-center justify-center rounded-md border text-[10px] font-bold",
+ "flex size-7 items-center justify-center rounded-md border text-body-2xs font-bold",
  entry.done
  ? "border-transparent bg-[var(--zx-accent)]/85 text-white"
  : "border-border bg-muted/40 text-muted-foreground",
@@ -68,7 +68,7 @@ export async function LandingDemoFlashcards() {
  const t = await getTranslations("marketing");
  return (
  <SectionContainer className="bg-background" aria-labelledby="landing-flashcards-heading">
- <div className="grid min-w-0 items-center gap-12 lg:grid-cols-2 lg:gap-16">
+ <div className="grid min-w-0 items-center gap-section-sm lg:grid-cols-2 lg:gap-marketing-section">
  <div className="min-w-0 max-w-xl">
  <SectionHeading as="h2" id="landing-flashcards-heading" className="text-foreground">
  {t("home.flashcardsTitle")}

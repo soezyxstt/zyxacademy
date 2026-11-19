@@ -11,22 +11,17 @@ import {
   PanelLeftClose,
   ChevronDown,
   ChevronRight,
-  User,
   LayoutDashboard,
+  SlidersHorizontal,
   ShieldCheck,
   GraduationCap,
-  Sun,
-  Moon,
-  Monitor,
   ChevronsUpDown,
   Pin,
   Archive,
   Eye,
   EyeOff,
-  Languages,
 } from "lucide-react";
 import { DropdownMenu, HoverCard } from "radix-ui";
-import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
 import { useCommandMenu } from "@/components/command-menu";
@@ -34,7 +29,7 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 import { signOut } from "@/lib/auth-client";
 import { StudentAccountBoundary, type StudentAccountState } from "@/components/student-account-boundary";
 import { useStudentExperience } from "@/components/student-experience-provider";
-import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import { useTranslations } from "@/lib/i18n/client";
 import { useSwipe } from "@/hooks/use-swipe";
 import { useZyraPetVisibility } from "@/hooks/use-zyra-pet-visibility";
 import { isMaterialReaderPathname } from "@/lib/materials/reader-layout";
@@ -417,10 +412,8 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
 
 function SidebarUserMenuContent({ collapsed, session }: { collapsed: boolean; session: StudentAccountState["data"] }) {
   const t = useTranslations("common");
-  const { locale, setLocale, isPending, error } = useAppLocale();
   const experience = useStudentExperience();
   const href = experience.href ?? ((path: string) => path);
-  const { theme, setTheme } = useTheme();
   const { visible: petVisible, toggleVisible: togglePetVisibility } = useZyraPetVisibility();
 
   if (!session?.user) return null;
@@ -510,11 +503,11 @@ function SidebarUserMenuContent({ collapsed, session }: { collapsed: boolean; se
         >
           <DropdownMenu.Item asChild>
             <Link
-              href={href("/profile")}
+              href={href("/settings")}
               className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
             >
-              <User className="size-4 shrink-0 text-muted-foreground" />
-              <span>{t("profileSettings")}</span>
+              <SlidersHorizontal className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span>{t("preferences")}</span>
             </Link>
           </DropdownMenu.Item>
 
@@ -570,73 +563,6 @@ function SidebarUserMenuContent({ collapsed, session }: { collapsed: boolean; se
               </>
             )}
           </DropdownMenu.Item>
-
-          <DropdownMenu.Separator className="my-1 h-px bg-border/60" />
-
-          <div className="px-2.5 py-1.5">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 font-sans">
-              {t("appearance")}
-            </p>
-            <div className="grid grid-cols-3 gap-1">
-              <button
-                type="button"
-                onClick={() => setTheme("light")}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium border transition-colors cursor-pointer",
-                  theme === "light"
-                    ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
-                    : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Sun className="size-3.5" />
-                <span>{t("light")}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setTheme("dark")}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium border transition-colors cursor-pointer",
-                  theme === "dark"
-                    ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
-                    : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Moon className="size-3.5" />
-                <span>{t("dark")}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setTheme("system")}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium border transition-colors cursor-pointer",
-                  theme === "system"
-                    ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
-                    : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Monitor className="size-3.5" />
-                <span>{t("system")}</span>
-              </button>
-            </div>
-          </div>
-
-          <DropdownMenu.Separator className="my-1 h-px bg-border/60" />
-
-          <div className="px-2.5 py-1.5" aria-label={t("language.label")}>
-            <p className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground font-sans">
-              <Languages className="size-3.5" aria-hidden />
-              {t("language.label")}
-            </p>
-            <DropdownMenu.RadioGroup value={locale} onValueChange={(value) => { if (!isPending && (value === "id" || value === "en")) { if (experience.mode === "demo") experience.changeLocale?.(value); else void setLocale(value); } }} className="flex flex-col gap-0.5">
-              <DropdownMenu.RadioItem value="id" disabled={isPending} className="flex w-full cursor-pointer items-center rounded-md px-2 py-2 text-body-sm text-muted-foreground outline-none hover:bg-muted focus:bg-muted data-[state=checked]:text-brand-primary">
-                {t("language.indonesian")}
-              </DropdownMenu.RadioItem>
-              <DropdownMenu.RadioItem value="en" disabled={isPending} className="flex w-full cursor-pointer items-center rounded-md px-2 py-2 text-body-sm text-muted-foreground outline-none hover:bg-muted focus:bg-muted data-[state=checked]:text-brand-primary">
-                {t("language.english")}
-              </DropdownMenu.RadioItem>
-            </DropdownMenu.RadioGroup>
-            {error ? <p role="alert" className="mt-1.5 text-body-xs text-destructive">{t("saveLanguageError")}</p> : null}
-          </div>
 
           <DropdownMenu.Separator className="my-1 h-px bg-border/60" />
 

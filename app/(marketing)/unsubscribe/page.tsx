@@ -37,7 +37,7 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
     const categoryLabel = t(`email.categories.${categoryMessageKey(categoryParam)}.label`);
     return (
       <div className="marketing-container flex min-h-[60vh] items-center justify-center py-16">
-        <section className="w-full max-w-xl space-y-4">
+        <section className="w-full max-w-xl space-y-(--related-gap)">
           <header className="flex flex-col items-center gap-2 text-center">
             <span className="flex size-12 items-center justify-center rounded-xl bg-status-success/10 text-status-success">
               <MailCheck className="size-6" aria-hidden />
@@ -68,7 +68,7 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
   if (!token || !category) {
     return (
       <div className="marketing-container flex min-h-[60vh] items-center justify-center py-16">
-        <section className="w-full max-w-xl space-y-4">
+        <section className="w-full max-w-xl space-y-(--related-gap)">
           <header className="flex flex-col items-center gap-2 text-center">
             <span className="flex size-12 items-center justify-center rounded-xl bg-status-error/10 text-status-error">
               <MailX className="size-6" aria-hidden />
@@ -89,14 +89,14 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
   const categoryLabel = t(`email.categories.${categoryMessageKey(category)}.label`);
   return (
     <div className="marketing-container flex min-h-[60vh] items-center justify-center py-16">
-      <section className="w-full max-w-xl space-y-4">
+      <section className="w-full max-w-xl space-y-(--related-gap)">
         <header className="space-y-2">
           <h1 className="font-heading text-h5 font-bold">{t("email.unsubscribe.confirmTitle", { category: categoryLabel })}</h1>
           <p className="text-body-sm text-muted-foreground">
             {t("email.unsubscribe.confirmBody", { category: categoryLabel })}
           </p>
         </header>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-(--compact-gap)">
           <form action={confirmEmailUnsubscribeAction}>
             <input type="hidden" name="token" value={token} />
             <Button type="submit" variant="destructive" size="lg">

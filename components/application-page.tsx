@@ -9,14 +9,14 @@ export interface ApplicationPageProps extends ComponentPropsWithoutRef<"div"> {
 export function ApplicationPage({
   children,
   className,
-  spacing = "space-y-4",
+  spacing = "space-y-(--related-gap)",
   maxWidth = "7xl",
   ...props
 }: ApplicationPageProps) {
   return (
     <div
       className={cn(
-        "w-full min-w-0 max-w-full px-4 pb-6 pt-3 sm:px-6 sm:py-5 lg:px-8",
+        "w-full min-w-0 max-w-full px-(--page-gutter) pb-(--page-bottom) pt-(--page-top)",
         maxWidth === "7xl" && "mx-auto max-w-7xl",
         spacing,
         className

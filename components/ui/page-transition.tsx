@@ -1,7 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
+import { useAppReducedMotion } from "@/components/appearance-preferences";
 import { usePathname } from "next/navigation";
 
 export function getTransitionConfig(pathname: string | null, reduceMotion: boolean) {
@@ -27,7 +28,7 @@ export function getTransitionConfig(pathname: string | null, reduceMotion: boole
 
 export function PageTransition({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const reduceMotion = Boolean(useReducedMotion());
+  const reduceMotion = useAppReducedMotion();
   const { duration, initialY, isStudent } = getTransitionConfig(pathname, reduceMotion);
   const isAppSurface = isStudent || pathname?.startsWith("/admin") || pathname?.startsWith("/tutor");
 

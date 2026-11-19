@@ -105,7 +105,7 @@ export function CourseCatalogClient({
       <Link
         key={c.id}
         href={courseHref(c.id)}
-        className="group flex items-center justify-between gap-3 py-3 transition-colors hover:bg-muted/30 active:bg-muted/50"
+        className="group flex items-center justify-between gap-3 py-(--row-padding) transition-colors hover:bg-muted/30 active:bg-muted/50"
       >
         <div className="flex min-w-0 items-center gap-3">
           <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg font-bold text-body-xs", badge.color)}>
@@ -161,14 +161,14 @@ export function CourseCatalogClient({
 
   if (groups.length <= 1) {
     return (
-      <div className="space-y-8">
+      <div className="space-y-(--section-gap)">
         {groups.map(renderSection)}
       </div>
     );
   }
 
   return (
-    <Tabs defaultValue="all" paramKey="jurusan" className="w-full space-y-6">
+    <Tabs defaultValue="all" paramKey="jurusan" className="w-full space-y-(--related-gap)">
       <TabsList aria-label={t("courseCatalog.filterLabel")}>
         <TabsTrigger value="all">
           {t("courseCatalog.all", { count: totalCourses })}
@@ -186,14 +186,14 @@ export function CourseCatalogClient({
         })}
       </TabsList>
 
-      <TabsContent value="all" className="space-y-8 mt-0">
+      <TabsContent value="all" className="space-y-(--section-gap) mt-0">
         {groups.map(renderSection)}
       </TabsContent>
 
       {groups.map((group) => {
         const tabSlug = slugifyJurusan(group.jurusan);
         return (
-          <TabsContent key={group.jurusan} value={tabSlug} className="space-y-8 mt-0">
+          <TabsContent key={group.jurusan} value={tabSlug} className="space-y-(--section-gap) mt-0">
             {renderSection(group)}
           </TabsContent>
         );

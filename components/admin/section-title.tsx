@@ -2,11 +2,11 @@ import type { ElementType, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const sizeClasses = {
-  h5: "font-heading text-body-base font-bold text-foreground",
-  h6: "font-heading text-body-base font-semibold text-foreground",
-  base: "font-heading text-body-base font-bold text-foreground",
+  h5: "font-heading text-section-title font-bold text-foreground",
+  h6: "font-heading text-section-title font-semibold text-foreground",
+  base: "font-heading text-section-title font-bold text-foreground",
   sm: "font-heading text-body-sm font-bold text-foreground",
-  lg: "font-heading text-body-base font-bold text-foreground",
+  lg: "font-heading text-section-title font-bold text-foreground",
 } as const;
 
 export type AdminSectionTitleProps = {

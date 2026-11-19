@@ -61,7 +61,7 @@ export async function LandingDemoQuiz() {
  const checklist = [t("home.quizChecklistMaterial"), t("home.quizChecklistExplanation"), t("home.quizChecklistReview")];
  return (
  <SectionContainer className="bg-background" aria-labelledby="landing-quiz-heading">
- <div className="grid min-w-0 items-center gap-12 lg:grid-cols-2 lg:gap-16">
+ <div className="grid min-w-0 items-center gap-section-sm lg:grid-cols-2 lg:gap-marketing-section">
  <div className="min-w-0 max-w-xl">
  <SectionHeading as="h2" id="landing-quiz-heading" className="text-foreground">
  {t("home.quizTitle")}

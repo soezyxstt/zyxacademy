@@ -133,7 +133,7 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-(--related-gap)">
       {/* Action Row */}
       <div className="flex flex-wrap justify-between items-center gap-2">
         <span className="text-body-xs text-muted-foreground">{t("materialsCount", { count: initialMaterials.length })}</span>
@@ -157,7 +157,7 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
       ) : (
         <div className="divide-y divide-border border-y border-border">
           {initialMaterials.map((m) => (
-            <div key={m.id} className="flex flex-wrap items-center gap-3 py-3">
+            <div key={m.id} className="flex flex-wrap items-center gap-(--compact-gap) py-3">
               <FileText className="size-4 shrink-0 text-primary" aria-hidden />
               <div className="min-w-0 flex-1 basis-40">
                 <h3 className="font-heading text-body-sm font-bold text-foreground break-words">{m.title}</h3>
@@ -200,7 +200,7 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 my-4 font-sans">
+          <div className="space-y-(--related-gap) my-4 font-sans">
             <div className="grid gap-2">
               <Label htmlFor="title" className="text-body-sm font-semibold">{t("title")}</Label>
               <Input

@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Inter, Lexend } from "next/font/google";
 import "katex/dist/katex.min.css";
 import "./globals.css";
+import "./appearance-preferences.css";
+import { AppearancePreferencesRuntime } from "@/components/appearance-preferences";
+import { appearanceBootstrapScript } from "@/lib/appearance-preferences";
 import { AppToaster } from "@/components/app-toaster";
 import { pageTitle, siteOgImage } from "@/lib/site";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -70,6 +73,7 @@ export default async function RootLayout({
  return (
  <html lang={locale} suppressHydrationWarning className={`${inter.variable} ${lexend.variable} overflow-x-clip`}>
  <head>
+   <script dangerouslySetInnerHTML={{ __html: appearanceBootstrapScript }} />
    <link rel="manifest" href="/manifest.webmanifest" crossOrigin="use-credentials" />
  </head>
   <body className="font-sans min-h-screen flex flex-col overflow-x-clip">
@@ -101,6 +105,7 @@ export default async function RootLayout({
         {t("skipToMain")}
         </a>
         {children}
+        <AppearancePreferencesRuntime />
         <AppToaster />
         {process.env.NODE_ENV === "production" && (
           <TelemetryBoundary>

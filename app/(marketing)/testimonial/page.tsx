@@ -48,11 +48,11 @@ export default async function TestimonialPage() {
  key={story.id}
  itemScope
  itemType="https://schema.org/Review"
- className="flex flex-col gap-4 border-t border-border py-5"
+ className="flex flex-col gap-(--related-gap) border-t border-border py-(--group-gap)"
  >
  <blockquote
  itemProp="reviewBody"
- className="flex-1 text-body-base leading-relaxed text-foreground/90"
+ className="flex-1 text-body-base text-foreground/90"
  >
  &ldquo;{story.quote}&rdquo;
  </blockquote>
@@ -87,7 +87,7 @@ export default async function TestimonialPage() {
 
  <Reveal>
  <SectionContainer className="border-b border-border bg-background/40 py-16 text-center md:py-20">
- <div className="mx-auto max-w-2xl space-y-4">
+ <div className="mx-auto max-w-2xl space-y-(--related-gap)">
  <SectionHeading as="h2" tier="secondary" className="text-foreground">
  {t("testimonial.ctaTitle")}
  </SectionHeading>

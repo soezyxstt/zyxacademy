@@ -111,9 +111,10 @@ for (const student of [false, true]) {
   const page = load("app/(student)/profile/page.tsx", fixture.common).default;
   const html = renderToStaticMarkup(await page());
   expect(html).toContain(student ? "Student profile" : "Akun staging");
-  if (!student) expect(html).toContain('href="/profile/edit"');
+  if (!student) expect(html).toContain('href="/settings?tab=profile"');
   else expect(html).toContain('data-mascot="zyra-avatar-jalak"');
-  const edit = load("app/(student)/profile/edit/page.tsx", fixture.common).default;
+  const editor = load("app/(student)/profile/edit/profile-editor.tsx", fixture.common);
+  const edit = load("app/(student)/profile/edit/page.tsx", { ...fixture.common, "./profile-editor": editor }).default;
   const editHtml = renderToStaticMarkup(await edit());
   expect(editHtml).toContain("Academic profile");
   expect(editHtml.includes("Student customization")).toBe(student);

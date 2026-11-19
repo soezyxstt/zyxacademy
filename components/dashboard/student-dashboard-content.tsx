@@ -35,9 +35,9 @@ export function StudentDashboardContent(props: StudentDashboardContentProps | St
   if ("sections" in props) {
     return (
       <Reveal duration="duration-700" className="w-full min-w-0">
-        <div className="grid gap-6 lg:grid-cols-12 w-full min-w-0">
-          <div className="space-y-6 lg:col-span-7 min-w-0">{props.sections.primary}</div>
-          <div className="space-y-6 lg:col-span-5 min-w-0">{props.sections.secondary}</div>
+        <div className="grid gap-(--section-gap) lg:grid-cols-12 w-full min-w-0">
+          <div className="space-y-(--section-gap) lg:col-span-7 min-w-0">{props.sections.primary}</div>
+          <div className="space-y-(--section-gap) lg:col-span-5 min-w-0">{props.sections.secondary}</div>
         </div>
       </Reveal>
     );
@@ -46,9 +46,9 @@ export function StudentDashboardContent(props: StudentDashboardContentProps | St
 
   return (
             <Reveal duration="duration-700" className="w-full min-w-0">
-              <div className="grid gap-6 lg:grid-cols-12 w-full min-w-0">
+              <div className="grid gap-(--section-gap) lg:grid-cols-12 w-full min-w-0">
                 {/* Left Column (Primary learning track) - 7 cols */}
-                <div className="space-y-6 lg:col-span-7 min-w-0">
+                <div className="space-y-(--section-gap) lg:col-span-7 min-w-0">
                   {/* Classes list Section */}
                   <StudentDashboardSection title={<><GraduationCap className="size-4 text-brand-primary" /><TranslatedText namespace="student" messageKey="dashboard.classesActive" /></>} actions={<div className="flex flex-wrap items-center gap-2 sm:gap-2.5">{activateClassAction}<Link href={href("/courses")} className="text-body-xs font-bold text-brand-primary hover:underline flex items-center gap-0.5 shrink-0"><TranslatedText namespace="student" messageKey="dashboard.viewAll" /><ArrowUpRight className="size-3.5" /></Link></div>}>
                     <div className="divide-y divide-border/30">
@@ -65,7 +65,7 @@ export function StudentDashboardContent(props: StudentDashboardContentProps | St
                   {/* Documents In Progress */}
                   <section>
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
-                      <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
+                      <h2 className="font-heading text-section-title font-bold text-foreground flex items-center gap-2">
                         <Bookmark className="size-4 text-brand-primary" />
                         <TranslatedText namespace="student" messageKey="dashboard.openMaterials" />
                       </h2>
@@ -83,7 +83,7 @@ export function StudentDashboardContent(props: StudentDashboardContentProps | St
                           return (
                             <div
                               key={doc.id}
-                              className="group py-3 px-2 -mx-2 rounded-xl transition-colors hover:bg-muted/40"
+                              className="group py-(--row-padding) px-2 -mx-2 rounded-xl transition-colors hover:bg-muted/40"
                             >
                               <Link
                                 href={doc.href ?? href(`/courses/${doc.courseId}/material/${doc.id}${doc.lastSectionId ? `?section=${encodeURIComponent(doc.lastSectionId)}` : ""}`)}
@@ -91,7 +91,7 @@ export function StudentDashboardContent(props: StudentDashboardContentProps | St
                               >
                                 <div className="min-w-0 flex-1">
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <span className="inline-flex max-w-full break-words rounded-md border border-border/50 bg-muted/40 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+                                    <span className="inline-flex max-w-full break-words rounded-md border border-border/50 bg-muted/40 px-2 py-0.5 text-body-2xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
                                       {doc.courseTitle}
                                     </span>
                                     <span className="text-body-xs text-muted-foreground capitalize">
@@ -136,7 +136,7 @@ export function StudentDashboardContent(props: StudentDashboardContentProps | St
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
                         <div className="flex flex-wrap items-center gap-2">
                           <Compass className="size-4 text-brand-primary" />
-                          <h2 className="font-heading text-body-base font-bold text-foreground">
+                          <h2 className="font-heading text-section-title font-bold text-foreground">
                             <TranslatedText namespace="student" messageKey="dashboard.recommendedCourses" />
                           </h2>
                           {studentTargetCategory && (
@@ -158,7 +158,7 @@ export function StudentDashboardContent(props: StudentDashboardContentProps | St
                         {recommendedUnenrolledCourses.map((course) => (
                           <div
                             key={course.id}
-                            className="group py-2.5 px-2 -mx-2 rounded-xl transition-colors hover:bg-muted/40"
+                            className="group py-(--row-padding) px-2 -mx-2 rounded-xl transition-colors hover:bg-muted/40"
                           >
                             <Link
                               href={href(`/courses/${course.id}`)}
@@ -166,7 +166,7 @@ export function StudentDashboardContent(props: StudentDashboardContentProps | St
                             >
                               <div className="min-w-0 flex-1">
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <span className="inline-flex rounded-md bg-brand-primary/10 px-2 py-0.5 text-[10px] font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20">
+                                  <span className="inline-flex rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-2xs font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20">
                                     {course.category}
                                   </span>
                                   <span className="text-body-xs text-muted-foreground">
@@ -189,11 +189,11 @@ export function StudentDashboardContent(props: StudentDashboardContentProps | St
                 </div>
 
                 {/* Right Column (Review, Mastery & Available Quizzes) - 5 cols */}
-                <div className="space-y-6 lg:col-span-5 min-w-0">
+                <div className="space-y-(--section-gap) lg:col-span-5 min-w-0">
                   {/* Status Spaced Repetition & Aktivitas Ulasan */}
                   <section>
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
-                      <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
+                      <h2 className="font-heading text-section-title font-bold text-foreground flex items-center gap-2">
                         <Layers className="size-4 text-brand-primary" />
                         <TranslatedText namespace="student" messageKey="dashboard.spacedRepetition" />
                       </h2>
@@ -255,7 +255,7 @@ export function StudentDashboardContent(props: StudentDashboardContentProps | St
                               >
                                 <div className="flex items-start justify-between gap-2">
                                   <span className={cn(
-                                    "inline-flex rounded-md border px-1.5 py-0.2 text-[10px] font-bold uppercase tracking-wider shrink-0",
+                                    "inline-flex rounded-md border px-1.5 py-0.2 text-body-2xs font-bold uppercase tracking-wider shrink-0",
                                     gradeColors[review.grade] || "text-muted-foreground border-border bg-muted/40"
                                   )}>
                                     <TranslatedText namespace="student" messageKey={`dashboard.${gradeLabels[review.grade] || "recentReviews"}`} />
@@ -300,7 +300,7 @@ export function StudentDashboardContent(props: StudentDashboardContentProps | St
                   {/* Quizzes and Tryouts */}
                   <section>
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
-                      <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
+                      <h2 className="font-heading text-section-title font-bold text-foreground flex items-center gap-2">
                         <ClipboardList className="size-4 text-brand-primary" />
                         <TranslatedText namespace="student" messageKey="dashboard.availableAssessments" />
                       </h2>
@@ -316,7 +316,7 @@ export function StudentDashboardContent(props: StudentDashboardContentProps | St
                         {availableExams.slice(0, 4).map((exam) => (
                           <div
                             key={exam.id}
-                            className="group py-2.5 px-2 -mx-2 rounded-xl transition-colors hover:bg-muted/40"
+                            className="group py-(--row-padding) px-2 -mx-2 rounded-xl transition-colors hover:bg-muted/40"
                           >
                             <Link
                               href={href(`/courses/${exam.courseId}/${exam.type}/${exam.id}`)}
