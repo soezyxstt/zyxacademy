@@ -2,7 +2,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { bab, concepts, conceptLocalizations, ide, pemahamanIde, relasiIde } from "@/db/schema";
 import { resolveStudentCourse } from "@/lib/student/course-catalog";
-import { toConciseConceptName } from "@/lib/study-path-service";
+import type { Locale } from "@/lib/i18n/locale";
 
 export type StudentMasteryConcept = {
   conceptName: string;
@@ -20,13 +20,12 @@ export type StudentMasteryGroup = {
 
 export type StudentIdeaMasteryReadModel = {
   groups: StudentMasteryGroup[];
-  graphNodes: Array<{ conceptName: string; mastery: number | null }>;
-  graphEdges: Array<{ from: string; to: string }>;
 };
 
 export async function getStudentIdeaMasteryReadModel(
   studentId: string,
   courseId: string,
+  locale: Locale,
 ): Promise<StudentIdeaMasteryReadModel | null> {
   const course = await resolveStudentCourse(courseId);
   if (!course?.canonicalId) return null;
@@ -48,7 +47,7 @@ export async function getStudentIdeaMasteryReadModel(
     .leftJoin(concepts, eq(ide.conceptId, concepts.id))
     .leftJoin(
       conceptLocalizations,
-      and(eq(conceptLocalizations.conceptId, concepts.id), eq(conceptLocalizations.lang, "id"))
+      and(eq(conceptLocalizations.conceptId, concepts.id), eq(conceptLocalizations.lang, locale))
     )
     .leftJoin(
       pemahamanIde,
@@ -83,18 +82,16 @@ export async function getStudentIdeaMasteryReadModel(
       row.id,
       {
         ...row,
-        conceptName: toConciseConceptName(row.statement, row.conceptDisplayName),
+        conceptName: row.conceptDisplayName?.trim() || row.statement,
       },
     ])
   );
   const prerequisites = new Map<string, string[]>();
-  const graphEdges: Array<{ from: string; to: string }> = [];
   for (const relation of relations) {
     const source = byId.get(relation.sourceIdeaId);
     const target = byId.get(relation.targetIdeaId);
     if (!source || !target) continue;
-    graphEdges.push({ from: source.conceptName, to: target.conceptName });
-    if ((source.score ?? 0) < 40) {
+    if (source.score !== null && source.score < 40) {
       const current = prerequisites.get(target.id) ?? [];
       current.push(source.conceptName);
       prerequisites.set(target.id, current);
@@ -103,7 +100,7 @@ export async function getStudentIdeaMasteryReadModel(
 
   const groupMap = new Map<string, StudentMasteryGroup>();
   for (const row of rows) {
-    const conceptName = toConciseConceptName(row.statement, row.conceptDisplayName);
+    const conceptName = row.conceptDisplayName?.trim() || row.statement;
     let group = groupMap.get(row.chapterId);
     if (!group) {
       group = {
@@ -126,12 +123,5 @@ export async function getStudentIdeaMasteryReadModel(
     });
   }
 
-  return {
-    groups: [...groupMap.values()],
-    graphNodes: rows.map((row) => ({
-      conceptName: toConciseConceptName(row.statement, row.conceptDisplayName),
-      mastery: row.score,
-    })),
-    graphEdges,
-  };
+  return { groups: [...groupMap.values()] };
 }

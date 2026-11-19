@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Lock, Target, ArrowRight } from "lucide-react";
+import { Lock, Target } from "lucide-react";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
@@ -15,11 +14,9 @@ import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions"
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { CourseMasteryContentSkeleton } from "@/components/course/course-skeletons";
 import { studentSectionClass } from "@/components/course/course-surfaces";
-import { ConceptGraphView } from "@/components/course/concept-graph-view";
 import { ConceptMap } from "@/components/course/concept-map";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
-import { Button } from "@/components/ui/button";
 import { getCourse } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
 import { createMetadata } from "@/lib/site";
@@ -28,7 +25,7 @@ import {
   type StudentIdeaMasteryReadModel,
 } from "@/lib/student/idea-mastery-read";
 import { TranslatedText } from "@/components/i18n/translated-text";
-import { getTranslations } from "@/lib/i18n/server";
+import { getAppLocale, getTranslations } from "@/lib/i18n/server";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -85,13 +82,12 @@ async function getLegacyMasteryReadModel(
   const koById = new Map(activeKOs.map((ko) => [ko.id, ko]));
   const slugByConceptId = new Map(slugRows.map((row) => [row.id, row.canonicalSlug]));
   const prerequisites = new Map<string, string[]>();
-  const graphEdges: Array<{ from: string; to: string }> = [];
   for (const relation of relationships) {
     const source = koById.get(relation.sourceKoId)?.conceptName.trim();
     const target = koById.get(relation.targetKoId)?.conceptName.trim();
     if (!source || !target || source === target) continue;
-    graphEdges.push({ from: source, to: target });
-    if ((scoreByName.get(source) ?? 0) < 40) {
+    const score = scoreByName.get(source);
+    if (score != null && score < 40) {
       const current = prerequisites.get(target) ?? [];
       if (!current.includes(source)) current.push(source);
       prerequisites.set(target, current);
@@ -120,8 +116,6 @@ async function getLegacyMasteryReadModel(
   });
   return {
     groups,
-    graphNodes: [...scoreByName].map(([conceptName, mastery]) => ({ conceptName, mastery })),
-    graphEdges,
   };
 }
 
@@ -154,48 +148,10 @@ async function CourseMasteryContent({
   }
 
   const readModel =
-    (await getStudentIdeaMasteryReadModel(studentId, id))
+    (await getStudentIdeaMasteryReadModel(studentId, id, await getAppLocale()))
     ?? (await getLegacyMasteryReadModel(studentId, legacyCourseId));
 
-  if (!readModel || readModel.groups.length === 0) {
-    return (
-      <Reveal>
-        <div className="py-5 text-center">
-          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
-            <Target className="size-6" />
-          </div>
-          <h3 className="font-heading text-body-base font-bold text-foreground">
-            <TranslatedText namespace="learning" messageKey="mastery.emptyTitle" />
-          </h3>
-          <p className="mx-auto mt-1 max-w-md text-body-sm text-muted-foreground">
-            <TranslatedText namespace="learning" messageKey="mastery.emptyDescription" />
-          </p>
-          <div className="mt-5">
-            <Button asChild size="sm" className="rounded-lg text-body-sm">
-              <Link href={`/courses/${id}/path`}>
-                <TranslatedText namespace="learning" messageKey="mastery.openPath" />
-                <ArrowRight className="ml-1.5 size-3.5" />
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </Reveal>
-    );
-  }
-
-  return (
-    <>
-      {readModel.graphNodes.length > 0 && (
-        <Reveal>
-          <div className="mb-6 space-y-3">
-            <h2 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="mastery.conceptGraph" /></h2>
-            <ConceptGraphView nodes={readModel.graphNodes} edges={readModel.graphEdges} courseId={id} />
-          </div>
-        </Reveal>
-      )}
-      <ConceptMap courseId={id} groups={readModel.groups} />
-    </>
-  );
+  return <ConceptMap courseId={id} groups={readModel?.groups ?? []} />;
 }
 
 export default async function CourseMasteryPage({ params }: Props) {

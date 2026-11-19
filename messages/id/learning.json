@@ -456,16 +456,35 @@
   },
   "courseAccess": {
     "needToken": "Kelas memerlukan token",
+    "reviewReason": "Coba kerjakan lagi soal tentang topik ini sebelum lanjut.",
+    "strongReason": "Lanjutkan ke topik berikutnya di alur belajar.",
     "limited": "Akses terbatas"
   },
   "mastery": {
     "title": "Penguasaan materi: {course}",
-    "activateToView": "Aktifkan kelas untuk melihat peta penguasaan materi Anda.",
-    "emptyTitle": "Peta penguasaan belum tersedia",
-    "emptyDescription": "Peta pemahaman konsep akan terbentuk seiring Anda mempelajari materi dan menyelesaikan latihan kuis.",
+    "activateToView": "Aktifkan kelas untuk melihat hasil belajar per topik.",
+    "emptyTitle": "Belum ada hasil per topik",
+    "emptyDescription": "Mulai dari latihan di alur belajar. Hasilnya muncul di sini saat topik terkait sudah dinilai.",
     "openPath": "Buka alur belajar",
     "conceptGraph": "Graf konsep",
-    "loadingTitle": "Peta penguasaan"
+    "loadingTitle": "Hasil per topik",
+    "review": "Topik untuk diulang",
+    "strong": "Topik yang kamu kuasai",
+    "early": "Hasil awal",
+    "score": "Skor penguasaan {score}/100",
+    "reviewReason": "Coba kerjakan lagi soal tentang topik ini sebelum lanjut.",
+    "strongReason": "Lanjutkan ke topik berikutnya di alur belajar.",
+    "limited": "Hasil latihan untuk topik ini masih terbatas. Coba latihan lagi.",
+    "reviewTopic": "Pelajari kembali topik",
+    "chapters": "Topik per bab",
+    "coverage": "{count} dari {total} dinilai",
+    "unassessed": "Belum dinilai ({count})",
+    "prerequisite": "Dasar yang bisa diulang: {topic}",
+    "more": "Berikutnya",
+    "previous": "Sebelumnya",
+    "improving": "Meningkat",
+    "stable": "Stabil",
+    "declining": "Menurun"
   },
   "path": {
     "title": "Alur belajar: {course}",
@@ -476,7 +495,7 @@
     "title": "Progres belajar: {course}",
     "enterToken": "Masukkan token kelas untuk melihat progres belajar.",
     "moreAnalysis": "Analisis lebih lanjut",
-    "masteryMap": "Peta penguasaan konsep",
+    "masteryMap": "Hasil per topik",
     "quizResults": "Hasil kuis dan ujian"
   },
   "leaderboard": {
@@ -575,7 +594,7 @@
     "materialDescription": "Dokumen dan materi belajar: modul, diktat, dan contoh soal.",
     "masteryTitle": "Peta penguasaan {course}",
     "masteryTitleFallback": "Peta penguasaan",
-    "masteryDescription": "Visualisasi penguasaan konsep dan topik; lihat progres belajar.",
+    "masteryDescription": "Lihat hasil belajar per topik dan pilih materi yang perlu diulang.",
     "pathTitle": "Alur belajar {course}",
     "pathTitleFallback": "Alur belajar",
     "pathDescription": "Rencana alur belajar personal terstruktur.",
