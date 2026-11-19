@@ -109,7 +109,7 @@ export function ZyraFloatingPet({ state, onOpen, cosmeticId }: { cosmeticId?: st
         <div className={cn("transition-transform duration-200 group-hover:scale-105", !dragging && "motion-safe:animate-zyra-float")}><ZyraCosmeticAvatar cosmeticId={cosmeticId} headOnly size={80} /></div>
         <div className="mt-0.5 h-1.5 w-10 rounded-[100%] bg-black/40 blur-[1.5px]" />
       </button>
-      <button type="button" onClick={(event) => { event.stopPropagation(); setPetVisibility(false); }} className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full border border-border bg-card/90 text-muted-foreground opacity-0 shadow-sm transition-opacity hover:text-foreground group-hover:opacity-100" aria-label="Sembunyikan pet Zyra"><EyeOff className="size-3" /></button>
+      <button type="button" onClick={(event) => { event.stopPropagation(); setPetVisibility(false); }} className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full border border-border bg-card/90 text-muted-foreground opacity-0 shadow-sm transition-opacity hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100" aria-label="Sembunyikan pet Zyra"><EyeOff className="size-3" /></button>
     </div>
   );
 }

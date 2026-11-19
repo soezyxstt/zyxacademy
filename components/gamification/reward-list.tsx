@@ -31,6 +31,9 @@ export function RewardList({ rewards, balance, appearance, onChangeReward, missi
   const previewTrigger = useRef<HTMLButtonElement | null>(null);
   const router = useRouter();
   const displayAppearance = { ...appearance, mode: "photo" as const, badge: null, publicId: null };
+  const insufficientBalance = (item: GamificationReward) => !item.owned && balance < item.priceLp && (
+    <span className="block text-body-xs text-muted-foreground">{t("achievementPage.insufficient")}</span>
+  );
   const accessory = (item: GamificationReward) => item.slot === "pet_action" || item.slot === "pet_suit";
   const action = (item: GamificationReward) => accessory(item) && item.owned ? <span className="text-body-xs">{t("achievementPage.owned")}</span> : <Button disabled={pending || item.equipped || (!item.owned && balance < item.priceLp)} variant={item.owned ? "outline" : "default"} onClick={() => {
     setError(false); setSuccess(false); setPendingId(item.id);
@@ -39,8 +42,9 @@ export function RewardList({ rewards, balance, appearance, onChangeReward, missi
     {pending && pendingId === item.id ? t("achievementPage.wait") : item.equipped ? t("achievementPage.equipped") : item.owned ? t("achievementPage.equip") : t("achievementPage.buy")}
   </Button>;
   return <div className="space-y-4">
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2"><p className="text-body-sm font-semibold">{t("achievementPage.balance")}: {number.format(balance)} LP</p><TooltipProvider><Tooltip><TooltipTrigger asChild><Button asChild variant="outline" size="icon"><Link href={missionsHref} aria-label={t("achievementPage.goToMissions")}><Plus className="size-4" /></Link></Button></TooltipTrigger><TooltipContent>{t("achievementPage.goToMissions")}</TooltipContent></Tooltip></TooltipProvider></div>
-    <CatPractice rewards={rewards} />
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2"><p className="text-body-sm font-semibold">{t("achievementPage.balance")}: {number.format(balance)} LP</p><TooltipProvider><Tooltip><TooltipTrigger asChild><Button asChild variant="outline" size="icon"><Link href={missionsHref} aria-label={t("achievementPage.goToMissions")}><Plus className="size-4" /></Link></Button></TooltipTrigger><TooltipContent>{t("achievementPage.goToMissions")}</TooltipContent></Tooltip></TooltipProvider>
+      <CatPractice rewards={rewards} />
+    </div>
     {error && <p role="alert" className="text-body-sm text-destructive">{t("achievementPage.error")}</p>}
     {success && <p role="status" className="text-body-sm">{t("achievementPage.success")}</p>}
     {rewards.length === 0 ? <AdminEmptyState icon={Inbox} title={t("achievementPage.noRewards")} /> : <div className="divide-y divide-border">
@@ -52,9 +56,9 @@ export function RewardList({ rewards, balance, appearance, onChangeReward, missi
             {t(`achievementPage.rewardGroups.${slot}`)}<ChevronDown className="size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" aria-hidden />
           </CollapsibleTrigger>
           <CollapsibleContent><ul className="divide-y divide-border border-t">{items.map(item => <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-            {accessory(item) ? <span className="text-body-sm">{name(item)} · {number.format(item.priceLp)} LP</span> : <button type="button" onClick={event => { previewTrigger.current = event.currentTarget; setSelected(item); }} className="flex min-w-0 flex-1 items-center gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring" aria-label={t("achievementPage.previewItem", { name: name(item) })}>
+            {accessory(item) ? <span className="min-w-0 flex-1 break-words text-body-sm">{name(item)} · {number.format(item.priceLp)} LP{insufficientBalance(item)}</span> : <button type="button" onClick={event => { previewTrigger.current = event.currentTarget; setSelected(item); }} className="flex min-w-0 flex-1 items-center gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring" aria-label={t("achievementPage.previewItem", { name: name(item) })}>
               <div className="shrink-0"><CosmeticPreview item={{ ...item, name: name(item) }} appearance={displayAppearance} /></div>
-              <span className="min-w-0"><span className="block break-words text-body-sm font-semibold">{name(item)}</span><span className="block text-body-xs text-muted-foreground">{number.format(item.priceLp)} LP{item.owned && !item.equipped ? ` · ${t("achievementPage.owned")}` : ""}</span>{!item.owned && balance < item.priceLp && <span className="block text-body-xs text-muted-foreground">{t("achievementPage.insufficient")}</span>}</span>
+              <span className="min-w-0"><span className="block break-words text-body-sm font-semibold">{name(item)}</span><span className="block text-body-xs text-muted-foreground">{number.format(item.priceLp)} LP{item.owned && !item.equipped ? ` · ${t("achievementPage.owned")}` : ""}</span>{insufficientBalance(item)}</span>
             </button>}
             {action(item)}
           </li>)}</ul></CollapsibleContent>

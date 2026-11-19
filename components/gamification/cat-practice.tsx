@@ -38,16 +38,18 @@ function Practice({rewards}: {rewards: GamificationReward[]}) {
     const items = rewards.filter(item => item.owned && item.slot === slot);
     if (!items.length) return null;
     const label = t(`achievementPage.rewardGroups.${slot}`);
-    return <Select value={value} onValueChange={update}><SelectTrigger aria-label={label}><SelectValue /></SelectTrigger>
+    return <Select value={value} onValueChange={update}><SelectTrigger variant="inline" aria-label={label}><SelectValue /></SelectTrigger>
       <SelectContent><SelectItem value={slot === "pet_action" ? "idle" : "none"}>{t(`achievementPage.rewardGroups.${slot === "pet_action" ? "idle" : "plain"}`)}</SelectItem>
         {items.map(item => <SelectItem key={item.id} value={item.id}>{t(`gamificationUi.${cosmeticNameKeys[item.id]}`)}</SelectItem>)}
       </SelectContent></Select>;
   };
+  const actionControl = cat ? controls("pet_action", action, setAction) : null;
+  const suitControl = fitted ? controls("pet_suit", suit, setSuit) : null;
   return <>
     <div className="flex justify-center"><ZyraMascot3D cosmeticId={pet} size={240} animationReplay={score} animationName={cheering ? "happy" : cat ? action.replace("pet-action-", "") : "idle"} practiceSuit={fitted ? suit.replace("pet-suit-", "") : "none"} practiceCycle={cat && action === "pet-action-cycle"} /></div>
-    <div className="flex flex-wrap gap-2">{pets.length > 0 && <Select value={pet} onValueChange={setPet}><SelectTrigger aria-label={t("cosmeticsStudio.mascot")}><SelectValue /></SelectTrigger><SelectContent>
+    {(pets.length > 0 || actionControl || suitControl) && <div className="flex flex-wrap items-center gap-2">{pets.length > 0 && <Select value={pet} onValueChange={setPet}><SelectTrigger variant="inline" aria-label={t("cosmeticsStudio.mascot")}><SelectValue /></SelectTrigger><SelectContent>
       <SelectItem value="zyra-avatar-studio-cat">Zyra</SelectItem>{pets.map(item => <SelectItem key={item.id} value={item.id}>{t(`gamificationUi.${cosmeticNameKeys[item.id]}`)}</SelectItem>)}
-    </SelectContent></Select>}{cat && controls("pet_action", action, setAction)}{fitted && controls("pet_suit", suit, setSuit)}</div>
+    </SelectContent></Select>}{actionControl}{suitControl}</div>}
     <p aria-live="polite" className="font-heading text-h5">{round.left} × {round.right} = ?</p>
     <div aria-label={t("achievementPage.rewardGroups.answer")} role="group" className="flex gap-2">{round.choices.map(value => <Button key={value} variant="outline" onClick={() => {
       if (value !== round.answer) { setMiss(true); return; }
