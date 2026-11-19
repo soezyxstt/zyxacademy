@@ -33,7 +33,7 @@ export const fixtureProvenance = {
  data:'Fictional deterministic fixture, no database or external API',
  components:['ApplicationPage','PageHeader','AchievementTabs','RankPromotion','BadgeList','MissionList','RewardList','StudentAvatar','BadgeArtwork','RankArtwork','ProfileSettings','ProfileFollowList','ProfileHero','AchievementBoard','SocialControls','CelebrationListener','Toaster','ProfileEditForm','SolutionCollectionReader'],
  compositions:['Fixture compositions based on AchievementsPage, ProfilePage, public profile, leaderboard and dashboard; leaderboard rows are fixture compositions'],
- mocks:['student identity and social settings','achievement and inventory data','leaderboard entries','admin checklist and report data','server actions via runtime aliases','fixture student chrome'],
+ mocks:['student identity and social settings','achievement and inventory data','leaderboard entries','server actions via runtime aliases','fixture student chrome'],
  omissions:['dashboard course widgets','real application sidebar and mobile navigation','production article content renderers and coding providers, replaced by fixture plain-text adapters for static markdown; solution completion uses the real reader and fixture action'],
 };
 

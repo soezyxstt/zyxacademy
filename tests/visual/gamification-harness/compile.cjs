@@ -25,7 +25,6 @@ const aliases = {
 };
 const plugin = { name: 'fixture-aliases', setup(build) {
   build.onResolve({ filter: /.*/ }, args => {
-    if (args.path === './actions' && args.importer.endsWith('/gamification/ui.tsx')) return { path: path.join(__dirname, 'shims.actions.ts') };
     if (args.path === './entry' && process.env.ZYX_FIXTURE_ENTRY) return { path: process.env.ZYX_FIXTURE_ENTRY };
     if (aliases[args.path]) return { path: path.resolve(__dirname, aliases[args.path]) };
     if (args.path.startsWith('@/')) {
@@ -41,7 +40,7 @@ const plugin = { name: 'fixture-aliases', setup(build) {
   css = css.replace('@import "tailwindcss";', `@import "${path.join(deps, 'tailwindcss/index.css')}" source(none);`)
     .replace('@import "tw-animate-css";', `@import "${path.join(deps, 'tw-animate-css/dist/tw-animate.css')}";`)
     .replace('@import "shadcn/tailwind.css";', '/* shadcn/tailwind.css unavailable in isolated fixture */');
-  const sources = process.env.ZYX_FIXTURE_SOURCES ? JSON.parse(process.env.ZYX_FIXTURE_SOURCES) : ['components/gamification', 'components/course/solution-collection-reader.tsx', 'components/ui', 'components/admin', 'components/page-header.tsx', 'app/(student)/profile', 'app/(student)/achievements', 'app/(student)/leaderboard', 'app/(admin)/admin/(academic)/gamification', 'tests/visual/gamification-harness'];
+  const sources = process.env.ZYX_FIXTURE_SOURCES ? JSON.parse(process.env.ZYX_FIXTURE_SOURCES) : ['components/gamification', 'components/course/solution-collection-reader.tsx', 'components/ui', 'components/admin', 'components/page-header.tsx', 'app/(student)/profile', 'app/(student)/achievements', 'app/(student)/leaderboard', 'tests/visual/gamification-harness'];
   css = css.replace('@custom-variant', sources.map(p => `@source "${path.join(root, p)}";`).join('\n') + '\n@custom-variant');
   const input = path.join(out, 'input.css');
   fs.writeFileSync(input, css);
