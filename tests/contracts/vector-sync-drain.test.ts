@@ -35,7 +35,7 @@ async function queue(count: number) {
 function steps() {
   const cache = new Map<string, unknown>();
   const names: string[] = [];
-  const events: Array<{ delaySeconds?: number }> = [];
+  const events: Array<{ name: string; data: { courseId?: string }; delaySeconds?: number }> = [];
   return {
     names, events,
     run: async <T>(name: string, callback: () => Promise<T>): Promise<T> => {
@@ -43,7 +43,7 @@ function steps() {
       names.push(name);
       const result = await callback(); cache.set(name, result); return result;
     },
-    enqueueTask: async (name: string, event: { delaySeconds?: number }) => {
+    enqueueTask: async (name: string, event: (typeof events)[number]) => {
       if (cache.has(name)) return;
       events.push(event); cache.set(name, true);
     },
