@@ -84,7 +84,7 @@ class DeployEnvFilterTest(unittest.TestCase):
         workflow = (WORKFLOWS / "deploy-neon-worker.yml").read_text()
         match = re.search(r"^          path: \|\n((?:            .+\n)+)", workflow, re.MULTILINE)
         self.assertIsNotNone(match)
-        allowed = {"inventory.json", "before.json", "after.json", "sync.json", "http-smoke.json", "inngest-smoke.json", "business-smoke.json"}
+        allowed = {"inventory.json", "before.json", "after.json", "sync.json", "http-smoke.json", "inngest-smoke.json", "cloud-tasks-smoke.json", "business-smoke.json"}
         paths = [PurePosixPath(line.strip()) for line in match.group(1).splitlines()]
         self.assertTrue(paths)
         for path in paths:
