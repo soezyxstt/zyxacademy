@@ -70,7 +70,7 @@ for (const mode of ["rejected", "exception", "custom-timeout"] as const) {
     await expect(page.getByRole("radio", { name: "Dua" })).toBeChecked();
     await page.getByRole("button", { name: "Lanjut", exact: true }).click();
     const status = () => page.evaluate(() => {
-      const { destination, requests } = (window as Window & {
+      const { destination, requests } = (window as unknown as {
         tryoutFixture: { destination: string | null; requests: Array<Record<string, unknown>> };
       }).tryoutFixture;
       return { destination, requests };

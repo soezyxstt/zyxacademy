@@ -22,7 +22,7 @@ beforeAll(async () => {
     { id: "outsider", role: "student" },
     { id: "grader", role: "teacher" },
     { id: "admin", role: "admin" },
-  ];
+  ] as const;
   for (const { id, role } of accounts) {
     await testDb.insert(schema.user).values({ id, email: `${id}@example.test`, name: id, role });
     await provisionPenggunaForNewUser({ id, role });

@@ -526,6 +526,7 @@
     "activationDescription": "Masukkan token kelas untuk membuka seluruh video dan materi."
   },
   "quizTake": {
+    "attemptLimitReached": "Batas percobaan kuis tercapai",
     "locked": "Kuis terkunci",
     "premiumDescription": "{course}, kuis premium",
     "backToList": "Kembali ke daftar kuis",

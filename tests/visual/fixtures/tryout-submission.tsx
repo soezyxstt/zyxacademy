@@ -23,7 +23,7 @@ createRoot(document.getElementById("root")!).render(
         settings: { timeLimitMinutes: fixture.timeLimitMinutes },
         questions: [
           { id: "q1", order: 1, type: "multiple_choice", prompt: "Pilih bilangan genap.", options: ["Dua", "Tiga"] },
-          { id: "q2", order: 2, type: "essay", prompt: "Jelaskan langkah penyelesaian.", options: [], acceptsFile: !fixture.transport },
+          { id: "q2", order: 2, type: "essay", prompt: "Jelaskan langkah penyelesaian.", acceptsFile: !fixture.transport },
         ],
       }} />
     </main>
