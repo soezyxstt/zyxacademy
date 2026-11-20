@@ -97,7 +97,7 @@ export function DemoDiscussions({ courseId }: { courseId?: string }) {
     messages: [...thread.messages, ...state.posts.filter(post => post.threadId === thread.id).map(post => ({ ...post, replyTo: post.replyTo, author: viewer, likes: 0 }))],
   })).filter(thread => thread.messages.length > 0), [seed, state, viewer]);
 
-  const questions: DiscussionQuestion[] = threads.filter(thread => channelIds.has(thread.channelId)).map(thread => {
+  const questions: DiscussionQuestion[] = threads.filter(thread => channelIds.has(thread.channelId)).map<DiscussionQuestion>(thread => {
     const answerCount = thread.messages.filter(message => message.messageType === "answer").length;
     return {
       id: thread.id, channelId: thread.channelId, title: thread.title, lastActivityAt: thread.messages.at(-1)!.createdAt,

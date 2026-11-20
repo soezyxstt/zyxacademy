@@ -29,7 +29,8 @@ export function DemoProfile({ profile }: { profile: AcademicProfile | null }) {
  const results = [...baselineAttempts, ...attempts];
  const stats = {
    completedCount: experience.baseline.reduce((sum, row) => sum + demoProgress(row, overlays[row.courseId] ?? emptyOverlay()).completedMaterials, 0),
-   submissionCount: results.length,
+   submissionCount: attempts.length + experience.baseline.reduce((total, row) =>
+     total + row.history.reduce((sum, day) => sum + day.quizzesCompleted, 0), 0),
    averageScore: results.length ? Math.round(results.reduce((sum, result) => sum + result.score, 0) / results.length) : null,
  };
  const student = useTranslations("student");

@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
+import { demoStudentHref } from "@/lib/demo/routes";
 import { discussionPayload } from "@/lib/notifications/templates";
 
 test("discussion notification links resolve the recipient's current role on opening", () => {
@@ -24,8 +25,11 @@ test("global tutor discussions is reserved from course sidebar routing", () => {
   expect(source).toContain('/${courseId}/discussions');
 });
 
-test("demo sidebar does not advertise real discussion destinations", () => {
+test("student sidebar routes discussion links through the demo adapter", () => {
   const source = readFileSync("components/student-sidebar.tsx", "utf8");
-  expect(source.match(/\.\.\.\(demo \? \[\] : \[\{ href: `\$\{base\}\/discussions`/g)).toHaveLength(2);
-  expect(source).toContain('{!demo && <NavItem href={href("/dashboard/discussions")}');
+  expect(source).toContain('href={href("/dashboard/discussions")}');
+  expect(source).toContain('href: `${base}/discussions`');
+  expect(source).toContain('href: href(item.href)');
+  expect(demoStudentHref("id", "/dashboard/discussions", "math")).toBe("/id/demo/discussions?course=math");
+  expect(demoStudentHref("id", "/courses/math/discussions", "math")).toBe("/id/demo/course-discussions?course=math");
 });
