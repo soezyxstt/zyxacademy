@@ -42,16 +42,15 @@ test("message actions and deletion identify repeated posts by sequence and excer
 });
 
 for (const locale of ["id", "en"] as const) {
- test(`namesake pages reach the eleventh authorized identity in ${locale}`, async ({ page }, info) => {
+ test(`scrolling mention results reaches the eleventh authorized identity in ${locale}`, async ({ page }, info) => {
   const en = locale === "en";
   await open(page, `?locale=${locale}&state=mention-pages`);
   await page.getByRole("button", { name: en ? "Mention someone" : "Sebut orang", exact: true }).click();
   const picker = page.getByRole("dialog", { name: en ? "Mention someone" : "Sebut orang", exact: true });
-  await picker.getByRole("textbox", { name: en ? "Search people to mention" : "Cari orang untuk disebut" }).fill("Alice");
-  await expect(picker.getByRole("button", { name: en ? "Next" : "Berikutnya", exact: true })).toBeEnabled();
-  await capture(page, info, `${locale}-namesake-first-page`);
-  await picker.getByRole("button", { name: en ? "Next" : "Berikutnya", exact: true }).click();
+  await page.keyboard.insertText("Alice");
   const person = picker.getByRole("button", { name: /Alice, (Student|Murid), Materi 11$/, exact: true });
+  await person.scrollIntoViewIfNeeded();
+  await expect(person).toBeInViewport();
   await expect(person).toBeEnabled();
   await capture(page, info, `${locale}-namesake-eleventh`);
   await person.click();
@@ -93,7 +92,7 @@ for (const locale of ["id", "en"] as const) {
     await open(page, `?locale=${locale}&fail=mention`);
     await page.getByRole("button", { name: en ? "Mention someone" : "Sebut orang", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: en ? "Mention someone" : "Sebut orang", exact: true });
-    await dialog.getByRole("textbox", { name: en ? "Search people to mention" : "Cari orang untuk disebut" }).fill("Dina");
+    await page.keyboard.insertText("Dina");
     await expect(dialog.getByRole("alert").locator("p")).toHaveCSS("font-size", "12px");
     await capture(page, info, `${locale}-mention-search-error`);
     await dialog.getByRole("button", { name: en ? "Try again" : "Coba lagi", exact: true }).click();
@@ -486,7 +485,7 @@ test("lost response locks the submitted draft until an unchanged retry resolves"
   await capture(page, info, "send-outcome-unknown");
   await page.getByRole("button", { name: "Coba kirim lagi", exact: true }).click();
   await expect(input).toHaveText(/^(Tulis pesan|Write a message)?$/);
-  await expect(page.locator("[data-message-id]").filter({ hasText: "@Zyra jelaskan contoh ini." })).toHaveCount(1);
+  await expect(page.locator("[data-message-id]").filter({ hasText: "Zyra jelaskan contoh ini." })).toHaveCount(1);
   await capture(page, info, "send-outcome-replayed");
 });
 
@@ -654,7 +653,7 @@ test("lost new-question response locks its channel and body for unchanged replay
   await page.getByRole("button", { name: "Coba kirim lagi" }).click();
   await expect(composeHeader).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Pertanyaan yang tersimpan." })).toBeVisible();
-  await expect(page.locator("[data-message-id]").filter({ hasText: "@Zyra bantu jelaskan." })).toHaveCount(1);
+  await expect(page.locator("[data-message-id]").filter({ hasText: "Zyra bantu jelaskan." })).toHaveCount(1);
   await capture(page, info, "new-question-outcome-replayed");
 });
 
@@ -789,16 +788,27 @@ test("channel and forward pickers paginate cleanly", async ({ page }, info) => {
   await capture(page, info, "forward-picker-next-page");
 });
 
+test("typing a mention opens the picker and the posted name opens its profile", async ({ page }) => {
+  await open(page, "?locale=id");
+  await page.getByRole("textbox", { name: "Tulis pesan" }).fill("Terima kasih @Rak");
+  const picker = page.getByRole("dialog", { name: "Sebut orang" });
+  await picker.getByRole("button", { name: "Raka Pratama", exact: true }).click();
+  await page.getByRole("button", { name: "Kirim jawaban", exact: true }).click();
+  const bubble = page.locator("[data-discussion-content]").filter({ hasText: "Terima kasih Raka Pratama" });
+  await bubble.getByRole("button", { name: "Raka Pratama", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText("Raka Pratama");
+});
+
 test("new question mention search follows its channel", async ({ page }, info) => {
   await open(page, "?state=course&question=none");
   await page.getByRole("button", { name: "Pertanyaan baru", exact: true }).click();
   const composeHeader = page.locator("[data-discussion-new-question]");
   await page.getByRole("button", { name: "Sebut orang", exact: true }).click();
   await expectMenuGutter(page, page.locator('[data-slot="popover-content"]'));
-  await page.getByRole("textbox", { name: "Cari orang untuk disebut", exact: true }).fill("Raka");
-  await expect(page.getByRole("button", { name: "Raka Pratama, Tutor", exact: true })).toBeVisible();
+  await page.keyboard.insertText("Raka");
+  await expect(page.getByRole("button", { name: "Raka Pratama", exact: true })).toBeVisible();
   await capture(page, info, "mention-search-results");
-  await page.getByRole("button", { name: "Raka Pratama, Tutor", exact: true }).click();
+  await page.getByRole("button", { name: "Raka Pratama", exact: true }).click();
   await page.getByRole("textbox", { name: "Tulis pesan", exact: true }).fill("Tautan materi tidak terbuka. Tolong periksa tautan materi.");
   await page.getByRole("button", { name: "Kirim pertanyaan", exact: true }).click();
   await expect(composeHeader).toHaveCount(0);
@@ -810,10 +820,11 @@ test("same-name mentions keep only the person still present in the draft", async
   await open(page, "?state=same-name");
   const input = page.getByRole("textbox", { name: "Tulis pesan" });
   await page.getByRole("button", { name: "Sebut orang", exact: true }).click();
-  await page.getByRole("textbox", { name: "Cari orang untuk disebut" }).fill("Alice");
+  await page.keyboard.insertText("Alice");
   await expect(page.getByRole("button", { name: "Alice, Murid, Saya belajar limit.", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Alice, Murid, Saya belajar limit.", exact: true }).click();
   await page.getByRole("button", { name: "Sebut orang", exact: true }).click();
+  await page.keyboard.insertText("Alice");
   await page.getByRole("button", { name: "Alice, Murid, Saya belajar integral.", exact: true }).click();
   await expect(input).toHaveText(/@Alice\s+@Alice_2/);
   await capture(page, info, "same-name-mentions");
@@ -1105,10 +1116,11 @@ test("English mentions retain only the remaining same-name person", async ({ pag
   await open(page, "?locale=en&state=same-name");
   const input = page.getByRole("textbox", { name: "Write a message" });
   await page.getByRole("button", { name: "Mention someone", exact: true }).click();
-  await page.getByRole("textbox", { name: "Search people to mention" }).fill("Alice");
+  await page.keyboard.insertText("Alice");
   await expect(page.getByRole("button", { name: "Alice, Student, Saya belajar limit.", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Alice, Student, Saya belajar limit.", exact: true }).click();
   await page.getByRole("button", { name: "Mention someone", exact: true }).click();
+  await page.keyboard.insertText("Alice");
   await page.getByRole("button", { name: "Alice, Student, Saya belajar integral.", exact: true }).click();
   await expect(input).toHaveText(/@Alice\s+@Alice_2/);
   await input.fill("@Alice_2 can help?");
@@ -1120,7 +1132,7 @@ test("English mentions retain only the remaining same-name person", async ({ pag
 test("server namesake metadata shows context and blocks ambiguous candidates across pages", async ({ page }, info) => {
   await open(page, "?state=namesake-metadata");
   await page.getByRole("button", { name: "Sebut orang", exact: true }).click();
-  await page.getByRole("textbox", { name: "Cari orang untuk disebut" }).fill("Alice");
+  await page.keyboard.insertText("Alice");
   const candidate = page.getByRole("button", { name: "Alice, Murid, Saya belajar limit., Nama dan konteks belum cukup untuk membedakan orang ini", exact: true });
   await expect(candidate).toBeDisabled();
   await capture(page, info, "server-namesake-ambiguous");
@@ -1129,7 +1141,7 @@ test("server namesake metadata shows context and blocks ambiguous candidates acr
 test("overflow ambiguity still recommends a narrower search", async ({ page }, info) => {
   await open(page, "?state=mention-overflow");
   await page.getByRole("button", { name: "Sebut orang", exact: true }).click();
-  await page.getByRole("textbox", { name: "Cari orang untuk disebut" }).fill("Alice");
+  await page.keyboard.insertText("Alice");
   await expect(page.getByRole("button", { name: /Persempit pencarian untuk memastikan orangnya/ })).toBeDisabled();
   await capture(page, info, "mention-overflow-narrow-search");
 });
@@ -1137,7 +1149,7 @@ test("overflow ambiguity still recommends a narrower search", async ({ page }, i
 test("English namesake ambiguity explains that identity is unavailable", async ({ page }, info) => {
   await open(page, "?locale=en&state=namesake-metadata");
   await page.getByRole("button", { name: "Mention someone", exact: true }).click();
-  await page.getByRole("textbox", { name: "Search people to mention" }).fill("Alice");
+  await page.keyboard.insertText("Alice");
   await expect(page.getByRole("button", { name: /The name and context are not enough to identify this person/ })).toBeDisabled();
   await capture(page, info, "en-server-namesake-unavailable");
 });

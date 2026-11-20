@@ -43,13 +43,13 @@ export function DiscussionProfileDialog({
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
-    if (!open || !author?.id) return;
+    if (!open || !author?.id || author.role === "zyra") return;
     if (!loadProfile) {
       setData({
         kind: "limited",
         id: author.id,
         name: author.name,
-        role: author.role === "zyra" ? null : author.role,
+        role: author.role,
         avatarUrl: author.avatarUrl ?? null,
         visibilityReason: author.role === "student" ? "private" : "staff",
       });
@@ -115,6 +115,12 @@ export function DiscussionProfileDialog({
         : data?.role === "admin"
           ? "role_admin"
           : "role_unknown";
+
+  if (author?.role === "zyra") return <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className="max-w-xs" aria-describedby={undefined}><DialogHeader><DialogTitle>Zyra</DialogTitle></DialogHeader>
+      <ProfileMascot /><p className="text-body-sm">{t("zyraContext")}</p>
+    </DialogContent>
+  </Dialog>;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

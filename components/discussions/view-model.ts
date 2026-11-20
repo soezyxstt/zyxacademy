@@ -66,6 +66,7 @@ export type DiscussionReaction = {
 };
 
 export type DiscussionMessage = {
+ mentionedPeople?: DiscussionPerson[];
   id: string;
   seq?: number;
   author: DiscussionPerson;
@@ -119,7 +120,7 @@ export type DiscussionForwardDraft = {
   error?: DiscussionSendError;
   replayTarget?: { threadId: string; messageId: string };
 };
-export type DiscussionMention = { id: string; name: string; mention: string; role?: "student" | "tutor" | "admin"; context?: string | null; hasNamesake?: boolean; ambiguous?: boolean };
+export type DiscussionMention = { avatarUrl?: string | null; id: string; name: string; mention: string; role?: "student" | "tutor" | "admin"; context?: string | null; hasNamesake?: boolean; ambiguous?: boolean };
 
 export type DiscussionWorkspaceProps = {
   viewer: DiscussionPerson;

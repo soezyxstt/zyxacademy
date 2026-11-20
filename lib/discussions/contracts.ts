@@ -26,6 +26,7 @@ export type DiscussionAttachment = {
  size: number; width: number; height: number; url: string; downloadUrl: string; previewAvailable?: boolean;
 };
 export type DiscussionMessage = {
+ mentionedPeople?: { id: string; name: string; role: DiscussionRole }[];
  id: string; threadId: string; seq: number; author: { id: string; name: string; role: DiscussionRole | null; avatarUrl?: string | null } | null;
  kind: "human" | "zyra"; messageType: "question" | "answer" | "reply" | "forward";
  body: string; bodyKind?: "body" | "deleted" | "source_unavailable"; createdAt: string; editedAt: string | null; revision: number;

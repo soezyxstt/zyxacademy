@@ -417,7 +417,7 @@ export async function getThread(actorId: string, threadId: string, cursor?: stri
  const rows = await db.select().from(discussionMessages).where(and(eq(discussionMessages.threadId, threadId), gt(discussionMessages.seq, after)))
   .orderBy(asc(discussionMessages.seq)).limit(PAGE_SIZE + 1);
  const visible = rows.slice(0, PAGE_SIZE);
- const authors = [...new Set(visible.flatMap(row => row.authorId ? [row.authorId] : []))];
+ const authors = [...new Set(visible.flatMap(row => [...(row.authorId ? [row.authorId] : []), ...(row.deletedAt ? [] : row.mentionIds)]))];
  const refs = [...new Set(visible.flatMap(row => row.replyToId ? [row.replyToId] : []))];
  const ids = visible.map(row => row.id);
  const [names, replies, reactions] = await Promise.all([
@@ -478,6 +478,10 @@ export async function getThread(actorId: string, threadId: string, cursor?: stri
   const actionable = !message.deletedAt && (message.messageType === "forward" ? !!forwardedFrom : !message.forwardedFromId);
   return {
    id: message.id, threadId: message.threadId, seq: message.seq, author: name ?? null,
+   mentionedPeople: message.deletedAt ? [] : message.mentionIds.flatMap(id => {
+    const person = authorMap.get(id);
+    return person?.role ? [{ id, name: person.name, role: person.role }] : [];
+   }),
    kind: message.kind, messageType: message.messageType, body,
    bodyKind: message.deletedAt ? "deleted" : message.forwardedFromId && !forwardedFrom ? "source_unavailable" : "body",
    createdAt: message.createdAt.toISOString(),
@@ -811,7 +815,7 @@ export async function setResolved(actorId: string, threadId: string, resolved: b
 export async function searchChannelMentions(actorId: string, channelId: string, query: string) {
  const actor = await getDiscussionActor(actorId);
  checkId(channelId);
- if (typeof query !== "string" || [...query.trim()].length < 2 || query.length > 80 || /[\u0000-\u001f]/.test(query)) return [];
+ if (typeof query !== "string" || query.length > 80 || /[\u0000-\u001f]/.test(query)) return [];
  const channel = await requireDiscussionChannelAccess(actor, channelId);
  const pattern = `%${query.trim().replace(/[\\%_]/g, "\\$&")}%`;
  const role = (code: string) => sql`exists (select 1 from ${penggunaPeran} membership join ${peran} role on role.id = membership.peran_id where membership.pengguna_id = ${user.id} and role.code = ${code})`;
@@ -828,7 +832,7 @@ export async function searchChannelMentions(actorId: string, channelId: string, 
   ? sql`(${admin} or (${tutor} and ${assignment}) or (not ${tutor} and ${student} and (${enrollment} or ${free})))` : sql`(${admin} or ${tutor} or ${student})`;
  const pkaAudience = channel.courseId === PKA_COURSE_ID || channel.legacyCourseId === PKA_COURSE_ID
   ? sql`(${admin} or ${tutor} or exists (select 1 from ${enrollments} registration where registration.user_id = ${user.id} and registration.course_id = ${PKA_COURSE_ID}))` : undefined;
- const rows = await db.select({ id: user.id, name: user.name }).from(user).innerJoin(pengguna, eq(pengguna.id, user.id))
+ const rows = await db.select({ id: user.id, name: user.name, image: user.image }).from(user).innerJoin(pengguna, eq(pengguna.id, user.id))
   .where(and(eq(pengguna.status, "active"), courseAudience, pkaAudience,
    sql`${nameSearchBigrams(user.name)} @> array(select distinct pair from unnest(${nameSearchBigrams(sql`${query.trim()}`)}) as terms(pair) where char_length(pair) = 2)`,
    sql`${user.name} ilike ${pattern} escape '\\'`)).orderBy(asc(user.name), asc(user.id)).limit(101);
@@ -836,7 +840,7 @@ export async function searchChannelMentions(actorId: string, channelId: string, 
  const access = await getDiscussionRecipientAccess(channel.id, candidates.map(row => row.id));
  const eligible = candidates.flatMap(row => {
   const candidate = access.get(row.id);
-  return candidate ? [{ ...row, role: candidate.role }] : [];
+  return candidate ? [{ id: row.id, name: row.name, ...(row.image ? { avatarUrl: row.image } : {}), role: candidate.role }] : [];
  });
  const page = eligible;
  const sameNameAndRole = (a: typeof eligible[number], b: typeof eligible[number]) =>
@@ -983,7 +987,7 @@ export async function getDiscussionAuthorProfile(actorId: string, threadId: stri
   .from(discussionMessages)
   .where(and(
    eq(discussionMessages.threadId, threadId),
-   eq(discussionMessages.authorId, authorId),
+   or(eq(discussionMessages.authorId, authorId), sql`${discussionMessages.mentionIds} @> ${JSON.stringify([authorId])}::jsonb`),
    eq(discussionMessages.kind, "human"),
    isNull(discussionMessages.deletedAt),
   ))

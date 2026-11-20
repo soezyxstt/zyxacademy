@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { DiscussionAttachment } from "./discussion-attachment";
-import { canSuggestForwardChannel, channelOptionIndex, discussionMessageHref } from "./discussion-adapter";
+import { canSuggestForwardChannel, channelOptionIndex, mentionHandle, discussionMessageHref } from "./discussion-adapter";
 import { DiscussionMarkdown } from "./discussion-markdown";
 import type { DiscussionChannel, DiscussionForwardDraft, DiscussionForwardTarget, DiscussionMessage as Message, DiscussionPerson, DiscussionWorkspaceProps } from "./view-model";
 
@@ -382,7 +382,16 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
             </div>
           </div>
           {quote && <div className="mb-2 rounded-md border-l-2 border-primary bg-muted/50 px-2 py-1 text-body-xs"><span className="font-semibold">{quoteAuthor}</span><div className="line-clamp-2 break-words text-muted-foreground [&_div]:text-body-xs [&_p]:text-body-xs"><DiscussionMarkdown content={(quoteExcerpt ?? "").slice(0, 600)} /></div></div>}
-          <div data-discussion-content>{visibleBody && <DiscussionMarkdown content={visibleBody} />}
+          <div data-discussion-content>{visibleBody && <DiscussionMarkdown content={visibleBody} renderMention={handle => {
+            const token = handle.toLowerCase();
+            const matches = message.mentionedPeople?.filter(person => {
+              const base = mentionHandle(person.id, person.name).toLowerCase();
+              return token === base || (token.startsWith(base + "_") && /^\d+$/.test(token.slice(base.length + 1)));
+            });
+            const person = handle.toLowerCase() === "zyra" ? { id: "zyra", name: "Zyra", role: "zyra" as const } : matches?.length === 1 ? matches[0] : undefined;
+            if (!person) return handle.includes("_") ? handle.replaceAll("_", " ") : "@" + handle;
+            return <button type="button" className="rounded-sm text-primary underline-offset-2 hover:underline focus-visible:outline-ring" onClick={() => onViewProfile?.(person)}>{person.name}</button>;
+          }} />}
           {message.attachments.map((attachment) => <div key={attachment.id} className="mt-2 w-60 max-w-full">{renderAttachment ? renderAttachment(attachment) : <DiscussionAttachment attachment={attachment} />}</div>)}</div>
           {message.editedAt && <p className="mt-1 text-body-xs text-muted-foreground">{t("edited")}</p>}
         </ZyraBubbleSkin>

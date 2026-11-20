@@ -19,6 +19,7 @@ export type ZyraComposerInputHandle = {
 
 type Props = {
   value: string;
+  onCursorChange?: (body: string, start: number, end: number) => void;
   onChange: (value: string) => void;
   onSubmit: () => void;
   disabled?: boolean;
@@ -169,6 +170,10 @@ export const ZyraComposerInput = React.forwardRef<ZyraComposerInputHandle, Props
         keymap.of([{ key: "Shift-Enter", run: insertNewline }, { key: "Mod-Shift-z", run: redo, preventDefault: true }, { key: "Enter", run: (v) => { if (v.composing || v.state.field(mathRendering).composing || latest.current.disabled || latest.current.submitOnEnter === false) return false; latest.current.onSubmit(); return true; } }, ...defaultKeymap, ...historyKeymap]),
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
+          if (update.docChanged || update.selectionSet) {
+            const { from, to } = update.state.selection.main;
+            latest.current.onCursorChange?.(update.state.doc.toString(), from, to);
+          }
           if (update.docChanged && !update.transactions.some((tr) => tr.annotation(externalChange))) latest.current.onChange(update.state.doc.toString());
         }),
         EditorView.theme({
