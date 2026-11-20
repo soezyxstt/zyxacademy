@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+import re
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -22,14 +23,17 @@ def request(origin, path, token, headers=None):
 
 def inngest_pages(path, token, params=None):
     rows, cursor = [], None
+    print(json.dumps({"phase": "inngest", "resource": path}), flush=True)
     for _ in range(10):
         query = {"limit": 100, **(params or {}), **({"cursor": cursor} if cursor else {})}
         status, payload = request("https://api.inngest.com", path + "?" + urlencode(query, doseq=True), token, {"X-Inngest-Env": ENVIRONMENT})
         if status != 200 or not isinstance(payload.get("data"), list):
+            print(json.dumps({"status": status, "dataList": isinstance(payload.get("data"), list)}), flush=True)
             raise ValueError("INNGEST_INVENTORY_UNAVAILABLE")
         rows.extend(payload["data"])
         pagination = payload.get("page", {})
         if not isinstance(pagination.get("hasMore"), bool):
+            print(json.dumps({"status": status, "pagePresent": "page" in payload, "paginationPresent": "pagination" in payload}), flush=True)
             raise ValueError("INNGEST_PAGINATION_UNVERIFIED")
         if not pagination.get("hasMore"):
             return rows
@@ -48,6 +52,8 @@ def inventory():
         raise ValueError("INNGEST_API_KEY_REQUIRED")
     environments = inngest_pages("/v2/envs", token)
     production = [row for row in environments if row.get("type") == "PRODUCTION"]
+    print(json.dumps({"phase": "environment identity", "environments": [
+        {"id": row.get("id"), "name": row.get("name"), "type": row.get("type")} for row in environments]}), flush=True)
     if len(production) != 1:
         raise ValueError("PRODUCTION_INNGEST_ENVIRONMENT_UNVERIFIED")
     functions = inngest_pages("/v2/apps/zyx-academy/functions", token)
@@ -61,8 +67,10 @@ def inventory():
         "runCounts": {status: sum(row.get("status") == status for row in runs) for status in ("RUNNING", "QUEUED", "PAUSED")},
         "runTimeRange": "Since 2020-01-01 within provider retention; sleeping steps require independent verification"}
     vercel_token = os.environ.get("VERCEL_TOKEN", "")
+    print(json.dumps({"phase": "vercel project"}), flush=True)
     status, project = request("https://api.vercel.com", f"/v9/projects/{PROJECT}?teamId={TEAM}", vercel_token)
     if status != 200 or project.get("id") != PROJECT:
+        print(json.dumps({"status": status, "projectMatches": project.get("id") == PROJECT}), flush=True)
         raise ValueError("VERCEL_PRODUCTION_PROJECT_UNVERIFIED")
     status, firewall = request("https://api.vercel.com", f"/v1/security/firewall/config/active?projectId={PROJECT}&teamId={TEAM}", vercel_token)
     result["vercel"] = {"projectId": PROJECT, "firewallStatus": status,
@@ -73,8 +81,13 @@ def inventory():
     print(json.dumps(result))
 
 
-if __name__ == "__main__":
+def main():
     try:
         inventory()
-    except (ValueError, KeyError, OSError):
-        raise SystemExit("PRODUCTION_CONTROL_PLANE_INVENTORY_FAILED")
+    except (ValueError, KeyError, OSError) as error:
+        code = str(error) if type(error) is ValueError and re.fullmatch(r"[A-Z_]+", str(error)) else "PRODUCTION_CONTROL_PLANE_INVENTORY_FAILED"
+        raise SystemExit(code) from None
+
+
+if __name__ == "__main__":
+    main()
