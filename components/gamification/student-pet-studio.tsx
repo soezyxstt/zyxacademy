@@ -11,6 +11,8 @@ import { DEFAULT_PET_ID, petSupportsAction } from "@/lib/gamification/pet-studio
 import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 import { ZyraCosmeticAvatar } from "./zyra-cosmetic-avatar";
 import { ZyraMascot3D } from "./zyra-mascot-3d";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ZyraMascotPreview } from "./zyra-mascot-preview";
 import { CatPractice } from "./cat-practice";
 
 const slots = ["zyra_avatar", "pet_suit", "pet_action"] as const;
@@ -22,6 +24,7 @@ export function StudentPetStudio({ rewards, balance }: { rewards: GamificationRe
   const router = useRouter();
   const [pending, start] = useTransition();
   const [playing, setPlaying] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState(false);
   const active = (slot: string) => rewards.find(item => item.slot === slot && item.equipped && item.owned);
   const pet = active("zyra_avatar")?.id ?? DEFAULT_PET_ID;
@@ -40,7 +43,7 @@ export function StudentPetStudio({ rewards, balance }: { rewards: GamificationRe
   }
   return <div className="grid min-w-0 gap-(--section-gap) md:grid-cols-[minmax(15rem,1fr)_minmax(0,2fr)]">
     <section aria-label={t("petStudio.active")} className="flex flex-col items-center gap-2">
-      {playing ? <ZyraCosmeticAvatar cosmeticId={pet} size={240} /> : <ZyraMascot3D cosmeticId={pet} size={240} practiceSuit={suit?.replace("pet-suit-", "")} practiceFlowers={action === "pet-action-giveFlowers"} practiceCycle={action === "pet-action-cycle"} animationName={action?.replace("pet-action-", "")} />}
+      {playing || previewing ? <ZyraCosmeticAvatar cosmeticId={pet} size={240} /> : <ZyraMascot3D cosmeticId={pet} size={240} practiceSuit={suit?.replace("pet-suit-", "")} practiceFlowers={action === "pet-action-giveFlowers"} practiceCycle={action === "pet-action-cycle"} animationName={action?.replace("pet-action-", "")} />}
       <h2 className="font-heading text-body-base font-bold">{name(pet)}</h2>
       <CatPractice rewards={rewards} onOpenChange={setPlaying} />
     </section>
@@ -63,6 +66,22 @@ export function StudentPetStudio({ rewards, balance }: { rewards: GamificationRe
               {requiredPet && <p className="text-body-xs text-muted-foreground">{t("petStudio.forPet",{pet:name(requiredPet.id)})}</p>}
               {insufficient && <p className="text-body-xs text-muted-foreground">{t("achievementPage.insufficient")}</p>}
             </div>
+            <Dialog onOpenChange={setPreviewing}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" aria-label={t("petStudio.tryItem", { item: name(item.id) })}>{t("petStudio.try")}</Button>
+              </DialogTrigger>
+              <DialogContent aria-describedby={undefined}>
+                <DialogTitle>{t("petStudio.tryItem", { item: name(item.id) })}</DialogTitle>
+                {slot === "zyra_avatar" ? <ZyraMascotPreview cosmeticId={item.id} size={240} /> :
+                  <div className="flex flex-col items-center gap-2">
+                    <ZyraMascot3D cosmeticId={requiredPet?.id ?? pet} size={240}
+                      practiceSuit={(slot === "pet_suit" ? item.id : suit)?.replace("pet-suit-", "")}
+                      animationName={slot === "pet_action" ? item.id.replace("pet-action-", "") : "idle"}
+                      practiceCycle={item.id === "pet-action-cycle"} practiceFlowers={item.id === "pet-action-giveFlowers"} />
+                    <span className="text-body-sm">{name(requiredPet?.id ?? pet)}</span>
+                  </div>}
+              </DialogContent>
+            </Dialog>
             {(!equipped || removable) && <Button size="sm" variant={owned ? "outline" : "default"} disabled={pending || insufficient || (owned && incompatible && !removable)} onClick={() => change(item, removable ? "remove" : owned ? "equip" : "buy")}>{t(removable ? "petStudio.remove" : owned ? "achievementPage.equip" : "achievementPage.buy")}</Button>}
           </li>;
         })}</ul></TabsContent>)}

@@ -6,6 +6,6 @@ import { getEquippedZyraAppearance } from "@/lib/gamification/queries";
 export async function getMyZyraAppearance() {
  try {
   const { user } = await requireStudentGamificationAccess();
-  return await getEquippedZyraAppearance(user.id);
+  return { ...await getEquippedZyraAppearance(user.id), petAccess: true };
  } catch { return { skinId: null, avatarId: null }; }
 }

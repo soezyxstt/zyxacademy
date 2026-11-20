@@ -188,6 +188,9 @@
     "askSelection": "Kutipan dari materi {title}: \"{selection}\"\n\nJelaskan bagian ini secara bertahap."
   },
   "flashcards": {
+    "recallWithPet": "Latihan ingatan bersama Zyra",
+    "writeRecall": "Sebelum membalik kartu, tulis jawabanmu dengan kata-katamu sendiri.",
+    "compareRecall": "Bandingkan catatanmu dengan jawaban di kartu. Bagian mana yang terlewat?",
     "reviewTitle": "Ulasan flashcard",
     "dueCount": "{count, plural, one {# flashcard jatuh tempo.} other {# flashcard jatuh tempo.}}",
     "allReviewsDone": "Semua ulasan selesai.",
