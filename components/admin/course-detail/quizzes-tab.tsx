@@ -172,7 +172,7 @@ export function QuizzesTab({
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex flex-wrap items-center gap-2.5">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[170px] h-9 rounded-lg">
+              <SelectTrigger variant="inline" aria-label={t("courseDetail.quizzes.categoryLabel")} className="max-w-44 shrink-0">
                 <SelectValue placeholder={t("courseDetail.quizzes.allCategories")} />
               </SelectTrigger>
               <SelectContent>
@@ -202,7 +202,7 @@ export function QuizzesTab({
         </div>
 
         {/* Quizzes List */}
-        <div className="rounded-xl border border-border bg-card shadow-2xs overflow-hidden">
+        <div className="border-y border-border">
           {filteredQuizzes.length === 0 ? (
             <div className="text-center py-8 px-4">
               <NotebookPen className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />

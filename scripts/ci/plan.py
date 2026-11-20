@@ -14,7 +14,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
 CODE = {'.ts', '.tsx', '.js', '.jsx', '.mjs', '.mts', '.cts', '.cjs'}
-SCOPES = ('web', 'worker', 'v4', 'authoring', 'schedule', 'plugin', 'typecheck', 'test_typecheck', 'structured_typecheck', 'i18n', 'ci')
+SCOPES = ('web', 'worker', 'cloud_run', 'v4', 'authoring', 'schedule', 'plugin', 'typecheck', 'test_typecheck', 'structured_typecheck', 'i18n', 'ci')
 LOCKS = {'package.json', 'bun.lock', 'package-lock.json', '.npmrc'}
 SCHEDULE_TESTS = {
     'tests/contracts/tutorial-week-policy.test.ts',
@@ -88,7 +88,8 @@ class Snapshot:
         text = self.read(source)
         references = [next(value for value in match if value) for match in IMPORT.findall(text)]
         edges = frozenset(resolved for literal in references
-                          if (resolved := self.resolve(literal, source)))
+                          if (resolved := self.resolve(literal, source))
+                          and not (source == 'lib/i18n/catalogs.ts' and resolved.startswith('messages/')))
         self._edges[source] = edges
         return edges
 
@@ -122,7 +123,7 @@ def scope_paths(snapshot):
     runtime = snapshot.runtime()
     worker = snapshot.closure({'workers/deno-background/main.ts', 'workers/neon-background/main.ts'})
     worker |= snapshot.under('workers/deno-background/', 'workers/neon-background/', 'jobs/', 'scripts/neon/')
-    worker |= {'deno.json', 'deno.lock', 'scripts/audit-worker-dependencies.ts',
+    worker |= {'scripts/audit-worker-dependencies.ts',
                '.github/scripts/prepare_worker_runtime.py', '.github/scripts/cloud_run_runtime.py'} | LOCKS
     # Keep lib/ conservative: server actions may discover modules dynamically.
     # Other workers are excluded unless explicitly fingerprinted or imported.
@@ -130,8 +131,8 @@ def scope_paths(snapshot):
     web |= snapshot.closure(web | {'scripts/build-authoring-skills.ts', 'scripts/authoring/prepare-web-verification.ts'})
     web |= runtime | snapshot.under('lib/authoring/playbooks/')
     web |= {f for f in snapshot.files if '/' not in f and PurePosixPath(f).suffix in CODE}
-    web |= LOCKS | {'tsconfig.json', 'authoring-skills.lock.json', 'vercel.json', 'Dockerfile.cloud-run', 'Dockerfile.cloud-run.dockerignore', 'AGENTS.md'}
-    web |= snapshot.under('.github/scripts/') & {f for f in snapshot.files if 'cloud_run' in f or 'cloud-run' in f}
+    web |= LOCKS | {'tsconfig.json', 'authoring-skills.lock.json', 'vercel.json', 'AGENTS.md'}
+    web |= {'.github/scripts/sync_vercel_staging.py', '.github/scripts/prepare_worker_runtime.py', '.github/scripts/cloud_run_runtime.py'}
     authoring_roots = snapshot.under('lib/authoring/', 'app/api/mcp/authoring/') | AUTHORING_TESTS | {'scripts/build-authoring-skills.ts'}
     schedule_roots = snapshot.under('lib/schedule/', 'components/schedule/',
         'app/(admin)/admin/(academic)/schedules/', 'app/(student)/dashboard/groups/',
@@ -163,6 +164,12 @@ def plan(changed, head, base=None, force=False):
             result['web'] = True
         if path.startswith(('workers/deno-background/', 'workers/neon-background/', 'jobs/', 'scripts/neon/')):
             result['worker'] = True
+        if (path in {'Dockerfile.cloud-run', '.dockerignore', 'next.config.ts', 'proxy.ts',
+                     'lib/storage/public-media.ts', 'lib/storage/public-media.json',
+                     '.github/scripts/smoke-cloud-run.sh', '.github/scripts/deploy_cloud_run_staging.py',
+                     '.github/scripts/import_cloud_run_staging_secrets.py', '.github/scripts/cloud_run_runtime.py'}
+                or path.startswith(('deploy/cloud-run/', 'workers/staging-web-edge/', 'scripts/cloud-run/'))):
+            result['cloud_run'] = True
         if path == 'tsconfig.structured-articles.json':
             result['structured_typecheck'] = True
         if path.startswith('lib/authoring/'):
@@ -181,7 +188,8 @@ def plan(changed, head, base=None, force=False):
         if path.startswith('tests/') and suffix in CODE or path == 'tsconfig.test.json':
             result['test_typecheck'] = True
     # Changing a reusable workflow explicitly revalidates its own surface.
-    workflows = {'deploy-web.yml': 'web', 'deploy.yml': 'worker', 'deploy-neon-worker.yml': 'worker', 'authoring-skills.yml': 'authoring',
+    workflows = {'deploy-web.yml': 'web', 'deploy-cloud-run-staging.yml': 'cloud_run', 'deploy.yml': 'worker',
+                 'deploy-neon-worker.yml': 'worker', 'authoring-skills.yml': 'authoring',
                  'schedule-regressions.yml': 'schedule', 'sync-plugin.yml': 'plugin'}
     for file, scope in workflows.items():
         if '.github/workflows/' + file in changed:
@@ -230,6 +238,35 @@ def plan(changed, head, base=None, force=False):
     result['lint_all'] = broad or 'eslint.config.mjs' in changed
     result['lint_files'] = sorted(p for p in changed & head.files if PurePosixPath(p).suffix in CODE
                                   and not p.startswith(('tests/', 'workers/', 'plugins/', 'android/')))
+    worker_tests = []
+    for config in result['worker_projects']:
+        directory = config.rsplit('/', 1)[0] + '/'
+        worker_tests.extend(sorted(f for f in head.under(directory) if f.endswith('.test.ts')))
+    total_tests = len(result['tests']) + len(worker_tests)
+    if total_tests == 0:
+        shard_count = 0
+    elif total_tests <= 35:
+        shard_count = 1
+    elif total_tests <= 100:
+        shard_count = 2
+    elif total_tests <= 220:
+        shard_count = 4
+    else:
+        shard_count = 8
+    result['static'] = (
+        result['typecheck']
+        or result['test_typecheck']
+        or result['structured_typecheck']
+        or result['i18n']
+        or result['lint_all']
+        or bool(result['lint_files'])
+        or bool(result['worker_projects'])
+        or result['python_worker']
+    )
+    result['has_tests'] = total_tests > 0
+    # Keep matrix JSON non-empty when has_tests is false so GitHub skips cleanly.
+    result['test_shards'] = list(range(shard_count)) if shard_count else [0]
+    result['quality'] = result['static'] or result['has_tests']
     result['reasons'] = reasons
     result['changed'] = sorted(changed)
     result['fallback'] = force
@@ -267,8 +304,17 @@ def main():
         with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
             for key in SCOPES:
                 stream.write(f'{key}={str(result[key]).lower()}\n')
-            stream.write(f'quality={str(result["typecheck"] or result["test_typecheck"] or result["structured_typecheck"] or result["i18n"] or bool(result["tests"]) or result["lint_all"] or bool(result["lint_files"]) or bool(result["worker_projects"]) or result["python_worker"]).lower()}\n')
-    print(json.dumps({key: result[key] for key in SCOPES} | {'selected_tests': len(result['tests']), 'fallback': result['fallback']}))
+            stream.write(f'quality={str(result["quality"]).lower()}\n')
+            stream.write(f'static={str(result["static"]).lower()}\n')
+            stream.write(f'has_tests={str(result["has_tests"]).lower()}\n')
+            stream.write(f'test_shards={json.dumps(result["test_shards"])}\n')
+    print(json.dumps({key: result[key] for key in SCOPES} | {
+        'static': result['static'],
+        'has_tests': result['has_tests'],
+        'test_shards': len(result['test_shards']) if result['has_tests'] else 0,
+        'selected_tests': len(result['tests']),
+        'fallback': result['fallback'],
+    }))
 
 
 if __name__ == '__main__':

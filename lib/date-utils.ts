@@ -499,3 +499,21 @@ export function minutesAgo(minutes: number, from: Date = new Date()): Date { ret
 export const SQLITE_MILLISECOND_THRESHOLD = 100_000_000_000;
 /** Normalize legacy SQLite milliseconds before comparing timestamp-second columns. */
 export function toUnixSeconds(value: Date | string | number): number { return getUnixTime(normalizeDate(value)); }
+
+/** Projection keys shared by gamification writers and readers, using Jakarta calendar boundaries. */
+export function gamificationPeriodKey(period: "week" | "month" | "all", now = new Date()): string {
+  if (period === "all") return "all";
+  const day = jakartaDay(now);
+  return period === "week" ? `week:${getCalendarWeekRange(day).startIso}` : `month:${day.substring(0, 7)}`;
+}
+
+/** Jakarta mission windows use inclusive start and exclusive end UTC instants. */
+export function gamificationMissionWindows(date: Date) {
+  if (!Number.isFinite(date.getTime())) throw new Error('INVALID_MISSION_TIME');
+  const dayKey = jakartaDay(date);
+  const week = getCalendarWeekRange(dayKey);
+  return {
+    day: { key: dayKey, startsAt: startOfJakartaDayUtc(date), endsAt: nextJakartaReset(date) },
+    week: { key: `week:${week.startIso}`, startsAt: new Date(`${week.startIso}T00:00:00.000+07:00`), endsAt: new Date(`${addCalendarDays(week.endIso, 1)}T00:00:00.000+07:00`) },
+  };
+}

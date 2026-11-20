@@ -6,6 +6,7 @@ import { clearDemoTryoutCompletions } from "@/lib/demo/assessment/tryout";
 import { todayUtc } from "@/lib/date-utils";
 import { resetDemoCommunity } from "./use-demo-community";
 import { toast } from "@/components/ui/toast";
+import { demoGamificationChangeEvent } from "@/lib/demo/gamification";
 
 type Session = { scope: { courseId: string; revision: string }; reviewScope?: {setId: string; offset: number}; overlay: DemoOverlay; overlays: Readonly<Record<string, DemoOverlay>>; record: (kind: DemoEvent["kind"], id: string, grade?: number) => void; reset: () => void; generation: number; ready: boolean };
 const Context = createContext<Session | null>(null);
@@ -54,10 +55,11 @@ export function DemoSession({ courseId, revision, scopes, reviewScope, children 
       void resetDemoCommunity(scope).catch(() => toast.error("Data jadwal belum dapat dihapus. Periksa penyimpanan browser, lalu coba lagi."));
     }
     try {
-      const owned = ["zyx-demo-quiz-result:v2:", "zyx-demo-profile:", "zyx-demo-flashcards:", "zyx-quiz-answers-demo:", "zyx-quiz-flags-demo:", "zyx-quiz-timer-deadline-demo:"];
+      const owned = ["zyx-demo-quiz-result:v2:", "zyx-demo-profile:", "zyx-demo-gamification:", "zyx-demo-flashcards:", "zyx-quiz-answers-demo:", "zyx-quiz-flags-demo:", "zyx-quiz-timer-deadline-demo:"];
       const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)).filter((item): item is string => Boolean(item && owned.some(prefix => item.startsWith(prefix))));
       keys.forEach(item => localStorage.removeItem(item));
     } catch { /* Reset also works when browser storage is unavailable. */ }
+    window.dispatchEvent(new Event(demoGamificationChangeEvent));
     store.reset(activeScopes);
     if (!subscribed) {
       setOverlay(store.read({ courseId, revision }));

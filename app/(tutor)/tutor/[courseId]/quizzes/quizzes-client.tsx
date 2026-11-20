@@ -6,10 +6,18 @@ import { useRouter } from "next/navigation";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { Plus, Edit2, Trash2, ClipboardList, HelpCircle, Loader2, Tag, Layers, Check, CheckSquare, Eye, Clock, FileSpreadsheet, UserCheck } from "lucide-react";
+import { Plus, Edit2, Trash2, ClipboardList, HelpCircle, Loader2, Tag, Layers, Check, CheckSquare, Eye, Clock, FileSpreadsheet, UserCheck, MoreHorizontal, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -288,7 +296,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-(--major-gap)">
       <Tabs defaultValue="templates" className="w-full">
         <TabsList>
           <TabsTrigger value="templates">
@@ -304,79 +312,73 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         {/* =====================================================================
             TAB 1: QUIZ
             ===================================================================== */}
-        <TabsContent value="templates" className="space-y-4">
-          <div className="flex flex-wrap justify-between items-center gap-2">
-            <h2 className="font-heading text-body-base font-semibold text-foreground">{tr("quizCount", { count: initialTemplates.length })}</h2>
-            <Button asChild className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
-              <Link href={`/tutor/${courseId}/quizzes/new`}>
-                <Plus className="size-4" />
-                {tr("createQuiz")}
-              </Link>
-            </Button>
+        <TabsContent value="templates" className="space-y-(--section-gap)">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
+            <span className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{tr("quizCount", { count: initialTemplates.length })}</span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button asChild size="icon-lg">
+                    <Link href={`/tutor/${courseId}/quizzes/new`} aria-label={tr("createQuiz")}><Plus aria-hidden /></Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{tr("createQuiz")}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
           {initialTemplates.length === 0 ? (
             <AdminEmptyState icon={ClipboardList} title={tr("noQuizzes")} />
           ) : (
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <div className="divide-y divide-border/30">
               {initialTemplates.map((t) => {
                 const rules = typeof t.selectionRules === "string" ? JSON.parse(t.selectionRules) : t.selectionRules;
                 const isSimulation = t.category === "simulation";
 
                 return (
-                  <Card key={t.id} className="rounded-none border-0 bg-transparent py-0 shadow-none gap-0">
-                    <CardHeader className="px-4 pt-3 pb-2">
+                  <div key={t.id} className="-mx-2 space-y-2.5 rounded-lg px-2 py-3 transition-colors hover:bg-muted/35">
+                    <div className="space-y-1">
                       <div className="flex justify-between items-start gap-2">
-                        <CardTitle className="font-heading text-body-base font-bold text-foreground break-words">{t.title}</CardTitle>
+                        <h3 className="font-heading text-body-base font-bold text-foreground break-words">{t.title}</h3>
                         <div className="flex gap-1.5 flex-wrap items-center">
-                          <Badge variant="secondary" className="text-[10px] rounded-md px-2 py-0.5">
+                          <Badge variant="secondary" className="text-body-2xs rounded-md px-2 py-0.5">
                             {tr(quizCategoryLabelKey(t.category))}
                           </Badge>
-                          <button
-                            type="button"
-                            onClick={() => handleTogglePublishStatus(t.id, t.status)}
-                            aria-pressed={t.status === "published"}
-                            className={cn(
-                              "capitalize text-body-sm rounded-md px-2 py-1 font-semibold border cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                              t.status === "published"
-                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
-                                : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20"
-                            )}
-                          >
+                          <Badge variant={t.status === "published" ? "default" : "outline"}>
                             {t.status === "published" ? tr("published") : tr("draft")}
-                          </button>
+                          </Badge>
                         </div>
                       </div>
 
                       {/* Creator attribution line */}
-                      <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground mt-1">
+                      <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground">
                         <UserCheck className="size-3 text-brand-primary shrink-0" />
                         <span>{tr("creator")}</span>
                         <span className="font-semibold text-foreground truncate">{t.creatorName || tr("system")}</span>
                         {t.creatorRole && (
-                          <Badge variant="outline" className="capitalize text-[10px] rounded-md px-1.5 py-0">
+                          <Badge variant="outline" className="capitalize text-body-2xs rounded-md px-1.5 py-0">
                             {t.creatorRole}
                           </Badge>
                         )}
                       </div>
 
-                      <p className="text-body-xs text-muted-foreground mt-0.5">
+                      <p className="text-body-xs text-muted-foreground">
                         {tr("attemptLimit", { attempts: t.maxAttempts ? `${t.maxAttempts}x` : tr("unlimited"), duration: t.timeLimitSeconds ? `${t.timeLimitSeconds / 60} ${locale === "id" ? "menit" : "minutes"}` : tr("free") })}
                       </p>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-3 space-y-2">
+                    </div>
+                    <div className="space-y-2">
                       <div className="flex flex-wrap gap-1">
                         <span className="text-body-xs font-semibold text-muted-foreground mr-1.5 flex items-center gap-1">
                           <Layers className="size-3" />
                           {tr("questionsCount", { count: rules?.count || 5 })} {rules?.fixedQuestionIds && rules.fixedQuestionIds.length > 0 && tr("specificQuestions")}
                         </span>
                         {rules?.fixedQuestionIds && rules.fixedQuestionIds.length > 0 ? (
-                          <Badge variant="outline" className="text-[10px] text-brand-primary border-brand-primary/30 rounded-md">
+                          <Badge variant="outline" className="text-body-2xs text-brand-primary border-brand-primary/30 rounded-md">
                             {tr("fixed")}
                           </Badge>
                         ) : (
                           rules?.tags?.map((tag: string) => (
-                            <Badge key={tag} variant="outline" className="text-[10px] text-muted-foreground rounded-md flex items-center gap-1">
+                            <Badge key={tag} variant="outline" className="text-body-2xs text-muted-foreground rounded-md flex items-center gap-1">
                               <Tag className="size-2.5" />
                               {tag}
                             </Badge>
@@ -385,19 +387,19 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       </div>
 
                       {/* Schedule & Manual Status Section */}
-                      <div className="mt-3 pt-3 border-t border-border/40 space-y-1.5 text-body-xs text-muted-foreground">
+                      <div className="pt-2 border-t border-border/40 space-y-1.5 text-body-xs text-muted-foreground">
                         <div className="flex items-center justify-between">
                           <span className="font-semibold text-muted-foreground flex items-center gap-1">
                             <Clock className="size-3" />
                             {tr("access")}
                           </span>
                           <span className={cn(
-                            "inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                            "inline-flex rounded-md border px-2 py-0.5 text-body-2xs font-semibold",
                             t.manualStatus === "open"
-                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+                              ? "bg-status-success/10 text-status-success border-status-success/20"
                               : t.manualStatus === "closed"
-                              ? "bg-destructive/10 text-destructive border-destructive/20"
-                              : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20"
+                              ? "bg-status-error/10 text-status-error border-status-error/20"
+                              : "bg-status-info/10 text-status-info border-status-info/20"
                           )}>
                             {t.manualStatus === "open" ? tr("manualOpen") : t.manualStatus === "closed" ? tr("manualClosed") : tr("followSchedule")}
                           </span>
@@ -422,59 +424,76 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       </div>
 
                       {rules?.fixedQuestionIds && rules.fixedQuestionIds.length > 0 && (
-                        <div className="mt-2.5 text-left border-t border-border/40 pt-2.5">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
-                            {tr("selectedQuestions")}
-                          </span>
-                          <ol className="list-decimal pl-4 space-y-1 text-body-xs text-foreground/80 leading-normal max-h-24 overflow-y-auto pr-1">
-                            {rules.fixedQuestionIds.map((qId: string) => {
-                              const question = initialQuestionBank.find((q) => q.id === qId);
-                              return (
-                                <li key={qId} className="truncate" title={question?.prompt || tr("questionMissing")}>
-                                  {question?.prompt || <span className="italic text-muted-foreground">{tr("questionDeleted")}</span>}
-                                </li>
-                              );
-                            })}
-                          </ol>
-                        </div>
+                        <Collapsible>
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="sm" className="group">
+                              <ChevronDown aria-hidden className="group-aria-expanded:rotate-180" />
+                              {tr("selectedQuestions", { count: rules.fixedQuestionIds.length })}
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <ol className="list-decimal pl-4 space-y-1 text-body-xs text-foreground/80 leading-normal max-h-40 overflow-y-auto pr-1">
+                              {rules.fixedQuestionIds.map((qId: string) => {
+                                const question = initialQuestionBank.find((q) => q.id === qId);
+                                return (
+                                  <li key={qId} className="break-words">
+                                    {question?.prompt || <span className="italic text-muted-foreground">{tr("questionDeleted")}</span>}
+                                  </li>
+                                );
+                              })}
+                            </ol>
+                          </CollapsibleContent>
+                        </Collapsible>
                       )}
-                    </CardContent>
-                    <div className="flex flex-wrap gap-2 px-4 pb-3">
-                      <Button asChild variant="outline" size="sm" className="gap-1">
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <Button asChild variant="outline" size="sm" className="gap-1.5">
                         <Link href={`/tutor/${courseId}/quizzes/${t.id}/attempts`}>
                           <FileSpreadsheet className="size-3.5" />
-                          {tr("results")}
+                          <span>{tr("results")}</span>
                         </Link>
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleOpenPreviewTpl(t)} className="rounded-md border-border/80 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary gap-1 text-body-sm">
-                        <Eye className="size-3.5" />
-                        {tr("preview")}
-                      </Button>
-                      {isSimulation ? (
-                        <Button variant="outline" size="sm" disabled className="rounded-md border-border/80 text-muted-foreground gap-1 opacity-50 cursor-not-allowed text-body-sm">
-                          <Edit2 className="size-3.5" />
-                          {tr("editAdmin")}
-                        </Button>
-                      ) : (
-                        <Button asChild variant="outline" size="sm" className="rounded-md border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted gap-1 text-body-sm">
-                          <Link href={`/tutor/${courseId}/quizzes/${t.id}/edit`}>
-                            <Edit2 className="size-3.5" />
-                            {tr("edit")}
-                          </Link>
-                        </Button>
-                      )}
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        disabled={isSimulation}
-                        onClick={() => setDeleteTplId(t.id)}
-                        className="gap-1"
-                      >
-                        <Trash2 className="size-3.5" />
-                        {tr("delete")}
-                      </Button>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon-sm" aria-label={t.title} className="h-8 w-8 rounded-lg">
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuItem onSelect={() => handleOpenPreviewTpl(t)}>
+                            <Eye className="size-4 text-muted-foreground" />
+                            <span>{tr("preview")}</span>
+                          </DropdownMenuItem>
+                          {isSimulation ? (
+                            <DropdownMenuItem disabled>
+                              <Edit2 className="size-4" />
+                              <span>{tr("editAdmin")}</span>
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem asChild>
+                              <Link href={`/tutor/${courseId}/quizzes/${t.id}/edit`}>
+                                <Edit2 className="size-4 text-muted-foreground" />
+                                <span>{tr("edit")}</span>
+                              </Link>
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem disabled={isPending} onSelect={() => handleTogglePublishStatus(t.id, t.status)}>
+                            {t.status === "published" ? tr("moveToDraft") : tr("publishQuiz")}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            disabled={isSimulation}
+                            onSelect={() => setDeleteTplId(t.id)}
+                            className="text-status-error focus:text-status-error"
+                          >
+                            <Trash2 className="size-4" />
+                            <span>{tr("delete")}</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                  </Card>
+                  </div>
                 );
               })}
             </div>
@@ -484,20 +503,26 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         {/* =====================================================================
             TAB 2: QUESTION BANK
             ===================================================================== */}
-        <TabsContent value="questionbank" className="space-y-4">
-          <div className="flex flex-wrap justify-between items-center gap-2">
-            <h2 className="font-heading text-body-base font-semibold text-foreground">{tr("questionBankTitle", { count: initialQuestionBank.length })}</h2>
-            <Button onClick={handleOpenAddQ} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
-              <Plus className="size-4" />
-              {tr("addQuestion")}
-            </Button>
+        <TabsContent value="questionbank" className="space-y-(--section-gap)">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
+            <span className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{tr("questionBankTitle", { count: initialQuestionBank.length })}</span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="button" size="icon-lg" aria-label={tr("addQuestion")} onClick={handleOpenAddQ}>
+                    <Plus aria-hidden />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{tr("addQuestion")}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
           {initialQuestionBank.length === 0 ? (
             <AdminEmptyState icon={HelpCircle} title={tr("emptyBank")} />
           ) : (
             <>
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <div className="divide-y divide-border/30">
               {initialQuestionBank.slice(questionOffset, questionOffset + QUESTION_PAGE_SIZE).map((q, idx) => {
                 const isImmutableReference = q.origin !== "zyx_original";
                 const tagsArr = typeof q.tags === "string" ? JSON.parse(q.tags) : q.tags;
@@ -505,25 +530,25 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                 const correct = typeof q.correctIndices === "string" ? JSON.parse(q.correctIndices) : q.correctIndices;
 
                 return (
-                  <Card key={q.id} className="relative rounded-none border-0 bg-transparent p-4 shadow-none">
-                    <div className="flex items-start justify-between gap-4">
+                  <div key={q.id} className="relative -mx-2 rounded-lg px-2 py-(--row-padding) transition-colors hover:bg-muted/35">
+                    <div className="flex items-start justify-between gap-(--related-gap)">
                       <div className="space-y-1.5 flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-body-xs font-bold text-muted-foreground">{tr("questionNumber", { number: initialQuestionBank.length - questionOffset - idx })}</span>
-                          <Badge className={`text-[10px] rounded-md px-1.5 py-0.5 border ${
-                            q.difficulty === "easy" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20" :
-                            q.difficulty === "medium" ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20" :
-                            "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20"
+                          <Badge className={`text-body-2xs rounded-md px-1.5 py-0.5 border ${
+                            q.difficulty === "easy" ? "bg-status-success/10 text-status-success border-status-success/20" :
+                            q.difficulty === "medium" ? "bg-status-warning/10 text-status-warning border-status-warning/20" :
+                            "bg-status-error/10 text-status-error border-status-error/20"
                           }`}>
                             {tr(q.difficulty)}
                           </Badge>
-                          <Badge variant="outline" className="text-[10px] rounded-md text-muted-foreground">
+                          <Badge variant="outline" className="text-body-2xs rounded-md text-muted-foreground">
                             {q.questionType === "short_answer" ? tr("shortAnswer") :
                              q.questionType === "essay" ? tr("essay") :
                              q.questionType === "multiple_choices" ? tr("multiSelect") : tr("singleChoice")}
                           </Badge>
                         </div>
-                        <MathText className="text-body-base font-medium text-foreground leading-relaxed pt-1" as="p">{q.prompt}</MathText>
+                        <MathText className="text-body-base font-medium text-foreground pt-1" as="p">{q.prompt}</MathText>
                       </div>
                       
                       {isImmutableReference ? (
@@ -531,14 +556,24 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                           {tr("referenceOnly")}
                         </Badge>
                       ) : (
-                        <div className="flex gap-1.5">
-                          <Button variant="ghost" size="xs" onClick={() => handleOpenEditQ(q)} className="rounded-md text-muted-foreground hover:text-foreground" aria-label={tr("editQuestion")}>
-                            <Edit2 className="size-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="xs" onClick={() => setDeleteQId(q.id)} className="rounded-md text-destructive hover:bg-destructive/10 hover:text-destructive" aria-label={tr("deleteQuestion")}>
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon-sm" className="h-8 w-8 shrink-0 rounded-lg" aria-label={tr("editQuestion")}>
+                              <MoreHorizontal className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem onSelect={() => handleOpenEditQ(q)}>
+                              <Edit2 className="size-4 text-muted-foreground" />
+                              <span>{tr("editQuestion")}</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onSelect={() => setDeleteQId(q.id)} className="text-status-error focus:text-status-error">
+                              <Trash2 className="size-4" />
+                              <span>{tr("deleteQuestion")}</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
                     </div>
 
@@ -551,7 +586,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                             <div key={i} className={`flex items-center gap-2 text-body-xs px-3 py-1.5 rounded-lg border ${
                               isCorrect ? "bg-status-success/5 border-status-success/25 text-foreground" : "bg-muted/10 border-border/50 text-muted-foreground"
                             }`}>
-                              <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                              <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-body-2xs font-bold ${
                                 isCorrect ? "bg-status-success/15 text-foreground" : "bg-muted text-muted-foreground"
                               }`}>
                                 {String.fromCharCode(65 + i)}
@@ -574,7 +609,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                             : typeof q.acceptableAnswers === "string"
                             ? JSON.parse(q.acceptableAnswers)
                             : []).map((ans: string, i: number) => (
-                            <span key={i} className="text-body-xs font-mono font-semibold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 px-2 py-0.5 rounded-md">
+                            <span key={i} className="text-body-xs font-mono font-semibold bg-status-success/10 text-status-success border border-status-success/20 px-2 py-0.5 rounded-md">
                               {ans}
                             </span>
                           ))}
@@ -586,25 +621,39 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                     {Array.isArray(tagsArr) && tagsArr.length > 0 && (
                       <div className="mt-4 pt-3 border-t border-border/40 flex flex-wrap gap-1">
                         {tagsArr.map((t: string) => (
-                          <Badge key={t} variant="outline" className="text-[10px] text-muted-foreground rounded-md">
+                          <Badge key={t} variant="outline" className="text-body-2xs text-muted-foreground rounded-md">
                             {t}
                           </Badge>
                         ))}
                       </div>
                     )}
-                  </Card>
+                  </div>
                 );
               })}
             </div>
             {questionPageCount > 1 && (
               <nav aria-label={locale === "id" ? "Halaman bank soal" : "Question bank pages"} className="flex flex-wrap items-center justify-end gap-2">
-                <Button variant="outline" size="sm" disabled={currentQuestionPage === 0} onClick={() => setQuestionPage(currentQuestionPage - 1)}>
-                  {locale === "id" ? "Sebelumnya" : "Previous"}
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button type="button" size="icon-lg" variant="ghost" aria-label={locale === "id" ? "Sebelumnya" : "Previous"} disabled={currentQuestionPage === 0} onClick={() => setQuestionPage(currentQuestionPage - 1)}>
+                        <ChevronLeft aria-hidden />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{locale === "id" ? "Sebelumnya" : "Previous"}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <span className="text-body-sm text-muted-foreground" aria-live="polite">{currentQuestionPage + 1} / {questionPageCount}</span>
-                <Button variant="outline" size="sm" disabled={currentQuestionPage === questionPageCount - 1} onClick={() => setQuestionPage(currentQuestionPage + 1)}>
-                  {locale === "id" ? "Berikutnya" : "Next"}
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button type="button" size="icon-lg" variant="ghost" aria-label={locale === "id" ? "Berikutnya" : "Next"} disabled={currentQuestionPage === questionPageCount - 1} onClick={() => setQuestionPage(currentQuestionPage + 1)}>
+                        <ChevronRight aria-hidden />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{locale === "id" ? "Berikutnya" : "Next"}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </nav>
             )}
             </>
@@ -621,7 +670,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 my-2 font-sans overflow-y-auto max-h-[70vh] pr-1">
+          <div className="space-y-(--related-gap) my-2 font-sans overflow-y-auto max-h-[70vh] pr-1">
             <div className="grid gap-2">
               <Label htmlFor="q-prompt" className="text-body-sm font-semibold">{tr("question")}</Label>
               <Textarea
@@ -634,7 +683,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-(--related-gap) sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="q-type" className="text-body-sm font-semibold">{tr("questionType")}</Label>
                 <Select value={qType} onValueChange={(val: any) => {
@@ -670,7 +719,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
 
             {/* Options Input Block for Multiple Choice */}
             {(qType === "multiple_choice" || qType === "multiple_choices") && (
-              <div className="space-y-3">
+              <div className="space-y-(--compact-gap)">
                 <Label className="text-body-sm font-semibold block">{tr("answerOptions")}</Label>
                 <span className="text-body-xs text-muted-foreground block -mt-2">
                   {tr("selectCorrect")}
@@ -679,7 +728,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                 {qOptions.map((opt, i) => {
                   const checked = qCorrectIndices.includes(i);
                   return (
-                    <div key={i} className="flex items-center gap-3">
+                    <div key={i} className="flex items-center gap-(--compact-gap)">
                       <button
                         type="button"
                         aria-label={tr("markCorrect", { letter: String.fromCharCode(65 + i) })}
@@ -714,7 +763,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
 
             {/* Input Block for Short Answer */}
             {qType === "short_answer" && (
-              <div className="space-y-2 rounded-xl border border-border bg-muted/5 p-4">
+              <div className="space-y-2 border-t border-border pt-3">
                 <Label htmlFor="q-short-ans" className="text-body-sm font-semibold">{tr("acceptedAnswerInput")}</Label>
                 <Input
                   id="q-short-ans"
@@ -729,7 +778,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
 
             {/* Input Block for Essay */}
             {qType === "essay" && (
-              <div className="p-4 rounded-xl border border-border bg-muted/5 text-body-xs text-muted-foreground space-y-1">
+              <div className="space-y-1 border-t border-border pt-3 text-body-xs text-muted-foreground">
                 <p className="font-semibold text-foreground">{tr("essayTitle")}</p>
                 <p>{tr("essayHint")}</p>
               </div>
@@ -812,20 +861,20 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
       {/* PREVIEW QUIZ DIALOG */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
-          <DialogHeader className="p-6 pb-4 border-b border-border shrink-0">
+          <DialogHeader className="p-6 pb-4 border-b border-border/40 shrink-0">
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               {tr("previewTitle", { title: previewTpl?.title ?? "" })}
             </DialogTitle>
-            <DialogDescription className="text-left text-body-xs text-muted-foreground flex gap-3 flex-wrap items-center mt-1">
+            <DialogDescription className="text-left text-body-xs text-muted-foreground flex gap-(--compact-gap) flex-wrap items-center mt-1">
               <span className="bg-muted px-2 py-0.5 rounded-md border border-border">{tr("categoryLabel", { category: previewTpl ? tr(quizCategoryLabelKey(previewTpl.category)) : "" })}</span>
               <span className="bg-muted px-2 py-0.5 rounded-md border border-border">{tr("timeLimit", { duration: previewTpl?.timeLimitSeconds ? `${previewTpl.timeLimitSeconds / 60} min` : tr("free") })}</span>
               <span className="bg-muted px-2 py-0.5 rounded-md border border-border">{tr("attempts", { count: previewTpl?.maxAttempts ? `${previewTpl.maxAttempts}x` : tr("free") })}</span>
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 text-left">
+          <div className="flex-1 overflow-y-auto px-6 text-left">
             {loadingPreview ? (
-              <div className="py-12 flex flex-col items-center justify-center gap-3">
+              <div className="py-12 flex flex-col items-center justify-center gap-(--compact-gap)">
                 <Loader2 className="size-8 animate-spin text-brand-primary" />
                 <p className="text-body-sm text-muted-foreground">{tr("loadingQuestion")}</p>
               </div>
@@ -834,16 +883,16 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                 {tr("noPreviewQuestions")}
               </div>
             ) : (
-              <div className="space-y-4">
+              <ol className="divide-y divide-border/30">
                 {previewQuestions.map((q, idx) => (
-                  <div key={q.id} className="p-5 rounded-xl border border-border bg-card space-y-4">
-                    <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
+                  <li key={q.id} className="space-y-(--compact-gap) py-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-body-sm font-bold text-foreground">{tr("questionNumberPreview", { number: idx + 1 })}</span>
                       <div className="flex items-center gap-2">
-                        <span className="capitalize text-[10px] bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
+                        <span className="capitalize text-body-2xs bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
                           {tr(q.difficulty)}
                         </span>
-                        <span className="capitalize text-[10px] bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
+                        <span className="capitalize text-body-2xs bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
                           {q.questionType === "multiple_choice"
                             ? tr("singleChoice")
                             : q.questionType === "multiple_choices"
@@ -855,7 +904,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       </div>
                     </div>
 
-                    <MarkdownRenderer content={q.prompt} className="text-body-sm font-semibold text-foreground leading-relaxed" />
+                    <MarkdownRenderer content={q.prompt} className="font-semibold text-foreground" />
 
                     <div className="grid gap-2">
                       {q.options.map((opt: string, optIdx: number) => {
@@ -864,7 +913,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                           <div
                             key={optIdx}
                             className={cn(
-                              "flex items-center gap-3 p-3 rounded-lg border text-body-sm transition-colors",
+                              "flex items-center gap-(--compact-gap) p-3 rounded-lg border text-body-sm transition-colors",
                               isCorrect
                                 ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-medium"
                                 : "bg-background/50 border-border text-foreground/80"
@@ -889,22 +938,17 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                     </div>
 
                     {q.explanation && (
-                      <div className="mt-2 text-body-xs bg-muted/50 p-3 rounded-lg border border-border/50 text-muted-foreground space-y-1">
+                      <div className="space-y-1 border-l-2 border-border pl-3 text-body-xs text-muted-foreground">
                         <span className="font-semibold text-foreground block">{tr("explanation")}</span>
                         <MarkdownRenderer content={q.explanation} density="compact" />
                       </div>
                     )}
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ol>
             )}
           </div>
 
-          <div className="p-4 border-t border-border flex justify-end bg-card shrink-0">
-            <Button variant="outline" onClick={() => setIsPreviewOpen(false)} className="rounded-md border-border">
-              {tr("closePreview")}
-            </Button>
-          </div>
         </DialogContent>
       </Dialog>
     </div>

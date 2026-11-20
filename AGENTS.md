@@ -71,13 +71,57 @@ Use the tokens and components already defined in `app/globals.css`. Prefer seman
 - Before implementing a page, inspect at least one comparable page in the same surface, such as marketing, admin, or student. Follow its established component, spacing, typography, and interaction patterns unless the task explicitly changes the pattern.
 - Prefer the smallest useful component. Remove decorative UI, redundant wrappers, filler descriptions, and helper text that do not improve comprehension or function.
 - Optimize vertical space first. Keep related search, select, filter, and action controls in one inline row when the viewport allows it, and use the fewest rows that remain readable and accessible. Let the main content receive the available height.
-- Use cards selectively. Prefer a simple padded list or section when a card would only add a border, padding, and margin around the same content. Use cards when they create a meaningful grouping, hierarchy, or interaction boundary.
-- Apply less cards to every Admin, Tutor, and Student route, including detail pages, tabs, dialogs, loading states, and empty states. Use the Student `/courses` catalogue and its document and video lists as density references. Inspect the rendered feature components as well as the page file.
-- Less cards does not mean no cards. Keep a small number of clear section surfaces, such as Admin dashboard categories, editor groups, or independent tasks. Put repeated records inside one shared surface as divided rows or a table instead of one card per record. Do not put decorative cards inside another card.
+- Align ordinary content to the page gutter. Use headings, spacing and dividers to distinguish sections. Keep a card only when its boundary is needed to understand, compare or interact with an independent item.
+- Apply this to all routes, including detail pages, tabs, dialogs, loading states and empty states. Inspect the feature components as well as the route file. Use the Student `/courses` document and video lists as density references.
+- Use divided rows or a table for repeated records. Skip a padded outer wrapper around the list, form, editor or empty state. Preserve boundaries that are needed for a dialog, visual preview, selection or independent interaction.
 - Remove redundant wrappers and repeated headings before reducing padding or text size. Keep readable typography, touch targets, keyboard focus, and useful whitespace. Let toolbars wrap and long labels wrap on narrow screens instead of clipping essential information.
-- Apply minimal copy to every role and state. Delete self-evident page subtitles, repeated action instructions, decorative counts, and captions that restate a visible label or value. Preserve learning content, access terms, units, validation, destructive consequences, dynamic status, and recovery guidance. Never replace removed copy with another generic sentence.
+- Apply the information-placement rules below to every role and state, including dialogs, loading states and recovery flows.
 - Prefer an existing Shadcn primitive or shared feature component for each interaction. Keep component behavior and accessibility intact when simplifying its surface; do not replace controls with styled native elements just to reduce markup.
-- Prefer compact controls for frequent actions. Use an icon-only button with an accessible `aria-label` and the existing `Tooltip` primitive when the icon is unambiguous. Use an overflow menu for secondary actions instead of a row of verbose buttons. Do not hide primary or ambiguous actions behind an icon without a visible label.
+- Use icon-only buttons for familiar actions whose target is clear from their placement, including send beside a composer, search, and create inside a named list. Keep the primary action prominent, with a localized `aria-label`, the existing `Tooltip`, keyboard focus, and loading/disabled states. Keep visible labels for ambiguous actions and actions whose consequences need explanation, such as payment, permission changes or destructive confirmation. Put secondary editing actions in the existing overflow menu.
+
+### Information placement and concise copy
+
+Before adding a sentence, badge, heading or helper block, choose its placement:
+
+| Information | Placement | Rule |
+|---|---|---|
+| Needed for the current decision or recovery | Beside the relevant control or content, when applicable | Keep the target identity and scope, decision-critical price units, changing cost or eligibility, validation, uncertain delivery, destructive consequences and the next recovery action visible. |
+| Stable reference or usage policy | One named help popover for the current task | Group audience policy, formatting help, AI context, fixed quota rules and media limits here when the action and its target remain clear. Use a keyboard- and touch-accessible trigger; a hover-only tooltip is insufficient for substantive help. |
+| Repetition or self-evident narration | Remove | Delete text that repeats a heading, placeholder, selected value or obvious action, together with its wrapper, margin and reserved height. |
+
+- Keep authored and instructional content intact. Simplification changes presentation, not permissions, recipients, quotas, attachment limits, answer/reward semantics or retry identity.
+- Write the shortest accurate statement of the state or next action. Keep Indonesian and English meaning aligned. A generic retry message is appropriate only when repeating the action can succeed; an expired image needs re-upload guidance, and an unknown send must retain its uncertainty and safe retry path.
+- Keep stable help available before submission, including before an AI mention is typed. Preserve visible course/requester labels so the user can identify the audience without opening help. Surface action-specific changes or warnings inline instead of burying them in reference help.
+- Prefer one explanation at the point where it is useful. A field label, placeholder, helper, badge and tooltip should not all restate the same instruction. Use the typography role table on the actual text element, including `p` and `li`, so global styles cannot turn helper copy into main-body text.
+
+### Compact interaction patterns
+
+- Spend available height on the task's content, such as the conversation, editor, records or learning material. Remove repeated headings and permanent helper rows before reducing typography, touch targets or useful spacing. A named list inside an already identified page can use its toolbar without another visible heading; retain its accessible landmark name.
+- Start toolbar search as an icon button. Expand it in place on activation or keyboard focus, and temporarily replace sibling controls when needed. Focus the input on expansion, and provide close and Escape behavior with focus restoration. On collapse, clear the query or keep an explicit visible indication of the active filter. Keep the field expanded when search is the primary task or there is ample horizontal room.
+- Separate record identity from comparable metadata: keep the course, requester or item label on the left, and a compact count/time group on the right using `justify-between`, `min-w-0` and an appropriate nonshrinking metadata group. Let meaningful labels wrap. Use a representative icon plus number for an obvious repeated metric, including zero, with a localized accessible name. Preserve units where they affect interpretation, such as currency, file size or time duration.
+- Use normal emphasis for active work, readable muted text for handled work, and a named collapsible section for completed history when that matches the workflow. Keep state available through text, grouping and accessible names; color alone must not carry the distinction. Preserve actionable unread/error indicators and any status needed to choose the next action. Load collapsed history on demand and retain bounded pagination.
+- Reuse an existing live-rendering editor when it already supports the required format. Avoid separate write/preview controls that duplicate the same task. Preserve source text, math, selection, undo, keyboard/IME behavior and submission semantics; a preview remains appropriate when it reveals a materially different final output.
+- Present image drafts as compact square thumbnails in a horizontal strip above the editor controls, rather than one full-width row per file. Keep per-file remove, upload state and actionable retry available; show filenames or details when needed to identify a failure. Fit the existing allowed count where practical and preserve that limit.
+- Place related actions according to the component's available container width, including dialogs and split panes. A wide composer can keep send beside the input; a narrow composer can place it on the options row above the input. Prefer responsive positioning of one action over duplicate buttons or handlers. Keep the editor and primary action reachable with the largest supported attachment/reply state.
+
+### Case study: discussion simplification
+
+Use these decisions as concrete patterns when working on similar lists and composers. Reuse their principle, not a fixed pixel height, attachment limit or status scheme for unrelated features.
+
+| Surface | Approved presentation | Information and behavior retained |
+|---|---|---|
+| Sidebar with a repeated heading and two control rows | One row containing channel selector, search icon and `SquarePen` new-question icon; search expands in place | Accessible list/action names, selected channel, query clearing, Escape and focus return |
+| Course, answer prose and date packed together | Course on the left; answer icon and number, including `0`, plus date on the right | Complete course/requester identity and a localized spoken count |
+| Repeated open, answered and resolved badges | Open rows normal, answered rows muted, resolved rows in a collapsible section | Accessible status, unread indicators, resolve/reopen actions and separate lazy pagination |
+| Persistent audience and Zyra paragraphs | One contextual `CircleHelp` popover | Audience policy, context, quota and image rules remain available; target labels and current errors stay visible |
+| Separate write and preview tabs | One source-backed editor with live formatting and math | Authored source, mentions, selection, undo and draft recovery |
+| Full-width attachment rows | Square thumbnails above the options; four fit in one row in the discussion composer | Existing four-image limit, upload status, removal, specific failure and re-upload actions |
+| A labeled send button occupying its own footer | Send icon beside the editor on wide layouts, beside the options on narrow layouts | Dynamic accessible label and tooltip, loading/disabled state, original request identity and explicit recovery actions |
+| A permanent reply/reward warning | Distinct answer/reply action names without a repeated warning paragraph | The existing answer, contextual-reply and reward rules remain unchanged |
+
+Implementation references: [discussion workspace](components/discussions/discussion-workspace.tsx), [composer](components/discussions/composer.tsx), [shared live editor](components/course/zyra-composer-input.tsx), and [focused visual scenarios](tests/visual/discussions.spec.ts). These are presentation examples, not evidence of deployment or a requirement to copy discussion-specific business rules.
+
+Before handoff, account for every removed information block: it was duplicate, remains available in named help, or is still visible at the relevant state. Check long labels, zero counts, keyboard/focus, disabled/loading, validation and recovery for the controls you changed. The content area should gain usable space without smaller body text, clipped controls, lost context or hidden active filters. Apply the focused visual process below to the affected states.
 
 ### Typography standard
 
@@ -87,7 +131,7 @@ The following visual sizes are the approved cross-surface baseline. Keep semanti
 |---|---:|---|
 | Marketing hero H1 | 56 px | `text-h1`; responsive marketing hero uses `text-h2 md:text-h1`, 48 to 56 px |
 | Marketing hero H2 | 48 px | `text-h2` |
-| Product page title | 24 px | `font-heading text-h5`; use `PageHeader` |
+| Product page title | 24 px | `font-heading text-h5`; use `PageHeader` only when a page has `actions`, `backHref`, or `breadcrumbs` |
 | App section title | 16 px | `font-heading text-body-base font-bold`; follow the compact Student dashboard pattern |
 | Dense card or subsection title | 14 px | `font-heading text-body-sm` when a 16 px section title is too large |
 | Main body text | 16 px | `text-body-base` |
@@ -104,7 +148,7 @@ The following visual sizes are the approved cross-surface baseline. Keep semanti
 - Body and UI text use `font-sans`; headings use `font-heading`. Use `text-body-*` and `text-h*` when an explicit scale is needed.
 - Prefer `bg-background`, `text-foreground`, `text-muted-foreground`, `bg-card`, `bg-muted`, `bg-primary`, `border-border`, and the `status-*` tokens. Use brand tokens for intentional marketing or accent treatment.
 - Use the existing `photo-hero`, `photo-card`, `photo-banner`, `photo-thumb`, and `photo-inline` classes for imagery. Prefer `next/image` with explicit dimensions or a sized `fill` container.
-- Use `PageHeader` from `@/components/page-header` for every Admin and Student page header. Do not hand-roll a page header or add an obvious subtitle.
+- `PageHeader` must not render a visible route-title banner (`h1` + icon) on Admin, Tutor, or Student pages because the sidebar and `MobileNavbar` already identify the route; retain only an accessible `<h1 data-sr-only-header="" className="sr-only">` route title, and when `actions`, `backHref`, or `breadcrumbs` are present render a slim inline controls bar. Keep Admin, Tutor, and Student content aligned inside one shared `max-w-7xl` `ApplicationPage` container width, and render vertical stacked rows (`md:hidden`) instead of horizontal-scroll tables on narrow mobile viewports.
 - Use Shadcn primitives from `components/ui/`. If a primitive is missing, add a reusable component there instead of using a raw control throughout a page.
 - Admin pages should use the shared components in `components/admin/` when the pattern fits:
 
@@ -124,7 +168,7 @@ The following visual sizes are the approved cross-surface baseline. Keep semanti
 
 - Interactive controls (selects, inputs, buttons, combobox triggers) must use `text-body-sm` at all states. Never change font size or font weight between selected/unselected, checked/unchecked, active/inactive, or open/closed states. State changes may only affect color, background, border, or icon.
 - Checkbox and combobox list-item labels must keep the same font size and weight across checked and unchecked states. Changing `font-medium` on selection is a bug.
-- Badges, prose, relationship rows, and descriptive metadata retain `text-body-xs` even when nearby controls use `text-body-sm`. Do not widen badge or prose typography as a side effect of fixing control typography.
+- Badges, relationship rows and descriptive metadata retain `text-body-xs` even when nearby controls use `text-body-sm`. Prose follows its role in the typography table; main reading content remains `text-body-base`. Do not change unrelated typography as a side effect of fixing controls.
 
 ### Tabs and route transitions
 
@@ -166,7 +210,7 @@ The following visual sizes are the approved cross-surface baseline. Keep semanti
 
 ### Mandatory empty states and data integrity
 
-- Never render bare unstyled text floating in empty space (such as plain text "Belum ada data") when a list or table is empty. Always use `AdminEmptyState` with a relevant icon, title, description, and primary action button where applicable.
+- Use `AdminEmptyState` for an empty list or table, with a concise title and relevant icon. Add a description or primary action only when it explains a useful next step; an obvious empty state does not need filler prose. Avoid bare unstyled text floating in empty space.
 - Table metric cells must never be left blank. Render a formatted zero, `-`, or `N/A` with consistent alignment.
 
 ### Table headers, navigation labels, and density
@@ -178,7 +222,7 @@ The following visual sizes are the approved cross-surface baseline. Keep semanti
 
 ### Apples-to-apples ranking
 
-- Overview or cross-course aggregate views must never rank individual students across courses. Per-course or single-course views may rank students.
+- Overview or cross-course aggregate views must never rank individual students academically across courses. Per-course or single-course views may rank students. The approved global gamification participation leaderboard is a narrow exception, ranking opted-in members by base XP; it is not an academic ranking.
 - When an overview aggregates metrics per entity (e.g. per course), include all entities eligible for the view from the source table, even those with zero activity, so the administrator sees the full scope.
 - Sort overview rows alphabetically by entity label unless an explicit metric sort is requested.
 - Count unique users across the visible set using a single Set, not by summing per-entity unique counts which double-count shared users.
@@ -186,6 +230,73 @@ The following visual sizes are the approved cross-surface baseline. Keep semanti
 - Do not create nested cards, local stat-card variants, new fonts, purple themes, or gradient backgrounds. `PageOrnaments` radial glows are the exception.
 - Dense admin and lesson-reader surfaces may skip `PageOrnaments`. Marketing and other standalone pages should use an existing ornament variant inside `relative overflow-hidden`.
 - Prefer semantic dark-mode tokens. Test responsive layouts at 380px when the change affects UI. Use `Reveal` for scroll entrance on non-admin pages and respect reduced motion.
+
+### Page header, tab row, and action placement
+
+These rules define where tabs and page actions go, so neither wraps badly when a page has many of both.
+
+- Fit navigation, page actions and search on one row where possible. Allow a second row when the controls cannot all fit, such as a dedicated tab strip or wrapped filters. Keep tab-specific controls in their own content toolbar if needed to preserve their scope, and fold extra captions and coverage indicators into existing controls.
+- Page-level actions belong in the `PageHeader` action slot (or top toolbar when no other header control exists), not in the tab row. The tab row holds only the `TabsList`, plus at most one icon-only control that belongs to the tabs themselves, such as a help popover.
+- The tab list must fit on one line at 1536 by 864. If it does not, shorten the trigger labels first (`Schedule list` becomes `List`), then move rarely used tabs, such as audit or history, into a trailing overflow menu inside the tab row. A tab that wraps alone onto a second line is a defect.
+- At 380 px, the tab list may scroll horizontally inside its strip (`overflow-x-auto`, no visible scrollbar, active trigger scrolled into view). It must not wrap into a two-row block or push the page wider than the viewport.
+- Filters that act only on one tab's content belong in that tab's toolbar, not in the page header or tab row.
+
+### Icon-only buttons and labeled actions
+
+This refines the compact-controls rule. Decide each action with this table, in order.
+
+| Action | Treatment |
+|---|---|
+| A familiar action whose meaning comes from its icon and position, including create in a named list, back, search, filter, refresh, previous or next, today, settings, help, close and copy | Icon-only `Button`, including for primary actions. Use a localized accessible name, the existing `Tooltip`, and a visible focus ring. Keep primary visual emphasis. |
+| A dialog or popover action, or an action whose intent needs wording | Use a visible label and an icon when it helps identify the action. The close affordance can stay icon-only. |
+| A secondary action that is not self-evident from an icon, such as "Add availability" or "Meet automation" | Labeled item in an overflow menu (`MoreHorizontal` or a `ChevronDown` split next to the primary). Do not make it icon-only. |
+| Per-row record actions in a table or list | Show at most one inline action per row. When there are two or more, put all of them in one per-row overflow menu with labeled items. |
+| Permission changes, destructive actions, payments | Always a visible label, either as a button or as a labeled overflow item, and still behind the existing confirmation dialog. A red action must not repeat on every row. |
+
+- A tooltip is not a substitute for a label on an ambiguous action. If you need to read the tooltip to know what the button does, use a labeled menu item instead.
+- Do not hard-code accent colors on action buttons (`text-blue-600`). Use button variants and semantic tokens.
+- Icon-only buttons keep the same hit area as labeled controls in the same row (at least `h-9` in toolbars) and show loading and disabled states.
+
+### Layout revamp when cards or chrome eat the content area
+
+Card count is not the only measure. When a page fails any trigger below, revise the layout instead of trimming padding.
+
+| Trigger at 1536 by 864 | Required change |
+|---|---|
+| The first row of the main content (table row, calendar hour, list item) starts lower than about 40 percent of the viewport height | Remove or merge chrome rows by applying the header and tab rules above. Do not shrink text. |
+| A badge, icon, or value is the same in more than about 80 percent of visible rows | Show only the exceptions. Treat the common value as the implicit default, and keep it available through filters and accessible names. |
+| A table needs two or more labeled buttons on every row | Use a per-row overflow menu, as in the action table above. |
+| A KPI equals another KPI or the total, such as "Active 138" next to "Total 138" | Replace it with a count you can act on, such as suspended, pending, or unassigned, or remove it. |
+| A caption or strip only restates what a control or heading already shows | Remove it with its wrapper. Move dynamic details into a popover on a compact indicator in an existing toolbar. |
+| An empty state shows a full-height blank grid or table with no message | Keep the structure and add an inline status (`0 sessions`) next to the existing primary action in the toolbar. Do not add an overlay card. |
+
+- Use dividers between repeated records. Avoid an outer card border and padding around a divided list unless the boundary is needed for interaction.
+- KPI values use neutral `text-foreground` unless the color carries state, such as warning or error. Do not color-code role counts for decoration.
+
+### Case study: admin schedule and users density
+
+Treat these as concrete examples of the rules above. Reuse the principle, not the exact labels, on other surfaces.
+
+Shared schedule, [academic-schedules-dashboard.tsx](components/admin/academic-schedules-dashboard.tsx) and [schedule-calendar-view.tsx](components/schedule/schedule-calendar-view.tsx):
+
+| Before | Approved presentation | Retained |
+|---|---|---|
+| Tabs and four equal-weight actions share one row; "Audit trail" wraps alone onto a second line | `PageHeader` holds the primary `Create schedule`; "Add availability" and "Meet automation" are labeled items in an overflow menu next to it; tabs sit alone on one line with short labels | Every action and its loading state, the pending-ticket badge on the tickets tab, URL tab state |
+| "All schedules" select sits with page actions, far from the calendar `Filter` | Scope select moves into the calendar toolbar next to `Filter` | Same filter values and defaults |
+| A full-width coverage strip with a caption and one "Tutor: 0 available" badge per tutor | Compact `Users` icon plus "0/2" in the calendar toolbar that opens a popover listing each tutor; warning tone only when a tutor has 0 slots | Per-tutor availability counts |
+| Week select, Today, arrows, date range, info icon, Filter in a third row below the strip | One toolbar row: view select, icon-only `Today`, previous and next icons, date range on the left; scope, coverage, `CircleHelp` legend, `Filter` on the right | Keyboard access, tooltips, localized labels |
+| Empty week renders 17 blank 64 px hour rows; uppercase `MON` headers | Shorter hour rows, scroll to now or the first session, sticky sentence-case day header (`Mon 16`), inline `0 sessions` beside create | Current-time line, today highlight, slot booking |
+
+Users, [users-dashboard.tsx](components/admin/users-dashboard.tsx):
+
+| Before | Approved presentation | Retained |
+|---|---|---|
+| `STUDENT` and `ACTIVE` uppercase badges on almost every row | One `Access` column shows a badge only for admin or tutor roles and for suspended status; suspended rows are muted and badged | Role and status filters, accessible status text |
+| Labeled `Manage roles` and red `Suspend` buttons on all 30 rows | One per-row overflow menu with labeled `Manage roles` and `Suspend` or `Activate` | `AdminConfirmDialog`, the self-suspend guard, disabled-while-stale state |
+| KPI strip `Total 138` next to `Active users 138`, with blue and green values | `Total`, `Admins`, `Tutors`, `Students`, `Suspended`, all in neutral value color | `AdminStatStrip` typography |
+| A `Mail` icon before every email; a hard-coded `Anda` self badge | Email as muted second line without an icon; self badge from an i18n key | Full name and email identity |
+
+Before handoff on a revamp like this, list every removed element and show where it went: removed as duplicate, moved into a menu or popover, or still visible in the relevant state.
 
 ## Date and time handling
 
@@ -298,6 +409,7 @@ Use this process:
 
 1. Run `bun run test:visual:install` once when Chromium or its system libraries are unavailable.
 2. Identify every changed route and every changed state before running the check. Use deterministic local data or an explicitly authorized non-production environment. Never use production credentials or personal data for screenshots.
+   Scope the run to changed components/states and directly affected shared consumers. A composer layout edit needs its relevant populated, attachment, disabled and recovery states, not every unrelated moderation, provider or database scenario. Reuse passing evidence for unchanged regions; after a later edit, refresh the affected captures and identify any earlier captures that remain in the handoff.
 3. Run `VISUAL_CHECK_PATHS=/route-one,/route-two bun run test:visual`. Use `PLAYWRIGHT_BASE_URL` only to target an already-running authorized environment. Use `PLAYWRIGHT_STORAGE_STATE` only with a local, ignored authentication state file that contains no production session.
 4. The default check must produce and inspect screenshots at 380 by 844 and 1536 by 864. The 1536 by 864 viewport represents the effective CSS workspace of a common 1920 by 1080 laptop display at 125 percent scaling. If the changed behavior has a breakpoint between those widths, add a focused Playwright spec and inspect the affected breakpoint too.
 5. For changed interactive UI, add or update a focused spec under `tests/visual/` that captures every affected state, such as closed and open, empty and populated, loading and complete, validation error and success, or enabled and disabled. Do not treat the default route screenshot as sufficient for stateful UI.
@@ -313,7 +425,7 @@ A visual quality check passes only when all of these criteria are met:
 - Typography, spacing, colors, radii, imagery, and component choice follow the tokens and reuse rules in this file and match the surrounding product surface.
 - The primary action, reading order, hierarchy, and state changes are visually clear. Changed controls retain visible labels or accessible icon treatment and a visible keyboard focus state.
 - Loading, empty, error, success, open, selected, and disabled states touched by the change remain distinguishable without layout jumps that obscure or displace the task.
-- The primary agent records the command, exit status, inspected route and state matrix, viewport list, screenshot paths, and any boundary that could not be verified in the final handoff.
+- The primary agent records the command, exit status, inspected route and state matrix, viewport list, and unverified boundaries. Include a clickable gallery, screenshot manifest or PNG links in the final handoff so the user can inspect the evidence; a screenshot count alone is insufficient.
 
 The generic runner in `tests/visual/visual-check.spec.ts` captures default route states and enforces HTTP, redirect, runtime-error, and horizontal-overflow gates. It does not replace feature-specific interaction specs or human visual judgment. Keep generated reports, traces, and screenshots under ignored `artifacts/visual-quality/`; do not commit them unless the user explicitly requests a baseline artifact.
 

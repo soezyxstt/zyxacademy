@@ -33,7 +33,7 @@ describe("Zyra composer Ctrl+V paste and Artikel v4 renderer sync", () => {
       lastModified: 3000,
     });
 
-    const fromItemsAndFiles = zyraImageFilesFromClipboard(
+    const fromItems = zyraImageFilesFromClipboard(
       [
         {
           kind: "string",
@@ -46,20 +46,38 @@ describe("Zyra composer Ctrl+V paste and Artikel v4 renderer sync", () => {
           getAsFile: () => pngFromItems,
         },
       ],
-      [pngFromItems, webpWithoutMime, nonImage],
+      [
+        new File([new Uint8Array([137, 80, 78, 71])], "paste.png", {
+          type: "image/png",
+          lastModified: 1001,
+        }),
+      ],
     );
 
-    expect(fromItemsAndFiles).toHaveLength(2);
-    expect(fromItemsAndFiles[0]?.name).toBe("paste.png");
-    expect(fromItemsAndFiles[0]?.type).toBe("image/png");
-    expect(fromItemsAndFiles[1]?.name).toBe("diagram.webp");
-    expect(fromItemsAndFiles[1]?.type).toBe("image/webp");
+    expect(fromItems).toHaveLength(1);
+    expect(fromItems[0]?.name).toBe("paste.png");
+    expect(fromItems[0]?.type).toBe("image/png");
+
+    const fromFallbackFiles = zyraImageFilesFromClipboard(
+      [
+        {
+          kind: "string",
+          type: "text/plain",
+          getAsFile: () => null,
+        },
+      ],
+      [webpWithoutMime, nonImage],
+    );
+
+    expect(fromFallbackFiles).toHaveLength(1);
+    expect(fromFallbackFiles[0]?.name).toBe("diagram.webp");
+    expect(fromFallbackFiles[0]?.type).toBe("image/webp");
   });
 
   test("wires Ctrl+V paste, Paperclip button, and draft session creation in TutorDrawerView and attachment route", () => {
     const drawerSource = readFileSync("components/course/tutor-drawer-view.tsx", "utf8");
     expect(drawerSource).toContain("onPasteCapture={handlePaste}");
-    expect(drawerSource).toContain("zyraImageFilesFromClipboard");
+    expect(drawerSource).toContain("handleZyraImagePasteEvent");
     expect(drawerSource).toContain("attachmentComposerRef.current?.addFiles(files)");
     expect(drawerSource).toContain("attachmentComposerRef.current?.openFileDialog()");
     expect(drawerSource).toContain("onSessionCreated={handleComposerSessionCreated}");

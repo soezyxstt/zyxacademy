@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { and, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db";
+import { recordAuthorizedGlobalDisclosures } from "@/lib/gamification/question-exposure";
 import {
   artikel,
   blueprintAsesmen,
@@ -289,6 +290,7 @@ export async function GET(request: Request) {
       }
     }
 
+    await db.transaction(tx => recordAuthorizedGlobalDisclosures(tx, { userId: session.user.id, questions: items.filter(item => item.productType === "question").map(item => ({ questionId: item.id, courseId: item.courseId })), requestId: crypto.randomUUID() }));
     return NextResponse.json({
       items,
       total: items.length,

@@ -7,7 +7,7 @@ const { client, testDb } = await createPostgresTestDb();
 const dispatched: string[] = [];
 mock.module("@/db", () => ({ db: testDb }));
 mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => ({ user: { id: "admin", role: "admin" } }) } } }));
-mock.module("@/lib/auth/authorization", () => ({ hasAnyPeran: async () => true }));
+mock.module("@/lib/auth/authorization", () => ({ hasAnyPeran: async () => true, getPeranCodes: async () => ["admin"] }));
 mock.module("next/headers", () => ({ headers: async () => new Headers() }));
 mock.module("@/lib/vector-sync-dispatch", () => ({ dispatchVectorSync: async (courseId: string) => { dispatched.push(courseId); } }));
 const { executeCreateQuestion, executePublishQuestion } = await import("@/lib/admin-ops-ai/domain-assessment");

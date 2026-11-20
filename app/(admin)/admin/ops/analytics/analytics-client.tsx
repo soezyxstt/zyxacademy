@@ -4,7 +4,8 @@ import { AiAnalyticsSkeleton } from "@/components/admin/content-loading-skeleton
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
-import type { AiRequestLog, AiStats } from "@/lib/ai/analytics";
+import { adminAnalyticsQuery, type AiRequestLog } from "@/lib/admin/ops-query";
+import { useQueryAccountId } from "@/hooks/use-query-account";
 import { ZyraUsageCharts } from "@/components/admin/zyra-usage-charts";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
@@ -41,33 +42,20 @@ function formatLatency(ms: number) {
   return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
 }
 
-async function fetchAiAnalytics(): Promise<AiStats> {
-  const res = await fetch("/api/admin/ai-analytics");
-  if (!res.ok) {
-    throw new Error("analytics load failed");
-  }
-  return res.json();
-}
-
 export function AiAnalyticsClient() {
   const t = useTranslations("adminOps");
   const { locale } = useAppLocale();
   const [logPage, setLogPage] = useState(1);
+  const userId = useQueryAccountId();
 
   const {
     data: stats,
     dataUpdatedAt,
-    isLoading,
+    isPending,
     isFetching,
     error,
     refetch,
-  } = useQuery<AiStats>({
-    queryKey: ["admin-ai-analytics"],
-    queryFn: fetchAiAnalytics,
-    refetchInterval: 30_000,
-    staleTime: 25_000,
-    refetchIntervalInBackground: false,
-  });
+  } = useQuery(adminAnalyticsQuery(userId ?? ""));
 
   const gatewayMode: GatewayMode = !stats
     ? "unknown"
@@ -75,7 +63,7 @@ export function AiAnalyticsClient() {
       ? "gateway"
       : "direct";
 
-  if (isLoading) return <AiAnalyticsSkeleton label={t("analyticsUI.loading")} />;
+  if (isPending || !userId) return <AiAnalyticsSkeleton label={t("analyticsUI.loading")} />;
 
   if (error) {
     return (
@@ -153,13 +141,11 @@ export function AiAnalyticsClient() {
         <AdminStatStripItem
           label={t("analyticsUI.totalRequests")}
           value={stats.totalRequests}
-          tone="brand"
         />
         <AdminStatStripItem
           label={t("analyticsUI.successful")}
           value={stats.successfulRequests}
           caption={`${((stats.successfulRequests / stats.totalRequests) * 100).toFixed(1)}%`}
-          tone="success"
         />
         <AdminStatStripItem
           label={t("analyticsUI.failed")}

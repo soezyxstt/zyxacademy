@@ -12,6 +12,8 @@ export interface LearningEventInput {
   koId?: string | null;
   correctness?: number | null;
   weight?: number;
+  /** Quiz submission writes version-checked Idea evidence in its own transaction. */
+  canonicalIdeaEvidenceHandled?: boolean;
 }
 
 export async function recordLearningEvent(event: LearningEventInput): Promise<void> {
@@ -28,7 +30,7 @@ export async function recordLearningEvent(event: LearningEventInput): Promise<vo
   };
   await db.transaction(async (tx) => {
     await tx.insert(learningEvents).values(row).onConflictDoNothing({ target: learningEvents.id });
-    await dualWriteLearningEvent(tx, row, event.studentId);
+    if (!event.canonicalIdeaEvidenceHandled) await dualWriteLearningEvent(tx, row, event.studentId);
   });
 }
 
@@ -48,8 +50,8 @@ export async function recordLearningEvents(events: LearningEventInput[]): Promis
   }));
   await db.transaction(async (tx) => {
     await tx.insert(learningEvents).values(rows).onConflictDoNothing({ target: learningEvents.id });
-    for (const row of rows) {
-      await dualWriteLearningEvent(tx, row, row.studentId);
+    for (const [index, row] of rows.entries()) {
+      if (!events[index].canonicalIdeaEvidenceHandled) await dualWriteLearningEvent(tx, row, row.studentId);
     }
   });
 }

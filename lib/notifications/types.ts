@@ -12,7 +12,8 @@ export type NotificationType =
   | "tutor_reminder"
   | "payment_success"
   | "admin_broadcast"
-  | "announcement";
+  | "announcement"
+  | "discussion";
 
 // ─── Payload sent to FCM ──────────────────────────────────────────────────────
 
@@ -36,7 +37,8 @@ export interface NotificationPayload {
     | { key: "pka_schedule_update"; params: { scheduleTitle: string; sessionAt: string } }
     | { key: "tutor_schedule_moved"; params: { dayOfWeek: string; sessionDate: string; startTime: string; endTime: string } }
     | { key: "tutor_ticket_decision"; params: { ticketType: "reschedule" | "cancellation"; decision: "approved" | "rejected"; notes: string | null } }
-    | { key: "tutor_ticket_message"; params: { body: string } };
+    | { key: "tutor_ticket_message"; params: { body: string } }
+    | { key: "discussion"; params: Record<string, never> };
 }
 
 // ─── Send result ──────────────────────────────────────────────────────────────

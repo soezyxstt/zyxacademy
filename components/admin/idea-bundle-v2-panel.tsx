@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "@/lib/i18n/client";
-import { Layers, Upload } from "lucide-react";
+import { ChevronDown, Layers, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Label } from "@/components/ui/label";
@@ -248,13 +249,19 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
           </AdminStatStrip>
 
           <Tabs value={analysisTab} onValueChange={(value) => setAnalysisTab(value as "ideas" | "relations")}>
-            <TabsList>
-              <TabsTrigger value="ideas">Idea</TabsTrigger>
-              <TabsTrigger value="relations">Peta relasi</TabsTrigger>
-            </TabsList>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <TabsList>
+                <TabsTrigger value="ideas">Idea</TabsTrigger>
+                <TabsTrigger value="relations">Peta relasi</TabsTrigger>
+              </TabsList>
+              {analysisTab === "ideas" && (
+                <div className="min-w-[140px] flex-1 max-w-xs">
+                  <SearchBar size="sm" value={query} onSearch={setQuery} onClear={() => setQuery("")} placeholder="Cari kode atau isi Idea" />
+                </div>
+              )}
+            </div>
 
             <TabsContent value="ideas" className="space-y-4">
-              <SearchBar value={query} onSearch={setQuery} onClear={() => setQuery("")} placeholder="Cari kode atau isi Idea" />
               <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
                 <div className="lg:border-r lg:border-border lg:pr-3">
                   <p className="px-2 pb-2 pt-1 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Daftar Idea</p>
@@ -306,7 +313,7 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
           <div className="lg:border-r lg:border-border lg:pr-3"><p className="px-2 pb-2 pt-1 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Daftar Idea</p><div className="space-y-1">{selected.preview.ideas.map((idea, index) => <Button key={idea.id} type="button" variant={activePreviewIdea?.id === idea.id ? "secondary" : "ghost"} className="h-auto w-full justify-start whitespace-normal px-2.5 py-2 text-left" onClick={() => setSelectedPreviewIdeaId(idea.id)}><span className="min-w-0 flex-1"><span className="block truncate text-body-sm font-semibold">{idea.code || `Idea ${index + 1}`}</span><span className="mt-0.5 block line-clamp-2 text-body-xs font-normal text-muted-foreground"><MathText as="span">{idea.canonicalStatement}</MathText></span></span><Badge variant="outline" className="shrink-0">{idea.provenance.length}</Badge></Button>)}</div></div>
           {activePreviewIdea && <article className="min-w-0 space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5"><div className="border-b border-border pb-4"><p className="font-heading text-body-base text-foreground">{activePreviewIdea.code}</p><p className="mt-1 text-body-sm text-muted-foreground">{humanLabel(activePreviewIdea.knowledgeKind, knowledgeLabels)} · {humanLabel(activePreviewIdea.instructionalRole, roleLabels)} · Bab {activePreviewIdea.chapterId}</p></div><MathText as="div" className="text-body-base text-foreground">{activePreviewIdea.canonicalStatement}</MathText><p className="text-body-sm text-muted-foreground">{activePreviewIdea.conciseExplanation}</p>{activePreviewIdea.latex && <div className="rounded-lg bg-muted p-3"><MathText bareMath as="div">{activePreviewIdea.latex}</MathText></div>}<div className="space-y-2 border-t border-border pt-4"><p className="text-body-sm font-semibold text-foreground">Bukti sumber</p>{activePreviewIdea.provenance.map((item) => <div key={item.id} className="border-l-2 border-border pl-3 text-body-sm"><p className="font-medium text-foreground">{item.sourceTitle} · {item.role}</p><p className="text-muted-foreground">{item.excerpt}</p></div>)}</div></article>}
         </div>
-        {selected.preview.relations.length > 0 && <details className="rounded-xl border border-border bg-card p-4 shadow-sm"><summary className="cursor-pointer text-body-sm font-semibold text-foreground">Lihat {selected.preview.relations.length} relasi Idea</summary><div className="mt-3 divide-y divide-border">{selected.preview.relations.map((relation) => <p key={relation.id} className="py-2 text-body-sm text-muted-foreground">{relation.sourceIdeaId} · {humanLabel(relation.relationType, relationLabels)} · {relation.targetIdeaId}{relation.explanation ? ` · ${relation.explanation}` : ""}</p>)}</div></details>}
+        {selected.preview.relations.length > 0 && <Collapsible className="rounded-xl border border-border bg-card p-4 shadow-sm"><CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between gap-2 text-left text-body-sm font-semibold text-foreground"><span>Lihat {selected.preview.relations.length} relasi Idea</span><ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180 motion-reduce:transition-none" aria-hidden="true" /></CollapsibleTrigger><CollapsibleContent><div className="mt-3 divide-y divide-border">{selected.preview.relations.map((relation) => <p key={relation.id} className="py-2 text-body-sm text-muted-foreground">{relation.sourceIdeaId} · {humanLabel(relation.relationType, relationLabels)} · {relation.targetIdeaId}{relation.explanation ? ` · ${relation.explanation}` : ""}</p>)}</div></CollapsibleContent></Collapsible>}
         <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
           <p className="text-body-xs text-muted-foreground">Review setiap Idea sebelum menyetujui atau menerbitkan.</p>
           <Button asChild size="sm"><Link href={`/admin/materials/review/idea/${encodeURIComponent(selected.id)}`}>Buka review Idea</Link></Button>

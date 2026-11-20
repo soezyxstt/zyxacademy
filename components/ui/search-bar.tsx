@@ -4,6 +4,7 @@ import * as React from "react";
 import { Search, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface SearchBarProps
   extends Omit<React.ComponentProps<"input">, "size"> {
@@ -27,6 +28,18 @@ export interface SearchBarProps
   containerClassName?: string;
   /** Optional element rendered on the far right */
   rightSection?: React.ReactNode;
+  /** Enable expandable/collapsible behavior (defaults to true) */
+  expandable?: boolean;
+  /** Alias for expandable, preserved for toolbar callers */
+  collapsible?: boolean;
+  /** Controlled expanded state */
+  expanded?: boolean;
+  /** Initial expanded state for uncontrolled expandable usage */
+  defaultExpanded?: boolean;
+  /** Callback fired when expanded state changes */
+  onExpandedChange?: (expanded: boolean) => void;
+  /** Auto-collapse when focus leaves the search bar while query is empty (defaults to true) */
+  autoCollapseOnBlur?: boolean;
 }
 
 const variantStyles = {
@@ -40,21 +53,33 @@ const variantStyles = {
 
 const sizeStyles = {
   sm: {
-    container: "min-h-9 px-3 rounded-lg text-body-sm",
+    container: "h-9 rounded-lg text-body-sm",
+    collapsed: "w-9 max-w-9 min-w-9 flex-none",
+    expandedMax: "max-w-full",
+    trigger: "size-9",
     icon: "size-3.5",
-    input: "min-h-0 py-1 pl-2.5 pr-1.5 text-body-sm",
+    input: "min-h-0 py-1 pl-0 pr-1.5 text-body-sm",
+    rightPad: "pr-2",
     clear: "p-0.5",
   },
   md: {
-    container: "min-h-10 px-3.5 rounded-xl text-body-sm",
+    container: "h-10 rounded-xl text-body-sm",
+    collapsed: "w-10 max-w-10 min-w-10 flex-none",
+    expandedMax: "max-w-full",
+    trigger: "size-10",
     icon: "size-4",
-    input: "min-h-0 py-1.5 pl-2.5 pr-2 text-body-sm",
+    input: "min-h-0 py-1.5 pl-0 pr-2 text-body-sm",
+    rightPad: "pr-2.5",
     clear: "p-1",
   },
   lg: {
-    container: "min-h-12 px-4 rounded-lg text-body-sm",
+    container: "h-12 rounded-lg text-body-sm",
+    collapsed: "w-12 max-w-12 min-w-12 flex-none",
+    expandedMax: "max-w-full",
+    trigger: "size-12",
     icon: "size-4.5",
-    input: "min-h-0 py-2 pl-3 pr-2.5 text-body-sm",
+    input: "min-h-0 py-2 pl-0 pr-2.5 text-body-sm",
+    rightPad: "pr-3",
     clear: "p-1.5",
   },
 };
@@ -65,6 +90,7 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
       value,
       defaultValue,
       onChange,
+      onKeyDown,
       onSearch,
       onClear,
       variant = "default",
@@ -76,22 +102,64 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
       placeholder,
       disabled,
       rightSection,
+      expandable,
+      collapsible,
+      expanded,
+      defaultExpanded = false,
+      onExpandedChange,
+      autoCollapseOnBlur = true,
+      id,
+      "aria-label": ariaLabel,
       ...props
     },
     ref
   ) => {
     const t = useTranslations("search");
     const inputRef = React.useRef<HTMLInputElement | null>(null);
+    const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+    const generatedId = React.useId();
+    const inputId = id ?? generatedId;
+
+    const isExpandable = expandable ?? collapsible ?? true;
+
     const [internalValue, setInternalValue] = React.useState(
       defaultValue ?? ""
+    );
+    const [internalExpanded, setInternalExpanded] = React.useState(
+      defaultExpanded || Boolean(defaultValue) || Boolean(value)
     );
 
     const isControlled = value !== undefined;
     const query = isControlled ? (value ?? "") : internalValue;
+    const isExpandedControlled = expanded !== undefined;
+    const rawExpanded = isExpandedControlled ? expanded : internalExpanded;
+    const isExpanded = !isExpandable || rawExpanded || query.length > 0;
     const currentSize = sizeStyles[size];
+
+    const setExpandedState = React.useCallback(
+      (next: boolean) => {
+        if (!isExpandedControlled) {
+          setInternalExpanded(next);
+        }
+        onExpandedChange?.(next);
+      },
+      [isExpandedControlled, onExpandedChange]
+    );
 
     // Combine forwarded ref and local ref
     React.useImperativeHandle(ref, () => inputRef.current as HTMLInputElement);
+
+    const handleExpand = () => {
+      if (disabled) return;
+      if (!isExpanded) {
+        setExpandedState(true);
+        requestAnimationFrame(() => {
+          inputRef.current?.focus();
+        });
+      } else {
+        inputRef.current?.focus();
+      }
+    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (!isControlled) {
@@ -101,79 +169,166 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
       onSearch?.(e.target.value);
     };
 
-    const handleClear = () => {
+    const clearQuery = () => {
       if (!isControlled) {
         setInternalValue("");
       }
       onClear?.();
       onSearch?.("");
+    };
 
-      // Re-focus input after clearing
+    const handleClear = () => {
+      clearQuery();
+      // Re-focus input after clearing so the user can type a new query
       if (inputRef.current) {
         inputRef.current.value = "";
         inputRef.current.focus();
       }
     };
 
+    const closeSearch = () => {
+      if (query.length > 0) {
+        clearQuery();
+      }
+      setExpandedState(false);
+      requestAnimationFrame(() => {
+        triggerRef.current?.focus();
+      });
+    };
+
+    const handleContainerBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+      if (!isExpandable || !autoCollapseOnBlur) return;
+      const nextFocus = e.relatedTarget as Node | null;
+      if (nextFocus && e.currentTarget.contains(nextFocus)) return;
+      if (query.length === 0) {
+        setExpandedState(false);
+      }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      onKeyDown?.(e);
+      if (e.defaultPrevented || e.nativeEvent.isComposing) return;
+      if (e.key === "Escape" && isExpandable) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeSearch();
+      }
+    };
+
+    const searchLabel = ariaLabel ?? placeholder ?? t("searchAction");
+
     return (
-      <div
-        className={cn(
-          "group relative flex items-center w-full transition-all duration-200 ease-out",
-          variantStyles[variant],
-          currentSize.container,
-          disabled && "opacity-50 pointer-events-none",
-          containerClassName
-        )}
-      >
-        {/* Left Search or Loading Icon */}
-        <div className="flex shrink-0 items-center justify-center text-muted-foreground transition-colors duration-200 group-focus-within:text-primary">
-          {isLoading ? (
-            <Loader2 className={cn("animate-spin text-brand-primary", currentSize.icon)} />
-          ) : (
-            <Search className={cn(currentSize.icon)} aria-hidden="true" />
-          )}
-        </div>
-
-        {/* Input Field */}
-        <input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={handleChange}
-          placeholder={placeholder ?? t("placeholder")}
-          disabled={disabled}
+      <TooltipProvider>
+        <div
+          data-slot="search-bar"
+          data-state={isExpanded ? "open" : "closed"}
+          data-search-expanded={isExpandable && isExpanded ? "true" : undefined}
+          onBlur={handleContainerBlur}
           className={cn(
-            "w-full min-w-0 bg-transparent text-foreground font-sans placeholder:text-muted-foreground/60 focus:outline-none",
-            currentSize.input,
-            className
+            "group relative flex items-center overflow-hidden transition-[max-width,width,flex-grow,background-color,border-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+            variantStyles[variant],
+            currentSize.container,
+            isExpanded
+              ? cn("w-full", currentSize.expandedMax, collapsible && "min-w-0 flex-1", containerClassName)
+              : cn(currentSize.collapsed, "cursor-pointer"),
+            disabled && "opacity-50 pointer-events-none"
           )}
-          {...props}
-        />
+        >
+          {/* Left Search or Loading Icon Trigger */}
+          <Tooltip open={isExpanded ? false : undefined}>
+            <TooltipTrigger asChild>
+              <button
+                ref={triggerRef}
+                type="button"
+                onClick={handleExpand}
+                disabled={disabled}
+                tabIndex={isExpanded ? -1 : 0}
+                aria-label={searchLabel}
+                aria-expanded={isExpandable ? isExpanded : undefined}
+                aria-busy={isLoading || undefined}
+                className={cn(
+                  "flex shrink-0 items-center justify-center text-muted-foreground transition-colors duration-200 group-focus-within:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset rounded-[inherit]",
+                  currentSize.trigger,
+                  !isExpanded && "cursor-pointer hover:text-foreground"
+                )}
+              >
+                {isLoading ? (
+                  <Loader2
+                    className={cn("animate-spin text-brand-primary", currentSize.icon)}
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <Search
+                    className={cn(
+                      "transition-transform duration-200 motion-reduce:transition-none",
+                      !isExpanded && "group-hover:scale-105",
+                      currentSize.icon
+                    )}
+                    aria-hidden="true"
+                  />
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{searchLabel}</TooltipContent>
+          </Tooltip>
 
-        {/* Right Actions: Clear Button or Keyboard Shortcut or Custom Section */}
-        <div className="flex shrink-0 items-center gap-1.5 ml-auto">
-          {query.length > 0 ? (
-            <button
-              type="button"
-              onClick={handleClear}
-              className={cn(
-                "rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-muted/80 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                currentSize.clear
-              )}
-              aria-label={t("clear")}
-              title={t("clear")}
-            >
-              <X className={cn(currentSize.icon)} />
-            </button>
-          ) : shortcut ? (
-            <kbd className="pointer-events-none hidden shrink-0 select-none items-center gap-1 rounded-md border border-border/70 bg-muted/60 px-2 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground transition-colors group-hover:border-border sm:inline-flex">
-              {shortcut}
-            </kbd>
-          ) : null}
+          {/* Input Field */}
+          <input
+            ref={inputRef}
+            id={inputId}
+            type="text"
+            value={query}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder ?? t("placeholder")}
+            aria-label={searchLabel}
+            aria-hidden={!isExpanded || undefined}
+            tabIndex={isExpanded ? 0 : -1}
+            disabled={disabled}
+            className={cn(
+              "min-w-0 bg-transparent text-foreground font-sans placeholder:text-muted-foreground/60 focus:outline-none transition-opacity duration-200 motion-reduce:transition-none",
+              isExpanded
+                ? cn("w-full flex-1 opacity-100", currentSize.input)
+                : "w-0 flex-none opacity-0 pointer-events-none p-0",
+              className
+            )}
+            {...props}
+          />
 
-          {rightSection}
+          {/* Right Actions: Clear Button or Keyboard Shortcut or Custom Section */}
+          <div
+            className={cn(
+              "flex shrink-0 items-center gap-1.5 transition-[opacity,transform] duration-200 motion-reduce:transition-none",
+              isExpanded
+                ? cn("ml-auto opacity-100 scale-100", currentSize.rightPad)
+                : "w-0 overflow-hidden opacity-0 scale-90 pointer-events-none"
+            )}
+          >
+            {query.length > 0 ? (
+              <button
+                type="button"
+                data-search-close=""
+                onClick={handleClear}
+                tabIndex={isExpanded ? 0 : -1}
+                className={cn(
+                  "rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-muted/80 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                  currentSize.clear
+                )}
+                aria-label={t("clear")}
+                title={t("clear")}
+              >
+                <X className={cn(currentSize.icon)} aria-hidden="true" />
+              </button>
+            ) : shortcut ? (
+              <kbd className="pointer-events-none hidden shrink-0 select-none items-center gap-1 rounded-md border border-border/70 bg-muted/60 px-2 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground transition-colors group-hover:border-border sm:inline-flex">
+                {shortcut}
+              </kbd>
+            ) : null}
+
+            {rightSection}
+          </div>
         </div>
-      </div>
+      </TooltipProvider>
     );
   }
 );

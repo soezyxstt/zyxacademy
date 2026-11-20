@@ -1,5 +1,8 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
+const fixture = process.env.PLAYWRIGHT_DOCS_FIXTURE === "1";
+const docsPath = fixture ? "/visual-fixtures/docs-showcase/admin" : "/admin/docs";
+
 async function capture(page: Page, testInfo: TestInfo, name: string) {
   await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
   await page.evaluate(async () => document.fonts.ready);
@@ -15,8 +18,8 @@ test("admin documentation search and article", async ({ page }, testInfo) => {
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
   page.on("response", (response) => { if (response.status() >= 400) errors.push(`${response.status()} ${new URL(response.url()).pathname}`); });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/admin/docs", { waitUntil: "domcontentloaded" });
-  await expect(page).toHaveURL(/\/admin\/docs$/);
+  await page.goto(docsPath, { waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(docsPath);
   const search = page.getByRole("textbox", { name: "Cari dokumentasi" });
   await expect(search).toBeVisible();
   await capture(page, testInfo, "index");
@@ -28,33 +31,41 @@ test("admin documentation search and article", async ({ page }, testInfo) => {
   await capture(page, testInfo, "search-empty");
   await page.getByRole("button", { name: /bersihkan|hapus|clear/i }).click();
   await page.getByRole("link", { name: /Menamai dan mengunggah dokumen/ }).first().click();
-  await expect(page).toHaveURL(/\/admin\/docs\/dokumen-materi$/, { timeout: 15_000 });
-  await expect(page.getByRole("heading", { name: "Menamai dan mengunggah dokumen" })).toBeVisible();
+  await expect(page).toHaveURL(`${docsPath}/dokumen-materi`, { timeout: 15_000 });
+  await expect(page.getByRole("heading", { level: 1, name: "Menamai dan mengunggah dokumen" })).toBeVisible();
   await capture(page, testInfo, "article");
   expect(errors).toEqual([]);
 });
 
-test("documentation navigation opens a section across pages", async ({ page }, testInfo) => {
+test("documentation navigation opens a guide and jumps between sections", async ({ page }, testInfo) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
   page.on("response", (response) => { if (response.status() >= 400) errors.push(`${response.status()} ${new URL(response.url()).pathname}`); });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/admin/docs", { waitUntil: "domcontentloaded" });
-  await expect(page).toHaveURL(/\/admin\/docs$/);
+  await page.goto(docsPath, { waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(docsPath);
   const mobile = testInfo.project.name === "mobile-380";
   if (mobile) {
-    await page.getByRole("button", { name: /buka navigasi|open navigation/i }).click();
-    await page.getByRole("button", { name: /tutup sidebar|close sidebar/i }).click();
+    if (!fixture) {
+      await page.getByRole("button", { name: /buka navigasi|open navigation/i }).click();
+      await page.getByRole("button", { name: /tutup sidebar|close sidebar/i }).click();
+    }
     await page.getByRole("button", { name: "Navigasi dokumentasi" }).click();
   }
   let navigation = page.getByRole("navigation", { name: "Navigasi dokumentasi" });
   await expect(navigation).toBeVisible();
-  await navigation.getByRole("button", { name: "Bagian dalam Menamai dan mengunggah dokumen" }).click();
+  await navigation.getByRole("link", { name: "Menamai dan mengunggah dokumen" }).click();
+  await expect(page).toHaveURL(`${docsPath}/dokumen-materi`, { timeout: 15_000 });
+  if (mobile) {
+    await expect(page.getByRole("dialog", { name: "Navigasi dokumentasi" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Navigasi dokumentasi" }).click();
+  }
+  navigation = page.getByRole("navigation", { name: "Navigasi dokumentasi" });
   await expect(navigation.getByRole("link", { name: "Unggah massal dan duplikat" })).toBeVisible();
   await capture(page, testInfo, "docs-navigation-open");
   await navigation.getByRole("link", { name: "Unggah massal dan duplikat" }).click();
-  await expect(page).toHaveURL(/\/admin\/docs\/dokumen-materi#bagian-4$/, { timeout: 15_000 });
+  await expect(page).toHaveURL(`${docsPath}/dokumen-materi#bagian-4`, { timeout: 15_000 });
   await expect(page.locator("#bagian-4")).toBeInViewport();
   if (mobile) {
     await expect(page.getByRole("dialog", { name: "Navigasi dokumentasi" })).toHaveCount(0);
@@ -75,7 +86,7 @@ test("documentation navigation switches at the wide-screen breakpoint", async ({
   test.skip(testInfo.project.name !== "laptop-fhd-125", "Breakpoint coverage uses the desktop browser context.");
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 1279, height: 864 });
-  await page.goto("/admin/docs", { waitUntil: "domcontentloaded" });
+  await page.goto(docsPath, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("button", { name: "Navigasi dokumentasi" })).toBeVisible();
   await page.getByRole("button", { name: "Navigasi dokumentasi" }).click();
   await expect(page.getByRole("dialog", { name: "Navigasi dokumentasi" })).toBeVisible();
@@ -87,4 +98,25 @@ test("documentation navigation switches at the wide-screen breakpoint", async ({
   await expect(page.getByRole("navigation", { name: "Navigasi dokumentasi" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Navigasi dokumentasi" })).toBeHidden();
   await capture(page, testInfo, "docs-navigation-1280");
+});
+
+test("tutor English guide search and navigation", async ({ page, context }, testInfo) => {
+  test.skip(!fixture, "Uses the local documentation fixture for the Tutor role.");
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
+  page.on("response", (response) => { if (response.status() >= 400) errors.push(`${response.status()} ${new URL(response.url()).pathname}`); });
+  await context.addCookies([{ name: "zyx_locale", value: "en", url: new URL(docsPath, testInfo.project.use.baseURL).origin }]);
+  const tutorDocs = "/visual-fixtures/docs-showcase/tutor";
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(tutorDocs);
+  const search = page.getByRole("textbox", { name: "Search documentation" });
+  await expect(search).toBeVisible();
+  await search.fill("workspace");
+  await capture(page, testInfo, "tutor-search-english");
+  await page.getByRole("link", { name: /Understanding the tutor workspace/ }).first().click();
+  await expect(page).toHaveURL(`${tutorDocs}/ruang-kerja-tutor`);
+  await expect(page.getByRole("heading", { level: 1, name: "Understanding the tutor workspace" })).toBeVisible();
+  await capture(page, testInfo, "tutor-article-english");
+  expect(errors).toEqual([]);
 });

@@ -155,3 +155,5 @@ The full `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 bun run test:visual -- tests
 | Boundaries | Corrupt and unavailable storage; denied generic PDF/download destinations, unknown products, and cross-course, cross-page and obsolete-revision quiz tokens |
 
 Ordinary browser cases passed HTTP, redirect, page-error, console-error and horizontal-overflow guards. Expected rejection tests ran separately. Shared student markup was preserved, including existing reader metadata and floating tutor behavior. No authenticated account screenshots or production credentials were used. Production release and anonymous serving verification remain separate gates for PR #295.
+
+The profile and participation leaderboard reuse the current student renderers with fictional, read-only data. The participation view starts with no XP entries; course academic rankings remain available separately through the course rankings link.

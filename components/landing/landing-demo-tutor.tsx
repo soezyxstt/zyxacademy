@@ -36,7 +36,7 @@ export async function LandingDemoTutor() {
  className="border-y border-border/80 bg-[var(--color-surface)]/45"
  aria-labelledby="landing-tutor-heading"
  >
- <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+ <div className="grid items-center gap-section-sm lg:grid-cols-2 lg:gap-marketing-section">
  <LandingVisible className="order-2 lg:order-1">
  <div className="landing-rise">
  <TutorChatDemo messages={messages} />

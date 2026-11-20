@@ -7,7 +7,7 @@ test("quiz diagnosis shows supplied observations without inventing empty-section
   const require = createRequire(import.meta.url);
   const { transformSync } = require(process.env.UI_TEST_ESBUILD ?? "esbuild");
   const source = readFileSync("components/course/quiz-analytics-view.tsx", "utf8");
-  const jsx = (type: unknown, props: unknown) => ({ type, props });
+  const jsx = (type: unknown, props: unknown): unknown => typeof type === "function" ? type(props) : ({ type, props });
   const dependencies: Record<string, unknown> = {
     react: { useState: (value: unknown) => [value, () => {}], useEffect: () => {}, useCallback: (fn: unknown) => fn },
     "react/jsx-runtime": { jsx, jsxs: jsx },

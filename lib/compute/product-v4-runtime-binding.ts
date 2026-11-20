@@ -59,7 +59,7 @@ async function readAdmittedDocumentAsset(spec: InteractiveDocumentSpec, kind: "d
 export const PRODUCT_V4_RUNTIME_FILES = [
   "next.config.ts", "scripts/authoring/prepare-web-verification.ts",
   "scripts/authoring/verify-product-v4-local.ts", "scripts/authoring/run-product-v4-local.mjs", "lib/compute/product-v4-local-operator.ts", "scripts/neon/validate-production-target.ts", "scripts/neon/import-core.ts",
-  "deno.json", "workers/deno-background/deno.json", "lib/compute/runtime.ts", "lib/compute/pdf-pages.ts", "lib/compute/pdf-worker.ts",
+  "lib/compute/runtime.ts", "lib/compute/pdf-pages.ts", "lib/compute/pdf-worker.ts",
   "lib/compute/browser-pdf.ts", "lib/compute/pdf-inspection.ts", "scripts/neon/build-worker.mjs",
   "app/globals.css", "app/layout.tsx", "app/authoring-verification/page.tsx",
   "components/providers/telemetry-boundary.tsx", "components/providers/posthog-provider.tsx", "lib/env.ts",
@@ -74,6 +74,10 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "components/course/learning-canvas/learning-canvas-renderer.tsx", "components/ui/slider.tsx",
   "components/course/markdown/flowchart-node.tsx", "lib/flowchart.ts",
   "components/course/product-learning-blocks.tsx", "components/course/article-reading-canvas.tsx", "components/course/structured-article-reader.tsx",
+  "components/course/structured-article-section-content.tsx", "hooks/use-article-reading-progress.ts", "hooks/use-query-account.ts",
+  "lib/articles/progress-contract.ts", "lib/articles/progress-query.ts", "lib/articles/progress-mutation.ts",
+  "lib/query/client.ts", "lib/query/http.ts", "lib/query/keys.ts", "lib/query/invalidation.ts",
+  "lib/activity-signal.ts", "lib/auth-client.ts", "components/providers/query-provider.tsx",
   "components/course/question-image.tsx", "lib/articles/source-figure-resolver.ts", "app/api/courses/[id]/articles/[articleId]/source-figures/[visualId]/route.ts",
   "lib/articles/structured-read-model.ts", "lib/articles/structured-repository.ts", "lib/materials/compiler.ts", "lib/materials/pedagogy-contract.ts",
   "lib/authoring/source-figures.ts", "lib/compute/source-figure.ts", "lib/authoring/mcp-contract-revision.ts", "lib/authoring/mcp-workflows.ts", "lib/authoring/interactive-visual-guidance.ts", "lib/authoring/mcp-playbook.ts",
@@ -223,7 +227,7 @@ export async function buildProductV4RuntimeBinding(input: { row: ImportRow; bund
     }
   }
   return { importId: row.id, courseId: course.id, runId, revision: Number.parseInt(row.checksum.slice(0, 8), 16) + 1,
-    ...(process.env.NODE_ENV === "production" || typeof (globalThis as { Deno?: unknown }).Deno !== "undefined" || process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER ? verificationBrowserIdentity() : {}),
+    ...(process.env.NODE_ENV === "production" || process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER ? verificationBrowserIdentity() : {}),
     ...runtime, policyRevision: PRODUCT_V4_VERIFICATION_POLICY, dependencyChecksum,
     assetChecksum: hash({ figures: figures.map(figure => ({ metadata: figure.metadata, variants: figure.variants.map(({ bytes, ...variant }) => ({ ...variant, byteLength: bytes.length, readbackChecksum: bytesHash(bytes) })) })), documents: documentAssets }),
   };
@@ -260,18 +264,16 @@ function runtimePackageManifest(name: string): string {
 }
 
 export async function readProductV4RuntimeFingerprint(): Promise<ProductV4RuntimeFingerprint> {
-  if (typeof (globalThis as { Deno?: unknown }).Deno !== "undefined" || process.env.ZYX_COMPUTE_RUNTIME === "neon" || process.env.NEXT_PUBLIC_V4_WEB_RUNTIME) {
+  if (process.env.ZYX_COMPUTE_RUNTIME === "neon" || process.env.NEXT_PUBLIC_V4_WEB_RUNTIME) {
     // Next embeds the build identity; serverless bundles do not retain source module URLs.
-    const fingerprint = JSON.parse(typeof (globalThis as { Deno?: unknown }).Deno !== "undefined"
-      ? readFileSync(new URL("./product-v4-build-runtime.json", import.meta.url), "utf8")
-      : process.env.ZYX_COMPUTE_RUNTIME === "neon" ? process.env.ZYX_COMPUTE_BUILD_RUNTIME! : process.env.NEXT_PUBLIC_V4_WEB_RUNTIME!);
+    const fingerprint = JSON.parse(process.env.ZYX_COMPUTE_RUNTIME === "neon" ? process.env.ZYX_COMPUTE_BUILD_RUNTIME! : process.env.NEXT_PUBLIC_V4_WEB_RUNTIME!);
     for (const key of ["rendererChecksum", "fontChecksum", "contractChecksum", "playbookChecksum"]) if (!/^[a-f0-9]{64}$/.test(fingerprint[key] ?? "")) throw new Error("PRODUCT_V4_BUILD_RUNTIME_INVALID");
     if (!fingerprint.printProfile) throw new Error("PRODUCT_V4_BUILD_RUNTIME_INVALID");
     return fingerprint;
   }
   const [{ getStagePlaybookManifest }, { PRODUCT_DIKTAT_PRINT_PROFILE }] = await Promise.all([import("@/lib/authoring/mcp-playbook"), import("@/lib/bundle/product-diktat-pdf")]);
   const require = createRequire(import.meta.url);
-  const packages = ["pyodide", "@codemirror/state", "@codemirror/view", "@codemirror/language", "@codemirror/lang-python", "@codemirror/commands", "react", "react-dom", "next", "katex", "jsxgraph", "zod", "mathjs", "sharp", "pngjs", "tailwindcss", "@tailwindcss/postcss", "@playwright/test", "playwright-core"];
+  const packages = ["pyodide", "@codemirror/state", "@codemirror/view", "@codemirror/language", "@codemirror/lang-python", "@codemirror/commands", "react", "react-dom", "@tanstack/react-query", "@tanstack/query-core", "next", "katex", "jsxgraph", "zod", "mathjs", "sharp", "pngjs", "tailwindcss", "@tailwindcss/postcss", "@playwright/test", "playwright-core"];
   const versions = packages.map(name => [name, JSON.parse(readFileSync(runtimePackageManifest(name), "utf8")).version]);
   const katexRoot = dirname(require.resolve("katex/package.json"));
   const browsers = readFileSync(join(dirname(require.resolve("playwright-core/package.json")), "browsers.json"));

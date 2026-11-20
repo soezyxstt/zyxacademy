@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, Search } from "lucide-react";
+import { getAppScrollBehavior } from "@/components/appearance-preferences";
 import { cn } from "@/lib/utils";
 import { openMobileSidebar } from "@/components/sidebar-shell";
 import { useCommandMenu } from "@/components/command-menu";
@@ -16,6 +17,10 @@ export function getRouteTitle(
 ): string {
   const roleTitle = (namespace: "admin" | "tutor", key: string, fallback: string) =>
     translate?.(`${namespace}.routeTitles.${key}`) ?? fallback;
+  if (/^\/(?:admin\/discussions|dashboard\/discussions|discussions|tutor\/discussions|tutor\/[^/]+\/discussions|courses\/[^/]+\/discussions)(?:\/|$)/.test(pathname)) {
+    return translate?.("tutor.schedule.discussion") ?? "Diskusi";
+  }
+  if (pathname === "/pet") return "Pet";
   if (pathname === "/admin") return roleTitle("admin", "dashboard", "Admin dashboard");
   if (pathname === "/admin/docs" || pathname.startsWith("/admin/docs/")) return roleTitle("admin", "docs", "Documentation");
   if (pathname.startsWith("/admin/blog")) return roleTitle("admin", "blog", "Manage blog");
@@ -74,6 +79,7 @@ export function getRouteTitle(
   if (pathname.startsWith("/admin/bundles/product")) return roleTitle("admin", "productBundles", "Product Bundles");
 
   if (pathname === "/tutor") return roleTitle("tutor", "dashboardTitle", "Tutor dashboard");
+  if (pathname === "/tutor/docs" || pathname.startsWith("/tutor/docs/")) return roleTitle("tutor", "docs", "Documentation");
   if (pathname.startsWith("/tutor/schedule")) return roleTitle("tutor", "scheduleTitle", "Teaching schedule");
   if (pathname.startsWith("/tutor")) {
     if (pathname.includes("/videos")) return roleTitle("tutor", "videos", "Videos");
@@ -107,7 +113,8 @@ export function getRouteTitle(
   if (pathname.startsWith("/calendar")) return t("calendar", "Kalender");
   if (pathname.startsWith("/feedback")) return t("feedback", "Umpan Balik");
   if (pathname.startsWith("/profile")) return t("profile", "Profil");
-  if (pathname.startsWith("/settings")) return t("settings", "Pengaturan");
+  if (pathname === "/settings") return t("preferences", "Preferensi");
+  if (pathname.startsWith("/settings/")) return t("settings", "Pengaturan");
 
   if (surface === "admin") return "Panel Admin";
   if (surface === "tutor") return "Panel Pengajar";
@@ -204,10 +211,9 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
     if (maxScroll <= 1) return;
 
     const atEnd = title.scrollLeft >= maxScroll - 1;
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     title.scrollTo({
       left: atEnd ? 0 : maxScroll,
-      behavior: prefersReducedMotion ? "auto" : "smooth",
+      behavior: getAppScrollBehavior(),
     });
   };
 

@@ -1,95 +1,41 @@
 "use client";
 
-import * as React from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ClipboardList, Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-
-type ProposalRole = "tutor" | "admin";
-type Proposal = {
-  id: string;
-  proposalType: string;
-  courseId: string | null;
-  status: string;
-  preconditionVersion: number;
-  diffHash: string;
-  createdAt: string;
-  operations: unknown[];
-};
-
-const tutorType = "misconception_brief";
-const adminType = "course_readiness";
+import { useQueryAccountId } from "@/hooks/use-query-account";
+import { createZyraProposalMutation, transitionZyraProposalMutation, zyraProposalsQuery, type ProposalRole, type ProposalSummary } from "@/lib/zyra/proposals-query";
 
 export function ZyraProposalPanel({ courseId, role }: { courseId?: string | null; role: ProposalRole }) {
-  const [proposals, setProposals] = React.useState<Proposal[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [busy, setBusy] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+  const userId = useQueryAccountId();
+  return <AccountProposalPanel key={`${userId ?? "anonymous"}:${courseId ?? ""}`} userId={userId} courseId={courseId} role={role} />;
+}
 
-  const load = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      const query = courseId ? `?courseId=${encodeURIComponent(courseId)}` : "";
-      const response = await fetch(`/api/zyra/proposals${query}`, { cache: "no-store" });
-      if (!response.ok) throw new Error("PROPOSAL_LOAD_FAILED");
-      const body = await response.json() as { proposals?: Proposal[] };
-      setProposals(body.proposals ?? []);
-      setError(null);
-    } catch {
-      setError("Proposal belum tersedia.");
-    } finally {
-      setLoading(false);
-    }
-  }, [courseId]);
+function AccountProposalPanel({ userId, courseId, role }: { userId?: string; courseId?: string | null; role: ProposalRole }) {
+  const client = useQueryClient();
+  const query = useQuery(zyraProposalsQuery(userId ?? "", courseId));
+  const createMutation = useMutation(createZyraProposalMutation(client, userId ?? "", role, courseId));
+  const transitionMutation = useMutation(transitionZyraProposalMutation(client, userId ?? ""));
+  const proposals = query.data?.proposals ?? [];
+  const loading = query.isPending;
+  const busy = !userId || createMutation.isPending || transitionMutation.isPending;
+  const error = createMutation.isError ? "Proposal tidak dapat dibuat."
+    : transitionMutation.isError ? "Status proposal tidak dapat diubah. Periksa review dan versi data."
+      : query.isError ? "Proposal belum tersedia." : null;
 
-  React.useEffect(() => { void load(); }, [load]);
-
-  const createProposal = async () => {
-    setBusy(true);
-    try {
-      const proposalType = role === "admin" ? adminType : tutorType;
-      const response = await fetch("/api/zyra/proposals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          proposalType,
-          courseId: courseId ?? null,
-          scope: courseId ? { courseId } : {},
-          evidenceRefs: [courseId ? `course:${courseId}` : "ops:current"],
-          preconditionSnapshot: { version: 1 },
-          operations: [{ kind: "read_only_report", reportKey: role === "admin" ? "course_readiness" : "misconception_brief" }],
-          learnerImpact: { audience: courseId ? "single_course" : "none", summary: "Tidak ada perubahan yang diterapkan." },
-          reversibility: { reversible: true, rollback: "Tidak ada mutasi; proposal dapat ditolak atau kedaluwarsa." },
-          warnings: ["Hasil ini adalah proposal dan memerlukan review manusia."],
-          rationale: role === "admin" ? "Tinjau kesiapan course secara terstruktur." : "Tinjau pola miskonsepsi secara terstruktur.",
-        }),
-      });
-      if (!response.ok) throw new Error("PROPOSAL_CREATE_FAILED");
-      await load();
-    } catch {
-      setError("Proposal tidak dapat dibuat.");
-    } finally {
-      setBusy(false);
-    }
+  const createProposal = () => {
+    if (busy) return;
+    transitionMutation.reset();
+    createMutation.mutate();
   };
 
-  const transition = async (proposal: Proposal, action: "review" | "confirm") => {
-    setBusy(true);
-    try {
-      const response = await fetch(`/api/zyra/proposals/${encodeURIComponent(proposal.id)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, preconditionVersion: proposal.preconditionVersion }),
-      });
-      if (!response.ok) throw new Error("PROPOSAL_TRANSITION_FAILED");
-      await load();
-    } catch {
-      setError("Status proposal tidak dapat diubah. Periksa review dan versi data.");
-    } finally {
-      setBusy(false);
-    }
+  const transition = (proposal: ProposalSummary, action: "review" | "confirm") => {
+    if (busy) return;
+    createMutation.reset();
+    transitionMutation.mutate({ proposal, action });
   };
 
   return (

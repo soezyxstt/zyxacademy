@@ -1,0 +1,3 @@
+ALTER TABLE "discussion_thread_reads" DROP CONSTRAINT "discussion_thread_reads_seq_check";--> statement-breakpoint
+ALTER TABLE "discussion_thread_reads" ADD COLUMN "observed_seq" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "discussion_thread_reads" ADD CONSTRAINT "discussion_thread_reads_seq_check" CHECK ("discussion_thread_reads"."through_seq" >= 0 and "discussion_thread_reads"."observed_seq" >= "discussion_thread_reads"."through_seq");

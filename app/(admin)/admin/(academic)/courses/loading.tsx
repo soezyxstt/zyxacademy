@@ -14,7 +14,7 @@ export default function CoursesLoading() {
       </div>
       <div className="grid grid-cols-1 gap-3 @min-[32rem]/courses:grid-cols-2 @min-[49rem]/courses:grid-cols-3">
         {[0, 1, 2, 3, 4, 5].map((item) => (
-          <div key={item} className="space-y-3 rounded-xl border border-border bg-card p-4">
+          <div key={item} className="space-y-3 border-b border-border pb-4">
             <Skeleton className="h-5 w-3/4" />
             <Skeleton className="h-4 w-1/2" />
             <div className="grid grid-cols-3 gap-2 border-y border-border py-3">

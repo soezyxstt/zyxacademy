@@ -1,177 +1,72 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import React, { useEffect, useRef, type CSSProperties } from "react";
 import { Brain, Check, X, RotateCw, RefreshCw, SkipForward } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
-import { submitReviewAction } from "./actions";
-import { toast } from "@/components/ui/toast";
-import { emitActivityUpdated } from "@/lib/activity-signal";
-import { appendFlashcardRetry, skipFlashcardInSession } from "@/lib/flashcard-session";
 import { useTranslations } from "@/lib/i18n/client";
-import { FLASHCARD_BATCH_SIZE, type FlashcardSessionState } from "@/lib/demo/flashcard-resume";
+import { FLASHCARD_BATCH_SIZE } from "@/lib/demo/flashcard-resume";
+import type { FlashcardSessionProps } from "@/lib/flashcards/review-contract";
+import { useFlashcardSession } from "@/hooks/use-flashcard-session";
+import { useQueryAccountCurrent } from "@/hooks/use-query-account";
 
-interface Flashcard {
-  id: string;
-  setId: string;
-  koId: string | null;
-  front: string;
-  back: string;
-  explanation: string | null;
-  status: string;
-  metadata: any;
-  createdAt: Date;
-}
-
-export interface QueueItem {
-  card: Flashcard;
-  progress: any;
-  dueStatus: "new" | "review";
-  nextReviewDue: Date;
-  ideaId: string | null;
-  masteryScore: number | null;
-  confidence: number | null;
-  seenBefore: boolean;
-  priorityReason: string;
-}
-
-type FlashcardClientProps = {
-  courseId: string;
-  initialQueue: QueueItem[];
-  studentId: string;
-  adapter?: { onReview: (cardId: string, grade: number) => void | Promise<void>; backHref: string; onRestart?: () => void; resume?: FlashcardSessionState | null; onStateChange?: (state: FlashcardSessionState) => void };
-};
+export type { FlashcardQueueItem as QueueItem } from "@/lib/flashcards/review-contract";
 
 const BATCH_SIZE = FLASHCARD_BATCH_SIZE;
 
-export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: FlashcardClientProps) {
+export function FlashcardClient(props: FlashcardSessionProps) {
+  const currentAccount = useQueryAccountCurrent(props.studentId);
+  if (!props.adapter && !currentAccount) return null;
+  return <FlashcardSession key={JSON.stringify([props.studentId, props.courseId])} {...props} />;
+}
+
+function FlashcardSession(props: FlashcardSessionProps) {
+  const { adapter } = props;
   const t = useTranslations("learning");
-  const [queue, setQueue] = useState<QueueItem[]>(() => adapter?.resume ? adapter.resume.queue.map(({ id, dueStatus }) => ({ ...initialQueue.find(item => item.card.id === id)!, dueStatus })) : initialQueue);
-  const [batchOffset, setBatchOffset] = useState(adapter?.resume?.batchOffset ?? 0);
-  const [currentIndex, setCurrentIndex] = useState(adapter?.resume?.currentIndex ?? 0);
-  const [isFlipped, setIsFlipped] = useState(adapter?.resume?.isFlipped ?? false);
-  const [mode, setMode] = useState<"standard" | "exam">(adapter?.resume?.mode ?? "standard");
-  const [typedAnswer, setTypedAnswer] = useState(adapter?.resume?.typedAnswer ?? "");
-  const [isChecked, setIsChecked] = useState(adapter?.resume?.isChecked ?? false);
-  const [passedExam, setPassedExam] = useState<boolean | null>(adapter?.resume?.passedExam ?? null);
-  const [loading, setLoading] = useState(false);
-  const [completedCount, setCompletedCount] = useState(adapter?.resume?.completedCount ?? 0);
-  const onStateChange = adapter?.onStateChange;
+  const {
+    queue, activeBatch, currentItem, batchOffset, currentIndex, isFlipped, mode,
+    typedAnswer, setTypedAnswer, isChecked, passedExam, completedCount, loading,
+    handleFlip, handleCheckAnswer, handleGrade, handleSkip,
+    changeMode, startNextBatch, resetCard,
+  } = useFlashcardSession(props);
+
+  const frontFlipButton = useRef<HTMLButtonElement>(null);
+  const backFlipButton = useRef<HTMLButtonElement>(null);
+  const restoreFlipFocus = useRef(false);
   useEffect(() => {
-    onStateChange?.({ queue: queue.map(item => ({ id: item.card.id, dueStatus: item.dueStatus })), batchOffset, currentIndex, isFlipped, mode, typedAnswer, isChecked, passedExam, completedCount });
-  }, [onStateChange, queue, batchOffset, currentIndex, isFlipped, mode, typedAnswer, isChecked, passedExam, completedCount]);
+    if (!restoreFlipFocus.current) return;
+    restoreFlipFocus.current = false;
+    (isFlipped ? backFlipButton : frontFlipButton).current?.focus({ preventScroll: true });
+  }, [isFlipped]);
 
-  const activeBatch = queue.slice(batchOffset, batchOffset + BATCH_SIZE);
-  const currentItem = activeBatch[currentIndex];
-
-  const handleFlip = () => {
-    if (mode === "exam" && !isChecked) {
-      toast.warning(t("flashcards.checkBeforeFlip"));
-      return;
+  function flipFromButton() {
+    if (!loading && (mode !== "exam" || isChecked)) {
+      restoreFlipFocus.current = true;
     }
-    setIsFlipped(!isFlipped);
-  };
-
-  const handleCheckAnswer = () => {
-    if (!typedAnswer.trim()) {
-      toast.error(t("flashcards.answerRequired"));
-      return;
-    }
-
-    if (!currentItem) return;
-
-    // Normalization & verification client-side
-    const normalize = (text: string) =>
-      text
-        .toLowerCase()
-        .trim()
-        .replace(/[^\w\s]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-
-    const normUser = normalize(typedAnswer);
-    const normCorrect = normalize(currentItem.card.back);
-
-    const isCorrect = normCorrect.includes(normUser) || normUser.includes(normCorrect);
-    setPassedExam(isCorrect);
-    setIsChecked(true);
-    setIsFlipped(true); // Flip automatically to show answer/explanation
-  };
-
-  const handleGrade = async (grade: number) => {
-    if (!currentItem) return;
-
-    setLoading(true);
-    try {
-      // Call server action wrapper
-      if (adapter) await adapter.onReview(currentItem.card.id, grade);
-      else await submitReviewAction(
-        studentId,
-        currentItem.card.id,
-        grade,
-        mode === "exam" ? typedAnswer : undefined,
-        mode === "exam",
-        courseId
-      );
-
-      toast.success(t("flashcards.gradeSaved"));
-      setCompletedCount((prev) => prev + 1);
-      if (!adapter) emitActivityUpdated({ type: "flashcard", courseId, cardId: currentItem.card.id });
-
-      // If user selected "Again / Ulangi" (grade 1), put the card back at the end of the queue for retry
-      if (grade === 1) {
-        setQueue((prevQueue) => appendFlashcardRetry(prevQueue, {
-            ...currentItem,
-            dueStatus: "review",
-          }));
-      }
-
-      // Move to next card in active batch
-      setCurrentIndex((prev) => prev + 1);
-      setIsFlipped(false);
-      setTypedAnswer("");
-      setIsChecked(false);
-      setPassedExam(null);
-    } catch (err: any) {
-      console.error("Error submitting review:", err);
-      toast.error(t("flashcards.saveReviewFailed"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSkip = () => {
-    if (!currentItem || queue.length - (batchOffset + currentIndex) <= 1 || loading) return;
-    setQueue((current) => skipFlashcardInSession(current, batchOffset + currentIndex));
-    setIsFlipped(false);
-    setTypedAnswer("");
-    setIsChecked(false);
-    setPassedExam(null);
-  };
+    handleFlip();
+  }
 
   // Helper styles for 3D card
-  const cardStyle: React.CSSProperties = {
+  const cardStyle: CSSProperties = {
     perspective: "1000px",
   };
 
-  const innerStyle = (flipped: boolean): React.CSSProperties => ({
+  const innerStyle = (flipped: boolean): CSSProperties => ({
     transformStyle: "preserve-3d",
-    transition: "transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)",
     transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
   });
 
-  const faceStyle: React.CSSProperties = {
+  const faceStyle: CSSProperties = {
     backfaceVisibility: "hidden",
     WebkitBackfaceVisibility: "hidden",
   };
 
   if (queue.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center rounded-xl border border-dashed border-border/60 bg-muted/15 p-6">
+      <div className="flex flex-col items-center justify-center px-3 py-5 text-center">
         <p className="text-body-sm text-muted-foreground">
           {t("flashcards.empty")}
         </p>
@@ -186,7 +81,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
     const currentSessionNum = Math.floor(batchOffset / BATCH_SIZE) + 1;
     const totalSessions = Math.ceil(queue.length / BATCH_SIZE);
     return (
-      <div className="mx-auto max-w-2xl rounded-xl border border-border/60 bg-card p-4 text-center">
+      <div className="mx-auto max-w-2xl px-3 py-5 text-center">
         <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
           <Check className="size-6" />
         </div>
@@ -200,14 +95,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
           {hasMoreCards ? (
             <Button
               type="button"
-              onClick={() => {
-                setBatchOffset((prev) => prev + BATCH_SIZE);
-                setCurrentIndex(0);
-                setIsFlipped(false);
-                setTypedAnswer("");
-                setIsChecked(false);
-                setPassedExam(null);
-              }}
+              onClick={startNextBatch}
               className="rounded-md"
             >
               <RefreshCw className="mr-1.5 size-4" />
@@ -219,15 +107,15 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
               {t("flashcards.restart")}
             </Button>
           )}
-          <Button asChild variant="outline" className="rounded-md">
-            <Link href={adapter?.backHref ?? `/courses/${courseId}`}>{t("flashcards.backToOverview")}</Link>
-          </Button>
         </div>
       </div>
     );
   }
 
   const activeCard = currentItem.card;
+  const prompt = activeCard.front.trim();
+  const shortPrompt = prompt.length <= 120 && !prompt.includes("\n");
+  const recallDifficulty = activeCard.metadata?.recallDifficulty;
   const reasonKey: Record<string, string> = {
     "Tanpa pemetaan Idea": "reasonUnmapped",
     "Perlu dikuasai": "reasonMastery",
@@ -242,7 +130,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
   const progressPercent = Math.round((currentIndex / activeBatch.length) * 100);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-(--related-gap)">
       {/* Top Controls and Stats - Flat Header without Card border */}
       <div className="space-y-2">
         <div className="h-1 w-full overflow-hidden rounded-md bg-muted">
@@ -256,13 +144,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
             {t("flashcards.sessionProgress", { session: currentSessionNum, total: totalSessions, current: currentIndex + 1, count: activeBatch.length, all: queue.length })}
           </span>
 
-          <RadioGroup aria-label={t("flashcards.mode")} orientation="horizontal" className="flex items-center gap-3" value={mode} onValueChange={(value) => {
-            setMode(value as "standard" | "exam");
-            setIsFlipped(false);
-            setTypedAnswer("");
-            setIsChecked(false);
-            setPassedExam(null);
-          }}>
+          <RadioGroup aria-label={t("flashcards.mode")} orientation="horizontal" className="flex items-center gap-3" value={mode} onValueChange={changeMode}>
             <label className="flex items-center gap-2 text-body-sm"><RadioGroupItem value="standard" disabled={loading} />{t("flashcards.standard")}</label>
             <label className="flex items-center gap-2 text-body-sm"><RadioGroupItem value="exam" disabled={loading} />{t("flashcards.typeAnswer")}</label>
           </RadioGroup>
@@ -279,7 +161,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
 
       {/* 3D Flip Card Container */}
       <div
-        className={`relative w-full select-none cursor-pointer ${[activeCard.front, activeCard.back, activeCard.explanation].some((content) => content?.includes("```zyx-visual")) ? "h-[min(80dvh,48rem)] min-h-80" : "h-80"}`}
+        className="relative w-full cursor-pointer"
         style={cardStyle}
         onClick={(e) => {
           // Visual controls and plot gestures must not flip the card.
@@ -291,50 +173,53 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
         }}
       >
         <div
-          className="relative w-full h-full transform-style-3d"
+          className="relative grid w-full min-w-0 transform-style-3d motion-safe:transition-transform motion-safe:duration-[600ms]"
           style={innerStyle(isFlipped)}
         >
           {/* FRONT FACE */}
           <div
             data-flashcard-face="front"
             inert={isFlipped}
-            className="absolute inset-0 w-full h-full rounded-2xl border border-border bg-card p-6 shadow-sm flex flex-col justify-between"
+            className="col-start-1 row-start-1 flex min-h-64 min-w-0 flex-col justify-between gap-(--related-gap) rounded-2xl border border-border bg-card p-(--panel-padding) shadow-sm sm:p-(--group-gap)"
             style={faceStyle}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="inline-flex rounded-md border border-brand-primary/20 bg-brand-primary/5 px-2 py-0.5 text-body-xs font-semibold text-brand-primary">{localizedReason}</span>
               <span className="text-body-xs font-medium text-muted-foreground">
                 {t("flashcards.question")}
               </span>
             </div>
 
-            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto py-4">
-              <div className="flex min-h-full min-w-0 flex-col justify-center">
-                <MarkdownRenderer content={activeCard.front} className="font-sans text-body-base font-semibold text-foreground text-center" />
+            <div className="flex min-w-0 flex-1 items-center">
+              <div className="w-full min-w-0">
+                <MarkdownRenderer
+                  content={activeCard.front}
+                  className={shortPrompt ? "text-body-md font-medium text-center text-foreground [&>p]:text-body-md" : "text-center text-foreground"}
+                />
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-1.5 text-body-xs text-muted-foreground">
-              <RotateCw className="size-3" />
-              <span>{t("flashcards.flipCard")}</span>
-            </div>
+            <Button ref={frontFlipButton} type="button" variant="ghost" size="sm" onClick={flipFromButton} className="self-center text-muted-foreground">
+              <RotateCw className="size-4" />
+              {t("flashcards.flipCard")}
+            </Button>
           </div>
 
           {/* BACK FACE */}
           <div
             data-flashcard-face="back"
             inert={!isFlipped}
-            className="absolute inset-0 w-full h-full rounded-2xl border border-border bg-card p-6 shadow-sm flex flex-col justify-between rotate-y-180"
+            className="col-start-1 row-start-1 flex min-h-64 min-w-0 flex-col justify-between gap-(--related-gap) rounded-2xl border border-border bg-card p-(--panel-padding) shadow-sm sm:p-(--group-gap) rotate-y-180"
             style={faceStyle}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="inline-flex rounded-md border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 text-body-xs font-semibold text-emerald-700 dark:text-emerald-400">
                 {t("flashcards.answer")}
               </span>
-              {typeof activeCard.metadata?.recallDifficulty === "number" ? (
+              {typeof recallDifficulty === "number" ? (
                 <span
                   className="flex items-center gap-1 text-body-xs font-medium text-muted-foreground"
-                  title={t("flashcards.recallLevel", { level: activeCard.metadata.recallDifficulty })}
+                  title={t("flashcards.recallLevel", { level: recallDifficulty })}
                 >
                   <span className="hidden sm:inline">{t("flashcards.recall")}</span>
                   <span className="flex items-center gap-0.5">
@@ -343,7 +228,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
                         key={n}
                         className={
                           "size-1.5 rounded-full " +
-                          (n <= activeCard.metadata.recallDifficulty ? "bg-status-warning" : "bg-muted")
+                          (n <= recallDifficulty ? "bg-status-warning" : "bg-muted")
                         }
                       />
                     ))}
@@ -354,22 +239,22 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
               )}
             </div>
 
-            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto py-4">
-              <div className="flex min-h-full min-w-0 flex-col justify-center space-y-3">
-              <MarkdownRenderer content={activeCard.back} className="font-heading text-body-base font-bold text-foreground text-center" />
-              {activeCard.explanation && (
-                <div className="rounded-lg bg-muted/40 p-3 border border-border/50">
-                  <div className="text-body-xs font-semibold text-muted-foreground mb-0.5">{t("flashcards.explanation")}</div>
-                  <MarkdownRenderer content={activeCard.explanation} density="compact" className="text-body-xs text-muted-foreground" />
-                </div>
-              )}
+            <div className="flex min-w-0 flex-1 items-center">
+              <div className="w-full min-w-0 space-y-(--related-gap)">
+                <MarkdownRenderer content={activeCard.back} className="text-center text-foreground" />
+                {activeCard.explanation && (
+                  <div className="space-y-2 border-t border-border/60 pt-3">
+                    <div className="text-body-sm font-semibold text-muted-foreground">{t("flashcards.explanation")}</div>
+                    <MarkdownRenderer content={activeCard.explanation} density="compact" className="text-muted-foreground" />
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-1.5 text-body-xs text-muted-foreground">
-              <RotateCw className="size-3" />
-              <span>{t("flashcards.flipToQuestion")}</span>
-            </div>
+            <Button ref={backFlipButton} type="button" variant="ghost" size="sm" onClick={flipFromButton} className="self-center text-muted-foreground">
+              <RotateCw className="size-4" />
+              {t("flashcards.flipToQuestion")}
+            </Button>
           </div>
         </div>
       </div>
@@ -382,8 +267,8 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
 
       {/* Interactive Input Area for Exam Mode */}
       {mode === "exam" && (
-        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-          <div className="flex items-center justify-between">
+        <div className="space-y-3 border-t border-border/60 pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <label className="text-body-sm font-semibold text-foreground">
               {t("flashcards.yourAnswer")}
             </label>
@@ -408,7 +293,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
               value={typedAnswer}
               onChange={(e) => setTypedAnswer(e.target.value)}
               placeholder={t("flashcards.answerPlaceholder")}
-              className="flex-1 h-9 px-3 rounded-md border border-input bg-background text-body-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
+              className="flex-1 h-9 px-3 rounded-md border border-input bg-background text-body-base sm:text-body-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
             />
             {!isChecked ? (
               <Button
@@ -421,12 +306,8 @@ export function FlashcardClient({ courseId, initialQueue, studentId, adapter }: 
               </Button>
             ) : (
               <Button
-                onClick={() => {
-                  setIsChecked(false);
-                  setTypedAnswer("");
-                  setPassedExam(null);
-                  setIsFlipped(false);
-                }}
+                onClick={resetCard}
+                disabled={loading}
                 variant="outline"
                 size="lg"
                 className="rounded-md h-9"

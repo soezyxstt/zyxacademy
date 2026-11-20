@@ -1,11 +1,12 @@
 import { db } from "@/db";
 import { blogArticles } from "@/db/schema";
 import { desc } from "drizzle-orm";
-import { Button } from "@/components/ui/button";
-import { Plus, Edit, Eye, Share2, PenLine } from "lucide-react";
+import { AdminIconAction } from "@/components/admin/icon-action";
+import { Plus, PenLine } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { ShareDialog } from "@/components/blog/share-widget";
+import { StatusBadge } from "@/components/admin/status-badges";
+import { BlogRowActions } from "./_components/blog-row-actions";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { getTranslations } from "@/lib/i18n/server";
@@ -32,12 +33,11 @@ export default async function AdminBlogDashboard() {
         icon={PenLine}
         title={<TranslatedText namespace="adminOps" messageKey="blog.title" />}
         actions={
-          <Button asChild>
+          <AdminIconAction asChild label={t("blogList.write")}>
             <Link href="/admin/blog/new">
               <Plus className="size-4" />
-              {t("blogList.write")}
             </Link>
-          </Button>
+          </AdminIconAction>
         }
       />
 
@@ -49,7 +49,7 @@ export default async function AdminBlogDashboard() {
               <th className="px-4 py-3 font-semibold text-foreground">{t("blogList.category")}</th>
               <th className="px-4 py-3 font-semibold text-foreground">{t("blogList.status")}</th>
               <th className="px-4 py-3 font-semibold text-foreground">{t("blogList.author")}</th>
-              <th className="px-4 py-3 font-semibold text-foreground">{t("blogList.actions")}</th>
+              <th className="px-4 py-3 font-semibold text-foreground text-right">{t("blogList.actions")}</th>
             </tr>
           </AdminTableHead>
           <tbody className="divide-y divide-border/40">
@@ -63,7 +63,9 @@ export default async function AdminBlogDashboard() {
               articles.map((article) => (
                 <tr key={article.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3 font-medium text-foreground max-w-[280px] md:max-w-xs truncate" title={article.title}>
-                    {article.title}
+                    <Link href={`/admin/blog/${article.id}/edit`} className="hover:text-primary">
+                      {article.title}
+                    </Link>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <Badge variant="outline" className="rounded-md capitalize">
@@ -71,42 +73,26 @@ export default async function AdminBlogDashboard() {
                     </Badge>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <Badge 
-                      variant={article.status === "published" ? "default" : "secondary"}
-                      className={article.status === "published" ? "bg-status-success text-status-success-foreground hover:bg-status-success/90 rounded-md" : "rounded-md"}
-                    >
+                    <StatusBadge tone={article.status === "published" ? "success" : "muted"}>
                       {t(`blogList.${article.status === "published" ? "published" : "draft"}`)}
-                    </Badge>
+                    </StatusBadge>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
                     {article.author?.name || t("blogList.anonymous")}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/admin/blog/${article.id}/edit`}>
-                          <Edit className="size-4" />
-                          {t("blogList.edit")}
-                        </Link>
-                      </Button>
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/blog/${article.slug}`} target="_blank">
-                          <Eye className="size-4" />
-                          {t("blogList.view")}
-                        </Link>
-                      </Button>
-                      <ShareDialog
-                        slug={article.slug}
-                        title={article.title}
-                        description={article.summary || ""}
-                        trigger={
-                          <Button variant="ghost" size="sm">
-                            <Share2 className="size-4" />
-                            {t("blogList.share")}
-                          </Button>
-                        }
-                      />
-                    </div>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <BlogRowActions
+                      articleId={article.id}
+                      slug={article.slug}
+                      title={article.title}
+                      summary={article.summary || ""}
+                      labels={{
+                        actions: t("blogList.actions"),
+                        edit: t("blogList.edit"),
+                        view: t("blogList.view"),
+                        share: t("blogList.share"),
+                      }}
+                    />
                   </td>
                 </tr>
               ))

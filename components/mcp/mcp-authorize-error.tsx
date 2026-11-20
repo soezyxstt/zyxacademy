@@ -18,7 +18,7 @@ export async function McpAuthorizeError({
 }: McpAuthorizeErrorProps) {
   const t = await getTranslations("consent.authorize");
   return (
-    <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-sm">
+    <div className="w-full max-w-lg">
       <div className="flex flex-col items-center text-center">
         <div className="flex size-12 items-center justify-center rounded-xl bg-destructive/10 text-destructive mb-4">
           <AlertCircle className="size-6" />

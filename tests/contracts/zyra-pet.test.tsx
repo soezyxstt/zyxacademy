@@ -37,8 +37,7 @@ describe("Zyra pet state", () => {
     const markup = renderToStaticMarkup(<ZyraPet state="thinking" />);
 
     expect(markup).toContain("aria-label=\"Zyra sedang berpikir\"");
-    expect(markup).toContain("data-state=\"thinking\"");
-    expect(markup).toContain("data-expression=\"focused\"");
-    expect(markup).toContain("data-glyph=\"thinking\"");
+    expect(markup).toContain("cat.webp");
+    expect(markup).not.toContain("cat-head.webp");
   });
 });

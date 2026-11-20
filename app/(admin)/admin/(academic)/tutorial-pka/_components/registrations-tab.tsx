@@ -217,19 +217,19 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
       {/* Compact summary strip */}
       <AdminStatStrip className="sm:grid-cols-3">
         <AdminStatStripItem icon={Users} value={registrations.length} label={t("pkaRegistrationUI.total")} />
-        <AdminStatStripItem icon={BellRing} value={optedIn} label={t("pkaRegistrationUI.subscribed")} tone="brand" />
+        <AdminStatStripItem icon={BellRing} value={optedIn} label={t("pkaRegistrationUI.subscribed")} />
         <AdminStatStripItem icon={GraduationCap} value={facultyCount} label={t("pkaRegistrationUI.facultyCount")} />
       </AdminStatStrip>
 
       {/* Controls */}
       <div className="flex items-center gap-2">
         <SearchBar
+          collapsible
           size="sm"
           value={query}
           onSearch={setQuery}
           onClear={() => setQuery("")}
           placeholder={t("pkaRegistrationUI.search")}
-          containerClassName="flex-1 min-w-0"
         />
         <Button onClick={handleExportGoogleSheets} disabled={exportingSheets} variant="outline" size="sm" className="gap-2 rounded-lg text-brand-primary border-brand-primary/30 bg-brand-primary/5 hover:bg-brand-primary/10 h-9 shrink-0">
           <RefreshCw className={`size-3.5 ${exportingSheets ? "animate-spin" : "hidden"}`} />

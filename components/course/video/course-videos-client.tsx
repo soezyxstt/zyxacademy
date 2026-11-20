@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import {
   Video as VideoIcon,
   Plus,
-  Search,
+  ListPlus,
   ChevronDown,
   Play,
   Lock,
@@ -19,7 +19,8 @@ import {
 } from "lucide-react";
 import { FaYoutube } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchBar } from "@/components/ui/search-bar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -247,27 +248,27 @@ export function CourseVideosClient({
   };
 
   return (
-    <div className="space-y-4 font-sans">
+    <div className="space-y-6 font-sans">
       {/* Responsive Inline Filter Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-1 flex-wrap items-center gap-2 min-w-0">
-          {/* Search Bar */}
-          <div className="relative min-w-[140px] flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            <Input
-              type="text"
-              placeholder={t("courseVideos.search")}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 pl-9 text-body-sm rounded-lg"
-            />
-          </div>
+      <div className="group/video-toolbar flex flex-wrap items-center gap-1 border-b border-border/40 pb-2">
+        <SearchBar
+          collapsible
+          size="sm"
+          aria-label={t("courseVideos.search")}
+          placeholder={t("courseVideos.search")}
+          value={searchQuery}
+          onSearch={setSearchQuery}
+          containerClassName="min-w-[140px] max-w-sm"
+        />
 
           {/* Chapter Filter */}
           {chapters.length > 0 && (
-            <div className="shrink-0 w-44">
+            <div className={cn(
+              "min-w-0 max-w-60",
+              selectedChapterId === "all" && "group-has-[[data-search-expanded=true]]/video-toolbar:hidden sm:group-has-[[data-search-expanded=true]]/video-toolbar:block"
+            )}>
               <Select value={selectedChapterId} onValueChange={setSelectedChapterId}>
-                <SelectTrigger className="h-9 text-body-sm rounded-lg">
+                <SelectTrigger variant="inline" aria-label={t("courseVideos.allChapters")}>
                   <Filter className="mr-1.5 size-3.5 text-muted-foreground" />
                   <SelectValue placeholder={t("courseVideos.allChapters")} />
                 </SelectTrigger>
@@ -284,58 +285,58 @@ export function CourseVideosClient({
               </Select>
             </div>
           )}
-        </div>
-
         {/* Action Buttons for Admin or Tutor */}
         {canManage && (
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleOpenCreatePlaylist}
-              className="h-9 text-body-sm rounded-lg gap-1.5"
-            >
-              <Plus className="size-4" />
-              <span>{t("courseVideos.newPlaylist")}</span>
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => handleOpenAddVideo()}
-              disabled={initialPlaylists.length === 0}
-              className="h-9 text-body-sm rounded-lg gap-1.5 bg-brand-primary text-primary-foreground hover:bg-brand-primary/90"
-            >
-              <Plus className="size-4" />
-              <span>{t("courseVideos.addVideo")}</span>
-            </Button>
-          </div>
+          <TooltipProvider>
+            <div className="ml-auto flex shrink-0 items-center gap-1 group-has-[[data-search-expanded=true]]/video-toolbar:hidden sm:group-has-[[data-search-expanded=true]]/video-toolbar:flex">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon-lg" aria-label={t("courseVideos.newPlaylist")} onClick={handleOpenCreatePlaylist}>
+                    <ListPlus aria-hidden />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("courseVideos.newPlaylist")}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="button" size="icon-lg" aria-label={t("courseVideos.addVideo")} onClick={() => handleOpenAddVideo()} disabled={initialPlaylists.length === 0}>
+                    <Plus aria-hidden />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("courseVideos.addVideo")}</TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
         )}
       </div>
 
       {/* Playlists Container - Formatted like Collapsible Bab di Dokumen */}
       {initialPlaylists.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/80 p-8 text-center bg-card/50">
-          <VideoIcon className="mx-auto size-10 text-muted-foreground/60 mb-2" />
-          <h3 className="font-heading text-body-base font-bold text-foreground">
-            Belum ada playlist video
-          </h3>
-          <p className="mt-1 text-body-xs text-muted-foreground max-w-sm mx-auto">
-            {canManage
-              ? t("courseVideos.createPlaylistFirst")
-              : t("courseVideos.noVideos")}
-          </p>
-          {canManage && (
-            <Button
-              size="sm"
-              onClick={handleOpenCreatePlaylist}
-              className="mt-4 text-body-sm rounded-lg gap-1.5 bg-brand-primary text-primary-foreground hover:bg-brand-primary/90"
-            >
-              <Plus className="size-4" />
-              <span>{t("courseVideos.createFirstPlaylist")}</span>
-            </Button>
-          )}
+        <div className="flex min-h-[45vh] flex-col items-center justify-center px-4 py-12 text-center">
+          <div className="mx-auto flex max-w-md flex-col items-center">
+            <VideoIcon className="size-10 text-muted-foreground/40 mb-3" aria-hidden />
+            <h3 className="font-heading text-body-base font-bold text-foreground">
+              Belum ada playlist video
+            </h3>
+            <p className="mt-1 text-body-xs text-muted-foreground leading-relaxed">
+              {canManage
+                ? t("courseVideos.createPlaylistFirst")
+                : t("courseVideos.noVideos")}
+            </p>
+            {canManage && (
+              <Button
+                size="sm"
+                onClick={handleOpenCreatePlaylist}
+                className="mt-5 text-body-sm rounded-lg gap-1.5 bg-brand-primary text-primary-foreground hover:bg-brand-primary/90"
+              >
+                <Plus className="size-4" />
+                <span>{t("courseVideos.createFirstPlaylist")}</span>
+              </Button>
+            )}
+          </div>
         </div>
       ) : filteredPlaylists.length === 0 ? (
-        <div className="rounded-xl border border-border/60 p-8 text-center bg-card">
+        <div className="py-10 text-center">
           <p className="font-heading text-body-sm font-semibold text-foreground">
             Video tidak ditemukan
           </p>
@@ -344,7 +345,7 @@ export function CourseVideosClient({
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border/60 bg-card divide-y divide-border/45">
+        <div className="space-y-8">
           {filteredPlaylists.map((playlist, index) => {
             const isOpen = Boolean(openPlaylists[playlist.id]);
             const hasVideos = playlist.videos.length > 0;
@@ -356,25 +357,26 @@ export function CourseVideosClient({
                 onOpenChange={() => togglePlaylist(playlist.id)}
                 className="w-full"
               >
-                {/* Collapsible Header - Matches CollapsibleDocumentSection appearance */}
-                <div className="group flex w-full items-center justify-between gap-3 px-3.5 py-3 hover:bg-muted/30 transition-colors">
+                {/* Collapsible Header */}
+                <div className="group flex w-full items-center justify-between gap-3 border-b border-border/40 pb-2">
                   <CollapsibleTrigger asChild>
                     <button
                       type="button"
-                      className="flex flex-1 items-center gap-3 text-left focus:outline-hidden"
+                      className="group/trigger -mx-2 flex flex-1 items-center gap-2.5 rounded-lg px-2 py-1 text-left transition-colors hover:bg-muted/40 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      <span className="w-16 shrink-0 text-body-xs font-semibold text-brand-primary">
+                      <span className="shrink-0 font-heading text-body-xs font-semibold uppercase tracking-wider text-brand-primary">
                         Playlist {index + 1}
                       </span>
-                      <span className="min-w-0 flex-1 truncate font-heading text-body-sm font-semibold text-foreground">
+                      <span className="text-border" aria-hidden="true">/</span>
+                      <span className="min-w-0 flex-1 wrap-break-word font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors group-hover/trigger:text-foreground">
                         {playlist.title}
                       </span>
-                      <span className="shrink-0 text-body-xs text-muted-foreground">
+                      <span className="shrink-0 text-body-xs tabular-nums text-muted-foreground">
                         {playlist.videos.length} video
                       </span>
                       <ChevronDown
                         className={cn(
-                          "size-4 shrink-0 text-muted-foreground transition-transform duration-200",
+                          "size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover/trigger:text-foreground",
                           isOpen && "rotate-180"
                         )}
                         aria-hidden
@@ -430,10 +432,10 @@ export function CourseVideosClient({
                   )}
                 </div>
 
-                {/* Collapsible Content: Grid of Video Cards */}
+                {/* Collapsible Content: Video Rows */}
                 <CollapsibleContent>
                   {!hasVideos ? (
-                    <div className="border-t border-border/35 bg-muted/10 p-6 text-center text-body-xs text-muted-foreground">
+                    <div className="py-6 text-center text-body-xs text-muted-foreground">
                       <p>{t("courseVideos.emptyPlaylist")}</p>
                       {canManage && (
                         <Button
@@ -448,22 +450,22 @@ export function CourseVideosClient({
                       )}
                     </div>
                   ) : (
-                    <div className="divide-y divide-border/40 border-t border-border/40 bg-card/30">
+                    <div className="divide-y divide-border/30">
                       {playlist.videos.map((video) => {
                         const isLocked = !canManage && !hasFullContentAccess && (video.locked ?? true);
                         const thumbnail = video.thumbnailUrl || getYouTubeThumbnailUrl(video.videoUrl);
                         return (
+                          <div key={video.id}>
                           <div
-                            key={video.id}
                             className={cn(
-                              "group flex items-center justify-between gap-3 px-3.5 py-2.5 transition-colors hover:bg-muted/40",
+                              "group -mx-2.5 flex items-center justify-between gap-(--compact-gap) rounded-lg px-2.5 py-(--row-padding) transition-colors hover:bg-muted/40",
                               isLocked ? "opacity-90 cursor-pointer" : "cursor-pointer"
                             )}
                             onClick={() => handlePlayVideo(video, playlist)}
                           >
                             <div className="flex items-center gap-3 min-w-0 flex-1">
                               {/* Landscape Video Thumbnail */}
-                              <div className="relative w-28 sm:w-36 aspect-video shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted/20">
+                              <div className="relative w-28 sm:w-36 aspect-video shrink-0 overflow-hidden rounded-lg border border-border/40 bg-muted/20">
                                 {thumbnail ? (
                                   <Image unoptimized loading="lazy" width={160} height={90}
                                     src={thumbnail}
@@ -487,7 +489,7 @@ export function CourseVideosClient({
                                   )}
                                 </div>
                                 {video.duration && video.duration > 0 ? (
-                                  <div className="absolute bottom-1 right-1 rounded bg-black/75 px-1 py-0.5 text-[10px] font-medium text-white tabular-nums leading-none">
+                                  <div className="absolute bottom-1 right-1 rounded bg-black/75 px-1 py-0.5 text-body-xs font-medium text-white tabular-nums leading-none">
                                     {Math.floor(video.duration / 60)}:
                                     {String(video.duration % 60).padStart(2, "0")}
                                   </div>
@@ -499,7 +501,7 @@ export function CourseVideosClient({
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                   <h4
                                     className={cn(
-                                      "text-body-sm font-semibold truncate text-foreground transition-colors",
+                                      "text-body-sm font-semibold wrap-break-word text-foreground transition-colors",
                                       isLocked
                                         ? "group-hover:text-amber-600 dark:group-hover:text-amber-400"
                                         : "group-hover:text-brand-primary"
@@ -569,6 +571,7 @@ export function CourseVideosClient({
                                 </DropdownMenu>
                               )}
                             </div>
+                          </div>
                           </div>
                         );
                       })}

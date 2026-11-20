@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { Calendar, Award, Clock, ArrowLeft, CheckCircle2, XCircle, FileText, Download, Check } from "lucide-react";
+import { Calendar, Award, Clock, CheckCircle2, XCircle, FileText, Download, Check, ListChecks } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { Reveal } from "@/components/ui/reveal";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TranslatedText } from "@/components/i18n/translated-text";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { InteractiveDocumentAttempt } from "@/components/course/interactive-document-context";
@@ -10,10 +11,12 @@ import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
-import { isShortAnswerCorrect, deduplicateAcceptableAnswers } from "@/lib/quiz/short-answer";
+import { deduplicateAcceptableAnswers } from "@/lib/quiz/short-answer";
+import { checkAnswerCorrectness, questionAnswerType } from "@/lib/gamification/question-grading";
+import { answerToStableOptionIds } from "@/lib/asesmen/attempt";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
-export type StudentReviewQuestion = { id: string; prompt: string; options: string[]; correct_indices: number[]; explanation: string; difficulty: string; origin?: "zyx_original" | "historical_reference" | "itb_example"; sourceEventName?: string | null; sourceReferenceId?: string | null; gradedCorrect?: boolean };
+export type StudentReviewQuestion = { id: string; prompt: string; options: string[]; correct_indices: number[]; explanation: string; difficulty: string; question_type?: string; acceptable_answers?: string[]; stable_option_ids?: string[]; origin?: "zyx_original" | "historical_reference" | "itb_example"; sourceEventName?: string | null; sourceReferenceId?: string | null; gradedCorrect?: boolean };
 function formatDuration(seconds: number | null) {
   if (seconds == null) return "-";
   const m = Math.floor(seconds / 60);
@@ -32,27 +35,28 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
       <CoursePageShell
         title={<TranslatedText namespace="learning" messageKey={targetAttempt ? "quizTake.analysisTitle" : "quizTake.reviewTitle"} />}
         description={template.title}
-        hideHeader
-      >
-        <Reveal>
-          <div className="space-y-6 font-sans">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <Button asChild variant="outline" size="sm" className="rounded-md border-border/80 text-muted-foreground">
-                <Link href={href(`/courses/${id}/quiz/${quizId}`)}>
-                  <ArrowLeft className="mr-1.5 size-4" />
-                  Kembali Ke Kuis
-                </Link>
-              </Button>
-
-              {targetAttempt && discussionAvailable && (
-                <Button asChild size="sm" className="rounded-md bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 font-semibold shadow-xs">
+        backHref={href(`/courses/${id}/quiz/${quizId}`)}
+        backLabel={<TranslatedText namespace="learning" messageKey="quizTake.backToQuiz" />}
+        actions={targetAttempt && discussionAvailable ? (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild size="icon-lg">
                   <Link href={href(`/courses/${id}/quiz/${quizId}/summary/${targetAttempt.id}`)}>
-                    Lihat Diagnosis & Rencana Belajar
+                    <ListChecks aria-hidden />
+                    <span className="sr-only"><TranslatedText namespace="learning" messageKey="reviewPage.viewDiagnosis" /></span>
                   </Link>
                 </Button>
-              )}
-            </div>
-
+              </TooltipTrigger>
+              <TooltipContent>
+                <TranslatedText namespace="learning" messageKey="reviewPage.viewDiagnosis" />
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : undefined}
+      >
+        <Reveal>
+          <div className="space-y-4 font-sans">
             {targetAttempt && (
               <AdminStatStrip className="sm:grid-cols-3">
                 <AdminStatStripItem icon={Award} label={<TranslatedText namespace="learning" messageKey="quizTake.finalScore" />} value={targetAttempt.score == null ? "-" : `${targetAttempt.score}%`} tone="brand" />
@@ -76,7 +80,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
             )}
 
             {!targetAttempt && (
-              <div className="rounded-xl border border-brand-primary/30 bg-brand-primary/5 p-5 text-center">
+              <div className="border-b border-border pb-3">
                 <h3 className="font-heading text-body-base font-bold text-brand-primary"><TranslatedText namespace="learning" messageKey="quizTake.fullDiscussion" /></h3>
                 <p className="mt-1 text-body-sm text-brand-primary/80">
                   Anda tidak mengerjakan kuis ini. Berikut adalah seluruh kumpulan soal yang mungkin muncul pada kuis ini beserta penjelasannya.
@@ -86,18 +90,25 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
 
             {/* Answered Questions */}
             {snapshot.length > 0 && (
-              <div className="space-y-6">
-                <h2 className="font-heading text-body-base font-bold text-foreground border-b border-border/60 pb-2">
+              <div className="divide-y divide-border/70">
+                <h2 className="font-heading text-body-base font-bold text-foreground pb-2">
                   Soal yang Anda Kerjakan
                 </h2>
                 {snapshot.map((q, idx) => {
                   const rawSubmitted = answers[q.id];
-                  const qType = (q as any).question_type || (q as any).questionType || (q as any).type;
-                  const studentSelected = Array.isArray(rawSubmitted)
+                  const qType = questionAnswerType(q);
+                  let studentSelected = Array.isArray(rawSubmitted)
                     ? rawSubmitted
                     : typeof rawSubmitted === "number"
                     ? [rawSubmitted]
                     : [];
+                  if (q.stable_option_ids && (typeof rawSubmitted === "string" || (Array.isArray(rawSubmitted) && rawSubmitted.some(value => typeof value === "string")))) {
+                    try {
+                      studentSelected = answerToStableOptionIds(q.stable_option_ids, rawSubmitted).map(id => q.stable_option_ids!.indexOf(id));
+                    } catch {
+                      studentSelected = [];
+                    }
+                  }
 
                   const correctIndices = q.correct_indices ?? (q as any).correctIndices ?? [];
 
@@ -121,47 +132,15 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
                     ? rawSubmitted.fileSize
                     : null;
 
-                  const isMultiple = qType === "multiple_choices" || correctIndices.length > 1;
-                  let isCorrect = false;
-                  if (qType === "short_answer" || (Array.isArray((q as any).acceptable_answers) && (q as any).acceptable_answers.length > 0)) {
-                    isCorrect = isShortAnswerCorrect(submittedText, (q as any).acceptable_answers);
-                  } else if (qType === "essay") {
-                    isCorrect = submittedText.trim().length > 0 || Boolean(submittedFileKey);
-                  } else if (!isMultiple && (qType === "multiple_choice" || !qType)) {
-                    const firstIdx = studentSelected[0];
-                    isCorrect = firstIdx !== undefined && correctIndices.includes(firstIdx);
-                  } else {
-                    isCorrect =
-                      studentSelected.length === correctIndices.length &&
-                      studentSelected.every((val: number) => correctIndices.includes(val));
-                  }
+                  let isCorrect = qType === "essay"
+                    ? submittedText.trim().length > 0 || Boolean(submittedFileKey)
+                    : checkAnswerCorrectness(q, rawSubmitted);
 
-                  if (typeof q.gradedCorrect === "boolean") isCorrect = q.gradedCorrect;
+                  if (qType === "essay" && typeof q.gradedCorrect === "boolean") isCorrect = q.gradedCorrect;
                   const isEssayPending = qType === "essay" && targetAttempt?.gradingStatus === "pending";
 
                   return (
-                    <div
-                      key={q.id}
-                      className={cn(
-                        "rounded-xl border border-border/80 bg-card p-5 shadow-2xs transition-all relative overflow-hidden",
-                        isEssayPending
-                          ? "border-brand-secondary/30 bg-brand-secondary/5"
-                          : isCorrect
-                          ? "border-status-success/30 bg-status-success/5"
-                          : "border-status-error/20 bg-status-error/5"
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "absolute top-0 left-0 w-1 h-full",
-                          isEssayPending
-                            ? "bg-brand-secondary"
-                            : isCorrect
-                            ? "bg-status-success"
-                            : "bg-status-error"
-                        )}
-                      />
-
+                    <article key={q.id} className="min-w-0 py-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-2.5">
                           <span className={cn(
@@ -205,7 +184,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
                               )}
                             </div>
                             <div className="mt-2 text-body-base leading-relaxed text-foreground/90 font-medium">
-                              <InteractiveDocumentAttempt value={targetAttempt ? { courseId: visualCourseId, attemptId: targetAttempt.id, questionId: q.id, field: "prompt" } : null}><MarkdownRenderer content={q.prompt} className="space-y-3" /></InteractiveDocumentAttempt>
+                              <InteractiveDocumentAttempt value={targetAttempt ? { courseId: visualCourseId, attemptId: targetAttempt.id, questionId: q.id, field: "prompt" } : null}><MarkdownRenderer content={q.prompt} /></InteractiveDocumentAttempt>
                             </div>
                           </div>
                         </div>
@@ -213,8 +192,8 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
 
                       {/* Content rendering depending on question type */}
                       {qType === "short_answer" ? (
-                        <div className="mt-4 pl-9 space-y-2.5">
-                          <div className="rounded-lg border border-border bg-background/60 p-3">
+                        <div className="mt-4 sm:pl-9 space-y-2.5">
+                          <div className="border-t border-border/60 pt-3">
                             <span className="text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
                               Jawaban Anda:
                             </span>
@@ -230,7 +209,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
                             const displayAnswers = deduplicateAcceptableAnswers((q as any).acceptable_answers);
                             if (displayAnswers.length === 0) return null;
                             return (
-                              <div className="rounded-lg border border-status-success/30 bg-status-success/5 p-3 space-y-2">
+                              <div className="space-y-2 border-t border-border/60 pt-3">
                                 <span className="text-body-2xs font-semibold uppercase tracking-wider text-status-success block">
                                   Kunci Jawaban yang Diterima{displayAnswers.length > 1 ? ` (${displayAnswers.length} variasi format)` : ""}:
                                 </span>
@@ -250,8 +229,8 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
                           })()}
                         </div>
                       ) : qType === "essay" ? (
-                        <div className="mt-4 pl-9 space-y-3">
-                          <div className="rounded-lg border border-border bg-background/60 p-3.5">
+                        <div className="mt-4 sm:pl-9 space-y-3">
+                          <div className="border-t border-border/60 pt-3">
                             <span className="text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
                               Jawaban Esai Anda:
                             </span>
@@ -261,7 +240,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
                           </div>
 
                           {submittedFileName && (
-                            <div className="flex items-center justify-between gap-3 rounded-lg border border-border/80 bg-card p-3">
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
                               <div className="flex min-w-0 items-center gap-2.5">
                                 <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-status-success/10 text-status-success">
                                   <FileText className="size-4" />
@@ -300,7 +279,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
                         </div>
                       ) : (
                         /* Options list for Multiple Choice */
-                        <ul className="mt-4 pl-9 space-y-2">
+                        <ul className="mt-4 sm:pl-9 space-y-2">
                           {q.options.map((opt, i) => {
                             const isStudentChoice = studentSelected.includes(i);
                             const isCorrectChoice = correctIndices.includes(i);
@@ -332,7 +311,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
                                   {String.fromCharCode(65 + i)}
                                 </span>
                                 <div className="min-w-0 flex-1">
-                                  <InteractiveDocumentAttempt value={targetAttempt ? { courseId: visualCourseId, attemptId: targetAttempt.id, questionId: q.id, field: "option", option: i } : null}><MarkdownRenderer content={opt} className="space-y-3" /></InteractiveDocumentAttempt>
+                                  <InteractiveDocumentAttempt value={targetAttempt ? { courseId: visualCourseId, attemptId: targetAttempt.id, questionId: q.id, field: "option", option: i } : null}><MarkdownRenderer content={opt} /></InteractiveDocumentAttempt>
                                 </div>
                               </li>
                             );
@@ -342,10 +321,10 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
 
                       {/* Explanation box */}
                       {q.explanation && (
-                        <div className="mt-4 ml-9 space-y-3 border-t border-border/80 pt-4">
+                        <div className="mt-6 space-y-3 border-t border-border/80 pt-4 sm:ml-9">
                           <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground"><TranslatedText namespace="learning" messageKey="review.explanation" /></h4>
                           <div className="text-body-sm text-muted-foreground leading-relaxed">
-                            <InteractiveDocumentAttempt value={targetAttempt ? { courseId: visualCourseId, attemptId: targetAttempt.id, questionId: q.id, field: "explanation" } : null}><MarkdownRenderer content={q.explanation} className="space-y-3" /></InteractiveDocumentAttempt>
+                            <InteractiveDocumentAttempt value={targetAttempt ? { courseId: visualCourseId, attemptId: targetAttempt.id, questionId: q.id, field: "explanation" } : null}><MarkdownRenderer content={q.explanation} /></InteractiveDocumentAttempt>
                           </div>
                         </div>
                       )}
@@ -358,7 +337,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
                         </div>
                       )}
                       <QuestionSourceCitation origin={q.origin} sourceEventName={q.sourceEventName} />
-                    </div>
+                    </article>
                   );
                 })}
               </div>
@@ -366,18 +345,15 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
 
             {/* Unseen Questions */}
             {unseenSnapshot.length > 0 && (
-              <div className="space-y-6 mt-10">
-                <h2 className="font-heading text-body-base font-bold text-foreground border-b border-border/60 pb-2">
+              <div className="mt-6 divide-y divide-border/70">
+                <h2 className="font-heading text-body-base font-bold text-foreground pb-2">
                   Soal Lainnya dalam Bank Soal <span className="text-body-sm font-medium text-muted-foreground ml-2">(Tidak Didapatkan)</span>
                 </h2>
                 {unseenSnapshot.map((q, idx) => {
                   const correctIndices = q.correct_indices ?? [];
 
                   return (
-                    <div
-                      key={q.id}
-                      className="rounded-xl border border-border/80 bg-card p-5 shadow-2xs relative overflow-hidden"
-                    >
+                    <article key={q.id} className="min-w-0 py-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-2.5">
                           <span className="flex size-7 shrink-0 items-center justify-center rounded-lg text-body-sm font-bold text-foreground bg-muted border border-border/50">
@@ -395,13 +371,13 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
                               </span>
                             </div>
                             <div className="mt-2 text-body-base leading-relaxed text-foreground/90 font-medium">
-                              <MarkdownRenderer content={q.prompt} className="space-y-3" />
+                              <MarkdownRenderer content={q.prompt} />
                             </div>
                           </div>
                         </div>
                       </div>
 
-                      <ul className="mt-4 pl-9 space-y-2">
+                      <ul className="mt-4 sm:pl-9 space-y-2">
                         {q.options.map((opt, i) => {
                           const isCorrectChoice = correctIndices.includes(i);
                           return (
@@ -444,15 +420,15 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
                       </ul>
 
                       {q.explanation && (
-                        <div className="mt-4 ml-9 space-y-3 border-t border-border/80 pt-4">
+                        <div className="mt-6 space-y-3 border-t border-border/80 pt-4 sm:ml-9">
                           <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground"><TranslatedText namespace="learning" messageKey="review.explanation" /></h4>
                           <div className="text-body-sm text-muted-foreground leading-relaxed">
-                            <MarkdownRenderer content={q.explanation} className="space-y-3" />
+                            <MarkdownRenderer content={q.explanation} />
                           </div>
                         </div>
                       )}
                       <QuestionSourceCitation origin={q.origin} sourceEventName={q.sourceEventName} />
-                    </div>
+                    </article>
                   );
                 })}
               </div>

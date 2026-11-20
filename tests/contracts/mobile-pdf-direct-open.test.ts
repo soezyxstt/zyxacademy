@@ -21,13 +21,17 @@ describe("mobile/tablet 1-step direct PDF opening contract", () => {
     expect(src).not.toContain("<iframe");
   });
 
-  it("MaterialViewer uses normalized viewable PDF URL for Buka Berkas Asli and renders mobile launcher card", () => {
+  it("MaterialViewer opens the normalized PDF URL from its localized mobile launcher", () => {
     const src = source("components/course/material-viewer.tsx");
-    expect(src).toContain("getViewablePdfUrl(material.url)");
-    expect(src).toContain('t("reader.openOriginal")');
+    const mobileLauncher = src.split("{/* Mobile / Tablet Direct PDF Launcher */}")[1]?.split(
+      "{/* Native Browser PDF Viewer",
+    )[0];
+    expect(src).toContain("const openUrl = getViewablePdfUrl(material.url)");
+    expect(mobileLauncher).toContain("md:hidden");
+    expect(mobileLauncher).toContain('<a href={openUrl} target="_blank"');
+    expect(mobileLauncher).toContain('t("reader.openOriginal")');
     expect(JSON.parse(source("messages/id/learning.json")).reader.openOriginal).toBe("Buka berkas asli");
-    expect(src).toContain("Buka Dokumen PDF");
-    expect(src).toContain("md:hidden");
+    expect(JSON.parse(source("messages/en/learning.json")).reader.openOriginal).toBe("Open original file");
   });
 
   it("PdfViewerModal renders desktop iframe with normalized URL and external link action", () => {

@@ -195,7 +195,7 @@ function parseInline(text: string): ReactNode[] {
       const first = splitScientificText(remaining)[0];
       if (first?.type === "code") {
         flushText();
-        result.push(<code key={`literal-code-${index}`} className={cn("rounded bg-muted px-1.5 py-0.5 font-mono text-body-sm", first.display && "block whitespace-pre-wrap overflow-x-auto")}>{first.value}</code>);
+        result.push(<code key={`literal-code-${index}`} className={cn("rounded bg-muted px-1.5 py-0.5 font-mono text-code", first.display && "block whitespace-pre-wrap overflow-x-auto")}>{first.value}</code>);
         index += first.sourceLength;
         continue;
       }
@@ -319,14 +319,14 @@ function parseInline(text: string): ReactNode[] {
       const alt = imgMatch[1];
       const src = imgMatch[2];
       result.push(
-        <span key={`img-${index}`} className="block my-6 text-center">
+        <span key={`img-${index}`} className="block my-4 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
             alt={alt}
             className="photo-inline mx-auto rounded-2xl border border-border shadow-sm max-w-full h-auto max-h-[450px]"
           />
-          {alt && <span className="block mt-2 text-body-sm text-muted-foreground italic font-sans">{alt}</span>}
+          {alt && <span className="block mt-2 text-support text-muted-foreground italic font-sans">{alt}</span>}
         </span>
       );
       index += imgMatch[0].length;
@@ -419,7 +419,7 @@ function parseInline(text: string): ReactNode[] {
       result.push(
         <code
           key={`code-${index}`}
-          className="px-1.5 py-0.5 rounded bg-muted text-body-sm font-mono border border-border text-foreground"
+          className="px-1.5 py-0.5 rounded bg-muted text-code font-mono border border-border text-foreground"
         >
           {content}
         </code>
@@ -467,7 +467,7 @@ function CodeBlock({ language, code, density }: { language: string; code: string
   return (
     <div className={cn(
       "overflow-hidden border border-border/80 bg-zinc-950 dark:bg-zinc-900/60 shadow-md",
-      isCompact ? "my-3 rounded-xl" : "my-6 rounded-2xl"
+      isCompact ? "rounded-xl" : "rounded-2xl"
     )}>
       <div className="flex items-center justify-between px-4 py-2 bg-zinc-900 dark:bg-zinc-950/40 border-b border-zinc-800 text-zinc-400 text-body-xs font-mono select-none">
         <span className="font-semibold tracking-wider uppercase text-zinc-400/80">{language}</span>
@@ -490,8 +490,8 @@ function CodeBlock({ language, code, density }: { language: string; code: string
         </button>
       </div>
       <pre className={cn(
-        "overflow-x-auto text-zinc-200 font-mono text-body-sm leading-relaxed text-left",
-        isCompact ? "p-3" : "p-4"
+        "overflow-x-auto text-zinc-200 font-mono text-code text-left",
+        isCompact ? "p-3" : "p-3 sm:p-(--panel-padding)"
       )}>
         <code>{code}</code>
       </pre>
@@ -545,15 +545,15 @@ function AlertCallout({
   return (
     <div className={cn(
       "border flex leading-relaxed shadow-xs",
-      isCompact ? "my-3 p-3 md:p-3.5 rounded-xl gap-3" : "my-6 p-4 md:p-5 rounded-2xl gap-3.5",
+      isCompact ? "p-3 rounded-xl gap-3" : "p-3 sm:p-(--panel-padding) rounded-2xl gap-3",
       config.border
     )}>
       {config.icon}
       <div className="flex-1 text-left">
-        <div className={cn("text-body-xs font-bold font-heading uppercase tracking-wider mb-1", config.labelColor)}>
+        <div className={cn("text-body-sm font-semibold font-heading mb-2", config.labelColor)}>
           {config.label}
         </div>
-        <div className="text-body-sm leading-relaxed text-foreground/90 font-sans">
+        <div className="text-body-base text-foreground/90 font-sans">
           {renderRichText(content)}
         </div>
       </div>
@@ -684,7 +684,7 @@ function GraphRenderer({ data, title, caption, density }: { data: any; title?: s
     : null;
 
   return (
-    <div className={cn("border border-border bg-card shadow-xs text-center relative select-none", isCompact ? "my-3 p-3.5 rounded-lg" : "my-6 p-5 rounded-xl")}>
+    <div className={cn("border border-border bg-card shadow-xs text-center relative select-none", isCompact ? "p-3.5 rounded-lg" : "p-4 rounded-xl")}>
       {title && <h4 className={cn("font-heading text-body-base font-bold text-foreground", isCompact ? "mb-2" : "mb-4")}>{titlePrefix}{titleExpression && <><span aria-hidden> </span><MathText>{`$y = ${titleExpression}$`}</MathText></>}</h4>}
       {functions.length > 0 && (
         <div className={cn("flex flex-wrap justify-center gap-3 text-body-sm text-muted-foreground", isCompact ? "mb-2" : "mb-3")}>
@@ -778,7 +778,7 @@ function GraphRenderer({ data, title, caption, density }: { data: any; title?: s
       {caption && (
         <div className={cn(
           "border-t border-border/60 bg-muted/20 text-left text-body-sm text-muted-foreground",
-          isCompact ? "mt-3 -mx-3.5 -mb-3.5 p-3 rounded-b-lg" : "mt-4 -mx-5 -mb-5 p-4 rounded-b-xl"
+          isCompact ? "mt-3 -mx-3.5 -mb-3.5 p-3 rounded-b-lg" : "mt-4 -mx-4 -mb-4 p-4 rounded-b-xl"
         )}>
           {renderRichText(caption)}
         </div>
@@ -907,10 +907,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       if (isStandaloneMathBlock(block.content)) {
         return (
           <MathRegion primary
-            className={cn(
-              "formula-focus max-w-full overflow-x-auto overflow-y-hidden rounded-lg border-l-3 border-primary bg-primary/[0.03] px-3.5 py-2 text-left [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left",
-              isCompact ? "my-1.5" : "my-2.5",
-            )}
+            className="formula-focus max-w-full overflow-x-auto overflow-y-hidden rounded-lg border-l-3 border-primary bg-primary/[0.03] px-3.5 py-2 text-left [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left"
             data-content-kind="formula"
             data-math-scroll role="region" tabIndex={0}
           >
@@ -919,34 +916,25 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
         );
       }
       return (
-        <p className="text-body-base leading-relaxed">
+        <p className="text-body-base">
           {renderRichText(block.content)}
         </p>
       );
 
     case "h": {
       const hLvl = block.level || 2;
-      const headingClasses = isCompact
-        ? {
-            1: "text-h5 font-heading font-bold mt-6 mb-2 border-b border-border/60 pb-1.5 tracking-tight",
-            2: "text-body-base font-heading font-bold mt-5 mb-2 tracking-tight",
-            3: "text-body-sm font-heading font-bold mt-4 mb-1.5 tracking-tight",
-            4: "text-body-sm font-heading font-semibold mt-3 mb-1.5 tracking-tight",
-            5: "text-body-sm font-heading font-semibold mt-2.5 mb-1 tracking-tight",
-            6: "text-body-sm md:text-body-base font-heading font-semibold text-muted-foreground mt-2.5 mb-1 tracking-tight",
-          }
-        : {
-            1: "text-h5 font-heading font-bold mt-14 mb-4 border-b border-border/60 pb-2.5 tracking-tight",
-            2: "text-body-base font-heading font-bold mt-12 mb-4 tracking-tight",
-            3: "text-body-sm font-heading font-bold mt-10 mb-3 tracking-tight",
-            4: "text-body-sm font-heading font-semibold mt-8 mb-3 tracking-tight",
-            5: "text-body-sm font-heading font-semibold mt-6 mb-2.5 tracking-tight",
-            6: "text-body-sm md:text-body-base font-heading font-semibold text-muted-foreground mt-6 mb-2 tracking-tight",
-          };
+      const headingClasses = {
+        1: "text-reading-major font-heading font-bold",
+        2: "text-reading-major font-heading font-bold",
+        3: "text-reading-minor font-heading font-semibold",
+        4: "text-body-base font-heading font-semibold",
+        5: "text-body-base font-heading font-semibold",
+        6: "text-body-base font-heading font-semibold text-muted-foreground",
+      };
       const cls = headingClasses[hLvl as 1 | 2 | 3 | 4 | 5 | 6] || headingClasses[2];
       const HeadingTag = `h${hLvl}` as any;
       return (
-        <HeadingTag className={cls}>
+        <HeadingTag className={cn(cls, "[&:not(:first-child)]:pt-2")}>
           {renderRichText(block.content)}
         </HeadingTag>
       );
@@ -973,10 +961,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       if (isMathList) {
         return (
           <div
-            className={cn(
-              "min-w-0 max-w-full space-y-1 text-left",
-              isCompact ? "my-2" : "my-2.5",
-            )}
+            className="min-w-0 max-w-full space-y-4 text-left"
             data-content-kind="formula-property-list"
           >
             {block.items?.map((item: any, itemIdx: number) => {
@@ -985,14 +970,14 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
                 return (
                   <div
                     key={itemIdx}
-                    className="min-w-0 space-y-1"
+                    className="min-w-0 space-y-2"
                   >
                     <MathRegion className="article-formula-row"
                     data-math-scroll role="region" tabIndex={0}>
                       <span className="block" dangerouslySetInnerHTML={{ __html: renderMath(parsed.math, true) }} />
                     </MathRegion>
                     {parsed.note ? (
-                      <div className="text-body-xs text-muted-foreground leading-relaxed">
+                      <div className="text-body-base text-muted-foreground">
                         {renderRichText(parsed.note)}
                       </div>
                     ) : null}
@@ -1000,7 +985,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
                 );
               }
               return (
-                <div key={itemIdx} className="py-1 text-body-sm text-foreground">
+                <div key={itemIdx} className="py-1 text-body-base text-foreground">
                   {renderRichText(item.text)}
                 </div>
               );
@@ -1013,8 +998,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       return (
         <ListTag
           className={cn(
-            isCompact ? "my-2.5 pl-8 space-y-1" : "my-4 pl-9 space-y-1.5",
-            "leading-relaxed text-body-base",
+            isCompact ? "pl-6 space-y-1" : "pl-6 space-y-2",
             isOrdered ? "list-decimal" : "list-disc",
           )}
         >
@@ -1048,8 +1032,8 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       return (
         <blockquote
           className={cn(
-            "border-l-4 border-primary/50 text-muted-foreground italic bg-muted/20 leading-relaxed text-body-base",
-            isCompact ? "my-3 pl-3.5 py-1.5 pr-3 rounded-r-lg" : "my-5 pl-5 py-2.5 pr-4 rounded-r-xl"
+            "border-l-4 border-primary/50 text-muted-foreground italic bg-muted/20 text-body-base",
+            isCompact ? "pl-3 py-2 pr-3 rounded-r-lg" : "px-4 py-3 rounded-r-xl"
           )}
         >
           {renderRichText(block.content)}
@@ -1101,10 +1085,10 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       }
 
       return (
-        <div className={cn(isCompact ? "my-3 space-y-1.5" : "my-6 space-y-2", "text-center select-none")}>
+        <div className={cn(isCompact ? "space-y-1.5" : "space-y-2", "text-center select-none")}>
           {mediaElement}
           {(caption || sourceLabel) && (
-            <div className="text-body-sm text-muted-foreground font-sans">
+            <div className="text-support text-muted-foreground font-sans">
               {caption && <span className="italic">{caption}</span>}
               {caption && sourceLabel && <span className="mx-2 text-border">|</span>}
               {sourceLabel && (
@@ -1135,7 +1119,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       return (
         <div className={cn(
           "overflow-x-auto border border-border shadow-2xs",
-          isCompact ? "my-3 rounded-xl" : "my-6 rounded-2xl"
+          isCompact ? "rounded-xl" : "rounded-2xl"
         )}>
           <table className="w-full text-left border-collapse text-body-sm">
             <thead>
@@ -1224,13 +1208,13 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       );
 
     case "hr":
-      return <hr className={cn("border-t border-border/80", isCompact ? "my-4" : "my-8")} />;
+      return <hr className={cn("border-t border-border/80", isCompact ? "my-3" : "my-4")} />;
 
     case "concept":
       return (
         <div id={block.id} className={cn(
           "border border-border bg-card shadow-xs text-left",
-          isCompact ? "p-3.5 rounded-lg my-3" : "p-5 rounded-xl my-6"
+          isCompact ? "p-3 rounded-lg" : "p-3 sm:p-(--panel-padding) rounded-xl"
         )}>
           <h3 className={cn("text-body-base font-heading font-bold text-foreground", isCompact ? "mb-2" : "mb-3")}>{renderRichText(block.content.title)}</h3>
           <ArticleMarkdownScope id="body"><MarkdownRenderer content={block.content.bodyMarkdown} density={density} /></ArticleMarkdownScope>
@@ -1242,7 +1226,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       return (
         <div id={block.id} className={cn(
           "border border-border bg-card shadow-xs text-left",
-          isCompact ? "p-3 rounded-lg my-2" : "p-3.5 rounded-xl my-2.5"
+          isCompact ? "p-3 rounded-lg" : "p-3 sm:p-(--panel-padding) rounded-xl"
         )}>
           <h4 className={cn("text-body-sm font-heading font-bold text-foreground", isCompact ? "mb-1.5" : "mb-2")}>{block.content.title ? renderRichText(block.content.title) : "Formula"}</h4>
           <MathRegion
@@ -1253,7 +1237,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
             dangerouslySetInnerHTML={{ __html: formulaHtml }}
           />
           {block.content.interpretation && (
-            <div className={cn("text-body-xs text-muted-foreground leading-relaxed", isCompact ? "mt-1.5" : "mt-2")}>
+            <div className={cn("text-body-base text-muted-foreground", isCompact ? "mt-1.5" : "mt-2")}>
               <ArticleMarkdownScope id="interpretation"><MarkdownRenderer content={block.content.interpretation} density={density} /></ArticleMarkdownScope>
             </div>
           )}
@@ -1287,7 +1271,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       return (
         <div className={cn(
           "inline-flex items-center border border-border bg-muted/30 font-medium",
-          isCompact ? "my-2 gap-1.5 px-2.5 py-1 rounded-md" : "my-4 gap-2 px-3 py-1.5 rounded-lg"
+          isCompact ? "gap-1.5 px-2.5 py-1 rounded-md" : "gap-2 px-3 py-1.5 rounded-lg"
         )}>
           <span className="text-body-sm text-muted-foreground">{block.content.label ? renderRichText(block.content.label) : "Formula Reference"}:</span>
           <span dangerouslySetInnerHTML={{ __html: refHtml }} />
@@ -1298,7 +1282,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       return (
         <div className={cn(
           "border border-brand-primary/20 bg-brand-primary/[0.04] text-foreground",
-          isCompact ? "my-3 p-3.5 rounded-lg" : "my-6 p-5 rounded-xl"
+          isCompact ? "p-3.5 rounded-lg" : "p-4 rounded-xl"
         )}>
           <div className={cn(
             "flex items-center gap-2 text-brand-primary font-heading font-bold uppercase tracking-wider text-body-xs",
@@ -1316,7 +1300,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       return (
         <div id={block.id} className={cn(
           "border border-border bg-card shadow-xs text-left border-l-4 border-l-brand-primary",
-          isCompact ? "p-3.5 rounded-lg my-3" : "p-5 rounded-xl my-6"
+          isCompact ? "p-3 rounded-lg" : "p-3 sm:p-(--panel-padding) rounded-xl"
         )}>
           <div className={cn("text-body-xs font-bold font-heading uppercase tracking-wider text-brand-primary", isCompact ? "mb-1.5" : "mb-2")}>Contoh Soal ({block.metadata.difficulty})</div>
           <div className={cn("text-body-base text-foreground", isCompact ? "mb-2.5" : "mb-4")}>
@@ -1332,7 +1316,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
                 <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-brand-primary/10 text-brand-primary text-body-xs font-bold">{step.stepIndex}</span>
                 <div className="flex-1">
                   <div className="font-semibold text-body-sm mb-1">{renderRichText(step.label)}</div>
-                  <div className="text-body-sm text-foreground/80">
+                  <div className="text-body-base text-foreground/80">
                     <ArticleMarkdownScope id={`step:${idx}`}><MarkdownRenderer content={step.explanationMarkdown} density={density} /></ArticleMarkdownScope>
                   </div>
                 </div>
@@ -1346,30 +1330,30 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       return (
         <div id={block.id} className={cn(
           "border border-border overflow-hidden shadow-xs",
-          isCompact ? "my-3 rounded-lg" : "my-6 rounded-xl"
+          isCompact ? "rounded-lg" : "rounded-xl"
         )}>
           <div className={cn(
             "bg-zinc-50 dark:bg-zinc-900/40 border-b border-border font-heading font-bold text-body-sm text-foreground",
-            isCompact ? "p-3" : "p-4"
+            isCompact ? "p-3" : "p-3 sm:p-(--panel-padding)"
           )}>
             Membongkar Mitos & Kesalahpahaman
           </div>
           <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
-            <div className={cn("bg-rose-500/5 text-left", isCompact ? "p-3.5" : "p-5")}>
+            <div className={cn("bg-rose-500/5 text-left", isCompact ? "p-3" : "p-3 sm:p-(--panel-padding)")}>
               <strong className="text-rose-600 dark:text-rose-400 font-heading text-body-xs uppercase tracking-wider block mb-2">Salah paham umum:</strong>
-              <div className="text-body-sm text-foreground/90 font-medium italic">&ldquo;{renderRichText(block.content.myth)}&rdquo;</div>
+              <div className="text-body-base text-foreground/90 italic">&ldquo;{renderRichText(block.content.myth)}&rdquo;</div>
             </div>
-            <div className={cn("bg-emerald-500/5 text-left", isCompact ? "p-3.5" : "p-5")}>
+            <div className={cn("bg-emerald-500/5 text-left", isCompact ? "p-3" : "p-3 sm:p-(--panel-padding)")}>
               <strong className="text-emerald-600 dark:text-emerald-400 font-heading text-body-xs uppercase tracking-wider block mb-2">Koreksi ilmiah:</strong>
-              <div className="text-body-sm text-foreground/90 font-medium leading-relaxed">
+              <div className="text-body-base text-foreground/90 font-medium">
                 <ArticleMarkdownScope id="correction"><MarkdownRenderer content={block.content.correctionMarkdown} density={density} /></ArticleMarkdownScope>
               </div>
             </div>
           </div>
           {block.content.physicalRationaleMarkdown && (
-            <div className={cn("bg-muted/10 text-left border-t border-border", isCompact ? "p-3.5" : "p-5")}>
+            <div className={cn("bg-muted/10 text-left border-t border-border", isCompact ? "p-3" : "p-3 sm:p-(--panel-padding)")}>
               <strong className="text-muted-foreground font-heading text-body-xs uppercase tracking-wider block mb-2">Rasionalisasi Fisika:</strong>
-              <div className="text-body-sm text-muted-foreground leading-relaxed">
+              <div className="text-body-base text-muted-foreground">
                 <ArticleMarkdownScope id="rationale"><MarkdownRenderer content={block.content.physicalRationaleMarkdown} density={density} /></ArticleMarkdownScope>
               </div>
             </div>
@@ -1381,7 +1365,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       return (
         <div id={block.id} className={cn(
           "border border-border bg-card shadow-xs text-left border-l-4 border-l-brand-secondary",
-          isCompact ? "p-3.5 rounded-lg my-3" : "p-5 rounded-xl my-6"
+          isCompact ? "p-3 rounded-lg" : "p-3 sm:p-(--panel-padding) rounded-xl"
         )}>
           <div className={cn("text-body-xs font-bold font-heading uppercase tracking-wider text-brand-secondary", isCompact ? "mb-1.5" : "mb-2")}>Latihan Mandiri</div>
           <div className={cn("text-body-base text-foreground leading-relaxed", isCompact ? "mb-2.5" : "mb-4")}>
@@ -1394,10 +1378,10 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       return (
         <div className={cn(
           "border border-border bg-card shadow-xs text-left",
-          isCompact ? "p-3.5 rounded-lg my-3" : "p-5 rounded-xl my-6"
+          isCompact ? "p-3 rounded-lg" : "p-3 sm:p-(--panel-padding) rounded-xl"
         )}>
           <div className={cn("font-heading font-bold text-body-sm text-muted-foreground uppercase tracking-wide", isCompact ? "mb-2" : "mb-3")}>Ringkasan Bab:</div>
-          <ul className={cn("list-disc pl-5 text-body-sm text-foreground/80 leading-relaxed", isCompact ? "space-y-1.5" : "space-y-2")}>
+          <ul className={cn("list-disc pl-5 text-body-base text-foreground/80", isCompact ? "space-y-1.5" : "space-y-2")}>
             {block.content.bullets.map((bullet, idx) => (
               <li key={idx} className="pl-1">
                 <ArticleMarkdownScope id={`bullet:${idx}`}><MarkdownRenderer content={bullet} density={density} /></ArticleMarkdownScope>
@@ -1421,12 +1405,12 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       return (
         <div className={cn(
           "border border-border bg-card/60 shadow-2xs flex leading-relaxed text-left",
-          isCompact ? "p-3 rounded-lg my-2.5 gap-2.5" : "p-4 rounded-xl my-4 gap-3.5"
+          isCompact ? "p-3 rounded-lg gap-2.5" : "p-3 sm:p-(--panel-padding) rounded-xl gap-3"
         )}>
           <Info className="size-5 text-brand-primary shrink-0 mt-0.5" />
           <div className="flex-1">
             <div className="text-body-sm font-bold text-foreground mb-1">Glosarium: {renderRichText(block.content.term)}</div>
-            <div className="text-body-sm text-muted-foreground leading-relaxed">{renderRichText(block.content.definition)}</div>
+            <div className="text-body-base text-muted-foreground">{renderRichText(block.content.definition)}</div>
           </div>
         </div>
       );
@@ -1493,8 +1477,8 @@ export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
     <MarkdownDensityContext.Provider value={activeDensity}>
       <div
         className={cn(
-          "markdown-article min-w-0 max-w-full text-left font-sans select-text",
-          activeDensity === "compact" ? "space-y-3" : "space-y-6",
+          "markdown-article min-w-0 max-w-full wrap-break-word text-left font-sans text-body-base select-text [&>p+p]:mt-0 [&>:is(h1,h2,h3,h4,h5,h6):not(:last-child)]:mb-2",
+          activeDensity === "compact" ? "space-y-3" : "space-y-(--paragraph-gap)",
           !hasTextColor && "text-foreground/90",
           className
         )}
@@ -1504,10 +1488,7 @@ export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
             return (
               <div
                 key={`math-group-${idx}`}
-                className={cn(
-                  "min-w-0 max-w-full space-y-1 text-left",
-                  activeDensity === "compact" ? "my-2" : "my-2.5"
-                )}
+                className="min-w-0 max-w-full space-y-2 text-left"
                 data-content-kind="formula-group"
               >
                 {item.blocks.map((mathBlock, bIdx) => (

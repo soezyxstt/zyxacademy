@@ -63,22 +63,24 @@ export function TryoutListClient({ courseId, hasFullContentAccess, tryouts }: Tr
   return (
     <div className="space-y-3 font-sans">
       {tryouts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 p-8 sm:p-12 text-center max-w-md mx-auto">
-          <GraduationCap className="size-10 text-muted-foreground/40 mb-3" aria-hidden />
-          <h3 className="font-heading text-body-base font-bold text-foreground">
-            {t("tryoutList.emptyTitle")}
-          </h3>
-          <p className="mt-1 text-body-xs text-muted-foreground leading-relaxed">
-            {t("tryoutList.emptyDescription")}
-          </p>
-          <Button asChild size="sm" className="mt-5 rounded-md">
-            <Link href={href(`/courses/${courseId}/quiz`)}>
-              {t("tryoutList.practiceWithQuiz")}
-            </Link>
-          </Button>
+        <div className="flex min-h-[50vh] flex-col items-center justify-center px-4 py-12 text-center">
+          <div className="mx-auto flex max-w-md flex-col items-center">
+            <GraduationCap className="size-10 text-muted-foreground/40 mb-3" aria-hidden />
+            <h3 className="font-heading text-body-base font-bold text-foreground">
+              {t("tryoutList.emptyTitle")}
+            </h3>
+            <p className="mt-1 text-body-xs text-muted-foreground leading-relaxed">
+              {t("tryoutList.emptyDescription")}
+            </p>
+            <Button asChild size="sm" className="mt-5 rounded-md text-body-sm">
+              <Link href={href(`/courses/${courseId}/quiz`)}>
+                {t("tryoutList.practiceWithQuiz")}
+              </Link>
+            </Button>
+          </div>
         </div>
       ) : (
-        <ul className="overflow-hidden rounded-lg border border-border bg-card">
+        <ul className="divide-y divide-border/30">
           {tryouts.map((tryout) => {
           const attemptCount = attempts[tryout.id] || 0;
           const maxAttempts = tryout.settings?.maxAttempts ?? 2;
@@ -165,18 +167,18 @@ export function TryoutListClient({ courseId, hasFullContentAccess, tryouts }: Tr
                 className="interactive rounded-md md:justify-self-end bg-brand-primary text-primary-foreground hover:bg-brand-primary/95"
               >
                 <Link href={href(`/courses/${courseId}/tryout/${tryout.id}`)}>
-                  {t("tryoutList.start")} <ChevronRight className="ml-1 size-4" />
+                  {t("tryoutList.start")} <ChevronRight className="ml-1 size-4 transition-transform group-hover:translate-x-0.5" />
                 </Link>
               </Button>
             );
           })();
 
           return (
-            <li key={tryout.id} className="border-b border-border/60 last:border-0">
+            <li key={tryout.id}>
               <div
                 className={cn(
-                  "grid gap-3 px-4 py-3 transition-colors md:grid-cols-[minmax(0,1fr)_160px_180px] md:items-center",
-                  canStart ? "hover:bg-muted/30" : "bg-card/45 text-muted-foreground",
+                  "group -mx-2.5 grid gap-3 rounded-lg px-2.5 py-3 transition-colors md:grid-cols-[minmax(0,1fr)_160px_180px] md:items-center",
+                  canStart ? "hover:bg-muted/40" : "text-muted-foreground",
                 )}
               >
                 <div className="min-w-0">

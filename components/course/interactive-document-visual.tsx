@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { useAppReducedMotion } from "@/components/appearance-preferences";
 import { Button } from "@/components/ui/button";
 import type { InteractiveDocumentSpec } from "@/lib/materials/interactive-document";
 
 // assetUrl must resolve an authorized content version and field, never a bare digest.
 export function InteractiveDocumentVisual({ spec, assetUrl }: { spec: InteractiveDocumentSpec; assetUrl?: string }) {
+  const reducedMotion = useAppReducedMotion();
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [height, setHeight] = useState(spec.height);
   const frame = useRef<HTMLIFrameElement>(null);
@@ -49,23 +51,20 @@ export function InteractiveDocumentVisual({ spec, assetUrl }: { spec: Interactiv
 
   useEffect(() => { setStatus("idle"); setHeight(spec.height); }, [assetUrl, spec.height]);
 
-  const sendPreferences = () => {
-    frame.current?.contentWindow?.postMessage({
-      type: "zyx:preferences",
-      theme: document.documentElement.classList.contains("dark") ? "dark" : "light",
-      reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-      active: visible.current && !document.hidden,
-    }, "*");
-  };
-
   useEffect(() => {
     if (status !== "ready") return;
+    const sendPreferences = () => {
+      frame.current?.contentWindow?.postMessage({
+        type: "zyx:preferences",
+        theme: document.documentElement.classList.contains("dark") ? "dark" : "light",
+        reducedMotion,
+        active: visible.current && !document.hidden,
+      }, "*");
+    };
     sendPreferences();
     const currentFrame = frame.current;
-    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const observer = new MutationObserver(sendPreferences);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-    motion.addEventListener("change", sendPreferences);
     document.addEventListener("visibilitychange", sendPreferences);
     const intersection = typeof IntersectionObserver === "undefined" ? null : new IntersectionObserver(([entry]) => {
       visible.current = !!entry?.isIntersecting;
@@ -74,10 +73,10 @@ export function InteractiveDocumentVisual({ spec, assetUrl }: { spec: Interactiv
     if (container.current) intersection?.observe(container.current);
     return () => {
       currentFrame?.contentWindow?.postMessage({ type: "zyx:visibility", active: false }, "*");
-      observer.disconnect(); intersection?.disconnect(); motion.removeEventListener("change", sendPreferences);
+      observer.disconnect(); intersection?.disconnect();
       document.removeEventListener("visibilitychange", sendPreferences);
     };
-  }, [status]);
+  }, [status, reducedMotion]);
 
   return <figure ref={container} id={spec.id} data-interactive-document className="space-y-2" aria-label={spec.label}>
     <figcaption className="font-heading text-body-sm font-bold">{spec.label}</figcaption>

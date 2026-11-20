@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { db } from '@/db';
+import { recordAuthorizedGlobalDisclosures } from '@/lib/gamification/question-exposure';
 import {
   aiQuestionBank,
   assessmentSources,
@@ -85,6 +86,7 @@ export async function GET(req: NextRequest) {
     .limit(limit)
     .offset(offset);
 
+  await db.transaction(tx => recordAuthorizedGlobalDisclosures(tx, { userId: session!.user.id, questions: questions.map(q => ({ questionId: q.id, courseId: q.courseId })), requestId: randomUUID() }));
   return NextResponse.json(questions);
 }
 

@@ -8,6 +8,9 @@ import {
   type ReactNode,
 } from "react";
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
+import { StudentAccountBoundary, isStudentSocialAccount } from "@/components/student-account-boundary";
+import { StudentProfileDialog } from "@/components/gamification/student-identity";
 import type { SearchItem } from "./command-menu-dialog";
 
 export type { SearchItem };
@@ -42,6 +45,9 @@ export function CommandMenuProvider({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [studentId, setStudentId] = useState<string | null>(null);
+  const pathname = usePathname();
+  const studentSurface = !pathname?.startsWith("/admin") && !pathname?.startsWith("/tutor");
 
   // Global Ctrl+K / Cmd+K shortcut listener
   useEffect(() => {
@@ -59,7 +65,8 @@ export function CommandMenuProvider({
   return (
     <CommandMenuContext.Provider value={{ open, setOpen }}>
       {children}
-      {open && <CommandMenuDialog open={open} onOpenChange={setOpen} />}
+      {open && <CommandMenuDialog open={open} onOpenChange={setOpen} studentSurface={studentSurface} onSelectStudent={id => { if (studentSurface) { setOpen(false); setStudentId(id); } }} />}
+      {studentSurface && studentId && <StudentAccountBoundary>{account => isStudentSocialAccount(account) ? <StudentProfileDialog publicId={studentId} open onOpenChange={next => { if (!next) setStudentId(null); }} /> : null}</StudentAccountBoundary>}
     </CommandMenuContext.Provider>
   );
 }

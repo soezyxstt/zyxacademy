@@ -19,6 +19,7 @@ import {
   bab,
   quizTemplates,
   studentQuizAttempts,
+  soal,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -29,6 +30,12 @@ import {
   resolveCourseAccess,
   type CourseAccessResult,
 } from "@/lib/student/course-access";
+import { canonicalObjectiveProvenance } from "@/lib/gamification/question-snapshot-provenance";
+import { writeQuestionRewards } from "@/lib/gamification/question-writer";
+import { checkAnswerCorrectness } from "@/lib/gamification/question-grading";
+import { lockCanonicalQuestions, lockQuestionExposures, recordAttemptDisclosures } from "@/lib/gamification/question-exposure";
+import { lockQuestionBankRows } from "@/lib/question-row-locks";
+import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { resolveAuthSecret } from "@/lib/auth-secret";
 
 const DAILY_QUESTION_COUNT = 5;
@@ -119,6 +126,7 @@ type DailyTemplateAccess = {
 
 type ServerQuestion = {
   id: string;
+  generationHash: string | null;
   origin: "zyx_original" | "historical_reference" | "itb_example";
   sourceEventName: string | null;
   sourceReferenceId: string | null;
@@ -135,6 +143,7 @@ type ServerQuestion = {
 
 const questionSelect = {
   id: aiQuestionBank.id,
+  generationHash: aiQuestionBank.generationHash,
   origin: aiQuestionBank.origin,
   sourceEventName: aiQuestionBank.sourceEventName,
   sourceReferenceId: aiQuestionBank.sourceReferenceId,
@@ -371,35 +380,8 @@ function publicOptions(value: unknown): string[] {
     });
 }
 
-function submittedText(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) return String(value[0] ?? "");
-  return "";
-}
-
 function isAnswerCorrect(question: ServerQuestion, submitted: unknown): boolean {
-  if (question.questionType === "short_answer") {
-    const answer = submittedText(submitted).trim().toLowerCase();
-    return answer.length > 0 && (question.acceptableAnswers ?? []).some((expected) => expected.trim().toLowerCase() === answer);
-  }
-  if (question.questionType === "essay") return false;
-
-  const submittedIndices = Array.isArray(submitted)
-    ? submitted.filter((value): value is number => typeof value === "number" && Number.isInteger(value) && value >= 0)
-    : typeof submitted === "number"
-      ? Number.isInteger(submitted) && submitted >= 0 ? [submitted] : []
-      : [];
-  const correctIndices = Array.isArray(question.correctIndices)
-    ? question.correctIndices.filter((value): value is number => typeof value === "number" && Number.isInteger(value) && value >= 0)
-    : [];
-  if (correctIndices.length === 0) return false;
-  if (question.questionType === "multiple_choice") {
-    return submittedIndices.length === 1 && correctIndices.length === 1 && submittedIndices[0] === correctIndices[0];
-  }
-  const submittedSet = [...new Set(submittedIndices)];
-  const correctSet = [...new Set(correctIndices)];
-  return submittedSet.length === correctSet.length
-    && submittedSet.every((index) => correctSet.includes(index));
+  return checkAnswerCorrectness({ question_type: question.questionType, correct_indices: question.correctIndices, acceptable_answers: question.acceptableAnswers }, submitted);
 }
 
 const SubmitSchema = z.object({
@@ -519,23 +501,38 @@ export async function POST(req: NextRequest) {
   const total = serverQuestions.length;
   const score = total > 0 ? Math.round((correct / total) * 100) : 0;
   const attemptId = randomUUID();
-  const submittedAt = new Date();
-  const serverSnapshot = serverQuestions.map((question) => ({
-    id: question.id,
-    origin: question.origin,
-    sourceEventName: question.sourceEventName,
-    sourceReferenceId: question.sourceReferenceId,
-    prompt: question.prompt,
-    options: question.options,
-    difficulty: question.difficulty,
-    question_type: question.questionType,
-    tags: question.tags,
-    correct_indices: question.correctIndices,
-    acceptable_answers: question.acceptableAnswers,
-    explanation: question.explanation,
-  }));
+  const courseIdentity = await resolveCourseIdentity(template.courseId);
+  const canonicalRows = courseIdentity?.canonicalId
+    ? await db.select().from(soal).where(and(inArray(soal.id, serverQuestions.map((question) => question.id)), eq(soal.mataKuliahId, courseIdentity.canonicalId)))
+    : [];
+  const canonicalById = new Map(canonicalRows.map((row) => [row.id, row]));
+  const serverSnapshot = serverQuestions.map((question) => {
+    const canonical = canonicalById.get(question.id);
+    const provenance = canonical && canonicalObjectiveProvenance(
+      { ...question, options: publicOptions(question.options) }, canonical, courseIdentity?.canonicalId ?? null,
+    );
+    return {
+      id: question.id,
+      origin: question.origin,
+      sourceEventName: question.sourceEventName,
+      sourceReferenceId: question.sourceReferenceId,
+      prompt: question.prompt,
+      options: publicOptions(question.options),
+      difficulty: question.difficulty,
+      question_type: question.questionType,
+      tags: question.tags,
+      correct_indices: question.correctIndices,
+      acceptable_answers: question.acceptableAnswers,
+      explanation: question.explanation,
+      ...(provenance ? { gamificationProvenance: provenance } : {}),
+    };
+  });
 
   await db.transaction(async (tx) => {
+    await lockQuestionExposures(tx, session.user.id, serverSnapshot.map(question => question.id));
+    const canonicalIds = serverSnapshot.map(question => question.id);
+    const heldCanonical = { ids: canonicalIds, rows: await lockCanonicalQuestions(tx, canonicalIds) };
+    const submittedAt = new Date();
     await tx.insert(studentQuizAttempts).values({
       id: attemptId,
       studentId: session.user.id,
@@ -548,6 +545,8 @@ export async function POST(req: NextRequest) {
       submittedAt,
       startedAt: submittedAt,
     });
+    await writeQuestionRewards(tx, { userId: session.user.id, attemptId, snapshot: serverSnapshot, answers, occurredAt: submittedAt, heldCanonical });
+    await recordAttemptDisclosures(tx, { userId: session.user.id, attemptId, questionIds: canonicalIds, occurredAt: submittedAt, requestId: 'submission-result', heldCanonical });
     await dualWriteQuizAttempt(tx, {
       id: attemptId,
       templateId: template.id,
@@ -559,6 +558,7 @@ export async function POST(req: NextRequest) {
       submittedAt,
     }, session.user.id);
 
+    await lockQuestionBankRows(tx, serverQuestions.map(question => question.id));
     await tx
       .update(aiQuestionBank)
       .set({ useCount: sql`${aiQuestionBank.useCount} + 1` })

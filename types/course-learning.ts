@@ -56,6 +56,9 @@ export interface CourseAttentionItem {
   label: string;
   actionLabel: string;
   href: string;
+  count?: number;
+  conceptName?: string;
+  masteryScore?: number;
 }
 
 export interface CourseAttentionData {

@@ -1,10 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
+import { createQuizSubmissionGate } from "@/lib/quiz/player-state";
 
 describe("Quiz Timeout and Submission Invariant Contracts", () => {
   const normalize = (s: string) => s.replace(/\r\n/g, "\n");
   const submitRouteCode = normalize(readFileSync("app/api/quiz/attempts/[id]/route.ts", "utf8"));
-  const quizPlayerCode = normalize(readFileSync("components/course/quiz-player.tsx", "utf8"));
+  const quizPlayerCode = ["components/course/quiz-player.tsx", "hooks/use-quiz-player.ts", "lib/quiz/player-state.ts"].map(path => normalize(readFileSync(path, "utf8"))).join("\n");
   const studentQuizPageCode = normalize(readFileSync("app/(student)/courses/[id]/quiz/[quizId]/page.tsx", "utf8"));
   const featuresDocCode = normalize(readFileSync("docs/features.md", "utf8"));
 
@@ -15,8 +16,15 @@ describe("Quiz Timeout and Submission Invariant Contracts", () => {
   });
 
   it("ensures submit route caps final duration to template timeLimitSeconds if defined", () => {
-    expect(submitRouteCode).toContain("templateMeta?.timeLimitSeconds != null");
-    expect(submitRouteCode).toContain("finalDurationSeconds = Math.min(finalDurationSeconds, templateMeta.timeLimitSeconds)");
+    const expression = submitRouteCode.match(/const finalDurationSeconds = ([^\n;]+);/)?.[1];
+    expect(expression).toBeDefined();
+    const recordedDuration = new Function("elapsedSeconds", "templateMeta", `return (${expression});`);
+    expect(recordedDuration(45, { timeLimitSeconds: 30 })).toBe(30);
+    expect(recordedDuration(45, { timeLimitSeconds: 60 })).toBe(45);
+    expect(recordedDuration(45, { timeLimitSeconds: 0 })).toBe(0);
+    expect(recordedDuration(45, { timeLimitSeconds: null })).toBe(45);
+    expect(recordedDuration(45, {})).toBe(45);
+    expect(submitRouteCode).toContain("durationSeconds: finalDurationSeconds");
   });
 
   it("ensures QuizPlayer supports timeLimitSeconds in settings and prioritizes it over minutes", () => {
@@ -26,17 +34,20 @@ describe("Quiz Timeout and Submission Invariant Contracts", () => {
     );
   });
 
-  it("ensures QuizPlayer preserves draft in its selected storage until submission succeeds", () => {
-    // The default student POST must succeed before the selected storage is cleared.
-    const handleSubmitIndex = quizPlayerCode.indexOf("const handleSubmit = useCallback(");
-    const fetchIndex = quizPlayerCode.indexOf("const res = await fetch(`/api/quiz/attempts/${attemptId}`", handleSubmitIndex);
-    const resOkIndex = quizPlayerCode.indexOf("if (!res.ok)", fetchIndex);
-    const answersRemoveIndex = quizPlayerCode.indexOf("storage.removeItem(`zyx-quiz-answers-${attemptId}`)", handleSubmitIndex);
-
-    expect(handleSubmitIndex).toBeGreaterThan(0);
-    expect(fetchIndex).toBeGreaterThan(handleSubmitIndex);
-    expect(resOkIndex).toBeGreaterThan(fetchIndex);
-    expect(answersRemoveIndex).toBeGreaterThan(resOkIndex);
+  it("preserves a draft after failed submission and clears it only after acknowledgement", async () => {
+    const gate = createQuizSubmissionGate();
+    let draft: unknown = { answer: "saved" };
+    const options = {
+      waitForUploads: async () => {},
+      snapshot: () => ({ answers: { answer: "saved" }, durationSeconds: 30 }),
+      onSuccess: () => { draft = null; },
+    };
+    await expect(gate.run({ ...options, submit: async () => { throw new Error("unavailable"); } })).rejects.toThrow("unavailable");
+    expect(draft).toEqual({ answer: "saved" });
+    expect(gate.phase).toBe("idle");
+    await gate.run({ ...options, submit: async () => ({ score: 100 }) });
+    expect(draft).toBeNull();
+    expect(gate.phase).toBe("submitted");
   });
 
   it("ensures student quiz page passes timeLimitSeconds to QuizPlayer", () => {

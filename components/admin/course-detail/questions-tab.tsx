@@ -173,73 +173,74 @@ export function QuestionsTab({
 
   return (
     <div className="space-y-4 font-sans">
-      {/* Origin Filter Tabs */}
-      <Tabs value={originTab} onValueChange={handleTabChange} syncUrl={false}>
-        <TabsList className="bg-muted/40 border border-border rounded-xl p-1 flex-wrap">
-          <TabsTrigger value="all" className="text-body-sm font-medium">
-            {t("courseDetail.questions.all", { count: questions.length })}
-          </TabsTrigger>
-          <TabsTrigger value="zyx" className="text-body-sm font-medium flex items-center gap-1.5">
-            <BookOpenCheck className="size-3.5 text-brand-primary" />
-            {t("courseDetail.questions.zyxOriginal", { count: zyxCount })}
-          </TabsTrigger>
-          <TabsTrigger value="reference" className="text-body-sm font-medium flex items-center gap-1.5">
-            <BookOpen className="size-3.5 text-muted-foreground" />
-            {t("courseDetail.questions.reference", { count: refCount })}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      {/* Origin Filter Tabs + Toolbar Controls */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Tabs value={originTab} onValueChange={handleTabChange} syncUrl={false}>
+          <TabsList>
+            <TabsTrigger value="all">
+              {t("courseDetail.questions.all", { count: questions.length })}
+            </TabsTrigger>
+            <TabsTrigger value="zyx">
+              <BookOpenCheck className="size-3.5 text-brand-primary" />
+              {t("courseDetail.questions.zyxOriginal", { count: zyxCount })}
+            </TabsTrigger>
+            <TabsTrigger value="reference">
+              <BookOpen className="size-3.5 text-muted-foreground" />
+              {t("courseDetail.questions.reference", { count: refCount })}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-      {/* Toolbar Controls */}
-      <div className="flex flex-wrap items-center gap-2">
-        <SearchBar
-          size="sm"
-          placeholder={t("courseDetail.questions.search")}
-          value={search}
-          onSearch={handleSearchChange}
-          onClear={() => handleSearchChange("")}
-          containerClassName="flex-1 min-w-[140px]"
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <SearchBar
+            collapsible
+            size="sm"
+            placeholder={t("courseDetail.questions.search")}
+            value={search}
+            onSearch={handleSearchChange}
+            onClear={() => handleSearchChange("")}
+          />
 
-        <Select value={difficultyFilter} onValueChange={handleDifficultyChange}>
-          <SelectTrigger className="w-[140px] h-9 text-body-sm rounded-lg shrink-0">
-            <SelectValue placeholder={t("courseDetail.questions.difficulty")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("courseDetail.questions.allLevels")}</SelectItem>
-            <SelectItem value="easy">{t("editor.difficulty.easy")}</SelectItem>
-            <SelectItem value="medium">{t("editor.difficulty.medium")}</SelectItem>
-            <SelectItem value="hard">{t("editor.difficulty.hard")}</SelectItem>
-          </SelectContent>
-        </Select>
+          <Select value={difficultyFilter} onValueChange={handleDifficultyChange}>
+            <SelectTrigger variant="inline" aria-label={t("courseDetail.questions.difficulty")} className="max-w-44 shrink-0">
+              <SelectValue placeholder={t("courseDetail.questions.difficulty")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("courseDetail.questions.allLevels")}</SelectItem>
+              <SelectItem value="easy">{t("editor.difficulty.easy")}</SelectItem>
+              <SelectItem value="medium">{t("editor.difficulty.medium")}</SelectItem>
+              <SelectItem value="hard">{t("editor.difficulty.hard")}</SelectItem>
+            </SelectContent>
+          </Select>
 
-        <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
-          <SelectTrigger className="w-[120px] h-9 text-body-sm rounded-lg shrink-0">
-            <SelectValue placeholder={t("courseDetail.questions.perPage")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="10">{t("courseDetail.questions.pageSize", { count: 10 })}</SelectItem>
-            <SelectItem value="25">{t("courseDetail.questions.pageSize", { count: 25 })}</SelectItem>
-            <SelectItem value="50">{t("courseDetail.questions.pageSize", { count: 50 })}</SelectItem>
-          </SelectContent>
-        </Select>
+          <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
+            <SelectTrigger variant="inline" aria-label={t("courseDetail.questions.perPage")} className="max-w-44 shrink-0">
+              <SelectValue placeholder={t("courseDetail.questions.perPage")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">{t("courseDetail.questions.pageSize", { count: 10 })}</SelectItem>
+              <SelectItem value="25">{t("courseDetail.questions.pageSize", { count: 25 })}</SelectItem>
+              <SelectItem value="50">{t("courseDetail.questions.pageSize", { count: 50 })}</SelectItem>
+            </SelectContent>
+          </Select>
 
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link href={`/admin/questions?courseId=${courseId}`} className="shrink-0">
-                <Button size="sm" variant="outline" className="size-9 p-0 rounded-lg shrink-0" aria-label={t("courseDetail.questions.openBankStudio")}>
-                  <ExternalLink className="size-4" />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild size="sm" variant="outline" className="size-9 rounded-lg p-0 shrink-0">
+                  <Link href={`/admin/questions?courseId=${courseId}`} aria-label={t("courseDetail.questions.openBankStudio")}>
+                    <ExternalLink className="size-4" aria-hidden />
+                  </Link>
                 </Button>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent>{t("courseDetail.questions.openBankStudio")}</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+              </TooltipTrigger>
+              <TooltipContent>{t("courseDetail.questions.openBankStudio")}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
       {/* Questions Container */}
-      <div className="rounded-xl border border-border bg-card p-3 space-y-3">
+      <div className="space-y-3 border-y border-border py-3">
         <div className="flex items-center justify-between">
           <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <Library className="size-4 text-brand-primary" />
@@ -251,7 +252,7 @@ export function QuestionsTab({
         </div>
 
         {paginatedQuestions.length === 0 ? (
-          <div className="text-center py-12 border border-dashed border-border rounded-xl">
+          <div className="py-5 text-center">
             <HelpCircle className="size-8 text-muted-foreground/40 mx-auto mb-2" />
             <p className="text-body-sm font-medium text-foreground">{t("courseDetail.questions.emptyTitle")}</p>
             <p className="text-body-xs text-muted-foreground mt-0.5">

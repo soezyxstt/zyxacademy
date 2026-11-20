@@ -80,6 +80,8 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
   const [messages, setMessages] = useState<OpsAiMessageV2[]>(() => initialMessages ?? []);
   const [hasHydrated, setHasHydrated] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [shouldRender, setShouldRender] = useState(isOpen);
+  const [isVisible, setIsVisible] = useState(typeof window === "undefined" ? isOpen : false);
   const [showSessionsDropdown, setShowSessionsDropdown] = useState(false);
   const [mode, setMode] = useState<"ask" | "edit">("ask");
   const [input, setInput] = useState("");
@@ -103,6 +105,34 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Smooth open/close presence state for both mobile overlay and desktop docked sheet
+  useEffect(() => {
+    if (isOpen) {
+      setShouldRender(true);
+      let frame1 = 0;
+      let frame2 = 0;
+      frame1 = window.requestAnimationFrame(() => {
+        frame2 = window.requestAnimationFrame(() => {
+          setIsVisible(true);
+        });
+      });
+      return () => {
+        window.cancelAnimationFrame(frame1);
+        window.cancelAnimationFrame(frame2);
+      };
+    }
+
+    setIsVisible(false);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setShouldRender(false);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setShouldRender(false);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [isOpen]);
 
   // Hydration-safe initial load from localStorage and external update sync
   useEffect(() => {
@@ -603,7 +633,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
     }
   };
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   const currentSession = sessions.find((s) => s.id === activeSessionId);
   const activeTitle =
@@ -615,7 +645,11 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
     <>
       {/* Mobile Backdrop Overlay */}
       <div
-        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs transition-opacity animate-in fade-in duration-300 lg:hidden"
+        data-state={isVisible ? "open" : "closed"}
+        className={cn(
+          "fixed inset-0 z-40 bg-black/50 backdrop-blur-xs transition-opacity duration-300 ease-out motion-reduce:transition-none lg:hidden",
+          isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
         onClick={closePanel}
         aria-hidden="true"
       />
@@ -626,18 +660,30 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
         id="ops-ai-panel"
         role="complementary"
         aria-label="Zyx Ops AI Assistant"
+        data-state={isVisible ? "open" : "closed"}
         suppressHydrationWarning
         onKeyDown={handleKeyDownTrap}
-        style={{ width: mounted && isDesktop ? `${width}px` : undefined }}
+        style={{
+          "--ops-ai-width": `${width}px`,
+          width: mounted && isDesktop ? (isVisible ? `${width}px` : "0px") : undefined,
+        } as React.CSSProperties}
         className={cn(
-          "flex flex-col border-l border-border bg-background select-text relative min-w-0",
+          "flex flex-col overflow-hidden border-l border-border bg-background select-text relative min-w-0",
           "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
-          "transition-[width] duration-75",
+          "transition-[transform,width,opacity,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
           "fixed inset-0 z-50 w-full sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[480px] h-full shadow-2xl",
-          "animate-in slide-in-from-right duration-300 ease-out",
-          "lg:sticky lg:top-0 lg:self-start lg:h-screen lg:shrink-0 lg:z-40 lg:shadow-none lg:animate-none"
+          "lg:sticky lg:top-0 lg:self-start lg:h-screen lg:shrink-0 lg:z-40 lg:shadow-none",
+          isVisible
+            ? "translate-x-0 opacity-100"
+            : "translate-x-full opacity-0 pointer-events-none lg:translate-x-0 lg:border-l-transparent"
         )}
       >
+        <div
+          className={cn(
+            "relative flex h-full min-h-0 w-full flex-col lg:min-w-[var(--ops-ai-width)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+            isVisible ? "lg:translate-x-0" : "lg:translate-x-4"
+          )}
+        >
         {/* Resize Handle: Desktop & Tablet with wide 24px hit area */}
         <div
           role="separator"
@@ -651,7 +697,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
           onKeyDown={handleKeyDownResize}
           onPointerDown={handlePointerDownResize}
           style={{ touchAction: "none" }}
-          className="flex absolute -left-3 inset-y-0 w-6 cursor-col-resize items-center justify-center group select-none z-50 hover:bg-primary/5 active:bg-primary/10 transition-colors"
+          className="flex absolute left-0 inset-y-0 w-3.5 cursor-col-resize items-center justify-center group select-none z-50 hover:bg-primary/5 active:bg-primary/10 transition-colors"
         >
           <div
             className="w-1 h-16 rounded-full bg-border/90 transition-all duration-150 flex items-center justify-center group-hover:bg-primary group-hover:w-1.5 group-focus-visible:bg-primary group-focus-visible:w-1.5 active:bg-primary active:w-1.5"
@@ -1051,6 +1097,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
             </div>
           </div>
         </footer>
+        </div>
       </aside>
     </>
   );

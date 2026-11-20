@@ -32,7 +32,7 @@ export function ProductDraftEditor({ product, index, preview, onChange }: { prod
   if ((product.productType === "article" && product.schemaVersion === "article.v4") || (product.productType === "diktat" && product.units)) {
     const readOnlyPreview = preview ?? previewProduct(product);
     return (
-      <article aria-label={t("editor.readOnlyV4", { type: humanProductLabel(product.productType) })} className="space-y-4 rounded-xl border border-border bg-card p-4">
+      <article aria-label={t("editor.readOnlyV4", { type: humanProductLabel(product.productType) })} className="space-y-4">
         <div className="space-y-1 border-b border-border pb-3">
           <h3 className="font-heading text-body-base font-bold">{readOnlyPreview.title}</h3>
           <p role="status" className="text-body-sm text-muted-foreground">{t("editor.reviseThroughV4", { type: humanProductLabel(product.productType).toLowerCase() })}</p>
@@ -55,7 +55,7 @@ export function ProductDraftEditor({ product, index, preview, onChange }: { prod
   const weightTotal = product.ideaLinks.reduce((total, link) => total + link.weight, 0);
 
   return (
-    <article className="space-y-4 rounded-xl border border-border bg-card p-4">
+    <article className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
         <div className="min-w-0"><p className="text-body-xs font-semibold uppercase tracking-wide text-brand-primary">{t("editor.sectionNumber", { number: index + 1 })}</p><h3 className="mt-1 truncate font-heading text-body-sm text-foreground">{preview?.title ?? productTitle(product)}</h3><p className="mt-1 text-body-sm text-muted-foreground">{humanProductLabel(product.productType)} · {t("editor.version", { version: product.version })}</p></div>
         <Badge variant="outline">{t("editor.ideaCount", { count: product.ideaLinks.length })}</Badge>

@@ -1,5 +1,28 @@
 # Zyx Database Schema Reference
 
+## Cloud Tasks checkpoints
+
+Migration 0035 adds `queue_task_checkpoints`. Its composite primary key identifies a task and a completed step. The worker retains a terminal marker after releasing step payloads. The dispatcher expires records older than 35 days. Apply this migration to the verified target before enabling the dispatcher.
+
+## Discussions, schema and staging status
+
+Generated PostgreSQL migrations `0024_strong_newton_destine.sql` through `0034_aromatic_silhouette.sql` define the discussion tables, version observations, participant summaries, serialized event cutoffs, help category, notification delivery queue, image previews, immutable submission fingerprints and transactional counters in `db/schema.ts`. Migration 0032 adds the nonnegative per-user/channel read revision and a partial notification index on user, type, read state and metadata thread ID. Migrations 0024 through 0034 were applied to the verified Neon staging target on 2026-11-17, with 37 ledger entries and 13 discussion tables verified. No existing discussion rows required backfill. See the [migration record](discussions.md#staging-migration-2026-11-17) for the backup, baseline and role checks. Other environments and authenticated runtime acceptance remain OPEN / IN PROGRESS. The [discussion contract](discussions.md) describes permissions and integration limits.
+
+| Tables | Purpose and identity |
+| --- | --- |
+| `discussion_channels`, `discussion_threads` | Scoped global, course or requester-owned team channels, with unique channel identities, activity ordering, a nonnegative answer count, and a monotonic channel count revision maintained by count-affecting mutations. |
+| `discussion_messages`, `discussion_attachments` | Sequenced, revisioned question, answer, reply and forward messages, plus private attachment state, ownership and optional private WebP preview up to 128 KiB. Human actor/request identity and thread sequence are unique; deletes are soft. Nullable SHA-256 submission fingerprints bind original payloads without duplicating their text; legacy nulls require explicit recovery. |
+| `discussion_reactions`, `discussion_reports` | Per-user reactions and reports with pending, resolved or dismissed status. A reporter has at most one pending report per message. |
+| `discussion_channel_preferences`, `discussion_thread_reads` | Per-user channel mute and monotonic read revision for count invalidation, plus observed and read sequences per thread. Read revisions change transactionally when acknowledgement changes a thread's unread contribution. |
+| `discussion_events`, `discussion_ai_requests` | Durable notification recipient cursor and retry time, plus invoker-bound Zyra or label requests with processing state and idempotency identities. |
+| `discussion_notification_deliveries` | Durable event/recipient pairs with individual retry backoff, allowing later recipients to progress despite a persistent delivery failure. |
+| `discussion_message_observations` | Positive observed message revision per user and message, accepted only from signed fetched-response receipts. Thread reads separately retain the observed status revision, and events retain their exact message or status revision. |
+| `discussion_thread_participants` | Atomic human-author membership with lowest sequence, retained timestamp metadata and its thread's channel ID. The channel/user/thread index supports bounded namesake context lookup. Event fanout compares `first_seq` with the thread-serialized `participant_through_seq`; transaction timestamps do not determine membership. A fenced backfill, including soft-deleted messages and channel IDs, is required on any target with existing discussions. |
+
+Migration `0028` initializes answer counts to zero. A target with existing discussion rows requires a coordinated backfill from non-deleted answer messages under a discussion write fence before enabling the new writers. Applying the default alone does not backfill existing answers.
+
+Discussion XP and LP reuse the gamification outbox and ledgers; they do not add learning-credit evidence. A message's optional `skin_id` references an owned cosmetic in the chat-skin catalog slot. The adapter defaults to the equipped owned skin; explicit owned selections are permitted.
+
 ## Standalone solution collections
 
 `solution_collections` is defined in `db/schema.ts` with generated PostgreSQL migration `drizzle-postgres/0008_moaning_mole_man.sql`. Each row stores a versioned collection, canonical course and chapter, originating Product import, structured content and dependency trace, generation hash, publication status and timestamps. A partial unique index permits only one published version of a product. Publication and withdrawal are transactional; no migration was applied as part of this local implementation. See the [V5 contract](bundle/product-bundle-v5.md).
@@ -706,9 +729,9 @@ Internal review evidence; one immutable decision per reviewer, never a separate 
 Persistent Product Bundle item review state for one reviewer. This metadata stays outside the Product Bundle ZIP.
 * `id`, `imporBundleId`, `reviewerId`, optional legacy `productId` and `blockId`, `targetType`, `targetId`
 * `status` is `pending`, `approved`, or `changes_requested`; optional `notes`, `createdAt`, `updatedAt`
-* Unique target is import, reviewer, target type, target ID and Product ID. PostgreSQL `NULLS NOT DISTINCT` preserves one null-product Idea decision while allowing the same section ID in different Articles. Generated migration `0009_polite_wendigo.sql` replaces the previous four-column index; it does not remove review rows.
+* Unique target is import, reviewer, target type, target ID and Product ID. PostgreSQL `NULLS NOT DISTINCT` preserves one null-product Idea decision while allowing the same section ID in different Articles. Generated migration `0017_quiet_the_hand.sql` replaces the previous four-column index; it does not remove review rows.
 
-Canonical dependency uniqueness also includes `upstreamVersion` and `downstreamVersion`, generated by `0010_silky_misty_knight.sql`. Logical entity IDs remain separate from versions. A successor dependency can coexist with its predecessor without overwriting its hashes; published ownership determines which graph remains live. Withdrawal removes the unshared retiring version's active edges, with history retained in immutable artifacts and audits.
+Canonical dependency uniqueness also includes `upstreamVersion` and `downstreamVersion`, generated by `0017_quiet_the_hand.sql`. Logical entity IDs remain separate from versions. A successor dependency can coexist with its predecessor without overwriting its hashes; published ownership determines which graph remains live. Withdrawal removes the unshared retiring version's active edges, with history retained in immutable artifacts and audits.
 * Import deletion cascades to item reviews. Reviewer deletion is restricted.
 * Admin draft edit preserves unchanged section rows and resets changed section rows. A bundle decision makes the same reviewer's rows immutable at the service boundary.
 
@@ -1852,3 +1875,24 @@ The code defines `id` text primary key, `course_id` text unique not null with ca
 Status: `ACTIVE`
 
 `ai_model_settings` is defined in `db/schema.ts` with generated PostgreSQL migration `drizzle-postgres/0006_large_rocket_racer.sql`. Columns: `feature` text primary key matching a registered `ModelFeature` identifier; JSONB `models` storing an ordered three-element array of distinct ordinary-routing `ModelId` values (`[primary, fallback1, fallback2]`); non-null `updated_by` text recording the saving admin identifier; `updated_at` non-null timestamp with time zone. Absence of a row preserves the exact built-in runtime default chain for that feature. Migration `0006` was applied with the guarded `bun run db:migrate` runner to staging branch `br-gentle-scene-azq0gp91` on 2026-11-06. Read-back verified the table, matching migration ledger, and zero configured rows. Read-only staging checks verified all 21 default model views and chains plus local request orchestration with stubbed provider and allowance services. Authenticated hosted-page and live-provider behavior remain unverified. Production migration remains unverified and requires its own authorized target check before rollout.
+
+### Gamification learning evidence
+
+Gamification stores trusted question and flashcard action facts in `gamification_learning_facts`, eligible recalls in `gamification_eligible_recalls`, and distinct badge identities in `gamification_badge_activities`. `gamification_explanation_completions_v2` identifies completions by user, collection, and version. `gamification_daily_rank_snapshots` reserves one rank per user and Jakarta day. Profile avatar mode defaults to `photo`, with an optional badge tier. Writers must persist facts and receipts atomically; receipts alone do not prove an action. These are application-level append-only contracts, not database-enforced immutability.
+
+Question exposure history uses `gamification_question_exposures` for disclosure and conservative baseline events, and `gamification_question_exposure_initializations` to distinguish checked empty history from uninitialized history. The additive 0018 migration gives exposures a persistent sequence and lookup index; 0019 and 0020 retain authorized staff and learner bank disclosures, including legacy-only course identities, that lack an eligible canonical row for later set-based reconciliation. A submission result marks the per-question causal boundary, while original timestamps remain available for Jakarta-day eligibility. Pre-migration facts without a new boundary fail closed. Runtime coverage remains unverified. Append-only behavior is an application contract. See [gamification](gamification.md).
+
+Gamification migrations 0009 through 0015 are verified on staging, with 28 tables, 58 indexes and four catalog cosmetics. The original `gamification_explanation_completions` table is retained without new writers; use `gamification_explanation_completions_v2` for versioned completion and processing. Production rollout and full application acceptance remain unverified.
+
+### Zyra appearance profile columns
+
+Status: ACTIVE source schema, runtime verification OPEN / IN PROGRESS. Migration `0016_smiling_grandmaster.sql` adds nullable text `equipped_zyra_skin_id` and `equipped_zyra_avatar_id` to `gamification_profiles`. Both default to null. Equip writes validate catalog slot and owned inventory in the existing transaction. Migration 0016 has not been applied as part of this local change; the replacement private staging credential request timed out. The seven-item staging catalog predates the local 18-item catalog.
+
+
+### Compact question exposure history
+
+Status: ACTIVE local schema, staging migration and cutover OPEN / IN PROGRESS. Generated migration `0021_superb_magus.sql` adds `gamification_question_exposure_projection`, keyed by viewer, course and question or course wildcard; `gamification_question_exposure_observations`, keyed by viewer, attempt and question; `gamification_question_legacy_index`, keyed by viewer and question or malformed-history marker; and the singleton `gamification_question_history_cutover`. The observation stores the selected disclosure identity and timestamp as an immutable application contract. The projection permits four indexed probes per question across canonical and legacy course IDs. The legacy index retains two distinct attempt IDs when present so a current attempt can be excluded without scanning history. Migration `0022_rich_lady_vermin.sql` adds the projection causal sequence. Equal-time legacy evidence with unknowable ordering denies a reward conservatively. Existing raw exposures and bank disclosures remain audit records. Empty legacy history is trusted only after the atomic guarded cutover described in [deployment](DEPLOYMENT.md). Migration and cutover have not been applied by this change.
+
+Generated migration `0023_supreme_speedball.sql` adds a composite index for the comeback predicate, including version, correctness and occurrence time. It removes the three question foreign keys from retained disclosure, initialization and observation records so deleting a canonical question preserves history without blocking deletion. User, course and attempt boundaries remain constrained. Writers and processors lock and verify the canonical row before reward decisions. Staging application remains pending.
+
+Discussion channel indexes in migration 0033 cover `(kind, id)` and `(requester_id, id)` where `count_revision > 0`. First-thread writes already increment that revision transactionally. Before starting this reader against existing discussion data, fence and drain old writers, set zero revisions to 1 on channels that already contain a thread, and verify no such zero row remains. This required backfill is separate from the generated index migration; empty channels retain zero.

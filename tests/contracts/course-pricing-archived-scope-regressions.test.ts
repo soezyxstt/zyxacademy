@@ -11,6 +11,8 @@ afterAll(() => client.close());
 test("archived canonical chapters never reappear through published legacy chapters", async () => {
   await testDb.insert(schema.user).values({ id: "scope-student", name: "Student", email: "scope@test.local", role: "student" });
   await testDb.insert(schema.pengguna).values({ id: "scope-student" });
+  await testDb.insert(schema.peran).values({ id: "role-murid", code: "murid" });
+  await testDb.insert(schema.penggunaPeran).values({ id: "membership-scope-student", penggunaId: "scope-student", peranId: "role-murid", source: "test" });
   await testDb.insert(schema.courses).values(["archived", "mixed", "absent"].map((id) => ({ id: `legacy-${id}`, title: id, category: "Fisika" as const })));
   await testDb.insert(schema.mataKuliah).values(["archived", "mixed", "absent"].map((id) => ({ id: `canonical-${id}`, code: id, title: id, legacyCourseId: `legacy-${id}`, pricingCategory: "limited_time_free" as const, freeStartsAt: new Date("2020-01-01Z"), freeEndsAt: new Date("2020-01-02Z") })));
   await testDb.insert(schema.chapters).values(["archived", "mixed", "absent"].map((id) => ({ id: `old-${id}`, courseId: `legacy-${id}`, title: id, orderIndex: 1, status: "published" as const })));

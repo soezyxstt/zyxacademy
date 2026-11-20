@@ -23,10 +23,10 @@ function FormFieldWrapper({
   children,
 }: FormFieldWrapperProps) {
   return (
-    <div className={cn("flex flex-col gap-1.5 w-full", className)}>
+    <div className={cn("flex flex-col gap-2 w-full", className)}>
       {label && (
         <div className="flex items-center justify-between">
-          <Label htmlFor={htmlFor} className="font-heading text-body-sm font-semibold tracking-tight text-foreground">
+          <Label htmlFor={htmlFor} className="font-heading text-body-sm font-semibold text-foreground">
             {label}
             {required && <span className="ml-1 text-status-error" aria-hidden="true">*</span>}
           </Label>
@@ -36,7 +36,7 @@ function FormFieldWrapper({
       {children}
       
       {description && !error && (
-        <p className="text-body-sm text-muted-foreground leading-normal">
+        <p className="text-support text-muted-foreground">
           {description}
         </p>
       )}

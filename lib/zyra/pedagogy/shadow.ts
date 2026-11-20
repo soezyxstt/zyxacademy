@@ -1,3 +1,5 @@
+import type { PromptExecutionResult } from "@/lib/prompt-executor";
+import type { PedagogicalTurnResult } from "./harness";
 import { hashEvidence, hashSanitizedInput, recordGenerationTrace } from "@/lib/ai/provenance";
 import {
   PEDAGOGY_POLICY_VERSION,
@@ -67,8 +69,8 @@ export function boundedPedagogyShadowCaseCount(maxProviderRequests: number): num
 export interface PedagogyShadowComparison {
   schemaVersion: "1.0";
   visibleResponse: "legacy";
-  baselineOutcome: "success" | "rejected" | "quota_exceeded" | "provider_failure" | "invalid_contract";
-  candidateOutcome: "composed" | "generated" | "rejected";
+  baselineOutcome: PromptExecutionResult<unknown>["outcome"];
+  candidateOutcome: PedagogicalTurnResult["outcome"];
   selectedState: TeachingState;
   hintLevel: HintLevel;
   candidateUsedFallback: boolean;
@@ -139,7 +141,7 @@ export async function recordPedagogyShadowComparison(
     inputTokens: 0,
     outputTokens: 0,
     retryCount: 0,
-    terminalOutcome: input.candidateOutcome === "rejected" ? "rejected" : "success",
+    terminalOutcome: input.candidateOutcome === "uncertain" ? "provider_failure" : input.candidateOutcome === "rejected" ? "rejected" : "success",
     violationCodes: comparison.candidateViolationCodes,
     latencyMs: Math.max(0, Math.round(input.latencyMs)),
     cacheResult: "none",

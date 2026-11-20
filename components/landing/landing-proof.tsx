@@ -20,7 +20,7 @@ export function LandingProof() {
       className="border-b border-border bg-background"
       aria-labelledby="landing-proof-heading"
     >
-      <div className="grid items-center gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
+      <div className="grid items-center gap-(--reading-section-gap) lg:grid-cols-[0.9fr_1.1fr] lg:gap-marketing-section">
         <div className="max-w-xl">
           <SectionHeading id="landing-proof-heading" className="text-foreground">
             {t("home.proofTitle")}

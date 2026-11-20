@@ -37,7 +37,7 @@ export default async function TutorActivityPage() {
   ]);
 
   return (
-    <div className="space-y-6 w-full max-w-7xl mx-auto">
+    <div className="space-y-6 w-full">
       <AdminPageHeader
         icon={Activity}
         title={<TranslatedText namespace="adminOps" messageKey="tutorActivity.title" />}

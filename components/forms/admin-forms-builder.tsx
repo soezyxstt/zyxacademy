@@ -1,5 +1,6 @@
 "use client";
 
+import { getAppScrollBehavior } from "@/components/appearance-preferences";
 import { FormListSkeleton } from "@/components/admin/content-loading-skeletons";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -334,7 +335,7 @@ export default function AdminFormsBuilder({
     setTimeout(() => {
       if (builderListRef.current) {
         const el = builderListRef.current.querySelector(`[data-qidx="${nextIdx}"]`);
-        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+        el?.scrollIntoView({ behavior: getAppScrollBehavior(), block: "center" });
       }
     }, 50);
   };
@@ -353,7 +354,7 @@ export default function AdminFormsBuilder({
     setTimeout(() => {
       if (builderListRef.current) {
         const el = builderListRef.current.querySelector(`[data-qidx="${nextIdx}"]`);
-        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+        el?.scrollIntoView({ behavior: getAppScrollBehavior(), block: "center" });
       }
     }, 50);
   };
@@ -371,7 +372,7 @@ export default function AdminFormsBuilder({
     setTimeout(() => {
       if (builderListRef.current) {
         const el = builderListRef.current.querySelector(`[data-qidx="${nextIdx}"]`);
-        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+        el?.scrollIntoView({ behavior: getAppScrollBehavior(), block: "center" });
       }
     }, 50);
   };
@@ -1886,7 +1887,7 @@ export default function AdminFormsBuilder({
             </div>
           ) : (
             <TooltipProvider>
-              <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+              <div className="divide-y divide-border border-y border-border">
                 {forms.map((f) => {
                   const isDeleting = deletingId === f.id;
                   const shortPath = `/f/${f.slug}`;

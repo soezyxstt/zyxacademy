@@ -107,7 +107,7 @@ export default async function TutorMaterialsPage({ params }: Props) {
   }));
 
   return (
-    <ApplicationPage spacing="space-y-6">
+    <ApplicationPage spacing="space-y-(--section-gap)">
       <PageHeader
         title={<><TranslatedText namespace="tutor" messageKey="routeTitles.documents" />: {identity.title}</>}
         icon={FileText}

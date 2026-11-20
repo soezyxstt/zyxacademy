@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { DocsSidebar } from "./docs-sidebar";
+import { DocsShell } from "@/components/docs/docs-shell";
 
 export default function AdminDocsLayout({ children }: { children: ReactNode }) {
-  return <DocsSidebar>{children}</DocsSidebar>;
+  return <DocsShell surface="admin">{children}</DocsShell>;
 }

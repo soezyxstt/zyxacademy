@@ -1,0 +1,1 @@
+ALTER TABLE "gamification_question_exposure_projection" ADD COLUMN "causal_order" bigserial NOT NULL;

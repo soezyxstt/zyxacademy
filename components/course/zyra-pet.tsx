@@ -2,7 +2,7 @@
 
 import { ZyraPetStateSchema, type ZyraPetState } from "@/lib/zyra/murid";
 import { cn } from "@/lib/utils";
-import { ZyraCharacter } from "@/components/course/zyra-character";
+import { ZyraCosmeticAvatar } from "@/components/gamification/zyra-cosmetic-avatar";
 
 export const zyraPetLabels: Record<ZyraPetState, string> = {
   idle: "Zyra siap membantu",
@@ -27,7 +27,7 @@ export function ZyraPet({ state, className }: { state: ZyraPetState; className?:
         safeState === "error" && "text-status-error",
         safeState === "success" && "text-status-success",
       )}>
-        <ZyraCharacter state={safeState} className="size-20" />
+        <ZyraCosmeticAvatar size={80} />
       </div>
       <span className="sr-only" aria-live="polite">{zyraPetLabels[safeState]}</span>
     </div>

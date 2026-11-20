@@ -11,13 +11,21 @@ import { useStudentExperience } from "@/components/student-experience-provider";
 import { useTranslations } from "@/lib/i18n/client";
 import { useDemoSession } from "./demo-session";
 import type { ReactNode } from "react";
+import { DashboardSummaryContent } from "@/components/gamification/dashboard-summary-content";
+import { demoSummary } from "@/lib/demo/gamification";
+import { useDemoGamification } from "./demo-gamification-provider";
+import { useAppLocale } from "@/lib/i18n/client";
 
 export function DemoDashboard({ experiences, selected, masterySection, todayPlan }: { experiences: DemoSummary[]; selected: DemoSummary; masterySection?: ReactNode; todayPlan: ReactNode }) {
   const { snapshot } = selected;
+  const { state } = useDemoGamification();
+  const { locale } = useAppLocale();
+  const student = useTranslations("student");
   const { href } = useStudentExperience();
   const { overlays } = useDemoSession();
   const sorted = [...experiences].sort((a,b) => a.content.course.title.localeCompare(b.content.course.title));
   return <ApplicationPage className="pb-16">
+      <DashboardSummaryContent summary={{ ...demoSummary, lpBalance: state.balance }} locale={locale} title={student("gamificationUi.achievements")} href={href?.("/achievements") ?? "/demo/achievements"} />
       {todayPlan}
       <StudentDashboardContent href={href}
         enrollments={sorted.map(item => item.content.course)}

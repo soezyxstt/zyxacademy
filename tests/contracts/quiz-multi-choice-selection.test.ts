@@ -1,13 +1,15 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
+import { isMultipleChoiceQuestion, isQuizAnswerComplete, selectQuizOption } from "@/lib/quiz/player-state";
+import { checkAnswerCorrectness } from "@/lib/gamification/question-grading";
 
 describe("Quiz Multi-Choice and Option Indicator Invariants", () => {
   const normalize = (s: string) => s.replace(/\r\n/g, "\n");
-  const quizPlayerCode = normalize(readFileSync("components/course/quiz-player.tsx", "utf8"));
+  const quizPlayerCode = ["components/course/quiz-player.tsx", "hooks/use-quiz-player.ts", "lib/quiz/player-state.ts"].map(path => normalize(readFileSync(path, "utf8"))).join("\n");
   const quizOptionStylesCode = normalize(readFileSync("components/course/quiz-option-styles.ts", "utf8"));
   const studentQuizPageCode = normalize(readFileSync("app/(student)/courses/[id]/quiz/[quizId]/page.tsx", "utf8"));
   const studentQuizReviewCode = normalize(readFileSync("components/course/student-quiz-review.tsx", "utf8"));
-  const attemptReviewCode = normalize(readFileSync("components/course/attempt-review.tsx", "utf8"));
+  const attemptReviewCode = ["components/course/attempt-review.tsx", "lib/quiz/review.ts"].map(path => normalize(readFileSync(path, "utf8"))).join("\n");
   const pkaPageCode = normalize(readFileSync("app/(student)/courses/tutorial-pka/simulasi/[subject]/[stage]/page.tsx", "utf8"));
   const submitRouteCode = normalize(readFileSync("app/api/quiz/attempts/[id]/route.ts", "utf8"));
 
@@ -17,15 +19,20 @@ describe("Quiz Multi-Choice and Option Indicator Invariants", () => {
     expect(quizOptionStylesCode).toContain('const shape = isCircle ? "rounded-full" : "rounded-md";');
   });
 
-  it("ensures QuizPlayer supports multi-choice toggle and preserves array selection", () => {
-    expect(quizPlayerCode).toContain("function isMultipleChoiceQuestion(");
-    expect(quizPlayerCode).toContain("function selectOption(qId: string, optionIndex: number, isMultiple: boolean)");
-    expect(quizPlayerCode).toContain("currentIndices.filter((idx) => idx !== optionIndex)");
-    expect(quizPlayerCode).toContain("[...currentIndices, optionIndex].sort((a, b) => a - b)");
+  it("supports multi-choice toggle and preserves array selection", () => {
+    expect(isMultipleChoiceQuestion("multiple_choices")).toBe(true);
+    expect(isMultipleChoiceQuestion("multi_select")).toBe(true);
+    expect(isMultipleChoiceQuestion("multiple_choice")).toBe(false);
+    expect(selectQuizOption([2, 0], 1, true)).toEqual([0, 1, 2]);
+    expect(selectQuizOption([0, 1, 2], 1, true)).toEqual([0, 2]);
+    expect(selectQuizOption(2, 1, true)).toEqual([1, 2]);
+    expect(selectQuizOption([0, 2], 1, false)).toBe(1);
   });
 
-  it("ensures QuizPlayer correctly checks if multi-choice question is answered", () => {
-    expect(quizPlayerCode).toContain("if (Array.isArray(val)) return val.length > 0;");
+  it("counts only non-empty multi-choice answers", () => {
+    expect(isQuizAnswerComplete([])).toBe(false);
+    expect(isQuizAnswerComplete([0, 2])).toBe(true);
+    expect(isQuizAnswerComplete(0)).toBe(true);
   });
 
   it("ensures QuizPlayer renders question type badge (Pilihan Jamak vs Pilihan Tunggal)", () => {
@@ -52,14 +59,15 @@ describe("Quiz Multi-Choice and Option Indicator Invariants", () => {
   });
 
   it("ensures completed review scoring in pages and submit route treats multiple correct indices as multi-select", () => {
-    expect(studentQuizReviewCode).toContain('const isMultiple = qType === "multiple_choices" || correctIndices.length > 1;');
-    expect(studentQuizReviewCode).toContain('} else if (!isMultiple && (qType === "multiple_choice" || !qType)) {');
+    expect(studentQuizReviewCode).toContain('checkAnswerCorrectness(q, rawSubmitted)');
 
     expect(pkaPageCode).toContain('const isMultiple = qType === "multiple_choices" || correct.length > 1;');
     expect(pkaPageCode).toContain('} else if (!isMultiple && (qType === "multiple_choice" || !qType)) {');
 
-    expect(submitRouteCode).toContain('const isMultiple = qType === "multiple_choices" || correct.length > 1;');
-    expect(submitRouteCode).toContain('if (!isMultiple && (qType === "multiple_choice" || !qType)) {');
+    expect(submitRouteCode).toContain("checkAnswerCorrectness(q, submitted)");
+    expect(checkAnswerCorrectness({ question_type: "multiple_choice", correct_indices: [0, 2] }, [2, 0])).toBe(true);
+    expect(checkAnswerCorrectness({ question_type: "multiple_choice", correct_indices: [0, 2] }, [0])).toBe(false);
+    expect(checkAnswerCorrectness({ question_type: "multiple_choice", correct_indices: [0] }, [0, 1])).toBe(false);
 
     expect(attemptReviewCode).toContain('const isMultiple = qType === "multiple_choices" || correct.length > 1;');
     expect(attemptReviewCode).toContain('if (!isMultiple && (qType === "multiple_choice" || !qType)) {');

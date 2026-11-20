@@ -5,28 +5,25 @@ import React, { useState, useEffect, useCallback, useRef, type ReactNode } from 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  ArrowLeft,
+  ArrowRight,
   LogOut,
   Search,
   PanelLeftOpen,
   PanelLeftClose,
   ChevronDown,
-  ChevronRight,
-  User,
   LayoutDashboard,
+  SlidersHorizontal,
   ShieldCheck,
   GraduationCap,
-  Sun,
-  Moon,
-  Monitor,
-  ChevronsUpDown,
+  Settings,
   Pin,
   Archive,
   Eye,
   EyeOff,
-  Languages,
 } from "lucide-react";
 import { DropdownMenu, HoverCard } from "radix-ui";
-import { useTheme } from "next-themes";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
 import { useCommandMenu } from "@/components/command-menu";
@@ -34,7 +31,7 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 import { signOut } from "@/lib/auth-client";
 import { StudentAccountBoundary, type StudentAccountState } from "@/components/student-account-boundary";
 import { useStudentExperience } from "@/components/student-experience-provider";
-import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import { useTranslations } from "@/lib/i18n/client";
 import { useSwipe } from "@/hooks/use-swipe";
 import { useZyraPetVisibility } from "@/hooks/use-zyra-pet-visibility";
 import { isMaterialReaderPathname } from "@/lib/materials/reader-layout";
@@ -101,9 +98,9 @@ export function NavItem({
   const baseClass = cn(
     "group/item relative flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-body-sm font-medium transition-colors w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
     active
-      ? "bg-brand-primary/10 text-brand-primary"
-      : "text-muted-foreground hover:bg-muted hover:text-foreground",
-    collapsed && "justify-center px-0 size-10 mx-auto",
+      ? "bg-muted/80 text-foreground"
+      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+    collapsed && "justify-center px-0 size-10 shrink-0 mx-auto",
     isChild && !collapsed && "rounded-lg px-2.5 py-1.5 gap-2",
     className
   );
@@ -281,11 +278,13 @@ export function NavCollapsible({
             <span className="hover-marquee">{label}</span>
           </span>
           {trailing}
-          {isOpen ? (
-            <ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-transform" />
-          ) : (
-            <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform" />
-          )}
+          <ChevronDown
+            className={cn(
+              "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none",
+              !isOpen && "-rotate-90"
+            )}
+            aria-hidden="true"
+          />
         </>
       )}
     </button>
@@ -387,10 +386,14 @@ export function NavCollapsible({
       ) : (
         triggerButton
       )}
-      {!collapsed && isOpen && (
-        <div className="flex flex-col gap-0.5 animate-in slide-in-from-top-1 fade-in-50 duration-150 pl-1.5 border-l border-border/60 ml-4.5 my-0.5 min-w-0">
-          {children}
-        </div>
+      {!collapsed && (
+        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+          <CollapsibleContent>
+            <div className="flex flex-col gap-0.5 pl-1.5 border-l border-border/60 ml-4.5 my-0.5 min-w-0">
+              {children}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       )}
     </div>
   );
@@ -417,10 +420,8 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
 
 function SidebarUserMenuContent({ collapsed, session }: { collapsed: boolean; session: StudentAccountState["data"] }) {
   const t = useTranslations("common");
-  const { locale, setLocale, isPending, error } = useAppLocale();
   const experience = useStudentExperience();
   const href = experience.href ?? ((path: string) => path);
-  const { theme, setTheme } = useTheme();
   const { visible: petVisible, toggleVisible: togglePetVisibility } = useZyraPetVisibility();
 
   if (!session?.user) return null;
@@ -486,7 +487,7 @@ function SidebarUserMenuContent({ collapsed, session }: { collapsed: boolean; se
           {email}
         </p>
       </div>
-      <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground transition-colors" />
+      <Settings className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground transition-colors" aria-hidden />
     </button>
   );
 
@@ -510,11 +511,11 @@ function SidebarUserMenuContent({ collapsed, session }: { collapsed: boolean; se
         >
           <DropdownMenu.Item asChild>
             <Link
-              href={href("/profile")}
+              href={href("/settings")}
               className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
             >
-              <User className="size-4 shrink-0 text-muted-foreground" />
-              <span>{t("profileSettings")}</span>
+              <SlidersHorizontal className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span>{t("preferences")}</span>
             </Link>
           </DropdownMenu.Item>
 
@@ -570,73 +571,6 @@ function SidebarUserMenuContent({ collapsed, session }: { collapsed: boolean; se
               </>
             )}
           </DropdownMenu.Item>
-
-          <DropdownMenu.Separator className="my-1 h-px bg-border/60" />
-
-          <div className="px-2.5 py-1.5">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 font-sans">
-              {t("appearance")}
-            </p>
-            <div className="grid grid-cols-3 gap-1">
-              <button
-                type="button"
-                onClick={() => setTheme("light")}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium border transition-colors cursor-pointer",
-                  theme === "light"
-                    ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
-                    : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Sun className="size-3.5" />
-                <span>{t("light")}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setTheme("dark")}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium border transition-colors cursor-pointer",
-                  theme === "dark"
-                    ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
-                    : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Moon className="size-3.5" />
-                <span>{t("dark")}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setTheme("system")}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium border transition-colors cursor-pointer",
-                  theme === "system"
-                    ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
-                    : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Monitor className="size-3.5" />
-                <span>{t("system")}</span>
-              </button>
-            </div>
-          </div>
-
-          <DropdownMenu.Separator className="my-1 h-px bg-border/60" />
-
-          <div className="px-2.5 py-1.5" aria-label={t("language.label")}>
-            <p className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground font-sans">
-              <Languages className="size-3.5" aria-hidden />
-              {t("language.label")}
-            </p>
-            <DropdownMenu.RadioGroup value={locale} onValueChange={(value) => { if (!isPending && (value === "id" || value === "en")) { if (experience.mode === "demo") experience.changeLocale?.(value); else void setLocale(value); } }} className="flex flex-col gap-0.5">
-              <DropdownMenu.RadioItem value="id" disabled={isPending} className="flex w-full cursor-pointer items-center rounded-md px-2 py-2 text-body-sm text-muted-foreground outline-none hover:bg-muted focus:bg-muted data-[state=checked]:text-brand-primary">
-                {t("language.indonesian")}
-              </DropdownMenu.RadioItem>
-              <DropdownMenu.RadioItem value="en" disabled={isPending} className="flex w-full cursor-pointer items-center rounded-md px-2 py-2 text-body-sm text-muted-foreground outline-none hover:bg-muted focus:bg-muted data-[state=checked]:text-brand-primary">
-                {t("language.english")}
-              </DropdownMenu.RadioItem>
-            </DropdownMenu.RadioGroup>
-            {error ? <p role="alert" className="mt-1.5 text-body-xs text-destructive">{t("saveLanguageError")}</p> : null}
-          </div>
 
           <DropdownMenu.Separator className="my-1 h-px bg-border/60" />
 
@@ -824,26 +758,48 @@ export function SidebarShell({
         {/* Top Header Bar */}
         <div
           className={cn(
-            "flex h-14 shrink-0 items-center border-b border-border gap-1.5",
-            isCollapsed ? "justify-center px-1.5" : "px-3"
+            "flex h-11 shrink-0 items-center border-b border-border/60 gap-0.5",
+            isCollapsed ? "justify-center px-1.5" : "px-2.5"
           )}
         >
           {!isCollapsed ? (
             <>
-              <Link href={logoHref} aria-label={logoLabel} className="flex flex-1 min-w-0 items-center">
-                <Logo variant="symbol" className="[--logo-height:1.75rem]" />
+              <Link href={logoHref} aria-label={logoLabel} className="flex flex-1 min-w-0 items-center pl-1">
+                <Logo variant="symbol" className="[--logo-height:1.25rem]" />
               </Link>
 
-              {showAccountTools && <NotificationBell variant="sidebar" />}
+              <SidebarTooltip label="Back" collapsed={false}>
+                <button
+                  type="button"
+                  onClick={() => window.history.back()}
+                  aria-label="Back"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <ArrowLeft className="size-4" />
+                </button>
+              </SidebarTooltip>
+
+              <SidebarTooltip label="Forward" collapsed={false}>
+                <button
+                  type="button"
+                  onClick={() => window.history.forward()}
+                  aria-label="Forward"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <ArrowRight className="size-4" />
+                </button>
+              </SidebarTooltip>
 
               {headerActions?.(false)}
+
+              {showAccountTools && <NotificationBell variant="sidebar" />}
 
               {showAccountTools && <SidebarTooltip label={t("searchWithShortcut", { shortcut: modKeyHint })} collapsed={false}>
                 <button
                   type="button"
                   onClick={() => setSearchOpen(true)}
                   aria-label={t("searchWithShortcut", { shortcut: modKeyHint })}
-                  className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
                 >
                   <Search className="size-4" />
                 </button>
@@ -854,20 +810,20 @@ export function SidebarShell({
                   type="button"
                   onClick={isMobile ? () => setMobileOpen(false) : toggleCollapsed}
                   aria-label={t("closeSidebar")}
-                  className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
                 >
                   <PanelLeftClose className="size-4" />
                 </button>
               </SidebarTooltip>
             </>
           ) : (
-            <div className="flex flex-col items-center gap-1.5 py-1">
+            <div className="flex flex-col items-center gap-1 py-1">
               <SidebarTooltip label={t("openSidebar")} collapsed={true}>
                 <button
                   type="button"
                   onClick={toggleCollapsed}
                   aria-label={t("openSidebar")}
-                  className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
                 >
                   <PanelLeftOpen className="size-4" />
                 </button>
@@ -879,15 +835,37 @@ export function SidebarShell({
         {/* Optional Top Section (e.g. Streak strip) */}
         {topSection?.(isCollapsed)}
 
-        {/* Collapsed quick search button & header actions */}
+        {/* Collapsed quick navigation, search & header actions */}
         {isCollapsed && (
-          <div className="px-1 pt-2 shrink-0 flex flex-col items-center gap-1.5">
+          <div className="px-1 py-1.5 shrink-0 flex flex-col items-center gap-1 border-b border-border/60">
+            <div className="flex items-center gap-0.5">
+              <SidebarTooltip label="Back" collapsed={true}>
+                <button
+                  type="button"
+                  onClick={() => window.history.back()}
+                  aria-label="Back"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <ArrowLeft className="size-3.5" />
+                </button>
+              </SidebarTooltip>
+              <SidebarTooltip label="Forward" collapsed={true}>
+                <button
+                  type="button"
+                  onClick={() => window.history.forward()}
+                  aria-label="Forward"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <ArrowRight className="size-3.5" />
+                </button>
+              </SidebarTooltip>
+            </div>
             {showAccountTools && <SidebarTooltip label={t("searchWithShortcut", { shortcut: modKeyHint })} collapsed={true}>
               <button
                 type="button"
                 onClick={() => setSearchOpen(true)}
                 aria-label={t("searchWithShortcut", { shortcut: modKeyHint })}
-                className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/40 text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
+                className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
               >
                 <Search className="size-4" />
               </button>

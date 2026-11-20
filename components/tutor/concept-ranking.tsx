@@ -25,7 +25,7 @@ export function ConceptRanking({
       {concepts.map((concept, index) => (
         <div
           key={concept.conceptName}
-          className="py-3 grid grid-cols-[1.5rem_minmax(0,1fr)_auto] sm:grid-cols-[1.5rem_minmax(0,1fr)_auto_8rem] items-center gap-4"
+          className="py-3 grid grid-cols-[1.5rem_minmax(0,1fr)_auto] sm:grid-cols-[1.5rem_minmax(0,1fr)_auto_8rem] items-center gap-(--related-gap)"
         >
           <span className="text-h6 font-heading text-muted-foreground tabular-nums">
             {index + 1}

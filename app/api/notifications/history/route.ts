@@ -16,6 +16,8 @@ import { headers } from "next/headers";
 import { db } from "@/db";
 import { notifications } from "@/db/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
+import { notificationVisibility } from "@/lib/notifications/discussion-history";
+import { discussionNotificationLink } from "@/lib/notifications/templates";
 
 export async function GET(req: NextRequest) {
   const reqHeaders = await headers();
@@ -51,17 +53,19 @@ export async function GET(req: NextRequest) {
   }
 
   const cacheHeaders = {
-    "Cache-Control": "private, no-cache, stale-while-revalidate=15",
+    "Cache-Control": "private, no-store",
   };
 
   try {
+    const visibility = await notificationVisibility(targetUserId, session.user.id, { unreadOnly: countOnly });
     const unreadQuery = db
       .select({ count: sql<number>`count(*)` })
       .from(notifications)
       .where(
         and(
           eq(notifications.userId, targetUserId),
-          eq(notifications.read, false)
+          eq(notifications.read, false),
+          visibility
         )
       );
 
@@ -81,8 +85,8 @@ export async function GET(req: NextRequest) {
     const rowsQuery = db
       .select()
       .from(notifications)
-      .where(eq(notifications.userId, targetUserId))
-      .orderBy(desc(notifications.createdAt))
+      .where(and(eq(notifications.userId, targetUserId), visibility))
+      .orderBy(desc(notifications.createdAt), desc(notifications.id))
       .limit(limit)
       .offset(offset);
 
@@ -90,7 +94,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(
       {
-        notifications: rows,
+        notifications: rows.map(row => row.type === "discussion" && typeof row.metadata?.threadId === "string"
+          ? { ...row, metadata: { ...row.metadata, url: discussionNotificationLink(row.metadata.threadId, row.metadata.eventKind === "report", typeof row.metadata.messageId === "string" ? row.metadata.messageId : undefined) } }
+          : row),
         unreadCount: Number(unreadResult[0]?.count ?? 0),
         page,
         limit,

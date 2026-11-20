@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { pageTitle } from "@/lib/site";
 import { getTranslations } from "@/lib/i18n/server";
 import { db } from "@/db";
+import { recordAuthorizedGlobalDisclosures } from "@/lib/gamification/question-exposure";
 import {
   aiQuestionBank,
   assessmentSources,
@@ -89,7 +90,7 @@ function extractOptionsAndCorrect(optionsSnapshot: unknown): { options: string[]
  * prepares facets, and mounts the active and historical evaluation views.
  */
 export default async function AIQuestionsPage({ searchParams }: { searchParams: Promise<QuestionSearchParams> }) {
-  await assertTutorOrAdmin();
+  const { user } = await assertTutorOrAdmin();
 
   const resolvedSearchParams = await searchParams;
   const query = normalizeQuestionQuery(resolvedSearchParams);
@@ -345,6 +346,8 @@ export default async function AIQuestionsPage({ searchParams }: { searchParams: 
       ideaLinks: canonicalIdeaLinks.get(id) ?? [],
     };
   }).sort((a, b) => pageIds.indexOf(a.id) - pageIds.indexOf(b.id));
+
+  await db.transaction(tx => recordAuthorizedGlobalDisclosures(tx, { userId: user.id, questions: [...questions.map(q => ({ questionId: q.id, courseId: q.courseId })), ...historicalRows.map(q => ({ questionId: q.id, courseId: q.courseId }))], requestId: crypto.randomUUID() }));
 
   return (
     <div className="space-y-5">

@@ -47,7 +47,7 @@ async function expectNoOverflowAndErrors(page: Page, diagnostics: PageDiagnostic
   expect(diagnostics.badResponses, "HTTP responses with status >= 400").toEqual([]);
 }
 
-async function openAccountLanguageMenu(page: Page, role: "student" | "admin" | "tutor") {
+async function openAccountMenu(page: Page, role: "student" | "admin" | "tutor") {
   const mobileNavigation = page.getByRole("button", { name: /open navigation|buka navigasi/i });
   if (await mobileNavigation.isVisible()) await mobileNavigation.click();
   const emailTrigger = page.getByRole("button", { name: new RegExp(`bilingual-${role}@example\\.invalid`) });
@@ -59,27 +59,30 @@ async function openAccountLanguageMenu(page: Page, role: "student" | "admin" | "
   }
 }
 
-async function switchAccountLanguage(page: Page, language: "English" | "Bahasa Indonesia", role: "student" | "admin" | "tutor") {
-  await openAccountLanguageMenu(page, role);
-  await page.getByRole("menuitemradio", { name: language, exact: true }).click();
+async function selectPreferenceLanguage(page: Page, language: "English" | "Bahasa Indonesia") {
+  const control = page.getByRole("radiogroup", { name: /^(Language|Bahasa)$/ })
+    .getByRole("radio", { name: language, exact: true });
+  await control.click();
   await expect(page.locator("html")).toHaveAttribute("lang", language === "English" ? "en" : "id");
-  const mobileNavigation = page.getByRole("button", { name: /open navigation|buka navigasi/i });
-  if (await mobileNavigation.isVisible()) {
-    const closeSidebar = page.getByRole("button", { name: /close sidebar|tutup sidebar/i });
-    if (await closeSidebar.isVisible()) await closeSidebar.click();
-  }
+  await expect(control).toBeChecked();
+}
+
+async function openAccountPreferences(page: Page, role: "student" | "admin" | "tutor") {
+  await openAccountMenu(page, role);
+  await page.getByRole("menuitem", { name: /^(Preferences|Preferensi)$/ }).click();
+  await expect(page).toHaveURL(/\/settings$/);
 }
 
 test.describe("student account locale and profile draft", () => {
   test.use({ storageState: existsSync(statePath("student")) ? statePath("student") : undefined });
   test.skip(!accountFixturesReady, "Set BILINGUAL_ACCOUNT_STORAGE_STATES=1 and seed the ignored local-only auth fixtures to run account browser checks.");
 
-  test("/profile/edit keeps academic draft selections while account language saves and rerenders", async ({ page }, testInfo) => {
+  test("profile preferences keep academic drafts while the account language changes", async ({ page }, testInfo) => {
     const diagnostics = collectDiagnostics(page);
-    await page.goto("/profile/edit");
-    await expect(page).toHaveURL(/\/profile\/edit$/);
+    await page.goto("/settings?tab=profile");
+    await expect(page).toHaveURL(/\/settings\?tab=profile$/);
     await expect(page.locator("html")).toHaveAttribute("lang", "id");
-    await expect(page.getByRole("heading", { name: "Edit profil akademis" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Informasi akademis ITB" })).toBeVisible();
 
     const facultyId = page.getByRole("combobox", { name: "Fakultas atau sekolah ITB" });
     await facultyId.click();
@@ -92,8 +95,12 @@ test.describe("student account locale and profile draft", () => {
     await waitForVisualReadiness(page);
     await page.screenshot({ path: testInfo.outputPath("student-profile-draft-id.png"), fullPage: true });
 
-    await switchAccountLanguage(page, "English", "student");
-    await expect(page.getByRole("heading", { name: "Edit academic profile" })).toBeVisible();
+    const appearanceTab = page.getByRole("tab", { name: /^(Appearance|Tampilan)$/ }).first();
+    const profileTab = page.getByRole("tab", { name: /^(Profile|Profil)$/ });
+    await appearanceTab.click();
+    await selectPreferenceLanguage(page, "English");
+    await profileTab.click();
+    await expect(page.getByRole("heading", { name: "ITB academic information" })).toBeVisible();
     const facultyEn = page.getByRole("combobox", { name: "ITB faculty or school" });
     const majorEn = page.getByRole("combobox", { name: "Major or study program" });
     await expect(facultyEn).toHaveText(facultyDraft);
@@ -102,8 +109,10 @@ test.describe("student account locale and profile draft", () => {
     await waitForVisualReadiness(page);
     await page.screenshot({ path: testInfo.outputPath("student-profile-draft-en.png"), fullPage: true });
 
-    await switchAccountLanguage(page, "Bahasa Indonesia", "student");
-    await expect(page.getByRole("heading", { name: "Edit profil akademis" })).toBeVisible();
+    await appearanceTab.click();
+    await selectPreferenceLanguage(page, "Bahasa Indonesia");
+    await profileTab.click();
+    await expect(page.getByRole("heading", { name: "Informasi akademis ITB" })).toBeVisible();
     await expect(page.getByRole("combobox", { name: "Fakultas atau sekolah ITB" })).toHaveText(facultyDraft);
     await expect(page.getByRole("combobox", { name: "Jurusan atau program studi" })).toHaveText(majorDraft);
     await expectNoOverflowAndErrors(page, diagnostics);
@@ -129,6 +138,10 @@ test.describe("bilingual real quiz and file state fixture", () => {
   test("actual QuizPlayer answers, timer, attachment, FileUploadField, and reader position survive a locale switch", async ({ page }, testInfo) => {
     const diagnostics = collectDiagnostics(page);
     const apiPosts: string[] = [];
+    await page.route("**/api/auth/get-session**", route => route.fulfill({ json: {
+      user: { id: "fixture-student", name: "Fixture student", email: "fixture@example.test" },
+      session: { id: "fixture-session", userId: "fixture-student", expiresAt: "2099-01-01T00:00:00.000Z" },
+    } }));
     await page.addInitScript(() => { try { localStorage.clear(); } catch { /* about:blank has no storage origin */ } });
     await page.route("**/api/quiz/attachments", async (route) => {
       if (route.request().method() === "POST") {
@@ -204,7 +217,7 @@ test.describe("admin and tutor app headers follow their account locale", () => {
       test.use({ storageState: existsSync(statePath(role)) ? statePath(role) : undefined });
       test.skip(!accountFixturesReady, "Set BILINGUAL_ACCOUNT_STORAGE_STATES=1 and seed the ignored local-only auth fixtures to run account browser checks.");
 
-      test(`${role} route title and account language menu update in both locales`, async ({ page }, testInfo) => {
+      test(`${role} route title and account language update in both locales`, async ({ page }, testInfo) => {
         const diagnostics = collectDiagnostics(page);
         const route = role === "admin" ? "/admin/schedules" : "/tutor";
         const englishHeading = role === "admin" ? "Academic schedule and calendar" : "Tutor dashboard";
@@ -219,26 +232,27 @@ test.describe("admin and tutor app headers follow their account locale", () => {
           const header = page.getByRole("banner");
           await expect(header.getByText(role === "admin" ? englishMobileTitle : indonesianMobileTitle, { exact: true })).toBeVisible();
         } else {
-          await expect(page.getByRole("heading", { name: role === "admin" ? englishHeading : indonesianHeading })).toBeVisible();
+          await expect(page.getByRole("heading", { name: role === "admin" ? englishHeading : indonesianHeading, includeHidden: true })).toBeAttached();
         }
         await waitForVisualReadiness(page);
         await page.screenshot({ path: testInfo.outputPath(`${role}-route-before-switch.png`), fullPage: true });
 
         const target = role === "admin" ? "Bahasa Indonesia" : "English";
-        await switchAccountLanguage(page, target, role);
+        await openAccountPreferences(page, role);
+        await selectPreferenceLanguage(page, target);
+        await page.goto(route);
         if (testInfo.project.name === "mobile-380") {
           const header = page.getByRole("banner");
           await expect(header.getByText(role === "admin" ? indonesianMobileTitle : englishMobileTitle, { exact: true })).toBeVisible();
         } else {
-          await expect(page.getByRole("heading", { name: role === "admin" ? indonesianHeading : englishHeading })).toBeVisible();
+          await expect(page.getByRole("heading", { name: role === "admin" ? indonesianHeading : englishHeading, includeHidden: true })).toBeAttached();
         }
         await waitForVisualReadiness(page);
         await page.screenshot({ path: testInfo.outputPath(`${role}-route-after-switch.png`), fullPage: true });
 
         const restore = role === "admin" ? "English" : "Bahasa Indonesia";
-        await switchAccountLanguage(page, restore, role);
-        await openAccountLanguageMenu(page, role);
-        await expect(page.getByRole("menuitemradio", { name: restore, exact: true })).toHaveAttribute("aria-checked", "true");
+        await openAccountPreferences(page, role);
+        await selectPreferenceLanguage(page, restore);
         await expectNoOverflowAndErrors(page, diagnostics);
       });
     });

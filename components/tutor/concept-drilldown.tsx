@@ -45,7 +45,7 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
           </SheetTitle>
         </SheetHeader>
 
-        <div className="flex flex-col gap-4 px-5 py-4">
+        <div className="flex flex-col gap-(--related-gap) px-5 py-4">
           {/* Distribution */}
           <section>
             <p className="text-body-sm text-muted-foreground mb-2">{t("masteryDistribution")}</p>
@@ -110,7 +110,7 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
               <p className="text-body-sm text-muted-foreground mb-2">{t("mostMissed")}</p>
               <div className="divide-y divide-border">
                 {mostMissed.map((q) => (
-                  <div key={q.id} className="py-2.5 flex items-start justify-between gap-4">
+                  <div key={q.id} className="py-2.5 flex items-start justify-between gap-(--related-gap)">
                     <MathText className="text-body-sm min-w-0 break-words block" as="div">{q.prompt}</MathText>
                     <span className="text-body-sm tabular-nums text-status-error shrink-0 font-medium">
                       {Math.round(q.correctRate * 100)}%

@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+
 import type { ComponentProps } from "react";
 import { ArticleCodeExample, ArticleCodingExercise, ArticleMarkdownScope, type StaticCodeLabels } from "@/components/coding/article-coding";
 import { articleCaseLatex, type ArticlePart } from "@/lib/materials/article-parts";
@@ -25,15 +27,15 @@ export function ArticleParts({
   staticCodeLabels?: StaticCodeLabels;
 }) {
   return (
-    <div className="w-full min-w-0 max-w-full space-y-5" data-article-parts>
+    <div className={cn("w-full min-w-0 max-w-full", density === "compact" ? "space-y-3" : "space-y-(--paragraph-gap)")} data-article-parts>
       {parts.map((part) => {
         const renderPart = () => {
         if (part.kind === "code_example") return <div key={part.id} id={part.id} data-part-id={part.id} data-part-kind="code_example"><ArticleCodeExample part={part} staticCodeLabels={staticCodeLabels} /></div>;
         if (part.kind === "coding_exercise") return <div key={part.id} id={part.id} data-part-id={part.id} data-part-kind="coding_exercise"><ArticleCodingExercise part={part} /></div>;
         if (part.kind === "markdown") return <div key={part.id} id={part.id} data-part-id={part.id}><InteractiveDocumentArticleLocation partId={part.id} field="markdown"><ScopedMarkdown scope="markdown" content={part.markdown} density={density} /></InteractiveDocumentArticleLocation></div>;
         if (part.kind === "worked_example") return (
-          <section key={part.id} id={part.id} data-part-id={part.id} data-part-kind="worked_example" className="space-y-5">
-            <h4 className="font-heading text-body-base font-bold"><MathText className="normal-case">{part.title}</MathText></h4>
+          <section key={part.id} id={part.id} data-part-id={part.id} data-part-kind="worked_example" className="space-y-4">
+            <h4 className="font-heading text-body-sm font-semibold"><MathText className="normal-case">{part.title}</MathText></h4>
             <ScopedMarkdown scope="problem" content={part.problemMarkdown} density={density} />
             <ol className="space-y-6">
               {part.steps.map((step, index) => <li key={step.id} id={step.id} data-step-id={step.id} className="min-w-0 max-w-full space-y-3 border-l-2 border-primary/40 pl-4">

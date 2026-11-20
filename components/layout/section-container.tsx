@@ -26,8 +26,8 @@ export function SectionContainer({
     : density === "hero"
       ? "pb-16 pt-20 md:pb-22 md:pt-24 lg:pb-24"
       : density === "compact"
-        ? "py-14 md:py-18"
-        : "py-20 md:py-28";
+        ? "py-12 md:py-14"
+        : "py-marketing-section";
 
   return (
     <section className={cn("relative", verticalPadding, className)} {...props}>
@@ -40,7 +40,7 @@ export function SectionContainer({
           {stepLabel}
         </span>
       ) : null}
-      <div className={cn("container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8", contentClassName)}>
+      <div className={cn("container mx-auto max-w-7xl px-(--page-gutter)", contentClassName)}>
         {children}
       </div>
     </section>

@@ -24,11 +24,11 @@ export async function LandingTutorSupport() {
         </SectionHeading>
       </div>
 
-      <div className="mx-auto mt-10 grid max-w-6xl gap-px overflow-hidden rounded-xl border border-border bg-border md:grid-cols-3">
+      <div className="mx-auto mt-8 grid max-w-6xl divide-y divide-border border-y border-border md:grid-cols-3 md:divide-x md:divide-y-0">
         {supportOptions.map((option) => {
           const Icon = option.icon;
           return (
-            <article key={option.title} className="bg-background p-5 md:p-6">
+            <article key={option.title} className="py-4 md:px-5 md:first:pl-0 md:last:pr-0">
               <Icon className="size-5 text-primary" aria-hidden="true" />
               <h3 className="mt-4 font-heading text-body-base font-semibold text-foreground">
                 {t(option.title)}

@@ -1,3 +1,4 @@
+import { expectedComputeFunctionCount } from "./worker-function-count.mjs";
 import assert from "node:assert/strict";
 import { appendFile, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { workerTarget, assertWorkerEnvironment } from "./worker-targets.mjs";
@@ -11,7 +12,7 @@ assert.equal(proof.project, target.project);
 assert.equal(proof.branch, target.branch);
 assert.equal(proof.slug, target.slug);
 assert.equal(proof.url, target.origin + "/");
-assert.equal(proof.functions, 22);
+assert.equal(proof.functions, expectedComputeFunctionCount);
 assert.match(proof.checksum, /^[a-f0-9]{64}$/);
 await mkdir(target.output, { recursive: true });
 await writeFile(`${target.output}/.env.${target.name}.json`, JSON.stringify({

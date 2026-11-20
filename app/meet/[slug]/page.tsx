@@ -62,7 +62,7 @@ export default async function MeetSlugPage({
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4 py-16">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+      <div className="w-full max-w-md text-center">
         <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
           <Video className="size-6" aria-hidden />
         </div>

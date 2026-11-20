@@ -1,0 +1,1 @@
+ALTER TABLE "gamification_question_bank_disclosures" DROP CONSTRAINT "gamification_question_bank_disclosures_course_id_mata_kuliah_id_fk";

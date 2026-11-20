@@ -23,7 +23,7 @@ export function QuestionBankTabs({ value, tabs, children }: { value: string; tab
   }}>
     <div className="flex min-w-0 flex-wrap items-center gap-2">
       {tabs}
-      <div ref={setTarget} className="flex min-w-[140px] flex-1 flex-wrap items-center gap-2" />
+      <div ref={setTarget} className="flex min-w-fit flex-1 flex-wrap items-center gap-2 has-[[data-search-expanded=true]]:min-w-36 max-sm:[&:has(>[data-search-expanded=true])>:not([data-search-expanded=true])]:hidden" />
     </div>
     <ToolbarTarget.Provider value={target}>{children}</ToolbarTarget.Provider>
   </Tabs>;

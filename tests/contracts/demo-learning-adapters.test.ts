@@ -20,18 +20,20 @@ describe("demo learning adapters", () => {
     expect(source("components/demo/demo-flashcards.tsx")).toContain("<FlashcardClient");
   });
   test("demo adapters preserve the learner presentation while blocking private services", () => {
-    const flashcard = source("app/(student)/courses/[id]/flashcard/flashcard-client.tsx");
-    expect(flashcard).toContain("if (adapter) await adapter.onReview");
-    expect(flashcard).toContain("if (!adapter) emitActivityUpdated");
+    const flashcard = source("hooks/use-flashcard-session.ts");
+    expect(flashcard).toContain("if (adapter) return adapter.onReview");
+    expect(flashcard).toContain("if (adapter || !isQueryAccountCurrent(client, studentId)) return;");
     const article = source("components/course/structured-article-reader.tsx");
-    expect(article).toContain("if (!learnerMode || adapter) return;");
     expect(article).toContain("enabled: learnerMode && !adapter");
+    const progress = source("hooks/use-article-reading-progress.ts");
+    expect(progress).toContain("const canSave = enabled && Boolean(studentId) && currentAccount;");
+    expect(progress).toContain("enabled: canSave");
     expect(article).toContain("interactiveChecks");
     const checks = source("components/course/product-learning-blocks.tsx");
     expect(checks).toContain('if (experience.mode === "demo") { setError(');
     const diktat = source("components/demo/demo-diktat-view.tsx");
     expect(diktat).not.toContain('mode="admin-preview"');
-    expect(source("components/course/material-viewer.tsx")).toContain("if (!learnerMode || demo) return;");
+    expect(source("hooks/use-material-reading-progress.ts")).toContain("const enabled = learnerMode && !demo && Boolean(studentId) && currentAccount;");
     expect(diktat).toContain("canDownload={false}");
   });
 });

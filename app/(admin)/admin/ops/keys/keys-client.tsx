@@ -7,36 +7,8 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/client";
-
-interface KeyModelDiagnostics {
-  keyId: string;
-  modelId: string;
-  requestsMinute: number;
-  requestsToday: number;
-  rpdLimit: number;
-  successes: number;
-  failures: number;
-  consecutiveFailures: number;
-  circuitState: "CLOSED" | "HALF_OPEN" | "OPEN";
-  cooldownRemainingMs: number;
-  estimatedRpmLimit: number;
-  utilizationPercent: number;
-  activeRequestsCount: number;
-}
-
-interface UsageByModel {
-  model: string;
-  count: number;
-  totalTokens: number;
-}
-
-interface KeyDiagnosticsData {
-  checkedAt: string;
-  rpdLimits: Record<string, number>;
-  geminiKeys: KeyModelDiagnostics[];
-  usageByModel: UsageByModel[];
-  totalRequestsToday: number;
-}
+import { adminKeyDiagnosticsQuery } from "@/lib/admin/ops-query";
+import { useQueryAccountId } from "@/hooks/use-query-account";
 
 function relativeTime(iso: string, t: ReturnType<typeof useTranslations<"adminOps">>): string {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -70,30 +42,18 @@ function ProgressBar({ current, max }: { current: number; max: number }) {
   );
 }
 
-async function fetchData(): Promise<KeyDiagnosticsData> {
-  const res = await fetch("/api/admin/key-diagnostics");
-  if (!res.ok) throw new Error("Failed to load key diagnostics");
-  return res.json();
-}
-
 export function KeysClient() {
   const t = useTranslations("adminOps");
-  const { data, isLoading, isFetching, error, refetch } = useQuery<KeyDiagnosticsData>({
-    queryKey: ["key-diagnostics"],
-    queryFn: fetchData,
-    refetchInterval: 30_000,
-    staleTime: 25_000,
-  });
+  const userId = useQueryAccountId();
+  const { data, isPending, isFetching, error, refetch } = useQuery(adminKeyDiagnosticsQuery(userId ?? ""));
 
-  if (isLoading) return <KeysSkeleton />;
+  if (isPending || !userId) return <KeysSkeleton />;
 
   if (error) {
     return (
-      <div className="max-w-5xl">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-status-error">{t("keysUI.failedLoad")}</p>
-          <Button variant="ghost" size="sm" onClick={() => refetch()} className="mt-2 text-body-sm text-brand-primary underline">{t("keysUI.retry")}</Button>
-        </div>
+      <div className="border-y border-border py-3">
+        <p className="text-status-error">{t("keysUI.failedLoad")}</p>
+        <Button variant="ghost" size="sm" onClick={() => refetch()} className="mt-2 text-body-sm text-brand-primary underline">{t("keysUI.retry")}</Button>
       </div>
     );
   }
@@ -111,7 +71,7 @@ export function KeysClient() {
   });
 
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-body-sm text-muted-foreground">
           {t("keysUI.checked", { time: relativeTime(data.checkedAt, t), count: data.totalRequestsToday })}
@@ -127,7 +87,7 @@ export function KeysClient() {
       </div>
 
       {keyHealth.map(({ keyId, healthy, totalToday, entries }) => (
-        <div key={keyId} className="rounded-xl border border-border bg-card overflow-hidden">
+        <div key={keyId} className="border-y border-border">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/50 px-4 py-3">
             <div className="flex flex-wrap items-center gap-3">
               <span className={`size-2.5 rounded-full ${healthy ? "bg-status-success" : "bg-status-error"}`} />
@@ -193,7 +153,7 @@ export function KeysClient() {
         </div>
       ))}
 
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="border-y border-border">
         <div className="border-b border-border bg-muted/50 px-5 py-3">
           <h2 className="font-heading text-body-base font-semibold text-foreground">{t("keysUI.rpdLimits")}</h2>
         </div>

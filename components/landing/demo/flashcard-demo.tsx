@@ -57,14 +57,14 @@ export function FlashcardDemo({ cards }: FlashcardDemoProps) {
  className="landing-flip-inner block h-[230px] w-full cursor-pointer text-left md:h-[250px]"
  >
  <span className="landing-flip-face absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-card px-6 text-center shadow-sm">
- <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+ <span className="text-body-2xs font-bold uppercase tracking-wider text-muted-foreground">
  {t("home.flashcardCounter", { current: (index % cards.length) + 1, total: cards.length })}
  </span>
  <span className="font-heading text-h5 font-semibold text-foreground">{card.front}</span>
  <span className="text-body-xs text-muted-foreground">{t("home.flashcardFlipHint")}</span>
  </span>
  <span className="landing-flip-face landing-flip-back absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-xl border border-primary/35 bg-primary/5 px-6 text-center shadow-sm">
- <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+ <span className="text-body-2xs font-bold uppercase tracking-wider text-primary">
  {t("home.flashcardAnswer")}
  </span>
  <span className="font-heading text-h5 font-semibold text-foreground">{card.back}</span>

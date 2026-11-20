@@ -2,10 +2,18 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Edit2, Trash2, BookOpen, FileText } from "lucide-react";
+import { Plus, Edit2, Trash2, BookOpen, FileText, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -125,15 +133,21 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-(--related-gap)">
       {/* Action Row */}
       <div className="flex flex-wrap justify-between items-center gap-2">
-        <h2 className="font-heading text-body-base font-semibold text-foreground">{t("materialsCount", { count: initialMaterials.length })}</h2>
+        <span className="text-body-xs text-muted-foreground">{t("materialsCount", { count: initialMaterials.length })}</span>
         {canManage && (
-          <Button onClick={handleOpenAdd} className="gap-2">
-            <Plus className="size-4" />
-            {t("addMaterial")}
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button type="button" size="icon-lg" aria-label={t("addMaterial")} onClick={handleOpenAdd}>
+                  <Plus aria-hidden />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("addMaterial")}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
       </div>
 
@@ -141,19 +155,33 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
       {initialMaterials.length === 0 ? (
         <AdminEmptyState icon={BookOpen} title={t("noMaterials")} />
       ) : (
-        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+        <div className="divide-y divide-border border-y border-border">
           {initialMaterials.map((m) => (
-            <div key={m.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+            <div key={m.id} className="flex flex-wrap items-center gap-(--compact-gap) py-3">
               <FileText className="size-4 shrink-0 text-primary" aria-hidden />
               <div className="min-w-0 flex-1 basis-40">
                 <h3 className="font-heading text-body-sm font-bold text-foreground break-words">{m.title}</h3>
                 <p className="mt-0.5 text-body-xs text-muted-foreground line-clamp-2">{cleanSummary(m.summary)}</p>
               </div>
               {canManage && (
-                <div className="flex shrink-0 gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleOpenEdit(m)}><Edit2 className="size-3.5" />{t("edit")}</Button>
-                  <Button variant="outline" size="sm" onClick={() => setDeleteId(m.id)} className="text-destructive"><Trash2 className="size-3.5" />{t("delete")}</Button>
-                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon-sm" aria-label={m.title} className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground">
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-36">
+                    <DropdownMenuItem onSelect={() => handleOpenEdit(m)}>
+                      <Edit2 className="size-4 text-muted-foreground" />
+                      <span>{t("edit")}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => setDeleteId(m.id)} className="text-status-error focus:text-status-error">
+                      <Trash2 className="size-4" />
+                      <span>{t("delete")}</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
           ))}
@@ -172,7 +200,7 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 my-4 font-sans">
+          <div className="space-y-(--related-gap) my-4 font-sans">
             <div className="grid gap-2">
               <Label htmlFor="title" className="text-body-sm font-semibold">{t("title")}</Label>
               <Input

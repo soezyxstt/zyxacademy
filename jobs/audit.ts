@@ -1,4 +1,4 @@
-import { inngest } from "./client";
+import { defineJob } from "./define-job";
 import { db } from "@/db";
 import { enrollments } from "@/db/schema";
 import { gt, sql } from "drizzle-orm";
@@ -7,7 +7,7 @@ import { gt, sql } from "drizzle-orm";
  * Continuous Improvement: daily content-quality audit cron.
  * Runs once per day at 03:00 UTC.
  */
-export const contentQualityAuditCron = inngest.createFunction(
+export const contentQualityAuditCron = defineJob(
   {
     id: "content-quality-audit-cron",
     name: "Content Quality Audit Cron",

@@ -4,7 +4,7 @@ import type { PublicSectionReadModel } from "@/lib/articles/structured-read-mode
 
 mock.module("server-only", () => ({}));
 
-test("learner headings and breadcrumbs typeset authored math without changing heading semantics", async () => {
+test("learner headings and tags typeset authored math without changing heading semantics", async () => {
   process.env.BETTER_AUTH_SECRET ||= "local-scientific-heading-test-secret-32";
   process.env.SKIP_ENV_VALIDATION ||= "1";
   process.env.DATABASE_URL ||= "postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder";
@@ -15,7 +15,7 @@ test("learner headings and breadcrumbs typeset authored math without changing he
   const reader = renderWithMessages(<StructuredArticleSectionContent section={section} articleId="article" articleVersion={4} showProgress={false} />);
   expect(reader).toMatch(/<h2[^>]*>[\s\S]*?class="katex"[\s\S]*?<\/h2>/);
   expect(reader).not.toContain("katex-error");
-  const canvas = renderWithMessages(<ArticleReadingCanvas content="Isi." chapterTitle="Limit $L$" sectionTitle="Lingkungan $\\delta$" breadcrumbItems={["Toleransi $\\varepsilon$"]} />);
+  const canvas = renderWithMessages(<ArticleReadingCanvas content="Isi." chapterTitle="Limit $L$" sectionTitle="Lingkungan $\\delta$" conceptTags={["Toleransi $\\varepsilon$"]} />);
   expect(canvas).toMatch(/<h1[^>]*>[\s\S]*?class="katex"[\s\S]*?<\/h1>/);
   expect(canvas).toMatch(/<h2[^>]*>[\s\S]*?class="katex"[\s\S]*?<\/h2>/);
   expect(canvas.match(/class="katex"/g)?.length).toBe(3);

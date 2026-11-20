@@ -93,7 +93,7 @@ function MasteryMiniBar({ node, delay, lockedNote }: { node: PathNode; delay: nu
  style={{ width: `${node.score}%`, animationDelay: `${delay}ms` }}
  />
  </span>
- <span className="font-mono text-[10px] font-semibold text-muted-foreground">{node.score}</span>
+ <span className="font-mono text-body-2xs font-semibold text-muted-foreground">{node.score}</span>
  </span>
  );
 }
@@ -157,7 +157,7 @@ export function MasteryPathDemo() {
  >
  {node.name}
  </p>
- <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+ <p className="text-body-2xs font-medium uppercase tracking-wide text-muted-foreground">
  {t(`home.path.status.${node.status}`)}
  </p>
  <MasteryMiniBar node={node} delay={index * 140 + 200} lockedNote={t("home.path.lockedNote", { topic: node.lockedNote ?? node.name })} />

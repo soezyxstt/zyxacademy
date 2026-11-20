@@ -5,9 +5,10 @@ import Link from "next/link";
 import { Lock, Trophy } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { CourseLeaderboardContentSkeleton } from "@/components/course/course-skeletons";
-import { studentCardClass } from "@/components/course/course-surfaces";
+import { studentSectionClass } from "@/components/course/course-surfaces";
 import { createMetadata } from "@/lib/site";
 import { getCourse, getCourseLeaderboard } from "@/lib/course-utils";
+import { getVisibleStudentIdentities } from "@/lib/gamification/social";
 import { getAuthSession } from "@/lib/auth-session";
 import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
 import { EnrollmentForm } from "@/components/enrollment-form";
@@ -47,20 +48,20 @@ async function CourseLeaderboardContent({
 
   if (!hasFullContentAccess) {
     return (
-      <div className={studentCardClass()}>
-        <div className="flex items-start gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
-            <Lock className="size-5" />
+      <div className={studentSectionClass("flex min-h-[45vh] flex-col items-center justify-center px-4 py-12 text-center")}>
+        <div className="mx-auto flex w-full max-w-md flex-col items-center">
+          <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-muted text-muted-foreground ring-1 ring-border">
+            <Lock className="size-5" aria-hidden />
           </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="courseAccess.needToken" /></h3>
-            <p className="mt-1 text-body-sm text-muted-foreground">
-              Aktifkan kelas untuk melihat peringkat dan skor gabungan.
-            </p>
+          <h3 className="font-heading text-body-base font-bold text-foreground">
+            <TranslatedText namespace="learning" messageKey="courseAccess.needToken" />
+          </h3>
+          <p className="mt-1 text-body-sm text-muted-foreground">
+            <TranslatedText namespace="learning" messageKey="leaderboard.activateToView" />
+          </p>
+          <div className="mt-5 w-full text-left">
+            <EnrollmentForm />
           </div>
-        </div>
-        <div className="mt-4">
-          <EnrollmentForm />
         </div>
       </div>
     );
@@ -73,7 +74,10 @@ async function CourseLeaderboardContent({
     console.error("Error fetching course leaderboard:", err);
     rankedRows = [];
   }
-  return <StudentCourseLeaderboardContent rankedRows={rankedRows} userId={userId} activeType={activeType} isPka={id === PKA_COURSE_ID} />;
+  const identities = userId && rankedRows.length
+    ? await getVisibleStudentIdentities(userId, rankedRows.slice(0, 3).map(row => row.studentId)).catch(() => new Map())
+    : new Map();
+  return <StudentCourseLeaderboardContent identities={Object.fromEntries(identities)} rankedRows={rankedRows} userId={userId} activeType={activeType} isPka={id === PKA_COURSE_ID} />;
 }
 
 export default async function CourseLeaderboardPage({ params, searchParams }: Props) {

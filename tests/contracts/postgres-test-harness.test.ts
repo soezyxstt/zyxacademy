@@ -1,14 +1,18 @@
 import { expect, test } from "bun:test";
-import { sql } from "drizzle-orm";
+import { getTableName, is, sql } from "drizzle-orm";
+import { PgTable } from "drizzle-orm/pg-core";
 import { createPostgresTestDb } from "../helpers/postgres";
-import { user } from "../../db/schema";
+import * as schema from "../../db/schema";
+import * as extras from "../../db/schedule-extras";
+
+const { user } = schema;
 
 test("local PostgreSQL fixtures enforce native defaults and constraints and stay isolated", async()=>{
   const first=await createPostgresTestDb();
   try {
-    const tables=await first.testDb.execute(sql`SELECT count(*)::int AS count FROM information_schema.tables WHERE table_schema='public'`);
-    // Includes the Admin MCP outbox, AI settings, and solution collections.
-    expect(tables.rows[0].count).toBe(198);
+    const tables=await first.testDb.execute(sql`SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY table_name`);
+    const expectedTables = [...new Set(Object.values({ ...schema, ...extras }).filter(value => is(value, PgTable)).map(table => getTableName(table)))].sort();
+    expect(tables.rows.map(row => row.table_name)).toEqual(expectedTables);
     await first.testDb.insert(user).values({id:"fixture",name:"Local fixture",email:"fixture@example.invalid"});
     const [row]=await first.testDb.select().from(user);
     expect(row.createdAt).toBeInstanceOf(Date);

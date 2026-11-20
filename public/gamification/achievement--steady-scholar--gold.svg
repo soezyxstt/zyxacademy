@@ -1,0 +1,50 @@
+<svg width="150" height="130" viewBox="0 0 150 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Tier=Gold">
+<g id="Artwork / Editable vector">
+<g id="Group">
+<path id="Laurel / Stem" d="M60.0375 106.313C31.6875 94.5 27.75 63.7875 39.5625 35.4375" stroke="#805421" stroke-width="3" stroke-linejoin="round"/>
+<path id="Laurel / Leaf 0" d="M45.8625 96.8625C35.3625 94.2375 30.1125 89.25 30.1125 81.9C41.1375 82.95 46.3875 87.9375 45.8625 96.8625Z" fill="#CE9A36" stroke="#805421" stroke-linejoin="round"/>
+<path id="Laurel / Leaf vein 0" d="M44.2875 94.5L34.05 85.05" stroke="#FFE6A0" stroke-width="1.5" stroke-linejoin="round"/>
+<path id="Laurel / Leaf 1" d="M44.2875 86.625C33.7875 84 28.5375 79.0125 28.5375 71.6625C39.5625 72.7125 44.8125 77.7 44.2875 86.625Z" fill="#CE9A36" stroke="#805421" stroke-linejoin="round"/>
+<path id="Laurel / Leaf vein 1" d="M42.7125 84.2625L32.475 74.8125" stroke="#FFE6A0" stroke-width="1.5" stroke-linejoin="round"/>
+<path id="Laurel / Leaf 2" d="M42.7125 76.3875C32.2125 73.7625 26.9625 68.775 26.9625 61.425C37.9875 62.475 43.2375 67.4625 42.7125 76.3875Z" fill="#CE9A36" stroke="#805421" stroke-linejoin="round"/>
+<path id="Laurel / Leaf vein 2" d="M41.1375 74.025L30.9 64.575" stroke="#FFE6A0" stroke-width="1.5" stroke-linejoin="round"/>
+<path id="Laurel / Leaf 3" d="M44.2875 66.15C33.7875 63.525 28.5375 58.5375 28.5375 51.1875C39.5625 52.2375 44.8125 57.225 44.2875 66.15Z" fill="#CE9A36" stroke="#805421" stroke-linejoin="round"/>
+<path id="Laurel / Leaf vein 3" d="M42.7125 63.7875L32.475 54.3375" stroke="#FFE6A0" stroke-width="1.5" stroke-linejoin="round"/>
+</g>
+<g id="Group_2">
+<path id="Laurel / Stem_2" d="M89.9625 106.313C118.312 94.5 122.25 63.7875 110.437 35.4375" stroke="#805421" stroke-width="3" stroke-linejoin="round"/>
+<path id="Laurel / Leaf 0_2" d="M104.138 96.8625C114.638 94.2375 119.888 89.25 119.888 81.9C108.863 82.95 103.613 87.9375 104.138 96.8625Z" fill="#CE9A36" stroke="#805421" stroke-linejoin="round"/>
+<path id="Laurel / Leaf vein 0_2" d="M105.713 94.5L115.95 85.05" stroke="#FFE6A0" stroke-width="1.5" stroke-linejoin="round"/>
+<path id="Laurel / Leaf 1_2" d="M105.712 86.625C116.212 84 121.462 79.0125 121.462 71.6625C110.437 72.7125 105.187 77.7 105.712 86.625Z" fill="#CE9A36" stroke="#805421" stroke-linejoin="round"/>
+<path id="Laurel / Leaf vein 1_2" d="M107.287 84.2625L117.525 74.8125" stroke="#FFE6A0" stroke-width="1.5" stroke-linejoin="round"/>
+<path id="Laurel / Leaf 2_2" d="M107.288 76.3875C117.788 73.7625 123.038 68.775 123.038 61.425C112.013 62.475 106.763 67.4625 107.288 76.3875Z" fill="#CE9A36" stroke="#805421" stroke-linejoin="round"/>
+<path id="Laurel / Leaf vein 2_2" d="M108.863 74.025L119.1 64.575" stroke="#FFE6A0" stroke-width="1.5" stroke-linejoin="round"/>
+<path id="Laurel / Leaf 3_2" d="M105.712 66.15C116.212 63.525 121.462 58.5375 121.462 51.1875C110.437 52.2375 105.187 57.225 105.712 66.15Z" fill="#CE9A36" stroke="#805421" stroke-linejoin="round"/>
+<path id="Laurel / Leaf vein 3_2" d="M107.287 63.7875L117.525 54.3375" stroke="#FFE6A0" stroke-width="1.5" stroke-linejoin="round"/>
+</g>
+<path id="Frame / Outer silhouette" d="M75 14.9625L108.863 29.1375L106.5 66.9375C104.925 83.7375 94.425 97.9125 75 109.463C55.575 97.9125 45.075 83.7375 43.5 66.9375L41.1375 29.1375L75 14.9625Z" fill="#805421" stroke="#2A3C6A" stroke-width="2" stroke-linejoin="round"/>
+<path id="Frame / Metal rim" d="M75 12.6L108.863 26.775L106.5 64.575C104.925 81.375 94.425 95.55 75 107.1C55.575 95.55 45.075 81.375 43.5 64.575L41.1375 26.775L75 12.6Z" fill="#CE9A36" stroke="#805421" stroke-width="1.5" stroke-linejoin="round"/>
+<path id="Frame / Top bevel" d="M75 12.6L108.863 26.775L104.925 30.7125L75 18.1125L45.075 30.7125L41.1375 26.775L75 12.6Z" fill="#FFE6A0"/>
+<path id="Frame / Enamel base" d="M75 20.475L100.2 31.5L98.625 63.7875C97.05 76.3875 89.175 87.4125 75 96.8625C60.825 87.4125 52.95 76.3875 51.375 63.7875L49.8 31.5L75 20.475Z" fill="#81412D" stroke="#FFE6A0" stroke-width="1.5" stroke-linejoin="round"/>
+<path id="Frame / Enamel shadow" d="M75 20.475L100.2 31.5L98.625 63.7875C97.05 76.3875 89.175 87.4125 75 96.8625V20.475Z" fill="#492C2B"/>
+<path id="Frame / Inner keyline" d="M75 25.2L95.475 34.65L93.9 62.2125C92.85 72.7125 86.55 82.1625 75 90.5625C63.45 82.1625 57.15 72.7125 56.1 62.2125L54.525 34.65L75 25.2Z" stroke="#CE9A36" stroke-linejoin="round"/>
+<path id="Frame / Enamel highlight" d="M57.675 37.8L72.6375 30.7125V33.8625L60.0375 40.1625L60.825 54.3375L57.675 55.9125V37.8Z" fill="#FFE6A0"/>
+<path id="Ornaments / Crest" d="M75 4.725L83.6625 14.175L75 23.625L66.3375 14.175L75 4.725Z" fill="#CE9A36" stroke="#805421" stroke-width="1.5" stroke-linejoin="round"/>
+<path id="Ornaments / Crest light" d="M75 4.725V14.175H66.3375L75 4.725Z" fill="#FFE6A0"/>
+<g id="Symbol / Learning family">
+<path id="Vector" d="M63.5025 59.094C63.5025 56.053 64.7105 53.1366 66.8608 50.9863C69.0111 48.836 71.9275 47.628 74.9685 47.628C78.0095 47.628 80.9259 48.836 83.0762 50.9863C85.2265 53.1366 86.4345 56.053 86.4345 59.094M74.9685 39.438V44.352M60.2265 45.99L63.5025 49.266M89.7105 45.99L86.4345 49.266M56.9505 57.456H61.8645M88.0725 57.456H92.9865M74.9685 75.474C79.8825 72.198 84.7965 70.56 89.7105 72.198V64.008C84.7965 62.37 79.8825 64.008 74.9685 67.284C70.0545 64.008 65.1405 62.37 60.2265 64.008V72.198C65.1405 70.56 70.0545 72.198 74.9685 75.474ZM74.9685 67.284V75.474" stroke="#FFF4D8" stroke-width="3.536" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<path id="Ribbon / Tail left" d="M46.65 87.4125L30.1125 84.2625L34.8375 95.2875L29.325 103.95H50.5875L46.65 87.4125Z" fill="#805421" stroke="#2A3C6A" stroke-linejoin="round"/>
+<path id="Ribbon / Tail right" d="M103.35 87.4125L119.888 84.2625L115.163 95.2875L120.675 103.95H99.4125L103.35 87.4125Z" fill="#805421" stroke="#2A3C6A" stroke-linejoin="round"/>
+<path id="Ribbon / Face" d="M45.8625 85.8375C65.2875 90.5625 84.7125 90.5625 104.137 85.8375L102.562 102.375C84.1875 107.625 65.8125 107.625 47.4375 102.375L45.8625 85.8375Z" fill="#CE9A36" stroke="#805421" stroke-width="1.5" stroke-linejoin="round"/>
+<path id="Ribbon / Top bevel" d="M45.8625 85.8375C65.2875 90.5625 84.7125 90.5625 104.137 85.8375L103.35 89.775C84.45 94.5 65.55 94.5 46.65 89.775L45.8625 85.8375Z" fill="#FFE6A0"/>
+<path id="Ribbon / Fold left" d="M45.8625 85.8375L41.925 91.35L47.4375 102.375L45.8625 85.8375Z" fill="#492C2B"/>
+<path id="Ribbon / Fold right" d="M104.137 85.8375L108.075 91.35L102.562 102.375L104.137 85.8375Z" fill="#492C2B"/>
+<path id="Ornaments / Bottom setting" d="M75 103.95L85.2375 113.4L75 123.637L64.7625 113.4L75 103.95Z" fill="#CE9A36" stroke="#805421" stroke-width="1.5" stroke-linejoin="round"/>
+<path id="Ornaments / Bottom gem" d="M75 107.1L81.3 113.4L75 119.7L68.7 113.4L75 107.1Z" fill="#81412D" stroke="#FFE6A0" stroke-linejoin="round"/>
+<path id="Ornaments / Gem facet" d="M75 107.1V113.4H68.7L75 107.1Z" fill="#FFE6A0"/>
+</g>
+<path id="III" d="M66.314 105V103.427H67.612V98.873H66.314V97.3H70.791V98.873H69.482V103.427H70.791V105H66.314ZM72.4156 105V103.427H73.7136V98.873H72.4156V97.3H76.8926V98.873H75.5836V103.427H76.8926V105H72.4156ZM78.5171 105V103.427H79.8151V98.873H78.5171V97.3H82.9941V98.873H81.6851V103.427H82.9941V105H78.5171Z" fill="#2A3C6A"/>
+</g>
+</svg>

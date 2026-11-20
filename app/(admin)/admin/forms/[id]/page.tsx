@@ -41,6 +41,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { MathText } from "@/components/course/math-text";
 import { useSpreadsheetExport } from "@/components/admin/spreadsheet-export";
@@ -512,84 +513,73 @@ export default function DetailedFormAnalyticsPage({
       {loading ? (
         <FormDetailSkeleton showHeader={!form} />
       ) : !form ? (
-        <Card className="flex flex-col items-center justify-center p-12 text-center">
-          <AlertCircle className="size-10 text-muted-foreground" />
-          <CardTitle className="mt-3 text-body-base font-heading">{t("formDetailsUI.formNotFound")}</CardTitle>
-        </Card>
+        <AdminEmptyState icon={AlertCircle} title={t("formDetailsUI.formNotFound")} />
       ) : (
         <Tabs
           value={responseTab}
           onValueChange={(val) => setResponseTab(val as any)}
           className="w-full"
         >
-          {/* Action Header & Tabs List */}
-          <Card className="shadow-sm">
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4">
-              <div>
-                <CardTitle className="text-body-base font-heading">
-                  {t("formDetailsUI.responsesCount", { count: responses.length })}
-                </CardTitle>
-              </div>
+          <TabsList>
+            <TabsTrigger value="summary">
+              <PieIcon className="size-4 text-primary" />
+              {t("formDetailsUI.summaryTab")}
+            </TabsTrigger>
+            <TabsTrigger value="question">
+              <QuestionIcon className="size-4 text-brand-secondary" />
+              {t("formDetailsUI.questionTab")}
+            </TabsTrigger>
+            <TabsTrigger value="individual">
+              <User className="size-4 text-tertiary-1" />
+              {t("formDetailsUI.respondentTab")}
+            </TabsTrigger>
+            <TabsTrigger value="settings">
+              <SettingsIcon className="size-4 text-status-warning" />
+              {t("formDetailsUI.settingsTab")}
+            </TabsTrigger>
+          </TabsList>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-body-sm font-semibold">
+              {t("formDetailsUI.responsesCount", { count: responses.length })}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportGoogleSheets}
+                disabled={responses.length === 0 || exportingSheets}
+                isLoading={exportingSheets}
+                className="text-primary hover:text-primary"
+              >
+                <FileText className="size-4" />
+                <span>{exportingSheets ? t("formDetailsUI.exporting") : t("formDetailsUI.exportSheets")}</span>
+              </Button>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportGoogleSheets}
-                  disabled={responses.length === 0 || exportingSheets}
-                  isLoading={exportingSheets}
-                  className="text-primary hover:text-primary"
-                >
-                  <FileText className="size-4" />
-                  <span>{exportingSheets ? t("formDetailsUI.exporting") : t("formDetailsUI.exportSheets")}</span>
-                </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportCSV}
+                disabled={responses.length === 0}
+                className="text-status-success hover:text-status-success"
+              >
+                <Download className="size-4" />
+                <span>{t("formDetailsUI.exportCsv")}</span>
+              </Button>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportCSV}
-                  disabled={responses.length === 0}
-                  className="text-status-success hover:text-status-success"
-                >
-                  <Download className="size-4" />
-                  <span>{t("formDetailsUI.exportCsv")}</span>
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={fetchAnalytics}
-                  title={t("formDetailsUI.refresh")}
-                >
-                  <RefreshCw className="size-4" />
-                </Button>
-              </div>
-            </CardHeader>
-
-            <CardContent className="border-t border-border pt-4">
-              <TabsList>
-                <TabsTrigger value="summary">
-                  <PieIcon className="size-4 text-primary" />
-                  {t("formDetailsUI.summaryTab")}
-                </TabsTrigger>
-                <TabsTrigger value="question">
-                  <QuestionIcon className="size-4 text-brand-secondary" />
-                  {t("formDetailsUI.questionTab")}
-                </TabsTrigger>
-                <TabsTrigger value="individual">
-                  <User className="size-4 text-tertiary-1" />
-                  {t("formDetailsUI.respondentTab")}
-                </TabsTrigger>
-                <TabsTrigger value="settings">
-                  <SettingsIcon className="size-4 text-status-warning" />
-                  {t("formDetailsUI.settingsTab")}
-                </TabsTrigger>
-              </TabsList>
-            </CardContent>
-          </Card>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={fetchAnalytics}
+                aria-label={t("formDetailsUI.refresh")}
+                title={t("formDetailsUI.refresh")}
+              >
+                <RefreshCw className="size-4" />
+              </Button>
+            </div>
+          </div>
 
           {/* TAB 1: SUMMARY */}
-          <TabsContent value="summary" className="space-y-6">
+          <TabsContent value="summary" className="divide-y divide-border border-y border-border">
             {(form.questions || []).map((q: any, qIdx: number) => {
               if (q.type === "SECTION" || q.type === "STATEMENT") return null;
               const num = questionNumberMap.get(qIdx) || qIdx + 1;
@@ -665,8 +655,8 @@ export default function DetailedFormAnalyticsPage({
                 : (chartTypeMap[qIdx] || "pie");
 
               return (
-                <Card key={qIdx} className="shadow-sm">
-                  <CardHeader className="flex flex-row items-start justify-between gap-3 pb-3">
+                <section key={qIdx}>
+                  <CardHeader className="flex flex-row items-start justify-between gap-2 px-4 py-3">
                     <div>
                       <CardTitle className="text-body-sm font-heading">
                         {num}. {questionTitle}
@@ -722,7 +712,7 @@ export default function DetailedFormAnalyticsPage({
                     </div>
                   </CardHeader>
 
-                  <CardContent>
+                  <CardContent className="px-4 pb-4">
                     {allAnswers.length === 0 ? (
                       <p className="text-body-xs text-muted-foreground italic bg-muted/30 p-4 rounded-lg">
                         {t("formDetailsUI.noAnswersForQuestion")}
@@ -799,56 +789,54 @@ export default function DetailedFormAnalyticsPage({
                       </div>
                     )}
                   </CardContent>
-                </Card>
+                </section>
               );
             })}
           </TabsContent>
 
           {/* TAB 2: QUESTION */}
-          <TabsContent value="question" className="space-y-6">
-            <Card className="shadow-sm">
-              <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex-1 space-y-1.5">
-                  <Label className="text-body-xs font-bold text-primary uppercase tracking-wider">
-                    {t("formDetailsUI.questionPosition", { current: selectedQIndex + 1, total: visibleQuestions.length })}
-                  </Label>
-                  <Select
-                    value={selectedQIndex.toString()}
-                    onValueChange={(val) => setSelectedQIndex(parseInt(val, 10))}
-                  >
-                    <SelectTrigger className="w-full text-body-sm font-medium">
-                      <SelectValue placeholder={t("formDetailsUI.chooseQuestion")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {visibleQuestions.map(({ qIdx, q }, i) => (
-                        <SelectItem key={i} value={i.toString()}>
-                          {questionNumberMap.get(qIdx) || i + 1}. {q.title || `Soal #${questionNumberMap.get(qIdx) || i + 1}`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+          <TabsContent value="question" className="space-y-4">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div className="min-w-36 flex-1 space-y-1">
+                <Label htmlFor="response-question" className="text-body-xs font-semibold">
+                  {t("formDetailsUI.questionPosition", { current: selectedQIndex + 1, total: visibleQuestions.length })}
+                </Label>
+                <Select
+                  value={selectedQIndex.toString()}
+                  onValueChange={(val) => setSelectedQIndex(parseInt(val, 10))}
+                >
+                  <SelectTrigger id="response-question" variant="inline" className="w-full">
+                    <SelectValue placeholder={t("formDetailsUI.chooseQuestion")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {visibleQuestions.map(({ qIdx, q }, i) => (
+                      <SelectItem key={i} value={i.toString()}>
+                        {questionNumberMap.get(qIdx) || i + 1}. {q.title || `Soal #${questionNumberMap.get(qIdx) || i + 1}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-                <div className="flex items-center gap-2 self-end sm:self-center">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={selectedQIndex === 0}
-                    onClick={() => setSelectedQIndex((prev) => Math.max(0, prev - 1))}
-                  >
-                    <ChevronLeft className="size-4" /> {t("formDetailsUI.previousQuestion")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={selectedQIndex === visibleQuestions.length - 1}
-                    onClick={() => setSelectedQIndex((prev) => Math.min(visibleQuestions.length - 1, prev + 1))}
-                  >
-                    {t("formDetailsUI.nextQuestion")} <ChevronRight className="size-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+              <div className="flex items-center gap-2 self-end sm:self-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={selectedQIndex === 0}
+                  onClick={() => setSelectedQIndex((prev) => Math.max(0, prev - 1))}
+                >
+                  <ChevronLeft className="size-4" /> {t("formDetailsUI.previousQuestion")}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={selectedQIndex === visibleQuestions.length - 1}
+                  onClick={() => setSelectedQIndex((prev) => Math.min(visibleQuestions.length - 1, prev + 1))}
+                >
+                  {t("formDetailsUI.nextQuestion")} <ChevronRight className="size-4" />
+                </Button>
+              </div>
+            </div>
 
             {(() => {
               const target = visibleQuestions[selectedQIndex];
@@ -893,59 +881,55 @@ export default function DetailedFormAnalyticsPage({
           </TabsContent>
 
           {/* TAB 3: INDIVIDUAL */}
-          <TabsContent value="individual" className="space-y-6">
+          <TabsContent value="individual" className="space-y-4">
             {responses.length === 0 ? (
-              <Card className="p-12 text-center text-muted-foreground text-body-sm">
-                {t("formDetailsUI.noResponses")}
-              </Card>
+              <AdminEmptyState icon={User} title={t("formDetailsUI.noResponses")} />
             ) : (
               <>
-                <Card className="shadow-sm">
-                  <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        disabled={individualIndex === 0}
-                        onClick={() => setIndividualIndex((prev) => Math.max(0, prev - 1))}
-                      >
-                        <ChevronLeft className="size-4" />
-                      </Button>
-                      <span className="text-body-sm font-semibold text-foreground px-2">
-                        {t("formDetailsUI.respondentPosition", { current: individualIndex + 1, total: responses.length })}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        disabled={individualIndex === responses.length - 1}
-                        onClick={() => setIndividualIndex((prev) => Math.min(responses.length - 1, prev + 1))}
-                      >
-                        <ChevronRight className="size-4" />
-                      </Button>
-                    </div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      disabled={individualIndex === 0}
+                      onClick={() => setIndividualIndex((prev) => Math.max(0, prev - 1))}
+                    >
+                      <ChevronLeft className="size-4" />
+                    </Button>
+                    <span className="text-body-sm font-semibold text-foreground px-2">
+                      {t("formDetailsUI.respondentPosition", { current: individualIndex + 1, total: responses.length })}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      disabled={individualIndex === responses.length - 1}
+                      onClick={() => setIndividualIndex((prev) => Math.min(responses.length - 1, prev + 1))}
+                    >
+                      <ChevronRight className="size-4" />
+                    </Button>
+                  </div>
 
-                    <div className="text-right text-body-xs">
-                      <p className="font-semibold text-foreground">{responses[individualIndex]?.responderEmail || t("formDetailsUI.anonymous")}</p>
-                      <p className="text-muted-foreground font-mono text-body-xs">
-                        {new Date(responses[individualIndex]?.submittedAt).toLocaleDateString(locale === "id" ? "id-ID" : "en-US")}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
+                  <div className="text-right text-body-xs">
+                    <p className="font-semibold text-foreground">{responses[individualIndex]?.responderEmail || t("formDetailsUI.anonymous")}</p>
+                    <p className="text-muted-foreground font-mono text-body-xs">
+                      {new Date(responses[individualIndex]?.submittedAt).toLocaleDateString(locale === "id" ? "id-ID" : "en-US")}
+                    </p>
+                  </div>
+                </div>
 
                 {(() => {
                   const currentResp = responses[individualIndex];
                   if (!currentResp) return null;
 
                   return (
-                    <div className="space-y-4">
+                    <div className="divide-y divide-border border-y border-border">
                       {visibleQuestions.map(({ qIdx, q }, visibleIndex) => {
                         const questionNumber = questionNumberMap.get(qIdx) || visibleIndex + 1;
                         const qTitle = q.title || t("formDetailsUI.questionNumber", { number: questionNumber });
                         const userAns = currentResp.answers[qIdx] ?? currentResp.answers[qTitle];
 
                         return (
-                          <section key={qIdx} className="border-b border-border pb-3">
+                          <section key={qIdx} className="px-4 py-3">
                             <CardHeader className="px-0 pb-2">
                               <CardTitle className="text-body-sm font-heading">
                                 <MathText as="span">{`${questionNumber}. ${qTitle}`}</MathText>

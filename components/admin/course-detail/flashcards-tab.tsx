@@ -13,8 +13,10 @@ import {
   CheckCircle2,
   AlertCircle,
   FolderPlus,
+  MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AdminIconAction } from "@/components/admin/icon-action";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,11 +38,12 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/toast";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
@@ -474,7 +477,6 @@ export function FlashcardsTab({
           icon={CheckCircle2}
           label={t("courseDetail.flashcards.status.published")}
           value={publishedCards}
-          tone="success"
           caption={t("courseDetail.flashcards.stats.availableToStudents")}
         />
         <AdminStatStripItem
@@ -487,19 +489,25 @@ export function FlashcardsTab({
       </AdminStatStrip>
 
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[140px]">
+      <div className="group/flashcard-toolbar flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 max-sm:[&:has(>[data-search-expanded=true])>:not([data-search-expanded=true]):not([data-active-filter])]:hidden">
           <SearchBar
+            collapsible
             size="sm"
+            containerClassName="min-w-[140px]"
             placeholder={t("courseDetail.flashcards.search")}
             value={search}
             onSearch={setSearch}
             onClear={() => setSearch("")}
-            containerClassName="flex-1 min-w-[160px] max-w-sm"
           />
 
           <Select value={chapterFilter} onValueChange={setChapterFilter}>
-            <SelectTrigger className="w-[160px] h-9 text-body-sm rounded-lg shrink-0">
+            <SelectTrigger
+              variant="inline"
+              aria-label={t("courseDetail.flashcards.linkChapter")}
+              data-active-filter={chapterFilter === "all" ? undefined : ""}
+              className="max-w-40 shrink-0"
+            >
               <SelectValue placeholder={t("courseDetail.flashcards.allChapters")} />
             </SelectTrigger>
             <SelectContent>
@@ -514,7 +522,12 @@ export function FlashcardsTab({
           </Select>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[140px] h-9 text-body-sm rounded-lg shrink-0">
+            <SelectTrigger
+              variant="inline"
+              aria-label={t("courseDetail.flashcards.statusLabel")}
+              data-active-filter={statusFilter === "all" ? undefined : ""}
+              className="max-w-36 shrink-0"
+            >
               <SelectValue placeholder={t("courseDetail.flashcards.allStatuses")} />
             </SelectTrigger>
             <SelectContent>
@@ -526,25 +539,20 @@ export function FlashcardsTab({
           </Select>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleOpenNewSet}
-            className="text-body-sm rounded-lg"
-          >
-            <FolderPlus className="size-4 mr-1.5" />
-            {t("courseDetail.flashcards.addSet")}
-          </Button>
-
-          <Button
-            size="sm"
-            onClick={() => handleOpenNewCard()}
-            className="text-body-sm rounded-lg"
-          >
-            <Plus className="size-4 mr-1.5" />
-            {t("courseDetail.flashcards.addCard")}
-          </Button>
+        <div className="ml-auto flex shrink-0 items-center gap-2 max-sm:group-has-[[data-search-expanded=true]]/flashcard-toolbar:hidden">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <AdminIconAction label={t("courseDetail.flashcards.addMenu")}><Plus aria-hidden /></AdminIconAction>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={handleOpenNewSet}>
+                <FolderPlus aria-hidden /> {t("courseDetail.flashcards.addSet")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleOpenNewCard()}>
+                <Plus aria-hidden /> {t("courseDetail.flashcards.addCard")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -568,37 +576,28 @@ export function FlashcardsTab({
           }
         />
       ) : (
-        <div className="space-y-4">
+        <div className="divide-y divide-border border-y border-border">
           {filteredSets.map((set) => {
             const isExpanded = expandedSets.has(set.id);
             return (
-              <div
-                key={set.id}
-                className="rounded-xl border border-border bg-card shadow-xs overflow-hidden transition-all"
-              >
-                {/* Set Header */}
-                <div className="flex items-center justify-between p-4 bg-muted/20 border-b border-border gap-3">
-                  <div
-                    className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
+              <section key={set.id}>
+                <div className="flex items-center justify-between gap-2 px-3 py-2">
+                  <button
+                    type="button"
                     onClick={() => toggleSetExpanded(set.id)}
+                    aria-expanded={isExpanded}
+                    className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <button
-                      type="button"
-                      className="text-muted-foreground hover:text-foreground shrink-0"
-                      aria-label={isExpanded ? t("courseDetail.flashcards.collapseSet") : t("courseDetail.flashcards.expandSet")}
-                    >
-                      {isExpanded ? (
-                        <ChevronDown className="size-5" />
-                      ) : (
-                        <ChevronRight className="size-5" />
-                      )}
-                    </button>
-
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-heading text-body-base font-bold text-foreground truncate">
+                    {isExpanded ? (
+                      <ChevronDown className="size-4 shrink-0" />
+                    ) : (
+                      <ChevronRight className="size-4 shrink-0" />
+                    )}
+                    <span className="min-w-0">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="min-w-0 break-words font-heading text-body-base font-bold text-foreground">
                           {set.title}
-                        </h3>
+                        </span>
                         <StatusBadge
                           tone={
                             set.status === "published"
@@ -611,12 +610,12 @@ export function FlashcardsTab({
                           {set.status}
                         </StatusBadge>
                         {set.chapterTitle && (
-                          <Badge variant="outline" className="text-body-2xs">
+                          <Badge variant="outline" className="min-w-0 whitespace-normal break-words text-body-xs">
                             {set.chapterTitle}
                           </Badge>
                         )}
-                      </div>
-                      <p className="text-body-xs text-muted-foreground mt-0.5">
+                      </span>
+                      <span className="mt-0.5 block text-body-xs text-muted-foreground">
                         {set.cards.length} kartu
                         {set.updatedAt && (
                           <>
@@ -625,89 +624,48 @@ export function FlashcardsTab({
                             <FormattedDate date={set.updatedAt} />
                           </>
                         )}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Actions for Set */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 px-2 text-body-xs rounded-lg text-primary hover:text-primary hover:bg-primary/10"
-                            onClick={() => handleOpenNewCard(set.id)}
-                          >
-                            <Plus className="size-3.5 mr-1" />
-                            Kartu
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>{t("courseDetail.flashcards.addCardToSet")}</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8 rounded-lg"
-                            aria-label={t("courseDetail.flashcards.editSet")}
-                            onClick={() => handleOpenEditSet(set)}
-                          >
-                            <Pencil className="size-3.5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>{t("courseDetail.flashcards.editSet")}</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
-                            aria-label={t("courseDetail.flashcards.deleteSet")}
-                            onClick={() =>
-                              setDeleteTarget({
-                                type: "set",
-                                id: set.id,
-                                title: set.title,
-                              })
-                            }
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>{t("courseDetail.flashcards.deleteSet")}</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
+                      </span>
+                    </span>
+                  </button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" aria-label={`${t("courses.actions")} · ${set.title}`} className="shrink-0">
+                        <MoreHorizontal className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={() => handleOpenNewCard(set.id)}>
+                        <Plus className="size-4" />
+                        {t("courseDetail.flashcards.addCardToSet")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => handleOpenEditSet(set)}>
+                        <Pencil className="size-4" />
+                        {t("courseDetail.flashcards.editSet")}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setDeleteTarget({ type: "set", id: set.id, title: set.title })}>
+                        <Trash2 className="size-4" />
+                        {t("courseDetail.flashcards.deleteSet")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
                 {/* Cards Container */}
                 {isExpanded && (
-                  <div className="p-4">
+                  <div className="border-t border-border/60 px-4 py-3">
                     {set.cards.length === 0 ? (
-                      <div className="py-8 text-center text-body-sm text-muted-foreground">
-                        Belum ada kartu di dalam set ini.
-                        <div className="mt-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenNewCard(set.id)}
-                            className="text-body-xs rounded-lg"
-                          >
-                            <Plus className="size-3.5 mr-1" />
+                      <AdminEmptyState
+                        icon={Layers}
+                        title="Belum ada kartu"
+                        className="py-4"
+                        action={
+                          <Button variant="outline" size="sm" onClick={() => handleOpenNewCard(set.id)}>
+                            <Plus className="size-4" />
                             Tambah kartu pertama
                           </Button>
-                        </div>
-                      </div>
+                        }
+                      />
                     ) : (
                       <div className="divide-y divide-border">
                         {set.cards.map((card, idx) => (
@@ -733,31 +691,32 @@ export function FlashcardsTab({
                                     {card.status}
                                   </StatusBadge>
 
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="size-7 rounded-md"
-                            aria-label={t("courseDetail.flashcards.editCard")}
-                                    onClick={() => handleOpenEditCard(card, set.id)}
-                                  >
-                                    <Pencil className="size-3" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="size-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
-                            aria-label={t("courseDetail.flashcards.deleteCard")}
-                                    onClick={() =>
-                                      setDeleteTarget({
-                                        type: "card",
-                                        id: card.id,
-                                        title: card.front.slice(0, 40) + "...",
-                                        setId: set.id,
-                                      })
-                                    }
-                                  >
-                                    <Trash2 className="size-3" />
-                                  </Button>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" aria-label={`${t("courses.actions")} · ${idx + 1}`}>
+                                        <MoreHorizontal className="size-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onSelect={() => handleOpenEditCard(card, set.id)}>
+                                        <Pencil className="size-4" />
+                                        {t("courseDetail.flashcards.editCard")}
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        className="text-destructive focus:text-destructive"
+                                        onSelect={() => setDeleteTarget({
+                                          type: "card",
+                                          id: card.id,
+                                          title: card.front.slice(0, 40) + "...",
+                                          setId: set.id,
+                                        })}
+                                      >
+                                        <Trash2 className="size-4" />
+                                        {t("courseDetail.flashcards.deleteCard")}
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
                                 </div>
                               </div>
 
@@ -797,7 +756,7 @@ export function FlashcardsTab({
                     )}
                   </div>
                 )}
-              </div>
+              </section>
             );
           })}
         </div>

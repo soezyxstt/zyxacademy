@@ -1,3 +1,7 @@
+import { gamificationMissionsCron, gamificationMissionsPage } from './gamification-missions';
+export { gamificationMissionsCron, gamificationMissionsPage } from './gamification-missions';
+import { gamificationOutboxCron } from "./gamification";
+export { gamificationOutboxCron } from "./gamification";
 import { adminOperationsWorker } from "./admin-operations";
 export { adminOperationsWorker } from "./admin-operations";
 export { inngest } from "./client";
@@ -58,11 +62,27 @@ import { pdfThumbnailWorker } from "./pdf-thumbnail";
 import { sourceReadPageWorker } from "./source-read";
 import { sourceFigureWorker } from "./source-figure";
 import { productVerificationWorker } from "./product-verification";
+import { discussionAiCron } from "./discussion-ai";
+import { discussionNotificationsWorker } from "./discussion-notifications";
+import { discussionImageSweepCron } from "./discussion-image-sweep";
+import { discussionThreadTitleWorker } from "./discussion-title";
+
+export { discussionAiCron } from "./discussion-ai";
+export { discussionNotificationsWorker } from "./discussion-notifications";
+export { discussionImageSweepCron } from "./discussion-image-sweep";
+export { discussionThreadTitleWorker } from "./discussion-title";
 
 /**
  * All background functions for Deno/compute Inngest execution.
  */
 export const computeFunctions = [
+  discussionAiCron,
+  discussionThreadTitleWorker,
+  discussionNotificationsWorker,
+  discussionImageSweepCron,
+  gamificationOutboxCron,
+  gamificationMissionsCron,
+  gamificationMissionsPage,
   adminOperationsWorker,
   sourceReadPageWorker,
   sourceFigureWorker,

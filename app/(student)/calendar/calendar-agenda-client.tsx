@@ -14,6 +14,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 
@@ -38,13 +39,15 @@ export type CalendarEventItem = {
   status: "upcoming" | "today" | "past";
 };
 
+const CALENDAR_FILTERS = { all: "calendar.filterAll", quiz_tryout: "calendar.filterAssessments", tutorial: "calendar.filterTutorial" } as const;
+
 export function CalendarAgendaClient({
   events,
 }: {
   events: CalendarEventItem[];
 }) {
   const t = useTranslations("student");
-  const [filter, setFilter] = useState<"all" | "quiz_tryout" | "tutorial">("all");
+  const [filter, setFilter] = useState<keyof typeof CALENDAR_FILTERS>("all");
 
   const filteredEvents = events.filter((ev) => {
     if (filter === "quiz_tryout") return ev.category === "quiz" || ev.category === "tryout";
@@ -57,55 +60,15 @@ export function CalendarAgendaClient({
 
   return (
     <div className="space-y-6">
-      {/* Category filter chips */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-3">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Button
-            variant="outline"
-            size="sm"
-            type="button"
-            onClick={() => setFilter("all")}
-            aria-pressed={filter === "all"}
-            className={cn(
-              "rounded-lg px-3 py-1.5 text-body-sm font-medium transition-all cursor-pointer border",
-              filter === "all"
-                ? "border-brand-primary bg-brand-primary/10 text-brand-primary ring-1 ring-brand-primary/20"
-                : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
-            {t("calendar.filterAll")}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            type="button"
-            onClick={() => setFilter("quiz_tryout")}
-            aria-pressed={filter === "quiz_tryout"}
-            className={cn(
-              "rounded-lg px-3 py-1.5 text-body-sm font-medium transition-all cursor-pointer border",
-              filter === "quiz_tryout"
-                ? "border-brand-primary bg-brand-primary/10 text-brand-primary ring-1 ring-brand-primary/20"
-                : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
-            {t("calendar.filterAssessments")}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            type="button"
-            onClick={() => setFilter("tutorial")}
-            aria-pressed={filter === "tutorial"}
-            className={cn(
-              "rounded-lg px-3 py-1.5 text-body-sm font-medium transition-all cursor-pointer border",
-              filter === "tutorial"
-                ? "border-brand-primary bg-brand-primary/10 text-brand-primary ring-1 ring-brand-primary/20"
-                : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
-            {t("calendar.filterTutorial")}
-          </Button>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-2">
+        <Select value={filter} onValueChange={(value) => setFilter(value as keyof typeof CALENDAR_FILTERS)}>
+          <SelectTrigger variant="inline" aria-label={t("calendar.eventCategory")}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(CALENDAR_FILTERS).map(([value, key]) => <SelectItem key={value} value={value}>{t(key)}</SelectItem>)}
+          </SelectContent>
+        </Select>
 
         <Link
           href="/dashboard/schedule"
@@ -118,7 +81,7 @@ export function CalendarAgendaClient({
 
       {/* Events list */}
       {filteredEvents.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center">
+        <div className="px-4 py-5 text-center">
           <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
             <Calendar className="size-6" />
           </div>
@@ -131,9 +94,6 @@ export function CalendarAgendaClient({
           <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
             <Button asChild size="sm" className="rounded-lg text-body-sm">
               <Link href="/courses">{t("calendar.exploreCourses")}</Link>
-            </Button>
-            <Button asChild variant="outline" size="sm" className="rounded-lg text-body-sm">
-              <Link href="/dashboard/schedule">{t("calendar.tutorialSchedule")}</Link>
             </Button>
           </div>
         </div>
@@ -231,7 +191,7 @@ function EventCard({
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={cn(
-              "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+              "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-body-2xs font-bold uppercase tracking-wider",
               event.category === "tutorial"
                 ? "bg-muted text-foreground"
                 : "bg-muted text-foreground"

@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 
 import { Lock } from "lucide-react";
 import { CourseFlashcardSkeleton } from "@/components/course/course-skeletons";
-import { studentCardClass } from "@/components/course/course-surfaces";
+import { studentSectionClass } from "@/components/course/course-surfaces";
 import { createMetadata } from "@/lib/site";
 import { FlashcardClient } from "./flashcard-client";
 import { Reveal } from "@/components/ui/reveal";
@@ -52,7 +52,7 @@ async function CourseFlashcardContent({
   return (
     <Reveal>
       {!canUseFlashcards ? (
-        <div className={studentCardClass("mx-auto max-w-2xl text-center")}>
+        <div className={studentSectionClass("mx-auto max-w-2xl text-center")}>
           <div className="mx-auto mb-3 flex size-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 ring-1 ring-amber-500/20">
             <Lock className="size-5" />
           </div>

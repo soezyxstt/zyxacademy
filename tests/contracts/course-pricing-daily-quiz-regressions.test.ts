@@ -17,6 +17,11 @@ afterAll(() => client.close());
 test("daily quiz uses published canonical and legacy scope for GET and signed server grading", async () => {
   await testDb.insert(schema.user).values(["student", "other"].map((id) => ({ id: `daily-${id}`, name: id, email: `daily-${id}@test.local`, role: "student" as const })));
   await testDb.insert(schema.pengguna).values([{ id: "daily-student" }, { id: "daily-other" }]);
+  await testDb.insert(schema.peran).values({ id: "role-murid", code: "murid" });
+  await testDb.insert(schema.penggunaPeran).values([
+    { id: "membership-daily-student", penggunaId: "daily-student", peranId: "role-murid", source: "test" },
+    { id: "membership-daily-other", penggunaId: "daily-other", peranId: "role-murid", source: "test" },
+  ]);
   await testDb.insert(schema.courses).values([{ id: "daily-course", title: "Course", category: "Fisika" }, { id: "daily-foreign", title: "Foreign", category: "Fisika" }]);
   await testDb.insert(schema.mataKuliah).values([{ id: "daily-canonical", code: "DAILY", title: "Course", legacyCourseId: "daily-course", pricingCategory: "free" }, { id: "daily-other-course", code: "DAILY-OTHER", title: "Foreign", legacyCourseId: "daily-foreign" }]);
   await testDb.insert(schema.chapters).values({ id: "daily-old-first", courseId: "daily-course", title: "First", orderIndex: 1, status: "published" });

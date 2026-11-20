@@ -1,3 +1,4 @@
+import { expectedComputeFunctionCount } from "./worker-function-count.mjs";
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
@@ -78,7 +79,7 @@ async function main() {
     const health = await fetch(`${target.origin}/health`, { cache: "no-store", signal: AbortSignal.timeout(30_000) });
     assert.equal(health.status, 200, "ADMIN_KNOWLEDGE_HEALTH_FAILED");
     const worker = await health.json();
-    assert.equal(worker.functions, 22, "ADMIN_KNOWLEDGE_FUNCTION_COUNT_MISMATCH");
+    assert.equal(worker.functions, expectedComputeFunctionCount, "ADMIN_KNOWLEDGE_FUNCTION_COUNT_MISMATCH");
     assert.match(config.ZYX_COMPUTE_REVISION, /^[a-f0-9]{64}$/);
     assert.equal(worker.version, config.ZYX_COMPUTE_REVISION, "ADMIN_KNOWLEDGE_REVISION_MISMATCH");
 

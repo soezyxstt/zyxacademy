@@ -179,12 +179,12 @@ export const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
     content: "Pengaturan profil dan identitas pengguna",
   },
   {
-    title: "Pengaturan akun",
-    subtitle: "Settings",
+    title: "Preferensi",
+    subtitle: "Preferences",
     href: "/settings",
     group: "Halaman",
-    keywords: "profil preferensi tema notifikasi password pengaturan",
-    content: "Setelan akun aplikasi dan preferensi notifikasi",
+    keywords: "profil preferensi tema bahasa notifikasi spasi ukuran teks animasi pengaturan",
+    content: "Tampilan aplikasi, profil, dan notifikasi email",
   },
   {
     title: "Umpan balik",

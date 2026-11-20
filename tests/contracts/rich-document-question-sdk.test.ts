@@ -36,7 +36,7 @@ function selected(table: unknown) {
 }
 const db: any = {
   select: () => ({ from: (table: unknown) => {
-    const query: any = { where: () => query, orderBy: async () => selected(table), limit: () => query, for: (mode: string) => { expect(mode).toBe("update"); locks.push(table); return query; }, then: (resolve: any, reject: any) => Promise.resolve(selected(table)).then(resolve, reject) };
+    const query: any = { where: () => query, orderBy: () => query, limit: () => query, for: (mode: string) => { expect(mode).toBe("update"); locks.push(table); return query; }, then: (resolve: any, reject: any) => Promise.resolve(selected(table)).then(resolve, reject) };
     return query;
   } }),
   transaction: async (fn: (tx: unknown) => unknown) => fn(db),
@@ -162,7 +162,7 @@ test("actual case questions pass local SDK authoring and retain scoped immutable
         }
         const lockStart = locks.length;
         const updated = await call("assessment.update_question", updateArgs);
-        expect(locks.slice(lockStart)).toEqual([schema.aiQuestionBank, schema.soal]);
+        expect(locks.slice(lockStart)).toEqual([schema.soal, schema.aiQuestionBank]);
         expect(updated.result.reviewStatus).toBe("generated");
         expect(await verifyQuestionVisualBinding("legacy-course", projections.get(currentId!))).toBe(true);
         expect(await verifyQuestionVisualBinding("legacy-course", saved)).toBe(true);
@@ -230,7 +230,7 @@ test("synthetic mixed question keeps the answer-only pair behind release", async
     const { id: _id, ideaLinks, ...updateQuestion } = question;
     const lockStart = locks.length;
     expect((await call("assessment.update_question", { runToken, bootstrapToken, questionId: currentId, question: updateQuestion, ideaLinks, visualAssets: envelope.visualAssets })).result.reviewStatus).toBe("generated");
-    expect(locks.slice(lockStart)).toEqual([schema.aiQuestionBank, schema.soal]);
+    expect(locks.slice(lockStart)).toEqual([schema.soal, schema.aiQuestionBank]);
     const saved = projections.get(currentId!);
     expect(await verifyQuestionVisualBinding("legacy-course", saved)).toBe(true);
     const canonicalSaved = canonical.get(currentId!);

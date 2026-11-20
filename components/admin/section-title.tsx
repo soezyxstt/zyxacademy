@@ -2,11 +2,11 @@ import type { ElementType, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const sizeClasses = {
-  h5: "font-heading text-body-base font-bold text-foreground",
-  h6: "font-heading text-body-base font-semibold text-foreground",
-  base: "font-heading text-body-base font-bold text-foreground",
-  sm: "font-heading text-body-sm font-bold text-foreground",
-  lg: "font-heading text-body-base font-bold text-foreground",
+  h5: "font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground",
+  h6: "font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground",
+  base: "font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground",
+  sm: "font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground",
+  lg: "font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground",
 } as const;
 
 export type AdminSectionTitleProps = {
@@ -35,15 +35,15 @@ export function AdminSectionTitle({
   className,
 }: AdminSectionTitleProps) {
   return (
-    <div className={cn("flex flex-col gap-1", border && "border-b border-border pb-3", className)}>
+    <div className={cn("flex flex-col gap-1", border && "border-b border-border/40 pb-2", className)}>
       {micro && (
-        <span className="text-[10px] text-muted-foreground uppercase tracking-wider block font-bold">
+        <span className="block text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground">
           {micro}
         </span>
       )}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <Tag className={cn("flex items-center gap-2", sizeClasses[size])}>
-          {Icon && <Icon className={cn("size-5 shrink-0", iconClassName ?? "text-brand-primary")} aria-hidden />}
+          {Icon && <Icon className={cn("size-4 shrink-0", iconClassName ?? "text-muted-foreground")} aria-hidden />}
           <span>{title}</span>
         </Tag>
         {right}

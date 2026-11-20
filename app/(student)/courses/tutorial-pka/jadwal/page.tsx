@@ -31,7 +31,7 @@ export default async function PkaJadwalPage() {
       description={<TranslatedText namespace="studentExtras.pka" messageKey="schedulePageDescription" values={{ count: PKA_TOTAL_SESSIONS }} />}
       icon={CalendarRange}
     >
-      <div className="space-y-8">
+      <div className="space-y-(--reading-section-gap)">
         <Reveal>
           <section className="space-y-3">
           <div className="border-b border-border pb-2">
@@ -43,7 +43,7 @@ export default async function PkaJadwalPage() {
               <TranslatedText namespace="studentExtras.pka" messageKey="noSessions" />
             </p>
           ) : (
-            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <ul className="divide-y divide-border">
               {schedules.map((a, idx) => {
                 const isPast = a.sessionAt.getTime() < now.getTime();
                 return (

@@ -79,7 +79,7 @@ export function AnalyticsTab({
       </AdminStatStrip>
 
       {/* Per Quiz Performance Table */}
-      <div className="rounded-xl border border-border bg-card shadow-2xs overflow-hidden">
+      <div className="border-y border-border">
         <div className="p-3 border-b border-border bg-muted/20 flex items-center justify-between">
           <h3 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
             <BarChart3 className="size-4 text-brand-primary" />

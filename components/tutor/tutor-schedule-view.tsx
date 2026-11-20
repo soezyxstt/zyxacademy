@@ -17,18 +17,32 @@ import {
   ShieldCheck,
   RotateCcw,
   MessageSquare,
+  MoreHorizontal,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { SearchBar } from "@/components/ui/search-bar";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { FormattedDate } from "@/components/ui/formatted-date";
@@ -60,7 +74,6 @@ import {
 import { ScheduleCalendarView } from "@/components/schedule/schedule-calendar-view";
 import calendarStyles from "@/components/schedule/schedule-calendar-readability.module.css";
 import { SessionDetailDrawer } from "@/components/schedule/session-detail-drawer";
-import { cn } from "@/lib/utils";
 import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import type {
@@ -118,6 +131,7 @@ export function TutorScheduleView({
   initialWeekOffset = 0,
 }: TutorScheduleViewProps) {
   const t = useTranslations("tutor.schedule");
+  const scheduleLabels = useTranslations("schedule");
   const statusLabel = useTranslations("schedule.session.status");
   const { locale } = useAppLocale();
   const router = useRouter();
@@ -436,132 +450,220 @@ export function TutorScheduleView({
     setIsAddSlotOpen(true);
   };
 
+  const showDayFilter = activeTab === "slots";
+  const showCourseFilter = (activeTab === "slots" || activeTab === "sessions") && initialData.assignedActiveCourses.length > 0;
+  const showGroupFilter = activeTab !== "groups" && initialData.eligibleGroups.length > 0;
+  const activeFilters = [
+    showDayFilter && selectedDayFilter !== "all",
+    showCourseFilter && selectedCourseFilter !== "all",
+    showGroupFilter && selectedGroupFilter !== "all",
+  ].filter(Boolean).length;
+  const filterLabel = activeFilters ? t("activeFilters", { count: activeFilters }) : scheduleLabels("calendar.filter");
+
+  const viewSelect = (
+    <Select value={activeTab} onValueChange={setActiveTab}>
+      <SelectTrigger
+        aria-label={t("calendar")}
+        variant="inline"
+        className="max-w-[180px] shrink-0 font-semibold"
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="calendar">{t("calendar")}</SelectItem>
+        <SelectItem value="tickets">{t("tickets")}</SelectItem>
+        <SelectItem value="groups">{t("classesGroups")}</SelectItem>
+        <SelectItem value="slots">{t("slots")}</SelectItem>
+        <SelectItem value="sessions">{t("sessions")}</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+
+  const headerActions = (
+    <>
+      <Popover>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <Button type="button" variant="ghost" size="lg" className="shrink-0 gap-1 px-2">
+                <Users className="size-3.5" />
+                <span>{filledSlotCount}/{openedSlotCount}</span>
+              </Button>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent>
+            {formatWeekDate(weekInfo.days[0].dateIso, locale)} - {formatWeekDate(weekInfo.days[6].dateIso, locale)}
+          </TooltipContent>
+        </Tooltip>
+        <PopoverContent align="end" className="w-60 space-y-1.5 p-3 text-body-xs">
+          <p className="font-semibold text-foreground">
+            {formatWeekDate(weekInfo.days[0].dateIso, locale)} - {formatWeekDate(weekInfo.days[6].dateIso, locale)}
+          </p>
+          <div className="flex justify-between text-muted-foreground"><span>{t("opened")}</span><strong className="text-foreground">{openedSlotCount}</strong></div>
+          <div className="flex justify-between text-muted-foreground"><span>{t("filled")}</span><strong className="text-foreground">{filledSlotCount}</strong></div>
+          <div className="flex justify-between text-muted-foreground"><span>{t("available")}</span><strong className="text-foreground">{availableSlotCount}</strong></div>
+        </PopoverContent>
+      </Popover>
+
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="ghost" size="icon-lg" aria-label={t("copyPreviousWeek")}>
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent>{t("copyPreviousWeek")}</TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuItem disabled={isPending} onSelect={handleCopyPreviousWeek}>
+            <CalendarDays className="size-4 text-muted-foreground" />
+            <span>{t("copyPreviousWeek")}</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            size="icon-lg"
+            onClick={openAddSlotDialog}
+            aria-label={t("addSlot")}
+          >
+            <Plus aria-hidden />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{t("addSlot")}</TooltipContent>
+      </Tooltip>
+    </>
+  );
+
   return (
-    <div className="space-y-4">
-      <header className="flex flex-col gap-3 border-b border-border pb-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h1 className="font-heading text-h5 font-bold text-foreground">{t("title")}</h1>
-            <span className="text-body-sm font-semibold text-foreground">
-              {formatWeekDate(weekInfo.days[0].dateIso, locale)} - {formatWeekDate(weekInfo.days[6].dateIso, locale)}
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-xs text-muted-foreground">
-            <span><strong className="text-foreground">{openedSlotCount}</strong> {t("opened")}</span>
-            <span><strong className="text-foreground">{filledSlotCount}</strong> {t("filled")}</span>
-            <span><strong className="text-foreground">{availableSlotCount}</strong> {t("available")}</span>
-          </div>
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <Button type="button" size="sm" variant="outline" disabled={isPending} onClick={handleCopyPreviousWeek} className="h-9 text-body-sm">
-            <CalendarDays className="size-3.5" />
-            {t("copyPreviousWeek")}
-          </Button>
-          <Button type="button" size="sm" onClick={openAddSlotDialog} className="h-9 text-body-sm">
-            <Plus className="size-4" />
-            {t("addSlot")}
-          </Button>
-        </div>
-      </header>
+    <TooltipProvider>
+    <div className="min-w-0 max-w-full space-y-(--compact-gap)">
+      <h1 className="sr-only">{t("title")}</h1>
 
       {activeTab !== "calendar" && (
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="min-w-[140px] max-w-sm flex-1">
+        <div className="group flex min-w-0 flex-wrap items-center gap-1.5">
+          {activeTab !== "groups" && (
             <SearchBar
+              collapsible
+              size="sm"
+              aria-label={t("search")}
               placeholder={t("search")}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              size="sm"
+              onSearch={setSearchQuery}
+              containerClassName="max-w-sm"
             />
+          )}
+          <div className="flex min-w-0 items-center gap-1 group-has-[[data-search-expanded=true]]:max-sm:hidden">
+            {viewSelect}
+            {(showDayFilter || showCourseFilter || showGroupFilter) && <Popover>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      size="icon-lg"
+                      variant={activeFilters ? "secondary" : "ghost"}
+                      aria-label={filterLabel}
+                    >
+                      <SlidersHorizontal aria-hidden />
+                      {activeFilters > 0 && <span aria-hidden className="absolute right-1 top-0.5 text-body-2xs font-semibold text-primary">{activeFilters}</span>}
+                    </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>{filterLabel}</TooltipContent>
+              </Tooltip>
+              <PopoverContent align="start" className="w-64 max-w-[calc(100dvw-2rem)] space-y-2">
+                {showDayFilter && <Select value={selectedDayFilter} onValueChange={setSelectedDayFilter}>
+                  <SelectTrigger aria-label={t("chooseDay")}>
+                    <SelectValue placeholder={t("chooseDay")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("allDays")}</SelectItem>
+                    {INDONESIAN_DAYS.map((day) => <SelectItem key={day} value={day}>{t(`days.${day}`)}</SelectItem>)}
+                  </SelectContent>
+                </Select>}
+                {showCourseFilter && (
+                  <Select value={selectedCourseFilter} onValueChange={setSelectedCourseFilter}>
+                    <SelectTrigger aria-label={t("allCourses")}>
+                      <SelectValue placeholder={t("allCourses")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("allCourses")}</SelectItem>
+                      {initialData.assignedActiveCourses.map((course) => (
+                        <SelectItem key={course.courseId} value={course.courseId}>{course.title}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {showGroupFilter && (
+                  <Select value={selectedGroupFilter} onValueChange={setSelectedGroupFilter}>
+                    <SelectTrigger aria-label={t("allGroups")}>
+                      <SelectValue placeholder={t("allGroups")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("allGroups")}</SelectItem>
+                      {initialData.eligibleGroups.map((group) => (
+                        <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </PopoverContent>
+            </Popover>}
           </div>
-          <Select value={selectedDayFilter} onValueChange={setSelectedDayFilter}>
-            <SelectTrigger className="h-9 w-[130px] shrink-0 rounded-lg text-body-sm">
-              <SelectValue placeholder={t("chooseDay")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("allDays")}</SelectItem>
-              {INDONESIAN_DAYS.map((day) => <SelectItem key={day} value={day}>{t(`days.${day}`)}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          {initialData.assignedActiveCourses.length > 0 && (
-            <Select value={selectedCourseFilter} onValueChange={setSelectedCourseFilter}>
-              <SelectTrigger className="h-9 w-[150px] shrink-0 rounded-lg text-body-sm">
-                <SelectValue placeholder={t("allCourses")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("allCourses")}</SelectItem>
-                {initialData.assignedActiveCourses.map((course) => (
-                  <SelectItem key={course.courseId} value={course.courseId}>{course.title}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          {initialData.eligibleGroups.length > 0 && (
-            <Select value={selectedGroupFilter} onValueChange={setSelectedGroupFilter}>
-              <SelectTrigger className="h-9 w-[150px] shrink-0 rounded-lg text-body-sm">
-                <SelectValue placeholder={t("allGroups")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("allGroups")}</SelectItem>
-                {initialData.eligibleGroups.map((group) => (
-                  <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <div className="ml-auto flex shrink-0 items-center gap-1 group-has-[[data-search-expanded=true]]:max-sm:hidden">
+            {headerActions}
+          </div>
         </div>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
-        <div>
-          <TabsList>
-            <TabsTrigger value="calendar">{t("calendar")}</TabsTrigger>
-            <TabsTrigger value="tickets">{t("tickets")}</TabsTrigger>
-            <TabsTrigger value="groups">{t("classesGroups")}</TabsTrigger>
-            <TabsTrigger value="slots">{t("slots")}</TabsTrigger>
-            <TabsTrigger value="sessions">{t("sessions")}</TabsTrigger>
-          </TabsList>
+      {activeTab === "calendar" && (
+        <div className={calendarStyles.root}>
+          <ScheduleCalendarView
+            role="teacher"
+            currentUserId={currentUserId}
+            weekInfo={weekInfo}
+            isWeekLocked={isWeekLocked}
+            weekOffset={weekOffset}
+            onWeekChange={handleWeekChange}
+            coursesList={initialData.assignedActiveCourses.map((c) => ({ id: c.courseId, title: c.title }))}
+            groupsList={initialData.eligibleGroups.map((g) => ({ id: g.id, name: g.name }))}
+            slots={scheduleData.ownedSlots}
+            bookings={scheduleData.ownedBookings}
+            onCreateScheduleDirect={handleCreateSlotDirect}
+            onMoveSession={handleOpenMoveModal}
+            onDeleteSlot={requestDeleteSlot}
+            onOpenSessionDetail={(booking) => setActiveSessionBookingId(booking.id)}
+            leadingToolbarControls={viewSelect}
+            trailingToolbarControls={headerActions}
+          />
         </div>
+      )}
 
-        <TabsContent value="calendar" className="space-y-3">
-          <div className={calendarStyles.root}>
-            <ScheduleCalendarView
-              role="teacher"
-              currentUserId={currentUserId}
-              weekInfo={weekInfo}
-              isWeekLocked={isWeekLocked}
-              weekOffset={weekOffset}
-              onWeekChange={handleWeekChange}
-              coursesList={initialData.assignedActiveCourses.map((c) => ({ id: c.courseId, title: c.title }))}
-              groupsList={initialData.eligibleGroups.map((g) => ({ id: g.id, name: g.name }))}
-              slots={scheduleData.ownedSlots}
-              bookings={scheduleData.ownedBookings}
-              onCreateScheduleDirect={handleCreateSlotDirect}
-              onMoveSession={handleOpenMoveModal}
-              onDeleteSlot={requestDeleteSlot}
-              onOpenSessionDetail={(booking) => setActiveSessionBookingId(booking.id)}
-            />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="slots" className="space-y-3">
+      {activeTab === "slots" && (
+        <div className="space-y-(--compact-gap)">
           {filteredSlots.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-card">
+            <div className="border-t border-border">
               <AdminEmptyState icon={CalendarDays} title={t("noSlots")} description={t("noSlotsDescription")} />
             </div>
           ) : (
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <div className="divide-y divide-border border-y border-border">
               {filteredSlots.map((slot) => {
                 const isBooked = Boolean(slot.booking);
                 return (
-                  <div key={slot.id} className="flex flex-col justify-between gap-3 p-4 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center">
+                  <div key={slot.id} className="flex flex-col justify-between gap-(--compact-gap) py-3 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center">
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-heading text-body-base font-bold text-foreground">{t(`days.${slot.dayOfWeek}`)}</span>
                         <Badge variant={isBooked ? "default" : "secondary"} className="rounded-md text-body-xs font-semibold">{isBooked ? t("booked") : t("open")}</Badge>
                         <Badge variant="outline" className="rounded-md text-body-xs font-normal">{slot.mode === "online" ? t("online") : t("inPerson")}</Badge>
                       </div>
-                      <div className="flex flex-wrap items-center gap-3 text-body-xs text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-(--compact-gap) text-body-xs text-muted-foreground">
                         <span className="inline-flex items-center gap-1"><Clock className="size-3.5" />{slot.startTime} - {slot.endTime} (90m)</span>
                         {slot.location && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" />{slot.location}</span>}
                         {slot.sessionDate && <span>{t("date")}: {slot.sessionDate}</span>}
@@ -574,12 +676,20 @@ export function TutorScheduleView({
                       {slot.booking && <p className="pt-0.5 text-body-xs font-medium text-foreground">{t("topic")}: {slot.booking.topic || t("noSpecificTopic")}</p>}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      {isBooked ? (
-                        <Button variant="outline" size="sm" disabled className="h-8 rounded-lg text-body-sm opacity-60">{t("booked")}</Button>
-                      ) : !slotsWithHistory.has(slot.id) ? (
-                        <Button variant="ghost" size="sm" disabled={isPending} onClick={() => requestDeleteSlot(slot.id)} className="h-8 rounded-lg text-body-sm text-status-error hover:bg-status-error/10 hover:text-status-error">
-                          <Trash2 className="mr-1.5 size-4" />{t("delete")}
-                        </Button>
+                      {!isBooked && !slotsWithHistory.has(slot.id) ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon-sm" disabled={isPending} aria-label={t("delete")} className="h-8 w-8 rounded-lg">
+                              <MoreHorizontal className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-36">
+                            <DropdownMenuItem onSelect={() => requestDeleteSlot(slot.id)} className="text-status-error focus:text-status-error">
+                              <Trash2 className="size-4" />
+                              <span>{t("delete")}</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       ) : null}
                     </div>
                   </div>
@@ -587,22 +697,24 @@ export function TutorScheduleView({
               })}
             </div>
           )}
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="sessions" className="space-y-3">
+      {activeTab === "sessions" && (
+        <div className="space-y-(--compact-gap)">
           {filteredBookings.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-card"><AdminEmptyState icon={BookOpen} title={t("noSessions")} /></div>
+            <div className="border-t border-border"><AdminEmptyState icon={BookOpen} title={t("noSessions")} /></div>
           ) : (
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <div className="divide-y divide-border border-y border-border">
               {filteredBookings.map((booking) => (
-                <div key={booking.id} className="flex flex-col justify-between gap-3 p-4 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center">
+                <div key={booking.id} className="flex flex-col justify-between gap-(--compact-gap) py-3 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center">
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-heading text-body-base font-bold text-foreground">{booking.course?.title || t("course")}</span>
                       <Badge variant="outline" className="rounded-md border-brand-primary/30 text-body-xs font-semibold text-brand-primary">{booking.group?.name || t("group")}</Badge>
                       <Badge variant={booking.status === "completed" ? "default" : "secondary"} className="rounded-md text-body-xs">{statusLabel(booking.status === "completed" || booking.status === "cancelled" ? booking.status : "scheduled")}</Badge>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 text-body-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-(--compact-gap) text-body-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1"><Clock className="size-3.5" />{booking.sessionDate} ({booking.startTime} - {booking.endTime})</span>
                       <span className="inline-flex items-center gap-1"><Users className="size-3.5" />{t("representativeShort")}: {booking.student?.name || t("leader")}</span>
                     </div>
@@ -624,19 +736,21 @@ export function TutorScheduleView({
               ))}
             </div>
           )}
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="tickets" className="space-y-3">
+      {activeTab === "tickets" && (
+        <div className="space-y-(--compact-gap)">
           {filteredTickets.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-card"><AdminEmptyState icon={ShieldCheck} title={t("noTickets")} /></div>
+            <div className="border-t border-border"><AdminEmptyState icon={ShieldCheck} title={t("noTickets")} /></div>
           ) : (
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <div className="divide-y divide-border border-y border-border">
               {filteredTickets.map((ticket) => {
                 const isPendingTicket = ticket.status === "pending";
                 const isThreadOpen = openThreadId === ticket.id;
                 return (
-                  <div key={ticket.id} className="space-y-3 p-4">
-                    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                  <Collapsible key={ticket.id} open={isThreadOpen} onOpenChange={(open) => { setOpenThreadId(open ? ticket.id : null); setReplyText(""); }} className="space-y-(--compact-gap) py-3">
+                    <div className="flex flex-col justify-between gap-(--compact-gap) sm:flex-row sm:items-center">
                       <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-heading text-body-base font-bold text-foreground">{t("ticket")}: {ticket.type === "reschedule" ? t("reschedule") : t("cancellation")}</span>
@@ -651,30 +765,53 @@ export function TutorScheduleView({
                         {ticket.proposedDate && <p className="text-body-xs text-muted-foreground">{t("proposedDate")}: {ticket.proposedDate}</p>}
                         {ticket.decisionNotes && <p className="text-body-xs italic text-muted-foreground">{t("notes")}: {ticket.decisionNotes}</p>}
                       </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => { setOpenThreadId(isThreadOpen ? null : ticket.id); setReplyText(""); }} aria-expanded={isThreadOpen} className="h-8 rounded-lg text-body-sm">
-                          <MessageSquare className="mr-1.5 size-4" />{t("discussion")}{ticket.messages.length > 0 ? ` (${ticket.messages.length})` : ""}
-                        </Button>
-                        {isPendingTicket && (
-                          <Button size="sm" onClick={() => { setDecidingTicket(ticket); setTicketDecision("approved"); setDecisionNotesInput(""); setIsDecideTicketOpen(true); }} className="h-8 rounded-lg bg-brand-primary text-body-sm text-primary-foreground hover:bg-brand-primary/90">{t("decide")}</Button>
-                        )}
-                      </div>
+                      {isPendingTicket ? (
+                        <DropdownMenu>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon-lg" aria-label={t("ticketActions")}>
+                                  <MoreHorizontal aria-hidden />
+                                </Button>
+                              </DropdownMenuTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("ticketActions")}</TooltipContent>
+                          </Tooltip>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={() => { setOpenThreadId(isThreadOpen ? null : ticket.id); setReplyText(""); }}>
+                              <MessageSquare aria-hidden />
+                              {isThreadOpen ? t("hideDiscussion") : t("discussion")}
+                              {ticket.messages.length > 0 ? ` (${ticket.messages.length})` : ""}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => { setDecidingTicket(ticket); setTicketDecision("approved"); setDecisionNotesInput(""); setIsDecideTicketOpen(true); }}>
+                              {t("decide")}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        <CollapsibleTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-8 shrink-0 self-start rounded-lg text-body-sm sm:self-auto">
+                            <MessageSquare aria-hidden />
+                            {t("discussion")}{ticket.messages.length > 0 ? ` (${ticket.messages.length})` : ""}
+                          </Button>
+                        </CollapsibleTrigger>
+                      )}
                     </div>
-                    {isThreadOpen && (
-                      <div className="space-y-3 border-l-2 border-border pl-3">
+                    <CollapsibleContent>
+                      <div className="space-y-(--compact-gap) border-l-2 border-border pl-3">
                         {ticket.messages.length === 0 ? (
                           <p className="text-body-xs text-muted-foreground">{t("noMessages")}</p>
                         ) : (
-                          <ul className="space-y-2">
+                          <ul className="divide-y divide-border">
                             {ticket.messages.map((msg) => {
                               const isTutor = msg.senderId === currentUserId;
                               return (
-                                <li key={msg.id} className={cn("space-y-1 rounded-lg border p-2.5", isTutor ? "border-brand-primary/25 bg-brand-primary/5" : "border-border/70 bg-card")}>
-                                  <div className="flex items-center justify-between gap-2">
+                                <li key={msg.id} className="space-y-1 py-2.5">
+                                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                                     <p className="text-body-xs font-semibold text-foreground">{isTutor ? t("you") : msg.senderName || t("groupMember")}</p>
                                     <FormattedDate date={msg.createdAt} options={{ dateStyle: "short", timeStyle: "short" }} locale={locale === "en" ? "en-US" : "id-ID"} />
                                   </div>
-                                  <p className="whitespace-pre-wrap text-body-sm text-foreground">{msg.message}</p>
+                                  <p className="whitespace-pre-wrap wrap-anywhere text-body-sm text-foreground">{msg.message}</p>
                                 </li>
                               );
                             })}
@@ -682,37 +819,46 @@ export function TutorScheduleView({
                         )}
                         <div className="flex items-end gap-2">
                           <Textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder={t("replyPlaceholder")} className="min-h-[44px] flex-1 resize-none text-body-sm" maxLength={2000} />
-                          <Button size="sm" disabled={isPending || replyText.trim().length === 0} onClick={handleReplyTicket} aria-label={t("sendReply")} className="h-9 shrink-0 rounded-lg"><Send className="mr-1.5 size-4" />{t("send")}</Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button type="button" size="icon-lg" disabled={isPending || replyText.trim().length === 0} onClick={handleReplyTicket} aria-label={t("sendReply")}>
+                                <Send aria-hidden />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("sendReply")}</TooltipContent>
+                          </Tooltip>
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 );
               })}
             </div>
           )}
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="groups" className="space-y-4">
-          <div className="space-y-3">
+      {activeTab === "groups" && (
+        <div className="space-y-(--related-gap)">
+          <div className="space-y-(--compact-gap)">
             <h2 className="font-heading text-body-base font-bold text-foreground">{t("assignedCourses")}</h2>
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <div className="divide-y divide-border border-y border-border">
               {initialData.assignedActiveCourses.map((course) => (
-                <div key={course.courseId} className="flex items-center justify-between gap-3 p-4">
+                <div key={course.courseId} className="flex items-center justify-between gap-(--compact-gap) py-3">
                   <div><p className="font-heading text-body-sm font-bold text-foreground">{course.title}</p><p className="text-body-xs text-muted-foreground">{t("courseCode")}: {course.code || course.courseId}</p></div>
                   <Badge variant="outline" className="rounded-md text-body-xs text-muted-foreground">{course.isCompatibilityFallback ? t("legacyAssignment") : t("canonicalAssignment")}</Badge>
                 </div>
               ))}
             </div>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-(--compact-gap)">
             <h2 className="font-heading text-body-base font-bold text-foreground">{t("activeGroups")}</h2>
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <div className="divide-y divide-border border-y border-border">
               {initialData.eligibleGroups.length === 0 ? (
                 <AdminEmptyState icon={Users} title={t("noActiveGroups")} className="py-6" />
               ) : (
                 initialData.eligibleGroups.map((grp) => (
-                  <div key={grp.id} className="flex flex-col justify-between gap-3 p-4 sm:flex-row sm:items-center">
+                  <div key={grp.id} className="flex flex-col justify-between gap-(--compact-gap) py-3 sm:flex-row sm:items-center">
                     <div className="space-y-1">
                       <p className="font-heading text-body-sm font-bold text-foreground">{grp.name}</p>
                       <p className="text-body-xs text-muted-foreground">{t("package")}: {grp.packageName} ({grp.usedQuotaSessions}/{grp.totalQuotaSessions} {t("sessionsUsed")})</p>
@@ -724,8 +870,8 @@ export function TutorScheduleView({
               )}
             </div>
           </div>
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
 
       <Dialog open={isAddSlotOpen} onOpenChange={(open) => { if (!isPending) setIsAddSlotOpen(open); }}>
         <DialogContent className="sm:max-w-[460px]">
@@ -733,7 +879,7 @@ export function TutorScheduleView({
             <DialogTitle className="font-heading text-body-base font-bold">{t("addSlotTitle")}</DialogTitle>
             <DialogDescription className="text-body-xs">{t("addSlotDescription")}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 py-2">
+          <div className="space-y-(--compact-gap) py-2">
             <div className="space-y-1">
               <Label htmlFor="tutor-slot-date" className="text-body-sm font-semibold">{t("date")}</Label>
               <Input
@@ -808,7 +954,7 @@ export function TutorScheduleView({
             <DialogTitle className="font-heading text-body-base font-bold">{t("moveSessionTitle")}</DialogTitle>
             <DialogDescription className="text-body-xs">{t("moveSessionDescription")}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 py-2">
+          <div className="space-y-(--compact-gap) py-2">
             <div className="space-y-1">
               <Label className="text-body-sm font-semibold">{t("targetSlot")}</Label>
               <Select value={targetMoveSlotId} onValueChange={setTargetMoveSlotId}>
@@ -838,7 +984,7 @@ export function TutorScheduleView({
             <DialogTitle className="font-heading text-body-base font-bold">{t("ticketDecisionTitle", { type: decidingTicket?.type === "reschedule" ? t("reschedule") : t("cancellation") })}</DialogTitle>
             <DialogDescription className="text-body-xs">{t("ticketDecisionDescription")}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 py-2">
+          <div className="space-y-(--compact-gap) py-2">
             <div className="space-y-1">
               <Label className="text-body-sm font-semibold">{t("decision")}</Label>
               <Select value={ticketDecision} onValueChange={(val) => setTicketDecision(val as "approved" | "rejected")}>
@@ -869,5 +1015,6 @@ export function TutorScheduleView({
         onSuccess={() => router.refresh()}
       />
     </div>
+    </TooltipProvider>
   );
 }

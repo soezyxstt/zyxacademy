@@ -12,12 +12,14 @@ import {
   Video,
   GraduationCap,
   LayoutDashboard,
+  MessageSquareText,
   Radio,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavCollapsible, NavItem, SidebarShell } from "@/components/sidebar-shell";
 import type { AssignedTutorCourse } from "@/components/tutor/tutor-course-switcher";
+import { DiscussionCountBadge } from "@/components/discussions/discussion-count-badge";
 
 export type { AssignedTutorCourse };
 
@@ -27,9 +29,10 @@ export interface TutorSidebarProps {
 
 export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
   const t = useTranslations("tutor.navigation");
+  const tDiscussion = useTranslations("tutor.schedule");
   const pathname = usePathname();
   const parts = pathname.split("/").filter(Boolean);
-  const courseId = parts[0] === "tutor" && parts[1] && parts[1] !== "schedule"
+  const courseId = parts[0] === "tutor" && parts[1] && !["schedule", "discussions", "docs"].includes(parts[1])
     ? parts[1]
     : undefined;
   const isCourseRoute = Boolean(courseId);
@@ -42,9 +45,9 @@ export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
   const navContent = (collapsed: boolean) => (
     <nav
       className={cn(
-        "flex flex-1 flex-col gap-1 py-4 font-sans text-left",
+        "flex min-h-0 flex-1 flex-col gap-1 py-3 font-sans text-left",
         collapsed
-          ? "items-center overflow-y-hidden px-1 sidebar-scroll-hidden"
+          ? "items-center overflow-y-auto overflow-x-hidden px-1 sidebar-scroll-hidden"
           : "overflow-y-auto overflow-x-hidden px-3 sidebar-scroll",
       )}
     >
@@ -63,6 +66,10 @@ export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
         active={pathname === "/tutor/schedule" || pathname.startsWith("/tutor/schedule/")}
         collapsed={collapsed}
       />
+
+      <NavItem href="/tutor/discussions" icon={MessageSquareText} label={tDiscussion("discussion")}
+        active={pathname === "/tutor/discussions" || pathname.startsWith("/tutor/discussions/")}
+        badge={<DiscussionCountBadge />} collapsed={collapsed} />
 
       <NavCollapsible
         id="tutor-teaching"
@@ -135,6 +142,9 @@ export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
             active={pathname === `/tutor/${courseId}/participants` || pathname.startsWith(`/tutor/${courseId}/participants/`)}
             collapsed={collapsed}
           />
+          <NavItem href={`/tutor/${courseId}/discussions`} icon={MessageSquareText} label={tDiscussion("discussion")}
+            active={pathname === `/tutor/${courseId}/discussions` || pathname.startsWith(`/tutor/${courseId}/discussions/`)}
+            badge={<DiscussionCountBadge courseId={courseId} />} collapsed={collapsed} />
           <NavItem
             href={`/tutor/${courseId}/quizzes`}
             icon={ClipboardList}
@@ -167,6 +177,14 @@ export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
       ) : null}
 
       <div className="flex-1" />
+
+      <NavItem
+        href="/tutor/docs"
+        icon={BookOpen}
+        label={t("docs")}
+        active={pathname === "/tutor/docs" || pathname.startsWith("/tutor/docs/")}
+        collapsed={collapsed}
+      />
     </nav>
   );
 

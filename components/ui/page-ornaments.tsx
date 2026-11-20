@@ -300,7 +300,7 @@ const CONFIGS: Record<Variant, VariantConfig> = {
 export function PageOrnaments({ variant }: { variant: Variant }) {
   const cfg = CONFIGS[variant];
   return (
-    <div data-page-ornaments className="pointer-events-none select-none absolute inset-0 overflow-hidden" aria-hidden>
+    <div data-page-ornaments className="pointer-events-none select-none absolute inset-0 overflow-hidden opacity-35 dark:opacity-25" aria-hidden>
       {cfg.glows.map((g, i) => <GlowBlob key={i} {...g} />)}
       {cfg.rings.map((r, i) => <RingCluster key={i} {...r} />)}
       <GeometricLayer shapes={cfg.shapes} />

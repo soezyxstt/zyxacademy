@@ -30,6 +30,15 @@ async function commit(name: string, input: Record<string, unknown>) { const plan
 beforeAll(async () => {  for (const id of ["admin", "one", "two", "suspended"]) { await database.insert(schema.user).values({ id, name: id, email: `${id}@example.test` }); await database.insert(schema.pengguna).values({ id, status: id === "suspended" ? "suspended" : "active" }); } await seedAdminMcpAuthority(database, principal); await grant(); });
 afterAll(async () => { await client.close(); });
 let jobId = "";
+test("global notification history excludes discussions before pagination", async () => {
+  await database.insert(schema.notifications).values([
+    { id: "history-0-private", userId: "one", type: "discussion", title: "Discussion update", body: "New activity" },
+    { id: "history-1-broadcast", userId: "one", type: "admin_broadcast", title: "Notice", body: "Update" },
+  ]);
+  const result = await call("notifications.history", { limit: 1, offset: 0 });
+  expect(result.ok).toBe(true);
+  expect(result.data.map((row: { id: string }) => row.id)).toEqual(["history-1-broadcast"]);
+});
 test("audience is explicit, excludes suspended users, never widens malformed targets", async () => {
   expect((await call("notifications.audience", { target: "course" })).error).toBe("INVALID_AUDIENCE");
   const audience = await call("notifications.audience", { target: "users", userIds: ["one", "suspended"] });

@@ -31,6 +31,7 @@ import { toast } from "@/components/ui/toast";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { AdminIconAction } from "@/components/admin/icon-action";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -345,7 +346,7 @@ export default function AdminMeetPage() {
       {/* Top Action Section: Create & Manage Active Meeting */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Card 1: Start Meeting Controls */}
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="border-b border-border pb-4">
           <div className="flex items-center gap-2">
             <PlusCircle className="size-5 text-brand-primary" />
             <h2 className="font-heading text-body-base font-bold text-foreground">
@@ -570,7 +571,7 @@ export default function AdminMeetPage() {
         </div>
 
         {/* Card 2: Active Meeting Card */}
-        <div className="rounded-xl border border-border bg-card p-4 flex flex-col justify-between">
+        <div className="flex flex-col justify-between border-y border-border py-4">
           <div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -751,22 +752,19 @@ export default function AdminMeetPage() {
           <h2 className="font-heading text-body-base font-bold text-foreground">
             {t("meetMainUI.historyHeading")}
           </h2>
-          <Button
+          <AdminIconAction label={t("meetMainUI.refresh")}
             type="button"
             variant="outline"
-            size="sm"
             onClick={fetchRecords}
-            disabled={loadingRecords}
-          >
-            <RefreshCw className={`size-3.5 ${loadingRecords ? "animate-spin" : ""}`} />
-            {t("meetMainUI.refresh")}
-          </Button>
+            disabled={loadingRecords}>
+            <RefreshCw className={`size-4 ${loadingRecords ? "animate-spin" : ""}`} />
+          </AdminIconAction>
         </div>
 
         {loadingRecords ? (
-          <div role="status" aria-label="Memuat" className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">{[0, 1, 2, 3].map((i) => <div key={i} className="flex items-center gap-4 px-4 py-3.5"><div className="min-w-0 flex-1 space-y-2"><Skeleton className="h-4 w-40 max-w-full" /><Skeleton className="h-3 w-24" /></div><Skeleton className="hidden h-4 w-24 sm:block" /><Skeleton className="hidden h-4 w-16 md:block" /><Skeleton className="h-8 w-8" /></div>)}</div>
+          <div role="status" aria-label="Memuat" className="divide-y divide-border border-y border-border">{[0, 1, 2, 3].map((i) => <div key={i} className="flex items-center gap-4 px-4 py-(--table-row-padding)"><div className="min-w-0 flex-1 space-y-2"><Skeleton className="h-4 w-40 max-w-full" /><Skeleton className="h-3 w-24" /></div><Skeleton className="hidden h-4 w-24 sm:block" /><Skeleton className="hidden h-4 w-16 md:block" /><Skeleton className="h-8 w-8" /></div>)}</div>
         ) : records.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-12 text-center">
+          <div className="flex flex-col items-center justify-center py-6 text-center">
             <Clock className="size-10 text-muted-foreground/60" />
             <p className="mt-3 font-heading text-body-base font-semibold text-foreground">
               {t("meetMainUI.noHistory")}
@@ -776,16 +774,16 @@ export default function AdminMeetPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="border-y border-border">
             <div className="overflow-x-auto">
               <Table className="w-full text-left text-body-sm">
                 <TableHeader className="border-b border-border bg-muted/50 text-body-xs font-semibold text-muted-foreground">
                   <TableRow>
-                    <TableHead className="px-4 py-3">{t("meetMainUI.titleColumn")}</TableHead>
-                    <TableHead className="px-4 py-3">{t("meetMainUI.timeColumn")}</TableHead>
-                    <TableHead className="px-4 py-3">{t("meetMainUI.durationColumn")}</TableHead>
-                    <TableHead className="px-4 py-3">{t("meetMainUI.participantsColumn")}</TableHead>
-                    <TableHead className="px-4 py-3 text-right">{t("meetMainUI.actionsColumn")}</TableHead>
+                    <TableHead className="px-4">{t("meetMainUI.titleColumn")}</TableHead>
+                    <TableHead className="px-4">{t("meetMainUI.timeColumn")}</TableHead>
+                    <TableHead className="px-4">{t("meetMainUI.durationColumn")}</TableHead>
+                    <TableHead className="px-4">{t("meetMainUI.participantsColumn")}</TableHead>
+                    <TableHead className="px-4 text-right">{t("meetMainUI.actionsColumn")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y divide-border">
@@ -797,7 +795,7 @@ export default function AdminMeetPage() {
 
                     return (
                       <TableRow key={rec.name} className="transition-colors hover:bg-muted/30">
-                        <TableCell className="whitespace-nowrap px-4 py-3.5 font-medium text-foreground">
+                        <TableCell className="whitespace-nowrap px-4 font-medium text-foreground">
                           <p className="text-body-sm font-bold text-foreground">
                             {rec.title || t("meetMainUI.recordFallback", { id: recordId.slice(0, 8) })}
                           </p>
@@ -806,7 +804,7 @@ export default function AdminMeetPage() {
                           </p>
                         </TableCell>
 
-                        <TableCell className="whitespace-nowrap px-4 py-3.5 text-foreground">
+                        <TableCell className="whitespace-nowrap px-4 text-foreground">
                           <p className="text-body-xs font-semibold">
                             {new Date(rec.startTime).toLocaleDateString(locale === "id" ? "id-ID" : "en-US", { day: "numeric", month: "short", year: "numeric" })}
                           </p>
@@ -815,11 +813,11 @@ export default function AdminMeetPage() {
                           </p>
                         </TableCell>
 
-                        <TableCell className="whitespace-nowrap px-4 py-3.5 font-medium text-muted-foreground">
+                        <TableCell className="whitespace-nowrap px-4 font-medium text-muted-foreground">
                           {calculateDuration(rec.startTime, rec.endTime)}
                         </TableCell>
 
-                        <TableCell className="whitespace-nowrap px-4 py-3.5">
+                        <TableCell className="whitespace-nowrap px-4">
                           <div className="flex items-center gap-1.5 text-body-xs font-semibold text-foreground">
                             <TrendingUp className="size-3.5 text-brand-primary" />
                             <span>{t("meetMainUI.peakLabel")}: <strong className="text-brand-primary">{peak}</strong></span>
@@ -827,7 +825,7 @@ export default function AdminMeetPage() {
                           </div>
                         </TableCell>
 
-                        <TableCell className="whitespace-nowrap px-4 py-3.5 text-right">
+                        <TableCell className="whitespace-nowrap px-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <Button variant="outline" size="sm" asChild>
                               <Link href={`/admin/meet/${recordId}`}>

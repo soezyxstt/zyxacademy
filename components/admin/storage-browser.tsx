@@ -26,6 +26,7 @@ import Image from "next/image";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { AdminIconAction } from "@/components/admin/icon-action";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -446,12 +447,12 @@ export function StorageBrowser() {
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2">
       <SearchBar
+        collapsible
         size="sm"
         value={query}
         onSearch={setQuery}
         onClear={() => setQuery("")}
         placeholder={t("storage.search")}
-        containerClassName="min-w-[140px] w-48 shrink-0 sm:w-64"
       />
       {visibleItems.length > 0 && (
         <label className="text-body-sm flex items-center gap-1.5 text-muted-foreground">
@@ -463,10 +464,9 @@ export function StorageBrowser() {
           {t("storage.selectAllLabel")}
         </label>
       )}
-      <Button variant="outline" size="sm" className="rounded-lg" onClick={() => void load(folder)} isLoading={loading}>
-        <RefreshCw className="size-3.5" />
-        {t("storage.reload")}
-      </Button>
+      <AdminIconAction label={t("storage.reload")} variant="outline" onClick={() => void load(folder)} isLoading={loading}>
+        <RefreshCw className="size-4" />
+      </AdminIconAction>
     </div>
   );
 
@@ -514,14 +514,14 @@ export function StorageBrowser() {
           {loading ? (
             <MediaItemsSkeleton />
           ) : error ? (
-            <div className="border-border rounded-xl border bg-card p-6 shadow-sm">
+            <div className="border-y border-border py-6">
               <p className="text-body-sm text-status-error">{error}</p>
               <Button variant="outline" size="sm" className="mt-4 rounded-lg" onClick={() => void load(folder)}>
                 {t("storage.reload")}
               </Button>
             </div>
           ) : !data || visibleItems.length === 0 ? (
-            <div className="border-border rounded-xl border bg-card shadow-sm">
+            <div className="border-y border-border">
               <AdminEmptyState
                 icon={FolderOpen}
                 title={query ? t("media.noResults") : t("media.emptyFolder")}
@@ -548,7 +548,7 @@ export function StorageBrowser() {
                       if (e.key === "Enter") navigate(f.path);
                     }}
                     className={cn(
-                      "border-border group relative select-none rounded-xl border bg-card p-2 text-left shadow-sm transition-all",
+                      "group relative select-none border-b border-border p-2 text-left transition-colors",
                       isSelected ? "border-primary ring-1 ring-primary/40" : "hover:border-border/70"
                     )}
                   >
@@ -596,7 +596,7 @@ export function StorageBrowser() {
                   <div
                     key={file.key}
                     className={cn(
-                      "border-border group relative select-none rounded-xl border bg-card p-2 text-left shadow-sm transition-all",
+                      "group relative select-none border-b border-border p-2 text-left transition-colors",
                       isSelected ? "border-primary ring-1 ring-primary/40" : "hover:border-border/70"
                     )}
                   >

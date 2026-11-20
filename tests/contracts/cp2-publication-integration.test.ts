@@ -1,4 +1,4 @@
-import { renderContractPdf } from "../helpers/chromium";
+import { createContractPdfRenderer } from "../helpers/chromium";
 import { describe, expect, test, beforeEach, afterAll } from "bun:test";
 import { mock } from "bun:test";
 import type { ArticleDocument } from "@/lib/materials/article-contract";
@@ -346,10 +346,21 @@ function loadNormalizedCp7Rehearsal(runName: string): {
   return { article, diktat };
 }
 
+const pdfRenderer = createContractPdfRenderer();
+
 describe("CP2 Publication Integration Contract", () => {
-  afterAll(async () => { await client.close(); });
+  afterAll(async () => {
+    const results = await Promise.allSettled([
+      pdfRenderer.close(stage => console.info(`CP2 PDF cleanup: ${stage}`)),
+      client.close(),
+    ]);
+    const failures = results.filter((result): result is PromiseRejectedResult => result.status === "rejected").map(result => result.reason);
+    if (failures.length === 1) throw failures[0];
+    if (failures.length > 1) throw new AggregateError(failures, "CP2_CLEANUP_FAILED");
+  });
 
   beforeEach(async () => {
+    console.info("CP2 test setup started");
     storageMap.clear();
 
     await client.exec('TRUNCATE TABLE "user", courses, mata_kuliah, peran CASCADE');
@@ -447,6 +458,7 @@ describe("CP2 Publication Integration Contract", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+    console.info("CP2 test setup completed");
   });
 
   async function stageTestBundle(
@@ -1326,9 +1338,12 @@ describe("CP2 Publication Integration Contract", () => {
   });
 
   for (const runName of ["limit-a", "limit-b", "eigen", "tcp"]) test(`runs the tracked ${runName} fixture through stage, review, real PDF, publish, and download gates`, async () => {
+    console.info(`CP2 rehearsal ${runName}: fixture loading`);
     const { article, diktat } = loadNormalizedCp7Rehearsal(runName);
+    console.info(`CP2 rehearsal ${runName}: HTML compiling`);
     const html = compileProductDiktatHtml({ article, diktat });
-    const pdfBytes = await renderContractPdf(html);
+    console.info(`CP2 rehearsal ${runName}: HTML compiled`);
+    const pdfBytes = await pdfRenderer.render(html, stage => console.info(`CP2 rehearsal ${runName}: ${stage}`));
     console.info(`CP2 rehearsal ${runName}: PDF rendered`);
 
     const inspected = await inspectProductDiktatPdf(pdfBytes);
