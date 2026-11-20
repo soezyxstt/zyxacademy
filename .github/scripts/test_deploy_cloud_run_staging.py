@@ -94,6 +94,14 @@ class CloudRunStagingTest(unittest.TestCase):
         self.assertEqual(cli.call_count, 2)
         self.assertIn(f"--to-revisions={PREVIOUS}=100", cli.call_args.args)
 
+    def test_candidate_tag_fits_cloud_run_combined_length_limit(self):
+        from deploy_cloud_run_staging import candidate_tag
+        for service in ("zyx-academy-staging-web", "zyx-academy-production-web"):
+            with patch("deploy_cloud_run_staging.SERVICE", service):
+                tag = candidate_tag("44681066182", "1")
+                self.assertEqual(tag, "c-44681066182-1")
+                self.assertLessEqual(len(tag) + len(service), 46)
+
 
 if __name__ == "__main__":
     unittest.main()
