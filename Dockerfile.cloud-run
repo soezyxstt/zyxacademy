@@ -11,10 +11,11 @@ RUN --mount=type=cache,target=/root/.bun/install/cache \
     PUPPETEER_SKIP_DOWNLOAD=true PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 bun install --frozen-lockfile
 COPY . .
 ARG CLOUD_RUN_BUILD_ID=local
+ARG CLOUD_RUN_BUILD_ENVIRONMENT=staging
 RUN --mount=type=secret,id=public_config,required=true \
     --mount=type=secret,id=sentry_auth_token \
     NEXT_OUTPUT=standalone NEXT_TELEMETRY_DISABLED=1 NEXT_DEPLOYMENT_ID="$CLOUD_RUN_BUILD_ID" \
-    ZYX_CLOUD_RUN=1 ZYX_MCP_ENVIRONMENT=staging NODE_OPTIONS=--max-old-space-size=4096 \
+    ZYX_CLOUD_RUN=1 CLOUD_RUN_BUILD_ENVIRONMENT="$CLOUD_RUN_BUILD_ENVIRONMENT" ZYX_MCP_ENVIRONMENT="$CLOUD_RUN_BUILD_ENVIRONMENT" NODE_OPTIONS=--max-old-space-size=4096 \
     node deploy/cloud-run/build.mjs
 
 # Keep PDF runtime entry points for both Node export conditions. Standalone

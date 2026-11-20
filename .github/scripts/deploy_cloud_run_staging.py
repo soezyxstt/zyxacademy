@@ -1,4 +1,4 @@
-"""Build release inputs and deploy only the isolated Cloud Run staging web service."""
+"""Release an explicitly selected Cloud Run environment with pinned targets."""
 import json
 import os
 from pathlib import Path
@@ -14,13 +14,17 @@ from prepare_worker_runtime import TARGETS
 
 PROJECT = "zyx-academy"
 REGION = "asia-southeast3"
-SERVICE = "zyx-academy-staging-web"
-REPOSITORY = "zyx-staging-web"
+ENVIRONMENT = os.environ.get("CLOUD_RUN_ENVIRONMENT", "staging")
+if ENVIRONMENT not in ("staging", "production"):
+    raise ValueError("Invalid Cloud Run environment.")
+SERVICE = f"zyx-academy-{ENVIRONMENT}-web"
+REPOSITORY = f"zyx-{ENVIRONMENT}-web"
 REGISTRY = f"{REGION}-docker.pkg.dev"
 IMAGE = f"{REGISTRY}/{PROJECT}/{REPOSITORY}/{SERVICE}"
-RUNTIME_ACCOUNT = f"zyx-staging-web-runtime@{PROJECT}.iam.gserviceaccount.com"
-SECRET_PREFIX = "zyx-staging-web-"
+RUNTIME_ACCOUNT = f"zyx-{ENVIRONMENT}-web-runtime@{PROJECT}.iam.gserviceaccount.com"
+SECRET_PREFIX = f"zyx-{ENVIRONMENT}-web-"
 STAGING = TARGETS["staging"]
+TARGET = TARGETS[ENVIRONMENT]
 ORIGIN_TOKEN = "CLOUD_RUN_ORIGIN_TOKEN"
 BUILD_KEYS = {"AUTHORING_VERIFICATION_BROWSER_PROVIDER", "AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION",
               "SENTRY_ORG", "SENTRY_PROJECT", "NEXT_PUBLIC_STAGING_MEDIA_ORIGIN"}
@@ -35,7 +39,7 @@ PLAIN_RUNTIME_KEYS = BUILD_KEYS | {
 REQUIRED_SECRET_KEYS = set(REQUIRED) - PLAIN_RUNTIME_KEYS | {
     ORIGIN_TOKEN, "INNGEST_SIGNING_KEY", "COMPUTE_SERVICE_SECRET", "DIKTAT_RENDERER_SECRET",
 }
-REVISION = re.compile(r"zyx-academy-staging-web-r([1-9][0-9]*)a([1-9][0-9]*)")
+REVISION = re.compile(re.escape(SERVICE) + r"-r([1-9][0-9]*)a([1-9][0-9]*)")
 COMMIT_SHA = re.compile(r"[a-f0-9]{40}")
 SOURCE_LABEL = "zyx-source-sha"
 DIGEST = re.compile(r"sha256:[a-f0-9]{64}")
@@ -60,6 +64,10 @@ def public_config(raw):
     require(all(is_build_key(key) and isinstance(value, str) and value.strip() and "\x00" not in value
                 for key, value in config.items()), "Invalid key or value in Cloud Run public configuration.")
     canonical = config.get("NEXT_PUBLIC_APP_URL", "")
+    if ENVIRONMENT == "production":
+        require(canonical == TARGET["origin"] and "NEXT_PUBLIC_STAGING_MEDIA_ORIGIN" not in config,
+                "Cloud Run production requires its exact public origin and production media.")
+        return config
     require(re.fullmatch(r"https://(?:staging\.zyxacademy\.com|zyx-academy-staging-edge\.[a-z0-9-]+\.workers\.dev)", canonical),
             "Cloud Run public origin must be the staging domain or the dedicated staging Worker.")
     require(config.get("NEXT_PUBLIC_STAGING_MEDIA_ORIGIN", "https://cdn-staging.zyxacademy.com")
@@ -125,12 +133,12 @@ def validate_template(spec, config):
     require("CF_ACCOUNT_ID" in plain and bool({"CF_API_TOKEN", "CF_BROWSER_API_TOKEN"} & refs.keys()),
             "Cloud Run staging Cloudflare Browser Run settings are incomplete.")
     expected = {
-        "ZYX_ENVIRONMENT": "staging", "ZYX_MCP_ENVIRONMENT": "staging",
+        "ZYX_ENVIRONMENT": ENVIRONMENT, "ZYX_MCP_ENVIRONMENT": ENVIRONMENT,
         "BETTER_AUTH_URL": config["NEXT_PUBLIC_APP_URL"],
-        "STORAGE_PROVIDER_MODE": "neon", "NEON_STORAGE_BUCKET": STAGING["bucket"], "AWS_REGION": "ap-southeast-1",
-        "AWS_ENDPOINT_URL_S3": f"https://{STAGING['branch']}.storage.c-3.ap-southeast-1.aws.neon.tech",
-        "INNGEST_ENV": STAGING["inngest"], "DIKTAT_RENDERER_URL": STAGING["renderer"],
-        "COMPUTE_SERVICE_URL": f"https://{STAGING['branch']}-zyxcompute.compute.c-3.ap-southeast-1.aws.neon.tech",
+        "STORAGE_PROVIDER_MODE": "neon", "NEON_STORAGE_BUCKET": TARGET["bucket"], "AWS_REGION": "ap-southeast-1",
+        "AWS_ENDPOINT_URL_S3": f"https://{TARGET['branch']}.storage.c-3.ap-southeast-1.aws.neon.tech",
+        "INNGEST_ENV": TARGET["inngest"], "DIKTAT_RENDERER_URL": TARGET["renderer"],
+        "COMPUTE_SERVICE_URL": f"https://{TARGET['branch']}-zyxcompute.compute.c-3.ap-southeast-1.aws.neon.tech",
     }
     for key, value in expected.items():
         require(plain.get(key) == value, "Cloud Run staging runtime does not match the expected " + key + ".")
@@ -147,6 +155,13 @@ def read_secret(ref):
 
 def verify_database(refs):
     runtime_url = read_secret(refs["DATABASE_URL"])
+    if ENVIRONMENT == "production":
+        validate_database(runtime_url, TARGET["host"])
+        result = command(["bun", "scripts/production/cloud-run-migration.ts", "--check", "--source-metadata", "scripts/production/cloud-run-source.json"], "Read-only production database gate",
+                env={**os.environ, "DATABASE_URL": runtime_url, "NEON_BRANCH_ID": TARGET["branch"],
+                     "NEON_EXPECTED_HOST": TARGET["host"], "NEON_EXPECTED_DATABASE": "neondb"})
+        require(json.loads(result).get("state") == "already complete", "Production database migration and history cutover must be complete before deployment.")
+        return
     validate_database(runtime_url, STAGING["host"])
     require(urlsplit(runtime_url).scheme == "postgresql" and urlsplit(runtime_url).username == "zyx_staging_app_20261115",
             "The staged runtime database URL must use the dedicated application role.")
@@ -163,8 +178,8 @@ def verify_database(refs):
 
 def prepare():
     require(os.environ.get("GITHUB_REPOSITORY") == "soezyxstt/zyxacademy"
-            and os.environ.get("GITHUB_REF") == "refs/heads/staging"
-            and os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch", "Only manual staging releases are supported.")
+            and os.environ.get("GITHUB_REF") == ("refs/heads/main" if ENVIRONMENT == "production" else "refs/heads/staging")
+            and os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch", "Only manual releases from the selected environment branch are supported.")
     sha = os.environ["GITHUB_SHA"]
     require(COMMIT_SHA.fullmatch(sha) and command(["git", "rev-parse", "HEAD"], "Read checkout") == sha,
             "Cloud Run checkout does not match the dispatched SHA.")
@@ -178,7 +193,7 @@ def prepare():
     require(re.fullmatch(r"projects/[1-9][0-9]*/locations/global/workloadIdentityPools/[a-z0-9-]+/providers/[a-z0-9-]+",
                          os.environ["CLOUD_RUN_WORKLOAD_IDENTITY_PROVIDER"]),
             "Configure CLOUD_RUN_STAGING_WORKLOAD_IDENTITY_PROVIDER in the staging GitHub environment.")
-    require(VERSION.fullmatch(os.environ["CLOUD_RUN_PREFLIGHT_DATABASE_VERSION"]),
+    require(ENVIRONMENT == "production" or VERSION.fullmatch(os.environ.get("CLOUD_RUN_PREFLIGHT_DATABASE_VERSION", "")),
             "Configure CLOUD_RUN_STAGING_PREFLIGHT_DATABASE_VERSION in the staging GitHub environment.")
     config = public_config(os.environ["CLOUD_RUN_PUBLIC_CONFIG"])
     (Path(os.environ["RUNNER_TEMP"]) / "cloud-run-public.json").write_text(json.dumps(config), encoding="utf-8")
@@ -271,13 +286,19 @@ def candidate(config, before):
     require(repository["format"] == "DOCKER", "Cloud Run staging requires a Docker repository.")
     gcloud("auth", "configure-docker", REGISTRY)
     tagged_image = f"{IMAGE}:{sha}-{run_id}-{attempt}"
-    command(["docker", "tag", f"zyx-staging-web:{sha}", tagged_image], "Tag staging image")
+    command(["docker", "tag", f"zyx-{ENVIRONMENT}-web:{sha}", tagged_image], "Tag release image")
     command(["docker", "push", tagged_image], "Push staging image", capture=False)
     image = registry_digest(tagged_image)
     provider = os.environ.get("QUEUE_PROVIDER", "inngest")
     require(provider in ("inngest", "cloud-tasks"), "Invalid candidate queue provider.")
-    run("deploy", SERVICE, "--image", image, "--update-env-vars", f"QUEUE_PROVIDER={provider}", "--no-traffic", "--tag", tag, "--revision-suffix", f"r{run_id}a{attempt}",
-        "--labels", f"{SOURCE_LABEL}={sha},environment=staging",
+    runtime_args = ["--update-env-vars", f"QUEUE_PROVIDER={provider}"]
+    if ENVIRONMENT == "production":
+        directory = Path(os.environ["RUNNER_TEMP"])
+        runtime_args = ["--env-vars-file", str(directory / "cloud-run-runtime.json"),
+                        "--set-secrets", (directory / "cloud-run-secret-refs.txt").read_text(),
+                        "--service-account", RUNTIME_ACCOUNT]
+    run("deploy", SERVICE, "--image", image, *runtime_args, "--no-traffic", "--tag", tag, "--revision-suffix", f"r{run_id}a{attempt}",
+        "--labels", f"{SOURCE_LABEL}={sha},environment={ENVIRONMENT}",
         "--execution-environment=gen2", "--cpu=1", "--memory=1Gi", "--min=0", "--max=1",
         "--min-instances=0", "--max-instances=1", "--concurrency=8", "--cpu-throttling",
         "--no-cpu-boost", "--timeout=300", "--port=8080")
@@ -344,16 +365,25 @@ def release():
     require(is_ready(before), "Pre-provisioned Cloud Run staging service is not ready.")
     operation = os.environ["CLOUD_RUN_OPERATION"]
     if operation == "candidate":
-        refs = validate_template(before["spec"]["template"]["spec"], config)
+        spec = (json.loads((Path(os.environ["RUNNER_TEMP"]) / "cloud-run-spec.json").read_text())
+                if ENVIRONMENT == "production" else before["spec"]["template"]["spec"])
+        refs = validate_template(spec, config)
         verify_database(refs)
         candidate(config, before)
     else:
         change_traffic(config, before, operation)
 
 
+def preflight():
+    require(ENVIRONMENT == "production", "Production preflight requires an explicit environment.")
+    config = prepare()
+    spec = json.loads((Path(os.environ["RUNNER_TEMP"]) / "cloud-run-spec.json").read_text())
+    verify_database(validate_template(spec, config))
+
+
 if __name__ == "__main__":
     try:
-        {"prepare": prepare, "release": release}[sys.argv[1]]()
+        {"prepare": prepare, "preflight": preflight, "release": release}[sys.argv[1]]()
     except (ValueError, KeyError, IndexError, OSError) as error:
         # URL/JSON exceptions and subprocess output may contain runtime data.
         sys.exit(str(error) if type(error) is ValueError else "Cloud Run staging operation failed. Check its prerequisites.")

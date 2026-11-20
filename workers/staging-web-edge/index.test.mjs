@@ -10,6 +10,19 @@ const env = {
   CLOUD_RUN_ORIGIN_TOKEN: "A".repeat(43),
 };
 
+test("production routing rejects staging origins and preserves the apex redirect", async (t) => {
+  setup(t, async () => new Response("production", { headers: { "Cache-Control": "no-store" } }));
+  const production = { ...env, ZYX_ENVIRONMENT: "production", PUBLIC_ORIGIN: "https://www.zyxacademy.com",
+    CLOUD_RUN_ORIGIN: "https://zyx-academy-production-web-123.asia-southeast3.run.app" };
+  const ctx = { waitUntil() {} };
+  assert.equal((await worker.fetch(new Request("https://www.zyxacademy.com/"), production, ctx)).status, 200);
+  const apex = await worker.fetch(new Request("https://zyxacademy.com/course?x=1"), production, ctx);
+  assert.equal(apex.status, 308);
+  assert.equal(apex.headers.get("Location"), "https://www.zyxacademy.com/course?x=1");
+  assert.equal((await worker.fetch(new Request("https://www.zyxacademy.com/"), { ...production, CLOUD_RUN_ORIGIN: runUrl }, ctx)).status, 503);
+  assert.equal((await worker.fetch(new Request(publicUrl), { ...env, CLOUD_RUN_ORIGIN: production.CLOUD_RUN_ORIGIN }, ctx)).status, 503);
+});
+
 function setup(t, upstream) {
   const entries = new Map();
   const puts = [];

@@ -65,13 +65,14 @@ jobs:
       - name: Verify PDF and authentication before routing Inngest
         env:
           COMPUTE_ENVIRONMENT: ${{ inputs.environment }}
-          QUEUE_SMOKE_PROVIDER: ${{ inputs.environment == 'staging' && 'cloud-tasks' || 'inngest' }}
+          QUEUE_SMOKE_PROVIDER: ${{ vars.QUEUE_PROVIDER || 'inngest' }}
         run: bun scripts/neon/smoke-worker.ts "$COMPUTE_ENVIRONMENT" --preflight
       - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
-        if: inputs.environment == 'staging' && (github.event_name == 'workflow_dispatch' || inputs.queue_smoke)
+        if: vars.QUEUE_PROVIDER == 'cloud-tasks' && (github.event_name == 'workflow_dispatch' || inputs.queue_smoke)
         with:
           project_id: zyx-academy
-          workload_identity_provider: projects/307641710075/locations/global/workloadIdentityPools/zyx-worker-staging/providers/github
+          workload_identity_provider: ${{ inputs.environment == 'staging' && 'projects/307641710075/locations/global/workloadIdentityPools/zyx-worker-staging/providers/github' || 'projects/307641710075/locations/global/workloadIdentityPools/zyx-web-production/providers/github' }}
+          service_account: ${{ inputs.environment == 'production' && 'zyx-production-web-ci@zyx-academy.iam.gserviceaccount.com' || '' }}
       - name: Route the verified Inngest environment
         if: vars.QUEUE_PROVIDER != 'cloud-tasks'
         env:
@@ -81,7 +82,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch' || inputs.queue_smoke
         env:
           COMPUTE_ENVIRONMENT: ${{ inputs.environment }}
-          QUEUE_SMOKE_PROVIDER: ${{ inputs.environment == 'staging' && 'cloud-tasks' || 'inngest' }}
+          QUEUE_SMOKE_PROVIDER: ${{ vars.QUEUE_PROVIDER || 'inngest' }}
         run: bun scripts/neon/smoke-worker.ts "$COMPUTE_ENVIRONMENT"
       - name: Exercise remote thumbnail persistence and quiz feedback
         if: inputs.environment == 'staging' && github.event_name == 'workflow_dispatch' && !inputs.queue_smoke
@@ -109,4 +110,5 @@ jobs:
             artifacts/neon-worker/production/sync.json
             artifacts/neon-worker/production/http-smoke.json
             artifacts/neon-worker/production/inngest-smoke.json
+            artifacts/neon-worker/production/cloud-tasks-smoke.json
           retention-days: 7

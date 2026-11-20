@@ -6,6 +6,22 @@ import { computeQuizAnalyticsFacts } from "@/lib/student-quiz-analytics/calculat
 import { generateStudentQuizDiagnosis } from "@/lib/student-quiz-analytics/ai-pipeline";
 import { gt, sql, eq } from "drizzle-orm";
 
+export const publicPageAnalyticsCron = defineJob(
+  { id: "public-page-analytics-cron", triggers: [{ cron: "0 0 * * *" }] },
+  async ({ step }) => step.run("sync-public-page-analytics", async () => {
+    const origin = process.env.NEXT_PUBLIC_APP_URL;
+    const secret = process.env.COMPUTE_SERVICE_SECRET;
+    if (!["https://www.zyxacademy.com", "https://staging.zyxacademy.com"].includes(origin ?? "") || !secret) {
+      throw new Error("PUBLIC_PAGE_ANALYTICS_CONFIGURATION_REQUIRED");
+    }
+    const response = await fetch(`${origin}/api/cron/analytics`, {
+      headers: { Authorization: `Bearer ${secret}` }, redirect: "error", signal: AbortSignal.timeout(120000),
+    });
+    if (!response.ok || !(await response.json()).success) throw new Error("PUBLIC_PAGE_ANALYTICS_SYNC_FAILED");
+    return { success: true };
+  }),
+);
+
 export const courseAnalyticsSnapshotCron = defineJob(
   {
     id: "course-analytics-snapshot-cron",

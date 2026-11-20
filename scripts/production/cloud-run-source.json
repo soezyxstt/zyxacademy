@@ -1,0 +1,9 @@
+{
+  "sourceHost": "ep-quiet-math-azyey0mb-pooler.c-3.ap-southeast-1.aws.neon.tech",
+  "sourceBranchId": "br-wandering-butterfly-azi11h8r",
+  "sourceDatabase": "neondb",
+  "targetHost": "ep-quiet-math-azyey0mb-pooler.c-3.ap-southeast-1.aws.neon.tech",
+  "targetBranchId": "br-wandering-butterfly-azi11h8r",
+  "targetDatabase": "neondb",
+  "disposable": false
+}
