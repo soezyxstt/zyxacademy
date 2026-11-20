@@ -603,6 +603,8 @@
     "zyraAvatarStudioCrocodile": "Buaya"
   },
   "petStudio": {
+    "try": "Coba",
+    "tryItem": "Coba {item}",
     "active": "Pet aktif",
     "collection": "Koleksi pet",
     "zyra_avatar": "Maskot",
