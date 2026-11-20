@@ -18,23 +18,22 @@ import {
 } from "@/db/schema";
 import { and, desc, eq, gt, gte, inArray, sql, count, avg } from "drizzle-orm";
 import { QUESTION_TOTAL_INDEX } from "@/lib/option-stats";
-import { gradeStableOptionAnswer } from "@/lib/asesmen/attempt";
-import { isShortAnswerCorrect } from "@/lib/quiz/short-answer";
+import { checkAnswerCorrectness, questionAnswerType } from "@/lib/gamification/question-grading";
 
 const MIN_STUDENTS = 5;
 const MIN_QUESTION_ATTEMPTS = 5;
 
 /** Null means the snapshot cannot be auto-graded and must not affect correctness rates. */
 export function cohortSnapshotAnswerCorrectness(question: Record<string, unknown>, submitted: unknown): boolean | null {
-  const type = question.question_type ?? question.questionType;
+  const type = questionAnswerType(question);
   const acceptable = question.acceptable_answers ?? question.acceptableAnswers;
   if (type === "essay") return null;
-  if (type === "short_answer" || (Array.isArray(acceptable) && acceptable.length > 0)) {
+  if (type === "short_answer") {
     if (!Array.isArray(acceptable) || acceptable.length === 0 || !acceptable.every(value => typeof value === "string" || (typeof value === "number" && Number.isFinite(value)))) return null;
     const validAnswer = submitted === null || submitted === undefined || typeof submitted === "string" || typeof submitted === "number"
       || (Array.isArray(submitted) && submitted.length <= 1 && submitted.every(value => typeof value === "string" || typeof value === "number"))
       || (typeof submitted === "object" && !Array.isArray(submitted) && typeof (submitted as { text?: unknown }).text === "string");
-    return validAnswer ? isShortAnswerCorrect(submitted, acceptable) : null;
+    return validAnswer ? checkAnswerCorrectness(question, submitted) : null;
   }
   const correct = question.correct_indices ?? question.correctIndices;
   if (!Array.isArray(correct) || correct.length === 0 || !correct.every(value => Number.isInteger(value) && value >= 0)) return null;
@@ -45,12 +44,10 @@ export function cohortSnapshotAnswerCorrectness(question: Record<string, unknown
     if (!correct.every(value => value < stableIds.length) || !Array.isArray(selections)
       || !(selections.every(value => Number.isInteger(value) && value >= 0 && value < stableIds.length)
         || selections.every(value => typeof value === "string" && stableIds.includes(value)))) return null;
-    return gradeStableOptionAnswer({ stableOptionIds: stableIds, correctIndices: correct, submitted: indices,
-      questionType: type === "multiple_choices" || correct.length > 1 ? "multiple_choices" : "multiple_choice" });
+    return checkAnswerCorrectness(question, submitted);
   }
   if (!Array.isArray(indices) || !indices.every(value => Number.isInteger(value) && value >= 0)) return null;
-  const selected = [...new Set(indices)];
-  return selected.length === correct.length && selected.every(index => correct.includes(index));
+  return checkAnswerCorrectness(question, submitted);
 }
 
 // ─── Base types (P6A) ────────────────────────────────────────────────────────

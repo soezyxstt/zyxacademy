@@ -43,7 +43,7 @@ export type QuizPlayerProps = {
     questions: QuizQuestion[];
     settings?: {
       timeLimitMinutes?: number;
-      timeLimitSeconds?: number;
+      timeLimitSeconds?: number | null;
       canGoBack?: boolean;
       requireAllAnswered?: boolean;
       perQuestionTimerEnabled?: boolean;
@@ -164,20 +164,28 @@ export function formatQuizAnswers(questions: readonly QuizQuestion[], answers: Q
   }));
 }
 
-/** A stored clock can shorten the server deadline, but cannot extend it. */
+export function resolveQuizDuration(settings: QuizPlayerProps["exam"]["settings"]): number | null {
+  if (settings?.timeLimitSeconds !== undefined) return settings.timeLimitSeconds;
+  return (settings?.timeLimitMinutes ?? 15) * 60;
+}
+
+/** A stored duration clock can shorten the server deadline, but cannot extend it. */
 export function resolveQuizDeadline({ stored, startedAtMs, closeAtMs, durationSeconds, now }: {
   stored: string | null;
   startedAtMs?: number;
   closeAtMs?: number;
-  durationSeconds: number;
+  durationSeconds: number | null;
   now: number;
-}): number {
+}): number | null {
+  const close = typeof closeAtMs === "number" && Number.isFinite(closeAtMs) ? closeAtMs : null;
+  // Ignore the old duration clock when the quiz only has a closing date.
+  if (durationSeconds === null) return close;
   const saved = stored ? Number(stored) : NaN;
   const hasStart = typeof startedAtMs === "number" && Number.isFinite(startedAtMs);
   const serverDeadline = (hasStart ? startedAtMs : now) + durationSeconds * 1000;
   let deadline = Number.isFinite(saved) && saved > 0 ? saved : serverDeadline;
   if (hasStart) deadline = Math.min(deadline, serverDeadline);
-  if (typeof closeAtMs === "number" && Number.isFinite(closeAtMs)) deadline = Math.min(deadline, closeAtMs);
+  if (close !== null) deadline = Math.min(deadline, close);
   return deadline;
 }
 

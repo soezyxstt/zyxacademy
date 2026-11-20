@@ -526,6 +526,7 @@
     "activationDescription": "Enter a course token to unlock all videos and materials."
   },
   "quizTake": {
+    "attemptLimitReached": "Quiz attempt limit reached",
     "locked": "Quiz locked",
     "premiumDescription": "{course}, premium quiz",
     "backToList": "Back to quiz list",

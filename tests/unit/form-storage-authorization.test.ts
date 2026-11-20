@@ -11,6 +11,10 @@ test("form proxy checks public image references or canonical admin before fetchi
   const formRows: Array<{ deletedAt: Date | null; questions: unknown[] }> = [];
   let user: { id: string; role: string } | null = null;
   let admin = false, databaseFails = false, fetches = 0, formQueries = 0, roleChecks = 0;
+  let contentType = "image/png";
+  class GetObjectCommand {
+    constructor(readonly input: { Range?: string }) {}
+  }
   const predicate = (op: string) => (...args: any[]) => ({ op, args });
   const db = { select: () => ({ from: (source: any) => ({
     innerJoin: () => ({ where: async () => [] }),
@@ -27,7 +31,16 @@ test("form proxy checks public image references or canonical admin before fetchi
     }),
   }) }) };
   const modules: Record<string, unknown> = {
-    "@aws-sdk/client-s3": { S3Client: class { async send() { fetches++; return { Body: "bytes", ContentType: "image/png" }; } }, GetObjectCommand: class {} },
+    "@aws-sdk/client-s3": { S3Client: class {
+      async send(command: GetObjectCommand) {
+        fetches++;
+        return {
+          Body: "bytes",
+          ContentType: contentType,
+          ContentRange: command.input.Range ? "bytes 0-4/10" : undefined,
+        };
+      }
+    }, GetObjectCommand },
     "next/headers": { headers: async () => new Headers() },
     "drizzle-orm": { and: predicate("and"), or: predicate("or"), eq: predicate("eq"), inArray: predicate("in"), isNotNull: predicate("notNull"), isNull: predicate("isNull"), sql: (parts: TemplateStringsArray, ...values: unknown[]) => ({ parts, values }) },
     "@/db": { db }, "@/db/schema": schema,
@@ -35,7 +48,7 @@ test("form proxy checks public image references or canonical admin before fetchi
     "@/lib/auth/authorization": { hasPeran: async (_id: string, role: string) => { roleChecks++; expect(role).toBe("admin"); return admin; } },
     "@/lib/auth-site-url": { resolveAuthBaseUrl: () => "https://zyx.example" },
     "@/lib/admin/course-identity": {}, "@/lib/student/course-access": {},
-    "@/lib/storage/keys": { isPrivateAttachmentKey: (key: string) => key.startsWith("discussions/") || key.startsWith("zyx-attachments/"), isProtectedCourseDiktatPdfKey: () => false, isProtectedProductDiktatPdfKey: () => false, isSafeKey: (key: string) => Boolean(key) && !key.startsWith("/") && !key.includes("\\") && !key.includes(".."), leafFilename: () => "file.png", quizAttachmentPrefix: () => "" },
+    "@/lib/storage/keys": { isPrivateAttachmentKey: (key: string) => key.startsWith("discussions/") || key.startsWith("zyx-attachments/"), isProtectedCourseDiktatPdfKey: () => false, isProtectedProductDiktatPdfKey: () => false, isSafeKey: (key: string) => Boolean(key) && !key.startsWith("/") && !key.includes("\\") && !key.includes(".."), leafFilename: () => "file.png", quizAttachmentPrefix: () => "", scopedStorageFileKind: () => null },
     "@/lib/storage/r2": { getS3StorageConfig: () => ({ bucket: "mock", client: {} }) },
   };
   const module = { exports: {} as any };
@@ -44,7 +57,10 @@ test("form proxy checks public image references or canonical admin before fetchi
     module, exports: module.exports, require: (name: string) => modules[name] ?? require(name),
     process: { env: {} }, URL, Request, Response, Headers, console,
   });
-  const get = (key: string, search = "") => module.exports.GET(new Request(`https://zyx.example/api/storage/file/${key}${search}`), { params: Promise.resolve({ key: [key] }) });
+  const get = (key: string, search = "", headers?: HeadersInit) => module.exports.GET(
+    new Request(`https://zyx.example/api/storage/file/${key}${search}`, { headers }),
+    { params: Promise.resolve({ key: [key] }) },
+  );
   const key = "forms/survey/question-1/private.pdf";
 
   expect((await get(key)).status).toBe(404);
@@ -80,8 +96,30 @@ test("form proxy checks public image references or canonical admin before fetchi
   expect(preview.headers.get("cache-control")).toBe("private, no-store");
   expect(preview.headers.get("content-security-policy")).toBe("sandbox");
   expect((await get("forms/survey/../secret.png")).status).toBe(404);
+  expect(fetches).toBe(5);
+  expect(formQueries).toBe(12);
+
+  contentType = "application/pdf";
+  const document = await get(key, "?download=1");
+  expect(document.status).toBe(200);
+  expect(document.headers.get("content-type")).toBe("application/pdf");
+  expect(await document.text()).toBe("bytes");
+  for (const [extension, mime] of [["html", "text/html"], ["svg", "image/svg+xml"]]) {
+    contentType = mime;
+    const legacy = `forms/survey/question-1/legacy.${extension}`;
+    for (const search of ["", "?download=1"]) {
+      for (const range of [undefined, { range: "bytes=0-4" }]) {
+        const response = await get(legacy, search, range);
+        expect(response.status).toBe(range ? 206 : 200);
+        expect(response.headers.get("content-security-policy")).toBe("sandbox");
+        expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+        expect(response.headers.get("cache-control")).toBe("private, no-store");
+        expect(response.headers.get("content-disposition")).toStartWith(search ? "attachment" : "inline");
+      }
+    }
+  }
   databaseFails = true;
   expect((await get(key)).status).toBe(404);
-  expect(fetches).toBe(5);
-  expect(formQueries).toBe(13);
+  expect(fetches).toBe(14);
+  expect(formQueries).toBe(22);
 });

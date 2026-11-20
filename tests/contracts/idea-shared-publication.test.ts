@@ -90,7 +90,7 @@ const originalDb = { ...await import("@/db") };
 const originalStorage = { ...await import("@/lib/storage") };
 const originalDispatch = { ...await import("@/lib/vector-sync-dispatch") };
 mock.module("@/db", () => ({ db: wrappedDb }));
-mock.module("@/lib/storage", () => ({ ...originalStorage, storage: { upload: async (bytes: Uint8Array, _name: string, _type: string, options: { key: string }) => { artifacts.set(options.key, bytes); }, download: async (key: string) => {
+mock.module("@/lib/storage", () => ({ ...originalStorage, storage: { upload: async (bytes: Uint8Array, _name: string, _type: string, options: { key: string }) => { artifacts.set(options.key, bytes); }, exists: async (key: string) => artifacts.has(key), download: async (key: string) => {
   const bytes = artifacts.get(key);
   if (!bytes) throw new Error("fixture artifact missing");
   return bytes;
@@ -406,6 +406,34 @@ test("unchanged replacement does not require review reset acknowledgement", asyn
     items: [{ entityType: "idea", entityId: "idea-velocity", entityVersion: 1, entityHash: "a".repeat(64) }], validationReport: { valid: true, reasonCodes: [], fileCount: 0, entityCount: 1, sourceCount: 1, relationCount: 1, warnings: [] } });
   expect(result.status).toBe("existing");
   expect(await testDb.select().from(schema.reviewItemBundle).where(eq(schema.reviewItemBundle.imporBundleId, "a"))).toHaveLength(2);
+}, 30000);
+
+test("Idea retry restores the exact archive reference and keeps review decisions", async () => {
+  const revision = a.manifest.bundleChecksum;
+  const input = { runId: "new-run", bundleId: a.manifest.bundleId, courseId: "course-physics", schemaVersion: 3, checksum: revision, bytes: a.bytes, requestedBy: "admin",
+    items: [{ entityType: "idea", entityId: "idea-velocity", entityVersion: 1, entityHash: "a".repeat(64) }],
+    validationReport: { valid: true, reasonCodes: [], fileCount: 0, entityCount: 1, sourceCount: 1, relationCount: 1, warnings: [] } };
+  artifacts.delete("a.zip");
+  try {
+    expect(await stageIdeaBundle(input)).toMatchObject({ importId: "a", sourceKey: "a.zip", created: false });
+    expect(artifacts.get("a.zip")).toEqual(a.bytes);
+    expect(await testDb.select().from(schema.reviewItemBundle).where(eq(schema.reviewItemBundle.imporBundleId, "a"))).toHaveLength(2);
+  } finally {
+    artifacts.set("a.zip", a.bytes);
+  }
+}, 30000);
+
+test("interleaved identical Idea staging retains the winner's verified archive", async () => {
+  const incoming = artifact("identical-stage-retry");
+  const input = { runId: "identical-run", bundleId: incoming.manifest.bundleId, courseId: "course-physics", schemaVersion: 3,
+    checksum: incoming.manifest.bundleChecksum, bytes: incoming.bytes, requestedBy: "admin",
+    items: [{ entityType: "idea", entityId: "idea-velocity", entityVersion: 1, entityHash: "a".repeat(64) }],
+    validationReport: { valid: true, reasonCodes: [], fileCount: 0, entityCount: 1, sourceCount: 1, relationCount: 1, warnings: [] } };
+  beforeTransaction = async () => { expect((await stageIdeaBundle(input)).created).toBe(true); };
+  await expect(stageIdeaBundle(input)).rejects.toThrow("IDEA_BUNDLE_STALE_CONTEXT");
+  const retry = await stageIdeaBundle(input);
+  expect(retry).toMatchObject({ checksum: input.checksum, created: false });
+  expect(artifacts.get(retry.sourceKey)).toEqual(input.bytes);
 }, 30000);
 
 test("a review added after an empty summary still requires reset acknowledgement", async () => {

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { customForms, customFormResponses } from "@/db/schema";
 import { eq, or, isNull, and } from "drizzle-orm";
+import { getFormClosedReason, getFormRespondentError } from "@/lib/forms/response-policy";
 
 export async function GET(
   _req: Request,
@@ -35,37 +35,9 @@ export async function GET(
       return NextResponse.json({ error: "Formulir tidak ditemukan atau telah dihapus." }, { status: 404 });
     }
 
-    const settings = form.settings || {};
-    const now = new Date();
-
-    // Check acceptingResponses toggle
-    if (settings.acceptingResponses === false) {
-      return NextResponse.json({
-        success: false,
-        form,
-        isClosed: true,
-        closedReason: settings.closedMessage || "Formulir ini telah ditutup dan tidak lagi menerima tanggapan.",
-      });
-    }
-
-    // Check openAt schedule
-    if (settings.openAt && now < new Date(settings.openAt)) {
-      return NextResponse.json({
-        success: false,
-        form,
-        isClosed: true,
-        closedReason: `Formulir belum dibuka. Jadwal pembukaan: ${new Date(settings.openAt).toLocaleString("id-ID")}`,
-      });
-    }
-
-    // Check closeAt schedule
-    if (settings.closeAt && now > new Date(settings.closeAt)) {
-      return NextResponse.json({
-        success: false,
-        form,
-        isClosed: true,
-        closedReason: settings.closedMessage || `Formulir telah ditutup secara otomatis pada ${new Date(settings.closeAt).toLocaleString("id-ID")}`,
-      });
+    const closedReason = getFormClosedReason(form.settings || {});
+    if (closedReason) {
+      return NextResponse.json({ success: false, form, isClosed: true, closedReason });
     }
 
     return NextResponse.json({ success: true, form, isClosed: false });
@@ -80,7 +52,7 @@ export async function POST(
 ) {
   try {
     const { idOrSlug } = await params;
-    const session = await auth.api.getSession({ headers: await headers() });
+    const session = await auth.api.getSession({ headers: req.headers });
 
     const [form] = await db
       .select({
@@ -104,38 +76,14 @@ export async function POST(
     }
 
     const settings = form.settings || {};
-    const now = new Date();
-
-    // Check acceptingResponses toggle
-    if (settings.acceptingResponses === false) {
-      return NextResponse.json(
-        { error: settings.closedMessage || "Formulir ini telah ditutup dan tidak lagi menerima tanggapan." },
-        { status: 403 }
-      );
+    const closedReason = getFormClosedReason(settings);
+    if (closedReason) {
+      return NextResponse.json({ error: closedReason }, { status: 403 });
     }
 
-    // Check schedule
-    if (settings.openAt && now < new Date(settings.openAt)) {
-      return NextResponse.json(
-        { error: `Formulir belum dibuka. Jadwal pembukaan: ${new Date(settings.openAt).toLocaleString("id-ID")}` },
-        { status: 403 }
-      );
-    }
-    if (settings.closeAt && now > new Date(settings.closeAt)) {
-      return NextResponse.json(
-        { error: settings.closedMessage || `Formulir telah ditutup pada ${new Date(settings.closeAt).toLocaleString("id-ID")}` },
-        { status: 403 }
-      );
-    }
-
-    const collectEmail = settings.collectEmail || "none";
-
-    // Check Login Requirement (requireLogin or verified email collection)
-    if ((settings.requireLogin || collectEmail === "verified") && !session?.user) {
-      return NextResponse.json(
-        { error: "Anda harus login ke akun Zyx untuk mengisi formulir ini." },
-        { status: 401 }
-      );
+    const respondentError = getFormRespondentError(settings, session?.user);
+    if (respondentError) {
+      return NextResponse.json({ error: respondentError.message }, { status: respondentError.status });
     }
 
     // Check 1 Response Limit
@@ -161,16 +109,18 @@ export async function POST(
 
     const body = await req.json().catch(() => ({}));
     const answers = body.answers || {};
-    const submittedEmail = typeof body.responderEmail === "string" ? body.responderEmail.trim() : "";
-    const responderEmail = submittedEmail || session?.user?.email || "";
-
-    if (collectEmail === "input") {
-      if (!responderEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(responderEmail)) {
+    let responderEmail: string | null = null;
+    if (settings.collectEmail === "verified") {
+      responderEmail = session?.user.email ?? null;
+    } else if (settings.collectEmail === "input") {
+      const submittedEmail = typeof body.responderEmail === "string" ? body.responderEmail.trim() : "";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(submittedEmail)) {
         return NextResponse.json(
           { error: "Alamat email wajib diisi dengan format yang benar." },
           { status: 400 }
         );
       }
+      responderEmail = submittedEmail;
     }
 
     // Validate required questions (SECTION items are not answerable questions)
@@ -208,7 +158,7 @@ export async function POST(
         id: responseId,
         formId: form.id,
         responderUserId: session?.user?.id || null,
-        responderEmail: responderEmail || null,
+        responderEmail,
         answers,
       })
       .returning();

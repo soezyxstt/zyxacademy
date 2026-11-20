@@ -13,7 +13,7 @@ test("PostgreSQL snapshot grades current short-answer text and legacy option arr
   await testDb.insert(schema.courses).values({ id, title: "Fixture", category: "Matematika" });
   await testDb.insert(schema.quizTemplates).values({ id, courseId: id, title: "Fixture", category: "chapter", selectionRules: {} });
   const questions = [
-    { id: "mc", question_type: "multiple_choice", correct_indices: [0] },
+    { id: "mc", question_type: "multiple_choice", correct_indices: [0], stable_option_ids: ["a", "b"] },
     { id: "short", question_type: "short_answer", correct_indices: [0], acceptable_answers: ["5"] },
     { id: "legacy", questionType: "multiple_choice", correctIndices: [1] },
     { id: "essay", question_type: "essay", correct_indices: [] },
@@ -31,13 +31,16 @@ test("PostgreSQL snapshot grades current short-answer text and legacy option arr
     id: "malformed-answer", studentId: id, templateId: id, status: "completed",
     questionsSnapshot: [questions[0]], answersSnapshot: { mc: { text: "unsupported option shape" } },
   });
+  await testDb.insert(schema.studentQuizAttempts).values({
+    id: "extra-choices", studentId: id, templateId: id, status: "completed",
+    questionsSnapshot: questions, answersSnapshot: { mc: [0, 1], legacy: [1, 1], short: "5" },
+  });
   const payload = await computeSnapshotPayload(id);
   const results = Object.fromEntries(payload.mostMissed._unknown.map(question => [question.id, question]));
   expect(Object.keys(results).sort()).toEqual(["legacy", "mc", "short"]);
-  for (const question of Object.values(results)) {
-    expect(question.attemptCount).toBe(5);
-    expect(question.correctRate).toBe(1);
-  }
+  expect(results.mc).toMatchObject({ attemptCount: 6, correctRate: 0.83 });
+  expect(results.legacy).toMatchObject({ attemptCount: 6, correctRate: 0.83 });
+  expect(results.short).toMatchObject({ attemptCount: 6, correctRate: 1 });
   const snapshots = await testDb.select().from(schema.courseAnalyticsSnapshots);
   expect(snapshots).toHaveLength(1);
   expect(snapshots[0].payload).toEqual(payload);
@@ -53,4 +56,17 @@ test("unsupported grading shapes stay outside correctness denominators", () => {
   expect(cohortSnapshotAnswerCorrectness({ correct_indices: [1], stable_option_ids: ["a", "b"] }, "b")).toBe(true);
   expect(cohortSnapshotAnswerCorrectness({ correct_indices: [1], stable_option_ids: ["a", "b"] }, [1, "b"])).toBeNull();
   expect(cohortSnapshotAnswerCorrectness({ question_type: "short_answer", acceptable_answers: [{}] }, "[object Object]")).toBeNull();
+});
+
+test("stable and legacy options use the submission grader's exact selection rule", () => {
+  for (const options of [{}, { stable_option_ids: ["a", "b", "c"] }]) {
+    const single = { ...options, question_type: "multiple_choice", correct_indices: [0] };
+    const multiple = { ...options, question_type: "multiple_choices", correct_indices: [0, 2] };
+    expect(cohortSnapshotAnswerCorrectness(single, [0])).toBe(true);
+    expect(cohortSnapshotAnswerCorrectness(single, [0, 1])).toBe(false);
+    expect(cohortSnapshotAnswerCorrectness(single, [0, 0])).toBe(false);
+    expect(cohortSnapshotAnswerCorrectness(multiple, [2, 0])).toBe(true);
+    expect(cohortSnapshotAnswerCorrectness(multiple, [0, 0])).toBe(false);
+    expect(cohortSnapshotAnswerCorrectness(multiple, [0, 1, 2])).toBe(false);
+  }
 });

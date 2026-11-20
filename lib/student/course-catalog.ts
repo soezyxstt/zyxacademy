@@ -188,10 +188,13 @@ export async function isStudentEnrolled(userId: string, courseId: string): Promi
   return Boolean(legacyEnrollment);
 }
 
-export async function listStudentEnrollments(userId: string): Promise<StudentEnrollmentRecord[]> {
-  const now = new Date();
+export async function listStudentEnrollments(
+  userId: string,
+  executor: Pick<typeof db, "select"> = db,
+  now = new Date(),
+): Promise<StudentEnrollmentRecord[]> {
   const [canonicalRows, legacyRows] = await Promise.all([
-    db
+    executor
       .select({
         course: mataKuliah,
         enrolledAt: pendaftaranMurid.startAt,
@@ -207,7 +210,7 @@ export async function listStudentEnrollments(userId: string): Promise<StudentEnr
           or(isNull(pendaftaranMurid.endAt), gt(pendaftaranMurid.endAt, now)),
         ),
       ),
-    db
+    executor
       .select({ course: courses, enrolledAt: enrollments.enrolledAt, expiresAt: enrollments.expiresAt })
       .from(enrollments)
       .innerJoin(courses, eq(enrollments.courseId, courses.id))

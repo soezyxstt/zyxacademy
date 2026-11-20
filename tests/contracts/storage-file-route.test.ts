@@ -6,7 +6,7 @@ const routeSource = readFileSync("app/api/storage/file/[...key]/route.ts", "utf8
 
 describe("storage file authorization boundary", () => {
   test("authorizes Diktat delivery before fetching bytes, independent of disposition", () => {
-    const authorization = routeSource.indexOf("const diktatAuthorization = await resolveDiktatAuthorization(key)");
+    const authorization = routeSource.indexOf("await resolveDiktatAuthorization(key)");
     const objectFetch = routeSource.indexOf("const command = new GetObjectCommand");
 
     expect(authorization).toBeGreaterThan(-1);
@@ -14,7 +14,7 @@ describe("storage file authorization boundary", () => {
     expect(routeSource).toContain("if (diktatAuthorization.matched && !diktatAuthorization.allowed)");
     expect(routeSource).toContain("inArray(diktatMateri.fileKey, candidates)");
     expect(routeSource).toContain("inArray(diktats.fileUrl, candidates)");
-    expect(routeSource).toMatch(/if \(isFormFile \|\| diktatAuthorization\.matched \|\| quizAuthorization\.matched \|\| videoAuthorization\.matched\) \{\s*headers\.set\("Cache-Control", "private, no-store"\)/);
+    expect(routeSource).toMatch(/if \(isScopedFile \|\| isFormFile \|\| diktatAuthorization\.matched \|\| quizAuthorization\.matched \|\| videoAuthorization\.matched\) \{\s*headers\.set\("Cache-Control", "private, no-store"\)/);
     expect(routeSource).not.toContain('headers.set("Cache-Control", "public, max-age=3600")');
     expect(routeSource).not.toContain("if (isDownload && !(await resolveDiktatAuthorization");
   });

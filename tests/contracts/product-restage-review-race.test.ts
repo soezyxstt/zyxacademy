@@ -17,7 +17,15 @@ const wrapped = new Proxy(testDb, { get(target, key) {
 } });
 const objects = new Map<string, Uint8Array>();
 mock.module("@/db", () => ({ db: wrapped }));
-mock.module("@/lib/storage", () => ({ storage: { upload: async (bytes: Uint8Array, _filename: string, _mime: string, options: { key: string }) => { objects.set(options.key, bytes); }, download: async (key: string) => objects.get(key)! } }));
+mock.module("@/lib/storage", () => ({ storage: {
+  upload: async (bytes: Uint8Array, _filename: string, _mime: string, options: { key: string }) => { objects.set(options.key, bytes); },
+  exists: async (key: string) => objects.has(key),
+  download: async (key: string) => {
+    const value = objects.get(key);
+    if (!value) throw new Error("Fixture artifact missing");
+    return value;
+  },
+} }));
 const { stageProductBundle, adoptProductDraftRun, discardProductBundleDraft } = await import("@/lib/bundle/product-staging");
 const { provisionPenggunaForNewUser } = await import("@/lib/auth/authorization");
 afterAll(async () => { await client.close(); });
@@ -184,4 +192,32 @@ test("completed staging retry rechecks the row after a concurrent replacement wi
   };
   await expect(stageProductBundle(input)).rejects.toThrow("PRODUCT_BUNDLE_STALE_CONTEXT");
   expect(await testDb.select().from(schema.imporBundle).where(eq(schema.imporBundle.id, fixture.row.id))).toHaveLength(0);
+});
+
+test("Product retry restores a deleted archive without replacing its import or review", async () => {
+  const fixture = await adoptionFixture("product-artifact-retry");
+  const { bundle, row, actorId, bytes } = fixture;
+  const original = { bytes, bundle, checksum: row.checksum, bundleId: row.bundleId, courseId: bundle.manifest.courseId, requestedBy: actorId, runId: "different-run" };
+  await testDb.insert(schema.reviewBundle).values({ id: "recovery-review", imporBundleId: row.id, reviewerId: actorId, status: "approved" });
+  objects.delete(row.sourceUriOrKey);
+  expect(await stageProductBundle(original)).toMatchObject({ importId: row.id, sourceKey: row.sourceUriOrKey, created: false, replaced: false });
+  const restored = validateProductBundle(objects.get(row.sourceUriOrKey)!);
+  expect(restored.success && restored.data.checksum).toBe(row.checksum);
+  expect((await testDb.select().from(schema.reviewBundle).where(eq(schema.reviewBundle.id, "recovery-review")))[0].status).toBe("approved");
+
+  const corrupt = new Uint8Array([1, 2, 3]);
+  objects.set(row.sourceUriOrKey, corrupt);
+  await expect(stageProductBundle(original)).rejects.toThrow("PRODUCT_BUNDLE_ARTIFACT_UNAVAILABLE");
+  expect(objects.get(row.sourceUriOrKey)).toBe(corrupt);
+});
+
+test("interleaved identical Product staging retains the winner's verified archive", async () => {
+  const fixture = await adoptionFixture("product-artifact-identical");
+  const { bytes, bundle } = revisedArtifact(fixture.bytes, "2032-01-01T00:00:00Z");
+  const input = { bytes, bundle, checksum: bundle.checksum, bundleId: bundle.manifest.bundleId, courseId: bundle.manifest.courseId, requestedBy: fixture.actorId, runId: "identical", expectedPreviousChecksum: fixture.row.checksum };
+  beforeTransaction = async () => { expect((await stageProductBundle(input)).replaced).toBe(true); };
+  const result = await stageProductBundle(input);
+  expect(result).toMatchObject({ importId: fixture.row.id, created: false, replaced: false });
+  const staged = validateProductBundle(objects.get(result.sourceKey)!);
+  expect(staged.success && staged.data.checksum).toBe(input.checksum);
 });

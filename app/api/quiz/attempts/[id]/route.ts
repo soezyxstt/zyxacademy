@@ -20,6 +20,7 @@ import { buildRemediation } from '@/lib/remediation';
 import { PKA_COURSE_ID } from '@/lib/pka-config';
 import { normalizeDate } from '@/lib/date-utils';
 import { canViewAttemptDiscussion } from '@/lib/quiz/review-release';
+import { hasQuizAttemptCapacity } from '@/lib/quiz/attempt-capacity';
 import { resolveCourseAccess } from '@/lib/student/course-access';
 import { canAccessStudentQuizTemplate } from '@/lib/quiz/student-access';
 import { canAccessQuizSnapshot } from '@/lib/quiz/question-scope';
@@ -322,6 +323,9 @@ export async function POST(req: NextRequest, { params }: Context) {
     const [locked] = await tx.select().from(studentQuizAttempts).where(and(eq(studentQuizAttempts.id, id), eq(studentQuizAttempts.studentId, session.user.id))).for('update');
     if (!locked || locked.status !== 'in_progress') return false;
     if (JSON.stringify(locked.questionsSnapshot) !== JSON.stringify(attempt.questionsSnapshot) || JSON.stringify(locked.answersSnapshot) !== JSON.stringify(attempt.answersSnapshot)) return false;
+    // An existing reservation can finish up to the limit. This also protects
+    // attempts created before allocation started enforcing reservations.
+    if (!await hasQuizAttemptCapacity(tx, locked.studentId, locked.templateId, false)) return 'limit_reached';
     await lockQuestionExposures(tx, session.user.id, snapshot.map(q => q.id));
     const lockedCanonical = await lockCanonicalQuestions(tx, questionIds);
     const heldCanonical = { ids: questionIds, rows: lockedCanonical };
@@ -375,6 +379,7 @@ export async function POST(req: NextRequest, { params }: Context) {
     evidenceIdeas.forEach(ideaId => canonicalEvidenceIdeaIds.add(ideaId));
     return true;
   });
+  if (submitted === 'limit_reached') return NextResponse.json({ error: 'Max attempts reached' }, { status: 409 });
   if (!submitted) return NextResponse.json({ error: 'Attempt not found or already submitted' }, { status: 404 });
 
   if (canonicalEvidenceIdeaIds.size > 0) {

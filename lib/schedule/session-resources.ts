@@ -321,6 +321,9 @@ export async function deleteBookingResource(
     .select({
       id: bookingResources.id,
       phase: bookingResources.phase,
+      kind: bookingResources.kind,
+      url: bookingResources.url,
+      metadata: bookingResources.metadata,
       bookingId: bookings.id,
       groupId: bookings.groupId,
       tutorId: tutorSlots.tutorId,
@@ -343,10 +346,32 @@ export async function deleteBookingResource(
   }
 
   try {
-    const result = await client
-      .delete(bookingResources)
-      .where(eq(bookingResources.id, targetResourceId));
-    if (affectedRows(result) === 0) {
+    const deleted = await client.transaction(async (tx) => {
+      const [booking] = await tx.select({
+        pre: bookings.preSessionAttachments,
+        post: bookings.postSessionAttachments,
+      }).from(bookings).where(eq(bookings.id, resource.bookingId)).limit(1).for("update");
+      if (!booking) return false;
+      const result = await tx.delete(bookingResources).where(and(
+        eq(bookingResources.id, targetResourceId),
+        eq(bookingResources.url, resource.url),
+      ));
+      if (affectedRows(result) === 0) return false;
+
+      const legacy = booking[resource.phase];
+      if (resource.kind === "file" && Array.isArray(legacy)) {
+        const remaining = legacy.filter((attachment) =>
+          attachment.id !== resource.metadata?.legacyAttachmentId && attachment.url !== resource.url,
+        );
+        if (remaining.length !== legacy.length) {
+          await tx.update(bookings).set(resource.phase === "pre"
+            ? { preSessionAttachments: remaining }
+            : { postSessionAttachments: remaining }).where(eq(bookings.id, resource.bookingId));
+        }
+      }
+      return true;
+    });
+    if (!deleted) {
       return failure("Resource tidak ditemukan.", "RESOURCE_NOT_FOUND");
     }
     return { success: true, resourceId: targetResourceId };

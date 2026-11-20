@@ -12,18 +12,22 @@ test("upload previews use local bytes while submitted answers retain the storage
   const uploadPreviews = { current: { 2: { url: "blob:old", name: "old.pdf" } } as Record<number, { url: string; name: string }> };
   const mounted = { current: true };
   const revoked: string[] = [], saved: unknown[] = [];
-  let created = 0, previewType = "";
-  runInNewContext(transformSync(`${upload}\nexport { handleFileUpload };`, { loader: "ts", format: "cjs" }).code, {
-    module, exports: module.exports, uploadPreviews, mounted,
+  let created = 0, previewType = "", requests = 0;
+  const context = {
+    module, exports: module.exports, uploadPreviews, mounted, isPreview: false,
     URL: { createObjectURL: (blob: Blob) => { previewType = blob.type; return `blob:new-${++created}`; }, revokeObjectURL: (url: string) => revoked.push(url) },
     Blob,
     FormData: class { append() {} }, form: { title: "Survey", slug: "survey", questions: [{}] },
     formFileSizeLimitMb: () => 50, uploadInFlightRef: { current: false },
     setUploadingQIdx: () => {}, setUploadProgress: () => {}, setInterval: () => 1, clearInterval: () => {},
-    fetch: async () => ({ json: async () => ({ success: true, url: "/api/storage/file/forms/survey/question-1/file.pdf" }) }),
+    fetch: async () => {
+      requests++;
+      return { json: async () => ({ success: true, url: "/api/storage/file/forms/survey/question-1/file.pdf" }) };
+    },
     handleAnswerChange: (index: number, value: string) => saved.push([index, value]),
     toast: { success: () => {}, error: () => {} }, t: (key: string) => key,
-  });
+  };
+  runInNewContext(transformSync(`${upload}\nexport { handleFileUpload };`, { loader: "ts", format: "cjs" }).code, context);
   await module.exports.handleFileUpload(2, new File(["content"], "file.pdf", { type: "application/pdf" }));
   expect(saved).toEqual([[2, "/api/storage/file/forms/survey/question-1/file.pdf"]]);
   expect(uploadPreviews.current[2]).toEqual({ url: "blob:new-1", name: "file.pdf" });
@@ -36,4 +40,10 @@ test("upload previews use local bytes while submitted answers retain the storage
   await module.exports.handleFileUpload(3, { size: 10 });
   expect(created).toBe(1);
   expect(saved).toHaveLength(1);
+
+  mounted.current = true;
+  context.isPreview = true;
+  await module.exports.handleFileUpload(3, new File(["content"], "draft.pdf", { type: "application/pdf" }));
+  expect(requests).toBe(2);
+  expect(saved[1]).toEqual([3, "blob:new-2"]);
 });
