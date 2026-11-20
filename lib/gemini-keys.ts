@@ -427,7 +427,7 @@ export class GeminiKeyPool {
 
   /** Returns only the selected project slot; key material never leaves this class. */
   getKeyByProjectAlias(projectAlias: string): GeminiKey | null {
-    const candidates = this.keys.filter(key => key.projectAlias === projectAlias && key.isHealthy);
+    const candidates = this.getHealthyKeys().filter(key => key.projectAlias === projectAlias);
     return candidates[Math.floor(Math.random() * candidates.length)] ?? null;
   }
 
