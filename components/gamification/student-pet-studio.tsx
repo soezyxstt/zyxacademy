@@ -2,12 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useAppReducedMotion } from "@/components/appearance-preferences";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { changeReward } from "@/app/(student)/achievements/actions";
 import type { GamificationReward } from "@/lib/gamification/contracts";
 import { cosmeticNameKeys } from "@/lib/gamification/labels";
-import { DEFAULT_PET_ID, petSupportsAction } from "@/lib/gamification/pet-studio";
+import { DEFAULT_PET_ID, petForAction, petSupportsAction } from "@/lib/gamification/pet-studio";
 import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 import { ZyraCosmeticAvatar } from "./zyra-cosmetic-avatar";
 import { ZyraMascot3D } from "./zyra-mascot-3d";
@@ -20,6 +21,7 @@ const slots = ["zyra_avatar", "pet_suit", "pet_action"] as const;
 export function StudentPetStudio({ rewards, balance }: { rewards: GamificationReward[]; balance: number }) {
   const t = useTranslations("student");
   const { locale } = useAppLocale();
+  const reducedMotion = useAppReducedMotion();
   const format = new Intl.NumberFormat(locale);
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -43,7 +45,7 @@ export function StudentPetStudio({ rewards, balance }: { rewards: GamificationRe
   }
   return <div className="grid min-w-0 gap-(--section-gap) md:grid-cols-[minmax(15rem,1fr)_minmax(0,2fr)]">
     <section aria-label={t("petStudio.active")} className="flex flex-col items-center gap-2">
-      {playing || previewing ? <ZyraCosmeticAvatar cosmeticId={pet} size={240} /> : <ZyraMascot3D cosmeticId={pet} size={240} practiceSuit={suit?.replace("pet-suit-", "")} practiceFlowers={action === "pet-action-giveFlowers"} practiceCycle={action === "pet-action-cycle"} animationName={action?.replace("pet-action-", "")} />}
+      {playing || previewing ? <ZyraCosmeticAvatar cosmeticId={pet} size={240} /> : <ZyraMascot3D animated={!reducedMotion} cosmeticId={pet} size={240} practiceSuit={suit?.replace("pet-suit-", "")} practiceFlowers={action === "pet-action-giveFlowers"} practiceCycle={action === "pet-action-cycle"} animationName={action?.replace("pet-action-", "")} />}
       <h2 className="font-heading text-body-base font-bold">{name(pet)}</h2>
       <CatPractice rewards={rewards} onOpenChange={setPlaying} />
     </section>
@@ -56,14 +58,14 @@ export function StudentPetStudio({ rewards, balance }: { rewards: GamificationRe
           const owned = free || item.owned;
           const equipped = slot === "zyra_avatar" ? pet === item.id : item.equipped;
           const incompatible = slot === "pet_action" && !petSupportsAction(pet, item.id);
-          const requiredPet = incompatible ? rewards.find(other => other.slot === "zyra_avatar" && petSupportsAction(other.id, item.id)) : null;
+          const requiredPet = incompatible ? petForAction(item.id) : null;
           const insufficient = !owned && balance < item.priceLp;
           const removable = equipped && slot !== "zyra_avatar";
           return <li key={item.id} className="flex items-center gap-3 py-3">
             {slot === "zyra_avatar" && <ZyraCosmeticAvatar cosmeticId={item.id} size={56} name={name(item.id)} />}
             <div className="min-w-0 flex-1"><span className="text-body-sm font-semibold">{name(item.id)}</span>
               <p className="text-body-xs text-muted-foreground">{owned ? t(equipped ? "achievementPage.equipped" : "achievementPage.owned") : format.format(item.priceLp) + " LP"}</p>
-              {requiredPet && <p className="text-body-xs text-muted-foreground">{t("petStudio.forPet",{pet:name(requiredPet.id)})}</p>}
+              {requiredPet && <p className="text-body-xs text-muted-foreground">{t("petStudio.forPet",{pet:name(requiredPet)})}</p>}
               {insufficient && <p className="text-body-xs text-muted-foreground">{t("achievementPage.insufficient")}</p>}
             </div>
             <Dialog onOpenChange={setPreviewing}>
@@ -72,13 +74,13 @@ export function StudentPetStudio({ rewards, balance }: { rewards: GamificationRe
               </DialogTrigger>
               <DialogContent aria-describedby={undefined}>
                 <DialogTitle>{t("petStudio.tryItem", { item: name(item.id) })}</DialogTitle>
-                {slot === "zyra_avatar" ? <ZyraMascotPreview cosmeticId={item.id} size={240} /> :
+                {slot === "zyra_avatar" ? <ZyraMascotPreview animated={!reducedMotion} cosmeticId={item.id} size={240} /> :
                   <div className="flex flex-col items-center gap-2">
-                    <ZyraMascot3D cosmeticId={requiredPet?.id ?? pet} size={240}
+                    <ZyraMascot3D animated={!reducedMotion} cosmeticId={requiredPet ?? pet} size={240}
                       practiceSuit={(slot === "pet_suit" ? item.id : suit)?.replace("pet-suit-", "")}
                       animationName={slot === "pet_action" ? item.id.replace("pet-action-", "") : "idle"}
                       practiceCycle={item.id === "pet-action-cycle"} practiceFlowers={item.id === "pet-action-giveFlowers"} />
-                    <span className="text-body-sm">{name(requiredPet?.id ?? pet)}</span>
+                    <span className="text-body-sm">{name(requiredPet ?? pet)}</span>
                   </div>}
               </DialogContent>
             </Dialog>

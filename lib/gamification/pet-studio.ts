@@ -7,6 +7,11 @@ const actionPets: Readonly<Record<string, string>> = {
   "pet-action-giveFlowers": "crocodile",
 };
 
+export function petForAction(actionId: string) {
+  const character = actionPets[actionId];
+  return character ? "zyra-avatar-studio-" + character : undefined;
+}
+
 export function petSupportsAction(petId: string | null | undefined, actionId: string) {
-  return (petId ?? DEFAULT_PET_ID) === "zyra-avatar-studio-" + actionPets[actionId];
+  return (petId ?? DEFAULT_PET_ID) === petForAction(actionId);
 }
