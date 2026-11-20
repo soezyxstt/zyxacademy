@@ -18,6 +18,7 @@ import { storage } from "@/lib/storage";
 import { buildIdeaBundleKey } from "@/lib/storage/keys";
 import { parseIdeaBundle, serializeDeterministically, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
 import { readSecureZip } from "@/lib/bundle/zip-reader";
+import { verifyStagingArtifact } from "./staging-artifact";
 import { isBundleIdentitySentinelOrPlaceholder } from "@/lib/bundle/attribution";
 import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
 import { checkTutorCourseAccess } from "@/lib/auth/tutor-access";
@@ -142,6 +143,9 @@ export async function stageIdeaBundle(input: IdeaBundleStageInput): Promise<Idea
   if (!uploader) throw new Error("IDEA_BUNDLE_UPLOADER_NOT_FOUND");
 
   const bundle = parseIdeaBundle(readSecureZip(input.bytes));
+  if (bundle.manifest.bundleId !== input.bundleId || bundle.canonicalChecksum !== input.checksum) {
+    throw new Error("IDEA_BUNDLE_STAGING_MISMATCH");
+  }
   const creatorIdsToCheck = new Set<string>();
   const curatorIdsToCheck = new Set<string>();
 
@@ -189,20 +193,24 @@ export async function stageIdeaBundle(input: IdeaBundleStageInput): Promise<Idea
     .where(and(eq(imporBundle.bundleId, input.bundleId), eq(imporBundle.checksum, input.checksum)))
     .limit(1);
   if (sameBundle) {
-    if (input.replaceImportId) {
-      if (sameBundle.id !== input.replaceImportId || input.expectedPreviousChecksum !== sameBundle.checksum) throw new Error("IDEA_BUNDLE_STALE_CONTEXT");
-      return db.transaction(async tx => {
-        await assertAuthoringActor(tx, input.requestedBy, { roles: ["admin"], error: "IDEA_BUNDLE_STAGE_FORBIDDEN", lock: true });
-        const [locked] = await tx.select().from(imporBundle).where(eq(imporBundle.id, sameBundle.id)).limit(1).for("update");
-        if (!locked || locked.bundleId !== input.bundleId || locked.checksum !== input.expectedPreviousChecksum) throw new Error("IDEA_BUNDLE_STALE_CONTEXT");
-        const existingItems = await tx.select({ id: itemImporBundle.id }).from(itemImporBundle).where(eq(itemImporBundle.imporBundleId, locked.id));
-        return { importId: locked.id, bundleId: locked.bundleId, checksum: locked.checksum, sourceKey: locked.sourceUriOrKey, created: false, status: "existing" as const, itemCount: existingItems.length };
-      });
+    if (input.replaceImportId && (sameBundle.id !== input.replaceImportId || input.expectedPreviousChecksum !== sameBundle.checksum)) {
+      throw new Error("IDEA_BUNDLE_STALE_CONTEXT");
     }
     return db.transaction(async tx => {
       await assertAuthoringActor(tx, input.requestedBy, { roles: ["admin"], error: "IDEA_BUNDLE_STAGE_FORBIDDEN", lock: true });
-      const existingItems = await tx.select({ id: itemImporBundle.id }).from(itemImporBundle).where(eq(itemImporBundle.imporBundleId, sameBundle.id));
-      return { importId: sameBundle.id, bundleId: sameBundle.bundleId, checksum: sameBundle.checksum, sourceKey: sameBundle.sourceUriOrKey, created: false, status: "existing" as const, itemCount: existingItems.length };
+      const [locked] = await tx.select().from(imporBundle).where(eq(imporBundle.id, sameBundle.id)).limit(1).for("update");
+      if (!locked || locked.bundleType !== "idea" || locked.bundleId !== input.bundleId || locked.checksum !== input.checksum ||
+          locked.version !== input.schemaVersion || locked.courseId !== storedCourseId || locked.sourceUriOrKey !== sameBundle.sourceUriOrKey || locked.status !== sameBundle.status || locked.status === "discarding") {
+        throw new Error("IDEA_BUNDLE_STALE_CONTEXT");
+      }
+      await verifyStagingArtifact(locked.sourceUriOrKey, () => uploadArtifact(input, locked.sourceUriOrKey), (bytes) => {
+        const stored = parseIdeaBundle(readSecureZip(bytes));
+        if (stored.manifest.bundleId !== locked.bundleId || stored.canonicalChecksum !== locked.checksum) {
+          throw new Error("IDEA_BUNDLE_CHECKSUM_MISMATCH");
+        }
+      }, "IDEA_BUNDLE_ARTIFACT_UNAVAILABLE");
+      const existingItems = await tx.select({ id: itemImporBundle.id }).from(itemImporBundle).where(eq(itemImporBundle.imporBundleId, locked.id));
+      return { importId: locked.id, bundleId: locked.bundleId, checksum: locked.checksum, sourceKey: locked.sourceUriOrKey, created: false, status: "existing" as const, itemCount: existingItems.length };
     });
   }
 

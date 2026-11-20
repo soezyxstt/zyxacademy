@@ -23,6 +23,7 @@ import { productEntityHash } from "./product-bundle-v2";
 import { deterministicProductSerialization, productInteractiveDocuments, type ProductDependency } from "./product-validator";
 import { stageInteractiveDocumentAssets, validateInteractiveDocumentArchive, verifyAdmittedInteractiveDocumentArchive } from "@/lib/materials/interactive-document-assets";
 import { parseAdmittedProductBundle } from "./product-staged-worker";
+import { verifyStagingArtifact } from "./staging-artifact";
 import { type ProductBundleValidation } from "./product-validator";
 import {
   canPreservePedagogicReview,
@@ -142,10 +143,15 @@ export async function stageProductBundle(input: ProductStageInput) {
 
   const schemaVersion = input.bundle.manifest.schemaVersion === "product-bundle.v5" ? 5 : input.bundle.manifest.schemaVersion === "product-bundle.v4" ? 4 : input.bundle.manifest.schemaVersion === "product-bundle.v3" ? 3 : 2;
   const legacyCourseId = await storedCourseId(input.courseId);
+  const uploadArtifact = (key: string) => storage.upload(input.bytes, input.filename ?? `${input.bundleId}.zip`, "application/zip", {
+    key, metadata: { bundleId: input.bundleId, runId: input.runId, checksum: input.checksum },
+  });
   const retryResult = (observed: typeof imporBundle.$inferSelect) => db.transaction(async tx => {
     await assertAuthoringActor(tx, input.requestedBy, { roles: ["admin"], error: "PRODUCT_BUNDLE_STAGE_FORBIDDEN", lock: true });
     const [current] = await tx.select().from(imporBundle).where(eq(imporBundle.id, observed.id)).limit(1).for("update");
-    if (!current || current.bundleType !== "product" || current.bundleId !== input.bundleId || current.checksum !== input.checksum || current.status !== observed.status || current.sourceUriOrKey !== observed.sourceUriOrKey || current.courseId !== legacyCourseId || current.version !== schemaVersion) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+    if (!current || current.bundleType !== "product" || current.bundleId !== input.bundleId || current.checksum !== input.checksum || current.status !== observed.status || current.status === "discarding" || current.sourceUriOrKey !== observed.sourceUriOrKey || current.courseId !== legacyCourseId || current.version !== schemaVersion) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+    await verifyStagingArtifact(current.sourceUriOrKey, () => uploadArtifact(current.sourceUriOrKey),
+      (bytes) => parseAdmittedProductBundle(bytes, current), "PRODUCT_BUNDLE_ARTIFACT_UNAVAILABLE");
     const currentItems = await tx.select({ id: itemImporBundle.id }).from(itemImporBundle).where(eq(itemImporBundle.imporBundleId, current.id));
     return { importId: current.id, bundleId: current.bundleId, checksum: current.checksum, sourceKey: current.sourceUriOrKey, created: false, replaced: false, status: productBundleLifecycleStatus(current.status), itemCount: currentItems.length };
   });
@@ -191,7 +197,7 @@ export async function stageProductBundle(input: ProductStageInput) {
   const importId = stableId("impor-product", `${input.bundleId}:${input.checksum}`);
   const sourceKey = buildProductBundleKey(input);
   if (pairs.length) await stageInteractiveDocumentAssets(pairs);
-  await storage.upload(input.bytes, input.filename ?? `${input.bundleId}.zip`, "application/zip", { key: sourceKey, metadata: { bundleId: input.bundleId, runId: input.runId, checksum: input.checksum } });
+  await uploadArtifact(sourceKey);
   const items = [
     ...input.bundle.products.map((product) => ({ entityType: product.productType, entityId: product.id, entityVersion: product.version, entityHash: productEntityHash(product) })),
     ...input.bundle.dependencies.map((dependency) => ({ entityType: "dependency", entityId: dependency.id, entityVersion: dependency.downstreamVersion, entityHash: hashDependency(dependency) })),

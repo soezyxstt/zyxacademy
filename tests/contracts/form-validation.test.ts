@@ -23,6 +23,16 @@ test("optional files cannot be represented as verified uploads; empty optional f
   expect(validateFormAnswers(questions, {}).valid).toBe(true);
   expect(validateFormAnswers(questions, { "0": "https://evil.test/file" }).issues[0].code).toBe("FILE_REQUIRES_UPLOAD_VERIFICATION");
 });
+test("file questions can narrow uploads to supported MIME types", () => {
+  const definition = (allowedFileTypes: string[]) => ({
+    ...base,
+    questions: [{ title: "File", type: "FILE_UPLOAD", allowedFileTypes }],
+  });
+  expect(formDefinitionSchema.parse(definition(["application/pdf"])).questions[0].allowedFileTypes)
+    .toEqual(["application/pdf"]);
+  expect(formDefinitionSchema.safeParse(definition([])).success).toBe(false);
+  expect(formDefinitionSchema.safeParse(definition(["text/html"])).success).toBe(false);
+});
 test("summary handles malicious option names without prototypes or open-text leaks", () => {
   const questions = formDefinitionSchema.parse({ ...base, questions: [{ title: "Pick", type: "CHECKBOX", options: ["__proto__", "constructor", "A"] }] }).questions;
   const summary = summarizeFormResponses(questions, [{ answers: { "0": ["__proto__", "A", "private answer"] } }]);

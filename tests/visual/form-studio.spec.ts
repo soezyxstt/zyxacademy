@@ -142,7 +142,7 @@ test("uploads reject oversize files and block submission until upload finishes",
   expect(state.submissions).toBe(0);
   await capture(page, info, "upload-pending");
   finishUpload?.();
-  await expect(page.getByText("Berkas Berhasil Terunggah", { exact: true })).toBeVisible();
+  await expect(page.getByText("Berkas berhasil diunggah", { exact: true })).toBeVisible();
   await capture(page, info, "upload-done");
 });
 

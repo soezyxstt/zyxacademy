@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { FORM_FILE_MIMES } from "./file-types";
 import { isEmptyFormAnswer } from "./presentation";
 
 const labels = z.array(z.string().trim().min(1).max(2000)).min(1).max(100).refine(v => new Set(v).size === v.length, "Pilihan tidak boleh berulang.");
@@ -11,6 +12,7 @@ export const formQuestionSchema = z.object({
   scaleLow: z.number().int().min(0).max(1).optional(), scaleHigh: z.number().int().min(2).max(10).optional(),
   scaleLowLabel: z.string().max(200).optional(), scaleHighLabel: z.string().max(200).optional(),
   gridRows: labels.optional(), gridColumns: labels.optional(), maxFileSizeMb: z.number().positive().max(50).optional(),
+  allowedFileTypes: z.array(z.enum(FORM_FILE_MIMES)).min(1).max(FORM_FILE_MIMES.length).optional(),
 }).strict().superRefine((q, ctx) => {
   if (["RADIO", "CHECKBOX", "DROP_DOWN"].includes(q.type) && !q.options) ctx.addIssue({ code: "custom", path: ["options"], message: "Pilihan wajib diisi." });
   if (q.type.startsWith("GRID_") && (!q.gridRows || !q.gridColumns)) ctx.addIssue({ code: "custom", message: "Baris dan kolom wajib diisi." });

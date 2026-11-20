@@ -7,10 +7,11 @@ import { useTutor } from "@/components/course/tutor-drawer";
 import { useTranslations } from "@/lib/i18n/client";
 import { emitActivityUpdated } from "@/lib/activity-signal";
 import { uploadQuizAttachment, removeQuizAttachment } from "@/lib/quiz/client";
+import { ApiError } from "@/lib/query/http";
 import {
   asEssayAnswer, createQuizStorage, createQuizSubmissionGate, formatQuizAnswers,
   isQuizAnswerComplete, quizStorageKeys, readQuizAnswers, readQuizFlags,
-  remainingQuizSeconds, resolveQuizDeadline, selectQuizOption, waitForQuizUploads,
+  remainingQuizSeconds, resolveQuizDeadline, resolveQuizDuration, selectQuizOption, waitForQuizUploads,
   type QuizAnswer, type QuizAnswers, type QuizPlayerProps, type QuizSubmission,
 } from "@/lib/quiz/player-state";
 
@@ -28,9 +29,9 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
   const uploads = useRef(new Map<string, Upload>());
   const removals = useRef(new Map<string, Promise<void>>());
   const deadlineRef = useRef<number | null>(null);
+  const startedAtRef = useRef(0);
   const expiryHandled = useRef(false);
-  const durationSeconds =
-    exam.settings?.timeLimitSeconds ?? (exam.settings?.timeLimitMinutes ?? 15) * 60;
+  const durationSeconds = resolveQuizDuration(exam.settings);
   const canGoBack = exam.settings?.canGoBack ?? true;
   const requireAllAnswered = exam.settings?.requireAllAnswered ?? false;
   const perQuestionTimerEnabled = exam.settings?.perQuestionTimerEnabled ?? false;
@@ -68,8 +69,12 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
     const now = Date.now();
     const deadline = resolveQuizDeadline({ stored: storage.getItem(keys.deadline), startedAtMs, closeAtMs, durationSeconds, now });
     deadlineRef.current = deadline;
-    storage.setItem(keys.deadline, String(deadline));
-    setTimeLeft(remainingQuizSeconds(deadline, now));
+    startedAtRef.current = typeof startedAtMs === "number" && Number.isFinite(startedAtMs)
+      ? startedAtMs
+      : now;
+    if (durationSeconds === null) storage.removeItem(keys.deadline);
+    else if (deadline !== null) storage.setItem(keys.deadline, String(deadline));
+    setTimeLeft(deadline === null ? null : remainingQuizSeconds(deadline, now));
     setReady(true);
     // The component is keyed by account and attempt, so these are mount snapshots.
     // New server props must never overwrite a student's current local answers.
@@ -204,10 +209,13 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
           }
           if (!alive.current) throw new DOMException("Quiz left", "AbortError");
         },
-        snapshot: () => ({
-          answers: formatQuizAnswers(exam.questions, answersRef.current),
-          durationSeconds: Math.max(0, durationSeconds - remainingQuizSeconds(deadlineRef.current ?? Date.now(), Date.now())),
-        }),
+        snapshot: () => {
+          const elapsed = Math.max(0, Math.floor((Date.now() - startedAtRef.current) / 1000));
+          return {
+            answers: formatQuizAnswers(exam.questions, answersRef.current),
+            durationSeconds: durationSeconds === null ? elapsed : Math.min(elapsed, durationSeconds),
+          };
+        },
         submit,
         onSuccess: () => {
           // Clear recovery only after the server or demo adapter confirms the write.
@@ -226,9 +234,9 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
           router.refresh();
         },
       });
-    } catch {
+    } catch (error) {
       if (alive.current) {
-        toast.error(t("quiz.retrySubmit"));
+        toast.error(t(error instanceof ApiError && error.status === 409 ? "quizTake.attemptLimitReached" : "quiz.retrySubmit"));
         setSubmitting(false);
       }
     }
@@ -242,7 +250,7 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
     notifyExpired.current = () => toast.warning(t("quiz.timeExpired"));
   }, [handleSubmit, t]);
   useEffect(() => {
-    if (!ready || isSubmitted) return;
+    if (!ready || isSubmitted || deadlineRef.current === null) return;
     const tick = () => {
       if (deadlineRef.current === null) return;
       const remaining = remainingQuizSeconds(deadlineRef.current, Date.now());
@@ -286,7 +294,7 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
       if (index < sorted.length - 1) {
         toast.info(t("quiz.questionTimeEnded"));
         setIndex((current) => current + 1);
-      } else if (deadlineRef.current !== null && remainingQuizSeconds(deadlineRef.current, Date.now()) > 0) {
+      } else if (deadlineRef.current === null || remainingQuizSeconds(deadlineRef.current, Date.now()) > 0) {
         toast.info(t("quiz.questionTimeEndedFinal"));
       }
     }, 1000);

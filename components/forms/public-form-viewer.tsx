@@ -44,6 +44,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { buildFormSteps, formFileSizeLimitMb, isEmptyFormAnswer, type FormStep, type FormDisplayMode } from "@/lib/forms/presentation";
+import { formFileAccept, type FormFileMime } from "@/lib/forms/file-types";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { useTranslations } from "@/lib/i18n/client";
 
@@ -62,6 +63,7 @@ interface QuestionItem {
   gridRows?: string[];
   gridColumns?: string[];
   maxFileSizeMb?: number;
+  allowedFileTypes?: FormFileMime[];
 }
 
 const OTHER_OPTION_MARKER = "\uE000__other__";
@@ -328,6 +330,16 @@ export function PublicFormViewer({
       toast.error(`Maksimal ${maxSizeMb} MB per berkas.`);
       return;
     }
+    const saveUploadPreview = (storageUrl?: string) => {
+      if (uploadPreviews.current[qIdx]) URL.revokeObjectURL(uploadPreviews.current[qIdx].url);
+      const localUrl = URL.createObjectURL(new Blob([file], { type: "application/octet-stream" }));
+      uploadPreviews.current[qIdx] = { url: localUrl, name: file.name };
+      handleAnswerChange(qIdx, storageUrl ?? localUrl);
+    };
+    if (isPreview) {
+      saveUploadPreview();
+      return;
+    }
     uploadInFlightRef.current = true;
     setUploadingQIdx(qIdx);
     setUploadProgress(20);
@@ -335,11 +347,8 @@ export function PublicFormViewer({
     try {
       const formData = new FormData();
       formData.append("file", file);
-      if (form?.title) {
-        formData.append("formTitle", form.title);
-      }
       if (form?.slug || form?.id) {
-        formData.append("formSlug", form.slug || form.id);
+        formData.append("formSlug", form.id || form.slug);
       }
       formData.append("questionNumber", String(qIdx + 1));
 
@@ -357,12 +366,11 @@ export function PublicFormViewer({
       const data = await res.json();
       if (data.success && data.url) {
         if (!mounted.current) return;
-        if (uploadPreviews.current[qIdx]) URL.revokeObjectURL(uploadPreviews.current[qIdx].url);
-        uploadPreviews.current[qIdx] = { url: URL.createObjectURL(new Blob([file], { type: "application/octet-stream" })), name: file.name };
-        handleAnswerChange(qIdx, data.url);
+        saveUploadPreview(data.url);
         toast.success(t("publicForm.uploadSuccess"));
       } else {
-        toast.error(t("publicForm.uploadFailed"));
+        if (res.status === 401) setLoginRequired(true);
+        toast.error(data.error || t("publicForm.uploadFailed"));
       }
     } catch {
       toast.error(t("publicForm.uploadError"));
@@ -1469,6 +1477,7 @@ export function PublicFormViewer({
                           <label className="flex flex-col items-center justify-center border-2 border-dashed border-border hover:border-brand-primary/60 bg-card hover:bg-muted/30 focus-within:ring-2 focus-within:ring-ring rounded-xl p-4 transition-colors cursor-pointer text-center group">
                             <input
                               type="file"
+                              accept={formFileAccept(q.allowedFileTypes)}
                               aria-label={q.title}
                               className="sr-only"
                               disabled={uploadingQIdx !== null}
@@ -1498,20 +1507,20 @@ export function PublicFormViewer({
                           </label>
                         ) : (
                           <div className="rounded-lg border border-status-success/40 bg-status-success/10 p-(--compact-gap) flex items-center justify-between gap-(--related-gap)">
-                            <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="flex min-w-0 items-center gap-3">
                               <FileCheck2 className="size-7 text-status-success shrink-0" />
-                              <div className="overflow-hidden">
-                                <p className="text-body-sm font-bold text-foreground truncate">
-                                  {t("publicForm.uploadedFile")}
+                              <div className="min-w-0">
+                                <p className="text-body-sm font-bold text-foreground">
+                                  {t(isPreview ? "publicForm.fileSelected" : "publicForm.uploadedFile")}
                                 </p>
                                 <a
                                   href={uploadPreviews.current[qIdx]?.url ?? String(answerVal)}
                                   download={uploadPreviews.current[qIdx]?.name}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="text-body-xs font-mono text-brand-primary hover:underline truncate block"
+                                  className="block wrap-anywhere font-mono text-body-xs text-brand-primary hover:underline"
                                 >
-                                  {String(answerVal)}
+                                  {uploadPreviews.current[qIdx]?.name ?? String(answerVal)}
                                 </a>
                               </div>
                             </div>

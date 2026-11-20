@@ -227,7 +227,7 @@ export function GradingClient({ courseId, initialSubmissions, queueHeader }: Pro
                               className="rounded-lg border-border/80 text-muted-foreground hover:text-foreground gap-1"
                             >
                               <a
-                                href={`/api/storage/file/${ans.fileKey.split("/").map(encodeURIComponent).join("/")}?download=1`}
+                                href={`/api/storage/file/${ans.fileKey.split("/").map(encodeURIComponent).join("/")}?download=1&submissionId=${encodeURIComponent(activeSub.id)}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                               >

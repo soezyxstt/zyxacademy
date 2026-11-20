@@ -6,10 +6,11 @@ import { PublicFormViewer } from "@/components/forms/public-form-viewer";
 import type { QuestionType } from "@/lib/google-forms";
 import { NextIntlClientProvider } from "next-intl";
 import publicForms from "@/messages/id/publicForms.json";
+import ui from "@/messages/id/ui.json";
 
 function renderForm(props: React.ComponentProps<typeof PublicFormViewer>) {
   return renderToStaticMarkup(React.createElement(NextIntlClientProvider, {
-    locale: "id", timeZone: "Asia/Jakarta", messages: { publicForms },
+    locale: "id", timeZone: "Asia/Jakarta", messages: { publicForms, ui },
     children: React.createElement(PublicFormViewer, props),
   }));
 }

@@ -2,22 +2,18 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { randomUUID } from "node:crypto";
 import { db } from "@/db";
 import {
   groupMembers,
-  enrollments,
-  enrollmentTokens,
   bookings,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { getIsoWeekRange, computeWeeklySessionStats } from "@/lib/schedule-lock";
 import { getGroupWeeklyUsage } from "@/lib/schedule/tutor-policy";
-import { getSemesterEndDate } from "@/lib/utils";
 import { PACKAGE_PRESETS, type PackageType } from "@/lib/group-constants";
 import { getVisibleStudentIdentities } from "@/lib/gamification/social";
-import { dualWriteEnrollment } from "@/lib/migrasi/repository-kompatibilitas";
+import { redeemGroupToken } from "@/lib/groups/redeem-token";
 
 async function requireUser() {
   const h = await headers();
@@ -221,103 +217,26 @@ export async function getStudentStudyGroups() {
  */
 export async function joinGroupWithToken(tokenStr: string) {
   const currentUser = await requireUser();
-  const cleanToken = tokenStr.trim();
-  const now = new Date();
-
-  if (!cleanToken) {
-    return { success: false, error: "Token tidak boleh kosong" };
-  }
-
-  // 1. Find token in DB
-  const tokenRecord = await db.query.enrollmentTokens.findFirst({
-    where: eq(enrollmentTokens.token, cleanToken),
-    with: {
-      tokenCourses: true,
-      group: {
-        with: {
-          members: true,
-          courses: true,
-        },
-      },
-    },
-  });
-
-  if (!tokenRecord || !tokenRecord.group) {
-    return { success: false, error: "Token kelompok tidak valid" };
-  }
-
-  // 2. Check if user is already a member of the group
-  const isAlreadyMember = tokenRecord.group.members.some(
-    (m) => m.userId === currentUser.id
-  );
-  if (isAlreadyMember) {
-    return { success: false, error: "Anda sudah terdaftar di kelompok ini" };
-  }
-
-  // 3. Check capacity
-  const currentMemberCount = tokenRecord.group.members.length;
-  if (currentMemberCount >= tokenRecord.capacity) {
-    return { success: false, error: "Kapasitas anggota kelompok ini sudah penuh" };
-  }
-
-  // 4. Check token expiration
-  if (tokenRecord.expiresAt < now) {
-    return { success: false, error: "Masa berlaku token telah berakhir" };
-  }
-
-  // 5. Gather courses from token or group
-  const tokenCourseIds = tokenRecord.tokenCourses.map((tc) => tc.courseId);
-  const groupCourseIds = tokenRecord.group.courses.map((gc) => gc.courseId);
-  const allCourseIds = Array.from(new Set([...tokenCourseIds, ...groupCourseIds]));
-
-  const expiresAt = tokenRecord.group.endDate || getSemesterEndDate(now);
+  const errors = {
+    empty: "Token tidak boleh kosong",
+    invalid: "Token kelompok tidak valid",
+    alreadyMember: "Anda sudah terdaftar di kelompok ini",
+    capacityReached: "Kapasitas anggota kelompok ini sudah penuh",
+    expired: "Masa berlaku token telah berakhir",
+    noCourses: "Token tidak memiliki course yang terasosiasi",
+    alreadyEnrolled: "Anda sudah terdaftar di semua course yang diaktifkan oleh token ini",
+  };
 
   try {
-    await db.transaction(async (tx) => {
-      // Add member
-      await tx.insert(groupMembers).values({
-        id: randomUUID(),
-        groupId: tokenRecord.groupId,
-        userId: currentUser.id,
-        role: "member",
-        joinedAt: now,
-      });
-
-      // Enroll in courses
-      for (const courseId of allCourseIds) {
-        const existing = await tx.query.enrollments.findFirst({
-          where: and(
-            eq(enrollments.userId, currentUser.id),
-            eq(enrollments.courseId, courseId)
-          ),
-        });
-
-        if (!existing) {
-          const enrollmentId = randomUUID();
-          await tx.insert(enrollments).values({
-            id: enrollmentId,
-            userId: currentUser.id,
-            courseId,
-            enrolledAt: now,
-            expiresAt,
-          });
-          await dualWriteEnrollment(tx, {
-            id: enrollmentId,
-            userId: currentUser.id,
-            courseId,
-            enrolledAt: now,
-            expiresAt,
-          });
-        }
-      }
-    });
+    const result = await redeemGroupToken(tokenStr, currentUser.id, "groups");
+    if (!result.success) return { success: false, error: errors[result.errorCode] };
 
     revalidatePath("/dashboard/groups");
     revalidatePath("/dashboard");
     revalidatePath("/admin/groups");
     return { success: true };
-  } catch (err: any) {
-    console.error("Failed to join group with token:", err);
+  } catch (error) {
+    console.error("Failed to join group with token:", error instanceof Error ? error.name : "UnknownError");
     return { success: false, error: "Gagal bergabung ke kelompok" };
   }
 }

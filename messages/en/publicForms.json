@@ -55,6 +55,7 @@
     "dropFile": "Click or drag a file here",
     "uploadSupport": "Documents, PDF, images, or assignment files are supported.",
     "uploadedFile": "File uploaded successfully",
+    "fileSelected": "File selected",
     "replaceFile": "Replace file",
     "scaleLow": "1 (Very poor)",
     "scaleHigh": "5 (Excellent)",

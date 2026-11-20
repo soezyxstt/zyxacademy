@@ -83,12 +83,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { FormPresetsPanel, PresetSettingsLoader } from "@/components/forms/form-presets";
 import { PublicFormViewer } from "@/components/forms/public-form-viewer";
+import { formFileAccept, FORM_IMAGE_MIMES, type FormFileMime } from "@/lib/forms/file-types";
 
 interface ExtendedQuestionInput extends CreateCustomQuestionInput {
   showDescription?: boolean;
   shuffleOptions?: boolean;
   otherOption?: { enabled: boolean; label: string };
   maxFileSizeMb?: number;
+  allowedFileTypes?: FormFileMime[];
 }
 
 interface StoredNativeForm {
@@ -545,7 +547,7 @@ export default function AdminFormsBuilder({
       }
       formData.append("questionNumber", String(qIndex + 1));
 
-      const res = await fetch("/api/forms/upload", {
+      const res = await fetch("/api/admin/custom-forms/image", {
         method: "POST",
         body: formData,
       });
@@ -555,7 +557,7 @@ export default function AdminFormsBuilder({
       } else {
         setAlertDialogInfo({
           title: t("messages.uploadFailedTitle"),
-          message: t("messages.uploadFailed"),
+          message: data.error || t("messages.uploadFailed"),
         });
       }
     } catch {
@@ -1084,7 +1086,7 @@ export default function AdminFormsBuilder({
                               : t("ui.uploadQuestion")}
                             <input
                               type="file"
-                              accept="image/*"
+                              accept={formFileAccept(FORM_IMAGE_MIMES)}
                               disabled={uploadingQIndex === qIdx}
                               onChange={(e) => {
                                 const f = e.target.files?.[0];

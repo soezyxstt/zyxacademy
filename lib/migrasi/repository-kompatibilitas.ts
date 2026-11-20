@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 import {
   artikel,
   artikelIde,
@@ -164,15 +164,20 @@ export async function dualWriteEnrollment(
   tx: CompatibilityTx,
   enrollment: LegacyEnrollmentMirror,
   actorId?: string | null,
+  { renewedAt }: { renewedAt?: Date } = {},
 ): Promise<void> {
   if (!isEnabled()) return;
   await requirePengguna(tx, enrollment.userId);
   const mataKuliahId = await findCourseTarget(tx, enrollment.courseId);
+  const status = enrollment.expiresAt.getTime() < (renewedAt?.getTime() ?? Date.now()) ? "expired" : "active";
+  const existingGrantActive = renewedAt && sql`
+    ${pendaftaranMurid.status} in ('active', 'completed')
+    and (${pendaftaranMurid.endAt} is null or ${pendaftaranMurid.endAt} > ${renewedAt.toISOString()})`;
   await tx.insert(pendaftaranMurid).values({
     id: deterministicId("pendaftaran", enrollment.id),
     penggunaId: enrollment.userId,
     mataKuliahId,
-    status: enrollment.expiresAt.getTime() < Date.now() ? "expired" : "active",
+    status,
     startAt: enrollment.enrolledAt,
     endAt: enrollment.expiresAt,
     legacyEnrollmentId: enrollment.id,
@@ -182,7 +187,12 @@ export async function dualWriteEnrollment(
       penggunaId: enrollment.userId,
       mataKuliahId,
       startAt: enrollment.enrolledAt,
-      endAt: enrollment.expiresAt,
+      endAt: existingGrantActive ? sql`
+        case when ${existingGrantActive} and (${pendaftaranMurid.endAt} is null or ${pendaftaranMurid.endAt} > excluded.end_at)
+          then ${pendaftaranMurid.endAt} else excluded.end_at end` : enrollment.expiresAt,
+      ...(existingGrantActive && {
+        status: sql`case when ${existingGrantActive} then ${pendaftaranMurid.status} else excluded.status end`,
+      }),
     },
   });
   await audit(tx, "enrollment", enrollment.id, "dual_write", { legacyId: enrollment.id, mataKuliahId }, actorId, enrollment.id);

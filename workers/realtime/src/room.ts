@@ -353,23 +353,24 @@ export class LiveQuizRoom {
     if (!q || !Number.isInteger(choice) || choice < 0 || choice >= q.options.length) return;
     if (questionIndex !== this.roomState.currentQuestionIndex) return;
 
-    if (!this.roomState.answersByQuestion[questionIndex]) {
-      this.roomState.answersByQuestion[questionIndex] = {};
-    }
+    if (!this.roomState.participants[userId]) return;
+    const answers = this.roomState.answersByQuestion[questionIndex] ?? {};
     // Rate limit: 1 answer per question per user
-    if (this.roomState.answersByQuestion[questionIndex][userId]) return;
+    if (Object.hasOwn(answers, userId)) return;
 
-    this.roomState.answersByQuestion[questionIndex][userId] = {
-      choice,
-      receivedTs: Date.now(),
+    const answersByQuestion = {
+      ...this.roomState.answersByQuestion,
+      [questionIndex]: { ...answers, [userId]: { choice, receivedTs: Date.now() } },
     };
+    // The Durable Object input gate serializes other events during this write.
+    // Keep the in-memory state unchanged if storage rejects the answer.
+    await this.ctx.storage.put("roomState", { ...this.roomState, answersByQuestion });
+    this.roomState.answersByQuestion = answersByQuestion;
 
     if (choice >= 0 && choice < this.currentOptionCounts.length) {
       this.currentOptionCounts[choice] = (this.currentOptionCounts[choice] ?? 0) + 1;
     }
 
-    // Keep transient answers in DO memory; state transitions persist to storage
-    // Push live counts to host connections
     this.sendAnswerCountsToHosts(questionIndex);
   }
 

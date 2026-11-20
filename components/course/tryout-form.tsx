@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -68,6 +68,8 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const submissionInFlight = useRef(false);
+  const expirationHandled = useRef(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [questionMapOpen, setQuestionMapOpen] = useState(false);
 
@@ -76,47 +78,49 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
   const [uploadingFile, setUploadingFile] = useState<Record<string, string>>({});
 
   const handleSubmit = useCallback(async () => {
-    if (isSubmitting) return;
+    if (submissionInFlight.current || submitted) return;
+    submissionInFlight.current = true;
+    setIsSubmitting(true);
     try {
-      setIsSubmitting(true);
       if (transport) {
         await transport.submit(answers);
-        setSubmitted(true);
-        if (transport.afterSubmitHref) { toast.success(t("tryout.submitted")); router.push(transport.afterSubmitHref); }
-        return;
-      }
-      // Save to Database
-      const res = await submitTryoutAction(courseId, exam.id, answers);
-      if (res.success) {
-        toast.success(t("tryout.submitted"));
       } else {
-        toast.error(t("tryout.submitFailed"));
+        const result = await submitTryoutAction(courseId, exam.id, answers);
+        if (!result.success) {
+          toast.error(t("tryout.submitFailed"));
+          return;
+        }
       }
-    } catch (err: any) {
+      setSubmitted(true);
+      const href = transport ? transport.afterSubmitHref : `/courses/${courseId}/my-results`;
+      if (href) {
+        toast.success(t("tryout.submitted"));
+        router.push(href);
+      }
+    } catch (err) {
       console.error("Error submitting tryout:", err);
       toast.error(t("tryout.submitFailed"));
     } finally {
+      submissionInFlight.current = false;
       setIsSubmitting(false);
     }
+  }, [courseId, exam.id, answers, router, submitted, t, transport]);
 
-    router.push(`/courses/${courseId}/my-results`);
-  }, [courseId, exam.id, answers, router, isSubmitting, t, transport]);
-
+  const timeExpired = timeLeft === 0;
   useEffect(() => {
-    if (submitted) return;
+    if (submitted || timeExpired) return;
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          toast.warning(t("tryout.timeExpired"));
-          handleSubmit();
-          return 0;
-        }
-        return prev - 1;
-      });
+      setTimeLeft((prev) => Math.max(0, prev - 1));
     }, 1000);
     return () => clearInterval(timer);
-  }, [handleSubmit, t, submitted]);
+  }, [submitted, timeExpired]);
+
+  useEffect(() => {
+    if (!timeExpired || submitted || expirationHandled.current) return;
+    expirationHandled.current = true;
+    toast.warning(t("tryout.timeExpired"));
+    void handleSubmit();
+  }, [timeExpired, submitted, handleSubmit, t]);
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);

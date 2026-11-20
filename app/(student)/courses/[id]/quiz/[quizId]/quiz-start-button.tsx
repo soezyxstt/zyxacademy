@@ -39,6 +39,12 @@ export function QuizStartButton({ courseId, templateId, label, className, getRed
         body: JSON.stringify({ courseId, templateId }),
       });
 
+      if (res.status === 409) {
+        toast.error(t("quizTake.attemptLimitReached"));
+        router.refresh();
+        return;
+      }
+
       if (!res.ok) {
         let message = t("quizStart.failed");
         try {
