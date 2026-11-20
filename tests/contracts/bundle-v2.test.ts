@@ -362,6 +362,11 @@ describe("Product Bundle V4 pilot", () => {
       expect(validateProductBundle(buildTestBundleBytes([product], "product-bundle.v3")).success).toBe(false);
     }
     expect(compileProductDiktatHtml({ diktat })).toContain(markdown);
+    const first: ProductEntity = { ...diktat, id: "notes", visuals: [{ ...LIMIT_EPSILON_DELTA_GRAPH, id: "plots/limit" }] };
+    const second: ProductEntity = { ...diktat, id: "notes/plots", visuals: [{ ...LIMIT_EPSILON_DELTA_GRAPH, id: "limit" }] };
+    const ambiguous = validateProductBundle(buildTestBundleBytes([first, second], "product-bundle.v4"));
+    expect(ambiguous.success).toBe(false);
+    if (!ambiguous.success) expect(ambiguous.issues[0].code).toBe("PRODUCT_V4_VISUAL_TARGET_CONFLICT");
     expect(validateProductBundle(buildTestBundleBytes([{ ...diktat, sourceArticleId: "missing" }], "product-bundle.v4")).success).toBe(false);
     expect(validateProductBundle(buildTestBundleBytes([{ ...card, setId: "missing" }], "product-bundle.v4")).success).toBe(false);
     expect(validateProductBundle(buildTestBundleBytes([{ ...set, cards: ["missing"] }], "product-bundle.v4")).success).toBe(false);

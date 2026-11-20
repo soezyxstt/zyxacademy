@@ -482,7 +482,9 @@ export async function evaluateProductBundleQualityPolicy(
       pdfEvidenceRows: pdfEvidenceList,
     });
   });
-  const gateResult = gateResults.find(result => result.pdfEvidenceStatus !== "not_required") ?? gateResults[0];
+  const gateResult = gateResults.find(result => result.pdfEvidenceStatus !== "not_required" && result.pdfEvidenceStatus !== "ready")
+    ?? gateResults.find(result => result.pdfEvidenceStatus === "ready")
+    ?? gateResults[0];
 
   if (isV4) {
     for (const product of products) for (const finding of findUnmarkedScientificProse(product)) issues.push({

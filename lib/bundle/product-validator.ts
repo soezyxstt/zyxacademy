@@ -590,6 +590,20 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
     const invalidDependency = findInvalidProductDependency(dependencies, products);
     if (invalidDependency) return { success: false, issues: [issue(invalidDependency.code, `dependency ${invalidDependency.dependency.id} does not match its bundled product revision`, declared.get("dependencies")?.path)] };
     const v4Pilot = manifest.schemaVersion === "product-bundle.v4";
+    if (v4Pilot) {
+      const articleIds = new Set(products.filter(product => product.productType === "article").map(product => product.id));
+      const visualTargets = new Set<string>();
+      for (const product of products) {
+        if (product.productType !== "article" && product.productType !== "diktat") continue;
+        for (const visual of product.visuals ?? []) {
+          const target = `${product.id}/${visual.id}`;
+          if (visualTargets.has(target) || (product.productType === "article" && articleIds.has(target))) {
+            return { success: false, issues: [issue("PRODUCT_V4_VISUAL_TARGET_CONFLICT", `visual verification target ${target} is ambiguous; choose distinct product and visual IDs`)] };
+          }
+          visualTargets.add(target);
+        }
+      }
+    }
     for (const product of products) {
       if (product.productType !== "diktat") continue;
       const lineageFields = [product.sourceArticleId, product.sourceArticleVersion, product.sourceArticleHash];
@@ -601,7 +615,7 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
         visibleDocumentHashes.add(visual.documentSha256);
         visibleDocumentHashes.add(visual.printSha256);
       }
-      const sourceArticle = products.find((candidate) => candidate.productType === "article" && candidate.id === product.sourceArticleId && candidate.version === product.sourceArticleVersion);
+      const sourceArticle = products.find((candidate): candidate is Extract<ProductEntity, { productType: "article" }> => candidate.productType === "article" && candidate.id === product.sourceArticleId && candidate.version === product.sourceArticleVersion);
       if (manifest.schemaVersion === "product-bundle.v4") {
         if (lineageCount && !sourceArticle) return { success: false, issues: [issue("DIKTAT_SOURCE_ARTICLE_REQUIRED", "V4 Diktat requires its source Article in the same bundle")] };
         if (product.units) product.units = prepareAuthoredDiktatVisuals(product.units, sourceArticle?.visuals ?? product.visuals ?? []);

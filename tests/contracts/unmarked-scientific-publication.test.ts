@@ -10,7 +10,11 @@ test("actual V4 publication quality propagates raw mathematical prose as a block
   const quality = await evaluateProductBundleQualityPolicy({ bundle });
   expect(quality.publicationReady).toBe(false);
   expect(quality.issues.some((issue) => issue.code === "PRODUCT_V4_UNMARKED_SCIENTIFIC_NOTATION" && issue.severity === "blocking")).toBe(true);
-  const legacy = bundle.products.map((product) => product.productType === "article" ? { ...product, schemaVersion: "article.v3" as const } : product);
+  const legacy = bundle.products.map((product) => {
+    if (product.productType === "article") return { ...product, schemaVersion: "article.v3" as const };
+    if (product.productType === "diktat") return { ...product, schemaVersion: "diktat.v3" as const, units: undefined };
+    return product;
+  });
   const legacyQuality = await evaluateProductBundleQualityPolicy(legacy);
   expect(legacyQuality.issues.some((issue) => issue.code === "PRODUCT_V4_UNMARKED_SCIENTIFIC_NOTATION")).toBe(false);
 });

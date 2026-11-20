@@ -1,6 +1,6 @@
 import { attachProductV4VerificationSnapshot, latestProductV4StagingAudit, currentProductV4VerificationRef, matchesProductV4StagingSnapshot } from "./product-v4-staging-identity";
 import { buktiPdfBundle } from "@/db/schema";
-import { resolveProductV4PdfBinding, selectProductPdfEvidence } from "./product-pdf-selection";
+import { diktatPdfLineage, resolveProductV4PdfBinding, selectProductPdfEvidence } from "./product-pdf-selection";
 import { db } from "@/db";
 import { imporBundle } from "@/db/schema";
 import { eq } from "drizzle-orm";
