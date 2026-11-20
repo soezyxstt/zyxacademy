@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { ArrowLeft, Bell, BellOff, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, LockKeyhole, MessageSquareText, RotateCcw, SquarePen } from "lucide-react";
 import { AdminEmptyState } from "@/components/admin/state-panels";
@@ -141,6 +141,9 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
   const creatableChannels = props.channels.filter((item) => item.canCreate);
   const newChannelId = newChannel?.id ?? "";
   const composeActive = newOpen;
+  const loadAuthorProfile = props.onLoadAuthorProfile;
+  const profileQuestionId = profileTarget?.questionId;
+  const loadProfile = useCallback((authorId: string) => loadAuthorProfile!({ questionId: profileQuestionId!, authorId }), [loadAuthorProfile, profileQuestionId]);
 
   useEffect(() => {
     const key = props.selectedMessageId && props.selectedQuestionId ? `${props.selectedQuestionId}:${props.selectedMessageId}` : null;
@@ -314,7 +317,8 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
                 draft={newDraft}
                 update={(change) => updateDraft("new", change)}
                 channelId={newChannelId}
-                audienceHelp={newChannel ? t(discussionAudienceKey(newChannel, props.viewer.role)) : undefined}
+                audienceHelp={props.composerAudience ?? (newChannel ? t(discussionAudienceKey(newChannel, props.viewer.role)) : undefined)}
+                canAskZyra={props.canAskZyra}
                 zyraUnscoped={newChannel ? !newChannel.courseId && newChannel.kind !== "course" : undefined}
                 viewer={props.viewer}
                 onSearchMentions={props.onSearchMentions}
@@ -349,7 +353,7 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
                 );
               });
             })() : <AdminEmptyState icon={MessageSquareText} title={t("noMessages")} className="min-h-full flex-1" />}</div>
-            {(question.canReply || threadDraft.sending || threadDraft.body.length > 0 || threadDraft.images.length > 0 || threadDraft.replyTo) && <div className="flex max-h-[80%] min-h-0 shrink-0 flex-col border-t border-border p-3"><DiscussionComposer draft={question.canReply || threadLocked ? threadDraft : { ...threadDraft, error: "resolved" }} update={(change) => updateDraft(draftKey, change)} channelId={channel.id} audienceHelp={t(discussionAudienceKey(channel, props.viewer.role))} zyraUnscoped={!channel.courseId && channel.kind !== "course"} questionId={question.id} viewer={props.viewer} onSearchMentions={props.onSearchMentions} onUpload={props.onUploadImage} onSubmit={({ viewerId: _viewerId, channelId: _channelId, questionId, questionDetails: _details, replyToMessageId, ...input }) => props.onSendReply({ ...input, questionId: questionId!, messageType: replyToMessageId ? "reply" : "answer", replyToMessageId })} submitDisabled={!question.canReply && !threadLocked} submitLabel={t(threadDraft.replyTo ? "sendReply" : "sendAnswer")} /></div>}
+            {(question.canReply || threadDraft.sending || threadDraft.body.length > 0 || threadDraft.images.length > 0 || threadDraft.replyTo) && <div className="flex max-h-[80%] min-h-0 shrink-0 flex-col border-t border-border p-3"><DiscussionComposer draft={question.canReply || threadLocked ? threadDraft : { ...threadDraft, error: "resolved" }} update={(change) => updateDraft(draftKey, change)} channelId={channel.id} audienceHelp={props.composerAudience ?? t(discussionAudienceKey(channel, props.viewer.role))} canAskZyra={props.canAskZyra} zyraUnscoped={!channel.courseId && channel.kind !== "course"} questionId={question.id} viewer={props.viewer} onSearchMentions={props.onSearchMentions} onUpload={props.onUploadImage} onSubmit={({ viewerId: _viewerId, channelId: _channelId, questionId, questionDetails: _details, replyToMessageId, ...input }) => props.onSendReply({ ...input, questionId: questionId!, messageType: replyToMessageId ? "reply" : "answer", replyToMessageId })} submitDisabled={!question.canReply && !threadLocked} submitLabel={t(threadDraft.replyTo ? "sendReply" : "sendAnswer")} /></div>}
           </>}</section>
         </div>
       </TabsContent>
@@ -359,7 +363,7 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
       open={!!profileTarget}
       onOpenChange={(open) => { if (!open) setProfileTarget(null); }}
       author={profileTarget?.author ?? null}
-      loadProfile={props.onLoadAuthorProfile && profileTarget ? (authorId) => props.onLoadAuthorProfile!({ questionId: profileTarget.questionId, authorId }) : undefined}
+      loadProfile={loadAuthorProfile && profileQuestionId ? loadProfile : undefined}
     />
   </div></TooltipProvider>;
 }

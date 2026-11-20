@@ -55,7 +55,7 @@ test("leaderboard tabs, filters, legacy links and local social profiles", async 
   await page.getByRole("button", { name: /Citra Maharani/ }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("button", { name: "Follow", exact: true })).toBeVisible();
-  await expect(dialog.locator('[data-profile-mascot="zyra-avatar-komodo"]')).toBeVisible();
+  await expect(dialog.locator('[data-profile-mascot="zyra-avatar-studio-cat"]')).toBeVisible();
   await capture(page, info, "profile-dialog");
   await dialog.getByRole("button", { name: "Follow", exact: true }).click();
   await expect(dialog.getByRole("button", { name: "Unfollow", exact: true })).toBeVisible();
@@ -115,7 +115,7 @@ test("achievement tabs, tier dialog and local rewards", async ({ page }, info) =
 test("profile, follows, group roster and local people search", async ({ page }, info) => {
   await page.goto(url("profile"));
   await expect(page.getByText("42.650 XP")).toBeVisible();
-  await expect(page.locator('[data-profile-mascot="zyra-avatar-jalak"]')).toBeVisible();
+  await expect(page.locator('[data-profile-mascot="zyra-avatar-studio-cat"]')).toBeVisible();
   await capture(page, info, "profile");
   await page.getByRole("button", { name: "Diikuti", exact: true }).click();
   await expect(page.getByRole("button", { name: /Ayu Lestari/ })).toBeVisible();

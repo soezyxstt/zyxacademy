@@ -65,6 +65,7 @@ type ComposerProps = {
   audienceHelp?: string;
   viewer: DiscussionPerson;
   onSearchMentions: DiscussionWorkspaceProps["onSearchMentions"];
+  canAskZyra?: boolean;
   onUpload: DiscussionWorkspaceProps["onUploadImage"];
   onSubmit: (input: ComposerSubmission) => Promise<DiscussionSendFailure | void>;
   questionDetails?: ComposerSubmission["questionDetails"];
@@ -176,7 +177,7 @@ export async function deliverComposerSubmission(prepared: { submission: Composer
   }
 }
 
-export function DiscussionComposer({ draft, update, channelId, questionId, zyraUnscoped, audienceHelp, viewer, onSearchMentions, onUpload, onSubmit, onSuccess, disabled = false, submitDisabled = false, submitLabel, beforeContent, questionDetails }: ComposerProps) {
+export function DiscussionComposer({ draft, update, channelId, questionId, zyraUnscoped, audienceHelp, viewer, onSearchMentions, onUpload, canAskZyra = true, onSubmit, onSuccess, disabled = false, submitDisabled = false, submitLabel, beforeContent, questionDetails }: ComposerProps) {
   const t = useTranslations("discussions");
   const textRef = useRef<ZyraComposerInputHandle>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -193,7 +194,7 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
   const pickerRef = useRef<HTMLDivElement>(null);
   const mentionStart = useRef<number | null>(null);
   const dismissedMentionStart = useRef<number | null>(null);
-  const showZyra = "zyra".startsWith(mentionSearch.toLowerCase());
+  const showZyra = canAskZyra && "zyra".startsWith(mentionSearch.toLowerCase());
 
   function dismissMention() {
     dismissedMentionStart.current = mentionStart.current;
@@ -250,6 +251,7 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
   }
 
   async function upload(image: ComposerImage) {
+    if (!onUpload) return;
     if (uploadsInFlight.current.has(image.id)) return;
     uploadsInFlight.current.add(image.id);
     update((current) => ({ ...current, images: current.images.map((item) => item.id === image.id ? { ...item, status: "uploading", error: undefined } : item) }));
@@ -292,6 +294,7 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
     if (!prepared) return;
     inFlight.current.add(lane);
     try {
+      if (!canAskZyra) prepared.submission.askZyra = false;
       if (await deliverComposerSubmission(prepared, uncertain, update, onSubmit)) {
         draft.images.forEach((image) => URL.revokeObjectURL(image.previewUrl));
         onSuccess?.();
@@ -358,12 +361,12 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
           </PopoverContent></Popover>
           <Popover><Tooltip><TooltipTrigger asChild><PopoverTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={t("composerHelp")}><CircleHelp /></Button></PopoverTrigger></TooltipTrigger><TooltipContent>{t("composerHelp")}</TooltipContent></Tooltip><PopoverContent aria-label={t("composerHelp")} align="end" collisionPadding={16} className="max-h-[min(24rem,calc(100dvh-2rem))] max-w-[calc(100vw-2rem)] space-y-2 overflow-y-auto text-body-xs">
             {audienceHelp && <p>{audienceHelp}</p>}
-            <p>{t("zyraContext")}</p>
-            {zyraUnscoped !== undefined && <p>{t(viewer.role === "student" ? zyraUnscoped ? "zyraUnscopedFreeText" : "zyraFreeText" : "zyraImages")}</p>}
-            {viewer.role === "student" && <p>{t("zyraQuota")}</p>}
+            {canAskZyra && <p>{t("zyraContext")}</p>}
+            {canAskZyra && zyraUnscoped !== undefined && <p>{t(viewer.role === "student" ? zyraUnscoped ? "zyraUnscopedFreeText" : "zyraFreeText" : "zyraImages")}</p>}
+            {canAskZyra && viewer.role === "student" && <p>{t("zyraQuota")}</p>}
           </PopoverContent></Popover>
-          <ToolButton label={t("addImage")} icon={ImagePlus} disabled={editingDisabled || draft.images.length >= MAX_IMAGES} onClick={() => fileRef.current?.click()} />
-          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" disabled={editingDisabled} multiple className="sr-only" tabIndex={-1} onChange={pickImages} />
+          {onUpload && <><ToolButton label={t("addImage")} icon={ImagePlus} disabled={editingDisabled || draft.images.length >= MAX_IMAGES} onClick={() => fileRef.current?.click()} />
+          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" disabled={editingDisabled} multiple className="sr-only" tabIndex={-1} onChange={pickImages} /></>}
         </div>
       </div>
     <ZyraComposerInput onCursorChange={(body, start, end) => {

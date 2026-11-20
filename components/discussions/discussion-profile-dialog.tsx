@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { MICRO } from "@/lib/gamification/catalog";
 import type { BadgeFamily, RankKey } from "@/lib/gamification/contracts";
 import type { DiscussionAuthorProfile } from "@/lib/discussions/contracts";
-import { followStudentAction, unfollowStudentAction } from "@/lib/gamification/social-actions";
+import { useStudentSocial } from "@/components/gamification/social-provider";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import type { DiscussionPerson } from "./view-model";
 
@@ -34,6 +34,7 @@ export function DiscussionProfileDialog({
   loadProfile?: (authorId: string) => Promise<DiscussionAuthorProfile>;
 }) {
   const t = useTranslations("discussions");
+  const social = useStudentSocial();
   const studentT = useTranslations("student");
   const { locale } = useAppLocale();
   const [data, setData] = useState<DiscussionAuthorProfile | null>(null);
@@ -82,8 +83,8 @@ export function DiscussionProfileDialog({
     setFollowMessage("");
     startTransition(async () => {
       try {
-        if (following) await unfollowStudentAction(publicId);
-        else await followStudentAction(publicId);
+        if (following) await social.unfollow(publicId);
+        else await social.follow(publicId);
         setData((current) =>
           current?.kind === "student" && current.profile.publicId === publicId
             ? {

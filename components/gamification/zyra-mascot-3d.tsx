@@ -56,7 +56,7 @@ export function ZyraMascot3D({cosmeticId,size=320,animated=true,animationName="i
   useEffect(()=>{handle.current?.setAnimation(animationName);},[animationName,animationReplay]);
   const ready=large&&readyKey===modelKey;
   return <span className={`relative inline-block max-w-full align-middle ${className||""}`} style={{width:extent,height:extent}} data-mascot-renderer={ready?"webgl":"poster"}>
-    <span ref={host} className="absolute inset-0 block" />
+    <span ref={host} className="absolute inset-0 block" style={{ visibility: ready ? "visible" : "hidden" }} />
     {unavailable&&<span className="absolute inset-x-0 bottom-0 z-10 flex flex-wrap items-center justify-center gap-1 rounded-md bg-background/90 px-2 py-1">
       <span role="status" className="text-body-xs">{t("cosmeticsStudio.unavailable")}</span>
       <Button type="button" variant="ghost" size="sm" onClick={()=>setAttempt(value=>value+1)}>{t("cosmeticsStudio.retry")}</Button>

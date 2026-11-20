@@ -18,7 +18,7 @@ import { CatPractice } from "./cat-practice";
 
 const slots = ["zyra_avatar", "pet_suit", "pet_action"] as const;
 
-export function StudentPetStudio({ rewards, balance }: { rewards: GamificationReward[]; balance: number }) {
+export function StudentPetStudio({ rewards, balance, onChangeReward }: { rewards: GamificationReward[]; balance: number; onChangeReward?: typeof changeReward }) {
   const t = useTranslations("student");
   const { locale } = useAppLocale();
   const reducedMotion = useAppReducedMotion();
@@ -37,9 +37,9 @@ export function StudentPetStudio({ rewards, balance }: { rewards: GamificationRe
     setError(false);
     start(async () => {
       try {
-        const result = await changeReward(item.id, operation, item.slot);
+        const result = await (onChangeReward ?? changeReward)(item.id, operation, item.slot);
         if (!result.ok) throw new Error();
-        router.refresh();
+        if (!onChangeReward) router.refresh();
       } catch { setError(true); }
     });
   }

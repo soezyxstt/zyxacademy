@@ -215,6 +215,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
         <TutorAppearanceContext.Provider value={appearance}>{children}</TutorAppearanceContext.Provider>
 
         {pathname?.startsWith("/courses/") &&
+          !(experience.mode === "demo" && pathname.endsWith("/discussions")) &&
           !pathname.includes("/live/host") &&
           !pathname.endsWith("/daftar") &&
           !suppressPet &&
