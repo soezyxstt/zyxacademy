@@ -83,8 +83,8 @@ export function detectConflicts(params: {
 
   // 2. Manual rows: any non-empty cell below the previous block within the previous columns.
   let hasManualRows = false;
-  for (let r = prevLastRow; r < prevGrid.length; r++) {
-    for (let c = 0; c < prevLastCol; c++) {
+  for (let r = prevLastRow; r < Math.min(prevGrid.length, newLastRow); r++) {
+    for (let c = 0; c < newLastCol; c++) {
       if ((prevGrid[r]?.[c] ?? "").trim() !== "") {
         hasManualRows = true;
         break;
@@ -101,8 +101,8 @@ export function detectConflicts(params: {
 
   // 3. Manual columns: any non-empty cell to the right of the previous block within the previous rows.
   let hasManualCols = false;
-  for (let c = prevLastCol; c < maxCols(prevGrid); c++) {
-    for (let r = 0; r < Math.min(prevLastRow, prevGrid.length); r++) {
+  for (let c = prevLastCol; c < newLastCol; c++) {
+    for (let r = 0; r < Math.min(prevLastRow, newLastRow, prevGrid.length); r++) {
       if ((prevGrid[r]?.[c] ?? "").trim() !== "") {
         hasManualCols = true;
         break;
@@ -118,14 +118,6 @@ export function detectConflicts(params: {
   }
 
   return conflicts;
-}
-
-function maxCols(grid: string[][]): number {
-  let max = 0;
-  for (const row of grid) {
-    if (row.length > max) max = row.length;
-  }
-  return max;
 }
 
 export async function ensureGoogleDriveFolderPath(segments: string[]): Promise<string> {
@@ -248,15 +240,20 @@ export async function readSheetGrid(spreadsheetId: string): Promise<string[][] |
   const token = await getGoogleFormsAccessToken();
 
   const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1%3AZZ100000`,
-    { headers: { Authorization: `Bearer ${token}` } }
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGetByDataFilter`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ dataFilters: [{ gridRange: { sheetId: 0 } }], valueRenderOption: "FORMULA" }),
+    }
   );
 
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Sheets read error: ${await res.text()}`);
 
-  const data = (await res.json()) as { values?: unknown[][] };
-  return (data.values ?? []).map((row) => row.map((cell) => (cell === null || cell === undefined ? "" : String(cell))));
+  const data = (await res.json()) as { valueRanges?: { valueRange: { values?: unknown[][] } }[] };
+  if (!data.valueRanges?.length) throw new Error("Export tab unavailable");
+  return (data.valueRanges[0].valueRange.values ?? []).map((row) => row.map((cell) => (cell === null || cell === undefined ? "" : String(cell))));
 }
 
 /**
@@ -316,6 +313,23 @@ export async function writeOwnedBlock(
       }
     },
   ];
+
+  const metadata = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets(properties(sheetId,gridProperties(rowCount,columnCount)))`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (metadata.status === 404) return false;
+  if (!metadata.ok) throw new Error(`Sheets metadata error: ${await metadata.text()}`);
+  type GridSheet = { properties: { sheetId: number; gridProperties: { rowCount: number; columnCount: number } } };
+  const { sheets } = await metadata.json() as { sheets: GridSheet[] };
+  const grid = sheets.find(sheet => sheet.properties.sheetId === 0)?.properties.gridProperties;
+  if (!grid) throw new Error("Export tab unavailable");
+  for (const [dimension, length] of [["ROWS", newLastRow - grid.rowCount], ["COLUMNS", newLastCol - grid.columnCount]] as const) {
+    if (length > 0) requests.unshift({ appendDimension: { sheetId: 0, dimension, length } });
+  }
+  // Manually deleted rows or columns no longer need to be cleared.
+  prevLastRow = Math.min(prevLastRow, grid.rowCount);
+  prevLastCol = Math.min(prevLastCol, grid.columnCount);
 
   // Clear the stale tail of the previously owned block (rows and/or columns that shrank).
   if (prevLastRow > newLastRow) {

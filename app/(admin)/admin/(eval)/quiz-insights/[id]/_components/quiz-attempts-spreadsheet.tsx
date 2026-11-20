@@ -318,7 +318,6 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationName
           </Button>}
         </div>
       </section>
-      {resultPanel}
 
       <div className="divide-y divide-border border-y border-border md:hidden">
         {filteredAttempts.length === 0 ? (
@@ -682,6 +681,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationName
             </div>
           </div>
 
+          {resultPanel}
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"

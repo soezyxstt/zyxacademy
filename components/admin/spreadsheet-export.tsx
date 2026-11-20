@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "@/lib/i18n/client";
 
 import { AdminIconAction } from "@/components/admin/icon-action";
+import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { GoogleSetupHelp } from "@/components/admin/google-setup-help";
 import { AlertTriangle, ExternalLink, Sheet } from "lucide-react";
@@ -60,8 +61,9 @@ export function useSpreadsheetExport(opts: {
 
   const showResult = useCallback((outcome: SpreadsheetExportSuccess, title: string) => {
     setResult({ ...outcome, title, scope: opts.scope });
+    toast.success(t(outcome.isNew ? "created" : "updated"));
     opts.onSuccess?.(outcome);
-  }, [opts]);
+  }, [opts, t]);
 
   const submit = useCallback(
     async (payload: SpreadsheetExportPayload) => {

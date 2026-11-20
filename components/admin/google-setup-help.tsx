@@ -16,7 +16,9 @@ export function GoogleSetupHelp({ service }: { service: "meet" | "sheets" }) {
         <ol className="list-decimal space-y-2 pl-4 text-body-sm">
           <li><a className="underline" href="https://console.cloud.google.com/apis/library" target="_blank" rel="noreferrer">{t("library")}</a>. {t(service)}</li>
           <li>{t("client")}</li>
-          <li><a className="underline" href="https://developers.google.com/oauthplayground/" target="_blank" rel="noreferrer">OAuth Playground</a>. {t("authorize")}</li>
+          <li><a className="underline" href="https://developers.google.com/oauthplayground/" target="_blank" rel="noreferrer">OAuth Playground</a>. {t("authorize")}
+            <code className="mt-1 block select-all break-all text-body-xs">https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/meetings.space.created</code>
+          </li>
           <li>{t("deploy")}</li>
         </ol>
       </PopoverContent>
