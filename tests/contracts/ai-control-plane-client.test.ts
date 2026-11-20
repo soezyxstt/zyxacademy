@@ -53,6 +53,17 @@ describe("Plan 005 control-plane client", () => {
     expect(captured?.headers.get("x-request-id")).toBe("request-id");
   });
 
+  it("returns the worker's typed capacity denial so routing can try another model", async () => {
+    const denial = { status: "quota_exhausted", code: "QUOTA_EXHAUSTED", modelId: "openai-gpt" };
+    const client = new ControlPlaneClient({
+      baseUrl: "https://worker.invalid", token: "fixture",
+      fetchImpl: async () => Response.json(denial, { status: 429 }),
+    });
+    expect(await client.reserve({ idempotencyKey: "probe", userId: "probe", role: "admin",
+      feature: "selector-smoke", routeClass: "default", modelId: "openai-gpt", cacheStatus: "bypass",
+    })).toEqual(denial);
+  });
+
   it("masks non-JSON and HTTP failures without exposing URL query or token", async () => {
     const client = new ControlPlaneClient({
       baseUrl: "https://staging.example.invalid?secret=query-value",

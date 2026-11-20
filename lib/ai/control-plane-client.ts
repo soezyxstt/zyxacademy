@@ -271,7 +271,9 @@ export class ControlPlaneClient {
       if (!parsed || typeof parsed !== "object") {
         throw new ControlPlaneClientError("CONTROL_PLANE_NON_JSON", "control-plane returned a non-JSON response", response.status);
       }
-      if (!response.ok) {
+      const capacityDenial = path === "/quota/reserve" && response.status === 429 &&
+        "status" in parsed && (parsed.status === "quota_exhausted" || parsed.status === "fallback_allowed");
+      if (!response.ok && !capacityDenial) {
         throw new ControlPlaneClientError("CONTROL_PLANE_HTTP_ERROR", "control-plane returned an HTTP error", response.status);
       }
       const result = schema.safeParse(parsed);

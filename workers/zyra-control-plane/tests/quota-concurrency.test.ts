@@ -75,3 +75,21 @@ test("diagnostics count provider attempts for the current provider day and dedup
     expect(ledger.diagnostics().counters).toEqual([]);
   } finally { harness.close(); }
 });
+
+test("admin catalog probes consume shared group capacity and cannot select a foreign group", () => {
+  const harness = new BunSqliteHarness();
+  try {
+    ensureQuotaSchema(harness);
+    const ledger = new QuotaLedger(harness);
+    const input = { userHash: "a".repeat(64), role: "admin", feature: "selector-smoke", modelId: "openai-gpt",
+      routeClass: "default", cacheStatus: "bypass", probeProjectAlias: "openai", idempotencyKey: "probe" } as const;
+    expect(ledger.reserve({ ...input, probeProjectAlias: "another-project" }).status).toBe("quota_exhausted");
+    expect(ledger.reserve({ ...input, role: "murid" }).status).toBe("quota_exhausted");
+    expect(ledger.reserve(input).status).toBe("reserved");
+    for (let index = 1; index <= 5; index++) {
+      const result = ledger.reserve({ ...input, modelId: "openai-gpt-2", feature: "playground", probeProjectAlias: undefined,
+        idempotencyKey: "playground-" + index });
+      expect(result.status).toBe(index < 5 ? "reserved" : "quota_exhausted");
+    }
+  } finally { harness.close(); }
+});
