@@ -49,11 +49,12 @@ for (const locale of ["id", "en"] as const) {
   const picker = page.getByRole("dialog", { name: en ? "Mention someone" : "Sebut orang", exact: true });
   await page.keyboard.insertText("Alice");
   const person = picker.getByRole("button", { name: /Alice, (Student|Murid), Materi 11$/, exact: true });
-  await person.scrollIntoViewIfNeeded();
-  await expect(person).toBeInViewport();
   await expect(person).toBeEnabled();
+  await page.keyboard.press("ArrowUp");
+  await expect(person).toBeFocused();
+  await expect(person).toBeInViewport();
   await capture(page, info, `${locale}-namesake-eleventh`);
-  await person.click();
+  await page.keyboard.press("Enter");
   await page.getByRole("button", { name: en ? "Send answer" : "Kirim jawaban", exact: true }).click();
   await expect(page.locator("main")).toHaveAttribute("data-fixture-mention-ids", "alice-11");
   await capture(page, info, `${locale}-namesake-eleventh-posted`);
@@ -786,6 +787,23 @@ test("channel and forward pickers paginate cleanly", async ({ page }, info) => {
   await expect(dialog.getByText("Halaman 2", { exact: true })).toBeVisible();
   await dialog.getByRole("option", { name: /Pertanyaan tambahan 25/ }).click();
   await capture(page, info, "forward-picker-next-page");
+});
+
+test("keyboard mention selection preserves the text after the caret", async ({ page }) => {
+  await open(page, "?locale=id");
+  const editor = page.getByRole("textbox", { name: "Tulis pesan", exact: true });
+  await editor.fill("Halo besok");
+  await editor.press("Home");
+  for (let i = 0; i < "Halo ".length; i++) await editor.press("ArrowRight");
+  await page.getByRole("button", { name: "Sebut orang", exact: true }).click();
+  await page.keyboard.insertText("Rak");
+  const candidate = page.getByRole("dialog", { name: "Sebut orang" }).getByRole("button", { name: "Raka Pratama", exact: true });
+  await expect(candidate).toBeEnabled();
+  await page.keyboard.press("ArrowDown");
+  await expect(candidate).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(editor).toHaveText("Halo @Raka_Pratama besok");
+  await expect(editor).toBeFocused();
 });
 
 test("typing a mention opens the picker and the posted name opens its profile", async ({ page }) => {

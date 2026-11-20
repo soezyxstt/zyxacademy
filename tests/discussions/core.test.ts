@@ -55,6 +55,21 @@ beforeAll(async () => {
 const submit = (requestId: string, body = "Pertanyaan") => ({ body, attachmentIds: [], mentionIds: [], askZyra: false, requestId });
 
 describe("discussion authorization and transactions", () => {
+ test("selected namesakes retain exact handle bindings across renames and retries", async () => {
+  const input = { ...submit("namesake-bindings", "@Alice_2 dan @Alice"), channelId: "global",
+   mentionIds: ["bob", "carol"], mentionHandles: ["Alice", "Alice_2"] };
+  const posted = await service.createThread("alice", input);
+  expect(await service.createThread("alice", input)).toEqual(posted);
+  await expect(service.createThread("alice", { ...input, mentionHandles: ["Alice_2", "Alice"] })).rejects.toThrow("DISCUSSION_CONFLICT");
+  await expect(service.createThread("alice", { ...input, mentionHandles: ["Alice", "absent"] })).rejects.toThrow("DISCUSSION_INVALID");
+  const page = await service.getThread("alice", posted.threadId);
+  expect(page.messages.items[0].mentionedPeople).toEqual([
+   { id: "bob", name: "bob", role: "student", mention: "Alice" },
+   { id: "carol", name: "carol", role: "student", mention: "Alice_2" },
+  ]);
+  expect((await service.getDiscussionAuthorProfile("alice", posted.threadId, "bob")).name).toBe("bob");
+ });
+
  test("bounded channel metadata omits revoked scopes and exact course pages exclude team channels", async () => {
   const channels = await service.listChannels("bob", ["channel-a", "channel-b", "private-academic", "missing", "global"]);
   expect(channels.map(row => row.id).sort()).toEqual(["channel-a", "global"]);
@@ -568,6 +583,14 @@ describe("discussion authorization and transactions", () => {
   const thread = await service.createThread("alice", { ...submit("profile-q"), channelId: "global", title: "Profil" });
   const tutorAnswer = await service.reply("tutor", { ...submit("profile-tutor"), threadId: thread.threadId, messageType: "answer" });
   const deletedAnswer = await service.reply("carol", { ...submit("profile-carol"), threadId: thread.threadId, messageType: "answer" });
+  expect(await service.getDiscussionAuthorProfile("alice", thread.threadId, "carol")).toMatchObject({
+   kind: "student", profile: { publicId: null, baseXpMicro: null, major: null, faculty: null, canFollow: false },
+  });
+  await db.insert(schema.gamificationBlocks).values({ blockerId: "carol", blockedId: "alice" });
+  expect(await service.getDiscussionAuthorProfile("alice", thread.threadId, "carol")).toMatchObject({
+   kind: "limited", visibilityReason: "blocked",
+  });
+  await db.delete(schema.gamificationBlocks).where(and(eq(schema.gamificationBlocks.blockerId, "carol"), eq(schema.gamificationBlocks.blockedId, "alice")));
   await service.deleteMessage("carol", deletedAnswer.messageId);
   await db.insert(schema.gamificationProfiles).values([
    { userId: "alice", publicId: "pub-alice", displayName: "Alice Public", visibility: "members", leaderboardOptIn: true, allowFollows: true },

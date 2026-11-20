@@ -6465,6 +6465,7 @@ export const discussionMessages = pgTable("discussion_messages", {
  replyToId: text("reply_to_id").references((): AnyPgColumn => discussionMessages.id),
  forwardedFromId: text("forwarded_from_id").references((): AnyPgColumn => discussionMessages.id),
  skinId: text("skin_id").references(() => gamificationCosmetics.id),
+ mentionHandles: jsonb("mention_handles").$type<string[]>(),
  mentionIds: jsonb("mention_ids").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
  askZyra: boolean("ask_zyra").notNull().default(false),
  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

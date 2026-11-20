@@ -12,7 +12,7 @@ import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/compon
 import { ZyraComposerInput, type ZyraComposerInputHandle } from "@/components/course/zyra-composer-input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DiscussionReplayTarget, DiscussionSendError, DiscussionSendFailure } from "@/lib/discussions/contracts";
-import { validDiscussionId } from "@/lib/discussions/policy";
+import { discussionMentionTokens, validDiscussionId } from "@/lib/discussions/policy";
 import { discussionMessageHref } from "./discussion-adapter";
 import { DiscussionMarkdown } from "./discussion-markdown";
 import type { DiscussionAttachment, DiscussionMention, DiscussionPerson, DiscussionPrivateKind, DiscussionUploadError, DiscussionWorkspaceProps } from "./view-model";
@@ -46,7 +46,7 @@ export type ComposerDraft = {
 export type ComposerSubmission = {
   viewerId: string; channelId: string; questionId?: string;
   questionDetails?: { title?: string; helpKind?: DiscussionPrivateKind };
-  body: string; attachments: DiscussionAttachment[]; mentionIds: string[]; askZyra: boolean;
+  body: string; attachments: DiscussionAttachment[]; mentionIds: string[]; mentionHandles?: string[]; askZyra: boolean;
   skinId?: string | null; requestId: string; replyToMessageId?: string;
 };
 
@@ -109,7 +109,7 @@ export function selectDiscussionMention(person: DiscussionMention, people: Discu
 }
 
 export function discussionMentions(body: string, people: DiscussionMention[]) {
-  const handles = new Set(Array.from(body.matchAll(/(?:^|[^\p{L}\p{N}_])@([\p{L}\p{N}_](?:[\p{L}\p{N}_.-]*[\p{L}\p{N}_])?)/gu), (match) => match[1].toLowerCase()));
+  const handles = discussionMentionTokens(body);
   const eligible = people.filter(person => people.every(other => other.id === person.id || mentionHandle(other) !== mentionHandle(person)));
   return { mentionIds: [...new Set(eligible.filter((person) => mentionHandle(person) !== "zyra" && handles.has(mentionHandle(person))).map((person) => person.id))], askZyra: handles.has("zyra") };
 }
@@ -155,10 +155,11 @@ export function prepareComposerSubmission(draft: ComposerDraft, viewer: Discussi
   }
   const attachments = draft.images.flatMap(image => image.attachment ? [image.attachment] : []);
   const mentions = discussionMentions(draft.body, draft.mentionedPeople);
-  const fingerprint = JSON.stringify([viewer.id, viewer.skinId, channelId, questionId, questionDetails, draft.body.trim(), attachments.map(item => item.id), mentions, draft.replyTo?.id]);
+  const mentionHandles = mentions.mentionIds.map(id => draft.mentionedPeople.find(person => person.id === id)!.mention);
+  const fingerprint = JSON.stringify([viewer.id, viewer.skinId, channelId, questionId, questionDetails, draft.body.trim(), attachments.map(item => item.id), mentions, mentionHandles, draft.replyTo?.id]);
   const requestId = draft.requestFingerprint === fingerprint && draft.requestId ? draft.requestId : crypto.randomUUID();
   return { fingerprint, submission: { viewerId: viewer.id, channelId, questionId, questionDetails, body: draft.body.trim(), attachments,
-    ...mentions, skinId: viewer.skinId, requestId, replyToMessageId: draft.replyTo?.id } };
+    ...mentions, ...(mentionHandles.length ? { mentionHandles } : {}), skinId: viewer.skinId, requestId, replyToMessageId: draft.replyTo?.id } };
 }
 
 export async function deliverComposerSubmission(prepared: { submission: ComposerSubmission; fingerprint: string }, wasUncertain: boolean,
@@ -190,7 +191,14 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
   const searchMentions = useRef(onSearchMentions);
   useEffect(() => { searchMentions.current = onSearchMentions; }, [onSearchMentions]);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const mentionStart = useRef<number | null>(null);
+  const dismissedMentionStart = useRef<number | null>(null);
   const showZyra = "zyra".startsWith(mentionSearch.toLowerCase());
+
+  function dismissMention() {
+    dismissedMentionStart.current = mentionStart.current;
+    setMentionOpen(false);
+  }
 
   function chooseMention(candidate?: DiscussionMention) {
     const editor = textRef.current;
@@ -199,8 +207,8 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
     const start = end - mentionSearch.length - 1;
     if (draft.body.slice(start, end) !== "@" + mentionSearch) return;
     const person = candidate && selectDiscussionMention(candidate, draft.mentionedPeople);
-    editor.setSelectionRange(start, end);
-    editor.insertText(`@${person?.mention ?? "Zyra"} `);
+    const to = draft.body[end] === " " ? end + 1 : end;
+    if (!editor.insertText(`@${person?.mention ?? "Zyra"} `, { from: start, to })) return;
     if (person) update(current => ({ ...current, mentionedPeople: [...current.mentionedPeople.filter(item => item.id !== person.id), { ...person, channelId }] }));
     setMentionOpen(false);
   }
@@ -298,11 +306,20 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
     if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation();
-      setMentionOpen(false);
+      dismissMention();
       textRef.current?.focus();
-    } else if (event.key === "ArrowDown" && (event.target as HTMLElement).closest(".cm-editor")) {
-      const first = pickerRef.current?.querySelector<HTMLButtonElement>("button:not(:disabled)");
-      if (first) { event.preventDefault(); event.stopPropagation(); first.focus(); }
+    } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      const picker = pickerRef.current;
+      const target = event.target as HTMLElement;
+      if (!picker || (!target.closest(".cm-editor") && !picker.contains(target))) return;
+      const choices = Array.from(picker.querySelectorAll<HTMLButtonElement>("button:enabled"));
+      if (!choices.length) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const current = choices.indexOf(target.closest("button") as HTMLButtonElement);
+      const next = event.key === "ArrowDown" ? current + 1 : current < 0 ? choices.length - 1 : current - 1;
+      if (next < 0) textRef.current?.focus();
+      else choices[Math.min(next, choices.length - 1)].focus();
     }
   }}>
     <div role="region" tabIndex={0} aria-label={t("editorRegion")} className="min-h-0 space-y-2 overflow-y-auto focus-visible:outline-2 focus-visible:outline-ring">
@@ -325,7 +342,7 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
             <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => insert("[", "](https://)")}><Link2 className="size-3.5" />{t("link")}</DropdownMenuItem>
             <DropdownMenuItem className="gap-2 px-2 py-1.5 text-body-xs" onSelect={() => insert("$", "$")}><Sigma className="size-3.5" />{t("formula")}</DropdownMenuItem>
           </DropdownMenuContent></DropdownMenu>
-          <Popover modal={false} open={mentionOpen && !editingDisabled} onOpenChange={setMentionOpen}><PopoverAnchor asChild><span><Tooltip><TooltipTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={t("mentionPerson")} disabled={editingDisabled} onClick={() => {
+          <Popover modal={false} open={mentionOpen && !editingDisabled} onOpenChange={open => { if (!open) dismissMention(); }}><PopoverAnchor asChild><span><Tooltip><TooltipTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={t("mentionPerson")} disabled={editingDisabled} onClick={() => {
             const caret = textRef.current?.selectionStart ?? 0;
             textRef.current?.insertText((caret && /[\p{L}\p{N}_]/u.test(draft.body[caret - 1]) ? " " : "") + "@");
           }}><AtSign /></Button></TooltipTrigger><TooltipContent>{t("mentionPerson")}</TooltipContent></Tooltip></span></PopoverAnchor><PopoverContent ref={pickerRef} side="top" align="start" onOpenAutoFocus={event => event.preventDefault()} onCloseAutoFocus={event => event.preventDefault()} onInteractOutside={event => { if (event.target instanceof Element && event.target.closest(".cm-editor")) event.preventDefault(); }} aria-label={t("mentionPerson")} collisionPadding={8} className="w-56 max-w-[calc(100vw-2rem)] p-1">
@@ -333,8 +350,9 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
             {showZyra && <Button type="button" variant="ghost" className="h-9 w-full [&>span]:justify-start" onClick={() => chooseMention()}><span aria-hidden="true"><ZyraCosmeticAvatar size={24} /></span>Zyra</Button>}
             {mentionResult.key !== mentionKey || mentionResult.status === "loading" ? <p role="status" className="px-2 text-body-xs text-muted-foreground">{t("searchingPeople")}</p> : mentionResult.status === "error" ? <div role="alert" className="space-y-1 px-2 text-body-xs text-destructive"><p className="text-body-xs">{t("peopleSearchError")}</p><Button type="button" variant="outline" size="sm" onClick={() => setMentionRetry((value) => value + 1)}>{t("retry")}</Button></div> : mentionResult.items.length === 0 ? <p className="px-2 text-body-xs text-muted-foreground">{t("noPeople")}</p> : <>{mentionResult.items.map((person) => {
               const needsContext = person.hasNamesake || mentionResult.items.some(other => sameMentionNameAndRole(person, other));
+              const showRole = needsContext || mentionResult.items.some(other => person.id !== other.id && person.name.trim().toLowerCase() === other.name.trim().toLowerCase());
               const ambiguous = ambiguousDiscussionMention(person, mentionResult.items);
-              return <Button key={person.id} type="button" variant="ghost" disabled={editingDisabled || ambiguous} className="h-auto min-h-9 w-full whitespace-normal py-1 text-left [&>span]:justify-start" onClick={() => { chooseMention(person); }}><span aria-hidden="true"><StudentAvatar name={person.name} image={person.avatarUrl} size={24} /></span><span className="min-w-0 break-words">{person.name}{needsContext && ", " + t(person.role === "student" ? "role_student" : person.role === "tutor" ? "role_tutor" : person.role === "admin" ? "role_admin" : "role_unknown")}{needsContext && `, ${person.context?.trim() || t("mentionNoContext")}`}{ambiguous && `, ${t(discussionMentionAmbiguityKey(person, mentionResult.items)!)}`}</span></Button>;
+              return <Button key={person.id} type="button" variant="ghost" disabled={editingDisabled || ambiguous} className="h-auto min-h-9 w-full whitespace-normal py-1 text-left [&>span]:justify-start" onClick={() => { chooseMention(person); }}><span aria-hidden="true"><StudentAvatar name={person.name} image={person.avatarUrl} size={24} /></span><span className="min-w-0 break-words">{person.name}{showRole && ", " + t(person.role === "student" ? "role_student" : person.role === "tutor" ? "role_tutor" : person.role === "admin" ? "role_admin" : "role_unknown")}{needsContext && `, ${person.context?.trim() || t("mentionNoContext")}`}{ambiguous && `, ${t(discussionMentionAmbiguityKey(person, mentionResult.items)!)}`}</span></Button>;
             })}</>}
             </div>
           </PopoverContent></Popover>
@@ -349,9 +367,14 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
         </div>
       </div>
     <ZyraComposerInput onCursorChange={(body, start, end) => {
-      const match = start === end && /(?:^|[^\p{L}\p{N}_@])@([\p{L}\p{M}\p{N}_-]{0,80})$/u.exec(body.slice(0, start));
-      setMentionOpen(Boolean(match));
-      setMentionSearch(match ? match[1] : "");
+      const match = start === end && /(?:^|[^\p{L}\p{N}_@])@([\p{L}\p{M}\p{N}_ '-]{0,80})$/u.exec(body.slice(0, start));
+      const query = match ? match[1] : "";
+      mentionStart.current = match ? start - query.length - 1 : null;
+      if (mentionStart.current !== dismissedMentionStart.current) dismissedMentionStart.current = null;
+      const firstWord = query.split(" ", 1)[0].toLowerCase();
+      const followsSelection = query.includes(" ") && (firstWord === "zyra" || draft.mentionedPeople.some(person => mentionHandle(person) === firstWord));
+      setMentionOpen(Boolean(match) && !followsSelection && dismissedMentionStart.current === null);
+      setMentionSearch(query);
     }} ref={textRef} value={draft.body} onChange={(body) => update((current) => ({ ...current, body, mentionedPeople: current.mentionedPeople.filter((person) => discussionMentions(body, [person]).mentionIds.length > 0), error: submitDisabled && current.error === "resolved" ? current.error : null, requestId: undefined }))} onSubmit={() => void submit()} submitOnEnter={false} renderFormatting maxLength={12_000} disabled={editingDisabled} placeholder={t("writeMessage")} aria-label={t("writeMessage")} className="col-start-1 row-start-2 min-w-0 rounded-md border border-input bg-background px-2 text-body-sm focus-within:ring-2 focus-within:ring-ring" />
         {!(replayUnverified && draft.replayTarget) && <Tooltip><TooltipTrigger asChild><Button type="button" size="icon-sm" className="col-start-2 row-start-2 justify-self-end" aria-label={sendLabel} onClick={() => void submit()} isLoading={draft.sending} disabled={busy || submitDisabled || replayUnverified || (uncertain ? !canReplay : uploading || failedImage || invalidContent || (!draft.body.trim() && draft.images.length === 0))}><Send /></Button></TooltipTrigger><TooltipContent>{sendLabel}</TooltipContent></Tooltip>}
       </div>

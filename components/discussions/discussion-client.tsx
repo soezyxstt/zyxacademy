@@ -573,7 +573,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     finally { signalCounts(); }
   }
   const toSubmit = (input: Parameters<DiscussionWorkspaceProps["onCreateQuestion"]>[0]) => ({
-    body: input.body, attachmentIds: input.attachments.map((item) => item.id), mentionIds: input.mentionIds,
+    body: input.body, attachmentIds: input.attachments.map((item) => item.id), mentionIds: input.mentionIds, mentionHandles: input.mentionHandles,
     askZyra: input.askZyra, skinId: input.skinId, requestId: input.requestId,
   });
   const uiChannels = visibleChannels.map(toUiChannel);

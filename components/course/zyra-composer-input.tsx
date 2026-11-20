@@ -11,7 +11,7 @@ import "katex/dist/katex.min.css";
 
 export type ZyraComposerInputHandle = {
   focus: (options?: FocusOptions) => void;
-  insertText: (text: string) => void;
+  insertText: (text: string, range?: { from: number; to: number }) => boolean;
   setSelectionRange: (start: number, end: number) => void;
   readonly selectionStart: number;
   readonly selectionEnd: number;
@@ -129,12 +129,14 @@ export const ZyraComposerInput = React.forwardRef<ZyraComposerInputHandle, Props
 
   React.useImperativeHandle(ref, () => ({
     focus: () => editor.current?.focus(),
-    insertText: (text) => {
+    insertText: (text, range) => {
       const view = editor.current;
-      if (!view || latest.current.disabled) return;
-      const { from, to } = view.state.selection.main;
-      view.dispatch({ changes: { from, to, insert: text }, selection: { anchor: from + text.length }, userEvent: "input" });
+      if (!view || latest.current.disabled) return false;
+      const { from, to } = range ?? view.state.selection.main;
+      const transaction = view.state.update({ changes: { from, to, insert: text }, selection: { anchor: from + text.length }, userEvent: "input" });
+      view.dispatch(transaction);
       view.focus();
+      return transaction.docChanged;
     },
     setSelectionRange: (start, end) => {
       const view = editor.current;

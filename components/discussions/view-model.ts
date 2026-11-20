@@ -105,6 +105,7 @@ export type DiscussionDraftInput = {
   body: string;
   attachments: DiscussionAttachment[];
   mentionIds: string[];
+  mentionHandles?: string[];
   askZyra: boolean;
   skinId?: string | null;
   requestId: string;

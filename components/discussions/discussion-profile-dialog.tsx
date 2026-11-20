@@ -77,6 +77,7 @@ export function DiscussionProfileDialog({
   const toggleFollow = () => {
     if (!data || data.kind !== "student") return;
     const publicId = data.profile.publicId;
+    if (!publicId) return;
     const following = data.profile.isFollowing;
     setFollowMessage("");
     startTransition(async () => {
