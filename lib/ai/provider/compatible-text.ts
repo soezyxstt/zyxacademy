@@ -27,8 +27,11 @@ export function compatibleSettings(env: Environment = process.env, id: string = 
   const profile = TEXT_PROFILES[id];
   const model = env[profile.prefix + "_MODEL" + profile.modelSuffix]?.trim() ?? standardModels[id];
   const aliases = (env[profile.prefix + "_BYOK_ALIASES"] ?? "").split(",").map(alias => alias.trim()).filter(Boolean);
+  const origin = env.BETTER_AUTH_URL?.replace(/\/$/, "") ?? "";
+  const staging = origin === "https://staging.zyxacademy.com" ||
+    (env.ZYX_ENVIRONMENT === "staging" && /^https:\/\/zyx-academy-staging-edge\.[a-z0-9-]+\.workers\.dev$/.test(origin));
   if (!model || !aliases.length || !env.CF_AI_GATEWAY_TOKEN ||
-      env.BETTER_AUTH_URL?.replace(/\/$/, "") !== "https://staging.zyxacademy.com" ||
+      !staging ||
       !env.ZYRA_CONTROL_PLANE_URL || !env.ZYRA_CONTROL_PLANE_TOKEN) return null;
   try {
     const route = profile.route || env[profile.prefix + "_GATEWAY_ROUTE"];

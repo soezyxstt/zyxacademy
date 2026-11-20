@@ -82,3 +82,9 @@ test("dispatches the selected Muse variant using the provider's shared route", a
     expect(JSON.parse(String(init?.body)).model).toBe("muse-b");
   } finally { mock.mockRestore(); }
 });
+
+test("accepts the dedicated Cloud Run staging edge only in staging", () => {
+  const edge = { ...env, BETTER_AUTH_URL: "https://zyx-academy-staging-edge.fixture.workers.dev" };
+  expect(compatibleSettings({ ...edge, ZYX_ENVIRONMENT: "staging" })).toBeTruthy();
+  expect(compatibleSettings({ ...edge, ZYX_ENVIRONMENT: "production" })).toBeNull();
+});

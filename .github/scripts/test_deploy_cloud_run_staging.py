@@ -72,6 +72,17 @@ class CloudRunStagingTest(unittest.TestCase):
             with self.subTest(key=key), self.assertRaises(ValueError):
                 validate_template(changed, CONFIG)
 
+    def test_accepts_gateway_route_and_byok_aliases_and_rejects_provider_keys_in_plaintext(self):
+        candidate = spec()
+        entries = candidate["containers"][0]["env"]
+        entries.extend({"name": key, "value": value} for key, value in (
+            ("AI_META_GATEWAY_ROUTE", "custom-meta"), ("AI_META_MODEL_5", "muse-spark-1.2-contributor"),
+            ("AI_META_BYOK_ALIASES", "meta-1,meta-2")))
+        validate_template(candidate, CONFIG)
+        entries.append({"name": "AI_META_API_KEY", "value": "test"})
+        with self.assertRaises(ValueError):
+            validate_template(candidate, CONFIG)
+
     def test_ignores_tagged_revisions_without_traffic(self):
         self.assertTrue(REVISION.fullmatch(CANDIDATE))
         self.assertEqual(traffic(service_with_traffic(PREVIOUS)), {PREVIOUS: 100})
