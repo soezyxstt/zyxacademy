@@ -54,7 +54,7 @@ describe("Plan 005 control-plane client", () => {
   });
 
   it("returns the worker's typed capacity denial so routing can try another model", async () => {
-    const denial = { status: "quota_exhausted", code: "QUOTA_EXHAUSTED", modelId: "openai-gpt" };
+    const denial = { status: "quota_exhausted", code: "QUOTA_EXHAUSTED", modelId: "openai-gpt" } as const;
     const client = new ControlPlaneClient({
       baseUrl: "https://worker.invalid", token: "fixture",
       fetchImpl: async () => Response.json(denial, { status: 429 }),
