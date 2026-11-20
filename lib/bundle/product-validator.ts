@@ -16,6 +16,7 @@ import { solutionCollectionSchema } from "@/lib/materials/solution-collection";
 import { inspectPayloadSecurity } from "@/lib/materials/visual-contract";
 import { parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
 import type { InteractiveDocumentSpec } from "@/lib/materials/interactive-document";
+import { STANDALONE_FLASHCARD_SET_PREFIX } from "./product-identity";
 
 export const productBundleEntityTypeSchema = z.enum(["products", "dependencies"]);
 export type ProductBundleEntityType = z.infer<typeof productBundleEntityTypeSchema>;
@@ -125,10 +126,10 @@ export const productEntitySchema = z.discriminatedUnion("productType", [
     sections: z.array(productArticleV3SectionSchema).default([]),
     visuals: z.array(visualSpecSchema).default([]).optional(),
   }),
-  commonProduct.extend({ productType: z.literal("diktat"), title: z.string().min(1), contentMarkdown: z.string().min(1), sourceArticleId: id, sourceArticleVersion: positive, sourceArticleHash: hash, units: authoredDiktatUnitsSchema.optional() }),
+  commonProduct.extend({ productType: z.literal("diktat"), title: z.string().min(1), contentMarkdown: z.string().min(1), sourceArticleId: id.optional(), sourceArticleVersion: positive.optional(), sourceArticleHash: hash.optional(), visuals: z.array(visualSpecSchema).optional(), units: authoredDiktatUnitsSchema.optional() }),
   commonProduct.extend({ productType: z.literal("question"), questionType: z.enum(["multiple_choice", "multiple_choices", "short_answer", "essay"]), prompt: z.string().min(1), options: z.array(productQuestionOptionSchema), difficulty: z.enum(["easy", "medium", "hard"]), cognitiveLevel: z.enum(["remember", "understand", "apply", "analyze", "evaluate", "create"]), reasoningPattern: id, relationTypes: z.array(questionRelationTypeSchema).default([]), ideaRelations: z.array(productIdeaRelationSchema).default([]), itbSource: productItbSourceSchema, itbCuration: z.array(productItbCurationSchema).min(1) }),
   commonProduct.extend({ productType: z.literal("solution"), questionId: id, content: z.string().min(1) }),
-  commonProduct.extend({ productType: z.literal("flashcard_set"), title: z.string().min(1), cards: z.array(id).min(1) }),
+  commonProduct.extend({ productType: z.literal("flashcard_set"), title: z.string().min(1), cards: z.array(id) }),
   commonProduct.extend({ productType: z.literal("flashcard"), setId: z.string().min(1).optional(), front: z.string().min(1), back: z.string().min(1), explanation: z.string().optional(), atomic: z.literal(true) }),
   commonProduct.extend({ productType: z.literal("assessment_blueprint"), title: z.string().min(1), assessmentType: z.enum(["quiz", "tryout"]), chapterIds: z.array(id), questionIds: z.array(id).min(1) }),
   commonProduct.extend({ productType: z.literal("solution_collection"), schemaVersion: z.literal("solution_collection.v1"), chapterId: id, title: z.string().trim().min(1), collection: solutionCollectionSchema }).strict(),
@@ -210,9 +211,11 @@ function containsInteractiveDocument(value: unknown): boolean {
 }
 
 export function productInteractiveDocuments(products: readonly ProductEntity[]): InteractiveDocumentSpec[] {
-  return products.flatMap(product => product.productType === "article" ? [
-    ...(product.visuals ?? []).filter((visual): visual is InteractiveDocumentSpec => visual.kind === "interactive_document"),
-    ...product.sections.flatMap(section => section.blocks.flatMap(block => {
+  return products.flatMap(product => {
+    if (product.productType !== "article" && product.productType !== "diktat") return [];
+    const visuals = (product.visuals ?? []).filter((visual): visual is InteractiveDocumentSpec => visual.kind === "interactive_document");
+    if (product.productType === "diktat") return visuals;
+    return [...visuals, ...product.sections.flatMap(section => section.blocks.flatMap(block => {
       if (!block.formativeCheckPayload) return [];
       return [
         ...(block.parts ?? []).flatMap(part => part.kind === "markdown" ? parseInteractiveDocumentsInMarkdown(part.markdown) : []),
@@ -220,8 +223,8 @@ export function productInteractiveDocuments(products: readonly ProductEntity[]):
         ...parseInteractiveDocumentsInMarkdown(block.formativeCheckPayload.answer),
         ...parseInteractiveDocumentsInMarkdown(block.formativeCheckPayload.explanation),
       ];
-    })),
-  ] : []);
+    }))];
+  });
 }
 
 export function deterministicProductSerialization(value: unknown): string {
@@ -265,12 +268,14 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
     };
     const products = readEntities("products", productEntitySchema);
     const dependencies = readEntities("dependencies", productDependencySchema);
+    if (manifest.schemaVersion === "product-bundle.v4" && !products.length) return { success: false, issues: [issue("PRODUCT_V4_EMPTY", "V4 requires at least one learning product")] };
     const isV5 = manifest.schemaVersion === "product-bundle.v5";
     if (isV5 ? products.length !== 1 || products[0]?.productType !== "solution_collection" : products.some(product => product.productType === "solution_collection") || dependencies.some(dependency => dependency.downstreamEntityType === "solution_collection")) return { success: false, issues: [issue("PRODUCT_V5_PROFILE_MISMATCH", "V5 contains exactly one standalone solution collection; earlier profiles cannot contain it")] };
-    if (manifest.schemaVersion === "product-bundle.v4" && (products.filter(product => product.productType === "article").length !== 1 || products.filter(product => product.productType === "diktat").length > 1)) return { success: false, issues: [issue("PRODUCT_V4_SINGLE_ARTICLE_REQUIRED", "V4 bundles contain one chapter Article and at most one traced Diktat")] };
     const productKeys = new Set<string>();
     const bundleSectionIds = new Set<string>();
     const bundleV3BlockIds = new Set<string>();
+    const visibleDocumentHashes = new Set<string>();
+    const hiddenDocumentHashes = new Set<string>();
     for (const product of products) {
       if ((product.productType === "question" || product.productType === "solution") && containsInteractiveDocument(product)) return { success: false, issues: [issue("PRODUCT_QUESTION_INTERACTIVE_DOCUMENT_UNBOUND", "Product Bundle questions cannot bind interactive document assets")] };
       if (
@@ -330,8 +335,8 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
             hidden.push(...parseInteractiveDocumentsInMarkdown(answer), ...parseInteractiveDocumentsInMarkdown(explanation));
           }
         }
-        const visibleHashes = new Set(visible.flatMap(spec => [spec.documentSha256, spec.printSha256]));
-        if (hidden.some(spec => visibleHashes.has(spec.documentSha256) || visibleHashes.has(spec.printSha256))) return { success: false, issues: [issue("QUESTION_VISUAL_DISCLOSURE", "Visible and hidden formative documents cannot share assets")] };
+        for (const spec of visible) { visibleDocumentHashes.add(spec.documentSha256); visibleDocumentHashes.add(spec.printSha256); }
+        for (const spec of hidden) { hiddenDocumentHashes.add(spec.documentSha256); hiddenDocumentHashes.add(spec.printSha256); }
         if (!isV4 && product.visuals?.some(visual => visual.kind === "geometry_2d" || visual.kind === "source_figure" || visual.kind === "interactive_scene" || visual.kind === "interactive_document")) return { success: false, issues: [issue("PRODUCT_VISUAL_REQUIRES_V4", "This visual requires an explicit V4 bundle")] };
         if (isV4 && (product.blocks.length > 0 || !product.sections.length)) return { success: false, issues: [issue("PRODUCT_ARTICLE_V4_SHAPE_INVALID", "V4 requires sections and ordered parts")] };
         if (isV4 !== (product.schemaVersion === "article.v4")) return { success: false, issues: [issue("PRODUCT_ARTICLE_VERSION_MISMATCH", "V4 Articles require the V4 manifest and article.v4 schema")] };
@@ -584,16 +589,41 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
     }
     const invalidDependency = findInvalidProductDependency(dependencies, products);
     if (invalidDependency) return { success: false, issues: [issue(invalidDependency.code, `dependency ${invalidDependency.dependency.id} does not match its bundled product revision`, declared.get("dependencies")?.path)] };
+    const v4Pilot = manifest.schemaVersion === "product-bundle.v4";
+    if (v4Pilot) {
+      const articleIds = new Set(products.filter(product => product.productType === "article").map(product => product.id));
+      const visualTargets = new Set<string>();
+      for (const product of products) {
+        if (product.productType !== "article" && product.productType !== "diktat") continue;
+        for (const visual of product.visuals ?? []) {
+          const target = `${product.id}/${visual.id}`;
+          if (visualTargets.has(target) || (product.productType === "article" && articleIds.has(target))) {
+            return { success: false, issues: [issue("PRODUCT_V4_VISUAL_TARGET_CONFLICT", `visual verification target ${target} is ambiguous; choose distinct product and visual IDs`)] };
+          }
+          visualTargets.add(target);
+        }
+      }
+    }
     for (const product of products) {
       if (product.productType !== "diktat") continue;
-      const sourceArticle = products.find((candidate) => candidate.productType === "article" && candidate.id === product.sourceArticleId && candidate.version === product.sourceArticleVersion);
+      const lineageFields = [product.sourceArticleId, product.sourceArticleVersion, product.sourceArticleHash];
+      const lineageCount = lineageFields.filter(value => value !== undefined).length;
+      if (lineageCount !== 3 && (!v4Pilot || lineageCount !== 0)) return { success: false, issues: [issue("PRODUCT_DIKTAT_LINEAGE_INVALID", "Supply all three Article lineage fields or omit them for a standalone V4 Diktat")] };
+      if (product.visuals && (!v4Pilot || lineageCount)) return { success: false, issues: [issue("DIKTAT_VISUAL_SCOPE_INVALID", "Only a standalone V4 Diktat can declare its own visual registry")] };
+      if (v4Pilot && !lineageCount && containsInteractiveDocument({ units: product.units, contentMarkdown: product.contentMarkdown })) return { success: false, issues: [issue("PRODUCT_EMBEDDED_INTERACTIVE_DOCUMENT_UNBOUND", "Unbound Diktat document")] };
+      for (const visual of product.visuals ?? []) if (visual.kind === "interactive_document") {
+        visibleDocumentHashes.add(visual.documentSha256);
+        visibleDocumentHashes.add(visual.printSha256);
+      }
+      const sourceArticle = products.find((candidate): candidate is Extract<ProductEntity, { productType: "article" }> => candidate.productType === "article" && candidate.id === product.sourceArticleId && candidate.version === product.sourceArticleVersion);
       if (manifest.schemaVersion === "product-bundle.v4") {
-        if (!sourceArticle || sourceArticle.productType !== "article") return { success: false, issues: [issue("DIKTAT_SOURCE_ARTICLE_REQUIRED", "V4 Diktat requires its source Article in the same bundle")] };
-        if (product.units) product.units = prepareAuthoredDiktatVisuals(product.units, sourceArticle.visuals ?? []);
+        if (lineageCount && !sourceArticle) return { success: false, issues: [issue("DIKTAT_SOURCE_ARTICLE_REQUIRED", "V4 Diktat requires its source Article in the same bundle")] };
+        if (product.units) product.units = prepareAuthoredDiktatVisuals(product.units, sourceArticle?.visuals ?? product.visuals ?? []);
         const errors = validateAuthoredDiktat(sourceArticle, product);
         if (errors.length) return { success: false, issues: errors.map((code) => issue(code, `V4 Diktat ${product.id} fails structural coverage`)) };
         if (product.contentMarkdown !== materializeAuthoredDiktat(product.units!)) return { success: false, issues: [issue("DIKTAT_CONTENT_MISMATCH", "V4 Diktat Markdown must match its authored units")] };
       } else if (product.units) return { success: false, issues: [issue("DIKTAT_UNITS_REQUIRE_V4", "Authored Diktat units require Product Bundle V4")] };
+      if (!lineageCount) continue;
       if (sourceArticle && sourceArticle.generationHash !== product.sourceArticleHash) return { success: false, issues: [issue("PRODUCT_DIKTAT_LINEAGE_HASH_MISMATCH", `diktat ${product.id} does not match the referenced Article generation hash`)] };
       const lineageDependency = dependencies.find((dependency) =>
         dependency.upstreamEntityType === "product" &&
@@ -607,6 +637,7 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
       );
       if (!lineageDependency) return { success: false, issues: [issue("PRODUCT_DIKTAT_LINEAGE_DEPENDENCY_MISSING", `diktat ${product.id} must lock its source Article dependency`)] };
     }
+    if ([...hiddenDocumentHashes].some(hash => visibleDocumentHashes.has(hash))) return { success: false, issues: [issue("QUESTION_VISUAL_DISCLOSURE", "Visible and hidden formative documents cannot share assets")] };
     const questionIds = new Set(products.filter((product) => product.productType === "question").map((product) => product.id));
     const solutionQuestionIds = products.filter((product) => product.productType === "solution").map((product) => product.questionId);
     for (const questionId of questionIds) {
@@ -614,19 +645,30 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
     }
     for (const product of products) if (product.productType === "solution" && !questionIds.has(product.questionId)) return { success: false, issues: [issue("PRODUCT_SOLUTION_QUESTION_MISSING", `solution ${product.id} references a missing question`)] };
     const productById = new Map(products.map((product) => [product.id, product]));
+    const cardOwners = new Map<string, string>();
+    if (v4Pilot) for (const product of products) {
+      if (product.productType !== "flashcard_set") continue;
+      if (product.id.startsWith(`${STANDALONE_FLASHCARD_SET_PREFIX}-`)) return { success: false, issues: [issue("PRODUCT_FLASHCARD_SET_ID_RESERVED", "Choose an ID outside the default flashcard collection namespace")] };
+      for (const cardId of product.cards) {
+        const card = productById.get(cardId);
+        if (cardOwners.has(cardId) || (card?.productType === "flashcard" && card.setId && card.setId !== product.id)) return { success: false, issues: [issue("PRODUCT_FLASHCARD_SET_LINK_CONFLICT", `flashcard ${cardId} has conflicting set membership`)] };
+        cardOwners.set(cardId, product.id);
+      }
+    }
     for (const product of products) {
+      if (product.productType === "flashcard_set" && !v4Pilot && !product.cards.length) return { success: false, issues: [issue("PRODUCT_FLASHCARD_LINK_MISSING", `flashcard set ${product.id} requires at least one flashcard`)] };
       if (product.productType === "flashcard_set" && product.cards.some((cardId) => productById.get(cardId)?.productType !== "flashcard")) return { success: false, issues: [issue("PRODUCT_FLASHCARD_LINK_MISSING", `flashcard set ${product.id} references a missing flashcard`)] };
       if (product.productType === "flashcard") {
         const set = product.setId ? productById.get(product.setId) : products.find((candidate) => candidate.productType === "flashcard_set" && candidate.cards.includes(product.id));
+        if (v4Pilot && !product.setId && !set) continue;
         if (!set || set.productType !== "flashcard_set" || !set.cards.includes(product.id)) return { success: false, issues: [issue("PRODUCT_FLASHCARD_SET_MISSING", `flashcard ${product.id} is not linked to a flashcard set`)] };
       }
       if (product.productType === "assessment_blueprint" && product.questionIds.some((questionId) => productById.get(questionId)?.productType !== "question")) return { success: false, issues: [issue("PRODUCT_ASSESSMENT_QUESTION_MISSING", `assessment ${product.id} references a missing question`)] };
     }
-    const v4Pilot = manifest.schemaVersion === "product-bundle.v4";
     const blocked = v4Pilot || dependencies.some((dependency) => dependency.freshness !== "UP_TO_DATE");
     const checksum = computeProductBundleChecksum(manifest, files);
     if (checksum !== manifest.bundleChecksum) return { success: false, issues: [issue("PRODUCT_BUNDLE_CHECKSUM_MISMATCH", "bundle checksum does not match", "manifest.json")] };
-    return { success: true, data: { manifest, products, dependencies, files, checksum, publicationBlocked: blocked, issues: v4Pilot ? [issue("PRODUCT_V4_VERIFICATION_REQUIRED", "V4 pilot drafts require the authored Diktat and trusted render verification gates before publication")] : blocked ? [issue("PRODUCT_DEPENDENCY_NEEDS_REVIEW", "one or more product dependencies need review")] : [] } };
+    return { success: true, data: { manifest, products, dependencies, files, checksum, publicationBlocked: blocked, issues: v4Pilot ? [issue("PRODUCT_V4_VERIFICATION_REQUIRED", "V4 drafts require trusted verification for the products present before publication")] : blocked ? [issue("PRODUCT_DEPENDENCY_NEEDS_REVIEW", "one or more product dependencies need review")] : [] } };
   } catch (error) {
     const issueValue = error instanceof ProductValidationError ? error.issue : error instanceof BundleValidationError ? issue(error.code, error.message, error.path) : issue("PRODUCT_INVALID", error instanceof Error ? error.message : String(error));
     return { success: false, issues: [issueValue] };

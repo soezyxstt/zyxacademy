@@ -184,7 +184,7 @@ export function finalizeProductBundleDraft(original: ValidProductBundle, draft: 
   const articles = new Map(products.filter((product) => product.productType === "article").map((product) => [product.id, product]));
   products = products.map((product) => {
     if (product.productType !== "diktat") return product;
-    const article = articles.get(product.sourceArticleId);
+    const article = product.sourceArticleId ? articles.get(product.sourceArticleId) : undefined;
     const originalArticle = original.products.find(candidate => candidate.id === product.sourceArticleId && candidate.productType === "article");
     const originalVisuals = originalArticle?.productType === "article" ? originalArticle.visuals ?? [] : [];
     const changedVisualIds = new Set((article?.visuals ?? []).filter(visual => hash(visual) !== hash(originalVisuals.find(candidate => candidate.id === visual.id) ?? null)).map(visual => visual.id));

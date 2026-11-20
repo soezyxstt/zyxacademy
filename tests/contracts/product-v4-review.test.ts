@@ -2,19 +2,21 @@ import { expect, test } from "bun:test";
 import { createPostgresTestDb } from "../helpers/postgres";
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
-import { assertProductV4ReviewCardinality, computeProductV4SectionSemanticHash, validateProductV4ReviewContext } from "@/lib/bundle/product-v4-review";
+import { computeProductV4SectionSemanticHash, validateProductV4ReviewContext } from "@/lib/bundle/product-v4-review";
 import { claimProductReviewSnapshot } from "@/lib/bundle/product-review-snapshot";
 import { PEDAGOGIC_CRITERION_IDS, QUALITY_POLICY_VERSION } from "@/lib/materials/quality-policy";
 
 const hash = "a".repeat(64);
-const article = { sections: [{ id: "section", blocks: [{ id: "block", parts: [{ id: "ref", kind: "visual_ref", visualId: "graph" }] }] }], visuals: [{ id: "graph", title: "Current graph" }, { id: "unbound", title: "Other graph" }] } as unknown as Parameters<typeof computeProductV4SectionSemanticHash>[0];
-const valid = () => ({ article, importId: "import", checksum: hash, fingerprint: hash, review: { decision: "approved", expectedRevision: hash, policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: hash, verificationPlanHash: hash, verificationReceiptSignature: hash, sectionDecisions: [{ sectionId: "section", semanticHash: computeProductV4SectionSemanticHash(article, "section"), decision: "approved" as const }], criteria: PEDAGOGIC_CRITERION_IDS.map(criterionId => ({ criterionId, status: "met" as const, contentAnchors: [{ targetType: "section" as const, targetId: "section" }], reason: "Reviewed current content" })) }, verification: { ready: true, planHash: hash, importId: "import", receiptSignature: hash } });
+const article = { id: "article", sections: [{ id: "section", blocks: [{ id: "block", parts: [{ id: "ref", kind: "visual_ref", visualId: "graph" }] }] }], visuals: [{ id: "graph", title: "Current graph" }, { id: "unbound", title: "Other graph" }] } as unknown as Parameters<typeof computeProductV4SectionSemanticHash>[0];
+const valid = () => ({ articles: [article], importId: "import", checksum: hash, fingerprint: hash, review: { decision: "approved", expectedRevision: hash, policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: hash, verificationPlanHash: hash, verificationReceiptSignature: hash, sectionDecisions: [{ sectionId: "section", semanticHash: computeProductV4SectionSemanticHash(article, "section"), decision: "approved" as const }], criteria: PEDAGOGIC_CRITERION_IDS.map(criterionId => ({ criterionId, status: "met" as const, contentAnchors: [{ targetType: "section" as const, targetId: "section" }], reason: "Reviewed current content" })) }, verification: { ready: true, planHash: hash, importId: "import", receiptSignature: hash } });
 
-test("V4 review cannot silently certify multiple articles or diktats", () => {
-  // Cardinality validation only reads productType, so these intentionally partial records isolate it.
-  const products = [{ productType: "article" }, { productType: "article" }] as unknown as Parameters<typeof assertProductV4ReviewCardinality>[0];
-  expect(() => assertProductV4ReviewCardinality(products)).toThrow("SINGLE_ARTICLE_REQUIRED");
-  expect(() => assertProductV4ReviewCardinality([{ productType: "article" }, { productType: "diktat" }, { productType: "diktat" }] as unknown as Parameters<typeof assertProductV4ReviewCardinality>[0])).toThrow("SINGLE_ARTICLE_REQUIRED");
+test("V4 accepts a receipt-bound review without Article sections", () => {
+  const context = valid();
+  context.articles = [];
+  context.review.sectionDecisions = [];
+  expect(validateProductV4ReviewContext(context)).toEqual([]);
+  context.verification.ready = false;
+  expect(() => validateProductV4ReviewContext(context)).toThrow("VERIFICATION_REQUIRED");
 });
 
 test("V4 requires explicit current decisions for every section and all criteria", () => {

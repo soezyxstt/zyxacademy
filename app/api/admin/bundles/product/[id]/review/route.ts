@@ -66,7 +66,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const { id } = await context.params;
   try {
     const bundle = await parseStagedProductBundle(id);
-    if (!bundle.products.some(product => product.productType === "article")) {
+    if (bundle.manifest.schemaVersion !== "product-bundle.v4" && !bundle.products.some(product => product.productType === "article")) {
       if (parsed.data.decision === "changes_requested") throw new Error("PRODUCT_BUNDLE_REVIEW_DECISION_UNSUPPORTED");
       const result = await reviewProductBundle({ importId: id, reviewerId: session.user.id, decision: parsed.data.decision, expectedRevision: parsed.data.expectedRevision, notes: parsed.data.reason || parsed.data.notes });
       return NextResponse.json({ result });

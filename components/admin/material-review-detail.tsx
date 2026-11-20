@@ -2545,7 +2545,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
       const nextPayload = await response.json() as ProductDetailPayload & { error?: string };
       if (!response.ok || !nextPayload.bundle) throw new Error(nextPayload.error || "PRODUCT_BUNDLE_DETAIL_FAILED");
       let context = null;
-      if (nextPayload.draft?.products.some(product => product.productType === "article")) {
+      if (nextPayload.draft && (nextPayload.manifest?.schemaVersion === "product-bundle.v4" || nextPayload.draft.products.some(product => product.productType === "article"))) {
         const reviewResponse = await fetch(`/api/admin/bundles/product/${encodeURIComponent(detailId)}/review`, { cache: "no-store" });
         context = await reviewResponse.json();
         if (!reviewResponse.ok || context.expectedRevision !== nextPayload.bundle.checksum) throw new Error("PRODUCT_BUNDLE_REVIEW_CONTEXT_FAILED");
@@ -2606,7 +2606,8 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
   }, [detailId]);
   useEffect(() => { void load(); }, [load]);
 
-  const articleProducts = draftProducts.filter((product): product is Extract<ProductEntity, { productType: "article" }> => product.productType === "article");
+  const trustedVerification = payload?.manifest?.schemaVersion === "product-bundle.v4";
+  const usesPedagogicReview = trustedVerification || draftProducts.some(product => product.productType === "article");
   const sectionDecisions = reviewContext?.sections.flatMap(section => {
     const review = payload?.blockReviews?.find(item => item.productId === section.articleId && item.targetType === "article_section" && item.targetId === section.sectionId);
     return review && review.status !== "pending" ? [{ productId: section.articleId, sectionId: section.sectionId, semanticHash: section.semanticHash, decision: review.status, ...(review.notes ? { notes: review.notes } : {}) }] : [];
@@ -2634,7 +2635,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
   const hasPendingPdf = pdfUnresolved || Boolean(payload?.pdfStatuses?.some(item => item.revision === payload.bundle.checksum && item.status === "pending"));
   useMaterialReviewNavigation(hasUnsavedReview || contentDirty || sectionReviewState.dirty || Boolean(pdfRequest?.importId === detailId), saving || loading || pdfBusy || sectionReviewState.pending);
   const reviewFieldsDisabled = saving || loading || pdfBusy || pdfUnresolved || pdfRefreshFailed || reviewRefreshConflict || editing || sectionReviewBlocked;
-  const completeReview = !articleProducts.length || Boolean(reviewContext && criteria.length === PEDAGOGIC_CRITERION_IDS.length && sectionDecisions.length === reviewContext.sections.length);
+  const completeReview = !usesPedagogicReview || Boolean(reviewContext && criteria.length === PEDAGOGIC_CRITERION_IDS.length && sectionDecisions.length === reviewContext.sections.length);
   const approveReview = completeReview && criteria.every(item => item.status === "met") && sectionDecisions.every(item => item.decision === "approved") && (!payload?.v4ReviewContext || Boolean(payload.v4ReviewContext.verificationReady && payload.v4ReviewContext.verificationPlanHash && payload.v4ReviewContext.verificationReceiptSignature));
 
   /** Submits a bundle decision with the reviewer's reason when supplied. */
@@ -2791,11 +2792,10 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
   const pdfTarget = activeDraftProduct?.productType === "diktat" ? activeDraftProduct : linkedDiktats.length === 1 ? linkedDiktats[0] : undefined;
   const selectedPdf: PdfEvidenceState = pdfTarget
     ? payload?.pdfStatuses?.find(status => status.productId === pdfTarget.id && status.revision === payload?.bundle.checksum) ?? { status: "missing" as const }
-    : { status: activeDraftProduct?.productType === "article" && linkedDiktats.length === 0 ? "source_missing" as const : diktats.length ? "select_product" as const : payload?.pdfStatus?.status === "source_missing" ? "source_missing" as const : "not_required" as const };
+    : { status: !trustedVerification && activeDraftProduct?.productType === "article" && linkedDiktats.length === 0 ? "source_missing" as const : diktats.length ? "select_product" as const : payload?.pdfStatus?.status === "source_missing" ? "source_missing" as const : "not_required" as const };
   const activePdf: PdfEvidenceState = pdfUnresolved || (pdfRefreshFailed && pdfTarget)
     ? { ...selectedPdf, status: "unknown" }
     : selectedPdf;
-  const trustedVerification = payload?.manifest?.schemaVersion === "product-bundle.v4";
 
   const requestIsCurrent = (scope: PdfRequestScope) => detailIdRef.current === scope.importId && pdfRequestRef.current?.requestId === scope.requestId;
 
@@ -3146,7 +3146,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
 
       {(payload.bundle.status === "draft" || pdfUnresolved) && <BundleReadinessPanel payload={payload} pdf={activePdf} targetId={pdfTarget?.id} onRequestPdf={requestPdf} onRefreshPdf={checkPdfStatus} onRetryRequest={retryPdfRequest} pdfScopeConflict={pdfScopeConflict} onForgetRequest={() => void forgetPdfRequest()} settlementOnly={Boolean(pdfRequest && pdfRequest.revision !== payload.bundle.checksum)} pdfBusy={pdfBusy} pdfUnresolved={Boolean(pdfUnresolved)} retryAllowed={Boolean(pdfRequest && !pdfScopeConflict && !editing && !contentDirty && !sectionReviewBlocked && !reviewRefreshConflict)} pdfRequestFailed={pdfRequestFailed} trustedVerification={trustedVerification} contentEditing={editing || contentDirty} sectionReviewBlocked={sectionReviewBlocked} parentBusy={saving || loading || (!pdfUnresolved && pdfRefreshFailed) || reviewRefreshConflict} />}
 
-      {payload.bundle.status === "draft" && articleProducts.length > 0 ? <section className="space-y-3 border-t border-border pt-4" aria-label={rubricT("title")}>
+      {payload.bundle.status === "draft" && usesPedagogicReview ? <section className="space-y-3 border-t border-border pt-4" aria-label={rubricT("title")}>
         <h3 className="font-heading text-body-base font-bold">{rubricT("title")}</h3>
         <div className="divide-y divide-border">{PEDAGOGIC_CRITERION_IDS.map((id) => {
           const label = rubricT(`criteria.${id}`);
@@ -3229,7 +3229,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                     {t("materials.revisionNotes")}
                   </Button>
                 ) : null}
-                {articleProducts.length > 0 ? (<Button
+                {usesPedagogicReview ? (<Button
                   type="button"
                   size="sm"
                   variant="outline"

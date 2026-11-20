@@ -86,8 +86,8 @@ test("admin status selects the requested Diktat and refuses stale or unbound evi
   const { selectDiktatPdfStatus } = await import("@/lib/bundle/product-diktat-evidence");
   const bundle = { manifest: { schemaVersion: "product-bundle.v3" }, products: [
     { id: "article", productType: "article", version: 1, generationHash: hash },
-    { id: "diktat", productType: "diktat", sourceArticleId: "article", generationHash: hash },
-    { id: "second", productType: "diktat", sourceArticleId: "article", generationHash: "c".repeat(64) },
+    { id: "diktat", productType: "diktat", sourceArticleId: "article", sourceArticleVersion: 1, sourceArticleHash: hash, generationHash: hash },
+    { id: "second", productType: "diktat", sourceArticleId: "article", sourceArticleVersion: 1, sourceArticleHash: hash, generationHash: "c".repeat(64) },
   ] } as any;
   const row = (value: Partial<PdfArtifactEvidence>) => ({ ...base, createdAt: new Date(), updatedAt: new Date(), failureCode: null, ...value }) as any;
   const legacy = row({ id: "legacy", productId: "article" });

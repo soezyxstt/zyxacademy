@@ -9,6 +9,7 @@ import {
   validateProductBundle,
   type ProductEntity,
 } from "@/lib/bundle/product-validator";
+import { compileProductDiktatHtml } from "@/lib/bundle/product-diktat-pdf";
 import { createProductBundleDraft, finalizeProductBundleDraft, refreshDraftDependencies } from "@/lib/bundle/product-draft";
 import { LIMIT_EPSILON_DELTA_GRAPH } from "../fixtures/product-learning/limit-epsilon-delta";
 import { unchangedArticleSectionIds } from "@/lib/bundle/product-review-preservation";
@@ -347,6 +348,30 @@ describe("Product Bundle V3 contract", () => {
 
 
 describe("Product Bundle V4 pilot", () => {
+  it("accepts Diktat, flashcards, and an empty set as independent products", () => {
+    const article = createV3ArticleProduct();
+    const common = { courseId: article.courseId, version: article.version, status: article.status, ideaLinks: article.ideaLinks, sourceRefs: article.sourceRefs, sourceHash: article.sourceHash, generationHash: article.generationHash, creatorId: article.creatorId, curatorId: article.curatorId };
+    const markdown = "Gunakan definisi limit.";
+    const diktat: ProductEntity = { ...common, productType: "diktat", schemaVersion: "diktat.v4", id: "diktat-only", title: "Limit", contentMarkdown: markdown, units: [{ id: "unit", ideaIds: common.ideaLinks.map(link => link.id), parts: [{ id: "text", kind: "markdown", markdown }] }] };
+    const card: ProductEntity = { ...common, ideaLinks: [{ ...common.ideaLinks[0], weight: 1 }], productType: "flashcard", schemaVersion: "flashcard.v1", id: "card-only", front: "Apa arti limit?", back: "Nilai yang didekati.", atomic: true };
+    const set: ProductEntity = { ...common, productType: "flashcard_set", schemaVersion: "flashcard-set.v1", id: "set-only", title: "Limit", cards: [] };
+    for (const product of [diktat, card, set]) {
+      const parsed = validateProductBundle(buildTestBundleBytes([product], "product-bundle.v4"));
+      expect(parsed.success).toBe(true);
+      if (parsed.success) expect(parsed.data.products.map(item => item.id)).toEqual([product.id]);
+      expect(validateProductBundle(buildTestBundleBytes([product], "product-bundle.v3")).success).toBe(false);
+    }
+    expect(compileProductDiktatHtml({ diktat })).toContain(markdown);
+    const first: ProductEntity = { ...diktat, id: "notes", visuals: [{ ...LIMIT_EPSILON_DELTA_GRAPH, id: "plots/limit" }] };
+    const second: ProductEntity = { ...diktat, id: "notes/plots", visuals: [{ ...LIMIT_EPSILON_DELTA_GRAPH, id: "limit" }] };
+    const ambiguous = validateProductBundle(buildTestBundleBytes([first, second], "product-bundle.v4"));
+    expect(ambiguous.success).toBe(false);
+    if (!ambiguous.success) expect(ambiguous.issues[0].code).toBe("PRODUCT_V4_VISUAL_TARGET_CONFLICT");
+    expect(validateProductBundle(buildTestBundleBytes([{ ...diktat, sourceArticleId: "missing" }], "product-bundle.v4")).success).toBe(false);
+    expect(validateProductBundle(buildTestBundleBytes([{ ...card, setId: "missing" }], "product-bundle.v4")).success).toBe(false);
+    expect(validateProductBundle(buildTestBundleBytes([{ ...set, cards: ["missing"] }], "product-bundle.v4")).success).toBe(false);
+  });
+
   it("rejects missing parts, unresolved visuals, and legacy manifests carrying V4", () => {
     const article = createV3ArticleProduct();
     if (article.productType !== "article") throw new Error("expected article");

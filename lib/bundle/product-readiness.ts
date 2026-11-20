@@ -67,6 +67,6 @@ export async function currentPublisherProductReadiness(importId: string, publish
       if (staging?.id !== verification.stagingAuditId || staging.correlationId !== verification.plan.binding.runId || staging.afterSnapshot?.checksum !== row.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
     }
   });
-  return { ...quality, ...publisher, ...(!bundle.products.some(product => product.productType === "article") && row.version !== 5 ? { reviewStatus: publisher.reviewApproved ? "approved" : "missing" } : {}), ...(issues.some(issue => issue.code === "PDF_REQUEST_PROCESSING" || issue.code === "PDF_EVIDENCE_PENDING") ? { pdfEvidenceStatus: "pending" as const } : {}), evaluatedAt: new Date().toISOString(), issues, blockingIssueCodes: issues.filter(issue => issue.severity === "blocking").map(issue => issue.code), publicationReady: quality.publicationReady && !issues.some(issue => issue.severity === "blocking") };
+  return { ...quality, ...publisher, ...(!bundle.products.some(product => product.productType === "article") && row.version !== 4 && row.version !== 5 ? { reviewStatus: publisher.reviewApproved ? "approved" : "missing" } : {}), ...(issues.some(issue => issue.code === "PDF_REQUEST_PROCESSING" || issue.code === "PDF_EVIDENCE_PENDING") ? { pdfEvidenceStatus: "pending" as const } : {}), evaluatedAt: new Date().toISOString(), issues, blockingIssueCodes: issues.filter(issue => issue.severity === "blocking").map(issue => issue.code), publicationReady: quality.publicationReady && !issues.some(issue => issue.severity === "blocking") };
 }
 

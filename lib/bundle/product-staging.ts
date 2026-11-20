@@ -516,7 +516,7 @@ export async function reviewProductBundle(input: { importId: string; reviewerId:
   if (typeof input.expectedRevision !== "string" || !/^[a-f0-9]{64}$/.test(input.expectedRevision) || input.expectedRevision !== row.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
   const reviewedBundle = await parseStagedProductBundle(input.importId);
   if (reviewedBundle.checksum !== row.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
-  if (reviewedBundle.products.some(product => product.productType === "article")) throw new Error("PRODUCT_BUNDLE_PEDAGOGIC_REVIEW_REQUIRED");
+  if (reviewedBundle.manifest.schemaVersion === "product-bundle.v4" || reviewedBundle.products.some(product => product.productType === "article")) throw new Error("PRODUCT_BUNDLE_PEDAGOGIC_REVIEW_REQUIRED");
   if (reviewedBundle.manifest.schemaVersion === "product-bundle.v5") throw new Error("PRODUCT_V5_EXPLICIT_REVIEW_REQUIRED");
   const role = await reviewerRole(row, input.reviewerId);
   const [existing] = row.reviews.filter((review) => review.reviewerId === input.reviewerId);

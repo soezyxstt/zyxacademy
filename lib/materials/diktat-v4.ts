@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { articlePartSchema, type ArticlePart, materializeArticleParts, flattenArticleParts, collectArticlePartIds } from "./article-parts";
+import { articlePartSchema, type ArticlePart, materializeArticleParts, flattenArticleParts, collectArticlePartIds, validateArticlePartReferences } from "./article-parts";
 import { inspectPayloadSecurity, type VisualSpec } from "./visual-contract";
 import { buildDiktatVisualSnapshot } from "./diktat-visual-snapshot";
 
@@ -14,7 +14,7 @@ const printablePartSchema = z.union([
 ]);
 export const authoredDiktatUnitsSchema = z.array(z.object({
   id: text,
-  sourceElementRefs: z.array(text).min(1),
+  sourceElementRefs: z.array(text).optional(),
   ideaIds: z.array(text).min(1),
   parts: z.array(printablePartSchema).min(1),
 }).strict()).min(1).max(100).superRefine((units, ctx) => {
@@ -46,18 +46,41 @@ interface SourceArticle {
   visuals?: readonly VisualSpec[];
 }
 interface AuthoredDiktat {
-  sourceArticleId: string;
-  sourceArticleVersion: number;
-  sourceArticleHash: string;
+  sourceArticleId?: string;
+  sourceArticleVersion?: number;
+  sourceArticleHash?: string;
+  ideaLinks?: readonly { id: string }[];
+  visuals?: readonly VisualSpec[];
   units?: AuthoredDiktatUnits;
 }
 
 /** Checks lineage and structural coverage; semantic preservation still needs review. */
-export function validateAuthoredDiktat(article: SourceArticle, diktat: AuthoredDiktat): string[] {
+export function validateAuthoredDiktat(article: SourceArticle | undefined, diktat: AuthoredDiktat): string[] {
   const errors: string[] = [];
-  if (diktat.sourceArticleId !== article.id || diktat.sourceArticleVersion !== article.version || diktat.sourceArticleHash !== article.generationHash) errors.push("DIKTAT_LINEAGE_MISMATCH");
+  if (article
+    ? diktat.sourceArticleId !== article.id || diktat.sourceArticleVersion !== article.version || diktat.sourceArticleHash !== article.generationHash
+    : diktat.sourceArticleId !== undefined || diktat.sourceArticleVersion !== undefined || diktat.sourceArticleHash !== undefined) errors.push("DIKTAT_LINEAGE_MISMATCH");
   const parsed = authoredDiktatUnitsSchema.safeParse(diktat.units);
   if (!parsed.success) return [...errors, "DIKTAT_UNITS_INVALID"];
+  const units = parsed.data;
+  const visuals = article?.visuals ?? diktat.visuals ?? [];
+  const visualIds = visuals.map(visual => visual.id);
+  if (new Set(visualIds).size !== visualIds.length) errors.push("DIKTAT_VISUAL_ID_DUPLICATE");
+  const ideas = new Set(units.flatMap(unit => unit.ideaIds));
+  const sourceIdeas = new Set((article?.ideaLinks ?? diktat.ideaLinks ?? []).map(link => link.id));
+  if ([...sourceIdeas].some(id => !ideas.has(id)) || [...ideas].some(id => !sourceIdeas.has(id))) errors.push("DIKTAT_IDEA_COVERAGE_INVALID");
+  const summary = units.flatMap(unit => unit.parts);
+  for (const part of flattenArticleParts(summary)) {
+    if (part.kind !== "visual_ref") continue;
+    const visual = visuals.find(visual => visual.id === part.visualId);
+    if (!visual) errors.push("DIKTAT_VISUAL_SOURCE_MISSING");
+    else if ("staticSnapshot" in part && part.staticSnapshot && JSON.stringify(part.staticSnapshot) !== JSON.stringify(buildDiktatVisualSnapshot(visual))) errors.push("DIKTAT_VISUAL_SNAPSHOT_STALE");
+  }
+  if (!article) {
+    if (units.some(unit => unit.sourceElementRefs?.length)) errors.push("DIKTAT_SOURCE_ELEMENT_MISSING");
+    return [...new Set([...errors, ...validateArticlePartReferences(summary, visualIds)])];
+  }
+  if (units.some(unit => !unit.sourceElementRefs?.length)) errors.push("DIKTAT_SOURCE_ELEMENT_MISSING");
   const parts = flattenArticleParts(article.sections.flatMap((section) => section.blocks.flatMap((block) => block.parts ?? [])));
   const source = new Map(parts.map((part) => [part.id, part]));
   if (source.size !== parts.length) errors.push("DIKTAT_SOURCE_PART_ID_DUPLICATE");
@@ -65,19 +88,16 @@ export function validateAuthoredDiktat(article: SourceArticle, diktat: AuthoredD
     if (part.kind === "math_unit") part.relations?.forEach((relation) => source.set(relation.id, part));
     if (part.kind === "worked_example") part.steps.forEach((step) => source.set(step.id, part));
   }
-  const covered = new Set(parsed.data.flatMap((unit) => unit.sourceElementRefs));
+  const covered = new Set(parsed.data.flatMap((unit) => unit.sourceElementRefs ?? []));
   for (const part of parts) {
     if (part.kind === "worked_example") for (const step of part.steps) {
       if (covered.has(part.id) || covered.has(step.id)) flattenArticleParts(step.parts).forEach((child) => covered.add(child.id));
     }
   }
-  const ideas = new Set(parsed.data.flatMap((unit) => unit.ideaIds));
-  const sourceIdeas = new Set(article.ideaLinks.map((link) => link.id));
   if ([...covered].some((id) => !source.has(id))) errors.push("DIKTAT_SOURCE_ELEMENT_MISSING");
-  if ([...sourceIdeas].some((id) => !ideas.has(id)) || [...ideas].some((id) => !sourceIdeas.has(id))) errors.push("DIKTAT_IDEA_COVERAGE_INVALID");
   if (parts.some((part) => part.kind === "math_unit" && !covered.has(part.id) && !part.relations?.every((relation) => covered.has(relation.id)))) errors.push("DIKTAT_FORMULA_COVERAGE_MISSING");
   for (const unit of parsed.data) {
-    const refs = flattenArticleParts(unit.sourceElementRefs.flatMap((id) => source.get(id) ? [source.get(id)!] : []));
+    const refs = flattenArticleParts((unit.sourceElementRefs ?? []).flatMap((id) => source.get(id) ? [source.get(id)!] : []));
     const summaryParts = flattenArticleParts(unit.parts);
     const available = new Set(source.keys());
     for (const part of unit.parts) {
@@ -92,11 +112,7 @@ export function validateAuthoredDiktat(article: SourceArticle, diktat: AuthoredD
     if (refs.some((part) => part?.kind === "math_unit" && (part.conditionsMarkdown || part.relations?.some((relation) => relation.conditionsMarkdown))) && !summaryParts.some((part) => part.kind === "math_unit" && (part.conditionsMarkdown || part.relations?.some((relation) => relation.conditionsMarkdown)))) errors.push("DIKTAT_CONDITIONS_MISSING");
     for (const part of summaryParts) {
       if (part.kind === "visual_ref" && !refs.some((ref) => ref?.kind === "visual_ref" && ref.visualId === part.visualId)) errors.push("DIKTAT_VISUAL_LINEAGE_MISSING");
-      if (part.kind === "visual_ref") {
-        const visual = article.visuals?.find((visual) => visual.id === part.visualId);
-        if (!visual) errors.push("DIKTAT_VISUAL_SOURCE_MISSING");
-        else if ("staticSnapshot" in part && part.staticSnapshot && JSON.stringify(part.staticSnapshot) !== JSON.stringify(buildDiktatVisualSnapshot(visual))) errors.push("DIKTAT_VISUAL_SNAPSHOT_STALE");
-      }
+
     }
   }
   return [...new Set(errors)];

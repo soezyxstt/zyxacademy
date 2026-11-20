@@ -12,7 +12,7 @@ import { sourcePackManifestSchema, validateSourcePack, type SourcePackDocumentAn
 import type { AuthoringCourseOption } from "./catalog";
 
 export const AUTHORING_JOB_SCHEMA_VERSION = "zyx-authoring-job.v1";
-export const authoringProductTypeSchema = z.enum(["article", "diktat", "flashcard", "question", "solution", "assessment_blueprint", "solution_collection"]);
+export const authoringProductTypeSchema = z.enum(["article", "diktat", "flashcard_set", "flashcard", "question", "solution", "assessment_blueprint", "solution_collection"]);
 
 export const authoringSectionMappingSchema = z.object({
   sectionId: z.string().min(1),
@@ -50,7 +50,7 @@ export const authoringJobSchema = z.object({
   if (products.has("solution_collection")) {
     if (products.size !== 1 || job.workflow.productBundleSchemaVersion !== "product-bundle.v5") context.addIssue({ code: "custom", message: "solution_collection requires a standalone product-bundle.v5", path: ["requestedProducts"] });
   } else {
-    if (!products.has("article")) context.addIssue({ code: "custom", message: "article is required", path: ["requestedProducts"] });
+    if (job.workflow.productBundleSchemaVersion === "product-bundle.v3" && !products.has("article")) context.addIssue({ code: "custom", message: "article is required", path: ["requestedProducts"] });
     if (job.workflow.productBundleSchemaVersion === "product-bundle.v5") context.addIssue({ code: "custom", message: "product-bundle.v5 requires solution_collection", path: ["workflow", "productBundleSchemaVersion"] });
   }
   if (products.has("question") !== products.has("solution")) context.addIssue({ code: "custom", message: "question and solution must be requested together", path: ["requestedProducts"] });

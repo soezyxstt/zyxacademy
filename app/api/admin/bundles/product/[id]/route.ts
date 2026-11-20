@@ -1,3 +1,4 @@
+import { productPedagogyFingerprint } from "@/lib/bundle/product-review-gate";
 import { hasAuthoringActor } from "@/lib/auth/authoring-actor";
 import { computeProductV4SectionSemanticHash } from "@/lib/bundle/product-v4-review";
 import { getProductV4VerificationReadiness } from "@/lib/bundle/product-v4-verification-service";
@@ -14,7 +15,7 @@ import { createProductBundleDraft, finalizeProductBundleDraft, type ProductBundl
 import { isStructuredArticleReaderEnabled } from "@/lib/articles/feature";
 import { currentPublisherProductReadiness } from "@/lib/bundle/product-readiness";
 import { hasProductBundleDependencyBlock } from "@/lib/bundle/product-validator";
-import { QUALITY_POLICY_VERSION, computePedagogyContentFingerprint } from "@/lib/materials/quality-policy";
+import { QUALITY_POLICY_VERSION } from "@/lib/materials/quality-policy";
 import { publishedDiktatPreviewBindings, readPublishedDiktatReceipt, selectDiktatPdfStatus } from "@/lib/bundle/product-diktat-evidence";
 import { listProcessingLegacyPdfRequests } from "@/lib/bundle/product-diktat-queue";
 
@@ -97,16 +98,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       qualityEvaluation = { ...qualityEvaluation, pdfEvidenceStatus: "pending", issues, blockingIssueCodes: issues.filter(issue => issue.severity === "blocking").map(issue => issue.code), publicationReady: false };
     }
     // The singular field remains available only when the target is unambiguous.
-    const pdfStatus = pdfStatuses.length === 1 ? pdfStatuses[0] : { status: pdfStatuses.length ? "select_product" : bundle.products.some(product => product.productType === "article") ? "source_missing" : "not_required" };
+    const pdfStatus = pdfStatuses.length === 1 ? pdfStatuses[0] : { status: pdfStatuses.length ? "select_product" : bundle.manifest.schemaVersion !== "product-bundle.v4" && bundle.products.some(product => product.productType === "article") ? "source_missing" : "not_required" };
 
-    const article = bundle.products.find((p) => p.productType === "article");
-    const diktat = bundle.products.find((p) => p.productType === "diktat");
-    const currentFingerprint = article
-      ? computePedagogyContentFingerprint({
-          article: article as unknown as Record<string, unknown>,
-          diktat: diktat ? (diktat as unknown as Record<string, unknown>) : undefined,
-        })
-      : "";
+    const currentFingerprint = productPedagogyFingerprint(bundle.products);
 
     const isFingerprintMatch = Boolean(
       pedagogicReview && pedagogicReview.contentFingerprint === currentFingerprint,
@@ -129,7 +123,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     };
 
     let v4ReviewContext = null;
-    if (bundle.manifest.schemaVersion === "product-bundle.v4" && article?.productType === "article") {
+    if (bundle.manifest.schemaVersion === "product-bundle.v4") {
       const ref = row.validationReport.productV4Verification as { runId?: unknown; planHash?: unknown } | undefined;
       const verification = v4Verification;
       v4ReviewContext = {
@@ -137,7 +131,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         verificationReady: Boolean(verification?.evaluation.ready && ref?.planHash === verification.plan.planHash),
         verificationPlanHash: verification?.plan.planHash ?? null,
         verificationReceiptSignature: getProductV4VerificationReceiptSignature(verification?.receipt),
-        sections: article.sections.map((section) => ({ sectionId: section.id, title: section.title, semanticHash: computeProductV4SectionSemanticHash(article, section.id) })),
+        sections: bundle.products.flatMap(product => product.productType === "article" ? product.sections.map(section => ({ productId: product.id, sectionId: section.id, title: section.title, semanticHash: computeProductV4SectionSemanticHash(product, section.id) })) : []),
       };
     }
     const blockingIssues = qualityEvaluation.issues.filter((i) => i.severity === "blocking");

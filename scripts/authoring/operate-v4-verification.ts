@@ -118,6 +118,11 @@ async function main() {
         const pdf = fresh?.validationReport.productV4PdfEvidence as { attemptId?: unknown; planHash?: unknown; receiptSignature?: unknown } | undefined;
         if (fresh?.checksum !== revision) throw new Error("V4_OPERATION_REVISION_CHANGED");
         const receipt = result.receipt as { signature?: unknown } | null;
+        const requiresPdf = result.plan.requirements.some(check => check.layer === "print");
+        if (result.evaluation.ready && !requiresPdf) {
+          console.log(JSON.stringify({ verificationComplete: true }));
+          return;
+        }
         if (result.evaluation.ready && pdf?.planHash === result.plan.planHash && pdf?.receiptSignature === receipt?.signature && "attemptId" in result && pdf?.attemptId === result.attemptId) {
           console.log(JSON.stringify({ verificationComplete: true, pdfEvidencePersisted: true }));
           return;

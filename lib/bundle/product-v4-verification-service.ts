@@ -59,18 +59,18 @@ export async function createProductV4ApplicationService(execute?: ProductV4Verif
       });
       if (!checked) return false;
       const { row, rows } = checked;
-      const { resolveProductV4PdfBinding } = await import("./product-pdf-selection");
+      const { diktatPdfLineage, resolveProductV4PdfBinding } = await import("./product-pdf-selection");
       const { evaluateProductBundleReviewAndPdfGate } = await import("./product-review-gate");
       const diktats = snapshot.bundle.products.filter(product => product.productType === "diktat");
-      if (!diktats.length) return false;
       return diktats.every(diktat => {
         if (diktat.productType !== "diktat") return false;
-        const article = snapshot.bundle.products.find(product => product.productType === "article" && product.id === diktat.sourceArticleId);
-        if (!article || article.productType !== "article") return false;
         const v4PdfBinding = resolveProductV4PdfBinding({ importId: snapshot.importId, diktatId: diktat.id, validationReport: row.validationReport, verification: { plan, attemptId, stagingAuditId: snapshot.stagingAuditId, receipt, evaluation: { ready: true } } });
+        const lineage = diktatPdfLineage(diktat);
         return Boolean(evaluateProductBundleReviewAndPdfGate({
-          imporBundleId: snapshot.importId, hasArticle: true, articleId: article.id, diktatId: diktat.id,
-          contentFingerprint: "", articleVersion: article.version, articleGenerationHash: article.generationHash,
+          imporBundleId: snapshot.importId, hasArticle: Boolean(diktat.sourceArticleId),
+          requiresPedagogicReview: true, requiresPdf: true,
+          articleId: lineage.articleId, diktatId: diktat.id, contentFingerprint: "",
+          articleVersion: lineage.articleVersion, articleGenerationHash: lineage.articleHash,
           diktatGenerationHash: diktat.generationHash, v4PdfBinding,
           pdfEvidenceRows: rows as unknown as import("@/lib/materials/pdf-artifact-contract").PdfArtifactEvidence[],
         }).selectedPdfEvidence);

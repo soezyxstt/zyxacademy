@@ -90,7 +90,7 @@ export const PRODUCT_V4_RUNTIME_FILES = [
 ] as const;
 
 function figureSpecs(bundle: Bundle): SourceFigureVisualSpec[] {
-  return bundle.products.flatMap(product => product.productType === "article" ? (product.visuals ?? []).filter((visual): visual is SourceFigureVisualSpec => visual.kind === "source_figure") : []);
+  return bundle.products.flatMap(product => product.productType === "article" || product.productType === "diktat" ? (product.visuals ?? []).filter((visual): visual is SourceFigureVisualSpec => visual.kind === "source_figure") : []);
 }
 
 async function verifiedFigures(bundle: Bundle, ports: FigurePorts) {
@@ -161,7 +161,7 @@ export async function loadProductV4StaticFigureAssets(bundle: Bundle, ports?: Fi
     if (!variant) throw new Error("PRODUCT_V4_FIGURE_PRINT_VARIANT_REQUIRED");
     assets[figure.metadata.assetId] = { bytes: variant.bytes, mimeType: "image/png", sourceChecksum: figure.metadata.sourceChecksum, attribution: figure.metadata.attribution };
   }
-  const documents = includeDocumentPrint ? bundle.products.flatMap(product => product.productType === "article" ? (product.visuals ?? []).filter(visual => visual.kind === "interactive_document") : []) : [];
+  const documents = includeDocumentPrint ? bundle.products.flatMap(product => product.productType === "article" || product.productType === "diktat" ? (product.visuals ?? []).filter(visual => visual.kind === "interactive_document") : []) : [];
   if (documents.length) {
     const load = read ?? readAdmittedDocumentAsset;
     for (const spec of documents) {
