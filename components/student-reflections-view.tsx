@@ -8,7 +8,11 @@ import { TranslatedText } from "@/components/i18n/translated-text";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import type { weeklyReflections } from "@/db/schema";
 import { daysFrom, normalizeDate } from "@/lib/date-utils";
-export function StudentReflectionsView({ href = (path: string) => path,  reflections }: { href?: (path: string) => string;  reflections: Pick<typeof weeklyReflections.$inferSelect, "id" | "weekStart" | "payload">[] }) {
+type Reflection = Pick<typeof weeklyReflections.$inferSelect, "id" | "weekStart"> & {
+  payload: Pick<typeof weeklyReflections.$inferSelect.payload, "completed" | "streak"> & { masteryGrowth?: number };
+};
+
+export function StudentReflectionsView({ href = (path: string) => path,  reflections }: { href?: (path: string) => string;  reflections: Reflection[] }) {
 
   return (
     <ApplicationPage spacing="space-y-(--section-gap)">
@@ -40,7 +44,7 @@ export function StudentReflectionsView({ href = (path: string) => path,  reflect
                       <span><TranslatedText namespace="student" messageKey="reflections.streak" values={{ count: streak.currentStreak }} /></span>
                     </div>
                   </div>
-                  <div className="shrink-0 text-right">
+                  {masteryGrowth !== undefined && <div className="shrink-0 text-right">
                     {masteryGrowth > 0 ? (
                       <span className="font-heading text-body-base font-bold tabular-nums text-status-success">
                         +{masteryGrowth}
@@ -53,7 +57,7 @@ export function StudentReflectionsView({ href = (path: string) => path,  reflect
                     <span className="block text-body-2xs uppercase font-semibold tracking-wider text-muted-foreground mt-0.5">
                       <TranslatedText namespace="student" messageKey="reflections.mastery" />
                     </span>
-                  </div>
+                  </div>}
                 </div>
               );
             })}

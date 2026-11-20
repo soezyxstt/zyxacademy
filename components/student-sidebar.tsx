@@ -197,7 +197,7 @@ function StudentSidebarContent({
             { href: `${base}/jadwal`, icon: CalendarRange, label: t("navigation.pkaSchedule") },
             { href: `${base}/simulasi`, icon: ClipboardList, label: t("navigation.simulation") },
             { href: `${base}/laporan`, icon: BarChart3, label: t("navigation.diagnosticReport") },
-            ...(demo ? [] : [{ href: `${base}/discussions`, icon: MessageSquareText, label: tDiscussion("discussion"), badge: <DiscussionCountBadge courseId={activeCourseId} /> }]),
+            { href: `${base}/discussions`, icon: MessageSquareText, label: tDiscussion("discussion"), badge: demo ? undefined : <DiscussionCountBadge courseId={activeCourseId} /> },
           ]
         : [
             { href: base, icon: LayoutDashboard, label: t("navigation.summary"), exact: true },
@@ -205,7 +205,7 @@ function StudentSidebarContent({
             { href: `${base}/video`, icon: Video, label: t("navigation.video") },
             { href: `${base}/playground`, icon: Code2, label: "Playground" },
             { href: `${base}/quiz`, icon: ClipboardList, label: t("navigation.quiz") },
-            ...(demo ? [] : [{ href: `${base}/discussions`, icon: MessageSquareText, label: tDiscussion("discussion"), badge: <DiscussionCountBadge courseId={activeCourseId} /> }]),
+            { href: `${base}/discussions`, icon: MessageSquareText, label: tDiscussion("discussion"), badge: demo ? undefined : <DiscussionCountBadge courseId={activeCourseId} /> },
             {
               href: `/dashboard/schedule?course=${activeCourseId}`,
               icon: CalendarRange,
@@ -373,9 +373,9 @@ function StudentSidebarContent({
           collapsed={c}
         />
 
-        {!demo && <NavItem href={href("/dashboard/discussions")} icon={MessageSquareText} label={tDiscussion("discussion")}
+        <NavItem href={href("/dashboard/discussions")} icon={MessageSquareText} label={tDiscussion("discussion")}
           active={pathname === "/dashboard/discussions" || pathname.startsWith("/dashboard/discussions/")}
-          badge={<DiscussionCountBadge />} collapsed={c} />}
+          badge={demo ? undefined : <DiscussionCountBadge />} collapsed={c} />
 
         {(userRole === "teacher" || userRole === "tutor" || userRole === "admin") && (
           <NavItem
@@ -403,7 +403,7 @@ function StudentSidebarContent({
           collapsed={c}
         />
 
-        {!demo && userRole === "student" && <NavItem href="/pet" icon={PawPrint} label="Pet" active={pathname === "/pet"} collapsed={c} />}
+        {(demo || userRole === "student") && <NavItem href={href("/pet")} icon={PawPrint} label="Pet" active={pathname === "/pet"} collapsed={c} />}
 
         <NavItem
           href={href("/leaderboard")}

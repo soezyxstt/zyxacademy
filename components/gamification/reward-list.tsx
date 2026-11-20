@@ -18,7 +18,7 @@ import type { CosmeticSlot, GamificationReward } from "@/lib/gamification/contra
 
 const slots: CosmeticSlot[] = ["frame", "title", "theme", "zyra_skin", "zyra_avatar", "pet_action", "pet_suit"];
 
-export function RewardList({ rewards, balance, appearance, onChangeReward, missionsHref = "/achievements?tab=missions" }: { rewards: GamificationReward[]; balance: number; appearance: StudentAvatarProps; onChangeReward?: (id: string, action: "buy" | "equip", slot: CosmeticSlot) => Promise<{ ok: boolean }>; missionsHref?: string }) {
+export function RewardList({ rewards, balance, appearance, onChangeReward, petHref = "/pet", missionsHref = "/achievements?tab=missions" }: { rewards: GamificationReward[]; balance: number; appearance: StudentAvatarProps; onChangeReward?: (id: string, action: "buy" | "equip", slot: CosmeticSlot) => Promise<{ ok: boolean }>; missionsHref?: string; petHref?: string }) {
   const t = useTranslations("student");
   const { locale } = useAppLocale();
   const number = new Intl.NumberFormat(locale);
@@ -44,7 +44,7 @@ export function RewardList({ rewards, balance, appearance, onChangeReward, missi
   return <div className="space-y-4">
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2"><p className="text-body-sm font-semibold">{t("achievementPage.balance")}: {number.format(balance)} LP</p><TooltipProvider><Tooltip><TooltipTrigger asChild><Button asChild variant="outline" size="icon"><Link href={missionsHref} aria-label={t("achievementPage.goToMissions")}><Plus className="size-4" /></Link></Button></TooltipTrigger><TooltipContent>{t("achievementPage.goToMissions")}</TooltipContent></Tooltip></TooltipProvider>
       <CatPractice rewards={rewards} />
-      {!onChangeReward && <Button asChild variant="outline"><Link href="/pet">{t("petStudio.open")}</Link></Button>}
+      <Button asChild variant="outline"><Link href={petHref}>{t("petStudio.open")}</Link></Button>
     </div>
     {error && <p role="alert" className="text-body-sm text-destructive">{t("achievementPage.error")}</p>}
     {success && <p role="status" className="text-body-sm">{t("achievementPage.success")}</p>}
