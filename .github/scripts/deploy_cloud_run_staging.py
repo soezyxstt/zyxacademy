@@ -263,12 +263,18 @@ def registry_digest(tag):
     return f"{IMAGE}@{digest}"
 
 
+def candidate_tag(run_id, attempt):
+    tag = f"c-{run_id}-{attempt}"
+    require(len(tag) + len(SERVICE) <= 46, "Cloud Run traffic tag and service name exceed 46 characters.")
+    return tag
+
+
 def candidate(config, before):
     sha = os.environ["GITHUB_SHA"]
     run_id, attempt = os.environ["GITHUB_RUN_ID"], os.environ["GITHUB_RUN_ATTEMPT"]
     revision = f"{SERVICE}-r{run_id}a{attempt}"
     require(REVISION.fullmatch(revision), "Invalid GitHub run identity.")
-    tag = f"candidate-{run_id}-{attempt}"
+    tag = candidate_tag(run_id, attempt)
     repository = json.loads(gcloud("artifacts", "repositories", "describe", REPOSITORY,
                                    "--location", REGION, "--format=json"))
     require(repository["format"] == "DOCKER", "Cloud Run staging requires a Docker repository.")
@@ -310,7 +316,7 @@ def change_traffic(config, before, operation):
     revision = os.environ["CLOUD_RUN_REVISION"]
     identity = REVISION.fullmatch(revision)
     run_id, attempt = identity.groups()
-    tag = f"candidate-{run_id}-{attempt}" if operation == "promote" else "rollback"
+    tag = candidate_tag(run_id, attempt) if operation == "promote" else "rollback"
     data, image = check_revision(revision)
     if operation == "promote":
         require(data["metadata"]["labels"][SOURCE_LABEL] == os.environ["GITHUB_SHA"],
