@@ -114,7 +114,11 @@ describe("channel mention search", () => {
   const compiled = new PgDialect().sqlToQuery(condition as never);
   expect(compiled.params).toContain("%\\%\\_%");
   expect(compiled.sql).toContain("escape '\\'");
-  expect(await searchChannelMentions("a", "course", "x")).toEqual([]);
+  for (const query of ["", "A"]) {
+   await searchChannelMentions("a", "course", query);
+   expect(new PgDialect().sqlToQuery(condition as never).params).toContain(`%${query}%`);
+   expect(candidateLimit).toBe(101);
+  }
  });
  test("PKA registration is filtered before the mention limit", async () => {
   await searchChannelMentions("a", "pka", "An");

@@ -6249,7 +6249,7 @@ export const gamificationAccounts = pgTable('gamification_accounts', {
 export const gamificationProfiles = pgTable('gamification_profiles', {
  userId: text('user_id').primaryKey().references(() => user.id, { onDelete: 'cascade' }),
  publicId: text('public_id').notNull().unique(), displayName: text('display_name'),
- visibility: text('visibility').$type<'private' | 'members'>().notNull().default('private'),
+ visibility: text('visibility').$type<'private' | 'members'>().notNull().default('members'),
  showMajor: boolean('show_major').notNull().default(false), showFaculty: boolean('show_faculty').notNull().default(false),
  allowFollows: boolean('allow_follows').notNull().default(false), leaderboardOptIn: boolean('leaderboard_opt_in').notNull().default(false),
  avatarMode: text('avatar_mode').$type<'photo' | 'badge'>().notNull().default('photo'), badgeTier: bigint('badge_tier', { mode: 'number' }),
@@ -6465,6 +6465,7 @@ export const discussionMessages = pgTable("discussion_messages", {
  replyToId: text("reply_to_id").references((): AnyPgColumn => discussionMessages.id),
  forwardedFromId: text("forwarded_from_id").references((): AnyPgColumn => discussionMessages.id),
  skinId: text("skin_id").references(() => gamificationCosmetics.id),
+ mentionHandles: jsonb("mention_handles").$type<string[]>(),
  mentionIds: jsonb("mention_ids").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
  askZyra: boolean("ask_zyra").notNull().default(false),
  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

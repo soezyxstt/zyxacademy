@@ -10,7 +10,7 @@ const channel = { id: "destination", kind: "course", courseId: "course", legacyC
 const global = { id: "global", kind: "global", courseId: null, legacyCourseId: null };
 const inaccessible = { id: "private", kind: "technical", courseId: null, legacyCourseId: null };
 const common = { threadId: "thread", authorId: "alice", kind: "human", body: "Body", createdAt: at, editedAt: null,
- revision: 1, replyToId: null, skinId: null };
+ revision: 1, mentionIds: [], mentionHandles: null, replyToId: null, skinId: null };
 const messages = [
  { ...common, id: "normal", messageType: "answer", seq: 1, deletedAt: null, forwardedFromId: null },
  { ...common, id: "deleted", messageType: "answer", seq: 2, deletedAt: at, forwardedFromId: null },

@@ -25,6 +25,17 @@ describe("discussion Markdown safety", () => {
     expect(html).toContain("katex");
   });
 
+  test("resolves mentions in prose while preserving code, links and email addresses", () => {
+    const mentions: string[] = [];
+    const html = renderToStaticMarkup(<DiscussionMarkdown
+      content={"**@Raka_Pratama**, @Zyra? Coba `@contoh`, nama@example.org dan [@tautan](/courses)."}
+      renderMention={handle => { mentions.push(handle); return <button>{handle.replaceAll("_", " ")}</button>; }}
+    />);
+    expect(mentions).toEqual(["Raka_Pratama", "Zyra"]);
+    expect(html).toContain("<button>Raka Pratama</button>");
+    expect(html).toContain("nama@example.org");
+  });
+
   test("untrusted math cannot create links or HTML attributes", () => {
     const html = renderToStaticMarkup(<DiscussionMarkdown content={'$\\href{javascript:alert(1)}{click}$ $\\htmlClass{owned}{x}$'} />);
     expect(html).not.toContain('href="javascript:');

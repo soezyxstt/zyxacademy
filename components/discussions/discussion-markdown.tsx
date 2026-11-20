@@ -14,10 +14,12 @@ function MathValue({ value, display = false }: { value: string; display?: boolea
   return <span className="inline-block max-w-full overflow-x-auto align-middle" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-function inline(text: string, mathBudget: { remaining: number }, depth = 0): ReactNode[] {
+type MentionRenderer = (handle: string) => ReactNode;
+
+function inline(text: string, mathBudget: { remaining: number; renderMention?: MentionRenderer }, depth = 0): ReactNode[] {
   if (depth >= 4) return [text];
   const nodes: ReactNode[] = [];
-  const pattern = /!\[([^\]\n]{0,500})\]\([^\n)]{0,2048}\)|\[([^\]\n]{1,500})\]\(([^\s()]{1,2048})\)|\*\*((?:\$[^$\n]+\$|[^*$\n])+)\*\*|\*((?:\$[^$\n]+\$|[^*$\n])+)\*|`([^`\n]+)`|\$([^$\n]+)\$/g;
+  const pattern = /!\[([^\]\n]{0,500})\]\([^\n)]{0,2048}\)|\[([^\]\n]{1,500})\]\(([^\s()]{1,2048})\)|\*\*((?:\$[^$\n]+\$|[^*$\n])+)\*\*|\*((?:\$[^$\n]+\$|[^*$\n])+)\*|`([^`\n]+)`|\$([^$\n]+)\$|(?<![\p{L}\p{N}_@])@([\p{L}\p{N}_](?:[\p{L}\p{N}_.-]*[\p{L}\p{N}_])?)/gu;
   let offset = 0;
   for (const match of text.matchAll(pattern)) {
     const index = match.index;
@@ -30,16 +32,17 @@ function inline(text: string, mathBudget: { remaining: number }, depth = 0): Rea
     else if (match[5] !== undefined) nodes.push(<em key={index}>{inline(match[5], mathBudget, depth + 1)}</em>);
     else if (match[6] !== undefined) nodes.push(<code key={index} className="rounded bg-muted px-1 font-mono">{match[6]}</code>);
     else if (match[7] !== undefined) nodes.push(mathBudget.remaining-- > 0 ? <MathValue key={index} value={match[7]} /> : match[0]);
+    else if (match[8]) nodes.push(<span key={index}>{mathBudget.renderMention?.(match[8]) ?? match[0]}</span>);
     offset = index + match[0].length;
   }
   nodes.push(text.slice(offset));
   return nodes;
 }
 
-export const DiscussionMarkdown = memo(function DiscussionMarkdown({ content }: { content: string }) {
+export const DiscussionMarkdown = memo(function DiscussionMarkdown({ content, renderMention }: { content: string; renderMention?: MentionRenderer }) {
   if (content.length > 20_000) return <p className="whitespace-pre-wrap break-words text-body-sm leading-relaxed">{content}</p>;
   const blocks = content.split(/(```[\s\S]*?```|\$\$[\s\S]*?\$\$)/g);
-  const mathBudget = { remaining: 30 };
+  const mathBudget = { remaining: 30, renderMention };
   return <div className="min-w-0 space-y-2 break-words text-body-sm leading-relaxed">
     {blocks.map((block, index) => {
       if (block.startsWith("```") && block.endsWith("```")) {
